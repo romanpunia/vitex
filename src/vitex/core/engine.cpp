@@ -123,6 +123,17 @@ namespace Vitex
 			CubicViewProjection[5] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeZ, Position) * Projection;
 		}
 
+		ContentException::ContentException() : Core::SystemException()
+		{
+		}
+		ContentException::ContentException(const Core::String& Message) : Core::SystemException(Message)
+		{
+		}
+		const char* ContentException::type() const noexcept
+		{
+			return "content_error";
+		}
+
 		void Series::Pack(Core::Schema* V, bool Value)
 		{
 			VI_ASSERT(V != nullptr, "schema should be set");
@@ -2011,17 +2022,17 @@ namespace Vitex
 		void Processor::Free(AssetCache* Asset)
 		{
 		}
-		void* Processor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+		ExpectsContent<void*> Processor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 		{
-			return nullptr;
+			return ContentException("not implemented");
 		}
-		void* Processor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+		ExpectsContent<void*> Processor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 		{
-			return nullptr;
+			return ContentException("not implemented");
 		}
-		bool Processor::Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args)
+		ExpectsContent<void> Processor::Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args)
 		{
-			return false;
+			return ContentException("not implemented");
 		}
 		ContentManager* Processor::GetContent() const
 		{
@@ -2456,24 +2467,24 @@ namespace Vitex
 		{
 			VI_ASSERT(Device != nullptr, "graphics device should be set");
 			Graphics::Shader::Desc F = Graphics::Shader::Desc();
-			if (Device->GetSection("materials/material_basic_geometry", &F))
-				Binding.BasicEffect = Device->CreateShader(F);
+			if (Device->GetSectionData("materials/material_basic_geometry", &F))
+				Binding.BasicEffect = *Device->CreateShader(F);
 
 			Graphics::ElementBuffer::Desc Desc;
 			Desc.BindFlags = Graphics::ResourceBind::Constant_Buffer;
 			Desc.ElementCount = 1;
 			Desc.ElementWidth = sizeof(Animation);
-			Binding.Buffers[(size_t)RenderBufferType::Animation] = Device->CreateElementBuffer(Desc);
+			Binding.Buffers[(size_t)RenderBufferType::Animation] = *Device->CreateElementBuffer(Desc);
 			Binding.Pointers[(size_t)RenderBufferType::Animation] = &Animation;
 			Binding.Sizes[(size_t)RenderBufferType::Animation] = sizeof(Animation);
 
 			Desc.ElementWidth = sizeof(Render);
-			Binding.Buffers[(size_t)RenderBufferType::Render] = Device->CreateElementBuffer(Desc);
+			Binding.Buffers[(size_t)RenderBufferType::Render] = *Device->CreateElementBuffer(Desc);
 			Binding.Pointers[(size_t)RenderBufferType::Render] = &Render;
 			Binding.Sizes[(size_t)RenderBufferType::Render] = sizeof(Render);
 
 			Desc.ElementWidth = sizeof(View);
-			Binding.Buffers[(size_t)RenderBufferType::View] = Device->CreateElementBuffer(Desc);
+			Binding.Buffers[(size_t)RenderBufferType::View] = *Device->CreateElementBuffer(Desc);
 			Binding.Pointers[(size_t)RenderBufferType::View] = &View;
 			Binding.Sizes[(size_t)RenderBufferType::View] = sizeof(View);
 
@@ -2811,7 +2822,7 @@ namespace Vitex
 
 			return false;
 		}
-		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
+		Graphics::ExpectsGraphics<void> RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 		{
 			VI_ASSERT(Result != nullptr, "result should be set");
 			VI_ASSERT(!Name.empty(), "buffers must have a name");
@@ -2827,9 +2838,9 @@ namespace Vitex
 			F.ElementWidth = (unsigned int)ElementSize;
 			F.ElementCount = (unsigned int)ElementsCount;
 
-			Graphics::ElementBuffer* VertexBuffer = Device->CreateElementBuffer(F);
+			auto VertexBuffer = Device->CreateElementBuffer(F);
 			if (!VertexBuffer)
-				return false;
+				return VertexBuffer.Error();
 
 			F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Write;
@@ -2838,35 +2849,36 @@ namespace Vitex
 			F.ElementWidth = (unsigned int)sizeof(int);
 			F.ElementCount = (unsigned int)ElementsCount * 3;
 
-			Graphics::ElementBuffer* IndexBuffer = Device->CreateElementBuffer(F);
+			auto IndexBuffer = Device->CreateElementBuffer(F);
 			if (!IndexBuffer)
 			{
 				VI_RELEASE(VertexBuffer);
-				return false;
+				return IndexBuffer.Error();
 			}
 
-			Result[(size_t)BufferType::Index] = IndexBuffer;
-			Result[(size_t)BufferType::Vertex] = VertexBuffer;
-
-			return true;
+			Result[(size_t)BufferType::Index] = *IndexBuffer;
+			Result[(size_t)BufferType::Vertex] = *VertexBuffer;
+			return Core::Expectation::Met;
 		}
-		Graphics::Shader* RenderSystem::CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize)
+		Graphics::ExpectsGraphics<Graphics::Shader*> RenderSystem::CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
 			VI_ASSERT(!Desc.Filename.empty(), "shader must have a name");
 			ShaderCache* Cache = Scene->GetShaders();
 			if (Cache != nullptr)
 				return Cache->Compile(Desc.Filename, Desc, BufferSize);
 
-			Graphics::Shader* Shader = Device->CreateShader(Desc);
-			if (BufferSize > 0)
-				Device->UpdateBufferSize(Shader, BufferSize);
+			auto Shader = Device->CreateShader(Desc);
+			if (!Shader)
+				return Shader;
+			else if (BufferSize > 0)
+				Device->UpdateBufferSize(*Shader, BufferSize);
 
 			return Shader;
 		}
-		Graphics::Shader* RenderSystem::CompileShader(const Core::String& SectionName, size_t BufferSize)
+		Graphics::ExpectsGraphics<Graphics::Shader*> RenderSystem::CompileShader(const Core::String& SectionName, size_t BufferSize)
 		{
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
-			if (!Device->GetSection(SectionName, &I))
+			if (!Device->GetSectionData(SectionName, &I))
 				return nullptr;
 
 			return CompileShader(I, BufferSize);
@@ -2970,26 +2982,26 @@ namespace Vitex
 		{
 			ClearCache();
 		}
-		Graphics::Shader* ShaderCache::Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize)
+		Graphics::ExpectsGraphics<Graphics::Shader*> ShaderCache::Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
 			Graphics::Shader* Shader = Get(Name);
 			if (Shader != nullptr)
 				return Shader;
 
-			Shader = Device->CreateShader(Desc);
-			if (!Shader->IsValid())
+			auto Resource = Device->CreateShader(Desc);
+			if (!Resource || !Resource->IsValid())
 			{
-				VI_RELEASE(Shader);
+				VI_RELEASE(Resource);
 				return nullptr;
 			}
 			else if (BufferSize > 0)
-				Device->UpdateBufferSize(Shader, BufferSize);
+				Device->UpdateBufferSize(*Resource, BufferSize);
 
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			SCache& Result = Cache[Name];
-			Result.Shader = Shader;
+			Result.Shader = *Resource;
 			Result.Count = 1;
-			return Shader;
+			return *Resource;
 		}
 		Graphics::Shader* ShaderCache::Get(const Core::String& Name)
 		{
@@ -3062,11 +3074,11 @@ namespace Vitex
 		{
 			ClearCache();
 		}
-		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
+		Graphics::ExpectsGraphics<void> PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 		{
 			VI_ASSERT(Results != nullptr, "results should be set");
 			if (Get(Results, Name))
-				return false;
+				return Core::Expectation::Met;
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Write;
@@ -3075,9 +3087,9 @@ namespace Vitex
 			F.ElementWidth = (unsigned int)ElementSize;
 			F.ElementCount = (unsigned int)ElementsCount;
 
-			Graphics::ElementBuffer* VertexBuffer = Device->CreateElementBuffer(F);
+			auto VertexBuffer = Device->CreateElementBuffer(F);
 			if (!VertexBuffer)
-				return false;
+				return VertexBuffer.Error();
 
 			F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Write;
@@ -3086,19 +3098,19 @@ namespace Vitex
 			F.ElementWidth = (unsigned int)sizeof(int);
 			F.ElementCount = (unsigned int)ElementsCount * 3;
 
-			Graphics::ElementBuffer* IndexBuffer = Device->CreateElementBuffer(F);
+			auto IndexBuffer = Device->CreateElementBuffer(F);
 			if (!IndexBuffer)
 			{
 				VI_RELEASE(VertexBuffer);
-				return false;
+				return IndexBuffer.Error();
 			}
 
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			SCache& Result = Cache[Name];
-			Result.Buffers[(size_t)BufferType::Index] = Results[(size_t)BufferType::Index] = IndexBuffer;
-			Result.Buffers[(size_t)BufferType::Vertex] = Results[(size_t)BufferType::Vertex] = VertexBuffer;
+			Result.Buffers[(size_t)BufferType::Index] = Results[(size_t)BufferType::Index] = *IndexBuffer;
+			Result.Buffers[(size_t)BufferType::Vertex] = Results[(size_t)BufferType::Vertex] = *VertexBuffer;
 			Result.Count = 1;
-			return true;
+			return Core::Expectation::Met;
 		}
 		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const Core::String& Name)
 		{
@@ -3171,7 +3183,7 @@ namespace Vitex
 				IndexBuffer->AddRef();
 
 			BoxModel = new Model();
-			BoxModel->Meshes.push_back(Device->CreateMeshBuffer(VertexBuffer, IndexBuffer));
+			BoxModel->Meshes.push_back(*Device->CreateMeshBuffer(VertexBuffer, IndexBuffer));
 			return BoxModel;
 		}
 		SkinModel* PrimitiveCache::GetSkinBoxModel()
@@ -3192,7 +3204,7 @@ namespace Vitex
 				IndexBuffer->AddRef();
 
 			SkinBoxModel = new SkinModel();
-			SkinBoxModel->Meshes.push_back(Device->CreateSkinMeshBuffer(VertexBuffer, IndexBuffer));
+			SkinBoxModel->Meshes.push_back(*Device->CreateSkinMeshBuffer(VertexBuffer, IndexBuffer));
 			return SkinBoxModel;
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetQuad()
@@ -3224,7 +3236,7 @@ namespace Vitex
 			if (Quad != nullptr)
 				return Quad;
 
-			Quad = Device->CreateElementBuffer(F);
+			Quad = *Device->CreateElementBuffer(F);
 			return Quad;
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSphere(BufferType Type)
@@ -3264,7 +3276,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Sphere[(size_t)BufferType::Index])
-					Sphere[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
+					Sphere[(size_t)BufferType::Index] = *Device->CreateElementBuffer(F);
 
 				return Sphere[(size_t)BufferType::Index];
 			}
@@ -3301,7 +3313,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Sphere[(size_t)BufferType::Vertex])
-					Sphere[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
+					Sphere[(size_t)BufferType::Vertex] = *Device->CreateElementBuffer(F);
 
 				return Sphere[(size_t)BufferType::Vertex];
 			}
@@ -3339,7 +3351,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Cube[(size_t)BufferType::Index])
-					Cube[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
+					Cube[(size_t)BufferType::Index] = *Device->CreateElementBuffer(F);
 
 				return Cube[(size_t)BufferType::Index];
 			}
@@ -3384,7 +3396,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Cube[(size_t)BufferType::Vertex])
-					Cube[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
+					Cube[(size_t)BufferType::Vertex] = *Device->CreateElementBuffer(F);
 
 				return Cube[(size_t)BufferType::Vertex];
 			}
@@ -3422,7 +3434,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Box[(size_t)BufferType::Index])
-					Box[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
+					Box[(size_t)BufferType::Index] = *Device->CreateElementBuffer(F);
 
 				return Box[(size_t)BufferType::Index];
 			}
@@ -3467,7 +3479,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Box[(size_t)BufferType::Vertex])
-					Box[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
+					Box[(size_t)BufferType::Vertex] = *Device->CreateElementBuffer(F);
 
 				return Box[(size_t)BufferType::Vertex];
 			}
@@ -3505,7 +3517,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!SkinBox[(size_t)BufferType::Index])
-					SkinBox[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
+					SkinBox[(size_t)BufferType::Index] = *Device->CreateElementBuffer(F);
 
 				return SkinBox[(size_t)BufferType::Index];
 			}
@@ -3550,7 +3562,7 @@ namespace Vitex
 
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!SkinBox[(size_t)BufferType::Vertex])
-					SkinBox[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
+					SkinBox[(size_t)BufferType::Vertex] = *Device->CreateElementBuffer(F);
 
 				return SkinBox[(size_t)BufferType::Vertex];
 			}
@@ -3909,10 +3921,10 @@ namespace Vitex
 				for (size_t i = 0; i < (size_t)TargetType::Count; i++)
 				{
 					VI_RELEASE(Display.MRT[i]);
-					Display.MRT[i] = Device->CreateMultiRenderTarget2D(MRT);
+					Display.MRT[i] = *Device->CreateMultiRenderTarget2D(MRT);
 
 					VI_RELEASE(Display.RT[i]);
-					Display.RT[i] = Device->CreateRenderTarget2D(RT);
+					Display.RT[i] = *Device->CreateRenderTarget2D(RT);
 				}
 			});
 		}
@@ -4605,21 +4617,22 @@ namespace Vitex
 
 			return true;
 		}
-		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback)
+		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<void*>&&)>& Callback)
 		{
 			VI_ASSERT(Conf.Shared.Content != nullptr, "content manager should be set");
 			VI_ASSERT(Context != nullptr, "component calling this function should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			LoadComponent(Context);
-			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback](void*&& Result)
+			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback](ExpectsContent<void*>&& Result)
 			{
 				if (!UnloadComponent(Context))
 					return;
 
-				Transaction([Context, Callback, Result]()
+				Transaction([Context, Callback, Result = std::move(Result)]() mutable
 				{
-					Callback(Result);
+					Result.Report("scene resource loading error");
+					Callback(std::move(Result));
 					Context->Parent->Transform->MakeDirty();
 				});
 			});
@@ -4847,7 +4860,7 @@ namespace Vitex
 			F.StructureByteStride = F.ElementWidth;
 
 			VI_RELEASE(Display.MaterialBuffer);
-			Display.MaterialBuffer = Conf.Shared.Device->CreateElementBuffer(F);
+			Display.MaterialBuffer = *Conf.Shared.Device->CreateElementBuffer(F);
 		}
 		void SceneGraph::GenerateVoxelBuffers()
 		{
@@ -4864,22 +4877,22 @@ namespace Vitex
 			I.Writable = true;
 
 			VI_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
-			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = Device->CreateTexture3D(I);
+			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = *Device->CreateTexture3D(I);
 
 			I.FormatMode = Graphics::Format::R16G16B16A16_Float;
 			VI_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
-			Display.VoxelBuffers[(size_t)VoxelType::Normal] = Device->CreateTexture3D(I);
+			Display.VoxelBuffers[(size_t)VoxelType::Normal] = *Device->CreateTexture3D(I);
 
 			I.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
 			VI_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
-			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Device->CreateTexture3D(I);
+			Display.VoxelBuffers[(size_t)VoxelType::Surface] = *Device->CreateTexture3D(I);
 
 			I.MipLevels = (unsigned int)Conf.VoxelsMips;
 			Display.Voxels.resize(Conf.VoxelsMax);
 			for (auto& Item : Display.Voxels)
 			{
 				VI_RELEASE(Item.first);
-				Item.first = Device->CreateTexture3D(I);
+				Item.first = *Device->CreateTexture3D(I);
 				Item.second = nullptr;
 			}
 
@@ -4918,7 +4931,7 @@ namespace Vitex
 				Graphics::DepthTargetCube::Desc F = Graphics::DepthTargetCube::Desc();
 				F.Size = (unsigned int)Conf.PointsSize;
 				F.FormatMode = Graphics::Format::D32_Float;
-				Item = Device->CreateDepthTargetCube(F);
+				Item = *Device->CreateDepthTargetCube(F);
 			}
 
 			Display.Spots.resize(Conf.SpotsMax);
@@ -4927,7 +4940,7 @@ namespace Vitex
 				Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
 				F.Width = F.Height = (unsigned int)Conf.SpotsSize;
 				F.FormatMode = Graphics::Format::D32_Float;
-				Item = Device->CreateDepthTarget2D(F);
+				Item = *Device->CreateDepthTarget2D(F);
 			}
 
 			Display.Lines.resize(Conf.LinesMax);
@@ -4953,7 +4966,7 @@ namespace Vitex
 				Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
 				F.Width = F.Height = (unsigned int)Conf.LinesSize;
 				F.FormatMode = Graphics::Format::D32_Float;
-				Item = Conf.Shared.Device->CreateDepthTarget2D(F);
+				Item = *Conf.Shared.Device->CreateDepthTarget2D(F);
 			}
 
 			*Result = Target;
@@ -5539,7 +5552,7 @@ namespace Vitex
 		ContentManager::~ContentManager() noexcept
 		{
 			ClearCache();
-			ClearDockers();
+			ClearArchives();
 			ClearStreams();
 			ClearProcessors();
 		}
@@ -5564,13 +5577,13 @@ namespace Vitex
 			}
 			Assets.clear();
 		}
-		void ContentManager::ClearDockers()
+		void ContentManager::ClearArchives()
 		{
-			VI_TRACE("[content] clear dockers on 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("[content] clear archives on 0x%" PRIXPTR, (void*)this);
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto It = Dockers.begin(); It != Dockers.end(); ++It)
+			for (auto It = Archives.begin(); It != Archives.end(); ++It)
 				VI_DELETE(AssetArchive, It->second);
-			Dockers.clear();
+			Archives.clear();
 		}
 		void ContentManager::ClearStreams()
 		{
@@ -5619,311 +5632,83 @@ namespace Vitex
 		{
 			Device = NewDevice;
 		}
-		void* ContentManager::LoadDockerized(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
-		{
-			if (Path.empty())
-			{
-				VI_TRACE("[content] load dockerized: no path provided");
-				return nullptr;
-			}
-
-			Core::String File(Path);
-			Core::Stringify::Replace(File, '\\', '/');
-			Core::Stringify::Replace(File, "./", "");
-
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto Docker = Dockers.find(File);
-			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
-			{
-				VI_TRACE("[content] load dockerized %s: no docker provided", Path.c_str());
-				return nullptr;
-			}
-
-			Unique.Negate();
-			{
-				AssetCache* Asset = FindCache(Processor, File);
-				if (Asset != nullptr)
-				{
-					VI_TRACE("[content] load dockerized %s: cached", Path.c_str());
-					return Processor->Duplicate(Asset, Map);
-				}
-			}
-			Unique.Negate();
-
-			auto It = Streams.find(Docker->second->Stream);
-			if (It == Streams.end())
-			{
-				VI_ERR("[engine] cannot resolve stream offset for \"%s\"", Path.c_str());
-				return nullptr;
-			}
-
-			auto* Stream = Docker->second->Stream;
-			Stream->SetVirtualSize(Docker->second->Length);
-			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
-			Stream->Source() = File;
-			Unique.Negate();
-
-			VI_TRACE("[content] load dockerized %s", Path.c_str());
-			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
-		}
-		void* ContentManager::Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
-		{
-			if (Path.empty())
-			{
-				VI_TRACE("[content] load forward: no path provided");
-				return nullptr;
-			}
-
-			if (!Processor)
-			{
-				VI_ERR("[engine] file processor for \"%s\" wasn't found", Path.c_str());
-				return nullptr;
-			}
-
-			void* Object = LoadDockerized(Processor, Path, Map);
-			if (Object != nullptr)
-			{
-				VI_TRACE("[content] load forward %s: 0x%" PRIXPTR, Path.c_str(), Object);
-				return Object;
-			}
-
-			Core::String File = Path;
-			if (!Core::OS::Path::IsRemote(File.c_str()))
-			{
-				auto Subfile = Core::OS::Path::Resolve(File, Environment, false);
-				if (Subfile && Core::OS::File::IsExists(Subfile->c_str()))
-				{
-					File = *Subfile;
-					auto Subtarget = Environment + File;
-					auto Subpath = Core::OS::Path::Resolve(Subtarget.c_str());
-					if (Subpath && Core::OS::File::IsExists(Subpath->c_str()))
-						File = *Subpath;
-				}
-
-				if (File.empty())
-				{
-					VI_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
-					return nullptr;
-				}
-			}
-
-			AssetCache* Asset = FindCache(Processor, File);
-			if (Asset != nullptr)
-			{
-				VI_TRACE("[content] load forward %s: cached", Path.c_str());
-				return Processor->Duplicate(Asset, Map);
-			}
-
-			auto Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
-			if (!Stream)
-			{
-				VI_TRACE("[content] load forward %s: non-existant", Path.c_str());
-				return nullptr;
-			}
-
-			Object = Processor->Deserialize(*Stream, 0, Map);
-			VI_TRACE("[content] load forward %s: 0x%" PRIXPTR, Path.c_str(), Object);
-			VI_RELEASE(Stream);
-
-			return Object;
-		}
-		bool ContentManager::Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Map)
-		{
-			VI_ASSERT(Object != nullptr, "object should be set");
-			if (Path.empty())
-			{
-				VI_TRACE("[content] save forward: no path provided");
-				return false;
-			}
-
-			if (!Processor)
-			{
-				VI_ERR("[engine] file processor for \"%s\" wasn't found", Path.c_str());
-				return false;
-			}
-
-			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
-			auto File = Core::OS::Path::Resolve(Directory, Environment, false);
-			if (!File)
-			{
-				VI_ERR("[engine] cannot resolve \"%s\"", Path.c_str());
-				return false;
-			}
-
-			Core::String Target = *File;
-			Target.append(Path.substr(Directory.size()));
-
-			if (!Target.empty())
-				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Target.c_str()));
-			else
-				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Path.c_str()));
-
-			auto Stream = Core::OS::File::Open(Target, Core::FileMode::Binary_Write_Only);
-			if (!Stream)
-			{
-				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only);
-				if (!Stream)
-				{
-					VI_ERR("[engine] cannot open stream for writing at \"%s\" or \"%s\"", Target.c_str(), Path.c_str());
-					return false;
-				}
-			}
-
-			bool Result = Processor->Serialize(*Stream, Object, Map);
-			VI_TRACE("[content] save forward %s: %s", Path.c_str(), Result ? "OK" : "cannot be saved");
-			VI_RELEASE(Stream);
-
-			return Result;
-		}
-		Core::Promise<void*> ContentManager::LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys)
-		{
-			Enqueue();
-			return Core::Cotask<void*>([this, Processor, Path, Keys]()
-			{
-				void* Result = Load(Processor, Path, Keys);
-				Dequeue();
-
-				return Result;
-			});
-		}
-		Core::Promise<bool> ContentManager::SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys)
-		{
-			Enqueue();
-			return Core::Cotask<bool>([this, Processor, Path, Object, Keys]()
-			{
-				bool Result = Save(Processor, Path, Object, Keys);
-				Dequeue();
-
-				return Result;
-			});
-		}
-		Processor* ContentManager::AddProcessor(Processor* Value, uint64_t Id)
-		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Processors.find(Id);
-			if (It != Processors.end())
-			{
-				VI_RELEASE(It->second);
-				It->second = Value;
-			}
-			else
-				Processors[Id] = Value;
-
-			return Value;
-		}
-		Processor* ContentManager::GetProcessor(uint64_t Id)
-		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Processors.find(Id);
-			if (It != Processors.end())
-				return It->second;
-
-			return nullptr;
-		}
-		bool ContentManager::RemoveProcessor(uint64_t Id)
-		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Processors.find(Id);
-			if (It == Processors.end())
-				return false;
-
-			VI_RELEASE(It->second);
-			Processors.erase(It);
-			return true;
-		}
-		bool ContentManager::Import(const Core::String& Path)
+		ExpectsContent<void> ContentManager::Import(const Core::String& Path)
 		{
 			auto File = Core::OS::Path::Resolve(Path, Environment, false);
 			if (!File)
-			{
-				VI_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
-				return false;
-			}
+				return ContentException("archive was not found: " + Path);
 
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(File->c_str(), Core::FileMode::Binary_Read_Only))
 			{
-				VI_ERR("[engine] cannot open \"%s\" for reading", File->c_str());
 				VI_RELEASE(Stream);
-
-				return false;
+				return ContentException("cannot open archive: " + Path);
 			}
 
 			char Buffer[16];
 			if (Stream->Read(Buffer, 16) != 16)
 			{
-				VI_ERR("[engine] file \"%s\" has corrupted header", File->c_str());
 				VI_RELEASE(Stream);
-
-				return false;
+				return ContentException("corrupted archive header: " + Path);
 			}
 
 			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
 			{
-				VI_ERR("[engine] file \"%s\" header version is corrupted", File->c_str());
 				VI_RELEASE(Stream);
-
-				return false;
+				return ContentException("invalid archive version: " + Path);
 			}
 
 			uint64_t Size = 0;
 			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
-				VI_ERR("[engine] file \"%s\" has corrupted dock size", File->c_str());
 				VI_RELEASE(Stream);
-
-				return false;
+				return ContentException("invalid archive size: " + Path);
 			}
 
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (uint64_t i = 0; i < Size; i++)
 			{
-				AssetArchive* Docker = VI_NEW(AssetArchive);
-				Docker->Stream = Stream;
+				AssetArchive* Archive = VI_NEW(AssetArchive);
+				Archive->Stream = Stream;
 
 				uint64_t Length;
 				Stream->Read((char*)&Length, sizeof(uint64_t));
-				Stream->Read((char*)&Docker->Offset, sizeof(uint64_t));
-				Stream->Read((char*)&Docker->Length, sizeof(uint64_t));
+				Stream->Read((char*)&Archive->Offset, sizeof(uint64_t));
+				Stream->Read((char*)&Archive->Length, sizeof(uint64_t));
 
 				if (!Length)
 				{
-					VI_DELETE(AssetArchive, Docker);
+					VI_DELETE(AssetArchive, Archive);
 					continue;
 				}
 
-				Docker->Path.resize((size_t)Length);
-				Stream->Read((char*)Docker->Path.c_str(), sizeof(char) * (size_t)Length);
-				Dockers[Docker->Path] = Docker;
+				Archive->Path.resize((size_t)Length);
+				Stream->Read((char*)Archive->Path.c_str(), sizeof(char) * (size_t)Length);
+				Archives[Archive->Path] = Archive;
 			}
 
 			Streams[Stream] = Stream->Tell();
-			return true;
+			return Core::Expectation::Met;
 		}
-		bool ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
+		ExpectsContent<void> ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
 			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, false);
 			if (!TargetPath)
-			{
-				VI_ERR("[engine] cannot resolve \"%s\"", Path.c_str());
-				return false;
-			}
+				return ContentException("cannot resolve archive path: " + Path);
 
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(TargetPath->c_str(), Core::FileMode::Write_Only))
 			{
-				VI_ERR("[engine] cannot open \"%s\" for writing", Path.c_str());
 				VI_RELEASE(Stream);
-				return false;
+				return ContentException("cannot open archive: " + Path);
 			}
 
 			auto DirectoryBase = Core::OS::Path::Resolve(Directory, Environment, false);
 			if (!DirectoryBase)
 			{
-				VI_ERR("[engine] cannot resolve target path for \"%s\"", Path.c_str());
 				VI_RELEASE(Stream);
-				return false;
+				return ContentException("cannot resolve archive target path: " + Directory);
 			}
 
 			auto Tree = new Core::FileTree(*DirectoryBase);
@@ -5989,6 +5774,196 @@ namespace Vitex
 
 			VI_RELEASE(Tree);
 			VI_RELEASE(Stream);
+			return Core::Expectation::Met;
+		}
+		ExpectsContent<void*> ContentManager::LoadArchived(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
+		{
+			if (Path.empty())
+			{
+				VI_TRACE("[content] load archived: no path provided");
+				return ContentException("content path is empty");
+			}
+
+			Core::String File(Path);
+			Core::Stringify::Replace(File, '\\', '/');
+			Core::Stringify::Replace(File, "./", "");
+
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			auto Archive = Archives.find(File);
+			if (Archive == Archives.end() || !Archive->second || !Archive->second->Stream)
+			{
+				VI_TRACE("[content] archive was not found: %s", Path.c_str());
+				return ContentException("archive was not found: " + Path);
+			}
+
+			Unique.Negate();
+			{
+				AssetCache* Asset = FindCache(Processor, File);
+				if (Asset != nullptr)
+				{
+					VI_TRACE("[content] load archived %s: cached", Path.c_str());
+					return Processor->Duplicate(Asset, Map);
+				}
+			}
+			Unique.Negate();
+
+			auto It = Streams.find(Archive->second->Stream);
+			if (It == Streams.end())
+				return ContentException("archived content does not contain: " + Path);
+
+			auto* Stream = Archive->second->Stream;
+			Stream->SetVirtualSize(Archive->second->Length);
+			Stream->Seek(Core::FileSeek::Begin, It->second + Archive->second->Offset);
+			Stream->Source() = File;
+			Unique.Negate();
+
+			VI_TRACE("[content] load archived: %s", Path.c_str());
+			return Processor->Deserialize(Stream, It->second + Archive->second->Offset, Map);
+		}
+		ExpectsContent<void*> ContentManager::Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
+		{
+			if (Path.empty())
+			{
+				VI_TRACE("[content] load forward: no path provided");
+				return ContentException("content path is empty");
+			}
+
+			if (!Processor)
+				return ContentException("content processor was not found: " + Path);
+
+			auto Object = LoadArchived(Processor, Path, Map);
+			if (Object && *Object != nullptr)
+			{
+				VI_TRACE("[content] load forward %s: OK", Path.c_str());
+				return Object;
+			}
+
+			Core::String File = Path;
+			if (!Core::OS::Path::IsRemote(File.c_str()))
+			{
+				auto Subfile = Core::OS::Path::Resolve(File, Environment, false);
+				if (Subfile && Core::OS::File::IsExists(Subfile->c_str()))
+				{
+					File = *Subfile;
+					auto Subtarget = Environment + File;
+					auto Subpath = Core::OS::Path::Resolve(Subtarget.c_str());
+					if (Subpath && Core::OS::File::IsExists(Subpath->c_str()))
+						File = *Subpath;
+				}
+
+				if (File.empty())
+					return ContentException("content was not found: " + Path);
+			}
+
+			AssetCache* Asset = FindCache(Processor, File);
+			if (Asset != nullptr)
+			{
+				VI_TRACE("[content] load forward %s: cached", Path.c_str());
+				return Processor->Duplicate(Asset, Map);
+			}
+
+			auto Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
+			if (!Stream)
+			{
+				VI_TRACE("[content] load forward %s: non-existant", Path.c_str());
+				return ContentException("content was not found: " + Path);
+			}
+
+			Object = Processor->Deserialize(*Stream, 0, Map);
+			VI_TRACE("[content] load forward %s: %s", Path.c_str(), Object ? "OK" : Object.Error().what());
+			VI_RELEASE(Stream);
+			return Object;
+		}
+		ExpectsContent<void> ContentManager::Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Map)
+		{
+			VI_ASSERT(Object != nullptr, "object should be set");
+			if (Path.empty())
+			{
+				VI_TRACE("[content] save forward: no path provided");
+				return ContentException("content path is empty");
+			}
+
+			if (!Processor)
+				return ContentException("content processor was not found: " + Path);
+
+			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
+			auto File = Core::OS::Path::Resolve(Directory, Environment, false);
+			if (!File)
+				return ContentException("cannot resolve saving path: " + Path);
+
+			Core::String Target = *File;
+			Target.append(Path.substr(Directory.size()));
+
+			if (!Target.empty())
+				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Target.c_str()));
+			else
+				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Path.c_str()));
+
+			auto Stream = Core::OS::File::Open(Target, Core::FileMode::Binary_Write_Only);
+			if (!Stream)
+			{
+				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only);
+				if (!Stream)
+					return ContentException("cannot open saving stream: " + Path + " or " + Target);
+			}
+
+			auto Result = Processor->Serialize(*Stream, Object, Map);
+			VI_TRACE("[content] save forward %s: %s", Path.c_str(), Result ? "OK" : Result.Error().what());
+			VI_RELEASE(Stream);
+			return Result;
+		}
+		ExpectsPromiseContent<void*> ContentManager::LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys)
+		{
+			Enqueue();
+			return Core::Cotask<ExpectsContent<void*>>([this, Processor, Path, Keys]()
+			{
+				auto Result = Load(Processor, Path, Keys);
+				Dequeue();
+				return Result;
+			});
+		}
+		ExpectsPromiseContent<void> ContentManager::SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys)
+		{
+			Enqueue();
+			return Core::Cotask<ExpectsContent<void>>([this, Processor, Path, Object, Keys]()
+			{
+				auto Result = Save(Processor, Path, Object, Keys);
+				Dequeue();
+				return Result;
+			});
+		}
+		Processor* ContentManager::AddProcessor(Processor* Value, uint64_t Id)
+		{
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			auto It = Processors.find(Id);
+			if (It != Processors.end())
+			{
+				VI_RELEASE(It->second);
+				It->second = Value;
+			}
+			else
+				Processors[Id] = Value;
+
+			return Value;
+		}
+		Processor* ContentManager::GetProcessor(uint64_t Id)
+		{
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			auto It = Processors.find(Id);
+			if (It != Processors.end())
+				return It->second;
+
+			return nullptr;
+		}
+		bool ContentManager::RemoveProcessor(uint64_t Id)
+		{
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			auto It = Processors.find(Id);
+			if (It == Processors.end())
+				return false;
+
+			VI_RELEASE(It->second);
+			Processors.erase(It);
 			return true;
 		}
 		void* ContentManager::TryToCache(Processor* Root, const Core::String& Path, void* Resource)
@@ -6150,7 +6125,7 @@ namespace Vitex
 			if (Next.empty())
 				return false;
 
-			Data = Content->Load<Core::Schema>(Next);
+			Data = Content->Load<Core::Schema>(Next).Or(nullptr);
 			return Data != nullptr;
 		}
 		bool AppData::WriteAppData(const Core::String& Next)
@@ -6172,7 +6147,7 @@ namespace Vitex
 			Core::VariantArgs Args;
 			Args["type"] = Core::Var::String(Type);
 
-			return Content->Save<Core::Schema>(Next, Data, Args);
+			return !!Content->Save<Core::Schema>(Next, Data, Args);
 		}
 		Core::Schema* AppData::GetSnapshot() const
 		{
@@ -6854,29 +6829,30 @@ namespace Vitex
 
 			return nullptr;
 		}
-		Graphics::Shader* EffectRenderer::CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize)
+		Graphics::ExpectsGraphics<Graphics::Shader*> EffectRenderer::CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
 			VI_ASSERT(!Desc.Filename.empty(), "cannot compile unnamed shader source");
-			Graphics::Shader* Shader = System->CompileShader(Desc, BufferSize);
+			auto Shader = System->CompileShader(Desc, BufferSize);
 			if (!Shader)
-				return nullptr;
+				return Shader.Error();
 
 			auto It = Effects.find(Desc.Filename);
 			if (It != Effects.end())
 			{
 				VI_RELEASE(It->second);
-				It->second = Shader;
+				It->second = *Shader;
 			}
 			else
-				Effects[Desc.Filename] = Shader;
+				Effects[Desc.Filename] = *Shader;
 
 			return Shader;
 		}
-		Graphics::Shader* EffectRenderer::CompileEffect(const Core::String& SectionName, size_t BufferSize)
+		Graphics::ExpectsGraphics<Graphics::Shader*> EffectRenderer::CompileEffect(const Core::String& SectionName, size_t BufferSize)
 		{
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
-			if (!System->GetDevice()->GetSection(SectionName, &I))
-				return nullptr;
+			auto Status = System->GetDevice()->GetSectionData(SectionName, &I);
+			if (!Status)
+				return Status.Error();
 
 			return CompileEffect(I, BufferSize);
 		}

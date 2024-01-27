@@ -17,7 +17,7 @@ namespace Vitex
 			public:
 				Lowpass();
 				~Lowpass() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioFilter> Copy() const override;
@@ -35,7 +35,7 @@ namespace Vitex
 			public:
 				Highpass();
 				~Highpass() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioFilter> Copy() const override;
@@ -54,7 +54,7 @@ namespace Vitex
 			public:
 				Bandpass();
 				~Bandpass() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioFilter> Copy() const override;

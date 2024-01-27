@@ -41,7 +41,7 @@ namespace Vitex
 			public:
 				Reverb();
 				~Reverb() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -63,7 +63,7 @@ namespace Vitex
 			public:
 				Chorus();
 				~Chorus() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -84,7 +84,7 @@ namespace Vitex
 			public:
 				Distortion();
 				~Distortion() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -105,7 +105,7 @@ namespace Vitex
 			public:
 				Echo();
 				~Echo() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -127,7 +127,7 @@ namespace Vitex
 			public:
 				Flanger();
 				~Flanger() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -146,7 +146,7 @@ namespace Vitex
 			public:
 				FrequencyShifter();
 				~FrequencyShifter() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -168,7 +168,7 @@ namespace Vitex
 			public:
 				VocalMorpher();
 				~VocalMorpher() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -186,7 +186,7 @@ namespace Vitex
 			public:
 				PitchShifter();
 				~PitchShifter() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -205,7 +205,7 @@ namespace Vitex
 			public:
 				RingModulator();
 				~RingModulator() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -225,7 +225,7 @@ namespace Vitex
 			public:
 				Autowah();
 				~Autowah() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -239,7 +239,7 @@ namespace Vitex
 			public:
 				Compressor();
 				~Compressor() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;
@@ -265,7 +265,7 @@ namespace Vitex
 			public:
 				Equalizer();
 				~Equalizer() override;
-				void Synchronize() override;
+				ExpectsAudio<void> Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
 				Core::Unique<AudioEffect> Copy() const override;

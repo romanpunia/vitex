@@ -765,7 +765,7 @@ namespace Vitex
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::VirtualError::NO_MODULE;
+						return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
 
 					auto Index = Base.GetPropertyIndexByName(Name);
 					if (!Index)
@@ -773,10 +773,10 @@ namespace Vitex
 
 					T* Address = (T*)Base.GetAddressOfProperty(*Index);
 					if (!Address)
-						return Scripting::VirtualError::INVALID_OBJECT;
+						return Scripting::VirtualException(Scripting::VirtualError::INVALID_OBJECT);
 
 					*Address = Value;
-					return Core::Optional::OK;
+					return Core::Expectation::Met;
 				}
 				template <typename T>
 				Scripting::ExpectsVM<void> SetRefPropertyByName(const char* Name, T* Value)
@@ -786,7 +786,7 @@ namespace Vitex
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::VirtualError::NO_MODULE;
+						return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
 
 					auto Index = Base.GetPropertyIndexByName(Name);
 					if (!Index)
@@ -794,13 +794,13 @@ namespace Vitex
 
 					T** Address = (T**)Base.GetAddressOfProperty(*Index);
 					if (!Address)
-						return Scripting::VirtualError::INVALID_OBJECT;
+						return Scripting::VirtualException(Scripting::VirtualError::INVALID_OBJECT);
 
 					VI_RELEASE(*Address);
 					*Address = Value;
 					if (*Address != nullptr)
 						(*Address)->AddRef();
-					return Core::Optional::OK;
+					return Core::Expectation::Met;
 				}
 				template <typename T>
 				Scripting::ExpectsVM<void> SetTypePropertyByIndex(size_t Index, const T& Value)
@@ -810,34 +810,34 @@ namespace Vitex
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::VirtualError::NO_MODULE;
+						return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
 
 					T* Address = (T*)Base.GetAddressOfProperty(Index);
 					if (!Address)
-						return Scripting::VirtualError::INVALID_OBJECT;
+						return Scripting::VirtualException(Scripting::VirtualError::INVALID_OBJECT);
 
 					*Address = Value;
-					return Core::Optional::OK;
+					return Core::Expectation::Met;
 				}
 				template <typename T>
-				Scripting::ExpectsVM<void>  SetRefPropertyByIndex(size_t Index, T* Value)
+				Scripting::ExpectsVM<void> SetRefPropertyByIndex(size_t Index, T* Value)
 				{
 					VI_ASSERT(Index >= 0, "index should be greater or equal to zero");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
 
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
-						return Scripting::VirtualError::INVALID_CONFIGURATION;
+						return Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION);
 
 					T** Address = (T**)Base.GetAddressOfProperty(Index);
 					if (!Address)
-						return Scripting::VirtualError::INVALID_OBJECT;
+						return Scripting::VirtualException(Scripting::VirtualError::INVALID_OBJECT);
 
 					VI_RELEASE(*Address);
 					*Address = Value;
 					if (*Address != nullptr)
 						(*Address)->AddRef();
-					return Core::Optional::OK;
+					return Core::Expectation::Met;
 				}
 
 			private:

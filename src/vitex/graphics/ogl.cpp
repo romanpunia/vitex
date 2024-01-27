@@ -18,23 +18,23 @@
 namespace
 {
 	template <class T>
-	inline void Rehash(uint64_t& Seed, const T& Value)
+	static inline void Rehash(uint64_t& Seed, const T& Value)
 	{
 		Seed ^= std::hash<T>()(Value) + 0x9e3779b9 + (Seed << 6) + (Seed >> 2);
 	}
-	int64_t D3D_GetCoordY(int64_t Y, int64_t Height, int64_t WindowHeight)
+	static int64_t D3D_GetCoordY(int64_t Y, int64_t Height, int64_t WindowHeight)
 	{
 		return WindowHeight - Height - Y;
 	}
-	int64_t OGL_GetCoordY(int64_t Y, int64_t Height, int64_t WindowHeight)
+	static int64_t OGL_GetCoordY(int64_t Y, int64_t Height, int64_t WindowHeight)
 	{
 		return WindowHeight - Height - Y;
 	}
-	void OGL_CopyTexture_4_3(GLenum Target, GLuint SrcName, GLuint DestName, GLint Width, GLint Height)
+	static void OGL_CopyTexture_4_3(GLenum Target, GLuint SrcName, GLuint DestName, GLint Width, GLint Height)
 	{
 		glCopyImageSubData(SrcName, Target, 0, 0, 0, 0, DestName, Target, 0, 0, 0, 0, Width, Height, 1);
 	}
-	void OGL_CopyTexture_3_0(GLuint SrcName, GLuint DestName, GLint Width, GLint Height)
+	static void OGL_CopyTexture_3_0(GLuint SrcName, GLuint DestName, GLint Width, GLint Height)
 	{
 		GLint LastFrameBuffer = 0;
 		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &LastFrameBuffer);
@@ -49,7 +49,7 @@ namespace
 		glBindFramebuffer(GL_FRAMEBUFFER, LastFrameBuffer);
 		glDeleteFramebuffers(1, &FrameBuffer);
 	}
-	void OGL_CopyTextureFace2D_3_0(Vitex::Compute::CubeFace Face, GLuint SrcName, GLuint DestName, GLint Width, GLint Height)
+	static void OGL_CopyTextureFace2D_3_0(Vitex::Compute::CubeFace Face, GLuint SrcName, GLuint DestName, GLint Width, GLint Height)
 	{
 		GLint LastFrameBuffer = 0;
 		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &LastFrameBuffer);
@@ -63,6 +63,46 @@ namespace
 		glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 		glBindFramebuffer(GL_FRAMEBUFFER, LastFrameBuffer);
 		glDeleteFramebuffers(1, &FrameBuffer);
+	}
+	static Vitex::Graphics::GraphicsException GetException(const char* ScopeText)
+	{
+		GLenum ResultCode = glGetError();
+		Vitex::Core::String Text = ScopeText;
+		switch (ResultCode)
+		{
+			case GL_INVALID_ENUM:
+				Text += " causing invalid enum parameter";
+				break;
+			case GL_INVALID_VALUE:
+				Text += " causing invalid argument parameter";
+				break;
+			case GL_INVALID_OPERATION:
+				Text += " causing invalid operation";
+				break;
+			case GL_STACK_OVERFLOW:
+				Text += " causing stack overflow";
+				break;
+			case GL_STACK_UNDERFLOW:
+				Text += " causing stack underflow";
+				break;
+			case GL_OUT_OF_MEMORY:
+				Text += " causing out of memory";
+				break;
+			case GL_INVALID_FRAMEBUFFER_OPERATION:
+				Text += " causing invalid frame buffer operation";
+				break;
+			case GL_CONTEXT_LOST:
+				Text += " causing graphics system reset";
+				break;
+			case GL_TABLE_TOO_LARGE:
+				Text += " causing table too large";
+				break;
+			case GL_NO_ERROR:
+			default:
+				Text += " causing internal graphics error";
+				break;
+		}
+		return Vitex::Graphics::GraphicsException((int)ResultCode, std::move(Text));
 	}
 }
 
@@ -819,7 +859,7 @@ namespace Vitex
 				REG_EXCHANGE(Layout, (OGLInputLayout*)State);
 				SetVertexBuffers(nullptr, 0);
 			}
-			void OGLDevice::SetShader(Shader* Resource, unsigned int Type)
+			ExpectsGraphics<void> OGLDevice::SetShader(Shader* Resource, unsigned int Type)
 			{
 				OGLShader* IResource = (OGLShader*)Resource;
 				bool Update = false;
@@ -903,12 +943,15 @@ namespace Vitex
 				}
 
 				if (!Update)
-					return;
+					return Core::Expectation::Met;
 
 				uint64_t Name = GetProgramHash();
 				auto It = Register.Programs.find(Name);
 				if (It != Register.Programs.end())
-					return (void)glUseProgramObjectARB(It->second);
+				{
+					glUseProgramObjectARB(It->second);
+					return Core::Expectation::Met;
+				}
 
 				GLuint Program = glCreateProgram();
 				if (Register.Shaders[0] != nullptr && Register.Shaders[0]->VertexShader != GL_NONE)
@@ -936,17 +979,19 @@ namespace Vitex
 
 				if (StatusCode != GL_TRUE)
 				{
-					GLint Size = 0;
-					glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Size);
+					GLint BufferSize = 0;
+					glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &BufferSize);
 
-					char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
-					glGetProgramInfoLog(Program, Size, &Size, Buffer);
-					VI_ERR("[ogl-linker] %.*s", Size, Buffer);
+					char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
+					glGetProgramInfoLog(Program, BufferSize, &BufferSize, Buffer);
+					Core::String ErrorText(Buffer, (size_t)BufferSize);
 					VI_FREE(Buffer);
 
 					glUseProgramObjectARB(GL_NONE);
 					glDeleteProgram(Program);
 					Program = GL_NONE;
+					Register.Programs[Name] = Program;
+					return GraphicsException(std::move(ErrorText));
 				}
 				else
 				{
@@ -955,9 +1000,9 @@ namespace Vitex
 						if (Base != nullptr)
 							Base->Programs[Program] = this;
 					}
+					Register.Programs[Name] = Program;
+					return Core::Expectation::Met;
 				}
-
-				Register.Programs[Name] = Program;
 			}
 			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
@@ -1372,274 +1417,6 @@ namespace Vitex
 			void OGLDevice::FlushState()
 			{
 			}
-			bool OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				glBindBuffer(IResource->Flags, IResource->Resource);
-
-				GLint Size;
-				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
-				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
-				Map->RowPitch = GetRowPitch(1, (unsigned int)Size);
-				Map->DepthPitch = GetDepthPitch(Map->RowPitch, 1);
-
-				return Map->Pointer != nullptr;
-			}
-			bool OGLDevice::Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Map != nullptr, "map should be set");
-
-				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
-				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight();
-				GLuint Size = GetFormatSize(IResource->FormatMode);
-
-				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
-				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
-
-				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
-					return false;
-
-				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
-					return false;
-
-				Map->Pointer = VI_MALLOC(char, Width * Height * Size);
-				Map->RowPitch = GetRowPitch(Width);
-				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height);
-
-				if (Map->Pointer != nullptr && Read)
-				{
-					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
-					glGetTexImage(GL_TEXTURE_2D, 0, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
-				}
-
-				return Map->Pointer != nullptr;
-			}
-			bool OGLDevice::Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Map != nullptr, "map should be set");
-
-				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
-				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
-				GLuint Size = GetFormatSize(IResource->FormatMode);
-
-				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
-				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
-
-				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
-					return false;
-
-				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
-					return false;
-
-				Map->Pointer = VI_MALLOC(char, Width * Height * Depth * Size);
-				Map->RowPitch = GetRowPitch(Width);
-				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
-
-				if (Map->Pointer != nullptr && Read)
-				{
-					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
-					glGetTexImage(GL_TEXTURE_3D, 0, IResource->Format, GL_UNSIGNED_BYTE, Map->Pointer);
-				}
-
-				return Map->Pointer != nullptr;
-			}
-			bool OGLDevice::Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Map != nullptr, "map should be set");
-
-				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
-				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = 6;
-				GLuint Size = GetFormatSize(IResource->FormatMode);
-
-				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
-				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
-
-				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
-					return false;
-
-				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
-					return false;
-
-				Map->Pointer = VI_MALLOC(char, Width * Height * Depth * Size);
-				Map->RowPitch = GetRowPitch(Width);
-				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
-
-				if (Map->Pointer != nullptr && Read)
-				{
-					glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
-					glGetTexImage(GL_TEXTURE_CUBE_MAP, 0, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
-				}
-
-				return Map->Pointer != nullptr;
-			}
-			bool OGLDevice::Unmap(Texture2D* Resource, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Map != nullptr, "map should be set");
-
-				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
-				{
-					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
-					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight();
-					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
-					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
-				}
-
-				VI_FREE(Map->Pointer);
-				return true;
-			}
-			bool OGLDevice::Unmap(Texture3D* Resource, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Map != nullptr, "map should be set");
-
-				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
-				{
-					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
-					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
-					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
-					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
-				}
-
-				VI_FREE(Map->Pointer);
-				return true;
-			}
-			bool OGLDevice::Unmap(TextureCube* Resource, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Map != nullptr, "map should be set");
-
-				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
-				{
-					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
-					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = 6;
-					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
-					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
-				}
-
-				VI_FREE(Map->Pointer);
-				return true;
-			}
-			bool OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				glUnmapBuffer(IResource->Flags);
-				glBindBuffer(IResource->Flags, GL_NONE);
-				return true;
-			}
-			bool OGLDevice::UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				CopyConstantBuffer(IResource->Resource, Data, Size);
-				return true;
-			}
-			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				glBindBuffer(IResource->Flags, IResource->Resource);
-				glBufferData(IResource->Flags, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
-				glBindBuffer(IResource->Flags, GL_NONE);
-				return true;
-			}
-			bool OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLShader* IResource = (OGLShader*)Resource;
-				CopyConstantBuffer(IResource->ConstantBuffer, (void*)Data, IResource->ConstantSize);
-				return true;
-			}
-			bool OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-
-				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
-				MappedSubresource MappedResource;
-				if (!Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource))
-					return false;
-
-				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::Vertex));
-				return Unmap(IResource->VertexBuffer, &MappedResource);
-			}
-			bool OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-
-				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
-				MappedSubresource MappedResource;
-				if (!Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource))
-					return false;
-
-				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
-				return Unmap(IResource->VertexBuffer, &MappedResource);
-			}
-			bool OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				if (IResource->Array.size() <= 0 || IResource->Array.size() > IResource->ElementLimit)
-					return false;
-
-				OGLElementBuffer* Element = (OGLElementBuffer*)IResource->Elements;
-				glBindBuffer(Element->Flags, Element->Resource);
-				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
-				memcpy(Data, IResource->Array.data(), (size_t)IResource->Array.size() * IResource->ElementWidth);
-				glUnmapBuffer(Element->Flags);
-				glBindBuffer(Element->Flags, GL_NONE);
-				return true;
-			}
-			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Size > 0, "size should be greater than zero");
-
-				OGLShader* IResource = (OGLShader*)Resource;
-				if (IResource->ConstantBuffer != GL_NONE)
-					glDeleteBuffers(1, &IResource->ConstantBuffer);
-
-				bool Result = (CreateConstantBuffer(&IResource->ConstantBuffer, Size) >= 0);
-				IResource->ConstantSize = (Result ? Size : 0);
-
-				return Result;
-			}
-			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, size_t Size)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Size > 0, "size should be greater than zero");
-
-				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				ClearBuffer(IResource);
-				VI_RELEASE(IResource->Elements);
-				IResource->ElementLimit = Size;
-				IResource->Array.clear();
-				IResource->Array.reserve(IResource->ElementLimit);
-
-				ElementBuffer::Desc F = ElementBuffer::Desc();
-				F.AccessFlags = CPUAccess::Write;
-				F.MiscFlags = ResourceMisc::Buffer_Structured;
-				F.Usage = ResourceUsage::Dynamic;
-				F.BindFlags = ResourceBind::Shader_Input;
-				F.ElementCount = (unsigned int)IResource->ElementLimit;
-				F.ElementWidth = (unsigned int)IResource->ElementWidth;
-				F.StructureByteStride = F.ElementWidth;
-
-				IResource->Elements = CreateElementBuffer(F);
-				return true;
-			}
 			void OGLDevice::ClearBuffer(InstanceBuffer* Resource)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
@@ -1795,351 +1572,6 @@ namespace Vitex
 			{
 				glDispatchCompute(GroupX, GroupY, GroupZ);
 			}
-			bool OGLDevice::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, "output resource 2d should not be back buffer");
-
-				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (IResource->Backbuffer)
-					return CopyBackBuffer(Result);
-
-				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
-
-				int LastTexture = GL_NONE, Width, Height;
-				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
-				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
-
-				if (!*Result)
-				{
-					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
-					F.RowPitch = GetRowPitch(F.Width);
-					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
-					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					*Result = (OGLTexture2D*)CreateTexture2D(F);
-				}
-				
-				if (GLEW_VERSION_4_3)
-					OGL_CopyTexture_4_3(GL_TEXTURE_2D, IResource->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-				else
-					OGL_CopyTexture_3_0(IResource->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-
-				glBindTexture(GL_TEXTURE_2D, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				int LastTexture = GL_NONE;
-				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
-				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
-
-				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
-				if (TargetBuffer->Backbuffer)
-				{
-					if (!*Result)
-					{
-						*Result = (OGLTexture2D*)CreateTexture2D();
-						glGenTextures(1, &((OGLTexture2D*)(*Result))->Resource);
-					}
-
-					GLint Viewport[4];
-					glGetIntegerv(GL_VIEWPORT, Viewport);
-					glBindTexture(GL_TEXTURE_2D, ((OGLTexture2D*)(*Result))->Resource);
-					glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, (GLsizei)Viewport[2], (GLsizei)Viewport[3]);
-					glBindTexture(GL_TEXTURE_2D, LastTexture);
-					return true;
-				}
-
-				OGLTexture2D* Source = (OGLTexture2D*)Resource->GetTarget2D(Target);
-				if (!Source)
-					return false;
-
-				int Width, Height;
-				glBindTexture(GL_TEXTURE_2D, Source->Resource);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
-
-				if (!*Result)
-				{
-					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
-					F.RowPitch = GetRowPitch(F.Width);
-					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
-					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					*Result = (OGLTexture2D*)CreateTexture2D(F);
-				}
-				
-				if (GLEW_VERSION_4_3)
-					OGL_CopyTexture_4_3(GL_TEXTURE_2D, Source->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-				else
-					OGL_CopyTexture_3_0(Source->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-
-				glBindTexture(GL_TEXTURE_2D, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
-				int LastTexture = GL_NONE, Width, Height;
-				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
-
-				if (!*Result)
-				{
-					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
-					F.RowPitch = GetRowPitch(F.Width);
-					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
-					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					*Result = (OGLTexture2D*)CreateTexture2D(F);
-				}
-				
-				OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[0], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-
-				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
-				int LastTexture = GL_NONE, Width, Height;
-				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
-
-				if (!*Result)
-				{
-					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
-					F.RowPitch = GetRowPitch(F.Width);
-					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
-					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					*Result = (OGLTexture2D*)CreateTexture2D(F);
-				}
-				
-				OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[Cube], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
-				int LastTexture = GL_NONE, Width, Height;
-				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
-
-				if (!*Result)
-				{
-					Texture2D* Faces[6] = { nullptr };
-					for (unsigned int i = 0; i < 6; i++)
-						CopyTexture2D(Resource, i, &Faces[i]);
-
-					*Result = (OGLTextureCube*)CreateTextureCube(Faces);
-					for (unsigned int i = 0; i < 6; i++)
-						VI_RELEASE(Faces[i]);
-				}
-				else if (GLEW_VERSION_4_3)
-					OGL_CopyTexture_4_3(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
-				else
-					OGL_CopyTexture_3_0(IResource->FrameBuffer.Texture[0], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
-
-				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-
-				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
-				int LastTexture = GL_NONE, Width, Height;
-				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
-
-				if (!*Result)
-				{
-					Texture2D* Faces[6] = { nullptr };
-					for (unsigned int i = 0; i < 6; i++)
-						CopyTexture2D(Resource, Cube, (Compute::CubeFace)i, &Faces[i]);
-
-					*Result = (OGLTextureCube*)CreateTextureCube(Faces);
-					for (unsigned int i = 0; i < 6; i++)
-						VI_RELEASE(Faces[i]);
-				}
-				else if (GLEW_VERSION_4_3)
-					OGL_CopyTexture_4_3(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
-				else
-					OGL_CopyTexture_3_0(IResource->FrameBuffer.Texture[Cube], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
-
-				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget)
-			{
-				VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
-				OGLTexture2D* Source2D = (OGLTexture2D*)From->GetTarget2D(FromTarget);
-				OGLTextureCube* SourceCube = (OGLTextureCube*)From->GetTargetCube(FromTarget);
-				OGLTexture2D* Dest2D = (OGLTexture2D*)To->GetTarget2D(ToTarget);
-				OGLTextureCube* DestCube = (OGLTextureCube*)To->GetTargetCube(ToTarget);
-				GLuint Source = (Source2D ? Source2D->Resource : (SourceCube ? SourceCube->Resource : GL_NONE));
-				GLuint Dest = (Dest2D ? Dest2D->Resource : (DestCube ? DestCube->Resource : GL_NONE));
-
-				VI_ASSERT(Source != GL_NONE, "from should be set");
-				VI_ASSERT(Dest != GL_NONE, "to should be set");
-
-				int LastTexture = GL_NONE;
-				uint32_t Width = From->GetWidth();
-				uint32_t Height = From->GetHeight();
-				glGetIntegerv(SourceCube ? GL_TEXTURE_BINDING_CUBE_MAP : GL_TEXTURE_BINDING_2D, &LastTexture);
-
-				if (GLEW_VERSION_4_3)
-				{
-					if (SourceCube != nullptr)
-						OGL_CopyTexture_4_3(GL_TEXTURE_CUBE_MAP, Source, Dest, Width, Height);
-					else
-						OGL_CopyTexture_4_3(GL_TEXTURE_2D, Source, Dest, Width, Height);
-				}
-				else
-					OGL_CopyTexture_3_0(Source, Dest, Width, Height);
-
-				glBindTexture(SourceCube ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, LastTexture);
-				return true;
-			}
-			bool OGLDevice::CubemapPush(Cubemap* Resource, TextureCube* Result)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), "resource should be valid");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLCubemap* IResource = (OGLCubemap*)Resource;
-				OGLTextureCube* Dest = (OGLTextureCube*)Result;
-				IResource->Dest = Dest;
-
-				if (Dest->Resource != GL_NONE)
-					return true;
-
-				GLint Size = IResource->Meta.Size;
-				Dest->FormatMode = IResource->Options.FormatMode;
-				Dest->Format = IResource->Options.SizeFormat;
-				Dest->MipLevels = IResource->Meta.MipLevels;
-				Dest->Width = Size;
-				Dest->Height = Size;
-
-				glGenTextures(1, &Dest->Resource);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, Dest->Resource);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-				if (Dest->MipLevels > 0)
-				{
-					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0);
-					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, Dest->MipLevels - 1);
-				}
-				else
-				{
-					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				}
-
-				glTexStorage2D(GL_TEXTURE_CUBE_MAP, Dest->MipLevels, Dest->Format, Size, Size);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
-				return true;
-			}
-			bool OGLDevice::CubemapFace(Cubemap* Resource, Compute::CubeFace Face)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), "resource should be valid");
-
-				OGLCubemap* IResource = (OGLCubemap*)Resource;
-				OGLTextureCube* Dest = (OGLTextureCube*)IResource->Dest;
-
-				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
-
-				GLint LastFrameBuffer = 0, Size = IResource->Meta.Size;
-				glGetIntegerv(GL_FRAMEBUFFER_BINDING, &LastFrameBuffer);
-				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer);
-				glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, IResource->Source, 0);
-				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (unsigned int)Face, Dest->Resource, 0);
-				glNamedFramebufferDrawBuffer(IResource->FrameBuffer, GL_COLOR_ATTACHMENT1);
-				glBlitFramebuffer(0, 0, Size, Size, 0, 0, Size, Size, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-				glBindFramebuffer(GL_FRAMEBUFFER, LastFrameBuffer);
-
-				return true;
-			}
-			bool OGLDevice::CubemapPop(Cubemap* Resource)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Resource->IsValid(), "resource should be valid");
-
-				OGLCubemap* IResource = (OGLCubemap*)Resource;
-				OGLTextureCube* Dest = (OGLTextureCube*)IResource->Dest;
-
-				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
-				if (IResource->Meta.MipLevels > 0)
-					GenerateMips(Dest);
-
-				return true;
-			}
-			bool OGLDevice::CopyBackBuffer(Texture2D** Result)
-			{
-				VI_ASSERT(Result != nullptr, "result should be set");
-				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, "output resource 2d should not be back buffer");
-				OGLTexture2D* Texture = (OGLTexture2D*)(*Result ? *Result : CreateTexture2D());
-				if (!*Result)
-				{
-					glGenTextures(1, &Texture->Resource);
-					*Result = Texture;
-				}
-
-				GLint Viewport[4];
-				glGetIntegerv(GL_VIEWPORT, Viewport);
-				glBindTexture(GL_TEXTURE_2D, Texture->Resource);
-				glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, (GLsizei)Viewport[2], (GLsizei)Viewport[3], 0);
-				glGenerateMipmap(GL_TEXTURE_2D);
-
-				return GenerateTexture(Texture);
-			}
-			bool OGLDevice::CopyBackBufferMSAA(Texture2D** Result)
-			{
-				return CopyBackBuffer(Result);
-			}
-			bool OGLDevice::CopyBackBufferNoAA(Texture2D** Result)
-			{
-				return CopyBackBufferMSAA(Result);
-			}
 			void OGLDevice::GetViewports(unsigned int* Count, Viewport* Out)
 			{
 				GLint Viewport[4];
@@ -2170,118 +1602,6 @@ namespace Vitex
 				Out->Right = (int64_t)Rect[2] + Rect[0];
 				Out->Top = D3D_GetCoordY(Rect[1], Height, (int64_t)Window->GetHeight());
 				Out->Bottom = Height;
-			}
-			bool OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
-			{
-				RenderTarget2D::Desc F = RenderTarget2D::Desc();
-				F.Width = Width;
-				F.Height = Height;
-				F.MipLevels = 1;
-				F.MiscFlags = ResourceMisc::None;
-				F.FormatMode = Format::R8G8B8A8_Unorm;
-				F.Usage = ResourceUsage::Default;
-				F.AccessFlags = CPUAccess::None;
-				F.BindFlags = ResourceBind::Render_Target | ResourceBind::Shader_Input;
-				F.RenderSurface = (void*)this;
-
-				VI_RELEASE(RenderTarget);
-				RenderTarget = CreateRenderTarget2D(F);
-				SetTarget();
-
-				return true;
-			}
-			bool OGLDevice::GenerateTexture(Texture2D* Resource)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (IResource->Backbuffer)
-				{
-					IResource->Width = RenderTarget->GetWidth();
-					IResource->Height = RenderTarget->GetHeight();
-					return true;
-				}
-
-				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
-				int Width, Height;
-				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
-				glBindTexture(GL_TEXTURE_2D, GL_NONE);
-
-				IResource->Width = Width;
-				IResource->Height = Height;
-
-				return true;
-			}
-			bool OGLDevice::GenerateTexture(Texture3D* Resource)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-
-				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
-				int Width, Height, Depth;
-				glBindTexture(GL_TEXTURE_3D, IResource->Resource);
-				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_HEIGHT, &Height);
-				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_DEPTH, &Depth);
-				glBindTexture(GL_TEXTURE_3D, GL_NONE);
-
-				IResource->Width = Width;
-				IResource->Height = Height;
-				IResource->Depth = Depth;
-
-				return true;
-			}
-			bool OGLDevice::GenerateTexture(TextureCube* Resource)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-
-				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
-				int Width, Height;
-				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_WIDTH, &Width);
-				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_HEIGHT, &Height);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
-
-				IResource->Width = Width;
-				IResource->Height = Height;
-
-				return true;
-			}
-			bool OGLDevice::GetQueryData(Query* Resource, size_t* Result, bool Flush)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLQuery* IResource = (OGLQuery*)Resource;
-				GLint Available = 0;
-				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
-				if (Available == GL_FALSE)
-					return false;
-
-				GLint64 Passing = 0;
-				glGetQueryObjecti64v(IResource->Async, GL_QUERY_RESULT, &Passing);
-				*Result = (size_t)Passing;
-
-				return true;
-			}
-			bool OGLDevice::GetQueryData(Query* Resource, bool* Result, bool Flush)
-			{
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				VI_ASSERT(Result != nullptr, "result should be set");
-
-				OGLQuery* IResource = (OGLQuery*)Resource;
-				GLint Available = 0;
-				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
-				if (Available == GL_FALSE)
-					return false;
-
-				GLint Data = 0;
-				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT, &Data);
-				*Result = (Data == GL_TRUE);
-
-				return true;
 			}
 			void OGLDevice::QueryBegin(Query* Resource)
 			{
@@ -2437,26 +1757,797 @@ namespace Vitex
 
 				return true;
 			}
-			bool OGLDevice::Submit()
+			ExpectsGraphics<void> OGLDevice::Submit()
 			{
 				VI_ASSERT(Window != nullptr, "window should be set");
 				Video::GLEW::PerformSwap(Window);
 				DispatchQueue();
-				return true;
+				return Core::Expectation::Met;
 			}
-			DepthStencilState* OGLDevice::CreateDepthStencilState(const DepthStencilState::Desc& I)
+			ExpectsGraphics<void> OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				glBindBuffer(IResource->Flags, IResource->Resource);
+
+				GLint Size;
+				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
+				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
+				Map->RowPitch = GetRowPitch(1, (unsigned int)Size);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, 1);
+				if (!Map->Pointer)
+					return GetException("map element buffer");
+
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
+
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight();
+				GLuint Size = GetFormatSize(IResource->FormatMode);
+
+				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
+				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
+
+				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
+					return GraphicsException("resource cannot be mapped for reading");
+
+				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
+					return GraphicsException("resource cannot be mapped for writing");
+
+				Map->Pointer = VI_MALLOC(char, Width * Height * Size);
+				Map->RowPitch = GetRowPitch(Width);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height);
+
+				if (Map->Pointer != nullptr && Read)
+				{
+					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_2D, 0, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				if (!Map->Pointer)
+					return GetException("map texture 2d");
+
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
+
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
+				GLuint Size = GetFormatSize(IResource->FormatMode);
+
+				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
+				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
+
+				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
+					return GraphicsException("resource cannot be mapped for reading");
+
+				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
+					return GraphicsException("resource cannot be mapped for writing");
+
+				Map->Pointer = VI_MALLOC(char, Width * Height * Depth * Size);
+				Map->RowPitch = GetRowPitch(Width);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
+
+				if (Map->Pointer != nullptr && Read)
+				{
+					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_3D, 0, IResource->Format, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				if (!Map->Pointer)
+					return GetException("map texture 2d");
+
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
+
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = 6;
+				GLuint Size = GetFormatSize(IResource->FormatMode);
+
+				bool Read = Mode == ResourceMap::Read || Mode == ResourceMap::Read_Write;
+				bool Write = Mode == ResourceMap::Write || Mode == ResourceMap::Write_Discard || Mode == ResourceMap::Write_No_Overwrite;
+
+				if (Read && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Read))
+					return GraphicsException("resource cannot be mapped for reading");
+
+				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
+					return GraphicsException("resource cannot be mapped for writing");
+
+				Map->Pointer = VI_MALLOC(char, Width * Height * Depth * Size);
+				Map->RowPitch = GetRowPitch(Width);
+				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
+
+				if (Map->Pointer != nullptr && Read)
+				{
+					glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_CUBE_MAP, 0, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				if (!Map->Pointer)
+					return GetException("map texture 2d");
+
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Unmap(Texture2D* Resource, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
+
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
+				{
+					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight();
+					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				VI_FREE(Map->Pointer);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Unmap(Texture3D* Resource, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
+
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
+				{
+					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
+					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				VI_FREE(Map->Pointer);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Unmap(TextureCube* Resource, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Map != nullptr, "map should be set");
+
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				if ((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write)
+				{
+					GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
+					GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = 6;
+					glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
+				}
+
+				VI_FREE(Map->Pointer);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				glUnmapBuffer(IResource->Flags);
+				glBindBuffer(IResource->Flags, GL_NONE);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				return CopyConstantBuffer(IResource->Resource, Data, Size);
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				glBindBuffer(IResource->Flags, IResource->Resource);
+				glBufferData(IResource->Flags, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
+				glBindBuffer(IResource->Flags, GL_NONE);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLShader* IResource = (OGLShader*)Resource;
+				return CopyConstantBuffer(IResource->ConstantBuffer, (void*)Data, IResource->ConstantSize);
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
+
+				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
+				MappedSubresource MappedResource;
+				auto MapStatus = Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource);
+				if (!MapStatus)
+					return MapStatus;
+
+				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::Vertex));
+				return Unmap(IResource->VertexBuffer, &MappedResource);
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Data != nullptr, "data should be set");
+
+				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
+				MappedSubresource MappedResource;
+				auto MapStatus = Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource);
+				if (!MapStatus)
+					return MapStatus;
+
+				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
+				return Unmap(IResource->VertexBuffer, &MappedResource);
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
+				if (IResource->Array.size() <= 0 || IResource->Array.size() > IResource->ElementLimit)
+					return GraphicsException("instance buffer mapping error: invalid array size");
+
+				OGLElementBuffer* Element = (OGLElementBuffer*)IResource->Elements;
+				glBindBuffer(Element->Flags, Element->Resource);
+				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
+				memcpy(Data, IResource->Array.data(), (size_t)IResource->Array.size() * IResource->ElementWidth);
+				glUnmapBuffer(Element->Flags);
+				glBindBuffer(Element->Flags, GL_NONE);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Size > 0, "size should be greater than zero");
+
+				OGLShader* IResource = (OGLShader*)Resource;
+				if (IResource->ConstantBuffer != GL_NONE)
+					glDeleteBuffers(1, &IResource->ConstantBuffer);
+
+				auto NewBuffer = CreateConstantBuffer(&IResource->ConstantBuffer, Size);
+				IResource->ConstantSize = (NewBuffer ? Size : 0);
+				return NewBuffer;
+			}
+			ExpectsGraphics<void> OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, size_t Size)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Size > 0, "size should be greater than zero");
+
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
+				ClearBuffer(IResource);
+				VI_CLEAR(IResource->Elements);
+				IResource->ElementLimit = Size;
+				IResource->Array.clear();
+				IResource->Array.reserve(IResource->ElementLimit);
+
+				ElementBuffer::Desc F = ElementBuffer::Desc();
+				F.AccessFlags = CPUAccess::Write;
+				F.MiscFlags = ResourceMisc::Buffer_Structured;
+				F.Usage = ResourceUsage::Dynamic;
+				F.BindFlags = ResourceBind::Shader_Input;
+				F.ElementCount = (unsigned int)IResource->ElementLimit;
+				F.ElementWidth = (unsigned int)IResource->ElementWidth;
+				F.StructureByteStride = F.ElementWidth;
+
+				auto Buffer = CreateElementBuffer(F);
+				if (!Buffer)
+					return Buffer.Error();
+
+				IResource->Elements = *Buffer;
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, "output resource 2d should not be back buffer");
+
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if (IResource->Backbuffer)
+					return CopyBackBuffer(Result);
+
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
+				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					auto NewTexture = CreateTexture2D(F);
+					if (!NewTexture)
+						return NewTexture.Error();
+
+					*Result = (OGLTexture2D*)*NewTexture;
+				}
+
+				if (GLEW_VERSION_4_3)
+					OGL_CopyTexture_4_3(GL_TEXTURE_2D, IResource->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+				else
+					OGL_CopyTexture_3_0(IResource->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+
+				glBindTexture(GL_TEXTURE_2D, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				int LastTexture = GL_NONE;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
+				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
+
+				VI_ASSERT(TargetBuffer != nullptr, "target buffer should be set");
+				if (TargetBuffer->Backbuffer)
+				{
+					if (!*Result)
+					{
+						auto NewTexture = CreateTexture2D();
+						if (!NewTexture)
+							return NewTexture.Error();
+
+						*Result = (OGLTexture2D*)*NewTexture;
+						glGenTextures(1, &((OGLTexture2D*)(*Result))->Resource);
+					}
+
+					GLint Viewport[4];
+					glGetIntegerv(GL_VIEWPORT, Viewport);
+					glBindTexture(GL_TEXTURE_2D, ((OGLTexture2D*)(*Result))->Resource);
+					glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, (GLsizei)Viewport[2], (GLsizei)Viewport[3]);
+					glBindTexture(GL_TEXTURE_2D, LastTexture);
+					return Core::Expectation::Met;
+				}
+
+				OGLTexture2D* Source = (OGLTexture2D*)Resource->GetTarget2D(Target);
+				if (!Source)
+					return GraphicsException("copy texture 2d: invalid target");
+
+				int Width, Height;
+				glBindTexture(GL_TEXTURE_2D, Source->Resource);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					auto NewTexture = CreateTexture2D(F);
+					if (!NewTexture)
+						return NewTexture.Error();
+
+					*Result = (OGLTexture2D*)*NewTexture;
+				}
+
+				if (GLEW_VERSION_4_3)
+					OGL_CopyTexture_4_3(GL_TEXTURE_2D, Source->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+				else
+					OGL_CopyTexture_3_0(Source->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+
+				glBindTexture(GL_TEXTURE_2D, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					auto NewTexture = CreateTexture2D(F);
+					if (!NewTexture)
+						return NewTexture.Error();
+
+					*Result = (OGLTexture2D*)*NewTexture;
+				}
+
+				OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[0], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+
+				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = GetRowPitch(F.Width);
+					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					auto NewTexture = CreateTexture2D(F);
+					if (!NewTexture)
+						return NewTexture.Error();
+
+					*Result = (OGLTexture2D*)*NewTexture;
+				}
+
+				OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[Cube], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D* Faces[6] = { nullptr };
+					for (unsigned int i = 0; i < 6; i++)
+						CopyTexture2D(Resource, i, &Faces[i]);
+
+					auto NewTexture = CreateTextureCube(Faces);
+					if (!NewTexture)
+					{
+						for (unsigned int i = 0; i < 6; i++)
+							VI_RELEASE(Faces[i]);
+						return NewTexture.Error();
+					}
+					else
+					{
+						*Result = (OGLTextureCube*)*NewTexture;
+						for (unsigned int i = 0; i < 6; i++)
+							VI_RELEASE(Faces[i]);
+					}
+				}
+				else if (GLEW_VERSION_4_3)
+					OGL_CopyTexture_4_3(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
+				else
+					OGL_CopyTexture_3_0(IResource->FrameBuffer.Texture[0], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D* Faces[6] = { nullptr };
+					for (unsigned int i = 0; i < 6; i++)
+						CopyTexture2D(Resource, Cube, (Compute::CubeFace)i, &Faces[i]);
+
+					auto NewTexture = CreateTextureCube(Faces);
+					if (!NewTexture)
+					{
+						for (unsigned int i = 0; i < 6; i++)
+							VI_RELEASE(Faces[i]);
+						return NewTexture.Error();
+					}
+					else
+					{
+						*Result = (OGLTextureCube*)*NewTexture;
+						for (unsigned int i = 0; i < 6; i++)
+							VI_RELEASE(Faces[i]);
+					}
+				}
+				else if (GLEW_VERSION_4_3)
+					OGL_CopyTexture_4_3(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
+				else
+					OGL_CopyTexture_3_0(IResource->FrameBuffer.Texture[Cube], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget)
+			{
+				VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
+				OGLTexture2D* Source2D = (OGLTexture2D*)From->GetTarget2D(FromTarget);
+				OGLTextureCube* SourceCube = (OGLTextureCube*)From->GetTargetCube(FromTarget);
+				OGLTexture2D* Dest2D = (OGLTexture2D*)To->GetTarget2D(ToTarget);
+				OGLTextureCube* DestCube = (OGLTextureCube*)To->GetTargetCube(ToTarget);
+				GLuint Source = (Source2D ? Source2D->Resource : (SourceCube ? SourceCube->Resource : GL_NONE));
+				GLuint Dest = (Dest2D ? Dest2D->Resource : (DestCube ? DestCube->Resource : GL_NONE));
+
+				VI_ASSERT(Source != GL_NONE, "from should be set");
+				VI_ASSERT(Dest != GL_NONE, "to should be set");
+
+				int LastTexture = GL_NONE;
+				uint32_t Width = From->GetWidth();
+				uint32_t Height = From->GetHeight();
+				glGetIntegerv(SourceCube ? GL_TEXTURE_BINDING_CUBE_MAP : GL_TEXTURE_BINDING_2D, &LastTexture);
+
+				if (GLEW_VERSION_4_3)
+				{
+					if (SourceCube != nullptr)
+						OGL_CopyTexture_4_3(GL_TEXTURE_CUBE_MAP, Source, Dest, Width, Height);
+					else
+						OGL_CopyTexture_4_3(GL_TEXTURE_2D, Source, Dest, Width, Height);
+				}
+				else
+					OGL_CopyTexture_3_0(Source, Dest, Width, Height);
+
+				glBindTexture(SourceCube ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, LastTexture);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CubemapPush(Cubemap* Resource, TextureCube* Result)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLCubemap* IResource = (OGLCubemap*)Resource;
+				OGLTextureCube* Dest = (OGLTextureCube*)Result;
+				IResource->Dest = Dest;
+
+				if (Dest->Resource != GL_NONE)
+					return Core::Expectation::Met;
+
+				GLint Size = IResource->Meta.Size;
+				Dest->FormatMode = IResource->Options.FormatMode;
+				Dest->Format = IResource->Options.SizeFormat;
+				Dest->MipLevels = IResource->Meta.MipLevels;
+				Dest->Width = Size;
+				Dest->Height = Size;
+
+				glGenTextures(1, &Dest->Resource);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Dest->Resource);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+				if (Dest->MipLevels > 0)
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, Dest->MipLevels - 1);
+				}
+				else
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				}
+
+				glTexStorage2D(GL_TEXTURE_CUBE_MAP, Dest->MipLevels, Dest->Format, Size, Size);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CubemapFace(Cubemap* Resource, Compute::CubeFace Face)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
+
+				OGLCubemap* IResource = (OGLCubemap*)Resource;
+				OGLTextureCube* Dest = (OGLTextureCube*)IResource->Dest;
+				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
+
+				GLint LastFrameBuffer = 0, Size = IResource->Meta.Size;
+				glGetIntegerv(GL_FRAMEBUFFER_BINDING, &LastFrameBuffer);
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer);
+				glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, IResource->Source, 0);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (unsigned int)Face, Dest->Resource, 0);
+				glNamedFramebufferDrawBuffer(IResource->FrameBuffer, GL_COLOR_ATTACHMENT1);
+				glBlitFramebuffer(0, 0, Size, Size, 0, 0, Size, Size, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+				glBindFramebuffer(GL_FRAMEBUFFER, LastFrameBuffer);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CubemapPop(Cubemap* Resource)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Resource->IsValid(), "resource should be valid");
+
+				OGLCubemap* IResource = (OGLCubemap*)Resource;
+				OGLTextureCube* Dest = (OGLTextureCube*)IResource->Dest;
+				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
+				if (IResource->Meta.MipLevels > 0)
+					GenerateMips(Dest);
+
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyBackBuffer(Texture2D** Result)
+			{
+				VI_ASSERT(Result != nullptr, "result should be set");
+				VI_ASSERT(!*Result || !((OGLTexture2D*)(*Result))->Backbuffer, "output resource 2d should not be back buffer");
+				OGLTexture2D* Texture = (OGLTexture2D*)*Result;
+				if (!Texture)
+				{
+					auto NewTexture = CreateTexture2D();
+					if (!NewTexture)
+						return NewTexture.Error();
+
+					glGenTextures(1, &Texture->Resource);
+					*Result = Texture;
+				}
+
+				GLint Viewport[4];
+				glGetIntegerv(GL_VIEWPORT, Viewport);
+				glBindTexture(GL_TEXTURE_2D, Texture->Resource);
+				glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, (GLsizei)Viewport[2], (GLsizei)Viewport[3], 0);
+				glGenerateMipmap(GL_TEXTURE_2D);
+				return GenerateTexture(Texture);
+			}
+			ExpectsGraphics<void> OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
+			{
+				RenderTarget2D::Desc F = RenderTarget2D::Desc();
+				F.Width = Width;
+				F.Height = Height;
+				F.MipLevels = 1;
+				F.MiscFlags = ResourceMisc::None;
+				F.FormatMode = Format::R8G8B8A8_Unorm;
+				F.Usage = ResourceUsage::Default;
+				F.AccessFlags = CPUAccess::None;
+				F.BindFlags = ResourceBind::Render_Target | ResourceBind::Shader_Input;
+				F.RenderSurface = (void*)this;
+				VI_CLEAR(RenderTarget);
+
+				auto NewTarget = CreateRenderTarget2D(F);
+				if (!NewTarget)
+					return NewTarget.Error();
+
+				RenderTarget = *NewTarget;
+				SetTarget();
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::GenerateTexture(Texture2D* Resource)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if (IResource->Backbuffer)
+				{
+					IResource->Width = RenderTarget->GetWidth();
+					IResource->Height = RenderTarget->GetHeight();
+					return Core::Expectation::Met;
+				}
+
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
+				int Width, Height;
+				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+				glBindTexture(GL_TEXTURE_2D, GL_NONE);
+
+				IResource->Width = Width;
+				IResource->Height = Height;
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::GenerateTexture(Texture3D* Resource)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
+				int Width, Height, Depth;
+				glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_HEIGHT, &Height);
+				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_DEPTH, &Depth);
+				glBindTexture(GL_TEXTURE_3D, GL_NONE);
+
+				IResource->Width = Width;
+				IResource->Height = Height;
+				IResource->Depth = Depth;
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::GenerateTexture(TextureCube* Resource)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+
+				VI_ASSERT(IResource->Resource != GL_NONE, "resource should be valid");
+				int Width, Height;
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_HEIGHT, &Height);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+
+				IResource->Width = Width;
+				IResource->Height = Height;
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::GetQueryData(Query* Resource, size_t* Result, bool Flush)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLQuery* IResource = (OGLQuery*)Resource;
+				GLint Available = 0;
+				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
+				if (Available == GL_FALSE)
+					return GetException("query data");
+
+				GLint64 Passing = 0;
+				glGetQueryObjecti64v(IResource->Async, GL_QUERY_RESULT, &Passing);
+				*Result = (size_t)Passing;
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::GetQueryData(Query* Resource, bool* Result, bool Flush)
+			{
+				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(Result != nullptr, "result should be set");
+
+				OGLQuery* IResource = (OGLQuery*)Resource;
+				GLint Available = 0;
+				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
+				if (Available == GL_FALSE)
+					return GetException("query data");
+
+				GLint Data = 0;
+				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT, &Data);
+				*Result = (Data == GL_TRUE);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<DepthStencilState*> OGLDevice::CreateDepthStencilState(const DepthStencilState::Desc& I)
 			{
 				return new OGLDepthStencilState(I);
 			}
-			BlendState* OGLDevice::CreateBlendState(const BlendState::Desc& I)
+			ExpectsGraphics<BlendState*> OGLDevice::CreateBlendState(const BlendState::Desc& I)
 			{
 				return new OGLBlendState(I);
 			}
-			RasterizerState* OGLDevice::CreateRasterizerState(const RasterizerState::Desc& I)
+			ExpectsGraphics<RasterizerState*> OGLDevice::CreateRasterizerState(const RasterizerState::Desc& I)
 			{
 				return new OGLRasterizerState(I);
 			}
-			SamplerState* OGLDevice::CreateSamplerState(const SamplerState::Desc& I)
+			ExpectsGraphics<SamplerState*> OGLDevice::CreateSamplerState(const SamplerState::Desc& I)
 			{
 				GLuint DeviceState = 0;
 				glGenSamplers(1, &DeviceState);
@@ -2475,35 +2566,27 @@ namespace Vitex
 
 				OGLSamplerState* Result = new OGLSamplerState(I);
 				Result->Resource = DeviceState;
-
 				return Result;
 			}
-			InputLayout* OGLDevice::CreateInputLayout(const InputLayout::Desc& I)
+			ExpectsGraphics<InputLayout*> OGLDevice::CreateInputLayout(const InputLayout::Desc& I)
 			{
 				return new OGLInputLayout(I);
 			}
-			Shader* OGLDevice::CreateShader(const Shader::Desc& I)
+			ExpectsGraphics<Shader*> OGLDevice::CreateShader(const Shader::Desc& I)
 			{
-				OGLShader* Result = new OGLShader(I);
-				const char* Data = nullptr;
-				GLint Size = 0;
-				GLint State = GL_TRUE;
 				Shader::Desc F(I);
-
-				if (!Preprocess(F))
-				{
-					VI_ERR("[ogl] shader preprocessing failed");
-					return Result;
-				}
+				auto PreprocessStatus = Preprocess(F);
+				if (!PreprocessStatus)
+					return GraphicsException(std::move(PreprocessStatus.Error().Info));
 
 				auto Name = GetProgramName(F);
 				if (!Name)
-				{
-					VI_ERR("[ogl] shader name generation failed");
-					return Result;
-				}
+					return GraphicsException("shader name is not defined");
 
-				Core::String ProgramName = *Name;
+				OGLShader* Result = new OGLShader(I);
+				Core::String ProgramName = std::move(*Name);
+				const char* Data = nullptr;
+				GLint Size = 0, State = GL_TRUE;
 
 				Core::String VertexEntry = GetShaderMain(ShaderType::Vertex);
 				if (F.Data.find(VertexEntry) != Core::String::npos)
@@ -2511,19 +2594,19 @@ namespace Vitex
 					Core::String Stage = ProgramName + SHADER_VERTEX, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						VI_DEBUG("[ogl] transpile %s vertex shader source", Stage.c_str());
+						VI_DEBUG("[opengl] transpile %s vertex shader source", Stage.c_str());
 						Bytecode = F.Data;
 
-						if (!Transpile(&Bytecode, ShaderType::Vertex, ShaderLang::GLSL))
+						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Vertex, ShaderLang::GLSL);
+						if (!TranspileStatus)
 						{
-							VI_ERR("[ogl] vertex shader transpiling failed");
-							return Result;
+							VI_RELEASE(Result);
+							return TranspileStatus.Error();
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
-						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl]cannot cache vertex shader");
+						SetProgramCache(Stage, Bytecode);
 					}
 					else
 					{
@@ -2531,19 +2614,20 @@ namespace Vitex
 						Size = (GLint)Bytecode.size();
 					}
 
-					VI_DEBUG("[ogl] compile %s vertex shader bytecode", Stage.c_str());
+					VI_DEBUG("[opengl] compile %s vertex shader bytecode", Stage.c_str());
 					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
 					glShaderSourceARB(Result->VertexShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->VertexShader);
 					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &State);
-
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
+						Core::String ErrorText(Buffer, (size_t)Size);
 						VI_FREE(Buffer);
+						VI_RELEASE(Result);
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -2553,19 +2637,19 @@ namespace Vitex
 					Core::String Stage = ProgramName + SHADER_PIXEL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						VI_DEBUG("[ogl] transpile %s pixel shader source", Stage.c_str());
+						VI_DEBUG("[opengl] transpile %s pixel shader source", Stage.c_str());
 						Bytecode = F.Data;
 
-						if (!Transpile(&Bytecode, ShaderType::Pixel, ShaderLang::GLSL))
+						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Pixel, ShaderLang::GLSL);
+						if (!TranspileStatus)
 						{
-							VI_ERR("[ogl] pixel shader transpiling failed");
-							return Result;
+							VI_RELEASE(Result);
+							return TranspileStatus.Error();
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
-						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl]cannot cache pixel shader");
+						SetProgramCache(Stage, Bytecode);
 					}
 					else
 					{
@@ -2573,19 +2657,20 @@ namespace Vitex
 						Size = (GLint)Bytecode.size();
 					}
 
-					VI_DEBUG("[ogl] compile %s pixel shader bytecode", Stage.c_str());
+					VI_DEBUG("[opengl] compile %s pixel shader bytecode", Stage.c_str());
 					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
 					glShaderSourceARB(Result->PixelShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->PixelShader);
 					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &State);
-
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
+						Core::String ErrorText(Buffer, (size_t)Size);
 						VI_FREE(Buffer);
+						VI_RELEASE(Result);
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -2595,19 +2680,19 @@ namespace Vitex
 					Core::String Stage = ProgramName + SHADER_GEOMETRY, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						VI_DEBUG("[ogl] transpile %s geometry shader source", Stage.c_str());
+						VI_DEBUG("[opengl] transpile %s geometry shader source", Stage.c_str());
 						Bytecode = F.Data;
 
-						if (!Transpile(&Bytecode, ShaderType::Geometry, ShaderLang::GLSL))
+						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Geometry, ShaderLang::GLSL);
+						if (!TranspileStatus)
 						{
-							VI_ERR("[ogl] geometry shader transpiling failed");
-							return Result;
+							VI_RELEASE(Result);
+							return TranspileStatus.Error();
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
-						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl]cannot cache geometry shader");
+						SetProgramCache(Stage, Bytecode);
 					}
 					else
 					{
@@ -2615,19 +2700,20 @@ namespace Vitex
 						Size = (GLint)Bytecode.size();
 					}
 
-					VI_DEBUG("[ogl] compile %s geometry shader bytecode", Stage.c_str());
+					VI_DEBUG("[opengl] compile %s geometry shader bytecode", Stage.c_str());
 					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 					glShaderSourceARB(Result->GeometryShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->GeometryShader);
 					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &State);
-
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
+						Core::String ErrorText(Buffer, (size_t)Size);
 						VI_FREE(Buffer);
+						VI_RELEASE(Result);
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -2637,19 +2723,19 @@ namespace Vitex
 					Core::String Stage = ProgramName + SHADER_COMPUTE, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						VI_DEBUG("[ogl] transpile %s compute shader source", Stage.c_str());
+						VI_DEBUG("[opengl] transpile %s compute shader source", Stage.c_str());
 						Bytecode = F.Data;
 
-						if (!Transpile(&Bytecode, ShaderType::Compute, ShaderLang::GLSL))
+						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Compute, ShaderLang::GLSL);
+						if (!TranspileStatus)
 						{
-							VI_ERR("[ogl] compute shader transpiling failed");
-							return Result;
+							VI_RELEASE(Result);
+							return TranspileStatus.Error();
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
-						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl]cannot cache compute shader");
+						SetProgramCache(Stage, Bytecode);
 					}
 					else
 					{
@@ -2657,19 +2743,20 @@ namespace Vitex
 						Size = (GLint)Bytecode.size();
 					}
 
-					VI_DEBUG("[ogl] compile %s compute shader bytecode", Stage.c_str());
+					VI_DEBUG("[opengl] compile %s compute shader bytecode", Stage.c_str());
 					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
 					glShaderSourceARB(Result->ComputeShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->ComputeShader);
 					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &State);
-
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
+						Core::String ErrorText(Buffer, (size_t)Size);
 						VI_FREE(Buffer);
+						VI_RELEASE(Result);
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -2679,19 +2766,19 @@ namespace Vitex
 					Core::String Stage = ProgramName + SHADER_HULL, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						VI_DEBUG("[ogl] transpile %s hull shader source", Stage.c_str());
+						VI_DEBUG("[opengl] transpile %s hull shader source", Stage.c_str());
 						Bytecode = F.Data;
 
-						if (!Transpile(&Bytecode, ShaderType::Hull, ShaderLang::GLSL))
+						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Hull, ShaderLang::GLSL);
+						if (!TranspileStatus)
 						{
-							VI_ERR("[ogl] hull shader transpiling failed");
-							return Result;
+							VI_RELEASE(Result);
+							return TranspileStatus.Error();
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
-						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl]cannot cache hull shader");
+						SetProgramCache(Stage, Bytecode);
 					}
 					else
 					{
@@ -2699,19 +2786,20 @@ namespace Vitex
 						Size = (GLint)Bytecode.size();
 					}
 
-					VI_DEBUG("[ogl] compile %s hull shader bytecode", Stage.c_str());
+					VI_DEBUG("[opengl] compile %s hull shader bytecode", Stage.c_str());
 					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
 					glShaderSourceARB(Result->HullShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->HullShader);
 					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &State);
-
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
+						Core::String ErrorText(Buffer, (size_t)Size);
 						VI_FREE(Buffer);
+						VI_RELEASE(Result);
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -2721,19 +2809,19 @@ namespace Vitex
 					Core::String Stage = ProgramName + SHADER_DOMAIN, Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						VI_DEBUG("[ogl] transpile %s domain shader source", Stage.c_str());
+						VI_DEBUG("[opengl] transpile %s domain shader source", Stage.c_str());
 						Bytecode = F.Data;
 
-						if (!Transpile(&Bytecode, ShaderType::Domain, ShaderLang::GLSL))
+						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Domain, ShaderLang::GLSL);
+						if (!TranspileStatus)
 						{
-							VI_ERR("[ogl] domain shader transpiling failed");
-							return Result;
+							VI_RELEASE(Result);
+							return TranspileStatus.Error();
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
-						if (!SetProgramCache(Stage, Bytecode))
-							VI_WARN("[ogl]cannot cache domain shader");
+						SetProgramCache(Stage, Bytecode);
 					}
 					else
 					{
@@ -2741,26 +2829,27 @@ namespace Vitex
 						Size = (GLint)Bytecode.size();
 					}
 
-					VI_DEBUG("[ogl] compile %s domain shader bytecode", Stage.c_str());
+					VI_DEBUG("[opengl] compile %s domain shader bytecode", Stage.c_str());
 					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
 					glShaderSourceARB(Result->DomainShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->DomainShader);
 					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &State);
-
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", Size, Buffer);
+						Core::String ErrorText(Buffer, (size_t)Size);
 						VI_FREE(Buffer);
+						VI_RELEASE(Result);
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
 				Result->Compiled = true;
 				return Result;
 			}
-			ElementBuffer* OGLDevice::CreateElementBuffer(const ElementBuffer::Desc& I)
+			ExpectsGraphics<ElementBuffer*> OGLDevice::CreateElementBuffer(const ElementBuffer::Desc& I)
 			{
 				OGLElementBuffer* Result = new OGLElementBuffer(I);
 				Result->Flags = OGLDevice::GetResourceBind(I.BindFlags);
@@ -2771,10 +2860,9 @@ namespace Vitex
 				glBindBuffer(Result->Flags, Result->Resource);
 				glBufferData(Result->Flags, I.ElementCount * I.ElementWidth, I.Elements, GetAccessControl(I.AccessFlags, I.Usage));
 				glBindBuffer(Result->Flags, GL_NONE);
-
 				return Result;
 			}
-			MeshBuffer* OGLDevice::CreateMeshBuffer(const MeshBuffer::Desc& I)
+			ExpectsGraphics<MeshBuffer*> OGLDevice::CreateMeshBuffer(const MeshBuffer::Desc& I)
 			{
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
@@ -2784,8 +2872,9 @@ namespace Vitex
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::Vertex);
 
-				OGLMeshBuffer* Result = new OGLMeshBuffer(I);
-				Result->VertexBuffer = CreateElementBuffer(F);
+				auto NewVertexBuffer = CreateElementBuffer(F);
+				if (!NewVertexBuffer)
+					return NewVertexBuffer.Error();
 
 				F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
@@ -2795,10 +2884,19 @@ namespace Vitex
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
 
-				Result->IndexBuffer = CreateElementBuffer(F);
+				auto NewIndexBuffer = CreateElementBuffer(F);
+				if (!NewIndexBuffer)
+				{
+					VI_RELEASE(NewVertexBuffer);
+					return NewIndexBuffer.Error();
+				}
+
+				OGLMeshBuffer* Result = new OGLMeshBuffer(I);
+				Result->VertexBuffer = *NewVertexBuffer;
+				Result->IndexBuffer = *NewIndexBuffer;
 				return Result;
 			}
-			MeshBuffer* OGLDevice::CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
+			ExpectsGraphics<MeshBuffer*> OGLDevice::CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
 			{
 				VI_ASSERT(VertexBuffer != nullptr, "vertex buffer should be set");
 				VI_ASSERT(IndexBuffer != nullptr, "index buffer should be set");
@@ -2807,7 +2905,7 @@ namespace Vitex
 				Result->IndexBuffer = IndexBuffer;
 				return Result;
 			}
-			SkinMeshBuffer* OGLDevice::CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I)
+			ExpectsGraphics<SkinMeshBuffer*> OGLDevice::CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I)
 			{
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
@@ -2817,8 +2915,9 @@ namespace Vitex
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 
-				OGLSkinMeshBuffer* Result = new OGLSkinMeshBuffer(I);
-				Result->VertexBuffer = CreateElementBuffer(F);
+				auto NewVertexBuffer = CreateElementBuffer(F);
+				if (!NewVertexBuffer)
+					return NewVertexBuffer.Error();
 
 				F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
@@ -2828,10 +2927,19 @@ namespace Vitex
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
 
-				Result->IndexBuffer = CreateElementBuffer(F);
+				auto NewIndexBuffer = CreateElementBuffer(F);
+				if (!NewIndexBuffer)
+				{
+					VI_RELEASE(NewVertexBuffer);
+					return NewIndexBuffer.Error();
+				}
+
+				OGLSkinMeshBuffer* Result = new OGLSkinMeshBuffer(I);
+				Result->VertexBuffer = *NewVertexBuffer;
+				Result->IndexBuffer = *NewIndexBuffer;
 				return Result;
 			}
-			SkinMeshBuffer* OGLDevice::CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
+			ExpectsGraphics<SkinMeshBuffer*> OGLDevice::CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer)
 			{
 				VI_ASSERT(VertexBuffer != nullptr, "vertex buffer should be set");
 				VI_ASSERT(IndexBuffer != nullptr, "index buffer should be set");
@@ -2840,7 +2948,7 @@ namespace Vitex
 				Result->IndexBuffer = IndexBuffer;
 				return Result;
 			}
-			InstanceBuffer* OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)
+			ExpectsGraphics<InstanceBuffer*> OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)
 			{
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = CPUAccess::Write;
@@ -2851,16 +2959,19 @@ namespace Vitex
 				F.ElementWidth = I.ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
 
-				OGLInstanceBuffer* Result = new OGLInstanceBuffer(I);
-				Result->Elements = CreateElementBuffer(F);
+				auto NewBuffer = CreateElementBuffer(F);
+				if (!NewBuffer)
+					return NewBuffer.Error();
 
+				OGLInstanceBuffer* Result = new OGLInstanceBuffer(I);
+				Result->Elements = *NewBuffer;
 				return Result;
 			}
-			Texture2D* OGLDevice::CreateTexture2D()
+			ExpectsGraphics<Texture2D*> OGLDevice::CreateTexture2D()
 			{
 				return new OGLTexture2D();
 			}
-			Texture2D* OGLDevice::CreateTexture2D(const Texture2D::Desc& I)
+			ExpectsGraphics<Texture2D*> OGLDevice::CreateTexture2D(const Texture2D::Desc& I)
 			{
 				OGLTexture2D* Result = new OGLTexture2D(I);
 				glGenTextures(1, &Result->Resource);
@@ -2893,11 +3004,11 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_2D, GL_NONE);
 				return Result;
 			}
-			Texture3D* OGLDevice::CreateTexture3D()
+			ExpectsGraphics<Texture3D*> OGLDevice::CreateTexture3D()
 			{
 				return new OGLTexture3D();
 			}
-			Texture3D* OGLDevice::CreateTexture3D(const Texture3D::Desc& I)
+			ExpectsGraphics<Texture3D*> OGLDevice::CreateTexture3D(const Texture3D::Desc& I)
 			{
 				OGLTexture3D* Result = new OGLTexture3D();
 				glGenTextures(1, &Result->Resource);
@@ -2935,11 +3046,11 @@ namespace Vitex
 
 				return Result;
 			}
-			TextureCube* OGLDevice::CreateTextureCube()
+			ExpectsGraphics<TextureCube*> OGLDevice::CreateTextureCube()
 			{
 				return new OGLTextureCube();
 			}
-			TextureCube* OGLDevice::CreateTextureCube(const TextureCube::Desc& I)
+			ExpectsGraphics<TextureCube*> OGLDevice::CreateTextureCube(const TextureCube::Desc& I)
 			{
 				OGLTextureCube* Result = new OGLTextureCube(I);
 				glGenTextures(1, &Result->Resource);
@@ -2978,7 +3089,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
 				return Result;
 			}
-			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource[6])
+			ExpectsGraphics<TextureCube*> OGLDevice::CreateTextureCube(Texture2D* Resource[6])
 			{
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
@@ -2990,7 +3101,7 @@ namespace Vitex
 
 				return CreateTextureCubeInternal(Resources);
 			}
-			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource)
+			ExpectsGraphics<TextureCube*> OGLDevice::CreateTextureCube(Texture2D* Resource)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(!((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
@@ -3001,10 +3112,7 @@ namespace Vitex
 				unsigned int MipLevels = GetMipLevel(Width, Height);
 
 				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
-				{
-					VI_ERR("[ogl] cannot create texture cube because width or height cannot be not divided");
-					return nullptr;
-				}
+					return GraphicsException("create texture cube: width / height is invalid");
 
 				if (IResource->MipLevels > MipLevels)
 					IResource->MipLevels = MipLevels;
@@ -3068,7 +3176,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
 				return Result;
 			}
-			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Basis[6])
+			ExpectsGraphics<TextureCube*> OGLDevice::CreateTextureCubeInternal(void* Basis[6])
 			{
 				VI_ASSERT(Basis[0] && Basis[1] && Basis[2] && Basis[3] && Basis[4] && Basis[5], "all 6 faces should be set");
 				OGLTexture2D* Resources[6];
@@ -3121,7 +3229,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
 				return Result;
 			}
-			DepthTarget2D* OGLDevice::CreateDepthTarget2D(const DepthTarget2D::Desc& I)
+			ExpectsGraphics<DepthTarget2D*> OGLDevice::CreateDepthTarget2D(const DepthTarget2D::Desc& I)
 			{
 				OGLDepthTarget2D* Result = new OGLDepthTarget2D(I);
 				glGenTextures(1, &Result->DepthTexture);
@@ -3137,7 +3245,14 @@ namespace Vitex
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 				glTexStorage2D(GL_TEXTURE_2D, 1, GetSizedFormat(I.FormatMode), I.Width, I.Height);
 
-				OGLTexture2D* DepthStencil = (OGLTexture2D*)CreateTexture2D();
+				auto NewTexture = CreateTexture2D();
+				if (!NewTexture)
+				{
+					VI_RELEASE(Result);
+					return NewTexture.Error();
+				}
+
+				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 				DepthStencil->FormatMode = I.FormatMode;
 				DepthStencil->Format = GetSizedFormat(I.FormatMode);
 				DepthStencil->MipLevels = 0;
@@ -3165,7 +3280,7 @@ namespace Vitex
 
 				return Result;
 			}
-			DepthTargetCube* OGLDevice::CreateDepthTargetCube(const DepthTargetCube::Desc& I)
+			ExpectsGraphics<DepthTargetCube*> OGLDevice::CreateDepthTargetCube(const DepthTargetCube::Desc& I)
 			{
 				OGLDepthTargetCube* Result = new OGLDepthTargetCube(I);
 				bool NoStencil = (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float);
@@ -3190,7 +3305,14 @@ namespace Vitex
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, 0, SizeFormat, I.Size, I.Size, 0, ComponentFormat, GL_UNSIGNED_BYTE, 0);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, 0, SizeFormat, I.Size, I.Size, 0, ComponentFormat, GL_UNSIGNED_BYTE, 0);
 
-				OGLTextureCube* DepthStencil = (OGLTextureCube*)CreateTextureCube();
+				auto NewTexture = CreateTextureCube();
+				if (!NewTexture)
+				{
+					VI_RELEASE(Result);
+					return NewTexture.Error();
+				}
+
+				OGLTextureCube* DepthStencil = (OGLTextureCube*)*NewTexture;
 				DepthStencil->FormatMode = I.FormatMode;
 				DepthStencil->Format = GetSizedFormat(I.FormatMode);
 				DepthStencil->MipLevels = 0;
@@ -3218,7 +3340,7 @@ namespace Vitex
 
 				return Result;
 			}
-			RenderTarget2D* OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
+			ExpectsGraphics<RenderTarget2D*> OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
 			{
 				OGLRenderTarget2D* Result = new OGLRenderTarget2D(I);
 				if (!I.RenderSurface)
@@ -3240,7 +3362,14 @@ namespace Vitex
 					}
 					glTexStorage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height);
 
-					OGLTexture2D* Frontbuffer = (OGLTexture2D*)CreateTexture2D();
+					auto NewTexture = CreateTexture2D();
+					if (!NewTexture)
+					{
+						VI_RELEASE(Result);
+						return NewTexture.Error();
+					}
+
+					OGLTexture2D* Frontbuffer = (OGLTexture2D*)*NewTexture;
 					Frontbuffer->FormatMode = I.FormatMode;
 					Frontbuffer->Format = GetSizedFormat(I.FormatMode);
 					Frontbuffer->MipLevels = I.MipLevels;
@@ -3262,7 +3391,14 @@ namespace Vitex
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 					glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, I.Width, I.Height);
 
-					OGLTexture2D* DepthStencil = (OGLTexture2D*)CreateTexture2D();
+					NewTexture = CreateTexture2D();
+					if (!NewTexture)
+					{
+						VI_RELEASE(Result);
+						return NewTexture.Error();
+					}
+
+					OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 					DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
 					DepthStencil->Format = GL_DEPTH24_STENCIL8;
 					DepthStencil->MipLevels = 0;
@@ -3280,7 +3416,14 @@ namespace Vitex
 				}
 				else if (I.RenderSurface == (void*)this)
 				{
-					OGLTexture2D* Backbuffer = (OGLTexture2D*)CreateTexture2D();
+					auto NewTexture = CreateTexture2D();
+					if (!NewTexture)
+					{
+						VI_RELEASE(Result);
+						return NewTexture.Error();
+					}
+
+					OGLTexture2D* Backbuffer = (OGLTexture2D*)*NewTexture;
 					Backbuffer->FormatMode = I.FormatMode;
 					Backbuffer->Format = GetSizedFormat(I.FormatMode);
 					Backbuffer->MipLevels = I.MipLevels;
@@ -3298,10 +3441,9 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-
 				return Result;
 			}
-			MultiRenderTarget2D* OGLDevice::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
+			ExpectsGraphics<MultiRenderTarget2D*> OGLDevice::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
 			{
 				OGLMultiRenderTarget2D* Result = new OGLMultiRenderTarget2D(I);
 				glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
@@ -3326,7 +3468,14 @@ namespace Vitex
 					}
 					glTexStorage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height);
 
-					OGLTexture2D* Frontbuffer = (OGLTexture2D*)CreateTexture2D();
+					auto NewTexture = CreateTexture2D();
+					if (!NewTexture)
+					{
+						VI_RELEASE(Result);
+						return NewTexture.Error();
+					}
+
+					OGLTexture2D* Frontbuffer = (OGLTexture2D*)*NewTexture;
 					Frontbuffer->FormatMode = I.FormatMode[i];
 					Frontbuffer->Format = Format;
 					Frontbuffer->MipLevels = I.MipLevels;
@@ -3352,7 +3501,14 @@ namespace Vitex
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 				glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, I.Width, I.Height);
 
-				OGLTexture2D* DepthStencil = (OGLTexture2D*)CreateTexture2D();
+				auto NewTexture = CreateTexture2D();
+				if (!NewTexture)
+				{
+					VI_RELEASE(Result);
+					return NewTexture.Error();
+				}
+
+				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
 				DepthStencil->Format = GL_DEPTH24_STENCIL8;
 				DepthStencil->MipLevels = I.MipLevels;
@@ -3371,10 +3527,9 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-
 				return Result;
 			}
-			RenderTargetCube* OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
+			ExpectsGraphics<RenderTargetCube*> OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
 			{
 				OGLRenderTargetCube* Result = new OGLRenderTargetCube(I);
 				GLint SizeFormat = OGLDevice::GetSizedFormat(I.FormatMode);
@@ -3403,7 +3558,14 @@ namespace Vitex
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, 0, SizeFormat, I.Size, I.Size, 0, BaseFormat, GL_UNSIGNED_BYTE, 0);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, 0, SizeFormat, I.Size, I.Size, 0, BaseFormat, GL_UNSIGNED_BYTE, 0);
 
-				OGLTextureCube* Base = (OGLTextureCube*)CreateTextureCube();
+				auto NewTexture = CreateTextureCube();
+				if (!NewTexture)
+				{
+					VI_RELEASE(Result);
+					return NewTexture.Error();
+				}
+
+				OGLTextureCube* Base = (OGLTextureCube*)*NewTexture;
 				Base->FormatMode = I.FormatMode;
 				Base->Format = SizeFormat;
 				Base->MipLevels = I.MipLevels;
@@ -3430,7 +3592,14 @@ namespace Vitex
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, 0, GL_DEPTH24_STENCIL8, I.Size, I.Size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, 0, GL_DEPTH24_STENCIL8, I.Size, I.Size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
-				OGLTexture2D* DepthStencil = (OGLTexture2D*)CreateTexture2D();
+				auto NewSubtexture = CreateTexture2D();
+				if (!NewSubtexture)
+				{
+					VI_RELEASE(Result);
+					return NewSubtexture.Error();
+				}
+
+				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewSubtexture;
 				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
 				DepthStencil->Format = GL_DEPTH24_STENCIL8;
 				DepthStencil->MipLevels = 0;
@@ -3452,10 +3621,9 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-
 				return Result;
 			}
-			MultiRenderTargetCube* OGLDevice::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
+			ExpectsGraphics<MultiRenderTargetCube*> OGLDevice::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
 			{
 				OGLMultiRenderTargetCube* Result = new OGLMultiRenderTargetCube(I);
 				glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
@@ -3489,7 +3657,14 @@ namespace Vitex
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, 0, SizeFormat, I.Size, I.Size, 0, BaseFormat, GL_UNSIGNED_BYTE, 0);
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, 0, SizeFormat, I.Size, I.Size, 0, BaseFormat, GL_UNSIGNED_BYTE, 0);
 
-					OGLTextureCube* Frontbuffer = (OGLTextureCube*)CreateTextureCube();
+					auto NewTexture = CreateTextureCube();
+					if (!NewTexture)
+					{
+						VI_RELEASE(Result);
+						return NewTexture.Error();
+					}
+
+					OGLTextureCube* Frontbuffer = (OGLTextureCube*)*NewTexture;
 					Frontbuffer->FormatMode = I.FormatMode[i];
 					Frontbuffer->Format = SizeFormat;
 					Frontbuffer->MipLevels = I.MipLevels;
@@ -3520,7 +3695,14 @@ namespace Vitex
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, 0, GL_DEPTH24_STENCIL8, I.Size, I.Size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, 0, GL_DEPTH24_STENCIL8, I.Size, I.Size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
-				OGLTexture2D* DepthStencil = (OGLTexture2D*)CreateTexture2D();
+				auto NewTexture = CreateTexture2D();
+				if (!NewTexture)
+				{
+					VI_RELEASE(Result);
+					return NewTexture.Error();
+				}
+
+				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
 				DepthStencil->Format = GL_DEPTH24_STENCIL8;
 				DepthStencil->MipLevels = 0;
@@ -3539,14 +3721,13 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-
 				return Result;
 			}
-			Cubemap* OGLDevice::CreateCubemap(const Cubemap::Desc& I)
+			ExpectsGraphics<Cubemap*> OGLDevice::CreateCubemap(const Cubemap::Desc& I)
 			{
 				return new OGLCubemap(I);
 			}
-			Query* OGLDevice::CreateQuery(const Query::Desc& I)
+			ExpectsGraphics<Query*> OGLDevice::CreateQuery(const Query::Desc& I)
 			{
 				OGLQuery* Result = new OGLQuery();
 				Result->Predicate = I.Predicate;
@@ -3650,7 +3831,34 @@ namespace Vitex
 						break;
 				}
 			}
-			bool OGLDevice::CreateDirectBuffer(size_t Size)
+			const char* OGLDevice::GetShaderVersion()
+			{
+				return ShaderVersion;
+			}
+			ExpectsGraphics<void> OGLDevice::CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size)
+			{
+				VI_ASSERT(Data != nullptr, "buffer should not be empty");
+				if (!Size)
+					return GraphicsException("copy constant buffer: zero size");
+
+				glBindBuffer(GL_UNIFORM_BUFFER, Buffer);
+				glBufferSubData(GL_UNIFORM_BUFFER, 0, Size, Data);
+				glBindBuffer(GL_UNIFORM_BUFFER, GL_NONE);
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
+			{
+				VI_ASSERT(Buffer != nullptr, "buffer should be set");
+				glGenBuffers(1, Buffer);
+				glBindBuffer(GL_UNIFORM_BUFFER, *Buffer);
+				glBufferData(GL_UNIFORM_BUFFER, Size, nullptr, GL_DYNAMIC_DRAW);
+				glBindBuffer(GL_UNIFORM_BUFFER, GL_NONE);
+				if (!glIsBuffer(*Buffer))
+					return GetException("create constant buffer");
+
+				return Core::Expectation::Met;
+			}
+			ExpectsGraphics<void> OGLDevice::CreateDirectBuffer(size_t Size)
 			{
 				MaxElements = Size + 1;
 				SetInputLayout(nullptr);
@@ -3668,21 +3876,21 @@ namespace Vitex
 				if (Immediate.VertexShader == GL_NONE)
 				{
 					static const char* VertexShaderCode = OGL_INLINE(
-					layout(location = 0) uniform mat4 Transform;
+						layout(location = 0) uniform mat4 Transform;
 
-					layout(location = 0) in vec3 iPosition;
-					layout(location = 1) in vec2 iTexCoord;
-					layout(location = 2) in vec4 iColor;
+						layout(location = 0) in vec3 iPosition;
+						layout(location = 1) in vec2 iTexCoord;
+						layout(location = 2) in vec4 iColor;
 
-					out vec2 oTexCoord;
-					out vec4 oColor;
+						out vec2 oTexCoord;
+						out vec4 oColor;
 
-					void main()
-					{
-						gl_Position = Transform * vec4(iPosition.xyz, 1.0);
-						oTexCoord = iTexCoord;
-						oColor = iColor;
-					});
+						void main()
+						{
+							gl_Position = Transform * vec4(iPosition.xyz, 1.0);
+							oTexCoord = iTexCoord;
+							oColor = iColor;
+						});
 
 					Core::String Result = ShaderVersion;
 					Result.append(VertexShaderCode);
@@ -3693,37 +3901,35 @@ namespace Vitex
 					glShaderSourceARB(Immediate.VertexShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(Immediate.VertexShader);
 					glGetShaderiv(Immediate.VertexShader, GL_COMPILE_STATUS, &StatusCode);
-
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Immediate.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.VertexShader, BufferSize, &BufferSize, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", BufferSize, Buffer);
+						Core::String ErrorText(Buffer, (size_t)BufferSize);
 						VI_FREE(Buffer);
-
-						return false;
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
 				if (Immediate.PixelShader == GL_NONE)
 				{
 					static const char* PixelShaderCode = OGL_INLINE(
-					layout(binding = 1) uniform sampler2D Diffuse;
-					layout(location = 2) uniform vec4 Padding;
+						layout(binding = 1) uniform sampler2D Diffuse;
+						layout(location = 2) uniform vec4 Padding;
 
-					in vec2 oTexCoord;
-					in vec4 oColor;
+						in vec2 oTexCoord;
+						in vec4 oColor;
 
-					out vec4 oResult;
+						out vec4 oResult;
 
-					void main()
-					{
-						if (Padding.z > 0)
-							oResult = oColor * textureLod(Diffuse, oTexCoord + Padding.xy, 0.0) * Padding.w;
-						else
-							oResult = oColor * Padding.w;
-					});
+						void main()
+						{
+							if (Padding.z > 0)
+								oResult = oColor * textureLod(Diffuse, oTexCoord + Padding.xy, 0.0) * Padding.w;
+							else
+								oResult = oColor * Padding.w;
+						});
 
 					Core::String Result = ShaderVersion;
 					Result.append(PixelShaderCode);
@@ -3734,16 +3940,14 @@ namespace Vitex
 					glShaderSourceARB(Immediate.PixelShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(Immediate.PixelShader);
 					glGetShaderiv(Immediate.PixelShader, GL_COMPILE_STATUS, &StatusCode);
-
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Immediate.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.PixelShader, BufferSize, &BufferSize, Buffer);
-						VI_ERR("[ogl-compiler] %.*s", BufferSize, Buffer);
+						Core::String ErrorText(Buffer, (size_t)BufferSize);
 						VI_FREE(Buffer);
-
-						return false;
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -3757,18 +3961,17 @@ namespace Vitex
 
 					if (StatusCode == GL_FALSE)
 					{
-						GLint Size = 0;
-						glGetProgramiv(Immediate.Program, GL_INFO_LOG_LENGTH, &Size);
+						GLint BufferSize = 0;
+						glGetProgramiv(Immediate.Program, GL_INFO_LOG_LENGTH, &BufferSize);
 
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
-						glGetProgramInfoLog(Immediate.Program, Size, &Size, Buffer);
-						VI_ERR("[ogl-linker] %.*s", Size, Buffer);
+						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
+						glGetProgramInfoLog(Immediate.Program, BufferSize, &BufferSize, Buffer);
+						Core::String ErrorText(Buffer, (size_t)BufferSize);
 						VI_FREE(Buffer);
 
 						glDeleteProgram(Immediate.Program);
 						Immediate.Program = GL_NONE;
-
-						return false;
+						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
@@ -3782,7 +3985,7 @@ namespace Vitex
 				glGenVertexArrays(1, &Immediate.VertexArray);
 				glBindVertexArray(Immediate.VertexArray);
 				glBindBuffer(GL_ARRAY_BUFFER, Immediate.VertexBuffer);
-				glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)* (MaxElements + 1), Elements.empty() ? nullptr : &Elements[0], GL_DYNAMIC_DRAW);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * (MaxElements + 1), Elements.empty() ? nullptr : &Elements[0], GL_DYNAMIC_DRAW);
 				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), OGL_OFFSET(0));
 				glEnableVertexAttribArray(0);
 				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), OGL_OFFSET(sizeof(float) * 3));
@@ -3792,42 +3995,17 @@ namespace Vitex
 				glBindVertexArray(0);
 
 				SetVertexBuffers(nullptr, 0);
-				return true;
-			}
-			const char* OGLDevice::GetShaderVersion()
-			{
-				return ShaderVersion;
-			}
-			void OGLDevice::CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size)
-			{
-				VI_ASSERT(Data != nullptr, "buffer should not be empty");
-				if (!Size)
-					return;
-
-				glBindBuffer(GL_UNIFORM_BUFFER, Buffer);
-				glBufferSubData(GL_UNIFORM_BUFFER, 0, Size, Data);
-				glBindBuffer(GL_UNIFORM_BUFFER, GL_NONE);
-			}
-			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
-			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				glGenBuffers(1, Buffer);
-				glBindBuffer(GL_UNIFORM_BUFFER, *Buffer);
-				glBufferData(GL_UNIFORM_BUFFER, Size, nullptr, GL_DYNAMIC_DRAW);
-				glBindBuffer(GL_UNIFORM_BUFFER, GL_NONE);
-
-				return (int)*Buffer;
+				return Core::Expectation::Met;
 			}
 			uint64_t OGLDevice::GetProgramHash()
 			{
-				uint64_t Seed = 0;
+				static uint64_t Seed = Compute::Crypto::Random();
 				Rehash<void*>(Seed, Register.Shaders[0]);
 				Rehash<void*>(Seed, Register.Shaders[1]);
 				Rehash<void*>(Seed, Register.Shaders[2]);
 				Rehash<void*>(Seed, Register.Shaders[3]);
 				Rehash<void*>(Seed, Register.Shaders[4]);
 				Rehash<void*>(Seed, Register.Shaders[5]);
-
 				return Seed;
 			}
 			Core::String OGLDevice::CompileState(GLuint Handle)
@@ -4440,7 +4618,7 @@ namespace Vitex
 				if (Id == NullTextureCannotBeSampled)
 					return;
 
-				const char* _Source, * _Type;
+				const char* _Source, *_Type;
 				switch (Source)
 				{
 					case GL_DEBUG_SOURCE_API:
@@ -4459,7 +4637,7 @@ namespace Vitex
 						_Source = "APPLICATION";
 						break;
 					default:
-						_Source = "NONE";
+						_Source = "GENERAL";
 						break;
 				}
 
@@ -4487,20 +4665,23 @@ namespace Vitex
 						_Type = "MARKER";
 						break;
 					default:
-						_Type = "NONE";
+						_Type = "LOG";
 						break;
 				}
 
 				switch (Severity)
 				{
 					case GL_DEBUG_SEVERITY_HIGH:
-						VI_ERR("[ogl] %s (%s:%d): %s", _Source, _Type, Id, Message);
+						VI_ERR("[opengl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_MEDIUM:
-						VI_WARN("[ogl] %s (%s:%d): %s", _Source, _Type, Id, Message);
+						VI_WARN("[opengl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_LOW:
-						VI_DEBUG("[ogl] %s (%s:%d): %s", _Source, _Type, Id, Message);
+						VI_DEBUG("[opengl] %s (%s:%d): %s", _Source, _Type, Id, Message);
+						break;
+					case GL_DEBUG_SEVERITY_NOTIFICATION:
+						VI_TRACE("[opengl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 				}
 			}

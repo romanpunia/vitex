@@ -889,7 +889,7 @@ namespace Vitex
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
 		{
 			VI_ASSERT(Fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll wait %i fds (%" PRIu64 " ms)", FdCount, Timeout);
+			VI_TRACE("[net] poll wait %i fds (%i ms)", FdCount, Timeout);
 #if defined(VI_MICROSOFT)
 			int Count = WSAPoll(Fd, FdCount, Timeout);
 #else
@@ -1287,7 +1287,7 @@ namespace Vitex
 			}
 
 			IsInstalled = true;
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -1304,7 +1304,7 @@ namespace Vitex
 				VI_RELEASE(Item.second.second);
 			Names.clear();
 		}
-		Core::ExpectsIO<Core::String> DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
+		Core::ExpectsSystem<Core::String> DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
 		{
 			VI_ASSERT(!Host.empty(), "ip address should not be empty");
 			VI_ASSERT(!Service.empty(), "port should be greater than zero");
@@ -1331,22 +1331,16 @@ namespace Vitex
 			}
 
 			if (Result == -1)
-			{
-				VI_ERR("[dns] cannot reverse resolve dns for identity %s:%i", Host.c_str(), Service.c_str());
-				return Core::OS::Error::GetConditionOr();
-			}
+				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%i address: invalid address", Host.c_str(), Service.c_str()));
 
 			char Hostname[NI_MAXHOST], ServiceName[NI_MAXSERV];
 			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Hostname, NI_MAXHOST, ServiceName, NI_MAXSERV, NI_NUMERICSERV) != 0)
-			{
-				VI_ERR("[dns] cannot reverse resolve dns for identity %s:%i", Host.c_str(), Service.c_str());
-				return Core::OS::Error::GetConditionOr();
-			}
+				return Core::SystemException(Core::Stringify::Text("dns reverse resolve %s:%i address: invalid address", Host.c_str(), Service.c_str()));
 
 			VI_DEBUG("[net] dns reverse resolved for identity %s:%i (host %s:%s is used)", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			return Core::String(Hostname, strnlen(Hostname, sizeof(Hostname) - 1));
 		}
-		Core::ExpectsIO<SocketAddress*> DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
+		Core::ExpectsSystem<SocketAddress*> DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			VI_ASSERT(!Host.empty(), "host should not be empty");
 			VI_ASSERT(!Service.empty(), "service should not be empty");
@@ -1421,10 +1415,7 @@ namespace Vitex
 
 			struct addrinfo* Addresses = nullptr;
 			if (getaddrinfo(Host.c_str(), Service.c_str(), &Hints, &Addresses) != 0)
-			{
-				VI_ERR("[dns] cannot resolve dns for identity %s", Identity.c_str());
-				return Core::OS::Error::GetConditionOr();
-			}
+				return Core::SystemException(Core::Stringify::Text("dns resolve %s address: invalid address", Identity.c_str()));
 
 			struct addrinfo* Good = nullptr;
 			Core::UnorderedMap<socket_t, addrinfo*> Hosts;
@@ -1459,8 +1450,7 @@ namespace Vitex
 			if (!Good)
 			{
 				freeaddrinfo(Addresses);
-				VI_ERR("[dns] cannot resolve dns for identity %s", Identity.c_str());
-				return std::make_error_condition(std::errc::host_unreachable);
+				return Core::SystemException(Core::Stringify::Text("dns resolve %s address: invalid address", Identity.c_str()), std::make_error_condition(std::errc::host_unreachable));
 			}
 
 			SocketAddress* Result = new SocketAddress(Addresses, Good);
@@ -1912,7 +1902,7 @@ namespace Vitex
 			if (!ASN1_STRING_set(SerialNumber, Data->data(), static_cast<int>(Data->size())))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -1923,7 +1913,7 @@ namespace Vitex
 			if (!X509_set_version((X509*)Certificate, Version))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -1934,7 +1924,7 @@ namespace Vitex
 			if (!X509_gmtime_adj(X509_get_notAfter((X509*)Certificate), (long)OffsetSeconds))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -1945,7 +1935,7 @@ namespace Vitex
 			if (!X509_gmtime_adj(X509_get_notBefore((X509*)Certificate), (long)OffsetSeconds))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -1964,7 +1954,7 @@ namespace Vitex
 			if (!X509_set_pubkey((X509*)Certificate, (EVP_PKEY*)PrivateKey))
 				return std::make_error_condition(std::errc::bad_message);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -1982,7 +1972,7 @@ namespace Vitex
 			if (!X509_set_issuer_name((X509*)Certificate, SubjectName))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -2016,7 +2006,7 @@ namespace Vitex
 			if (!Success)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -2037,7 +2027,7 @@ namespace Vitex
 			if (!Success)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -2066,7 +2056,7 @@ namespace Vitex
 			if (!X509_NAME_add_entry_by_txt(SubjectName, Key.c_str(), MBSTRING_ASC, (unsigned char*)Value.c_str(), (int)Value.size(), -1, 0))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -2082,7 +2072,7 @@ namespace Vitex
 			if (!X509_NAME_add_entry_by_txt(IssuerName, Key.c_str(), MBSTRING_ASC, (unsigned char*)Value.c_str(), (int)Value.size(), -1, 0))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -2094,7 +2084,7 @@ namespace Vitex
 			if (X509_sign((X509*)Certificate, (EVP_PKEY*)PrivateKey, (EVP_MD*)Algorithm) != 0)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -2217,7 +2207,7 @@ namespace Vitex
 			if (OutAddr != nullptr)
 				inet_ntop(Address.sa_family, GetAddressStorage(&Address), OutAddr, INET6_ADDRSTRLEN);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
 		{
@@ -2240,7 +2230,7 @@ namespace Vitex
 			}))
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::Close(bool Gracefully)
 		{
@@ -2283,7 +2273,7 @@ namespace Vitex
 			closesocket(Fd);
 			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::CloseAsync(bool Gracefully, SocketStatusCallback&& Callback)
 		{
@@ -2323,7 +2313,7 @@ namespace Vitex
 			Fd = INVALID_SOCKET;
 
 			Callback(Core::Optional::None);
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying)
 		{
@@ -2353,7 +2343,7 @@ namespace Vitex
 			Fd = INVALID_SOCKET;
 
 			Callback(Core::Optional::None);
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<size_t> Socket::SendFile(FILE* Stream, size_t Offset, size_t Size)
 		{
@@ -2732,7 +2722,7 @@ namespace Vitex
 			if (connect(Fd, Source->ai_addr, (int)Source->ai_addrlen) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback)
 		{
@@ -2746,7 +2736,7 @@ namespace Vitex
 			if (Status == 0)
 			{
 				Callback(Core::Optional::None);
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 			else if (Utils::GetLastError(Device, Status) != std::errc::operation_would_block)
 			{
@@ -2779,7 +2769,7 @@ namespace Vitex
 
 			int Option = 1;
 			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
@@ -2800,7 +2790,7 @@ namespace Vitex
 				SSL_set_tlsext_host_name(Device, Hostname);
 #endif
 #endif
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::Bind(SocketAddress* Address)
 		{
@@ -2812,7 +2802,7 @@ namespace Vitex
 			if (bind(Fd, Source->ai_addr, (int)Source->ai_addrlen) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::Listen(int Backlog)
 		{
@@ -2821,7 +2811,7 @@ namespace Vitex
 			if (listen(Fd, Backlog) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::ClearEvents(bool Gracefully)
 		{
@@ -2836,7 +2826,7 @@ namespace Vitex
 			if (!Success)
 				return std::make_error_condition(std::errc::not_connected);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::MigrateTo(socket_t NewFd, bool Gracefully)
 		{
@@ -2845,7 +2835,7 @@ namespace Vitex
 			if (!Gracefully)
 			{
 				Fd = NewFd;
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 
 			auto Status = ClearEvents(false);
@@ -2861,7 +2851,7 @@ namespace Vitex
 			if (fcntl(Fd, F_SETFD, FD_CLOEXEC) == -1)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #endif
 		}
 		Core::ExpectsIO<void> Socket::SetTimeWait(int Timeout)
@@ -2874,7 +2864,7 @@ namespace Vitex
 			if (setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger)) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::SetSocket(int Option, void* Value, size_t Size)
 		{
@@ -2882,7 +2872,7 @@ namespace Vitex
 			if (::setsockopt(Fd, SOL_SOCKET, Option, (const char*)Value, (int)Size) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::SetAny(int Level, int Option, void* Value, size_t Size)
 		{
@@ -2890,7 +2880,7 @@ namespace Vitex
 			if (::setsockopt(Fd, Level, Option, (const char*)Value, (int)Size) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::SetSocketFlag(int Option, int Value)
 		{
@@ -2917,7 +2907,7 @@ namespace Vitex
 			if (fcntl(Fd, F_SETFL, Flags) == -1)
 				return Core::OS::Error::GetConditionOr();
 #endif
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::SetNoDelay(bool Enabled)
 		{
@@ -2944,7 +2934,7 @@ namespace Vitex
 			if (setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time)) != 0)
 				return Core::OS::Error::GetConditionOr();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::GetSocket(int Option, void* Value, size_t* Size)
 		{
@@ -2959,7 +2949,7 @@ namespace Vitex
 			if (Size != nullptr)
 				*Size = (size_t)Length;
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::GetSocketFlag(int Option, int* Value)
 		{
@@ -3142,7 +3132,7 @@ namespace Vitex
 			VI_ASSERT(Value > 0, "backlog must be greater than zero");
 			Backlog = Value;
 		}
-		Core::ExpectsIO<void> SocketServer::Configure(SocketRouter* NewRouter)
+		Core::ExpectsSystem<void> SocketServer::Configure(SocketRouter* NewRouter)
 		{
 			VI_ASSERT(State == ServerState::Idle, "server should not be running");
 			if (NewRouter != nullptr)
@@ -3153,17 +3143,17 @@ namespace Vitex
 			else if (!Router && !(Router = OnAllocateRouter()))
 			{
 				VI_ASSERT(false, "router is not valid");
-				return std::make_error_condition(std::errc::invalid_argument);
+				return Core::SystemException("configure server: invalid router", std::make_error_condition(std::errc::invalid_argument));
 			}
 
-			auto Status = OnConfigure(Router);
-			if (!Status)
-				return Status;
+			auto ConfigureStatus = OnConfigure(Router);
+			if (!ConfigureStatus)
+				return ConfigureStatus;
 
 			if (Router->Listeners.empty())
 			{
 				VI_ASSERT(false, "there are no listeners provided");
-				return std::make_error_condition(std::errc::invalid_argument);
+				return Core::SystemException("configure server: invalid listeners", std::make_error_condition(std::errc::invalid_argument));
 			}
 
 			DNS* Service = DNS::Get();
@@ -3174,32 +3164,20 @@ namespace Vitex
 
 				auto Source = Service->FindAddressFromName(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
 				if (!Source)
-				{
-					VI_ERR("[net] cannot resolve %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
-					return Core::OS::Error::GetConditionOr(std::errc::host_unreachable);
-				}
+					return Core::SystemException(Core::Stringify::Text("resolve %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::make_error_condition(std::errc::host_unreachable));
 
 				SocketListener* Value = new SocketListener(It.first, It.second, *Source);
-				Status = Value->Base->Open(*Source);
+				auto Status = Value->Base->Open(*Source);
 				if (!Status)
-				{
-					VI_ERR("[net] cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
-					return Status;
-				}
+					return Core::SystemException(Core::Stringify::Text("open %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
 
 				Status = Value->Base->Bind(*Source);
 				if (!Status)
-				{
-					VI_ERR("[net] cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
-					return Status;
-				}
+					return Core::SystemException(Core::Stringify::Text("bind %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
 
 				Status = Value->Base->Listen((int)Router->BacklogQueue);
 				if (!Status)
-				{
-					VI_ERR("[net] cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
-					return Status;
-				}
+					return Core::SystemException(Core::Stringify::Text("listen %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
 
 				Value->Base->SetCloseOnExec();
 				Value->Base->SetBlocking(false);
@@ -3209,10 +3187,7 @@ namespace Vitex
 				{
 					auto Port = Value->Base->GetPort();
 					if (!Port)
-					{
-						VI_ERR("[net] cannot determine listener's port number");
-						return Port.Error();
-					}
+						return Core::SystemException(Core::Stringify::Text("fetch port of %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Port.Error()));
 					else
 						It.second.Port = *Port;
 				}
@@ -3222,10 +3197,7 @@ namespace Vitex
 			{
 				auto Context = TransportLayer::Get()->CreateServerContext(It.second.VerifyPeers, It.second.Options, It.second.Ciphers);
 				if (!Context)
-				{
-					VI_ERR("[net] cannot create TLS context for entry: %s", It.first.c_str());
-					return Context.Error();
-				}
+					return Core::SystemException("create server transport layer error: " + It.first, std::move(Context.Error()));
 
 				It.second.Context = *Context;
 				if (It.second.VerifyPeers > 0)
@@ -3234,69 +3206,43 @@ namespace Vitex
 					SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_NONE, nullptr);
 
 				if (It.second.Blob.Certificate.empty() || It.second.Blob.PrivateKey.empty())
-				{
-					VI_ERR("[net] provide certificate file and private key file for entry: %s", It.first.c_str());
-					return std::make_error_condition(std::errc::invalid_argument);
-				}
+					return Core::SystemException("invalid server transport layer private key or certificate error: " + It.first, std::make_error_condition(std::errc::invalid_argument));
 
 				BIO* CertificateBio = BIO_new_mem_buf((void*)It.second.Blob.Certificate.c_str(), (int)It.second.Blob.Certificate.size());
 				if (!CertificateBio)
-				{
-					VI_ERR("[net] cannot allocate certificate bio: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::not_enough_memory);
-				}
+					return Core::SystemException(Core::Stringify::Text("server transport layer certificate %s memory error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::not_enough_memory));
 
 				X509* Certificate = PEM_read_bio_X509(CertificateBio, nullptr, 0, nullptr);
 				BIO_free(CertificateBio);
-
 				if (!Certificate)
-				{
-					VI_ERR("[net] cannot parse certificate bio: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::invalid_argument);
-				}
+					return Core::SystemException(Core::Stringify::Text("server transport layer certificate %s parse error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::invalid_argument));
 
 				if (SSL_CTX_use_certificate(It.second.Context, Certificate) != 1)
-				{
-					VI_ERR("[net] cannot use certificate: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::bad_message);
-				}
-
+					return Core::SystemException(Core::Stringify::Text("server transport layer certificate %s import error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
+	
 				BIO* PrivateKeyBio = BIO_new_mem_buf((void*)It.second.Blob.PrivateKey.c_str(), (int)It.second.Blob.PrivateKey.size());
 				if (!PrivateKeyBio)
-				{
-					VI_ERR("[net] cannot allocate private-key bio: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::not_enough_memory);
-				}
+					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s memory error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::not_enough_memory));
 
 				EVP_PKEY* PrivateKey = PEM_read_bio_PrivateKey(PrivateKeyBio, nullptr, 0, nullptr);
 				BIO_free(PrivateKeyBio);
-
 				if (!PrivateKey)
-				{
-					VI_ERR("[net] cannot parse private-key bio: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::invalid_argument);
-				}
+					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s parse error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::invalid_argument));
 
 				if (SSL_CTX_use_PrivateKey(It.second.Context, PrivateKey) != 1)
-				{
-					VI_ERR("[net] cannot use private-key: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::bad_message);
-				}
+					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s import error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
 
 				if (!SSL_CTX_check_private_key(It.second.Context))
-				{
-					VI_ERR("[net] cannot verify this private key: %s", ERR_error_string(ERR_get_error(), nullptr));
-					return std::make_error_condition(std::errc::bad_message);
-				}
+					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s verify error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
 			}
 #endif
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> SocketServer::Unlisten(uint64_t TimeoutSeconds)
+		Core::ExpectsSystem<void> SocketServer::Unlisten(uint64_t TimeoutSeconds)
 		{
 			VI_MEASURE(Core::Timings::Hangup);
 			if (!Router && State == ServerState::Idle)
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 
 			State = ServerState::Stopping;
 			int64_t Timeout = time(nullptr);
@@ -3306,7 +3252,7 @@ namespace Vitex
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				if (TimeoutSeconds > 0 && time(nullptr) - Timeout > (int64_t)TimeoutSeconds)
 				{
-					VI_ERR("[stall] server has stalled connections: %i (these connections will be ignored)", (int)Active.size());
+					VI_DEBUG("[stall] server has stalled connections: %i (these connections will be ignored)", (int)Active.size());
 					for (auto* Next : Active)
 						OnRequestStall(Next);
 					break;
@@ -3327,9 +3273,9 @@ namespace Vitex
 				VI_MEASURE_LOOP();
 			} while (Core::Schedule::Get()->IsActive() && (!Inactive.empty() || !Active.empty()));
 
-			auto Status = OnUnlisten();
-			if (!Status)
-				return Status;
+			auto UnlistenStatus = OnUnlisten();
+			if (!UnlistenStatus)
+				return UnlistenStatus;
 
 			for (auto It : Listeners)
 			{
@@ -3354,17 +3300,17 @@ namespace Vitex
 			Listeners.clear();
 			State = ServerState::Idle;
 			Router = nullptr;
-			return Status;
+			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> SocketServer::Listen()
+		Core::ExpectsSystem<void> SocketServer::Listen()
 		{
 			if (Listeners.empty() || State != ServerState::Idle)
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 
 			State = ServerState::Working;
-			auto Status = OnListen();
-			if (!Status)
-				return Status;
+			auto ListenStatus = OnListen();
+			if (!ListenStatus)
+				return ListenStatus;
 
 			for (auto&& Source : Listeners)
 			{
@@ -3382,7 +3328,7 @@ namespace Vitex
 				});
 			}
 
-			return Status;
+			return Core::Expectation::Met;
 		}
 		bool SocketServer::FreeAll()
 		{
@@ -3426,18 +3372,18 @@ namespace Vitex
 			if (!Host->Hostname.Secure)
 			{
 				OnRequestOpen(Base);
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 
-			if (!EncryptThenOpen(Base, Host))
+			if (!HandshakeThenOpen(Base, Host))
 			{
 				Refuse(Base);
 				return std::make_error_condition(std::errc::protocol_error);
 			}
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> SocketServer::EncryptThenOpen(SocketConnection* Base, SocketListener* Host)
+		Core::ExpectsIO<void> SocketServer::HandshakeThenOpen(SocketConnection* Base, SocketListener* Host)
 		{
 			VI_ASSERT(Base != nullptr, "socket should be set");
 			VI_ASSERT(Base->Stream != nullptr, "socket should be set");
@@ -3461,20 +3407,20 @@ namespace Vitex
 			if (SSL_set_fd(Base->Stream->GetDevice(), (int)Base->Stream->GetFd()) != 1)
 				return std::make_error_condition(std::errc::connection_aborted);
 
-			TryEncryptThenBegin(Base);
-			return Core::Optional::OK;
+			TryHandshakeThenBegin(Base);
+			return Core::Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> SocketServer::TryEncryptThenBegin(SocketConnection* Base)
+		Core::ExpectsIO<void> SocketServer::TryHandshakeThenBegin(SocketConnection* Base)
 		{
 #ifdef VI_OPENSSL
 			int ErrorCode = SSL_accept(Base->Stream->GetDevice());
 			if (ErrorCode != -1)
 			{
 				OnRequestOpen(Base);
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 
 			switch (SSL_get_error(Base->Stream->GetDevice(), ErrorCode))
@@ -3485,7 +3431,7 @@ namespace Vitex
 					Multiplexer::Get()->WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
-							TryEncryptThenBegin(Base);
+							TryHandshakeThenBegin(Base);
 						else
 							Refuse(Base);
 					});
@@ -3496,7 +3442,7 @@ namespace Vitex
 					Multiplexer::Get()->WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
-							TryEncryptThenBegin(Base);
+							TryHandshakeThenBegin(Base);
 						else
 							Refuse(Base);
 					});
@@ -3547,19 +3493,19 @@ namespace Vitex
 			else
 				Push(Base);
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> SocketServer::OnConfigure(SocketRouter*)
+		Core::ExpectsSystem<void> SocketServer::OnConfigure(SocketRouter*)
 		{
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> SocketServer::OnListen()
+		Core::ExpectsSystem<void> SocketServer::OnListen()
 		{
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> SocketServer::OnUnlisten()
+		Core::ExpectsSystem<void> SocketServer::OnUnlisten()
 		{
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		void SocketServer::OnRequestStall(SocketConnection* Base)
 		{
@@ -3674,122 +3620,117 @@ namespace Vitex
 			if (Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
 		}
-		Core::ExpectsPromiseIO<void> SocketClient::Connect(RemoteHost* Source, bool Async, uint32_t VerifyPeers)
+		Core::ExpectsSystem<void> SocketClient::OnResolveHost(RemoteHost* Address)
+		{
+			if (!Address)
+				return Core::SystemException("resolve host address: unreachable", std::make_error_condition(std::errc::host_unreachable));
+
+			return Core::Expectation::Met;
+		}
+		Core::ExpectsSystem<void> SocketClient::OnConnect()
+		{
+			Report(Core::Expectation::Met);
+			return Core::Expectation::Met;
+		}
+		Core::ExpectsSystem<void> SocketClient::OnDisconnect()
+		{
+			Report(Core::Expectation::Met);
+			return Core::Expectation::Met;
+		}
+		Core::ExpectsPromiseSystem<void> SocketClient::Connect(RemoteHost* Source, bool Async, uint32_t VerifyPeers)
 		{
 			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), "address should be set");
 			if (!Async && Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
 
-			Stage("uplink connect");
 			bool IsReusing = TryReuseStream(Source, Async);
 			Config.VerifyPeers = VerifyPeers;
 			Config.IsAsync = Async;
 			State.Hostname = *Source;
-
 			if (IsReusing)
 			{
 				if (Config.IsAsync)
 					Multiplexer::Get()->Activate();
-				return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
+				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 			}
 
-			Stage("dns resolve");
-			if (!OnResolveHost(Source))
+			auto ResolveStatus = OnResolveHost(Source);
+			if (!ResolveStatus)
 			{
-				Error("cannot resolve host %s:%i", Source->Hostname.c_str(), (int)Source->Port);
-				return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_address));
+				Report(ResolveStatus.Error());
+				return ResolveStatus;
 			}
 
-			Stage("socket open");
-			Core::ExpectsPromiseIO<void> Future;
+			Core::ExpectsPromiseSystem<void> Future;
+			State.Done = [Future](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); };
 			if (!Async)
 			{
-				TryConnect(DNS::Get()->FindAddressFromName(State.Hostname.Hostname, Core::ToString(State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream), Future);
+				TryConnect(DNS::Get()->FindAddressFromName(State.Hostname.Hostname, Core::ToString(State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
 				return Future;
 			}
 
 			auto* Context = this;
 			Multiplexer::Get()->Activate();
-			Core::Cotask<Core::ExpectsIO<SocketAddress*>>([Context]()
+			Core::Cotask<Core::ExpectsSystem<SocketAddress*>>([Context]()
 			{
 				return DNS::Get()->FindAddressFromName(Context->State.Hostname.Hostname, Core::ToString(Context->State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
-			}).When([Context, Future](Core::ExpectsIO<SocketAddress*>&& Host) mutable
+			}).When([Context](Core::ExpectsSystem<SocketAddress*>&& Host)
 			{
-				Context->TryConnect(std::move(Host), Future);
+				Context->TryConnect(std::move(Host));
 			});
 			return Future;
 		}
-		Core::ExpectsPromiseIO<void> SocketClient::Disconnect()
+		Core::ExpectsPromiseSystem<void> SocketClient::Disconnect()
 		{
 			if (!HasStream())
-				return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+				return Core::ExpectsPromiseSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
 			if (Timeout.Cache && Cache != nullptr && Cache->PushConnection(&State.Hostname, Net.Stream))
 			{
 				Net.Stream = nullptr;
 				Timeout.Cache = false;
-				return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
+				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 			}
 
-			Core::ExpectsPromiseIO<void> Result;
-			State.Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>&) mutable
-			{
-				Net.Stream->CloseAsync(true, [this, Result](const Core::Option<std::error_condition>& ErrorCode) mutable
-				{
-					if (ErrorCode)
-						Result.Set(*ErrorCode);
-					else
-						Result.Set(Core::Optional::OK);
-				});
-			};
+			Core::ExpectsPromiseSystem<void> Result;
+			State.Done = [this, Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Result.Set(std::move(Status)); };
 			Timeout.Cache = false;
 			OnDisconnect();
 			return Result;
 		}
-		void SocketClient::Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback)
+		void SocketClient::Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (!HasStream())
-				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
+				return Callback(Core::SystemException("ssl handshake error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 #ifdef VI_OPENSSL
-			Stage("ssl handshake");
 			if (Net.Stream->GetDevice() || !Net.Context)
-			{
-				Error("client does not use ssl");
-				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
-			}
+				return Callback(Core::SystemException("ssl handshake error: invalid operation", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 			auto Status = Net.Stream->Secure(Net.Context, State.Hostname.Hostname.c_str());
 			if (!Status)
-			{
-				Error("cannot establish handshake");
-				return Callback(Status.Error());
-			}
+				return Callback(Core::SystemException("ssl handshake establish error", std::move(Status.Error())));
 
 			if (SSL_set_fd(Net.Stream->GetDevice(), (int)Net.Stream->GetFd()) != 1)
-			{
-				Error("cannot set fd");
-				return Callback(std::make_error_condition(std::errc::bad_file_descriptor));
-			}
+				return Callback(Core::SystemException("ssl handshake set error", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 			if (Config.VerifyPeers > 0)
 				SSL_set_verify(Net.Stream->GetDevice(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
 			else
 				SSL_set_verify(Net.Stream->GetDevice(), SSL_VERIFY_NONE, nullptr);
 
-			TryEncrypt(std::move(Callback));
+			TryHandshake(std::move(Callback));
 #else
-			Error("ssl is not supported for clients");
-			Callback(std::make_error_condition(std::errc::not_supported));
+			Callback(Core::SystemException("ssl handshake error: unsupported", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
-		void SocketClient::TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback)
+		void SocketClient::TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 		{
 #ifdef VI_OPENSSL
 			int ErrorCode = SSL_connect(Net.Stream->GetDevice());
 			if (ErrorCode != -1)
-				return Callback(Core::Optional::None);
+				return Callback(Core::Expectation::Met);
 
 			switch (SSL_get_error(Net.Stream->GetDevice(), ErrorCode))
 			{
@@ -3798,12 +3739,9 @@ namespace Vitex
 					Multiplexer::Get()->WhenReadable(Net.Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
-						{
-							Error("ssl connection timeout: %s", ERR_error_string(ERR_get_error(), nullptr));
-							Callback(std::make_error_condition(std::errc::timed_out));
-						}
+							Callback(Core::SystemException(Core::Stringify::Text("ssl connect read error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
 						else
-							TryEncrypt(std::move(Callback));
+							TryHandshake(std::move(Callback));
 					});
 					break;
 				}
@@ -3813,60 +3751,45 @@ namespace Vitex
 					Multiplexer::Get()->WhenWriteable(Net.Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
-						{
-							Error("ssl connection timeout: %s", ERR_error_string(ERR_get_error(), nullptr));
-							Callback(std::make_error_condition(std::errc::timed_out));
-						}
+							Callback(Core::SystemException(Core::Stringify::Text("ssl connect write error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
 						else
-							TryEncrypt(std::move(Callback));
+							TryHandshake(std::move(Callback));
 					});
 					break;
 				}
 				default:
 				{
 					Utils::DisplayTransportLog();
-					Error("%s", ERR_error_string(ERR_get_error(), nullptr));
-					return Callback(std::make_error_condition(std::errc::connection_aborted));
+					return Callback(Core::SystemException(Core::Stringify::Text("ssl connection aborted error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::connection_aborted)));
 				}
 			}
 #else
-			Callback(std::make_error_condition(std::errc::not_supported));
+			Callback(Core::SystemException("ssl connect error: unsupported", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
-		void SocketClient::TryConnect(Core::ExpectsIO<SocketAddress*>&& Host, Core::ExpectsPromiseIO<void>& Future)
+		void SocketClient::TryConnect(Core::ExpectsSystem<SocketAddress*>&& Host)
 		{
 			if (!Host)
-			{
-				Error("cannot open %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
-				return Future.Set(Host.Error());
-			}
+				return Report(std::move(Host.Error()));
 
 			auto Status = Net.Stream->Open(*Host);
 			if (!Status)
-			{
-				Error("cannot open %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
-				return Future.Set(std::move(Status));
-			}
+				return Report(Core::SystemException(Core::Stringify::Text("connect to %s:%i error", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port), std::move(Status.Error())));
 
 			auto* Context = this;
-			Stage("socket connect");
-			Net.Stream->ConnectAsync(*Host, [Context, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
+			Net.Stream->ConnectAsync(*Host, [Context](const Core::Option<std::error_condition>& ErrorCode)
 			{
-				Context->DispatchConnection(ErrorCode, Future);
+				Context->DispatchConnection(ErrorCode);
 			});
 		}
-		void SocketClient::DispatchConnection(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future)
+		void SocketClient::DispatchConnection(const Core::Option<std::error_condition>& ErrorCode)
 		{
 			if (ErrorCode)
-			{
-				Error("cannot connect to %s:%i", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port);
-				return Future.Set(*ErrorCode);
-			}
+				return Report(Core::SystemException(Core::Stringify::Text("connect to %s:%i error", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port), std::error_condition(*ErrorCode)));
 #ifdef VI_OPENSSL
 			if (!State.Hostname.Secure)
-				return DispatchHandshake(Future);
+				return DispatchSimpleHandshake();
 
-			Stage("socket ssl handshake");
 			if (!Net.Context || (Config.VerifyPeers > 0 && SSL_CTX_get_verify_depth(Net.Context) <= 0))
 			{
 				auto* Transporter = TransportLayer::Get();
@@ -3878,59 +3801,33 @@ namespace Vitex
 
 				auto NewContext = Transporter->CreateClientContext(Config.VerifyPeers);
 				if (!NewContext)
-				{
-					Error("cannot create ssl context");
-					return Future.Set(NewContext.Error());
-				}
+					return Report(Core::SystemException(Core::Stringify::Text("ssl connect to %s:%i error: initialization failed", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port), std::move(NewContext.Error())));
 				else
 					Net.Context = *NewContext;
 			}
 
 			if (!Config.IsAutoEncrypted)
-				return DispatchHandshake(Future);
+				return DispatchSimpleHandshake();
 
 			auto* Context = this;
-			Encrypt([Context, Future](const Core::Option<std::error_condition>& ErrorCode) mutable
+			Handshake([Context](Core::ExpectsSystem<void>&& ErrorCode) mutable
 			{
-				Context->DispatchSecureHandshake(ErrorCode, Future);
+				Context->DispatchSecureHandshake(std::move(ErrorCode));
 			});
 #else
-			DispatchHandshake(Future);
+			DispatchSimpleHandshake();
 #endif
 		}
-		void SocketClient::DispatchSecureHandshake(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future)
+		void SocketClient::DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status)
 		{
-			if (ErrorCode)
-			{
-				Error("cannot connect ssl context");
-				Future.Set(*ErrorCode);
-			}
+			if (!Status)
+				Report(std::move(Status));
 			else
-				DispatchHandshake(Future);
+				DispatchSimpleHandshake();
 		}
-		void SocketClient::DispatchHandshake(Core::ExpectsPromiseIO<void>& Future)
+		void SocketClient::DispatchSimpleHandshake()
 		{
-			Stage("socket proto-connect");
-			State.Done = [Future](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
-			{
-				if (ErrorCode)
-					Future.Set(*ErrorCode);
-				else
-					Future.Set(Core::Optional::OK);
-			};
 			OnConnect();
-		}
-		bool SocketClient::OnResolveHost(RemoteHost* Address)
-		{
-			return Address != nullptr;
-		}
-		bool SocketClient::OnConnect()
-		{
-			return Report(Core::Optional::None);
-		}
-		bool SocketClient::OnDisconnect()
-		{
-			return Report(Core::Optional::None);
 		}
 		bool SocketClient::TryReuseStream(RemoteHost* NewAddress, bool Async)
 		{
@@ -3958,33 +3855,23 @@ namespace Vitex
 		{
 			Timeout.Cache = false;
 		}
-		bool SocketClient::Stage(const Core::String& Name)
+		void SocketClient::Report(Core::ExpectsSystem<void>&& Status)
 		{
-			State.Action = Name;
-			return !State.Action.empty();
-		}
-		bool SocketClient::Error(const char* Format, ...)
-		{
-			char Buffer[Core::BLOB_SIZE];
-			va_list Args;
-			va_start(Args, Format);
-			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			VI_ERR("[net] %.*s (latest state: %s)", Size, Buffer, State.Action.empty() ? "request" : State.Action.c_str());
-			if (HasStream())
-				Net.Stream->CloseAsync(true, [this](const Core::Option<std::error_condition>&) { Report(std::make_error_condition(std::errc::connection_aborted)); });
+			if (!Status && HasStream())
+			{
+				Net.Stream->CloseAsync(true, [this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
+				{
+					SocketClientCallback Callback(std::move(State.Done));
+					if (Callback)
+						Callback(this, std::move(Status));
+				});
+			}
 			else
-				Report(std::make_error_condition(std::errc::connection_aborted));
-			return false;
-		}
-		bool SocketClient::Report(const Core::Option<std::error_condition>& ErrorCode)
-		{
-			SocketClientCallback Callback(std::move(State.Done));
-			if (Callback)
-				Callback(this, ErrorCode);
-
-			return true;
+			{
+				SocketClientCallback Callback(std::move(State.Done));
+				if (Callback)
+					Callback(this, std::move(Status));
+			}
 		}
 		bool SocketClient::HasStream() const
 		{

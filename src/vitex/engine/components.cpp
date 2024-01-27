@@ -259,10 +259,10 @@ namespace Vitex
 			}
 			void RigidBody::Load(const Core::String& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
 			{
-				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback](Compute::HullShape* NewHull)
+				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback](ExpectsContent<Compute::HullShape*> NewHull)
 				{
 					VI_RELEASE(Hull);
-					Hull = NewHull;
+					Hull = NewHull.Or(nullptr);
 					if (Hull != nullptr)
 						Load(Hull->GetShape(), Mass, Anticipation);
 					else
@@ -670,10 +670,10 @@ namespace Vitex
 			}
 			void SoftBody::Load(const Core::String& Path, float Anticipation, const std::function<void()>& Callback)
 			{
-				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback](Compute::HullShape* NewHull)
+				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback](ExpectsContent<Compute::HullShape*> NewHull)
 				{
-					if (NewHull != nullptr)
-						Load(NewHull, Anticipation);
+					if (NewHull && *NewHull != nullptr)
+						Load(*NewHull, Anticipation);
 					else
 						Clear();
 
@@ -1243,11 +1243,11 @@ namespace Vitex
 				Invalid->AddRef();
 
 				SetMaterial(Invalid);
-				Scene->LoadResource<Engine::Model>(this, Path, [this, Node, Scene, Invalid](Engine::Model* NewInstance)
+				Scene->LoadResource<Engine::Model>(this, Path, [this, Node, Scene, Invalid](ExpectsContent<Engine::Model*> NewInstance)
 				{
 					VI_RELEASE(Invalid);
 					VI_RELEASE(Instance);
-					Instance = NewInstance;
+					Instance = NewInstance.Or(nullptr);
 					ClearMaterials();
 
 					if (Instance != nullptr)
@@ -1380,11 +1380,11 @@ namespace Vitex
 				Invalid->AddRef();
 
 				SetMaterial(Invalid);
-				Scene->LoadResource<Engine::SkinModel>(this, Path, [this, Node, Scene, Invalid](Engine::SkinModel* NewInstance)
+				Scene->LoadResource<Engine::SkinModel>(this, Path, [this, Node, Scene, Invalid](ExpectsContent<Engine::SkinModel*> NewInstance)
 				{
 					VI_RELEASE(Invalid);
 					VI_RELEASE(Instance);
-					Instance = NewInstance;
+					Instance = NewInstance.Or(nullptr);
 					ClearMaterials();
 
 					if (Instance != nullptr)
@@ -1558,7 +1558,9 @@ namespace Vitex
 				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
 				I.ElementLimit = 1 << 10;
 
-				Instance = Scene->GetDevice()->CreateInstanceBuffer(I);
+				auto Buffer = Scene->GetDevice()->CreateInstanceBuffer(I);
+				if (Buffer)
+					Instance = *Buffer;
 			}
 			size_t Emitter::GetUnitBounds(Compute::Vector3& _Min, Compute::Vector3& _Max) const
 			{
@@ -1646,9 +1648,9 @@ namespace Vitex
 				if (!Series::Unpack(Node->Find("path"), &Path))
 					return;
 
-				Parent->GetScene()->LoadResource<Engine::SkinAnimation>(this, Path, [this](Engine::SkinAnimation* Result)
+				Parent->GetScene()->LoadResource<Engine::SkinAnimation>(this, Path, [this](ExpectsContent<Engine::SkinAnimation*> Result)
 				{
-					Animation = Result;
+					Animation = Result.Or(nullptr);
 				});
 			}
 			void SkinAnimator::Serialize(Core::Schema* Node)
@@ -2001,11 +2003,16 @@ namespace Vitex
 			void KeyAnimator::LoadAnimation(const Core::String& Path, const std::function<void(bool)>& Callback)
 			{
 				auto* Scene = Parent->GetScene();
-				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](Core::Schema* Result)
+				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](ExpectsContent<Core::Schema*> Result)
 				{
 					ClearAnimation();
-					if (Series::Unpack(Result, &Clips))
-						Reference = Scene->AsResourcePath(Path);
+					if (Result && *Result != nullptr)
+					{
+						if (Series::Unpack(*Result, &Clips))
+							Reference = Scene->AsResourcePath(Path);
+						else
+							Reference.clear();
+					}
 					else
 						Reference.clear();
 
@@ -2481,9 +2488,9 @@ namespace Vitex
 					return;
 
 				Node->AddRef();
-				Parent->GetScene()->LoadResource<Audio::AudioClip>(this, Path, [this, Node](Audio::AudioClip* NewClip)
+				Parent->GetScene()->LoadResource<Audio::AudioClip>(this, Path, [this, Node](ExpectsContent<Audio::AudioClip*>&& NewClip)
 				{
-					Source->SetClip(NewClip);
+					Source->SetClip(NewClip.Or(nullptr));
 					for (auto& Effect : Node->FetchCollection("effects.effect"))
 					{
 						uint64_t Id;
@@ -2492,10 +2499,7 @@ namespace Vitex
 
 						Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
 						if (!Target)
-						{
-							VI_WARN("[engine] audio effect with id %" PRIu64 " cannot be created", Id);
 							continue;
-						}
 
 						Core::Schema* Meta = Effect->Find("metadata");
 						if (!Meta)
@@ -2934,12 +2938,12 @@ namespace Vitex
 				{
 					if (Series::Unpack(Node->Find("diffuse-map-px"), &Path))
 					{
-						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
 							VI_CLEAR(DiffuseMapX[0]);
-							if (NewTexture != nullptr)
+							if (NewTexture && *NewTexture != nullptr)
 							{
-								DiffuseMapX[0] = NewTexture;
+								DiffuseMapX[0] = *NewTexture;
 								DiffuseMapX[0]->AddRef();
 							}
 						});
@@ -2947,12 +2951,12 @@ namespace Vitex
 
 					if (Series::Unpack(Node->Find("diffuse-map-nx"), &Path))
 					{
-						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
 							VI_CLEAR(DiffuseMapX[1]);
-							if (NewTexture != nullptr)
+							if (NewTexture && *NewTexture != nullptr)
 							{
-								DiffuseMapX[1] = NewTexture;
+								DiffuseMapX[1] = *NewTexture;
 								DiffuseMapX[1]->AddRef();
 							}
 						});
@@ -2960,12 +2964,12 @@ namespace Vitex
 
 					if (Series::Unpack(Node->Find("diffuse-map-py"), &Path))
 					{
-						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
 							VI_CLEAR(DiffuseMapY[0]);
-							if (NewTexture != nullptr)
+							if (NewTexture && *NewTexture != nullptr)
 							{
-								DiffuseMapY[0] = NewTexture;
+								DiffuseMapY[0] = *NewTexture;
 								DiffuseMapY[0]->AddRef();
 							}
 						});
@@ -2973,12 +2977,12 @@ namespace Vitex
 
 					if (Series::Unpack(Node->Find("diffuse-map-ny"), &Path))
 					{
-						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
 							VI_CLEAR(DiffuseMapY[1]);
-							if (NewTexture != nullptr)
+							if (NewTexture && *NewTexture != nullptr)
 							{
-								DiffuseMapY[1] = NewTexture;
+								DiffuseMapY[1] = *NewTexture;
 								DiffuseMapY[1]->AddRef();
 							}
 						});
@@ -2986,12 +2990,12 @@ namespace Vitex
 
 					if (Series::Unpack(Node->Find("diffuse-map-pz"), &Path))
 					{
-						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
 							VI_CLEAR(DiffuseMapZ[0]);
-							if (NewTexture != nullptr)
+							if (NewTexture && *NewTexture != nullptr)
 							{
-								DiffuseMapZ[0] = NewTexture;
+								DiffuseMapZ[0] = *NewTexture;
 								DiffuseMapZ[0]->AddRef();
 							}
 						});
@@ -2999,12 +3003,12 @@ namespace Vitex
 
 					if (Series::Unpack(Node->Find("diffuse-map-nz"), &Path))
 					{
-						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
 							VI_CLEAR(DiffuseMapZ[1]);
-							if (NewTexture != nullptr)
+							if (NewTexture && *NewTexture != nullptr)
 							{
-								DiffuseMapZ[1] = NewTexture;
+								DiffuseMapZ[1] = *NewTexture;
 								DiffuseMapZ[1]->AddRef();
 							}
 						});
@@ -3012,12 +3016,12 @@ namespace Vitex
 				}
 				else
 				{
-					Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+					Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 					{
 						VI_CLEAR(DiffuseMap);
-						if (NewTexture != nullptr)
+						if (NewTexture && *NewTexture != nullptr)
 						{
-							DiffuseMap = NewTexture;
+							DiffuseMap = *NewTexture;
 							DiffuseMap->AddRef();
 						}
 					});
@@ -3139,7 +3143,7 @@ namespace Vitex
 				Map->AddRef();
 
 				VI_RELEASE(Probe);
-				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
+				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap).Or(nullptr);
 				return Probe != nullptr;
 			}
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* const MapX[2], Graphics::Texture2D* const MapY[2], Graphics::Texture2D* const MapZ[2])
@@ -3174,7 +3178,7 @@ namespace Vitex
 				Resources[5] = DiffuseMapZ[1] = MapZ[1]; MapZ[1]->AddRef();
 
 				VI_RELEASE(Probe);
-				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
+				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources).Or(nullptr);
 				return Probe != nullptr;
 			}
 			bool SurfaceLight::IsImageBased() const
@@ -3341,10 +3345,7 @@ namespace Vitex
 
 					Engine::Renderer* Target = Core::Composer::Create<Engine::Renderer>(Id, Renderer);
 					if (!Renderer->AddRenderer(Target))
-					{
-						VI_WARN("[engine] cannot create renderer with id %" PRIu64, Id);
 						continue;
-					}
 
 					Core::Schema* Meta = Render->Find("metadata");
 					if (!Meta)
@@ -3880,18 +3881,18 @@ namespace Vitex
 			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualError::INVALID_CONFIGURATION);
+					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION));
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
 			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::Call(asIScriptFunction* Function, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualError::INVALID_CONFIGURATION);
+					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION));
 
 				Scripting::FunctionDelegate Delegate(Function);
 				if (!Delegate.IsValid())
-					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualError::NO_FUNCTION);
+					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualException(Scripting::VirtualError::NO_FUNCTION));
 
 				Protect();
 				return Delegate(std::move(OnArgs)).Then<Scripting::ExpectsVM<Scripting::Execution>>([this](Scripting::ExpectsVM<Scripting::Execution>&& Result)
@@ -3922,15 +3923,15 @@ namespace Vitex
 				{
 					auto* VM = Scene->GetConf().Shared.VM;
 					if (!VM)
-						return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualError::INVALID_CONFIGURATION);
+						return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION));
 
 					Compiler = VM->CreateCompiler();
-					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)
+					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 					{
 						if (Name == "name" && Args.size() == 1)
 							Module = Args[0];
 
-						return true;
+						return Core::Expectation::Met;
 					});
 				}
 
@@ -3948,7 +3949,7 @@ namespace Vitex
 					Entry.Update = nullptr;
 					Entry.Message = nullptr;
 					Compiler->Clear();
-					return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualError::NO_MODULE);
+					return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualException(Scripting::VirtualError::NO_MODULE));
 				}
 
 				auto Status = Compiler->Prepare("base", Source == SourceType::Resource ? Resource : "anonymous", true, true);
@@ -3975,22 +3976,22 @@ namespace Vitex
 			Scripting::ExpectsVM<size_t> Scriptable::GetPropertiesCount()
 			{
 				if (!Compiler)
-					return Scripting::VirtualError::INVALID_CONFIGURATION;
+					return Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION);
 
 				Scripting::Module Base = Compiler->GetModule();
 				if (!Base.IsValid())
-					return Scripting::VirtualError::NO_MODULE;
+					return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
 
 				return Base.GetPropertiesCount();
 			}
 			Scripting::ExpectsVM<size_t> Scriptable::GetFunctionsCount()
 			{
 				if (!Compiler)
-					return Scripting::VirtualError::INVALID_CONFIGURATION;
+					return Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION);
 
 				Scripting::Module Base = Compiler->GetModule();
 				if (!Base.IsValid())
-					return Scripting::VirtualError::NO_MODULE;
+					return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
 
 				return Base.GetFunctionCount();
 			}

@@ -79,7 +79,7 @@ namespace Vitex
 			Listen
 		};
 
-		typedef std::function<void(class SocketClient*, const Core::Option<std::error_condition>&)> SocketClientCallback;
+		typedef std::function<void(class SocketClient*, Core::ExpectsSystem<void>&&)> SocketClientCallback;
 		typedef std::function<void(SocketPoll)> PollEventCallback;
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
 		typedef std::function<void(SocketAddress*)> SocketOpenedCallback;
@@ -330,8 +330,8 @@ namespace Vitex
 		public:
 			DNS() noexcept;
 			virtual ~DNS() noexcept override;
-			Core::ExpectsIO<Core::String> FindNameFromAddress(const Core::String& Host, const Core::String& Service);
-			Core::ExpectsIO<SocketAddress*> FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
+			Core::ExpectsSystem<Core::String> FindNameFromAddress(const Core::String& Host, const Core::String& Service);
+			Core::ExpectsSystem<SocketAddress*> FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
 		};
 
 		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
@@ -597,9 +597,9 @@ namespace Vitex
 		public:
 			SocketServer() noexcept;
 			virtual ~SocketServer() noexcept;
-			Core::ExpectsIO<void> Configure(SocketRouter* New);
-			Core::ExpectsIO<void> Unlisten(uint64_t TimeoutSeconds = 5);
-			Core::ExpectsIO<void> Listen();
+			Core::ExpectsSystem<void> Configure(SocketRouter* New);
+			Core::ExpectsSystem<void> Unlisten(uint64_t TimeoutSeconds = 5);
+			Core::ExpectsSystem<void> Listen();
 			void SetRouter(SocketRouter* New);
 			void SetBacklog(size_t Value);
 			size_t GetBacklog() const;
@@ -610,9 +610,9 @@ namespace Vitex
 			const Core::Vector<SocketListener*>& GetListeners();
 
 		protected:
-			virtual Core::ExpectsIO<void> OnConfigure(SocketRouter* New);
-			virtual Core::ExpectsIO<void> OnListen();
-			virtual Core::ExpectsIO<void> OnUnlisten();
+			virtual Core::ExpectsSystem<void> OnConfigure(SocketRouter* New);
+			virtual Core::ExpectsSystem<void> OnListen();
+			virtual Core::ExpectsSystem<void> OnUnlisten();
 			virtual void OnRequestOpen(SocketConnection* Base);
 			virtual bool OnRequestCleanup(SocketConnection* Base);
 			virtual void OnRequestStall(SocketConnection* Base);
@@ -621,12 +621,12 @@ namespace Vitex
 			virtual SocketRouter* OnAllocateRouter();
 
 		private:
-			Core::ExpectsIO<void> TryEncryptThenBegin(SocketConnection* Base);
+			Core::ExpectsIO<void> TryHandshakeThenBegin(SocketConnection* Base);
 
 		protected:
 			Core::ExpectsIO<void> Refuse(SocketConnection* Base);
 			Core::ExpectsIO<void> Accept(SocketListener* Host, socket_t Fd, const Core::String& Address);
-			Core::ExpectsIO<void> EncryptThenOpen(SocketConnection* Fd, SocketListener* Host);
+			Core::ExpectsIO<void> HandshakeThenOpen(SocketConnection* Fd, SocketListener* Host);
 			Core::ExpectsIO<void> Continue(SocketConnection* Base);
 			Core::ExpectsIO<void> Finalize(SocketConnection* Base);
 			SocketConnection* Pop(SocketListener* Host);
@@ -647,7 +647,6 @@ namespace Vitex
 			{
 				SocketClientCallback Done;
 				RemoteHost Hostname;
-				Core::String Action;
 			} State;
 
 			struct
@@ -666,31 +665,29 @@ namespace Vitex
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept;
-			Core::ExpectsPromiseIO<void> Connect(RemoteHost* Address, bool Async, uint32_t VerifyPeers = 100);
-			Core::ExpectsPromiseIO<void> Disconnect();
+			Core::ExpectsPromiseSystem<void> Connect(RemoteHost* Address, bool Async, uint32_t VerifyPeers = 100);
+			Core::ExpectsPromiseSystem<void> Disconnect();
 			bool HasStream() const;
 			Socket* GetStream();
 
 		protected:
-			virtual bool OnResolveHost(RemoteHost* Address);
-			virtual bool OnConnect();
-			virtual bool OnDisconnect();
+			virtual Core::ExpectsSystem<void> OnResolveHost(RemoteHost* Address);
+			virtual Core::ExpectsSystem<void> OnConnect();
+			virtual Core::ExpectsSystem<void> OnDisconnect();
 
 		private:
 			bool TryReuseStream(RemoteHost* Address, bool IsAsync);
-			void TryEncrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
-			void TryConnect(Core::ExpectsIO<SocketAddress*>&& Host, Core::ExpectsPromiseIO<void>& Future);
-			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
-			void DispatchSecureHandshake(const Core::Option<std::error_condition>& ErrorCode, Core::ExpectsPromiseIO<void>& Future);
-			void DispatchHandshake(Core::ExpectsPromiseIO<void>& Future);
+			void TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+			void TryConnect(Core::ExpectsSystem<SocketAddress*>&& Host);
+			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode);
+			void DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status);
+			void DispatchSimpleHandshake();
 
 		protected:
 			void EnableReusability();
 			void DisableReusability();
-			void Encrypt(std::function<void(const Core::Option<std::error_condition>&)>&& Callback);
-			bool Stage(const Core::String& Name);
-			bool Error(const char* Message, ...);
-			bool Report(const Core::Option<std::error_condition>& ErrorCode);
+			void Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+			void Report(Core::ExpectsSystem<void>&& Status);
 		};
 	}
 }

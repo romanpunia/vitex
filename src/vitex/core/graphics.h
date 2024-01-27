@@ -882,6 +882,37 @@ namespace Vitex
 
 		};
 
+		class GraphicsException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+			int ErrorCode;
+
+		public:
+			VI_OUT GraphicsException(Core::String&& Message);
+			VI_OUT GraphicsException(int ErrorCode, Core::String&& Message);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
+		};
+
+		class VideoException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+
+		public:
+			VI_OUT VideoException();
+			VI_OUT VideoException(GraphicsException&& Other);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
+		};
+
+		template <typename V>
+		using ExpectsGraphics = Core::Expects<V, GraphicsException>;
+
+		template <typename V>
+		using ExpectsVideo = Core::Expects<V, VideoException>;
+
 		class VI_OUT Surface : public Core::Reference<Surface>
 		{
 		private:
@@ -1647,7 +1678,7 @@ namespace Vitex
 			virtual void SetRasterizerState(RasterizerState* State) = 0;
 			virtual void SetDepthStencilState(DepthStencilState* State) = 0;
 			virtual void SetInputLayout(InputLayout* State) = 0;
-			virtual void SetShader(Shader* Resource, unsigned int Type) = 0;
+			virtual ExpectsGraphics<void> SetShader(Shader* Resource, unsigned int Type) = 0;
 			virtual void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
@@ -1677,22 +1708,6 @@ namespace Vitex
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
 			virtual void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void FlushState() = 0;
-			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual bool Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual bool Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual bool Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual bool Unmap(Texture2D* Resource, MappedSubresource* Map) = 0;
-			virtual bool Unmap(Texture3D* Resource, MappedSubresource* Map) = 0;
-			virtual bool Unmap(TextureCube* Resource, MappedSubresource* Map) = 0;
-			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
-			virtual bool UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
-			virtual bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
-			virtual bool UpdateBuffer(Shader* Resource, const void* Data) = 0;
-			virtual bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
-			virtual bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
-			virtual bool UpdateBuffer(InstanceBuffer* Resource) = 0;
-			virtual bool UpdateBufferSize(Shader* Resource, size_t Size) = 0;
-			virtual bool UpdateBufferSize(InstanceBuffer* Resource, size_t Size) = 0;
 			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
 			virtual void ClearWritable(Texture2D* Resource) = 0;
 			virtual void ClearWritable(Texture2D* Resource, float R, float G, float B) = 0;
@@ -1715,27 +1730,8 @@ namespace Vitex
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
 			virtual void DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation) = 0;
 			virtual void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) = 0;
-			virtual bool CopyTexture2D(Texture2D* Resource, Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CopyTextureCube(RenderTargetCube* Resource, Core::Unique<TextureCube>* Result) = 0;
-			virtual bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, Core::Unique<TextureCube>* Result) = 0;
-			virtual bool CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget) = 0;
-			virtual bool CopyBackBuffer(Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CopyBackBufferMSAA(Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CopyBackBufferNoAA(Core::Unique<Texture2D>* Result) = 0;
-			virtual bool CubemapPush(Cubemap* Resource, TextureCube* Result) = 0;
-			virtual bool CubemapFace(Cubemap* Resource, Compute::CubeFace Face) = 0;
-			virtual bool CubemapPop(Cubemap* Resource) = 0;
 			virtual void GetViewports(unsigned int* Count, Viewport* Out) = 0;
 			virtual void GetScissorRects(unsigned int* Count, Compute::Rectangle* Out) = 0;
-			virtual bool ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
-			virtual bool GenerateTexture(Texture2D* Resource) = 0;
-			virtual bool GenerateTexture(Texture3D* Resource) = 0;
-			virtual bool GenerateTexture(TextureCube* Resource) = 0;
-			virtual bool GetQueryData(Query* Resource, size_t* Result, bool Flush = true) = 0;
-			virtual bool GetQueryData(Query* Resource, bool* Result, bool Flush = true) = 0;
 			virtual void QueryBegin(Query* Resource) = 0;
 			virtual void QueryEnd(Query* Resource) = 0;
 			virtual void GenerateMips(Texture2D* Resource) = 0;
@@ -1752,35 +1748,68 @@ namespace Vitex
 			virtual void ImTexCoordOffset(float X, float Y) = 0;
 			virtual void ImPosition(float X, float Y, float Z) = 0;
 			virtual bool ImEnd() = 0;
-			virtual bool Submit() = 0;
-			virtual Core::Unique<DepthStencilState> CreateDepthStencilState(const DepthStencilState::Desc& I) = 0;
-			virtual Core::Unique<BlendState> CreateBlendState(const BlendState::Desc& I) = 0;
-			virtual Core::Unique<RasterizerState> CreateRasterizerState(const RasterizerState::Desc& I) = 0;
-			virtual Core::Unique<SamplerState> CreateSamplerState(const SamplerState::Desc& I) = 0;
-			virtual Core::Unique<InputLayout> CreateInputLayout(const InputLayout::Desc& I) = 0;
-			virtual Core::Unique<Shader> CreateShader(const Shader::Desc& I) = 0;
-			virtual Core::Unique<ElementBuffer> CreateElementBuffer(const ElementBuffer::Desc& I) = 0;
-			virtual Core::Unique<MeshBuffer> CreateMeshBuffer(const MeshBuffer::Desc& I) = 0;
-			virtual Core::Unique<MeshBuffer> CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) = 0;
-			virtual Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) = 0;
-			virtual Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) = 0;
-			virtual Core::Unique<InstanceBuffer> CreateInstanceBuffer(const InstanceBuffer::Desc& I) = 0;
-			virtual Core::Unique<Texture2D> CreateTexture2D() = 0;
-			virtual Core::Unique<Texture2D> CreateTexture2D(const Texture2D::Desc& I) = 0;
-			virtual Core::Unique<Texture3D> CreateTexture3D() = 0;
-			virtual Core::Unique<Texture3D> CreateTexture3D(const Texture3D::Desc& I) = 0;
-			virtual Core::Unique<TextureCube> CreateTextureCube() = 0;
-			virtual Core::Unique<TextureCube> CreateTextureCube(const TextureCube::Desc& I) = 0;
-			virtual Core::Unique<TextureCube> CreateTextureCube(Texture2D* Resource[6]) = 0;
-			virtual Core::Unique<TextureCube> CreateTextureCube(Texture2D* Resource) = 0;
-			virtual Core::Unique<DepthTarget2D> CreateDepthTarget2D(const DepthTarget2D::Desc& I) = 0;
-			virtual Core::Unique<DepthTargetCube> CreateDepthTargetCube(const DepthTargetCube::Desc& I) = 0;
-			virtual Core::Unique<RenderTarget2D> CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
-			virtual Core::Unique<MultiRenderTarget2D> CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
-			virtual Core::Unique<RenderTargetCube> CreateRenderTargetCube(const RenderTargetCube::Desc& I) = 0;
-			virtual Core::Unique<MultiRenderTargetCube> CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) = 0;
-			virtual Core::Unique<Cubemap> CreateCubemap(const Cubemap::Desc& I) = 0;
-			virtual Core::Unique<Query> CreateQuery(const Query::Desc& I) = 0;
+			virtual ExpectsGraphics<void> Submit() = 0;
+			virtual ExpectsGraphics<void> Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Map(Texture2D* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Map(Texture3D* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Map(TextureCube* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Unmap(Texture2D* Resource, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Unmap(Texture3D* Resource, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Unmap(TextureCube* Resource, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
+			virtual ExpectsGraphics<void> UpdateConstantBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
+			virtual ExpectsGraphics<void> UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
+			virtual ExpectsGraphics<void> UpdateBuffer(Shader* Resource, const void* Data) = 0;
+			virtual ExpectsGraphics<void> UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
+			virtual ExpectsGraphics<void> UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
+			virtual ExpectsGraphics<void> UpdateBuffer(InstanceBuffer* Resource) = 0;
+			virtual ExpectsGraphics<void> UpdateBufferSize(Shader* Resource, size_t Size) = 0;
+			virtual ExpectsGraphics<void> UpdateBufferSize(InstanceBuffer* Resource, size_t Size) = 0;
+			virtual ExpectsGraphics<void> CopyTexture2D(Texture2D* Resource, Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTextureCube(RenderTargetCube* Resource, Core::Unique<TextureCube>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, Core::Unique<TextureCube>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget) = 0;
+			virtual ExpectsGraphics<void> CopyBackBuffer(Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CubemapPush(Cubemap* Resource, TextureCube* Result) = 0;
+			virtual ExpectsGraphics<void> CubemapFace(Cubemap* Resource, Compute::CubeFace Face) = 0;
+			virtual ExpectsGraphics<void> CubemapPop(Cubemap* Resource) = 0;
+			virtual ExpectsGraphics<void> ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+			virtual ExpectsGraphics<void> GenerateTexture(Texture2D* Resource) = 0;
+			virtual ExpectsGraphics<void> GenerateTexture(Texture3D* Resource) = 0;
+			virtual ExpectsGraphics<void> GenerateTexture(TextureCube* Resource) = 0;
+			virtual ExpectsGraphics<void> GetQueryData(Query* Resource, size_t* Result, bool Flush = true) = 0;
+			virtual ExpectsGraphics<void> GetQueryData(Query* Resource, bool* Result, bool Flush = true) = 0;
+			virtual ExpectsGraphics<Core::Unique<DepthStencilState>> CreateDepthStencilState(const DepthStencilState::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<BlendState>> CreateBlendState(const BlendState::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<RasterizerState>> CreateRasterizerState(const RasterizerState::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<SamplerState>> CreateSamplerState(const SamplerState::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<InputLayout>> CreateInputLayout(const InputLayout::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<Shader>> CreateShader(const Shader::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<ElementBuffer>> CreateElementBuffer(const ElementBuffer::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<MeshBuffer>> CreateMeshBuffer(const MeshBuffer::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<MeshBuffer>> CreateMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) = 0;
+			virtual ExpectsGraphics<Core::Unique<SkinMeshBuffer>> CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<SkinMeshBuffer>> CreateSkinMeshBuffer(ElementBuffer* VertexBuffer, ElementBuffer* IndexBuffer) = 0;
+			virtual ExpectsGraphics<Core::Unique<InstanceBuffer>> CreateInstanceBuffer(const InstanceBuffer::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<Texture2D>> CreateTexture2D() = 0;
+			virtual ExpectsGraphics<Core::Unique<Texture2D>> CreateTexture2D(const Texture2D::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<Texture3D>> CreateTexture3D() = 0;
+			virtual ExpectsGraphics<Core::Unique<Texture3D>> CreateTexture3D(const Texture3D::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<TextureCube>> CreateTextureCube() = 0;
+			virtual ExpectsGraphics<Core::Unique<TextureCube>> CreateTextureCube(const TextureCube::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<TextureCube>> CreateTextureCube(Texture2D* Resource[6]) = 0;
+			virtual ExpectsGraphics<Core::Unique<TextureCube>> CreateTextureCube(Texture2D* Resource) = 0;
+			virtual ExpectsGraphics<Core::Unique<DepthTarget2D>> CreateDepthTarget2D(const DepthTarget2D::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<DepthTargetCube>> CreateDepthTargetCube(const DepthTargetCube::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<RenderTarget2D>> CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<MultiRenderTarget2D>> CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<RenderTargetCube>> CreateRenderTargetCube(const RenderTargetCube::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<MultiRenderTargetCube>> CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<Cubemap>> CreateCubemap(const Cubemap::Desc& I) = 0;
+			virtual ExpectsGraphics<Core::Unique<Query>> CreateQuery(const Query::Desc& I) = 0;
 			virtual PrimitiveTopology GetPrimitiveTopology() const = 0;
 			virtual ShaderModel GetSupportedShaderModel()  const = 0;
 			virtual void* GetDevice() const = 0;
@@ -1791,12 +1820,12 @@ namespace Vitex
 			void SetShaderCache(bool Enabled);
 			void Lockup(RenderThreadCallback&& Callback);
 			void Enqueue(RenderThreadCallback&& Callback);
-			bool Preprocess(Shader::Desc& Subresult);
-			bool Transpile(Core::String* HLSL, ShaderType Stage, ShaderLang To);
+			Compute::ExpectsPreprocessor<void> Preprocess(Shader::Desc& Subresult);
+			ExpectsGraphics<void> Transpile(Core::String* HLSL, ShaderType Stage, ShaderLang To);
+			ExpectsGraphics<void> GetSectionInfo(const Core::String& Name, Section** Result);
+			ExpectsGraphics<void> GetSectionData(const Core::String& Name, Shader::Desc* Result);
 			bool AddSection(const Core::String& Name, const Core::String& Code);
 			bool RemoveSection(const Core::String& Name);
-			bool GetSection(const Core::String& Name, Section** Result, bool Internal = false);
-			bool GetSection(const Core::String& Name, Shader::Desc* Result);
 			bool IsLeftHanded() const;
 			Core::String GetShaderMain(ShaderType Type) const;
 			const Core::UnorderedMap<Core::String, DepthStencilState*>& GetDepthStencilStates() const;
@@ -1804,7 +1833,7 @@ namespace Vitex
 			const Core::UnorderedMap<Core::String, BlendState*>& GetBlendStates() const;
 			const Core::UnorderedMap<Core::String, SamplerState*>& GetSamplerStates() const;
 			const Core::UnorderedMap<Core::String, InputLayout*>& GetInputLayouts() const;
-			Core::Unique<Surface> CreateSurface(Texture2D* Base);
+			ExpectsVideo<Core::Unique<Surface>> CreateSurface(Texture2D* Base);
 			DepthStencilState* GetDepthStencilState(const Core::String& Name);
 			BlendState* GetBlendState(const Core::String& Name);
 			RasterizerState* GetRasterizerState(const Core::String& Name);
@@ -1823,7 +1852,7 @@ namespace Vitex
 			bool IsDebug() const;
 
 		protected:
-			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
+			virtual ExpectsGraphics<TextureCube*> CreateTextureCubeInternal(void* Resource[6]) = 0;
 			Core::Option<Core::String> GetProgramName(const Shader::Desc& Desc);
 			bool GetProgramCache(const Core::String& Name, Core::String* Data);
 			bool SetProgramCache(const Core::String& Name, const Core::String& Data);
@@ -1834,7 +1863,7 @@ namespace Vitex
 
 		public:
 			static GraphicsDevice* Create(Desc& I);
-			static void CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices);
+			static ExpectsGraphics<void> CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const ExpectsGraphics<Shader*>&)>& Callback);
 		};
 
 		class VI_OUT Activity final : public Core::Reference<Activity>

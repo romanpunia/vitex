@@ -4147,7 +4147,7 @@ namespace Vitex
 
 			size_t Size = Text.size();
 			char* Data = (char*)Text.c_str();
-			while (*Data && Size && std::isspace(*Data))
+			while (*Data && Size && std::isspace(Core::Stringify::Literal(*Data)))
 			{
 				++Data;
 				Size--;
@@ -5306,6 +5306,157 @@ namespace Vitex
 			else if (Stream.flags() & Stream.hex)
 				Stream << Right.ToString(16);
 			return Stream;
+		}
+
+		PreprocessorException::PreprocessorException(PreprocessorError NewType) : PreprocessorException(NewType, 0)
+		{
+		}
+		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset) : PreprocessorException(NewType, NewOffset, nullptr)
+		{
+		}
+		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& Message) : Type(NewType), Offset(NewOffset)
+		{
+			switch (Type)
+			{
+				case PreprocessorError::MacroDefinitionEmpty:
+					Info = "empty macro directive definition";
+					break;
+				case PreprocessorError::MacroNameEmpty:
+					Info = "empty macro directive name";
+					break;
+				case PreprocessorError::MacroParenthesisDoubleClosed:
+					Info = "macro directive parenthesis is closed twice";
+					break;
+				case PreprocessorError::MacroParenthesisNotClosed:
+					Info = "macro directive parenthesis is not closed";
+					break;
+				case PreprocessorError::MacroDefinitionError:
+					Info = "macro directive definition parsing error";
+					break;
+				case PreprocessorError::MacroExpansionParenthesisDoubleClosed:
+					Info = "macro expansion directive parenthesis is closed twice";
+					break;
+				case PreprocessorError::MacroExpansionParenthesisNotClosed:
+					Info = "macro expansion directive parenthesis is not closed";
+					break;
+				case PreprocessorError::MacroExpansionArgumentsError:
+					Info = "macro expansion directive uses incorrect number of arguments";
+					break;
+				case PreprocessorError::MacroExpansionExecutionError:
+					Info = "macro expansion directive execution error";
+					break;
+				case PreprocessorError::MacroExpansionError:
+					Info = "macro expansion directive parsing error";
+					break;
+				case PreprocessorError::ConditionNotOpened:
+					Info = "conditional directive has no opened parenthesis";
+					break;
+				case PreprocessorError::ConditionNotClosed:
+					Info = "conditional directive parenthesis is not closed";
+					break;
+				case PreprocessorError::ConditionError:
+					Info = "conditional directive parsing error";
+					break;
+				case PreprocessorError::DirectiveNotFound:
+					Info = "directive is not found";
+					break;
+				case PreprocessorError::DirectiveExpansionError:
+					Info = "directive expansion error";
+					break;
+				case PreprocessorError::IncludeDenied:
+					Info = "inclusion directive is denied";
+					break;
+				case PreprocessorError::IncludeError:
+					Info = "inclusion directive parsing error";
+					break;
+				case PreprocessorError::IncludeNotFound:
+					Info = "inclusion directive is not found";
+					break;
+				case PreprocessorError::PragmaNotFound:
+					Info = "pragma directive is not found";
+					break;
+				case PreprocessorError::PragmaError:
+					Info = "pragma directive parsing error";
+					break;
+				case PreprocessorError::ExtensionError:
+					Info = "extension error";
+					break;
+				default:
+					break;
+			}
+
+			if (Offset > 0)
+			{
+				Info += " at offset ";
+				Info += Core::ToString(Offset);
+			}
+
+			if (!Message.empty())
+			{
+				Info += " on ";
+				Info += Message;
+			}
+		}
+		const char* PreprocessorException::type() const noexcept
+		{
+			return "preprocessor_error";
+		}
+		const char* PreprocessorException::what() const noexcept
+		{
+			return Info.c_str();
+		}
+
+		CryptoException::CryptoException() : ErrorCode(0)
+		{
+#ifdef VI_OPENSSL
+			unsigned long Error = ERR_get_error();
+			if (Error > 0)
+			{
+				ErrorCode = (size_t)Error;
+				char* ErrorText = ERR_error_string(Error, nullptr);
+				if (ErrorText != nullptr)
+					Info = ErrorText;
+				else
+					Info = "error:" + Core::ToString(ErrorCode);
+			}
+			else
+				Info = "error:internal";
+#else
+			Info = "error:unsupported";
+#endif
+		}
+		CryptoException::CryptoException(size_t NewErrorCode, const char* Message) : ErrorCode(NewErrorCode)
+		{
+			Info = "error:" + Core::ToString(ErrorCode) + ":";
+			if (Message != nullptr)
+				Info += Message;
+			else
+				Info += "internal";
+		}
+		const char* CryptoException::type() const noexcept
+		{
+			return "crypto_error";
+		}
+		const char* CryptoException::what() const noexcept
+		{
+			return Info.c_str();
+		}
+
+		CompressionException::CompressionException(int NewErrorCode, const char* Message) : ErrorCode(NewErrorCode)
+		{
+			if (Message != nullptr)
+				Info += Message;
+			else
+				Info += "internal error";
+			Info += " (error = " + Core::ToString(ErrorCode) + ")";
+		}
+		const char* CompressionException::type() const noexcept
+		{
+			return "compression_error";
+		}
+		const char* CompressionException::what() const noexcept
+		{
+			return Info.c_str();
 		}
 
 		Adjacencies::Adjacencies() noexcept : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
@@ -8206,36 +8357,31 @@ namespace Vitex
 			return "0x?";
 #endif
 		}
-		bool Crypto::FillRandomBytes(unsigned char* Buffer, size_t Length)
+		ExpectsCrypto<void> Crypto::FillRandomBytes(unsigned char* Buffer, size_t Length)
 		{
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
 			if (RAND_bytes(Buffer, (int)Length) == 1)
-				return true;
-
-			DisplayCryptoLog();
+				return Core::Expectation::Met;
 #endif
-			return false;
+			return CryptoException();
 		}
-		Core::Option<Core::String> Crypto::RandomBytes(size_t Length)
+		ExpectsCrypto<Core::String> Crypto::RandomBytes(size_t Length)
 		{
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] generate random %" PRIu64 " bytes", (uint64_t)Length);
 			unsigned char* Buffer = VI_MALLOC(unsigned char, sizeof(unsigned char) * Length);
 			if (RAND_bytes(Buffer, (int)Length) != 1)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			Core::String Output((const char*)Buffer, Length);
 			VI_FREE(Buffer);
 			return Output;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::ChecksumHex(Digest Type, Core::Stream* Stream)
+		ExpectsCrypto<Core::String> Crypto::ChecksumHex(Digest Type, Core::Stream* Stream)
 		{
 			auto Data = Crypto::ChecksumRaw(Type, Stream);
 			if (!Data)
@@ -8243,7 +8389,7 @@ namespace Vitex
 
 			return Codec::HexEncode(*Data);
 		}
-		Core::Option<Core::String> Crypto::ChecksumRaw(Digest Type, Core::Stream* Stream)
+		ExpectsCrypto<Core::String> Crypto::ChecksumRaw(Digest Type, Core::Stream* Stream)
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_ASSERT(Stream != nullptr, "stream should be set");
@@ -8253,10 +8399,7 @@ namespace Vitex
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			Core::String Result;
 			Result.resize(EVP_MD_size(Method));
@@ -8272,18 +8415,15 @@ namespace Vitex
 			EVP_MD_CTX_destroy(Context);
 
 			if (!OK)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			Result.resize((size_t)Size);
 			return Result;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::HashHex(Digest Type, const Core::String& Value)
+		ExpectsCrypto<Core::String> Crypto::HashHex(Digest Type, const Core::String& Value)
 		{
 			auto Data = Crypto::HashRaw(Type, Value);
 			if (!Data)
@@ -8291,7 +8431,7 @@ namespace Vitex
 
 			return Codec::HexEncode(*Data);
 		}
-		Core::Option<Core::String> Crypto::HashRaw(Digest Type, const Core::String& Value)
+		ExpectsCrypto<Core::String> Crypto::HashRaw(Digest Type, const Core::String& Value)
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
@@ -8302,10 +8442,7 @@ namespace Vitex
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			Core::String Result;
 			Result.resize(EVP_MD_size(Method));
@@ -8317,18 +8454,15 @@ namespace Vitex
 			EVP_MD_CTX_destroy(Context);
 
 			if (!OK)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			Result.resize((size_t)Size);
 			return Result;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
@@ -8345,42 +8479,33 @@ namespace Vitex
 			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size);
 
 			if (!Pointer)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			return Core::String((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			if (1 != HMAC_Init_ex(Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
 			{
-				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			if (1 != HMAC_Update(Context, (const unsigned char*)Value, (int)Length))
 			{
-				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			unsigned int Size = sizeof(Result);
 			if (1 != HMAC_Final(Context, Result, &Size))
 			{
-				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			Core::String Output((const char*)Result, Size);
@@ -8395,24 +8520,21 @@ namespace Vitex
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			if (1 != HMAC_Init_ex(&Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
 			{
-				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			if (1 != HMAC_Update(&Context, (const unsigned char*)Value, (int)Length))
 			{
-				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			unsigned int Size = sizeof(Result);
 			if (1 != HMAC_Final(&Context, Result, &Size))
 			{
-				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			Core::String Output((const char*)Result, Size);
@@ -8421,14 +8543,14 @@ namespace Vitex
 			return Output;
 #endif
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::Sign(Digest Type, const Core::String& Value, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, const Core::String& Value, const PrivateKey& Key)
 		{
 			return Sign(Type, Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		Core::Option<Core::String> Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
@@ -8443,22 +8565,19 @@ namespace Vitex
 			unsigned int Size = sizeof(Result);
 
 			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size))
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			Core::String Output((const char*)Result, Size);
 			return Output;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key)
 		{
 			return Crypto::HMAC(Type, Value.c_str(), Value.size(), Key);
 		}
-		Core::Option<Core::String> Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		ExpectsCrypto<Core::String> Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(Value != nullptr, "value should be set");
@@ -8469,28 +8588,23 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
 			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
-				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			Core::String Output;
@@ -8504,9 +8618,8 @@ namespace Vitex
 				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Length - Offset)), OutSize = 0;
 				if (1 != EVP_EncryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 			Finalize:
@@ -8522,9 +8635,8 @@ namespace Vitex
 				
 				if (1 != EVP_EncryptFinal_ex(Context, OutBuffer, &OutSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 				IsFinalized = true;
@@ -8534,14 +8646,14 @@ namespace Vitex
 			EVP_CIPHER_CTX_free(Context);
 			return Output;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		ExpectsCrypto<Core::String> Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt, ComplexityBytes);
 		}
-		Core::Option<Core::String> Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		ExpectsCrypto<Core::String> Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(Value != nullptr, "value should be set");
@@ -8552,28 +8664,23 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
 			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
-				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			Core::String Output;
@@ -8587,9 +8694,8 @@ namespace Vitex
 				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Length - Offset)), OutSize = 0;
 				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 			Finalize:
@@ -8605,9 +8711,8 @@ namespace Vitex
 				
 				if (1 != EVP_DecryptFinal_ex(Context, OutBuffer, &OutSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 				IsFinalized = true;
@@ -8617,14 +8722,14 @@ namespace Vitex
 			EVP_CIPHER_CTX_free(Context);
 			return Output;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<Core::String> Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		ExpectsCrypto<Core::String> Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt, ComplexityBytes);
 		}
-		Core::Option<Core::String> Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
 		{
 			Digest Hash = nullptr;
 			if (Alg == "HS256")
@@ -8636,14 +8741,14 @@ namespace Vitex
 
 			return Crypto::HMAC(Hash, Payload, Key);
 		}
-		Core::Option<Core::String> Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
 		{
 			VI_ASSERT(Src != nullptr, "web token should be set");
 			VI_ASSERT(Src->Header != nullptr, "web token header should be set");
 			VI_ASSERT(Src->Payload != nullptr, "web token payload should be set");
 			Core::String Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
-				return Core::Optional::None;
+				return CryptoException(-1, "jwt:algorithm_error");
 
 			Core::String Header;
 			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size) { Header.append(Buffer, Size); });
@@ -8654,29 +8759,29 @@ namespace Vitex
 			Core::String Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
 			auto Signature = JWTSign(Alg, Data, Key);
 			if (!Signature)
-				return Core::Optional::None;
+				return Signature;
 
 			Src->Signature = *Signature;
 			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
 		}
-		Core::Option<WebToken*> Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
+		ExpectsCrypto<WebToken*> Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
 		{
 			Core::Vector<Core::String> Source = Core::Stringify::Split(Value, '.');
 			if (Source.size() != 3)
-				return Core::Optional::None;
+				return CryptoException(-2, "jwt:format_error");
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Codec::Base64URLDecode(Source[0]);
 			auto Header = Core::Schema::ConvertFromJSON(Source[0].c_str(), Source[0].size());
 			if (!Header)
-				return Core::Optional::None;
+				return CryptoException(-3, "jwt:header_parser_error");
 
 			Source[1] = Codec::Base64URLDecode(Source[1]);
 			auto Payload = Core::Schema::ConvertFromJSON(Source[1].c_str(), Source[1].size());
 			if (!Payload)
 			{
 				VI_RELEASE(Header);
-				return Core::Optional::None;
+				return CryptoException(-4, "jwt:payload_parser_error");
 			}
 
 			Source[0] = Header->GetVar("alg").GetBlob();
@@ -8684,7 +8789,7 @@ namespace Vitex
 			if (!Signature || Codec::Base64URLEncode(*Signature) != Source[2])
 			{
 				VI_RELEASE(Header);
-				return nullptr;
+				return CryptoException(-5, "jwt:signature_error");
 			}
 
 			WebToken* Result = new WebToken();
@@ -8694,7 +8799,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::Option<Core::String> Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
+		ExpectsCrypto<Core::String> Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(Src != nullptr, "schema should be set");
 			Core::String Result;
@@ -8707,23 +8812,23 @@ namespace Vitex
 			Result = Codec::Bep45Encode(*Data);
 			return Result;
 		}
-		Core::Option<Core::Schema*> Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		ExpectsCrypto<Core::Schema*> Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(!Value.empty(), "value should not be empty");
 			if (Value.empty())
-				return Core::Optional::None;
+				return CryptoException(-6, "doc:payload_empty");
 
 			auto Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
 			if (!Source)
-				return Core::Optional::None;
+				return Source.Error();
 
 			auto Result = Core::Schema::ConvertFromJSON(Source->c_str(), Source->size());
 			if (!Result)
-				return Core::Optional::None;
+				return CryptoException(-7, "doc:payload_parser_error");
 
 			return *Result;
 		}
-		Core::Option<size_t> Crypto::Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
+		ExpectsCrypto<size_t> Crypto::Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(ReadInterval > 0, "read interval should be greater than zero.");
@@ -8734,28 +8839,23 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
 			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
-				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
@@ -8766,9 +8866,8 @@ namespace Vitex
 				int OutSize = 0;
 				if (1 != EVP_EncryptUpdate(Context, OutBuffer + TrailingBufferSize, &OutSize, InBuffer, (int)InBufferSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 			Finalize:
@@ -8792,7 +8891,7 @@ namespace Vitex
 				if (To->Write(WriteBuffer, WriteBufferSize) != WriteBufferSize)
 				{
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 				Size += WriteBufferSize;
@@ -8803,9 +8902,8 @@ namespace Vitex
 
 				if (1 != EVP_EncryptFinal_ex(Context, OutBuffer + TrailingBufferSize, &OutSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 				IsFinalized = true;
@@ -8815,10 +8913,10 @@ namespace Vitex
 			EVP_CIPHER_CTX_free(Context);
 			return Size;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
-		Core::Option<size_t> Crypto::Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
+		ExpectsCrypto<size_t> Crypto::Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(ReadInterval > 0, "read interval should be greater than zero.");
@@ -8829,28 +8927,23 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
-			{
-				DisplayCryptoLog();
-				return Core::Optional::None;
-			}
+				return CryptoException();
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
 			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
-				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return Core::Optional::None;
+				return CryptoException();
 			}
 
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
@@ -8878,9 +8971,8 @@ namespace Vitex
 				int OutSize = 0;
 				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, (unsigned char*)ReadBuffer, (int)ReadBufferSize))
 				{
-					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 			Finalize:
@@ -8888,7 +8980,7 @@ namespace Vitex
 				if (To->Write((char*)OutBuffer, OutBufferSize) != OutBufferSize)
 				{
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 				Size += OutBufferSize;
@@ -8901,7 +8993,7 @@ namespace Vitex
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return Core::Optional::None;
+					return CryptoException();
 				}
 
 				IsFinalized = true;
@@ -8911,7 +9003,7 @@ namespace Vitex
 			EVP_CIPHER_CTX_free(Context);
 			return Size;
 #else
-			return Core::Optional::None;
+			return CryptoException();
 #endif
 		}
 		unsigned char Crypto::RandomUC()
@@ -8951,7 +9043,10 @@ namespace Vitex
 				return Raw;
 #ifdef VI_OPENSSL
 			if (RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t)) != 1)
-				DisplayCryptoLog();
+			{
+				ERR_clear_error();
+				Raw = Random();
+			}
 #else
 			Raw = Random();
 #endif
@@ -9080,7 +9175,7 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
 			{
-				while (Size > 0 && std::isspace(Message[Size - 1]))
+				while (Size > 0 && std::isspace(Core::Stringify::Literal(Message[Size - 1])))
 					--Size;
 				VI_ERR("[openssl] %.*s", (int)Size, Message);
 				return 0;
@@ -9443,35 +9538,36 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::Option<Core::String> Codec::Compress(const Core::String& Data, Compression Type)
+		ExpectsCompression<Core::String> Codec::Compress(const Core::String& Data, Compression Type)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
 			if (Data.empty())
-				return Core::Optional::None;
+				return CompressionException(Z_DATA_ERROR, "empty input buffer");
 
 			uLongf Size = compressBound((uLong)Data.size());
 			Bytef* Buffer = VI_MALLOC(Bytef, Size);
-			if (compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type) != Z_OK)
+			int Code = compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type);
+			if (Code != Z_OK)
 			{
 				VI_FREE(Buffer);
-				return Core::Optional::None;
+				return CompressionException(Code, "buffer compression using comress2 error");
 			}
 
 			Core::String Output((char*)Buffer, (size_t)Size);
 			VI_FREE(Buffer);
 			return Output;
 #else
-			return Core::Optional::None;
+			return CompressionException(-1, "unsupported");
 #endif
 		}
-		Core::Option<Core::String> Codec::Decompress(const Core::String& Data)
+		ExpectsCompression<Core::String> Codec::Decompress(const Core::String& Data)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
 			if (Data.empty())
-				return Core::Optional::None;
-
+				return CompressionException(Z_DATA_ERROR, "empty input buffer");
+			
 			uLongf SourceSize = (uLong)Data.size();
 			uLongf TotalSize = SourceSize * 2;
 			while (true)
@@ -9488,15 +9584,18 @@ namespace Vitex
 				else if (Code != Z_OK)
 				{
 					VI_FREE(Buffer);
-					return Core::Optional::None;
+					return CompressionException(Code, "buffer decompression using uncomress2 error");
 				}
 
 				Core::String Output((char*)Buffer, (size_t)Size);
 				VI_FREE(Buffer);
 				return Output;
 			}
+
+			return CompressionException(Z_DATA_ERROR, "buffer decompression error");
+#else
+			return CompressionException(-1, "unsupported");
 #endif
-			return Core::Optional::None;
 		}
 		Core::String Codec::HexEncodeOdd(const char* Value, size_t Size, bool UpperCase)
 		{
@@ -10297,7 +10396,7 @@ namespace Vitex
 			Data = *NewData;
 			return !Data.empty();
 		}
-		Core::Option<Core::String> WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
+		ExpectsCrypto<Core::String> WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			auto NewToken = Crypto::DocEncrypt(Token, Key, Salt);
 			if (!NewToken)
@@ -10370,24 +10469,24 @@ namespace Vitex
 		}
 		void Preprocessor::AddDefaultDefinitions()
 		{
-			Define("__VERSION__", [](Preprocessor*, const Core::Vector<Core::String>& Args)
+			DefineDynamic("__VERSION__", [](Preprocessor*, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
 				return Core::ToString<size_t>(Vitex::VERSION);
 			});
-			Define("__DATE__", [](Preprocessor*, const Core::Vector<Core::String>& Args)
+			DefineDynamic("__DATE__", [](Preprocessor*, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
 				return EscapeText(Core::DateTime().Format("%b %d %Y"));
 			});
-			Define("__FILE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args)
+			DefineDynamic("__FILE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
 				Core::String Path = Base->GetCurrentFilePath();
 				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
 			});
-			Define("__LINE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args)
+			DefineDynamic("__LINE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
 				return Core::ToString<size_t>(Base->GetCurrentLineNumber());
 			});
-			Define("__DIRECTORY__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args)
+			DefineDynamic("__DIRECTORY__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
 				Core::String Path = Core::OS::Path::GetDirectory(Base->GetCurrentFilePath().c_str());
 				if (!Path.empty() && (Path.back() == '\\' || Path.back() == '/'))
@@ -10395,24 +10494,22 @@ namespace Vitex
 				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
 			});
 		}
-		bool Preprocessor::Define(const Core::String& Expression)
+		ExpectsPreprocessor<void> Preprocessor::Define(const Core::String& Expression)
 		{
-			return Define(Expression, nullptr);
+			return DefineDynamic(Expression, nullptr);
 		}
-		bool Preprocessor::Define(const Core::String& Expression, ProcExpansionCallback&& Callback)
+		ExpectsPreprocessor<void> Preprocessor::DefineDynamic(const Core::String& Expression, ProcExpansionCallback&& Callback)
 		{
 			if (Expression.empty())
-			{
-				VI_ERR("[proc] %s: empty macro definition is not allowed", ThisFile.Path.c_str());
-				return false;
-			}
+				return PreprocessorException(PreprocessorError::MacroDefinitionEmpty, 0, ThisFile.Path);
 
 			VI_TRACE("[proc] on 0x%" PRIXPTR " define %s", (void*)this, Expression.c_str());
 			Core::String Name; size_t NameOffset = 0;
 			while (NameOffset < Expression.size())
 			{
 				char V = Expression[NameOffset++];
-				if ((!std::isalpha(V) && !std::isdigit(V) && V != '_'))
+				int L = Core::Stringify::Literal(V);
+				if ((!std::isalpha(L) && !std::isdigit(L) && V != '_'))
 				{
 					Name = Expression.substr(0, --NameOffset);
 					break;
@@ -10426,10 +10523,7 @@ namespace Vitex
 
 			bool EmptyParenthesis = false;
 			if (Name.empty())
-			{
-				VI_ERR("[proc] %s: empty macro definition name is not allowed", ThisFile.Path.c_str());
-				return false;
-			}
+				return PreprocessorException(PreprocessorError::MacroNameEmpty, 0, ThisFile.Path);
 
 			Definition Data; size_t TemplateBegin = NameOffset, TemplateEnd = NameOffset + 1;
 			if (TemplateBegin < Expression.size() && Expression[TemplateBegin] == '(')
@@ -10445,24 +10539,15 @@ namespace Vitex
 				}
 
 				if (Pose < 0)
-				{
-					VI_ERR("[proc] %s: macro definition template parenthesis was closed twice at %s", ThisFile.Path.c_str(), Expression.c_str());
-					return false;
-				}
+					return PreprocessorException(PreprocessorError::MacroParenthesisDoubleClosed, 0, Expression);
 				else if (Pose > 1)
-				{
-					VI_ERR("[proc] %s: macro definition template parenthesis is not closed at %s", ThisFile.Path.c_str(), Expression.c_str());
-					return false;
-				}
+					return PreprocessorException(PreprocessorError::MacroParenthesisNotClosed, 0, Expression);
 
 				Core::String Template = Expression.substr(0, TemplateEnd);
 				Core::Stringify::Trim(Template);
 
 				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
-				{
-					VI_ERR("[proc] %s: invalid macro definition at %s", ThisFile.Path.c_str(), Template.c_str());
-					return false;
-				}
+					return PreprocessorException(PreprocessorError::MacroDefinitionError, 0, Template);
 
 				Data.Tokens.erase(Data.Tokens.begin());
 				EmptyParenthesis = Data.Tokens.empty();
@@ -10485,7 +10570,7 @@ namespace Vitex
 				ExpandDefinitions(Data.Expansion, Size);
 
 			Defines[Name] = std::move(Data);
-			return true;
+			return Core::Expectation::Met;
 		}
 		void Preprocessor::Undefine(const Core::String& Name)
 		{
@@ -10513,14 +10598,14 @@ namespace Vitex
 
 			return Value.empty();
 		}
-		bool Preprocessor::Process(const Core::String& Path, Core::String& Data)
+		ExpectsPreprocessor<void> Preprocessor::Process(const Core::String& Path, Core::String& Data)
 		{
 			bool Nesting = SaveResult();
-			if (Data.empty())
-				return ReturnResult(false, Nesting);
-
-			if (!Path.empty() && HasResult(Path))
-				return ReturnResult(true, Nesting);
+			if (Data.empty() || !Path.empty() && HasResult(Path))
+			{
+				ApplyResult(Nesting);
+				return Core::Expectation::Met;
+			}
 
 			FileContext LastFile = ThisFile;
 			ThisFile.Path = Path;
@@ -10529,23 +10614,28 @@ namespace Vitex
 			if (!Path.empty())
 				Sets.insert(Path);
 
-			if (!ConsumeTokens(Path, Data))
+			auto TokensStatus = ConsumeTokens(Path, Data);
+			if (!TokensStatus)
 			{
 				ThisFile = LastFile;
-				return ReturnResult(false, Nesting);
+				ApplyResult(Nesting);
+				return TokensStatus;
 			}
 
 			size_t Size = Data.size();
-			if (!ExpandDefinitions(Data, Size))
+			auto ExpansionStatus = ExpandDefinitions(Data, Size);
+			if (!ExpansionStatus)
 			{
 				ThisFile = LastFile;
-				return ReturnResult(false, Nesting);
+				ApplyResult(Nesting);
+				return ExpansionStatus;
 			}
 
 			ThisFile = LastFile;
-			return ReturnResult(true, Nesting);
+			ApplyResult(Nesting);
+			return Core::Expectation::Met;
 		}
-		bool Preprocessor::ReturnResult(bool Result, bool WasNested)
+		void Preprocessor::ApplyResult(bool WasNested)
 		{
 			Nested = WasNested;
 			if (!Nested)
@@ -10554,8 +10644,6 @@ namespace Vitex
 				ThisFile.Path.clear();
 				ThisFile.Line = 0;
 			}
-
-			return Result;
 		}
 		bool Preprocessor::HasResult(const Core::String& Path)
 		{
@@ -10578,12 +10666,12 @@ namespace Vitex
 			while (Offset < Buffer.size())
 			{
 				char V = Buffer[Offset];
-				if (V == '#' && Offset + 1 < Buffer.size() && !std::isspace(Buffer[Offset + 1]))
+				if (V == '#' && Offset + 1 < Buffer.size() && !std::isspace(Core::Stringify::Literal(Buffer[Offset + 1])))
 				{
 					Result.Start = Offset;
 					while (Offset < Buffer.size())
 					{
-						if (std::isspace(Buffer[++Offset]))
+						if (std::isspace(Core::Stringify::Literal(Buffer[++Offset])))
 						{
 							Result.Name = Buffer.substr(Result.Start + 1, Offset - Result.Start - 1);
 							break;
@@ -10683,7 +10771,7 @@ namespace Vitex
 			Buffer.replace(Where.Start, Where.End - Where.Start, To);
 			return Where.Start;
 		}
-		Core::Vector<Preprocessor::Conditional> Preprocessor::PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top)
+		ExpectsPreprocessor<Core::Vector<Preprocessor::Conditional>> Preprocessor::PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top)
 		{
 			Core::Vector<Conditional> Conditions;
 			size_t ChildEnding = 0;
@@ -10728,12 +10816,12 @@ namespace Vitex
 
 					auto& Base = Conditions.back();
 					auto Listing = PrepareConditions(Buffer, Next, Offset, false);
-					if (Listing.empty())
-						return Core::Vector<Conditional>();
+					if (!Listing)
+						return Listing;
 
 					size_t LastSize = Base.Childs.size();
-					Base.Childs.reserve(LastSize + Listing.size());
-					for (auto& Item : Listing)
+					Base.Childs.reserve(LastSize + Listing->size());
+					for (auto& Item : *Listing)
 						Base.Childs.push_back(Item);
 
 					ChildEnding = Next.End;
@@ -10753,10 +10841,7 @@ namespace Vitex
 				{
 					Block.Type = (Conditions.empty() ? Condition::Equals : (Condition)(-(int32_t)Conditions.back().Type));
 					if (Conditions.empty())
-					{
-						VI_ERR("[proc] %s: #%s is has no opening #if block", ThisFile.Path.c_str(), Next.Name.c_str());
-						return Core::Vector<Conditional>();
-					}
+						return PreprocessorException(PreprocessorError::ConditionNotOpened, 0, Next.Name);
 
 					Conditions.emplace_back(std::move(Block));
 					continue;
@@ -10764,10 +10849,7 @@ namespace Vitex
 				else if (Control->second.second == Controller::ElseIf)
 				{
 					if (Conditions.empty())
-					{
-						VI_ERR("[proc] %s: #%s is has no opening #if block", ThisFile.Path.c_str(), Next.Name.c_str());
-						return Core::Vector<Conditional>();
-					}
+						return PreprocessorException(PreprocessorError::ConditionNotOpened, 0, Next.Name);
 
 					Conditions.emplace_back(std::move(Block));
 					continue;
@@ -10775,8 +10857,7 @@ namespace Vitex
 				else if (Control->second.second == Controller::EndIf)
 					break;
 
-				VI_ERR("[proc] %s: #%s is not a valid conditional block", ThisFile.Path.c_str(), Next.Name.c_str());
-				return Core::Vector<Conditional>();
+				return PreprocessorException(PreprocessorError::ConditionError, 0, Next.Name);
 			} while ((Next = FindNextConditionalToken(Buffer, Offset)).Found);
 
 			return Conditions;
@@ -10810,14 +10891,14 @@ namespace Vitex
 			while (Offset < Value.size())
 			{
 				char V = Value[Offset];
-				if (!std::isspace(V))
+				if (!std::isspace(Core::Stringify::Literal(V)))
 				{
 					++Offset;
 					continue;
 				}
 
 				size_t Count = Offset;
-				while (Offset < Value.size() && std::isspace(Value[++Offset]));
+				while (Offset < Value.size() && std::isspace(Core::Stringify::Literal(Value[++Offset])));
 
 				Core::String Right = Value.substr(Offset);
 				Core::String Left = Value.substr(0, Count);
@@ -10929,10 +11010,10 @@ namespace Vitex
 
 			return Lines;
 		}
-		bool Preprocessor::ExpandDefinitions(Core::String& Buffer, size_t& Size)
+		ExpectsPreprocessor<void> Preprocessor::ExpandDefinitions(Core::String& Buffer, size_t& Size)
 		{
 			if (!Size || Defines.empty())
-				return true;
+				return Core::Expectation::Met;
 
 			Core::Vector<Core::String> Tokens;
 			Core::String Formatter = Buffer.substr(0, Size);
@@ -10953,7 +11034,11 @@ namespace Vitex
 						while (FoundOffset != Core::String::npos)
 						{
 							StoreCurrentLine = [this, &Formatter, FoundOffset, TemplateSize]() { return GetLinesCount(Formatter, FoundOffset + TemplateSize); };
-							Formatter.replace(FoundOffset, TemplateSize, Item.second.Callback(this, Tokens));
+							auto Status = Item.second.Callback(this, Tokens);
+							if (!Status)
+								return Status.Error();
+
+							Formatter.replace(FoundOffset, TemplateSize, *Status);
 							FoundOffset = Formatter.find(Item.first, FoundOffset);
 						}
 					}
@@ -10979,35 +11064,28 @@ namespace Vitex
 					}
 
 					if (Pose < 0)
-					{
-						VI_ERR("[proc] %s: macro definition expansion parenthesis was closed twice at %" PRIu64, ThisFile.Path.c_str(), (uint64_t)TemplateStart);
-						return false;
-					}
+						return PreprocessorException(PreprocessorError::MacroExpansionParenthesisDoubleClosed, TemplateStart, ThisFile.Path);
 					else if (Pose > 1)
-					{
-						VI_ERR("[proc] %s: macro definition expansion parenthesis is not closed at %" PRIu64, ThisFile.Path.c_str(), (uint64_t)TemplateStart);
-						return false;
-					}
+						return PreprocessorException(PreprocessorError::MacroExpansionParenthesisNotClosed, TemplateStart, ThisFile.Path);
 
 					Core::String Template = Formatter.substr(TemplateStart, TemplateEnd - TemplateStart);
 					Tokens.reserve(Item.second.Tokens.size() + 1);
 					Tokens.clear();
 
 					if (!ParseArguments(Template, Tokens, false) || Tokens.empty())
-					{
-						VI_ERR("[proc] %s: macro definition expansion cannot be parsed at %" PRIu64, ThisFile.Path.c_str(), (uint64_t)TemplateStart);
-						return false;
-					}
+						return PreprocessorException(PreprocessorError::MacroExpansionError, TemplateStart, ThisFile.Path);
 
 					if (Tokens.size() - 1 != Item.second.Tokens.size())
-					{
-						VI_ERR("[proc] %s: macro definition expansion uses incorrect number of arguments (%i out of %i) at %" PRIu64, ThisFile.Path.c_str(), (int)Tokens.size() - 1, (int)Item.second.Tokens.size(), (uint64_t)TemplateStart);
-						return false;
-					}
+						return PreprocessorException(PreprocessorError::MacroExpansionArgumentsError, TemplateStart, Core::Stringify::Text("%i out of %i", (int)Tokens.size() - 1, (int)Item.second.Tokens.size()));
 
 					Core::String Body;
 					if (Item.second.Callback != nullptr)
-						Body = Item.second.Callback(this, Tokens);
+					{
+						auto Status = Item.second.Callback(this, Tokens);
+						if (!Status)
+							return Status.Error();
+						Body = std::move(*Status);
+					}
 					else
 						Body = Item.second.Expansion;
 
@@ -11028,13 +11106,13 @@ namespace Vitex
 
 			Size = Formatter.size();
 			Buffer.insert(0, Formatter);
-			return true;
+			return Core::Expectation::Met;
 		}
-		bool Preprocessor::ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
+		ExpectsPreprocessor<void> Preprocessor::ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
 		{
 			size_t Where = Value.find('(');
 			if (Where == Core::String::npos || Value.back() != ')')
-				return false;
+				return PreprocessorException(PreprocessorError::MacroDefinitionError, 0, ThisFile.Path);
 
 			Core::String Data = Value.substr(Where + 1, Value.size() - Where - 2);
 			Tokens.emplace_back(std::move(Value.substr(0, Where)));
@@ -11079,9 +11157,9 @@ namespace Vitex
 				++Where;
 			}
 
-			return true;
+			return Core::Expectation::Met;
 		}
-		bool Preprocessor::ConsumeTokens(const Core::String& Path, Core::String& Buffer)
+		ExpectsPreprocessor<void> Preprocessor::ConsumeTokens(const Core::String& Path, Core::String& Buffer)
 		{
 			size_t Offset = 0;
 			while (true)
@@ -11093,10 +11171,7 @@ namespace Vitex
 				if (Next.Name == "include")
 				{
 					if (!Features.Includes)
-					{
-						VI_ERR("[proc] %s: not allowed to include \"%s\"", Path.c_str(), Next.Value.c_str());
-						return false;
-					}
+						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Path + " << " + Next.Value);
 
 					Core::String Subbuffer;
 					FileDesc.Path = Next.Value;
@@ -11110,15 +11185,21 @@ namespace Vitex
 						continue;
 					}
 
-					switch (Include ? Include(this, File, Subbuffer) : IncludeType::Error)
+					if (!Include)
+						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Path + " << " + Next.Value);
+
+					auto Status = Include(this, File, Subbuffer);
+					if (!Status)
+						return Status.Error();
+
+					switch (*Status)
 					{
 						case IncludeType::Preprocess:
 							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 							if (Subbuffer.empty() || Process(File.Module, Subbuffer))
 								goto SuccessfulInclude;
 
-							VI_ERR("[proc] %s: cannot preprocess include \"%s\"", Path.c_str(), Next.Value.c_str());
-							return false;
+							return PreprocessorException(PreprocessorError::IncludeError, Offset, Path + " << " + Next.Value);
 						case IncludeType::Unchanged:
 							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 							goto SuccessfulInclude;
@@ -11128,45 +11209,26 @@ namespace Vitex
 							goto SuccessfulInclude;
 						case IncludeType::Error:
 						default:
-							VI_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), Next.Value.c_str());
-							return false;
+							return PreprocessorException(PreprocessorError::IncludeNotFound, Offset, Path + " << " + Next.Value);
 					}
 				}
 				else if (Next.Name == "pragma")
 				{
 					Core::Vector<Core::String> Tokens;
 					if (!ParseArguments(Next.Value, Tokens, true) || Tokens.empty())
-					{
-						VI_ERR("[proc] %s: cannot parse pragma definition at %s", Path.c_str(), Next.Value.c_str());
-						return false;
-					}
+						return PreprocessorException(PreprocessorError::PragmaNotFound, Offset, Next.Value);
 
 					Core::String Name = Tokens.front();
 					Tokens.erase(Tokens.begin());
-
-					if (Pragma && !Pragma(this, Name, Tokens))
-					{
-						VI_ERR("[proc] cannot process pragma \"%s\" directive", Name.c_str());
-						return false;
-					}
-
 					if (!Pragma)
-					{
-						Core::String Value = Buffer.substr(Next.Start, Next.End - Next.Start);
-						VI_TRACE("[proc] on 0x%" PRIXPTR " ignore pragma %s", (void*)this, Value.c_str());
-						if (Next.Start > 0 && Buffer[Next.Start - 1] != '\n' && Buffer[Next.Start - 1] != '\r')
-							Value.insert(Value.begin(), '\n');
-						if (!Value.empty() && Value.back() != '\n' && Value.back() != '\r')
-							Value.append(1, '\n');
+						return PreprocessorException(PreprocessorError::PragmaError, Offset, Name);
+					
+					auto Status = Pragma(this, Name, Tokens);
+					if (!Status)
+						return Status;
 
-						Offset = ReplaceToken(Next, Buffer, Value);
-						Offset += Value.size();
-					}
-					else
-					{
-						VI_TRACE("[proc] on 0x%" PRIXPTR " apply pragma %s", (void*)this, Buffer.substr(Next.Start, Next.End - Next.Start).c_str());
-						Offset = ReplaceToken(Next, Buffer, "");
-					}
+					VI_TRACE("[proc] on 0x%" PRIXPTR " apply pragma %s", (void*)this, Buffer.substr(Next.Start, Next.End - Next.Start).c_str());
+					Offset = ReplaceToken(Next, Buffer, Core::String());
 				}
 				else if (Next.Name == "define")
 				{
@@ -11177,23 +11239,17 @@ namespace Vitex
 				{
 					Undefine(Next.Value);
 					Offset = ReplaceToken(Next, Buffer, "");
-					if (ExpandDefinitions(Buffer, Offset))
-						continue;
-
-					VI_ERR("[proc] %s: #%s cannot expand macro definitions", Path.c_str(), Next.Name.c_str());
-					return false;
+					if (!ExpandDefinitions(Buffer, Offset))
+						return PreprocessorException(PreprocessorError::DirectiveExpansionError, Offset, Next.Name);
 				}
 				else if (Next.Name.size() >= 2 && Next.Name[0] == 'i' && Next.Name[1] == 'f' && ControlFlow.find(Next.Name) != ControlFlow.end())
 				{
 					size_t Start = Next.Start;
-					Core::Vector<Conditional> Conditions = PrepareConditions(Buffer, Next, Offset, true);
-					if (Conditions.empty())
-					{
-						VI_ERR("[proc] %s: #if has no closing #endif block", Path.c_str(), Next.Name.c_str());
-						return false;
-					}
+					auto Conditions = PrepareConditions(Buffer, Next, Offset, true);
+					if (!Conditions)
+						return PreprocessorException(PreprocessorError::ConditionNotClosed, Offset, Next.Name);
 
-					Core::String Result = Evaluate(Buffer, Conditions);
+					Core::String Result = Evaluate(Buffer, *Conditions);
 					Next.Start = Start; Next.End = Offset;
 					Offset = ReplaceToken(Next, Buffer, Result);
 				}
@@ -11201,31 +11257,23 @@ namespace Vitex
 				{
 					auto It = Directives.find(Next.Name);
 					if (It == Directives.end())
-					{
-						VI_ERR("[proc] %s: #%s directive is unknown", Path.c_str(), Next.Name.c_str());
-						continue;
-					}
+						return PreprocessorException(PreprocessorError::DirectiveNotFound, Offset, Next.Name);
 
 					Core::String Result;
-					if (!It->second(this, Next, Result))
-					{
-						VI_ERR("[proc] %s: #%s directive expansion failed", Path.c_str(), Next.Name.c_str());
-						return false;
-					}
+					auto Status = It->second(this, Next, Result);
+					if (!Status)
+						return Status.Error();
 
 					Offset = ReplaceToken(Next, Buffer, Result);
 				}
 			}
 
-			return true;
+			return Core::Expectation::Met;
 		}
-		Core::Option<Core::String> Preprocessor::ResolveFile(const Core::String& Path, const Core::String& IncludePath)
+		ExpectsPreprocessor<Core::String> Preprocessor::ResolveFile(const Core::String& Path, const Core::String& IncludePath)
 		{
 			if (!Features.Includes)
-			{
-				VI_ERR("[proc] %s: not allowed to include \"%s\"", Path.c_str(), IncludePath.c_str());
-				return Core::Optional::None;
-			}
+				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Path + " << " + IncludePath);
 
 			FileContext LastFile = ThisFile;
 			ThisFile.Path = Path;
@@ -11243,15 +11291,28 @@ namespace Vitex
 				return Subbuffer;
 			}
 
-			switch (Include ? Include(this, File, Subbuffer) : IncludeType::Error)
+			if (!Include)
+			{
+				ThisFile = LastFile;
+				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Path + " << " + IncludePath);
+			}
+
+			auto Status = Include(this, File, Subbuffer);
+			if (!Status)
+			{
+				ThisFile = LastFile;
+				return Status.Error();
+			}
+
+			switch (*Status)
 			{
 				case IncludeType::Preprocess:
 					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 					if (Subbuffer.empty() || Process(File.Module, Subbuffer))
 						goto IncludeResult;
 
-					VI_ERR("[proc] %s: cannot preprocess include \"%s\"", Path.c_str(), IncludePath.c_str());
-					goto IncludeResult;
+					ThisFile = LastFile;
+					return PreprocessorException(PreprocessorError::IncludeError, 0, Path + " << " + IncludePath);
 				case IncludeType::Unchanged:
 					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 					goto IncludeResult;
@@ -11261,9 +11322,8 @@ namespace Vitex
 					goto IncludeResult;
 				case IncludeType::Error:
 				default:
-					VI_ERR("[proc] %s: cannot find \"%s\"", Path.c_str(), IncludePath.c_str());
 					ThisFile = LastFile;
-					return Core::Optional::None;
+					return PreprocessorException(PreprocessorError::IncludeNotFound, 0, Path + " << " + IncludePath);
 			}
 		}
 		const Core::String& Preprocessor::GetCurrentFilePath() const

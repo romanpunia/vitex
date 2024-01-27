@@ -253,6 +253,31 @@ namespace Vitex
 			return Value;
 		}
 
+		VirtualException::VirtualException(VirtualError NewErrorCode) : ErrorCode(NewErrorCode)
+		{
+			if (ErrorCode != VirtualError::SUCCESS)
+				Info += VirtualMachine::GetErrorNameInfo(ErrorCode);
+		}
+		VirtualException::VirtualException(VirtualError NewErrorCode, Core::String&& Message) : Info(std::move(Message)), ErrorCode(NewErrorCode)
+		{
+			if (ErrorCode == VirtualError::SUCCESS)
+				return;
+
+			Info += " causing ";
+			Info += VirtualMachine::GetErrorNameInfo(ErrorCode);
+		}
+		VirtualException::VirtualException(Core::String&& Message) : Info(std::move(Message))
+		{
+		}
+		const char* VirtualException::type() const noexcept
+		{
+			return "virtual_error";
+		}
+		const char* VirtualException::what() const noexcept
+		{
+			return Info.c_str();
+		}
+
 		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
 		{
 			VI_ASSERT(Id > 0 && !Name.empty(), "id should be greater than zero and name should not be empty");
@@ -286,15 +311,15 @@ namespace Vitex
 		}
 		Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* TypeCache::Names = nullptr;
 
-		bool Parser::ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		ExpectsVM<void> Parser::ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer)
 		{
 			return ReplacePreconditions(false, Keyword + ' ', Data, Replacer);
 		}
-		bool Parser::ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		ExpectsVM<void> Parser::ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer)
 		{
 			return ReplacePreconditions(true, Keyword, Data, Replacer);
 		}
-		bool Parser::ReplacePreconditions(bool IsDirective, const Core::String& Match, Core::String& Code, const std::function<Core::String(const Core::String& Expression)>& Replacer)
+		ExpectsVM<void> Parser::ReplacePreconditions(bool IsDirective, const Core::String& Match, Core::String& Code, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer)
 		{
 			VI_ASSERT(!Match.empty(), "keyword should not be empty");
 			VI_ASSERT(Replacer != nullptr, "replacer callback should not be empty");
@@ -369,8 +394,7 @@ namespace Vitex
 							if (Indexers <= 0 && Braces <= 0 && Quotes <= 0)
 								break;
 
-							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
-							return false;
+							return VirtualException(Core::Stringify::Text("unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
 						}
 					}
 					else if (V == '}')
@@ -380,8 +404,7 @@ namespace Vitex
 							if (Indexers <= 0 && Brackets <= 0 && Quotes <= 0)
 								break;
 
-							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
-							return false;
+							return VirtualException(Core::Stringify::Text("unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
 						}
 					}
 					else if (V == ']')
@@ -391,8 +414,7 @@ namespace Vitex
 							if (Brackets <= 0 && Braces <= 0 && Quotes <= 0)
 								break;
 
-							VI_ERR("[generator] unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
-							return false;
+							return VirtualException(Core::Stringify::Text("unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
 						}
 					}
 					else if (V == '"' || V == '\'')
@@ -443,8 +465,7 @@ namespace Vitex
 						Type = "']' symbol";
 					else if (Quotes > 0)
 						Type = "closing quote symbol";
-					VI_ERR("[generator] unexpected end of file, expected %s, offset %" PRIu64 ":\n%.*s <<<", Type, (uint64_t)End, (int)(End - Start), Code.c_str() + Start);
-					return false;
+					return VirtualException(Core::Stringify::Text("unexpected end of file, expected %s, offset %" PRIu64 ":\n%.*s <<<", Type, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
 				}
 				else if (End == Start)
 				{
@@ -452,16 +473,19 @@ namespace Vitex
 					continue;
 				}
 
-				Core::String Expression = Replacer(Code.substr(Start, End - Start));
+				auto Expression = Replacer(Code.substr(Start, End - Start));
+				if (!Expression)
+					return Expression.Error();
+
 				if (IsDirective && IsClosed)
 					++End;
 
-				Core::Stringify::ReplacePart(Code, Offset, End, Expression);
-				if (Expression.find(Match) == std::string::npos)
-					Offset += Expression.size();
+				Core::Stringify::ReplacePart(Code, Offset, End, *Expression);
+				if (Expression->find(Match) == std::string::npos)
+					Offset += Expression->size();
 			}
 
-			return true;
+			return Core::Expectation::Met;
 		}
 
 		ExpectsVM<void> FunctionFactory::AtomicNotifyGC(const char* TypeName, void* Object)
@@ -478,7 +502,7 @@ namespace Vitex
 			TypeInfo Type = Engine->GetTypeInfoByName(TypeName);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> FunctionFactory::AtomicNotifyGCById(int TypeId, void* Object)
@@ -494,7 +518,7 @@ namespace Vitex
 			TypeInfo Type = Engine->GetTypeInfoById(TypeId);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		asSFuncPtr* FunctionFactory::CreateFunctionBase(void(*Base)(), int Type)
@@ -905,7 +929,7 @@ namespace Vitex
 			}
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		const char* TypeInfo::GetPropertyDeclaration(size_t Index, bool IncludeNamespace) const
@@ -1298,7 +1322,7 @@ namespace Vitex
 				*Flags = (size_t)asFlags;
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		int Function::GetReturnTypeId(size_t* Flags) const
@@ -1375,7 +1399,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Ptr->GetVar((asUINT)Index, Name, TypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		const char* Function::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
@@ -1711,7 +1735,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnByte(Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnWord(unsigned short Value)
@@ -1720,7 +1744,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnWord(Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnDWord(size_t Value)
@@ -1729,7 +1753,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnDWord((asDWORD)Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnQWord(uint64_t Value)
@@ -1738,7 +1762,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnQWord(Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnFloat(float Value)
@@ -1747,7 +1771,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnFloat(Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnDouble(double Value)
@@ -1756,7 +1780,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnDouble(Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnAddress(void* Address)
@@ -1765,7 +1789,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnAddress(Address));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> GenericContext::SetReturnObjectAddress(void* Object)
@@ -1774,7 +1798,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Generic->SetReturnObject(Object));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		void* GenericContext::GetAddressOfReturnLocation()
@@ -1825,7 +1849,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall Type)
@@ -1841,7 +1865,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl.c_str(), *Value, (asECallConvTypes)Type));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
@@ -1856,7 +1880,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetPropertyAddress(const char* Decl, int Offset)
@@ -1870,7 +1894,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName(), Decl, Offset));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetPropertyStaticAddress(const char* Decl, void* Value)
@@ -1892,7 +1916,7 @@ namespace Vitex
 
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
@@ -1911,7 +1935,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl, *Value, (asECallConvTypes)Type));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
@@ -1933,7 +1957,7 @@ namespace Vitex
 
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
@@ -1948,7 +1972,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
@@ -1963,7 +1987,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> BaseClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
@@ -1978,7 +2002,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		asITypeInfo* BaseClass::GetTypeInfo() const
@@ -2181,7 +2205,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName(), Decl));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		asITypeInfo* TypeInterface::GetTypeInfo() const
@@ -2227,7 +2251,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName(), Name, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		asITypeInfo* Enumeration::GetTypeInfo() const
@@ -2286,7 +2310,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->RemoveFunction(Function.GetFunction()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::ResetProperties(asIScriptContext* Context)
@@ -2296,7 +2320,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->ResetGlobalVars(Context));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::Build()
@@ -2308,7 +2332,7 @@ namespace Vitex
 				VM->ClearSections();
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::LoadByteCode(ByteCodeInfo* Info)
@@ -2321,7 +2345,7 @@ namespace Vitex
 			VI_DELETE(CByteCodeStream, Stream);
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::BindImportedFunction(size_t ImportIndex, const Function& Function)
@@ -2330,7 +2354,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->BindImportedFunction((asUINT)ImportIndex, Function.GetFunction()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::UnbindImportedFunction(size_t ImportIndex)
@@ -2339,7 +2363,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->UnbindImportedFunction((asUINT)ImportIndex));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::BindAllImportedFunctions()
@@ -2348,7 +2372,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->BindAllImportedFunctions());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::UnbindAllImportedFunctions()
@@ -2357,7 +2381,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->UnbindAllImportedFunctions());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction)
@@ -2372,7 +2396,7 @@ namespace Vitex
 				*OutFunction = Function(OutFunc);
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
@@ -2381,7 +2405,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->CompileGlobalVar(SectionName, Code, LineOffset));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::SetDefaultNamespace(const char* Namespace)
@@ -2390,7 +2414,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->SetDefaultNamespace(Namespace));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::RemoveProperty(size_t Index)
@@ -2399,7 +2423,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Mod->RemoveGlobalVar((asUINT)Index));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		void Module::Discard()
@@ -2480,7 +2504,7 @@ namespace Vitex
 			int R = Mod->GetImportedFunctionIndexByDecl(Decl);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::SaveByteCode(ByteCodeInfo* Info) const
@@ -2494,7 +2518,7 @@ namespace Vitex
 			VI_DELETE(CByteCodeStream, Stream);
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> Module::GetPropertyIndexByName(const char* Name) const
@@ -2505,7 +2529,7 @@ namespace Vitex
 			int R = Mod->GetGlobalVarIndexByName(Name);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> Module::GetPropertyIndexByDecl(const char* Decl) const
@@ -2516,7 +2540,7 @@ namespace Vitex
 			int R = Mod->GetGlobalVarIndexByDecl(Decl);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Module::GetProperty(size_t Index, PropertyInfo* Info) const
@@ -2542,7 +2566,7 @@ namespace Vitex
 
 			return FunctionFactory::ToReturn(Result);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		size_t Module::GetAccessMask() const
@@ -2835,20 +2859,24 @@ namespace Vitex
 			VI_ASSERT(VM != nullptr, "engine should be set");
 
 			Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output)
+			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 			{
 				VI_ASSERT(VM != nullptr, "engine should be set");
-				switch (Include ? Include(Processor, File, Output) : Compute::IncludeType::Unchanged)
+				if (Include)
 				{
-					case Compute::IncludeType::Preprocess:
-						goto Preprocess;
-					case Compute::IncludeType::Virtual:
-						return Compute::IncludeType::Virtual;
-					case Compute::IncludeType::Error:
-						return Compute::IncludeType::Error;
-					case Compute::IncludeType::Unchanged:
-					default:
-						break;
+					auto Status = Include(Processor, File, Output);
+					switch (Status.Or(Compute::IncludeType::Unchanged))
+					{
+						case Compute::IncludeType::Preprocess:
+							goto Preprocess;
+						case Compute::IncludeType::Virtual:
+							return Compute::IncludeType::Virtual;
+						case Compute::IncludeType::Error:
+							return Compute::IncludeType::Error;
+						case Compute::IncludeType::Unchanged:
+						default:
+							break;
+					}
 				}
 
 				if (File.Module.empty() || !Scope)
@@ -2872,11 +2900,15 @@ namespace Vitex
 
 				return VM->AddScriptSection(Scope, File.Module.c_str(), Output.c_str(), Output.size()) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args)
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 			{
 				VI_ASSERT(VM != nullptr, "engine should be set");
-				if (Pragma && Pragma(Processor, Name, Args))
-					return true;
+				if (Pragma)
+				{
+					auto Status = Pragma(Processor, Name, Args);
+					if (Status)
+						return Status;
+				}
 
 				if (Name == "compile" && Args.size() == 2)
 				{
@@ -2955,13 +2987,13 @@ namespace Vitex
 				{
 					const Core::String& Key = Args[0];
 					if (Key == "INFO")
-						VI_INFO("[compiler] %s", Args[1].c_str());
+						VI_INFO("[asc] %s", Args[1].c_str());
 					else if (Key == "TRACE")
-						VI_DEBUG("[compiler] %s", Args[1].c_str());
+						VI_DEBUG("[asc] %s", Args[1].c_str());
 					else if (Key == "WARN")
-						VI_WARN("[compiler] %s", Args[1].c_str());
+						VI_WARN("[asc] %s", Args[1].c_str());
 					else if (Key == "ERR")
-						VI_ERR("[compiler] %s", Args[1].c_str());
+						VI_ERR("[asc] %s", Args[1].c_str());
 				}
 				else if (Name == "modify" && Args.size() == 2)
 				{
@@ -2980,14 +3012,28 @@ namespace Vitex
 				}
 				else if (Name == "cimport" && Args.size() >= 2)
 				{
-					bool Loaded;
 					if (Args.size() == 3)
-						Loaded = VM->ImportCLibrary(Args[0]) && VM->ImportCFunction({ Args[0] }, Args[1], Args[2]);
+					{
+						auto Status = VM->ImportCLibrary(Args[0]);
+						if (Status)
+						{
+							Status = VM->ImportCFunction({ Args[0] }, Args[1], Args[2]);
+							if (Status)
+								Define("SOF_" + Args[1]);
+							else
+								VI_ERR("[asc] %s", Status.Error().what());
+						}
+						else
+							VI_ERR("[asc] %s", Status.Error().what());
+					}
 					else
-						Loaded = VM->ImportCFunction({ }, Args[0], Args[1]);
-
-					if (Loaded)
-						Define("SOF_" + Args[1]);
+					{
+						auto Status = VM->ImportCFunction({ }, Args[0], Args[1]);
+						if (Status)
+							Define("SOF_" + Args[1]);
+						else
+							VI_ERR("[asc] %s", Status.Error().what());
+					}
 				}
 				else if (Name == "clibrary" && Args.size() >= 1)
 				{
@@ -3015,7 +3061,7 @@ namespace Vitex
 				else if (Name == "define" && Args.size() == 1)
 					Define(Args[0]);
 
-				return true;
+				return Core::Expectation::Met;
 			});
 			Processor->Define("VI_VERSION " + Core::ToString((size_t)VERSION));
 #ifdef VI_MICROSOFT
@@ -3098,14 +3144,14 @@ namespace Vitex
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
 			if (!Info->Valid || Info->Data.empty())
-				return VirtualError::INVALID_ARG;
+				return VirtualException(VirtualError::INVALID_ARG);
 
 			auto Result = Prepare(Info->Name, true);
 			if (Result)
 				VCache = *Info;
 			return Result;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Compiler::Prepare(const Core::String& ModuleName, bool Scoped)
@@ -3127,13 +3173,13 @@ namespace Vitex
 				Scope = VM->CreateModule(ModuleName);
 
 			if (!Scope)
-				return VirtualError::INVALID_NAME;
+				return VirtualException(VirtualError::INVALID_NAME);
 
 			Scope->SetUserData(this, CompilerUD);
 			VM->SetProcessorOptions(Processor);
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Compiler::Prepare(const Core::String& ModuleName, const Core::String& Name, bool Debug, bool Scoped)
@@ -3154,7 +3200,7 @@ namespace Vitex
 
 			return Result;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Compiler::SaveByteCode(ByteCodeInfo* Info)
@@ -3172,7 +3218,7 @@ namespace Vitex
 				VI_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Compiler::LoadFile(const Core::String& Path)
@@ -3181,35 +3227,30 @@ namespace Vitex
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 
 			auto Source = Core::OS::Path::Resolve(Path.c_str());
 			if (!Source)
-				return VirtualError::INVALID_ARG;
+				return VirtualException("path not found: " + Path);
 
 			if (!Core::OS::File::IsExists(Source->c_str()))
-			{
-				VI_ERR("[vm] file %s not found", Source->c_str());
-				return VirtualError::INVALID_ARG;
-			}
+				return VirtualException("file not found: " + Path);
 
 			auto Buffer = Core::OS::File::ReadAsString(*Source);
 			if (!Buffer)
-			{
-				VI_ERR("[vm] file %s cannot be opened", Source->c_str());
-				return VirtualError::INVALID_OBJECT;
-			}
+				return VirtualException("open file error: " + Path);
 
 			Core::String Code = *Buffer;
-			if (!VM->GenerateCode(Processor, *Source, Code))
-				return VirtualError::INVALID_DECLARATION;
+			auto Status = VM->GenerateCode(Processor, *Source, Code);
+			if (!Status)
+				return VirtualException(std::move(Status.Error().Info));
 
 			auto Result = VM->AddScriptSection(Scope, Source->c_str(), Code.c_str(), Code.size());
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 			return Result;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Compiler::LoadCode(const Core::String& Name, const Core::String& Data)
@@ -3218,18 +3259,19 @@ namespace Vitex
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 
 			Core::String Buffer(Data);
-			if (!VM->GenerateCode(Processor, Name, Buffer))
-				return VirtualError::INVALID_DECLARATION;
+			auto Status = VM->GenerateCode(Processor, Name, Buffer);
+			if (!Status)
+				return VirtualException(std::move(Status.Error().Info));
 
 			auto Result = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 			return Result;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> Compiler::LoadCode(const Core::String& Name, const char* Data, size_t Size)
@@ -3238,18 +3280,19 @@ namespace Vitex
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 
 			Core::String Buffer(Data, Size);
-			if (!VM->GenerateCode(Processor, Name, Buffer))
-				return VirtualError::INVALID_DECLARATION;
+			auto Status = VM->GenerateCode(Processor, Name, Buffer);
+			if (!Status)
+				return VirtualException(std::move(Status.Error().Info));
 
 			auto Result = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 			return Result;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsPromiseVM<void> Compiler::LoadByteCode(ByteCodeInfo* Info)
@@ -3270,7 +3313,7 @@ namespace Vitex
 				return FunctionFactory::ToReturn(R);
 			});
 #else
-			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		ExpectsPromiseVM<void> Compiler::Compile()
@@ -3310,7 +3353,7 @@ namespace Vitex
 				return Status;
 			});
 #else
-			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		ExpectsPromiseVM<void> Compiler::CompileFile(const char* Name, const char* ModuleName, const char* EntryName)
@@ -3330,7 +3373,7 @@ namespace Vitex
 
 			return Compile();
 #else
-			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		ExpectsPromiseVM<void> Compiler::CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName)
@@ -3351,7 +3394,7 @@ namespace Vitex
 
 			return Compile();
 #else
-			return ExpectsPromiseVM<void>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		ExpectsPromiseVM<Function> Compiler::CompileFunction(const Core::String& Buffer, const char* Returns, const char* Args, Core::Option<size_t>&& FunctionId)
@@ -3363,8 +3406,9 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			Core::String Code = Buffer;
 			Core::String Name = " __vfunc" + Core::ToString(FunctionId ? *FunctionId : (Counter + 1));
-			if (!VM->GenerateCode(Processor, Name, Code))
-				return ExpectsPromiseVM<Function>(VirtualError::INVALID_DECLARATION);
+			auto Status = VM->GenerateCode(Processor, Name, Code);
+			if (!Status)
+				return ExpectsPromiseVM<Function>(VirtualException(std::move(Status.Error().Info)));
 
 			Core::String Eval;
 			Eval.append(Returns ? Returns : "void");
@@ -3434,7 +3478,7 @@ namespace Vitex
 				return FunctionFactory::ToReturn<Function>(R, Function(FunctionPointer));
 			});
 #else
-			return ExpectsPromiseVM<Function>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<Function>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		VirtualMachine* Compiler::GetVM() const
@@ -5175,13 +5219,13 @@ namespace Vitex
 						while (Offset < Data.size())
 						{
 							char V = Data[Offset];
-							if (std::isspace(V))
+							if (std::isspace(Core::Stringify::Literal(V)))
 							{
 								size_t Start = Offset;
-								while (++Start < Data.size() && std::isspace(Data[Start]));
+								while (++Start < Data.size() && std::isspace(Core::Stringify::Literal(Data[Start])));
 
 								size_t End = Start;
-								while (++End < Data.size() && !std::isspace(Data[End]) && Data[End] != '\"' && Data[End] != '\'');
+								while (++End < Data.size() && !std::isspace(Core::Stringify::Literal(Data[End])) && Data[End] != '\"' && Data[End] != '\'');
 
 								auto Value = Data.substr(Start, End - Start);
 								Core::Stringify::Trim(Value);
@@ -5420,7 +5464,7 @@ namespace Vitex
 			if (Result < 0)
 			{
 				VM->AttachDebuggerToContext(Context->GetContext());
-				return (VirtualError)Result;
+				return VirtualException((VirtualError)Result);
 			}
 
 			Context->DisableSuspends();
@@ -5453,9 +5497,9 @@ namespace Vitex
 			if (!Status2)
 				return Status2.Error();
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
@@ -5492,7 +5536,7 @@ namespace Vitex
 		ImmediateContext::~ImmediateContext() noexcept
 		{
 			if (Executor.Future.IsPending())
-				Executor.Future.Set(VirtualError::CONTEXT_NOT_PREPARED);
+				Executor.Future.Set(VirtualException(VirtualError::CONTEXT_NOT_PREPARED));
 			while (Executor.LocalReferences > 0)
 				ReleaseLocals();
 #ifdef VI_ANGELSCRIPT
@@ -5507,11 +5551,11 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteCall())
-				return ExpectsPromiseVM<Execution>(VirtualError::CONTEXT_ACTIVE);
+				return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::CONTEXT_ACTIVE));
 
 			int Result = Context->Prepare(Function.GetFunction());
 			if (Result < 0)
-				return ExpectsPromiseVM<Execution>((VirtualError)Result);
+				return ExpectsPromiseVM<Execution>(VirtualException((VirtualError)Result));
 
 			if (OnArgs)
 				OnArgs(this);
@@ -5520,7 +5564,7 @@ namespace Vitex
 			Resume();
 			return Executor.Future;
 #else
-			return ExpectsPromiseVM<Execution>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs)
@@ -5531,14 +5575,14 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Exchange);
 			if (!CanExecuteCall())
-				return VirtualError::CONTEXT_ACTIVE;
+				return VirtualException(VirtualError::CONTEXT_ACTIVE);
 
 			DisableSuspends();
 			int Result = Context->Prepare(Function.GetFunction());
 			if (Result < 0)
 			{
 				EnableSuspends();
-				return (VirtualError)Result;
+				return VirtualException((VirtualError)Result);
 			}
 			else if (OnArgs)
 				OnArgs(this);
@@ -5547,7 +5591,7 @@ namespace Vitex
 			EnableSuspends();
 			return Status;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
@@ -5560,7 +5604,7 @@ namespace Vitex
 			if (!CanExecuteSubcall())
 			{
 				VI_ASSERT(false, "context should be active");
-				return VirtualError::CONTEXT_NOT_PREPARED;
+				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
 			}
 
 			DisableSuspends();
@@ -5570,7 +5614,7 @@ namespace Vitex
 			{
 				Context->PopState();
 				EnableSuspends();
-				return (VirtualError)Result;
+				return VirtualException((VirtualError)Result);
 			}
 			else if (OnArgs)
 				OnArgs(this);
@@ -5582,7 +5626,7 @@ namespace Vitex
 			EnableSuspends();
 			return Status;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ExecuteNext()
@@ -5603,7 +5647,7 @@ namespace Vitex
 
 			return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<Execution> ImmediateContext::Resume()
@@ -5623,7 +5667,7 @@ namespace Vitex
 				Executor.Future.Set(Status.Error());
 			return Status;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsPromiseVM<Execution> ImmediateContext::ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
@@ -5657,7 +5701,7 @@ namespace Vitex
 				return Result;
 			});
 #else
-			return ExpectsPromiseVM<Execution>(VirtualError::NOT_SUPPORTED);
+			return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
 		ExpectsVM<Execution> ImmediateContext::ResolveNotification(void* Promise)
@@ -5678,11 +5722,11 @@ namespace Vitex
 				if (Base != nullptr)
 					Base->Release();
 			}) == Core::INVALID_TASK_ID)
-				return VirtualError::CONTEXT_NOT_PREPARED;
+				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
 
 			return Execution::Active;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::Prepare(const Function& Function)
@@ -5691,7 +5735,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->Prepare(Function.GetFunction()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::Unprepare()
@@ -5700,7 +5744,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->Unprepare());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::Abort()
@@ -5709,7 +5753,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->Abort());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::Suspend()
@@ -5719,12 +5763,12 @@ namespace Vitex
 			if (!IsSuspendable())
 			{
 				Bindings::Exception::ThrowAt(this, Bindings::Exception::Pointer("async_error", "yield is not allowed in this function call"));
-				return VirtualError::CONTEXT_NOT_PREPARED;
+				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
 			}
 
 			return FunctionFactory::ToReturn(Context->Suspend());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::PushState()
@@ -5733,7 +5777,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->PushState());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::PopState()
@@ -5742,7 +5786,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->PopState());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetObject(void* Object)
@@ -5751,7 +5795,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetObject(Object));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg8(size_t Arg, unsigned char Value)
@@ -5760,7 +5804,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgByte((asUINT)Arg, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg16(size_t Arg, unsigned short Value)
@@ -5769,7 +5813,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgWord((asUINT)Arg, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg32(size_t Arg, int Value)
@@ -5778,7 +5822,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgDWord((asUINT)Arg, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArg64(size_t Arg, int64_t Value)
@@ -5787,7 +5831,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgQWord((asUINT)Arg, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgFloat(size_t Arg, float Value)
@@ -5796,7 +5840,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgFloat((asUINT)Arg, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgDouble(size_t Arg, double Value)
@@ -5805,7 +5849,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgDouble((asUINT)Arg, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgAddress(size_t Arg, void* Address)
@@ -5814,7 +5858,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgAddress((asUINT)Arg, Address));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgObject(size_t Arg, void* Object)
@@ -5823,7 +5867,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgObject((asUINT)Arg, Object));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetArgAny(size_t Arg, void* Ptr, int TypeId)
@@ -5832,7 +5876,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetArgVarType((asUINT)Arg, Ptr, TypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::GetReturnableByType(void* Return, asITypeInfo* ReturnTypeInfo)
@@ -5844,7 +5888,7 @@ namespace Vitex
 			VI_ASSERT(ReturnTypeInfo->GetTypeId() != (int)TypeId::VOIDF, "return value type should not be void");
 			void* Address = Context->GetAddressOfReturnValue();
 			if (!Address)
-				return VirtualError::INVALID_OBJECT;
+				return VirtualException(VirtualError::INVALID_OBJECT);
 
 			int TypeId = ReturnTypeInfo->GetTypeId();
 			asIScriptEngine* Engine = VM->GetEngine();
@@ -5854,7 +5898,7 @@ namespace Vitex
 				{
 					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Address);
 					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), ReturnTypeInfo);
-					return Core::Optional::OK;
+					return Core::Expectation::Met;
 				}
 			}
 			else if (TypeId & asTYPEID_MASK_OBJECT)
@@ -5862,12 +5906,12 @@ namespace Vitex
 
 			size_t Size = Engine->GetSizeOfPrimitiveType(ReturnTypeInfo->GetTypeId());
 			if (!Size)
-				return VirtualError::INVALID_TYPE;
+				return VirtualException(VirtualError::INVALID_TYPE);
 
 			memcpy(Return, Address, Size);
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::GetReturnableByDecl(void* Return, const char* ReturnTypeDecl)
@@ -5877,7 +5921,7 @@ namespace Vitex
 			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::GetReturnableById(void* Return, int ReturnTypeId)
@@ -5887,7 +5931,7 @@ namespace Vitex
 			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoById(ReturnTypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetException(const char* Info, bool AllowCatch)
@@ -5900,9 +5944,9 @@ namespace Vitex
 
 			Executor.DeferredException.Info = Info;
 			Executor.DeferredException.AllowCatch = AllowCatch;
-			return VirtualError::SUCCESS;
+			return Core::Expectation::Met;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetExceptionCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
@@ -5911,7 +5955,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
@@ -5921,7 +5965,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetLineCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::StartDeserialization()
@@ -5930,7 +5974,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->StartDeserialization());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::FinishDeserialization()
@@ -5939,7 +5983,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->FinishDeserialization());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::PushFunction(const Function& Func, void* Object)
@@ -5948,7 +5992,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->PushFunction(Func.GetFunction(), Object));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister)
@@ -5967,7 +6011,7 @@ namespace Vitex
 			if (ObjectTypeRegister != nullptr) *ObjectTypeRegister = ObjectTypeRegister1;
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex)
@@ -5984,7 +6028,7 @@ namespace Vitex
 			if (StackIndex != nullptr) *StackIndex = (uint32_t)StackIndex1;
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister)
@@ -5993,7 +6037,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetStateRegisters((asUINT)StackLevel, CallingSystemFunction.GetFunction(), InitialFunction.GetFunction(), (asDWORD)OrigStackPointer, (asDWORD)ArgumentsSize, (asQWORD)ValueRegister, ObjectRegister, ObjectTypeRegister.GetTypeInfo()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex)
@@ -6002,7 +6046,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Context->SetCallStateRegisters((asUINT)StackLevel, (asDWORD)StackFramePointer, CurrentFunction.GetFunction(), (asDWORD)ProgramPointer, (asDWORD)StackPointer, (asDWORD)StackIndex));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> ImmediateContext::GetArgsOnStackCount(size_t StackLevel)
@@ -6012,7 +6056,7 @@ namespace Vitex
 			int Result = Context->GetArgsOnStackCount((asUINT)StackLevel);
 			return FunctionFactory::ToReturn<size_t>(Result, (size_t)Result);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> ImmediateContext::GetPropertiesCount(size_t StackLevel)
@@ -6022,7 +6066,7 @@ namespace Vitex
 			int Result = Context->GetVarCount((asUINT)StackLevel);
 			return FunctionFactory::ToReturn<size_t>(Result, (size_t)Result);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> ImmediateContext::GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId, Modifiers* TypeModifiers, bool* IsVarOnHeap, int* StackOffset)
@@ -6034,7 +6078,7 @@ namespace Vitex
 			if (TypeModifiers != nullptr) *TypeModifiers = (Modifiers)TypeModifiers1;
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		Function ImmediateContext::GetFunction(size_t StackLevel)
@@ -6585,7 +6629,7 @@ namespace Vitex
 			int TypeId = Engine->RegisterInterface(Name);
 			return FunctionFactory::ToReturn<TypeInterface>(TypeId, TypeInterface(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<TypeClass> VirtualMachine::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
@@ -6597,7 +6641,7 @@ namespace Vitex
 			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<TypeClass>(TypeId, TypeClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<TypeClass> VirtualMachine::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
@@ -6613,7 +6657,7 @@ namespace Vitex
 			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<TemplateClass> VirtualMachine::SetTemplateClassAddress(const char* Decl, const char* Name, size_t Size, uint64_t Flags)
@@ -6626,7 +6670,7 @@ namespace Vitex
 			int TypeId = Engine->RegisterObjectType(Decl, (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<TemplateClass>(TypeId, TemplateClass(this, Name));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<Enumeration> VirtualMachine::SetEnum(const char* Name)
@@ -6638,7 +6682,7 @@ namespace Vitex
 			int TypeId = Engine->RegisterEnum(Name);
 			return FunctionFactory::ToReturn<Enumeration>(TypeId, Enumeration(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetFunctionDef(const char* Decl)
@@ -6649,7 +6693,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetTypeDef(const char* Type, const char* Decl)
@@ -6661,7 +6705,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterTypedef(Type, Decl));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
@@ -6673,7 +6717,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetPropertyAddress(const char* Decl, void* Value)
@@ -6685,7 +6729,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterGlobalProperty(Decl, Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetStringFactoryAddress(const char* Type, asIStringFactory* Factory)
@@ -6694,7 +6738,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterStringFactory(Type, Factory));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::GetPropertyByIndex(size_t Index, PropertyInfo* Info) const
@@ -6719,7 +6763,7 @@ namespace Vitex
 			}
 			return FunctionFactory::ToReturn(Result);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByName(const char* Name) const
@@ -6729,7 +6773,7 @@ namespace Vitex
 			int R = Engine->GetGlobalPropertyIndexByName(Name);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByDecl(const char* Decl) const
@@ -6739,7 +6783,7 @@ namespace Vitex
 			int R = Engine->GetGlobalPropertyIndexByDecl(Decl);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
@@ -6750,7 +6794,7 @@ namespace Vitex
 
 			return FunctionFactory::ToReturn(Engine->SetMessageCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
@@ -6758,7 +6802,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type)
@@ -6766,7 +6810,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->AssignScriptObject(DestObject, SrcObject, Type.GetTypeInfo()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
@@ -6774,7 +6818,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RefCastObject(Object, FromType.GetTypeInfo(), ToType.GetTypeInfo(), NewPtr, UseOnlyImplicitCast));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::WriteMessage(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
@@ -6782,7 +6826,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::GarbageCollect(GarbageCollector Flags, size_t NumIterations)
@@ -6790,7 +6834,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->GarbageCollect((asDWORD)Flags, (asUINT)NumIterations));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::PerformFullGarbageCollection()
@@ -6803,7 +6847,7 @@ namespace Vitex
 			R = Engine->GarbageCollect(asGC_FULL_CYCLE, 16);
 			return FunctionFactory::ToReturn(R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::NotifyOfNewObject(void* Object, const TypeInfo& Type)
@@ -6811,7 +6855,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->NotifyGarbageCollectorOfNewObject(Object, Type.GetTypeInfo()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, TypeInfo* Type)
@@ -6826,7 +6870,7 @@ namespace Vitex
 				*Type = TypeInfo(OutType);
 			return FunctionFactory::ToReturn(Result);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength, int LineOffset)
@@ -6842,7 +6886,7 @@ namespace Vitex
 
 			return FunctionFactory::ToReturn(Module->AddScriptSection(Name, Code, CodeLength, LineOffset));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
@@ -6862,7 +6906,7 @@ namespace Vitex
 					*Namespace = "";
 				if (NamespaceSize != nullptr)
 					*NamespaceSize = 0;
-				return VirtualError::ALREADY_REGISTERED;
+				return VirtualException(VirtualError::ALREADY_REGISTERED);
 			}
 
 			if (Namespace != nullptr)
@@ -6871,9 +6915,9 @@ namespace Vitex
 				*NamespaceSize = Index - 1;
 
 			*TypeName = Value + Index + 1;
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::BeginGroup(const char* GroupName)
@@ -6882,7 +6926,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->BeginConfigGroup(GroupName));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::EndGroup()
@@ -6890,7 +6934,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->EndConfigGroup());
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::RemoveGroup(const char* GroupName)
@@ -6899,7 +6943,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RemoveConfigGroup(GroupName));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::BeginNamespace(const char* Namespace)
@@ -6916,7 +6960,7 @@ namespace Vitex
 			Unique.Negate();
 			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(Namespace));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
@@ -6936,7 +6980,7 @@ namespace Vitex
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(DefaultNamespace.c_str()));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<void> VirtualMachine::SetProperty(Features Property, size_t Value)
@@ -6945,7 +6989,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value));
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		ExpectsVM<size_t> VirtualMachine::GetSizeOfPrimitiveType(int TypeId) const
@@ -6955,7 +6999,7 @@ namespace Vitex
 			int R = Engine->GetSizeOfPrimitiveType(TypeId);
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
-			return VirtualError::NOT_SUPPORTED;
+			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
 		size_t VirtualMachine::GetFunctionsCount() const
@@ -7478,11 +7522,11 @@ namespace Vitex
 			return false;
 #endif
 		}
-		bool VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer)
+		Compute::ExpectsPreprocessor<void> VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer)
 		{
 			VI_ASSERT(Processor != nullptr, "preprocessor should be set");
 			if (InoutBuffer.empty())
-				return true;
+				return Core::Expectation::Met;
 
 			VI_TRACE("[vm] preprocessor source code generation at %s (%" PRIu64 " bytes)", Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
 			{
@@ -7490,16 +7534,13 @@ namespace Vitex
 				for (auto& Item : Generators)
 				{
 					VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
-					if (!Item.second(Processor, Path, InoutBuffer))
-						return false;
+					auto Status = Item.second(Processor, Path, InoutBuffer);
+					if (!Status)
+						return Compute::PreprocessorException(Compute::PreprocessorError::ExtensionError, 0, Status.Error().Info);
 				}
 			}
 
-			if (Processor->Process(Path, InoutBuffer))
-				return true;
-
-			VI_ERR("[vm] preprocessor generator has failed to generate souce code: %s", Path.empty() ? "<anonymous>" : Path.c_str());
-			return false;
+			return Processor->Process(Path, InoutBuffer);
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
 		{
@@ -7859,23 +7900,17 @@ namespace Vitex
 			Lists.Exposed = false;
 			return true;
 		}
-		bool VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
+		ExpectsVM<void> VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
 		{
 			if (!(Imports & (uint32_t)Imports::Files))
-			{
-				VI_ERR("[vm] file import is not allowed");
-				return false;
-			}
+				return VirtualException("import local file: denied");
 			else if (IsRemote && !(Imports & (uint32_t)Imports::Remotes))
-			{
-				VI_ERR("[vm] remote file import is not allowed");
-				return false;
-			}
+				return VirtualException("import remote file: denied");
 
 			if (!IsRemote)
 			{
 				if (!Core::OS::File::IsExists(Path.c_str()))
-					return false;
+					return VirtualException("file not found: " + Path);
 
 				if (!Core::Stringify::EndsWith(Path, ".as"))
 					return ImportAddon(Path);
@@ -7885,10 +7920,10 @@ namespace Vitex
 			{
 				auto Data = Core::OS::File::ReadAsString(Path);
 				if (!Data)
-					return false;
+					return VirtualException("file not found: " + Path);
 
 				Output.assign(*Data);
-				return true;
+				return Core::Expectation::Met;
 			}
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
@@ -7896,7 +7931,7 @@ namespace Vitex
 			if (It != Files.end())
 			{
 				Output.assign(It->second);
-				return true;
+				return Core::Expectation::Met;
 			}
 
 			Unique.Negated([&Output, &Path]()
@@ -7906,57 +7941,40 @@ namespace Vitex
 					Output.assign(*Data);
 			});
 			Files.insert(std::make_pair(Path, Output));
-			return true;
+			return Core::Expectation::Met;
 		}
-		bool VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
+		ExpectsVM<void> VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
 		{
 			if (!(Imports & (uint32_t)Imports::CFunctions))
-			{
-				VI_ERR("[vm] cfunction import is not allowed");
-				return false;
-			}
+				return VirtualException("import cfunction: denied");
 
 			if (!Engine || Decl.empty() || Func.empty())
-				return false;
+				return VirtualException("import cfunction: invalid argument");
 
-			auto LoadFunction = [this, &Func, &Decl](CLibrary& Context, bool LogErrors) -> bool
+			auto LoadFunction = [this, &Func, &Decl](CLibrary& Context) -> ExpectsVM<void>
 			{
 				auto Handle = Context.Functions.find(Func);
 				if (Handle != Context.Functions.end())
-					return true;
+					return Core::Expectation::Met;
 
 				auto FunctionHandle = Core::OS::Symbol::LoadFunction(Context.Handle, Func);
 				if (!FunctionHandle)
-				{
-					if (LogErrors)
-						VI_ERR("[vm] cannot load shared object function: %s", Func.c_str());
-
-					return false;
-				}
+					return VirtualException("cfunction not found: " + Func);
 
 				FunctionPtr Function = (FunctionPtr)*FunctionHandle;
 				if (!Function)
-				{
-					if (LogErrors)
-						VI_ERR("[vm] cannot load shared object function: %s", Func.c_str());
-
-					return false;
-				}
+					return VirtualException("cfunction not found: " + Func);
 #ifdef VI_ANGELSCRIPT
 				VI_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)Decl.size(), (void*)Function);
-				if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
-				{
-					if (LogErrors)
-						VI_ERR("[vm] cannot register shared object function: %s", Decl.c_str());
-
-					return false;
-				}
+				int Result = Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL);
+				if (Result < 0)
+					return VirtualException((VirtualError)Result, "register cfunction error: " + Func);
 
 				Context.Functions.insert({ Func, { Decl, (void*)Function } });
 				VI_DEBUG("[vm] load function %s", Func.c_str());
-				return true;
+				return Core::Expectation::Met;
 #else
-				return false;
+				return VirtualException("cfunction not found: not supported");
 #endif
 			};
 
@@ -7970,66 +7988,60 @@ namespace Vitex
 			}
 
 			if (It != CLibraries.end())
-				return LoadFunction(It->second, true);
+				return LoadFunction(It->second);
 
 			for (auto& Item : CLibraries)
 			{
-				if (LoadFunction(Item.second, false))
-					return true;
+				auto Status = LoadFunction(Item.second);
+				if (Status)
+					return Status;
 			}
 
-			VI_ERR("[vm] cannot load shared object function: %s (not found in any of loaded shared objects)", Func.c_str());
-			return false;
+			return VirtualException("cfunction not found: " + Func);
 		}
-		bool VirtualMachine::ImportCLibrary(const Core::String& Path, bool IsAddon)
+		ExpectsVM<void> VirtualMachine::ImportCLibrary(const Core::String& Path, bool IsAddon)
 		{
 			if (!(Imports & (uint32_t)Imports::CLibraries) && !Path.empty())
-			{
-				VI_ERR("[vm] clibraries import is not allowed");
-				return false;
-			}
+				return VirtualException("import clibrary: denied");
 
 			Core::String Name = GetLibraryName(Path);
 			if (!Engine)
-				return false;
+				return VirtualException("import clibrary: invalid argument");
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto Core = CLibraries.find(Name);
 			if (Core != CLibraries.end())
-				return true;
+				return Core::Expectation::Met;
 
 			Unique.Negate();
 			auto Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
-			{
-				VI_ERR("[vm] cannot load shared object: %s", Path.c_str());
-				return false;
-			}
+				return VirtualException("clibrary import error: " + Path);
 
 			CLibrary Library;
 			Library.Handle = *Handle;
 			Library.IsAddon = IsAddon;
 
-			if (Library.IsAddon && !InitializeAddon(Name, Library))
+			if (Library.IsAddon)
 			{
-				VI_ERR("[vm] cannot initialize addon library %s", Path.c_str());
-				UninitializeAddon(Name, Library);
-				Core::OS::Symbol::Unload(*Handle);
-				return false;
+				auto Status = InitializeAddon(Name, Library);
+				if (!Status)
+				{
+					UninitializeAddon(Name, Library);
+					Core::OS::Symbol::Unload(*Handle);
+					return Status;
+				}
 			}
 
 			Unique.Negate();
 			CLibraries.insert({ Name, std::move(Library) });
 			VI_DEBUG("[vm] load library %s", Path.c_str());
-			return true;
+			return Core::Expectation::Met;
 		}
-		bool VirtualMachine::ImportSystemAddon(const Core::String& Name)
+		ExpectsVM<void> VirtualMachine::ImportSystemAddon(const Core::String& Name)
 		{
 			if (!(Imports & (uint32_t)Imports::Addons))
-			{
-				VI_ERR("[vm] system addons import is not allowed: %s", Name.c_str());
-				return false;
-			}
+				return VirtualException("import system addon: denied");
 
 			Core::String Target = Name;
 			if (Core::Stringify::EndsWith(Target, ".as"))
@@ -8038,13 +8050,10 @@ namespace Vitex
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Addons.find(Target);
 			if (It == Addons.end())
-			{
-				VI_ERR("[vm] cannot find script system addon %s", Name.c_str());
-				return false;
-			}
+				return VirtualException("system addon not found: " + Name);
 
 			if (It->second.Exposed)
-				return true;
+				return Core::Expectation::Met;
 
 			Addon Base = It->second;
 			It->second.Exposed = true;
@@ -8052,49 +8061,38 @@ namespace Vitex
 
 			for (auto& Item : Base.Dependencies)
 			{
-				if (!ImportSystemAddon(Item))
-				{
-					VI_ERR("[vm] cannot load system addon %s for %s", Item.c_str(), Name.c_str());
-					return false;
-				}
+				auto Status = ImportSystemAddon(Item);
+				if (!Status)
+					return Status;
 			}
 
-			VI_DEBUG("[vm] load system addon %s", Name.c_str());
 			if (Base.Callback)
 				Base.Callback(this);
 
-			return true;
+			VI_DEBUG("[vm] load system addon %s", Name.c_str());
+			return Core::Expectation::Met;
 		}
-		bool VirtualMachine::ImportAddon(const Core::String& Name)
+		ExpectsVM<void> VirtualMachine::ImportAddon(const Core::String& Name)
 		{
 			return ImportCLibrary(Name.c_str(), true);
 		}
-		bool VirtualMachine::InitializeAddon(const Core::String& Path, CLibrary& Library)
+		ExpectsVM<void> VirtualMachine::InitializeAddon(const Core::String& Path, CLibrary& Library)
 		{
 			auto ViInitializeHandle = Core::OS::Symbol::LoadFunction(Library.Handle, "ViInitialize");
 			if (!ViInitializeHandle)
-			{
-				VI_ERR("[vm] potential addon library %s does not contain <ViInitialize> function", Path.c_str());
-				return false;
-			}
+				return VirtualException("import user addon: no initialization routine (path = " + Path + ")");
 
 			auto ViInitialize = (int(*)(VirtualMachine*))*ViInitializeHandle;
 			if (!ViInitialize)
-			{
-				VI_ERR("[vm] potential addon library %s does not contain <ViInitialize> function", Path.c_str());
-				return false;
-			}
+				return VirtualException("import user addon: no initialization routine (path = " + Path + ")");
 
 			int Code = ViInitialize(this);
 			if (Code != 0)
-			{
-				VI_ERR("[vm] addon library %s initialization failed: exit code %i", Path.c_str(), Code);
-				return false;
-			}
+				return VirtualException("import user addon: initialization failed (path = " + Path + ", exit = " + Core::ToString(Code) + ")");
 
 			VI_DEBUG("[vm] addon library %s initializated", Path.c_str());
 			Library.Functions.insert({ "ViInitialize", { Core::String(), (void*)ViInitialize } });
-			return true;
+			return Core::Expectation::Met;
 		}
 		void VirtualMachine::UninitializeAddon(const Core::String& Name, CLibrary& Library)
 		{
@@ -8311,15 +8309,69 @@ namespace Vitex
 		}
 		const char* VirtualMachine::GetErrorNameInfo(VirtualError Code)
 		{
-#ifdef VI_ANGELSCRIPT
-			size_t Index = (size_t)(-((int)Code));
-			if (Index >= sizeof(errorNames) / sizeof(errorNames[0]))
-				return nullptr;
-
-			return errorNames[Index];
-#else
-			return nullptr;
-#endif
+			switch (Code)
+			{
+				case VirtualError::SUCCESS:
+					return "OK";
+				case VirtualError::ERR:
+					return "invalid operation";
+				case VirtualError::CONTEXT_ACTIVE:
+					return "context is in use";
+				case VirtualError::CONTEXT_NOT_FINISHED:
+					return "context is not finished";
+				case VirtualError::CONTEXT_NOT_PREPARED:
+					return "context is not prepared";
+				case VirtualError::INVALID_ARG:
+					return "invalid argument";
+				case VirtualError::NO_FUNCTION:
+					return "function not found";
+				case VirtualError::NOT_SUPPORTED:
+					return "operation not supported";
+				case VirtualError::INVALID_NAME:
+					return "invalid name argument";
+				case VirtualError::NAME_TAKEN:
+					return "name is in use";
+				case VirtualError::INVALID_DECLARATION:
+					return "invalid code declaration";
+				case VirtualError::INVALID_OBJECT:
+					return "invalid object argument";
+				case VirtualError::INVALID_TYPE:
+					return "invalid type argument";
+				case VirtualError::ALREADY_REGISTERED:
+					return "type is already registered";
+				case VirtualError::MULTIPLE_FUNCTIONS:
+					return "function overload is not deducible";
+				case VirtualError::NO_MODULE:
+					return "module not found";
+				case VirtualError::NO_GLOBAL_VAR:
+					return "global variable not found";
+				case VirtualError::INVALID_CONFIGURATION:
+					return "invalid configuration state";
+				case VirtualError::INVALID_INTERFACE:
+					return "invalid interface type";
+				case VirtualError::CANT_BIND_ALL_FUNCTIONS:
+					return "function binding failed";
+				case VirtualError::LOWER_ARRAY_DIMENSION_NOT_REGISTERED:
+					return "lower array dimension not registered";
+				case VirtualError::WRONG_CONFIG_GROUP:
+					return "invalid configuration group";
+				case VirtualError::CONFIG_GROUP_IS_IN_USE:
+					return "configuration group is in use";
+				case VirtualError::ILLEGAL_BEHAVIOUR_FOR_TYPE:
+					return "illegal type behaviour configuration";
+				case VirtualError::WRONG_CALLING_CONV:
+					return "illegal function calling convention";
+				case VirtualError::BUILD_IN_PROGRESS:
+					return "program compiler is in use";
+				case VirtualError::INIT_GLOBAL_VARS_FAILED:
+					return "global variable initialization failed";
+				case VirtualError::OUT_OF_MEMORY:
+					return "out of memory";
+				case VirtualError::MODULE_IS_IN_USE:
+					return "module is in use";
+				default:
+					return "internal operation failed";
+			}
 		}
 		ByteCodeLabel VirtualMachine::GetByteCodeInfo(uint8_t Code)
 		{
@@ -8358,11 +8410,11 @@ namespace Vitex
 			}
 
 			if (Info->type == asMSGTYPE_WARNING)
-				VI_WARN("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
+				VI_WARN("[asc] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
 			else if (Info->type == asMSGTYPE_INFORMATION)
-				VI_INFO("[compiler] %s", Info->message);
+				VI_INFO("[asc] %s", Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
-				VI_ERR("[compiler] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
+				VI_ERR("[asc] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
 #endif
 		}
 		void VirtualMachine::RegisterAddons(VirtualMachine* Engine)

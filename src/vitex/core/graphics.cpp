@@ -239,6 +239,50 @@ namespace Vitex
 		{
 		}
 
+		GraphicsException::GraphicsException(Core::String&& Message) : Info(std::move(Message)), ErrorCode(0)
+		{
+		}
+		GraphicsException::GraphicsException(int NewErrorCode, Core::String&& Message) : Info(std::move(Message)), ErrorCode(NewErrorCode)
+		{
+			if (ErrorCode != 0)
+				Info += " (error = " + Core::ToString(ErrorCode) + ")";
+		}
+		const char* GraphicsException::type() const noexcept
+		{
+			return "graphics_error";
+		}
+		const char* GraphicsException::what() const noexcept
+		{
+			return Info.c_str();
+		}
+
+		VideoException::VideoException()
+		{
+#ifdef VI_SDL2
+			const char* ErrorText = SDL_GetError();
+			if (ErrorText != nullptr)
+			{
+				Info = ErrorText;
+				SDL_ClearError();
+			}
+			else
+				Info = "internal video error occurred";
+#else
+			Info = "video systems are not supported";
+#endif
+		}
+		VideoException::VideoException(GraphicsException&& Other) : Info(std::move(Other.Info))
+		{
+		}
+		const char* VideoException::type() const noexcept
+		{
+			return "video_error";
+		}
+		const char* VideoException::what() const noexcept
+		{
+			return Info.c_str();
+		}
+
 		Surface::Surface() noexcept : Handle(nullptr)
 		{
 		}
@@ -863,37 +907,37 @@ namespace Vitex
 			DepthStencil.BackFaceStencilDepthFailOperation = StencilOperation::Subtract;
 			DepthStencil.BackFaceStencilPassOperation = StencilOperation::Keep;
 			DepthStencil.BackFaceStencilFunction = Comparison::Always;
-			DepthStencilStates["drw_srw_lt"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["drw_srw_lt"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilWriteMask = 0x0;
-			DepthStencilStates["dro_sro_lt"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_sro_lt"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthFunction = Comparison::Greater_Equal;
-			DepthStencilStates["dro_sro_gte"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_sro_gte"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthWriteMask = DepthWrite::All;
 			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencilStates["dro_srw_gte"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_srw_gte"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = false;
 			DepthStencil.DepthFunction = Comparison::Less;
 			DepthStencil.StencilEnable = false;
-			DepthStencilStates["doo_soo_lt"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["doo_soo_lt"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilEnable = true;
-			DepthStencilStates["dro_srw_lt"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_srw_lt"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthWriteMask = DepthWrite::All;
 			DepthStencil.StencilEnable = false;
-			DepthStencilStates["drw_soo_lt"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["drw_soo_lt"] = *CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthFunction = Comparison::Less_Equal;
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilEnable = false;
-			DepthStencilStates["dro_soo_lte"] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["dro_soo_lte"] = *CreateDepthStencilState(DepthStencil);
 
 			RasterizerState::Desc Rasterizer;
 			Rasterizer.AntialiasedLineEnable = false;
@@ -906,32 +950,32 @@ namespace Vitex
 			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = false;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
-			RasterizerStates["so_cback"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["so_cback"] = *CreateRasterizerState(Rasterizer);
 
 			Rasterizer.CullMode = VertexCull::Front;
-			RasterizerStates["so_cfront"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["so_cfront"] = *CreateRasterizerState(Rasterizer);
 
 			Rasterizer.CullMode = VertexCull::None;
-			RasterizerStates["so_co"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["so_co"] = *CreateRasterizerState(Rasterizer);
 
 			Rasterizer.ScissorEnable = true;
-			RasterizerStates["sw_co"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["sw_co"] = *CreateRasterizerState(Rasterizer);
 
 			Rasterizer.CullMode = VertexCull::Back;
-			RasterizerStates["sw_cback"] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["sw_cback"] = *CreateRasterizerState(Rasterizer);
 
 			BlendState::Desc Blend;
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
-			BlendStates["bo_wrgba_one"] = CreateBlendState(Blend);
+			BlendStates["bo_wrgba_one"] = *CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
-			BlendStates["bo_wrgbo_one"] = CreateBlendState(Blend);
+			BlendStates["bo_wrgbo_one"] = *CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
-			BlendStates["bo_woooo_one"] = CreateBlendState(Blend);
+			BlendStates["bo_woooo_one"] = *CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Blend::One;
@@ -941,10 +985,10 @@ namespace Vitex
 			Blend.RenderTarget[0].DestBlendAlpha = Blend::One;
 			Blend.RenderTarget[0].BlendOperationAlpha = BlendOperation::Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
-			BlendStates["bw_wrgba_one"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_one"] = *CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
-			BlendStates["bw_wrgbo_one"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgbo_one"] = *CreateBlendState(Blend);
 
 			Blend.IndependentBlendEnable = true;
 			for (unsigned int i = 0; i < 8; i++)
@@ -958,17 +1002,17 @@ namespace Vitex
 				Blend.RenderTarget[i].BlendOperationAlpha = BlendOperation::Add;
 				Blend.RenderTarget[i].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
 			}
-			BlendStates["bw_wrgba_gbuffer"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_gbuffer"] = *CreateBlendState(Blend);
 
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Blend::Source_Alpha;
-			BlendStates["bw_wrgba_alpha"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_alpha"] = *CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].DestBlend = Blend::Source_Alpha_Invert;
 			Blend.RenderTarget[0].SrcBlendAlpha = Blend::Source_Alpha_Invert;
 			Blend.RenderTarget[0].DestBlendAlpha = Blend::Zero;
-			BlendStates["bw_wrgba_source"] = CreateBlendState(Blend);
+			BlendStates["bw_wrgba_source"] = *CreateBlendState(Blend);
 
 			SamplerState::Desc Sampler;
 			Sampler.Filter = PixelFilter::Anistropic;
@@ -984,35 +1028,35 @@ namespace Vitex
 			Sampler.BorderColor[3] = 0.0f;
 			Sampler.MinLOD = 0.0f;
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
-			SamplerStates["a16_fa_wrap"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fa_wrap"] = *CreateSamplerState(Sampler);
 
 			Sampler.AddressU = TextureAddress::Mirror;
 			Sampler.AddressV = TextureAddress::Mirror;
 			Sampler.AddressW = TextureAddress::Mirror;
-			SamplerStates["a16_fa_mirror"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fa_mirror"] = *CreateSamplerState(Sampler);
 
 			Sampler.AddressU = TextureAddress::Clamp;
 			Sampler.AddressV = TextureAddress::Clamp;
 			Sampler.AddressW = TextureAddress::Clamp;
-			SamplerStates["a16_fa_clamp"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fa_clamp"] = *CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
-			SamplerStates["a16_fl_clamp"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fl_clamp"] = *CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Point;
 			Sampler.ComparisonFunction = Comparison::Never;
-			SamplerStates["a16_fp_clamp"] = CreateSamplerState(Sampler);
+			SamplerStates["a16_fp_clamp"] = *CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
 			Sampler.MaxAnisotropy = 1;
-			SamplerStates["a1_fl_clamp"] = CreateSamplerState(Sampler);
+			SamplerStates["a1_fl_clamp"] = *CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Compare_Min_Mag_Mip_Linear;
 			Sampler.ComparisonFunction = Comparison::Less;
-			SamplerStates["a1_fl_clamp_cmp_lt"] = CreateSamplerState(Sampler);
+			SamplerStates["a1_fl_clamp_cmp_lt"] = *CreateSamplerState(Sampler);
 
 			Sampler.ComparisonFunction = Comparison::Greater_Equal;
-			SamplerStates["a1_fl_clamp_cmp_gte"] = CreateSamplerState(Sampler);
+			SamplerStates["a1_fl_clamp_cmp_gte"] = *CreateSamplerState(Sampler);
 
 			InputLayout::Desc Layout;
 			Layout.Attributes =
@@ -1020,7 +1064,7 @@ namespace Vitex
 				{ "POSITION", 0, AttributeType::Float, 3, 0 },
 				{ "TEXCOORD", 0, AttributeType::Float, 2, 3 * sizeof(float) }
 			};
-			InputLayouts["vx_shape"] = CreateInputLayout(Layout);
+			InputLayouts["vx_shape"] = *CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1029,7 +1073,7 @@ namespace Vitex
 				{ "TEXCOORD", 1, AttributeType::Float, 4, 7 * sizeof(float) },
 				{ "TEXCOORD", 2, AttributeType::Float, 3, 11 * sizeof(float) }
 			};
-			InputLayouts["vx_element"] = CreateInputLayout(Layout);
+			InputLayouts["vx_element"] = *CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1039,7 +1083,7 @@ namespace Vitex
 				{ "TANGENT", 0, AttributeType::Float, 3, 8 * sizeof(float) },
 				{ "BINORMAL", 0, AttributeType::Float, 3, 11 * sizeof(float) }
 			};
-			InputLayouts["vx_base"] = CreateInputLayout(Layout);
+			InputLayouts["vx_base"] = *CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1053,7 +1097,7 @@ namespace Vitex
 				{ "OB_TEXCOORD", 0, AttributeType::Float, 2, sizeof(Compute::Matrix4x4) * 2, 1, false },
 				{ "OB_MATERIAL", 0, AttributeType::Float, 4, sizeof(Compute::Matrix4x4) * 2 + 2 * sizeof(float), 1, false }
 			};
-			InputLayouts["vxi_base"] = CreateInputLayout(Layout);
+			InputLayouts["vxi_base"] = *CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1065,7 +1109,7 @@ namespace Vitex
 				{ "JOINTBIAS", 0, AttributeType::Float, 4, 14 * sizeof(float) },
 				{ "JOINTBIAS", 1, AttributeType::Float, 4, 18 * sizeof(float) }
 			};
-			InputLayouts["vx_skin"] = CreateInputLayout(Layout);
+			InputLayouts["vx_skin"] = *CreateInputLayout(Layout);
 
 			Layout.Attributes =
 			{
@@ -1073,7 +1117,7 @@ namespace Vitex
 				{ "COLOR", 0, AttributeType::Ubyte, 4, 2 * sizeof(float) },
 				{ "TEXCOORD", 0, AttributeType::Float, 2, 2 * sizeof(float) + 4 * sizeof(unsigned char) }
 			};
-			InputLayouts["vx_ui"] = CreateInputLayout(Layout);
+			InputLayouts["vx_ui"] = *CreateInputLayout(Layout);
 
 			SetDepthStencilState(GetDepthStencilState("drw_srw_lt"));
 			SetRasterizerState(GetRasterizerState("so_cback"));
@@ -1088,8 +1132,6 @@ namespace Vitex
 				if (Base != nullptr && Base->GetBackend() != RenderBackend::None)
 					Base->AddSection(Name, Core::String((const char*)Buffer, Size - 1));
 			});
-#else
-			VI_WARN("[graphics] default shader resources were not compiled");
 #endif
 		}
 		void GraphicsDevice::ReleaseProxy()
@@ -1144,10 +1186,10 @@ namespace Vitex
 
 			return true;
 		}
-		bool GraphicsDevice::Preprocess(Shader::Desc& Subresult)
+		Compute::ExpectsPreprocessor<void> GraphicsDevice::Preprocess(Shader::Desc& Subresult)
 		{
 			if (Subresult.Data.empty())
-				return true;
+				return Core::Expectation::Met;
 
 			switch (Backend)
 			{
@@ -1172,13 +1214,14 @@ namespace Vitex
 			if (Directory)
 				Desc.Root = *Directory;
 
+			ExpectsGraphics<void> InternalStatus = Core::Expectation::Met;
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
+			Processor->SetIncludeCallback([this, &InternalStatus, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 			{
 				if (Subresult.Include)
 				{
-					Compute::IncludeType Status = Subresult.Include(P, File, Output);
-					if (Status != Compute::IncludeType::Error)
+					auto Status = Subresult.Include(P, File, Output);
+					if (Status && *Status != Compute::IncludeType::Error)
 						return Status;
 				}
 
@@ -1188,8 +1231,12 @@ namespace Vitex
 				if (File.IsAbstract && !File.IsFile)
 				{
 					Section* Result;
-					if (!GetSection(File.Module, &Result, true))
+					auto SectionStatus = GetSectionInfo(File.Module, &Result);
+					if (!SectionStatus)
+					{
+						InternalStatus = std::move(SectionStatus);
 						return Compute::IncludeType::Error;
+					}
 
 					Output.assign(Result->Code);
 					return Compute::IncludeType::Preprocess;
@@ -1208,15 +1255,17 @@ namespace Vitex
 			for (auto& Word : Subresult.Defines)
 				Processor->Define(Word);
 
-			bool Preprocessed = Processor->Process(Subresult.Filename, Subresult.Data);
+			auto Result = Processor->Process(Subresult.Filename, Subresult.Data);
 			VI_RELEASE(Processor);
+			if (!InternalStatus)
+				return Compute::PreprocessorException(Compute::PreprocessorError::IncludeNotFound, 0, InternalStatus.Error().Info);
 
-			return Preprocessed;
+			return Result;
 		}
-		bool GraphicsDevice::Transpile(Core::String* HLSL, ShaderType Type, ShaderLang To)
+		ExpectsGraphics<void> GraphicsDevice::Transpile(Core::String* HLSL, ShaderType Type, ShaderLang To)
 		{
 			if (!HLSL || HLSL->empty())
-				return true;
+				return Core::Expectation::Met;
 #ifdef VI_SPIRV
 			const char* Buffer = HLSL->c_str();
 			int Size = (int)HLSL->size();
@@ -1247,7 +1296,7 @@ namespace Vitex
 					break;
 				default:
 					VI_ASSERT(false, "transpilation requests a defined shader type to proceed");
-					return false;
+					return GraphicsException("shader model is not valid");
 			}
 
 			Core::String Entry = GetShaderMain(Type);
@@ -1268,10 +1317,9 @@ namespace Vitex
             
             if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
 			{
-				const char* Output = Transpiler.getInfoLog();
-				VI_ERR("[graphics] %s", Output);
+				Core::String Message = Transpiler.getInfoLog();
 				glslang::FinalizeProcess();
-				return false;
+				return GraphicsException(std::move(Message));
 			}
 
 			try
@@ -1287,9 +1335,8 @@ namespace Vitex
 			}
 			catch (...)
 			{
-				VI_ERR("[graphics] cannot transpile shader source to spirv binary");
 				glslang::FinalizeProcess();
-				return false;
+				return GraphicsException("shader to spv: an internal error occurred");
 			}
 
 			glslang::FinalizeProcess();
@@ -1308,12 +1355,12 @@ namespace Vitex
 					PrepareSamplers(&Compiler);
 
 					*HLSL = Core::Copy<Core::String>(Compiler.compile());
-					if (HLSL->empty())
-						return true;
-
-					Core::Stringify::ReplaceGroups(*HLSL, "layout\\(row_major\\)\\s+", "");
-					Core::Stringify::ReplaceGroups(*HLSL, "invocations\\s+=\\s+\\d+,\\s+", "");
-					return true;
+					if (!HLSL->empty())
+					{
+						Core::Stringify::ReplaceGroups(*HLSL, "layout\\(row_major\\)\\s+", "");
+						Core::Stringify::ReplaceGroups(*HLSL, "invocations\\s+=\\s+\\d+,\\s+", "");
+					}
+					return Core::Expectation::Met;
 				}
 				else if (To == ShaderLang::HLSL)
 				{
@@ -1325,10 +1372,9 @@ namespace Vitex
 					Compiler.set_hlsl_options(Options);
 
 					*HLSL = Core::Copy<Core::String>(Compiler.compile());
-					return true;
+					return Core::Expectation::Met;
 #else
-					VI_ERR("[graphics] cannot transpile spirv binary to shader binary: hlsl is not supported");
-					return false;
+					return GraphicsException("spv to hlsl: not supported");
 #endif
 				}
 				else if (To == ShaderLang::MSL)
@@ -1342,10 +1388,9 @@ namespace Vitex
 					PrepareSamplers(&Compiler);
 
 					*HLSL = Core::Copy<Core::String>(Compiler.compile());
-					return true;
+					return Core::Expectation::Met;
 #else
-					VI_ERR("[graphics] cannot transpile spirv binary to shader binary: msl is not supported");
-					return false;
+					return GraphicsException("spv to msv: not supported");
 #endif
 				}
 				else if (To == ShaderLang::SPV)
@@ -1354,39 +1399,29 @@ namespace Vitex
 					std::copy(Binary.begin(), Binary.end(), std::ostream_iterator<uint32_t>(Stream, " "));
 
 					HLSL->assign(Stream.str());
-					return true;
+					return Core::Expectation::Met;
 				}
 			}
 			catch (const spirv_cross::CompilerError& Exception)
 			{
-				VI_ERR("[graphics] cannot transpile spirv binary to shader binary: %s", Exception.what());
-				(void)Exception;
-				return false;
+				return GraphicsException(Core::Stringify::Text("spv to shader: %s", Exception.what()));
 			}
 			catch (...)
 			{
-				VI_ERR("[graphics] cannot transpile spirv binary to shader binary");
-				return false;
+				return GraphicsException("spv to shader: an internal error occurred");
 			}
 
-			VI_ASSERT(false, "shader source can be transpiled only to GLSL, GLSL_ES, HLSL, MSL or SPV");
-			return false;
+			return GraphicsException("shader transpiler supports only: GLSL, GLSL_ES, HLSL, MSL or SPV");
 #else
-			VI_ASSERT(false, "cannot transpile shader source without spirv-cross and glslang libraries");
-			return false;
+			return GraphicsException("shader transpiler is not supported");
 #endif
 		}
-		bool GraphicsDevice::GetSection(const Core::String& Name, Section** Result, bool Internal)
+		ExpectsGraphics<void> GraphicsDevice::GetSectionInfo(const Core::String& Name, Section** Result)
 		{
 			if (Name.empty() || Sections.empty())
-			{
-				if (!Internal)
-					VI_ERR("[graphics] could not find shader: \"%s\"");
+				return GraphicsException("shader section name is empty");
 
-				return false;
-			}
-
-			std::function<bool(const Core::String&)> Resolve = [this, &Result](const Core::String& Src)
+			auto Resolve = [this, &Result](const Core::String& Src)
 			{
 				auto It = Sections.find(Src);
 				if (It == Sections.end())
@@ -1403,29 +1438,25 @@ namespace Vitex
 				Resolve(Name + ".glsl") ||
 				Resolve(Name + ".msl") ||
 				Resolve(Name + ".spv"))
-				return true;
-
+				return Core::Expectation::Met;
 			if (Result != nullptr)
 				*Result = nullptr;
 
-			if (!Internal)
-				VI_ERR("[graphics] could not find shader: \"%s\"", Name.c_str());
-
-			return false;
+			return GraphicsException("shader section not found: " + Name);
 		}
-		bool GraphicsDevice::GetSection(const Core::String& Name, Shader::Desc* Result)
+		ExpectsGraphics<void> GraphicsDevice::GetSectionData(const Core::String& Name, Shader::Desc* Result)
 		{
 			if (Name.empty() || !Result)
-				return false;
+				return GraphicsException("shader section name is empty");
 
 			Section* Subresult;
-			if (!GetSection(Name, &Subresult, false))
-				return false;
+			auto SectionStatus = GetSectionInfo(Name, &Subresult);
+			if (!SectionStatus)
+				return SectionStatus;
 
 			Result->Filename.assign(Subresult->Name);
 			Result->Data.assign(Subresult->Code);
-
-			return true;
+			return Core::Expectation::Met;
 		}
 		bool GraphicsDevice::IsDebug() const
 		{
@@ -1625,7 +1656,7 @@ namespace Vitex
 
 			auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Result);
 			if (!Hash)
-				return Hash;
+				return Core::Optional::None;
 
 			Core::String Postfix;
 			switch (Backend)
@@ -1686,7 +1717,7 @@ namespace Vitex
 		{
 			return InputLayouts;
 		}
-		Surface* GraphicsDevice::CreateSurface(Texture2D* Base)
+		ExpectsVideo<Surface*> GraphicsDevice::CreateSurface(Texture2D* Base)
 		{
 			VI_ASSERT(Base != nullptr, "texture should be set");
 #ifdef VI_SDL2
@@ -1704,20 +1735,24 @@ namespace Vitex
 			Desc.Height = Base->GetHeight();
 			Desc.MipLevels = Base->GetMipLevels();
 
-			Texture2D* Copy = CreateTexture2D(Desc);
-			if (!CopyTexture2D(Base, &Copy))
+			auto Copy = CreateTexture2D(Desc);
+			if (!Copy)
+				return VideoException(std::move(Copy.Error()));
+
+			Texture2D* CopyTexture = *Copy;
+			auto CopyStatus = CopyTexture2D(Base, &CopyTexture);
+			if (!CopyStatus)
 			{
-				VI_ERR("[graphics] cannot copy temporary texture 2d for reading");
-				VI_RELEASE(Copy);
-				return nullptr;
+				VI_RELEASE(CopyTexture);
+				return VideoException(std::move(CopyStatus.Error()));
 			}
 
 			MappedSubresource Data;
-			if (!Map(Copy, ResourceMap::Read, &Data))
+			auto MapStatus = Map(CopyTexture, ResourceMap::Read, &Data);
+			if (!MapStatus)
 			{
-				VI_ERR("[graphics] cannot map temporary texture 2d");
-				VI_RELEASE(Copy);
-				return nullptr;
+				VI_RELEASE(CopyTexture);
+				return VideoException(std::move(MapStatus.Error()));
 			}
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 			const Uint32 R = 0xff000000;
@@ -1739,18 +1774,14 @@ namespace Vitex
 				SDL_UnlockSurface(Handle);
 			}
 
-			Unmap(Copy, &Data);
-			VI_RELEASE(Copy);
-
+			Unmap(CopyTexture, &Data);
+			VI_RELEASE(CopyTexture);
 			if (!Handle)
-			{
-				VI_ERR("[graphics] cannot create surface from texture 2d");
-				return nullptr;
-			}
+				return VideoException();
 
 			return new Surface(Handle);
 #else
-			return nullptr;
+			return VideoException();
 #endif
 		}
 		DepthStencilState* GraphicsDevice::GetDepthStencilState(const Core::String& Name)
@@ -1819,21 +1850,8 @@ namespace Vitex
 			VI_PANIC(false, "renderer backend is not present or is invalid");
 			return nullptr;
 		}
-		void GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices)
+		ExpectsGraphics<void> GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const ExpectsGraphics<Shader*>&)>& Callback)
 		{
-			auto GetDeviceName = [](GraphicsDevice* Device) -> const char*
-			{
-				switch (Device->GetBackend())
-				{
-					case RenderBackend::D3D11:
-						return "d3d11";
-					case RenderBackend::OGL:
-						return "opengl";
-					default:
-						return "unknown";
-				}
-			};
-
 			for (auto* Device : Devices)
 			{
 				if (!Device)
@@ -1843,17 +1861,19 @@ namespace Vitex
 				for (auto& Section : Device->Sections)
 				{
 					Shader::Desc Desc;
-					if (Device->GetSection(Section.first, &Desc))
-					{
-						Shader* Result = Device->CreateShader(Desc);
-						if (Result != nullptr)
-							VI_INFO("[graphics] OK compile %s %s shader", GetDeviceName(Device), Section.first.c_str());
-						else
-							VI_ERR("[graphics] cannot compile %s %s shader", GetDeviceName(Device), Section.first.c_str());
+					if (!Device->GetSectionData(Section.first, &Desc))
+						continue;
+
+					auto Result = Device->CreateShader(Desc);
+					if (Callback && !Callback(Device, Result))
+						return Result ? GraphicsException("compilation stopped") : Result.Error();
+					else if (!Result)
+						return Result.Error();
+					if (!Callback)
 						VI_RELEASE(Result);
-					}
 				}
 			}
+			return Core::Expectation::Met;
 		}
 
 		Activity::Activity(const Desc& I) noexcept : Handle(nullptr), Favicon(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)

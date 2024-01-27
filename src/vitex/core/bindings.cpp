@@ -367,10 +367,9 @@ namespace Vitex
 				else
 					VM->SetCodeGenerator("import-syntax", nullptr);
 			}
-			bool Imports::GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax)
+			ExpectsVM<void> Imports::GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax)
 			{
-				size_t Errors = 0;
-				return Parser::ReplaceDirectivePreconditions(Syntax, Code, [Base, &Path, &Errors](const Core::String& Text)
+				return Parser::ReplaceDirectivePreconditions(Syntax, Code, [Base, &Path](const Core::String& Text) -> ExpectsVM<Core::String>
 				{
 					Core::Vector<std::pair<Core::String, Core::TextSettle>> Includes = Core::Stringify::FindInBetweenInCode(Text, "\"", "\"");
 					Core::String Output;
@@ -379,10 +378,7 @@ namespace Vitex
 					{
 						auto Result = Base->ResolveFile(Path, Core::Stringify::Trim(Include.first));
 						if (!Result)
-						{
-							++Errors;
-							return Output;
-						}
+							return VirtualException(VirtualError::NO_MODULE, "importing file not found: \"" + Include.first + "\"");
 						Output += *Result;
 					}
 
@@ -391,7 +387,7 @@ namespace Vitex
 					size_t Diff = (Next < Prev ? Prev - Next : 1);
 					Output.append(Diff, '\n');
 					return Output;
-				}) && !Errors;
+				});
 			}
 
 			Exception::Pointer::Pointer() : Context(nullptr)
@@ -531,11 +527,11 @@ namespace Vitex
 			{
 				return GetExceptionAt(ImmediateContext::Get());
 			}
-			bool Exception::GeneratorCallback(Compute::Preprocessor*, const Core::String& Path, Core::String& Code)
+			ExpectsVM<void> Exception::GeneratorCallback(Compute::Preprocessor*, const Core::String& Path, Core::String& Code)
 			{
-				return Parser::ReplaceInlinePreconditions("throw", Code, [](const Core::String& Expression)
+				return Parser::ReplaceInlinePreconditions("throw", Code, [](const Core::String& Expression) -> ExpectsVM<Core::String>
 				{
-					return "exception::throw(" + Expression + ")";
+					return Core::String("exception::throw(" + Expression + ")");
 				});
 			}
 
@@ -558,11 +554,6 @@ namespace Vitex
 			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::BasicException& Error)
 			{
 				return Exception::Pointer(Error.type(), Error.what());
-			}
-			Exception::Pointer ExpectsWrapper::TranslateThrow(const VirtualError& Error)
-			{
-				const char* Name = VirtualMachine::GetErrorNameInfo(Error);
-				return Exception::Pointer(EXCEPTIONCAT_VM, Name ? Name : "asUNKNOWN");
 			}
 
 			Exception::Pointer OptionWrapper::TranslateThrow()
@@ -2886,12 +2877,12 @@ namespace Vitex
 
 				return true;
 			}
-			bool Promise::GeneratorCallback(Compute::Preprocessor*, const Core::String&, Core::String& Code)
+			ExpectsVM<void> Promise::GeneratorCallback(Compute::Preprocessor*, const Core::String&, Core::String& Code)
 			{
 				Core::Stringify::Replace(Code, "promise<void>", "promise_v");
-				return Parser::ReplaceInlinePreconditions("co_await", Code, [](const Core::String& Expression)
+				return Parser::ReplaceInlinePreconditions("co_await", Code, [](const Core::String& Expression) -> ExpectsVM<Core::String>
 				{
-					return Expression + ".yield().unwrap()";
+					return Core::String(Expression + ".yield().unwrap()");
 				});
 			}
 			bool Promise::IsContextPending(ImmediateContext* Context)
@@ -5307,19 +5298,18 @@ namespace Vitex
 			int OSProcessAwait(void* ProcessPtr)
 			{
 				int ExitCode = -1;
-				return Core::OS::Process::Await((Core::ChildProcess*)ProcessPtr, &ExitCode) ? ExitCode : -1;
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Process::Await((Core::ChildProcess*)ProcessPtr, &ExitCode)) ? ExitCode : -1;
 			}
-			bool OSProcessFree(void* ProcessPtr)
+			void OSProcessFree(void* ProcessPtr)
 			{
 				auto* Result = (Core::ChildProcess*)ProcessPtr;
-				bool Success = Core::OS::Process::Free(Result);
+				Core::OS::Process::Free(Result);
 				VI_DELETE(ChildProcess, Result);
-				return Success;
 			}
 			void* OSProcessSpawn(const Core::String& Path, Array* Args)
 			{
 				Core::ChildProcess* Result = VI_NEW(Core::ChildProcess);
-				if (!Core::OS::Process::Spawn(Path, Array::Decompose<Core::String>(Args), Result))
+				if (!ExpectsWrapper::UnwrapVoid(Core::OS::Process::Spawn(Path, Array::Decompose<Core::String>(Args), Result)))
 				{
 					VI_DELETE(ChildProcess, Result);
 					return nullptr;
@@ -5735,19 +5725,19 @@ namespace Vitex
 
 			Core::String CryptoSign(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
 			{
-				return OptionWrapper::Unwrap(Compute::Crypto::Sign(Type, Data, Key), Core::String());
+				return ExpectsWrapper::Unwrap(Compute::Crypto::Sign(Type, Data, Key), Core::String());
 			}
 			Core::String CryptoHMAC(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
 			{
-				return OptionWrapper::Unwrap(Compute::Crypto::HMAC(Type, Data, Key), Core::String());
+				return ExpectsWrapper::Unwrap(Compute::Crypto::HMAC(Type, Data, Key), Core::String());
 			}
 			Core::String CryptoEncrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
 			{
-				return OptionWrapper::Unwrap(Compute::Crypto::Encrypt(Type, Data, Key, Salt, Complexity), Core::String());
+				return ExpectsWrapper::Unwrap(Compute::Crypto::Encrypt(Type, Data, Key, Salt, Complexity), Core::String());
 			}
 			Core::String CryptoDecrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
 			{
-				return OptionWrapper::Unwrap(Compute::Crypto::Decrypt(Type, Data, Key, Salt, Complexity), Core::String());
+				return ExpectsWrapper::Unwrap(Compute::Crypto::Decrypt(Type, Data, Key, Salt, Complexity), Core::String());
 			}
 			size_t CryptoEncryptStream(Compute::Cipher Type, Core::Stream* From, Core::Stream* To, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, asIScriptFunction* Transform, size_t ReadInterval, int Complexity)
 			{
@@ -5772,7 +5762,7 @@ namespace Vitex
 					*Buffer = (char*)Intermediate.data();
 					*Size = Intermediate.size();
 				};
-				return OptionWrapper::Unwrap(Compute::Crypto::Encrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
+				return ExpectsWrapper::Unwrap(Compute::Crypto::Encrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
 			}
 			size_t CryptoDecryptStream(Compute::Cipher Type, Core::Stream* From, Core::Stream* To, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, asIScriptFunction* Transform, size_t ReadInterval, int Complexity)
 			{
@@ -5797,7 +5787,7 @@ namespace Vitex
 					*Buffer = (char*)Intermediate.data();
 					*Size = Intermediate.size();
 				};
-				return OptionWrapper::Unwrap(Compute::Crypto::Decrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
+				return ExpectsWrapper::Unwrap(Compute::Crypto::Decrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
 			}
 
 			void CosmosQueryIndex(Compute::Cosmos* Base, asIScriptFunction* Overlaps, asIScriptFunction* Match)
@@ -5844,7 +5834,7 @@ namespace Vitex
 				if (!Context || !Delegate.IsValid())
 					return Base->SetIncludeCallback(nullptr);
 
-				Base->SetIncludeCallback([Context, Delegate](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String& Output)
+				Base->SetIncludeCallback([Context, Delegate](Compute::Preprocessor* Base, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 				{
 					Compute::IncludeType Result;
 					Context->ExecuteSubcall(Delegate.Callable(), [Base, &File, &Output](ImmediateContext* Context)
@@ -5867,21 +5857,24 @@ namespace Vitex
 					return Base->SetPragmaCallback(nullptr);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				Base->SetPragmaCallback([Type, Context, Delegate](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args)
+				Base->SetPragmaCallback([Type, Context, Delegate](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 				{
-					bool Result = false;
+					bool Success = false;
 					Array* Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
 					Context->ExecuteSubcall(Delegate.Callable(), [Base, &Name, &Params](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&Name);
 						Context->SetArgObject(2, Params);
-					}, [&Result](ImmediateContext* Context)
+					}, [&Success](ImmediateContext* Context)
 					{
-						Result = (bool)Context->GetReturnByte();
+						Success = (bool)Context->GetReturnByte();
 					});
 					VI_RELEASE(Params);
-					return Result;
+					if (!Success)
+						return Compute::PreprocessorException(Compute::PreprocessorError::PragmaNotFound, 0, "pragma name: " + Name);
+
+					return Core::Expectation::Met;
 				});
 			}
 			void PreprocessorSetDirectiveCallback(Compute::Preprocessor* Base, const Core::String& Name, asIScriptFunction* Callback)
@@ -5891,7 +5884,7 @@ namespace Vitex
 				if (!Context || !Delegate.IsValid())
 					return Base->SetDirectiveCallback(Name, nullptr);
 
-				Base->SetDirectiveCallback(Name, [Context, Delegate](Compute::Preprocessor* Base, const Compute::ProcDirective& Token, Core::String& Result)
+				Base->SetDirectiveCallback(Name, [Context, Delegate](Compute::Preprocessor* Base, const Compute::ProcDirective& Token, Core::String& Result) -> Compute::ExpectsPreprocessor<void>
 				{
 					bool Success = false;
 					Context->ExecuteSubcall(Delegate.Callable(), [Base, &Token, &Result](ImmediateContext* Context)
@@ -5903,7 +5896,10 @@ namespace Vitex
 					{
 						Success = Context->GetReturnByte() > 0;
 					});
-					return Success;
+					if (!Success)
+						return Compute::PreprocessorException(Compute::PreprocessorError::DirectiveNotFound, 0, "directive name: " + Token.Name);
+
+					return Core::Expectation::Met;
 				});
 			}
 			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const Core::String& Name)
@@ -5987,10 +5983,10 @@ namespace Vitex
 				return Array::Compose(Type.GetTypeInfo(), Base->GetShapeVertices(Shape));
 			}
 
-			bool AudioEffectSetFilter(Audio::AudioEffect* Base, Audio::AudioFilter* New)
+			void AudioEffectSetFilter(Audio::AudioEffect* Base, Audio::AudioFilter* New)
 			{
 				Audio::AudioFilter* Copy = New;
-				return Base->SetFilter(&Copy);
+				ExpectsWrapper::UnwrapVoid(Base->SetFilter(&Copy));
 			}
 
 			void AlertResult(Graphics::Alert& Base, asIScriptFunction* Callback)
@@ -6605,6 +6601,70 @@ namespace Vitex
 				Core::Vector<Compute::Rectangle> Buffer = Array::Decompose<Compute::Rectangle>(Data);
 				Base->SetScissorRects((uint32_t)Buffer.size(), Buffer.data());
 			}
+			bool GraphicsDeviceMap1(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* Resource, Graphics::ResourceMap Type, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Map(Resource, Type, Result));
+			}
+			bool GraphicsDeviceMap2(Graphics::GraphicsDevice* Base, Graphics::Texture2D* Resource, Graphics::ResourceMap Type, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Map(Resource, Type, Result));
+			}
+			bool GraphicsDeviceMap3(Graphics::GraphicsDevice* Base, Graphics::TextureCube* Resource, Graphics::ResourceMap Type, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Map(Resource, Type, Result));
+			}
+			bool GraphicsDeviceMap4(Graphics::GraphicsDevice* Base, Graphics::Texture3D* Resource, Graphics::ResourceMap Type, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Map(Resource, Type, Result));
+			}
+			bool GraphicsDeviceUnmap1(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* Resource, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Unmap(Resource, Result));
+			}
+			bool GraphicsDeviceUnmap2(Graphics::GraphicsDevice* Base, Graphics::Texture2D* Resource, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Unmap(Resource, Result));
+			}
+			bool GraphicsDeviceUnmap3(Graphics::GraphicsDevice* Base, Graphics::TextureCube* Resource, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Unmap(Resource, Result));
+			}
+			bool GraphicsDeviceUnmap4(Graphics::GraphicsDevice* Base, Graphics::Texture3D* Resource, Graphics::MappedSubresource* Result)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->Unmap(Resource, Result));
+			}
+			bool GraphicsDeviceUpdateConstantBuffer(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* Resource, void* Data, size_t Size)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateConstantBuffer(Resource, Data, Size));
+			}
+			bool GraphicsDeviceUpdateBuffer1(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* Resource, void* Data, size_t Size)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBuffer(Resource, Data, Size));
+			}
+			bool GraphicsDeviceUpdateBuffer2(Graphics::GraphicsDevice* Base, Graphics::Shader* Resource, const void* Data)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBuffer(Resource, Data));
+			}
+			bool GraphicsDeviceUpdateBuffer3(Graphics::GraphicsDevice* Base, Graphics::MeshBuffer* Resource, Compute::Vertex* Data)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBuffer(Resource, Data));
+			}
+			bool GraphicsDeviceUpdateBuffer4(Graphics::GraphicsDevice* Base, Graphics::SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBuffer(Resource, Data));
+			}
+			bool GraphicsDeviceUpdateBuffer5(Graphics::GraphicsDevice* Base, Graphics::InstanceBuffer* Resource)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBuffer(Resource));
+			}
+			bool GraphicsDeviceUpdateBufferSize1(Graphics::GraphicsDevice* Base, Graphics::Shader* Resource, size_t Size)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBufferSize(Resource, Size));
+			}
+			bool GraphicsDeviceUpdateBufferSize2(Graphics::GraphicsDevice* Base, Graphics::InstanceBuffer* Resource, size_t Size)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->UpdateBufferSize(Resource, Size));
+			}
 			Array* GraphicsDeviceGetViewports(Graphics::GraphicsDevice* Base)
 			{
 				Core::Vector<Graphics::Viewport> Viewports;
@@ -6629,49 +6689,102 @@ namespace Vitex
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_RECTANGLE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Rects);
 			}
+			bool GraphicsDeviceGenerateTexture1(Graphics::GraphicsDevice* Base, Graphics::Texture2D* Resource)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->GenerateTexture(Resource));
+			}
+			bool GraphicsDeviceGenerateTexture2(Graphics::GraphicsDevice* Base, Graphics::Texture3D* Resource)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->GenerateTexture(Resource));
+			}
+			bool GraphicsDeviceGenerateTexture3(Graphics::GraphicsDevice* Base, Graphics::TextureCube* Resource)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->GenerateTexture(Resource));
+			}
+			bool GraphicsDeviceGetQueryData1(Graphics::GraphicsDevice* Base, Graphics::Query* Resource, size_t& Result, bool Flush)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->GetQueryData(Resource, &Result, Flush));
+			}
+			bool GraphicsDeviceGetQueryData2(Graphics::GraphicsDevice* Base, Graphics::Query* Resource, bool& Result, bool Flush)
+			{
+				return ExpectsWrapper::UnwrapVoid(Base->GetQueryData(Resource, &Result, Flush));
+			}
 			Graphics::MeshBuffer* GraphicsDeviceCreateMeshBuffer1(Graphics::GraphicsDevice* Base, const Graphics::MeshBuffer::Desc& Desc)
 			{
-				auto* Result = Base->CreateMeshBuffer(Desc);
-				FunctionFactory::AtomicNotifyGC(TYPENAME_MESHBUFFER, Result);
+				auto* Result = ExpectsWrapper::Unwrap(Base->CreateMeshBuffer(Desc), (Graphics::MeshBuffer*)nullptr);
+				if (Result != nullptr)
+					FunctionFactory::AtomicNotifyGC(TYPENAME_MESHBUFFER, Result);
 				return Result;
 			}
 			Graphics::MeshBuffer* GraphicsDeviceCreateMeshBuffer2(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* VertexBuffer, Graphics::ElementBuffer* IndexBuffer)
 			{
+				auto* Result = ExpectsWrapper::Unwrap(Base->CreateMeshBuffer(VertexBuffer, IndexBuffer), (Graphics::MeshBuffer*)nullptr);
+				if (!Result)
+					return nullptr;
+
 				if (VertexBuffer != nullptr)
 					VertexBuffer->AddRef();
 
 				if (IndexBuffer != nullptr)
 					IndexBuffer->AddRef();
 
-				auto* Result = Base->CreateMeshBuffer(VertexBuffer, IndexBuffer);
 				FunctionFactory::AtomicNotifyGC(TYPENAME_MESHBUFFER, Result);
 				return Result;
 			}
 			Graphics::SkinMeshBuffer* GraphicsDeviceCreateSkinMeshBuffer1(Graphics::GraphicsDevice* Base, const Graphics::SkinMeshBuffer::Desc& Desc)
 			{
-				auto* Result = Base->CreateSkinMeshBuffer(Desc);
-				FunctionFactory::AtomicNotifyGC(TYPENAME_SKINMESHBUFFER, Result);
+				auto* Result = ExpectsWrapper::Unwrap(Base->CreateSkinMeshBuffer(Desc), (Graphics::SkinMeshBuffer*)nullptr);
+				if (Result != nullptr)
+					FunctionFactory::AtomicNotifyGC(TYPENAME_SKINMESHBUFFER, Result);
 				return Result;
 			}
 			Graphics::SkinMeshBuffer* GraphicsDeviceCreateSkinMeshBuffer2(Graphics::GraphicsDevice* Base, Graphics::ElementBuffer* VertexBuffer, Graphics::ElementBuffer* IndexBuffer)
 			{
+				auto* Result = ExpectsWrapper::Unwrap(Base->CreateSkinMeshBuffer(VertexBuffer, IndexBuffer), (Graphics::SkinMeshBuffer*)nullptr);
+				if (!Result)
+					return nullptr;
+
 				if (VertexBuffer != nullptr)
 					VertexBuffer->AddRef();
 
 				if (IndexBuffer != nullptr)
 					IndexBuffer->AddRef();
 
-				auto* Result = Base->CreateSkinMeshBuffer(VertexBuffer, IndexBuffer);
 				FunctionFactory::AtomicNotifyGC(TYPENAME_SKINMESHBUFFER, Result);
 				return Result;
 			}
 			Graphics::InstanceBuffer* GraphicsDeviceCreateInstanceBuffer(Graphics::GraphicsDevice* Base, const Graphics::InstanceBuffer::Desc& Desc)
 			{
-				auto* Result = Base->CreateInstanceBuffer(Desc);
-				FunctionFactory::AtomicNotifyGC(TYPENAME_INSTANCEBUFFER, Result);
+				auto* Result = ExpectsWrapper::Unwrap(Base->CreateInstanceBuffer(Desc), (Graphics::InstanceBuffer*)nullptr);
+				if (Result != nullptr)
+					FunctionFactory::AtomicNotifyGC(TYPENAME_INSTANCEBUFFER, Result);
 				return Result;
 			}
-			Graphics::TextureCube* GraphicsDeviceCreateTextureCube(Graphics::GraphicsDevice* Base, Array* Data)
+			Graphics::Texture2D* GraphicsDeviceCreateTexture2D1(Graphics::GraphicsDevice* Base)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTexture2D(), (Graphics::Texture2D*)nullptr);
+			}
+			Graphics::Texture2D* GraphicsDeviceCreateTexture2D2(Graphics::GraphicsDevice* Base, const Graphics::Texture2D::Desc& Desc)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTexture2D(Desc), (Graphics::Texture2D*)nullptr);
+			}
+			Graphics::Texture3D* GraphicsDeviceCreateTexture3D1(Graphics::GraphicsDevice* Base)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTexture3D(), (Graphics::Texture3D*)nullptr);
+			}
+			Graphics::Texture3D* GraphicsDeviceCreateTexture3D2(Graphics::GraphicsDevice* Base, const Graphics::Texture3D::Desc& Desc)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTexture3D(Desc), (Graphics::Texture3D*)nullptr);
+			}
+			Graphics::TextureCube* GraphicsDeviceCreateTextureCube1(Graphics::GraphicsDevice* Base)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTextureCube(), (Graphics::TextureCube*)nullptr);
+			}
+			Graphics::TextureCube* GraphicsDeviceCreateTextureCube2(Graphics::GraphicsDevice* Base, const Graphics::TextureCube::Desc& Desc)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTextureCube(Desc), (Graphics::TextureCube*)nullptr);
+			}
+			Graphics::TextureCube* GraphicsDeviceCreateTextureCube3(Graphics::GraphicsDevice* Base, Array* Data)
 			{
 				Core::Vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
 				while (Buffer.size() < 6)
@@ -6681,60 +6794,52 @@ namespace Vitex
 				for (size_t i = 0; i < 6; i++)
 					Map[i] = Buffer[i];
 
-				return Base->CreateTextureCube(Map);
+				return ExpectsWrapper::Unwrap(Base->CreateTextureCube(Map), (Graphics::TextureCube*)nullptr);
+			}
+			Graphics::TextureCube* GraphicsDeviceCreateTextureCube4(Graphics::GraphicsDevice* Base, Graphics::Texture2D* Data)
+			{
+				return ExpectsWrapper::Unwrap(Base->CreateTextureCube(Data), (Graphics::TextureCube*)nullptr);
 			}
 			Graphics::Texture2D* GraphicsDeviceCopyTexture2D1(Graphics::GraphicsDevice* Base, Graphics::Texture2D* Source)
 			{
 				Graphics::Texture2D* Result = nullptr;
-				Base->CopyTexture2D(Source, &Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyTexture2D(Source, &Result));
 				return Result;
 			}
 			Graphics::Texture2D* GraphicsDeviceCopyTexture2D2(Graphics::GraphicsDevice* Base, Graphics::RenderTarget* Source, uint32_t Index)
 			{
 				Graphics::Texture2D* Result = nullptr;
-				Base->CopyTexture2D(Source, Index, &Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyTexture2D(Source, Index, &Result));
 				return Result;
 			}
 			Graphics::Texture2D* GraphicsDeviceCopyTexture2D3(Graphics::GraphicsDevice* Base, Graphics::RenderTargetCube* Source, Compute::CubeFace Face)
 			{
 				Graphics::Texture2D* Result = nullptr;
-				Base->CopyTexture2D(Source, Face, &Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyTexture2D(Source, Face, &Result));
 				return Result;
 			}
 			Graphics::Texture2D* GraphicsDeviceCopyTexture2D4(Graphics::GraphicsDevice* Base, Graphics::MultiRenderTargetCube* Source, uint32_t Index, Compute::CubeFace Face)
 			{
 				Graphics::Texture2D* Result = nullptr;
-				Base->CopyTexture2D(Source, Index, Face, &Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyTexture2D(Source, Index, Face, &Result));
 				return Result;
 			}
 			Graphics::TextureCube* GraphicsDeviceCopyTextureCube1(Graphics::GraphicsDevice* Base, Graphics::RenderTargetCube* Source)
 			{
 				Graphics::TextureCube* Result = nullptr;
-				Base->CopyTextureCube(Source, &Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyTextureCube(Source, &Result));
 				return Result;
 			}
 			Graphics::TextureCube* GraphicsDeviceCopyTextureCube2(Graphics::GraphicsDevice* Base, Graphics::MultiRenderTargetCube* Source, uint32_t Index)
 			{
 				Graphics::TextureCube* Result = nullptr;
-				Base->CopyTextureCube(Source, Index, &Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyTextureCube(Source, Index, &Result));
 				return Result;
 			}
 			Graphics::Texture2D* GraphicsDeviceCopyBackBuffer(Graphics::GraphicsDevice* Base)
 			{
 				Graphics::Texture2D* Result = nullptr;
-				Base->CopyBackBuffer(&Result);
-				return Result;
-			}
-			Graphics::Texture2D* GraphicsDeviceCopyBackBufferMSAA(Graphics::GraphicsDevice* Base)
-			{
-				Graphics::Texture2D* Result = nullptr;
-				Base->CopyBackBufferMSAA(&Result);
-				return Result;
-			}
-			Graphics::Texture2D* GraphicsDeviceCopyBackBufferNoAA(Graphics::GraphicsDevice* Base)
-			{
-				Graphics::Texture2D* Result = nullptr;
-				Base->CopyBackBufferNoAA(&Result);
+				ExpectsWrapper::UnwrapVoid(Base->CopyBackBuffer(&Result));
 				return Result;
 			}
 			Graphics::GraphicsDevice* GraphicsDeviceCreate(Graphics::GraphicsDevice::Desc& Desc)
@@ -6745,7 +6850,7 @@ namespace Vitex
 			}
 			void GraphicsDeviceCompileBuiltinShaders(Array* Devices)
 			{
-				Graphics::GraphicsDevice::CompileBuiltinShaders(Array::Decompose<Graphics::GraphicsDevice*>(Devices));
+				ExpectsWrapper::UnwrapVoid(Graphics::GraphicsDevice::CompileBuiltinShaders(Array::Decompose<Graphics::GraphicsDevice*>(Devices), nullptr));
 			}
 
 			Compute::Matrix4x4& AnimationBufferGetOffsets(Engine::AnimationBuffer& Base, size_t Index)
@@ -7118,7 +7223,7 @@ namespace Vitex
 			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Client->Connect(Host, Async, VerifyPeers).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
+				return Client->Connect(Host, Async, VerifyPeers).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -7126,7 +7231,7 @@ namespace Vitex
 			Core::Promise<bool> SocketClientDisconnect(Network::SocketClient* Client)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Client->Disconnect().Then<bool>([Context](Core::ExpectsIO<void>&& Result)
+				return Client->Disconnect().Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -7147,7 +7252,7 @@ namespace Vitex
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
 
-				Class.SetMethod("void synchronize()", &T::Synchronize);
+				Class.SetMethodEx("bool synchronize()", &VI_EXPECTIFY_VOID(T::Synchronize));
 				Class.SetMethod("void deserialize(schema@+)", &T::Deserialize);
 				Class.SetMethod("void serialize(schema@+)", &T::Serialize);
 				Class.SetMethod("base_audio_filter@ copy()", &T::Copy);
@@ -7168,10 +7273,10 @@ namespace Vitex
 				if (BaseCast)
 					Class.SetOperatorEx(Operators::Cast, 0, "void", "?&out", &HandleToHandleCast);
 
-				Class.SetMethod("void synchronize()", &T::Synchronize);
+				Class.SetMethodEx("bool synchronize()", &VI_EXPECTIFY_VOID(T::Synchronize));
 				Class.SetMethod("void deserialize(schema@+)", &T::Deserialize);
 				Class.SetMethod("void serialize(schema@+)", &T::Serialize);
-				Class.SetMethodEx("bool set_filter(base_audio_filter@+)", &AudioEffectSetFilter);
+				Class.SetMethodEx("void set_filter(base_audio_filter@+)", &AudioEffectSetFilter);
 				Class.SetMethod("base_audio_effect@ copy()", &T::Copy);
 				Class.SetMethod("audio_source@+ get_filter()", &T::GetFilter);
 				Class.SetMethod("audio_source@+ get_source()", &T::GetSource);
@@ -7234,17 +7339,17 @@ namespace Vitex
 			template <typename T>
 			void* ProcessorDuplicate(T* Base, Engine::AssetCache* Cache, Core::Schema* Args)
 			{
-				return Base->Duplicate(Cache, ToVariantKeys(Args));
+				return ExpectsWrapper::Unwrap(Base->Duplicate(Cache, ToVariantKeys(Args)), (void*)nullptr);
 			}
 			template <typename T>
 			void* ProcessorDeserialize(T* Base, Core::Stream* Stream, size_t Offset, Core::Schema* Args)
 			{
-				return Base->Deserialize(Stream, Offset, ToVariantKeys(Args));
+				return ExpectsWrapper::Unwrap(Base->Deserialize(Stream, Offset, ToVariantKeys(Args)), (void*)nullptr);
 			}
 			template <typename T>
 			bool ProcessorSerialize(T* Base, Core::Stream* Stream, void* Instance, Core::Schema* Args)
 			{
-				return Base->Serialize(Stream, Instance, ToVariantKeys(Args));
+				return ExpectsWrapper::UnwrapVoid(Base->Serialize(Stream, Instance, ToVariantKeys(Args)));
 			}
 			template <typename T>
 			void PopulateProcessorBase(RefClass& Class, bool BaseCast = true)
@@ -7418,13 +7523,21 @@ namespace Vitex
 				Buffers[1] = Buffer2;
 				Base->FreeBuffers(Buffers);
 			}
+			Graphics::Shader* RenderSystemCompileShader1(Engine::RenderSystem* Base, Graphics::Shader::Desc& Desc, size_t BufferSize)
+			{
+				return ExpectsWrapper::Unwrap(Base->CompileShader(Desc, BufferSize), (Graphics::Shader*)nullptr);
+			}
+			Graphics::Shader* RenderSystemCompileShader2(Engine::RenderSystem* Base, const Core::String& SectionName, size_t BufferSize)
+			{
+				return ExpectsWrapper::Unwrap(Base->CompileShader(SectionName, BufferSize), (Graphics::Shader*)nullptr);
+			}
 			Array* RenderSystemCompileBuffers(Engine::RenderSystem* Base, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
 			{
 				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 
-				if (!Base->CompileBuffers(Buffers.data(), Name, ElementSize, ElementsCount))
+				if (!ExpectsWrapper::UnwrapVoid(Base->CompileBuffers(Buffers.data(), Name, ElementSize, ElementsCount)))
 					return nullptr;
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
@@ -7475,7 +7588,7 @@ namespace Vitex
 				Buffers.push_back(nullptr);
 				Buffers.push_back(nullptr);
 
-				if (!Base->Compile(Buffers.data(), Name, ElementSize, ElementsCount))
+				if (!ExpectsWrapper::UnwrapVoid(Base->Compile(Buffers.data(), Name, ElementSize, ElementsCount)))
 					return nullptr;
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
@@ -7550,11 +7663,11 @@ namespace Vitex
 
 			void* ContentManagerLoad(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args)
 			{
-				return Base->Load(Source, Path, ToVariantKeys(Args));
+				return ExpectsWrapper::Unwrap(Base->Load(Source, Path, ToVariantKeys(Args)), (void*)nullptr);
 			}
 			bool ContentManagerSave(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, Core::Schema* Args)
 			{
-				return Base->Save(Source, Path, Object, ToVariantKeys(Args));
+				return ExpectsWrapper::UnwrapVoid(Base->Save(Source, Path, Object, ToVariantKeys(Args)));
 			}
 			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
@@ -7562,11 +7675,12 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return;
 
-				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Delegate](void*&& Object) mutable
+				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Delegate](Engine::ExpectsContent<void*>&& Object) mutable
 				{
-					Delegate([Object](ImmediateContext* Context)
+					void* Address = Object.Or(nullptr);
+					Delegate([Address](ImmediateContext* Context)
 					{
-						Context->SetArgAddress(0, Object);
+						Context->SetArgAddress(0, Address);
 					});
 				});
 			}
@@ -7580,8 +7694,9 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return;
 
-				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Delegate](bool&& Success) mutable
+				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Delegate](Engine::ExpectsContent<void>&& Status) mutable
 				{
+					bool Success = !!Status;
 					Delegate([Success](ImmediateContext* Context)
 					{
 						Context->SetArg8(0, Success);
@@ -7744,11 +7859,12 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return;
 
-				Base->LoadResource(Id, Source, Path, ToVariantKeys(Args), [Delegate](void* Resource) mutable
+				Base->LoadResource(Id, Source, Path, ToVariantKeys(Args), [Delegate](Engine::ExpectsContent<void*>&& Resource) mutable
 				{
-					Delegate([Resource](ImmediateContext* Context)
+					void* Address = Resource.Or(nullptr);
+					Delegate([Address](ImmediateContext* Context)
 					{
-						Context->SetArgAddress(0, Resource);
+						Context->SetArgAddress(0, Address);
 					});
 				});
 			}
@@ -8900,7 +9016,7 @@ namespace Vitex
 			Core::Promise<bool> WebSocketFrameSend2(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
 			{
 				Core::Promise<bool> Result;
-				Base->Send(Mask, Data.c_str(), Data.size(), Opcode, [Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); });
+				ExpectsWrapper::UnwrapVoid(Base->Send(Mask, Data.c_str(), Data.size(), Opcode, [Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); }));
 				return Result;
 			}
 			Core::Promise<bool> WebSocketFrameSend1(Network::HTTP::WebSocketFrame* Base, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
@@ -9038,10 +9154,18 @@ namespace Vitex
 			{
 				return Base->RemoteAddress;
 			}
+			Core::Promise<bool> ClientDownload(Network::HTTP::Client* Base, size_t MaxSize)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Download(MaxSize).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
 			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Fetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
+				return Base->Fetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -9049,7 +9173,7 @@ namespace Vitex
 			Core::Promise<bool> ClientUpgrade(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Upgrade(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
+				return Base->Upgrade(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -9057,7 +9181,7 @@ namespace Vitex
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsIO<Network::HTTP::ResponseFrame*>&& Result) -> bool
+				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsSystem<Network::HTTP::ResponseFrame*>&& Result) -> bool
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -9065,7 +9189,7 @@ namespace Vitex
 			Core::Promise<Core::Schema*> ClientJSON(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->JSON(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([Context](Core::ExpectsIO<Core::Schema*>&& Result)
+				return Base->JSON(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([Context](Core::ExpectsSystem<Core::Schema*>&& Result)
 				{
 					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
 				});
@@ -9073,7 +9197,7 @@ namespace Vitex
 			Core::Promise<Core::Schema*> ClientXML(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->XML(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([Context](Core::ExpectsIO<Core::Schema*>&& Result)
+				return Base->XML(Network::HTTP::RequestFrame(Frame), MaxSize).Then<Core::Schema*>([Context](Core::ExpectsSystem<Core::Schema*>&& Result)
 				{
 					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
 				});
@@ -9082,7 +9206,7 @@ namespace Vitex
 			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& URL, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([Context](Core::ExpectsIO<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
+				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([Context](Core::ExpectsSystem<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
 				{
 					return ExpectsWrapper::Unwrap(std::move(Response), Network::HTTP::ResponseFrame(), Context);
 				});
@@ -9188,7 +9312,7 @@ namespace Vitex
 			Core::Promise<bool> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Send(Network::SMTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsIO<void>&& Result)
+				return Base->Send(Network::SMTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -9361,13 +9485,89 @@ namespace Vitex
 				Window->FinalizeDelegate = std::move(FinalizeDelegate);
 				Base->SetWindowFunction(Name, Args, Window);
 			}
+			Core::Promise<Network::LDB::SessionId> LDBClusterTxBegin(Network::LDB::Cluster* Base, Network::LDB::Isolation Level)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxBegin(Level).Then<Network::LDB::SessionId>([Context](Network::LDB::ExpectsDB<Network::LDB::SessionId>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Network::LDB::SessionId)nullptr, Context);
+				});
+			}
+			Core::Promise<Network::LDB::SessionId> LDBClusterTxStart(Network::LDB::Cluster* Base, const Core::String& Command)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxStart(Command).Then<Network::LDB::SessionId>([Context](Network::LDB::ExpectsDB<Network::LDB::SessionId>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Network::LDB::SessionId)nullptr, Context);
+				});
+			}
+			Core::Promise<bool> LDBClusterTxEnd(Network::LDB::Cluster* Base, const Core::String& Command, Network::LDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxEnd(Command, Session).Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> LDBClusterTxCommit(Network::LDB::Cluster* Base, Network::LDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxCommit(Session).Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> LDBClusterTxRollback(Network::LDB::Cluster* Base, Network::LDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxRollback(Session).Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> LDBClusterConnect(Network::LDB::Cluster* Base, const Core::String& Address, size_t Connections)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Connect(Address, Connections).Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> LDBClusterDisconnect(Network::LDB::Cluster* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Disconnect().Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> LDBClusterFlush(Network::LDB::Cluster* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Flush().Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<Network::LDB::Cursor> LDBClusterQuery(Network::LDB::Cluster* Base, const Core::String& Command, size_t Args, Network::LDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Query(Command, Args, Session).Then<Network::LDB::Cursor>([Context](Network::LDB::ExpectsDB<Network::LDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::LDB::Cursor(nullptr), Context);
+				});
+			}
 			Core::Promise<Network::LDB::Cursor> LDBClusterEmplaceQuery(Network::LDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::LDB::SessionId Session)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
 				for (auto& Item : Args)
 					Item->AddRef();
 
-				return Base->EmplaceQuery(Command, &Args, Options, Session);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->EmplaceQuery(Command, &Args, Options, Session).Then<Network::LDB::Cursor>([Context](Network::LDB::ExpectsDB<Network::LDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::LDB::Cursor(nullptr), Context);
+				});
 			}
 			Core::Promise<Network::LDB::Cursor> LDBClusterTemplateQuery(Network::LDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::LDB::SessionId Session)
 			{
@@ -9392,7 +9592,11 @@ namespace Vitex
 					}
 				}
 
-				return Base->TemplateQuery(Command, &Args, Options, Session);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TemplateQuery(Command, &Args, Options, Session).Then<Network::LDB::Cursor>([Context](Network::LDB::ExpectsDB<Network::LDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::LDB::Cursor(nullptr), Context);
+				});
 			}
 			Array* LDBClusterWalCheckpoint(Network::LDB::Cluster* Base, Network::LDB::CheckpointMode Mode, const Core::String& Database)
 			{
@@ -9409,7 +9613,7 @@ namespace Vitex
 				VirtualMachine* VM = VirtualMachine::Get();
 				int TypeId = VM ? VM->GetTypeIdByDecl("string") : -1;
 				Core::UnorderedMap<Core::String, Core::String> Whitelist = Dictionary::Decompose<Core::String>(TypeId, WhitelistData);
-				return Network::LDB::Utils::InlineQuery(Where, Whitelist, Default);
+				return ExpectsWrapper::Unwrap(Network::LDB::Utils::InlineQuery(Where, Whitelist, Default), Core::String());
 			}
 
 			void LDBDriverSetQueryLog(Network::LDB::Driver* Base, asIScriptFunction* Callback)
@@ -9434,7 +9638,7 @@ namespace Vitex
 				for (auto& Item : Args)
 					Item->AddRef();
 
-				return Base->Emplace(SQL, &Args);
+				return ExpectsWrapper::Unwrap(Base->Emplace(SQL, &Args), Core::String());
 			}
 			Core::String LDBDriverGetQuery(Network::LDB::Driver* Base, const Core::String& SQL, Dictionary* Data)
 			{
@@ -9459,7 +9663,7 @@ namespace Vitex
 					}
 				}
 
-				return Base->GetQuery(SQL, &Args);
+				return ExpectsWrapper::Unwrap(Base->GetQuery(SQL, &Args), Core::String());
 			}
 			Array* LDBDriverGetQueries(Network::LDB::Driver* Base)
 			{
@@ -9550,13 +9754,85 @@ namespace Vitex
 			}
 			Core::Promise<bool> PDBClusterListen(Network::PDB::Cluster* Base, Array* Data)
 			{
+				ImmediateContext* Context = ImmediateContext::Get();
 				Core::Vector<Core::String> Names = Array::Decompose<Core::String>(Data);
-				return Base->Listen(Names);
+				return Base->Listen(Names).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
 			}
 			Core::Promise<bool> PDBClusterUnlisten(Network::PDB::Cluster* Base, Array* Data)
 			{
+				ImmediateContext* Context = ImmediateContext::Get();
 				Core::Vector<Core::String> Names = Array::Decompose<Core::String>(Data);
-				return Base->Unlisten(Names);
+				return Base->Unlisten(Names).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<Network::PDB::SessionId> PDBClusterTxBegin(Network::PDB::Cluster* Base, Network::PDB::Isolation Level)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxBegin(Level).Then<Network::PDB::SessionId>([Context](Network::PDB::ExpectsDB<Network::PDB::SessionId>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Network::PDB::SessionId)nullptr, Context);
+				});
+			}
+			Core::Promise<Network::PDB::SessionId> PDBClusterTxStart(Network::PDB::Cluster* Base, const Core::String& Command)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxStart(Command).Then<Network::PDB::SessionId>([Context](Network::PDB::ExpectsDB<Network::PDB::SessionId>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Network::PDB::SessionId)nullptr, Context);
+				});
+			}
+			Core::Promise<bool> PDBClusterTxEnd(Network::PDB::Cluster* Base, const Core::String& Command, Network::PDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxEnd(Command, Session).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> PDBClusterTxCommit(Network::PDB::Cluster* Base, Network::PDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxCommit(Session).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> PDBClusterTxRollback(Network::PDB::Cluster* Base, Network::PDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TxRollback(Session).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> PDBClusterConnect(Network::PDB::Cluster* Base, const Network::PDB::Address& Address, size_t Connections)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Connect(Address, Connections).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> PDBClusterDisconnect(Network::PDB::Cluster* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Disconnect().Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<Network::PDB::Cursor> PDBClusterQuery(Network::PDB::Cluster* Base, const Core::String& Command, size_t Args, Network::PDB::SessionId Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Query(Command, Args, Session).Then<Network::PDB::Cursor>([Context](Network::PDB::ExpectsDB<Network::PDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::PDB::Cursor(), Context);
+				});
 			}
 			Core::Promise<Network::PDB::Cursor> PDBClusterEmplaceQuery(Network::PDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::PDB::Connection* Session)
 			{
@@ -9564,7 +9840,11 @@ namespace Vitex
 				for (auto& Item : Args)
 					Item->AddRef();
 
-				return Base->EmplaceQuery(Command, &Args, Options, Session);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->EmplaceQuery(Command, &Args, Options, Session).Then<Network::PDB::Cursor>([Context](Network::PDB::ExpectsDB<Network::PDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::PDB::Cursor(), Context);
+				});
 			}
 			Core::Promise<Network::PDB::Cursor> PDBClusterTemplateQuery(Network::PDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::PDB::Connection* Session)
 			{
@@ -9589,7 +9869,11 @@ namespace Vitex
 					}
 				}
 
-				return Base->TemplateQuery(Command, &Args, Options, Session);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->TemplateQuery(Command, &Args, Options, Session).Then<Network::PDB::Cursor>([Context](Network::PDB::ExpectsDB<Network::PDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::PDB::Cursor(), Context);
+				});
 			}
 
 			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Dictionary* WhitelistData, const Core::String& Default)
@@ -9597,7 +9881,7 @@ namespace Vitex
 				VirtualMachine* VM = VirtualMachine::Get();
 				int TypeId = VM ? VM->GetTypeIdByDecl("string") : -1;
 				Core::UnorderedMap<Core::String, Core::String> Whitelist = Dictionary::Decompose<Core::String>(TypeId, WhitelistData);
-				return Network::PDB::Utils::InlineQuery(Client, Where, Whitelist, Default);
+				return ExpectsWrapper::Unwrap(Network::PDB::Utils::InlineQuery(Client, Where, Whitelist, Default), Core::String());
 			}
 
 			void PDBDriverSetQueryLog(Network::PDB::Driver* Base, asIScriptFunction* Callback)
@@ -9622,7 +9906,7 @@ namespace Vitex
 				for (auto& Item : Args)
 					Item->AddRef();
 
-				return Base->Emplace(Cluster, SQL, &Args);
+				return ExpectsWrapper::Unwrap(Base->Emplace(Cluster, SQL, &Args), Core::String());
 			}
 			Core::String PDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Dictionary* Data)
 			{
@@ -9647,7 +9931,7 @@ namespace Vitex
 					}
 				}
 
-				return Base->GetQuery(Cluster, SQL, &Args);
+				return ExpectsWrapper::Unwrap(Base->GetQuery(Cluster, SQL, &Args), Core::String());
 			}
 			Array* PDBDriverGetQueries(Network::PDB::Driver* Base)
 			{
@@ -9792,23 +10076,104 @@ namespace Vitex
 					}
 				}
 
-				return Base.TemplateQuery(Command, &Args);
+				return ExpectsWrapper::UnwrapVoid(Base.TemplateQuery(Command, &Args));
 			}
-
-			Core::Promise<Network::MDB::Document> MDBCollectionInsertMany(Network::MDB::Collection& Base, Array* Data, const Network::MDB::Document& Options)
+			Core::Promise<Network::MDB::Document> MDBStreamExecuteWithReply(Network::MDB::Stream& Base)
 			{
-				Core::Vector<Network::MDB::Document> List;
-				if (Data != nullptr)
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.ExecuteWithReply().Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
 				{
-					size_t Size = Data->Size();
-					List.reserve(Size);
-					for (size_t i = 0; i < Size; i++)
-						List.emplace_back(((Network::MDB::Document*)Data->At(i))->Copy());
-				}
-
-				return Base.InsertMany(List, Options);
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<bool> MDBStreamExecute(Network::MDB::Stream& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Execute().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
 			}
 
+			Core::String MDBCursorError(Network::MDB::Cursor& Base)
+			{
+				auto Error = Base.Error();
+				return Error ? Error->Info : Core::String();
+			}
+			Core::Promise<bool> MDBCursorNext(Network::MDB::Cursor& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Next().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+
+			Core::Promise<Core::Schema*> MDBResponseFetch(Network::MDB::Response& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Fetch().Then<Core::Schema*>([Context](Network::MDB::ExpectsDB<Core::Schema*>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
+				});
+			}
+			Core::Promise<Core::Schema*> MDBResponseFetchAll(Network::MDB::Response& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FetchAll().Then<Core::Schema*>([Context](Network::MDB::ExpectsDB<Core::Schema*>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
+				});
+			}
+			Core::Promise<Network::MDB::Property> MDBResponseGetProperty(Network::MDB::Response& Base, const Core::String& Name)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.GetProperty(Name).Then<Network::MDB::Property>([Context](Network::MDB::ExpectsDB<Network::MDB::Property>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Property(), Context);
+				});
+			}
+
+			Core::Promise<bool> MDBTransactionBegin(Network::MDB::Transaction& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Begin().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBTransactionRollback(Network::MDB::Transaction& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Rollback().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBTransactionRemoveMany(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveMany(Collection, Match, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBTransactionRemoveOne(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveOne(Collection, Match, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBTransactionReplaceOne(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Replacement, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.ReplaceOne(Collection, Match, Replacement, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
 			Core::Promise<Network::MDB::Document> MDBTransactionInsertMany(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, Array* Data, const Network::MDB::Document& Options)
 			{
 				Core::Vector<Network::MDB::Document> List;
@@ -9820,7 +10185,59 @@ namespace Vitex
 						List.emplace_back(((Network::MDB::Document*)Data->At(i))->Copy());
 				}
 
-				return Base.InsertMany(Collection, List, Options);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.InsertMany(Collection, List, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBTransactionInsertOne(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Result, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.InsertOne(Collection, Result, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBTransactionUpdateMany(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Update, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.UpdateMany(Collection, Match, Update, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBTransactionUpdateOne(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Update, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.UpdateOne(Collection, Match, Update, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBTransactionFindMany(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindMany(Collection, Match, Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBTransactionFindOne(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindOne(Collection, Match, Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBTransactionAggregate(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, Network::MDB::QueryFlags Flags, const Network::MDB::Document& Pipeline, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Aggregate(Collection, Flags, Pipeline, Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
+				});
 			}
 			Core::Promise<Network::MDB::Response> MDBTransactionTemplateQuery(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Core::String& Name, Dictionary* Data)
 			{
@@ -9845,9 +10262,182 @@ namespace Vitex
 					}
 				}
 
-				return Base.TemplateQuery(Collection, Name, &Args);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.TemplateQuery(Collection, Name, &Args).Then<Network::MDB::Response>([Context](Network::MDB::ExpectsDB<Network::MDB::Response>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Response(), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Response> MDBTransactionQuery(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Network::MDB::Document& Command)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Query(Collection, Command).Then<Network::MDB::Response>([Context](Network::MDB::ExpectsDB<Network::MDB::Response>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Response(), Context);
+				});
+			}
+			Core::Promise<Network::MDB::TransactionState> MDBTransactionCommit(Network::MDB::Transaction& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Commit().Then<Network::MDB::TransactionState>([Context](Network::MDB::ExpectsDB<Network::MDB::TransactionState>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::TransactionState::Fatal, Context);
+				});
 			}
 
+			Core::Promise<bool> MDBCollectionRename(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Rename(DatabaseName, CollectionName).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBCollectionRenameWithOptions(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RenameWithOptions(DatabaseName, CollectionName, Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBCollectionRenameWithRemove(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RenameWithRemove(DatabaseName, CollectionName).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBCollectionRenameWithOptionsAndRemove(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RenameWithOptionsAndRemove(DatabaseName, CollectionName, Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBCollectionRemove(Network::MDB::Collection& Base, const Core::String& Name, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Remove(Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBCollectionRemoveIndex(Network::MDB::Collection& Base, const Core::String& Name, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveIndex(Name, Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionRemoveMany(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveMany(Match, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionRemoveOne(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveOne(Match, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionReplaceOne(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Replacement, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.ReplaceOne(Match, Replacement, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionInsertMany(Network::MDB::Collection& Base, Array* Data, const Network::MDB::Document& Options)
+			{
+				Core::Vector<Network::MDB::Document> List;
+				if (Data != nullptr)
+				{
+					size_t Size = Data->Size();
+					List.reserve(Size);
+					for (size_t i = 0; i < Size; i++)
+						List.emplace_back(((Network::MDB::Document*)Data->At(i))->Copy());
+				}
+
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.InsertMany(List, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionInsertOne(Network::MDB::Collection& Base, const Network::MDB::Document& Result, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.InsertOne(Result, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionUpdateMany(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Update, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.UpdateMany(Match, Update, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionUpdateOne(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Update, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.UpdateOne(Match, Update, Options).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Document> MDBCollectionFindAndModify(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Sort, const Network::MDB::Document& Update, const Network::MDB::Document& Fields, bool Remove, bool Upsert, bool New)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindAndModify(Match, Sort, Update, Fields, Remove, Upsert, New).Then<Network::MDB::Document>([Context](Network::MDB::ExpectsDB<Network::MDB::Document>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Document(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBCollectionFindMany(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindMany(Match, Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBCollectionFindOne(Network::MDB::Collection& Base, const Network::MDB::Document& Match, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindOne(Match, Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBCollectionFindIndexes(Network::MDB::Collection& Base, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindIndexes(Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBCollectionAggregate(Network::MDB::Collection& Base, Network::MDB::QueryFlags Flags, const Network::MDB::Document& Pipeline, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Aggregate(Flags, Pipeline, Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(), Context);
+				});
+			}
 			Core::Promise<Network::MDB::Response> MDBCollectionTemplateQuery(Network::MDB::Collection& Base, const Core::String& Name, Dictionary* Data, Network::MDB::Transaction& Session)
 			{
 				Core::SchemaArgs Args;
@@ -9871,9 +10461,81 @@ namespace Vitex
 					}
 				}
 
-				return Base.TemplateQuery(Name, &Args, true, Session);
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.TemplateQuery(Name, &Args, true, Session).Then<Network::MDB::Response>([Context](Network::MDB::ExpectsDB<Network::MDB::Response>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Response(), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Response> MDBCollectionQuery(Network::MDB::Collection& Base, const Network::MDB::Document& Command, Network::MDB::Transaction& Session)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Query(Command, Session).Then<Network::MDB::Response>([Context](Network::MDB::ExpectsDB<Network::MDB::Response>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Response(), Context);
+				});
 			}
 
+			Core::Promise<bool> MDBDatabaseRemoveAllUsers(Network::MDB::Database& Base, const Core::String& Name)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveAllUsers().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBDatabaseRemoveUser(Network::MDB::Database& Base, const Core::String& Name)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveUser(Name).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBDatabaseRemove(Network::MDB::Database& Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Remove().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBDatabaseRemoveWithOptions(Network::MDB::Database& Base, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.RemoveWithOptions(Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBDatabaseAddUser(Network::MDB::Database& Base, const Core::String& Username, const Core::String& Password, const Network::MDB::Document& Roles, const Network::MDB::Document& Custom)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.AddUser(Username, Password, Roles, Custom).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBDatabaseHasCollection(Network::MDB::Database& Base, const Core::String& Name)
+			{
+				return Base.HasCollection(Name).Then<bool>([](Network::MDB::ExpectsDB<void>&& Result) { return !!Result; });
+			}
+			Core::Promise<Network::MDB::Collection> MDBDatabaseCreateCollection(Network::MDB::Database& Base, const Core::String& Name, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.CreateCollection(Name, Options).Then<Network::MDB::Collection>([Context](Network::MDB::ExpectsDB<Network::MDB::Collection>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Collection(nullptr), Context);
+				});
+			}
+			Core::Promise<Network::MDB::Cursor> MDBDatabaseFindCollections(Network::MDB::Database& Base, const Network::MDB::Document& Options)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.FindCollections(Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
+				});
+			}
 			Array* MDBDatabaseGetCollectionNames(Network::MDB::Database& Base, const Network::MDB::Document& Options)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
@@ -9881,7 +10543,24 @@ namespace Vitex
 					return nullptr;
 
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<Core::String>(Type, Base.GetCollectionNames(Options));
+				return Array::Compose<Core::String>(Type, ExpectsWrapper::Unwrap(Base.GetCollectionNames(Options), Core::Vector<Core::String>()));
+			}
+
+			Core::Promise<bool> MDBWatcherNext(Network::MDB::Watcher& Base, Network::MDB::Document& Result)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Next(Result).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBWatcherError(Network::MDB::Watcher& Base, Network::MDB::Document& Result)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base.Error(Result).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
 			}
 
 			Array* MDBConnectionGetDatabaseNames(Network::MDB::Connection* Base, const Network::MDB::Document& Options)
@@ -9891,7 +10570,31 @@ namespace Vitex
 					return nullptr;
 
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<Core::String>(Type, Base->GetDatabaseNames(Options));
+				return Array::Compose<Core::String>(Type, ExpectsWrapper::Unwrap(Base->GetDatabaseNames(Options), Core::Vector<Core::String>()));
+			}
+			Core::Promise<bool> MDBConnectionConnectByURI(Network::MDB::Connection* Base, const Core::String& Address)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->ConnectByURI(Address).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBConnectionConnect(Network::MDB::Connection* Base, Network::MDB::Address* Address)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Connect(Address).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBConnectionDisconnect(Network::MDB::Connection* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Disconnect().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
 			}
 			Core::Promise<bool> MDBConnectionMakeTransaction(Network::MDB::Connection* Base, asIScriptFunction* Callback)
 			{
@@ -9899,13 +10602,14 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return Core::Promise<bool>(false);
 
-				return Base->MakeTransaction([Base, Delegate](Network::MDB::Transaction& Session) mutable -> Core::Promise<bool>
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->MakeTransaction([Base, Delegate](Network::MDB::Transaction* Session) mutable -> Core::Promise<bool>
 				{
 					Core::Promise<bool> Future;
 					Delegate([Base, Session](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Base);
-						Context->SetArgObject(1, (void*)&Session);
+						Context->SetArgObject(1, (void*)Session);
 					}, [Future](ImmediateContext* Context) mutable
 					{
 						Promise* Target = Context->GetReturnObject<Promise>();
@@ -9920,32 +10624,47 @@ namespace Vitex
 						});
 					});
 					return Future;
+				}).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBConnectionMakeCotransaction(Network::MDB::Connection* Base, asIScriptFunction* Callback)
+			Core::Promise<Network::MDB::Cursor> MDBConnectionFindDatabases(Network::MDB::Connection* Base, const Network::MDB::Document& Options)
 			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return Core::Promise<bool>(false);
-
-				return Base->MakeTransaction([Base, Delegate](Network::MDB::Transaction& Session) mutable -> Core::Promise<bool>
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->FindDatabases(Options).Then<Network::MDB::Cursor>([Context](Network::MDB::ExpectsDB<Network::MDB::Cursor>&& Result)
 				{
-					Core::Promise<bool> Future;
-					Delegate([Base, Session](ImmediateContext* Context)
-					{
-						Context->SetArgObject(0, (void*)&Base);
-						Context->SetArgObject(1, (void*)&Session);
-					}, [Future](ImmediateContext* Context) mutable
-					{
-						Future.Set(Context->GetReturnByte() > 0);
-					});
-					return Future;
+					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
 				});
 			}
 
 			void MDBClusterPush(Network::MDB::Cluster* Base, Network::MDB::Connection* Target)
 			{
 				Base->Push(&Target);
+			}
+			Core::Promise<bool> MDBClusterConnectByURI(Network::MDB::Cluster* Base, const Core::String& Address)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->ConnectByURI(Address).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBClusterConnect(Network::MDB::Cluster* Base, Network::MDB::Address* Address)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Connect(Address).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> MDBClusterDisconnect(Network::MDB::Cluster* Base)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->Disconnect().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
 			}
 
 			void MDBDriverSetQueryLog(Network::MDB::Driver* Base, asIScriptFunction* Callback)
@@ -9987,7 +10706,7 @@ namespace Vitex
 					}
 				}
 
-				return Base->GetQuery(Cluster, SQL, &Args);
+				return ExpectsWrapper::Unwrap(Base->GetQuery(Cluster, SQL, &Args), Core::String());
 			}
 			Array* MDBDriverGetQueries(Network::MDB::Driver* Base)
 			{
@@ -11222,7 +11941,7 @@ namespace Vitex
 				VM->SetFunction("process_stream@+ execute_read_only(const string &in)", &OSProcessExecuteReadOnly);
 				VM->SetFunction("int execute_plain(const string &in)", &Core::OS::Process::ExecutePlain);
 				VM->SetFunction("int await(uptr@)", &OSProcessAwait);
-				VM->SetFunction("bool free(uptr@)", &OSProcessFree);
+				VM->SetFunction("void free(uptr@)", &OSProcessFree);
 				VM->SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);
 				VM->EndNamespace();
 
@@ -11949,7 +12668,7 @@ namespace Vitex
 				VWebToken->SetMethod("void set_refresh_token(const string &in, const private_key &in, const private_key &in)", &Compute::WebToken::SetRefreshToken);
 				VWebToken->SetMethod("bool sign(const private_key &in)", &Compute::WebToken::Sign);
 				VWebToken->SetMethod("bool is_valid()", &Compute::WebToken::IsValid);
-				VWebToken->SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &VI_OPTIONIFY(Compute::WebToken::GetRefreshToken));
+				VWebToken->SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &VI_EXPECTIFY(Compute::WebToken::GetRefreshToken));
 				VWebToken->SetMethodEx("void set_audience(array<string>@+)", &WebTokenSetAudience);
 				VWebToken->SetEnumRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine* VM) { });
 				VWebToken->SetReleaseRefsEx<Compute::WebToken>([](Compute::WebToken* Base, asIScriptEngine*) { });
@@ -12136,16 +12855,16 @@ namespace Vitex
 				VM->SetFunction<uint64_t(uint64_t, uint64_t)>("uint64 random(uint64, uint64)", &Compute::Crypto::Random);
 				VM->SetFunction("uint64 crc32(const string &in)", &Compute::Crypto::CRC32);
 				VM->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
-				VM->SetFunction("string random_bytes(usize)", &VI_SOPTIONIFY(Compute::Crypto::RandomBytes));
-				VM->SetFunction("string checksum_hex(base_stream@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::ChecksumHex));
-				VM->SetFunction("string checksum_raw(base_stream@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::ChecksumRaw));
-				VM->SetFunction("string hash_hex(uptr@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::HashHex));
-				VM->SetFunction("string hash_raw(uptr@, const string &in)", &VI_SOPTIONIFY(Compute::Crypto::HashRaw));
-				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::JWTSign));
-				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::JWTEncode));
-				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::JWTDecode));
-				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::DocEncrypt));
-				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &VI_SOPTIONIFY(Compute::Crypto::DocDecrypt));
+				VM->SetFunction("string random_bytes(usize)", &VI_SEXPECTIFY(Compute::Crypto::RandomBytes));
+				VM->SetFunction("string checksum_hex(base_stream@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumHex));
+				VM->SetFunction("string checksum_raw(base_stream@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumRaw));
+				VM->SetFunction("string hash_hex(uptr@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::HashHex));
+				VM->SetFunction("string hash_raw(uptr@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::HashRaw));
+				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTSign));
+				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTEncode));
+				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTDecode));
+				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocEncrypt));
+				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocDecrypt));
 				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
 				VM->SetFunction("string hmac(uptr@, const string &in, const private_key &in)", &CryptoHMAC);
 				VM->SetFunction("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
@@ -12178,8 +12897,8 @@ namespace Vitex
 				VM->SetFunction("string base32_decode(const string &in)", &Compute::Codec::Base32Decode);
 				VM->SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
 				VM->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
-				VM->SetFunction("string compress(const string &in, compression_cdc)", &VI_SOPTIONIFY(Compute::Codec::Compress));
-				VM->SetFunction("string decompress(const string &in)", &VI_SOPTIONIFY(Compute::Codec::Decompress));
+				VM->SetFunction("string compress(const string &in, compression_cdc)", &VI_SEXPECTIFY(Compute::Codec::Compress));
+				VM->SetFunction("string decompress(const string &in)", &VI_SEXPECTIFY(Compute::Codec::Decompress));
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_encode(const string &in)", &Compute::Codec::Base64Encode);
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
@@ -12368,10 +13087,11 @@ namespace Vitex
 				VPreprocessor->SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor->SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
 				VPreprocessor->SetMethod("void add_default_definitions()", &Compute::Preprocessor::AddDefaultDefinitions);
-				VPreprocessor->SetMethod<Compute::Preprocessor, bool, const Core::String&>("bool define(const string &in)", &Compute::Preprocessor::Define);
+				VPreprocessor->SetMethodEx("bool define(const string &in)", &VI_EXPECTIFY_VOID(Compute::Preprocessor::Define));
 				VPreprocessor->SetMethod("void undefine(const string &in)", &Compute::Preprocessor::Undefine);
 				VPreprocessor->SetMethod("void clear()", &Compute::Preprocessor::Clear);
-				VPreprocessor->SetMethod("bool process(const string &in, string &out)", &Compute::Preprocessor::Process);
+				VPreprocessor->SetMethodEx("bool process(const string &in, string &out)", &VI_EXPECTIFY_VOID(Compute::Preprocessor::Process));
+				VPreprocessor->SetMethodEx("string resolve_file(const string &in, const string &in)", &VI_EXPECTIFY(Compute::Preprocessor::ResolveFile));
 				VPreprocessor->SetMethod("const string& get_current_file_path() const", &Compute::Preprocessor::GetCurrentFilePath);
 				VPreprocessor->SetMethodEx("void set_include_callback(proc_include_event@)", &PreprocessorSetIncludeCallback);
 				VPreprocessor->SetMethodEx("void set_pragma_callback(proc_pragma_event@)", &PreprocessorSetPragmaCallback);
@@ -13187,24 +13907,24 @@ namespace Vitex
 				VAudioSync->SetConstructor<Audio::AudioSync>("void f()");
 
 				VM->BeginNamespace("audio_context");
-				VM->SetFunction("void initialize()", Audio::AudioContext::Initialize);
-				VM->SetFunction("void generate_buffers(int32, uint32 &out)", Audio::AudioContext::GenerateBuffers);
-				VM->SetFunction("void set_source_data_3f(uint32, sound_ex, float, float, float)", Audio::AudioContext::SetSourceData3F);
-				VM->SetFunction("void get_source_data_3f(uint32, sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetSourceData3F);
-				VM->SetFunction("void set_source_data_1f(uint32, sound_ex, float)", Audio::AudioContext::SetSourceData1F);
-				VM->SetFunction("void get_source_data_1f(uint32, sound_ex, float &out)", Audio::AudioContext::GetSourceData1F);
-				VM->SetFunction("void set_source_data_3i(uint32, sound_ex, int32, int32, int32)", Audio::AudioContext::SetSourceData3I);
-				VM->SetFunction("void get_source_data_3i(uint32, sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetSourceData3I);
-				VM->SetFunction("void set_source_data_1i(uint32, sound_ex, int32)", Audio::AudioContext::SetSourceData1I);
-				VM->SetFunction("void get_source_data_1i(uint32, sound_ex, int32 &out)", Audio::AudioContext::GetSourceData1I);
-				VM->SetFunction("void set_listener_data_3f(sound_ex, float, float, float)", Audio::AudioContext::SetListenerData3F);
-				VM->SetFunction("void get_listener_data_3f(sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetListenerData3F);
-				VM->SetFunction("void set_listener_data_1f(sound_ex, float)", Audio::AudioContext::SetListenerData1F);
-				VM->SetFunction("void get_listener_data_1f(sound_ex, float &out)", Audio::AudioContext::GetListenerData1F);
-				VM->SetFunction("void set_listener_data_3i(sound_ex, int32, int32, int32)", Audio::AudioContext::SetListenerData3I);
-				VM->SetFunction("void get_listener_data_3i(sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetListenerData3I);
-				VM->SetFunction("void set_listener_data_1i(sound_ex, int32)", Audio::AudioContext::SetListenerData1I);
-				VM->SetFunction("void get_listener_data_1i(sound_ex, int32 &out)", Audio::AudioContext::GetListenerData1I);
+				VM->SetFunction("bool initialize()", &VI_SEXPECTIFY_VOID(Audio::AudioContext::Initialize));
+				VM->SetFunction("bool generate_buffers(int32, uint32 &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GenerateBuffers));
+				VM->SetFunction("bool set_source_data_3f(uint32, sound_ex, float, float, float)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetSourceData3F));
+				VM->SetFunction("bool get_source_data_3f(uint32, sound_ex, float &out, float &out, float &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetSourceData3F));
+				VM->SetFunction("bool set_source_data_1f(uint32, sound_ex, float)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetSourceData1F));
+				VM->SetFunction("bool get_source_data_1f(uint32, sound_ex, float &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetSourceData1F));
+				VM->SetFunction("bool set_source_data_3i(uint32, sound_ex, int32, int32, int32)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetSourceData3I));
+				VM->SetFunction("bool get_source_data_3i(uint32, sound_ex, int32 &out, int32 &out, int32 &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetSourceData3I));
+				VM->SetFunction("bool set_source_data_1i(uint32, sound_ex, int32)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetSourceData1I));
+				VM->SetFunction("bool get_source_data_1i(uint32, sound_ex, int32 &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetSourceData1I));
+				VM->SetFunction("bool set_listener_data_3f(sound_ex, float, float, float)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetListenerData3F));
+				VM->SetFunction("bool get_listener_data_3f(sound_ex, float &out, float &out, float &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetListenerData3F));
+				VM->SetFunction("bool set_listener_data_1f(sound_ex, float)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetListenerData1F));
+				VM->SetFunction("bool get_listener_data_1f(sound_ex, float &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetListenerData1F));
+				VM->SetFunction("bool set_listener_data_3i(sound_ex, int32, int32, int32)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetListenerData3I));
+				VM->SetFunction("bool get_listener_data_3i(sound_ex, int32 &out, int32 &out, int32 &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetListenerData3I));
+				VM->SetFunction("bool set_listener_data_1i(sound_ex, int32)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::SetListenerData1I));
+				VM->SetFunction("bool get_listener_data_1i(sound_ex, int32 &out)", &VI_SEXPECTIFY_VOID(Audio::AudioContext::GetListenerData1I));
 				VM->EndNamespace();
 
 				auto VAudioSource = VM->SetClass<Audio::AudioSource>("audio_source", true);
@@ -13223,14 +13943,14 @@ namespace Vitex
 
 				VAudioSource->SetGcConstructor<Audio::AudioSource, AudioSource>("audio_source@ f()");
 				VAudioSource->SetMethod("int64 add_effect(base_audio_effect@+)", &Audio::AudioSource::AddEffect);
-				VAudioSource->SetMethod("bool remove_effect(usize)", &Audio::AudioSource::RemoveEffect);
-				VAudioSource->SetMethod("bool remove_effect_by_id(uint64)", &Audio::AudioSource::RemoveEffectById);
-				VAudioSource->SetMethod("void set_clip(audio_clip@+)", &Audio::AudioSource::SetClip);
-				VAudioSource->SetMethod("void synchronize(audio_sync &in, const vector3 &in)", &Audio::AudioSource::Synchronize);
-				VAudioSource->SetMethod("void reset()", &Audio::AudioSource::Reset);
-				VAudioSource->SetMethod("void pause()", &Audio::AudioSource::Pause);
-				VAudioSource->SetMethod("void play()", &Audio::AudioSource::Play);
-				VAudioSource->SetMethod("void stop()", &Audio::AudioSource::Stop);
+				VAudioSource->SetMethodEx("bool remove_effect(usize)", &VI_EXPECTIFY_VOID(Audio::AudioSource::RemoveEffect));
+				VAudioSource->SetMethodEx("bool remove_effect_by_id(uint64)", &VI_EXPECTIFY_VOID(Audio::AudioSource::RemoveEffectById));
+				VAudioSource->SetMethodEx("bool set_clip(audio_clip@+)", &VI_EXPECTIFY_VOID(Audio::AudioSource::SetClip));
+				VAudioSource->SetMethodEx("bool synchronize(audio_sync &in, const vector3 &in)", &VI_EXPECTIFY_VOID(Audio::AudioSource::Synchronize));
+				VAudioSource->SetMethodEx("bool reset()", &VI_EXPECTIFY_VOID(Audio::AudioSource::Reset));
+				VAudioSource->SetMethodEx("bool pause()", &VI_EXPECTIFY_VOID(Audio::AudioSource::Pause));
+				VAudioSource->SetMethodEx("bool play()", &VI_EXPECTIFY_VOID(Audio::AudioSource::Play));
+				VAudioSource->SetMethodEx("bool stop()", &VI_EXPECTIFY_VOID(Audio::AudioSource::Stop));
 				VAudioSource->SetMethod("bool is_playing() const", &Audio::AudioSource::IsPlaying);
 				VAudioSource->SetMethod("usize get_effects_count() const", &Audio::AudioSource::GetEffectsCount);
 				VAudioSource->SetMethod("uint32 get_instance() const", &Audio::AudioSource::GetInstance);
@@ -13248,21 +13968,21 @@ namespace Vitex
 
 				auto VAudioDevice = VM->SetClass<Audio::AudioDevice>("audio_device", false);
 				VAudioDevice->SetConstructor<Audio::AudioDevice>("audio_device@ f()");
-				VAudioDevice->SetMethod("void offset(audio_source@+, float &out, bool)", &Audio::AudioDevice::Offset);
-				VAudioDevice->SetMethod("void velocity(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Velocity);
-				VAudioDevice->SetMethod("void position(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Position);
-				VAudioDevice->SetMethod("void direction(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Direction);
-				VAudioDevice->SetMethod("void relative(audio_source@+, int &out, bool)", &Audio::AudioDevice::Relative);
-				VAudioDevice->SetMethod("void pitch(audio_source@+, float &out, bool)", &Audio::AudioDevice::Pitch);
-				VAudioDevice->SetMethod("void gain(audio_source@+, float &out, bool)", &Audio::AudioDevice::Gain);
-				VAudioDevice->SetMethod("void loop(audio_source@+, int &out, bool)", &Audio::AudioDevice::Loop);
-				VAudioDevice->SetMethod("void cone_inner_angle(audio_source@+, float &out, bool)", &Audio::AudioDevice::ConeInnerAngle);
-				VAudioDevice->SetMethod("void cone_outer_angle(audio_source@+, float &out, bool)", &Audio::AudioDevice::ConeOuterAngle);
-				VAudioDevice->SetMethod("void cone_outer_gain(audio_source@+, float &out, bool)", &Audio::AudioDevice::ConeOuterGain);
-				VAudioDevice->SetMethod("void distance(audio_source@+, float &out, bool)", &Audio::AudioDevice::Distance);
-				VAudioDevice->SetMethod("void ref_distance(audio_source@+, float &out, bool)", &Audio::AudioDevice::RefDistance);
-				VAudioDevice->SetMethod("void set_distance_model(sound_distance_model)", &Audio::AudioDevice::SetDistanceModel);
-				VAudioDevice->SetMethod("void set_exception_codes(int32 &out, int32 &out) const", &Audio::AudioDevice::GetExceptionCodes);
+				VAudioDevice->SetMethodEx("bool offset(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Offset));
+				VAudioDevice->SetMethodEx("bool velocity(audio_source@+, vector3 &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Velocity));
+				VAudioDevice->SetMethodEx("bool position(audio_source@+, vector3 &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Position));
+				VAudioDevice->SetMethodEx("bool direction(audio_source@+, vector3 &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Direction));
+				VAudioDevice->SetMethodEx("bool relative(audio_source@+, int &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Relative));
+				VAudioDevice->SetMethodEx("bool pitch(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Pitch));
+				VAudioDevice->SetMethodEx("bool gain(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Gain));
+				VAudioDevice->SetMethodEx("bool loop(audio_source@+, int &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Loop));
+				VAudioDevice->SetMethodEx("bool cone_inner_angle(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::ConeInnerAngle));
+				VAudioDevice->SetMethodEx("bool cone_outer_angle(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::ConeOuterAngle));
+				VAudioDevice->SetMethodEx("bool cone_outer_gain(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::ConeOuterGain));
+				VAudioDevice->SetMethodEx("bool distance(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::Distance));
+				VAudioDevice->SetMethodEx("bool ref_distance(audio_source@+, float &out, bool)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::RefDistance));
+				VAudioDevice->SetMethodEx("bool set_distance_model(sound_distance_model)", &VI_EXPECTIFY_VOID(Audio::AudioDevice::SetDistanceModel));
+				VAudioDevice->SetMethod("void display_audio_log() const", &Audio::AudioDevice::DisplayAudioLog);
 				VAudioDevice->SetMethod("bool is_valid() const", &Audio::AudioDevice::IsValid);
 
 				return true;
@@ -14693,7 +15413,7 @@ namespace Vitex
 				VGraphicsDevice->SetMethod("void set_rasterizer_state(rasterizer_state@+)", &Graphics::GraphicsDevice::SetRasterizerState);
 				VGraphicsDevice->SetMethod("void set_depth_stencil_state(depth_stencil_state@+)", &Graphics::GraphicsDevice::SetDepthStencilState);
 				VGraphicsDevice->SetMethod("void set_input_layout(input_layout@+)", &Graphics::GraphicsDevice::SetInputLayout);
-				VGraphicsDevice->SetMethod("void set_shader(shader@+, uint32)", &Graphics::GraphicsDevice::SetShader);
+				VGraphicsDevice->SetMethodEx("bool set_shader(shader@+, uint32)", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::SetShader));
 				VGraphicsDevice->SetMethod("void set_sampler_state(sampler_state@+, uint32, uint32, uint32)", &Graphics::GraphicsDevice::SetSamplerState);
 				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, void, Graphics::Shader*, uint32_t, uint32_t>("void set_buffer(shader@+, uint32, uint32)", &Graphics::GraphicsDevice::SetBuffer);
 				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, void, Graphics::InstanceBuffer*, uint32_t, uint32_t>("void set_buffer(instance_buffer@+, uint32, uint32)", &Graphics::GraphicsDevice::SetBuffer);
@@ -14723,22 +15443,22 @@ namespace Vitex
 				VGraphicsDevice->SetMethod("void set_primitive_topology(primitive_topology)", &Graphics::GraphicsDevice::SetPrimitiveTopology);
 				VGraphicsDevice->SetMethod("void flush_texture(uint32, uint32, uint32)", &Graphics::GraphicsDevice::FlushTexture);
 				VGraphicsDevice->SetMethod("void flush_state()", &Graphics::GraphicsDevice::FlushState);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(element_buffer@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(texture_2d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(texture_3d@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::ResourceMap, Graphics::MappedSubresource*>("bool dictionary(texture_cube@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*, Graphics::MappedSubresource*>("bool unmap(texture_2d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*, Graphics::MappedSubresource*>("bool unmap(texture_3d@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*, Graphics::MappedSubresource*>("bool unmap(texture_cube@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, Graphics::MappedSubresource*>("bool unmap(element_buffer@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
-				VGraphicsDevice->SetMethod("bool update_constant_buffer(element_buffer@+, uptr@, usize)", &Graphics::GraphicsDevice::UpdateConstantBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, void*, size_t>("bool update_buffer(element_buffer@+, uptr@, usize)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, const void*>("bool update_buffer(shader@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::MeshBuffer*, Compute::Vertex*>("bool update_buffer(mesh_buffer@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::SkinMeshBuffer*, Compute::SkinVertex*>("bool update_buffer(skin_mesh_buffer@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::InstanceBuffer*>("bool update_buffer(instance_buffer@+)", &Graphics::GraphicsDevice::UpdateBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, size_t>("bool update_buffer_size(shader@+, usize)", &Graphics::GraphicsDevice::UpdateBufferSize);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::InstanceBuffer*, size_t>("bool update_buffer_size(instance_buffer@+, usize)", &Graphics::GraphicsDevice::UpdateBufferSize);
+				VGraphicsDevice->SetMethodEx("bool map(element_buffer@+, resource_map, mapped_subresource &out)", &GraphicsDeviceMap1);
+				VGraphicsDevice->SetMethodEx("bool map(texture_2d@+, resource_map, mapped_subresource &out)", &GraphicsDeviceMap2);
+				VGraphicsDevice->SetMethodEx("bool map(texture_3d@+, resource_map, mapped_subresource &out)", &GraphicsDeviceMap3);
+				VGraphicsDevice->SetMethodEx("bool map(texture_cube@+, resource_map, mapped_subresource &out)", &GraphicsDeviceMap4);
+				VGraphicsDevice->SetMethodEx("bool unmap(texture_2d@+, mapped_subresource &in)", &GraphicsDeviceUnmap1);
+				VGraphicsDevice->SetMethodEx("bool unmap(texture_3d@+, mapped_subresource &in)", &GraphicsDeviceUnmap2);
+				VGraphicsDevice->SetMethodEx("bool unmap(texture_cube@+, mapped_subresource &in)", &GraphicsDeviceUnmap3);
+				VGraphicsDevice->SetMethodEx("bool unmap(element_buffer@+, mapped_subresource &in)", &GraphicsDeviceUnmap4);
+				VGraphicsDevice->SetMethodEx("bool update_constant_buffer(element_buffer@+, uptr@, usize)", &GraphicsDeviceUpdateConstantBuffer);
+				VGraphicsDevice->SetMethodEx("bool update_buffer(element_buffer@+, uptr@, usize)", &GraphicsDeviceUpdateBuffer1);
+				VGraphicsDevice->SetMethodEx("bool update_buffer(shader@+, uptr@)", &GraphicsDeviceUpdateBuffer2);
+				VGraphicsDevice->SetMethodEx("bool update_buffer(mesh_buffer@+, uptr@)", &GraphicsDeviceUpdateBuffer3);
+				VGraphicsDevice->SetMethodEx("bool update_buffer(skin_mesh_buffer@+, uptr@)", &GraphicsDeviceUpdateBuffer4);
+				VGraphicsDevice->SetMethodEx("bool update_buffer(instance_buffer@+)", &GraphicsDeviceUpdateBuffer5);
+				VGraphicsDevice->SetMethodEx("bool update_buffer_size(shader@+, usize)", &GraphicsDeviceUpdateBufferSize1);
+				VGraphicsDevice->SetMethodEx("bool update_buffer_size(instance_buffer@+, usize)", &GraphicsDeviceUpdateBufferSize2);
 				VGraphicsDevice->SetMethod("void clear_buffer(instance_buffer@+)", &Graphics::GraphicsDevice::ClearBuffer);
 				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture2D*>("void clear_writable(texture_2d@+)", &Graphics::GraphicsDevice::ClearWritable);
 				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture2D*, float, float, float>("void clear_writable(texture_2d@+, float, float, float)", &Graphics::GraphicsDevice::ClearWritable);
@@ -14767,21 +15487,19 @@ namespace Vitex
 				VGraphicsDevice->SetMethodEx("texture_2d@ copy_texture_2d(multi_render_target_cube@+, uint32, cube_face)", &GraphicsDeviceCopyTexture2D4);
 				VGraphicsDevice->SetMethodEx("texture_cube@ copy_texture_cube(render_target_cube@+)", &GraphicsDeviceCopyTextureCube1);
 				VGraphicsDevice->SetMethodEx("texture_cube@ copy_texture_cube(multi_render_target_cube@+, uint32)", &GraphicsDeviceCopyTextureCube2);
-				VGraphicsDevice->SetMethod("bool copy_target(render_target@+, uint32, render_target@+, uint32)", &Graphics::GraphicsDevice::CopyTarget);
+				VGraphicsDevice->SetMethodEx("bool copy_target(render_target@+, uint32, render_target@+, uint32)", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::CopyTarget));
 				VGraphicsDevice->SetMethodEx("texture_2d@ copy_back_buffer()", &GraphicsDeviceCopyBackBuffer);
-				VGraphicsDevice->SetMethodEx("texture_2d@ copy_back_buffer_msaa()", &GraphicsDeviceCopyBackBufferMSAA);
-				VGraphicsDevice->SetMethodEx("texture_2d@ copy_back_buffer_noaa()", &GraphicsDeviceCopyBackBufferNoAA);
-				VGraphicsDevice->SetMethod("bool cubemap_push(cubemap@+, texture_cube@+)", &Graphics::GraphicsDevice::CubemapPush);
-				VGraphicsDevice->SetMethod("bool cubemap_face(cubemap@+, cube_face)", &Graphics::GraphicsDevice::CubemapFace);
-				VGraphicsDevice->SetMethod("bool cubemap_pop(cubemap@+)", &Graphics::GraphicsDevice::CubemapPop);
+				VGraphicsDevice->SetMethodEx("bool cubemap_push(cubemap@+, texture_cube@+)", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::CubemapPush));
+				VGraphicsDevice->SetMethodEx("bool cubemap_face(cubemap@+, cube_face)", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::CubemapFace));
+				VGraphicsDevice->SetMethodEx("bool cubemap_pop(cubemap@+)", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::CubemapPop));
 				VGraphicsDevice->SetMethodEx("array<viewport>@ get_viewports()", &GraphicsDeviceGetViewports);
 				VGraphicsDevice->SetMethodEx("array<rectangle>@ get_scissor_rects()", &GraphicsDeviceGetScissorRects);
-				VGraphicsDevice->SetMethod("bool resize_buffers(uint32, uint32)", &Graphics::GraphicsDevice::ResizeBuffers);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*>("bool generate_texture(texture_2d@+)", &Graphics::GraphicsDevice::GenerateTexture);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*>("bool generate_texture(texture_3d@+)", &Graphics::GraphicsDevice::GenerateTexture);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*>("bool generate_texture(texture_cube@+)", &Graphics::GraphicsDevice::GenerateTexture);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Query*, size_t*, bool>("bool get_query_data(visibility_query@+, usize &out, bool = true)", &Graphics::GraphicsDevice::GetQueryData);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, Graphics::Query*, bool*, bool>("bool get_query_data(visibility_query@+, bool &out, bool = true)", &Graphics::GraphicsDevice::GetQueryData);
+				VGraphicsDevice->SetMethodEx("bool resize_buffers(uint32, uint32)", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::ResizeBuffers));
+				VGraphicsDevice->SetMethodEx("bool generate_texture(texture_2d@+)", &GraphicsDeviceGenerateTexture1);
+				VGraphicsDevice->SetMethodEx("bool generate_texture(texture_3d@+)", &GraphicsDeviceGenerateTexture2);
+				VGraphicsDevice->SetMethodEx("bool generate_texture(texture_cube@+)", &GraphicsDeviceGenerateTexture3);
+				VGraphicsDevice->SetMethodEx("bool get_query_data(visibility_query@+, usize &out, bool = true)", &GraphicsDeviceGetQueryData1);
+				VGraphicsDevice->SetMethodEx("bool get_query_data(visibility_query@+, bool &out, bool = true)", &GraphicsDeviceGetQueryData2);
 				VGraphicsDevice->SetMethod("void query_begin(visibility_query@+)", &Graphics::GraphicsDevice::QueryBegin);
 				VGraphicsDevice->SetMethod("void query_end(visibility_query@+)", &Graphics::GraphicsDevice::QueryEnd);
 				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture2D*>("void generate_mips(texture_2d@+)", &Graphics::GraphicsDevice::GenerateMips);
@@ -14798,36 +15516,36 @@ namespace Vitex
 				VGraphicsDevice->SetMethod("void im_texcoord_offset(float, float)", &Graphics::GraphicsDevice::ImTexCoordOffset);
 				VGraphicsDevice->SetMethod("void im_position(float, float, float)", &Graphics::GraphicsDevice::ImPosition);
 				VGraphicsDevice->SetMethod("bool im_end()", &Graphics::GraphicsDevice::ImEnd);
-				VGraphicsDevice->SetMethod("bool submit()", &Graphics::GraphicsDevice::Submit);
-				VGraphicsDevice->SetMethod("depth_stencil_state@ create_depth_stencil_state(const depth_stencil_state_desc &in)", &Graphics::GraphicsDevice::CreateDepthStencilState);
-				VGraphicsDevice->SetMethod("blend_state@ create_blend_state(const blend_state_desc &in)", &Graphics::GraphicsDevice::CreateBlendState);
-				VGraphicsDevice->SetMethod("rasterizer_state@ create_rasterizer_state(const rasterizer_state_desc &in)", &Graphics::GraphicsDevice::CreateRasterizerState);
-				VGraphicsDevice->SetMethod("sampler_state@ create_sampler_state(const sampler_state_desc &in)", &Graphics::GraphicsDevice::CreateSamplerState);
-				VGraphicsDevice->SetMethod("input_layout@ create_input_layout(const input_layout_desc &in)", &Graphics::GraphicsDevice::CreateInputLayout);
-				VGraphicsDevice->SetMethod("shader@ create_shader(const shader_desc &in)", &Graphics::GraphicsDevice::CreateShader);
-				VGraphicsDevice->SetMethod("element_buffer@ create_element_buffer(const element_buffer_desc &in)", &Graphics::GraphicsDevice::CreateElementBuffer);
+				VGraphicsDevice->SetMethodEx("bool submit()", &VI_EXPECTIFY_VOID(Graphics::GraphicsDevice::Submit));
+				VGraphicsDevice->SetMethodEx("depth_stencil_state@ create_depth_stencil_state(const depth_stencil_state_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateDepthStencilState));
+				VGraphicsDevice->SetMethodEx("blend_state@ create_blend_state(const blend_state_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateBlendState));
+				VGraphicsDevice->SetMethodEx("rasterizer_state@ create_rasterizer_state(const rasterizer_state_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateRasterizerState));
+				VGraphicsDevice->SetMethodEx("sampler_state@ create_sampler_state(const sampler_state_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateSamplerState));
+				VGraphicsDevice->SetMethodEx("input_layout@ create_input_layout(const input_layout_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateInputLayout));
+				VGraphicsDevice->SetMethodEx("shader@ create_shader(const shader_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateShader));
+				VGraphicsDevice->SetMethodEx("element_buffer@ create_element_buffer(const element_buffer_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateElementBuffer));
 				VGraphicsDevice->SetMethodEx("mesh_buffer@ create_mesh_buffer(const mesh_buffer_desc &in)", &GraphicsDeviceCreateMeshBuffer1);
 				VGraphicsDevice->SetMethodEx("mesh_buffer@ create_mesh_buffer(element_buffer@+, element_buffer@+)", &GraphicsDeviceCreateMeshBuffer2);
 				VGraphicsDevice->SetMethodEx("skin_mesh_buffer@ create_skin_mesh_buffer(const skin_mesh_buffer_desc &in)", &GraphicsDeviceCreateSkinMeshBuffer1);
 				VGraphicsDevice->SetMethodEx("skin_mesh_buffer@ create_skin_mesh_buffer(element_buffer@+, element_buffer@+)", &GraphicsDeviceCreateSkinMeshBuffer2);
 				VGraphicsDevice->SetMethodEx("instance_buffer@ create_instance_buffer(const instance_buffer_desc &in)", &GraphicsDeviceCreateInstanceBuffer);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*>("texture_2d@ create_texture_2d()", &Graphics::GraphicsDevice::CreateTexture2D);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*, const Graphics::Texture2D::Desc&>("texture_2d@ create_texture_2d(const texture_2d_desc &in)", &Graphics::GraphicsDevice::CreateTexture2D);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::Texture3D*>("texture_3d@ create_texture_3d()", &Graphics::GraphicsDevice::CreateTexture3D);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::Texture3D*, const Graphics::Texture3D::Desc&>("texture_3d@ create_texture_3d(const texture_3d_desc &in)", &Graphics::GraphicsDevice::CreateTexture3D);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::TextureCube*>("texture_cube@ create_texture_cube()", &Graphics::GraphicsDevice::CreateTextureCube);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::TextureCube*, const Graphics::TextureCube::Desc&>("texture_cube@ create_texture_cube(const texture_cube_desc &in)", &Graphics::GraphicsDevice::CreateTextureCube);
-				VGraphicsDevice->SetMethodEx("texture_cube@ create_texture_cube(array<texture_2d@>@+)", &GraphicsDeviceCreateTextureCube);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, Graphics::TextureCube*, Graphics::Texture2D*>("texture_cube@ create_texture_cube(texture_2d@+)", &Graphics::GraphicsDevice::CreateTextureCube);
-				VGraphicsDevice->SetMethod("depth_target_2d@ create_depth_target_2d(const depth_target_2d_desc &in)", &Graphics::GraphicsDevice::CreateDepthTarget2D);
-				VGraphicsDevice->SetMethod("depth_target_cube@ create_depth_target_cube(const depth_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateDepthTargetCube);
-				VGraphicsDevice->SetMethod("render_target_2d@ create_render_target_2d(const render_target_2d_desc &in)", &Graphics::GraphicsDevice::CreateRenderTarget2D);
-				VGraphicsDevice->SetMethod("multi_render_target_2d@ create_multi_render_target_2d(const multi_render_target_2d_desc &in)", &Graphics::GraphicsDevice::CreateMultiRenderTarget2D);
-				VGraphicsDevice->SetMethod("render_target_cube@ create_render_target_cube(const render_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateRenderTargetCube);
-				VGraphicsDevice->SetMethod("multi_render_target_cube@ create_multi_render_target_cube(const multi_render_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateMultiRenderTargetCube);
-				VGraphicsDevice->SetMethod("cubemap@ create_cubemap(const cubemap_desc &in)", &Graphics::GraphicsDevice::CreateCubemap);
-				VGraphicsDevice->SetMethod("visibility_query@ create_query(const visibility_query_desc &in)", &Graphics::GraphicsDevice::CreateQuery);
-				VGraphicsDevice->SetMethod("activity_surface@ create_surface(texture_2d@+)", &Graphics::GraphicsDevice::CreateSurface);
+				VGraphicsDevice->SetMethodEx("texture_2d@ create_texture_2d()", &GraphicsDeviceCreateTexture2D1);
+				VGraphicsDevice->SetMethodEx("texture_2d@ create_texture_2d(const texture_2d_desc &in)", &GraphicsDeviceCreateTexture2D2);
+				VGraphicsDevice->SetMethodEx("texture_3d@ create_texture_3d()", &GraphicsDeviceCreateTexture3D1);
+				VGraphicsDevice->SetMethodEx("texture_3d@ create_texture_3d(const texture_3d_desc &in)", &GraphicsDeviceCreateTexture3D2);
+				VGraphicsDevice->SetMethodEx("texture_cube@ create_texture_cube()", &GraphicsDeviceCreateTextureCube1);
+				VGraphicsDevice->SetMethodEx("texture_cube@ create_texture_cube(const texture_cube_desc &in)", &GraphicsDeviceCreateTextureCube2);
+				VGraphicsDevice->SetMethodEx("texture_cube@ create_texture_cube(array<texture_2d@>@+)", &GraphicsDeviceCreateTextureCube3);
+				VGraphicsDevice->SetMethodEx("texture_cube@ create_texture_cube(texture_2d@+)", &GraphicsDeviceCreateTextureCube4);
+				VGraphicsDevice->SetMethodEx("depth_target_2d@ create_depth_target_2d(const depth_target_2d_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateDepthTarget2D));
+				VGraphicsDevice->SetMethodEx("depth_target_cube@ create_depth_target_cube(const depth_target_cube_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateDepthTargetCube));
+				VGraphicsDevice->SetMethodEx("render_target_2d@ create_render_target_2d(const render_target_2d_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateRenderTarget2D));
+				VGraphicsDevice->SetMethodEx("multi_render_target_2d@ create_multi_render_target_2d(const multi_render_target_2d_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateMultiRenderTarget2D));
+				VGraphicsDevice->SetMethodEx("render_target_cube@ create_render_target_cube(const render_target_cube_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateRenderTargetCube));
+				VGraphicsDevice->SetMethodEx("multi_render_target_cube@ create_multi_render_target_cube(const multi_render_target_cube_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateMultiRenderTargetCube));
+				VGraphicsDevice->SetMethodEx("cubemap@ create_cubemap(const cubemap_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateCubemap));
+				VGraphicsDevice->SetMethodEx("visibility_query@ create_query(const visibility_query_desc &in)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateQuery));
+				VGraphicsDevice->SetMethodEx("activity_surface@ create_surface(texture_2d@+)", &VI_EXPECTIFY(Graphics::GraphicsDevice::CreateSurface));
 				VGraphicsDevice->SetMethod("primitive_topology get_primitive_topology() const", &Graphics::GraphicsDevice::GetPrimitiveTopology);
 				VGraphicsDevice->SetMethod("shader_model get_supported_shader_model()  const", &Graphics::GraphicsDevice::GetSupportedShaderModel);
 				VGraphicsDevice->SetMethod("uptr@ get_device() const", &Graphics::GraphicsDevice::GetDevice);
@@ -14840,7 +15558,7 @@ namespace Vitex
 				VGraphicsDevice->SetMethod("bool transpile(string &out, shader_type, shader_lang)", &Graphics::GraphicsDevice::Transpile);
 				VGraphicsDevice->SetMethod("bool add_section(const string &in, const string &in)", &Graphics::GraphicsDevice::AddSection);
 				VGraphicsDevice->SetMethod("bool remove_section(const string &in)", &Graphics::GraphicsDevice::RemoveSection);
-				VGraphicsDevice->SetMethod<Graphics::GraphicsDevice, bool, const Core::String&, Graphics::Shader::Desc*>("bool get_section(const string &in, shader_desc &out)", &Graphics::GraphicsDevice::GetSection);
+				VGraphicsDevice->SetMethod("bool get_section_data(const string &in, shader_desc &out)", &Graphics::GraphicsDevice::GetSectionData);
 				VGraphicsDevice->SetMethod("bool is_left_handed() const", &Graphics::GraphicsDevice::IsLeftHanded);
 				VGraphicsDevice->SetMethod("string get_shader_main(shader_type) const", &Graphics::GraphicsDevice::GetShaderMain);
 				VGraphicsDevice->SetMethod("depth_stencil_state@+ get_depth_stencil_state(const string &in)", &Graphics::GraphicsDevice::GetDepthStencilState);
@@ -15450,7 +16168,7 @@ namespace Vitex
 				VWebSocketFrame->SetMethodEx("bool set_on_receive(data_event@+)", &WebSocketFrameSetOnReceive);
 				VWebSocketFrame->SetMethodEx("promise<bool>@ send(const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend1, TypeId::BOOL));
 				VWebSocketFrame->SetMethodEx("promise<bool>@ send(uint32, const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend2, TypeId::BOOL));
-				VWebSocketFrame->SetMethod("void finish()", &Network::HTTP::WebSocketFrame::Finish);
+				VWebSocketFrame->SetMethodEx("bool finish()", &VI_EXPECTIFY_VOID(Network::HTTP::WebSocketFrame::Finish));
 				VWebSocketFrame->SetMethod("void next()", &Network::HTTP::WebSocketFrame::Next);
 				VWebSocketFrame->SetMethod("bool is_finished() const", &Network::HTTP::WebSocketFrame::IsFinished);
 				VWebSocketFrame->SetMethod("socket@+ get_stream() const", &Network::HTTP::WebSocketFrame::GetStream);
@@ -15570,9 +16288,9 @@ namespace Vitex
 				VSession->SetProperty<Network::HTTP::Session>("int64 session_expires", &Network::HTTP::Session::SessionExpires);
 				VSession->SetConstructor<Network::HTTP::Session>("session@ f()");
 				VSession->SetMethod("void clear()", &Network::HTTP::Session::Clear);
-				VSession->SetMethod("bool write(connection@+)", &Network::HTTP::Session::Write);
-				VSession->SetMethod("bool read(connection@+)", &Network::HTTP::Session::Read);
-				VSession->SetMethodStatic("bool invalidate_cache(const string&in)", &Network::HTTP::Session::InvalidateCache);
+				VSession->SetMethodEx("bool write(connection@+)", &VI_EXPECTIFY_VOID(Network::HTTP::Session::Write));
+				VSession->SetMethodEx("bool read(connection@+)", &VI_EXPECTIFY_VOID(Network::HTTP::Session::Read));
+				VSession->SetMethodStatic("bool invalidate_cache(const string&in)", &VI_SEXPECTIFY_VOID(Network::HTTP::Session::InvalidateCache));
 				VSession->SetMethodEx("void set_data(schema@+)", &SessionSetData);
 				VSession->SetMethodEx("schema@+ get_data()", &SessionGetData);
 
@@ -15607,7 +16325,7 @@ namespace Vitex
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
 				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
-				VClient->SetMethodEx("promise<bool>@ consume(usize = 65536)", &VI_PROMISIFY(Network::HTTP::Client::Consume, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ download(usize = 65536)", &VI_SPROMISIFY(ClientDownload, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientFetch, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(ClientUpgrade, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
@@ -15820,15 +16538,15 @@ namespace Vitex
 				VCluster->SetMethodEx("void set_function(const string&in, uint8, constant_event@)", &LDBClusterSetFunction);
 				VCluster->SetMethodEx("void set_aggregate_function(const string&in, uint8, step_event@, finalize_event@)", &LDBClusterSetAggregateFunction);
 				VCluster->SetMethodEx("void set_window_function(const string&in, uint8, step_event@, inverse_event@, value_event@, finalize_event@)", &LDBClusterSetWindowFunction);
-				VCluster->SetMethodEx("promise<uptr@>@ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::LDB::Cluster::TxBegin, Connection));
-				VCluster->SetMethodEx("promise<uptr@>@ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::LDB::Cluster::TxStart, Connection));
-				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxEnd, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ tx_commit(uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxCommit, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ tx_rollback(uptr@)", &VI_PROMISIFY(Network::LDB::Cluster::TxRollback, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ connect(const string&in, usize = 1)", &VI_PROMISIFY(Network::LDB::Cluster::Connect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::LDB::Cluster::Disconnect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ flush()", &VI_PROMISIFY(Network::LDB::Cluster::Flush, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, uptr@ = null)", &VI_PROMISIFY_REF(Network::LDB::Cluster::Query, Cursor));
+				VCluster->SetMethodEx("promise<uptr@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(LDBClusterTxBegin, Connection));
+				VCluster->SetMethodEx("promise<uptr@>@ tx_start(const string&in)", &VI_SPROMISIFY_REF(LDBClusterTxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, uptr@)", &VI_SPROMISIFY(LDBClusterTxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_commit(uptr@)", &VI_SPROMISIFY(LDBClusterTxCommit, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_rollback(uptr@)", &VI_SPROMISIFY(LDBClusterTxRollback, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(const string&in, usize = 1)", &VI_SPROMISIFY(LDBClusterConnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(LDBClusterDisconnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ flush()", &VI_SPROMISIFY(LDBClusterFlush, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterQuery, Cursor));
 				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterEmplaceQuery, Cursor));
 				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterTemplateQuery, Cursor));
 
@@ -15836,9 +16554,9 @@ namespace Vitex
 				VDriver->SetFunctionDef("void query_event(const string&in)");
 				VDriver->SetConstructor<Network::LDB::Driver>("driver@ f()");
 				VDriver->SetMethod("void log_query(const string&in)", &Network::LDB::Driver::LogQuery);
-				VDriver->SetMethod("bool add_constant(const string&in, const string&in)", &Network::LDB::Driver::AddConstant);
-				VDriver->SetMethod<Network::LDB::Driver, bool, const Core::String&, const Core::String&>("bool add_query(const string&in, const string&in)", &Network::LDB::Driver::AddQuery);
-				VDriver->SetMethod("bool add_directory(const string&in, const string&in = \"\")", &Network::LDB::Driver::AddDirectory);
+				VDriver->SetMethod("void add_constant(const string&in, const string&in)", &Network::LDB::Driver::AddConstant);
+				VDriver->SetMethodEx("bool add_query(const string&in, const string&in)", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddQuery));
+				VDriver->SetMethodEx("bool add_directory(const string&in, const string&in = \"\")", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddDirectory));
 				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::LDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string&in)", &Network::LDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::LDB::Driver::LoadCacheDump);
@@ -15851,7 +16569,7 @@ namespace Vitex
 
 				VM->EndNamespace();
 				VM->BeginNamespace("ldb::utils");
-				VM->SetFunction("string inline_array(schema@+)", &Network::LDB::Utils::InlineArray);
+				VM->SetFunction("string inline_array(schema@+)", &VI_SEXPECTIFY(Network::LDB::Utils::InlineArray));
 				VM->SetFunction("string inline_query(schema@+, dictionary@+, const string&in = \"TRUE\")", &LDBUtilsInlineQuery);
 				VM->SetFunction("string get_char_array(const string&in)", &Network::LDB::Utils::GetCharArray);
 				VM->SetFunction<Core::String(*)(const Core::String&)>("string get_byte_array(const string&in)", &Network::LDB::Utils::GetByteArray);
@@ -16014,11 +16732,11 @@ namespace Vitex
 
 				auto VAddress = VM->SetStructTrivial<Network::PDB::Address>("host_address");
 				VAddress->SetConstructor<Network::PDB::Address>("void f()");
-				VAddress->SetConstructor<Network::PDB::Address, const Core::String&>("void f(const string&in)");
 				VAddress->SetMethod("void override(const string&in, const string&in)", &Network::PDB::Address::Override);
 				VAddress->SetMethod("bool set(address_op, const string&in)", &Network::PDB::Address::Set);
 				VAddress->SetMethod<Network::PDB::Address, Core::String, Network::PDB::AddressOp>("string get(address_op) const", &Network::PDB::Address::Get);
 				VAddress->SetMethod("string get_address() const", &Network::PDB::Address::GetAddress);
+				VAddress->SetMethodStatic("host_address from_uri(const string&in)", &VI_SEXPECTIFY(Network::PDB::Address::FromURI));
 
 				auto VNotify = VM->SetStructTrivial<Network::PDB::Notify>("notify");
 				VNotify->SetConstructor<Network::PDB::Notify, const Network::PDB::Notify&>("void f(const notify&in)");
@@ -16133,14 +16851,14 @@ namespace Vitex
 				VCluster->SetMethod("connection@+ get_connection(query_state)", &Network::PDB::Cluster::GetConnection);
 				VCluster->SetMethod("connection@+ get_any_connection()", &Network::PDB::Cluster::GetAnyConnection);
 				VCluster->SetMethod("bool is_connected() const", &Network::PDB::Cluster::IsConnected);
-				VCluster->SetMethodEx("promise<connection@>@ tx_begin(isolation)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxBegin, Connection));
-				VCluster->SetMethodEx("promise<connection@>@ tx_start(const string&in)", &VI_PROMISIFY_REF(Network::PDB::Cluster::TxStart, Connection));
-				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxEnd, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ tx_commit(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxCommit, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ tx_rollback(connection@+)", &VI_PROMISIFY(Network::PDB::Cluster::TxRollback, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_PROMISIFY(Network::PDB::Cluster::Connect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::PDB::Cluster::Disconnect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, connection@+ = null)", &VI_PROMISIFY_REF(Network::PDB::Cluster::Query, Cursor));
+				VCluster->SetMethodEx("promise<connection@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(PDBClusterTxBegin, Connection));
+				VCluster->SetMethodEx("promise<connection@>@ tx_start(const string&in)", &VI_SPROMISIFY_REF(PDBClusterTxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, connection@+)", &VI_SPROMISIFY(PDBClusterTxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_commit(connection@+)", &VI_SPROMISIFY(PDBClusterTxCommit, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ tx_rollback(connection@+)", &VI_SPROMISIFY(PDBClusterTxRollback, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_SPROMISIFY(PDBClusterConnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(PDBClusterDisconnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterQuery, Cursor));
 				VCluster->SetMethodEx("void set_when_reconnected(reconnect_event@)", &PDBClusterSetWhenReconnected);
 				VCluster->SetMethodEx("uint64 add_channel(const string&in, notification_event@)", &PDBClusterAddChannel);
 				VCluster->SetMethodEx("promise<bool>@ listen(array<string>@+)", &VI_SPROMISIFY(PDBClusterListen, TypeId::BOOL));
@@ -16152,9 +16870,9 @@ namespace Vitex
 				VDriver->SetFunctionDef("void query_event(const string&in)");
 				VDriver->SetConstructor<Network::PDB::Driver>("driver@ f()");
 				VDriver->SetMethod("void log_query(const string&in)", &Network::PDB::Driver::LogQuery);
-				VDriver->SetMethod("bool add_constant(const string&in, const string&in)", &Network::PDB::Driver::AddConstant);
-				VDriver->SetMethod<Network::PDB::Driver, bool, const Core::String&, const Core::String&>("bool add_query(const string&in, const string&in)", &Network::PDB::Driver::AddQuery);
-				VDriver->SetMethod("bool add_directory(const string&in, const string&in = \"\")", &Network::PDB::Driver::AddDirectory);
+				VDriver->SetMethod("void add_constant(const string&in, const string&in)", &Network::PDB::Driver::AddConstant);
+				VDriver->SetMethodEx("bool add_query(const string&in, const string&in)", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddQuery));
+				VDriver->SetMethodEx("bool add_directory(const string&in, const string&in = \"\")", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddDirectory));
 				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::PDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string&in)", &Network::PDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::PDB::Driver::LoadCacheDump);
@@ -16167,7 +16885,7 @@ namespace Vitex
 
 				VM->EndNamespace();
 				VM->BeginNamespace("pdb::utils");
-				VM->SetFunction("string inline_array(pdb::cluster@+, schema@+)", &Network::PDB::Utils::InlineArray);
+				VM->SetFunction("string inline_array(pdb::cluster@+, schema@+)", &VI_SEXPECTIFY(Network::PDB::Utils::InlineArray));
 				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, dictionary@+, const string&in = \"TRUE\")", &PDBUtilsInlineQuery);
 				VM->SetFunction("string get_char_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetCharArray);
 				VM->SetFunction<Core::String(*)(Network::PDB::Connection*, const Core::String&)>("string get_byte_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetByteArray);
@@ -16272,7 +16990,7 @@ namespace Vitex
 				VDocument->SetMethod("doc_property opIndex(const string&in) const", &Network::MDB::Document::At);
 				VDocument->SetMethodStatic("document from_empty()", &Network::MDB::Document::FromEmpty);
 				VDocument->SetMethodStatic("document from_schema(schema@+)", &Network::MDB::Document::FromSchema);
-				VDocument->SetMethodStatic("document from_json(const string&in)", &Network::MDB::Document::FromJSON);
+				VDocument->SetMethodStatic("document from_json(const string&in)", &VI_SEXPECTIFY(Network::MDB::Document::FromJSON));
 
 				auto VAddress = VM->SetStruct<Network::MDB::Address>("host_address");
 				VAddress->SetConstructor<Network::MDB::Address>("void f()");
@@ -16288,24 +17006,24 @@ namespace Vitex
 				VAddress->SetMethod("void set_database(const string&in)", &Network::MDB::Address::SetDatabase);
 				VAddress->SetMethod("void set_username(const string&in)", &Network::MDB::Address::SetUsername);
 				VAddress->SetMethod("void set_password(const string&in)", &Network::MDB::Address::SetPassword);
-				VAddress->SetMethodStatic("host_address from_uri(const string&in)", &Network::MDB::Address::FromURI);
+				VAddress->SetMethodStatic("host_address from_uri(const string&in)", &VI_SEXPECTIFY(Network::MDB::Address::FromURI));
 
 				auto VStream = VM->SetStruct<Network::MDB::Stream>("stream");
 				VStream->SetConstructor<Network::MDB::Stream>("void f()");
 				VStream->SetOperatorMoveCopy<Network::MDB::Stream>();
 				VStream->SetDestructor<Network::MDB::Stream>("void f()");
 				VStream->SetMethod("bool is_valid() const", &Network::MDB::Stream::operator bool);
-				VStream->SetMethod("bool remove_many(const document&in, const document&in)", &Network::MDB::Stream::RemoveMany);
-				VStream->SetMethod("bool remove_one(const document&in, const document&in)", &Network::MDB::Stream::RemoveOne);
-				VStream->SetMethod("bool replace_one(const document&in, const document&in, const document&in)", &Network::MDB::Stream::ReplaceOne);
-				VStream->SetMethod("bool insert_one(const document&in, const document&in)", &Network::MDB::Stream::InsertOne);
-				VStream->SetMethod("bool update_one(const document&in, const document&in, const document&in)", &Network::MDB::Stream::UpdateOne);
-				VStream->SetMethod("bool update_many(const document&in, const document&in, const document&in)", &Network::MDB::Stream::UpdateMany);
-				VStream->SetMethod("bool query(const document&in)", &Network::MDB::Stream::Query);
+				VStream->SetMethodEx("bool remove_many(const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::RemoveMany));
+				VStream->SetMethodEx("bool remove_one(const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::RemoveOne));
+				VStream->SetMethodEx("bool replace_one(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::ReplaceOne));
+				VStream->SetMethodEx("bool insert_one(const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::InsertOne));
+				VStream->SetMethodEx("bool update_one(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::UpdateOne));
+				VStream->SetMethodEx("bool update_many(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::UpdateMany));
+				VStream->SetMethodEx("bool query(const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::Query));
 				VStream->SetMethod("usize get_hint() const", &Network::MDB::Stream::GetHint);
 				VStream->SetMethodEx("bool template_query(const string&in, dictionary@+)", &MDBStreamTemplateQuery);
-				VStream->SetMethodEx("promise<document>@ execute_with_reply()", &VI_PROMISIFY_REF(Network::MDB::Stream::ExecuteWithReply, Document));
-				VStream->SetMethodEx("promise<bool>@ execute()", &VI_PROMISIFY(Network::MDB::Stream::Execute, TypeId::BOOL));
+				VStream->SetMethodEx("promise<document>@ execute_with_reply()", &VI_SPROMISIFY_REF(MDBStreamExecuteWithReply, Document));
+				VStream->SetMethodEx("promise<bool>@ execute()", &VI_SPROMISIFY(MDBStreamExecute, TypeId::BOOL));
 
 				auto VCursor = VM->SetStruct<Network::MDB::Cursor>("cursor");
 				VCursor->SetConstructor<Network::MDB::Cursor>("void f()");
@@ -16316,8 +17034,8 @@ namespace Vitex
 				VCursor->SetMethod("void set_batch_size(usize)", &Network::MDB::Cursor::SetBatchSize);
 				VCursor->SetMethod("void set_limit(int64)", &Network::MDB::Cursor::SetLimit);
 				VCursor->SetMethod("void set_hint(usize)", &Network::MDB::Cursor::SetHint);
+				VCursor->SetMethodEx("string error() const", &MDBCursorError);
 				VCursor->SetMethod("bool empty() const", &Network::MDB::Cursor::Empty);
-				VCursor->SetMethod("bool error() const", &Network::MDB::Cursor::Error);
 				VCursor->SetMethod("bool error_or_empty() const", &Network::MDB::Cursor::ErrorOrEmpty);
 				VCursor->SetMethod("int64 get_id() const", &Network::MDB::Cursor::GetId);
 				VCursor->SetMethod("int64 get_limit() const", &Network::MDB::Cursor::GetLimit);
@@ -16326,7 +17044,7 @@ namespace Vitex
 				VCursor->SetMethod("usize get_hint() const", &Network::MDB::Cursor::GetHint);
 				VCursor->SetMethod("usize current() const", &Network::MDB::Cursor::Current);
 				VCursor->SetMethod("cursor clone() const", &Network::MDB::Cursor::Clone);
-				VCursor->SetMethodEx("promise<bool>@ next() const", &VI_PROMISIFY(Network::MDB::Cursor::Next, TypeId::BOOL));
+				VCursor->SetMethodEx("promise<bool>@ next() const", &VI_SPROMISIFY(MDBCursorNext, TypeId::BOOL));
 
 				auto VResponse = VM->SetStruct<Network::MDB::Response>("response");
 				VResponse->SetConstructor<Network::MDB::Response>("void f()");
@@ -16339,10 +17057,10 @@ namespace Vitex
 				VResponse->SetMethod("bool success() const", &Network::MDB::Response::Success);
 				VResponse->SetMethod("cursor& get_cursor() const", &Network::MDB::Response::GetCursor);
 				VResponse->SetMethod("document& get_document() const", &Network::MDB::Response::GetDocument);
-				VResponse->SetMethodEx("promise<schema@>@ fetch() const", &VI_PROMISIFY_REF(Network::MDB::Response::Fetch, Schema));
-				VResponse->SetMethodEx("promise<schema@>@ fetch_all() const", &VI_PROMISIFY_REF(Network::MDB::Response::FetchAll, Schema));
-				VResponse->SetMethodEx("promise<doc_property>@ get_property(const string&in) const", &VI_PROMISIFY_REF(Network::MDB::Response::GetProperty, Property));
-				VResponse->SetMethodEx("promise<doc_property>@ opIndex(const string&in) const", &VI_PROMISIFY_REF(Network::MDB::Response::GetProperty, Property));
+				VResponse->SetMethodEx("promise<schema@>@ fetch() const", &VI_SPROMISIFY_REF(MDBResponseFetch, Schema));
+				VResponse->SetMethodEx("promise<schema@>@ fetch_all() const", &VI_SPROMISIFY_REF(MDBResponseFetchAll, Schema));
+				VResponse->SetMethodEx("promise<doc_property>@ get_property(const string&in) const", &VI_SPROMISIFY_REF(MDBResponseGetProperty, Property));
+				VResponse->SetMethodEx("promise<doc_property>@ opIndex(const string&in) const", &VI_SPROMISIFY_REF(MDBResponseGetProperty, Property));
 
 				auto VCollection = VM->SetStruct<Network::MDB::Collection>("collection");
 				auto VTransaction = VM->SetStruct<Network::MDB::Transaction>("transaction");
@@ -16351,43 +17069,43 @@ namespace Vitex
 				VTransaction->SetOperatorCopy<Network::MDB::Transaction>();
 				VTransaction->SetDestructor<Network::MDB::Transaction>("void f()");
 				VTransaction->SetMethod("bool is_valid() const", &Network::MDB::Transaction::operator bool);
-				VTransaction->SetMethod("bool push(document&in) const", &Network::MDB::Transaction::Push);
-				VTransaction->SetMethodEx("promise<bool>@ begin()", &VI_PROMISIFY(Network::MDB::Transaction::Begin, TypeId::BOOL));
-				VTransaction->SetMethodEx("promise<bool>@ rollback()", &VI_PROMISIFY(Network::MDB::Transaction::Rollback, TypeId::BOOL));
-				VTransaction->SetMethodEx("promise<document>@ remove_many(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::RemoveMany, Document));
-				VTransaction->SetMethodEx("promise<document>@ remove_one(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::RemoveOne, Document));
-				VTransaction->SetMethodEx("promise<document>@ replace_one(collection&in, const document&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::ReplaceOne, Document));
+				VTransaction->SetMethodEx("bool push(document&in) const", &VI_EXPECTIFY_VOID(Network::MDB::Transaction::Push));
+				VTransaction->SetMethodEx("promise<bool>@ begin()", &VI_SPROMISIFY(MDBTransactionBegin, TypeId::BOOL));
+				VTransaction->SetMethodEx("promise<bool>@ rollback()", &VI_SPROMISIFY(MDBTransactionRollback, TypeId::BOOL));
+				VTransaction->SetMethodEx("promise<document>@ remove_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionRemoveMany, Document));
+				VTransaction->SetMethodEx("promise<document>@ remove_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionRemoveOne, Document));
+				VTransaction->SetMethodEx("promise<document>@ replace_one(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionReplaceOne, Document));
 				VTransaction->SetMethodEx("promise<document>@ insert_many(collection&in, array<document>@+, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionInsertMany, Document));
-				VTransaction->SetMethodEx("promise<document>@ insert_one(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::InsertOne, Document));
-				VTransaction->SetMethodEx("promise<document>@ update_many(collection&in, const document&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::UpdateMany, Document));
-				VTransaction->SetMethodEx("promise<document>@ update_one(collection&in, const document&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::UpdateOne, Document));
-				VTransaction->SetMethodEx("promise<cursor>@ find_many(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::FindMany, Cursor));
-				VTransaction->SetMethodEx("promise<cursor>@ find_one(collection&in, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::FindOne, Cursor));
-				VTransaction->SetMethodEx("promise<cursor>@ aggregate(collection&in, query_flags, const document&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::Aggregate, Cursor));
+				VTransaction->SetMethodEx("promise<document>@ insert_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionInsertOne, Document));
+				VTransaction->SetMethodEx("promise<document>@ update_many(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionUpdateMany, Document));
+				VTransaction->SetMethodEx("promise<document>@ update_one(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionUpdateOne, Document));
+				VTransaction->SetMethodEx("promise<cursor>@ find_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionFindMany, Cursor));
+				VTransaction->SetMethodEx("promise<cursor>@ find_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionFindOne, Cursor));
+				VTransaction->SetMethodEx("promise<cursor>@ aggregate(collection&in, query_flags, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionAggregate, Cursor));
 				VTransaction->SetMethodEx("promise<response>@ template_query(collection&in, const string&in, dictionary@+)", &VI_SPROMISIFY_REF(MDBTransactionTemplateQuery, Response));
-				VTransaction->SetMethodEx("promise<response>@ query(collection&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Transaction::Query, Response));
-				VTransaction->SetMethodEx("promise<transaction_state>@ commit()", &VI_PROMISIFY_REF(Network::MDB::Transaction::Commit, TransactionState));
+				VTransaction->SetMethodEx("promise<response>@ query(collection&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionQuery, Response));
+				VTransaction->SetMethodEx("promise<transaction_state>@ commit()", &VI_SPROMISIFY_REF(MDBTransactionCommit, TransactionState));
 
 				VCollection->SetConstructor<Network::MDB::Collection>("void f()");
 				VCollection->SetOperatorMoveCopy<Network::MDB::Collection>();
 				VCollection->SetDestructor<Network::MDB::Collection>("void f()");
 				VCollection->SetMethod("bool is_valid() const", &Network::MDB::Collection::operator bool);
 				VCollection->SetMethod("string get_name() const", &Network::MDB::Collection::GetName);
-				VCollection->SetMethod("stream create_stream(document&in) const", &Network::MDB::Collection::CreateStream);
-				VCollection->SetMethodEx("promise<bool>@ rename(const string&in, const string&in) const", &VI_PROMISIFY(Network::MDB::Collection::Rename, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ rename_with_options(const string&in, const string&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::RenameWithOptions, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ rename_with_remove(const string&in, const string&in) const", &VI_PROMISIFY(Network::MDB::Collection::RenameWithRemove, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ rename_with_options_and_remove(const string&in, const string&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::RenameWithOptionsAndRemove, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ remove(const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::Remove, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ remove_index(const string&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::Remove, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<document>@ remove_many(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::RemoveMany, Document));
-				VCollection->SetMethodEx("promise<document>@ remove_one(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::RemoveOne, Document));
-				VCollection->SetMethodEx("promise<document>@ replace_one(const document&in, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::ReplaceOne, Document));
+				VCollection->SetMethodEx("stream create_stream(document&in) const", &VI_EXPECTIFY(Network::MDB::Collection::CreateStream));
+				VCollection->SetMethodEx("promise<bool>@ rename(const string&in, const string&in) const", &VI_SPROMISIFY(MDBCollectionRename, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_options(const string&in, const string&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithOptions, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_remove(const string&in, const string&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_options_and_remove(const string&in, const string&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithOptionsAndRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ remove(const document&in) const", &VI_SPROMISIFY(MDBCollectionRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ remove_index(const string&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRemoveIndex, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<document>@ remove_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionRemoveMany, Document));
+				VCollection->SetMethodEx("promise<document>@ remove_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionRemoveOne, Document));
+				VCollection->SetMethodEx("promise<document>@ replace_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionReplaceOne, Document));
 				VCollection->SetMethodEx("promise<document>@ insert_many(array<document>@+, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionInsertMany, Document));
-				VCollection->SetMethodEx("promise<document>@ insert_one(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::InsertOne, Document));
-				VCollection->SetMethodEx("promise<document>@ update_many(const document&in, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::UpdateMany, Document));
-				VCollection->SetMethodEx("promise<document>@ update_one(const document&in, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::UpdateOne, Document));
-				VCollection->SetMethodEx("promise<document>@ find_and_modify(const document&in, const document&in, const document&in, const document&in, bool, bool, bool) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindAndModify, Document));
+				VCollection->SetMethodEx("promise<document>@ insert_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionInsertOne, Document));
+				VCollection->SetMethodEx("promise<document>@ update_many(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionUpdateMany, Document));
+				VCollection->SetMethodEx("promise<document>@ update_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionUpdateOne, Document));
+				VCollection->SetMethodEx("promise<document>@ find_and_modify(const document&in, const document&in, const document&in, const document&in, bool, bool, bool) const", &VI_SPROMISIFY_REF(MDBCollectionFindAndModify, Document));
 #ifdef VI_64
 				VCollection->SetMethodEx("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocuments, TypeId::INT64));
 				VCollection->SetMethodEx("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocumentsEstimated, TypeId::INT64));
@@ -16395,12 +17113,12 @@ namespace Vitex
 				VCollection->SetMethodEx("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocuments, TypeId::INT32));
 				VCollection->SetMethodEx("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(Network::MDB::Collection::CountDocumentsEstimated, TypeId::INT32));
 #endif
-				VCollection->SetMethodEx("promise<cursor>@ find_indexes(const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindIndexes, Cursor));
-				VCollection->SetMethodEx("promise<cursor>@ find_many(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindMany, Cursor));
-				VCollection->SetMethodEx("promise<cursor>@ find_one(const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::FindOne, Cursor));
-				VCollection->SetMethodEx("promise<cursor>@ aggregate(query_flags, const document&in, const document&in) const", &VI_PROMISIFY_REF(Network::MDB::Collection::Aggregate, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ find_indexes(const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionFindIndexes, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ find_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionFindMany, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ find_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionFindOne, Cursor));
+				VCollection->SetMethodEx("promise<cursor>@ aggregate(query_flags, const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionAggregate, Cursor));
 				VCollection->SetMethodEx("promise<response>@ template_query(const string&in, dictionary@+, bool = true, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(MDBCollectionTemplateQuery, Response));
-				VCollection->SetMethodEx("promise<response>@ query(const string&in, const transaction&in = transaction()) const", &VI_PROMISIFY_REF(Network::MDB::Collection::Query, Response));
+				VCollection->SetMethodEx("promise<response>@ query(const document&in, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(MDBCollectionQuery, Response));
 
 				auto VDatabase = VM->SetStruct<Network::MDB::Database>("database");
 				VDatabase->SetConstructor<Network::MDB::Database>("void f()");
@@ -16409,14 +17127,14 @@ namespace Vitex
 				VDatabase->SetMethod("bool is_valid() const", &Network::MDB::Database::operator bool);
 				VDatabase->SetMethod("string get_name() const", &Network::MDB::Database::GetName);
 				VDatabase->SetMethod("collection get_collection(const string&in) const", &Network::MDB::Database::GetCollection);
-				VDatabase->SetMethodEx("promise<bool>@ remove_all_users()", &VI_PROMISIFY(Network::MDB::Database::RemoveAllUsers, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ remove_user(const string&in)", &VI_PROMISIFY(Network::MDB::Database::RemoveUser, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ remove()", &VI_PROMISIFY(Network::MDB::Database::Remove, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ remove_with_options(const document&in)", &VI_PROMISIFY(Network::MDB::Database::RemoveWithOptions, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ add_user(const string&in, const string&in, const document&in, const document&in)", &VI_PROMISIFY(Network::MDB::Database::AddUser, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ has_collection(const string&in)", &VI_PROMISIFY(Network::MDB::Database::HasCollection, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<collection>@ create_collection(const string&in, const document&in)", &VI_PROMISIFY_REF(Network::MDB::Database::CreateCollection, Collection));
-				VDatabase->SetMethodEx("promise<cursor>@ find_collections(const document&in)", &VI_PROMISIFY_REF(Network::MDB::Database::FindCollections, Cursor));
+				VDatabase->SetMethodEx("promise<bool>@ remove_all_users()", &VI_SPROMISIFY(MDBDatabaseRemoveAllUsers, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove_user(const string&in)", &VI_SPROMISIFY(MDBDatabaseRemoveUser, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove()", &VI_SPROMISIFY(MDBDatabaseRemove, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove_with_options(const document&in)", &VI_SPROMISIFY(MDBDatabaseRemoveWithOptions, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ add_user(const string&in, const string&in, const document&in, const document&in)", &VI_SPROMISIFY(MDBDatabaseAddUser, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ has_collection(const string&in)", &VI_SPROMISIFY(MDBDatabaseHasCollection, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<collection>@ create_collection(const string&in, const document&in)", &VI_SPROMISIFY_REF(MDBDatabaseCreateCollection, Collection));
+				VDatabase->SetMethodEx("promise<cursor>@ find_collections(const document&in)", &VI_SPROMISIFY_REF(MDBDatabaseFindCollections, Cursor));
 				VDatabase->SetMethodEx("array<string>@ get_collection_names(const document&in)", &MDBDatabaseGetCollectionNames);
 
 				auto VConnection = VM->SetClass<Network::MDB::Connection>("connection", false);
@@ -16425,19 +17143,19 @@ namespace Vitex
 				VWatcher->SetOperatorMoveCopy<Network::MDB::Watcher>();
 				VWatcher->SetDestructor<Network::MDB::Watcher>("void f()");
 				VWatcher->SetMethod("bool is_valid() const", &Network::MDB::Watcher::operator bool);
-				VWatcher->SetMethodEx("promise<bool>@ next(document&out)", &VI_PROMISIFY(Network::MDB::Watcher::Next, TypeId::BOOL));
-				VWatcher->SetMethodEx("promise<bool>@ error(document&out)", &VI_PROMISIFY(Network::MDB::Watcher::Error, TypeId::BOOL));
-				VWatcher->SetMethodStatic("watcher from_connection(connection@+, const document&in, const document&in)", &Network::MDB::Watcher::FromConnection);
-				VWatcher->SetMethodStatic("watcher from_database(const database&in, const document&in, const document&in)", &Network::MDB::Watcher::FromDatabase);
-				VWatcher->SetMethodStatic("watcher from_collection(const collection&in, const document&in, const document&in)", &Network::MDB::Watcher::FromCollection);
+				VWatcher->SetMethodEx("promise<bool>@ next(document&out)", &VI_SPROMISIFY(MDBWatcherNext, TypeId::BOOL));
+				VWatcher->SetMethodEx("promise<bool>@ error(document&out)", &VI_SPROMISIFY(MDBWatcherError, TypeId::BOOL));
+				VWatcher->SetMethodStatic("watcher from_connection(connection@+, const document&in, const document&in)", &VI_SEXPECTIFY(Network::MDB::Watcher::FromConnection));
+				VWatcher->SetMethodStatic("watcher from_database(const database&in, const document&in, const document&in)", &VI_SEXPECTIFY(Network::MDB::Watcher::FromDatabase));
+				VWatcher->SetMethodStatic("watcher from_collection(const collection&in, const document&in, const document&in)", &VI_SEXPECTIFY(Network::MDB::Watcher::FromCollection));
 
 				auto VCluster = VM->SetClass<Network::MDB::Cluster>("cluster", false);
 				VConnection->SetFunctionDef("promise<bool>@ transaction_event(connection@+, transaction&in)");
 				VConnection->SetFunctionDef("bool cotransaction_event(connection@+, transaction&in)");
 				VConnection->SetConstructor<Network::MDB::Connection>("connection@ f()");
 				VConnection->SetMethod("void set_profile(const string&in)", &Network::MDB::Connection::SetProfile);
-				VConnection->SetMethod("void set_server(bool)", &Network::MDB::Connection::SetServer);
-				VConnection->SetMethod("transaction& get_session()", &Network::MDB::Connection::GetSession);
+				VConnection->SetMethodEx("bool set_server(bool)", &VI_EXPECTIFY_VOID(Network::MDB::Connection::SetServer));
+				VConnection->SetMethodEx("transaction& get_session()", &VI_EXPECTIFY(Network::MDB::Connection::GetSession));
 				VConnection->SetMethod("database get_database(const string&in) const", &Network::MDB::Connection::GetDatabase);
 				VConnection->SetMethod("database get_default_database() const", &Network::MDB::Connection::GetDefaultDatabase);
 				VConnection->SetMethod("collection get_collection(const string&in, const string&in) const", &Network::MDB::Connection::GetCollection);
@@ -16445,28 +17163,27 @@ namespace Vitex
 				VConnection->SetMethod("cluster@+ get_master() const", &Network::MDB::Connection::GetMaster);
 				VConnection->SetMethod("bool connected() const", &Network::MDB::Connection::IsConnected);
 				VConnection->SetMethodEx("array<string>@ get_database_names(const document&in) const", &MDBConnectionGetDatabaseNames);
-				VConnection->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_PROMISIFY(Network::MDB::Connection::ConnectByURI, TypeId::BOOL));
-				VConnection->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_PROMISIFY(Network::MDB::Connection::Connect, TypeId::BOOL));
-				VConnection->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::MDB::Connection::Disconnect, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_SPROMISIFY(MDBConnectionConnectByURI, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(MDBConnectionConnect, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(MDBConnectionDisconnect, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<bool>@ make_transaction(transaction_event@)", &VI_SPROMISIFY(MDBConnectionMakeTransaction, TypeId::BOOL));
-				VConnection->SetMethodEx("promise<bool>@ make_cotransaction(cotransaction_event@)", &VI_SPROMISIFY(MDBConnectionMakeCotransaction, TypeId::BOOL));
-				VConnection->SetMethodEx("promise<cursor>@ find_databases(const document&in)", &VI_PROMISIFY_REF(Network::MDB::Connection::FindDatabases, Cursor));
+				VConnection->SetMethodEx("promise<cursor>@ find_databases(const document&in)", &VI_SPROMISIFY_REF(MDBConnectionFindDatabases, Cursor));
 
 				VCluster->SetConstructor<Network::MDB::Cluster>("cluster@ f()");
 				VCluster->SetMethod("void set_profile(const string&in)", &Network::MDB::Cluster::SetProfile);
 				VCluster->SetMethod("host_address& get_address()", &Network::MDB::Cluster::GetAddress);
 				VCluster->SetMethod("connection@+ pop()", &Network::MDB::Cluster::Pop);
 				VCluster->SetMethodEx("void push(connection@+)", &MDBClusterPush);
-				VCluster->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_PROMISIFY(Network::MDB::Cluster::ConnectByURI, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_PROMISIFY(Network::MDB::Cluster::Connect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_PROMISIFY(Network::MDB::Cluster::Disconnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_SPROMISIFY(MDBClusterConnectByURI, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(MDBClusterConnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(MDBClusterDisconnect, TypeId::BOOL));
 
 				auto VDriver = VM->SetClass<Network::MDB::Driver>("driver", false);
 				VDriver->SetFunctionDef("void query_event(const string&in)");
 				VDriver->SetConstructor<Network::MDB::Driver>("driver@ f()");
-				VDriver->SetMethod("bool add_constant(const string&in, const string&in)", &Network::MDB::Driver::AddConstant);
-				VDriver->SetMethod<Network::MDB::Driver, bool, const Core::String&, const Core::String&>("bool add_query(const string&in, const string&in)", &Network::MDB::Driver::AddQuery);
-				VDriver->SetMethod("bool add_directory(const string&in, const string&in = \"\")", &Network::MDB::Driver::AddDirectory);
+				VDriver->SetMethod("void add_constant(const string&in, const string&in)", &Network::MDB::Driver::AddConstant);
+				VDriver->SetMethodEx("bool add_query(const string&in, const string&in)", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddQuery));
+				VDriver->SetMethodEx("bool add_directory(const string&in, const string&in = \"\")", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddDirectory));
 				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::MDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string&in)", &Network::MDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::MDB::Driver::LoadCacheDump);
@@ -16992,8 +17709,8 @@ namespace Vitex
 				VRenderSystem->SetMethod("bool try_instance(material@+, render_buffer_instance &out)", &Engine::RenderSystem::TryInstance);
 				VRenderSystem->SetMethod("bool try_geometry(material@+, bool)", &Engine::RenderSystem::TryGeometry);
 				VRenderSystem->SetMethod("bool has_category(geo_category)", &Engine::RenderSystem::HasCategory);
-				VRenderSystem->SetMethod<Engine::RenderSystem, Graphics::Shader*, Graphics::Shader::Desc&, size_t>("shader@+ compile_shader(shader_desc &in, usize = 0)", &Engine::RenderSystem::CompileShader);
-				VRenderSystem->SetMethod<Engine::RenderSystem, Graphics::Shader*, const Core::String&, size_t>("shader@+ compile_shader(const string &in, usize = 0)", &Engine::RenderSystem::CompileShader);
+				VRenderSystem->SetMethodEx("shader@+ compile_shader(shader_desc &in, usize = 0)", &RenderSystemCompileShader1);
+				VRenderSystem->SetMethodEx("shader@+ compile_shader(const string &in, usize = 0)", &RenderSystemCompileShader2);
 				VRenderSystem->SetMethodEx("array<element_buffer@>@ compile_buffers(const string &in, usize, usize)", &RenderSystemCompileBuffers);
 				VRenderSystem->SetMethodEx("bool add_renderer(base_renderer@+)", &RenderSystemAddRenderer);
 				VRenderSystem->SetMethodEx("base_renderer@+ get_renderer(uint64) const", &RenderSystemGetRenderer);
@@ -17021,7 +17738,7 @@ namespace Vitex
 
 				auto VShaderCache = VM->SetClass<Engine::ShaderCache>("shader_cache", true);
 				VShaderCache->SetGcConstructor<Engine::ShaderCache, ShaderCache, Graphics::GraphicsDevice*>("shader_cache@ f()");
-				VShaderCache->SetMethod("shader@+ compile(const string &in, const shader_desc &in, usize = 0)", &Engine::ShaderCache::Compile);
+				VShaderCache->SetMethodEx("shader@+ compile(const string &in, const shader_desc &in, usize = 0)", &VI_EXPECTIFY(Engine::ShaderCache::Compile));
 				VShaderCache->SetMethod("shader@+ get(const string &in)", &Engine::ShaderCache::Get);
 				VShaderCache->SetMethod("string find(shader@+)", &Engine::ShaderCache::Find);
 				VShaderCache->SetMethod("bool has(const string &in)", &Engine::ShaderCache::Has);
@@ -17082,7 +17799,7 @@ namespace Vitex
 				VContentManager->SetFunctionDef("void save_callback(bool)");
 				VContentManager->SetGcConstructor<Engine::ContentManager, ContentManager, Graphics::GraphicsDevice*>("content_manager@ f()");
 				VContentManager->SetMethod("void clear_cache()", &Engine::ContentManager::ClearCache);
-				VContentManager->SetMethod("void clear_dockers()", &Engine::ContentManager::ClearDockers);
+				VContentManager->SetMethod("void clear_archives()", &Engine::ContentManager::ClearArchives);
 				VContentManager->SetMethod("void clear_streams()", &Engine::ContentManager::ClearStreams);
 				VContentManager->SetMethod("void clear_processors()", &Engine::ContentManager::ClearProcessors);
 				VContentManager->SetMethod("void clear_path(const string &in)", &Engine::ContentManager::ClearPath);
@@ -17101,8 +17818,8 @@ namespace Vitex
 				VContentManager->SetMethodEx("base_processor@+ add_processor(base_processor@+, uint64)", &ContentManagerAddProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, Engine::Processor*, uint64_t>("base_processor@+ get_processor(uint64)", &Engine::ContentManager::GetProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, bool, uint64_t>("bool remove_processor(uint64)", &Engine::ContentManager::RemoveProcessor);
-				VContentManager->SetMethod("bool import_fs(const string &in)", &Engine::ContentManager::Import);
-				VContentManager->SetMethod("bool export_fs(const string &in, const string &in, const string &in = \"\")", &Engine::ContentManager::Export);
+				VContentManager->SetMethodEx("bool import_fs(const string &in)", &VI_EXPECTIFY_VOID(Engine::ContentManager::Import));
+				VContentManager->SetMethodEx("bool export_fs(const string &in, const string &in, const string &in = \"\")", &VI_EXPECTIFY_VOID(Engine::ContentManager::Export));
 				VContentManager->SetMethod("uptr@ try_to_cache(base_processor@+, const string &in, uptr@)", &Engine::ContentManager::TryToCache);
 				VContentManager->SetMethod("bool is_busy() const", &Engine::ContentManager::IsBusy);
 				VContentManager->SetMethod("graphics_device@+ get_device() const", &Engine::ContentManager::GetDevice);
@@ -18473,8 +19190,8 @@ namespace Vitex
 				VContext->SetMethod("void update_events(activity@+)", &Engine::GUI::Context::UpdateEvents);
 				VContext->SetMethod("void render_lists(texture_2d@+)", &Engine::GUI::Context::RenderLists);
 				VContext->SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
-				VContext->SetMethod("bool load_font_face(const string&in, bool = false)", &Engine::GUI::Context::LoadFontFace);
-				VContext->SetMethod<Engine::GUI::Context, bool, const Core::String&>("bool load_manifest(const string &in)", &Engine::GUI::Context::LoadManifest);
+				VContext->SetMethodEx("bool load_font_face(const string&in, bool = false)", &VI_EXPECTIFY_VOID(Engine::GUI::Context::LoadFontFace));
+				VContext->SetMethodEx("bool load_manifest(const string &in)", &VI_EXPECTIFY_VOID(Engine::GUI::Context::LoadManifest));
 				VContext->SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext->SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
 				VContext->SetMethod("bool was_input_used(uint32)", &Engine::GUI::Context::WasInputUsed);
@@ -18488,12 +19205,12 @@ namespace Vitex
 				VContext->SetMethod("void set_density_independent_pixel_ratio(float)", &Engine::GUI::Context::GetDensityIndependentPixelRatio);
 				VContext->SetMethod("float get_density_independent_pixel_ratio() const", &Engine::GUI::Context::GetDensityIndependentPixelRatio);
 				VContext->SetMethod("void enable_mouse_cursor(bool)", &Engine::GUI::Context::EnableMouseCursor);
-				VContext->SetMethod("ui_document eval_html(const string &in, int = 0)", &Engine::GUI::Context::EvalHTML);
-				VContext->SetMethod("ui_document add_css(const string &in, int = 0)", &Engine::GUI::Context::AddCSS);
-				VContext->SetMethod("ui_document load_css(const string &in, int = 0)", &Engine::GUI::Context::LoadCSS);
-				VContext->SetMethod("ui_document load_document(const string &in, bool = false)", &Engine::GUI::Context::LoadDocument);
-				VContext->SetMethod("ui_document add_document(const string &in)", &Engine::GUI::Context::AddDocument);
-				VContext->SetMethod("ui_document add_document_empty(const string &in = \"body\")", &Engine::GUI::Context::AddDocumentEmpty);
+				VContext->SetMethodEx("ui_document eval_html(const string &in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::EvalHTML));
+				VContext->SetMethodEx("ui_document add_css(const string &in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::AddCSS));
+				VContext->SetMethodEx("ui_document load_css(const string &in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::LoadCSS));
+				VContext->SetMethodEx("ui_document load_document(const string &in, bool = false)", &VI_EXPECTIFY(Engine::GUI::Context::LoadDocument));
+				VContext->SetMethodEx("ui_document add_document(const string &in)", &VI_EXPECTIFY(Engine::GUI::Context::AddDocument));
+				VContext->SetMethodEx("ui_document add_document_empty(const string &in = \"body\")", &VI_EXPECTIFY(Engine::GUI::Context::AddDocumentEmpty));
 				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const Core::String&>("ui_document get_document(const string &in)", &Engine::GUI::Context::GetDocument);
 				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, int>("ui_document get_document(int)", &Engine::GUI::Context::GetDocument);
 				VContext->SetMethod("int get_num_documents() const", &Engine::GUI::Context::GetNumDocuments);

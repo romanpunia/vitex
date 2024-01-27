@@ -209,6 +209,20 @@ namespace Vitex
 				return static_cast<InputType>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 
+			class GuiException : public Core::BasicException
+			{
+			public:
+				Core::String Info;
+
+			public:
+				VI_OUT GuiException(Core::String&& Message);
+				VI_OUT const char* type() const noexcept override;
+				VI_OUT const char* what() const noexcept override;
+			};
+
+			template <typename V>
+			using ExpectsGuiException = Core::Expects<V, GuiException>;
+
 			class VI_OUT IVariant
 			{
 			public:
@@ -647,8 +661,8 @@ namespace Vitex
 				void EnableMouseCursor(bool Enable);
 				void ClearStyles();
 				bool ClearDocuments();
-				bool LoadManifest(const Core::String& ConfPath);
-				bool LoadFontFace(const Core::String& Path, bool UseAsFallback = false);
+				ExpectsGuiException<void> LoadManifest(const Core::String& ConfPath);
+				ExpectsGuiException<void> LoadFontFace(const Core::String& Path, bool UseAsFallback = false);
 				bool IsLoading();
 				bool IsInputFocused();
 				bool WasInputUsed(uint32_t InputTypeMask);
@@ -657,12 +671,12 @@ namespace Vitex
 				void SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio);
 				float GetDensityIndependentPixelRatio() const;
 				bool ReplaceHTML(const Core::String& Selector, const Core::String& HTML, int Index = 0);
-				IElementDocument EvalHTML(const Core::String& HTML, int Index = 0);
-				IElementDocument AddCSS(const Core::String& CSS, int Index = 0);
-				IElementDocument LoadCSS(const Core::String& Path, int Index = 0);
-				IElementDocument LoadDocument(const Core::String& Path, bool AllowPreprocessing = false);
-				IElementDocument AddDocument(const Core::String& HTML);
-				IElementDocument AddDocumentEmpty(const Core::String& InstancerName = "body");
+				ExpectsGuiException<IElementDocument> EvalHTML(const Core::String& HTML, int Index = 0);
+				ExpectsGuiException<IElementDocument> AddCSS(const Core::String& CSS, int Index = 0);
+				ExpectsGuiException<IElementDocument> LoadCSS(const Core::String& Path, int Index = 0);
+				ExpectsGuiException<IElementDocument> LoadDocument(const Core::String& Path, bool AllowPreprocessing = false);
+				ExpectsGuiException<IElementDocument> AddDocument(const Core::String& HTML);
+				ExpectsGuiException<IElementDocument> AddDocumentEmpty(const Core::String& InstancerName = "body");
 				IElementDocument GetDocument(const Core::String& Id);
 				IElementDocument GetDocument(int Index);
 				IElement GetElementById(const Core::String& Id, int Index = 0);
@@ -690,8 +704,8 @@ namespace Vitex
 				Rml::Context* GetContext();
 
 			private:
-				bool LoadManifest(Core::Schema* Conf, const Core::String& Relative);
-				bool Preprocess(const Core::String& Path, Core::String& Buffer);
+				ExpectsGuiException<void> Initialize(Core::Schema* Conf, const Core::String& Relative);
+				ExpectsGuiException<void> Preprocess(const Core::String& Path, Core::String& Buffer);
 				void Decompose(Core::String& Buffer);
 				void ClearScope();
 

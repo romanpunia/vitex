@@ -1,6 +1,7 @@
 #include "effects.h"
 #include "filters.h"
 #include "../core/engine.h"
+#define ReturnErrorIf do { auto __error = AudioException(); if (__error.has_error()) return __error; else return Core::Expectation::Met; } while (0)
 
 namespace Vitex
 {
@@ -20,10 +21,7 @@ namespace Vitex
 
 				AudioFilter* Target = Core::Composer::Create<AudioFilter>(Id);
 				if (!Target)
-				{
-					VI_WARN("[audio] filter with id %" PRIu64 " cannot be created", Id);
 					return nullptr;
-				}
 
 				Core::Schema* Meta = Filter->Find("metadata");
 				if (!Meta)
@@ -35,7 +33,7 @@ namespace Vitex
 
 			Reverb::Reverb()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					EAX = (AudioContext::GetEnumValue("AL_EFFECT_EAXREVERB") != 0);
 					if (EAX)
@@ -48,7 +46,7 @@ namespace Vitex
 			Reverb::~Reverb()
 			{
 			}
-			void Reverb::Synchronize()
+			ExpectsAudio<void> Reverb::Synchronize()
 			{
 				if (EAX)
 				{
@@ -98,6 +96,7 @@ namespace Vitex
 					AudioContext::SetEffect1F(Effect, EffectEx::Reverb_Room_Rolloff_Factor, RoomRolloffFactor);
 					AudioContext::SetEffect1I(Effect, EffectEx::Reverb_Decay_HF_Limit, IsDecayHFLimited ? 1 : 0);
 				}
+				ReturnErrorIf;
 			}
 			void Reverb::Deserialize(Core::Schema* Node)
 			{
@@ -192,7 +191,7 @@ namespace Vitex
 
 			Chorus::Chorus()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Chorus);
 					return true;
@@ -202,7 +201,7 @@ namespace Vitex
 			{
 
 			}
-			void Chorus::Synchronize()
+			ExpectsAudio<void> Chorus::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Rate, Rate);
 				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Depth, Depth);
@@ -210,6 +209,7 @@ namespace Vitex
 				AudioContext::SetEffect1F(Effect, EffectEx::Chorus_Delay, Delay);
 				AudioContext::SetEffect1I(Effect, EffectEx::Chorus_Waveform, Waveform);
 				AudioContext::SetEffect1I(Effect, EffectEx::Chorus_Phase, Phase);
+				ReturnErrorIf;
 			}
 			void Chorus::Deserialize(Core::Schema* Node)
 			{
@@ -253,7 +253,7 @@ namespace Vitex
 
 			Distortion::Distortion()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Distortion);
 					return true;
@@ -263,13 +263,14 @@ namespace Vitex
 			{
 
 			}
-			void Distortion::Synchronize()
+			ExpectsAudio<void> Distortion::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_Edge, Edge);
 				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_Gain, Gain);
 				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_Lowpass_Cutoff, LowpassCutOff);
 				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_EQ_Center, EQCenter);
 				AudioContext::SetEffect1F(Effect, EffectEx::Distortion_EQ_Bandwidth, EQBandwidth);
+				ReturnErrorIf;
 			}
 			void Distortion::Deserialize(Core::Schema* Node)
 			{
@@ -310,7 +311,7 @@ namespace Vitex
 
 			Echo::Echo()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Echo);
 					return true;
@@ -320,13 +321,14 @@ namespace Vitex
 			{
 
 			}
-			void Echo::Synchronize()
+			ExpectsAudio<void> Echo::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Delay, Delay);
 				AudioContext::SetEffect1F(Effect, EffectEx::Echo_LR_Delay, LRDelay);
 				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Damping, Damping);
 				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Feedback, Feedback);
 				AudioContext::SetEffect1F(Effect, EffectEx::Echo_Spread, Spread);
+				ReturnErrorIf;
 			}
 			void Echo::Deserialize(Core::Schema* Node)
 			{
@@ -367,7 +369,7 @@ namespace Vitex
 
 			Flanger::Flanger()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Flanger);
 					return true;
@@ -377,7 +379,7 @@ namespace Vitex
 			{
 
 			}
-			void Flanger::Synchronize()
+			ExpectsAudio<void> Flanger::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Rate, Rate);
 				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Depth, Depth);
@@ -385,6 +387,7 @@ namespace Vitex
 				AudioContext::SetEffect1F(Effect, EffectEx::Flanger_Delay, Delay);
 				AudioContext::SetEffect1I(Effect, EffectEx::Flanger_Waveform, Waveform);
 				AudioContext::SetEffect1I(Effect, EffectEx::Flanger_Phase, Phase);
+				ReturnErrorIf;
 			}
 			void Flanger::Deserialize(Core::Schema* Node)
 			{
@@ -428,7 +431,7 @@ namespace Vitex
 
 			FrequencyShifter::FrequencyShifter()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Frequency_Shifter);
 					return true;
@@ -438,11 +441,12 @@ namespace Vitex
 			{
 
 			}
-			void FrequencyShifter::Synchronize()
+			ExpectsAudio<void> FrequencyShifter::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Frequency_Shifter_Frequency, Frequency);
 				AudioContext::SetEffect1I(Effect, EffectEx::Frequency_Shifter_Left_Direction, LeftDirection);
 				AudioContext::SetEffect1I(Effect, EffectEx::Frequency_Shifter_Right_Direction, RightDirection);
+				ReturnErrorIf;
 			}
 			void FrequencyShifter::Deserialize(Core::Schema* Node)
 			{
@@ -477,7 +481,7 @@ namespace Vitex
 
 			VocalMorpher::VocalMorpher()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Vocmorpher);
 					return true;
@@ -487,7 +491,7 @@ namespace Vitex
 			{
 
 			}
-			void VocalMorpher::Synchronize()
+			ExpectsAudio<void> VocalMorpher::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Vocmorpher_Rate, Rate);
 				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_A, Phonemea);
@@ -495,6 +499,7 @@ namespace Vitex
 				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_B, Phonemeb);
 				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Phoneme_B_Coarse_Tuning, PhonemebCoarseTuning);
 				AudioContext::SetEffect1I(Effect, EffectEx::Vocmorpher_Waveform, Waveform);
+				ReturnErrorIf;
 			}
 			void VocalMorpher::Deserialize(Core::Schema* Node)
 			{
@@ -538,7 +543,7 @@ namespace Vitex
 
 			PitchShifter::PitchShifter()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Pitch_Shifter);
 					return true;
@@ -548,10 +553,11 @@ namespace Vitex
 			{
 
 			}
-			void PitchShifter::Synchronize()
+			ExpectsAudio<void> PitchShifter::Synchronize()
 			{
 				AudioContext::SetEffect1I(Effect, EffectEx::Pitch_Shifter_Coarse_Tune, CoarseTune);
 				AudioContext::SetEffect1I(Effect, EffectEx::Pitch_Shifter_Fine_Tune, FineTune);
+				ReturnErrorIf;
 			}
 			void PitchShifter::Deserialize(Core::Schema* Node)
 			{
@@ -583,7 +589,7 @@ namespace Vitex
 
 			RingModulator::RingModulator()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Ring_Modulator);
 					return true;
@@ -593,11 +599,12 @@ namespace Vitex
 			{
 
 			}
-			void RingModulator::Synchronize()
+			ExpectsAudio<void> RingModulator::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Ring_Modulator_Frequency, Frequency);
 				AudioContext::SetEffect1F(Effect, EffectEx::Ring_Modulator_Highpass_Cutoff, HighpassCutOff);
 				AudioContext::SetEffect1I(Effect, EffectEx::Ring_Modulator_Waveform, Waveform);
+				ReturnErrorIf;
 			}
 			void RingModulator::Deserialize(Core::Schema* Node)
 			{
@@ -632,7 +639,7 @@ namespace Vitex
 
 			Autowah::Autowah()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Autowah);
 					return true;
@@ -642,12 +649,13 @@ namespace Vitex
 			{
 
 			}
-			void Autowah::Synchronize()
+			ExpectsAudio<void> Autowah::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Attack_Time, AttackTime);
 				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Release_Time, ReleaseTime);
 				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Resonance, Resonance);
 				AudioContext::SetEffect1F(Effect, EffectEx::Autowah_Peak_Gain, PeakGain);
+				ReturnErrorIf;
 			}
 			void Autowah::Deserialize(Core::Schema* Node)
 			{
@@ -685,7 +693,7 @@ namespace Vitex
 
 			Compressor::Compressor()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Compressor);
 					AudioContext::SetEffect1I(Effect, EffectEx::Compressor_ON_OFF, 1);
@@ -695,8 +703,9 @@ namespace Vitex
 			Compressor::~Compressor()
 			{
 			}
-			void Compressor::Synchronize()
+			ExpectsAudio<void> Compressor::Synchronize()
 			{
+				return Core::Expectation::Met;
 			}
 			void Compressor::Deserialize(Core::Schema* Node)
 			{
@@ -718,7 +727,7 @@ namespace Vitex
 
 			Equalizer::Equalizer()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetEffect1I(Effect, EffectEx::Effect_Type, (int)EffectEx::Effect_Equalizer);
 					return true;
@@ -728,7 +737,7 @@ namespace Vitex
 			{
 
 			}
-			void Equalizer::Synchronize()
+			ExpectsAudio<void> Equalizer::Synchronize()
 			{
 				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_LOW_Gain, LowGain);
 				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_LOW_Cutoff, LowCutOff);
@@ -739,6 +748,7 @@ namespace Vitex
 				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_MID2_Width, Mid2Width);
 				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_HIGH_Gain, HighGain);
 				AudioContext::SetEffect1F(Effect, EffectEx::Equalizer_HIGH_Cutoff, HighCutOff);
+				ReturnErrorIf;
 			}
 			void Equalizer::Deserialize(Core::Schema* Node)
 			{

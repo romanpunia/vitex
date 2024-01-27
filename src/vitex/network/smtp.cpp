@@ -47,26 +47,23 @@ namespace Vitex
 			{
 				Config.IsAutoEncrypted = false;
 			}
-			Core::ExpectsPromiseIO<void> Client::Send(RequestFrame&& Root)
+			Core::ExpectsPromiseSystem<void> Client::Send(RequestFrame&& Root)
 			{
 				if (!HasStream())
-					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				Core::ExpectsPromiseIO<void> Result;
+				Core::ExpectsPromiseSystem<void> Result;
 				if (&Request != &Root)
 					Request = std::move(Root);
 
 				VI_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
-				State.Done = [this, Result](SocketClient*, const Core::Option<std::error_condition>& ErrorCode) mutable
+				State.Done = [this, Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable
 				{
 					if (!Buffer.empty())
-						VI_DEBUG("[smtp] %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Buffer.size(), Buffer.data());
+						VI_DEBUG("[smtp] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Buffer.size(), Buffer.data());
 
 					Buffer.clear();
-					if (ErrorCode)
-						Result.Set(*ErrorCode);
-					else
-						Result.Set(Core::Optional::OK);
+					Result.Set(std::move(Status));
 				};
 				if (!Authorized && Request.Authenticate && CanRequest("AUTH"))
 					Authorize(std::bind(&Client::PrepareAndSend, this));
@@ -75,7 +72,7 @@ namespace Vitex
 
 				return Result;
 			}
-			bool Client::OnResolveHost(RemoteHost* Address)
+			Core::ExpectsSystem<void> Client::OnResolveHost(RemoteHost* Address)
 			{
 				VI_ASSERT(Address != nullptr, "address should be set");
 				if (Address->Port == 0)
@@ -87,46 +84,48 @@ namespace Vitex
 						Address->Port = htons(25);
 				}
 
-				return true;
+				return Core::Expectation::Met;
 			}
-			bool Client::OnConnect()
+			Core::ExpectsSystem<void> Client::OnConnect()
 			{
 				Authorized = false;
-				return ReadResponse(220, [this]()
+				ReadResponse(220, [this]()
 				{
 					SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 					{
 						if (this->State.Hostname.Secure)
 						{
 							if (!CanRequest("STARTTLS"))
-								return (void)Error("tls is not supported by smtp server");
+								return Report(Core::SystemException("connect tls: server has no support", std::make_error_condition(std::errc::protocol_not_supported)));
 
 							SendRequest(220, "STARTTLS\r\n", [this]()
 							{
-								Encrypt([this](const Core::Option<std::error_condition>& ErrorCode)
+								Handshake([this](Core::ExpectsSystem<void>&& Status)
 								{
-									if (ErrorCode)
-										return;
+									if (!Status)
+										return Report(std::move(Status));
 
 									SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 									{
-										Report(Core::Optional::None);
+										Report(Core::Expectation::Met);
 									});
 								});
 							});
 						}
 						else
-							Report(Core::Optional::None);
+							Report(Core::Expectation::Met);
 					});
 				});
+				return Core::Expectation::Met;
 			}
-			bool Client::OnDisconnect()
+			Core::ExpectsSystem<void> Client::OnDisconnect()
 			{
-				return SendRequest(221, "QUIT\r\n", [this]()
+				SendRequest(221, "QUIT\r\n", [this]()
 				{
 					Authorized = false;
-					Report(Core::Optional::None);
-				}) || true;
+					Report(Core::Expectation::Met);
+				});
+				return Core::Expectation::Met;
 			}
 			bool Client::ReadResponses(int Code, const ReplyCallback& Callback)
 			{
@@ -155,20 +154,29 @@ namespace Vitex
 					else if (Packet::IsDone(Event))
 					{
 						if (!isdigit(Command[0]) || !isdigit(Command[1]) || !isdigit(Command[2]))
-							return Error("cannot parse smtp response");
+						{
+							Report(Core::SystemException("receive response: bad command", std::make_error_condition(std::errc::bad_message)));
+							return false;
+						}
 
 						if (Command[3] != ' ')
 							return ReadResponse(Code, Callback);
 
 						int ReplyCode = (Command[0] - '0') * 100 + (Command[1] - '0') * 10 + Command[2] - '0';
 						if (ReplyCode != Code)
-							return Error("smtp status is %i but wanted %i", ReplyCode, Code);
+						{
+							Report(Core::SystemException("receiving unexpected response code: " + Core::ToString(ReplyCode) + " is not " + Core::ToString(Code), std::make_error_condition(std::errc::bad_message)));
+							return false;
+						}
 
 						if (Callback)
 							Callback();
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						return Error("connection error");
+					{
+						Report(Core::SystemException("receive response: aborted", std::make_error_condition(std::errc::connection_aborted)));
+						return false;
+					}
 
 					return true;
 				}) || true;
@@ -180,7 +188,7 @@ namespace Vitex
 					if (Packet::IsDone(Event))
 						ReadResponse(Code, Callback);
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
 			bool Client::CanRequest(const char* Keyword)
@@ -228,10 +236,16 @@ namespace Vitex
 				}
 
 				if (Request.Login.empty())
-					return Error("smtp login cannot be used");
+				{
+					Report(Core::SystemException("smtp authorize: invalid login", std::make_error_condition(std::errc::invalid_argument)));
+					return false;
+				}
 
 				if (Request.Password.empty())
-					return Error("smtp password cannot be used");
+				{
+					Report(Core::SystemException("smtp authorize: invalid password", std::make_error_condition(std::errc::invalid_argument)));
+					return false;
+				}
 
 				if (CanRequest("LOGIN"))
 				{
@@ -279,7 +293,7 @@ namespace Vitex
 						{
 							VI_FREE(UserChallenge);
 							VI_FREE(UserPassword);
-							return (void)Error("smtp password cannot be used");
+							return Report(Core::SystemException("smtp authorize: invalid challenge", std::make_error_condition(std::errc::invalid_argument)));
 						}
 
 						size_t PasswordLength = Request.Password.size();
@@ -341,11 +355,11 @@ namespace Vitex
 
 						Core::TextSettle Result1 = Core::Stringify::Find(DecodedChallenge, "nonce");
 						if (!Result1.Found)
-							return (void)Error("smtp has delivered bad digest");
+							return Report(Core::SystemException("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
 
 						Core::TextSettle Result2 = Core::Stringify::Find(DecodedChallenge, "\"", Result1.Start + 7);
 						if (!Result2.Found)
-							return (void)Error("smtp has delivered bad digest");
+							return Report(Core::SystemException("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
 
 						Core::String Nonce = DecodedChallenge.substr(Result1.Start + 7, Result2.Start - (Result1.Start + 7));
 						Core::String Realm;
@@ -355,7 +369,7 @@ namespace Vitex
 						{
 							Result2 = Core::Stringify::Find(DecodedChallenge, "\"", Result1.Start + 7);
 							if (!Result2.Found)
-								return (void)Error("smtp has delivered bad digest");
+								return Report(Core::SystemException("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
 
 							Realm = DecodedChallenge.substr(Result1.Start + 7, Result2.Start - (Result1.Start + 7));
 						}
@@ -368,7 +382,7 @@ namespace Vitex
 						socket_size_t Length = sizeof(Storage);
 
 						if (!getpeername(Net.Stream->GetFd(), (struct sockaddr*)&Storage, &Length))
-							return (void)Error("cannot detect peer name");
+							return Report(Core::SystemException("smtp authorize: no peer name", std::make_error_condition(std::errc::identifier_removed)));
 
 						char InetAddress[INET_ADDRSTRLEN];
 						sockaddr_in* Address = (sockaddr_in*)&Storage;
@@ -398,7 +412,7 @@ namespace Vitex
 							VI_FREE(UserUri);
 							VI_FREE(UserNc);
 							VI_FREE(UserQop);
-							return (void)Error("smtp auth failed");
+							return Report(Core::SystemException("smtp authorize: denied", std::make_error_condition(std::errc::permission_denied)));
 						}
 
 						Compute::MD5Hasher MD5A1A;
@@ -485,20 +499,20 @@ namespace Vitex
 					});
 				}
 
-				return Error("smtp server does not support any of active auth types");
+				Report(Core::SystemException("smtp authorize: type not supported", std::make_error_condition(std::errc::not_supported)));
+				return false;	
 			}
 			bool Client::PrepareAndSend()
 			{
-				Stage("request dispatching");
 				if (Request.SenderAddress.empty())
 				{
-					Error("empty sender address");
+					Report(Core::SystemException("smtp send: invalid sender address", std::make_error_condition(std::errc::invalid_argument)));
 					return false;
 				}
 
 				if (Request.Recipients.empty())
 				{
-					Error("no recipients selected");
+					Report(Core::SystemException("smtp send: invalid recipient address", std::make_error_condition(std::errc::invalid_argument)));
 					return false;
 				}
 
@@ -663,22 +677,19 @@ namespace Vitex
 										Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
-											{
-												Stage("smtp attachment delivery");
 												SendAttachment();
-											}
 											else if (Packet::IsErrorOrSkip(Event))
-												Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+												Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 										});
 									}
 									else if (Packet::IsErrorOrSkip(Event))
-										Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+										Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 								});
 							});
 						});
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				});
 
 				return true;
@@ -687,8 +698,6 @@ namespace Vitex
 			{
 				if (Pending <= 0)
 				{
-					Stage("smtp request delivery");
-
 					Core::String Content;
 					if (!Request.Attachments.empty())
 						Core::Stringify::Append(Content, "\r\n--%s--\r\n", Boundary.c_str());
@@ -700,11 +709,11 @@ namespace Vitex
 						{
 							ReadResponses(250, [this]()
 							{
-								Report(Core::Optional::None);
+								Report(Core::Expectation::Met);
 							});
 						}
 						else if (Packet::IsErrorOrSkip(Event))
-							Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					});
 				}
 
@@ -733,10 +742,10 @@ namespace Vitex
 							ProcessAttachment();
 						}
 						else
-							Error("cannot open attachment resource");
+							Report(Core::SystemException("smtp send attachment: open error", std::move(File.Error())));
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
 			bool Client::ProcessAttachment()
@@ -746,7 +755,10 @@ namespace Vitex
 				size_t Count = It.Length > Core::BLOB_SIZE ? Core::BLOB_SIZE : It.Length;
 				size_t Size = (size_t)fread(Data, sizeof(char), Count, AttachmentFile);
 				if (Size != Count)
-					return Error("cannot read attachment block from %s", It.Path.c_str());
+				{
+					Report(Core::SystemException("smtp read attachment error: " + It.Path, std::make_error_condition(std::errc::io_error)));
+					return false;
+				}
 
 				Core::String Content = Compute::Codec::Base64Encode((const unsigned char*)Data, Size);
 				Content.append("\r\n");
@@ -766,7 +778,7 @@ namespace Vitex
 							ProcessAttachment();
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
 			unsigned char* Client::Unicode(const char* String)

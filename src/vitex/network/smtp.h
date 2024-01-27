@@ -67,13 +67,13 @@ namespace Vitex
 			public:
 				Client(const Core::String& Domain, int64_t ReadTimeout);
 				~Client() override = default;
-				Core::ExpectsPromiseIO<void> Send(RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<void> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();
 
 			private:
-				bool OnResolveHost(RemoteHost* Address) override;
-				bool OnConnect() override;
-				bool OnDisconnect() override;
+				Core::ExpectsSystem<void> OnResolveHost(RemoteHost* Address) override;
+				Core::ExpectsSystem<void> OnConnect() override;
+				Core::ExpectsSystem<void> OnDisconnect() override;
 				bool Authorize(const ReplyCallback& Callback);
 				bool PrepareAndSend();
 				bool SendAttachment();

@@ -61,10 +61,16 @@ namespace Vitex
 #ifndef NDEBUG
 		Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
 		if (!Allocator)
+		{
 			Allocator = new Core::Allocators::DebugAllocator();
+			VI_TRACE("[lib] initialize global debug allocator");
+		}
 #else
 		if (!Allocator)
+		{
 			Allocator = new Core::Allocators::DefaultAllocator();
+			VI_TRACE("[lib] initialize global default allocator");
+		}
 #endif
 		Core::Memory::SetGlobalAllocator(Allocator);
 		if (Modes & (uint64_t)Init::Network)
@@ -74,6 +80,7 @@ namespace Vitex
 			WORD VersionRequested = MAKEWORD(2, 2);
 			int Code = WSAStartup(VersionRequested, &WSAData);
 			VI_PANIC(Code == 0, "WSA initialization failure reason:%i", Code);
+			VI_TRACE("[lib] initialize windows networking library");
 #endif
 		}
 
@@ -86,6 +93,7 @@ namespace Vitex
 			Crypto = VI_NEW(CryptoData);
 			if (Modes & (uint64_t)Init::Providers)
 			{
+				VI_TRACE("[lib] load openssl providers from: *");
 				Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
 				Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
 				if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
@@ -93,6 +101,7 @@ namespace Vitex
 					auto Path = Core::OS::Directory::GetModule();
 					bool IsModuleDirectory = true;
 				Retry:
+					VI_TRACE("[lib] load openssl providers from: %s", Path ? Path->c_str() : "no path");
 					if (Path)
 						OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
 
@@ -141,9 +150,8 @@ namespace Vitex
 				else
 					Crypto->Locks.at(Id)->unlock();
 			});
-#else
-			VI_WARN("[vitex] openssl ssl cannot be initialized");
 #endif
+			VI_TRACE("[lib] initialize openssl library");
 		}
 
 		if (Modes & (uint64_t)Init::Platform)
@@ -218,8 +226,7 @@ namespace Vitex
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 			else
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-#else
-			VI_WARN("[vitex] sdl2 cannot be initialized");
+			VI_TRACE("[lib] initialize sdl2 library");
 #endif
 		}
 
@@ -227,25 +234,34 @@ namespace Vitex
 		{
 #ifdef VI_GLEW
 			glewExperimental = true;
+			VI_TRACE("[lib] initialize graphics library");
 #endif
 		}
 
 		if (Modes & (uint64_t)Init::Locale)
+		{
 			setlocale(LC_TIME, "C");
+			VI_TRACE("[lib] initialize locale library");
+		}
 
 		if (Modes & (uint64_t)Init::Cryptography)
 		{
 #ifdef VI_OPENSSL
 			int64_t Raw = 0;
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
+			VI_TRACE("[lib] initialize random library");
 #ifdef VI_POSTGRESQL
 			PQinitOpenSSL(0, 0);
+			VI_TRACE("[lib] initialize pq library");
 #endif
 #endif
 		}
 
 		if (Modes & (uint64_t)Init::Audio)
+		{
 			Audio::AudioContext::Initialize();
+			VI_TRACE("[lib] initialize audio library");
+		}
 
 		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
 #ifndef VI_MICROSOFT
@@ -261,6 +277,7 @@ namespace Vitex
 		if (Modes & (uint64_t)Init::Cryptography)
 		{
 #if OPENSSL_VERSION_MAJOR >= 3
+			VI_TRACE("[lib] free openssl providers");
 			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->LegacyProvider);
 			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->DefaultProvider);
 #else
@@ -284,24 +301,39 @@ namespace Vitex
 			CONF_modules_unload(1);
 #endif
 			VI_DELETE(CryptoData, Crypto);
+			VI_TRACE("[lib] free openssl library");
 			Crypto = nullptr;
 		}
 #endif
 #ifdef VI_SDL2
 		if (Modes & (uint64_t)Init::Platform)
+		{
 			SDL_Quit();
+			VI_TRACE("[lib] free sdl2 library");
+		}
 #endif
 #ifdef VI_MICROSOFT
 		if (Modes & (uint64_t)Init::Network)
+		{
 			WSACleanup();
+			VI_TRACE("[lib] free windows networking library");
+		}
 #endif
 #ifdef VI_ASSIMP
 		Assimp::DefaultLogger::kill();
+		VI_TRACE("[lib] free assimp library");
 #endif
 		Scripting::VirtualMachine::Cleanup();
+		VI_TRACE("[lib] free virtual machine");
+
 		Core::Composer::Cleanup();
+		VI_TRACE("[lib] free component composer");
+
 		Core::ErrorHandling::Cleanup();
+		VI_TRACE("[lib] free error handling");
+
 		Core::Memory::Cleanup();
+		VI_TRACE("[lib] free memory allocators");
 
 		if (Allocator != nullptr && Allocator->IsFinalizable())
 			delete Allocator;
@@ -699,6 +731,7 @@ namespace Vitex
 	}
 	void Runtime::CleanupInstances()
 	{
+		VI_TRACE("[lib] free singleton instances");
 		Network::LDB::Driver::CleanupInstance();
 		Network::PDB::Driver::CleanupInstance();
 		Network::MDB::Driver::CleanupInstance();

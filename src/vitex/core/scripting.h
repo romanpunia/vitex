@@ -378,8 +378,22 @@ namespace Vitex
 		typedef std::function<void(class VirtualMachine*)> AddonCallback;
 		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
 
+		class VirtualException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+			VirtualError ErrorCode;
+
+		public:
+			VI_OUT VirtualException(VirtualError ErrorCode);
+			VI_OUT VirtualException(VirtualError ErrorCode, Core::String&& Message);
+			VI_OUT VirtualException(Core::String&& Message);
+			virtual VI_OUT const char* type() const noexcept override;
+			virtual VI_OUT const char* what() const noexcept override;
+		};
+
 		template <typename T>
-		using ExpectsVM = Core::Expects<T, VirtualError>;
+		using ExpectsVM = Core::Expects<T, VirtualException>;
 
 		template <typename T>
 		using ExpectsPromiseVM = Core::Promise<ExpectsVM<T>>;
@@ -398,11 +412,11 @@ namespace Vitex
 		class VI_OUT_TS Parser
 		{
 		public:
-			static bool ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
-			static bool ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
+			static ExpectsVM<void> ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer);
+			static ExpectsVM<void> ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer);
 
 		private:
-			static bool ReplacePreconditions(bool IsDirective, const Core::String& Keyword, Core::String& Data, const std::function<Core::String(const Core::String& Expression)>& Replacer);
+			static ExpectsVM<void> ReplacePreconditions(bool IsDirective, const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer);
 		};
 
 		class VI_OUT_TS FunctionFactory
@@ -423,16 +437,16 @@ namespace Vitex
 			static ExpectsVM<T> ToReturn(int Code, T&& Value)
 			{
 				if (Code < 0)
-					return (VirtualError)Code;
+					return VirtualException((VirtualError)Code);
 
 				return Value;
 			}
 			static ExpectsVM<void> ToReturn(int Code)
 			{
 				if (Code < 0)
-					return (VirtualError)Code;
+					return VirtualException((VirtualError)Code);
 
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 		};
 
@@ -1003,7 +1017,7 @@ namespace Vitex
 					if (!Result)
 						return Result;
 				}
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 			template <typename T>
 			ExpectsVM<void> SetPropertyStatic(const char* Decl, T* Value)
@@ -1570,10 +1584,10 @@ namespace Vitex
 
 				T** Address = (T**)GetAddressOfProperty(*Index);
 				if (!Address)
-					return VirtualError::INVALID_OBJECT;
+					return VirtualException(VirtualError::INVALID_OBJECT);
 
 				*Address = Value;
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 			template <typename T>
 			ExpectsVM<void> SetTypeProperty(const char* Name, const T& Value)
@@ -1585,10 +1599,10 @@ namespace Vitex
 
 				T* Address = (T*)GetAddressOfProperty(*Index);
 				if (!Address)
-					return VirtualError::INVALID_OBJECT;
+					return VirtualException(VirtualError::INVALID_OBJECT);
 
 				*Address = Value;
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 			template <typename T>
 			ExpectsVM<void> SetRefProperty(const char* Name, T* Value)
@@ -1600,13 +1614,13 @@ namespace Vitex
 
 				T** Address = (T**)GetAddressOfProperty(*Index);
 				if (!Address)
-					return VirtualError::INVALID_OBJECT;
+					return VirtualException(VirtualError::INVALID_OBJECT);
 
 				VI_RELEASE(*Address);
 				*Address = (T*)Value;
 				if (*Address != nullptr)
 					(*Address)->AddRef();
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 		};
 
@@ -1969,7 +1983,7 @@ namespace Vitex
 		class VI_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
-			typedef std::function<bool(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)> GeneratorCallback;
+			typedef std::function<ExpectsVM<void>(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)> GeneratorCallback;
 			typedef std::function<void(const Core::String&)> CompileCallback;
 			typedef std::function<void()> WhenErrorCallback;
 
@@ -2095,7 +2109,7 @@ namespace Vitex
 			void GCEnumCallback(asIScriptFunction* Reference);
 			void GCEnumCallback(FunctionDelegate* Reference);
 			bool TriggerDebugger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
-			bool GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
+			Compute::ExpectsPreprocessor<void> GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
 			Core::Unique<Compiler> CreateCompiler();
 			Core::Unique<asIScriptModule> CreateScopedModule(const Core::String& Name);
@@ -2133,11 +2147,11 @@ namespace Vitex
 			bool IsTranslatorSupported();
 			bool HasDebugger();
 			bool AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
-			bool ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output);
-			bool ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
-			bool ImportCLibrary(const Core::String& Path, bool IAddon = false);
-			bool ImportAddon(const Core::String& Path);
-			bool ImportSystemAddon(const Core::String& Name);
+			ExpectsVM<void> ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output);
+			ExpectsVM<void> ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
+			ExpectsVM<void> ImportCLibrary(const Core::String& Path, bool IAddon = false);
+			ExpectsVM<void> ImportAddon(const Core::String& Path);
+			ExpectsVM<void> ImportSystemAddon(const Core::String& Name);
 			Core::Option<Core::String> GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			Core::Option<Core::String> GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
 			Core::Option<Core::String> GetScriptSection(const Core::String& SectionName);
@@ -2162,7 +2176,7 @@ namespace Vitex
 
 		private:
 			Core::Unique<ImmediateContext> CreateContext();
-			bool InitializeAddon(const Core::String& Name, CLibrary& Library);
+			ExpectsVM<void> InitializeAddon(const Core::String& Name, CLibrary& Library);
 			void UninitializeAddon(const Core::String& Name, CLibrary& Library);
 
 		public:

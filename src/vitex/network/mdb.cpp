@@ -1,4 +1,5 @@
 #include "mdb.h"
+
 extern "C"
 {
 #ifdef VI_MONGOC
@@ -27,7 +28,7 @@ namespace Vitex
 			} BSON_FLAG;
 
 			template <typename R, typename T, typename... Args>
-			bool ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
+			ExpectsDB<void> ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_MEASURE(Core::Timings::Intensive);
@@ -37,17 +38,14 @@ namespace Vitex
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				auto Time = Core::Schedule::GetClock();
-				bool Result = Function(Base, Data..., &Error);
-				if (!Result && Error.code != 0)
-					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
+				if (!Function(Base, Data..., &Error))
+					return DatabaseException(Error.code, Error.message);
 
-				if (Result || Error.code == 0)
-					VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
-
-				return Result;
+				VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
+				return Core::Expectation::Met;
 			}
 			template <typename R, typename T, typename... Args>
-			Cursor ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
+			ExpectsDB<Cursor> ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				VI_ASSERT(Base != nullptr, "context should be set");
 				VI_MEASURE(Core::Timings::Intensive);
@@ -59,12 +57,10 @@ namespace Vitex
 				auto Time = Core::Schedule::GetClock();
 				TCursor* Result = Function(Base, Data...);
 				if (!Result || mongoc_cursor_error(Result, &Error))
-					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
-					
-				if (Result || Error.code == 0)
-					VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
-				
-				return Result;
+					return DatabaseException(Error.code, Error.message);
+
+				VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
+				return Cursor(Result);
 			}
 #endif
 			Property::Property() noexcept : Source(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
@@ -215,11 +211,36 @@ namespace Vitex
 				return Result;
 			}
 
+			DatabaseException::DatabaseException(int NewErrorCode, Core::String&& Message) : Info(std::move(Message)), ErrorCode(NewErrorCode)
+			{
+				if (ErrorCode == 0)
+					return;
+
+				Info += " (error = ";
+				Info += Core::ToString(ErrorCode);
+				Info += ")";
+			}
+			const char* DatabaseException::type() const noexcept
+			{
+				return "mongodb_error";
+			}
+			const char* DatabaseException::what() const noexcept
+			{
+				return Info.c_str();
+			}
+
 			Document::Document() : Base(nullptr), Store(false)
 			{
 			}
 			Document::Document(TDocument* NewBase) : Base(NewBase), Store(false)
 			{
+			}
+			Document::Document(const Document& Other) : Base(nullptr), Store(false)
+			{
+#ifdef VI_MONGOC
+				if (Other.Base)
+					Base = bson_copy(Other.Base);
+#endif
 			}
 			Document::Document(Document&& Other) : Base(Other.Base), Store(Other.Store)
 			{
@@ -229,6 +250,20 @@ namespace Vitex
 			Document::~Document()
 			{
 				Cleanup();
+			}
+			Document& Document::operator =(const Document& Other)
+			{
+#ifdef VI_MONGOC
+				if (&Other == this)
+					return *this;
+
+				Cleanup();
+				Base = Other.Base ? bson_copy(Other.Base) : nullptr;
+				Store = false;
+				return *this;
+#else
+				return *this;
+#endif
 			}
 			Document& Document::operator =(Document&& Other)
 			{
@@ -951,7 +986,7 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			Document Document::FromJSON(const Core::String& JSON)
+			ExpectsDB<Document> Document::FromJSON(const Core::String& JSON)
 			{
 #ifdef VI_MONGOC
 				bson_error_t Error;
@@ -959,15 +994,13 @@ namespace Vitex
 
 				TDocument* Result = bson_new_from_json((unsigned char*)JSON.c_str(), (ssize_t)JSON.size(), &Error);
 				if (Result != nullptr && Error.code == 0)
-					return Result;
-
-				if (Result != nullptr)
+					return Document(Result);
+				else if (Result != nullptr)
 					bson_destroy((bson_t*)Result);
 
-				VI_ERR("[json] %s", Error.message);
-				return nullptr;
+				return DatabaseException(Error.code, Error.message);
 #else
-				return nullptr;
+				return DatabaseException(0, "not supported");
 #endif
 			}
 			Document Document::FromBuffer(const unsigned char* Buffer, size_t Length)
@@ -997,6 +1030,9 @@ namespace Vitex
 			Address::Address(TAddress* NewBase) : Base(NewBase)
 			{
 			}
+			Address::Address(const Address& Other) : Address(std::move(*(Address*)&Other))
+			{
+			}
 			Address::Address(Address&& Other) : Base(Other.Base)
 			{
 				Other.Base = nullptr;
@@ -1008,6 +1044,10 @@ namespace Vitex
 					mongoc_uri_destroy(Base);
 				Base = nullptr;
 #endif
+			}
+			Address& Address::operator =(const Address& Other)
+			{
+				return *this = std::move(*(Address*)&Other);
 			}
 			Address& Address::operator =(Address&& Other)
 			{
@@ -1093,16 +1133,16 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			Address Address::FromURI(const Core::String& Value)
+			ExpectsDB<Address> Address::FromURI(const Core::String& Value)
 			{
 #ifdef VI_MONGOC
 				TAddress* Result = mongoc_uri_new(Value.c_str());
 				if (!strstr(Value.c_str(), MONGOC_URI_SOCKETTIMEOUTMS))
 					mongoc_uri_set_option_as_int32(Result, MONGOC_URI_SOCKETTIMEOUTMS, 10000);
 
-				return Result;
+				return Address(Result);
 #else
-				return nullptr;
+				return DatabaseException(0, "not supported");
 #endif
 			}
 
@@ -1110,6 +1150,9 @@ namespace Vitex
 			{
 			}
 			Stream::Stream(TCollection* NewSource, TStream* NewBase, Document&& NewOptions) : NetOptions(std::move(NewOptions)), Source(NewSource), Base(NewBase), Count(0)
+			{
+			}
+			Stream::Stream(const Stream& Other) : Stream(std::move(*(Stream*)&Other))
 			{
 			}
 			Stream::Stream(Stream&& Other) : NetOptions(std::move(Other.NetOptions)), Source(Other.Source), Base(Other.Base), Count(Other.Count)
@@ -1129,6 +1172,10 @@ namespace Vitex
 				Count = 0;
 #endif
 			}
+			Stream& Stream::operator =(const Stream& Other)
+			{
+				return *this = std::move(*(Stream*)&Other);
+			}
 			Stream& Stream::operator =(Stream&& Other)
 			{
 				if (&Other == this)
@@ -1147,108 +1194,106 @@ namespace Vitex
 				Other.Count = 0;
 				return *this;
 			}
-			bool Stream::RemoveMany(const Document& Match, const Document& Options)
+			ExpectsDB<void> Stream::RemoveMany(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
-				if (!NextOperation())
-					return false;
+				auto Status = NextOperation();
+				if (!Status)
+					return Status;
 
 				return MongoExecuteQuery(&mongoc_bulk_operation_remove_many_with_opts, Base, Match.Get(), Options.Get());
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::RemoveOne(const Document& Match, const Document& Options)
+			ExpectsDB<void> Stream::RemoveOne(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
-				if (!NextOperation())
-					return false;
+				auto Status = NextOperation();
+				if (!Status)
+					return Status;
 
 				return MongoExecuteQuery(&mongoc_bulk_operation_remove_one_with_opts, Base, Match.Get(), Options.Get());
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
+			ExpectsDB<void> Stream::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
 			{
 #ifdef VI_MONGOC
-				if (!NextOperation())
-					return false;
+				auto Status = NextOperation();
+				if (!Status)
+					return Status;
 
 				return MongoExecuteQuery(&mongoc_bulk_operation_replace_one_with_opts, Base, Match.Get(), Replacement.Get(), Options.Get());
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::InsertOne(const Document& Result, const Document& Options)
+			ExpectsDB<void> Stream::InsertOne(const Document& Result, const Document& Options)
 			{
 #ifdef VI_MONGOC
-				if (!NextOperation())
-					return false;
+				auto Status = NextOperation();
+				if (!Status)
+					return Status;
 
 				return MongoExecuteQuery(&mongoc_bulk_operation_insert_with_opts, Base, Result.Get(), Options.Get());
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::UpdateOne(const Document& Match, const Document& Result, const Document& Options)
+			ExpectsDB<void> Stream::UpdateOne(const Document& Match, const Document& Result, const Document& Options)
 			{
 #ifdef VI_MONGOC
-				if (!NextOperation())
-					return false;
+				auto Status = NextOperation();
+				if (!Status)
+					return Status;
 
 				return MongoExecuteQuery(&mongoc_bulk_operation_update_one_with_opts, Base, Match.Get(), Result.Get(), Options.Get());
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::UpdateMany(const Document& Match, const Document& Result, const Document& Options)
+			ExpectsDB<void> Stream::UpdateMany(const Document& Match, const Document& Result, const Document& Options)
 			{
 #ifdef VI_MONGOC
-				if (!NextOperation())
-					return false;
+				auto Status = NextOperation();
+				if (!Status)
+					return Status;
 
 				return MongoExecuteQuery(&mongoc_bulk_operation_update_many_with_opts, Base, Match.Get(), Result.Get(), Options.Get());
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
+			ExpectsDB<void> Stream::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-				return Query(Driver::Get()->GetQuery(Name, Map, Once));
+				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
+				if (!Template)
+					return Template.Error();
+
+				return Query(*Template);
 			}
-			bool Stream::Query(const Document& Command)
+			ExpectsDB<void> Stream::Query(const Document& Command)
 			{
 #ifdef VI_MONGOC
 				if (!Command.Get())
-				{
-					VI_ERR("[mongoc] cannot run empty query");
-					return false;
-				}
+					return DatabaseException(0, "execute query: empty command");
 
 				Property Type;
 				if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
-				{
-					VI_ERR("[mongoc] cannot run query without query @type");
-					return false;
-				}
+					return DatabaseException(0, "execute query: no type field");
 
 				if (Type.String == "update")
 				{
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-one query without @match");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no match field");
 
 					Property Update;
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-one query without @update");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no update field");
 
 					Property Options = Command["options"];
 					return UpdateOne(Match.Reset(), Update.Reset(), Options.Reset());
@@ -1257,17 +1302,11 @@ namespace Vitex
 				{
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-many query without @match");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no match field");
 
 					Property Update;
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-many query without @update");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no update field");
 
 					Property Options = Command["options"];
 					return UpdateMany(Match.Reset(), Update.Reset(), Options.Reset());
@@ -1276,10 +1315,7 @@ namespace Vitex
 				{
 					Property Value;
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run insert-one query without @value");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no value field");
 
 					Property Options = Command["options"];
 					return InsertOne(Value.Reset(), Options.Reset());
@@ -1288,17 +1324,11 @@ namespace Vitex
 				{
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run replace-one query without @match");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no match field");
 
 					Property Value;
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run replace-one query without @value");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no value field");
 
 					Property Options = Command["options"];
 					return ReplaceOne(Match.Reset(), Value.Reset(), Options.Reset());
@@ -1307,10 +1337,7 @@ namespace Vitex
 				{
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run remove-one query without @value");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no match field");
 
 					Property Options = Command["options"];
 					return RemoveOne(Match.Reset(), Options.Reset());
@@ -1319,83 +1346,81 @@ namespace Vitex
 				{
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run remove-many query without @value");
-						return false;
-					}
+						return DatabaseException(0, "execute query: no match field");
 
 					Property Options = Command["options"];
 					return RemoveMany(Match.Reset(), Options.Reset());
 				}
 
-				VI_ERR("[mongoc] cannot find query of type \"%s\"", Type.String.c_str());
-				return false;
+				return DatabaseException(0, "invalid query type: " + Type.String);
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Stream::NextOperation()
+			ExpectsDB<void> Stream::NextOperation()
 			{
 #ifdef VI_MONGOC
 				if (!Base || !Source)
-					return false;
+					return DatabaseException(0, "invalid operation");
 
-				bool State = true;
-				if (Count > 768)
+				if (Count++ <= 768)
+					return Core::Expectation::Met;
+
+				TDocument Result;
+				auto Status = MongoExecuteQuery(&mongoc_bulk_operation_execute, Base, &Result);
+				bson_destroy((bson_t*)&Result);
+				if (Source != nullptr)
 				{
-					TDocument Result;
-					State = MongoExecuteQuery(&mongoc_bulk_operation_execute, Base, &Result);
-					bson_destroy((bson_t*)&Result);
-
-					if (Source != nullptr)
-						*this = Collection(Source).CreateStream(std::move(NetOptions));
+					auto Subresult = Collection(Source).CreateStream(NetOptions);
+					if (Subresult)
+						*this = std::move(*Subresult);
 				}
-				else
-					Count++;
-
-				return State;
+				return Status;
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			Core::Promise<Document> Stream::ExecuteWithReply()
+			ExpectsPromiseDB<Document> Stream::ExecuteWithReply()
 			{
 #ifdef VI_MONGOC
 				if (!Base)
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context]() mutable
+				return Core::Cotask<ExpectsDB<Document>>([Context]() mutable -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_bulk_operation_execute, Context, &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_bulk_operation_execute, Context, &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Stream::Execute()
+			ExpectsPromiseDB<void> Stream::Execute()
 			{
 #ifdef VI_MONGOC
 				if (!Base)
-					return Core::Promise<bool>(true);
+					return ExpectsPromiseDB<void>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context]() mutable
+				return Core::Cotask<ExpectsDB<void>>([Context]() mutable -> ExpectsDB<void>
 				{
 					TDocument Result;
-					bool Subresult = MongoExecuteQuery(&mongoc_bulk_operation_execute, Context, &Result);
+					auto Status = MongoExecuteQuery(&mongoc_bulk_operation_execute, Context, &Result);
 					bson_destroy((bson_t*)&Result);
-					return Subresult;
+					return Status;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
 			size_t Stream::GetHint() const
@@ -1446,12 +1471,6 @@ namespace Vitex
 				if (!Base)
 					return;
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (mongoc_cursor_error(Base, &Error))
-					VI_ERR("[mongoc] %s", Error.message);
-
 				mongoc_cursor_destroy(Base);
 				Base = nullptr;
 #endif
@@ -1499,39 +1518,45 @@ namespace Vitex
 				return true;
 #endif
 			}
-			bool Cursor::Error() const
+			Core::Option<DatabaseException> Cursor::Error() const
 			{
 #ifdef VI_MONGOC
 				if (!Base)
-					return true;
+					return DatabaseException(0, "invalid operation");
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
-
 				if (!mongoc_cursor_error(Base, &Error))
-					return false;
+					return Core::Optional::None;
 
-				VI_ERR("[mongoc] %s", Error.message);
-				return true;
+				return DatabaseException(Error.code, Error.message);
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			Core::Promise<bool> Cursor::Next()
+			ExpectsPromiseDB<void> Cursor::Next()
 			{
 #ifdef VI_MONGOC
 				if (!Base)
-					return Core::Promise<bool>(false);
+					return ExpectsPromiseDB<void>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
+				return Core::Cotask<ExpectsDB<void>>([Context]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					TDocument* Query = nullptr;
-					return mongoc_cursor_next(Context, (const TDocument**)&Query);
+					if (mongoc_cursor_next(Context, (const TDocument**)&Query))
+						return Core::Expectation::Met;
+
+					bson_error_t Error;
+					memset(&Error, 0, sizeof(bson_error_t));
+					if (!mongoc_cursor_error(Context, &Error))
+						return DatabaseException(0, "end of stream");
+
+					return DatabaseException(Error.code, Error.message);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
 			int64_t Cursor::GetId() const
@@ -1637,69 +1662,85 @@ namespace Vitex
 				Other.NetSuccess = false;
 				return *this;
 			}
-			Core::Promise<Core::Schema*> Response::Fetch()
+			ExpectsPromiseDB<Core::Schema*> Response::Fetch()
 			{
 				if (NetDocument)
-					return Core::Promise<Core::Schema*>(NetDocument.ToSchema());
+					return ExpectsPromiseDB<Core::Schema*>(NetDocument.ToSchema());
 
 				if (!NetCursor)
-					return Core::Promise<Core::Schema*>(nullptr);
+					return ExpectsPromiseDB<Core::Schema*>(DatabaseException(0, "fetch: no cursor"));
 
-				return NetCursor.Next().Then<Core::Schema*>([this](bool&& Result)
+				return NetCursor.Next().Then<ExpectsDB<Core::Schema*>>([this](ExpectsDB<void>&& Result) -> ExpectsDB<Core::Schema*>
 				{
+					if (!Result)
+						return Result.Error();
+
 					return NetCursor.Current().ToSchema();
 				});
 			}
-			Core::Promise<Core::Schema*> Response::FetchAll()
+			ExpectsPromiseDB<Core::Schema*> Response::FetchAll()
 			{
 				if (NetDocument)
 				{
 					Core::Schema* Result = NetDocument.ToSchema();
-					return Core::Promise<Core::Schema*>(Result ? Result : Core::Var::Set::Array());
+					return ExpectsPromiseDB<Core::Schema*>(Result ? Result : Core::Var::Set::Array());
 				}
 
 				if (!NetCursor)
-					return Core::Promise<Core::Schema*>(Core::Var::Set::Array());
+					return ExpectsPromiseDB<Core::Schema*>(Core::Var::Set::Array());
 
-				return Core::Coasync<Core::Schema*>([this]() -> Core::Promise<Core::Schema*>
+				return Core::Coasync<ExpectsDB<Core::Schema*>>([this]() -> ExpectsPromiseDB<Core::Schema*>
 				{
 					Core::Schema* Result = Core::Var::Set::Array();
-					while (VI_AWAIT(NetCursor.Next()))
-						Result->Push(NetCursor.Current().ToSchema());
-
+					while (true)
+					{
+						auto Status = VI_AWAIT(NetCursor.Next());
+						if (Status)
+						{
+							Result->Push(NetCursor.Current().ToSchema());
+							continue;
+						}
+						else if (Status.Error().ErrorCode != 0 && Result->Empty())
+						{
+							VI_RELEASE(Result);
+							Coreturn Status.Error();
+						}
+						break;
+					}
 					Coreturn Result;
 				});
 			}
-			Core::Promise<Property> Response::GetProperty(const Core::String& Name)
+			ExpectsPromiseDB<Property> Response::GetProperty(const Core::String& Name)
 			{
 				if (NetDocument)
 				{
 					Property Result;
 					NetDocument.GetPropertyAt(Name, &Result);
-					return Result;
+					return ExpectsPromiseDB<Property>(std::move(Result));
 				}
 
 				if (!NetCursor)
-					return Property();
+					return ExpectsPromiseDB<Property>(Property());
 
 				Document Source = NetCursor.Current();
 				if (Source)
 				{
 					Property Result;
 					Source.GetPropertyAt(Name, &Result);
-					return Result;
+					return ExpectsPromiseDB<Property>(std::move(Result));
 				}
 
-				return NetCursor.Next().Then<Property>([this, Name](bool&& HasResults) mutable -> Property
+				return NetCursor.Next().Then<ExpectsDB<Property>>([this, Name](ExpectsDB<void>&& Status) mutable -> ExpectsDB<Property>
 				{
 					Property Result;
-					if (!HasResults)
-						return Result;
+					if (!Status)
+						return Status.Error();
 
 					Document Source = NetCursor.Current();
-					if (Source)
-						Source.GetPropertyAt(Name, &Result);
+					if (!Source)
+						return DatabaseException(0, "property not found: " + Name);
 
+					Source.GetPropertyAt(Name, &Result);
 					return Result;
 				});
 			}
@@ -1722,7 +1763,7 @@ namespace Vitex
 			Transaction::Transaction(TTransaction* NewBase) : Base(NewBase)
 			{
 			}
-			bool Transaction::Push(const Document& QueryOptionsWrapper) const
+			ExpectsDB<void> Transaction::Push(const Document& QueryOptionsWrapper)
 			{
 #ifdef VI_MONGOC
 				Document& QueryOptions = *(Document*)&QueryOptionsWrapper;
@@ -1730,16 +1771,16 @@ namespace Vitex
 					QueryOptions = bson_new();
 
 				bson_error_t Error;
-				bool Result = mongoc_client_session_append(Base, (bson_t*)QueryOptions.Get(), &Error);
-				if (!Result && Error.code != 0)
-					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
+				memset(&Error, 0, sizeof(bson_error_t));
+				if (!mongoc_client_session_append(Base, (bson_t*)QueryOptions.Get(), &Error) && Error.code != 0)
+					return DatabaseException(Error.code, Error.message);
 
-				return Result;
+				return Core::Expectation::Met;
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			bool Transaction::Put(TDocument** QueryOptions) const
+			ExpectsDB<void> Transaction::Put(TDocument** QueryOptions) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(QueryOptions != nullptr, "query options should be set");
@@ -1747,159 +1788,163 @@ namespace Vitex
 					*QueryOptions = bson_new();
 
 				bson_error_t Error;
-				bool Result = mongoc_client_session_append(Base, (bson_t*)*QueryOptions, &Error);
-				if (!Result && Error.code != 0)
-					VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
+				memset(&Error, 0, sizeof(bson_error_t));
+				if (!mongoc_client_session_append(Base, (bson_t*)*QueryOptions, &Error) && Error.code != 0)
+					return DatabaseException(Error.code, Error.message);
 
-				return Result;
+				return Core::Expectation::Met;
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			Core::Promise<bool> Transaction::Begin()
+			ExpectsPromiseDB<void> Transaction::Begin()
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
+				return Core::Cotask<ExpectsDB<void>>([Context]()
 				{
 					return MongoExecuteQuery(&mongoc_client_session_start_transaction, Context, nullptr);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Transaction::Rollback()
+			ExpectsPromiseDB<void> Transaction::Rollback()
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
+				return Core::Cotask<ExpectsDB<void>>([Context]()
 				{
 					return MongoExecuteQuery(&mongoc_client_session_abort_transaction, Context);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::RemoveMany(Collection& Source, const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::RemoveMany(Collection& Source, const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.RemoveMany(Match, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::RemoveOne(Collection& Source, const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::RemoveOne(Collection& Source, const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.RemoveOne(Match, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::ReplaceOne(Collection& Source, const Document& Match, const Document& Replacement, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::ReplaceOne(Collection& Source, const Document& Match, const Document& Replacement, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.ReplaceOne(Match, Replacement, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::InsertMany(Collection& Source, Core::Vector<Document>& List, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::InsertMany(Collection& Source, Core::Vector<Document>& List, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.InsertMany(List, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::InsertOne(Collection& Source, const Document& Result, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::InsertOne(Collection& Source, const Document& Result, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.InsertOne(Result, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::UpdateMany(Collection& Source, const Document& Match, const Document& Update, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::UpdateMany(Collection& Source, const Document& Match, const Document& Update, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.UpdateMany(Match, Update, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Transaction::UpdateOne(Collection& Source, const Document& Match, const Document& Update, const Document& Options)
+			ExpectsPromiseDB<Document> Transaction::UpdateOne(Collection& Source, const Document& Match, const Document& Update, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Document>(Document(nullptr));
+					return ExpectsPromiseDB<Document>(DatabaseException(0, "invalid operation"));
 
 				return Source.UpdateOne(Match, Update, Options);
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Transaction::FindMany(Collection& Source, const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Cursor> Transaction::FindMany(Collection& Source, const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Cursor>(Cursor(nullptr));
+					return ExpectsPromiseDB<Cursor>(DatabaseException(0, "invalid operation"));
 
 				return Source.FindMany(Match, Options);
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Transaction::FindOne(Collection& Source, const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Cursor> Transaction::FindOne(Collection& Source, const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Cursor>(Cursor(nullptr));
+					return ExpectsPromiseDB<Cursor>(DatabaseException(0, "invalid operation"));
 
 				return Source.FindOne(Match, Options);
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Transaction::Aggregate(Collection& Source, QueryFlags Flags, const Document& Pipeline, const Document& Options)
+			ExpectsPromiseDB<Cursor> Transaction::Aggregate(Collection& Source, QueryFlags Flags, const Document& Pipeline, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Push(Options))
-					return Core::Promise<Cursor>(Cursor(nullptr));
+					return ExpectsPromiseDB<Cursor>(DatabaseException(0, "invalid operation"));
 
 				return Source.Aggregate(Flags, Pipeline, Options);
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Response> Transaction::TemplateQuery(Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
+			ExpectsPromiseDB<Response> Transaction::TemplateQuery(Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				return Query(Source, Driver::Get()->GetQuery(Name, Map, Once));
+				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
+				if (!Template)
+					return ExpectsPromiseDB<Response>(std::move(Template.Error()));
+
+				return Query(Source, *Template);
 			}
-			Core::Promise<Response> Transaction::Query(Collection& Source, const Document& Command)
+			ExpectsPromiseDB<Response> Transaction::Query(Collection& Source, const Document& Command)
 			{
 #ifdef VI_MONGOC
 				return Source.Query(Command, *this);
 #else
-				return Core::Promise<Response>(Response());
+				return ExpectsPromiseDB<Response>(DatabaseException(0, "not supported"));
 #endif
 			}
 			Core::Promise<TransactionState> Transaction::Commit()
@@ -1965,237 +2010,260 @@ namespace Vitex
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Promise<bool> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
+			ExpectsPromiseDB<void> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName]()
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName]()
 				{
 					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
+			ExpectsPromiseDB<void> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName, &Options]()
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName, &Options]()
 				{
 					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
+			ExpectsPromiseDB<void> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName]()
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName]()
 				{
 					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
+			ExpectsPromiseDB<void> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName, &Options]()
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName, &Options]()
 				{
 					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Collection::Remove(const Document& Options)
+			ExpectsPromiseDB<void> Collection::Remove(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, &Options]()
+				return Core::Cotask<ExpectsDB<void>>([Context, &Options]()
 				{
 					return MongoExecuteQuery(&mongoc_collection_drop_with_opts, Context, Options.Get());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Collection::RemoveIndex(const Core::String& Name, const Document& Options)
+			ExpectsPromiseDB<void> Collection::RemoveIndex(const Core::String& Name, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, Name, &Options]()
+				return Core::Cotask<ExpectsDB<void>>([Context, Name, &Options]()
 				{
 					return MongoExecuteQuery(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::RemoveMany(const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Document> Collection::RemoveMany(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Match, &Options]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Match, &Options]() -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_delete_many, Context, Match.Get(), Options.Get(), &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
-
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_delete_many, Context, Match.Get(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
+					
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::RemoveOne(const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Document> Collection::RemoveOne(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Match, &Options]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Match, &Options]() -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_delete_one, Context, Match.Get(), Options.Get(), &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_delete_one, Context, Match.Get(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
+			ExpectsPromiseDB<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Match, &Replacement, &Options]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Match, &Replacement, &Options]() -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_replace_one, Context, Match.Get(), Replacement.Get(), Options.Get(), &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_replace_one, Context, Match.Get(), Replacement.Get(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options)
+			ExpectsPromiseDB<Document> Collection::InsertMany(Core::Vector<Document>& List, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(!List.empty(), "insert array should not be empty");
 				Core::Vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
-				return Core::Cotask<Document>([Context, &Array, &Options]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Array, &Options]() -> ExpectsDB<Document>
 				{
 					Core::Vector<TDocument*> Subarray;
 				    Subarray.reserve(Array.size());
-
 				    for (auto& Item : Array)
 						Subarray.push_back(Item.Get());
 
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_insert_many, Context, (const TDocument**)Subarray.data(), (size_t)Array.size(), Options.Get(), &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_insert_many, Context, (const TDocument**)Subarray.data(), (size_t)Array.size(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::InsertOne(const Document& Result, const Document& Options)
+			ExpectsPromiseDB<Document> Collection::InsertOne(const Document& Result, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Result, &Options]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Result, &Options]() -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Returns;
-					if (!MongoExecuteQuery(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult))
-						Returns = Document(nullptr);
-					else
-						Returns = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
-					bson_destroy((bson_t*)&Subresult);
-					return Returns;
-				});
-#else
-				return Core::Promise<Document>(Document(nullptr));
-#endif
-			}
-			Core::Promise<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options)
-			{
-#ifdef VI_MONGOC
-				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Match, &Update, &Options]()
-				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_update_many, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
-
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options)
+			ExpectsPromiseDB<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Match, &Update, &Options]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Match, &Update, &Options]() -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_update_one, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_update_many, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New)
+			ExpectsPromiseDB<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Document>([Context, &Query, &Sort, &Update, &Fields, RemoveAt, Upsert, New]()
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Match, &Update, &Options]() -> ExpectsDB<Document>
 				{
-					TDocument Subresult; Document Result;
-					if (!MongoExecuteQuery(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult))
-						Result = Document(nullptr);
-					else
-						Result = Document::FromSource(&Subresult);
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_update_one, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
 
+					Document Result = Document::FromSource(&Subresult);
 					bson_destroy((bson_t*)&Subresult);
 					return Result;
 				});
 #else
-				return Core::Promise<Document>(Document(nullptr));
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
+#endif
+			}
+			ExpectsPromiseDB<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New)
+			{
+#ifdef VI_MONGOC
+				auto* Context = Base;
+				return Core::Cotask<ExpectsDB<Document>>([Context, &Query, &Sort, &Update, &Fields, RemoveAt, Upsert, New]() -> ExpectsDB<Document>
+				{
+					TDocument Subresult;
+					auto Status = MongoExecuteQuery(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
+					if (!Status)
+					{
+						bson_destroy((bson_t*)&Subresult);
+						return Status.Error();
+					}
+
+					Document Result = Document::FromSource(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
+					return Result;
+				});
+#else
+				return ExpectsPromiseDB<Document>(DatabaseException(0, "not supported"));
 #endif
 			}
 			Core::Promise<size_t> Collection::CountDocuments(const Document& Match, const Document& Options)
@@ -2204,7 +2272,8 @@ namespace Vitex
 				auto* Context = Base;
 				return Core::Cotask<size_t>([Context, &Match, &Options]()
 				{
-					return (size_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
+					int64_t Count = mongoc_collection_count_documents(Context, Match.Get(), Options.Get(), nullptr, nullptr, nullptr);
+					return Count > 0 ? (size_t)Count : (size_t)0;
 				});
 #else
 				return Core::Promise<size_t>(0);
@@ -2216,41 +2285,42 @@ namespace Vitex
 				auto* Context = Base;
 				return Core::Cotask<size_t>([Context, &Options]()
 				{
-					return (size_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
+					int64_t Count = mongoc_collection_estimated_document_count(Context, Options.Get(), nullptr, nullptr, nullptr);
+					return Count > 0 ? (size_t)Count : (size_t)0;
 				});
 #else
 				return Core::Promise<size_t>(0);
 #endif
 			}
-			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options)
+			ExpectsPromiseDB<Cursor> Collection::FindIndexes(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Cursor>([Context, &Options]()
+				return Core::Cotask<ExpectsDB<Cursor>>([Context, &Options]()
 				{
 					return MongoExecuteCursor(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
 				});
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Collection::FindMany(const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Cursor> Collection::FindMany(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Cursor>([Context, &Match, &Options]()
+				return Core::Cotask<ExpectsDB<Cursor>>([Context, &Match, &Options]()
 				{
 					return MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Options.Get(), nullptr);
 				});
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Collection::FindOne(const Document& Match, const Document& Options)
+			ExpectsPromiseDB<Cursor> Collection::FindOne(const Document& Match, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Cursor>([Context, &Match, &Options]()
+				return Core::Cotask<ExpectsDB<Cursor>>([Context, &Match, &Options]()
 				{
 					Document Settings;
 					if (Options.Get() != nullptr)
@@ -2264,41 +2334,39 @@ namespace Vitex
 					return MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Settings.Get(), nullptr);
 				});
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options)
+			ExpectsPromiseDB<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Cursor>([Context, Flags, &Pipeline, &Options]()
+				return Core::Cotask<ExpectsDB<Cursor>>([Context, Flags, &Pipeline, &Options]()
 				{
 					return MongoExecuteCursor(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
 				});
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, const Transaction& Session)
+			ExpectsPromiseDB<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, const Transaction& Session)
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-				return Query(Driver::Get()->GetQuery(Name, Map, Once), Session);
+				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
+				if (!Template)
+					return ExpectsPromiseDB<Response>(Template.Error());
+
+				return Query(*Template, Session);
 			}
-			Core::Promise<Response> Collection::Query(const Document& Command, const Transaction& Session)
+			ExpectsPromiseDB<Response> Collection::Query(const Document& Command, const Transaction& Session)
 			{
 #ifdef VI_MONGOC
 				if (!Command.Get())
-				{
-					VI_ERR("[mongoc] cannot run empty query");
-					return Core::Promise<Response>(Response());
-				}
+					return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: empty command"));
 
 				Property Type;
 				if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
-				{
-					VI_ERR("[mongoc] cannot run query without query @type");
-					return Core::Promise<Response>(Response());
-				}
+					return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no type field"));
 
 				if (Type.String == "aggregate")
 				{
@@ -2326,157 +2394,127 @@ namespace Vitex
 
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run aggregation query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Pipeline;
 					if (!Command.GetProperty("pipeline", &Pipeline) || Pipeline.Mod != Type::Array)
-					{
-						VI_ERR("[mongoc] cannot run aggregation query without @pipeline");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no pipeline field"));
 
-					return Aggregate(Flags, Pipeline.Reset(), Options.Reset()).Then<Response>([](Cursor&& Result)
+					return Aggregate(Flags, Pipeline.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "find")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run find-one query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run find-one query without @match");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
-					return FindOne(Match.Reset(), Options.Reset()).Then<Response>([](Cursor&& Result)
+					return FindOne(Match.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "find-many")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run find-many query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run find-many query without @match");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
-					return FindMany(Match.Reset(), Options.Reset()).Then<Response>([](Cursor&& Result)
+					return FindMany(Match.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "update")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run update-one query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-one query without @match");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
 					Property Update;
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-one query without @update");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no update field"));
 
-					return UpdateOne(Match.Reset(), Update.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
+					return UpdateOne(Match.Reset(), Update.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "update-many")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run update-many query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-many query without @match");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
 					Property Update;
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run update-many query without @update");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no update field"));
 
-					return UpdateMany(Match.Reset(), Update.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
+					return UpdateMany(Match.Reset(), Update.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "insert")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run insert-one query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Value;
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run insert-one query without @value");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no value field"));
 
-					return InsertOne(Value.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
+					return InsertOne(Value.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "insert-many")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run insert-many query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Values;
 					if (!Command.GetProperty("values", &Values) || Values.Mod != Type::Array)
-					{
-						VI_ERR("[mongoc] cannot run insert-many query without @values");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no values field"));
 
 					Core::Vector<Document> Data;
 					Values.AsDocument().Loop([&Data](Property* Value)
@@ -2485,19 +2523,19 @@ namespace Vitex
 						return true;
 					});
 
-					return InsertMany(Data, Options.Reset()).Then<Response>([](Document&& Result)
+					return InsertMany(Data, Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "find-update")
 				{
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run find-and-modify query without @match");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
 					Property Sort = Command["sort"];
 					Property Update = Command["update"];
@@ -2506,86 +2544,76 @@ namespace Vitex
 					Property Upsert = Command["upsert"];
 					Property New = Command["new"];
 
-					return FindAndModify(Match.Reset(), Sort.Reset(), Update.Reset(), Fields.Reset(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Document&& Result)
+					return FindAndModify(Match.Reset(), Sort.Reset(), Update.Reset(), Fields.Reset(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "replace")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run replace-one query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run replace-one query without @match");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
 					Property Value;
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run replace-one query without @value");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no value field"));
 
-					return ReplaceOne(Match.Reset(), Value.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
+					return ReplaceOne(Match.Reset(), Value.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "remove")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run remove-one query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run remove-one query without @value");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
-					return RemoveOne(Match.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
+					return RemoveOne(Match.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 				else if (Type.String == "remove-many")
 				{
 					Property Options = Command["options"];
 					if (Session && !Session.Put(&Options.Source))
-					{
-						VI_ERR("[mongoc] cannot run remove-many query in transaction");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: in transaction"));
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
-					{
-						VI_ERR("[mongoc] cannot run remove-many query without @value");
-						return Core::Promise<Response>(Response());
-					}
+						return ExpectsPromiseDB<Response>(DatabaseException(0, "execute query: no match field"));
 
-					return RemoveMany(Match.Reset(), Options.Reset()).Then<Response>([](Document&& Result)
+					return RemoveMany(Match.Reset(), Options.Reset()).Then<ExpectsDB<Response>>([](ExpectsDB<Document>&& Result) -> ExpectsDB<Response>
 					{
-						return Response(Result);
+						if (!Result)
+							return Result.Error();
+
+						return Response(*Result);
 					});
 				}
 
-				VI_ERR("[mongoc] cannot find query of type \"%s\"", Type.String.c_str());
-				return Core::Promise<Response>(Response());
+				return ExpectsPromiseDB<Response>(DatabaseException(0, "invalid query type: " + Type.String));
 #else
-				return Core::Promise<Response>(Response());
+				return ExpectsPromiseDB<Response>(DatabaseException(0, "not supported"));
 #endif
 			}
 			Core::String Collection::GetName() const
@@ -2597,16 +2625,16 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			Stream Collection::CreateStream(Document&& Options) const
+			ExpectsDB<Stream> Collection::CreateStream(Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Base)
-					return Stream(nullptr, nullptr, nullptr);
+					return DatabaseException(0, "invalid operation");
 
 				TStream* Operation = mongoc_collection_create_bulk_operation_with_opts(Base, Options.Get());
 				return Stream(Base, Operation, std::move(Options));
 #else
-				return Stream(nullptr, nullptr, nullptr);
+				return DatabaseException(0, "not supported");
 #endif
 			}
 			TCollection* Collection::Get() const
@@ -2649,136 +2677,130 @@ namespace Vitex
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Promise<bool> Database::RemoveAllUsers()
+			ExpectsPromiseDB<void> Database::RemoveAllUsers()
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
+				return Core::Cotask<ExpectsDB<void>>([Context]()
 				{
 					return MongoExecuteQuery(&mongoc_database_remove_all_users, Context);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Database::RemoveUser(const Core::String& Name)
+			ExpectsPromiseDB<void> Database::RemoveUser(const Core::String& Name)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, Name]()
+				return Core::Cotask<ExpectsDB<void>>([Context, Name]()
 				{
 					return MongoExecuteQuery(&mongoc_database_remove_user, Context, Name.c_str());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Database::Remove()
+			ExpectsPromiseDB<void> Database::Remove()
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context]()
+				return Core::Cotask<ExpectsDB<void>>([Context]()
 				{
 					return MongoExecuteQuery(&mongoc_database_drop, Context);
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Database::RemoveWithOptions(const Document& Options)
+			ExpectsPromiseDB<void> Database::RemoveWithOptions(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Options.Get())
 					return Remove();
 
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, &Options]()
+				return Core::Cotask<ExpectsDB<void>>([Context, &Options]()
 				{
 					return MongoExecuteQuery(&mongoc_database_drop_with_opts, Context, Options.Get());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Database::AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom)
+			ExpectsPromiseDB<void> Database::AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, Username, Password, &Roles, &Custom]()
+				return Core::Cotask<ExpectsDB<void>>([Context, Username, Password, &Roles, &Custom]()
 				{
 					return MongoExecuteQuery(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Database::HasCollection(const Core::String& Name)
+			ExpectsPromiseDB<void> Database::HasCollection(const Core::String& Name)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, Name]()
+				return Core::Cotask<ExpectsDB<void>>([Context, Name]() -> ExpectsDB<void>
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
-					bool Subresult = mongoc_database_has_collection(Context, Name.c_str(), &Error);
-					if (!Subresult && Error.code != 0)
-						VI_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
+					if (!mongoc_database_has_collection(Context, Name.c_str(), &Error))
+						return DatabaseException(Error.code, Error.message);
 
-					return Subresult;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Database::FindCollections(const Document& Options)
+			ExpectsPromiseDB<Cursor> Database::FindCollections(const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<Cursor>([Context, &Options]()
+				return Core::Cotask<ExpectsDB<Cursor>>([Context, &Options]()
 				{
 					return MongoExecuteCursor(&mongoc_database_find_collections_with_opts, Context, Options.Get());
 				});
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<Collection> Database::CreateCollection(const Core::String& Name, const Document& Options)
+			ExpectsPromiseDB<Collection> Database::CreateCollection(const Core::String& Name, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Base)
-					return Core::Promise<Collection>(Collection(nullptr));
+					return ExpectsPromiseDB<Collection>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<Collection>([Context, Name, &Options]()
+				return Core::Cotask<ExpectsDB<Collection>>([Context, Name, &Options]() -> ExpectsDB<Collection>
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
-
-					TCollection* Collection = mongoc_database_create_collection(Context, Name.c_str(), Options.Get(), &Error);
-					if (Collection == nullptr)
-						VI_ERR("[mongoc] %s", Error.message);
+					TCollection* Result = mongoc_database_create_collection(Context, Name.c_str(), Options.Get(), &Error);
+					if (!Result)
+						return DatabaseException(Error.code, Error.message);
 					
-					return Collection;
+					return Collection(Result);
 				});
 #else
-				return Core::Promise<Collection>(Collection(nullptr));
+				return ExpectsPromiseDB<Collection>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Vector<Core::String> Database::GetCollectionNames(const Document& Options) const
+			ExpectsDB<Core::Vector<Core::String>> Database::GetCollectionNames(const Document& Options) const
 			{
 #ifdef VI_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
-
 				if (!Base)
-					return Core::Vector<Core::String>();
+					return DatabaseException(0, "invalid operation");
 
 				char** Names = mongoc_database_get_collection_names_with_opts(Base, Options.Get(), &Error);
-				if (Names == nullptr)
-				{
-					VI_ERR("[mongoc] %s", Error.message);
-					return Core::Vector<Core::String>();
-				}
+				if (!Names)
+					return DatabaseException(Error.code, Error.message);
 
 				Core::Vector<Core::String> Output;
 				for (unsigned i = 0; Names[i]; i++)
@@ -2787,14 +2809,15 @@ namespace Vitex
 				bson_strfreev(Names);
 				return Output;
 #else
-				return Core::Vector<Core::String>();
+				return DatabaseException(0, "not supported");
 #endif
 			}
 			Core::String Database::GetName() const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				return mongoc_database_get_name(Base);
+				auto* Name = mongoc_database_get_name(Base);
+				return Name ? Name : "";
 #else
 				return Core::String();
 #endif
@@ -2823,6 +2846,9 @@ namespace Vitex
 			Watcher::Watcher(TWatcher* NewBase) : Base(NewBase)
 			{
 			}
+			Watcher::Watcher(const Watcher& Other) : Watcher(std::move(*(Watcher*)&Other))
+			{
+			}
 			Watcher::Watcher(Watcher&& Other) : Base(Other.Base)
 			{
 				Other.Base = nullptr;
@@ -2835,11 +2861,14 @@ namespace Vitex
 				Base = nullptr;
 #endif
 			}
+			Watcher& Watcher::operator =(const Watcher& Other)
+			{
+				return *this = std::move(*(Watcher*)&Other);
+			}
 			Watcher& Watcher::operator =(Watcher&& Other)
 			{
 				if (&Other == this)
 					return *this;
-
 #ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_change_stream_destroy(Base);
@@ -2848,36 +2877,42 @@ namespace Vitex
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Promise<bool> Watcher::Next(Document& Result)
+			ExpectsPromiseDB<void> Watcher::Next(Document& Result)
 			{
 #ifdef VI_MONGOC
 				if (!Base || !Result.Get())
-					return Core::Promise<bool>(false);
+					return ExpectsPromiseDB<void>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, &Result]()
+				return Core::Cotask<ExpectsDB<void>>([Context, &Result]() -> ExpectsDB<void>
 				{
 					TDocument* Ptr = Result.Get();
-					return mongoc_change_stream_next(Context, (const TDocument**)&Ptr);
+					if (!mongoc_change_stream_next(Context, (const TDocument**)&Ptr))
+						return DatabaseException(0, "end of stream");
+
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Watcher::Error(Document& Result)
+			ExpectsPromiseDB<void> Watcher::Error(Document& Result)
 			{
 #ifdef VI_MONGOC
 				if (!Base || !Result.Get())
-					return Core::Promise<bool>(false);
+					return ExpectsPromiseDB<void>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<bool>([Context, &Result]()
+				return Core::Cotask<ExpectsDB<void>>([Context, &Result]() -> ExpectsDB<void>
 				{
 					TDocument* Ptr = Result.Get();
-					return mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr);
+					if (!mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr))
+						return DatabaseException(0, "end of stream");
+
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
 			TWatcher* Watcher::Get() const
@@ -2888,37 +2923,37 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options)
+			ExpectsDB<Watcher> Watcher::FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Connection)
-					return nullptr;
+					return DatabaseException(0, "invalid operation");
 
-				return mongoc_client_watch(Connection->Get(), Pipeline.Get(), Options.Get());
+				return Watcher(mongoc_client_watch(Connection->Get(), Pipeline.Get(), Options.Get()));
 #else
-				return nullptr;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			Watcher Watcher::FromDatabase(const Database& Database, const Document& Pipeline, const Document& Options)
+			ExpectsDB<Watcher> Watcher::FromDatabase(const Database& Database, const Document& Pipeline, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Database.Get())
-					return nullptr;
+					return DatabaseException(0, "invalid operation");
 
-				return mongoc_database_watch(Database.Get(), Pipeline.Get(), Options.Get());
+				return Watcher(mongoc_database_watch(Database.Get(), Pipeline.Get(), Options.Get()));
 #else
-				return nullptr;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			Watcher Watcher::FromCollection(const Collection& Collection, const Document& Pipeline, const Document& Options)
+			ExpectsDB<Watcher> Watcher::FromCollection(const Collection& Collection, const Document& Pipeline, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Collection.Get())
-					return nullptr;
+					return DatabaseException(0, "invalid operation");
 
-				return mongoc_collection_watch(Collection.Get(), Pipeline.Get(), Options.Get());
+				return Watcher(mongoc_collection_watch(Collection.Get(), Pipeline.Get(), Options.Get()));
 #else
-				return nullptr;
+				return DatabaseException(0, "not supported");
 #endif
 			}
 
@@ -2935,19 +2970,14 @@ namespace Vitex
 				if (Connected && Base != nullptr)
 					Disconnect();
 			}
-			Core::Promise<bool> Connection::ConnectByURI(const Core::String& Address)
+			ExpectsPromiseDB<void> Connection::ConnectByURI(const Core::String& Address)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
 				if (Connected)
-				{
-					return Disconnect().Then<Core::Promise<bool>>([this, Address](bool)
-					{
-						return this->ConnectByURI(Address);
-					});
-				}
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Address](ExpectsDB<void>&&) { return this->ConnectByURI(Address); });
 
-				return Core::Cotask<bool>([this, Address]()
+				return Core::Cotask<ExpectsDB<void>>([this, Address]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					bson_error_t Error;
@@ -2955,64 +2985,49 @@ namespace Vitex
 
 					TAddress* URI = mongoc_uri_new_with_error(Address.c_str(), &Error);
 					if (!URI)
-					{
-						VI_ERR("[urierr] %s", Error.message);
-						return false;
-					}
+						return DatabaseException(Error.code, Error.message);
 
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
-					{
-						VI_ERR("[mongoc] cannot connect to requested URI");
-						return false;
-					}
+						return DatabaseException(0, "connect: invalid address");
 
 					Driver::Get()->AttachQueryLog(Base);
 					Connected = true;
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Connection::Connect(Address* URL)
+			ExpectsPromiseDB<void> Connection::Connect(Address* URL)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
 				VI_ASSERT(URL && URL->Get(), "url should be valid");
-
 				if (Connected)
-				{
-					return Disconnect().Then<Core::Promise<bool>>([this, URL](bool)
-					{
-						return this->Connect(URL);
-					});
-				}
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URL](ExpectsDB<void>&&) { return this->Connect(URL); });
 
 				TAddress* URI = URL->Get();
-				return Core::Cotask<bool>([this, URI]()
+				return Core::Cotask<ExpectsDB<void>>([this, URI]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
-					{
-						VI_ERR("[mongoc] cannot connect to requested URI");
-						return false;
-					}
+						return DatabaseException(0, "connect: invalid address");
 
 					Driver::Get()->AttachQueryLog(Base);
 					Connected = true;
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Connection::Disconnect()
+			ExpectsPromiseDB<void> Connection::Disconnect()
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Connected && Base, "connection should be established");
-				return Core::Cotask<bool>([this]()
+				return Core::Cotask<ExpectsDB<void>>([this]() -> ExpectsDB<void>
 				{
 					Connected = false;
 					if (Master != nullptr)
@@ -3030,112 +3045,75 @@ namespace Vitex
 						mongoc_client_destroy(Base);
 						Base = nullptr;
 					}
-
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Connection::MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback)
+			ExpectsPromiseDB<void> Connection::MakeTransaction(std::function<Core::Promise<bool>(Transaction*)>&& Callback)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Callback, "callback should not be empty");
-				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
+				return Core::Coasync<ExpectsDB<void>>([this, Callback = std::move(Callback)]() mutable -> ExpectsPromiseDB<void>
 				{
-					Transaction Context = GetSession();
+					auto Context = GetSession();
 					if (!Context)
-						Coreturn false;
+						Coreturn Context.Error();
+					else if (!*Context)
+						Coreturn DatabaseException(0, "make transaction: no session");
 
 					while (true)
 					{
-						if (!VI_AWAIT(Context.Begin()))
-							Coreturn false;
+						auto Status = VI_AWAIT(Context->Begin());
+						if (!Status)
+							Coreturn Status;
 
-						if (!VI_AWAIT(Callback(Context)))
+						if (!VI_AWAIT(Callback(*Context)))
 							break;
 
 						while (true)
 						{
-							TransactionState State = VI_AWAIT(Context.Commit());
-							if (State == TransactionState::OK || State == TransactionState::Fatal)
-								Coreturn State == TransactionState::OK;
+							TransactionState State = VI_AWAIT(Context->Commit());
+							if (State == TransactionState::Fatal)
+								Coreturn DatabaseException(0, "make transaction: fatal error");
+							else if (State == TransactionState::OK)
+								Coreturn Core::Expectation::Met;
 
 							if (State == TransactionState::Retry_Commit)
 							{
-								VI_WARN("[mongoc] retrying transaction commit");
+								VI_DEBUG("[mongoc] retrying transaction commit");
 								continue;
 							}
 
 							if (State == TransactionState::Retry)
 							{
-								VI_WARN("[mongoc] retrying full transaction");
+								VI_DEBUG("[mongoc] retrying full transaction");
 								break;
 							}
 						}
 					}
 
-					VI_AWAIT(Context.Rollback());
-					Coreturn false;
+					VI_AWAIT(Context->Rollback());
+					Coreturn DatabaseException(0, "make transaction: aborted");
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
+			ExpectsPromiseDB<Cursor> Connection::FindDatabases(const Document& Options)
 			{
 #ifdef VI_MONGOC
-				VI_ASSERT(Callback, "callback should not be empty");
-				return Core::Coasync<bool>([this, Callback]() -> Core::Promise<bool>
+				return Core::Cotask<ExpectsDB<Cursor>>([this, &Options]() -> ExpectsDB<Cursor>
 				{
-					Transaction Context = GetSession();
-					if (!Context)
-						Coreturn false;
+					mongoc_cursor_t* Result = mongoc_client_find_databases_with_opts(Base, Options.Get());
+					if (!Result)
+						return DatabaseException(0, "databases not found");
 
-					while (true)
-					{
-						if (!VI_AWAIT(Context.Begin()))
-							Coreturn false;
-
-						if (!Callback(Context))
-							break;
-
-						while (true)
-						{
-							TransactionState State = VI_AWAIT(Context.Commit());
-							if (State == TransactionState::OK || State == TransactionState::Fatal)
-								Coreturn State == TransactionState::OK;
-
-							if (State == TransactionState::Retry_Commit)
-							{
-								VI_WARN("[mongoc] retrying transaction commit");
-								continue;
-							}
-
-							if (State == TransactionState::Retry)
-							{
-								VI_WARN("[mongoc] retrying full transaction");
-								break;
-							}
-						}
-					}
-
-					VI_AWAIT(Context.Rollback());
-					Coreturn false;
+					return Cursor(Result);
 				});
 #else
-				return Core::Promise<bool>(false);
-#endif
-			}
-			Core::Promise<Cursor> Connection::FindDatabases(const Document& Options)
-			{
-#ifdef VI_MONGOC
-				return Core::Cotask<Cursor>([this, &Options]()
-				{
-					return mongoc_client_find_databases_with_opts(Base, Options.Get());
-				});
-#else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
 			void Connection::SetProfile(const Core::String& Name)
@@ -3144,39 +3122,36 @@ namespace Vitex
 				mongoc_client_set_appname(Base, Name.c_str());
 #endif
 			}
-			bool Connection::SetServer(bool ForWrites)
+			ExpectsDB<void> Connection::SetServer(bool ForWrites)
 			{
 #ifdef VI_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				mongoc_server_description_t* Server = mongoc_client_select_server(Base, ForWrites, nullptr, &Error);
-				if (Server == nullptr)
-				{
-					VI_ERR("[mongoc] command fail: %s", Error.message);
-					return false;
-				}
+				if (!Server)
+					return DatabaseException(Error.code, Error.message);
 
 				mongoc_server_description_destroy(Server);
-				return true;
+				return Core::Expectation::Met;
 #else
-				return false;
+				return DatabaseException(0, "not supported");
 #endif
 			}
-			Transaction& Connection::GetSession()
+			ExpectsDB<Transaction*> Connection::GetSession()
 			{
 #ifdef VI_MONGOC
 				if (Session.Get() != nullptr)
-					return Session;
+					return &Session;
 
 				bson_error_t Error;
 				Session = mongoc_client_start_session(Base, nullptr, &Error);
 				if (!Session.Get())
-					VI_ERR("[mongoc] cannot create transaction: %s", Error.message);
+					return DatabaseException(Error.code, Error.message);
 
-				return Session;
+				return &Session;
 #else
-				return Session;
+				return &Session;
 #endif
 			}
 			Database Connection::GetDatabase(const Core::String& Name) const
@@ -3223,19 +3198,15 @@ namespace Vitex
 			{
 				return Base;
 			}
-			Core::Vector<Core::String> Connection::GetDatabaseNames(const Document& Options) const
+			ExpectsDB<Core::Vector<Core::String>> Connection::GetDatabaseNames(const Document& Options) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 				char** Names = mongoc_client_get_database_names_with_opts(Base, Options.Get(), &Error);
-				if (Names == nullptr)
-				{
-					VI_ERR("[mongoc] %s", Error.message);
-					return Core::Vector<Core::String>();
-				}
+				if (!Names)
+					return DatabaseException(Error.code, Error.message);
 
 				Core::Vector<Core::String> Output;
 				for (unsigned i = 0; Names[i]; i++)
@@ -3244,7 +3215,7 @@ namespace Vitex
 				bson_strfreev(Names);
 				return Output;
 #else
-				return Core::Vector<Core::String>();
+				return DatabaseException(0, "not supported");
 #endif
 			}
 			bool Connection::IsConnected() const
@@ -3267,18 +3238,13 @@ namespace Vitex
 				Connected = false;
 #endif
 			}
-			Core::Promise<bool> Cluster::ConnectByURI(const Core::String& URI)
+			ExpectsPromiseDB<void> Cluster::ConnectByURI(const Core::String& URI)
 			{
 #ifdef VI_MONGOC
 				if (Connected)
-				{
-					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
-					{
-						return this->ConnectByURI(URI);
-					});
-				}
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI](ExpectsDB<void>&&) { return this->ConnectByURI(URI); });
 
-				return Core::Cotask<bool>([this, URI]()
+				return Core::Cotask<ExpectsDB<void>>([this, URI]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					bson_error_t Error;
@@ -3286,65 +3252,51 @@ namespace Vitex
 
 					SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
 					if (!SrcAddress.Get())
-					{
-						VI_ERR("[urierr] %s", Error.message);
-						return false;
-					}
+						return DatabaseException(Error.code, Error.message);
 
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
-					{
-						VI_ERR("[mongoc] cannot connect to requested URI");
-						return false;
-					}
+						return DatabaseException(0, "connect: invalid address");
 
 					Driver::Get()->AttachQueryLog(Pool);
 					Connected = true;
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Cluster::Connect(Address* URI)
+			ExpectsPromiseDB<void> Cluster::Connect(Address* URI)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(URI && URI->Get(), "url should be set");
 				if (Connected)
-				{
-					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
-					{
-						return this->Connect(URI);
-					});
-				}
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI](ExpectsDB<void>&&) { return this->Connect(URI); });
 
 				TAddress* Context = URI->Get();
 				*URI = nullptr;
 
-				return Core::Cotask<bool>([this, Context]()
+				return Core::Cotask<ExpectsDB<void>>([this, Context]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
-					{
-						VI_ERR("[mongoc] cannot connect to requested URI");
-						return false;
-					}
+						return DatabaseException(0, "connect: invalid address");
 
 					Driver::Get()->AttachQueryLog(Pool);
 					Connected = true;
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			Core::Promise<bool> Cluster::Disconnect()
+			ExpectsPromiseDB<void> Cluster::Disconnect()
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Connected && Pool, "connection should be established");
-				return Core::Cotask<bool>([this]()
+				return Core::Cotask<ExpectsDB<void>>([this]() -> ExpectsDB<void>
 				{
 					if (Pool != nullptr)
 					{
@@ -3354,10 +3306,10 @@ namespace Vitex
 
 					SrcAddress.~Address();
 					Connected = false;
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
 			void Cluster::SetProfile(const Core::String& Name)
@@ -3572,20 +3524,21 @@ namespace Vitex
 				{
 					switch (Level)
 					{
-						case MONGOC_LOG_LEVEL_ERROR:
-							VI_ERR("[mongoc] [%s] %s", Domain, Message);
-							break;
 						case MONGOC_LOG_LEVEL_WARNING:
-							VI_WARN("[mongoc] [%s] %s", Domain, Message);
+							VI_WARN("[mongoc] %s %s", Domain, Message);
 							break;
 						case MONGOC_LOG_LEVEL_INFO:
-							VI_INFO("[mongoc] [%s] %s", Domain, Message);
+							VI_INFO("[mongoc] %s %s", Domain, Message);
 							break;
+						case MONGOC_LOG_LEVEL_ERROR:
 						case MONGOC_LOG_LEVEL_CRITICAL:
-							VI_ERR("[mongocerr] [%s] %s", Domain, Message);
+							VI_ERR("[mongoc] %s %s", Domain, Message);
 							break;
 						case MONGOC_LOG_LEVEL_MESSAGE:
-							VI_DEBUG("[mongoc] [%s] %s", Domain, Message);
+							VI_DEBUG("[mongoc] %s %s", Domain, Message);
+							break;
+						case MONGOC_LOG_LEVEL_TRACE:
+							VI_TRACE("[mongoc] %s %s", Domain, Message);
 							break;
 						default:
 							break;
@@ -3641,23 +3594,22 @@ namespace Vitex
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
-			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
+			void Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				Constants[Name] = Value;
-				return true;
 			}
-			bool Driver::AddQuery(const Core::String& Name, const Core::String& Data) noexcept
+			ExpectsDB<void> Driver::AddQuery(const Core::String& Name, const Core::String& Data)
 			{
-				return AddQuery(Name, Data.c_str(), Data.size());
+				return AddQueryFromBuffer(Name, Data.c_str(), Data.size());
 			}
-			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept
+			ExpectsDB<void> Driver::AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				VI_ASSERT(Buffer, "buffer should be set");
 				if (!Size)
-					return false;
+					return DatabaseException(0, "import empty query error: " + Name);
 
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
@@ -3678,22 +3630,16 @@ namespace Vitex
 					Core::UMutex<std::mutex> Unique(Exclusive);
 					for (auto& Item : Enumerations)
 					{
-						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
+						size_t Size = Item.second.End - Item.second.Start;
 						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
 						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
 
 						auto It = Constants.find(Item.first);
 						if (It == Constants.end())
-						{
-							VI_ERR("[mongoc] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
-						}
-						else
-						{
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
-							NewSize = It->second.size();
-						}
+							return DatabaseException(0, "query expects " + Item.first + " constrant: " + Name);
 
+						Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
+						size_t NewSize = It->second.size();
 						Offset += (int64_t)NewSize - (int64_t)Size;
 						Item.second.End = Item.second.Start + NewSize;
 					}
@@ -3727,17 +3673,22 @@ namespace Vitex
 				}
 
 				if (Variables.empty())
-					Result.Cache = Document::FromJSON(Result.Request);
+				{
+					auto Subresult = Document::FromJSON(Result.Request);
+					if (!Subresult)
+						return Subresult.Error();
+					Result.Cache = std::move(*Subresult);
+				}
 
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				Queries[Name] = std::move(Result);
-				return true;
+				return Core::Expectation::Met;
 			}
-			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin) noexcept
+			ExpectsDB<void> Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
-					return false;
+					return DatabaseException(0, "import directory scan error: " + Directory);
 
 				Core::String Path = Directory;
 				if (Path.back() != '/' && Path.back() != '\\')
@@ -3749,8 +3700,11 @@ namespace Vitex
 					Core::String Base(Path + File.first);
 					if (File.second.IsDirectory)
 					{
-						AddDirectory(Base, Origin.empty() ? Directory : Origin);
-						continue;
+						auto Status = AddDirectory(Base, Origin.empty() ? Directory : Origin);
+						if (!Status)
+							return Status;
+						else
+							continue;
 					}
 
 					if (!Core::Stringify::EndsWith(Base, ".json"))
@@ -3766,11 +3720,13 @@ namespace Vitex
 					if (Core::Stringify::StartsOf(Base, "\\/"))
 						Base.erase(0, 1);
 
-					AddQuery(Base, (char*)*Buffer, Size);
+					auto Status = AddQueryFromBuffer(Base, (char*)*Buffer, Size);
 					VI_FREE(*Buffer);
+					if (!Status)
+						return Status;
 				}
 
-				return true;
+				return Core::Expectation::Met;
 			}
 			bool Driver::RemoveConstant(const Core::String& Name) noexcept
 			{
@@ -3862,7 +3818,7 @@ namespace Vitex
 				VI_DEBUG("[mdb] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
 				return Result;
 			}
-			Document Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			ExpectsDB<Document> Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Name);
@@ -3875,8 +3831,7 @@ namespace Vitex
 						Map->clear();
 					}
 
-					VI_ERR("[mongoc] template query %s does not exist", Name.c_str());
-					return nullptr;
+					return DatabaseException(0, "query not found: " + Name);
 				}
 
 				if (It->second.Cache.Get() != nullptr)
@@ -3894,7 +3849,7 @@ namespace Vitex
 
 				if (!Map || Map->empty())
 				{
-					Document Result = Document::FromJSON(It->second.Request);
+					auto Result = Document::FromJSON(It->second.Request);
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
@@ -3914,10 +3869,7 @@ namespace Vitex
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
-					{
-						VI_ERR("[mongoc] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
-						continue;
-					}
+						return DatabaseException(0, "query expects " + Word.Key + " constrant: " + Name);
 
 					Core::String Value = Utils::GetJSON(It->second, Word.Escape);
 					if (Value.empty())
@@ -3934,9 +3886,11 @@ namespace Vitex
 					Map->clear();
 				}
 
-				Document Data = Document::FromJSON(Origin.Request);
-				if (!Data.Get())
-					VI_ERR("[mongoc] could not construct query: \"%s\"", Name.c_str());
+				auto Data = Document::FromJSON(Origin.Request);
+				if (!Data)
+					return Data.Error();
+				else if (!Data->Get())
+					return DatabaseException(0, "query construction error: " + Name);
 
 				return Data;
 			}

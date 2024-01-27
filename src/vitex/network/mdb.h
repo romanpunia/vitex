@@ -110,6 +110,24 @@ namespace Vitex
 				Property operator [](const char* Name) const;
 			};
 
+			class DatabaseException : public Core::BasicException
+			{
+			public:
+				Core::String Info;
+				int ErrorCode;
+
+			public:
+				VI_OUT DatabaseException(int ErrorCode, Core::String&& Message);
+				VI_OUT const char* type() const noexcept override;
+				VI_OUT const char* what() const noexcept override;
+			};
+
+			template <typename V>
+			using ExpectsDB = Core::Expects<V, DatabaseException>;
+
+			template <typename T, typename Executor = Core::ParallelExecutor>
+			using ExpectsPromiseDB = Core::BasicPromise<ExpectsDB<T>, Executor>;
+
 			class VI_OUT Document
 			{
 			private:
@@ -119,10 +137,10 @@ namespace Vitex
 			public:
 				Document();
 				Document(TDocument* NewBase);
-				Document(const Document& Other) = delete;
+				Document(const Document& Other);
 				Document(Document&& Other);
 				~Document();
-				Document& operator =(const Document& Other) = delete;
+				Document& operator =(const Document& Other);
 				Document& operator =(Document&& Other);
 				void Cleanup();
 				void Join(const Document& Value);
@@ -188,7 +206,7 @@ namespace Vitex
 			public:
 				static Document FromEmpty();
 				static Document FromSchema(Core::Schema* Document);
-				static Document FromJSON(const Core::String& JSON);
+				static ExpectsDB<Document> FromJSON(const Core::String& JSON);
 				static Document FromBuffer(const unsigned char* Buffer, size_t Length);
 				static Document FromSource(TDocument* Src);
 
@@ -204,10 +222,10 @@ namespace Vitex
 			public:
 				Address();
 				Address(TAddress* NewBase);
-				Address(const Address& Other) = delete;
+				Address(const Address& Other);
 				Address(Address&& Other);
 				~Address();
-				Address& operator =(const Address& Other) = delete;
+				Address& operator =(const Address& Other);
 				Address& operator =(Address&& Other);
 				void SetOption(const Core::String& Name, int64_t Value);
 				void SetOption(const Core::String& Name, bool Value);
@@ -225,7 +243,7 @@ namespace Vitex
 				}
 
 			public:
-				static Address FromURI(const Core::String& Value);
+				static ExpectsDB<Address> FromURI(const Core::String& Value);
 			};
 
 			class VI_OUT Stream
@@ -239,21 +257,21 @@ namespace Vitex
 			public:
 				Stream();
 				Stream(TCollection* NewSource, TStream* NewBase, Document&& NewOptions);
-				Stream(const Stream& Other) = delete;
+				Stream(const Stream& Other);
 				Stream(Stream&& Other);
 				~Stream();
-				Stream& operator =(const Stream& Other) = delete;
+				Stream& operator =(const Stream& Other);
 				Stream& operator =(Stream&& Other);
-				bool RemoveMany(const Document& Match, const Document& Options);
-				bool RemoveOne(const Document& Match, const Document& Options);
-				bool ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
-				bool InsertOne(const Document& Result, const Document& Options);
-				bool UpdateOne(const Document& Match, const Document& Result, const Document& Options);
-				bool UpdateMany(const Document& Match, const Document& Result, const Document& Options);
-				bool TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
-				bool Query(const Document& Command);
-				Core::Promise<Document> ExecuteWithReply();
-				Core::Promise<bool> Execute();
+				ExpectsDB<void> RemoveMany(const Document& Match, const Document& Options);
+				ExpectsDB<void> RemoveOne(const Document& Match, const Document& Options);
+				ExpectsDB<void> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
+				ExpectsDB<void> InsertOne(const Document& Result, const Document& Options);
+				ExpectsDB<void> UpdateOne(const Document& Match, const Document& Result, const Document& Options);
+				ExpectsDB<void> UpdateMany(const Document& Match, const Document& Result, const Document& Options);
+				ExpectsDB<void> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				ExpectsDB<void> Query(const Document& Command);
+				ExpectsPromiseDB<Document> ExecuteWithReply();
+				ExpectsPromiseDB<void> Execute();
 				size_t GetHint() const;
 				TStream* Get() const;
 				explicit operator bool() const
@@ -262,7 +280,7 @@ namespace Vitex
 				}
 
 			private:
-				bool NextOperation();
+				ExpectsDB<void> NextOperation();
 			};
 
 			class VI_OUT Cursor
@@ -283,8 +301,8 @@ namespace Vitex
 				bool SetLimit(int64_t Limit);
 				bool SetHint(size_t Hint);
 				bool Empty() const;
-				bool Error() const;
-				Core::Promise<bool> Next();
+				Core::Option<DatabaseException> Error() const;
+				ExpectsPromiseDB<void> Next();
 				int64_t GetId() const;
 				int64_t GetLimit() const;
 				size_t GetMaxAwaitTime() const;
@@ -322,13 +340,13 @@ namespace Vitex
 				Response(Response&& Other);
 				Response& operator =(const Response& Other) = delete;
 				Response& operator =(Response&& Other);
-				Core::Promise<Core::Unique<Core::Schema>> Fetch();
-				Core::Promise<Core::Unique<Core::Schema>> FetchAll();
-				Core::Promise<Property> GetProperty(const Core::String& Name);
+				ExpectsPromiseDB<Core::Unique<Core::Schema>> Fetch();
+				ExpectsPromiseDB<Core::Unique<Core::Schema>> FetchAll();
+				ExpectsPromiseDB<Property> GetProperty(const Core::String& Name);
 				Cursor&& GetCursor();
 				Document&& GetDocument();
 				bool Success() const;
-				Core::Promise<Property> operator [](const Core::String& Name)
+				ExpectsPromiseDB<Property> operator [](const Core::String& Name)
 				{
 					return GetProperty(Name);
 				}
@@ -351,22 +369,22 @@ namespace Vitex
 				~Transaction() = default;
 				Transaction& operator =(const Transaction& Other) = default;
 				Transaction& operator =(Transaction&& Other) = default;
-				bool Push(const Document& QueryOptions) const;
-				bool Put(TDocument** QueryOptions) const;
-				Core::Promise<bool> Begin();
-				Core::Promise<bool> Rollback();
-				Core::Promise<Document> RemoveMany(Collection& Base, const Document& Match, const Document& Options);
-				Core::Promise<Document> RemoveOne(Collection& Base, const Document& Match, const Document& Options);
-				Core::Promise<Document> ReplaceOne(Collection& Base, const Document& Match, const Document& Replacement, const Document& Options);
-				Core::Promise<Document> InsertMany(Collection& Base, Core::Vector<Document>& List, const Document& Options);
-				Core::Promise<Document> InsertOne(Collection& Base, const Document& Result, const Document& Options);
-				Core::Promise<Document> UpdateMany(Collection& Base, const Document& Match, const Document& Update, const Document& Options);
-				Core::Promise<Document> UpdateOne(Collection& Base, const Document& Match, const Document& Update, const Document& Options);
-				Core::Promise<Cursor> FindMany(Collection& Base, const Document& Match, const Document& Options);
-				Core::Promise<Cursor> FindOne(Collection& Base, const Document& Match, const Document& Options);
-				Core::Promise<Cursor> Aggregate(Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options);
-				Core::Promise<Response> TemplateQuery(Collection& Base, const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
-				Core::Promise<Response> Query(Collection& Base, const Document& Command);
+				ExpectsDB<void> Push(const Document& QueryOptions);
+				ExpectsDB<void> Put(TDocument** QueryOptions) const;
+				ExpectsPromiseDB<void> Begin();
+				ExpectsPromiseDB<void> Rollback();
+				ExpectsPromiseDB<Document> RemoveMany(Collection& Base, const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Document> RemoveOne(Collection& Base, const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Document> ReplaceOne(Collection& Base, const Document& Match, const Document& Replacement, const Document& Options);
+				ExpectsPromiseDB<Document> InsertMany(Collection& Base, Core::Vector<Document>& List, const Document& Options);
+				ExpectsPromiseDB<Document> InsertOne(Collection& Base, const Document& Result, const Document& Options);
+				ExpectsPromiseDB<Document> UpdateMany(Collection& Base, const Document& Match, const Document& Update, const Document& Options);
+				ExpectsPromiseDB<Document> UpdateOne(Collection& Base, const Document& Match, const Document& Update, const Document& Options);
+				ExpectsPromiseDB<Cursor> FindMany(Collection& Base, const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Cursor> FindOne(Collection& Base, const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Cursor> Aggregate(Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options);
+				ExpectsPromiseDB<Response> TemplateQuery(Collection& Base, const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				ExpectsPromiseDB<Response> Query(Collection& Base, const Document& Command);
 				Core::Promise<TransactionState> Commit();
 				TTransaction* Get() const;
 				explicit operator bool() const
@@ -388,30 +406,30 @@ namespace Vitex
 				~Collection();
 				Collection& operator =(const Collection& Other) = delete;
 				Collection& operator =(Collection&& Other);
-				Core::Promise<bool> Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
-				Core::Promise<bool> RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
-				Core::Promise<bool> RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
-				Core::Promise<bool> RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
-				Core::Promise<bool> Remove(const Document& Options);
-				Core::Promise<bool> RemoveIndex(const Core::String& Name, const Document& Options);
-				Core::Promise<Document> RemoveMany(const Document& Match, const Document& Options);
-				Core::Promise<Document> RemoveOne(const Document& Match, const Document& Options);
-				Core::Promise<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
-				Core::Promise<Document> InsertMany(Core::Vector<Document>& List, const Document& Options);
-				Core::Promise<Document> InsertOne(const Document& Result, const Document& Options);
-				Core::Promise<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options);
-				Core::Promise<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options);
-				Core::Promise<Document> FindAndModify(const Document& Match, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New);
+				ExpectsPromiseDB<void> Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
+				ExpectsPromiseDB<void> RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
+				ExpectsPromiseDB<void> RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
+				ExpectsPromiseDB<void> RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
+				ExpectsPromiseDB<void> Remove(const Document& Options);
+				ExpectsPromiseDB<void> RemoveIndex(const Core::String& Name, const Document& Options);
+				ExpectsPromiseDB<Document> RemoveMany(const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Document> RemoveOne(const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
+				ExpectsPromiseDB<Document> InsertMany(Core::Vector<Document>& List, const Document& Options);
+				ExpectsPromiseDB<Document> InsertOne(const Document& Result, const Document& Options);
+				ExpectsPromiseDB<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options);
+				ExpectsPromiseDB<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options);
+				ExpectsPromiseDB<Document> FindAndModify(const Document& Match, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New);
 				Core::Promise<size_t> CountDocuments(const Document& Match, const Document& Options);
 				Core::Promise<size_t> CountDocumentsEstimated(const Document& Options);
-				Core::Promise<Cursor> FindIndexes(const Document& Options);
-				Core::Promise<Cursor> FindMany(const Document& Match, const Document& Options);
-				Core::Promise<Cursor> FindOne(const Document& Match, const Document& Options);
-				Core::Promise<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options);
-				Core::Promise<Response> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, const Transaction& Session = Transaction());
-				Core::Promise<Response> Query(const Document& Command, const Transaction& Session = Transaction());
+				ExpectsPromiseDB<Cursor> FindIndexes(const Document& Options);
+				ExpectsPromiseDB<Cursor> FindMany(const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Cursor> FindOne(const Document& Match, const Document& Options);
+				ExpectsPromiseDB<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options);
+				ExpectsPromiseDB<Response> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, const Transaction& Session = Transaction());
+				ExpectsPromiseDB<Response> Query(const Document& Command, const Transaction& Session = Transaction());
 				Core::String GetName() const;
-				Stream CreateStream(Document&& Options) const;
+				ExpectsDB<Stream> CreateStream(Document& Options);
 				TCollection* Get() const;
 				explicit operator bool() const
 				{
@@ -432,15 +450,15 @@ namespace Vitex
 				~Database();
 				Database& operator =(const Database& Other) = delete;
 				Database& operator =(Database&& Other);
-				Core::Promise<bool> RemoveAllUsers();
-				Core::Promise<bool> RemoveUser(const Core::String& Name);
-				Core::Promise<bool> Remove();
-				Core::Promise<bool> RemoveWithOptions(const Document& Options);
-				Core::Promise<bool> AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom);
-				Core::Promise<bool> HasCollection(const Core::String& Name);
-				Core::Promise<Collection> CreateCollection(const Core::String& Name, const Document& Options);
-				Core::Promise<Cursor> FindCollections(const Document& Options);
-				Core::Vector<Core::String> GetCollectionNames(const Document& Options) const;
+				ExpectsPromiseDB<void> RemoveAllUsers();
+				ExpectsPromiseDB<void> RemoveUser(const Core::String& Name);
+				ExpectsPromiseDB<void> Remove();
+				ExpectsPromiseDB<void> RemoveWithOptions(const Document& Options);
+				ExpectsPromiseDB<void> AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom);
+				ExpectsPromiseDB<void> HasCollection(const Core::String& Name);
+				ExpectsPromiseDB<Collection> CreateCollection(const Core::String& Name, const Document& Options);
+				ExpectsPromiseDB<Cursor> FindCollections(const Document& Options);
+				ExpectsDB<Core::Vector<Core::String>> GetCollectionNames(const Document& Options) const;
 				Core::String GetName() const;
 				Collection GetCollection(const Core::String& Name);
 				TDatabase* Get() const;
@@ -458,13 +476,13 @@ namespace Vitex
 			public:
 				Watcher();
 				Watcher(TWatcher* NewBase);
-				Watcher(const Watcher& Other) = delete;
+				Watcher(const Watcher& Other);
 				Watcher(Watcher&& Other);
 				~Watcher();
-				Watcher& operator =(const Watcher& Other) = delete;
+				Watcher& operator =(const Watcher& Other);
 				Watcher& operator =(Watcher&& Other);
-				Core::Promise<bool> Next(Document& Result);
-				Core::Promise<bool> Error(Document& Result);
+				ExpectsPromiseDB<void> Next(Document& Result);
+				ExpectsPromiseDB<void> Error(Document& Result);
 				TWatcher* Get() const;
 				explicit operator bool() const
 				{
@@ -472,9 +490,9 @@ namespace Vitex
 				}
 
 			public:
-				static Watcher FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options);
-				static Watcher FromDatabase(const Database& Src, const Document& Pipeline, const Document& Options);
-				static Watcher FromCollection(const Collection& Src, const Document& Pipeline, const Document& Options);
+				static ExpectsDB<Watcher> FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options);
+				static ExpectsDB<Watcher> FromDatabase(const Database& Src, const Document& Pipeline, const Document& Options);
+				static ExpectsDB<Watcher> FromCollection(const Collection& Src, const Document& Pipeline, const Document& Options);
 			};
 
 			class VI_OUT Connection final : public Core::Reference<Connection>
@@ -491,22 +509,21 @@ namespace Vitex
 			public:
 				Connection();
 				~Connection() noexcept;
-				Core::Promise<bool> ConnectByURI(const Core::String& Address);
-				Core::Promise<bool> Connect(Address* URI);
-				Core::Promise<bool> Disconnect();
-				Core::Promise<bool> MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback);
-				Core::Promise<bool> MakeCotransaction(const std::function<bool(Transaction&)>& Callback);
-				Core::Promise<Cursor> FindDatabases(const Document& Options);
+				ExpectsPromiseDB<void> ConnectByURI(const Core::String& Address);
+				ExpectsPromiseDB<void> Connect(Address* URI);
+				ExpectsPromiseDB<void> Disconnect();
+				ExpectsPromiseDB<void> MakeTransaction(std::function<Core::Promise<bool>(Transaction*)>&& Callback);
+				ExpectsPromiseDB<Cursor> FindDatabases(const Document& Options);
 				void SetProfile(const Core::String& Name);
-				bool SetServer(bool Writeable);
-				Transaction& GetSession();
+				ExpectsDB<void> SetServer(bool Writeable);
+				ExpectsDB<Transaction*> GetSession();
 				Database GetDatabase(const Core::String& Name) const;
 				Database GetDefaultDatabase() const;
 				Collection GetCollection(const Core::String& DatabaseName, const Core::String& Name) const;
 				Address GetAddress() const;
 				Cluster* GetMaster() const;
 				TConnection* Get() const;
-				Core::Vector<Core::String> GetDatabaseNames(const Document& Options) const;
+				ExpectsDB<Core::Vector<Core::String>> GetDatabaseNames(const Document& Options) const;
 				bool IsConnected() const;
 			};
 
@@ -520,9 +537,9 @@ namespace Vitex
 			public:
 				Cluster();
 				~Cluster() noexcept;
-				Core::Promise<bool> ConnectByURI(const Core::String& Address);
-				Core::Promise<bool> Connect(Address* URI);
-				Core::Promise<bool> Disconnect();
+				ExpectsPromiseDB<void> ConnectByURI(const Core::String& Address);
+				ExpectsPromiseDB<void> Connect(Address* URI);
+				ExpectsPromiseDB<void> Disconnect();
 				void SetProfile(const Core::String& Name);
 				void Push(Connection** Client);
 				Connection* Pop();
@@ -576,15 +593,15 @@ namespace Vitex
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
 				void AttachQueryLog(TConnection* Connection) noexcept;
 				void AttachQueryLog(TConnectionPool* Connection) noexcept;
-				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
-				bool AddQuery(const Core::String& Name, const Core::String& Data) noexcept;
-				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
-				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
+				void AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
+				ExpectsDB<void> AddQuery(const Core::String& Name, const Core::String& Data);
+				ExpectsDB<void> AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size);
+				ExpectsDB<void> AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
 				bool RemoveConstant(const Core::String& Name) noexcept;
 				bool RemoveQuery(const Core::String& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				Document GetQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true) noexcept;
+				ExpectsDB<Document> GetQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

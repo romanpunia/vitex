@@ -200,7 +200,25 @@ namespace Vitex
 			{
 				return static_cast<size_t>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
-			
+
+			class DatabaseException : public Core::BasicException
+			{
+			public:
+				Core::String Info;
+
+			public:
+				VI_OUT DatabaseException(TConnection* Connection);
+				VI_OUT DatabaseException(Core::String&& Message);
+				VI_OUT const char* type() const noexcept override;
+				VI_OUT const char* what() const noexcept override;
+			};
+
+			template <typename V>
+			using ExpectsDB = Core::Expects<V, DatabaseException>;
+
+			template <typename T, typename Executor = Core::ParallelExecutor>
+			using ExpectsPromiseDB = Core::BasicPromise<ExpectsDB<T>, Executor>;
+
 			class VI_OUT Address
 			{
 			private:
@@ -208,7 +226,6 @@ namespace Vitex
 
 			public:
 				Address();
-				Address(const Core::String& URI);
 				void Override(const Core::String& Key, const Core::String& Value);
 				bool Set(AddressOp Key, const Core::String& Value);
 				Core::String Get(AddressOp Key) const;
@@ -216,6 +233,9 @@ namespace Vitex
 				const Core::UnorderedMap<Core::String, Core::String>& Get() const;
 				Core::Unique<const char*> CreateKeys() const;
 				Core::Unique<const char*> CreateValues() const;
+
+			public:
+				static ExpectsDB<Address> FromURI(const Core::String& URI);
 
 			private:
 				static Core::String GetKeyName(AddressOp Key);
@@ -477,7 +497,7 @@ namespace Vitex
 				friend Cluster;
 
 			private:
-				Core::Promise<Cursor> Future;
+				ExpectsPromiseDB<Cursor> Future;
 				Core::Vector<char> Command;
 				std::chrono::microseconds Time;
 				SessionId Session;
@@ -530,18 +550,18 @@ namespace Vitex
 				void SetWhenReconnected(const OnReconnect& NewCallback);
 				uint64_t AddChannel(const Core::String& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const Core::String& Name, uint64_t Id);
-				Core::Promise<SessionId> TxBegin(Isolation Type);
-				Core::Promise<SessionId> TxStart(const Core::String& Command);
-				Core::Promise<bool> TxEnd(const Core::String& Command, SessionId Session);
-				Core::Promise<bool> TxCommit(SessionId Session);
-				Core::Promise<bool> TxRollback(SessionId Session);
-				Core::Promise<bool> Connect(const Address& URI, size_t Connections = 1);
-				Core::Promise<bool> Disconnect();
-				Core::Promise<bool> Listen(const Core::Vector<Core::String>& Channels);
-				Core::Promise<bool> Unlisten(const Core::Vector<Core::String>& Channels);
-				Core::Promise<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<SessionId> TxBegin(Isolation Type);
+				ExpectsPromiseDB<SessionId> TxStart(const Core::String& Command);
+				ExpectsPromiseDB<void> TxEnd(const Core::String& Command, SessionId Session);
+				ExpectsPromiseDB<void> TxCommit(SessionId Session);
+				ExpectsPromiseDB<void> TxRollback(SessionId Session);
+				ExpectsPromiseDB<void> Connect(const Address& URI, size_t Connections = 1);
+				ExpectsPromiseDB<void> Disconnect();
+				ExpectsPromiseDB<void> Listen(const Core::Vector<Core::String>& Channels);
+				ExpectsPromiseDB<void> Unlisten(const Core::Vector<Core::String>& Channels);
+				ExpectsPromiseDB<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				Connection* GetConnection(QueryState State);
 				Connection* GetAnyConnection() const;
 				bool IsConnected() const;
@@ -564,8 +584,8 @@ namespace Vitex
 			class VI_OUT_TS Utils
 			{
 			public:
-				static Core::String InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
-				static Core::String InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
+				static ExpectsDB<Core::String> InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
+				static ExpectsDB<Core::String> InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
 				static Core::String GetCharArray(Connection* Base, const Core::String& Src) noexcept;
 				static Core::String GetByteArray(Connection* Base, const Core::String& Src) noexcept;
 				static Core::String GetByteArray(Connection* Base, const char* Src, size_t Size) noexcept;
@@ -602,16 +622,16 @@ namespace Vitex
 				virtual ~Driver() noexcept override;
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
 				void LogQuery(const Core::String& Command) noexcept;
-				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
-				bool AddQuery(const Core::String& Name, const Core::String& Data) noexcept;
-				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
-				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
+				void AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
+				ExpectsDB<void> AddQuery(const Core::String& Name, const Core::String& Data);
+				ExpectsDB<void> AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size);
+				ExpectsDB<void> AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
 				bool RemoveConstant(const Core::String& Name) noexcept;
 				bool RemoveQuery(const Core::String& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				Core::String Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
-				Core::String GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

@@ -591,9 +591,9 @@ namespace Vitex
 				return Result;
 			}
 			template <typename T>
-			T* ProcessRendererJob(Graphics::GraphicsDevice* Device, std::function<T*(Graphics::GraphicsDevice*)>&& Callback)
+			T ProcessRendererJob(Graphics::GraphicsDevice* Device, std::function<T(Graphics::GraphicsDevice*)>&& Callback)
 			{
-				Core::Promise<T*> Future;
+				Core::Promise<T> Future;
 				Graphics::RenderThreadCallback Job = [Future, Callback = std::move(Callback)](Graphics::GraphicsDevice* Device) mutable
 				{
 					Future.Set(Callback(Device));
@@ -611,7 +611,7 @@ namespace Vitex
 			AssetProcessor::AssetProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* AssetProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> AssetProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 
@@ -631,13 +631,7 @@ namespace Vitex
 			MaterialProcessor::MaterialProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void MaterialProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Engine::Material*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* MaterialProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> MaterialProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -645,77 +639,104 @@ namespace Vitex
 				((Engine::Material*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				Core::Schema* Data = Content->Load<Core::Schema>(Stream->Source());
-				Core::String Path;
-
+				auto Data = Content->Load<Core::Schema>(Stream->Source());
 				if (!Data)
-					return nullptr;
+					return Data.Error();
 
+				Core::String Path;
 				Engine::Material* Object = new Engine::Material(nullptr);
 				if (Series::Unpack(Data->Get("diffuse-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetDiffuseMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetDiffuseMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("normal-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetNormalMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetNormalMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("metallic-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetMetallicMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetMetallicMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("roughness-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetRoughnessMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetRoughnessMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("height-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetHeightMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetHeightMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("occlusion-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetOcclusionMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetOcclusionMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("emission-map"), &Path) && !Path.empty())
 				{
-					Content->LoadAsync<Graphics::Texture2D>(Path).When([Object](Graphics::Texture2D* NewTexture)
+					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
+					if (!NewTexture)
 					{
-						Object->SetEmissionMap(NewTexture);
-						VI_RELEASE(NewTexture);
-					});
+						VI_RELEASE(Data);
+						return NewTexture.Error();
+					}
+
+					Object->SetEmissionMap(*NewTexture);
+					VI_RELEASE(NewTexture);
 				}
 
 				Core::String Name;
@@ -746,7 +767,7 @@ namespace Vitex
 				Object->AddRef();
 				return Object;
 			}
-			bool MaterialProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			ExpectsContent<void> MaterialProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(Instance != nullptr, "instance should be set");
@@ -798,28 +819,29 @@ namespace Vitex
 				Series::Pack(Data->Set("bias"), Object->Surface.Bias);
 				Series::Pack(Data->Set("name"), Object->GetName());
 
-				if (!Content->Save<Core::Schema>(Stream->Source(), Data, Args))
-				{
-					VI_RELEASE(Data);
-					return false;
-				}
-
+				auto Status = Content->Save<Core::Schema>(Stream->Source(), Data, Args);
 				VI_RELEASE(Data);
-				return true;
+				return Status;
+			}
+			void MaterialProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((Engine::Material*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 
 			SceneGraphProcessor::SceneGraphProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraphProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> SceneGraphProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(I.Shared.Device != nullptr, "graphics device should be set");
 
-				Core::Schema* Blob = Content->Load<Core::Schema>(Stream->Source());
+				auto Blob = Content->Load<Core::Schema>(Stream->Source());
 				if (!Blob)
-					return nullptr;
+					return Blob.Error();
 
 				Core::Schema* Metadata = Blob->Find("metadata");
 				if (Metadata != nullptr)
@@ -854,6 +876,11 @@ namespace Vitex
 					Series::Unpack(Metadata->Find("lines-max"), &I.LinesMax);
 				}
 
+				bool IntegrityCheck = false;
+				auto EnsureIntegrity = Args.find("integrity");
+				if (EnsureIntegrity != Args.end())
+					IntegrityCheck = EnsureIntegrity->second.GetBoolean();
+
 				auto HasMutations = Args.find("mutations");
 				if (HasMutations != Args.end())
 					I.Mutations = HasMutations->second.GetBoolean();
@@ -876,11 +903,16 @@ namespace Vitex
 						if (!Series::Unpack(It, &Path) || Path.empty())
 							continue;
 
-						Engine::Material* Value = Content->Load<Engine::Material>(Path);
-						if (Value != nullptr)
+						auto Value = Content->Load<Engine::Material>(Path);
+						if (Value)
 						{
 							Series::Unpack(It, &Value->Slot);
-							Object->AddMaterial(Value);
+							Object->AddMaterial(*Value);
+						}
+						else if (IntegrityCheck)
+						{
+							VI_RELEASE(Blob);
+							return Value.Error();
 						}
 					}
 				}
@@ -960,10 +992,7 @@ namespace Vitex
 
 								Component* Target = Core::Composer::Create<Component>(Id, Entity);
 								if (!Entity->AddComponent(Target))
-								{
-									VI_WARN("[engine] component with id %" PRIu64 " cannot be created", Id);
 									continue;
-								}
 
 								bool Active = true;
 								if (Series::Unpack(Element->Find("active"), &Active))
@@ -981,10 +1010,9 @@ namespace Vitex
 				VI_RELEASE(Blob);
 				Object->Snapshot = nullptr;
 				Object->Actualize();
-
 				return Object;
 			}
-			bool SceneGraphProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			ExpectsContent<void> SceneGraphProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(Instance != nullptr, "instance should be set");
@@ -1114,10 +1142,9 @@ namespace Vitex
 				}
 
 				Object->Snapshot = nullptr;
-				Content->Save<Core::Schema>(Stream->Source(), Blob, Args);
+				auto Status = Content->Save<Core::Schema>(Stream->Source(), Blob, Args);
 				VI_RELEASE(Blob);
-
-				return true;
+				return Status;
 			}
 
 			AudioClipProcessor::AudioClipProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1126,13 +1153,7 @@ namespace Vitex
 			AudioClipProcessor::~AudioClipProcessor()
 			{
 			}
-			void AudioClipProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Audio::AudioClip*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* AudioClipProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> AudioClipProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "asset resource should be set");
@@ -1140,16 +1161,16 @@ namespace Vitex
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				if (Core::Stringify::EndsWith(Stream->Source(), ".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
 				else if (Core::Stringify::EndsWith(Stream->Source(), ".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
-				return nullptr;
+				return ContentException("deserialize audio unsupported: " + Core::String(Core::OS::Path::GetExtension(Stream->Source().c_str())));
 			}
-			void* AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 #ifdef VI_SDL2
@@ -1167,7 +1188,10 @@ namespace Vitex
 				Uint32 WavCount;
 
 				if (!SDL_LoadWAV_RW(WavData, 1, &WavInfo, &WavSamples, &WavCount))
-					return nullptr;
+				{
+					SDL_RWclose(WavData);
+					return ContentException(std::move(Graphics::VideoException().Info));
+				}
 
 				int Format = 0;
 #ifdef VI_OPENAL
@@ -1183,12 +1207,14 @@ namespace Vitex
 						break;
 					default:
 						SDL_FreeWAV(WavSamples);
-						return nullptr;
+						SDL_RWclose(WavData);
+						return ContentException("load wave audio: unsupported audio format");
 				}
 #endif
 				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
 				SDL_FreeWAV(WavSamples);
+				SDL_RWclose(WavData);
 
 				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->Source(), Object);
 				if (Existing != nullptr)
@@ -1200,10 +1226,10 @@ namespace Vitex
 				Object->AddRef();
 				return Object;
 #else
-				return nullptr;
+				return ContentException("load wave audio: unsupported");
 #endif
 			}
-			void* AudioClipProcessor::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> AudioClipProcessor::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 #ifdef VI_STB
 				VI_ASSERT(Stream != nullptr, "stream should be set");
@@ -1219,10 +1245,7 @@ namespace Vitex
 				int Channels, SampleRate;
 				int Samples = stb_vorbis_decode_memory((const unsigned char*)Data.data(), (int)Data.size(), &Channels, &SampleRate, &Buffer);
 				if (Samples <= 0)
-				{
-					VI_ERR("[engine] cannot interpret OGG stream");
-					return nullptr;
-				}
+					return ContentException("load ogg audio: invalid file");
 
 				int Format = 0;
 #ifdef VI_OPENAL
@@ -1245,9 +1268,14 @@ namespace Vitex
 				Object->AddRef();
 				return Object;
 #else
-				VI_ERR("[engine] cannot load OGG stream: stb is disabled");
-				return nullptr;
+				return ContentException("load ogg audio: unsupported");
 #endif
+			}
+			void AudioClipProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((Audio::AudioClip*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 
 			Texture2DProcessor::Texture2DProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1256,13 +1284,7 @@ namespace Vitex
 			Texture2DProcessor::~Texture2DProcessor()
 			{
 			}
-			void Texture2DProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Graphics::Texture2D*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* Texture2DProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> Texture2DProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -1270,7 +1292,7 @@ namespace Vitex
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2DProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> Texture2DProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 #ifdef VI_STB
 				VI_ASSERT(Stream != nullptr, "stream should be set");
@@ -1285,7 +1307,7 @@ namespace Vitex
 				int Width, Height, Channels;
 				unsigned char* Resource = stbi_load_from_memory((const unsigned char*)Data.data(), (int)Data.size(), &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
-					return nullptr;
+					return ContentException("load texture 2d: invalid file");
 
 				auto* Device = Content->GetDevice();
 				Graphics::Texture2D::Desc I = Graphics::Texture2D::Desc();
@@ -1296,16 +1318,12 @@ namespace Vitex
 				I.DepthPitch = Device->GetDepthPitch(I.RowPitch, I.Height);
 				I.MipLevels = Device->GetMipLevel(I.Width, I.Height);
 
-				Graphics::Texture2D* Object = ProcessRendererJob<Graphics::Texture2D>(Device, [&I](Graphics::GraphicsDevice* Device)
-				{
-					return Device->CreateTexture2D(I);
-				});
-
+				auto Object = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Texture2D*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateTexture2D(I); });
 				stbi_image_free(Resource);
 				if (!Object)
-					return nullptr;
+					return ContentException(std::move(Object.Error().Info));
 
-				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->Source(), *Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1313,11 +1331,16 @@ namespace Vitex
 				}
 
 				Object->AddRef();
-				return Object;
+				return *Object;
 #else
-				VI_ERR("[engine] cannot load texture2d stream: stb is disabled");
-				return nullptr;
+				return ContentException("load texture 2d: unsupported");
 #endif
+			}
+			void Texture2DProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((Graphics::Texture2D*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 
 			ShaderProcessor::ShaderProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1326,13 +1349,7 @@ namespace Vitex
 			ShaderProcessor::~ShaderProcessor()
 			{
 			}
-			void ShaderProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Graphics::Shader*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* ShaderProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> ShaderProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -1340,7 +1357,7 @@ namespace Vitex
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* ShaderProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> ShaderProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::String Data;
@@ -1354,15 +1371,11 @@ namespace Vitex
 				I.Data = Data;
 
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
-				Graphics::Shader* Object = ProcessRendererJob<Graphics::Shader>(Device, [&I](Graphics::GraphicsDevice* Device)
-				{
-					return Device->CreateShader(I);
-				});
-
+				auto Object = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Shader*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateShader(I); });
 				if (!Object)
-					return nullptr;
+					return ContentException(std::move(Object.Error().Info));
 
-				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->Source(), *Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1370,7 +1383,13 @@ namespace Vitex
 				}
 
 				Object->AddRef();
-				return Object;
+				return *Object;
+			}
+			void ShaderProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((Graphics::Shader*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 
 			ModelProcessor::ModelProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1379,13 +1398,7 @@ namespace Vitex
 			ModelProcessor::~ModelProcessor()
 			{
 			}
-			void ModelProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Model*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* ModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> ModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -1393,16 +1406,16 @@ namespace Vitex
 				((Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* ModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> ModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Model* Object = nullptr;
 				Core::String& Path = Stream->Source();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
-					Core::Schema* Data = Content->Load<Core::Schema>(Path);
+					auto Data = Content->Load<Core::Schema>(Path);
 					if (!Data)
-						return nullptr;
+						return Data.Error();
 
 					Object = new Model();
 					Series::Unpack(Data->Get("min"), &Object->Min);
@@ -1421,58 +1434,61 @@ namespace Vitex
 							if (!Series::Unpack(Mesh->Get("indices"), &I.Indices))
 							{
 								VI_RELEASE(Data);
-								return nullptr;
+								VI_RELEASE(Object);
+								return ContentException("import model: invalid indices");
 							}
 
 							if (!Series::Unpack(Mesh->Get("vertices"), &I.Elements))
 							{
 								VI_RELEASE(Data);
-								return nullptr;
+								VI_RELEASE(Object);
+								return ContentException("import model: invalid vertices");
 							}
 
-							Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+							auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::MeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateMeshBuffer(I); });
+							if (!NewBuffer)
 							{
-								return Device->CreateMeshBuffer(I);
-							}));
+								VI_RELEASE(Data);
+								VI_RELEASE(Object);
+								return ContentException(std::move(NewBuffer.Error().Info));
+							}
 
-							auto* Next = Object->Meshes.back();
-							VI_ASSERT(Next != nullptr, "mesh should be initializable");
-
-							Series::Unpack(Mesh->Get("name"), &Next->Name);
-							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
+							Object->Meshes.emplace_back(*NewBuffer);
+							Series::Unpack(Mesh->Get("name"), &NewBuffer->Name);
+							Series::Unpack(Mesh->Get("transform"), &NewBuffer->Transform);
 						}
 					}
 					VI_RELEASE(Data);
 				}
 				else
 				{
-					ModelInfo Data = ImportForImmediateUse(Stream);
-					if (Data.Meshes.empty())
-						return nullptr;
+					auto Data = ImportForImmediateUse(Stream);
+					if (!Data)
+						return Data.Error();
 
 					Object = new Model();
-					Object->Meshes.reserve(Data.Meshes.size());
-					Object->Min = Data.Min;
-					Object->Max = Data.Max;
+					Object->Meshes.reserve(Data->Meshes.size());
+					Object->Min = Data->Min;
+					Object->Max = Data->Max;
 
-					for (auto& Mesh : Data.Meshes)
+					for (auto& Mesh : Data->Meshes)
 					{
 						Graphics::MeshBuffer::Desc I;
 						I.AccessFlags = Options.AccessFlags;
 						I.Usage = Options.Usage;
 						I.Indices = std::move(Mesh.Indices);
 						I.Elements = SkinVerticesToVertices(Mesh.Vertices);
-
-						Object->Meshes.emplace_back(ProcessRendererJob<Graphics::MeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+						
+						auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::MeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateMeshBuffer(I); });
+						if (!NewBuffer)
 						{
-							return Device->CreateMeshBuffer(I);
-						}));
+							VI_RELEASE(Object);
+							return ContentException(std::move(NewBuffer.Error().Info));
+						}
 
-						auto* Next = Object->Meshes.back();
-						VI_ASSERT(Next != nullptr, "mesh should be initializable");
-
-						Next->Name = Mesh.Name;
-						Next->Transform = Mesh.Transform;
+						Object->Meshes.emplace_back(*NewBuffer);
+						NewBuffer->Name = Mesh.Name;
+						NewBuffer->Transform = Mesh.Transform;
 					}
 				}
 
@@ -1486,23 +1502,28 @@ namespace Vitex
 				Object->AddRef();
 				return Object;
 			}
-			Core::Schema* ModelProcessor::Import(Core::Stream* Stream, uint64_t Opts)
+			ExpectsContent<Core::Schema*> ModelProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
-				ModelInfo Info = ImportForImmediateUse(Stream, Opts);
-				if (Info.Meshes.empty() && Info.JointOffsets.empty())
-					return nullptr;
+				auto Info = ImportForImmediateUse(Stream, Opts);
+				if (!Info || Info->Meshes.empty() && Info->JointOffsets.empty())
+				{
+					if (!Info)
+						return Info.Error();
+
+					return ContentException("import model: no mesh data");
+				}
 
 				auto* Blob = Core::Var::Set::Object();
 				Blob->Key = "model";
 
 				Series::Pack(Blob->Set("options"), Opts);
-				Series::Pack(Blob->Set("inv-transform"), Info.Transform);
-				Series::Pack(Blob->Set("min"), Info.Min.XYZW().SetW(Info.Low));
-				Series::Pack(Blob->Set("max"), Info.Max.XYZW().SetW(Info.High));
-				Series::Pack(Blob->Set("skeleton"), Info.Skeleton);
+				Series::Pack(Blob->Set("inv-transform"), Info->Transform);
+				Series::Pack(Blob->Set("min"), Info->Min.XYZW().SetW(Info->Low));
+				Series::Pack(Blob->Set("max"), Info->Max.XYZW().SetW(Info->High));
+				Series::Pack(Blob->Set("skeleton"), Info->Skeleton);
 
 				Core::Schema* Meshes = Blob->Set("meshes", Core::Var::Array());
-				for (auto&& It : Info.Meshes)
+				for (auto&& It : Info->Meshes)
 				{
 					Core::Schema* Mesh = Meshes->Set("mesh");
 					Series::Pack(Mesh->Set("name"), It.Name);
@@ -1514,9 +1535,8 @@ namespace Vitex
 
 				return Blob;
 			}
-			ModelInfo ModelProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			ExpectsContent<ModelInfo> ModelProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
-				ModelInfo Info;
 #ifdef VI_ASSIMP
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -1529,15 +1549,21 @@ namespace Vitex
 				Assimp::Importer Importer;
 				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->Source().c_str()));
 				if (!Scene)
-				{
-					VI_ERR("[engine] cannot import mesh: %s", Importer.GetErrorString());
-					return Info;
-				}
+					return ContentException(Core::Stringify::Text("import model: %s", Importer.GetErrorString()));
 
+				ModelInfo Info;
 				FillSceneGeometries(&Info, Scene, Scene->mRootNode, Scene->mRootNode->mTransformation);
 				FillSceneSkeletons(&Info, Scene);
-#endif
 				return Info;
+#else
+				return ContentException("import model: unsupported");
+#endif
+			}
+			void ModelProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((Model*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 			
 			SkinModelProcessor::SkinModelProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1546,13 +1572,7 @@ namespace Vitex
 			SkinModelProcessor::~SkinModelProcessor()
 			{
 			}
-			void SkinModelProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((SkinModel*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* SkinModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> SkinModelProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -1560,16 +1580,16 @@ namespace Vitex
 				((SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> SkinModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
 				Core::String& Path = Stream->Source();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
-					Core::Schema* Data = Content->Load<Core::Schema>(Path);
+					auto Data = Content->Load<Core::Schema>(Path);
 					if (!Data)
-						return nullptr;
+						return Data.Error();
 
 					Object = new SkinModel();
 					Series::Unpack(Data->Get("inv-transform"), &Object->InvTransform);
@@ -1591,44 +1611,47 @@ namespace Vitex
 							if (!Series::Unpack(Mesh->Get("indices"), &I.Indices))
 							{
 								VI_RELEASE(Data);
-								return nullptr;
+								VI_RELEASE(Object);
+								return ContentException("import model: invalid indices");
 							}
 
 							if (!Series::Unpack(Mesh->Get("vertices"), &I.Elements))
 							{
 								VI_RELEASE(Data);
-								return nullptr;
+								VI_RELEASE(Object);
+								return ContentException("import model: invalid vertices");
 							}
 
-							Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+							auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::SkinMeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateSkinMeshBuffer(I); });
+							if (!NewBuffer)
 							{
-								return Device->CreateSkinMeshBuffer(I);
-							}));
+								VI_RELEASE(Data);
+								VI_RELEASE(Object);
+								return ContentException(std::move(NewBuffer.Error().Info));
+							}
 
-							auto* Next = Object->Meshes.back();
-							VI_ASSERT(Next != nullptr, "mesh should be initializable");
-
-							Series::Unpack(Mesh->Get("name"), &Next->Name);
-							Series::Unpack(Mesh->Get("transform"), &Next->Transform);
-							Series::Unpack(Mesh->Get("joints"), &Next->Joints);
+							Object->Meshes.emplace_back(*NewBuffer);
+							Series::Unpack(Mesh->Get("name"), &NewBuffer->Name);
+							Series::Unpack(Mesh->Get("transform"), &NewBuffer->Transform);
+							Series::Unpack(Mesh->Get("joints"), &NewBuffer->Joints);
 						}
 					}
 					VI_RELEASE(Data);
 				}
 				else
 				{
-					ModelInfo Data = ModelProcessor::ImportForImmediateUse(Stream);
-					if (Data.Meshes.empty())
-						return nullptr;
+					auto Data = ModelProcessor::ImportForImmediateUse(Stream);
+					if (!Data)
+						return Data.Error();
 
 					Object = new SkinModel();
-					Object->Meshes.reserve(Data.Meshes.size());
-					Object->InvTransform = Data.Transform;
-					Object->Min = Data.Min;
-					Object->Max = Data.Max;
-					Object->Skeleton = std::move(Data.Skeleton);
+					Object->Meshes.reserve(Data->Meshes.size());
+					Object->InvTransform = Data->Transform;
+					Object->Min = Data->Min;
+					Object->Max = Data->Max;
+					Object->Skeleton = std::move(Data->Skeleton);
 
-					for (auto& Mesh : Data.Meshes)
+					for (auto& Mesh : Data->Meshes)
 					{
 						Graphics::SkinMeshBuffer::Desc I;
 						I.AccessFlags = Options.AccessFlags;
@@ -1636,17 +1659,17 @@ namespace Vitex
 						I.Indices = std::move(Mesh.Indices);
 						I.Elements = std::move(Mesh.Vertices);
 
-						Object->Meshes.emplace_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device)
+						auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::SkinMeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateSkinMeshBuffer(I); });
+						if (!NewBuffer)
 						{
-							return Device->CreateSkinMeshBuffer(I);
-						}));
+							VI_RELEASE(Object);
+							return ContentException(std::move(NewBuffer.Error().Info));
+						}
 
-						auto* Next = Object->Meshes.back();
-						VI_ASSERT(Next != nullptr, "mesh should be initializable");
-
-						Next->Name = Mesh.Name;
-						Next->Transform = Mesh.Transform;
-						Next->Joints = std::move(Mesh.JointIndices);
+						Object->Meshes.emplace_back(*NewBuffer);
+						NewBuffer->Name = Mesh.Name;
+						NewBuffer->Transform = Mesh.Transform;
+						NewBuffer->Joints = std::move(Mesh.JointIndices);
 					}
 				}
 
@@ -1660,6 +1683,12 @@ namespace Vitex
 				Object->AddRef();
 				return Object;
 			}
+			void SkinModelProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((SkinModel*)Asset->Resource);
+				Asset->Resource = nullptr;
+			}
 
 			SkinAnimationProcessor::SkinAnimationProcessor(ContentManager* Manager) : Processor(Manager)
 			{
@@ -1667,13 +1696,7 @@ namespace Vitex
 			SkinAnimationProcessor::~SkinAnimationProcessor()
 			{
 			}
-			void SkinAnimationProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Engine::SkinAnimation*)Asset->Resource);
-				Asset->Resource = nullptr;
-			}
-			void* SkinAnimationProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> SkinAnimationProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -1681,16 +1704,16 @@ namespace Vitex
 				((Engine::SkinAnimation*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinAnimationProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> SkinAnimationProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<Compute::SkinAnimatorClip> Clips;
 				Core::String& Path = Stream->Source();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
-					Core::Schema* Data = Content->Load<Core::Schema>(Path);
+					auto Data = Content->Load<Core::Schema>(Path);
 					if (!Data)
-						return nullptr;
+						return Data.Error();
 
 					Clips.reserve(Data->Size());
 					for (auto& Item : Data->GetChilds())
@@ -1730,10 +1753,16 @@ namespace Vitex
 					VI_RELEASE(Data);
 				}
 				else
-					Clips = ImportForImmediateUse(Stream);
+				{
+					auto NewClips = ImportForImmediateUse(Stream);
+					if (!NewClips)
+						return NewClips.Error();
+
+					Clips = std::move(*NewClips);
+				}
 
 				if (Clips.empty())
-					return nullptr;
+					return ContentException("load animation: no clips");
 
 				auto* Object = new Engine::SkinAnimation(std::move(Clips));
 				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->Source(), Object);
@@ -1746,16 +1775,16 @@ namespace Vitex
 				Object->AddRef();
 				return Object;
 			}
-			Core::Schema* SkinAnimationProcessor::Import(Core::Stream* Stream, uint64_t Opts)
+			ExpectsContent<Core::Schema*> SkinAnimationProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
-				Core::Vector<Compute::SkinAnimatorClip> Info = ImportForImmediateUse(Stream, Opts);
-				if (Info.empty())
-					return nullptr;
+				auto Info = ImportForImmediateUse(Stream, Opts);
+				if (!Info)
+					return Info.Error();
 
 				auto* Blob = Core::Var::Set::Array();
 				Blob->Key = "animation";
 
-				for (auto& Clip : Info)
+				for (auto& Clip : *Info)
 				{
 					auto* Item = Blob->Push(Core::Var::Set::Object());
 					Series::Pack(Item->Set("name"), Clip.Name);
@@ -1784,9 +1813,8 @@ namespace Vitex
 
 				return Blob;
 			}
-			Core::Vector<Compute::SkinAnimatorClip> SkinAnimationProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
+			ExpectsContent<Core::Vector<Compute::SkinAnimatorClip>> SkinAnimationProcessor::ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts)
 			{
-				Core::Vector<Compute::SkinAnimatorClip> Info;
 #ifdef VI_ASSIMP
 				Core::Vector<char> Data;
 				Stream->ReadAll([&Data](char* Buffer, size_t Size)
@@ -1799,20 +1827,26 @@ namespace Vitex
 				Assimp::Importer Importer;
 				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->Source().c_str()));
 				if (!Scene)
-				{
-					VI_ERR("[engine] cannot import mesh animation because %s", Importer.GetErrorString());
-					return Info;
-				}
+					return ContentException(Core::Stringify::Text("import animation: %s", Importer.GetErrorString()));
 
+				Core::Vector<Compute::SkinAnimatorClip> Info;
 				FillSceneAnimations(&Info, Scene);
-#endif
 				return Info;
+#else
+				return ContentException("import animation: unsupported");
+#endif
+			}
+			void SkinAnimationProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_RELEASE((Engine::SkinAnimation*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 
 			SchemaProcessor::SchemaProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				auto Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size) == Size : true; });
@@ -1827,12 +1861,16 @@ namespace Vitex
 				});
 
 				Object = Core::Schema::ConvertFromJSON(Data.data(), Data.size());
-				if (!Object)
-					Object = Core::Schema::ConvertFromXML(Data.data(), Data.size());
+				if (Object)
+					return *Object;
 
-				return Object ? *Object : nullptr;
+				Object = Core::Schema::ConvertFromXML(Data.data(), Data.size());
+				if (!Object)
+					return ContentException(std::move(Object.Error().Info));
+
+				return *Object;
 			}
-			bool SchemaProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			ExpectsContent<void> SchemaProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
 				VI_ASSERT(Type != Args.end(), "type argument should be set");
@@ -1840,10 +1878,9 @@ namespace Vitex
 				VI_ASSERT(Instance != nullptr, "instance should be set");
 
 				auto Schema = (Core::Schema*)Instance;
-				Core::String Offset;
-
 				if (Type->second == Core::Var::String("XML"))
 				{
+					Core::String Offset;
 					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
@@ -1870,9 +1907,11 @@ namespace Vitex
 								break;
 						}
 					});
+					return Core::Expectation::Met;
 				}
 				else if (Type->second == Core::Var::String("JSON"))
 				{
+					Core::String Offset;
 					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
@@ -1899,6 +1938,7 @@ namespace Vitex
 								break;
 						}
 					});
+					return Core::Expectation::Met;
 				}
 				else if (Type->second == Core::Var::String("JSONB"))
 				{
@@ -1907,30 +1947,28 @@ namespace Vitex
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
 					});
+					return Core::Expectation::Met;
 				}
 
-				return true;
+				return ContentException("save schema: unsupported type");
 			}
 
 			ServerProcessor::ServerProcessor(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
+				auto Blob = Content->Load<Core::Schema>(Stream->Source());
+				if (!Blob)
+					return Blob.Error();
+
 				Core::String N = Network::Utils::GetLocalAddress();
 				Core::String D = Core::OS::Path::GetDirectory(Stream->Source().c_str());
-				auto* Blob = Content->Load<Core::Schema>(Stream->Source());
 				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
-
-				if (Blob == nullptr)
-				{
-					VI_RELEASE(Router);
-					return (void*)Object;
-				}
-				else if (Callback)
-					Callback((void*)Object, Blob);
+				if (Callback)
+					Callback((void*)Object, *Blob);
 
 				Core::Schema* Config = Blob->Find("netstat");
 				if (Config != nullptr)
@@ -2004,8 +2042,10 @@ namespace Vitex
 						auto Data = Core::OS::File::ReadAsString(Cert->Blob.PrivateKey);
 						if (!Data)
 						{
-							VI_ERR("[engine] cannot load certificate private key from %s", Cert->Blob.PrivateKey.c_str());
-							Cert->Blob.PrivateKey.clear();
+							VI_RELEASE(Blob);
+							VI_RELEASE(Router);
+							VI_RELEASE(Object);
+							return ContentException(Core::Stringify::Text("import invalid server private key: %s", Data.Error().message().c_str()));
 						}
 						else
 							Cert->Blob.PrivateKey = *Data;
@@ -2017,8 +2057,10 @@ namespace Vitex
 						auto Data = Core::OS::File::ReadAsString(Cert->Blob.Certificate);
 						if (!Data)
 						{
-							VI_ERR("[engine] cannot load certificate data from %s", Cert->Blob.Certificate.c_str());
-							Cert->Blob.Certificate.clear();
+							VI_RELEASE(Blob);
+							VI_RELEASE(Router);
+							VI_RELEASE(Object);
+							return ContentException(Core::Stringify::Text("import invalid server certificate: %s", Data.Error().message().c_str()));
 						}
 						else
 							Cert->Blob.Certificate = *Data;
@@ -2292,13 +2334,24 @@ namespace Vitex
 				}
 
 				auto Configure = Args.find("configure");
-				if (Configure == Args.end() || Configure->second.GetBoolean())
-					Object->Configure(Router);
-				else
-					Object->SetRouter(Router);
-
 				VI_RELEASE(Blob);
-				return (void*)Object;
+
+				if (Configure != Args.end() && Configure->second.GetBoolean())
+				{
+					auto Status = Object->Configure(Router);
+					if (!Status)
+					{
+						VI_RELEASE(Object);
+						return ContentException(std::move(Status.Error().Info));
+					}
+
+					return (void*)Object;
+				}
+				else
+				{
+					Object->SetRouter(Router);
+					return (void*)Object;
+				}
 			}
 
 			HullShapeProcessor::HullShapeProcessor(ContentManager* Manager) : Processor(Manager)
@@ -2307,13 +2360,7 @@ namespace Vitex
 			HullShapeProcessor::~HullShapeProcessor()
 			{
 			}
-			void HullShapeProcessor::Free(AssetCache* Asset)
-			{
-				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
-				VI_RELEASE((Compute::HullShape*)Asset->Resource);
-			}
-			void* HullShapeProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> HullShapeProcessor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
 				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
@@ -2321,12 +2368,12 @@ namespace Vitex
 				((Compute::HullShape*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			ExpectsContent<void*> HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto* Data = Content->Load<Core::Schema>(Stream->Source());
+				auto Data = Content->Load<Core::Schema>(Stream->Source());
 				if (!Data)
-					return nullptr;
+					return Data.Error();
 
 				Core::Vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
 				Core::Vector<Compute::Vertex> Vertices;
@@ -2337,13 +2384,13 @@ namespace Vitex
 					if (!Series::Unpack(Mesh->Find("indices"), &Indices))
 					{
 						VI_RELEASE(Data);
-						return nullptr;
+						return ContentException("import shape: invalid indices");
 					}
 
 					if (!Series::Unpack(Mesh->Find("vertices"), &Vertices))
 					{
 						VI_RELEASE(Data);
-						return nullptr;
+						return ContentException("import shape: invalid vertices");
 					}
 				}
 
@@ -2353,7 +2400,7 @@ namespace Vitex
 				if (!Object->GetShape())
 				{
 					VI_RELEASE(Object);
-					return nullptr;
+					return ContentException("import shape: invalid shape");
 				}
 
 				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->Source(), Object);
@@ -2365,6 +2412,12 @@ namespace Vitex
 
 				Object->AddRef();
 				return Object;
+			}
+			void HullShapeProcessor::Free(AssetCache* Asset)
+			{
+				VI_ASSERT(Asset != nullptr, "asset should be set");
+				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
+				VI_RELEASE((Compute::HullShape*)Asset->Resource);
 			}
 		}
 	}

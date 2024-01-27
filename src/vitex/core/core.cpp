@@ -963,10 +963,10 @@ namespace Vitex
 		ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, nullptr)
 		{
 		}
-		ParserException::ParserException(ParserError NewType, int NewOffset) : ParserException(NewType, NewOffset, nullptr)
+		ParserException::ParserException(ParserError NewType, size_t NewOffset) : ParserException(NewType, NewOffset, nullptr)
 		{
 		}
-		ParserException::ParserException(ParserError NewType, int NewOffset, const char* NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
+		ParserException::ParserException(ParserError NewType, size_t NewOffset, const char* NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
 		{
 			if (!NewMessage || NewMessage[0] == '\0')
 			{
@@ -1109,7 +1109,7 @@ namespace Vitex
 			else
 				Info = NewMessage;
 
-			if (Offset >= 0)
+			if (Offset > 0)
 			{
 				Info += " at offset ";
 				Info += ToString(Offset);
@@ -1120,6 +1120,42 @@ namespace Vitex
 			return "parser_error";
 		}
 		const char* ParserException::what() const noexcept
+		{
+			return Info.c_str();
+		}
+
+		SystemException::SystemException() : SystemException(String())
+		{
+		}
+		SystemException::SystemException(const String& Message) : Error(OS::Error::GetConditionOr(std::errc::operation_not_permitted))
+		{
+			if (!Message.empty())
+			{
+				Info += Message;
+				Info += " (error = ";
+				Info += Error.message().c_str();
+				Info += ")";
+			}
+			else
+				Info = Copy<String>(Error.message());
+		}
+		SystemException::SystemException(const String& Message, std::error_condition&& Condition) : Error(std::move(Condition))
+		{
+			if (!Message.empty())
+			{
+				Info += Message;
+				Info += " (error = ";
+				Info += Error.message().c_str();
+				Info += ")";
+			}
+			else
+				Info = Copy<String>(Error.message());
+		}
+		const char* SystemException::type() const noexcept
+		{
+			return "system_error";
+		}
+		const char* SystemException::what() const noexcept
 		{
 			return Info.c_str();
 		}
@@ -4850,10 +4886,7 @@ namespace Vitex
 		{
 			Other.erase(Other.begin(), std::find_if(Other.begin(), Other.end(), [](int C) -> int
 			{
-				if (C < -1 || C > 255)
-					return 1;
-
-				return std::isspace(C) == 0 ? 1 : 0;
+				return std::isspace(Literal(C)) == 0 ? 1 : 0;
 			}));
 			return Other;
 		}
@@ -4861,10 +4894,7 @@ namespace Vitex
 		{
 			Other.erase(std::find_if(Other.rbegin(), Other.rend(), [](int C) -> int
 			{
-				if (C < -1 || C > 255)
-					return 1;
-
-				return std::isspace(C) == 0 ? 1 : 0;
+				return std::isspace(Literal(C)) == 0 ? 1 : 0;
 			}).base(), Other.end());
 			return Other;
 		}
@@ -4922,10 +4952,10 @@ namespace Vitex
 		{
 			return Erase(Other, Start, End - Start);
 		}
-		String& Stringify::EvalEnvs(String& Other, const String& Net, const String& Dir)
+		ExpectsSystem<void> Stringify::EvalEnvs(String& Other, const String& Net, const String& Dir)
 		{
 			if (Other.empty())
-				return Other;
+				return Core::Expectation::Met;
 
 			if (StartsOf(Other, "./\\"))
 			{
@@ -4937,17 +4967,13 @@ namespace Vitex
 			{
 				const char* Env = std::getenv(Other.c_str() + 1);
 				if (!Env)
-				{
-					VI_WARN("[env] cannot resolve environmental variable [%s]", Other.c_str() + 1);
-					Other.clear();
-				}
-				else
-					Other.assign(Env);
+					return SystemException("invalid env name: " + Other.substr(1));
+				Other.assign(Env);
 			}
 			else
 				Replace(Other, "[subnet]", Net);
 
-			return Other;
+			return Core::Expectation::Met;
 		}
 		Vector<std::pair<String, TextSettle>> Stringify::FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset)
 		{
@@ -5420,7 +5446,7 @@ namespace Vitex
 
 			for (char Next : Other)
 			{
-				if (!std::isspace(Next))
+				if (!std::isspace(Literal(Next)))
 					return false;
 			}
 
@@ -5641,7 +5667,7 @@ namespace Vitex
 		}
 		bool Stringify::IsDigitOrDotOrWhitespace(char Char)
 		{
-			return std::isspace(Char) || IsDigitOrDot(Char);
+			return std::isspace(Literal(Char)) || IsDigitOrDot(Char);
 		}
 		bool Stringify::IsHex(char Char)
 		{
@@ -5653,14 +5679,16 @@ namespace Vitex
 		}
 		bool Stringify::IsHexOrDotOrWhitespace(char Char)
 		{
-			return std::isspace(Char) || IsHexOrDot(Char);
+			return std::isspace(Literal(Char)) || IsHexOrDot(Char);
 		}
 		bool Stringify::IsAlphabetic(char Char)
 		{
-			if ((int)Char < -1 || (int)Char > 255)
-				return false;
-
-			return std::isalpha(Char) != 0;
+			return std::isalpha(Literal(Char)) != 0;
+		}
+		int Stringify::Literal(char Char)
+		{
+			int Value = (int)(unsigned char)Char;
+			return Value >= 0 && Value <= 255 ? Value : 63;
 		}
 		int Stringify::CaseCompare(const char* Value1, const char* Value2)
 		{
@@ -6449,7 +6477,7 @@ namespace Vitex
 			while (Buffer[Offset] != '\0')
 			{
 				auto V = Buffer[Offset];
-				if (Stringify::IsDigitOrDot(V) && (!Offset || !std::isalnum(Buffer[Offset - 1])))
+				if (Stringify::IsDigitOrDot(V) && (!Offset || !std::isalnum(Stringify::Literal(Buffer[Offset - 1]))))
 				{
 					ColorBegin(StdColor::Yellow);
 					while (Offset < Size)
@@ -6964,7 +6992,7 @@ namespace Vitex
 				return Target.Error();
 			
 			Resource = *Target;
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> FileStream::Open(const char* File, FileMode Mode)
 		{
@@ -7028,12 +7056,12 @@ namespace Vitex
 
 			Resource = *Target;
 			Path = *TargetPath;
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> FileStream::Close()
 		{
 			if (!Resource)
-				return Optional::OK;
+				return Expectation::Met;
 
 			void* Target = Resource;
 			Resource = nullptr;
@@ -7059,7 +7087,7 @@ namespace Vitex
 			VI_TRACE("[io] flush fs %i", GetFd());
 			if (fflush(Resource) != 0)
 				return OS::Error::GetConditionOr();
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		size_t FileStream::ReadAny(const char* Format, ...)
 		{
@@ -7188,7 +7216,7 @@ namespace Vitex
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
 			Path = *TargetPath;
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -7198,14 +7226,14 @@ namespace Vitex
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			if (!Resource)
-				return Optional::OK;
+				return Expectation::Met;
 
 			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
 			if (gzclose((gzFile)Resource) != Z_OK)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
 			Resource = nullptr;
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -7221,12 +7249,12 @@ namespace Vitex
 					VI_TRACE("[gz] seek fs %i begin %" PRId64, GetFd(), Offset);
 					if (gzseek((gzFile)Resource, (long)Offset, SEEK_SET) != 0)
 						return OS::Error::GetConditionOr();
-					return Optional::OK;
+					return Expectation::Met;
 				case FileSeek::Current:
 					VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 					if (gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) != 0)
 						return OS::Error::GetConditionOr();
-					return Optional::OK;
+					return Expectation::Met;
 				case FileSeek::End:
 					return std::make_error_condition(std::errc::not_supported);
 				default:
@@ -7244,7 +7272,7 @@ namespace Vitex
 			VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
 			if (gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) != 0)
 				return OS::Error::GetConditionOr();
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -7256,7 +7284,7 @@ namespace Vitex
 			VI_MEASURE(Timings::FileSystem);
 			if (gzflush((gzFile)Resource, Z_SYNC_FLUSH) != Z_OK)
 				return OS::Error::GetConditionOr();
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -7322,8 +7350,7 @@ namespace Vitex
 		}
 		socket_t GzStream::GetFd() const
 		{
-			VI_ASSERT(false, "gz fd fetch is not supported");
-			return (socket_t)-1;
+			return (socket_t)(uintptr_t)Resource;
 		}
 		void* GzStream::GetResource() const
 		{
@@ -7379,11 +7406,11 @@ namespace Vitex
 			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
 			auto* Client = new Network::HTTP::Client(30000);
-			Result = Client->Connect(&Address, false).Get();
-			if (!Result)
+			auto Status = Client->Connect(&Address, false).Get();
+			if (!Status)
 			{
 				VI_RELEASE(Client);
-				return Result;
+				return Status.Error().Error;
 			}
 
 			Network::HTTP::RequestFrame Request;
@@ -7402,7 +7429,7 @@ namespace Vitex
 			if (!Response || Response->StatusCode < 0)
 			{
 				VI_RELEASE(Client);
-				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error();
+				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error().Error;
 			}
 			else if (Response->Content.Limited)
 				Length = Response->Content.Length;
@@ -7411,7 +7438,7 @@ namespace Vitex
 			Resource = Client;
 			Path = File;
 
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> WebStream::Close()
 		{
@@ -7421,11 +7448,14 @@ namespace Vitex
 			Chunk.clear();
 
 			if (!Client)
-				return Optional::OK;
+				return Expectation::Met;
 
-			auto Result = Client->Disconnect().Get();
+			auto Status = Client->Disconnect().Get();
 			VI_RELEASE(Client);
-			return Result;
+			if (!Status)
+				return Status.Error().Error;
+
+			return Expectation::Met;
 		}
 		ExpectsIO<void> WebStream::Seek(FileSeek Mode, int64_t NewOffset)
 		{
@@ -7434,7 +7464,7 @@ namespace Vitex
 				case FileSeek::Begin:
 					VI_TRACE("[http] seek fd %i begin %" PRId64, GetFd(), (int)NewOffset);
 					Offset = NewOffset;
-					return Optional::OK;
+					return Expectation::Met;
 				case FileSeek::Current:
 					VI_TRACE("[http] seek fd %i move %" PRId64, GetFd(), (int)NewOffset);
 					if (NewOffset < 0)
@@ -7451,11 +7481,11 @@ namespace Vitex
 					}
 					else
 						Offset += NewOffset;
-					return Optional::OK;
+					return Expectation::Met;
 				case FileSeek::End:
 					VI_TRACE("[http] seek fd %i end %" PRId64, GetFd(), (int)NewOffset);
 					Offset = Length - NewOffset;
-					return Optional::OK;
+					return Expectation::Met;
 				default:
 					return std::make_error_condition(std::errc::not_supported);
 			}
@@ -7486,7 +7516,7 @@ namespace Vitex
 			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)Resource)->GetResponse()->Content.Limited)))
 			{
 				auto* Client = (Network::HTTP::Client*)Resource;
-				if (!Client->Consume(DataLength).Get())
+				if (!Client->Download(DataLength).Get())
 					return 0;
 
 				auto* Response = Client->GetResponse();
@@ -7601,7 +7631,7 @@ namespace Vitex
 				return OS::Error::GetConditionOr();
 
 			Path = File;
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> ProcessStream::Close()
 		{
@@ -7611,7 +7641,7 @@ namespace Vitex
 				Resource = nullptr;
 			}
 
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		bool ProcessStream::IsSized() const
 		{
@@ -8108,7 +8138,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check dir %s", Path.c_str());
+			VI_TRACE("[io] check dir %s", Path);
 			if (*Path == '\0')
 				return true;
 #if defined(VI_MICROSOFT)
@@ -8167,12 +8197,12 @@ namespace Vitex
 			if (SetCurrentDirectoryA(Path) != TRUE)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #elif defined(VI_LINUX)
 			if (chdir(Path) != 0)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -8180,7 +8210,7 @@ namespace Vitex
 		ExpectsIO<void> OS::Directory::Patch(const String& Path)
 		{
 			if (IsExists(Path.c_str()))
-				return Optional::OK;
+				return Expectation::Met;
 
 			return Create(Path.c_str());
 		}
@@ -8238,7 +8268,7 @@ namespace Vitex
 			}
 			closedir(Handle);
 #endif
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> OS::Directory::Create(const char* Path)
 		{
@@ -8254,7 +8284,7 @@ namespace Vitex
 				return std::make_error_condition(std::errc::invalid_argument);
 
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
-				return Optional::OK;
+				return Expectation::Met;
 
 			size_t Index = Length - 1;
 			while (Index > 0 && (Buffer[Index] == '/' || Buffer[Index] == '\\'))
@@ -8268,10 +8298,10 @@ namespace Vitex
 				return OS::Error::GetConditionOr();
 
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
-				return Optional::OK;
+				return Expectation::Met;
 #else
 			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-				return Optional::OK;
+				return Expectation::Met;
 
 			size_t Index = strlen(Path) - 1;
 			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
@@ -8283,7 +8313,7 @@ namespace Vitex
 				return OS::Error::GetConditionOr();
 
 			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-				return Optional::OK;
+				return Expectation::Met;
 #endif
 			return OS::Error::GetConditionOr();
 		}
@@ -8350,7 +8380,7 @@ namespace Vitex
 				if (rmdir(Path) != 0)
 					return OS::Error::GetConditionOr();
 
-				return Optional::OK;
+				return Expectation::Met;
 			}
 
 			struct dirent* It;
@@ -8398,7 +8428,7 @@ namespace Vitex
 			if (rmdir(Path) != 0)
 				return OS::Error::GetConditionOr();
 #endif
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<String> OS::Directory::GetModule()
 		{
@@ -8592,7 +8622,7 @@ namespace Vitex
 			if (Size != Length)
 				return std::make_error_condition(std::errc::broken_pipe);
 
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> OS::File::Write(const String& Path, const String& Data)
 		{
@@ -8616,7 +8646,7 @@ namespace Vitex
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
 			Destination << Source.rdbuf();
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> OS::File::Move(const char* From, const char* To)
 		{
@@ -8627,12 +8657,12 @@ namespace Vitex
 			if (MoveFileA(From, To) != TRUE)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #elif defined VI_LINUX
 			if (rename(From, To) != 0)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -8647,12 +8677,12 @@ namespace Vitex
 			if (DeleteFileA(Path) != TRUE)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #elif defined VI_LINUX
 			if (unlink(Path) != 0)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -8664,7 +8694,7 @@ namespace Vitex
 			if (fclose((FILE*)Stream) != 0)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<void> OS::File::GetState(const String& Path, FileEntry* File)
 		{
@@ -8704,7 +8734,7 @@ namespace Vitex
 			File->IsExists = true;
 #endif
 			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		ExpectsIO<void> OS::File::Seek64(FILE* Stream, int64_t Offset, FileSeek Mode)
 		{
@@ -8733,7 +8763,7 @@ namespace Vitex
 			if (fseeko(Stream, Offset, Origin) != 0)
 				return OS::Error::GetConditionOr();
 #endif
-			return Optional::OK;
+			return Expectation::Met;
 		}
 		ExpectsIO<uint64_t> OS::File::Tell64(FILE* Stream)
 		{
@@ -9034,7 +9064,7 @@ namespace Vitex
 			if (Size < 2)
 				return false;
 
-			return std::isalnum(Path[0]) && Path[1] == ':';
+			return std::isalnum(Stringify::Literal(Path[0])) && Path[1] == ':';
 #else
 			return Path[0] == '/' || Path[0] == '\\';
 #endif
@@ -9441,24 +9471,18 @@ namespace Vitex
 			VI_RELEASE(Stream);
 			return Result.Error();
 		}
-		bool OS::Process::Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Child)
+		ExpectsSystem<void> OS::Process::Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Child)
 		{
 			VI_MEASURE(Timings::FileSystem);
 #ifdef VI_MICROSOFT
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
-			{
-				VI_ERR("[os] cannot create job object for process");
-				return false;
-			}
+				return SystemException("cannot create job object for process");
 
 			JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info = { };
 			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
-			{
-				VI_ERR("[os] cannot set job object for process");
-				return false;
-			}
+				return SystemException("cannot set job object for process");
 
 			STARTUPINFO StartupInfo;
 			ZeroMemory(&StartupInfo, sizeof(StartupInfo));
@@ -9471,10 +9495,7 @@ namespace Vitex
 
 			auto Exe = Path::Resolve(Path.c_str());
 			if (!Exe)
-			{
-				VI_ERR("[os] cannot spawn process: unknown path %s", Path.c_str());
-				return false;
-			}
+				return SystemException(Stringify::Text("cannot spawn process: %s", Path.c_str()));
 
 			if (!Stringify::EndsWith(*Exe, ".exe"))
 				Exe->append(".exe");
@@ -9484,10 +9505,7 @@ namespace Vitex
 				Args.append(1, ' ').append(Param);
 
 			if (!CreateProcessA(Exe->c_str(), (char*)Args.data(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
-			{
-				VI_ERR("[os] cannot spawn process %s", Exe->c_str());
-				return false;
-			}
+				return SystemException(Stringify::Text("cannot spawn process: %s", Exe->c_str()));
 
 			VI_DEBUG("[os] spawn process %i on %s", (int)GetProcessId(Process.hProcess), Path.c_str());
 			AssignProcessToJobObject(Job, Process.hProcess);
@@ -9498,14 +9516,9 @@ namespace Vitex
 				Child->Job = (void*)Job;
 				Child->Valid = true;
 			}
-
-			return true;
 #else
 			if (!File::IsExists(Path.c_str()))
-			{
-				VI_ERR("[os] cannot spawn process %s (file does not exists)", Path.c_str());
-				return false;
-			}
+				return SystemException(Stringify::Text("cannot spawn process: %s", Path.c_str()));
 
 			pid_t ProcessId = fork();
 			if (ProcessId == 0)
@@ -9525,10 +9538,12 @@ namespace Vitex
 				Child->Valid = (ProcessId > 0);
 			}
 
-			return (ProcessId > 0);
+			if (!ProcessId)
+				return SystemException(Stringify::Text("cannot fork process: %s", Path.c_str()));
 #endif
+			return Expectation::Met;
 		}
-		bool OS::Process::Await(ChildProcess* Process, int* ExitCode)
+		ExpectsSystem<void> OS::Process::Await(ChildProcess* Process, int* ExitCode)
 		{
 			VI_ASSERT(Process != nullptr && Process->Valid, "process should be set and be valid");
 #ifdef VI_MICROSOFT
@@ -9542,7 +9557,7 @@ namespace Vitex
 				if (!GetExitCodeProcess(Process->Process, &Result))
 				{
 					Free(Process);
-					return false;
+					return SystemException("process did not return the exit code");
 				}
 
 				*ExitCode = (int)Result;
@@ -9557,9 +9572,9 @@ namespace Vitex
 				*ExitCode = WEXITSTATUS(Status);
 #endif
 			Free(Process);
-			return true;
+			return Expectation::Met;
 		}
-		bool OS::Process::Free(ChildProcess* Child)
+		void OS::Process::Free(ChildProcess* Child)
 		{
 			VI_ASSERT(Child != nullptr && Child->Valid, "child should be set and be valid");
 #ifdef VI_MICROSOFT
@@ -9585,7 +9600,6 @@ namespace Vitex
 			}
 #endif
 			Child->Valid = false;
-			return true;
 		}
 		String OS::Process::GetThreadId(const std::thread::id& Id)
 		{
@@ -9739,12 +9753,12 @@ namespace Vitex
 			if (FreeLibrary((HMODULE)Handle) != TRUE)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #elif defined(VI_LINUX)
 			if (dlclose(Handle) != 0)
 				return OS::Error::GetConditionOr();
 
-			return Optional::OK;
+			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -9764,7 +9778,6 @@ namespace Vitex
 
 			return true;
 #else
-			VI_ERR("[dg] open input: unsupported");
 			return false;
 #endif
 		}
@@ -9782,7 +9795,6 @@ namespace Vitex
 
 			return true;
 #else
-			VI_ERR("[dg] open password: unsupported");
 			return false;
 #endif
 		}
@@ -9807,7 +9819,6 @@ namespace Vitex
 
 			return true;
 #else
-			VI_ERR("[dg] open save: unsupported");
 			return false;
 #endif
 		}
@@ -9832,7 +9843,6 @@ namespace Vitex
 
 			return true;
 #else
-			VI_ERR("[dg] open load: unsupported");
 			return false;
 #endif
 		}
@@ -9850,7 +9860,6 @@ namespace Vitex
 
 			return true;
 #else
-			VI_ERR("[dg] open folder: unsupported");
 			return false;
 #endif
 		}
@@ -9869,7 +9878,6 @@ namespace Vitex
 
 			return true;
 #else
-			VI_ERR("[dg] open color: unsupported");
 			return false;
 #endif
 		}
@@ -11884,35 +11892,35 @@ namespace Vitex
 				switch (Status.status)
 				{
 					case pugi::status_out_of_memory:
-						return ParserException(ParserError::XMLOutOfMemory, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLOutOfMemory, (size_t)Status.offset, Status.description());
 					case pugi::status_internal_error:
-						return ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLInternalError, (size_t)Status.offset, Status.description());
 					case pugi::status_unrecognized_tag:
-						return ParserException(ParserError::XMLUnrecognizedTag, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLUnrecognizedTag, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_pi:
-						return ParserException(ParserError::XMLBadPi, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadPi, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_comment:
-						return ParserException(ParserError::XMLBadComment, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadComment, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_cdata:
-						return ParserException(ParserError::XMLBadCData, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadCData, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_doctype:
-						return ParserException(ParserError::XMLBadDocType, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadDocType, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_pcdata:
-						return ParserException(ParserError::XMLBadPCData, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadPCData, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_start_element:
-						return ParserException(ParserError::XMLBadStartElement, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadStartElement, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_attribute:
-						return ParserException(ParserError::XMLBadAttribute, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadAttribute, (size_t)Status.offset, Status.description());
 					case pugi::status_bad_end_element:
-						return ParserException(ParserError::XMLBadEndElement, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLBadEndElement, (size_t)Status.offset, Status.description());
 					case pugi::status_end_element_mismatch:
-						return ParserException(ParserError::XMLEndElementMismatch, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLEndElementMismatch, (size_t)Status.offset, Status.description());
 					case pugi::status_append_invalid_root:
-						return ParserException(ParserError::XMLAppendInvalidRoot, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLAppendInvalidRoot, (size_t)Status.offset, Status.description());
 					case pugi::status_no_document_element:
-						return ParserException(ParserError::XMLNoDocumentElement, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLNoDocumentElement, (size_t)Status.offset, Status.description());
 					default:
-						return ParserException(ParserError::XMLInternalError, (int)Status.offset, Status.description());
+						return ParserException(ParserError::XMLInternalError, (size_t)Status.offset, Status.description());
 				}
 			}
 
@@ -11937,7 +11945,7 @@ namespace Vitex
 			Schema* Result = nullptr;
 			if (Base.HasParseError())
 			{
-				int Offset = (int)Base.GetErrorOffset();
+				size_t Offset = Base.GetErrorOffset();
 				switch (Base.GetParseError())
 				{
 					case rapidjson::kParseErrorDocumentEmpty:
@@ -12214,7 +12222,7 @@ namespace Vitex
 					break;
 			}
 
-			return Core::Optional::OK;
+			return Core::Expectation::Met;
 		}
 		Schema* Schema::ProcessConversionFromJSONStringOrNumber(void* Base, bool IsDocument)
 		{

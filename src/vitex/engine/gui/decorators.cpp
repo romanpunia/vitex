@@ -220,11 +220,10 @@ namespace Vitex
 				Device = Constants->GetDevice();
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (Device->GetSection("materials/material_ui_box_shadow", &I))
+				if (Device->GetSectionData("materials/material_ui_box_shadow", &I))
 				{
-					Shader = Device->CreateShader(I);
-					if (Shader != nullptr)
-						Device->UpdateBufferSize(Shader, sizeof(RenderPass));
+					Shader = *Device->CreateShader(I);
+					Device->UpdateBufferSize(Shader, sizeof(RenderPass));
 				}
 
 				Rml::Vertex Elements[6];
@@ -243,8 +242,7 @@ namespace Vitex
 				F.ElementWidth = sizeof(Rml::Vertex);
 				F.Elements = &Elements[0];
 
-				VertexBuffer = Device->CreateElementBuffer(F);
-
+				VertexBuffer = *Device->CreateElementBuffer(F);
 				Color = RegisterProperty("color", "#000").AddParser("color").GetId();
 				Softness = RegisterProperty("softness", "60").AddParser("number").GetId();
 				OffsetX = RegisterProperty("x", "0").AddParser("number").GetId();
@@ -280,11 +278,10 @@ namespace Vitex
 				Device = Constants->GetDevice();
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (Device->GetSection("materials/material_ui_box_blur", &I))
+				if (Device->GetSectionData("materials/material_ui_box_blur", &I))
 				{
-					Shader = Device->CreateShader(I);
-					if (Shader != nullptr)
-						Device->UpdateBufferSize(Shader, sizeof(RenderPass));
+					Shader = *Device->CreateShader(I);
+					Device->UpdateBufferSize(Shader, sizeof(RenderPass));
 				}
 
 				Rml::Vertex Elements[6];
@@ -303,8 +300,7 @@ namespace Vitex
 				F.ElementWidth = sizeof(Rml::Vertex);
 				F.Elements = &Elements[0];
 
-				VertexBuffer = Device->CreateElementBuffer(F);
-
+				VertexBuffer = *Device->CreateElementBuffer(F);
 				Color = RegisterProperty("color", "#fff").AddParser("color").GetId();
 				Softness = RegisterProperty("softness", "8").AddParser("number").GetId();
 				RegisterShorthand("decorator", "softness, color", Rml::ShorthandType::FallThrough);

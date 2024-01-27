@@ -114,7 +114,7 @@ namespace Vitex
 					F.ElementCount = (unsigned int)VerticesCount;
 					F.Elements = (void*)Vertices;
 					F.ElementWidth = sizeof(Rml::Vertex);
-					Result->VertexBuffer = Device->CreateElementBuffer(F);
+					Result->VertexBuffer = *Device->CreateElementBuffer(F);
 
 					F = Graphics::ElementBuffer::Desc();
 					F.AccessFlags = Graphics::CPUAccess::None;
@@ -123,7 +123,7 @@ namespace Vitex
 					F.ElementCount = (unsigned int)IndicesCount;
 					F.ElementWidth = sizeof(unsigned int);
 					F.Elements = (void*)Indices;
-					Result->IndexBuffer = Device->CreateElementBuffer(F);
+					Result->IndexBuffer = *Device->CreateElementBuffer(F);
 					
 					return (Rml::CompiledGeometryHandle)Result;
 				}
@@ -225,14 +225,13 @@ namespace Vitex
 				bool LoadTexture(Rml::TextureHandle& Handle, Rml::Vector2i& TextureDimensions, const Rml::String& Source) override
 				{
 					VI_ASSERT(Content != nullptr, "content manager should be set");
-					Graphics::Texture2D* Result = Content->Load<Graphics::Texture2D>(Source);
+					auto Result = Content->Load<Graphics::Texture2D>(Source);
 					if (!Result)
 						return false;
 
 					TextureDimensions.x = Result->GetWidth();
 					TextureDimensions.y = Result->GetHeight();
-					Handle = (Rml::TextureHandle)Result;
-
+					Handle = (Rml::TextureHandle)*Result;
 					return true;
 				}
 				bool GenerateTexture(Rml::TextureHandle& Handle, const Rml::byte* Source, const Rml::Vector2i& SourceDimensions) override
@@ -248,10 +247,7 @@ namespace Vitex
 					F.DepthPitch = Device->GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = 1;
 
-					Graphics::Texture2D* Result = Device->CreateTexture2D(F);
-					if (!Result)
-						return false;
-
+					Graphics::Texture2D* Result = *Device->CreateTexture2D(F);
 					Handle = (Rml::TextureHandle)Result;
 					return true;
 				}
@@ -281,8 +277,8 @@ namespace Vitex
 					Device->AddRef();
 
 					Graphics::Shader::Desc I = Graphics::Shader::Desc();
-					if (Device->GetSection("materials/material_ui_element", &I))
-						Shader = Device->CreateShader(I);
+					if (Device->GetSectionData("materials/material_ui_element", &I))
+						Shader = *Device->CreateShader(I);
 
 					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 					F.AccessFlags = Graphics::CPUAccess::Write;
@@ -292,7 +288,7 @@ namespace Vitex
 					F.Elements = (void*)nullptr;
 					F.ElementWidth = sizeof(Rml::Vertex);
 
-					VertexBuffer = Device->CreateElementBuffer(F);
+					VertexBuffer = *Device->CreateElementBuffer(F);
 					Layout = Device->GetInputLayout("vx_ui");
 					ScissorNoneRasterizer = Device->GetRasterizerState("sw_co");
 					NoneRasterizer = Device->GetRasterizerState("so_co");
@@ -502,8 +498,10 @@ namespace Vitex
 							VI_WARN("[gui] %.*s", Message.size(), Message.c_str());
 							break;
 						case Rml::Log::LT_INFO:
-						case Rml::Log::LT_ASSERT:
 							VI_DEBUG("[gui] %.*s", Message.size(), Message.c_str());
+							break;
+						case Rml::Log::LT_ASSERT:
+							VI_TRACE("[gui] %.*s", Message.size(), Message.c_str());
 							break;
 						default:
 							break;
@@ -813,6 +811,18 @@ namespace Vitex
 				}
 			};
 #endif
+			GuiException::GuiException(Core::String&& Message) : Info(std::move(Message))
+			{
+			}
+			const char* GuiException::type() const noexcept
+			{
+				return "gui_error";
+			}
+			const char* GuiException::what() const noexcept
+			{
+				return Info.c_str();
+			}
+
 			void IVariant::Convert(Rml::Variant* From, Core::Variant* To)
 			{
 #ifdef VI_RMLUI
@@ -3701,7 +3711,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Context::LoadManifest(Core::Schema* Conf, const Core::String& Relative)
+			ExpectsGuiException<void> Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
 			{
 				VI_ASSERT(Conf != nullptr, "conf should be set");
 				++Busy;
@@ -3710,16 +3720,16 @@ namespace Vitex
 					Core::String Path = Face->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
-						VI_ERR("[gui] path is required for font face");
 						--Busy;
-						return false;
+						return GuiException("apply font face error: no path");
 					}
 
 					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					if (!LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr))
+					auto Status = LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr);
+					if (!Status)
 					{
 						--Busy;
-						return false;
+						return Status;
 					}
 				}
 
@@ -3728,26 +3738,28 @@ namespace Vitex
 					Core::String Path = Document->GetAttributeVar("path").GetBlob();
 					if (Path.empty())
 					{
-						VI_ERR("[gui] path is required for document");
 						--Busy;
-						return false;
+						return GuiException("apply document error: no path");
 					}
 
 					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					IElementDocument Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
-					if (!Result.IsValid())
+					auto Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
+					if (!Result || !Result->IsValid())
 					{
 						--Busy;
-						return false;
+						if (Result)
+							return Result.Error();
+
+						return GuiException("load document error: " + Path);
 					}
 					else if (Document->HasAttribute("show"))
-						Result.Show();
+						Result->Show();
 				}
 
 				--Busy;
-				return true;
+				return Core::Expectation::Met;
 			}
-			bool Context::LoadManifest(const Core::String& ConfPath)
+			ExpectsGuiException<void> Context::LoadManifest(const Core::String& ConfPath)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Subsystem::Get()->RenderInterface != nullptr, "render interface should be set");
@@ -3755,21 +3767,36 @@ namespace Vitex
 				++Busy;
 
 				ContentManager* Content = Subsystem::Get()->RenderInterface->GetContent();
-				Core::Schema* Sheet = Content->Load<Core::Schema>(ConfPath);
+				auto Sheet = Content->Load<Core::Schema>(ConfPath);
 				if (!Sheet)
 				{
 					--Busy;
-					return false;
+					return GuiException(std::move(Sheet.Error().Info));
 				}
 
 				auto TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
-				bool Result = LoadManifest(Sheet, TargetPath ? *TargetPath : Core::String());
+				auto Result = Initialize(*Sheet, TargetPath ? *TargetPath : Core::String());
 				VI_RELEASE(Sheet);
 
 				--Busy;
 				return Result;
 #else
-				return false;
+				return GuiException("unsupported");
+#endif
+			}
+			ExpectsGuiException<void> Context::LoadFontFace(const Core::String& Path, bool UseAsFallback)
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
+				++Busy;
+				bool IsSuccess = Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback);
+				--Busy;
+				if (!IsSuccess)
+					return GuiException("initialize font face error: " + Path);
+
+				return Core::Expectation::Met;
+#else
+				return GuiException("unsupported");
 #endif
 			}
 			bool Context::IsLoading()
@@ -3785,19 +3812,6 @@ namespace Vitex
 
 				const Rml::String& Tag = Element->GetTagName();
 				return Tag == "input" || Tag == "textarea" || Tag == "select";
-#else
-				return false;
-#endif
-			}
-			bool Context::LoadFontFace(const Core::String& Path, bool UseAsFallback)
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
-				++Busy;
-				bool Result = Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback);
-				--Busy;
-
-				return Result;
 #else
 				return false;
 #endif
@@ -3879,23 +3893,30 @@ namespace Vitex
 				return false;
 #endif
 			}
-			IElementDocument Context::EvalHTML(const Core::String& HTML, int Index)
+			ExpectsGuiException<IElementDocument> Context::EvalHTML(const Core::String& HTML, int Index)
 			{
 #ifdef VI_RMLUI
 				++Busy;
 				auto* Current = Base->GetDocument(Index);
 				if (!Current)
+				{
 					Current = Base->LoadDocumentFromMemory("<html><body>" + HTML + "</body></html>");
+					if (!Current)
+					{
+						--Busy;
+						return GuiException("eval html: invalid argument");
+					}
+				}
 				else
 					Current->SetInnerRML(HTML);
 
 				--Busy;
-				return Current;
+				return IElementDocument(Current);
 #else
-				return IElementDocument();
+				return GuiException("unsupported");
 #endif
 			}
-			IElementDocument Context::AddCSS(const Core::String& CSS, int Index)
+			ExpectsGuiException<IElementDocument> Context::AddCSS(const Core::String& CSS, int Index)
 			{
 #ifdef VI_RMLUI
 				++Busy;
@@ -3927,15 +3948,22 @@ namespace Vitex
 					}
 				}
 				else
+				{
 					Current = Base->LoadDocumentFromMemory("<html><head><style>" + CSS + "</style></head></html>");
+					if (!Current)
+					{
+						--Busy;
+						return GuiException("add css: invalid argument");
+					}
+				}
 
 				--Busy;
-				return Current;
+				return IElementDocument(Current);
 #else
-				return IElementDocument();
+				return GuiException("unsupported");
 #endif
 			}
-			IElementDocument Context::LoadCSS(const Core::String& Path, int Index)
+			ExpectsGuiException<IElementDocument> Context::LoadCSS(const Core::String& Path, int Index)
 			{
 #ifdef VI_RMLUI
 				++Busy;
@@ -3955,15 +3983,22 @@ namespace Vitex
 					HeadPtr = Current->AppendChild(std::move(Link));
 				}
 				else
+				{
 					Current = Base->LoadDocumentFromMemory("<html><head><link type=\"text/css\" href=\"" + Path + "\" /></head></html>");
+					if (!Current)
+					{
+						--Busy;
+						return GuiException("load css: invalid argument");
+					}
+				}
 
 				--Busy;
-				return Current;
+				return IElementDocument(Current);
 #else
-				return IElementDocument();
+				return GuiException("unsupported");
 #endif
 			}
-			IElementDocument Context::LoadDocument(const Core::String& Path, bool AllowIncludes)
+			ExpectsGuiException<IElementDocument> Context::LoadDocument(const Core::String& Path, bool AllowIncludes)
 			{
 #ifdef VI_RMLUI
 				++Busy;
@@ -3979,42 +4014,56 @@ namespace Vitex
 					if (!File)
 					{
 						--Busy;
-						return nullptr;
+						return GuiException("load document: invalid path");
 					}
 				}
 
 				Core::String Data = *File;
 				Decompose(Data);
-				if (AllowIncludes && !Preprocess(Path, Data))
+				if (AllowIncludes)
 				{
-					--Busy;
-					return nullptr;
+					auto Status = Preprocess(Path, Data);
+					if (!Status)
+					{
+						--Busy;
+						return Status.Error();
+					}
 				}
 
 				Core::String URL(Path);
 				Core::Stringify::Replace(URL, '\\', '/');
 				auto* Result = Base->LoadDocumentFromMemory(Data, "file:///" + URL);
 				--Busy;
+				if (!Result)
+					return GuiException("load document: invalid argument");
 
-				return Result;
+				return IElementDocument(Result);
 #else
-				return IElementDocument();
+				return GuiException("unsupported");
 #endif
 			}
-			IElementDocument Context::AddDocumentEmpty(const Core::String& InstancerName)
+			ExpectsGuiException<IElementDocument> Context::AddDocumentEmpty(const Core::String& InstancerName)
 			{
 #ifdef VI_RMLUI
-				return Base->CreateDocument(InstancerName);
+				auto* Result = Base->CreateDocument(InstancerName);
+				if (!Result)
+					return GuiException("add document: invalid argument");
+
+				return IElementDocument(Result);
 #else
-				return IElementDocument();
+				return GuiException("unsupported");
 #endif
 			}
-			IElementDocument Context::AddDocument(const Core::String& HTML)
+			ExpectsGuiException<IElementDocument> Context::AddDocument(const Core::String& HTML)
 			{
 #ifdef VI_RMLUI
-				return Base->LoadDocumentFromMemory(HTML);
+				auto* Result = Base->LoadDocumentFromMemory(HTML);
+				if (!Result)
+					return GuiException("add document: invalid argument");
+
+				return IElementDocument(Result);
 #else
-				return IElementDocument();
+				return GuiException("unsupported");
 #endif
 			}
 			IElementDocument Context::GetDocument(const Core::String& Id)
@@ -4266,7 +4315,7 @@ namespace Vitex
 			{
 				OnMount = Callback;
 			}
-			bool Context::Preprocess(const Core::String& Path, Core::String& Buffer)
+			ExpectsGuiException<void> Context::Preprocess(const Core::String& Path, Core::String& Buffer)
 			{
 				Compute::Preprocessor::Desc Features;
 				Features.Conditions = false;
@@ -4282,7 +4331,7 @@ namespace Vitex
 					Desc.Root = *Directory;
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
-				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output)
+				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 				{
 					if (File.Module.empty() || (!File.IsFile && !File.IsAbstract))
 						return Compute::IncludeType::Error;
@@ -4301,10 +4350,12 @@ namespace Vitex
 				Processor->SetIncludeOptions(Desc);
 				Processor->SetFeatures(Features);
 
-				bool Result = Processor->Process(Path, Buffer);
+				auto Status = Processor->Process(Path, Buffer);
 				VI_RELEASE(Processor);
+				if (!Status)
+					return GuiException(std::move(Status.Error().Info));
 
-				return Result;
+				return Core::Expectation::Met;
 			}
 			void Context::Decompose(Core::String& Data)
 			{

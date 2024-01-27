@@ -239,19 +239,6 @@ namespace Vitex
 			size_t Offset = 0;
 		};
 
-		class VI_OUT AssetFile final : public Core::Reference<AssetFile>
-		{
-		private:
-			char* Buffer;
-			size_t Length;
-
-		public:
-			AssetFile(char* SrcBuffer, size_t SrcSize) noexcept;
-			~AssetFile() noexcept;
-			char* GetBuffer();
-			size_t Size();
-		};
-
 		struct VI_OUT IdxSnapshot
 		{
 			Core::UnorderedMap<Entity*, size_t> To;
@@ -415,6 +402,20 @@ namespace Vitex
 			void Fill(SkinModel* Mesh);
 			void Fill(Compute::Joint& Next);
 		};
+
+		class ContentException : public Core::SystemException
+		{
+		public:
+			VI_OUT ContentException();
+			VI_OUT ContentException(const Core::String& Message);
+			VI_OUT const char* type() const noexcept override;
+		};
+
+		template <typename V>
+		using ExpectsContent = Core::Expects<V, ContentException>;
+
+		template <typename T, typename Executor = Core::ParallelExecutor>
+		using ExpectsPromiseContent = Core::BasicPromise<ExpectsContent<T>, Executor>;
 
 		class VI_OUT_TS Series
 		{
@@ -596,6 +597,18 @@ namespace Vitex
 			}
 		};
 
+		class VI_OUT AssetFile final : public Core::Reference<AssetFile>
+		{
+		private:
+			char* Buffer;
+			size_t Length;
+
+		public:
+			AssetFile(char* SrcBuffer, size_t SrcSize) noexcept;
+			~AssetFile() noexcept;
+			char* GetBuffer();
+			size_t Size();
+		};
 		class VI_OUT Model final : public Core::Reference<Model>
 		{
 		public:
@@ -700,9 +713,9 @@ namespace Vitex
 			Processor(ContentManager* NewContent) noexcept;
 			virtual ~Processor() noexcept;
 			virtual void Free(AssetCache* Asset);
-			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
-			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Keys);
-			virtual bool Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
+			virtual ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
+			virtual ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Keys);
+			virtual ExpectsContent<void> Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
 			ContentManager* GetContent() const;
 		};
 
@@ -1027,9 +1040,9 @@ namespace Vitex
 			bool TryInstance(Material* Next, RenderBuffer::Instance& Target);
 			bool TryGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
-			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* CompileShader(const Core::String& SectionName, size_t BufferSize = 0);
-			bool CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
+			Graphics::ExpectsGraphics<Graphics::Shader*> CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<Graphics::Shader*> CompileShader(const Core::String& SectionName, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<void> CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Core::Unique<Renderer> In);
 			Renderer* GetRenderer(uint64_t Id);
 			bool GetOffset(uint64_t Id, size_t& Offset) const;
@@ -1250,7 +1263,7 @@ namespace Vitex
 		public:
 			ShaderCache(Graphics::GraphicsDevice* Device) noexcept;
 			~ShaderCache() noexcept;
-			Graphics::Shader* Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<Graphics::Shader*> Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* Get(const Core::String& Name);
 			Core::String Find(Graphics::Shader* Shader);
 			const Core::UnorderedMap<Core::String, SCache>& GetCaches() const;
@@ -1283,7 +1296,7 @@ namespace Vitex
 		public:
 			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
 			~PrimitiveCache() noexcept;
-			bool Compile(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
+			Graphics::ExpectsGraphics<void> Compile(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
 			bool Get(Graphics::ElementBuffer** Result, const Core::String& Name);
 			bool Has(const Core::String& Name);
 			bool Free(const Core::String& Name, Graphics::ElementBuffer** Buffers);
@@ -1307,7 +1320,7 @@ namespace Vitex
 		{
 		private:
 			Core::UnorderedMap<Core::String, Core::UnorderedMap<Processor*, AssetCache*>> Assets;
-			Core::UnorderedMap<Core::String, AssetArchive*> Dockers;
+			Core::UnorderedMap<Core::String, AssetArchive*> Archives;
 			Core::UnorderedMap<uint64_t, Processor*> Processors;
 			Core::UnorderedMap<Core::Stream*, size_t> Streams;
 			Graphics::GraphicsDevice* Device;
@@ -1319,59 +1332,65 @@ namespace Vitex
 			ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept;
 			~ContentManager() noexcept;
 			void ClearCache();
-			void ClearDockers();
+			void ClearArchives();
 			void ClearStreams();
 			void ClearProcessors();
 			void ClearPath(const Core::String& Path);
 			void SetEnvironment(const Core::String& Path);
 			void SetDevice(Graphics::GraphicsDevice* NewDevice);
-			void* Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
-			bool Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
-			Core::Promise<void*> LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
-			Core::Promise<bool> SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
+			ExpectsContent<void> Import(const Core::String& Path);
+			ExpectsContent<void> Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name = "");
+			ExpectsContent<Core::Unique<void>> Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			ExpectsContent<void> Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
+			ExpectsPromiseContent<Core::Unique<void>> LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			ExpectsPromiseContent<void> SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
 			Processor* AddProcessor(Processor* Value, uint64_t Id);
 			Processor* GetProcessor(uint64_t Id);
 			AssetCache* FindCache(Processor* Target, const Core::String& Path);
 			AssetCache* FindCache(Processor* Target, void* Resource);
 			const Core::UnorderedMap<uint64_t, Processor*>& GetProcessors() const;
 			bool RemoveProcessor(uint64_t Id);
-			bool Import(const Core::String& Path);
-			bool Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name = "");
 			void* TryToCache(Processor* Root, const Core::String& Path, void* Resource);
 			bool IsBusy();
 			Graphics::GraphicsDevice* GetDevice() const;
 			const Core::String& GetEnvironment() const;
 
 		private:
-			void* LoadDockerized(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			ExpectsContent<void*> LoadArchived(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
 			void Enqueue();
 			void Dequeue();
 
 		public:
 			template <typename T>
-			Core::Unique<T> Load(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsContent<Core::Unique<T>> Load(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return (T*)Load(GetProcessor<T>(), Path, Keys);
+				auto Result = Load(GetProcessor<T>(), Path, Keys);
+				if (!Result)
+					return Result.Error();
+
+				return (T*)*Result;
 			}
 			template <typename T>
-			Core::Promise<Core::Unique<T>> LoadAsync(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsPromiseContent<Core::Unique<T>> LoadAsync(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
-				return Core::Cotask<T*>([this, Path, Keys]()
+				return Core::Cotask<ExpectsContent<T*>>([this, Path, Keys]()
 				{
-					T* Result = (T*)Load(GetProcessor<T>(), Path, Keys);
+					auto Result = Load(GetProcessor<T>(), Path, Keys);
 					Dequeue();
+					if (!Result)
+						return Result.Error();
 
-					return Result;
+					return (T*)*Result;
 				});
 			}
 			template <typename T>
-			bool Save(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsContent<void> Save(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return Save(GetProcessor<T>(), Path, Object, Keys);
 			}
 			template <typename T>
-			Core::Promise<bool> SaveAsync(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsPromiseContent<void> SaveAsync(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys);
 			}
@@ -1578,7 +1597,7 @@ namespace Vitex
 			MessageCallback* SetListener(const Core::String& Event, MessageCallback&& Callback);
 			bool ClearListener(const Core::String& Event, MessageCallback* Id);
 			bool AddMaterial(Core::Unique<Material> Base);
-			void LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(void*)>& Callback);
+			void LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<void*>&&)>& Callback);
 			Core::String FindResourceId(uint64_t Id, void* Resource);
 			Material* GetInvalidMaterial();
 			Material* AddMaterial();
@@ -1700,17 +1719,20 @@ namespace Vitex
 				RayTest(T::GetTypeId(), Origin, std::move(Callback));
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const Core::String& Path, const std::function<void(T*)>& Callback)
+			void LoadResource(Component* Context, const Core::String& Path, const std::function<void(ExpectsContent<T*>&&)>& Callback)
 			{
 				LoadResource<T>(Context, Path, Core::VariantArgs(), Callback);
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(T*)>& Callback)
+			void LoadResource(Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<T*>&&)>& Callback)
 			{
-				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback](void* Object)
+				VI_ASSERT(Callback != nullptr, "callback should be set");
+				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback](ExpectsContent<void*> Object)
 				{
-					if (Callback)
-						Callback((T*)Object);
+					if (Object)
+						Callback((T*)*Object);
+					else
+						Callback(Object.Error());
 				});
 			}
 			template <typename T>
@@ -1969,7 +1991,7 @@ namespace Vitex
 					Desc.ElementWidth = sizeof(Instance);
 
 					VI_RELEASE(Group->DataBuffer);
-					Group->DataBuffer = Device->CreateElementBuffer(Desc);
+					Group->DataBuffer = Device->CreateElementBuffer(Desc).Or(nullptr);
 					if (!Group->DataBuffer)
 						Group->Instances.clear();
 				}
@@ -2644,7 +2666,7 @@ namespace Vitex
 					Graphics::Query::Desc I;
 					I.Predicate = false;
 
-					Current = Device->CreateQuery(I);	
+					Current = Device->CreateQuery(I).Or(nullptr);	
 					if (!Current)
 						return false;
 				}
@@ -2715,8 +2737,8 @@ namespace Vitex
 			void SampleMirror();
 			void GenerateMips();
 			Graphics::Shader* GetEffect(const Core::String& Name);
-			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* CompileEffect(const Core::String& SectionName, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<Graphics::Shader*> CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<Graphics::Shader*> CompileEffect(const Core::String& SectionName, size_t BufferSize = 0);
 
 		public:
 			VI_COMPONENT("effect_renderer");

@@ -114,16 +114,16 @@ namespace Vitex
 				if (Lifetime.Destroy)
 					Lifetime.Destroy(this);
 			}
-			void WebSocketFrame::Send(const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Core::ExpectsSystem<size_t> WebSocketFrame::Send(const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
-				Send(0, Buffer, Size, Opcode, Callback);
+				return Send(0, Buffer, Size, Opcode, Callback);
 			}
-			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Core::ExpectsSystem<size_t> WebSocketFrame::Send(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				Core::UMutex<std::mutex> Unique(Section);
 				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
-					return;
+					return (size_t)0;
 
 				Busy = true;
 				Unique.Negate();
@@ -161,7 +161,7 @@ namespace Vitex
 					HeaderLength += 4;
 				}
 
-				Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](SocketPoll Event)
+				auto Status = Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -220,6 +220,34 @@ namespace Vitex
 							Dequeue();
 					}
 				});
+				if (!Status)
+					return Core::SystemException(Status.Error() == std::errc::operation_would_block ? "ws send delay" : "ws send error", std::move(Status.Error()));
+
+				return *Status;
+			}
+			Core::ExpectsSystem<void> WebSocketFrame::Finish()
+			{
+				if (Deadly)
+					return Core::SystemException("ws connection is closed: fd " + Core::ToString(Stream->GetFd()), std::make_error_condition(std::errc::operation_not_permitted));
+
+				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
+				{
+					Next();
+					return Core::Expectation::Met;
+				}
+
+				if (!Active)
+					return Core::SystemException("ws connection is closing: fd " + Core::ToString(Stream->GetFd()), std::make_error_condition(std::errc::operation_not_permitted));
+
+				Finalize();
+				auto Status = Send("", 0, WebSocketOp::Close, [this](WebSocketFrame*)
+				{
+					Next();
+				});
+				if (!Status)
+					return Status.Error();
+
+				return Core::Expectation::Met;
 			}
 			void WebSocketFrame::Dequeue()
 			{
@@ -233,26 +261,6 @@ namespace Vitex
 
 				Send(Next.Mask, Next.Buffer, Next.Size, Next.Opcode, Next.Callback);
 				VI_FREE(Next.Buffer);
-			}
-			void WebSocketFrame::Finish()
-			{
-				if (Deadly)
-					return;
-
-				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
-					return Next();
-
-				if (!Active)
-				{
-					VI_ERR("[websocket] sock %i already closing", (int)Stream->GetFd());
-					return;
-				}
-
-				Finalize();
-				Send("", 0, WebSocketOp::Close, [this](WebSocketFrame*)
-				{
-					Next();
-				});
 			}
 			void WebSocketFrame::Finalize()
 			{
@@ -2359,18 +2367,13 @@ namespace Vitex
 			{
 				VI_RELEASE(Query);
 			}
-			void Session::Clear()
-			{
-				if (Query != nullptr)
-					Query->Clear();
-			}
-			bool Session::Write(Connection* Base)
+			Core::ExpectsSystem<void> Session::Write(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Core::String Path = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
 				auto Stream = Core::OS::File::Open(Path.c_str(), "wb");
 				if (!Stream)
-					return false;
+					return Core::SystemException("session write error", std::move(Stream.Error()));
 
 				SessionExpires = time(nullptr) + Base->Route->Site->Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, *Stream);
@@ -2380,45 +2383,43 @@ namespace Vitex
 						fwrite(Buffer, Size, 1, *Stream);
 				});
 				Core::OS::File::Close(*Stream);
-				return true;
+				return Core::Expectation::Met;
 			}
-			bool Session::Read(Connection* Base)
+			Core::ExpectsSystem<void> Session::Read(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				Core::String Path = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
 				auto Stream = Core::OS::File::Open(Path.c_str(), "rb");
 				if (!Stream)
-					return false;
+					return Core::SystemException("session read error", std::move(Stream.Error()));
 
 				if (fread(&SessionExpires, 1, sizeof(int64_t), *Stream) != sizeof(int64_t))
 				{
 					Core::OS::File::Close(*Stream);
-					return false;
+					return Core::SystemException("session read error: invalid format", std::make_error_condition(std::errc::bad_message));
 				}
 
 				if (SessionExpires <= time(nullptr))
 				{
 					SessionId.clear();
 					Core::OS::File::Close(*Stream);
-					if (!Core::OS::File::Remove(Path.c_str()))
-						VI_ERR("[http] session file %s cannot be deleted", Path.c_str());
-
-					return false;
+					Core::OS::File::Remove(Path.c_str());
+					return Core::SystemException("session read error: expired", std::make_error_condition(std::errc::timed_out));
 				}
 
 				VI_RELEASE(Query);
-				auto Result = Core::Schema::ConvertFromJSONB([&Stream](char* Buffer, size_t Size)
-				{
-					if (!Buffer || !Size)
-						return true;
-
-					return fread(Buffer, sizeof(char), Size, *Stream) == Size;
-				});
-				if (Result)
-					Query = *Result;
-
+				auto Result = Core::Schema::ConvertFromJSONB([&Stream](char* Buffer, size_t Size) { return fread(Buffer, sizeof(char), Size, *Stream) == Size; });
 				Core::OS::File::Close(*Stream);
-				return true;
+				if (!Result)
+					return Core::SystemException(Result.Error().Info, std::make_error_condition(std::errc::bad_message));
+
+				Query = *Result;
+				return Core::Expectation::Met;
+			}
+			void Session::Clear()
+			{
+				if (Query != nullptr)
+					Query->Clear();
 			}
 			Core::String& Session::FindSessionId(Connection* Base)
 			{
@@ -2458,12 +2459,12 @@ namespace Vitex
 
 				return SessionId;
 			}
-			Core::ExpectsIO<void> Session::InvalidateCache(const Core::String& Path)
+			Core::ExpectsSystem<void> Session::InvalidateCache(const Core::String& Path)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				auto Status = Core::OS::Directory::Scan(Path, &Entries);
 				if (!Status)
-					return Status;
+					return Core::SystemException("session invalidation scan error", std::move(Status.Error()));
 
 				bool Split = (Path.back() != '\\' && Path.back() != '/');
 				for (auto& Item : Entries)
@@ -2474,13 +2475,10 @@ namespace Vitex
 					Core::String Filename = (Split ? Path + '/' : Path) + Item.first;
 					Status = Core::OS::File::Remove(Filename.c_str());
 					if (!Status)
-					{
-						VI_ERR("[http] cannot invalidate session: %s", Item.first.c_str());
-						return Status;
-					}
+						return Core::SystemException("session invalidation remove error: " + Item.first, std::move(Status.Error()));
 				}
 
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 
 			Parser::Parser()
@@ -5644,7 +5642,7 @@ namespace Vitex
 			Server::Server() : SocketServer()
 			{
 			}
-			Core::ExpectsIO<void> Server::Update()
+			Core::ExpectsSystem<void> Server::Update()
 			{
 				auto* Root = (MapRouter*)Router;
 				for (auto& Site : Root->Sites)
@@ -5662,7 +5660,7 @@ namespace Vitex
 
 						auto Status = Core::OS::Directory::Patch(Entry->Session.DocumentRoot);
 						if (!Status)
-							return Status;
+							return Core::SystemException("session document root: invalid path", std::move(Status.Error()));
 					}
 
 					if (!Entry->ResourceRoot.empty())
@@ -5673,14 +5671,21 @@ namespace Vitex
 
 						auto Status = Core::OS::Directory::Patch(Entry->ResourceRoot);
 						if (!Status)
-							return Status;
+							return Core::SystemException("resource root: invalid path", std::move(Status.Error()));
 					}
 
-					if (!Entry->Base->Override.empty())
+					if (!Entry->Base->DocumentRoot.empty())
 					{
-						auto Directory = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot, false);
+						auto Directory = Core::OS::Path::Resolve(Entry->Base->DocumentRoot.c_str());
 						if (Directory)
-							Entry->Base->Override = *Directory;
+							Entry->Base->DocumentRoot = *Directory;
+
+						if (!Entry->Base->Override.empty())
+						{
+							auto Directory = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot, false);
+							if (Directory)
+								Entry->Base->Override = *Directory;
+						}
 					}
 
 					for (auto& Group : Entry->Groups)
@@ -5688,25 +5693,32 @@ namespace Vitex
 						for (auto* Route : Group->Routes)
 						{
 							Route->Site = Entry;
-							if (Route->Override.empty())
-								continue;
+							if (!Route->DocumentRoot.empty())
+							{
+								auto Directory = Core::OS::Path::Resolve(Route->DocumentRoot.c_str());
+								if (Directory)
+									Route->DocumentRoot = *Directory;
 
-							auto Directory = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot, false);
-							if (Directory)
-								Route->Override = *Directory;
+								if (!Route->Override.empty())
+								{
+									auto Directory = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot, false);
+									if (Directory)
+										Route->Override = *Directory;
+								}
+							}
 						}
 					}
 
 					Entry->Sort();
 				}
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
-			Core::ExpectsIO<void> Server::OnConfigure(SocketRouter* NewRouter)
+			Core::ExpectsSystem<void> Server::OnConfigure(SocketRouter* NewRouter)
 			{
 				VI_ASSERT(NewRouter != nullptr, "router should be set");
 				return Update();
 			}
-			Core::ExpectsIO<void> Server::OnUnlisten()
+			Core::ExpectsSystem<void> Server::OnUnlisten()
 			{
 				VI_ASSERT(Router != nullptr, "router should be set");
 				MapRouter* Root = (MapRouter*)Router;
@@ -5718,10 +5730,7 @@ namespace Vitex
 					{
 						auto Status = Core::OS::Directory::Remove(Entry->ResourceRoot.c_str());
 						if (!Status)
-						{
-							VI_ERR("[http] resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
-							return Status;
-						}
+							return Core::SystemException("resource root remove error: " + Entry->ResourceRoot, std::move(Status.Error()));
 					}
 
 					if (!Entry->Session.DocumentRoot.empty())
@@ -5732,7 +5741,7 @@ namespace Vitex
 					}
 				}
 
-				return Core::Optional::OK;
+				return Core::Expectation::Met;
 			}
 			void Server::OnRequestOpen(SocketConnection* Source)
 			{
@@ -5903,29 +5912,29 @@ namespace Vitex
 			{
 				VI_CLEAR(WebSocket);
 			}
-			Core::ExpectsPromiseIO<void> Client::Consume(size_t MaxSize)
+			Core::ExpectsPromiseSystem<void> Client::Download(size_t MaxSize)
 			{
 				VI_ASSERT(!WebSocket, "cannot read http over websocket");
 				if (Response.Content.IsFinalized())
-					return Core::ExpectsPromiseIO<void>(Core::Optional::OK);
+					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 				else if (Response.Content.Exceeds)
-					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::value_too_large));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: payload too large", std::make_error_condition(std::errc::value_too_large)));
 
 				Response.Content.Data.clear();
 				if (!HasStream())
-					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				const char* ContentType = Response.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Response.Content.Exceeds = true;
-					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::value_too_large));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: requires file saving", std::make_error_condition(std::errc::value_too_large)));
 				}
                 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
 				{
-					Core::ExpectsPromiseIO<void> Result;
+					Core::ExpectsPromiseSystem<void> Result;
 					Parser* Parser = new HTTP::Parser();
 					Net.Stream->ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
@@ -5935,8 +5944,7 @@ namespace Vitex
 							if (Subresult == -1)
 							{
 								VI_RELEASE(Parser);
-								Result.Set(std::make_error_condition(std::errc::protocol_error));
-
+								Result.Set(Core::SystemException("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
 								return false;
 							}
 							else if (Subresult >= 0 || Subresult == -2)
@@ -5956,12 +5964,12 @@ namespace Vitex
 							}
 
 							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
 							if (Packet::IsErrorOrSkip(Event))
-								Result.Set(Packet::ToCondition(Event));
+								Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
 							else
-								Result.Set(Core::Optional::OK);
+								Result.Set(Core::Expectation::Met);
 							VI_RELEASE(Parser);
 						}
 
@@ -5973,9 +5981,9 @@ namespace Vitex
 				{
 					const char* Connection = Response.GetHeader("Connection");
 					if (!Connection || Core::Stringify::CaseCompare(Connection, "close"))
-						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::no_protocol_option));
+						return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: length is unknown", std::make_error_condition(std::errc::no_protocol_option)));
 
-					Core::ExpectsPromiseIO<void> Result;
+					Core::ExpectsPromiseSystem<void> Result;
 					Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
@@ -5988,12 +5996,12 @@ namespace Vitex
 						{
 							Response.Content.Length += Response.Content.Offset;
 							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
 							if (Packet::IsErrorOrSkip(Event))
-								Result.Set(Packet::ToCondition(Event));
+								Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
 							else
-								Result.Set(Core::Optional::OK);
+								Result.Set(Core::Expectation::Met);
 						}
 
 						return true;
@@ -6003,9 +6011,9 @@ namespace Vitex
                 
 				MaxSize = std::min(MaxSize, Response.Content.Length - Response.Content.Offset);
 				if (!MaxSize || Response.Content.Offset > Response.Content.Length)
-					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::result_out_of_range));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
-				Core::ExpectsPromiseIO<void> Result;
+				Core::ExpectsPromiseSystem<void> Result;
 				Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
@@ -6017,33 +6025,33 @@ namespace Vitex
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
 						if (!Response.Content.Data.empty())
-							VI_DEBUG("[http] %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+							VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
 						if (Packet::IsErrorOrSkip(Event))
-							Result.Set(Packet::ToCondition(Event));
+							Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
 						else
-							Result.Set(Core::Optional::OK);
+							Result.Set(Core::Expectation::Met);
 					}
 
 					return true;
 				});
 				return Result;
 			}
-			Core::ExpectsPromiseIO<void> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseSystem<void> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Send(std::move(Root)).Then<Core::ExpectsPromiseIO<void>>([this, MaxSize](Core::ExpectsIO<ResponseFrame*>&& Response) -> Core::ExpectsPromiseIO<void>
+				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this, MaxSize](Core::ExpectsSystem<ResponseFrame*>&& Response) -> Core::ExpectsPromiseSystem<void>
 				{
 					if (!Response)
-						return Core::ExpectsPromiseIO<void>(Response.Error());
+						return Core::ExpectsPromiseSystem<void>(Response.Error());
 
-					return Consume(MaxSize);
+					return Download(MaxSize);
 				});
 			}
-			Core::ExpectsPromiseIO<void> Client::Upgrade(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseSystem<void> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
 				if (!HasStream())
-					return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_file_descriptor));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				Root.SetHeader("Pragma", "no-cache");
 				Root.SetHeader("Upgrade", "WebSocket");
@@ -6056,51 +6064,44 @@ namespace Vitex
 				else
 					Root.SetHeader("Sec-WebSocket-Key", WEBSOCKET_KEY);
 	
-				return Send(std::move(Root)).Then<Core::ExpectsPromiseIO<void>>([this](Core::ExpectsIO<ResponseFrame*>&& Response) -> Core::ExpectsPromiseIO<void>
+				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<ResponseFrame*>&& Response) -> Core::ExpectsPromiseSystem<void>
 				{
 					VI_DEBUG("[ws] handshake %s", Request.URI.c_str());
 					if (!Response)
-						return Core::ExpectsPromiseIO<void>(Response.Error());
+						return Core::ExpectsPromiseSystem<void>(Response.Error());
 
 					if (Response->StatusCode != 101)
-					{
-						Error("ws handshake error");
-						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::protocol_error));
-					}
+						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
 
 					if (!Response->GetHeader("Sec-WebSocket-Accept"))
-					{
-						Error("ws handshake was not accepted");
-						return Core::ExpectsPromiseIO<void>(std::make_error_condition(std::errc::bad_message));
-					}
+						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
 
-					Future = Core::ExpectsPromiseIO<void>();
+					Future = Core::ExpectsPromiseSystem<void>();
 					WebSocket->Next();
 					return Future;
 				});
 			}
-			Core::ExpectsPromiseIO<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseSystem<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
 				if (!HasStream())
-					return Core::ExpectsPromiseIO<ResponseFrame*>(std::make_error_condition(std::errc::bad_file_descriptor));
+					return Core::ExpectsPromiseSystem<ResponseFrame*>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
-				Core::ExpectsPromiseIO<ResponseFrame*> Result;
+				Core::ExpectsPromiseSystem<ResponseFrame*> Result;
 				Request = std::move(Root);
 				Response.Cleanup();
-				State.Done = [Result](SocketClient* Client, const Core::Option<std::error_condition>& ErrorCode) mutable
+				State.Done = [Result](SocketClient* Client, Core::ExpectsSystem<void>&& Status) mutable
 				{
 					HTTP::Client* Base = (HTTP::Client*)Client;
-					if (ErrorCode)
+					if (!Status)
 					{
 						Base->GetResponse()->StatusCode = -1;
-						Result.Set(*ErrorCode);
+						Result.Set(std::move(Status.Error()));
 					}
 					else
 						Result.Set(Base->GetResponse());
 				};
-				Stage("request delivery");
 
 				if (!Request.GetHeader("Host"))
 				{
@@ -6186,13 +6187,13 @@ namespace Vitex
 											else if (Packet::IsDone(Event))
 												Receive();
 											else if (Packet::IsErrorOrSkip(Event))
-												Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+												Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
 											return true;
 										});
 									}
 									else if (Packet::IsErrorOrSkip(Event))
-										Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+										Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 								});
 							}
 							else
@@ -6204,14 +6205,14 @@ namespace Vitex
 									else if (Packet::IsDone(Event))
 										Receive();
 									else if (Packet::IsErrorOrSkip(Event))
-										Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+										Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
 									return true;
 								});
 							}
 						}
 						else if (Packet::IsErrorOrSkip(Event))
-							Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					});
 				}
 				else
@@ -6219,7 +6220,7 @@ namespace Vitex
 					auto RandomBytes = Compute::Crypto::RandomBytes(24);
 					if (!RandomBytes)
 					{
-						Error("cannot generate request boundary");
+						Report(Core::SystemException("send boundary error: " + RandomBytes.Error().Info, std::make_error_condition(std::errc::operation_canceled)));
 						return Result;
 					}
 
@@ -6295,36 +6296,36 @@ namespace Vitex
 						if (Packet::IsDone(Event))
 							Upload(0);
 						else if (Packet::IsErrorOrSkip(Event))
-							Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					});
 				}
 
 				return Result;
 			}
-			Core::ExpectsPromiseIO<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseSystem<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsIO<Core::Schema*>>([this](Core::ExpectsIO<void>&& Result) -> Core::ExpectsIO<Core::Schema*>
+				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Result) -> Core::ExpectsSystem<Core::Schema*>
 				{
 					if (!Result)
 						return Result.Error();
 
 					auto Data = Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
-						return std::make_error_condition(std::errc::bad_message);
+						return Core::SystemException(Data.Error().Info, std::make_error_condition(std::errc::bad_message));
 
 					return *Data;
 				});
 			}
-			Core::ExpectsPromiseIO<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseSystem<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsIO<Core::Schema*>>([this](Core::ExpectsIO<void>&& Result) -> Core::ExpectsIO<Core::Schema*>
+				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Result) -> Core::ExpectsSystem<Core::Schema*>
 				{
 					if (!Result)
 						return Result.Error();
 
 					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
-						return std::make_error_condition(std::errc::bad_message);
+						return Core::SystemException(Data.Error().Info, std::make_error_condition(std::errc::bad_message));
 
 					return *Data;
 				});
@@ -6350,10 +6351,10 @@ namespace Vitex
 					if (!Successful)
 					{
 						Net.Stream->Close(false);
-						Future.Set(std::make_error_condition(std::errc::connection_reset));
+						Future.Set(Core::SystemException("ws connection abort error", std::make_error_condition(std::errc::connection_reset)));
 					}
 					else
-						Future.Set(Core::Optional::OK);
+						Future.Set(Core::Expectation::Met);
 				};
 
 				return WebSocket;
@@ -6366,11 +6367,11 @@ namespace Vitex
 			{
 				return &Response;
 			}
-			void Client::UploadFile(BoundaryBlock* Boundary, std::function<void(bool)>&& Callback)
+			void Client::UploadFile(BoundaryBlock* Boundary, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 			{
 				auto File = Core::OS::File::Open(Boundary->File->Path.c_str(), "rb");
 				if (!File)
-					return Callback(false);
+					return Callback(Core::SystemException("upload file error", std::move(File.Error())));
 
 				FILE* FileStream = *File;
                 auto Result = Net.Stream->SendFileAsync(FileStream, 0, Boundary->File->Length, [this, FileStream, Callback](SocketPoll Event)
@@ -6378,29 +6379,28 @@ namespace Vitex
                     if (Packet::IsDone(Event))
                     {
                         Core::OS::File::Close(FileStream);
-						Callback(true);
+						Callback(Core::Expectation::Met);
                     }
                     else if (Packet::IsErrorOrSkip(Event))
 					{
 						Core::OS::File::Close(FileStream);
-						Callback(false);
+						Callback(Core::SystemException("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
 					}
 				});         
                 if (Result || Result.Error() != std::errc::not_supported)
-					return Callback(true);
+					return Callback(Core::Expectation::Met);
 
 				if (Config.IsAsync)
 					return UploadFileChunkAsync(FileStream, Boundary->File->Length, std::move(Callback));
 
 				return UploadFileChunk(FileStream, Boundary->File->Length, std::move(Callback));
 			}
-			void Client::UploadFileChunk(FILE* FileStream, size_t ContentLength, std::function<void(bool)>&& Callback)
+			void Client::UploadFileChunk(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 			{
 				if (!ContentLength)
 				{
-				Cleanup:
 					Core::OS::File::Close(FileStream);
-					return Callback(true);
+					return Callback(Core::Expectation::Met);
 				}
 
 				char Buffer[Core::BLOB_SIZE];
@@ -6408,31 +6408,39 @@ namespace Vitex
 				{
 					size_t Read = sizeof(Buffer);
 					if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
-						goto Cleanup;
+					{
+						Core::OS::File::Close(FileStream);
+						return Callback(Core::SystemException("upload file io error", Core::OS::Error::GetCondition()));
+					}
 
 					ContentLength -= Read;
 					auto Written = Net.Stream->Write(Buffer, Read);
 					if (!Written || !*Written)
-						break;
-				}
+					{
+						Core::OS::File::Close(FileStream);
+						if (!Written)
+							return Callback(Core::SystemException("upload file network error", std::move(Written.Error())));
 
-				Core::OS::File::Close(FileStream);
-				return Callback(!ContentLength);
+						return Callback(Core::Expectation::Met);
+					}
+				}
 			}
-			void Client::UploadFileChunkAsync(FILE* FileStream, size_t ContentLength, std::function<void(bool)>&& Callback)
+			void Client::UploadFileChunkAsync(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 			{
 				if (!ContentLength)
 				{
-				Cleanup:
 					Core::OS::File::Close(FileStream);
-					return Callback(true);
+					return Callback(Core::Expectation::Met);
 				}
 
 			Retry:
 				char Buffer[Core::BLOB_SIZE];
 				size_t Read = sizeof(Buffer);
 				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
-					goto Cleanup;
+				{
+					Core::OS::File::Close(FileStream);
+					return Callback(Core::SystemException("upload file io error", Core::OS::Error::GetCondition()));
+				}
 
 				ContentLength -= Read;
 				auto Written = Net.Stream->WriteAsync(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
@@ -6441,13 +6449,13 @@ namespace Vitex
 					{
 						Core::Schedule::Get()->SetTask([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
 						{
-							UploadFileChunk(FileStream, ContentLength, std::move(Callback));
+							UploadFileChunkAsync(FileStream, ContentLength, std::move(Callback));
 						});
 					}
 					else if (Packet::IsErrorOrSkip(Event))
 					{
 						Core::OS::File::Close(FileStream);
-						Callback(false);
+						return Callback(Core::SystemException("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
 					}
 				});
 
@@ -6466,27 +6474,27 @@ namespace Vitex
 							if (!Boundary->File->IsInMemory)
 							{
 								BoundaryBlock& Target = *Boundary;
-								UploadFile(&Target, [this, Boundary, FileId](bool Success)
+								UploadFile(&Target, [this, Boundary, FileId](Core::ExpectsSystem<void>&& Status)
 								{
-									if (Success)
+									if (Status)
 									{
 										Net.Stream->WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 												Upload(FileId + 1);
 											else if (Packet::IsErrorOrSkip(Event))
-												Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+												Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 										});
 									}
 									else
-										Error("io socker file write error");
+										Report(std::move(Status));
 								});
 							}
 							else
 								Upload(FileId + 1);
 						}
 						else if (Packet::IsErrorOrSkip(Event))
-							Error("http socket file write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					});
 				}
 				else
@@ -6498,7 +6506,7 @@ namespace Vitex
 						else if (Packet::IsDone(Event))
 							Receive();
 						else if (Packet::IsErrorOrSkip(Event))
-							Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
+							Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
 						return true;
 					});
@@ -6517,7 +6525,6 @@ namespace Vitex
 			}
 			void Client::Receive()
 			{
-				Stage("http response receive");
 				auto Address = Net.Stream->GetRemoteAddress();
 				if (Address)
 					strncpy(RemoteAddress, Address->c_str(), std::min(Address->size(), sizeof(RemoteAddress)));
@@ -6539,22 +6546,22 @@ namespace Vitex
 					ManageKeepAlive();
 
 					VI_RELEASE(Parser);
-					Report(Core::Optional::None);
+					Report(Core::Expectation::Met);
 				}
 				else
 				{
 					VI_RELEASE(Parser);
-					Error("cannot parse http response");
+					Report(Core::SystemException(Core::Stringify::Text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, Response.Content.Data.size()), Response.Content.Data.data()), std::make_error_condition(std::errc::bad_message)));
 				}
 			}
 
-			Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)
+			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)
 			{
-				return Core::Coasync<Core::ExpectsIO<ResponseFrame>>([Target, Method, Options]() -> Core::ExpectsPromiseIO<ResponseFrame>
+				return Core::Coasync<Core::ExpectsSystem<ResponseFrame>>([Target, Method, Options]() -> Core::ExpectsPromiseSystem<ResponseFrame>
 				{
 					Network::Location URL(Target);
 					if (URL.Protocol != "http" && URL.Protocol != "https")
-						Coreturn std::make_error_condition(std::errc::address_family_not_supported);
+						Coreturn Core::SystemException("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported));
 
 					Network::RemoteHost Address;
 					Address.Hostname = URL.Hostname;

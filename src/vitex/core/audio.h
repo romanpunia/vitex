@@ -229,41 +229,58 @@ namespace Vitex
 			bool IsLooped = false;
 		};
 
+		class AudioException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+			int AlErrorCode;
+			int AlcErrorCode;
+
+		public:
+			VI_OUT AudioException(void* Device = nullptr);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
+			bool has_error() const noexcept;
+		};
+
+		template <typename V>
+		using ExpectsAudio = Core::Expects<V, AudioException>;
+
 		class VI_OUT AudioContext final : public Core::Singletonish
 		{
 		public:
-			static void Initialize();
-			static void GenerateBuffers(int Count, unsigned int* Buffers);
-			static void SetFilter1I(unsigned int Filter, FilterEx Value, int F1);
-			static void SetFilter1F(unsigned int Filter, FilterEx Value, float F1);
-			static void SetEffect1I(unsigned int Effect, EffectEx Value, int F1);
-			static void SetEffect1F(unsigned int Effect, EffectEx Value, float F1);
-			static void SetEffectVF(unsigned int Effect, EffectEx Value, float* FS);
-			static void SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency);
-			static void SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3);
-			static void GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3);
-			static void SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS);
-			static void GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS);
-			static void SetSourceData1F(unsigned int Source, SoundEx Value, float F1);
-			static void GetSourceData1F(unsigned int Source, SoundEx Value, float* F1);
-			static void SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3);
-			static void GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3);
-			static void SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
-			static void GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
-			static void SetSourceData1I(unsigned int Source, SoundEx Value, int F1);
-			static void GetSourceData1I(unsigned int Source, SoundEx Value, int* F1);
-			static void SetListenerData3F(SoundEx Listener, float F1, float F2, float F3);
-			static void GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3);
-			static void SetListenerDataVF(SoundEx Listener, float* FS);
-			static void GetListenerDataVF(SoundEx Listener, float* FS);
-			static void SetListenerData1F(SoundEx Listener, float F1);
-			static void GetListenerData1F(SoundEx Listener, float* F1);
-			static void SetListenerData3I(SoundEx Listener, int F1, int F2, int F3);
-			static void GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3);
-			static void SetListenerDataVI(SoundEx Listener, int* FS);
-			static void GetListenerDataVI(SoundEx Listener, int* FS);
-			static void SetListenerData1I(SoundEx Listener, int F1);
-			static void GetListenerData1I(SoundEx Listener, int* F1);
+			static ExpectsAudio<void> Initialize();
+			static ExpectsAudio<void> GenerateBuffers(int Count, unsigned int* Buffers);
+			static ExpectsAudio<void> SetFilter1I(unsigned int Filter, FilterEx Value, int F1);
+			static ExpectsAudio<void> SetFilter1F(unsigned int Filter, FilterEx Value, float F1);
+			static ExpectsAudio<void> SetEffect1I(unsigned int Effect, EffectEx Value, int F1);
+			static ExpectsAudio<void> SetEffect1F(unsigned int Effect, EffectEx Value, float F1);
+			static ExpectsAudio<void> SetEffectVF(unsigned int Effect, EffectEx Value, float* FS);
+			static ExpectsAudio<void> SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency);
+			static ExpectsAudio<void> SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3);
+			static ExpectsAudio<void> GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3);
+			static ExpectsAudio<void> SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS);
+			static ExpectsAudio<void> GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS);
+			static ExpectsAudio<void> SetSourceData1F(unsigned int Source, SoundEx Value, float F1);
+			static ExpectsAudio<void> GetSourceData1F(unsigned int Source, SoundEx Value, float* F1);
+			static ExpectsAudio<void> SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3);
+			static ExpectsAudio<void> GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3);
+			static ExpectsAudio<void> SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
+			static ExpectsAudio<void> GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
+			static ExpectsAudio<void> SetSourceData1I(unsigned int Source, SoundEx Value, int F1);
+			static ExpectsAudio<void> GetSourceData1I(unsigned int Source, SoundEx Value, int* F1);
+			static ExpectsAudio<void> SetListenerData3F(SoundEx Listener, float F1, float F2, float F3);
+			static ExpectsAudio<void> GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3);
+			static ExpectsAudio<void> SetListenerDataVF(SoundEx Listener, float* FS);
+			static ExpectsAudio<void> GetListenerDataVF(SoundEx Listener, float* FS);
+			static ExpectsAudio<void> SetListenerData1F(SoundEx Listener, float F1);
+			static ExpectsAudio<void> GetListenerData1F(SoundEx Listener, float* F1);
+			static ExpectsAudio<void> SetListenerData3I(SoundEx Listener, int F1, int F2, int F3);
+			static ExpectsAudio<void> GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3);
+			static ExpectsAudio<void> SetListenerDataVI(SoundEx Listener, int* FS);
+			static ExpectsAudio<void> GetListenerDataVI(SoundEx Listener, int* FS);
+			static ExpectsAudio<void> SetListenerData1I(SoundEx Listener, int F1);
+			static ExpectsAudio<void> GetListenerData1I(SoundEx Listener, int* F1);
 			static uint32_t GetEnumValue(const char* Name);
 		};
 
@@ -279,14 +296,14 @@ namespace Vitex
 		public:
 			AudioFilter() noexcept;
 			virtual ~AudioFilter() noexcept;
-			virtual void Synchronize() = 0;
+			virtual ExpectsAudio<void> Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) const = 0;
 			virtual Core::Unique<AudioFilter> Copy() const = 0;
 			AudioSource* GetSource() const;
 
 		protected:
-			bool CreateLocked(const std::function<bool()>& Callback);
+			ExpectsAudio<void> Initialize(const std::function<bool()>& Callback);
 
 		public:
 			VI_COMPONENT_ROOT("base_audio_filter");
@@ -308,20 +325,20 @@ namespace Vitex
 		public:
 			AudioEffect() noexcept;
 			virtual ~AudioEffect() noexcept;
-			virtual void Synchronize() = 0;
+			virtual ExpectsAudio<void> Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) const = 0;
 			virtual Core::Unique<AudioEffect> Copy() const = 0;
-			bool SetFilter(AudioFilter** Filter);
+			ExpectsAudio<void> SetFilter(AudioFilter** Filter);
 			AudioFilter* GetFilter() const;
 			AudioSource* GetSource() const;
 
 		protected:
-			bool CreateLocked(const std::function<bool()>& Callback);
+			ExpectsAudio<void> Initialize(const std::function<bool()>& Callback);
 
 		private:
-			bool Bind(AudioSource* NewSource, int NewZone);
-			bool Unbind();
+			ExpectsAudio<void> Bind(AudioSource* NewSource, int NewZone);
+			ExpectsAudio<void> Unbind();
 
 		public:
 			VI_COMPONENT_ROOT("base_audio_effect");
@@ -355,15 +372,15 @@ namespace Vitex
 			AudioSource() noexcept;
 			~AudioSource() noexcept;
 			int64_t AddEffect(AudioEffect* Effect);
-			bool RemoveEffect(size_t EffectId);
-			bool RemoveEffectById(uint64_t EffectId);
-			void RemoveEffects();
-			void SetClip(AudioClip* Clip);
-			void Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
-			void Reset();
-			void Pause();
-			void Play();
-			void Stop();
+			ExpectsAudio<void> RemoveEffect(size_t EffectId);
+			ExpectsAudio<void> RemoveEffectById(uint64_t EffectId);
+			ExpectsAudio<void> RemoveEffects();
+			ExpectsAudio<void> SetClip(AudioClip* Clip);
+			ExpectsAudio<void> Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
+			ExpectsAudio<void> Reset();
+			ExpectsAudio<void> Pause();
+			ExpectsAudio<void> Play();
+			ExpectsAudio<void> Stop();
 			bool IsPlaying() const;
 			size_t GetEffectsCount() const;
 			AudioClip* GetClip() const;
@@ -388,21 +405,21 @@ namespace Vitex
 		public:
 			AudioDevice() noexcept;
 			~AudioDevice() noexcept;
-			void Offset(AudioSource* Source, float& Seconds, bool Get);
-			void Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get);
-			void Position(AudioSource* Source, Compute::Vector3& Position, bool Get);
-			void Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get);
-			void Relative(AudioSource* Source, int& Value, bool Get);
-			void Pitch(AudioSource* Source, float& Value, bool Get);
-			void Gain(AudioSource* Source, float& Value, bool Get);
-			void Loop(AudioSource* Source, int& IsLoop, bool Get);
-			void ConeInnerAngle(AudioSource* Source, float& Value, bool Get);
-			void ConeOuterAngle(AudioSource* Source, float& Value, bool Get);
-			void ConeOuterGain(AudioSource* Source, float& Value, bool Get);
-			void Distance(AudioSource* Source, float& Value, bool Get);
-			void RefDistance(AudioSource* Source, float& Value, bool Get);
-			void SetDistanceModel(SoundDistanceModel Model);
-			void GetExceptionCodes(int& ALCCode, int& ALCode) const;
+			ExpectsAudio<void> Offset(AudioSource* Source, float& Seconds, bool Get);
+			ExpectsAudio<void> Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get);
+			ExpectsAudio<void> Position(AudioSource* Source, Compute::Vector3& Position, bool Get);
+			ExpectsAudio<void> Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get);
+			ExpectsAudio<void> Relative(AudioSource* Source, int& Value, bool Get);
+			ExpectsAudio<void> Pitch(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> Gain(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> Loop(AudioSource* Source, int& IsLoop, bool Get);
+			ExpectsAudio<void> ConeInnerAngle(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> ConeOuterAngle(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> ConeOuterGain(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> Distance(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> RefDistance(AudioSource* Source, float& Value, bool Get);
+			ExpectsAudio<void> SetDistanceModel(SoundDistanceModel Model);
+			void DisplayAudioLog() const;
 			bool IsValid() const;
 		};
 	}

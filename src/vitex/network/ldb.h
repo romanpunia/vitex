@@ -69,6 +69,24 @@ namespace Vitex
 				int32_t Status = -1;
 			};
 
+			class DatabaseException : public Core::BasicException
+			{
+			public:
+				Core::String Info;
+
+			public:
+				VI_OUT DatabaseException(TConnection* Connection);
+				VI_OUT DatabaseException(Core::String&& Message);
+				VI_OUT const char* type() const noexcept override;
+				VI_OUT const char* what() const noexcept override;
+			};
+
+			template <typename V>
+			using ExpectsDB = Core::Expects<V, DatabaseException>;
+
+			template <typename T, typename Executor = Core::ParallelExecutor>
+			using ExpectsPromiseDB = Core::BasicPromise<ExpectsDB<T>, Executor>;
+
 			class VI_OUT Aggregate : public Core::Reference<Aggregate>
 			{
 			public:
@@ -336,17 +354,17 @@ namespace Vitex
 				Core::Vector<Checkpoint> WalCheckpoint(CheckpointMode Mode, const Core::String& Database = Core::String());
 				size_t FreeMemoryUsed(size_t Bytes);
 				size_t GetMemoryUsed() const;
-				Core::Promise<SessionId> TxBegin(Isolation Type);
-				Core::Promise<SessionId> TxStart(const Core::String& Command);
-				Core::Promise<bool> TxEnd(const Core::String& Command, SessionId Session);
-				Core::Promise<bool> TxCommit(SessionId Session);
-				Core::Promise<bool> TxRollback(SessionId Session);
-				Core::Promise<bool> Connect(const Core::String& URI, size_t Connections);
-				Core::Promise<bool> Disconnect();
-				Core::Promise<bool> Flush();
-				Core::Promise<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<SessionId> TxBegin(Isolation Type);
+				ExpectsPromiseDB<SessionId> TxStart(const Core::String& Command);
+				ExpectsPromiseDB<void> TxEnd(const Core::String& Command, SessionId Session);
+				ExpectsPromiseDB<void> TxCommit(SessionId Session);
+				ExpectsPromiseDB<void> TxRollback(SessionId Session);
+				ExpectsPromiseDB<void> Connect(const Core::String& URI, size_t Connections);
+				ExpectsPromiseDB<void> Disconnect();
+				ExpectsPromiseDB<void> Flush();
+				ExpectsPromiseDB<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				TConnection* GetIdleConnection();
 				TConnection* GetBusyConnection();
 				TConnection* GetAnyConnection();
@@ -357,15 +375,15 @@ namespace Vitex
 				TConnection* TryAcquireConnection(SessionId Session, size_t Opts);
 				Core::Promise<TConnection*> AcquireConnection(SessionId Session, size_t Opts);
 				void ReleaseConnection(TConnection* Connection, size_t Opts);
-				bool ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement);
-				bool ConsumeRow(TStatement* Statement, Response* Result);
+				ExpectsDB<void> ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement);
+				void ConsumeRow(TStatement* Statement, Response* Result);
 			};
 
 			class VI_OUT_TS Utils
 			{
 			public:
-				static Core::String InlineArray(Core::Unique<Core::Schema> Array);
-				static Core::String InlineQuery(Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
+				static ExpectsDB<Core::String> InlineArray(Core::Unique<Core::Schema> Array);
+				static ExpectsDB<Core::String> InlineQuery(Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
 				static Core::String GetCharArray(const Core::String& Src) noexcept;
 				static Core::String GetByteArray(const Core::String& Src) noexcept;
 				static Core::String GetByteArray(const char* Src, size_t Size) noexcept;
@@ -405,16 +423,16 @@ namespace Vitex
 				virtual ~Driver() noexcept override;
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
 				void LogQuery(const Core::String& Command) noexcept;
-				bool AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
-				bool AddQuery(const Core::String& Name, const Core::String& Data) noexcept;
-				bool AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept;
-				bool AddDirectory(const Core::String& Directory, const Core::String& Origin = "") noexcept;
+				void AddConstant(const Core::String& Name, const Core::String& Value);
+				ExpectsDB<void> AddQuery(const Core::String& Name, const Core::String& Data);
+				ExpectsDB<void> AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size);
+				ExpectsDB<void> AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
 				bool RemoveConstant(const Core::String& Name) noexcept;
 				bool RemoveQuery(const Core::String& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				Core::String Emplace(const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
-				Core::String GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> Emplace(const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

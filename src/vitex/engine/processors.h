@@ -98,25 +98,25 @@ namespace Vitex
 			{
 			public:
 				AssetProcessor(ContentManager * Manager);
-				void* Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT MaterialProcessor final : public Processor
 			{
 			public:
 				MaterialProcessor(ContentManager * Manager);
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				ExpectsContent<void> Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
-				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT SceneGraphProcessor final : public Processor
 			{
 			public:
 				SceneGraphProcessor(ContentManager * Manager);
-				void* Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
-				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				ExpectsContent<void> Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT AudioClipProcessor final : public Processor
@@ -124,11 +124,11 @@ namespace Vitex
 			public:
 				AudioClipProcessor(ContentManager * Manager);
 				~AudioClipProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
+				ExpectsContent<Core::Unique<void>> DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
-				Core::Unique<void> DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
 			};
 
 			class VI_OUT Texture2DProcessor final : public Processor
@@ -136,9 +136,9 @@ namespace Vitex
 			public:
 				Texture2DProcessor(ContentManager * Manager);
 				~Texture2DProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT ShaderProcessor final : public Processor
@@ -146,9 +146,9 @@ namespace Vitex
 			public:
 				ShaderProcessor(ContentManager * Manager);
 				~ShaderProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT ModelProcessor final : public Processor
@@ -159,13 +159,13 @@ namespace Vitex
 			public:
 				ModelProcessor(ContentManager* Manager);
 				~ModelProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
-				static Core::Unique<Core::Schema> Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
-				static ModelInfo ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
+				static ExpectsContent<Core::Unique<Core::Schema>> Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
+				static ExpectsContent<ModelInfo> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
 			class VI_OUT SkinModelProcessor final : public Processor
@@ -176,9 +176,9 @@ namespace Vitex
 			public:
 				SkinModelProcessor(ContentManager* Manager);
 				~SkinModelProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT SkinAnimationProcessor final : public Processor
@@ -186,21 +186,21 @@ namespace Vitex
 			public:
 				SkinAnimationProcessor(ContentManager* Manager);
 				~SkinAnimationProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
-				static Core::Schema* Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
-				static Core::Vector<Compute::SkinAnimatorClip> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
+				static ExpectsContent<Core::Schema*> Import(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
+				static ExpectsContent<Core::Vector<Compute::SkinAnimatorClip>> ImportForImmediateUse(Core::Stream* Stream, uint64_t Opts = (uint64_t)MeshPreset::Default);
 			};
 
 			class VI_OUT SchemaProcessor final : public Processor
 			{
 			public:
-				SchemaProcessor(ContentManager * Manager);
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
-				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
+				SchemaProcessor(ContentManager* Manager);
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				ExpectsContent<void> Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT ServerProcessor final : public Processor
@@ -210,7 +210,7 @@ namespace Vitex
 
 			public:
 				ServerProcessor(ContentManager* Manager);
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class VI_OUT HullShapeProcessor final : public Processor
@@ -218,9 +218,9 @@ namespace Vitex
 			public:
 				HullShapeProcessor(ContentManager * Manager);
 				~HullShapeProcessor() override;
+				ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				void Free(AssetCache* Asset) override;
-				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 		}
 	}

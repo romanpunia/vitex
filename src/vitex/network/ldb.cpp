@@ -10,15 +10,6 @@ namespace Vitex
 		namespace LDB
 		{
 #ifdef VI_SQLITE
-			static void sqlite3_logerror(TConnection* Base)
-			{
-				VI_ASSERT(Base != nullptr, "base should be set");
-				const char* Message = sqlite3_errmsg(Base);
-				if (!Message || Message[0] == '\0')
-					return;
-
-				VI_ERR("[sqliteerr] %s", Message);
-			}
 			static void sqlite3_function_call(sqlite3_context* Context, int ArgsCount, sqlite3_value** Args)
 			{
 				OnFunctionResult* Callable = (OnFunctionResult*)sqlite3_user_data(Context);
@@ -62,6 +53,34 @@ namespace Vitex
 				Utils::ContextReturn(Context, Callable->Value());
 			}
 #endif
+			DatabaseException::DatabaseException(TConnection* Connection)
+			{
+#ifdef VI_SQLITE
+				VI_ASSERT(Connection != nullptr, "base should be set");
+				const char* Message = sqlite3_errmsg(Connection);
+				if (Message && Message[0] != '\0')
+				{
+					VI_DEBUG("[sqlite] %s", Message);
+					Info = Message;
+				}
+				else
+					Info = "internal driver error";
+#else
+				Info = "not supported";
+#endif
+			}
+			DatabaseException::DatabaseException(Core::String&& Message) : Info(std::move(Message))
+			{
+			}
+			const char* DatabaseException::type() const noexcept
+			{
+				return "sqlite_error";
+			}
+			const char* DatabaseException::what() const noexcept
+			{
+				return Info.c_str();
+			}
+
 			Column::Column(const Response* NewBase, size_t fRowIndex, size_t fColumnIndex) : Base((Response*)NewBase), RowIndex(fRowIndex), ColumnIndex(fColumnIndex)
 			{
 			}
@@ -588,7 +607,7 @@ namespace Vitex
 				return 0;
 #endif
 			}
-			Core::Promise<SessionId> Cluster::TxBegin(Isolation Type)
+			ExpectsPromiseDB<SessionId> Cluster::TxBegin(Isolation Type)
 			{
 				switch (Type)
 				{
@@ -601,38 +620,48 @@ namespace Vitex
 						return TxStart("BEGIN TRANSACTION");
 				}
 			}
-			Core::Promise<SessionId> Cluster::TxStart(const Core::String& Command)
+			ExpectsPromiseDB<SessionId> Cluster::TxStart(const Core::String& Command)
 			{
-				return Query(Command, (size_t)QueryOp::TransactionStart).Then<SessionId>([](Cursor&& Result)
+				return Query(Command, (size_t)QueryOp::TransactionStart).Then<ExpectsDB<SessionId>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<SessionId>
 				{
-					return Result.Success() ? Result.GetExecutor() : nullptr;
+					if (!Result)
+						return Result.Error();
+					else if (Result->Success())
+						return Result->GetExecutor();
+
+					return DatabaseException("transaction start error");
 				});
 			}
-			Core::Promise<bool> Cluster::TxEnd(const Core::String& Command, SessionId Session)
+			ExpectsPromiseDB<void> Cluster::TxEnd(const Core::String& Command, SessionId Session)
 			{
-				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<bool>([](Cursor&& Result)
+				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<ExpectsDB<void>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<void>
 				{
-					return Result.Success();
+					if (!Result)
+						return Result.Error();
+					else if (Result->Success())
+						return Core::Expectation::Met;
+
+					return DatabaseException("transaction end error");
 				});
 			}
-			Core::Promise<bool> Cluster::TxCommit(SessionId Session)
+			ExpectsPromiseDB<void> Cluster::TxCommit(SessionId Session)
 			{
 				return TxEnd("COMMIT", Session);
 			}
-			Core::Promise<bool> Cluster::TxRollback(SessionId Session)
+			ExpectsPromiseDB<void> Cluster::TxRollback(SessionId Session)
 			{
 				return TxEnd("ROLLBACK", Session);
 			}
-			Core::Promise<bool> Cluster::Connect(const Core::String& URI, size_t Connections)
+			ExpectsPromiseDB<void> Cluster::Connect(const Core::String& URI, size_t Connections)
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
 				if (IsConnected())
-					return Disconnect().Then<Core::Promise<bool>>([this, URI, Connections](bool&&) { return this->Connect(URI, Connections); });
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI, Connections](ExpectsDB<void>&&) { return this->Connect(URI, Connections); });
 
 				Core::UMutex<std::mutex> Unique(Update);
 				Source = URI;
-				return Core::Cotask<bool>([this, Connections]()
+				return Core::Cotask<ExpectsDB<void>>([this, Connections]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					VI_DEBUG("[sqlite] try open database using %i connections", (int)Connections);
@@ -652,29 +681,29 @@ namespace Vitex
 						int Code = sqlite3_open_v2(Source.c_str(), &Connection, Flags, nullptr);
 						if (Code != SQLITE_OK)
 						{
-							sqlite3_logerror(Connection);
+							DatabaseException Error(Connection);
 							sqlite3_close(Connection);
 							Connection = nullptr;
-							return false;
+							return Error;
 						}
 
 						VI_DEBUG("[sqlite] OK open database on 0x%" PRIXPTR, (uintptr_t)Connection);
 						Idle.insert(Connection);
 					}
 
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException("connect: not supported"));
 #endif
 			}
-			Core::Promise<bool> Cluster::Disconnect()
+			ExpectsPromiseDB<void> Cluster::Disconnect()
 			{
 #ifdef VI_SQLITE
 				if (!IsConnected())
-					return Core::Promise<bool>(false);
+					return ExpectsPromiseDB<void>(DatabaseException("disconnect: not connected"));
 
-				return Core::Cotask<bool>([this]()
+				return Core::Cotask<ExpectsDB<void>>([this]() -> ExpectsDB<void>
 				{
 					Core::UMutex<std::mutex> Unique(Update);
 					for (auto* Item : Idle)
@@ -684,53 +713,60 @@ namespace Vitex
 						sqlite3_interrupt(Item);
 						sqlite3_close(Item);
 					}
+
 					Idle.clear();
 					Busy.clear();
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException("disconnect: not supported"));
 #endif
 			}
-			Core::Promise<bool> Cluster::Flush()
+			ExpectsPromiseDB<void> Cluster::Flush()
 			{
 #ifdef VI_SQLITE
 				if (!IsConnected())
-					return Core::Promise<bool>(false);
+					return ExpectsPromiseDB<void>(DatabaseException("flush: not connected"));
 
-				return Core::Cotask<bool>([this]()
+				return Core::Cotask<ExpectsDB<void>>([this]() -> ExpectsDB<void>
 				{
 					Core::UMutex<std::mutex> Unique(Update);
 					for (auto* Item : Idle)
 						sqlite3_db_cacheflush(Item);
-					return true;
+					return Core::Expectation::Met;
 				});
 #else
-				return Core::Promise<bool>(false);
+				return ExpectsPromiseDB<void>(DatabaseException("flush: not supported"));
 #endif
 			}
-			Core::Promise<Cursor> Cluster::EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
+			ExpectsPromiseDB<Cursor> Cluster::EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
 			{
-				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
-				return Query(Driver::Get()->Emplace(Command, Map, Once), Opts, Session);
+				auto Template = Driver::Get()->Emplace(Command, Map, !(Opts & (size_t)QueryOp::ReuseArgs));
+				if (!Template)
+					return ExpectsPromiseDB<Cursor>(Template.Error());
+
+				return Query(*Template, Opts, Session);
 			}
-			Core::Promise<Cursor> Cluster::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
+			ExpectsPromiseDB<Cursor> Cluster::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
 				VI_DEBUG("[sqlite] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
-				return Query(Driver::Get()->GetQuery(Name, Map, Once), Opts, Session);
+				auto Template = Driver::Get()->GetQuery(Name, Map, !(Opts & (size_t)QueryOp::ReuseArgs));
+				if (!Template)
+					return ExpectsPromiseDB<Cursor>(Template.Error());
+
+				return Query(*Template, Opts, Session);
 			}
-			Core::Promise<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
+			ExpectsPromiseDB<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
 			{
 				VI_ASSERT(!Command.empty(), "command should not be empty");
 #ifdef VI_SQLITE
 				Driver::Get()->LogQuery(Command);
-				return Core::Coasync<Cursor>([this, Command, Opts, Session]() mutable -> Core::Promise<Cursor>
+				return Core::Coasync<ExpectsDB<Cursor>>([this, Command, Opts, Session]() mutable -> ExpectsPromiseDB<Cursor>
 				{
 					Core::String Statement = std::move(Command);
 					TConnection* Connection = VI_AWAIT(AcquireConnection(Session, Opts));
 					if (!Connection)
-						Coreturn Cursor(nullptr);
+						Coreturn DatabaseException("acquire connection error: no candidate");
 
 					auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Connection, Session ? " (transaction)" : "", Command.data(), Command.size() > 64 ? " ..." : "");
@@ -741,14 +777,20 @@ namespace Vitex
 					{
 						if (++Queries > 1)
 						{
-							if (!VI_AWAIT(Core::Cotask<bool>([this, Connection, &Result, &Statement]()
+							if (!VI_AWAIT(Core::Cotask<ExpectsDB<void>>([this, Connection, &Result, &Statement]() { return ConsumeStatement(Connection, &Result, &Statement); })))
 							{
-								return ConsumeStatement(Connection, &Result, &Statement);
-							})))
-								break;
+								ReleaseConnection(Connection, Opts);
+								Coreturn Result;
+							}
 						}
-						else if (!ConsumeStatement(Connection, &Result, &Statement))
-							break;
+						else
+						{
+							if (!ConsumeStatement(Connection, &Result, &Statement))
+							{
+								ReleaseConnection(Connection, Opts);
+								Coreturn Result;
+							}
+						}
 					}
 
 					VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Connection, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count());
@@ -756,7 +798,7 @@ namespace Vitex
 					Coreturn Result;
 				});
 #else
-				return Core::Promise<Cursor>(Cursor(nullptr));
+				return ExpectsPromiseDB<Cursor>(DatabaseException("query: not supported"));
 #endif
 			}
 			TConnection* Cluster::TryAcquireConnection(SessionId Session, size_t Opts)
@@ -863,7 +905,7 @@ namespace Vitex
 				Core::UMutex<std::mutex> Unique(Update);
 				return !Idle.empty() || !Busy.empty();
 			}
-			bool Cluster::ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement)
+			ExpectsDB<void> Cluster::ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement)
 			{
 #ifdef VI_SQLITE
 				VI_MEASURE(Core::Timings::Intensive);
@@ -900,17 +942,18 @@ namespace Vitex
 				Context.Stats.AffectedRows = sqlite3_changes64(Connection);
 				Context.Stats.LastInsertedRowId = sqlite3_last_insert_rowid(Connection);
 				sqlite3_finalize(Target);
-				return true;
+				return Core::Expectation::Met;
 			StopExecution:
 				Context.StatusCode = Code;
 				Context.StatusMessage = sqlite3_errmsg(Connection);
-				sqlite3_logerror(Connection);
 				if (Target != nullptr)
 					sqlite3_finalize(Target);
+				return DatabaseException(Core::String(Context.StatusMessage));
+#else
+				return DatabaseException("consume: not supported");
 #endif
-				return false;
 			}
-			bool Cluster::ConsumeRow(TStatement* Target, Response* Context)
+			void Cluster::ConsumeRow(TStatement* Target, Response* Context)
 			{
 #ifdef VI_SQLITE
 				int Columns = sqlite3_column_count(Target);
@@ -965,14 +1008,10 @@ namespace Vitex
 						}
 					}
 				}
-
-				return true;
-#else
-				return false;
 #endif
 			}
 
-			Core::String Utils::InlineArray(Core::Schema* Array)
+			ExpectsDB<Core::String> Utils::InlineArray(Core::Schema* Array)
 			{
 				VI_ASSERT(Array != nullptr, "array should be set");
 				Core::SchemaList Map;
@@ -1001,14 +1040,14 @@ namespace Vitex
 					}
 				}
 
-				Core::String Result = LDB::Driver::Get()->Emplace(Def, &Map, false);
-				if (!Result.empty() && Result.back() == ',')
-					Result.erase(Result.end() - 1);
+				auto Result = LDB::Driver::Get()->Emplace(Def, &Map, false);
+				if (Result && !Result->empty() && Result->back() == ',')
+					Result->erase(Result->end() - 1);
 
 				VI_RELEASE(Array);
 				return Result;
 			}
-			Core::String Utils::InlineQuery(Core::Schema* Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default)
+			ExpectsDB<Core::String> Utils::InlineQuery(Core::Schema* Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default)
 			{
 				VI_ASSERT(Where != nullptr, "array should be set");
 				Core::SchemaList Map;
@@ -1058,8 +1097,8 @@ namespace Vitex
 					}
 				}
 
-				Core::String Result = LDB::Driver::Get()->Emplace(Def, &Map, false);
-				if (Result.empty())
+				auto Result = LDB::Driver::Get()->Emplace(Def, &Map, false);
+				if (Result && Result->empty())
 					Result = Default;
 
 				VI_RELEASE(Where);
@@ -1266,24 +1305,22 @@ namespace Vitex
 				if (Logger)
 					Logger(Command + '\n');
 			}
-			bool Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
+			void Driver::AddConstant(const Core::String& Name, const Core::String& Value)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				Constants[Name] = Value;
-				return true;
 			}
-			bool Driver::AddQuery(const Core::String& Name, const Core::String& Data) noexcept
+			ExpectsDB<void> Driver::AddQuery(const Core::String& Name, const Core::String& Data)
 			{
-				return AddQuery(Name, Data.c_str(), Data.size());
+				return AddQueryFromBuffer(Name, Data.c_str(), Data.size());
 			}
-			bool Driver::AddQuery(const Core::String& Name, const char* Buffer, size_t Size) noexcept
+			ExpectsDB<void> Driver::AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				VI_ASSERT(Buffer, "buffer should be set");
-
 				if (!Size)
-					return false;
+					return DatabaseException("import empty query error: " + Name);
 
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
@@ -1306,22 +1343,16 @@ namespace Vitex
 					Core::UMutex<std::mutex> Unique(Exclusive);
 					for (auto& Item : Enumerations)
 					{
-						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
+						size_t Size = Item.second.End - Item.second.Start;
 						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
 						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
 
 						auto It = Constants.find(Item.first);
 						if (It == Constants.end())
-						{
-							VI_ERR("[sqlite] template query @%s expects constant: %s", Name.c_str(), Item.first.c_str());
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, "");
-						}
-						else
-						{
-							Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
-							NewSize = It->second.size();
-						}
+							return DatabaseException("query expects " + Item.first + " constrant: " + Name);
 
+						Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
+						size_t NewSize = It->second.size();
 						Offset += (int64_t)NewSize - (int64_t)Size;
 						Item.second.End = Item.second.Start + NewSize;
 					}
@@ -1375,13 +1406,13 @@ namespace Vitex
 
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				Queries[Name] = std::move(Result);
-				return true;
+				return Core::Expectation::Met;
 			}
-			bool Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin) noexcept
+			ExpectsDB<void> Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
-					return false;
+					return DatabaseException("import directory scan error: " + Directory);
 
 				Core::String Path = Directory;
 				if (Path.back() != '/' && Path.back() != '\\')
@@ -1393,8 +1424,11 @@ namespace Vitex
 					Core::String Base(Path + File.first);
 					if (File.second.IsDirectory)
 					{
-						AddDirectory(Base, Origin.empty() ? Directory : Origin);
-						continue;
+						auto Status = AddDirectory(Base, Origin.empty() ? Directory : Origin);
+						if (!Status)
+							return Status;
+						else
+							continue;
 					}
 
 					if (!Core::Stringify::EndsWith(Base, ".sql"))
@@ -1410,11 +1444,13 @@ namespace Vitex
 					if (Core::Stringify::StartsOf(Base, "\\/"))
 						Base.erase(0, 1);
 
-					AddQuery(Base, (char*)*Buffer, Size);
+					auto Status = AddQueryFromBuffer(Base, (char*)*Buffer, Size);
 					VI_FREE(*Buffer);
+					if (!Status)
+						return Status;
 				}
 
-				return true;
+				return Core::Expectation::Met;
 			}
 			bool Driver::RemoveConstant(const Core::String& Name) noexcept
 			{
@@ -1504,7 +1540,7 @@ namespace Vitex
 				VI_DEBUG("[sqlite] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
 				return Result;
 			}
-			Core::String Driver::Emplace(const Core::String& SQL, Core::SchemaList* Map, bool Once) noexcept
+			ExpectsDB<Core::String> Driver::Emplace(const Core::String& SQL, Core::SchemaList* Map, bool Once) noexcept
 			{
 				if (!Map || Map->empty())
 					return SQL;
@@ -1518,10 +1554,7 @@ namespace Vitex
 				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
 				{
 					if (Next >= Map->size())
-					{
-						VI_ERR("[sqlite] emplace query \"%.64s\" expects at least %" PRIu64 " args", SQL.c_str(), (uint64_t)(Next)+1);
-						break;
-					}
+						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + SQL.substr(Set.Start, 64));
 
 					bool Escape = true, Negate = false;
 					if (Set.Start > 0)
@@ -1564,7 +1597,7 @@ namespace Vitex
 
 				return Src;
 			}
-			Core::String Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			ExpectsDB<Core::String> Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Name);
@@ -1577,8 +1610,7 @@ namespace Vitex
 						Map->clear();
 					}
 
-					VI_ERR("[sqlite] template query %s does not exist", Name.c_str());
-					return Core::String();
+					return DatabaseException("query not found: " + Name);
 				}
 
 				if (!It->second.Cache.empty())
@@ -1616,10 +1648,7 @@ namespace Vitex
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
-					{
-						VI_ERR("[sqlite] template query @%s expects parameter: %s", Name.c_str(), Word.Key.c_str());
-						continue;
-					}
+						return DatabaseException("query expects " + Word.Key + " constrant: " + Name);
 
 					Core::String Value = Utils::GetSQL(It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
@@ -1638,7 +1667,7 @@ namespace Vitex
 
 				Core::String Data = Origin.Request;
 				if (Data.empty())
-					VI_ERR("[sqlite] could not construct query: \"%s\"", Name.c_str());
+					return DatabaseException("query construction error: " + Name);
 
 				return Data;
 			}

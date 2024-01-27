@@ -1,5 +1,6 @@
 #include "filters.h"
 #include "../core/engine.h"
+#define ReturnErrorIf do { auto __error = AudioException(); if (__error.has_error()) return __error; else return Core::Expectation::Met; } while (0)
 
 namespace Vitex
 {
@@ -9,7 +10,7 @@ namespace Vitex
 		{
 			Lowpass::Lowpass()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetFilter1I(Filter, FilterEx::Filter_Type, (int)FilterEx::Filter_Lowpass);
 					return true;
@@ -18,10 +19,11 @@ namespace Vitex
 			Lowpass::~Lowpass()
 			{
 			}
-			void Lowpass::Synchronize()
+			ExpectsAudio<void> Lowpass::Synchronize()
 			{
 				AudioContext::SetFilter1F(Filter, FilterEx::Lowpass_Gain, Gain);
 				AudioContext::SetFilter1F(Filter, FilterEx::Lowpass_Gain_HF, GainHF);
+				ReturnErrorIf;
 			}
 			void Lowpass::Deserialize(Core::Schema* Node)
 			{
@@ -46,7 +48,7 @@ namespace Vitex
 
 			Highpass::Highpass()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetFilter1I(Filter, FilterEx::Filter_Type, (int)FilterEx::Filter_Highpass);
 					return true;
@@ -55,10 +57,11 @@ namespace Vitex
 			Highpass::~Highpass()
 			{
 			}
-			void Highpass::Synchronize()
+			ExpectsAudio<void> Highpass::Synchronize()
 			{
 				AudioContext::SetFilter1F(Filter, FilterEx::Highpass_Gain, Gain);
 				AudioContext::SetFilter1F(Filter, FilterEx::Highpass_Gain_LF, GainLF);
+				ReturnErrorIf;
 			}
 			void Highpass::Deserialize(Core::Schema* Node)
 			{
@@ -83,7 +86,7 @@ namespace Vitex
 
 			Bandpass::Bandpass()
 			{
-				CreateLocked([this]()
+				Initialize([this]()
 				{
 					AudioContext::SetFilter1I(Filter, FilterEx::Filter_Type, (int)FilterEx::Filter_Bandpass);
 					return true;
@@ -92,11 +95,12 @@ namespace Vitex
 			Bandpass::~Bandpass()
 			{
 			}
-			void Bandpass::Synchronize()
+			ExpectsAudio<void> Bandpass::Synchronize()
 			{
 				AudioContext::SetFilter1F(Filter, FilterEx::Bandpass_Gain, Gain);
 				AudioContext::SetFilter1F(Filter, FilterEx::Bandpass_Gain_LF, GainLF);
 				AudioContext::SetFilter1F(Filter, FilterEx::Bandpass_Gain_HF, GainHF);
+				ReturnErrorIf;
 			}
 			void Bandpass::Deserialize(Core::Schema* Node)
 			{

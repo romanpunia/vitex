@@ -200,15 +200,36 @@ namespace Vitex
 			Virtual
 		};
 
+		enum class PreprocessorError
+		{
+			MacroDefinitionEmpty,
+			MacroNameEmpty,
+			MacroParenthesisDoubleClosed,
+			MacroParenthesisNotClosed,
+			MacroDefinitionError,
+			MacroExpansionParenthesisDoubleClosed,
+			MacroExpansionParenthesisNotClosed,
+			MacroExpansionArgumentsError,
+			MacroExpansionExecutionError,
+			MacroExpansionError,
+			ConditionNotOpened,
+			ConditionNotClosed,
+			ConditionError,
+			DirectiveNotFound,
+			DirectiveExpansionError,
+			IncludeDenied,
+			IncludeError,
+			IncludeNotFound,
+			PragmaNotFound,
+			PragmaError,
+			ExtensionError
+		};
+
 		inline SoftCollision operator |(SoftCollision A, SoftCollision B)
 		{
 			return static_cast<SoftCollision>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 
-		typedef std::function<IncludeType(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
-		typedef std::function<bool(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
-		typedef std::function<bool(class Preprocessor*, const struct ProcDirective&, Core::String& Output)> ProcDirectiveCallback;
-		typedef std::function<Core::String(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 		typedef void* Cipher;
 		typedef void* Digest;
@@ -2003,6 +2024,60 @@ namespace Vitex
 			}
 		};
 
+		class PreprocessorException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+			PreprocessorError Type;
+			size_t Offset;
+
+		public:
+			VI_OUT PreprocessorException(PreprocessorError NewType);
+			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset);
+			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& Message);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
+		};
+
+		class CryptoException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+			size_t ErrorCode;
+
+		public:
+			VI_OUT CryptoException();
+			VI_OUT CryptoException(size_t ErrorCode, const char* Message);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
+		};
+
+		class CompressionException : public Core::BasicException
+		{
+		public:
+			Core::String Info;
+			int ErrorCode;
+
+		public:
+			VI_OUT CompressionException(int ErrorCode, const char* Message);
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT const char* what() const noexcept override;
+		};
+
+		template <typename V>
+		using ExpectsPreprocessor = Core::Expects<V, PreprocessorException>;
+
+		template <typename V>
+		using ExpectsCrypto = Core::Expects<V, CryptoException>;
+
+		template <typename V>
+		using ExpectsCompression = Core::Expects<V, CompressionException>;
+
+		typedef std::function<ExpectsPreprocessor<IncludeType>(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
+		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
+		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const struct ProcDirective&, Core::String& Output)> ProcDirectiveCallback;
+		typedef std::function<ExpectsPreprocessor<Core::String>(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
+
 		class VI_OUT Adjacencies
 		{
 		public:
@@ -2380,27 +2455,27 @@ namespace Vitex
 			static Cipher GetCipherByName(const Core::String& Name);
 			static const char* GetDigestName(Digest Type);
 			static const char* GetCipherName(Cipher Type);
-			static bool FillRandomBytes(unsigned char* Buffer, size_t Length);
-			static Core::Option<Core::String> RandomBytes(size_t Length);
-			static Core::Option<Core::String> ChecksumHex(Digest Type, Core::Stream* Stream);
-			static Core::Option<Core::String> ChecksumRaw(Digest Type, Core::Stream* Stream);
-			static Core::Option<Core::String> HashHex(Digest Type, const Core::String& Value);
-			static Core::Option<Core::String> HashRaw(Digest Type, const Core::String& Value);
-			static Core::Option<Core::String> Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static Core::Option<Core::String> Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
-			static Core::Option<Core::String> HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static Core::Option<Core::String> HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key);
-			static Core::Option<Core::String> Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::Option<Core::String> Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::Option<Core::String> Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::Option<Core::String> Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static Core::Option<Core::String> JWTSign(const Core::String& Algo, const Core::String& Payload, const PrivateKey& Key);
-			static Core::Option<Core::String> JWTEncode(WebToken* Src, const PrivateKey& Key);
-			static Core::Option<Core::Unique<WebToken>> JWTDecode(const Core::String& Value, const PrivateKey& Key);
-			static Core::Option<Core::String> DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
-			static Core::Option<Core::Unique<Core::Schema>> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
-			static Core::Option<size_t> Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
-			static Core::Option<size_t> Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
+			static ExpectsCrypto<void> FillRandomBytes(unsigned char* Buffer, size_t Length);
+			static ExpectsCrypto<Core::String> RandomBytes(size_t Length);
+			static ExpectsCrypto<Core::String> ChecksumHex(Digest Type, Core::Stream* Stream);
+			static ExpectsCrypto<Core::String> ChecksumRaw(Digest Type, Core::Stream* Stream);
+			static ExpectsCrypto<Core::String> HashHex(Digest Type, const Core::String& Value);
+			static ExpectsCrypto<Core::String> HashRaw(Digest Type, const Core::String& Value);
+			static ExpectsCrypto<Core::String> Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static ExpectsCrypto<Core::String> JWTSign(const Core::String& Algo, const Core::String& Payload, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> JWTEncode(WebToken* Src, const PrivateKey& Key);
+			static ExpectsCrypto<Core::Unique<WebToken>> JWTDecode(const Core::String& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
+			static ExpectsCrypto<Core::Unique<Core::Schema>> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			static ExpectsCrypto<size_t> Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
+			static ExpectsCrypto<size_t> Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
 			static unsigned char RandomUC();
 			static uint64_t CRC32(const Core::String& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);
@@ -2433,8 +2508,8 @@ namespace Vitex
 			static Core::String Base64URLDecode(const unsigned char* Value, size_t Length);
 			static Core::String Base64URLDecode(const Core::String& Value);
 			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
-			static Core::Option<Core::String> Compress(const Core::String& Data, Compression Type = Compression::Default);
-			static Core::Option<Core::String> Decompress(const Core::String& Data);
+			static ExpectsCompression<Core::String> Compress(const Core::String& Data, Compression Type = Compression::Default);
+			static ExpectsCompression<Core::String> Decompress(const Core::String& Data);
 			static Core::String HexEncodeOdd(const char* Value, size_t Size, bool UpperCase = false);
 			static Core::String HexEncodeOdd(const Core::String& Value, bool UpperCase = false);
 			static Core::String HexEncode(const char* Value, size_t Size, bool UpperCase = false);
@@ -2550,7 +2625,7 @@ namespace Vitex
 			void SetCreated(int64_t Value);
 			void SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			bool Sign(const PrivateKey& Key);
-			Core::Option<Core::String> GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
+			ExpectsCrypto<Core::String> GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
 			bool IsValid() const;
 		};
 
@@ -2642,14 +2717,14 @@ namespace Vitex
 			void SetDirectiveCallback(const Core::String& Name, ProcDirectiveCallback&& Callback);
 			void SetFeatures(const Desc& Value);
 			void AddDefaultDefinitions();
-			bool Define(const Core::String& Expression);
-			bool Define(const Core::String& Expression, ProcExpansionCallback&& Callback);
+			ExpectsPreprocessor<void> Define(const Core::String& Expression);
+			ExpectsPreprocessor<void> DefineDynamic(const Core::String& Expression, ProcExpansionCallback&& Callback);
 			void Undefine(const Core::String& Name);
 			void Clear();
 			bool IsDefined(const Core::String& Name) const;
 			bool IsDefined(const Core::String& Name, const Core::String& Value) const;
-			bool Process(const Core::String& Path, Core::String& Buffer);
-			Core::Option<Core::String> ResolveFile(const Core::String& Path, const Core::String& Include);
+			ExpectsPreprocessor<void> Process(const Core::String& Path, Core::String& Buffer);
+			ExpectsPreprocessor<Core::String> ResolveFile(const Core::String& Path, const Core::String& Include);
 			const Core::String& GetCurrentFilePath() const;
 			size_t GetCurrentLineNumber();
 
@@ -2657,16 +2732,16 @@ namespace Vitex
 			ProcDirective FindNextToken(Core::String& Buffer, size_t& Offset);
 			ProcDirective FindNextConditionalToken(Core::String& Buffer, size_t& Offset);
 			size_t ReplaceToken(ProcDirective& Where, Core::String& Buffer, const Core::String& To);
-			Core::Vector<Conditional> PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top);
+			ExpectsPreprocessor<Core::Vector<Conditional>> PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top);
 			Core::String Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions);
 			std::pair<Core::String, Core::String> GetExpressionParts(const Core::String& Value);
 			std::pair<Core::String, Core::String> UnpackExpression(const std::pair<Core::String, Core::String>& Expression);
 			int SwitchCase(const Conditional& Value);
 			size_t GetLinesCount(Core::String& Buffer, size_t End);
-			bool ExpandDefinitions(Core::String& Buffer, size_t& Size);
-			bool ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
-			bool ConsumeTokens(const Core::String& Path, Core::String& Buffer);
-			bool ReturnResult(bool Result, bool WasNested);
+			ExpectsPreprocessor<void> ExpandDefinitions(Core::String& Buffer, size_t& Size);
+			ExpectsPreprocessor<void> ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
+			ExpectsPreprocessor<void> ConsumeTokens(const Core::String& Path, Core::String& Buffer);
+			void ApplyResult(bool WasNested);
 			bool HasResult(const Core::String& Path);
 			bool SaveResult();
 

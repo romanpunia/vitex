@@ -187,10 +187,14 @@ namespace Vitex
 
 		enum class Optional : char
 		{
-			Error = -1,
 			None = 0,
-			Value = 1,
-			OK = 1
+			Value = 1
+		};
+
+		enum class Expectation : char
+		{
+			Error = -1,
+			Met = 1
 		};
 
 		enum class Signal
@@ -942,14 +946,28 @@ namespace Vitex
 		public:
 			String Info;
 			ParserError Type;
-			int Offset;
+			size_t Offset;
 
 		public:
 			VI_OUT ParserException(ParserError NewType);
-			VI_OUT ParserException(ParserError NewType, int NewOffset);
-			VI_OUT ParserException(ParserError NewType, int NewOffset, const char* NewMessage);
+			VI_OUT ParserException(ParserError NewType, size_t NewOffset);
+			VI_OUT ParserException(ParserError NewType, size_t NewOffset, const char* NewMessage);
 			VI_OUT const char* type() const noexcept override;
 			VI_OUT const char* what() const noexcept override;
+		};
+
+		class SystemException : public BasicException
+		{
+		public:
+			String Info;
+			std::error_condition Error;
+
+		public:
+			VI_OUT SystemException();
+			VI_OUT SystemException(const String& Message);
+			VI_OUT SystemException(const String& Message, std::error_condition&& Condition);
+			virtual VI_OUT const char* type() const noexcept override;
+			virtual VI_OUT const char* what() const noexcept override;
 		};
 
 		template <typename T>
@@ -1233,14 +1251,12 @@ namespace Vitex
 		public:
 			Option(Optional Type) : Status((int8_t)Type)
 			{
-				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this constructor");
 			}
 			Option(const Option&) = default;
 			Option(Option&&) = default;
 			~Option() = default;
 			Option& operator= (Optional Type)
 			{
-				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this operator");
 				Status = (int8_t)Type;
 				return *this;
 			}
@@ -1507,7 +1523,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s caused by %s", Message, OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+					VI_ERR("%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 			}
 			void Reset()
 			{
@@ -1530,9 +1546,9 @@ namespace Vitex
 			{
 				return IsValue();
 			}
-			explicit operator Optional() const
+			explicit operator Expectation() const
 			{
-				return (Optional)Status;
+				return (Expectation)Status;
 			}
 			const V& operator* () const&
 			{
@@ -1582,9 +1598,9 @@ namespace Vitex
 			int8_t Status;
 
 		public:
-			Expects(Optional Type) : Status((int8_t)Type)
+			Expects(Expectation Type) : Status((int8_t)Type)
 			{
-				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this constructor");
+				VI_ASSERT(Type == Expectation::Met, "only met is accepted for this constructor");
 			}
 			Expects(const E& Other) noexcept : Status(-1)
 			{
@@ -1610,9 +1626,9 @@ namespace Vitex
 					((E*)Value)->~E();
 				Status = 0;
 			}
-			Expects& operator= (Optional Type)
+			Expects& operator= (Expectation Type)
 			{
-				VI_ASSERT(Type != Optional::Error, "only none and value are accepted for this operator");
+				VI_ASSERT(Type == Expectation::Met, "only met is accepted for this constructor");
 				this->~Expects();
 				Status = (int8_t)Type;
 				return *this;
@@ -1698,7 +1714,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s caused by %s", Message, OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
+					VI_ERR("%s causing %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), Message);
 			}
 			void Reset()
 			{
@@ -1721,9 +1737,9 @@ namespace Vitex
 			{
 				return !IsError();
 			}
-			explicit operator Optional() const
+			explicit operator Expectation() const
 			{
-				return (Optional)Status;
+				return (Expectation)Status;
 			}
 		};
 
@@ -1732,6 +1748,9 @@ namespace Vitex
 
 		template <typename V>
 		using ExpectsParser = Expects<V, ParserException>;
+
+		template <typename V>
+		using ExpectsSystem = Expects<V, SystemException>;
 
 		struct VI_OUT Coroutine
 		{
@@ -2104,7 +2123,7 @@ namespace Vitex
 			static String& Erase(String& Other, size_t Position);
 			static String& Erase(String& Other, size_t Position, size_t Count);
 			static String& EraseOffsets(String& Other, size_t Start, size_t End);
-			static String& EvalEnvs(String& Other, const String& Net, const String& Dir);
+			static ExpectsSystem<void> EvalEnvs(String& Other, const String& Net, const String& Dir);
 			static Vector<std::pair<String, TextSettle>> FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U);
 			static Vector<std::pair<String, TextSettle>> FindInBetweenInCode(const String& Other, const char* Begins, const char* Ends, size_t Offset = 0U);
 			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U);
@@ -2154,6 +2173,7 @@ namespace Vitex
 			static bool IsHexOrDot(char Char);
 			static bool IsHexOrDotOrWhitespace(char Char);
 			static bool IsAlphabetic(char Char);
+			static int Literal(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
 			static int Match(const char* Pattern, size_t Length, const char* Text);
@@ -2402,9 +2422,9 @@ namespace Vitex
 				static bool SetSignalIgnore(Signal Type);
 				static int GetSignalId(Signal Type);
 				static int ExecutePlain(const String& Command);
-				static bool Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Result);
-				static bool Await(ChildProcess* Process, int* ExitCode);
-				static bool Free(ChildProcess* Process);
+				static ExpectsSystem<void> Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Result);
+				static ExpectsSystem<void> Await(ChildProcess* Process, int* ExitCode);
+				static void Free(ChildProcess* Process);
 				static ExpectsIO<Unique<ProcessStream>> ExecuteWriteOnly(const String& Command);
 				static ExpectsIO<Unique<ProcessStream>> ExecuteReadOnly(const String& Command);
 				static ExpectsIO<String> GetEnv(const String& Name);
@@ -4522,6 +4542,9 @@ namespace Vitex
 
 		template <typename T, typename Executor = ParallelExecutor>
 		using ExpectsPromiseIO = BasicPromise<ExpectsIO<T>, Executor>;
+
+		template <typename T, typename Executor = ParallelExecutor>
+		using ExpectsPromiseSystem = BasicPromise<ExpectsSystem<T>, Executor>;
 
 		template <typename T>
 		inline Promise<T> Cotask(std::function<T()>&& Callback) noexcept

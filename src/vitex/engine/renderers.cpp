@@ -19,11 +19,11 @@ namespace Vitex
 				Sampler = Device->GetSamplerState("a16_fa_wrap");
 				Layout = Device->GetInputLayout("vx_base");
 
-				Shaders.Geometry = System->CompileShader("materials/material_model_geometry");
-				Shaders.Voxelizer = System->CompileShader("materials/material_model_voxelizer", sizeof(Lighting::IVoxelBuffer));
-				Shaders.Depth.Culling = System->CompileShader("materials/material_model_depth_culling");
-				Shaders.Depth.Linear = System->CompileShader("materials/material_model_depth_linear");
-				Shaders.Depth.Cubic = System->CompileShader("materials/material_model_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = *System->CompileShader("materials/material_model_geometry");
+				Shaders.Voxelizer = *System->CompileShader("materials/material_model_voxelizer", sizeof(Lighting::IVoxelBuffer));
+				Shaders.Depth.Culling = *System->CompileShader("materials/material_model_depth_culling");
+				Shaders.Depth.Linear = *System->CompileShader("materials/material_model_depth_linear");
+				Shaders.Depth.Cubic = *System->CompileShader("materials/material_model_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
 
 				Graphics::ElementBuffer* Buffers[2];
 				if (Lab->CompileBuffers(Buffers, "soft-body", sizeof(Compute::Vertex), 16384))
@@ -254,11 +254,11 @@ namespace Vitex
 				Layout[0] = Device->GetInputLayout("vx_base");
 				Layout[1] = Device->GetInputLayout("vxi_base");
 
-				Shaders.Geometry = System->CompileShader("materials/material_model_geometry");
-				Shaders.Voxelizer = System->CompileShader("materials/material_model_voxelizer", sizeof(Lighting::IVoxelBuffer));
-				Shaders.Depth.Culling = System->CompileShader("materials/material_model_depth_culling");
-				Shaders.Depth.Linear = System->CompileShader("materials/material_model_depth_linear");
-				Shaders.Depth.Cubic = System->CompileShader("materials/material_model_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = *System->CompileShader("materials/material_model_geometry");
+				Shaders.Voxelizer = *System->CompileShader("materials/material_model_voxelizer", sizeof(Lighting::IVoxelBuffer));
+				Shaders.Depth.Culling = *System->CompileShader("materials/material_model_depth_culling");
+				Shaders.Depth.Linear = *System->CompileShader("materials/material_model_depth_linear");
+				Shaders.Depth.Cubic = *System->CompileShader("materials/material_model_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Model::~Model()
 			{
@@ -454,11 +454,11 @@ namespace Vitex
 				Sampler = Device->GetSamplerState("a16_fa_wrap");
 				Layout = Device->GetInputLayout("vx_skin");
 
-				Shaders.Geometry = System->CompileShader("materials/material_skin_geometry");
-				Shaders.Voxelizer = System->CompileShader("materials/material_skin_voxelizer", sizeof(Lighting::IVoxelBuffer));
-				Shaders.Depth.Culling = System->CompileShader("materials/material_skin_depth_culling");
-				Shaders.Depth.Linear = System->CompileShader("materials/material_skin_depth_linear");
-				Shaders.Depth.Cubic = System->CompileShader("materials/material_skin_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = *System->CompileShader("materials/material_skin_geometry");
+				Shaders.Voxelizer = *System->CompileShader("materials/material_skin_voxelizer", sizeof(Lighting::IVoxelBuffer));
+				Shaders.Depth.Culling = *System->CompileShader("materials/material_skin_depth_culling");
+				Shaders.Depth.Linear = *System->CompileShader("materials/material_skin_depth_linear");
+				Shaders.Depth.Cubic = *System->CompileShader("materials/material_skin_depth_cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Skin::~Skin()
 			{
@@ -711,11 +711,11 @@ namespace Vitex
 				OverwriteBlend = Device->GetBlendState("bo_wrgba_one");
 				Sampler = Device->GetSamplerState("a16_fa_wrap");
 
-				Shaders.Geometry.Opaque = System->CompileShader("materials/material_emitter_geometry_opaque");
-				Shaders.Geometry.Transparent = System->CompileShader("materials/material_emitter_geometry_transparent");
-				Shaders.Depth.Linear = System->CompileShader("materials/material_emitter_depth_linear");
-				Shaders.Depth.Point = System->CompileShader("materials/material_emitter_depth_point");
-				Shaders.Depth.Quad = System->CompileShader("materials/material_emitter_depth_quad", sizeof(Depth));
+				Shaders.Geometry.Opaque = *System->CompileShader("materials/material_emitter_geometry_opaque");
+				Shaders.Geometry.Transparent = *System->CompileShader("materials/material_emitter_geometry_transparent");
+				Shaders.Depth.Linear = *System->CompileShader("materials/material_emitter_depth_linear");
+				Shaders.Depth.Point = *System->CompileShader("materials/material_emitter_depth_point");
+				Shaders.Depth.Quad = *System->CompileShader("materials/material_emitter_depth_quad", sizeof(Depth));
 			}
 			Emitter::~Emitter()
 			{
@@ -881,7 +881,7 @@ namespace Vitex
 				Sampler = Device->GetSamplerState("a16_fa_wrap");
 				Layout = Device->GetInputLayout("vx_shape");
 
-				Shader = System->CompileShader("materials/material_decal_geometry");
+				Shader = *System->CompileShader("materials/material_decal_geometry");
 			}
 			Decal::~Decal()
 			{
@@ -949,16 +949,16 @@ namespace Vitex
 				WrapSampler = Device->GetSamplerState("a16_fa_wrap");
 				Layout = Device->GetInputLayout("vx_shape");
 
-				Shaders.Ambient[0] = System->CompileShader("shading/lighting_ambient_direct", sizeof(IAmbientLight));
-				Shaders.Ambient[1] = System->CompileShader("shading/lighting_ambient_indirect", sizeof(IVoxelBuffer));
-				Shaders.Point[0] = System->CompileShader("shading/lighting_point_performant", sizeof(IPointLight));
-				Shaders.Point[1] = System->CompileShader("shading/lighting_point_qualitative");
-				Shaders.Spot[0] = System->CompileShader("shading/lighting_spot_performant", sizeof(ISpotLight));
-				Shaders.Spot[1] = System->CompileShader("shading/lighting_spot_qualitative");
-				Shaders.Line[0] = System->CompileShader("shading/lighting_line_performant", sizeof(ILineLight));
-				Shaders.Line[1] = System->CompileShader("shading/lighting_line_qualitative");
-				Shaders.Voxelizer = System->CompileShader("shading/lighting_voxelizer", sizeof(IVoxelBuffer));
-				Shaders.Surface = System->CompileShader("shading/lighting_surface", sizeof(ISurfaceLight));
+				Shaders.Ambient[0] = *System->CompileShader("shading/lighting_ambient_direct", sizeof(IAmbientLight));
+				Shaders.Ambient[1] = *System->CompileShader("shading/lighting_ambient_indirect", sizeof(IVoxelBuffer));
+				Shaders.Point[0] = *System->CompileShader("shading/lighting_point_performant", sizeof(IPointLight));
+				Shaders.Point[1] = *System->CompileShader("shading/lighting_point_qualitative");
+				Shaders.Spot[0] = *System->CompileShader("shading/lighting_spot_performant", sizeof(ISpotLight));
+				Shaders.Spot[1] = *System->CompileShader("shading/lighting_spot_qualitative");
+				Shaders.Line[0] = *System->CompileShader("shading/lighting_line_performant", sizeof(ILineLight));
+				Shaders.Line[1] = *System->CompileShader("shading/lighting_line_qualitative");
+				Shaders.Voxelizer = *System->CompileShader("shading/lighting_voxelizer", sizeof(IVoxelBuffer));
+				Shaders.Surface = *System->CompileShader("shading/lighting_surface", sizeof(ISurfaceLight));
 
 				Shadows.Tick.Delay = 5;
 			}
@@ -992,7 +992,7 @@ namespace Vitex
 
 				Core::String Path;
 				if (Series::Unpack(Node->Find("sky-map"), &Path) && !Path.empty())
-					System->GetScene()->LoadResource<Graphics::Texture2D>(System->GetComponent(), Path, std::bind(&Lighting::SetSkyMap, this, std::placeholders::_1));
+					System->GetScene()->LoadResource<Graphics::Texture2D>(System->GetComponent(), Path, [this](ExpectsContent<Graphics::Texture2D*>&& Texture) { this->SetSkyMap(Texture.Or(nullptr)); });
 
 				Series::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
 				Series::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
@@ -1175,7 +1175,7 @@ namespace Vitex
 					Graphics::TextureCube* Cache = Light->GetProbeCache();
 					if (!Cache)
 					{
-						Cache = State.Device->CreateTextureCube();
+						Cache = *State.Device->CreateTextureCube();
 						Light->SetProbeCache(Cache);
 					}
 					else if (!Light->Tick.TickEvent(ElapsedTime) || Light->Tick.Delay <= 0.0)
@@ -1544,7 +1544,7 @@ namespace Vitex
 				SkyBase = Cubemap;
 				if (SkyBase != nullptr)
 				{
-					SkyMap = System->GetDevice()->CreateTextureCube(SkyBase);
+					SkyMap = *System->GetDevice()->CreateTextureCube(SkyBase);
 					SkyBase->AddRef();
 				}
 			}
@@ -1562,7 +1562,7 @@ namespace Vitex
 				Surfaces.Size = NewSize;
 
 				VI_RELEASE(Surfaces.Merger);
-				Surfaces.Merger = Device->CreateMultiRenderTarget2D(F1);
+				Surfaces.Merger = *Device->CreateMultiRenderTarget2D(F1);
 
 				Graphics::Cubemap::Desc I;
 				I.Source = Surfaces.Merger;
@@ -1570,7 +1570,7 @@ namespace Vitex
 				I.Size = (unsigned int)Surfaces.Size;
 
 				VI_RELEASE(Surfaces.Subresource);
-				Surfaces.Subresource = Device->CreateCubemap(I);
+				Surfaces.Subresource = *Device->CreateCubemap(I);
 
 				Graphics::RenderTarget2D::Desc F2 = Scene->GetDescRT();
 				F2.MipLevels = F1.MipLevels;
@@ -1578,10 +1578,10 @@ namespace Vitex
 				F2.Height = F1.Height;
 
 				VI_RELEASE(Surfaces.Output);
-				Surfaces.Output = Device->CreateRenderTarget2D(F2);
+				Surfaces.Output = *Device->CreateRenderTarget2D(F2);
 
 				VI_RELEASE(Surfaces.Input);
-				Surfaces.Input = Device->CreateRenderTarget2D(F2);
+				Surfaces.Input = *Device->CreateRenderTarget2D(F2);
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{
@@ -1872,19 +1872,19 @@ namespace Vitex
 				F.StructureByteStride = F.ElementWidth;
 
 				VI_RELEASE(Voxels.PBuffer);
-				Voxels.PBuffer = State.Device->CreateElementBuffer(F);
+				Voxels.PBuffer = *State.Device->CreateElementBuffer(F);
 				Voxels.PArray.resize(Voxels.MaxLights);
 
 				F.ElementWidth = sizeof(ISpotLight);
 				F.StructureByteStride = F.ElementWidth;
 				VI_RELEASE(Voxels.SBuffer);
-				Voxels.SBuffer = State.Device->CreateElementBuffer(F);
+				Voxels.SBuffer = *State.Device->CreateElementBuffer(F);
 				Voxels.SArray.resize(Voxels.MaxLights);
 
 				F.ElementWidth = sizeof(ILineLight);
 				F.StructureByteStride = F.ElementWidth;
 				VI_RELEASE(Voxels.LBuffer);
-				Voxels.LBuffer = State.Device->CreateElementBuffer(F);
+				Voxels.LBuffer = *State.Device->CreateElementBuffer(F);
 				Voxels.LArray.resize(Voxels.MaxLights);
 			}
 			Graphics::TextureCube* Lighting::GetSkyMap()
@@ -1914,7 +1914,7 @@ namespace Vitex
 				Sampler = Device->GetSamplerState("a16_fa_wrap");
 				Layout = Device->GetInputLayout("vx_shape");
 
-				Shader = System->CompileShader("postprocessing/transparency", sizeof(RenderData));
+				Shader = *System->CompileShader("postprocessing/transparency", sizeof(RenderData));
 			}
 			Transparency::~Transparency()
 			{
@@ -1945,10 +1945,10 @@ namespace Vitex
 				}
 
 				VI_RELEASE(Merger);
-				Merger = Device->CreateMultiRenderTarget2D(F1);
+				Merger = *Device->CreateMultiRenderTarget2D(F1);
 
 				VI_RELEASE(Input);
-				Input = Device->CreateRenderTarget2D(F2);
+				Input = *Device->CreateRenderTarget2D(F2);
 			}
 			size_t Transparency::RenderPass(Core::Timer* Time)
 			{
@@ -2004,10 +2004,10 @@ namespace Vitex
 
 			SSR::SSR(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Reflectance = CompileEffect("postprocessing/reflectance", sizeof(Reflectance));
-				Shaders.Gloss[0] = CompileEffect("postprocessing/gloss_x", sizeof(Gloss));
-				Shaders.Gloss[1] = CompileEffect("postprocessing/gloss_y");
-				Shaders.Additive = CompileEffect("postprocessing/additive");
+				Shaders.Reflectance = *CompileEffect("postprocessing/reflectance", sizeof(Reflectance));
+				Shaders.Gloss[0] = *CompileEffect("postprocessing/gloss_x", sizeof(Gloss));
+				Shaders.Gloss[1] = *CompileEffect("postprocessing/gloss_y");
+				Shaders.Additive = *CompileEffect("postprocessing/additive");
 			}
 			void SSR::Deserialize(Core::Schema* Node)
 			{
@@ -2054,11 +2054,11 @@ namespace Vitex
 
 			SSGI::SSGI(RenderSystem* Lab) : EffectRenderer(Lab), EmissionMap(nullptr)
 			{
-				Shaders.Stochastic = CompileEffect("postprocessing/stochastic", sizeof(Stochastic));
-				Shaders.Indirection = CompileEffect("postprocessing/indirection", sizeof(Indirection));
-				Shaders.Denoise[0] = CompileEffect("postprocessing/denoise_x", sizeof(Denoise));
-				Shaders.Denoise[1] = CompileEffect("postprocessing/denoise_y");
-				Shaders.Additive = CompileEffect("postprocessing/additive");
+				Shaders.Stochastic = *CompileEffect("postprocessing/stochastic", sizeof(Stochastic));
+				Shaders.Indirection = *CompileEffect("postprocessing/indirection", sizeof(Indirection));
+				Shaders.Denoise[0] = *CompileEffect("postprocessing/denoise_x", sizeof(Denoise));
+				Shaders.Denoise[1] = *CompileEffect("postprocessing/denoise_y");
+				Shaders.Additive = *CompileEffect("postprocessing/additive");
 			}
 			SSGI::~SSGI()
 			{
@@ -2140,10 +2140,10 @@ namespace Vitex
 
 			SSAO::SSAO(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Shading = CompileEffect("postprocessing/shading", sizeof(Shading));
-				Shaders.Fibo[0] = CompileEffect("postprocessing/fibo_x", sizeof(Fibo));
-				Shaders.Fibo[1] = CompileEffect("postprocessing/fibo_y");
-				Shaders.Multiply = CompileEffect("postprocessing/multiply");
+				Shaders.Shading = *CompileEffect("postprocessing/shading", sizeof(Shading));
+				Shaders.Fibo[0] = *CompileEffect("postprocessing/fibo_x", sizeof(Fibo));
+				Shaders.Fibo[1] = *CompileEffect("postprocessing/fibo_y");
+				Shaders.Multiply = *CompileEffect("postprocessing/multiply");
 			}
 			void SSAO::Deserialize(Core::Schema* Node)
 			{
@@ -2190,7 +2190,7 @@ namespace Vitex
 
 			DoF::DoF(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				CompileEffect("postprocessing/focus", sizeof(Focus));
+				*CompileEffect("postprocessing/focus", sizeof(Focus));
 			}
 			void DoF::Deserialize(Core::Schema* Node)
 			{
@@ -2287,8 +2287,8 @@ namespace Vitex
 
 			MotionBlur::MotionBlur(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Velocity = CompileEffect("postprocessing/velocity", sizeof(Velocity));
-				Shaders.Motion = CompileEffect("postprocessing/motion", sizeof(Motion));
+				Shaders.Velocity = *CompileEffect("postprocessing/velocity", sizeof(Velocity));
+				Shaders.Motion = *CompileEffect("postprocessing/motion", sizeof(Motion));
 			}
 			void MotionBlur::Deserialize(Core::Schema* Node)
 			{
@@ -2316,10 +2316,10 @@ namespace Vitex
 
 			Bloom::Bloom(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Bloom = CompileEffect("postprocessing/bloom", sizeof(Extraction));
-				Shaders.Fibo[0] = CompileEffect("postprocessing/fibo_x", sizeof(Fibo));
-				Shaders.Fibo[1] = CompileEffect("postprocessing/fibo_y");
-				Shaders.Additive = CompileEffect("postprocessing/additive");
+				Shaders.Bloom = *CompileEffect("postprocessing/bloom", sizeof(Extraction));
+				Shaders.Fibo[0] = *CompileEffect("postprocessing/fibo_x", sizeof(Fibo));
+				Shaders.Fibo[1] = *CompileEffect("postprocessing/fibo_y");
+				Shaders.Additive = *CompileEffect("postprocessing/additive");
 			}
 			void Bloom::Deserialize(Core::Schema* Node)
 			{
@@ -2352,8 +2352,8 @@ namespace Vitex
 
 			Tone::Tone(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Luminance = CompileEffect("postprocessing/luminance", sizeof(Luminance));
-				Shaders.Tone = CompileEffect("postprocessing/tone", sizeof(Mapping));
+				Shaders.Luminance = *CompileEffect("postprocessing/luminance", sizeof(Luminance));
+				Shaders.Tone = *CompileEffect("postprocessing/tone", sizeof(Mapping));
 			}
 			Tone::~Tone()
 			{
@@ -2455,13 +2455,13 @@ namespace Vitex
 				RT.Width = (unsigned int)Size;
 				RT.Height = (unsigned int)Size;
 
-				LutTarget = Device->CreateRenderTarget2D(RT);
+				LutTarget = *Device->CreateRenderTarget2D(RT);
 				Device->CopyTexture2D(LutTarget, 0, &LutMap);
 			}
 
 			Glitch::Glitch(RenderSystem* Lab) : EffectRenderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
-				CompileEffect("postprocessing/glitch", sizeof(Distortion));
+				*CompileEffect("postprocessing/glitch", sizeof(Distortion));
 			}
 			void Glitch::Deserialize(Core::Schema* Node)
 			{

@@ -17,13 +17,13 @@
 #define VI_SANYIFY(Function, TypeId) Vitex::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
 #define VI_SANYIFY_REF(Function, TypeRef) Vitex::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
 #define VI_EXPECTIFY(MemberFunction) Vitex::Scripting::Bindings::ExpectsWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::Throws
-#define VI_EXPECTIFY_VOID(MemberFunction) Vitex::Scripting::Bindings::ExpectsWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::ThrowsVoid
+#define VI_EXPECTIFY_VOID(MemberFunction) Vitex::Scripting::Bindings::ExpectsWrapper::IfyVoid<decltype(&MemberFunction), &MemberFunction>::Throws
 #define VI_SEXPECTIFY(Function) Vitex::Scripting::Bindings::ExpectsWrapper::IfyStatic<decltype(&Function), &Function>::Throws
-#define VI_SEXPECTIFY_VOID(Function) Vitex::Scripting::Bindings::ExpectsWrapper::IfyStatic<decltype(&Function), &Function>::ThrowsVoid
+#define VI_SEXPECTIFY_VOID(Function) Vitex::Scripting::Bindings::ExpectsWrapper::IfyStaticVoid<decltype(&Function), &Function>::Throws
 #define VI_OPTIONIFY(MemberFunction) Vitex::Scripting::Bindings::OptionWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::Throws
-#define VI_OPTIONIFY_VOID(MemberFunction) Vitex::Scripting::Bindings::OptionWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::ThrowsVoid
+#define VI_OPTIONIFY_VOID(MemberFunction) Vitex::Scripting::Bindings::OptionWrapper::IfyVoid<decltype(&MemberFunction), &MemberFunction>::Throws
 #define VI_SOPTIONIFY(Function) Vitex::Scripting::Bindings::OptionWrapper::IfyStatic<decltype(&Function), &Function>::Throws
-#define VI_SOPTIONIFY_VOID(Function) Vitex::Scripting::Bindings::OptionWrapper::IfyStatic<decltype(&Function), &Function>::ThrowsVoid
+#define VI_SOPTIONIFY_VOID(Function) Vitex::Scripting::Bindings::OptionWrapper::IfyStaticVoid<decltype(&Function), &Function>::Throws
 #ifdef __LP64__
 typedef unsigned int as_uint32_t;
 typedef unsigned long as_uint64_t;
@@ -167,7 +167,7 @@ namespace Vitex
 			{
 			public:
 				static void BindSyntax(VirtualMachine* VM, bool Enabled, const char* Syntax);
-				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax);
 			};
 
 			class VI_OUT_TS Exception
@@ -202,7 +202,7 @@ namespace Vitex
 				static bool HasException();
 				static Pointer GetExceptionAt(ImmediateContext* Context);
 				static Pointer GetException();
-				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
 			};
 
 			class VI_OUT_TS ExpectsWrapper
@@ -213,17 +213,16 @@ namespace Vitex
 				static Exception::Pointer TranslateThrow(const std::error_condition& Error);
 				static Exception::Pointer TranslateThrow(const Core::BasicException& Error);
 				static Exception::Pointer TranslateThrow(const Core::String& Error);
-				static Exception::Pointer TranslateThrow(const VirtualError& Error);
 
 			public:
 				template <typename V, typename E>
-				static V Unwrap(Core::Expects<V, E>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
+				static V&& Unwrap(Core::Expects<V, E>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
 				{
 					if (Subresult)
-						return *Subresult;
+						return std::move(*Subresult);
 
 					Exception::ThrowAt(Context, TranslateThrow(Subresult.Error()));
-					return Default;
+					return std::move(Default);
 				}
 				template <typename V, typename E>
 				static bool UnwrapVoid(Core::Expects<V, E>&& Subresult, ImmediateContext* Context = ImmediateContext::Get())
@@ -238,7 +237,13 @@ namespace Vitex
 				struct Ify;
 
 				template <typename T, T>
+				struct IfyVoid;
+
+				template <typename T, T>
 				struct IfyStatic;
+
+				template <typename T, T>
+				struct IfyStaticVoid;
 
 				template <typename T, typename V, typename E, typename ...Args, Core::Expects<V, E>(T::* F)(Args...)>
 				struct Ify<Core::Expects<V, E>(T::*)(Args...), F>
@@ -252,7 +257,12 @@ namespace Vitex
 						Exception::Throw(TranslateThrow(Subresult.Error()));
 						throw false;
 					}
-					static bool ThrowsVoid(T* Base, Args... Data)
+				};
+
+				template <typename T, typename V, typename E, typename ...Args, Core::Expects<V, E>(T::* F)(Args...)>
+				struct IfyVoid<Core::Expects<V, E>(T::*)(Args...), F>
+				{
+					static bool Throws(T* Base, Args... Data)
 					{
 						Core::Expects<V, E> Subresult((Base->*F)(Data...));
 						if (!Subresult)
@@ -273,7 +283,12 @@ namespace Vitex
 						Exception::Throw(TranslateThrow(Subresult.Error()));
 						throw false;
 					}
-					static bool ThrowsVoid(Args... Data)
+				};
+
+				template <typename V, typename E, typename ...Args, Core::Expects<V, E>(*F)(Args...)>
+				struct IfyStaticVoid<Core::Expects<V, E>(*)(Args...), F>
+				{
+					static bool Throws(Args... Data)
 					{
 						Core::Expects<V, E> Subresult((*F)(Data...));
 						if (!Subresult)
@@ -290,13 +305,13 @@ namespace Vitex
 
 			public:
 				template <typename V>
-				static V Unwrap(Core::Option<V>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
+				static V&& Unwrap(Core::Option<V>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
 				{
 					if (Subresult)
-						return *Subresult;
+						return std::move(*Subresult);
 
 					Exception::ThrowAt(Context, TranslateThrow());
-					return Default;
+					return std::move(Default);
 				}
 				template <typename V>
 				static bool UnwrapVoid(Core::Option<V>&& Subresult, ImmediateContext* Context = ImmediateContext::Get())
@@ -311,7 +326,13 @@ namespace Vitex
 				struct Ify;
 
 				template <typename T, T>
+				struct IfyVoid;
+
+				template <typename T, T>
 				struct IfyStatic;
+
+				template <typename T, T>
+				struct IfyStaticVoid;
 
 				template <typename T, typename V, typename ...Args, Core::Option<V>(T::* F)(Args...)>
 				struct Ify<Core::Option<V>(T::*)(Args...), F>
@@ -325,7 +346,12 @@ namespace Vitex
 						Exception::Throw(TranslateThrow());
 						throw false;
 					}
-					static bool ThrowsVoid(T* Base, Args... Data)
+				};
+
+				template <typename T, typename V, typename ...Args, Core::Option<V>(T::* F)(Args...)>
+				struct IfyVoid<Core::Option<V>(T::*)(Args...), F>
+				{
+					static bool Throws(T* Base, Args... Data)
 					{
 						Core::Option<V> Subresult((Base->*F)(Data...));
 						if (!Subresult)
@@ -346,7 +372,12 @@ namespace Vitex
 						Exception::Throw(TranslateThrow());
 						throw false;
 					}
-					static bool ThrowsVoid(Args... Data)
+				};
+
+				template <typename V, typename ...Args, Core::Option<V>(*F)(Args...)>
+				struct IfyStaticVoid<Core::Option<V>(*)(Args...), F>
+				{
+					static bool Throws(Args... Data)
 					{
 						Core::Option<V> Subresult((*F)(Data...));
 						if (!Subresult)
@@ -877,7 +908,7 @@ namespace Vitex
 				static Promise* CreateFactoryType(asITypeInfo* Type);
 				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
-				static bool GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
 				static bool IsContextPending(ImmediateContext* Context);
 				static bool IsContextBusy(ImmediateContext* Context);
 				static bool IsAlwaysAwait(VirtualMachine* VM);

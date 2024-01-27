@@ -339,9 +339,9 @@ namespace Vitex
 			public:
 				WebSocketFrame(Socket* NewStream);
 				~WebSocketFrame() noexcept;
-				void Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
-				void Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
-				void Finish();
+				Core::ExpectsSystem<size_t> Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				Core::ExpectsSystem<size_t> Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				Core::ExpectsSystem<void> Finish();
 				void Next();
 				bool IsFinished();
 				Socket* GetStream();
@@ -582,16 +582,16 @@ namespace Vitex
 			public:
 				Session();
 				~Session() noexcept;
+				Core::ExpectsSystem<void> Write(Connection* Base);
+				Core::ExpectsSystem<void> Read(Connection* Base);
 				void Clear();
-				bool Write(Connection* Base);
-				bool Read(Connection* Base);
 
 			private:
 				Core::String& FindSessionId(Connection* Base);
 				Core::String& GenerateSessionId(Connection* Base);
 
 			public:
-				static Core::ExpectsIO<void> InvalidateCache(const Core::String& Path);
+				static Core::ExpectsSystem<void> InvalidateCache(const Core::String& Path);
 			};
 
 			class VI_OUT Parser final : public Core::Reference<Parser>
@@ -834,11 +834,11 @@ namespace Vitex
 			public:
 				Server();
 				~Server() override = default;
-				Core::ExpectsIO<void> Update();
+				Core::ExpectsSystem<void> Update();
 
 			private:
-				Core::ExpectsIO<void> OnConfigure(SocketRouter* New) override;
-				Core::ExpectsIO<void> OnUnlisten() override;
+				Core::ExpectsSystem<void> OnConfigure(SocketRouter* New) override;
+				Core::ExpectsSystem<void> OnUnlisten() override;
 				void OnRequestOpen(SocketConnection* Base) override;
 				bool OnRequestCleanup(SocketConnection* Base) override;
 				void OnRequestStall(SocketConnection* Data) override;
@@ -863,7 +863,7 @@ namespace Vitex
 				RequestFrame Request;
 				ResponseFrame Response;
 				Core::Vector<BoundaryBlock> Boundaries;
-				Core::ExpectsPromiseIO<void> Future;
+				Core::ExpectsPromiseSystem<void> Future;
 
             public:
                 char RemoteAddress[48] = { };
@@ -871,27 +871,27 @@ namespace Vitex
 			public:
 				Client(int64_t ReadTimeout);
 				~Client() override;
-				Core::ExpectsPromiseIO<void> Consume(size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseIO<void> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseIO<void> Upgrade(HTTP::RequestFrame&& Root);
-				Core::ExpectsPromiseIO<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::ExpectsPromiseIO<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseIO<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<void> Download(size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<void> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<void> Upgrade(HTTP::RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				void Downgrade();
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 
 			private:
-				void UploadFile(BoundaryBlock* Boundary, std::function<void(bool)>&& Callback);
-				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(bool)>&& Callback);
-				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(bool)>&& Callback);
+				void UploadFile(BoundaryBlock* Boundary, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void Upload(size_t FileId);
 				void ManageKeepAlive();
 				void Receive();
 			};
 
-			VI_OUT Core::ExpectsPromiseIO<ResponseFrame> Fetch(const Core::String& URL, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());
+			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& URL, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());
 		}
 	}
 }

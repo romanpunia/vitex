@@ -2992,6 +2992,9 @@ namespace Vitex
 			if (!Resource || !Resource->IsValid())
 			{
 				VI_RELEASE(Resource);
+				if (!Resource)
+					return Resource.Error();
+
 				return nullptr;
 			}
 			else if (BufferSize > 0)

@@ -1760,6 +1760,7 @@ namespace Vitex
 
 						VI_FREE(Message);
 						Debugger->ClearStoredMessages();
+						Debugger->Release();
 					}
 				}
 				if (ResultCode != S_OK)

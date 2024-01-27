@@ -11195,11 +11195,17 @@ namespace Vitex
 					switch (*Status)
 					{
 						case IncludeType::Preprocess:
+						{
 							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
-							if (Subbuffer.empty() || Process(File.Module, Subbuffer))
+							if (Subbuffer.empty())
 								goto SuccessfulInclude;
 
-							return PreprocessorException(PreprocessorError::IncludeError, Offset, Path + " << " + Next.Value);
+							auto ProcessStatus = Process(File.Module, Subbuffer);
+							if (ProcessStatus)
+								goto SuccessfulInclude;
+
+							return ProcessStatus;
+						}
 						case IncludeType::Unchanged:
 							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 							goto SuccessfulInclude;
@@ -11221,7 +11227,7 @@ namespace Vitex
 					Core::String Name = Tokens.front();
 					Tokens.erase(Tokens.begin());
 					if (!Pragma)
-						return PreprocessorException(PreprocessorError::PragmaError, Offset, Name);
+						continue;
 					
 					auto Status = Pragma(this, Name, Tokens);
 					if (!Status)
@@ -11307,12 +11313,18 @@ namespace Vitex
 			switch (*Status)
 			{
 				case IncludeType::Preprocess:
+				{
 					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
-					if (Subbuffer.empty() || Process(File.Module, Subbuffer))
+					if (Subbuffer.empty())
+						goto IncludeResult;
+
+					auto ProcessStatus = Process(File.Module, Subbuffer);
+					if (ProcessStatus)
 						goto IncludeResult;
 
 					ThisFile = LastFile;
-					return PreprocessorException(PreprocessorError::IncludeError, 0, Path + " << " + IncludePath);
+					return ProcessStatus.Error();
+				}
 				case IncludeType::Unchanged:
 					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
 					goto IncludeResult;

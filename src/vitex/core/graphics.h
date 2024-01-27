@@ -1863,7 +1863,7 @@ namespace Vitex
 
 		public:
 			static GraphicsDevice* Create(Desc& I);
-			static ExpectsGraphics<void> CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const ExpectsGraphics<Shader*>&)>& Callback);
+			static ExpectsGraphics<void> CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const Core::String&, const ExpectsGraphics<Shader*>&)>& Callback);
 		};
 
 		class VI_OUT Activity final : public Core::Reference<Activity>

@@ -1102,28 +1102,28 @@ namespace Vitex
 			const V& Expect(const char* Message) const&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
 				const V& Reference = *(V*)Value;
 				return Reference;
 			}
 			const V&& Expect(const char* Message) const&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
 			V& Expect(const char* Message)&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
 				V& Reference = *(V*)Value;
 				return Reference;
 			}
 			V&& Expect(const char* Message)&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
@@ -1265,7 +1265,7 @@ namespace Vitex
 			void Expect(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
 			}
 			void Unwrap() const
 			{
@@ -1408,28 +1408,28 @@ namespace Vitex
 			const V& Expect(const char* Message) const&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Expect(const char* Message) const&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Expect(const char* Message)&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Expect(const char* Message)&&
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
@@ -1467,25 +1467,25 @@ namespace Vitex
 			}
 			const V& Unwrap() const&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Unwrap() const&&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Unwrap()&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Unwrap()&&
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
@@ -1552,37 +1552,37 @@ namespace Vitex
 			}
 			const V& operator* () const&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& operator* () const&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& operator* ()&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& operator* ()&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_ASSERT(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				auto* Reference = OptionUtils::ToConstPointer<V>(Value.Buffer);
 				return Reference;
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value caused by %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_ASSERT(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				auto* Reference = OptionUtils::ToPointer<V>(Value.Buffer);
 				return Reference;
 			}
@@ -1674,11 +1674,11 @@ namespace Vitex
 			void Expect(const char* Message) const
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s caused by %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), Message);
 			}
 			void Unwrap() const
 			{
-				VI_PANIC(IsValue(), "trying to unwrap an empty value caused by %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
 			}
 			const E& Error() const&
 			{
@@ -2698,7 +2698,7 @@ namespace Vitex
 			T* Expect(const char* Message)
 			{
 				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(Pointer != nullptr, "panic is caused by %s", Message);
+				VI_PANIC(Pointer != nullptr, "%s causing panic", Message);
 				return Pointer;
 			}
 			Unique<T> Reset()

@@ -1850,7 +1850,7 @@ namespace Vitex
 			VI_PANIC(false, "renderer backend is not present or is invalid");
 			return nullptr;
 		}
-		ExpectsGraphics<void> GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const ExpectsGraphics<Shader*>&)>& Callback)
+		ExpectsGraphics<void> GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const Core::String&, const ExpectsGraphics<Shader*>&)>& Callback)
 		{
 			for (auto* Device : Devices)
 			{
@@ -1865,7 +1865,7 @@ namespace Vitex
 						continue;
 
 					auto Result = Device->CreateShader(Desc);
-					if (Callback && !Callback(Device, Result))
+					if (Callback && !Callback(Device, Section.first, Result))
 						return Result ? GraphicsException("compilation stopped") : Result.Error();
 					else if (!Result)
 						return Result.Error();

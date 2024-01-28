@@ -350,35 +350,32 @@ namespace Vitex
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(Connection != nullptr, "base should be set");
-				char* Message = PQerrorMessage(Connection);
-				if (!Message || Message[0] == '\0')
+				char* NewMessage = PQerrorMessage(Connection);
+				if (!NewMessage || Message[0] == '\0')
 					return;
 
-				Core::String Buffer(Message);
+				Core::String Buffer(NewMessage);
 				Buffer.erase(Buffer.size() - 1);
 				for (auto& Item : Core::Stringify::Split(Buffer, '\n'))
 				{
 					if (Item.empty())
 						continue;
-					if (Info.empty())
-						Info += Item;
+					if (Message.empty())
+						Message += Item;
 					else
-						Info += ", " + Item;
+						Message += ", " + Item;
 				}
 #else
-				Info = "not supported";
+				Message = "not supported";
 #endif
 			}
-			DatabaseException::DatabaseException(Core::String&& Message) : Info(std::move(Message))
+			DatabaseException::DatabaseException(Core::String&& NewMessage)
 			{
+				Message = std::move(NewMessage);
 			}
 			const char* DatabaseException::type() const noexcept
 			{
 				return "postgresql_error";
-			}
-			const char* DatabaseException::what() const noexcept
-			{
-				return Info.c_str();
 			}
 
 			Address::Address()

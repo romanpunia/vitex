@@ -2024,10 +2024,9 @@ namespace Vitex
 			}
 		};
 
-		class PreprocessorException : public Core::BasicException
+		class PreprocessorException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
+		private:
 			PreprocessorError Type;
 			size_t Offset;
 
@@ -2036,32 +2035,31 @@ namespace Vitex
 			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset);
 			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& Message);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
+			VI_OUT PreprocessorError status() const noexcept;
+			VI_OUT size_t offset() const noexcept;
 		};
 
-		class CryptoException : public Core::BasicException
+		class CryptoException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
+		private:
 			size_t ErrorCode;
 
 		public:
 			VI_OUT CryptoException();
-			VI_OUT CryptoException(size_t ErrorCode, const char* Message);
+			VI_OUT CryptoException(size_t ErrorCode, const Core::String& Message);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
+			VI_OUT size_t error_code() const noexcept;
 		};
 
-		class CompressionException : public Core::BasicException
+		class CompressionException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
+		private:
 			int ErrorCode;
 
 		public:
-			VI_OUT CompressionException(int ErrorCode, const char* Message);
+			VI_OUT CompressionException(int ErrorCode, const Core::String& Message);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
+			VI_OUT int error_code() const noexcept;
 		};
 
 		template <typename V>

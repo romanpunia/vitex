@@ -256,26 +256,28 @@ namespace Vitex
 		VirtualException::VirtualException(VirtualError NewErrorCode) : ErrorCode(NewErrorCode)
 		{
 			if (ErrorCode != VirtualError::SUCCESS)
-				Info += VirtualMachine::GetErrorNameInfo(ErrorCode);
+				Message += VirtualMachine::GetErrorNameInfo(ErrorCode);
 		}
-		VirtualException::VirtualException(VirtualError NewErrorCode, Core::String&& Message) : Info(std::move(Message)), ErrorCode(NewErrorCode)
+		VirtualException::VirtualException(VirtualError NewErrorCode, Core::String&& NewMessage) : ErrorCode(NewErrorCode)
 		{
+			Message = std::move(NewMessage);
 			if (ErrorCode == VirtualError::SUCCESS)
 				return;
 
-			Info += " causing ";
-			Info += VirtualMachine::GetErrorNameInfo(ErrorCode);
+			Message += " causing ";
+			Message += VirtualMachine::GetErrorNameInfo(ErrorCode);
 		}
-		VirtualException::VirtualException(Core::String&& Message) : Info(std::move(Message))
+		VirtualException::VirtualException(Core::String&& NewMessage)
 		{
+			Message = std::move(NewMessage);
 		}
 		const char* VirtualException::type() const noexcept
 		{
 			return "virtual_error";
 		}
-		const char* VirtualException::what() const noexcept
+		VirtualError VirtualException::error_code() const noexcept
 		{
-			return Info.c_str();
+			return ErrorCode;
 		}
 
 		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
@@ -3243,7 +3245,7 @@ namespace Vitex
 			Core::String Code = *Buffer;
 			auto Status = VM->GenerateCode(Processor, *Source, Code);
 			if (!Status)
-				return VirtualException(std::move(Status.Error().Info));
+				return VirtualException(std::move(Status.Error().message()));
 
 			auto Result = VM->AddScriptSection(Scope, Source->c_str(), Code.c_str(), Code.size());
 			if (Result)
@@ -3264,7 +3266,7 @@ namespace Vitex
 			Core::String Buffer(Data);
 			auto Status = VM->GenerateCode(Processor, Name, Buffer);
 			if (!Status)
-				return VirtualException(std::move(Status.Error().Info));
+				return VirtualException(std::move(Status.Error().message()));
 
 			auto Result = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (Result)
@@ -3285,7 +3287,7 @@ namespace Vitex
 			Core::String Buffer(Data, Size);
 			auto Status = VM->GenerateCode(Processor, Name, Buffer);
 			if (!Status)
-				return VirtualException(std::move(Status.Error().Info));
+				return VirtualException(std::move(Status.Error().message()));
 
 			auto Result = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (Result)
@@ -3408,7 +3410,7 @@ namespace Vitex
 			Core::String Name = " __vfunc" + Core::ToString(FunctionId ? *FunctionId : (Counter + 1));
 			auto Status = VM->GenerateCode(Processor, Name, Code);
 			if (!Status)
-				return ExpectsPromiseVM<Function>(VirtualException(std::move(Status.Error().Info)));
+				return ExpectsPromiseVM<Function>(VirtualException(std::move(Status.Error().message())));
 
 			Core::String Eval;
 			Eval.append(Returns ? Returns : "void");
@@ -7536,7 +7538,7 @@ namespace Vitex
 					VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
 					auto Status = Item.second(Processor, Path, InoutBuffer);
 					if (!Status)
-						return Compute::PreprocessorException(Compute::PreprocessorError::ExtensionError, 0, Status.Error().Info);
+						return Compute::PreprocessorException(Compute::PreprocessorError::ExtensionError, 0, Status.Error().message());
 				}
 			}
 
@@ -8531,7 +8533,7 @@ namespace Vitex
 			return Delegate.IsValid();
 		}
 
-		static thread_local EventLoop* EventHandle = nullptr;
+		static thread_local EventLoop* InternalLoop = nullptr;
 		EventLoop::EventLoop() noexcept : Wake(false)
 		{
 		}
@@ -8678,11 +8680,11 @@ namespace Vitex
 		}
 		void EventLoop::Set(EventLoop* ForCurrentThread)
 		{
-			EventHandle = ForCurrentThread;
+			InternalLoop = ForCurrentThread;
 		}
 		EventLoop* EventLoop::Get()
 		{
-			return EventHandle;
+			return InternalLoop;
 		}
 	}
 }

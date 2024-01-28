@@ -209,15 +209,11 @@ namespace Vitex
 				return static_cast<InputType>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 
-			class GuiException : public Core::BasicException
+			class GuiException final : public Core::BasicException
 			{
-			public:
-				Core::String Info;
-
 			public:
 				VI_OUT GuiException(Core::String&& Message);
 				VI_OUT const char* type() const noexcept override;
-				VI_OUT const char* what() const noexcept override;
 			};
 
 			template <typename V>

@@ -378,18 +378,17 @@ namespace Vitex
 		typedef std::function<void(class VirtualMachine*)> AddonCallback;
 		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
 
-		class VirtualException : public Core::BasicException
+		class VirtualException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
+		private:
 			VirtualError ErrorCode;
 
 		public:
 			VI_OUT VirtualException(VirtualError ErrorCode);
 			VI_OUT VirtualException(VirtualError ErrorCode, Core::String&& Message);
 			VI_OUT VirtualException(Core::String&& Message);
-			virtual VI_OUT const char* type() const noexcept override;
-			virtual VI_OUT const char* what() const noexcept override;
+			VI_OUT const char* type() const noexcept override;
+			VI_OUT VirtualError error_code() const noexcept;
 		};
 
 		template <typename T>

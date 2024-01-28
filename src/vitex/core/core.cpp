@@ -960,204 +960,247 @@ namespace Vitex
 			std::atomic<bool> Resync = true;
 		};
 
-		ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, nullptr)
+		BasicException::BasicException(const String& NewMessage) noexcept : Message(NewMessage)
 		{
 		}
-		ParserException::ParserException(ParserError NewType, size_t NewOffset) : ParserException(NewType, NewOffset, nullptr)
+		BasicException::BasicException(String&& NewMessage) noexcept : Message(std::move(NewMessage))
 		{
 		}
-		ParserException::ParserException(ParserError NewType, size_t NewOffset, const char* NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
+		const char* BasicException::what() const noexcept
 		{
-			if (!NewMessage || NewMessage[0] == '\0')
+			return Message.c_str();
+		}
+		const String& BasicException::message() const& noexcept
+		{
+			return Message;
+		}
+		const String&& BasicException::message() const&& noexcept
+		{
+			return std::move(Message);
+		}
+		String& BasicException::message() & noexcept
+		{
+			return Message;
+		}
+		String&& BasicException::message() && noexcept
+		{
+			return std::move(Message);
+		}
+
+		ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, Core::String())
+		{
+		}
+		ParserException::ParserException(ParserError NewType, size_t NewOffset) : ParserException(NewType, NewOffset, Core::String())
+		{
+		}
+		ParserException::ParserException(ParserError NewType, size_t NewOffset, const String& NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
+		{
+			if (NewMessage.empty())
 			{
 				switch (Type)
 				{
 					case ParserError::NotSupported:
-						Info = "required libraries are not loaded";
+						Message = "required libraries are not loaded";
 						break;
 					case ParserError::BadVersion:
-						Info = "corrupted JSONB version header";
+						Message = "corrupted JSONB version header";
 						break;
 					case ParserError::BadDictionary:
-						Info = "corrupted JSONB dictionary body";
+						Message = "corrupted JSONB dictionary body";
 						break;
 					case ParserError::BadNameIndex:
-						Info = "invalid JSONB dictionary name index";
+						Message = "invalid JSONB dictionary name index";
 						break;
 					case ParserError::BadName:
-						Info = "invalid JSONB name";
+						Message = "invalid JSONB name";
 						break;
 					case ParserError::BadKeyName:
-						Info = "invalid JSONB key name";
+						Message = "invalid JSONB key name";
 						break;
 					case ParserError::BadKeyType:
-						Info = "invalid JSONB key type";
+						Message = "invalid JSONB key type";
 						break;
 					case ParserError::BadValue:
-						Info = "invalid JSONB value for specified key";
+						Message = "invalid JSONB value for specified key";
 						break;
 					case ParserError::BadString:
-						Info = "invalid JSONB value string";
+						Message = "invalid JSONB value string";
 						break;
 					case ParserError::BadInteger:
-						Info = "invalid JSONB value integer";
+						Message = "invalid JSONB value integer";
 						break;
 					case ParserError::BadDouble:
-						Info = "invalid JSONB value double";
+						Message = "invalid JSONB value double";
 						break;
 					case ParserError::BadBoolean:
-						Info = "invalid JSONB value boolean";
+						Message = "invalid JSONB value boolean";
 						break;
 					case ParserError::XMLOutOfMemory:
-						Info = "XML out of memory";
+						Message = "XML out of memory";
 						break;
 					case ParserError::XMLInternalError:
-						Info = "XML internal error";
+						Message = "XML internal error";
 						break;
 					case ParserError::XMLUnrecognizedTag:
-						Info = "XML unrecognized tag";
+						Message = "XML unrecognized tag";
 						break;
 					case ParserError::XMLBadPi:
-						Info = "XML bad pi";
+						Message = "XML bad pi";
 						break;
 					case ParserError::XMLBadComment:
-						Info = "XML bad comment";
+						Message = "XML bad comment";
 						break;
 					case ParserError::XMLBadCData:
-						Info = "XML bad cdata";
+						Message = "XML bad cdata";
 						break;
 					case ParserError::XMLBadDocType:
-						Info = "XML bad doctype";
+						Message = "XML bad doctype";
 						break;
 					case ParserError::XMLBadPCData:
-						Info = "XML bad pcdata";
+						Message = "XML bad pcdata";
 						break;
 					case ParserError::XMLBadStartElement:
-						Info = "XML bad start element";
+						Message = "XML bad start element";
 						break;
 					case ParserError::XMLBadAttribute:
-						Info = "XML bad attribute";
+						Message = "XML bad attribute";
 						break;
 					case ParserError::XMLBadEndElement:
-						Info = "XML bad end element";
+						Message = "XML bad end element";
 						break;
 					case ParserError::XMLEndElementMismatch:
-						Info = "XML end element mismatch";
+						Message = "XML end element mismatch";
 						break;
 					case ParserError::XMLAppendInvalidRoot:
-						Info = "XML append invalid root";
+						Message = "XML append invalid root";
 						break;
 					case ParserError::XMLNoDocumentElement:
-						Info = "XML no document element";
+						Message = "XML no document element";
 						break;
 					case ParserError::JSONDocumentEmpty:
-						Info = "the JSON document is empty";
+						Message = "the JSON document is empty";
 						break;
 					case ParserError::JSONDocumentRootNotSingular:
-						Info = "the JSON document root must not follow by other values";
+						Message = "the JSON document root must not follow by other values";
 						break;
 					case ParserError::JSONValueInvalid:
-						Info = "the JSON document contains an invalid value";
+						Message = "the JSON document contains an invalid value";
 						break;
 					case ParserError::JSONObjectMissName:
-						Info = "missing a name for a JSON object member";
+						Message = "missing a name for a JSON object member";
 						break;
 					case ParserError::JSONObjectMissColon:
-						Info = "missing a colon after a name of a JSON object member";
+						Message = "missing a colon after a name of a JSON object member";
 						break;
 					case ParserError::JSONObjectMissCommaOrCurlyBracket:
-						Info = "missing a comma or '}' after a JSON object member";
+						Message = "missing a comma or '}' after a JSON object member";
 						break;
 					case ParserError::JSONArrayMissCommaOrSquareBracket:
-						Info = "missing a comma or ']' after a JSON array element";
+						Message = "missing a comma or ']' after a JSON array element";
 						break;
 					case ParserError::JSONStringUnicodeEscapeInvalidHex:
-						Info = "incorrect hex digit after \\u escape in a JSON string";
+						Message = "incorrect hex digit after \\u escape in a JSON string";
 						break;
 					case ParserError::JSONStringUnicodeSurrogateInvalid:
-						Info = "the surrogate pair in a JSON string is invalid";
+						Message = "the surrogate pair in a JSON string is invalid";
 						break;
 					case ParserError::JSONStringEscapeInvalid:
-						Info = "invalid escape character in a JSON string";
+						Message = "invalid escape character in a JSON string";
 						break;
 					case ParserError::JSONStringMissQuotationMark:
-						Info = "missing a closing quotation mark in a JSON string";
+						Message = "missing a closing quotation mark in a JSON string";
 						break;
 					case ParserError::JSONStringInvalidEncoding:
-						Info = "invalid encoding in a JSON string";
+						Message = "invalid encoding in a JSON string";
 						break;
 					case ParserError::JSONNumberTooBig:
-						Info = "JSON number too big to be stored in double";
+						Message = "JSON number too big to be stored in double";
 						break;
 					case ParserError::JSONNumberMissFraction:
-						Info = "missing fraction part in a JSON number";
+						Message = "missing fraction part in a JSON number";
 						break;
 					case ParserError::JSONNumberMissExponent:
-						Info = "missing exponent in a JSON number";
+						Message = "missing exponent in a JSON number";
 						break;
 					case ParserError::JSONTermination:
-						Info = "unexpected end of file while parsing a JSON document";
+						Message = "unexpected end of file while parsing a JSON document";
 						break;
 					case ParserError::JSONUnspecificSyntaxError:
-						Info = "unspecified JSON syntax error";
+						Message = "unspecified JSON syntax error";
 						break;
 					default:
-						Info = "(unrecognized condition)";
+						Message = "(unrecognized condition)";
 						break;
 				}
 			}
 			else
-				Info = NewMessage;
+				Message = NewMessage;
 
 			if (Offset > 0)
 			{
-				Info += " at offset ";
-				Info += ToString(Offset);
+				Message += " at offset ";
+				Message += ToString(Offset);
 			}
 		}
 		const char* ParserException::type() const noexcept
 		{
 			return "parser_error";
 		}
-		const char* ParserException::what() const noexcept
+		ParserError ParserException::status() const noexcept
 		{
-			return Info.c_str();
+			return Type;
+		}
+		size_t ParserException::offset() const noexcept
+		{
+			return Offset;
 		}
 
 		SystemException::SystemException() : SystemException(String())
 		{
 		}
-		SystemException::SystemException(const String& Message) : Error(OS::Error::GetConditionOr(std::errc::operation_not_permitted))
+		SystemException::SystemException(const String& NewMessage) : Error(OS::Error::GetConditionOr(std::errc::operation_not_permitted))
 		{
-			if (!Message.empty())
+			if (!NewMessage.empty())
 			{
-				Info += Message;
-				Info += " (error = ";
-				Info += Error.message().c_str();
-				Info += ")";
+				Message += NewMessage;
+				Message += " (error = ";
+				Message += Error.message().c_str();
+				Message += ")";
 			}
 			else
-				Info = Copy<String>(Error.message());
+				Message = Copy<String>(Error.message());
 		}
-		SystemException::SystemException(const String& Message, std::error_condition&& Condition) : Error(std::move(Condition))
+		SystemException::SystemException(const String& NewMessage, std::error_condition&& Condition) : Error(std::move(Condition))
 		{
-			if (!Message.empty())
+			if (!NewMessage.empty())
 			{
-				Info += Message;
-				Info += " (error = ";
-				Info += Error.message().c_str();
-				Info += ")";
+				Message += NewMessage;
+				Message += " (error = ";
+				Message += Error.message().c_str();
+				Message += ")";
 			}
 			else
-				Info = Copy<String>(Error.message());
+				Message = Copy<String>(Error.message());
 		}
 		const char* SystemException::type() const noexcept
 		{
 			return "system_error";
 		}
-		const char* SystemException::what() const noexcept
+		const std::error_condition& SystemException::error() const& noexcept
 		{
-			return Info.c_str();
+			return Error;
+		}
+		const std::error_condition&& SystemException::error() const&& noexcept
+		{
+			return std::move(Error);
+		}
+		std::error_condition& SystemException::error() & noexcept
+		{
+			return Error;
+		}
+		std::error_condition&& SystemException::error() && noexcept
+		{
+			return std::move(Error);
 		}
 
 		MemoryContext::MemoryContext() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
@@ -1167,13 +1210,13 @@ namespace Vitex
 		{
 		}
 
-		static thread_local LocalAllocator* Local = nullptr;
+		static thread_local LocalAllocator* InternalAllocator = nullptr;
 		void* Memory::Malloc(size_t Size) noexcept
 		{
 			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
-			if (Local != nullptr)
+			if (InternalAllocator != nullptr)
 			{
-				void* Address = Local->Allocate(Size);
+				void* Address = InternalAllocator->Allocate(Size);
 				VI_PANIC(Address != nullptr, "application is out of local memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 				return Address;
 			}
@@ -1195,9 +1238,9 @@ namespace Vitex
 		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
 		{
 			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
-			if (Local != nullptr)
+			if (InternalAllocator != nullptr)
 			{
-				void* Address = Local->Allocate(Size);
+				void* Address = InternalAllocator->Allocate(Size);
 				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
 				return Address;
 			}
@@ -1223,8 +1266,8 @@ namespace Vitex
 			if (!Address)
 				return;
 
-			if (Local != nullptr)
-				return Local->Free(Address);
+			if (InternalAllocator != nullptr)
+				return InternalAllocator->Free(Address);
 			else if (Global != nullptr)
 				return Global->Free(Address);
 			else if (!Context)
@@ -1273,13 +1316,13 @@ namespace Vitex
 		}
 		void Memory::SetLocalAllocator(LocalAllocator* NewAllocator) noexcept
 		{
-			Local = NewAllocator;
+			InternalAllocator = NewAllocator;
 		}
 		bool Memory::IsValidAddress(void* Address) noexcept
 		{
 			VI_ASSERT(Global != nullptr, "allocator should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
-			if (Local != nullptr && Local->IsValid(Address))
+			if (InternalAllocator != nullptr && InternalAllocator->IsValid(Address))
 				return true;
 
 			return Global->IsValid(Address);
@@ -1290,7 +1333,7 @@ namespace Vitex
 		}
 		LocalAllocator* Memory::GetLocalAllocator() noexcept
 		{
-			return Local;
+			return InternalAllocator;
 		}
 		GlobalAllocator* Memory::Global = nullptr;
 		Memory::State* Memory::Context = nullptr;
@@ -1416,9 +1459,9 @@ namespace Vitex
 			return Frames.size();
 		}
 #ifndef NDEBUG
-		static thread_local std::stack<Measurement> MeasuringTree;
+		static thread_local std::stack<Measurement> InternalStacktrace;
 #endif
-		static thread_local bool IgnoreLogging = false;
+		static thread_local bool InternalLogging = false;
 		ErrorHandling::Tick::Tick(bool Active) noexcept : IsCounting(Active)
 		{
 		}
@@ -1429,13 +1472,13 @@ namespace Vitex
 		ErrorHandling::Tick::~Tick() noexcept
 		{
 #ifndef NDEBUG
-			if (IgnoreLogging || !IsCounting)
+			if (InternalLogging || !IsCounting)
 				return;
 
-			VI_ASSERT(!MeasuringTree.empty(), "debug frame should be set");
-			auto& Next = MeasuringTree.top();
+			VI_ASSERT(!InternalStacktrace.empty(), "debug frame should be set");
+			auto& Next = InternalStacktrace.top();
 			Next.NotifyOfOverConsumption();
-			MeasuringTree.pop();
+			InternalStacktrace.pop();
 #endif
 		}
 		ErrorHandling::Tick& ErrorHandling::Tick::operator =(Tick&& Other) noexcept
@@ -1549,7 +1592,7 @@ namespace Vitex
 		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...) noexcept
 		{
 			VI_ASSERT(Format != nullptr, "format string should be set");
-			if (IgnoreLogging || (!HasFlag(LogOption::Active) && !HasCallback()))
+			if (InternalLogging || (!HasFlag(LogOption::Active) && !HasCallback()))
 				return;
 
 			Details Data;
@@ -1599,9 +1642,9 @@ namespace Vitex
 		{
 			if (HasCallback())
 			{
-				IgnoreLogging = true;
+				InternalLogging = true;
 				Context->Callback(Data);
-				IgnoreLogging = false;
+				InternalLogging = false;
 			}
 #if defined(VI_MICROSOFT) && !defined(NDEBUG)
 			OutputDebugStringA(GetMessageText(Data).c_str());
@@ -1696,7 +1739,7 @@ namespace Vitex
 			VI_ASSERT(File != nullptr, "file should be set");
 			VI_ASSERT(Function != nullptr, "function should be set");
 			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Timings::Infinite, "threshold time should be greater than zero");
-			if (IgnoreLogging)
+			if (InternalLogging)
 				return ErrorHandling::Tick(false);
 
 			Measurement Next;
@@ -1706,7 +1749,7 @@ namespace Vitex
 			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 			Next.Line = Line;
 
-			MeasuringTree.emplace(std::move(Next));
+			InternalStacktrace.emplace(std::move(Next));
 			return ErrorHandling::Tick(true);
 #else
 			return ErrorHandling::Tick(false);
@@ -1715,10 +1758,10 @@ namespace Vitex
 		void ErrorHandling::MeasureLoop() noexcept
 		{
 #ifndef NDEBUG
-			if (!IgnoreLogging)
+			if (!InternalLogging)
 			{
-				VI_ASSERT(!MeasuringTree.empty(), "debug frame should be set");
-				auto& Next = MeasuringTree.top();
+				VI_ASSERT(!InternalStacktrace.empty(), "debug frame should be set");
+				auto& Next = InternalStacktrace.top();
 				Next.NotifyOfOverConsumption();
 			}
 #endif
@@ -1726,7 +1769,7 @@ namespace Vitex
 		String ErrorHandling::GetMeasureTrace() noexcept
 		{
 #ifndef NDEBUG
-			auto Source = MeasuringTree;
+			auto Source = InternalStacktrace;
 			StringStream Stream;
 			Stream << "in thread " << std::this_thread::get_id() << ":\n";
 
@@ -7410,7 +7453,7 @@ namespace Vitex
 			if (!Status)
 			{
 				VI_RELEASE(Client);
-				return Status.Error().Error;
+				return Status.Error().error();
 			}
 
 			Network::HTTP::RequestFrame Request;
@@ -7429,7 +7472,7 @@ namespace Vitex
 			if (!Response || Response->StatusCode < 0)
 			{
 				VI_RELEASE(Client);
-				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error().Error;
+				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error().error();
 			}
 			else if (Response->Content.Limited)
 				Length = Response->Content.Length;
@@ -7453,7 +7496,7 @@ namespace Vitex
 			auto Status = Client->Disconnect().Get();
 			VI_RELEASE(Client);
 			if (!Status)
-				return Status.Error().Error;
+				return Status.Error().error();
 
 			return Expectation::Met;
 		}
@@ -9767,12 +9810,12 @@ namespace Vitex
 		bool OS::Input::Text(const String& Title, const String& Message, const String& DefaultInput, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[dg] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
+			VI_TRACE("[tfd] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
 			if (!Data)
 				return false;
 
-			VI_TRACE("[dg] close input: %s", Data ? Data : "NULL");
+			VI_TRACE("[tfd] close input: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -9784,12 +9827,12 @@ namespace Vitex
 		bool OS::Input::Password(const String& Title, const String& Message, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[dg] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
+			VI_TRACE("[tfd] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
 			if (!Data)
 				return false;
 
-			VI_TRACE("[dg] close password: %s", Data ? Data : "NULL");
+			VI_TRACE("[tfd] close password: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -9806,14 +9849,14 @@ namespace Vitex
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
-			VI_TRACE("[dg] open save { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
+			VI_TRACE("[tfd] open save { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
 			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str());
 
 			if (!Data)
 				return false;
 
-			VI_TRACE("[dg] close save: %s", Data ? Data : "NULL");
+			VI_TRACE("[tfd] close save: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -9830,14 +9873,14 @@ namespace Vitex
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
-			VI_TRACE("[dg] open load { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
+			VI_TRACE("[tfd] open load { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
 			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str(), Multiple);
 
 			if (!Data)
 				return false;
 
-			VI_TRACE("[dg] close load: %s", Data ? Data : "NULL");
+			VI_TRACE("[tfd] close load: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -9849,12 +9892,12 @@ namespace Vitex
 		bool OS::Input::Folder(const String& Title, const String& DefaultPath, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[dg] open folder { title: %s }", Title.c_str());
+			VI_TRACE("[tfd] open folder { title: %s }", Title.c_str());
 			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
 			if (!Data)
 				return false;
 
-			VI_TRACE("[dg] close folder: %s", Data ? Data : "NULL");
+			VI_TRACE("[tfd] close folder: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -9866,13 +9909,13 @@ namespace Vitex
 		bool OS::Input::Color(const String& Title, const String& DefaultHexRGB, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[dg] open color { title: %s }", Title.c_str());
+			VI_TRACE("[tfd] open color { title: %s }", Title.c_str());
 			unsigned char RGB[3] = { 0, 0, 0 };
 			const char* Data = tinyfd_colorChooser(Title.c_str(), DefaultHexRGB.c_str(), RGB, RGB);
 			if (!Data)
 				return false;
 
-			VI_TRACE("[dg] close color: %s", Data ? Data : "NULL");
+			VI_TRACE("[tfd] close color: %s", Data ? Data : "NULL");
 			if (Result != nullptr)
 				*Result = Data;
 
@@ -9975,7 +10018,7 @@ namespace Vitex
 #endif
 		}
 
-		static thread_local Costate* Cothread = nullptr;
+		static thread_local Costate* InternalCoroutine = nullptr;
 		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize), ExternalCondition(nullptr), ExternalMutex(nullptr)
 		{
 			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
@@ -9983,8 +10026,8 @@ namespace Vitex
 		Costate::~Costate() noexcept
 		{
 			VI_TRACE("[co] despawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
-			if (Cothread == this)
-				Cothread = nullptr;
+			if (InternalCoroutine == this)
+				InternalCoroutine = nullptr;
 
 			for (auto& Routine : Cached)
 				VI_DELETE(Coroutine, Routine);
@@ -10224,24 +10267,24 @@ namespace Vitex
 		}
 		Costate* Costate::Get()
 		{
-			return Cothread;
+			return InternalCoroutine;
 		}
 		Coroutine* Costate::GetCoroutine()
 		{
-			return Cothread ? Cothread->Current : nullptr;
+			return InternalCoroutine ? InternalCoroutine->Current : nullptr;
 		}
 		bool Costate::GetState(Costate** State, Coroutine** Routine)
 		{
 			VI_ASSERT(State != nullptr, "state should be set");
 			VI_ASSERT(Routine != nullptr, "state should be set");
-			*Routine = (Cothread ? Cothread->Current : nullptr);
-			*State = Cothread;
+			*Routine = (InternalCoroutine ? InternalCoroutine->Current : nullptr);
+			*State = InternalCoroutine;
 
 			return *Routine != nullptr;
 		}
 		bool Costate::IsCoroutine()
 		{
-			return Cothread ? Cothread->Current != nullptr : false;
+			return InternalCoroutine ? InternalCoroutine->Current != nullptr : false;
 		}
 		void VI_COCALL Costate::ExecutionEntry(VI_CODATA)
 		{
@@ -10254,7 +10297,7 @@ namespace Vitex
 #else
 			Costate* State = (Costate*)Unpack2_64(X, Y);
 #endif
-			Cothread = State;
+			InternalCoroutine = State;
 			VI_ASSERT(State != nullptr, "costate should be set");
 			Coroutine* Routine = State->Current;
 			if (Routine != nullptr)
@@ -11089,10 +11132,10 @@ namespace Vitex
 		}
 		const Schedule::ThreadPtr* Schedule::InitializeThread(ThreadPtr* Source, bool Update) const
 		{
-			static thread_local ThreadPtr* Pointer = nullptr;
+			static thread_local ThreadPtr* InternalThread = nullptr;
 			if (Update)
-				Pointer = Source;
-			return Pointer;
+				InternalThread = Source;
+			return InternalThread;
 		}
 		const Schedule::ThreadPtr* Schedule::GetThread() const
 		{

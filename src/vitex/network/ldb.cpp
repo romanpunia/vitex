@@ -57,28 +57,25 @@ namespace Vitex
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(Connection != nullptr, "base should be set");
-				const char* Message = sqlite3_errmsg(Connection);
-				if (Message && Message[0] != '\0')
+				const char* NewMessage = sqlite3_errmsg(Connection);
+				if (NewMessage && NewMessage[0] != '\0')
 				{
-					VI_DEBUG("[sqlite] %s", Message);
-					Info = Message;
+					VI_DEBUG("[sqlite] %s", NewMessage);
+					Message = NewMessage;
 				}
 				else
-					Info = "internal driver error";
+					Message = "internal driver error";
 #else
-				Info = "not supported";
+				Message = "not supported";
 #endif
 			}
-			DatabaseException::DatabaseException(Core::String&& Message) : Info(std::move(Message))
+			DatabaseException::DatabaseException(Core::String&& NewMessage)
 			{
+				Message = std::move(NewMessage);
 			}
 			const char* DatabaseException::type() const noexcept
 			{
 				return "sqlite_error";
-			}
-			const char* DatabaseException::what() const noexcept
-			{
-				return Info.c_str();
 			}
 
 			Column::Column(const Response* NewBase, size_t fRowIndex, size_t fColumnIndex) : Base((Response*)NewBase), RowIndex(fRowIndex), ColumnIndex(fColumnIndex)

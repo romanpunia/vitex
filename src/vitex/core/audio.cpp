@@ -66,11 +66,11 @@ namespace Vitex
 			if (AlErrorCode != AL_NO_ERROR)
 			{
 				auto* Text = alGetString(AlErrorCode);
-				Info += "AL:" + Core::ToString(AlErrorCode) + "driver";
+				Message += "AL:" + Core::ToString(AlErrorCode) + "driver";
 				if (Text != nullptr)
 				{
-					Info += " on ";
-					Info += Text;
+					Message += " on ";
+					Message += Text;
 				}
 			}
 
@@ -80,25 +80,29 @@ namespace Vitex
 				if (AlcErrorCode != ALC_NO_ERROR)
 				{
 					auto* Text = alcGetString((ALCdevice*)Device, AlcErrorCode);
-					Info += Core::Stringify::Text("ALC:%i:0x%" PRIXPTR, AlcErrorCode, Device);
+					Message += Core::Stringify::Text("ALC:%i:0x%" PRIXPTR, AlcErrorCode, Device);
 					if (Text != nullptr)
 					{
-						Info += " on ";
-						Info += Text;
+						Message += " on ";
+						Message += Text;
 					}
 				}
 			}
 #else
-			Info = "audio is not supported";
+			Message = "audio is not supported";
 #endif
 		}
 		const char* AudioException::type() const noexcept
 		{
 			return "audio_error";
 		}
-		const char* AudioException::what() const noexcept
+		int AudioException::al_error_code() const noexcept
 		{
-			return Info.c_str();
+			return AlErrorCode;
+		}
+		int AudioException::alc_error_code() const noexcept
+		{
+			return AlcErrorCode;
 		}
 		bool AudioException::has_error() const noexcept
 		{

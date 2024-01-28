@@ -239,21 +239,23 @@ namespace Vitex
 		{
 		}
 
-		GraphicsException::GraphicsException(Core::String&& Message) : Info(std::move(Message)), ErrorCode(0)
+		GraphicsException::GraphicsException(Core::String&& NewMessage) : ErrorCode(0)
 		{
+			Message = std::move(NewMessage);
 		}
-		GraphicsException::GraphicsException(int NewErrorCode, Core::String&& Message) : Info(std::move(Message)), ErrorCode(NewErrorCode)
+		GraphicsException::GraphicsException(int NewErrorCode, Core::String&& NewMessage) : ErrorCode(NewErrorCode)
 		{
+			Message = std::move(NewMessage);
 			if (ErrorCode != 0)
-				Info += " (error = " + Core::ToString(ErrorCode) + ")";
+				Message += " (error = " + Core::ToString(ErrorCode) + ")";
 		}
 		const char* GraphicsException::type() const noexcept
 		{
 			return "graphics_error";
 		}
-		const char* GraphicsException::what() const noexcept
+		int GraphicsException::error_code() const noexcept
 		{
-			return Info.c_str();
+			return ErrorCode;
 		}
 
 		VideoException::VideoException()
@@ -262,25 +264,22 @@ namespace Vitex
 			const char* ErrorText = SDL_GetError();
 			if (ErrorText != nullptr)
 			{
-				Info = ErrorText;
+				Message = ErrorText;
 				SDL_ClearError();
 			}
 			else
-				Info = "internal video error occurred";
+				Message = "internal video error occurred";
 #else
-			Info = "video systems are not supported";
+			Message = "video systems are not supported";
 #endif
 		}
-		VideoException::VideoException(GraphicsException&& Other) : Info(std::move(Other.Info))
+		VideoException::VideoException(GraphicsException&& Other)
 		{
+			Message = std::move(Other.message());
 		}
 		const char* VideoException::type() const noexcept
 		{
 			return "video_error";
-		}
-		const char* VideoException::what() const noexcept
-		{
-			return Info.c_str();
 		}
 
 		Surface::Surface() noexcept : Handle(nullptr)
@@ -1258,7 +1257,7 @@ namespace Vitex
 			auto Result = Processor->Process(Subresult.Filename, Subresult.Data);
 			VI_RELEASE(Processor);
 			if (!InternalStatus)
-				return Compute::PreprocessorException(Compute::PreprocessorError::IncludeNotFound, 0, InternalStatus.Error().Info);
+				return Compute::PreprocessorException(Compute::PreprocessorError::IncludeNotFound, 0, InternalStatus.Error().message());
 
 			return Result;
 		}

@@ -5314,72 +5314,72 @@ namespace Vitex
 		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset) : PreprocessorException(NewType, NewOffset, nullptr)
 		{
 		}
-		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& Message) : Type(NewType), Offset(NewOffset)
+		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& NewMessage) : Type(NewType), Offset(NewOffset)
 		{
 			switch (Type)
 			{
 				case PreprocessorError::MacroDefinitionEmpty:
-					Info = "empty macro directive definition";
+					Message = "empty macro directive definition";
 					break;
 				case PreprocessorError::MacroNameEmpty:
-					Info = "empty macro directive name";
+					Message = "empty macro directive name";
 					break;
 				case PreprocessorError::MacroParenthesisDoubleClosed:
-					Info = "macro directive parenthesis is closed twice";
+					Message = "macro directive parenthesis is closed twice";
 					break;
 				case PreprocessorError::MacroParenthesisNotClosed:
-					Info = "macro directive parenthesis is not closed";
+					Message = "macro directive parenthesis is not closed";
 					break;
 				case PreprocessorError::MacroDefinitionError:
-					Info = "macro directive definition parsing error";
+					Message = "macro directive definition parsing error";
 					break;
 				case PreprocessorError::MacroExpansionParenthesisDoubleClosed:
-					Info = "macro expansion directive parenthesis is closed twice";
+					Message = "macro expansion directive parenthesis is closed twice";
 					break;
 				case PreprocessorError::MacroExpansionParenthesisNotClosed:
-					Info = "macro expansion directive parenthesis is not closed";
+					Message = "macro expansion directive parenthesis is not closed";
 					break;
 				case PreprocessorError::MacroExpansionArgumentsError:
-					Info = "macro expansion directive uses incorrect number of arguments";
+					Message = "macro expansion directive uses incorrect number of arguments";
 					break;
 				case PreprocessorError::MacroExpansionExecutionError:
-					Info = "macro expansion directive execution error";
+					Message = "macro expansion directive execution error";
 					break;
 				case PreprocessorError::MacroExpansionError:
-					Info = "macro expansion directive parsing error";
+					Message = "macro expansion directive parsing error";
 					break;
 				case PreprocessorError::ConditionNotOpened:
-					Info = "conditional directive has no opened parenthesis";
+					Message = "conditional directive has no opened parenthesis";
 					break;
 				case PreprocessorError::ConditionNotClosed:
-					Info = "conditional directive parenthesis is not closed";
+					Message = "conditional directive parenthesis is not closed";
 					break;
 				case PreprocessorError::ConditionError:
-					Info = "conditional directive parsing error";
+					Message = "conditional directive parsing error";
 					break;
 				case PreprocessorError::DirectiveNotFound:
-					Info = "directive is not found";
+					Message = "directive is not found";
 					break;
 				case PreprocessorError::DirectiveExpansionError:
-					Info = "directive expansion error";
+					Message = "directive expansion error";
 					break;
 				case PreprocessorError::IncludeDenied:
-					Info = "inclusion directive is denied";
+					Message = "inclusion directive is denied";
 					break;
 				case PreprocessorError::IncludeError:
-					Info = "inclusion directive parsing error";
+					Message = "inclusion directive parsing error";
 					break;
 				case PreprocessorError::IncludeNotFound:
-					Info = "inclusion directive is not found";
+					Message = "inclusion directive is not found";
 					break;
 				case PreprocessorError::PragmaNotFound:
-					Info = "pragma directive is not found";
+					Message = "pragma directive is not found";
 					break;
 				case PreprocessorError::PragmaError:
-					Info = "pragma directive parsing error";
+					Message = "pragma directive parsing error";
 					break;
 				case PreprocessorError::ExtensionError:
-					Info = "extension error";
+					Message = "extension error";
 					break;
 				default:
 					break;
@@ -5387,23 +5387,27 @@ namespace Vitex
 
 			if (Offset > 0)
 			{
-				Info += " at offset ";
-				Info += Core::ToString(Offset);
+				Message += " at offset ";
+				Message += Core::ToString(Offset);
 			}
 
-			if (!Message.empty())
+			if (!NewMessage.empty())
 			{
-				Info += " on ";
-				Info += Message;
+				Message += " on ";
+				Message += NewMessage;
 			}
 		}
 		const char* PreprocessorException::type() const noexcept
 		{
 			return "preprocessor_error";
 		}
-		const char* PreprocessorException::what() const noexcept
+		PreprocessorError PreprocessorException::status() const noexcept
 		{
-			return Info.c_str();
+			return Type;
+		}
+		size_t PreprocessorException::offset() const noexcept
+		{
+			return Offset;
 		}
 
 		CryptoException::CryptoException() : ErrorCode(0)
@@ -5415,48 +5419,48 @@ namespace Vitex
 				ErrorCode = (size_t)Error;
 				char* ErrorText = ERR_error_string(Error, nullptr);
 				if (ErrorText != nullptr)
-					Info = ErrorText;
+					Message = ErrorText;
 				else
-					Info = "error:" + Core::ToString(ErrorCode);
+					Message = "error:" + Core::ToString(ErrorCode);
 			}
 			else
-				Info = "error:internal";
+				Message = "error:internal";
 #else
-			Info = "error:unsupported";
+			Message = "error:unsupported";
 #endif
 		}
-		CryptoException::CryptoException(size_t NewErrorCode, const char* Message) : ErrorCode(NewErrorCode)
+		CryptoException::CryptoException(size_t NewErrorCode, const Core::String& NewMessage) : ErrorCode(NewErrorCode)
 		{
-			Info = "error:" + Core::ToString(ErrorCode) + ":";
-			if (Message != nullptr)
-				Info += Message;
+			Message = "error:" + Core::ToString(ErrorCode) + ":";
+			if (!NewMessage.empty())
+				Message += NewMessage;
 			else
-				Info += "internal";
+				Message += "internal";
 		}
 		const char* CryptoException::type() const noexcept
 		{
 			return "crypto_error";
 		}
-		const char* CryptoException::what() const noexcept
+		size_t CryptoException::error_code() const noexcept
 		{
-			return Info.c_str();
+			return ErrorCode;
 		}
 
-		CompressionException::CompressionException(int NewErrorCode, const char* Message) : ErrorCode(NewErrorCode)
+		CompressionException::CompressionException(int NewErrorCode, const Core::String& NewMessage) : ErrorCode(NewErrorCode)
 		{
-			if (Message != nullptr)
-				Info += Message;
+			if (!NewMessage.empty())
+				Message += NewMessage;
 			else
-				Info += "internal error";
-			Info += " (error = " + Core::ToString(ErrorCode) + ")";
+				Message += "internal error";
+			Message += " (error = " + Core::ToString(ErrorCode) + ")";
 		}
 		const char* CompressionException::type() const noexcept
 		{
 			return "compression_error";
 		}
-		const char* CompressionException::what() const noexcept
+		int CompressionException::error_code() const noexcept
 		{
-			return Info.c_str();
+			return ErrorCode;
 		}
 
 		Adjacencies::Adjacencies() noexcept : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)

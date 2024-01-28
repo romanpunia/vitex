@@ -2411,7 +2411,7 @@ namespace Vitex
 				auto Result = Core::Schema::ConvertFromJSONB([&Stream](char* Buffer, size_t Size) { return fread(Buffer, sizeof(char), Size, *Stream) == Size; });
 				Core::OS::File::Close(*Stream);
 				if (!Result)
-					return Core::SystemException(Result.Error().Info, std::make_error_condition(std::errc::bad_message));
+					return Core::SystemException(Result.Error().message(), std::make_error_condition(std::errc::bad_message));
 
 				Query = *Result;
 				return Core::Expectation::Met;
@@ -6220,7 +6220,7 @@ namespace Vitex
 					auto RandomBytes = Compute::Crypto::RandomBytes(24);
 					if (!RandomBytes)
 					{
-						Report(Core::SystemException("send boundary error: " + RandomBytes.Error().Info, std::make_error_condition(std::errc::operation_canceled)));
+						Report(Core::SystemException("send boundary error: " + RandomBytes.Error().message(), std::make_error_condition(std::errc::operation_canceled)));
 						return Result;
 					}
 
@@ -6311,7 +6311,7 @@ namespace Vitex
 
 					auto Data = Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
-						return Core::SystemException(Data.Error().Info, std::make_error_condition(std::errc::bad_message));
+						return Core::SystemException(Data.Error().message(), std::make_error_condition(std::errc::bad_message));
 
 					return *Data;
 				});
@@ -6325,7 +6325,7 @@ namespace Vitex
 
 					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
-						return Core::SystemException(Data.Error().Info, std::make_error_condition(std::errc::bad_message));
+						return Core::SystemException(Data.Error().message(), std::make_error_condition(std::errc::bad_message));
 
 					return *Data;
 				});

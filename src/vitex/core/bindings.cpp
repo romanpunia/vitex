@@ -553,7 +553,7 @@ namespace Vitex
 			}
 			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::BasicException& Error)
 			{
-				return Exception::Pointer(Error.type(), Error.what());
+				return Exception::Pointer(Error.type(), Error.message());
 			}
 
 			Exception::Pointer OptionWrapper::TranslateThrow()

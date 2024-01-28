@@ -211,22 +211,23 @@ namespace Vitex
 				return Result;
 			}
 
-			DatabaseException::DatabaseException(int NewErrorCode, Core::String&& Message) : Info(std::move(Message)), ErrorCode(NewErrorCode)
+			DatabaseException::DatabaseException(int NewErrorCode, Core::String&& NewMessage) : ErrorCode(NewErrorCode)
 			{
+				Message = std::move(NewMessage);
 				if (ErrorCode == 0)
 					return;
 
-				Info += " (error = ";
-				Info += Core::ToString(ErrorCode);
-				Info += ")";
+				Message += " (error = ";
+				Message += Core::ToString(ErrorCode);
+				Message += ")";
 			}
 			const char* DatabaseException::type() const noexcept
 			{
 				return "mongodb_error";
 			}
-			const char* DatabaseException::what() const noexcept
+			int DatabaseException::error_code() const noexcept
 			{
-				return Info.c_str();
+				return ErrorCode;
 			}
 
 			Document::Document() : Base(nullptr), Store(false)
@@ -1700,7 +1701,7 @@ namespace Vitex
 							Result->Push(NetCursor.Current().ToSchema());
 							continue;
 						}
-						else if (Status.Error().ErrorCode != 0 && Result->Empty())
+						else if (Status.Error().error_code() != 0 && Result->Empty())
 						{
 							VI_RELEASE(Result);
 							Coreturn Status.Error();

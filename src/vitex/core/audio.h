@@ -229,18 +229,18 @@ namespace Vitex
 			bool IsLooped = false;
 		};
 
-		class AudioException : public Core::BasicException
+		class AudioException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
+		private:
 			int AlErrorCode;
 			int AlcErrorCode;
 
 		public:
 			VI_OUT AudioException(void* Device = nullptr);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
-			bool has_error() const noexcept;
+			VI_OUT int al_error_code() const noexcept;
+			VI_OUT int alc_error_code() const noexcept;
+			VI_OUT bool has_error() const noexcept;
 		};
 
 		template <typename V>

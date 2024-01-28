@@ -811,16 +811,13 @@ namespace Vitex
 				}
 			};
 #endif
-			GuiException::GuiException(Core::String&& Message) : Info(std::move(Message))
+			GuiException::GuiException(Core::String&& NewMessage)
 			{
+				Message = std::move(NewMessage);
 			}
 			const char* GuiException::type() const noexcept
 			{
 				return "gui_error";
-			}
-			const char* GuiException::what() const noexcept
-			{
-				return Info.c_str();
 			}
 
 			void IVariant::Convert(Rml::Variant* From, Core::Variant* To)
@@ -3771,7 +3768,7 @@ namespace Vitex
 				if (!Sheet)
 				{
 					--Busy;
-					return GuiException(std::move(Sheet.Error().Info));
+					return GuiException(std::move(Sheet.Error().message()));
 				}
 
 				auto TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
@@ -4353,7 +4350,7 @@ namespace Vitex
 				auto Status = Processor->Process(Path, Buffer);
 				VI_RELEASE(Processor);
 				if (!Status)
-					return GuiException(std::move(Status.Error().Info));
+					return GuiException(std::move(Status.Error().message()));
 
 				return Core::Expectation::Met;
 			}

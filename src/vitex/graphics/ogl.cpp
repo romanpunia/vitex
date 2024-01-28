@@ -2577,7 +2577,7 @@ namespace Vitex
 				Shader::Desc F(I);
 				auto PreprocessStatus = Preprocess(F);
 				if (!PreprocessStatus)
-					return GraphicsException(std::move(PreprocessStatus.Error().Info));
+					return GraphicsException(std::move(PreprocessStatus.Error().message()));
 
 				auto Name = GetProgramName(F);
 				if (!Name)

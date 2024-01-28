@@ -934,32 +934,44 @@ namespace Vitex
 
 		class BasicException : public std::exception
 		{
+		protected:
+			String Message;
+
 		public:
 			BasicException() = default;
+			VI_OUT BasicException(const String& NewMessage) noexcept;
+			VI_OUT BasicException(String&& NewMessage) noexcept;
+			BasicException(const BasicException&) = default;
+			BasicException(BasicException&&) = default;
+			BasicException& operator= (const BasicException&) = default;
+			BasicException& operator= (BasicException&&) = default;
 			virtual ~BasicException() = default;
 			virtual const char* type() const noexcept = 0;
-			virtual const char* what() const noexcept = 0;
+			virtual VI_OUT const char* what() const noexcept;
+			virtual VI_OUT const String& message() const& noexcept;
+			virtual VI_OUT const String&& message() const&& noexcept;
+			virtual VI_OUT String& message()& noexcept;
+			virtual VI_OUT String&& message()&& noexcept;
 		};
 
-		class ParserException : public BasicException
+		class ParserException final : public BasicException
 		{
-		public:
-			String Info;
+		private:
 			ParserError Type;
 			size_t Offset;
 
 		public:
 			VI_OUT ParserException(ParserError NewType);
 			VI_OUT ParserException(ParserError NewType, size_t NewOffset);
-			VI_OUT ParserException(ParserError NewType, size_t NewOffset, const char* NewMessage);
+			VI_OUT ParserException(ParserError NewType, size_t NewOffset, const String& NewMessage);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
+			VI_OUT ParserError status() const noexcept;
+			VI_OUT size_t offset() const noexcept;
 		};
 
 		class SystemException : public BasicException
 		{
-		public:
-			String Info;
+		private:
 			std::error_condition Error;
 
 		public:
@@ -967,7 +979,10 @@ namespace Vitex
 			VI_OUT SystemException(const String& Message);
 			VI_OUT SystemException(const String& Message, std::error_condition&& Condition);
 			virtual VI_OUT const char* type() const noexcept override;
-			virtual VI_OUT const char* what() const noexcept override;
+			virtual VI_OUT const std::error_condition& error() const& noexcept;
+			virtual VI_OUT const std::error_condition&& error() const&& noexcept;
+			virtual VI_OUT std::error_condition& error() & noexcept;
+			virtual VI_OUT std::error_condition&& error() && noexcept;
 		};
 
 		template <typename T>

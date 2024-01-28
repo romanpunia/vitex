@@ -882,29 +882,24 @@ namespace Vitex
 
 		};
 
-		class GraphicsException : public Core::BasicException
+		class GraphicsException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
+		private:
 			int ErrorCode;
 
 		public:
 			VI_OUT GraphicsException(Core::String&& Message);
 			VI_OUT GraphicsException(int ErrorCode, Core::String&& Message);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
+			VI_OUT int error_code() const noexcept;
 		};
 
-		class VideoException : public Core::BasicException
+		class VideoException final : public Core::BasicException
 		{
-		public:
-			Core::String Info;
-
 		public:
 			VI_OUT VideoException();
 			VI_OUT VideoException(GraphicsException&& Other);
 			VI_OUT const char* type() const noexcept override;
-			VI_OUT const char* what() const noexcept override;
 		};
 
 		template <typename V>

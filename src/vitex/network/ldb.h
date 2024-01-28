@@ -69,16 +69,12 @@ namespace Vitex
 				int32_t Status = -1;
 			};
 
-			class DatabaseException : public Core::BasicException
+			class DatabaseException final : public Core::BasicException
 			{
-			public:
-				Core::String Info;
-
 			public:
 				VI_OUT DatabaseException(TConnection* Connection);
 				VI_OUT DatabaseException(Core::String&& Message);
 				VI_OUT const char* type() const noexcept override;
-				VI_OUT const char* what() const noexcept override;
 			};
 
 			template <typename V>

@@ -1321,7 +1321,7 @@ namespace Vitex
 				auto Object = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Texture2D*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateTexture2D(I); });
 				stbi_image_free(Resource);
 				if (!Object)
-					return ContentException(std::move(Object.Error().Info));
+					return ContentException(std::move(Object.Error().message()));
 
 				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->Source(), *Object);
 				if (Existing != nullptr)
@@ -1373,7 +1373,7 @@ namespace Vitex
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
 				auto Object = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Shader*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateShader(I); });
 				if (!Object)
-					return ContentException(std::move(Object.Error().Info));
+					return ContentException(std::move(Object.Error().message()));
 
 				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->Source(), *Object);
 				if (Existing != nullptr)
@@ -1450,7 +1450,7 @@ namespace Vitex
 							{
 								VI_RELEASE(Data);
 								VI_RELEASE(Object);
-								return ContentException(std::move(NewBuffer.Error().Info));
+								return ContentException(std::move(NewBuffer.Error().message()));
 							}
 
 							Object->Meshes.emplace_back(*NewBuffer);
@@ -1483,7 +1483,7 @@ namespace Vitex
 						if (!NewBuffer)
 						{
 							VI_RELEASE(Object);
-							return ContentException(std::move(NewBuffer.Error().Info));
+							return ContentException(std::move(NewBuffer.Error().message()));
 						}
 
 						Object->Meshes.emplace_back(*NewBuffer);
@@ -1627,7 +1627,7 @@ namespace Vitex
 							{
 								VI_RELEASE(Data);
 								VI_RELEASE(Object);
-								return ContentException(std::move(NewBuffer.Error().Info));
+								return ContentException(std::move(NewBuffer.Error().message()));
 							}
 
 							Object->Meshes.emplace_back(*NewBuffer);
@@ -1663,7 +1663,7 @@ namespace Vitex
 						if (!NewBuffer)
 						{
 							VI_RELEASE(Object);
-							return ContentException(std::move(NewBuffer.Error().Info));
+							return ContentException(std::move(NewBuffer.Error().message()));
 						}
 
 						Object->Meshes.emplace_back(*NewBuffer);
@@ -1866,7 +1866,7 @@ namespace Vitex
 
 				Object = Core::Schema::ConvertFromXML(Data.data(), Data.size());
 				if (!Object)
-					return ContentException(std::move(Object.Error().Info));
+					return ContentException(std::move(Object.Error().message()));
 
 				return *Object;
 			}
@@ -2342,7 +2342,7 @@ namespace Vitex
 					if (!Status)
 					{
 						VI_RELEASE(Object);
-						return ContentException(std::move(Status.Error().Info));
+						return ContentException(std::move(Status.Error().message()));
 					}
 
 					return (void*)Object;

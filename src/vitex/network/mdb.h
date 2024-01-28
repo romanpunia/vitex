@@ -110,16 +110,15 @@ namespace Vitex
 				Property operator [](const char* Name) const;
 			};
 
-			class DatabaseException : public Core::BasicException
+			class DatabaseException final : public Core::BasicException
 			{
-			public:
-				Core::String Info;
+			private:
 				int ErrorCode;
 
 			public:
 				VI_OUT DatabaseException(int ErrorCode, Core::String&& Message);
 				VI_OUT const char* type() const noexcept override;
-				VI_OUT const char* what() const noexcept override;
+				VI_OUT int error_code() const noexcept;
 			};
 
 			template <typename V>

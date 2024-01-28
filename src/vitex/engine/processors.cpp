@@ -1190,7 +1190,7 @@ namespace Vitex
 				if (!SDL_LoadWAV_RW(WavData, 1, &WavInfo, &WavSamples, &WavCount))
 				{
 					SDL_RWclose(WavData);
-					return ContentException(std::move(Graphics::VideoException().Info));
+					return ContentException(std::move(Graphics::VideoException().message()));
 				}
 
 				int Format = 0;

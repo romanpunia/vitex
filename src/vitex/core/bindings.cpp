@@ -5150,6 +5150,17 @@ namespace Vitex
 				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); });
 			}
 
+			Dictionary* InlineArgsGetArgs(Core::InlineArgs& Base)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
+				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Args);
+			}
+			Array* InlineArgsGetParams(Core::InlineArgs& Base)
+			{
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base.Params);
+			}
+
 			Array* OSDirectoryScan(const Core::String& Path)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
@@ -5328,6 +5339,24 @@ namespace Vitex
 			Core::ProcessStream* OSProcessExecuteReadOnly(const Core::String& Path)
 			{
 				return ExpectsWrapper::Unwrap(Core::OS::Process::ExecuteReadOnly(Path), (Core::ProcessStream*)nullptr);
+			}
+			Core::InlineArgs OSProcessParseArgs(Array* ArgsArray, size_t Opts, Array* FlagsArray)
+			{
+				Core::UnorderedSet<Core::String> Flags;
+				Core::Vector<Core::String> InlineFlags = Array::Decompose<Core::String>(ArgsArray);
+				Flags.reserve(InlineFlags.size());
+
+				Core::Vector<Core::String> InlineArgs = Array::Decompose<Core::String>(ArgsArray);
+				Core::Vector<char*> Args;
+				Args.reserve(InlineArgs.size());
+
+				for (auto& Item : InlineFlags)
+					Flags.insert(Item);
+
+				for (auto& Item : InlineArgs)
+					Args.push_back((char*)Item.c_str());
+
+				return Core::OS::Process::ParseArgs((int)Args.size(), Args.data(), Opts, Flags);
 			}
 
 			void* OSSymbolLoad(const Core::String& Path)
@@ -6904,13 +6933,13 @@ namespace Vitex
 
 			Dictionary* LocationGetQuery(Network::Location& Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_STRING ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Query);
 			}
 
 			Dictionary* CertificateGetExtensions(Network::Certificate& Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_STRING ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Extensions);
 			}
 
@@ -7180,22 +7209,22 @@ namespace Vitex
 
 			void SocketRouterSetListeners(Network::SocketRouter* Base, Dictionary* Data)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_REMOTEHOST ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				Base->Listeners = Dictionary::Decompose<Network::RemoteHost>(Type.GetTypeId(), Data);
 			}
 			Dictionary* SocketRouterGetListeners(Network::SocketRouter* Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_REMOTEHOST ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				return Dictionary::Compose<Network::RemoteHost>(Type.GetTypeId(), Base->Listeners);
 			}
 			void SocketRouterSetCertificates(Network::SocketRouter* Base, Dictionary* Data)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_SOCKETCERTIFICATE ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				Base->Certificates = Dictionary::Decompose<Network::SocketCertificate>(Type.GetTypeId(), Data);
 			}
 			Dictionary* SocketRouterGetCertificates(Network::SocketRouter* Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_SOCKETCERTIFICATE ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				return Dictionary::Compose<Network::SocketCertificate>(Type.GetTypeId(), Base->Certificates);
 			}
 
@@ -7292,12 +7321,12 @@ namespace Vitex
 
 			void EventSetArgs(Engine::Event& Base, Dictionary* Data)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_VARIANT ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				Base.Args = Dictionary::Decompose<Core::Variant>(Type.GetTypeId(), Data);
 			}
 			Dictionary* EventGetArgs(Engine::Event& Base)
 			{
-				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "<" TYPENAME_VARIANT ">@");
+				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
 				return Dictionary::Compose<Core::Variant>(Type.GetTypeId(), Base.Args);
 			}
 
@@ -11849,6 +11878,24 @@ namespace Vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
+				auto VArgsFormat = VM->SetEnum("args_format");
+				VArgsFormat->SetValue("key_value", (int)Core::ArgsFormat::KeyValue);
+				VArgsFormat->SetValue("flag_value", (int)Core::ArgsFormat::FlagValue);
+				VArgsFormat->SetValue("key", (int)Core::ArgsFormat::Key);
+				VArgsFormat->SetValue("flag", (int)Core::ArgsFormat::Flag);
+				VArgsFormat->SetValue("stop_if_no_match", (int)Core::ArgsFormat::StopIfNoMatch);
+
+				auto VInlineArgs = VM->SetStructTrivial<Core::InlineArgs>("inline_args");
+				VInlineArgs->SetProperty<Core::InlineArgs>("string path", &Core::InlineArgs::Path);
+				VInlineArgs->SetConstructor<Core::InlineArgs>("void f()");
+				VInlineArgs->SetMethod("bool is_enabled(const string&in, const string&in = \"\") const", &Core::InlineArgs::IsEnabled);
+				VInlineArgs->SetMethod("bool is_disabled(const string&in, const string&in = \"\") const", &Core::InlineArgs::IsDisabled);
+				VInlineArgs->SetMethod("bool has(const string&in, const string&in = \"\") const", &Core::InlineArgs::Has);
+				VInlineArgs->SetMethod("string& get(const string&in, const string&in = \"\") const", &Core::InlineArgs::Get);
+				VInlineArgs->SetMethod("string& get_if(const string&in, const string&in, const string&in) const", &Core::InlineArgs::GetIf);
+				VInlineArgs->SetMethodEx("dictionary@ get_args() const", &InlineArgsGetArgs);
+				VInlineArgs->SetMethodEx("array<string>@ get_params() const", &InlineArgsGetParams);
+
 				VM->BeginNamespace("os::cpu");
 				auto VArch = VM->SetEnum("arch");
 				VArch->SetValue("x64", (int)Core::OS::CPU::Arch::X64);
@@ -11943,6 +11990,7 @@ namespace Vitex
 				VM->SetFunction("int await(uptr@)", &OSProcessAwait);
 				VM->SetFunction("void free(uptr@)", &OSProcessFree);
 				VM->SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);
+				VM->SetFunction("inline_args parse_args(array<string>@+, usize, array<string>@+ = null)", &OSProcessParseArgs);
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::symbol");

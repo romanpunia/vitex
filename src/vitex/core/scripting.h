@@ -1810,7 +1810,7 @@ namespace Vitex
 			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
 			bool CheckBreakPoint(ImmediateContext* Context);
 			bool Interrupt();
-			bool IsInputIgnored();
+			bool IsError();
 			bool IsAttached();
 			DebugAction GetState();
 			Core::String ToString(int MaxDepth, void* Value, unsigned int TypeId);
@@ -2401,12 +2401,15 @@ namespace Vitex
 			std::condition_variable Waitable;
 			std::mutex Mutex;
 			ArgsCallback OnEnqueue;
+			bool Aborts;
 			bool Wake;
 
 		public:
 			EventLoop() noexcept;
 			~EventLoop() = default;
 			void Wakeup();
+			void Restore();
+			void Abort();
 			void When(ArgsCallback&& Callback);
 			void Listen(ImmediateContext* Context);
 			void Enqueue(ImmediateContext* Context, void* Promise);
@@ -2414,10 +2417,12 @@ namespace Vitex
 			bool Poll(ImmediateContext* Context, uint64_t TimeoutMs);
 			bool PollExtended(ImmediateContext* Context, uint64_t TimeoutMs);
 			size_t Dequeue(VirtualMachine* VM);
+			bool IsAborted();
 
 		private:
 			void OnNotification(ImmediateContext* Context, void* Promise);
 			void OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
+			void AbortIf(ExpectsVM<Execution>&& Status);
 
 		public:
 			static void Set(EventLoop* ForCurrentThread);

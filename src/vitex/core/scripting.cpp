@@ -4050,7 +4050,7 @@ namespace Vitex
 				else
 				{
 					Unique.Negate();
-					std::this_thread::sleep_for(std::chrono::milliseconds(10));
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
 					goto Retry;
 				}
 			}
@@ -4065,7 +4065,7 @@ namespace Vitex
 				if (LastContext != Thread.Context)
 				{
 					Unique.Negate();
-					std::this_thread::sleep_for(std::chrono::milliseconds(10));
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
 					goto Retry;
 				}
 				else
@@ -4109,7 +4109,7 @@ namespace Vitex
 			if (Action == DebugAction::Switch || ForceSwitchThreads > 0)
 			{
 				Unique.Negate();
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 				goto Retry;
 			}
 
@@ -4173,6 +4173,11 @@ namespace Vitex
 				if (InterpretCommand(Data, Context))
 					break;
 			}
+			if (!InputError)
+				return;
+
+			for (auto& Thread : Threads)
+				Thread.Context->Abort();
 		}
 		void DebuggerContext::PrintValue(const Core::String& Expression, ImmediateContext* Context)
 		{
@@ -5264,7 +5269,7 @@ namespace Vitex
 
 			return false;
 		}
-		bool DebuggerContext::IsInputIgnored()
+		bool DebuggerContext::IsError()
 		{
 			return InputError;
 		}
@@ -8534,7 +8539,7 @@ namespace Vitex
 		}
 
 		static thread_local EventLoop* InternalLoop = nullptr;
-		EventLoop::EventLoop() noexcept : Wake(false)
+		EventLoop::EventLoop() noexcept : Aborts(false), Wake(false)
 		{
 		}
 		void EventLoop::OnNotification(ImmediateContext* Context, void* Promise)
@@ -8563,6 +8568,16 @@ namespace Vitex
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Wake = true;
 			Waitable.notify_one();
+		}
+		void EventLoop::Restore()
+		{
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Aborts = false;
+		}
+		void EventLoop::Abort()
+		{
+			Core::UMutex<std::mutex> Unique(Mutex);
+			Aborts = true;
 		}
 		void EventLoop::When(ArgsCallback&& Callback)
 		{
@@ -8623,15 +8638,17 @@ namespace Vitex
 		size_t EventLoop::Dequeue(VirtualMachine* VM)
 		{
 			VI_ASSERT(VM != nullptr, "virtual machine should be set");
-			std::unique_lock<std::mutex> Unique(Mutex);
+			Core::UMutex<std::mutex> Unique(Mutex);
 			size_t Executions = 0;
 
 			while (!Queue.empty())
 			{
 				Callable Next = std::move(Queue.front());
 				Queue.pop();
-				Unique.unlock();
+				if (Aborts)
+					continue;
 
+				Unique.Negate();
 				ImmediateContext* InitiatorContext = Next.Context;
 				if (Next.IsCallback())
 				{
@@ -8645,19 +8662,21 @@ namespace Vitex
 					if (Next.OnReturn)
 					{
 						ArgsCallback OnReturn = std::move(Next.OnReturn);
-						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([VM, InitiatorContext, ExecutingContext, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&&) mutable
+						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([this, VM, InitiatorContext, ExecutingContext, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Status) mutable
 						{
 							OnReturn(ExecutingContext);
 							if (ExecutingContext != InitiatorContext)
 								VM->ReturnContext(ExecutingContext);
+							AbortIf(std::move(Status));
 						});
 					}
 					else
 					{
-						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([VM, InitiatorContext, ExecutingContext](ExpectsVM<Execution>&&) mutable
+						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([this, VM, InitiatorContext, ExecutingContext](ExpectsVM<Execution>&& Status) mutable
 						{
 							if (ExecutingContext != InitiatorContext)
 								VM->ReturnContext(ExecutingContext);
+							AbortIf(std::move(Status));
 						});
 					}
 					++Executions;
@@ -8666,17 +8685,26 @@ namespace Vitex
 				{
 					Bindings::Promise* Base = (Bindings::Promise*)Next.Promise;
 					if (InitiatorContext->IsSuspended())
-						InitiatorContext->Resume();
+						AbortIf(InitiatorContext->Resume());
 					if (Base != nullptr)
 						Base->Release();
 					++Executions;
 				}
-				Unique.lock();
+				Unique.Negate();
 			}
 
 			if (Executions > 0)
 				VI_TRACE("[vm] loop process %" PRIu64 " events", (uint64_t)Executions);
 			return Executions;
+		}
+		void EventLoop::AbortIf(ExpectsVM<Execution>&& Status)
+		{
+			if (Status && *Status == Execution::Aborted)
+				Abort();
+		}
+		bool EventLoop::IsAborted()
+		{
+			return Aborts;
 		}
 		void EventLoop::Set(EventLoop* ForCurrentThread)
 		{

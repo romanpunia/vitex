@@ -7808,63 +7808,52 @@ namespace Vitex
 #endif
 		}
 
-		OS::Process::ArgsContext::ArgsContext(int Argc, char** Argv, const String& WhenNoValue) noexcept
+		InlineArgs::InlineArgs() noexcept
 		{
-			Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
 		}
-		void OS::Process::ArgsContext::ForEach(const std::function<void(const String&, const String&)>& Callback) const
+		bool InlineArgs::IsEnabled(const String& Option, const String& Shortcut) const
 		{
-			VI_ASSERT(Callback != nullptr, "callback should not be empty");
-			for (auto& Item : Base)
-				Callback(Item.first, Item.second);
-		}
-		bool OS::Process::ArgsContext::IsEnabled(const String& Option, const String& Shortcut) const
-		{
-			auto It = Base.find(Option);
-			if (It == Base.end() || !IsTrue(It->second))
+			auto It = Args.find(Option);
+			if (It == Args.end() || !IsTrue(It->second))
 				return Shortcut.empty() ? false : IsEnabled(Shortcut);
 
 			return true;
 		}
-		bool OS::Process::ArgsContext::IsDisabled(const String& Option, const String& Shortcut) const
+		bool InlineArgs::IsDisabled(const String& Option, const String& Shortcut) const
 		{
-			auto It = Base.find(Option);
-			if (It == Base.end())
+			auto It = Args.find(Option);
+			if (It == Args.end())
 				return Shortcut.empty() ? true : IsDisabled(Shortcut);
 
 			return IsFalse(It->second);
 		}
-		bool OS::Process::ArgsContext::Has(const String& Option, const String& Shortcut) const
+		bool InlineArgs::Has(const String& Option, const String& Shortcut) const
 		{
-			if (Base.find(Option) != Base.end())
+			if (Args.find(Option) != Args.end())
 				return true;
 
-			return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
+			return Shortcut.empty() ? false : Args.find(Shortcut) != Args.end();
 		}
-		String& OS::Process::ArgsContext::Get(const String& Option, const String& Shortcut)
+		String& InlineArgs::Get(const String& Option, const String& Shortcut)
 		{
-			if (Base.find(Option) != Base.end())
-				return Base[Option];
+			if (Args.find(Option) != Args.end())
+				return Args[Option];
 
-			return Shortcut.empty() ? Base[Option] : Base[Shortcut];
+			return Shortcut.empty() ? Args[Option] : Args[Shortcut];
 		}
-		String& OS::Process::ArgsContext::GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty)
+		String& InlineArgs::GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty)
 		{
-			if (Base.find(Option) != Base.end())
-				return Base[Option];
+			if (Args.find(Option) != Args.end())
+				return Args[Option];
 
-			if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
-				return Base[Shortcut];
+			if (!Shortcut.empty() && Args.find(Shortcut) != Args.end())
+				return Args[Shortcut];
 
-			String& Value = Base[Option];
+			String& Value = Args[Option];
 			Value = WhenEmpty;
 			return Value;
 		}
-		String& OS::Process::ArgsContext::GetAppPath()
-		{
-			return Get("__path__");
-		}
-		bool OS::Process::ArgsContext::IsTrue(const String& Value) const
+		bool InlineArgs::IsTrue(const String& Value) const
 		{
 			if (Value.empty())
 				return false;
@@ -7877,7 +7866,7 @@ namespace Vitex
 			Stringify::ToLower(Data);
 			return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
 		}
-		bool OS::Process::ArgsContext::IsFalse(const String& Value) const
+		bool InlineArgs::IsFalse(const String& Value) const
 		{
 			if (Value.empty())
 				return true;
@@ -9660,48 +9649,91 @@ namespace Vitex
 			String Output(Value, strlen(Value));
 			return Output;
 		}
-		UnorderedMap<String, String> OS::Process::GetArgs(int ArgsCount, char** Args, const String& WhenNoValue)
+		InlineArgs OS::Process::ParseArgs(int ArgsCount, char** Args, size_t Opts, const UnorderedSet<String>& Flags)
 		{
-			UnorderedMap<String, String> Results;
 			VI_ASSERT(Args != nullptr, "arguments should be set");
 			VI_ASSERT(ArgsCount > 0, "arguments count should be greater than zero");
 
-			Vector<String> Params;
+			InlineArgs Context;
 			for (int i = 0; i < ArgsCount; i++)
 			{
 				VI_ASSERT(Args[i] != nullptr, "argument %i should be set", i);
-				Params.push_back(Args[i]);
+				Context.Params.push_back(Args[i]);
 			}
 
-			for (size_t i = 1; i < Params.size(); i++)
-			{
-				auto& Item = Params[i];
-				if (Item.empty() || Item.front() != '-')
-					continue;
+			Vector<String> Params;
+			Params.reserve(Context.Params.size());
 
-				if (Item.size() > 1 && Item[1] == '-')
+			String Default = "1";
+			auto InlineText = [&Default](const String& Value) -> const String& { return Value.empty() ? Default : Value; };
+			for (size_t i = 1; i < Context.Params.size(); i++)
+			{
+				auto& Item = Context.Params[i];
+				if (Item.empty() || Item.front() != '-')
+					goto NoMatch;
+
+				if ((Opts & (size_t)ArgsFormat::Key || Opts & (size_t)ArgsFormat::KeyValue) && Item.size() > 1 && Item[1] == '-')
 				{
 					Item = Item.substr(2);
 					size_t Position = Item.find('=');
 					if (Position != String::npos)
 					{
-						String Value = Item.substr(Position + 1);
-						Results[Item.substr(0, Position)] = Value.empty() ? WhenNoValue : Value;
+						String Name = Item.substr(0, Position);
+						if (Flags.find(Name) != Flags.end())
+						{
+							Context.Args[Item] = Default;
+							if (Opts & (size_t)ArgsFormat::StopIfNoMatch)
+							{
+								Params.insert(Params.begin(), Context.Params.begin() + i + 1, Context.Params.end());
+								break;
+							}
+						}
+						else
+							Context.Args[Name] = InlineText(Item.substr(Position + 1));
 					}
+					else if (Opts & (size_t)ArgsFormat::Key || Flags.find(Item) != Flags.end())
+						Context.Args[Item] = Default;
 					else
-						Results[Item] = WhenNoValue;
+						goto NoMatch;
 				}
-				else if (i + 1 < Params.size() && Params[i + 1].front() != '-')
+				else 
 				{
-					auto& Value = Params[++i];
-					Results[Item.substr(1)] = Value.empty() ? WhenNoValue : Value;
+					String Name = Item.substr(1);
+					if ((Opts & (size_t)ArgsFormat::FlagValue) && i + 1 < Context.Params.size() && Context.Params[i + 1].front() != '-')
+					{
+						if (Flags.find(Name) != Flags.end())
+						{
+							Context.Args[Name] = Default;
+							if (Opts & (size_t)ArgsFormat::StopIfNoMatch)
+							{
+								Params.insert(Params.begin(), Context.Params.begin() + i + 1, Context.Params.end());
+								break;
+							}
+						}
+						else
+							Context.Args[Name] = InlineText(Context.Params[++i]);
+					}
+					else if (Opts & (size_t)ArgsFormat::Flag || Flags.find(Name) != Flags.end())
+						Context.Args[Item.substr(1)] = Default;
+					else
+						goto NoMatch;
+				}
+
+				continue;
+			NoMatch:
+				if (Opts & (size_t)ArgsFormat::StopIfNoMatch)
+				{
+					Params.insert(Params.begin(), Context.Params.begin() + i, Context.Params.end());
+					break;
 				}
 				else
-					Results[Item.substr(1)] = WhenNoValue;
+					Params.push_back(Item);
 			}
 
-			Results["__path__"] = Params.front();
-			return Results;
+			if (!Context.Params.empty())
+				Context.Path = Context.Params.front();
+			Context.Params = std::move(Params);
+			return Context;
 		}
 
 		ExpectsIO<void*> OS::Symbol::Load(const String& Path)

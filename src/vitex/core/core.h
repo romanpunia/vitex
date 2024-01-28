@@ -219,6 +219,15 @@ namespace Vitex
 			SIG_USR2
 		};
 
+		enum class ArgsFormat
+		{
+			KeyValue = (1 << 0),
+			FlagValue = (1 << 1),
+			Key = (1 << 2),
+			Flag = (1 << 3),
+			StopIfNoMatch = (1 << 4)
+		};
+
 		enum class ParserError
 		{
 			NotSupported,
@@ -2203,6 +2212,26 @@ namespace Vitex
 			bool Resync = true;
 		};
 
+		struct VI_OUT InlineArgs
+		{
+		public:
+			UnorderedMap<String, String> Args;
+			Vector<String> Params;
+			String Path;
+
+		public:
+			InlineArgs() noexcept;
+			bool IsEnabled(const String& Option, const String& Shortcut = "") const;
+			bool IsDisabled(const String& Option, const String& Shortcut = "") const;
+			bool Has(const String& Option, const String& Shortcut = "") const;
+			String& Get(const String& Option, const String& Shortcut = "");
+			String& GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty);
+
+		private:
+			bool IsTrue(const String& Value) const;
+			bool IsFalse(const String& Value) const;
+		};
+
 		class VI_OUT_TS Var
 		{
 		public:
@@ -2408,27 +2437,6 @@ namespace Vitex
 			class VI_OUT Process
 			{
 			public:
-				struct VI_OUT ArgsContext
-				{
-				public:
-					UnorderedMap<String, String> Base;
-
-				public:
-					ArgsContext(int Argc, char** Argv, const String& WhenNoValue = "1") noexcept;
-					void ForEach(const std::function<void(const String&, const String&)>& Callback) const;
-					bool IsEnabled(const String& Option, const String& Shortcut = "") const;
-					bool IsDisabled(const String& Option, const String& Shortcut = "") const;
-					bool Has(const String& Option, const String& Shortcut = "") const;
-					String& Get(const String& Option, const String& Shortcut = "");
-					String& GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty);
-					String& GetAppPath();
-
-				private:
-					bool IsTrue(const String& Value) const;
-					bool IsFalse(const String& Value) const;
-				};
-
-			public:
 				static void Abort();
 				static void Interrupt();
 				static void Exit(int Code);
@@ -2444,7 +2452,7 @@ namespace Vitex
 				static ExpectsIO<Unique<ProcessStream>> ExecuteReadOnly(const String& Command);
 				static ExpectsIO<String> GetEnv(const String& Name);
 				static String GetThreadId(const std::thread::id& Id);
-				static UnorderedMap<String, String> GetArgs(int Argc, char** Argv, const String& WhenNoValue = "1");
+				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
 			};
 
 			class VI_OUT Symbol

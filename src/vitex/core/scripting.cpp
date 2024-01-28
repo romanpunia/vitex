@@ -8450,7 +8450,7 @@ namespace Vitex
 			Engine->AddSystemAddon("schedule", { "ctypes" }, Bindings::Registry::ImportSchedule);
 			Engine->AddSystemAddon("clock", { }, Bindings::Registry::ImportClockTimer);
 			Engine->AddSystemAddon("fs", { "string" }, Bindings::Registry::ImportFileSystem);
-			Engine->AddSystemAddon("os", { "fs", "array" }, Bindings::Registry::ImportOS);
+			Engine->AddSystemAddon("os", { "fs", "array", "dictionary" }, Bindings::Registry::ImportOS);
 			Engine->AddSystemAddon("vertices", { }, Bindings::Registry::ImportVertices);
 			Engine->AddSystemAddon("vectors", { }, Bindings::Registry::ImportVectors);
 			Engine->AddSystemAddon("shapes", { "vectors" }, Bindings::Registry::ImportShapes);

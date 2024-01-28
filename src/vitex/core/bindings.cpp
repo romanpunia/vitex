@@ -10098,7 +10098,7 @@ namespace Vitex
 			Core::String MDBCursorError(Network::MDB::Cursor& Base)
 			{
 				auto Error = Base.Error();
-				return Error ? Error->Info : Core::String();
+				return Error ? Error->message() : Core::String();
 			}
 			Core::Promise<bool> MDBCursorNext(Network::MDB::Cursor& Base)
 			{

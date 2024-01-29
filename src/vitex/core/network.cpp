@@ -2303,12 +2303,12 @@ namespace Vitex
 			shutdown(Fd, SD_SEND);
 
 			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)Fd, Error);
-			return TryCloseAsync(std::move(Callback), Core::Schedule::GetClock());
+			return TryCloseAsync(std::move(Callback), Core::Schedule::GetClock(), true);
 		}
-		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time)
+		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying)
 		{
 			Timeout = 10;
-			while (Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
+			while (KeepTrying && Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
 			{
 				char Buffer;
 				auto Status = Read(&Buffer, 1);
@@ -2322,7 +2322,7 @@ namespace Vitex
 					Multiplexer::Get()->WhenReadable(this, [this, Time, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsSkip(Event))
-							TryCloseAsync(std::move(Callback), Time);
+							TryCloseAsync(std::move(Callback), Time, Packet::IsDone(Event));
 						else
 							Callback(Core::Optional::None);
 					});

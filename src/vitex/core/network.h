@@ -519,7 +519,7 @@ namespace Vitex
 			bool IsSecure();
 
 		private:
-			Core::ExpectsIO<void> TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time);
+			Core::ExpectsIO<void> TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying);
 
 		public:
 			template <typename T>

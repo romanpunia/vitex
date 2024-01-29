@@ -474,8 +474,8 @@ namespace Vitex
 			Core::ExpectsIO<void> Accept(Socket* OutConnection, char* OutAddress);
 			Core::ExpectsIO<void> Accept(socket_t* OutFd, char* OutAddress);
 			Core::ExpectsIO<void> AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
-			Core::ExpectsIO<void> Close(bool Gracefully = true);
-			Core::ExpectsIO<void> CloseAsync(bool Gracefully, SocketStatusCallback&& Callback);
+			Core::ExpectsIO<void> Close();
+			Core::ExpectsIO<void> CloseAsync(SocketStatusCallback&& Callback);
 			Core::ExpectsIO<size_t> SendFile(FILE* Stream, size_t Offset, size_t Size);
 			Core::ExpectsIO<size_t> SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer = 0);
 			Core::ExpectsIO<size_t> Write(const char* Buffer, size_t Size);
@@ -519,7 +519,7 @@ namespace Vitex
 			bool IsSecure();
 
 		private:
-			Core::ExpectsIO<void> TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying);
+			Core::ExpectsIO<void> TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time);
 
 		public:
 			template <typename T>

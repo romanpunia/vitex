@@ -6987,13 +6987,13 @@ namespace Vitex
 					return Result;
 				}));
 			}
-			bool SocketCloseAsync(Network::Socket* Base, bool Graceful, asIScriptFunction* Callback)
+			bool SocketCloseAsync(Network::Socket* Base, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
 
-				return ExpectsWrapper::UnwrapVoid(Base->CloseAsync(Graceful, [Delegate](const Core::Option<std::error_condition>&) mutable
+				return ExpectsWrapper::UnwrapVoid(Base->CloseAsync([Delegate](const Core::Option<std::error_condition>&) mutable
 				{
 					bool Result = false;
 					Delegate(nullptr, [&Result](ImmediateContext* Context) mutable
@@ -12030,13 +12030,14 @@ namespace Vitex
 
 				auto VDifficulty = VM->SetEnum("difficulty");
 				VDifficulty->SetValue("async", (int)Core::Difficulty::Async);
-				VDifficulty->SetValue("normal", (int)Core::Difficulty::Normal);
+				VDifficulty->SetValue("sync", (int)Core::Difficulty::Sync);
 				VDifficulty->SetValue("timeout", (int)Core::Difficulty::Timeout);
 
 				auto VDesc = VM->SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
 				VDesc->SetProperty("usize preallocated_size", &Core::Schedule::Desc::PreallocatedSize);
 				VDesc->SetProperty("usize stack_size", &Core::Schedule::Desc::StackSize);
 				VDesc->SetProperty("usize max_coroutines", &Core::Schedule::Desc::MaxCoroutines);
+				VDesc->SetProperty("usize max_recycles", &Core::Schedule::Desc::MaxRecycles);
 				VDesc->SetProperty("bool parallel", &Core::Schedule::Desc::Parallel);
 				VDesc->SetConstructor<Core::Schedule::Desc>("void f()");
 				VDesc->SetConstructor<Core::Schedule::Desc, size_t>("void f(usize)");
@@ -15793,7 +15794,7 @@ namespace Vitex
 				VSocket->SetMethod("bool is_secure() const", &Network::Socket::IsSecure);
 				VSocket->SetMethodEx("bool accept_async(bool, socket_accepted_event@)", &SocketAcceptAsync);
 				VSocket->SetMethodEx("bool connect_async(socket_address@+, socket_status_event@)", &SocketConnectAsync);
-				VSocket->SetMethodEx("bool close_async(bool, socket_status_event@)", &SocketCloseAsync);
+				VSocket->SetMethodEx("bool close_async(socket_status_event@)", &SocketCloseAsync);
 				VSocket->SetMethodEx("usize send_file_async(uptr@, usize, usize, socket_written_event@)", &SocketSendFileAsync);
 				VSocket->SetMethodEx("usize write_async(const string &in, socket_written_event@)", &SocketWriteAsync);
 				VSocket->SetMethodEx("usize read_async(usize, socket_read_event@)", &SocketReadAsync);
@@ -15819,7 +15820,7 @@ namespace Vitex
 				VSocket->SetMethodEx("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetKeepAlive));
 				VSocket->SetMethodEx("bool set_timeout(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeout));
 				VSocket->SetMethodEx("bool connect(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
-				VSocket->SetMethodEx("bool close(bool = true)", &VI_EXPECTIFY_VOID(Network::Socket::Close));
+				VSocket->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
 				VSocket->SetMethodEx("bool open(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
 				VSocket->SetMethodEx("bool bind(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
 				VSocket->SetMethodEx("bool listen(int)", &VI_EXPECTIFY_VOID(Network::Socket::Listen));

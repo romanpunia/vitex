@@ -1661,7 +1661,7 @@ namespace Vitex
 		void Multiplexer::TryDispatch() noexcept
 		{
 			auto* Queue = Core::Schedule::Get();
-			Dispatch(Queue->GetThreads(Core::Difficulty::Normal) > 1 ? DefaultTimeout : 10);
+			Dispatch(Queue->GetThreads(Core::Difficulty::Sync) > 1 ? DefaultTimeout : 10);
 			TryEnqueue();
 		}
 		void Multiplexer::TryEnqueue() noexcept
@@ -2166,14 +2166,14 @@ namespace Vitex
 		}
 		Socket::~Socket() noexcept
 		{
-			Close(false);
+			Close();
 		}
 		Socket& Socket::operator= (Socket&& Other) noexcept
 		{
 			if (this == &Other)
 				return *this;
 
-			Close(false);
+			Close();
 			Device = Other.Device;
 			Fd = Other.Fd;
 			Timeout = Other.Timeout;
@@ -2232,7 +2232,7 @@ namespace Vitex
 
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> Socket::Close(bool Gracefully)
+		Core::ExpectsIO<void> Socket::Close()
 		{
 #ifdef VI_OPENSSL
 			if (Device != nullptr)
@@ -2244,38 +2244,44 @@ namespace Vitex
 #endif
 			if (Fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
-			else
-				ClearEvents(false);
+			
+			ClearEvents(false);
+			SetBlocking(false);
 
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-			VI_TRACE("[net] fd %i fetch errors: %i", (int)Fd, Error);
+			shutdown(Fd, SD_SEND);
 
-			if (Gracefully)
+			pollfd Handle;
+			Handle.fd = Fd;
+			Handle.events = POLLIN;
+
+			VI_MEASURE(Core::Timings::Networking);
+			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)Fd, Error);
+			auto Time = Core::Schedule::GetClock();
+			while (Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
 			{
-				VI_TRACE("[net] fd %i graceful shutdown", (int)Fd);
-				VI_MEASURE(Core::Timings::Networking);
-				int Timeout = 100;
-				SetBlocking(true);
-				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
-				shutdown(Fd, SD_SEND);
-
-				while (recv(Fd, (char*)&Error, 1, 0) > 0)
+				auto Status = Read((char*)&Error, 1);
+				if (Status)
+				{
 					VI_MEASURE_LOOP();
-			}
-			else
-			{
-				VI_TRACE("[net] fd %i shutdown", (int)Fd);
-				shutdown(Fd, SD_SEND);
+					continue;
+				}
+				else if (Status.Error() != std::errc::operation_would_block)
+					break;
+				
+				Handle.revents = 0;
+				Utils::Poll(&Handle, 1, 1);
 			}
 
+			ClearEvents(false);
 			closesocket(Fd);
 			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> Socket::CloseAsync(bool Gracefully, SocketStatusCallback&& Callback)
+		Core::ExpectsIO<void> Socket::CloseAsync(SocketStatusCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 #ifdef VI_OPENSSL
@@ -2287,37 +2293,23 @@ namespace Vitex
 			}
 #endif
 			if (Fd == INVALID_SOCKET)
-			{
-				auto Condition = std::make_error_condition(std::errc::bad_file_descriptor);
-				Callback(Condition);
-				return Condition;
-			}
-			else
-				ClearEvents(false);
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+
+			ClearEvents(false);
+			SetBlocking(false);
 
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
 			shutdown(Fd, SD_SEND);
-			VI_TRACE("[net] fd %i fetch errors: %i", (int)Fd, Error);
 
-			if (Gracefully)
-			{
-				VI_TRACE("[net] fd %i graceful shutdown", (int)Fd);
-				return TryCloseAsync(std::move(Callback), true);
-			}
-
-			closesocket(Fd);
-			VI_TRACE("[net] fd %i shutdown", (int)Fd);
-			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-
-			Callback(Core::Optional::None);
-			return Core::Expectation::Met;
+			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)Fd, Error);
+			return TryCloseAsync(std::move(Callback), Core::Schedule::GetClock());
 		}
-		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, bool KeepTrying)
+		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time)
 		{
-			while (KeepTrying)
+			Timeout = 10;
+			while (Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
 			{
 				char Buffer;
 				auto Status = Read(&Buffer, 1);
@@ -2326,15 +2318,24 @@ namespace Vitex
 				else if (Status.Error() != std::errc::operation_would_block)
 					break;
 
-				Timeout = 500;
-				Multiplexer::Get()->WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+				if (Core::Schedule::IsAvailable())
 				{
-					if (!Packet::IsSkip(Event))
-						TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
-					else
-						Callback(Core::Optional::None);
-				});
-				return Status.Error();
+					Multiplexer::Get()->WhenReadable(this, [this, Time, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsSkip(Event))
+							TryCloseAsync(std::move(Callback), Time);
+						else
+							Callback(Core::Optional::None);
+					});
+					return Status.Error();
+				}
+				else
+				{
+					pollfd Handle;
+					Handle.fd = Fd;
+					Handle.events = POLLIN;
+					Utils::Poll(&Handle, 1, 1);
+				}
 			}
 
 			ClearEvents(false);
@@ -3265,6 +3266,8 @@ namespace Vitex
 				{
 					Base->Info.Close = true;
 					Base->Info.KeepAlive = 0;
+					if (!Core::Schedule::Get()->IsActive())
+						Base->Stream->SetBlocking(true);
 					if (Base->Stream->IsPending())
 						Base->Stream->ClearEvents(true);
 				}
@@ -3344,7 +3347,7 @@ namespace Vitex
 		}
 		Core::ExpectsIO<void> SocketServer::Refuse(SocketConnection* Base)
 		{
-			return Base->Stream->CloseAsync(false, [this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
+			return Base->Stream->CloseAsync([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 		}
 		Core::ExpectsIO<void> SocketServer::Accept(SocketListener* Host, socket_t Fd, const Core::String& Address)
 		{
@@ -3486,7 +3489,7 @@ namespace Vitex
 			if (Base->Info.Close || Base->Info.KeepAlive <= -1)
 			{
 				Base->Info.KeepAlive = -2;
-				return Base->Stream->CloseAsync(true, [this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
+				return Base->Stream->CloseAsync([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 			}
 			else if (Base->Stream->IsValid())
 				OnRequestOpen(Base);
@@ -3859,7 +3862,7 @@ namespace Vitex
 		{
 			if (!Status && HasStream())
 			{
-				Net.Stream->CloseAsync(true, [this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
+				Net.Stream->CloseAsync([this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
 				{
 					SocketClientCallback Callback(std::move(State.Done));
 					if (Callback)

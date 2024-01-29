@@ -58,8 +58,7 @@ namespace Vitex
 			INVALID_TASK_ID = (TaskId)0,
 			STACK_SIZE = (size_t)(512 * 1024),
 			CHUNK_SIZE = (size_t)2048,
-			BLOB_SIZE = (size_t)8192,
-			EVENTS_SIZE = (size_t)32
+			BLOB_SIZE = (size_t)8192
 		};
 
 		enum class Timings : uint64_t
@@ -162,7 +161,7 @@ namespace Vitex
 		enum class Difficulty
 		{
 			Async,
-			Normal,
+			Sync,
 			Timeout,
 			Count
 		};
@@ -3167,6 +3166,7 @@ namespace Vitex
 			bool Suspend();
 			bool HasResumableCoroutines() const;
 			bool HasAliveCoroutines() const;
+			bool HasCoroutines() const;
 			Coroutine* GetCurrent() const;
 			size_t GetCount() const;
 
@@ -3288,8 +3288,9 @@ namespace Vitex
 				Despawn
 			};
 
-			struct VI_OUT ThreadPtr
+			struct VI_OUT ThreadData
 			{
+				SingleQueue<TaskCallback> Queue;
 				std::condition_variable Notify;
 				std::mutex Update;
 				std::thread Handle;
@@ -3300,22 +3301,22 @@ namespace Vitex
 				size_t LocalIndex;
 				bool Daemon;
 
-				ThreadPtr(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon)
+				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon)
 				{
 				}
-				~ThreadPtr() = default;
+				~ThreadData() = default;
 			};
 
 			struct VI_OUT ThreadMessage
 			{
-				const ThreadPtr* Thread;
+				const ThreadData* Thread;
 				ThreadTask State;
 				size_t Tasks;
 
 				ThreadMessage() : Thread(nullptr), State(ThreadTask::Sleep), Tasks(0)
 				{
 				}
-				ThreadMessage(const ThreadPtr* NewThread, ThreadTask NewState, size_t NewTasks) : Thread(NewThread), State(NewState), Tasks(NewTasks)
+				ThreadMessage(const ThreadData* NewThread, ThreadTask NewState, size_t NewTasks) : Thread(NewThread), State(NewState), Tasks(NewTasks)
 				{
 				}
 			};
@@ -3326,6 +3327,7 @@ namespace Vitex
 				size_t PreallocatedSize;
 				size_t StackSize;
 				size_t MaxCoroutines;
+				size_t MaxRecycles;
 				std::chrono::milliseconds IdleTimeout;
 				std::chrono::milliseconds ClockTimeout;
 				SpawnerCallback Initialize;
@@ -3342,13 +3344,12 @@ namespace Vitex
 		private:
 			struct
 			{
-				Vector<TaskCallback> Events;
-				TaskCallback Tasks[EVENTS_SIZE];
+				TaskCallback Event;
 				Costate* State = nullptr;
 			} Dispatcher;
 
 		private:
-			Vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
+			Vector<ThreadData*> Threads[(size_t)Difficulty::Count];
 			ConcurrentTimerQueue* Timers = nullptr;
 			ConcurrentAsyncQueue* Async = nullptr;
 			ConcurrentTaskQueue* Tasks = nullptr;
@@ -3393,19 +3394,21 @@ namespace Vitex
 			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;
 			size_t GetThreads(Difficulty Type) const;
-			const ThreadPtr* GetThread() const;
+			const ThreadData* GetThread() const;
 			const Desc& GetPolicy() const;
 
 		private:
-			const ThreadPtr* InitializeThread(ThreadPtr* Source, bool Update) const;
+			const ThreadData* InitializeThread(ThreadData* Source, bool Update) const;
 			void InitializeSpawnTrigger();
+			bool FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback);
+			bool FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback);
 			bool PostDebug(ThreadTask State, size_t Tasks);
-			bool TriggerThread(Difficulty Type, ThreadPtr* Thread);
-			bool SleepThread(Difficulty Type, ThreadPtr* Thread);
-			bool ThreadActive(ThreadPtr* Thread);
+			bool TriggerThread(Difficulty Type, ThreadData* Thread);
+			bool SleepThread(Difficulty Type, ThreadData* Thread);
+			bool ThreadActive(ThreadData* Thread);
 			bool ChunkCleanup();
 			bool PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon);
-			bool PopThread(ThreadPtr* Thread);
+			bool PopThread(ThreadData* Thread);
 			std::chrono::microseconds GetTimeout(std::chrono::microseconds Clock);
 			TaskId GetTaskId();
 
@@ -3418,10 +3421,10 @@ namespace Vitex
 		class UAlloc<Schedule>
 		{
 		private:
-			Schedule::ThreadPtr* Thread;
+			Schedule::ThreadData* Thread;
 
 		public:
-			UAlloc() noexcept : Thread((Schedule::ThreadPtr*)Schedule::Get()->GetThread())
+			UAlloc() noexcept : Thread((Schedule::ThreadData*)Schedule::Get()->GetThread())
 			{
 				VI_PANIC(!Thread, "this thread is not a scheduler thread");
 				Memory::SetLocalAllocator(&Thread->Allocator);

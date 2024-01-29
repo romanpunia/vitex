@@ -10289,6 +10289,10 @@ namespace Vitex
 
 			return false;
 		}
+		bool Costate::HasCoroutines() const
+		{
+			return !Used.empty();
+		}
 		size_t Costate::GetCount() const
 		{
 			return Used.size();
@@ -10356,7 +10360,7 @@ namespace Vitex
 		Schedule::Desc::Desc() : Desc(std::max<uint32_t>(2, OS::CPU::GetQuantityInfo().Logical) - 1)
 		{
 		}
-		Schedule::Desc::Desc(size_t Cores) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), IdleTimeout(std::chrono::milliseconds(2000)), ClockTimeout(std::chrono::milliseconds((uint64_t)Timings::Intensive)), Parallel(true)
+		Schedule::Desc::Desc(size_t Cores) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), MaxRecycles(4), IdleTimeout(std::chrono::milliseconds(2000)), ClockTimeout(std::chrono::milliseconds((uint64_t)Timings::Intensive)), Parallel(true)
 		{
 			if (!Cores)
 				Cores = 1;
@@ -10368,7 +10372,7 @@ namespace Vitex
 			size_t Timeout = 1;
 			size_t Normal = std::max<size_t>(std::min<size_t>(Cores - Async - Timeout, Cores), 1);
 			Threads[((size_t)Difficulty::Async)] = Async;
-			Threads[((size_t)Difficulty::Normal)] = Normal;
+			Threads[((size_t)Difficulty::Sync)] = Normal;
 			Threads[((size_t)Difficulty::Timeout)] = Timeout;
 			MaxCoroutines = std::min<size_t>(Cores * 8, 256);
 		}
@@ -10398,7 +10402,7 @@ namespace Vitex
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue || Immediate)
+			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTimer, 1);
@@ -10408,7 +10412,7 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Lock(Timers->Update);
+			UMutex<std::mutex> Unique(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
 			Timers->Resync = true;
 			Timers->Notify.notify_all();
@@ -10417,7 +10421,7 @@ namespace Vitex
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue || Immediate)
+			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTimer, 1);
@@ -10427,7 +10431,7 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Lock(Timers->Update);
+			UMutex<std::mutex> Unique(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
 			Timers->Resync = true;
 			Timers->Notify.notify_all();
@@ -10436,7 +10440,7 @@ namespace Vitex
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue || Immediate)
+			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTimer, 1);
@@ -10446,7 +10450,7 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Lock(Timers->Update);
+			UMutex<std::mutex> Unique(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
 			Timers->Resync = true;
 			Timers->Notify.notify_all();
@@ -10455,7 +10459,7 @@ namespace Vitex
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue || Immediate)
+			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueTimer, 1);
@@ -10465,7 +10469,7 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Lock(Timers->Update);
+			UMutex<std::mutex> Unique(Timers->Update);
 			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
 			Timers->Resync = true;
 			Timers->Notify.notify_all();
@@ -10476,7 +10480,7 @@ namespace Vitex
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-
+			
 			if (Immediate)
 			{
 				Callback();
@@ -10486,7 +10490,8 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			Tasks->Queue.enqueue(Callback);
+			if (!FastBypassEnqueue(Difficulty::Sync, Callback))
+				Tasks->Queue.enqueue(Callback);
 			return true;
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback)
@@ -10494,7 +10499,7 @@ namespace Vitex
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-
+			
 			if (Immediate)
 			{
 				Callback();
@@ -10504,7 +10509,8 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			Tasks->Queue.enqueue(std::move(Callback));
+			if (!FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
+				Tasks->Queue.enqueue(std::move(Callback));
 			return true;
 		}
 		bool Schedule::SetCoroutine(const TaskCallback& Callback)
@@ -10512,19 +10518,18 @@ namespace Vitex
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-
-			if (Immediate)
-			{
-				Callback();
-				return true;
-			}
-
+#ifndef NDEBUG
+			PostDebug(ThreadTask::EnqueueCoroutine, 1);
+#endif
 			VI_MEASURE(Timings::Atomic);
-			Async->Queue.enqueue(Callback);
+			if (FastBypassEnqueue(Difficulty::Async, Callback))
+				return true;
 
-			UMutex<std::mutex> Lock(Async->Update);
+			Async->Queue.enqueue(Callback);
+			UMutex<std::mutex> Unique(Async->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Async])
 				Thread->Notify.notify_all();
+
 			return true;
 		}
 		bool Schedule::SetCoroutine(TaskCallback&& Callback)
@@ -10532,21 +10537,18 @@ namespace Vitex
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-
-			if (Immediate)
-			{
-				Callback();
-				return true;
-			}
 #ifndef NDEBUG
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			Async->Queue.enqueue(std::move(Callback));
+			if (FastBypassEnqueue(Difficulty::Async, Callback))
+				return true;
 
-			UMutex<std::mutex> Lock(Async->Update);
+			Async->Queue.enqueue(std::move(Callback));
+			UMutex<std::mutex> Unique(Async->Update);
 			for (auto* Thread : Threads[(size_t)Difficulty::Async])
 				Thread->Notify.notify_all();
+
 			return true;
 		}
 		bool Schedule::SetDebugCallback(const ThreadDebugCallback& Callback)
@@ -10572,7 +10574,7 @@ namespace Vitex
 			if (Target == INVALID_TASK_ID)
 				return false;
 
-			UMutex<std::mutex> Lock(Timers->Update);
+			UMutex<std::mutex> Unique(Timers->Update);
 			for (auto It = Timers->Queue.begin(); It != Timers->Queue.end(); ++It)
 			{
 				if (It->second.Id == Target)
@@ -10588,7 +10590,7 @@ namespace Vitex
 		bool Schedule::TriggerTimers()
 		{
 			VI_MEASURE(Timings::Pass);
-			UMutex<std::mutex> Lock(Timers->Update);
+			UMutex<std::mutex> Unique(Timers->Update);
 			for (auto& Item : Timers->Queue)
 				SetTask(std::move(Item.second.Callback));
 
@@ -10599,14 +10601,14 @@ namespace Vitex
 		}
 		bool Schedule::Trigger(Difficulty Type)
 		{
+			VI_MEASURE(Timings::Intensive);
 			switch (Type)
 			{
 				case Difficulty::Timeout:
 				{
 					if (Timers->Queue.empty())
 						return false;
-
-					if (Suspended)
+					else if (Suspended)
 						return true;
 
 					auto Clock = GetClock();
@@ -10624,7 +10626,7 @@ namespace Vitex
 						SetTask([this, Next = std::move(Next)]() mutable
 						{
 							Next.Callback();
-							UMutex<std::mutex> Lock(Timers->Update);
+							UMutex<std::mutex> Unique(Timers->Update);
 							Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
 							Timers->Resync = true;
 							Timers->Notify.notify_all();
@@ -10642,62 +10644,49 @@ namespace Vitex
 				}
 				case Difficulty::Async:
 				{
-					Dispatcher.Events.resize(Policy.MaxCoroutines);
 					if (!Dispatcher.State)
 						Dispatcher.State = new Costate(Policy.StackSize);
 
-					size_t Pending = Dispatcher.State->GetCount();
-					size_t Left = Policy.MaxCoroutines - Pending;
-					size_t Count = Left, Passes = Pending;
-
 					if (Suspended)
-						return Pending > 0;
+						return Dispatcher.State->HasCoroutines();
 
-					while (Left > 0 && Count > 0)
+					size_t Active = Dispatcher.State->GetCount();
+					size_t Cache = Policy.MaxCoroutines - Active, Executions = Active;
+					while (Cache > 0 && Async->Queue.try_dequeue(Dispatcher.Event))
 					{
-						Count = Async->Queue.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
-						Left -= Count;
-						Passes += Count;
+						--Cache; ++Executions;
+						Dispatcher.State->Pop(std::move(Dispatcher.Event));
 #ifndef NDEBUG
-						PostDebug(ThreadTask::ConsumeCoroutine, Count);
+						PostDebug(ThreadTask::ConsumeCoroutine, 1);
 #endif
-						for (size_t i = 0; i < Count; ++i)
-						{
-							TaskCallback& Data = Dispatcher.Events[i];
-							if (Data != nullptr)
-								Dispatcher.State->Pop(std::move(Data));
-						}
 					}
 #ifndef NDEBUG
 					PostDebug(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
 #endif
-					while (Dispatcher.State->Dispatch())
-						++Passes;
-#ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
-#endif
-					return Passes > 0;
-				}
-				case Difficulty::Normal:
-				{
-					if (Suspended)
-						return Tasks->Queue.size_approx() > 0;
-
-					size_t Count = Tasks->Queue.try_dequeue_bulk(Dispatcher.Tasks, EVENTS_SIZE);
-#ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessTask, Count);
-#endif
-					for (size_t i = 0; i < Count; ++i)
 					{
-						VI_MEASURE(Timings::Intensive);
-						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
-						if (Data != nullptr)
-							Data();
+						VI_MEASURE(Timings::Frame);
+						while (Dispatcher.State->Dispatch())
+							++Executions;
 					}
 #ifndef NDEBUG
 					PostDebug(ThreadTask::Awake, 0);
 #endif
-					return Count > 0;
+					return Executions > 0;
+				}
+				case Difficulty::Sync:
+				{
+					if (Suspended)
+						return Tasks->Queue.size_approx() > 0;
+					else if (!Tasks->Queue.try_dequeue(Dispatcher.Event))
+						return false;
+#ifndef NDEBUG
+					PostDebug(ThreadTask::ProcessTask, 1);
+#endif
+					Dispatcher.Event();
+#ifndef NDEBUG
+					PostDebug(ThreadTask::Awake, 0);
+#endif
+					return true;
 				}
 				default:
 					break;
@@ -10726,8 +10715,8 @@ namespace Vitex
 			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Async]; j++)
 				PushThread(Difficulty::Async, Index++, j, false);
 
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Normal]; j++)
-				PushThread(Difficulty::Normal, Index++, j, false);
+			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Sync]; j++)
+				PushThread(Difficulty::Sync, Index++, j, false);
 
 			InitializeSpawnTrigger();
 			if (Policy.Threads[(size_t)Difficulty::Timeout] > 0)
@@ -10770,15 +10759,16 @@ namespace Vitex
 		bool Schedule::Wakeup()
 		{
 			VI_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			TaskCallback Dummy[EVENTS_SIZE * 2] = { nullptr };
+			TaskCallback Dummy[2] = { []() { }, []() { } };
+			size_t DummySize = sizeof(Dummy) / sizeof(TaskCallback);
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				for (auto* Thread : Threads[i])
 				{
 					if (Thread->Type == Difficulty::Async)
-						Async->Queue.enqueue_bulk(Dummy, EVENTS_SIZE);
-					else if (Thread->Type == Difficulty::Normal || Thread->Type == Difficulty::Timeout)
-						Tasks->Queue.enqueue_bulk(Dummy, EVENTS_SIZE);
+						Async->Queue.enqueue_bulk(Dummy, DummySize);
+					else if (Thread->Type == Difficulty::Sync || Thread->Type == Difficulty::Timeout)
+						Tasks->Queue.enqueue_bulk(Dummy, DummySize);
 					Thread->Notify.notify_all();
 				}
 
@@ -10806,7 +10796,7 @@ namespace Vitex
 
 			return Passes > 0;
 		}
-		bool Schedule::TriggerThread(Difficulty Type, ThreadPtr* Thread)
+		bool Schedule::TriggerThread(Difficulty Type, ThreadData* Thread)
 		{
 			String ThreadId = OS::Process::GetThreadId(Thread->Id);
 			InitializeThread(Thread, true);
@@ -10817,20 +10807,19 @@ namespace Vitex
 			{
 				case Difficulty::Timeout:
 				{
+					TaskCallback Event;
+					ReceiveToken Token(Tasks->Queue);
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (timers)", ThreadId.c_str());
 					else
 						VI_DEBUG("[schedule] spawn thread %s (timers)", ThreadId.c_str());
-
-					ReceiveToken Token(Tasks->Queue);
-					TaskCallback Events[EVENTS_SIZE];
 
 					do
 					{
 						if (SleepThread(Type, Thread))
 							continue;
 
-						std::unique_lock<std::mutex> Lock(Timers->Update);
+						std::unique_lock<std::mutex> Unique(Timers->Update);
 					Retry:
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
@@ -10853,7 +10842,7 @@ namespace Vitex
 									SetTask([this, Next = std::move(Next)]() mutable
 									{
 										Next.Callback();
-										UMutex<std::mutex> Lock(Timers->Update);
+										UMutex<std::mutex> Unique(Timers->Update);
 										Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
 										Timers->Resync = true;
 										Timers->Notify.notify_all();
@@ -10879,42 +10868,33 @@ namespace Vitex
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						Timers->Notify.wait_for(Lock, When, [this, Thread]()
-						{
-							return !ThreadActive(Thread) || Timers->Resync || Tasks->Queue.size_approx() > 0;
-						});
+						Timers->Notify.wait_for(Unique, When, [this, Thread]() { return !ThreadActive(Thread) || Timers->Resync || Tasks->Queue.size_approx() > 0; });
 						Timers->Resync = false;
-						Lock.unlock();
+						Unique.unlock();
 	
-						size_t Count = Tasks->Queue.try_dequeue_bulk(Token, Events, EVENTS_SIZE);
+						if (!Tasks->Queue.try_dequeue(Token, Event))
+							continue;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
-						PostDebug(ThreadTask::ProcessTask, Count);
+						PostDebug(ThreadTask::ProcessTask, 1);
 #endif
-						while (Count--)
-						{
-							VI_MEASURE(Timings::Intensive);
-							TaskCallback Data(std::move(Events[Count]));
-							if (Data)
-								Data();
-						}
+						VI_MEASURE(Timings::Intensive);
+						Event();
 					} while (ThreadActive(Thread));
 					break;
 				}
 				case Difficulty::Async:
 				{
+					TaskCallback Event;
+					ReceiveToken Token(Async->Queue);
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (coroutines)", ThreadId.c_str());
 					else
 						VI_DEBUG("[schedule] spawn thread %s (coroutines)", ThreadId.c_str());
 
-					ReceiveToken Token(Async->Queue);
 					Costate* State = new Costate(Policy.StackSize);
 					State->ExternalCondition = &Thread->Notify;
 					State->ExternalMutex = &Thread->Update;
-
-					Vector<TaskCallback> Events;
-					Events.resize(Policy.MaxCoroutines);
 
 					do
 					{
@@ -10923,22 +10903,22 @@ namespace Vitex
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 #endif
-						size_t Left = Policy.MaxCoroutines - State->GetCount();
-						while (Left > 0)
+						size_t Cache = Policy.MaxCoroutines - State->GetCount();
+						while (Cache > 0)
 						{
-							size_t Count = Async->Queue.try_dequeue_bulk(Token, Events.begin(), Left);
-							if (!Count)
-								break;
-#ifndef NDEBUG
-							PostDebug(ThreadTask::EnqueueCoroutine, Count);
-#endif
-							Left -= Count;
-							while (Count--)
+							if (!Thread->Queue.empty())
 							{
-								TaskCallback& Data = Events[Count];
-								if (Data)
-									State->Pop(std::move(Data));
+								Event = std::move(Thread->Queue.front());
+								Thread->Queue.pop();
 							}
+							else if (!Async->Queue.try_dequeue(Token, Event))
+								break;
+
+							--Cache;
+							State->Pop(std::move(Event));
+#ifndef NDEBUG
+							PostDebug(ThreadTask::EnqueueCoroutine, 1);
+#endif
 						}
 #ifndef NDEBUG
 						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
@@ -10950,8 +10930,8 @@ namespace Vitex
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						std::unique_lock<std::mutex> Lock(Thread->Update);
-						Thread->Notify.wait_for(Lock, Policy.IdleTimeout, [this, State, Thread]()
+						std::unique_lock<std::mutex> Unique(Thread->Update);
+						Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, State, Thread]()
 						{
 							return !ThreadActive(Thread) || State->HasResumableCoroutines() || Async->Resync.load() || (Async->Queue.size_approx() > 0 && State->GetCount() + 1 < Policy.MaxCoroutines);
 						});
@@ -10961,15 +10941,14 @@ namespace Vitex
 					VI_RELEASE(State);
 					break;
 				}
-				case Difficulty::Normal:
+				case Difficulty::Sync:
 				{
+					TaskCallback Event;
+					ReceiveToken Token(Tasks->Queue);
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (tasks)", ThreadId.c_str());
 					else
 						VI_DEBUG("[schedule] spawn thread %s (tasks)", ThreadId.c_str());
-
-					ReceiveToken Token(Tasks->Queue);
-					TaskCallback Events[EVENTS_SIZE];
 
 					do
 					{
@@ -10978,18 +10957,19 @@ namespace Vitex
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						size_t Count = Tasks->Queue.wait_dequeue_bulk_timed(Token, Events, EVENTS_SIZE, Policy.IdleTimeout);
+						if (!Thread->Queue.empty())
+						{
+							Event = std::move(Thread->Queue.front());
+							Thread->Queue.pop();
+						}
+						else if (!Tasks->Queue.wait_dequeue_timed(Token, Event, Policy.IdleTimeout))
+							continue;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
-						PostDebug(ThreadTask::ProcessTask, Count);
+						PostDebug(ThreadTask::ProcessTask, 1);
 #endif
-						while (Count--)
-						{
-							VI_MEASURE(Timings::Intensive);
-							TaskCallback Data(std::move(Events[Count]));
-							if (Data)
-								Data();
-						}
+						VI_MEASURE(Timings::Intensive);
+						Event();
 					} while (ThreadActive(Thread));
 					break;
 				}
@@ -11007,7 +10987,7 @@ namespace Vitex
 			InitializeThread(nullptr, true);
 			return true;
 		}
-		bool Schedule::SleepThread(Difficulty Type, ThreadPtr* Thread)
+		bool Schedule::SleepThread(Difficulty Type, ThreadData* Thread)
 		{
 			if (!Suspended)
 				return false;
@@ -11015,8 +10995,8 @@ namespace Vitex
 #ifndef NDEBUG
 			PostDebug(ThreadTask::Sleep, 0);
 #endif
-			std::unique_lock<std::mutex> Lock(Thread->Update);
-			Thread->Notify.wait_for(Lock, Policy.IdleTimeout, [this, Thread]()
+			std::unique_lock<std::mutex> Unique(Thread->Update);
+			Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, Thread]()
 			{
 				return !ThreadActive(Thread) || !Suspended;
 			});
@@ -11025,7 +11005,7 @@ namespace Vitex
 #endif
 			return true;
 		}
-		bool Schedule::ThreadActive(ThreadPtr* Thread)
+		bool Schedule::ThreadActive(ThreadData* Thread)
 		{
 			if (Thread->Daemon)
 				return Active && (Policy.Ping ? Policy.Ping() : true);
@@ -11037,7 +11017,7 @@ namespace Vitex
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				for (auto* Thread : Threads[i])
-					VI_DELETE(ThreadPtr, Thread);
+					VI_DELETE(ThreadData, Thread);
 				Threads[i].clear();
 			}
 
@@ -11045,7 +11025,7 @@ namespace Vitex
 		}
 		bool Schedule::PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon)
 		{
-			ThreadPtr* Thread = VI_NEW(ThreadPtr, Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
+			ThreadData* Thread = VI_NEW(ThreadData, Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
 			if (!Thread->Daemon)
 			{
 				Thread->Handle = std::thread(&Schedule::TriggerThread, this, Type, Thread);
@@ -11059,7 +11039,7 @@ namespace Vitex
 			Threads[(size_t)Type].emplace_back(Thread);
 			return Thread->Daemon ? TriggerThread(Type, Thread) : Thread->Handle.joinable();
 		}
-		bool Schedule::PopThread(ThreadPtr* Thread)
+		bool Schedule::PopThread(ThreadData* Thread)
 		{
 			if (Thread->Daemon)
 				return true;
@@ -11089,7 +11069,7 @@ namespace Vitex
 			{
 				case Difficulty::Async:
 					return Async->Queue.size_approx() > 0;
-				case Difficulty::Normal:
+				case Difficulty::Sync:
 					return Tasks->Queue.size_approx() > 0;
 				case Difficulty::Timeout:
 					return Timers->Queue.size() > 0;
@@ -11099,7 +11079,7 @@ namespace Vitex
 		}
 		bool Schedule::HasAnyTasks() const
 		{
-			return HasTasks(Difficulty::Normal) || HasTasks(Difficulty::Async) || HasTasks(Difficulty::Timeout);
+			return HasTasks(Difficulty::Sync) || HasTasks(Difficulty::Async) || HasTasks(Difficulty::Timeout);
 		}
 		bool Schedule::IsSuspended() const
 		{
@@ -11120,6 +11100,24 @@ namespace Vitex
 				return false;
 
 			Debug(ThreadMessage(GetThread(), State, Tasks));
+			return true;
+		}
+		bool Schedule::FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback)
+		{
+			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
+			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
+				return false;
+
+			Thread->Queue.push(Callback);
+			return true;
+		}
+		bool Schedule::FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback)
+		{
+			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
+			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
+				return false;
+
+			Thread->Queue.push(std::move(Callback));
 			return true;
 		}
 		size_t Schedule::GetThreadGlobalIndex()
@@ -11162,14 +11160,14 @@ namespace Vitex
 			});
 			Ready.wait(Unique, [&IsPending]() { return !IsPending; });
 		}
-		const Schedule::ThreadPtr* Schedule::InitializeThread(ThreadPtr* Source, bool Update) const
+		const Schedule::ThreadData* Schedule::InitializeThread(ThreadData* Source, bool Update) const
 		{
-			static thread_local ThreadPtr* InternalThread = nullptr;
+			static thread_local ThreadData* InternalThread = nullptr;
 			if (Update)
 				InternalThread = Source;
 			return InternalThread;
 		}
-		const Schedule::ThreadPtr* Schedule::GetThread() const
+		const Schedule::ThreadData* Schedule::GetThread() const
 		{
 			return InitializeThread(nullptr, false);
 		}

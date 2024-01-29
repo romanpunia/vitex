@@ -1658,7 +1658,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			auto* Queue = Core::Schedule::Get();
-			if (Queue->GetThreads(Core::Difficulty::Normal) > 0)
+			if (Queue->GetThreads(Core::Difficulty::Sync) > 0)
 			{
 				Core::Promise<void> Future;
 				if (Queue->SetTask([Future, Callback]() mutable
@@ -1698,7 +1698,7 @@ namespace Vitex
 		}
 		size_t Parallel::GetThreads()
 		{
-			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Normal);
+			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Sync);
 		}
 
 		void PoseBuffer::Fill(SkinModel* Model)

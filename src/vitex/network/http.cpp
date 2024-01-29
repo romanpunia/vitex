@@ -1495,6 +1495,7 @@ namespace Vitex
 			{
 				VI_CLEAR(Parsers.Request);
 				VI_CLEAR(Parsers.Multipart);
+				VI_CLEAR(WebSocket);
 			}
 			void Connection::Reset(bool Fully)
 			{
@@ -6350,7 +6351,7 @@ namespace Vitex
 				{
 					if (!Successful)
 					{
-						Net.Stream->Close(false);
+						Net.Stream->Close();
 						Future.Set(Core::SystemException("ws connection abort error", std::make_error_condition(std::errc::connection_reset)));
 					}
 					else

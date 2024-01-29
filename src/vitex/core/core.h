@@ -2545,8 +2545,8 @@ namespace Vitex
 		class Reference
 		{
 		private:
-			std::atomic<uint16_t> __vcnt = 1;
-			std::atomic<uint16_t> __vmrk = 0;
+			std::atomic<uint32_t> __vcnt = 1;
+			std::atomic<uint32_t> __vmrk = 0;
 
 		public:
 			void operator delete(void* Ptr) noexcept
@@ -2564,11 +2564,11 @@ namespace Vitex
 			}
 			bool IsMarkedRef() const noexcept
 			{
-				return __vmrk.load();
+				return __vmrk.load() > 0;
 			}
 			uint32_t GetRefCount() const noexcept
 			{
-				return (uint32_t)__vcnt.load();
+				return __vcnt.load();
 			}
 			void MarkRef() noexcept
 			{
@@ -2576,7 +2576,7 @@ namespace Vitex
 			}
 			void AddRef() noexcept
 			{
-				VI_ASSERT(__vcnt < std::numeric_limits<uint16_t>::max(), "too many references to an object at address 0x%" PRIXPTR " as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				VI_ASSERT(__vcnt < std::numeric_limits<uint32_t>::max(), "too many references to an object at address 0x%" PRIXPTR " as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				++__vcnt;
 			}
 			void Release() noexcept

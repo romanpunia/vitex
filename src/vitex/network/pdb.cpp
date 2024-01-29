@@ -2058,7 +2058,7 @@ namespace Vitex
 					if (Target != nullptr)
 						PQlogNoticeOf(Target->Base);
 
-					Core::Schedule::Get()->SetTask([this, Target]() { Reestablish(Target); });
+					Core::Codefer([this, Target]() { Reestablish(Target); }, false);
 					return false;
 				}
 
@@ -2174,7 +2174,7 @@ namespace Vitex
 				if (!Connected)
 				{
 					Source->State = QueryState::Lost;
-					return Core::Schedule::Get()->SetTask([this, Source]() { Reestablish(Source); }) != Core::INVALID_TASK_ID;
+					return Core::Codefer([this, Source]() { Reestablish(Source); }, false) != Core::INVALID_TASK_ID;
 				}
 
 			Retry:
@@ -2200,7 +2200,7 @@ namespace Vitex
 								for (auto& Item : It->second)
 								{
 									OnNotification Callback = Item.second;
-									Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]() { Callback(Event); });
+									Core::Codefer([Event, Callback = std::move(Callback)]() { Callback(Event); }, false);
 								}
 							}
 							VI_DEBUG("[pq] notification on channel @%s: %s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");

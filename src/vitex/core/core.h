@@ -3299,9 +3299,10 @@ namespace Vitex
 				Difficulty Type;
 				size_t GlobalIndex;
 				size_t LocalIndex;
+				bool Recyclable;
 				bool Daemon;
 
-				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon)
+				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon), Recyclable(true)
 				{
 				}
 				~ThreadData() = default;
@@ -3370,10 +3371,10 @@ namespace Vitex
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
 			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
 			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
-			bool SetTask(const TaskCallback& Callback);
-			bool SetTask(TaskCallback&& Callback);
-			bool SetCoroutine(const TaskCallback& Callback);
-			bool SetCoroutine(TaskCallback&& Callback);
+			bool SetTask(const TaskCallback& Callback, bool OnlyMainQueue = false);
+			bool SetTask(TaskCallback&& Callback, bool OnlyMainQueue = false);
+			bool SetCoroutine(const TaskCallback& Callback, bool OnlyMainQueue = false);
+			bool SetCoroutine(TaskCallback&& Callback, bool OnlyMainQueue = false);
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
 			bool SetImmediate(bool Enabled);
 			bool ClearTimeout(TaskId WorkId);
@@ -3390,10 +3391,12 @@ namespace Vitex
 			bool IsSuspended() const;
 			void Suspend();
 			void Resume();
+			void SetThreadRecycling(bool Enabled);
 			size_t GetThreadGlobalIndex();
 			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;
 			size_t GetThreads(Difficulty Type) const;
+			bool IsThreadRecyclable() const;
 			const ThreadData* GetThread() const;
 			const Desc& GetPolicy() const;
 
@@ -3685,7 +3688,7 @@ namespace Vitex
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
 				if (Async && Schedule::IsAvailable())
-					Schedule::Get()->SetTask(std::move(Callback));
+					Schedule::Get()->SetTask(std::move(Callback), false);
 				else
 					Callback();
 			}
@@ -4552,7 +4555,7 @@ namespace Vitex
 						if (Status->Output.IsPending())
 							Status->Output.Set();
 					});
-				});
+				}, false);
 				return true;
 			}
 		};
@@ -4580,10 +4583,41 @@ namespace Vitex
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 			{
+				auto* Queue = Schedule::Get();
+				Queue->SetThreadRecycling(false);
 				Result.Set(std::move(Callback()));
-			});
-
+				Queue->SetThreadRecycling(true);
+			}, true);
 			return Result;
+		}
+		template <>
+		inline Promise<void> Cotask(std::function<void()>&& Callback) noexcept
+		{
+			VI_ASSERT(Callback, "callback should not be empty");
+
+			Promise<void> Result;
+			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
+			{
+				auto* Queue = Schedule::Get();
+				Queue->SetThreadRecycling(false);
+				Callback();
+				Result.Set();
+				Queue->SetThreadRecycling(true);
+			}, true);
+			return Result;
+		}
+		inline TaskId Codefer(TaskCallback&& Callback, bool IsHeavy) noexcept
+		{
+			if (!IsHeavy)
+				return Schedule::Get()->SetTask(std::move(Callback));
+
+			return Schedule::Get()->SetTask([Callback = std::move(Callback)]() mutable
+			{
+				auto* Queue = Schedule::Get();
+				Queue->SetThreadRecycling(false);
+				Callback();
+				Queue->SetThreadRecycling(true);
+			}, true);
 		}
 #ifdef VI_CXX20
 		template <typename T, typename Executor = ParallelExecutor>
@@ -4608,7 +4642,7 @@ namespace Vitex
 				return (*Callable)().template Then<T>(Finalize);
 
 			Promise<T> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); });
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, false);
 			return Value.template Then<T>(Finalize);
 		}
 		template <>
@@ -4621,7 +4655,7 @@ namespace Vitex
 				return (*Callable)().Then(Finalize);
 
 			Promise<void> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); });
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, false);
 			return Value.Then(Finalize);
 		}
 #else

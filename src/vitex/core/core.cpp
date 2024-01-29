@@ -1634,7 +1634,7 @@ namespace Vitex
 		void ErrorHandling::Enqueue(Details&& Data) noexcept
 		{
 			if (HasFlag(LogOption::Async) && Schedule::IsAvailable())
-				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable { Dispatch(Data); });
+				Codefer([Data = std::move(Data)]() mutable { Dispatch(Data); }, false);
 			else
 				Dispatch(Data);
 		}
@@ -10475,7 +10475,7 @@ namespace Vitex
 			Timers->Notify.notify_all();
 			return Id;
 		}
-		bool Schedule::SetTask(const TaskCallback& Callback)
+		bool Schedule::SetTask(const TaskCallback& Callback, bool OnlyMainQueue)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -10490,11 +10490,11 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (!FastBypassEnqueue(Difficulty::Sync, Callback))
+			if (OnlyMainQueue || !FastBypassEnqueue(Difficulty::Sync, Callback))
 				Tasks->Queue.enqueue(Callback);
 			return true;
 		}
-		bool Schedule::SetTask(TaskCallback&& Callback)
+		bool Schedule::SetTask(TaskCallback&& Callback, bool OnlyMainQueue)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -10509,11 +10509,11 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (!FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
+			if (OnlyMainQueue || !FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
 				Tasks->Queue.enqueue(std::move(Callback));
 			return true;
 		}
-		bool Schedule::SetCoroutine(const TaskCallback& Callback)
+		bool Schedule::SetCoroutine(const TaskCallback& Callback, bool OnlyMainQueue)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -10522,7 +10522,7 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (FastBypassEnqueue(Difficulty::Async, Callback))
+			if (!OnlyMainQueue && FastBypassEnqueue(Difficulty::Async, Callback))
 				return true;
 
 			Async->Queue.enqueue(Callback);
@@ -10532,7 +10532,7 @@ namespace Vitex
 
 			return true;
 		}
-		bool Schedule::SetCoroutine(TaskCallback&& Callback)
+		bool Schedule::SetCoroutine(TaskCallback&& Callback, bool OnlyMainQueue)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -10541,7 +10541,7 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (FastBypassEnqueue(Difficulty::Async, Callback))
+			if (!OnlyMainQueue && FastBypassEnqueue(Difficulty::Async, Callback))
 				return true;
 
 			Async->Queue.enqueue(std::move(Callback));
@@ -10592,7 +10592,7 @@ namespace Vitex
 			VI_MEASURE(Timings::Pass);
 			UMutex<std::mutex> Unique(Timers->Update);
 			for (auto& Item : Timers->Queue)
-				SetTask(std::move(Item.second.Callback));
+				SetTask(std::move(Item.second.Callback), true);
 
 			size_t Size = Timers->Queue.size();
 			Timers->Resync = true;
@@ -10630,11 +10630,11 @@ namespace Vitex
 							Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
 							Timers->Resync = true;
 							Timers->Notify.notify_all();
-						});
+						}, true);
 					}
 					else
 					{
-						SetTask(std::move(It->second.Callback));
+						SetTask(std::move(It->second.Callback), true);
 						Timers->Queue.erase(It);
 					}
 #ifndef NDEBUG
@@ -10846,11 +10846,11 @@ namespace Vitex
 										Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
 										Timers->Resync = true;
 										Timers->Notify.notify_all();
-									});
+									}, true);
 								}
 								else
 								{
-									SetTask(std::move(It->second.Callback));
+									SetTask(std::move(It->second.Callback), true);
 									Timers->Queue.erase(It);
 								}
 
@@ -11094,6 +11094,12 @@ namespace Vitex
 			Suspended = false;
 			Wakeup();
 		}
+		void Schedule::SetThreadRecycling(bool Enabled)
+		{
+			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
+			if (Thread != nullptr)
+				Thread->Recyclable = Enabled;
+		}
 		bool Schedule::PostDebug(ThreadTask State, size_t Tasks)
 		{
 			if (!Debug)
@@ -11105,7 +11111,7 @@ namespace Vitex
 		bool Schedule::FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback)
 		{
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
+			if (!Thread || Thread->Type != Type || !Thread->Recyclable || Thread->Queue.size() >= Policy.MaxRecycles)
 				return false;
 
 			Thread->Queue.push(Callback);
@@ -11114,7 +11120,7 @@ namespace Vitex
 		bool Schedule::FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback)
 		{
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
+			if (!Thread || Thread->Type != Type || !Thread->Recyclable || Thread->Queue.size() >= Policy.MaxRecycles)
 				return false;
 
 			Thread->Queue.push(std::move(Callback));
@@ -11142,6 +11148,11 @@ namespace Vitex
 		{
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			return Threads[(size_t)Type].size();
+		}
+		bool Schedule::IsThreadRecyclable() const
+		{
+			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
+			return Thread ? Thread->Recyclable : false;
 		}
 		void Schedule::InitializeSpawnTrigger()
 		{

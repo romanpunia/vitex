@@ -5147,7 +5147,7 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); });
+				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); }, false);
 			}
 
 			Dictionary* InlineArgsGetArgs(Core::InlineArgs& Base)
@@ -12061,10 +12061,12 @@ namespace Vitex
 				VSchedule->SetMethod("bool is_suspended() const", &Core::Schedule::IsSuspended);
 				VSchedule->SetMethod("void suspend()", &Core::Schedule::Suspend);
 				VSchedule->SetMethod("void resume()", &Core::Schedule::Resume);
+				VSchedule->SetMethod("void set_thread_recycling(bool)", &Core::Schedule::SetThreadRecycling);
 				VSchedule->SetMethod("usize get_total_threads() const", &Core::Schedule::GetTotalThreads);
 				VSchedule->SetMethod("usize get_thread_global_index()", &Core::Schedule::GetThreadGlobalIndex);
 				VSchedule->SetMethod("usize get_thread_local_index()", &Core::Schedule::GetThreadLocalIndex);
 				VSchedule->SetMethod("usize get_threads(difficulty) const", &Core::Schedule::GetThreads);
+				VSchedule->SetMethod("bool is_thread_recyclable() const", &Core::Schedule::IsThreadRecyclable);
 				VSchedule->SetMethod("const schedule_policy& get_policy() const", &Core::Schedule::GetPolicy);
 				VSchedule->SetMethodStatic("schedule@+ get()", &Core::Schedule::Get);
 

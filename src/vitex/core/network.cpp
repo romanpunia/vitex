@@ -1567,30 +1567,30 @@ namespace Vitex
 			Unique.Negate();
 			if (Fd.Readable && Fd.Writeable)
 			{
-				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				Core::Codefer([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
 				{
 					if (WhenWriteable)
 						WhenWriteable(SocketPoll::Finish);
 
 					if (WhenReadable)
 						WhenReadable(SocketPoll::Finish);
-				});
+				}, false);
 			}
 			else if (Fd.Readable)
 			{
-				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable)]() mutable
+				Core::Codefer([WhenReadable = std::move(WhenReadable)]() mutable
 				{
 					if (WhenReadable)
 						WhenReadable(SocketPoll::Finish);
-				});
+				}, false);
 			}
 			else if (Fd.Writeable)
 			{
-				Core::Schedule::Get()->SetTask([WhenWriteable = std::move(WhenWriteable)]() mutable
+				Core::Codefer([WhenWriteable = std::move(WhenWriteable)]() mutable
 				{
 					if (WhenWriteable)
 						WhenWriteable(SocketPoll::Finish);
-				});
+				}, false);
 			}
 
 			return Exists;
@@ -1620,14 +1620,14 @@ namespace Vitex
 			Unique.Negate();
 			if (!Packet::IsDone(Event) && (WhenWriteable || WhenReadable))
 			{
-				Core::Schedule::Get()->SetTask([Event, WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				Core::Codefer([Event, WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
 				{
 					if (WhenWriteable)
 						WhenWriteable(Event);
 
 					if (WhenReadable)
 						WhenReadable(Event);
-				});
+				}, false);
 			}
 
 			return Success;
@@ -1666,9 +1666,8 @@ namespace Vitex
 		}
 		void Multiplexer::TryEnqueue() noexcept
 		{
-			auto* Queue = Core::Schedule::Get();
-			if (Queue->CanEnqueue() && Activations > 0)
-				Queue->SetTask(std::bind(&Multiplexer::TryDispatch, this));
+			if (Activations > 0)
+				Core::Codefer(std::bind(&Multiplexer::TryDispatch, this), true);
 		}
 		void Multiplexer::TryListen() noexcept
 		{
@@ -1724,14 +1723,14 @@ namespace Vitex
 
 			if (WhenWriteable || WhenReadable)
 			{
-				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				Core::Codefer([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
 				{
 					if (WhenWriteable)
 						WhenWriteable(SocketPoll::Cancel);
 
 					if (WhenReadable)
 						WhenReadable(SocketPoll::Cancel);
-				});
+				}, false);
 			}
 
 			return Success;
@@ -3138,8 +3137,11 @@ namespace Vitex
 			VI_ASSERT(State == ServerState::Idle, "server should not be running");
 			if (NewRouter != nullptr)
 			{
-				VI_RELEASE(Router);
-				Router = NewRouter;
+				if (Router != NewRouter)
+				{
+					VI_RELEASE(Router);
+					Router = NewRouter;
+				}
 			}
 			else if (!Router && !(Router = OnAllocateRouter()))
 			{
@@ -3319,14 +3321,11 @@ namespace Vitex
 			{
 				Source->Base->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddr)
 				{
-					if (State != ServerState::Working)
-						return false;
-
-					Core::String IpAddress = RemoteAddr;
-					Core::Schedule::Get()->SetTask([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable
+					if (State == ServerState::Working)
 					{
-						Accept(Source, Fd, IpAddress);
-					});
+						Core::String IpAddress = RemoteAddr;
+						Core::Codefer([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable { Accept(Source, Fd, IpAddress); }, true);
+					}
 					return State == ServerState::Working;
 				});
 			}

@@ -1659,15 +1659,7 @@ namespace Vitex
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->GetThreads(Core::Difficulty::Sync) > 0)
-			{
-				Core::Promise<void> Future;
-				if (Queue->SetTask([Future, Callback]() mutable
-				{
-					Callback();
-					Future.Set();
-				}))
-					return Future;
-			}
+				return Core::Cotask<void>(Core::TaskCallback(Callback));
 
 			Callback();
 			return Core::Promise<void>::Null();
@@ -4018,12 +4010,12 @@ namespace Vitex
 					return;
 
 				Tasking.IsRendering = true;
-				Core::Schedule::Get()->SetTask([this, Time, R, G, B]()
+				Core::Codefer([this, Time, R, G, B]()
 				{
 					PublishAndSubmit(Time, R, G, B, false);
 					Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)TaskType::Rendering]);
 					Tasking.IsRendering = false;
-				});
+				}, true);
 			}
 			else
 			{

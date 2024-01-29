@@ -5722,13 +5722,13 @@ namespace Vitex
 
 			ImmediateContext* Context = this;
 			Bindings::Promise* Base = (Bindings::Promise*)Promise;
-			if (Core::Schedule::Get()->SetTask([Context, Base]()
+			if (Core::Codefer([Context, Base]()
 			{
 				if (Context->IsSuspended())
 					Context->Resume();
 				if (Base != nullptr)
 					Base->Release();
-			}) == Core::INVALID_TASK_ID)
+			}, false) == Core::INVALID_TASK_ID)
 				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
 
 			return Execution::Active;

@@ -269,7 +269,7 @@ namespace Vitex
 			}
 			void WebSocketFrame::Next()
 			{
-				Core::Schedule::Get()->SetTask(std::bind(&WebSocketFrame::Update, this));
+				Core::Codefer(std::bind(&WebSocketFrame::Update, this), false);
 			}
 			void WebSocketFrame::Update()
 			{
@@ -1263,8 +1263,14 @@ namespace Vitex
 							Paths.push_back(Item.Path);
 					}
 
-					for (auto& Path : Paths)
-						Core::Schedule::Get()->SetTask([Path]() { Core::OS::File::Remove(Path.c_str()); });
+					if (!Paths.empty())
+					{
+						Core::Codefer([Paths = std::move(Paths)]() mutable
+						{
+							for (auto& Path : Paths)
+								Core::OS::File::Remove(Path.c_str());
+						}, true);
+					}
 				}
 
 				Data.clear();
@@ -4763,14 +4769,14 @@ namespace Vitex
 				if (Base->Route->DocumentRoot.empty() || !Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
-						return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); });
+						return RouteWEBSOCKET(Base);
 
 					if (!Resources::ResourceHasAlternative(Base))
 						return Base->Error(404, "Requested resource was not found.");
 				}
 
 				if (Permissions::WebSocketUpgradeAllowed(Base))
-					return Core::Schedule::Get()->SetTask([Base]() { RouteWEBSOCKET(Base); });
+					return RouteWEBSOCKET(Base);
 
 				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
@@ -4778,15 +4784,15 @@ namespace Vitex
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 				{
 					if (Base->Route->AllowDirectoryListing)
-						return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessDirectory(Base); });
+						return Core::Codefer([Base]() { Logical::ProcessDirectory(Base); }, true);
 
 					return Base->Error(403, "Directory listing denied.");
 				}
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); });
+					return Logical::ProcessResourceCache(Base);
 
-				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); });
+				return Logical::ProcessResource(Base);
 			}
 			bool Routing::RoutePOST(Connection* Base)
 			{
@@ -4801,9 +4807,9 @@ namespace Vitex
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-					return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResourceCache(Base); });
+					return Logical::ProcessResourceCache(Base);
 
-				return Core::Schedule::Get()->SetTask([Base]() { Logical::ProcessResource(Base); });
+				return Logical::ProcessResource(Base);
 			}
 			bool Routing::RoutePUT(Connection* Base)
 			{
@@ -5203,7 +5209,7 @@ namespace Vitex
 				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
-						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); });
+						Core::Codefer([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); }, true);
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
@@ -5267,7 +5273,7 @@ namespace Vitex
 				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
-						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); });
+						Core::Codefer([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); }, true);
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
@@ -5346,7 +5352,6 @@ namespace Vitex
                         else if (Packet::IsSkip(Event))
                             Core::OS::File::Close(Stream);
                     });
-                    
                     if (Result || Result.Error() != std::errc::not_supported)
                         return true;
                 }
@@ -5392,10 +5397,10 @@ namespace Vitex
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
-                        Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
+						Core::Codefer([Base, Router, Stream, ContentLength]()
 						{
 							ProcessFileChunk(Base, Router, Stream, ContentLength);
-						});
+						}, true);
 					}
 					else if (Packet::IsError(Event))
 					{
@@ -5539,10 +5544,10 @@ namespace Vitex
 					{
 						if (ContentLength > 0)
 						{
-                            Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
+							Core::Codefer([Base, Router, Stream, ZStream, ContentLength]()
                             {
                                 ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
-                            });
+                            }, true);
 						}
 						else
 						{
@@ -6448,10 +6453,10 @@ namespace Vitex
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
-						Core::Schedule::Get()->SetTask([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
+						Core::Codefer([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
 						{
 							UploadFileChunkAsync(FileStream, ContentLength, std::move(Callback));
-						});
+						}, true);
 					}
 					else if (Packet::IsErrorOrSkip(Event))
 					{

@@ -17,11 +17,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#define ERRNO errno
-#define ERRWOULDBLOCK EWOULDBLOCK
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
-#define closesocket close
 #endif
 extern "C"
 {

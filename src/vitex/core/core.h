@@ -1936,6 +1936,7 @@ namespace Vitex
 			String GetBlob() const;
 			Decimal GetDecimal() const;
 			void* GetPointer() const;
+			void* GetContainer();
 			const char* GetString() const;
 			unsigned char* GetBinary() const;
 			int64_t GetInteger() const;
@@ -4733,7 +4734,7 @@ namespace Vitex
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
 				Callback().When([Result](T&& Value) mutable { Result.Set(std::move(Value)); });
-			});
+			}, AlwaysEnqueue);
 
 			return Result;
 		}
@@ -4748,7 +4749,7 @@ namespace Vitex
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
 				Callback().When([Result]() mutable { Result.Set(); });
-			});
+			}, AlwaysEnqueue);
 
 			return Result;
 		}

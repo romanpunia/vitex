@@ -6356,7 +6356,7 @@ namespace Vitex
 				{
 					if (!Successful)
 					{
-						Net.Stream->Close();
+						Net.Stream->Shutdown();
 						Future.Set(Core::SystemException("ws connection abort error", std::make_error_condition(std::errc::connection_reset)));
 					}
 					else

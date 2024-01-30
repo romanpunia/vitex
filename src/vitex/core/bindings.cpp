@@ -15822,6 +15822,7 @@ namespace Vitex
 				VSocket->SetMethodEx("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetKeepAlive));
 				VSocket->SetMethodEx("bool set_timeout(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeout));
 				VSocket->SetMethodEx("bool connect(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
+				VSocket->SetMethodEx("bool shutdown()", &VI_EXPECTIFY_VOID(Network::Socket::Shutdown));
 				VSocket->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
 				VSocket->SetMethodEx("bool open(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
 				VSocket->SetMethodEx("bool bind(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
@@ -15878,7 +15879,7 @@ namespace Vitex
 				VSocketListener->SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener->SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
 				VSocketListener->SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
-				VSocketListener->SetProperty<Network::SocketListener>("socket@ base", &Network::SocketListener::Base);
+				VSocketListener->SetProperty<Network::SocketListener>("socket@ stream", &Network::SocketListener::Stream);
 				VSocketListener->SetGcConstructor<Network::SocketListener, SocketListener, const Core::String&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
 				VSocketListener->SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* VM)
 				{

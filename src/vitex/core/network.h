@@ -185,6 +185,7 @@ namespace Vitex
 
 		struct VI_OUT_TS EpollHandle
 		{
+		private:
 #ifdef VI_APPLE
 			kevent* Array;
 #else
@@ -193,6 +194,7 @@ namespace Vitex
 			epoll_handle Handle;
 			size_t ArraySize;
 
+		public:
 			EpollHandle(size_t NewArraySize) noexcept;
 			EpollHandle(const EpollHandle& Other) noexcept;
 			EpollHandle(EpollHandle&& Other) noexcept;
@@ -201,8 +203,12 @@ namespace Vitex
 			EpollHandle& operator= (EpollHandle&& Other) noexcept;
 			bool Add(Socket* Fd, bool Readable, bool Writeable) noexcept;
 			bool Update(Socket* Fd, bool Readable, bool Writeable) noexcept;
-			bool Remove(Socket* Fd, bool Readable, bool Writeable) noexcept;
+			bool Remove(Socket* Fd) noexcept;
 			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept;
+
+		private:
+			bool AddInternal(Socket* Fd, bool Readable, bool Writeable) noexcept;
+			bool RemoveInternal(Socket* Fd) noexcept;
 		};
 
 		class VI_OUT_TS Packet
@@ -363,7 +369,6 @@ namespace Vitex
 			size_t GetActivations() noexcept;
 
 		private:
-			bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable) noexcept;
 			bool DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept;
 			void AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
 			void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
@@ -449,8 +454,6 @@ namespace Vitex
 				PollEventCallback ReadCallback = nullptr;
 				PollEventCallback WriteCallback = nullptr;
 				std::chrono::microseconds ExpiresAt = std::chrono::microseconds(0);
-				bool Readable = false;
-				bool Writeable = false;
 			} Events;
 
 		private:
@@ -474,6 +477,7 @@ namespace Vitex
 			Core::ExpectsIO<void> Accept(Socket* OutConnection, char* OutAddress);
 			Core::ExpectsIO<void> Accept(socket_t* OutFd, char* OutAddress);
 			Core::ExpectsIO<void> AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
+			Core::ExpectsIO<void> Shutdown();
 			Core::ExpectsIO<void> Close();
 			Core::ExpectsIO<void> CloseAsync(SocketStatusCallback&& Callback);
 			Core::ExpectsIO<size_t> SendFile(FILE* Stream, size_t Offset, size_t Size);
@@ -535,7 +539,7 @@ namespace Vitex
 			Core::String Name;
 			RemoteHost Hostname;
 			SocketAddress* Source;
-			Socket* Base;
+			Socket* Stream;
 
 		public:
 			SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);

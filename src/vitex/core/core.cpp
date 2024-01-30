@@ -3264,6 +3264,31 @@ namespace Vitex
 
 			return nullptr;
 		}
+		void* Variant::GetContainer()
+		{
+			switch (Type)
+			{
+				case VarType::Pointer:
+					return Value.Pointer;
+				case VarType::String:
+				case VarType::Binary:
+					return (void*)GetString();
+				case VarType::Integer:
+					return &Value.Integer;
+				case VarType::Number:
+					return &Value.Number;
+				case VarType::Decimal:
+					return Value.Pointer;
+				case VarType::Boolean:
+					return &Value.Boolean;
+				case VarType::Null:
+				case VarType::Undefined:
+				case VarType::Object:
+				case VarType::Array:
+				default:
+					return nullptr;
+			}
+		}
 		const char* Variant::GetString() const
 		{
 			if (Type != VarType::String && Type != VarType::Binary)

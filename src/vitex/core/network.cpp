@@ -36,6 +36,7 @@
 #define closesocket close
 #define epoll_close close
 #define SD_SEND SHUT_WR
+#define SD_BOTH SHUT_RDWR
 #endif
 #define DNS_TIMEOUT 21600
 #define CONNECT_TIMEOUT 2000
@@ -161,6 +162,24 @@ namespace Vitex
 			return std::make_pair(Core::DateTime::FetchWebDateGMT(TimeStamp), TimeStamp);
 		}
 #endif
+		static Core::ExpectsIO<void> SetSocketBlocking(socket_t Fd, bool Enabled)
+		{
+			VI_TRACE("[net] fd %i setopt: blocking %s", (int)Fd, Enabled ? "on" : "off");
+#ifdef VI_MICROSOFT
+			unsigned long Mode = (Enabled ? 0 : 1);
+			if (ioctlsocket(Fd, (long)FIONBIO, &Mode) != 0)
+				return Core::OS::Error::GetConditionOr();
+#else
+			int Flags = fcntl(Fd, F_GETFL, 0);
+			if (Flags == -1)
+				return Core::OS::Error::GetConditionOr();
+
+			Flags = Enabled ? (Flags & ~O_NONBLOCK) : (Flags | O_NONBLOCK);
+			if (fcntl(Fd, F_SETFL, Flags) == -1)
+				return Core::OS::Error::GetConditionOr();
+#endif
+			return Core::Expectation::Met;
+		}
 		static addrinfo* TryConnectDNS(const Core::UnorderedMap<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
 			VI_MEASURE(Core::Timings::Networking);
@@ -168,11 +187,8 @@ namespace Vitex
 			Core::Vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
 			{
-				Socket Stream(Host.first);
-				Stream.SetBlocking(false);
-				Stream.MigrateTo(INVALID_SOCKET, false);
-
 				VI_DEBUG("[net] resolve dns on fd %i", (int)Host.first);
+				SetSocketBlocking(Host.first, false);
 				int Status = connect(Host.first, Host.second->ai_addr, (int)Host.second->ai_addrlen);
 				if (Status != 0 && Utils::GetLastError(nullptr, Status) != std::errc::operation_would_block)
 					continue;
@@ -584,6 +600,14 @@ namespace Vitex
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll add fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
+			if (!AddInternal(Fd, Readable, Writeable))
+				return false;
+
+			Fd->AddRef();
+			return true;
+		}
+		bool EpollHandle::AddInternal(Socket* Fd, bool Readable, bool Writeable) noexcept
+		{
 #if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
 			epoll_array* Handler = (epoll_array*)Array;
 			Handler->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
@@ -604,7 +628,7 @@ namespace Vitex
 				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			}
 
-			return Result1 == 1 && Result2 == 1;
+			return Result1 != -1 || Result2 != -1;
 #else
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
@@ -623,6 +647,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
+			VI_ASSERT(Readable || Writeable, "update should set readable and/or writeable");
 			VI_TRACE("[net] epoll update fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
 #if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
 			epoll_array* Handler = (epoll_array*)Array;
@@ -659,43 +684,35 @@ namespace Vitex
 			return epoll_ctl(Handle, EPOLL_CTL_MOD, Fd->Fd, &Event) == 0;
 #endif
 		}
-		bool EpollHandle::Remove(Socket* Fd, bool Readable, bool Writeable) noexcept
+		bool EpollHandle::Remove(Socket* Fd) noexcept
 		{
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll remove fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
+			if (!RemoveInternal(Fd))
+				return false;
+
+			Fd->Release();
+			return true;
+		}
+		bool EpollHandle::RemoveInternal(Socket* Fd) noexcept
+		{
 #if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
 			epoll_array* Handler = (epoll_array*)Array;
-			Handler->Upsert(Fd->Fd, !Readable, !Writeable, (void*)Fd);
+			Handler->Upsert(Fd->Fd, false, false, (void*)Fd);
 			return true;
 #elif defined(VI_APPLE)
 			struct kevent Event;
-			int Result1 = 1;
-			if (Readable)
-			{
-				EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_DELETE, 0, 0, (void*)nullptr);
-				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
+			EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_DELETE, 0, 0, (void*)nullptr);
+			int Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 
-			int Result2 = 1;
-			if (Writeable)
-			{
-				EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void*)nullptr);
-				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
-			return Result1 == 1 && Result2 == 1;
+			EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void*)nullptr);
+			int Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			return Result1 != -1 && Result2 != -1;
 #else
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
-			Event.events = EPOLLRDHUP;
-
-			if (Readable)
-				Event.events |= EPOLLIN;
-
-			if (Writeable)
-				Event.events |= EPOLLOUT;
-
+			Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
 			return epoll_ctl(Handle, EPOLL_CTL_DEL, Fd->Fd, &Event) == 0;
 #endif
 		}
@@ -1543,94 +1560,104 @@ namespace Vitex
 			}
 
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			bool Exists = ((!Fd.Readable && Fd.Base->Events.Readable) || (!Fd.Writeable && Fd.Base->Events.Writeable));
-			auto WhenReadable = std::move(Fd.Base->Events.ReadCallback);
-			auto WhenWriteable = std::move(Fd.Base->Events.WriteCallback);
-			if (Exists)
+			auto ReadCallback = std::move(Fd.Base->Events.ReadCallback);
+			auto WriteCallback = std::move(Fd.Base->Events.WriteCallback);
+			bool StillListening = ((!Fd.Readable && ReadCallback) || (!Fd.Writeable && WriteCallback));
+			if (StillListening)
 			{
 				if (Fd.Base->Timeout > 0)
 					UpdateTimeout(Fd.Base, Time + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Fd.Base->Timeout)));
-
 				if (!Fd.Readable)
-					Fd.Base->Events.ReadCallback = std::move(WhenReadable);
-				else if (!Fd.Writeable)
-					Fd.Base->Events.WriteCallback = std::move(WhenWriteable);
+					Fd.Base->Events.ReadCallback = std::move(ReadCallback);
+				if (!Fd.Writeable)
+					Fd.Base->Events.WriteCallback = std::move(WriteCallback);
 			}
 			else
 			{
 				if (Fd.Base->Timeout > 0 && Fd.Base->Events.ExpiresAt > std::chrono::microseconds(0))
 					RemoveTimeout(Fd.Base);
-
 				CancelEvents(Fd.Base, SocketPoll::Finish, false);
 			}
 
 			Unique.Negate();
 			if (Fd.Readable && Fd.Writeable)
 			{
-				Core::Codefer([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				Core::Codefer([ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
 				{
-					if (WhenWriteable)
-						WhenWriteable(SocketPoll::Finish);
+					if (WriteCallback)
+						WriteCallback(SocketPoll::Finish);
 
-					if (WhenReadable)
-						WhenReadable(SocketPoll::Finish);
+					if (ReadCallback)
+						ReadCallback(SocketPoll::Finish);
 				}, false);
 			}
 			else if (Fd.Readable)
 			{
-				Core::Codefer([WhenReadable = std::move(WhenReadable)]() mutable
-				{
-					if (WhenReadable)
-						WhenReadable(SocketPoll::Finish);
-				}, false);
+				if (ReadCallback)
+					Core::Codefer([ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(SocketPoll::Finish); }, false);
 			}
 			else if (Fd.Writeable)
 			{
-				Core::Codefer([WhenWriteable = std::move(WhenWriteable)]() mutable
-				{
-					if (WhenWriteable)
-						WhenWriteable(SocketPoll::Finish);
-				}, false);
+				if (WriteCallback)
+					Core::Codefer([WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(SocketPoll::Finish); }, false);
 			}
 
-			return Exists;
+			return StillListening;
 		}
 		bool Multiplexer::WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept
 		{
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-			return WhenEvents(Value, true, false, std::move(WhenReady), nullptr);
+			VI_ASSERT(WhenReady != nullptr, "readable callback should be set");
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			Value->Events.ReadCallback.swap(WhenReady);
+			if (Value->Timeout > 0)
+				AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
+
+			bool Listening = (WhenReady ? Handle.Update(Value, true, !!Value->Events.WriteCallback) : Handle.Add(Value, true, !!Value->Events.WriteCallback));
+			Unique.Negate();
+			if (WhenReady)
+				Core::Codefer([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); }, false);
+
+			return Listening;
 		}
 		bool Multiplexer::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept
 		{
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-			return WhenEvents(Value, false, true, nullptr, std::move(WhenReady));
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			Value->Events.WriteCallback.swap(WhenReady);
+			if (Value->Timeout > 0)
+				AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
+
+			bool Listening = (WhenReady ? Handle.Update(Value, !!Value->Events.ReadCallback, true) : Handle.Add(Value, !!Value->Events.ReadCallback, true));
+			Unique.Negate();
+			if (WhenReady)
+				Core::Codefer([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); }, false);
+
+			return Listening;
 		}
 		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool EraseTimeout) noexcept
 		{
 			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto WhenReadable = std::move(Value->Events.ReadCallback);
-			auto WhenWriteable = std::move(Value->Events.WriteCallback);
-			bool Success = Handle.Remove(Value, true, true);
-			Value->Events.Readable = false;
-			Value->Events.Writeable = false;
+			auto ReadCallback = std::move(Value->Events.ReadCallback);
+			auto WriteCallback = std::move(Value->Events.WriteCallback);
+			bool NotListening = Handle.Remove(Value);
 			if (EraseTimeout && Value->Timeout > 0 && Value->Events.ExpiresAt > std::chrono::microseconds(0))
 				RemoveTimeout(Value);
 
 			Unique.Negate();
-			if (!Packet::IsDone(Event) && (WhenWriteable || WhenReadable))
+			if (Packet::IsDone(Event) || (!WriteCallback && !ReadCallback))
+				return NotListening;
+
+			Core::Codefer([Event, ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
 			{
-				Core::Codefer([Event, WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
-				{
-					if (WhenWriteable)
-						WhenWriteable(Event);
+				if (WriteCallback)
+					WriteCallback(Event);
+				if (ReadCallback)
+					ReadCallback(Event);
+			}, false);
 
-					if (WhenReadable)
-						WhenReadable(Event);
-				}, false);
-			}
-
-			return Success;
+			return NotListening;
 		}
 		bool Multiplexer::ClearEvents(Socket* Value) noexcept
 		{
@@ -1640,19 +1667,19 @@ namespace Vitex
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			return Value->Events.Readable || Value->Events.Writeable;
+			return Value->Events.ReadCallback || Value->Events.WriteCallback;
 		}
 		bool Multiplexer::IsAwaitingReadable(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			return Value->Events.Readable;
+			return !!Value->Events.ReadCallback;
 		}
 		bool Multiplexer::IsAwaitingWriteable(Socket* Value) noexcept
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set");
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			return Value->Events.Writeable;
+			return !!Value->Events.WriteCallback;
 		}
 		bool Multiplexer::IsListening() noexcept
 		{
@@ -1682,58 +1709,6 @@ namespace Vitex
 			VI_ASSERT(Activations > 0, "events poller is already inactive");
 			if (!--Activations)
 				VI_DEBUG("[net] stop events polling");
-		}
-		bool Multiplexer::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable) noexcept
-		{
-			bool Update = false;
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			if (Readable)
-			{
-				if (!Value->Events.Readable)
-				{
-					Value->Events.ReadCallback = std::move(WhenReadable);
-					Value->Events.Readable = true;
-				}
-				else
-				{
-					Value->Events.ReadCallback.swap(WhenReadable);
-					Update = true;
-				}
-			}
-
-			if (Writeable)
-			{
-				if (!Value->Events.Writeable)
-				{
-					Value->Events.WriteCallback = std::move(WhenWriteable);
-					Value->Events.Writeable = true;
-				}
-				else
-				{
-					Value->Events.WriteCallback.swap(WhenWriteable);
-					Update = true;
-				}
-			}
-
-			if (Value->Timeout > 0)
-				AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
-
-			bool Success = (Update ? Handle.Update(Value, Value->Events.Readable, Value->Events.Writeable) : Handle.Add(Value, Value->Events.Readable, Value->Events.Writeable));
-			Unique.Negate();
-
-			if (WhenWriteable || WhenReadable)
-			{
-				Core::Codefer([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
-				{
-					if (WhenWriteable)
-						WhenWriteable(SocketPoll::Cancel);
-
-					if (WhenReadable)
-						WhenReadable(SocketPoll::Cancel);
-				}, false);
-			}
-
-			return Success;
 		}
 		void Multiplexer::AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
 		{
@@ -1778,7 +1753,10 @@ namespace Vitex
 			for (auto& Targets : Connections)
 			{
 				for (auto& Stream : Targets.second)
+				{
+					Stream->Shutdown();
 					VI_RELEASE(Stream);
+				}
 			}
 			Connections.clear();
 			Multiplexer::Get()->Deactivate();
@@ -1803,9 +1781,8 @@ namespace Vitex
 
 				Targets->second.erase(It);
 			}
-			UnlistenConnection(Stream);
 			VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), URL.c_str());
-			VI_RELEASE(Stream);
+			Stream->CloseAsync([Stream](const Core::Option<std::error_condition>&) { VI_RELEASE(Stream); });
 		}
 		void Uplinks::ListenConnectionURL(const Core::String& URL, Socket* Target)
 		{
@@ -2152,27 +2129,30 @@ namespace Vitex
 
 		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
 		{
+			VI_WATCH(this, "socket fd (empty)");
 		}
-		Socket::Socket(socket_t FromFd) noexcept : Socket()
+		Socket::Socket(socket_t FromFd) noexcept : Device(nullptr), Fd(FromFd), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
 		{
-			Fd = FromFd;
+			VI_WATCH(this, "socket fd");
 		}
 		Socket::Socket(Socket&& Other) noexcept : Device(Other.Device), Fd(Other.Fd), Timeout(Other.Timeout), Income(Other.Income), Outcome(Other.Outcome), UserData(Other.UserData)
 		{
+			VI_WATCH(this, "socket fd (moved)");
 			Events = std::move(Other.Events);
 			Other.Device = nullptr;
 			Other.Fd = INVALID_SOCKET;
 		}
 		Socket::~Socket() noexcept
 		{
-			Close();
+			VI_UNWATCH(this);
+			Shutdown();
 		}
 		Socket& Socket::operator= (Socket&& Other) noexcept
 		{
 			if (this == &Other)
 				return *this;
 
-			Close();
+			Shutdown();
 			Device = Other.Device;
 			Fd = Other.Fd;
 			Timeout = Other.Timeout;
@@ -2229,6 +2209,34 @@ namespace Vitex
 			}))
 				return Core::OS::Error::GetConditionOr();
 
+			return Core::Expectation::Met;
+		}
+		Core::ExpectsIO<void> Socket::Shutdown()
+		{
+#ifdef VI_OPENSSL
+			if (Device != nullptr)
+			{
+				VI_TRACE("[net] fd %i free ssl device", (int)Fd);
+				SSL_free(Device);
+				Device = nullptr;
+			}
+#endif
+			if (Fd == INVALID_SOCKET)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+
+			ClearEvents(false);
+			SetBlocking(false);
+
+			char Buffer;
+			while (Read(&Buffer, 1));
+
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+			shutdown(Fd, SD_BOTH);
+			closesocket(Fd);
+			VI_DEBUG("[net] sock fd %i shutdown", (int)Fd);
+			Fd = INVALID_SOCKET;
 			return Core::Expectation::Met;
 		}
 		Core::ExpectsIO<void> Socket::Close()
@@ -2817,12 +2825,8 @@ namespace Vitex
 		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
-			bool Success;
-			if (Gracefully)
-				Success = Multiplexer::Get()->CancelEvents(this, SocketPoll::Reset, true);
-			else
-				Success = Multiplexer::Get()->ClearEvents(this);
-
+			auto* Handle = Multiplexer::Get();
+			bool Success = Gracefully ? Handle->CancelEvents(this, SocketPoll::Reset, true) : Handle->ClearEvents(this);
 			if (!Success)
 				return std::make_error_condition(std::errc::not_connected);
 
@@ -2893,21 +2897,7 @@ namespace Vitex
 		}
 		Core::ExpectsIO<void> Socket::SetBlocking(bool Enabled)
 		{
-			VI_TRACE("[net] fd %i setopt: blocking %s", (int)Fd, Enabled ? "on" : "off");
-#ifdef VI_MICROSOFT
-			unsigned long Mode = (Enabled ? 0 : 1);
-			if (ioctlsocket(Fd, (long)FIONBIO, &Mode) != 0)
-				return Core::OS::Error::GetConditionOr();
-#else
-			int Flags = fcntl(Fd, F_GETFL, 0);
-			if (Flags == -1)
-				return Core::OS::Error::GetConditionOr();
-
-			Flags = Enabled ? (Flags & ~O_NONBLOCK) : (Flags | O_NONBLOCK);
-			if (fcntl(Fd, F_SETFL, Flags) == -1)
-				return Core::OS::Error::GetConditionOr();
-#endif
-			return Core::Expectation::Met;
+			return SetSocketBlocking(Fd, Enabled);
 		}
 		Core::ExpectsIO<void> Socket::SetNoDelay(bool Enabled)
 		{
@@ -3033,12 +3023,14 @@ namespace Vitex
 			return Device != nullptr;
 		}
 
-		SocketListener::SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Base(new Socket())
+		SocketListener::SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Stream(new Socket())
 		{
 		}
 		SocketListener::~SocketListener() noexcept
 		{
-			VI_CLEAR(Base);
+			if (Stream != nullptr)
+				Stream->Shutdown();
+			VI_CLEAR(Stream);
 		}
 
 		SocketRouter::~SocketRouter() noexcept
@@ -3170,25 +3162,25 @@ namespace Vitex
 					return Core::SystemException(Core::Stringify::Text("resolve %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::make_error_condition(std::errc::host_unreachable));
 
 				SocketListener* Value = new SocketListener(It.first, It.second, *Source);
-				auto Status = Value->Base->Open(*Source);
+				auto Status = Value->Stream->Open(*Source);
 				if (!Status)
 					return Core::SystemException(Core::Stringify::Text("open %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
 
-				Status = Value->Base->Bind(*Source);
+				Status = Value->Stream->Bind(*Source);
 				if (!Status)
 					return Core::SystemException(Core::Stringify::Text("bind %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
 
-				Status = Value->Base->Listen((int)Router->BacklogQueue);
+				Status = Value->Stream->Listen((int)Router->BacklogQueue);
 				if (!Status)
 					return Core::SystemException(Core::Stringify::Text("listen %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
 
-				Value->Base->SetCloseOnExec();
-				Value->Base->SetBlocking(false);
+				Value->Stream->SetCloseOnExec();
+				Value->Stream->SetBlocking(false);
 				Listeners.push_back(Value);
 
 				if (It.second.Port <= 0)
 				{
-					auto Port = Value->Base->GetPort();
+					auto Port = Value->Stream->GetPort();
 					if (!Port)
 						return Core::SystemException(Core::Stringify::Text("fetch port of %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Port.Error()));
 					else
@@ -3283,10 +3275,7 @@ namespace Vitex
 				return UnlistenStatus;
 
 			for (auto It : Listeners)
-			{
-				if (It->Base != nullptr)
-					It->Base->Close();
-			}
+				It->Stream->Shutdown();
 
 			if (!Core::Schedule::Get()->IsActive())
 			{
@@ -3297,6 +3286,7 @@ namespace Vitex
 					Active.clear();
 				}
 			}
+
 			FreeAll();
 			for (auto It : Listeners)
 				VI_RELEASE(It);
@@ -3319,7 +3309,7 @@ namespace Vitex
 
 			for (auto&& Source : Listeners)
 			{
-				Source->Base->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddr)
+				Source->Stream->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddr)
 				{
 					if (State == ServerState::Working)
 					{
@@ -3611,6 +3601,8 @@ namespace Vitex
 		}
 		SocketClient::~SocketClient() noexcept
 		{
+			if (HasStream())
+				Net.Stream->Shutdown();
 			VI_CLEAR(Net.Stream);
 #ifdef VI_OPENSSL
 			if (Net.Context != nullptr)
@@ -3837,6 +3829,8 @@ namespace Vitex
 			Socket* ReusingStream = Cache ? Cache->PopConnection(NewAddress) : nullptr;
 			if (ReusingStream != nullptr)
 			{
+				if (HasStream())
+					Net.Stream->Shutdown();
 				VI_RELEASE(Net.Stream);
 				Net.Stream = ReusingStream;
 			}

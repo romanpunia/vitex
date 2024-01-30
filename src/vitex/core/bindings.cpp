@@ -15760,13 +15760,10 @@ namespace Vitex
 				VEpollFd->SetDestructorEx("void f()", &EpollFdDestructor);
 
 				auto VEpollHandle = VM->SetStructTrivial<Network::EpollHandle>("epoll_handle");
-				VEpollHandle->SetProperty<Network::EpollHandle>("uptr@ array", &Network::EpollHandle::Array);
-				VEpollHandle->SetProperty<Network::EpollHandle>("uptr@ handle", &Network::EpollHandle::Handle);
-				VEpollHandle->SetProperty<Network::EpollHandle>("usize array_size", &Network::EpollHandle::ArraySize);
 				VEpollHandle->SetConstructor<Network::EpollHandle, size_t>("void f(usize)");
 				VEpollHandle->SetMethod("bool add(socket@+, bool, bool)", &Network::EpollHandle::Add);
 				VEpollHandle->SetMethod("bool update(socket@+, bool, bool)", &Network::EpollHandle::Update);
-				VEpollHandle->SetMethod("bool remove(socket@+, bool, bool)", &Network::EpollHandle::Remove);
+				VEpollHandle->SetMethod("bool remove(socket@+)", &Network::EpollHandle::Remove);
 				VEpollHandle->SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
 
 				auto VSocketAddress = VM->SetClass<Network::SocketAddress>("socket_address", false);

@@ -15880,7 +15880,7 @@ namespace Vitex
 				VSocketListener->SetGcConstructor<Network::SocketListener, SocketListener, const Core::String&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
 				VSocketListener->SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* VM)
 				{
-					FunctionFactory::GCEnumCallback(VM, Base->Base);
+					FunctionFactory::GCEnumCallback(VM, Base->Stream);
 				});
 				VSocketListener->SetReleaseRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine*)
 				{

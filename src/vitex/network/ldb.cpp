@@ -270,6 +270,10 @@ namespace Vitex
 			{
 				return GetRow(Index).GetArray();
 			}
+			const Core::Vector<Core::String>& Response::GetColumns() const
+			{
+				return Columns;
+			}
 			Core::String Response::GetStatusText() const
 			{
 				return StatusMessage;
@@ -921,6 +925,8 @@ namespace Vitex
 					goto StopExecution;
 			NextReturnable:
 				Code = sqlite3_step(Target);
+				if (Context.Columns.empty())
+					ConsumeColumns(Target, &Context);
 				switch (Code)
 				{
 					case SQLITE_ROW:
@@ -950,7 +956,7 @@ namespace Vitex
 				return DatabaseException("consume: not supported");
 #endif
 			}
-			void Cluster::ConsumeRow(TStatement* Target, Response* Context)
+			void Cluster::ConsumeColumns(TStatement* Target, Response* Context)
 			{
 #ifdef VI_SQLITE
 				int Columns = sqlite3_column_count(Target);
@@ -960,13 +966,19 @@ namespace Vitex
 					for (int i = 0; i < Columns; i++)
 						Context->Columns.push_back(sqlite3_column_name(Target, i));
 				}
-
+#endif
+			}
+			void Cluster::ConsumeRow(TStatement* Target, Response* Context)
+			{
+#ifdef VI_SQLITE
 				Context->Values.emplace_back();
 				auto& Row = Context->Values.back();
-				if (Columns > 0)
-				{
-					Row.reserve((size_t)Columns);
-					for (int i = 0; i < Columns; i++)
+				if (Context->Columns.empty())
+					return;
+
+				int Columns = (int)Context->Columns.size();
+				Row.reserve(Context->Columns.size());
+				for (int i = 0; i < Columns; i++)
 					{
 						switch (sqlite3_column_type(Target, i))
 						{
@@ -1004,7 +1016,6 @@ namespace Vitex
 								break;
 						}
 					}
-				}
 #endif
 			}
 

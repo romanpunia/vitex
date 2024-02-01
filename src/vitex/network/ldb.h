@@ -222,6 +222,7 @@ namespace Vitex
 				Core::Unique<Core::Schema> GetArrayOfArrays() const;
 				Core::Unique<Core::Schema> GetObject(size_t Index = 0) const;
 				Core::Unique<Core::Schema> GetArray(size_t Index = 0) const;
+				const Core::Vector<Core::String>& GetColumns() const;
 				Core::String GetStatusText() const;
 				int GetStatusCode() const;
 				size_t GetColumnIndex(const char* Name) const;
@@ -372,6 +373,7 @@ namespace Vitex
 				Core::Promise<TConnection*> AcquireConnection(SessionId Session, size_t Opts);
 				void ReleaseConnection(TConnection* Connection, size_t Opts);
 				ExpectsDB<void> ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement);
+				void ConsumeColumns(TStatement* Statement, Response* Result);
 				void ConsumeRow(TStatement* Statement, Response* Result);
 			};
 

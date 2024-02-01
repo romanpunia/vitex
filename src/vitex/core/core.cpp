@@ -7015,7 +7015,7 @@ namespace Vitex
 				}
 			} while (Size > 0);
 
-			return Size;
+			return Total;
 		}
 		size_t Stream::VirtualSize() const
 		{
@@ -7493,11 +7493,12 @@ namespace Vitex
 			for (auto& Item : Headers)
 				Request.SetHeader(Item.first, Item.second);
 
-			auto Response = Client->Send(std::move(Request)).Get();
-			if (!Response || Response->StatusCode < 0)
+			auto* Response = Client->GetResponse();
+			Status = Client->Send(std::move(Request)).Get();
+			if (!Status || Response->StatusCode < 0)
 			{
 				VI_RELEASE(Client);
-				return Response ? std::make_error_condition(std::errc::protocol_error) : Response.Error().error();
+				return Status ? std::make_error_condition(std::errc::protocol_error) : Status.Error().error();
 			}
 			else if (Response->Content.Limited)
 				Length = Response->Content.Length;
@@ -7584,7 +7585,7 @@ namespace Vitex
 			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)Resource)->GetResponse()->Content.Limited)))
 			{
 				auto* Client = (Network::HTTP::Client*)Resource;
-				if (!Client->Download(DataLength).Get())
+				if (!Client->Fetch(DataLength).Get())
 					return 0;
 
 				auto* Response = Client->GetResponse();

@@ -8,6 +8,7 @@
 #include "../audio/effects.h"
 #include "../audio/filters.h"
 #include "../vitex.h"
+#define CONTENT_BLOCKED_WAIT_MS 50
 
 namespace Vitex
 {
@@ -6244,7 +6245,7 @@ namespace Vitex
 				}
 
 				while (Content && Content->IsBusy())
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					std::this_thread::sleep_for(std::chrono::milliseconds(CONTENT_BLOCKED_WAIT_MS));
 			}
 			else
 			{
@@ -6322,14 +6323,12 @@ namespace Vitex
 				if (!Control.Activity.Width || !Control.Activity.Height)
 				{
 					Graphics::DisplayInfo Info;
-					if (Graphics::Video::GetDisplayInfo(0, &Info))
-					{
-						Control.Activity.Width = (uint32_t)(Info.PhysicalWidth / 1.1);
-						Control.Activity.Height = (uint32_t)(Info.PhysicalHeight / 1.2);
-					}
+					VI_PANIC(Graphics::Video::GetDisplayInfo(0, &Info), "video driver is not initialized");
+					Control.Activity.Width = (uint32_t)(Info.PhysicalWidth / 1.1);
+					Control.Activity.Height = (uint32_t)(Info.PhysicalHeight / 1.2);
 				}
 				
-				VI_PANIC(Control.Activity.Width > 0 && Control.Activity.Height > 0, "activity width/height is unacceptable and should be higher than zero");
+				VI_PANIC(Control.Activity.Width > 0 && Control.Activity.Height > 0, "activity width/height is not acceptable");
 				bool Maximized = Control.Activity.Maximized;
 				Control.Activity.GPUAsRenderer = (Control.Usage & (size_t)ApplicationSet::GraphicsSet);
 				Control.Activity.Maximized = false;
@@ -6355,6 +6354,7 @@ namespace Vitex
 					}
 
 					Renderer = Graphics::GraphicsDevice::Create(Control.GraphicsDevice);
+					VI_PANIC(Renderer && Renderer->IsValid(), "video driver is not initialized");
 					Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
 
 					if (Content != nullptr)

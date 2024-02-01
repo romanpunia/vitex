@@ -560,8 +560,6 @@ namespace Vitex
 
 								if (!Request.Mailer.empty())
 									Core::Stringify::Append(Content, "X-Mailer: %s\r\n", Request.Mailer.c_str());
-								else
-									Content.append("X-Mailer: Lynx\r\n");
 
 								if (!Request.Receiver.empty())
 									Core::Stringify::Append(Content, "Reply-To: %s\r\n", Request.Receiver.c_str());

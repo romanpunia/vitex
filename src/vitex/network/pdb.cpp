@@ -1018,6 +1018,26 @@ namespace Vitex
 			{
 				return GetRow(Index).GetArray();
 			}
+			Core::Vector<Core::String> Response::GetColumns() const
+			{
+				Core::Vector<Core::String> Columns;
+#ifdef VI_POSTGRESQL
+				if (!Base)
+					return Columns;
+
+				int ColumnsSize = PQnfields(Base);
+				if (ColumnsSize <= 0)
+					return Columns;
+
+				Columns.reserve((size_t)ColumnsSize);
+				for (int j = 0; j < ColumnsSize; j++)
+				{
+					char* Name = PQfname(Base, j);
+					Columns.emplace_back(Name ? Name : Core::ToString(j));
+				}
+#endif
+				return Columns;
+			}
 			Core::String Response::GetCommandStatusText() const
 			{
 #ifdef VI_POSTGRESQL

@@ -7058,7 +7058,28 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->ReadUntilAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				{
+					Core::String Source(Data, Size); bool Result = false;
+					Delegate([Poll, Source](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context) mutable
+					{
+						Result = (bool)Context->GetReturnByte();
+					}).Wait();
+
+					return Result;
+				}), (size_t)0);
+			}
+			size_t SocketReadUntilChunkedAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			{
+				FunctionDelegate Delegate(Callback);
+				if (!Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
 					Core::String Source(Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
@@ -7138,6 +7159,28 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				return ExpectsWrapper::Unwrap(Base->ReadUntil(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					bool Result = false;
+					Core::String Source(Data, Size);
+					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}, [&Result](ImmediateContext* Context)
+					{
+						Result = (bool)Context->GetReturnByte();
+					});
+					return Result;
+				}), (size_t)0);
+			}
+			size_t SocketReadUntilChunked(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Callback);
+				if (!Context || !Delegate.IsValid())
+					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
+
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunked(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					bool Result = false;
 					Core::String Source(Data, Size);
@@ -7244,9 +7287,9 @@ namespace Vitex
 			{
 				return ExpectsWrapper::UnwrapVoid(Server->Listen());
 			}
-			bool SocketServerUnlisten(Network::SocketServer* Server, uint64_t Timeout)
+			bool SocketServerUnlisten(Network::SocketServer* Server, bool Gracefully)
 			{
-				return ExpectsWrapper::UnwrapVoid(Server->Unlisten(Timeout));
+				return ExpectsWrapper::UnwrapVoid(Server->Unlisten(Gracefully));
 			}
 
 			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
@@ -8221,9 +8264,17 @@ namespace Vitex
 			{
 				return ExpectsWrapper::Unwrap(Base.GetXML(), (Core::Schema*)nullptr);
 			}
-			void ContentFramePrepare(Network::HTTP::ContentFrame& Base, const Core::String& ContentLength)
+			void ContentFramePrepare1(Network::HTTP::ContentFrame& Base, const Network::HTTP::RequestFrame& Target, const Core::String& LeftoverContent)
 			{
-				Base.Prepare(ContentLength.c_str());
+				Base.Prepare(Target.Headers, LeftoverContent.c_str(), LeftoverContent.size());
+			}
+			void ContentFramePrepare2(Network::HTTP::ContentFrame& Base, const Network::HTTP::ResponseFrame& Target, const Core::String& LeftoverContent)
+			{
+				Base.Prepare(Target.Headers, LeftoverContent.c_str(), LeftoverContent.size());
+			}
+			void ContentFramePrepare3(Network::HTTP::ContentFrame& Base, const Network::HTTP::FetchFrame& Target, const Core::String& LeftoverContent)
+			{
+				Base.Prepare(Target.Headers, LeftoverContent.c_str(), LeftoverContent.size());
 			}
 			void ContentFrameAddResource(Network::HTTP::ContentFrame& Base, const Network::HTTP::Resource& Item)
 			{
@@ -9111,11 +9162,11 @@ namespace Vitex
 				}, Eat);
 				return Result;
 			}
-			Core::Promise<Core::String> ConnectionConsume(Network::HTTP::Connection* Base, bool Eat)
+			Core::Promise<Core::String> ConnectionFetch(Network::HTTP::Connection* Base, bool Eat)
 			{
 				Core::Promise<Core::String> Result;
 				Core::String* Data = VI_NEW(Core::String);
-				Base->Consume([Result, Data](Network::HTTP::Connection*, Network::SocketPoll Poll, const char* Buffer, size_t Size) mutable
+				Base->Fetch([Result, Data](Network::HTTP::Connection*, Network::SocketPoll Poll, const char* Buffer, size_t Size) mutable
 				{
 					if (!Buffer || !Size)
 					{
@@ -9183,18 +9234,18 @@ namespace Vitex
 			{
 				return Base->RemoteAddress;
 			}
-			Core::Promise<bool> ClientDownload(Network::HTTP::Client* Base, size_t MaxSize)
+			Core::Promise<bool> ClientSkip(Network::HTTP::Client* Base)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Download(MaxSize).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
+				return Base->Skip().Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
+			Core::Promise<bool> ClientFetch(Network::HTTP::Client* Base, size_t MaxSize, bool Eat)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Fetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
+				return Base->Fetch(MaxSize, Eat).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -9210,7 +9261,15 @@ namespace Vitex
 			Core::Promise<bool> ClientSend(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsSystem<Network::HTTP::ResponseFrame*>&& Result) -> bool
+				return Base->Send(Network::HTTP::RequestFrame(Frame)).Then<bool>([Context](Core::ExpectsSystem<void>&& Result) -> bool
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> ClientSendFetch(Network::HTTP::Client* Base, const Network::HTTP::RequestFrame& Frame, size_t MaxSize)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->SendFetch(Network::HTTP::RequestFrame(Frame), MaxSize).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -9354,6 +9413,15 @@ namespace Vitex
 
 				Base = Other.Copy();
 				return Base;
+			}
+			Array* LDBResponseGetColumns(Network::LDB::Response& Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base.GetColumns());
 			}
 
 			Network::LDB::Response LDBCursorFirst(Network::LDB::Cursor& Base)
@@ -9711,6 +9779,15 @@ namespace Vitex
 
 				Base = Other.Copy();
 				return Base;
+			}
+			Array* PDBResponseGetColumns(Network::PDB::Response& Base)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return nullptr;
+
+				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base.GetColumns());
 			}
 
 			Network::PDB::Response PDBCursorFirst(Network::PDB::Cursor& Base)
@@ -15759,12 +15836,14 @@ namespace Vitex
 				VEpollFd->SetOperatorCopyStatic(&EpollFdCopy);
 				VEpollFd->SetDestructorEx("void f()", &EpollFdDestructor);
 
-				auto VEpollHandle = VM->SetStructTrivial<Network::EpollHandle>("epoll_handle");
+				auto VEpollHandle = VM->SetStruct<Network::EpollHandle>("epoll_handle");
 				VEpollHandle->SetConstructor<Network::EpollHandle, size_t>("void f(usize)");
 				VEpollHandle->SetMethod("bool add(socket@+, bool, bool)", &Network::EpollHandle::Add);
 				VEpollHandle->SetMethod("bool update(socket@+, bool, bool)", &Network::EpollHandle::Update);
 				VEpollHandle->SetMethod("bool remove(socket@+)", &Network::EpollHandle::Remove);
 				VEpollHandle->SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
+				VEpollHandle->SetOperatorMoveCopy<Network::EpollHandle>();
+				VEpollHandle->SetDestructor<Network::EpollHandle>("void f()");
 
 				auto VSocketAddress = VM->SetClass<Network::SocketAddress>("socket_address", false);
 				VSocketAddress->SetConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
@@ -15798,6 +15877,7 @@ namespace Vitex
 				VSocket->SetMethodEx("usize write_async(const string &in, socket_written_event@)", &SocketWriteAsync);
 				VSocket->SetMethodEx("usize read_async(usize, socket_read_event@)", &SocketReadAsync);
 				VSocket->SetMethodEx("usize read_until_async(const string &in, socket_read_event@)", &SocketReadUntilAsync);
+				VSocket->SetMethodEx("usize read_until_chunked_async(const string &in, socket_read_event@)", &SocketReadUntilChunkedAsync);
 				VSocket->SetMethodEx("bool accept(socket@+, string &out)", &SocketAccept1);
 				VSocket->SetMethodEx("bool accept(usize &out, string &out)", &SocketAccept2);
 				VSocket->SetMethodEx("bool secure(uptr@, const string &in)", &SocketSecure);
@@ -15806,6 +15886,7 @@ namespace Vitex
 				VSocket->SetMethodEx("usize read(string &out, usize)", &SocketRead1);
 				VSocket->SetMethodEx("usize read(string &out, usize, socket_read_event@)", &SocketRead2);
 				VSocket->SetMethodEx("usize read_until(const string &in, socket_read_event@)", &SocketReadUntil);
+				VSocket->SetMethodEx("usize read_until_chunked(const string &in, socket_read_event@)", &SocketReadUntilChunked);
 				VSocket->SetMethodEx("string get_remote_address() const", &VI_EXPECTIFY(Network::Socket::GetRemoteAddress));
 				VSocket->SetMethodEx("int get_port() const", &VI_EXPECTIFY(Network::Socket::GetPort));
 				VSocket->SetMethodEx("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetAnyFlag));
@@ -15819,7 +15900,7 @@ namespace Vitex
 				VSocket->SetMethodEx("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetKeepAlive));
 				VSocket->SetMethodEx("bool set_timeout(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeout));
 				VSocket->SetMethodEx("bool connect(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
-				VSocket->SetMethodEx("bool shutdown()", &VI_EXPECTIFY_VOID(Network::Socket::Shutdown));
+				VSocket->SetMethodEx("bool shutdown(bool = false)", &VI_EXPECTIFY_VOID(Network::Socket::Shutdown));
 				VSocket->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
 				VSocket->SetMethodEx("bool open(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
 				VSocket->SetMethodEx("bool bind(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
@@ -15930,7 +16011,7 @@ namespace Vitex
 				VSocketServer->SetMethodEx("void set_router(socket_router@+)", &SocketServerSetRouter);
 				VSocketServer->SetMethodEx("bool configure(socket_router@+)", &SocketServerConfigure);
 				VSocketServer->SetMethodEx("bool listen()", &SocketServerListen);
-				VSocketServer->SetMethodEx("bool unlisten(uint64 = 5)", &SocketServerUnlisten);
+				VSocketServer->SetMethodEx("bool unlisten(bool)", &SocketServerUnlisten);
 				VSocketServer->SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VSocketServer->SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
 				VSocketServer->SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
@@ -16048,6 +16129,9 @@ namespace Vitex
 				VCookie->SetMethod("void set_expires(int64)", &Network::HTTP::Cookie::SetExpires);
 				VCookie->SetMethod("void set_expired()", &Network::HTTP::Cookie::SetExpired);
 
+				auto VRequestFrame = VM->SetStructTrivial<Network::HTTP::RequestFrame>("request_frame");
+				auto VResponseFrame = VM->SetStructTrivial<Network::HTTP::ResponseFrame>("response_frame");
+				auto VFetchFrame = VM->SetStructTrivial<Network::HTTP::FetchFrame>("fetch_frame");
 				auto VContentFrame = VM->SetStructTrivial<Network::HTTP::ContentFrame>("content_frame");
 				VContentFrame->SetProperty<Network::HTTP::ContentFrame>("usize length", &Network::HTTP::ContentFrame::Length);
 				VContentFrame->SetProperty<Network::HTTP::ContentFrame>("usize offset", &Network::HTTP::ContentFrame::Offset);
@@ -16062,13 +16146,14 @@ namespace Vitex
 				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
 				VContentFrame->SetMethodEx("schema@ get_json() const", &ContentFrameGetJSON);
 				VContentFrame->SetMethodEx("schema@ get_xml() const", &ContentFrameGetXML);
-				VContentFrame->SetMethodEx("void prepare(const string&in)", &ContentFramePrepare);
+				VContentFrame->SetMethodEx("void prepare(const request_frame&in, const string&in)", &ContentFramePrepare1);
+				VContentFrame->SetMethodEx("void prepare(const response_frame&in, const string&in)", &ContentFramePrepare2);
+				VContentFrame->SetMethodEx("void prepare(const fetch_frame&in, const string&in)", &ContentFramePrepare3);
 				VContentFrame->SetMethodEx("void add_resource(const resource_info&in)", &ContentFrameAddResource);
 				VContentFrame->SetMethodEx("void clear_resources()", &ContentFrameClearResources);
 				VContentFrame->SetMethodEx("resource_info get_resource(usize) const", &ContentFrameGetResource);
 				VContentFrame->SetMethodEx("usize get_resources_size() const", &ContentFrameGetResourcesSize);
 
-				auto VRequestFrame = VM->SetStructTrivial<Network::HTTP::RequestFrame>("request_frame");
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("content_frame content", &Network::HTTP::RequestFrame::Content);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string query", &Network::HTTP::RequestFrame::Query);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string path", &Network::HTTP::RequestFrame::Path);
@@ -16094,7 +16179,6 @@ namespace Vitex
 				VRequestFrame->SetMethodEx("string get_method() const", &RequestFrameGetMethod);
 				VRequestFrame->SetMethodEx("string get_version() const", &RequestFrameGetVersion);
 
-				auto VResponseFrame = VM->SetStructTrivial<Network::HTTP::ResponseFrame>("response_frame");
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("content_frame content", &Network::HTTP::ResponseFrame::Content);
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("int32 status_code", &Network::HTTP::ResponseFrame::StatusCode);
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("bool error", &Network::HTTP::ResponseFrame::Error);
@@ -16114,7 +16198,6 @@ namespace Vitex
 				VResponseFrame->SetMethodEx("usize get_header_size(usize) const", &ResponseFrameGetHeaderSize);
 				VResponseFrame->SetMethodEx("usize get_cookies_size() const", &ResponseFrameGetCookiesSize);
 
-				auto VFetchFrame = VM->SetStructTrivial<Network::HTTP::FetchFrame>("fetch_frame");
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("content_frame content", &Network::HTTP::FetchFrame::Content);
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("uint64 timeout", &Network::HTTP::FetchFrame::Timeout);
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("uint32 verify_peers", &Network::HTTP::FetchFrame::VerifyPeers);
@@ -16318,7 +16401,7 @@ namespace Vitex
 				VConnection->SetMethod<Network::HTTP::Connection, bool>("bool finish()", &Network::HTTP::Connection::Finish);
 				VConnection->SetMethod<Network::HTTP::Connection, bool, int>("bool finish(int32)", &Network::HTTP::Connection::Finish);
 				VConnection->SetMethodEx("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(ConnectionStore, ArrayResourceInfo));
-				VConnection->SetMethodEx("promise<string>@ consume(bool = false) const", &VI_SPROMISIFY_REF(ConnectionConsume, String));
+				VConnection->SetMethodEx("promise<string>@ fetch(bool = false) const", &VI_SPROMISIFY_REF(ConnectionFetch, String));
 				VConnection->SetMethodEx("promise<bool>@ skip() const", &VI_SPROMISIFY(ConnectionSkip, TypeId::BOOL));
 				VConnection->SetMethodEx("websocket_frame@+ get_websocket() const", &ConnectionGetWebSocket);
 				VConnection->SetMethodEx("route_entry@+ get_route() const", &ConnectionGetRoute);
@@ -16348,7 +16431,7 @@ namespace Vitex
 				VServer->SetMethodEx("void set_router(map_router@+)", &SocketServerSetRouter);
 				VServer->SetMethodEx("bool configure(map_router@+)", &SocketServerConfigure);
 				VServer->SetMethodEx("bool listen()", &SocketServerListen);
-				VServer->SetMethodEx("bool unlisten(uint64 = 5)", &SocketServerUnlisten);
+				VServer->SetMethodEx("bool unlisten(bool)", &SocketServerUnlisten);
 				VServer->SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VServer->SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
 				VServer->SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
@@ -16374,10 +16457,11 @@ namespace Vitex
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
 				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
-				VClient->SetMethodEx("promise<bool>@ download(usize = 65536)", &VI_SPROMISIFY(ClientDownload, TypeId::BOOL));
-				VClient->SetMethodEx("promise<bool>@ fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientFetch, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ skip()", &VI_SPROMISIFY(ClientSkip, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ fetch(usize = 65536, bool = false)", &VI_SPROMISIFY(ClientFetch, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(ClientUpgrade, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ send_fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientSendFetch, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
@@ -16527,6 +16611,7 @@ namespace Vitex
 				VResponse->SetMethod("schema@ get_array_of_arrays() const", &Network::LDB::Response::GetArrayOfArrays);
 				VResponse->SetMethod("schema@ get_object(usize = 0) const", &Network::LDB::Response::GetObject);
 				VResponse->SetMethod("schema@ get_array(usize = 0) const", &Network::LDB::Response::GetArray);
+				VResponse->SetMethodEx("array<string>@ get_columns() const", &LDBResponseGetColumns);
 				VResponse->SetMethod("string get_status_text() const", &Network::LDB::Response::GetStatusText);
 				VResponse->SetMethod("int32 get_status_code() const", &Network::LDB::Response::GetStatusCode);
 				VResponse->SetMethod("usize affected_rows() const", &Network::LDB::Response::AffectedRows);
@@ -16832,6 +16917,7 @@ namespace Vitex
 				VResponse->SetMethod("schema@ get_array_of_arrays() const", &Network::PDB::Response::GetArrayOfArrays);
 				VResponse->SetMethod("schema@ get_object(usize = 0) const", &Network::PDB::Response::GetObject);
 				VResponse->SetMethod("schema@ get_array(usize = 0) const", &Network::PDB::Response::GetArray);
+				VResponse->SetMethodEx("array<string>@ get_columns() const", &PDBResponseGetColumns);
 				VResponse->SetMethod("string get_command_status_text() const", &Network::PDB::Response::GetCommandStatusText);
 				VResponse->SetMethod("string get_status_text() const", &Network::PDB::Response::GetStatusText);
 				VResponse->SetMethod("string get_error_text() const", &Network::PDB::Response::GetErrorText);

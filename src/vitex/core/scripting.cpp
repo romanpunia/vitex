@@ -9,6 +9,8 @@
 #ifdef VI_JIT
 #include "../internal/asc/compiler.h"
 #endif
+#define COMPILER_BLOCKED_WAIT_US 100
+#define THREAD_BLOCKED_WAIT_MS 50
 
 namespace
 {
@@ -3308,7 +3310,7 @@ namespace Vitex
 			{
 				int R = 0;
 				while ((R = Scope->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
+					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 				VI_DELETE(CByteCodeStream, Stream);
 				if (R >= 0)
 					VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
@@ -3338,7 +3340,7 @@ namespace Vitex
 			{
 				int R = 0;
 				while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
+					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 
 				VM->ClearSections();
 				Built = (R >= 0);
@@ -3476,7 +3478,7 @@ namespace Vitex
 			{
 				asIScriptFunction* FunctionPointer = nullptr; int R = 0;
 				while ((R = Source->CompileFunction("__vfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &FunctionPointer)) == asBUILD_IN_PROGRESS)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
+					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 				return FunctionFactory::ToReturn<Function>(R, Function(FunctionPointer));
 			});
 #else
@@ -4050,7 +4052,7 @@ namespace Vitex
 				else
 				{
 					Unique.Negate();
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_BLOCKED_WAIT_MS));
 					goto Retry;
 				}
 			}
@@ -4065,7 +4067,7 @@ namespace Vitex
 				if (LastContext != Thread.Context)
 				{
 					Unique.Negate();
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_BLOCKED_WAIT_MS));
 					goto Retry;
 				}
 				else
@@ -4109,7 +4111,7 @@ namespace Vitex
 			if (Action == DebugAction::Switch || ForceSwitchThreads > 0)
 			{
 				Unique.Negate();
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_BLOCKED_WAIT_MS));
 				goto Retry;
 			}
 
@@ -5466,7 +5468,7 @@ namespace Vitex
 
 			int Result = 0;
 			while ((Result = Module->CompileFunction("__vfdbgfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
-				std::this_thread::sleep_for(std::chrono::microseconds(100));
+				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 
 			if (Result < 0)
 			{

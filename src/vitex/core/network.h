@@ -196,10 +196,10 @@ namespace Vitex
 
 		public:
 			EpollHandle(size_t NewArraySize) noexcept;
-			EpollHandle(const EpollHandle& Other) noexcept;
+			EpollHandle(const EpollHandle&) = delete;
 			EpollHandle(EpollHandle&& Other) noexcept;
 			~EpollHandle() noexcept;
-			EpollHandle& operator= (const EpollHandle& Other) noexcept;
+			EpollHandle& operator= (const EpollHandle&) = delete;
 			EpollHandle& operator= (EpollHandle&& Other) noexcept;
 			bool Add(Socket* Fd, bool Readable, bool Writeable) noexcept;
 			bool Update(Socket* Fd, bool Readable, bool Writeable) noexcept;
@@ -360,7 +360,7 @@ namespace Vitex
 			int Dispatch(uint64_t Timeout) noexcept;
 			bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
 			bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
-			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel, bool EraseTimeout = true) noexcept;
+			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel) noexcept;
 			bool ClearEvents(Socket* Value) noexcept;
 			bool IsAwaitingEvents(Socket* Value) noexcept;
 			bool IsAwaitingReadable(Socket* Value) noexcept;
@@ -477,7 +477,7 @@ namespace Vitex
 			Core::ExpectsIO<void> Accept(Socket* OutConnection, char* OutAddress);
 			Core::ExpectsIO<void> Accept(socket_t* OutFd, char* OutAddress);
 			Core::ExpectsIO<void> AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
-			Core::ExpectsIO<void> Shutdown();
+			Core::ExpectsIO<void> Shutdown(bool Gracefully = false);
 			Core::ExpectsIO<void> Close();
 			Core::ExpectsIO<void> CloseAsync(SocketStatusCallback&& Callback);
 			Core::ExpectsIO<size_t> SendFile(FILE* Stream, size_t Offset, size_t Size);
@@ -489,6 +489,8 @@ namespace Vitex
 			Core::ExpectsIO<size_t> ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
 			Core::ExpectsIO<size_t> ReadUntil(const char* Match, SocketReadCallback&& Callback);
 			Core::ExpectsIO<size_t> ReadUntilAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
+			Core::ExpectsIO<size_t> ReadUntilChunked(const char* Match, SocketReadCallback&& Callback);
+			Core::ExpectsIO<size_t> ReadUntilChunkedAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
 			Core::ExpectsIO<void> Connect(SocketAddress* Address, uint64_t Timeout);
 			Core::ExpectsIO<void> ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback);
 			Core::ExpectsIO<void> Open(SocketAddress* Address);
@@ -593,20 +595,23 @@ namespace Vitex
 			Core::UnorderedSet<SocketConnection*> Active;
 			Core::UnorderedSet<SocketConnection*> Inactive;
 			Core::Vector<SocketListener*> Listeners;
-			SocketRouter* Router = nullptr;
-			ServerState State = ServerState::Idle;
-			std::mutex Exclusive;
+			SocketRouter* Router;
+			std::atomic<ServerState> State;
+			std::recursive_mutex Exclusive;
+			uint64_t ShutdownTimeout;
 			size_t Backlog;
 			
 		public:
 			SocketServer() noexcept;
 			virtual ~SocketServer() noexcept;
 			Core::ExpectsSystem<void> Configure(SocketRouter* New);
-			Core::ExpectsSystem<void> Unlisten(uint64_t TimeoutSeconds = 5);
+			Core::ExpectsSystem<void> Unlisten(bool Gracefully);
 			Core::ExpectsSystem<void> Listen();
 			void SetRouter(SocketRouter* New);
 			void SetBacklog(size_t Value);
+			void SetShutdownTimeout(uint64_t TimeoutMs);
 			size_t GetBacklog() const;
+			uint64_t GetShutdownTimeout() const;
 			ServerState GetState() const;
 			SocketRouter* GetRouter();
 			const Core::UnorderedSet<SocketConnection*>& GetActiveClients();
@@ -677,6 +682,7 @@ namespace Vitex
 		protected:
 			virtual Core::ExpectsSystem<void> OnResolveHost(RemoteHost* Address);
 			virtual Core::ExpectsSystem<void> OnConnect();
+			virtual Core::ExpectsSystem<void> OnReuse();
 			virtual Core::ExpectsSystem<void> OnDisconnect();
 
 		private:

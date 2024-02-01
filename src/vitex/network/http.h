@@ -165,6 +165,7 @@ namespace Vitex
 				Core::Vector<char> Data;
 				size_t Length;
 				size_t Offset;
+				size_t Prefetch;
 				bool Exceeds;
 				bool Limited;
 
@@ -177,7 +178,7 @@ namespace Vitex
 				void Append(const char* Data, size_t Size);
 				void Assign(const Core::String& Data);
 				void Assign(const char* Data, size_t Size);
-				void Prepare(const char* ContentLength);
+				void Prepare(const HeaderMapping& Headers, const char* Buffer, size_t Size);
 				void Finalize();
 				void Cleanup();
 				Core::ExpectsParser<Core::Unique<Core::Schema>> GetJSON() const;
@@ -530,9 +531,9 @@ namespace Vitex
 				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
-				bool Consume(const ContentCallback& Callback = nullptr, bool Eat = false);
-				bool Store(const ResourceCallback& Callback = nullptr, bool Eat = false);
-				bool Skip(const SuccessCallback& Callback);
+				bool Fetch(ContentCallback&& Callback = nullptr, bool Eat = false);
+				bool Store(ResourceCallback&& Callback = nullptr, bool Eat = false);
+				bool Skip(SuccessCallback&& Callback);
 			};
 
 			class VI_OUT Query final : public Core::Reference<Query>
@@ -628,7 +629,7 @@ namespace Vitex
 					ChunkedState_Middle
 				};
 
-			private:
+			public:
 				struct MultipartData
 				{
 					char* LookBehind = nullptr;
@@ -645,7 +646,6 @@ namespace Vitex
 					char State = 0;
 				} Chunked;
 
-			public:
 				struct FrameInfo
 				{
 					RequestFrame* Request = nullptr;
@@ -676,6 +676,7 @@ namespace Vitex
 				Parser();
 				~Parser() noexcept;
 				void PrepareForNextParsing(Connection* Base, bool ForMultipart);
+				void PrepareForNextParsing(RouteEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart);
 				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
 				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LengthLastTime);
 				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LengthLastTime);
@@ -859,6 +860,7 @@ namespace Vitex
 				};
 
 			private:
+				HTTP::Parser* Resolver;
 				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
@@ -871,10 +873,11 @@ namespace Vitex
 			public:
 				Client(int64_t ReadTimeout);
 				~Client() override;
-				Core::ExpectsPromiseSystem<void> Download(size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseSystem<void> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<void> Skip();
+				Core::ExpectsPromiseSystem<void> Fetch(size_t MaxSize = PAYLOAD_SIZE, bool Eat = false);
 				Core::ExpectsPromiseSystem<void> Upgrade(HTTP::RequestFrame&& Root);
-				Core::ExpectsPromiseSystem<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<void> Send(HTTP::RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<void> SendFetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				void Downgrade();
@@ -883,12 +886,14 @@ namespace Vitex
 				ResponseFrame* GetResponse();
 
 			private:
+				Core::ExpectsSystem<void> OnReuse() override;
+				Core::ExpectsSystem<void> OnDisconnect() override;
 				void UploadFile(BoundaryBlock* Boundary, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void Upload(size_t FileId);
 				void ManageKeepAlive();
-				void Receive();
+				void Receive(const char* LeftoverBuffer, size_t LeftoverSize);
 			};
 
 			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& URL, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());

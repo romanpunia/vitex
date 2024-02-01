@@ -84,6 +84,18 @@ namespace Vitex
 				Core::Stringify::Replace(Copy, "\n", "<br>");
 				return Copy;
 			}
+			static const char* HeaderText(const HeaderMapping& Headers, const Core::String& Key)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				return It->second.back().c_str();
+			}
 
 			MimeStatic::MimeStatic(const char* Ext, const char* T) : Extension(Ext), Type(T)
 			{
@@ -1221,7 +1233,7 @@ namespace Vitex
 				return StatusCode >= 200 && StatusCode < 400;
 			}
 
-			ContentFrame::ContentFrame() : Length(0), Offset(0), Exceeds(false), Limited(false)
+			ContentFrame::ContentFrame() : Length(0), Offset(0), Prefetch(0), Exceeds(false), Limited(false)
 			{
 			}
 			void ContentFrame::Append(const Core::String& Text)
@@ -1240,11 +1252,25 @@ namespace Vitex
 			{
 				TextAssign(Data, Buffer, Size);
 			}
-			void ContentFrame::Prepare(const char* ContentLength)
+			void ContentFrame::Prepare(const HeaderMapping& Headers, const char* Buffer, size_t Size)
 			{
+				const char* ContentLength = HeaderText(Headers, "Content-Length");
 				Limited = (ContentLength != nullptr);
 				if (Limited)
 					Length = strtoull(ContentLength, nullptr, 10);
+
+				Offset = Prefetch = Buffer ? Size : 0;
+				if (Offset > 0)
+					TextAssign(Data, Buffer, Size);
+				else
+					Data.clear();
+
+				if (Limited)
+					return;
+
+				const char* TransferEncoding = HeaderText(Headers, "Transfer-Encoding");
+				if (!TransferEncoding || Core::Stringify::CaseCompare(TransferEncoding, "chunked") != 0)
+					Limited = true;
 			}
 			void ContentFrame::Finalize()
 			{
@@ -1277,6 +1303,7 @@ namespace Vitex
 				Resources.clear();
 				Length = 0;
 				Offset = 0;
+				Prefetch = 0;
 				Limited = false;
 				Exceeds = false;
 			}
@@ -1294,8 +1321,11 @@ namespace Vitex
 			}
 			bool ContentFrame::IsFinalized() const
 			{
+				if (Prefetch > 0)
+					return false;
+
 				if (!Limited)
-					return Offset >= Length && Offset > 0;
+					return Offset >= Length && Length > 0;
 
 				return Offset >= Length || Data.size() >= Length;
 			}
@@ -1513,37 +1543,32 @@ namespace Vitex
 				Response.Cleanup();
 				SocketConnection::Reset(Fully);
 			}
-			bool Connection::Consume(const ContentCallback& Callback, bool Eat)
+			bool Connection::Fetch(ContentCallback&& Callback, bool Eat)
 			{
 				if (!Request.Content.Resources.empty())
 				{
 					if (Callback)
-						Callback(this, SocketPoll::Timeout, nullptr, 0);
-
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 					return false;
 				}
 				else if (Request.Content.IsFinalized())
 				{
 					if (!Eat && Callback && !Request.Content.Data.empty())
 						Callback(this, SocketPoll::Next, Request.Content.Data.data(), (int)Request.Content.Data.size());
-
 					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
-
 					return true;
 				}
 				else if (Request.Content.Exceeds)
 				{
 					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
-
 					return false;
 				}
 				else if (!Stream->IsValid())
 				{
 					if (Callback)
 						Callback(this, SocketPoll::Reset, nullptr, 0);
-
 					return false;
 				}
 
@@ -1553,40 +1578,60 @@ namespace Vitex
 					Request.Content.Exceeds = true;
 					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
-
-					return true;
+					return false;
 				}
 
+				bool IsParserPrepared = false;
 				const char* TransferEncoding = Request.GetHeader("Transfer-Encoding");
-				if (!Request.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
+				bool IsTransferEncodingChunked = (!Request.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"));
+				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
+				if (Request.Content.Prefetch > 0)
 				{
-					Parser* Parser = new HTTP::Parser();
-					return !!Stream->ReadAsync(Root->Router->MaxNetBuffer, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					Request.Content.Prefetch = 0;
+					if (IsTransferEncodingChunked)
+					{
+						size_t DecodedSize = Request.Content.Data.size();
+						Parsers.Request->Chunked = Parser::ChunkedData();
+						IsParserPrepared = true;
+
+						int64_t Subresult = Parsers.Request->ParseDecodeChunked((char*)Request.Content.Data.data(), &DecodedSize);
+						Request.Content.Data.resize(DecodedSize);
+						if (!Eat && Callback && !Request.Content.Data.empty())
+							Callback(this, SocketPoll::Next, Request.Content.Data.data(), Request.Content.Data.size());
+
+						if (Subresult == -1 || Subresult == 0)
+						{
+							Request.Content.Finalize();
+							if (Callback)
+								Callback(this, SocketPoll::FinishSync, nullptr, 0);
+							return Subresult == 0;
+						}
+					}
+					else if (!Eat && Callback)
+						Callback(this, SocketPoll::Next, Request.Content.Data.data(), Request.Content.Data.size());
+				}
+
+				if (IsTransferEncodingChunked)
+				{
+					if (!IsParserPrepared)
+						Parsers.Request->Chunked = Parser::ChunkedData();
+
+					return !!Stream->ReadAsync(Root->Router->MaxNetBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
-							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Recv);
-							if (Result >= 0 || Result == -2)
-							{
-								Request.Content.Offset += Recv;
-								if (Eat)
-									return Result == -2;
-
-								if (Callback)
-									Callback(this, SocketPoll::Next, Buffer, Recv);
-
-								if (!Route || Request.Content.Data.size() < Root->Router->MaxNetBuffer)
-									Request.Content.Append(Buffer, Recv);
-							}
-							else if (Result == -1)
-							{
-								VI_RELEASE(Parser);
-								if (Callback)
-									Callback(this, SocketPoll::Timeout, nullptr, 0);
-
+							int64_t Result = Parsers.Request->ParseDecodeChunked((char*)Buffer, &Recv);
+							if (Result == -1)
 								return false;
-							}
 
+							Request.Content.Offset += Recv;
+							if (Eat)
+								return Result == -2;
+							else if (Callback)
+								Callback(this, SocketPoll::Next, Buffer, Recv);
+
+							if (!Route || Request.Content.Data.size() < Root->Router->MaxNetBuffer)
+								Request.Content.Append(Buffer, Recv);
 							return Result == -2;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -1596,28 +1641,25 @@ namespace Vitex
 								Callback(this, Event, nullptr, 0);
 						}
 
-						VI_RELEASE(Parser);
 						return true;
 					});
 				}
-				else if (!Request.Content.Limited)
+				else if (!Route || ContentLength > Root->Router->MaxHeapBuffer || ContentLength > Root->Router->MaxNetBuffer)
+				{
+					Request.Content.Exceeds = true;
+					if (Callback)
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+					return true;
+				}
+				else if (Request.Content.Limited && !ContentLength)
 				{
 					Request.Content.Finalize();
 					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
-
-					return true;
-				}
-				else if (!Route || Request.Content.Length > Root->Router->MaxHeapBuffer || Request.Content.Length > Root->Router->MaxNetBuffer)
-				{
-					Request.Content.Exceeds = true;
-					if (Callback)
-						Callback(this, SocketPoll::Timeout, nullptr, 0);
-
 					return true;
 				}
 
-				return !!Stream->ReadAsync(Request.Content.Length, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+				return !!Stream->ReadAsync(Request.Content.Limited ? ContentLength : Root->Router->MaxHeapBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1636,14 +1678,12 @@ namespace Vitex
 						Request.Content.Finalize();
 						if (Callback)
 							Callback(this, Event, nullptr, 0);
-
-						return false;
 					}
 
 					return true;
 				});
 			}
-			bool Connection::Store(const ResourceCallback& Callback, bool Eat)
+			bool Connection::Store(ResourceCallback&& Callback, bool Eat)
 			{
 				if (!Request.Content.Resources.empty())
 				{
@@ -1663,22 +1703,21 @@ namespace Vitex
 				{
 					if (Callback)
 						Callback(nullptr);
-
 					return true;
 				}
 				else if (!Request.Content.Limited)
 				{
 					if (Callback)
 						Callback(nullptr);
-
 					return false;
 				}
 
 				const char* ContentType = Request.GetHeader("Content-Type");
-				const char* BoundaryName;
+				const char* BoundaryName = (ContentType ? strstr(ContentType, "boundary=") : nullptr);
 				Request.Content.Exceeds = true;
 
-				if (ContentType != nullptr && (BoundaryName = strstr(ContentType, "boundary=")))
+				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
+				if (ContentType != nullptr && BoundaryName != nullptr)
 				{
 					if (Route->Site->ResourceRoot.empty())
 						Eat = true;
@@ -1687,10 +1726,21 @@ namespace Vitex
 					Boundary.append(BoundaryName + 9);
 
 					Parsers.Multipart->PrepareForNextParsing(this, true);
-					Parsers.Multipart->Frame.Callback = Callback;
+					Parsers.Multipart->Frame.Callback = std::move(Callback);
 					Parsers.Multipart->Frame.Ignore = Eat;
+					if (Request.Content.Prefetch > 0)
+					{
+						Request.Content.Prefetch = 0;
+						if (Parsers.Multipart->MultipartParse(Boundary.c_str(), Request.Content.Data.data(), Request.Content.Data.size()) == -1 || Parsers.Multipart->Frame.Close || !ContentLength)
+						{
+							Request.Content.Finalize();
+							if (Parsers.Multipart->Frame.Callback)
+								Parsers.Multipart->Frame.Callback(nullptr);
+							return false;
+						}
+					}
 
-					return !!Stream->ReadAsync(Request.Content.Length, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(ContentLength, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1713,20 +1763,25 @@ namespace Vitex
 						return true;
 					});
 				}
-				else if (Eat)
+				else if (!ContentLength)
 				{
-					return !!Stream->ReadAsync(Request.Content.Length, [this, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					if (Callback)
+						Callback(nullptr);
+					return true;
+				}
+				
+				if (Eat)
+				{
+					return !!Stream->ReadAsync(ContentLength, [this, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
-						if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
+						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							Request.Content.Offset += Recv;
-							return true;
+							Request.Content.Finalize();
+							if (Callback)
+								Callback(nullptr);
 						}
-
-						Request.Content.Finalize();
-						if (Callback)
-							Callback(nullptr);
-
+						else
+							Request.Content.Offset += Recv;
 						return true;
 					});
 				}
@@ -1735,25 +1790,20 @@ namespace Vitex
 				Subresource.Length = Request.Content.Length;
 				Subresource.Type = (ContentType ? ContentType : "application/octet-stream");
 
-				auto Directory = Core::OS::Directory::GetWorking();
-				if (!Directory)
+				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Compute::Crypto::RandomBytes(16));
+				Subresource.Path = *Core::OS::Directory::GetWorking() + *Hash;
+				FILE* File = Core::OS::File::Open(Subresource.Path.c_str(), "wb").Or(nullptr);
+				if (!File || (Request.Content.Prefetch > 0 && fwrite(Request.Content.Data.data(), 1, Request.Content.Data.size(), File) != Request.Content.Data.size()))
+				{
+					if (File != nullptr)
+						Core::OS::File::Close(File);
+					if (Callback)
+						Callback(nullptr);
 					return false;
+				}
 
-				auto Random = Compute::Crypto::RandomBytes(16);
-				if (!Random)
-					return false;
-
-				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Random);
-				if (!Hash)
-					return false;
-
-				Subresource.Path = *Directory + *Hash;
-				auto Source = Core::OS::File::Open(Subresource.Path.c_str(), "wb");
-				if (!Source)
-					return false;
-
-				FILE* File = *Source;
-				return !!Stream->ReadAsync(Request.Content.Length, [this, File, Subresource, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+				Request.Content.Prefetch = 0;
+				return !!Stream->ReadAsync(ContentLength, [this, File, Subresource, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1787,15 +1837,10 @@ namespace Vitex
 					return true;
 				});
 			}
-			bool Connection::Skip(const SuccessCallback& Callback)
+			bool Connection::Skip(SuccessCallback&& Callback)
 			{
 				VI_ASSERT(Callback != nullptr, "callback should be set");
-				if (!Request.Content.Resources.empty())
-					return true;
-				else if (Request.Content.IsFinalized())
-					return true;
-
-				Consume([Callback](HTTP::Connection* Base, SocketPoll Event, const char*, size_t)
+				Fetch([Callback = std::move(Callback)](HTTP::Connection* Base, SocketPoll Event, const char*, size_t) mutable
 				{
 					if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 						return true;
@@ -1806,13 +1851,12 @@ namespace Vitex
 						return true;
 					}
 
-					return Base->Store([Base, Callback](HTTP::Resource* Resource)
+					return Base->Store([Base, Callback = std::move(Callback)](HTTP::Resource* Resource)
 					{
 						Callback(Base);
 						return true;
 					}, true);
 				}, true);
-
 				return false;
 			}
 			bool Connection::Finish()
@@ -2497,25 +2541,20 @@ namespace Vitex
 			}
 			void Parser::PrepareForNextParsing(Connection* Base, bool ForMultipart)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
+				if (Base != nullptr)
+					PrepareForNextParsing(Base->Route, &Base->Request, &Base->Response, ForMultipart);
+				else
+					PrepareForNextParsing(nullptr, nullptr, nullptr, ForMultipart);
+			}
+			void Parser::PrepareForNextParsing(RouteEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart)
+			{
 				VI_FREE(Multipart.Boundary);
 				Multipart = MultipartData();
 				Chunked = ChunkedData();
-				Frame.Request = &Base->Request;
-				Frame.Response = nullptr;
-				Frame.Route = nullptr;
-				Frame.Stream = nullptr;
-				Frame.Header.clear();
-				Frame.Source = HTTP::Resource();
-				Frame.Callback = nullptr;
-				Frame.Close = false;
-				Frame.Ignore = false;
-
-				if (!ForMultipart)
-					return;
-
-				Frame.Response = &Base->Response;
-				Frame.Route = Base->Route;
+				Frame = FrameInfo();
+				Frame.Request = Request;
+				Frame.Response = ForMultipart ? Response : nullptr;
+				Frame.Route = ForMultipart ? Route : nullptr;
 			}
 			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, size_t Length)
 			{
@@ -4842,7 +4881,7 @@ namespace Vitex
 				else
 					Base->Response.StatusCode = 204;
 
-				return Base->Consume([=](Connection* Base, SocketPoll Event, const char* Buffer, size_t Size)
+				return Base->Fetch([=](Connection* Base, SocketPoll Event, const char* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -5756,7 +5795,7 @@ namespace Vitex
 				auto* Base = (Connection*)Source;
 
 				Base->Parsers.Request->PrepareForNextParsing(Base, false);
-				Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Size)
+				Base->Stream->ReadUntilChunkedAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -5778,8 +5817,8 @@ namespace Vitex
 					else if (Packet::IsDone(Event))
 					{
 						uint32_t Redirects = 0;
-						Base->Request.Content.Data.clear();
 						Base->Info.Start = Network::Utils::Clock();
+						Base->Request.Content.Prepare(Base->Request.Headers, Buffer, Size);
 					Redirect:
 						if (!Paths::ConstructRoute(Conf, Base))
 							return Base->Error(400, "Request cannot be resolved");
@@ -5800,9 +5839,7 @@ namespace Vitex
 								strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
 						}
 
-						Base->Request.Content.Prepare(Base->Request.GetHeader("Content-Length"));
 						Paths::ConstructPath(Base);
-
 						if (!Permissions::MethodAllowed(Base))
 							return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
 
@@ -5911,23 +5948,35 @@ namespace Vitex
 				return new MapRouter();
 			}
 
-			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), WebSocket(nullptr)
+			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), Resolver(new HTTP::Parser()), WebSocket(nullptr), Future(Core::ExpectsPromiseSystem<void>::Null())
 			{
+				Resolver->OnMethodValue = Parsing::ParseMethodValue;
+				Resolver->OnPathValue = Parsing::ParsePathValue;
+				Resolver->OnQueryValue = Parsing::ParseQueryValue;
+				Resolver->OnVersion = Parsing::ParseVersion;
+				Resolver->OnStatusCode = Parsing::ParseStatusCode;
+				Resolver->OnHeaderField = Parsing::ParseHeaderField;
+				Resolver->OnHeaderValue = Parsing::ParseHeaderValue;
+				Resolver->Frame.Response = &Response;
+				Response.Content.Finalize();
 			}
 			Client::~Client()
 			{
+				VI_CLEAR(Resolver);
 				VI_CLEAR(WebSocket);
 			}
-			Core::ExpectsPromiseSystem<void> Client::Download(size_t MaxSize)
+			Core::ExpectsPromiseSystem<void> Client::Skip()
+			{
+				return Fetch(PAYLOAD_SIZE, true);
+			}
+			Core::ExpectsPromiseSystem<void> Client::Fetch(size_t MaxSize, bool Eat)
 			{
 				VI_ASSERT(!WebSocket, "cannot read http over websocket");
 				if (Response.Content.IsFinalized())
 					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 				else if (Response.Content.Exceeds)
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: payload too large", std::make_error_condition(std::errc::value_too_large)));
-
-				Response.Content.Data.clear();
-				if (!HasStream())
+				else if (!HasStream())
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				const char* ContentType = Response.GetHeader("Content-Type");
@@ -5936,47 +5985,83 @@ namespace Vitex
 					Response.Content.Exceeds = true;
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: requires file saving", std::make_error_condition(std::errc::value_too_large)));
 				}
-                
+				else if (Eat)
+					MaxSize = std::numeric_limits<size_t>::max();
+
+				size_t LeftoverSize = Response.Content.Data.size() - Response.Content.Prefetch;
+				if (!Response.Content.Data.empty() && LeftoverSize > 0 && LeftoverSize <= Response.Content.Data.size())
+					Response.Content.Data.erase(Response.Content.Data.begin(), Response.Content.Data.begin() + LeftoverSize);
+
+				bool IsParserPrepared = false;
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				if (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"))
+				bool IsTransferEncodingChunked = (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"));
+				if (Response.Content.Prefetch > 0)
 				{
+					LeftoverSize = std::min(MaxSize, Response.Content.Prefetch);
+					Response.Content.Prefetch -= LeftoverSize;
+					MaxSize -= LeftoverSize;
+					if (IsTransferEncodingChunked)
+					{
+						size_t DecodedSize = LeftoverSize;
+						Resolver->Chunked = Parser::ChunkedData();
+						IsParserPrepared = true;
+
+						int64_t Subresult = Resolver->ParseDecodeChunked((char*)Response.Content.Data.data(), &DecodedSize);
+						if (Subresult >= 0 || Subresult == -2)
+						{
+							LeftoverSize -= DecodedSize;
+							if (LeftoverSize > 0)
+								Response.Content.Data.erase(Response.Content.Data.begin() + DecodedSize, Response.Content.Data.begin() + DecodedSize + LeftoverSize);
+							if (Subresult == 0)
+							{
+								Response.Content.Finalize();
+								return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+							}
+						}
+						else if (Subresult == -1)
+							return Core::ExpectsPromiseSystem<void>(Core::SystemException("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
+					}
+					else if (Response.Content.Prefetch > 0)
+						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+				}
+				else
+					Response.Content.Data.clear();
+
+				if (IsTransferEncodingChunked)
+				{
+					if (!MaxSize)
+						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+					else if (!IsParserPrepared)
+						Resolver->Chunked = Parser::ChunkedData();
+
+					int64_t Subresult = -1;
 					Core::ExpectsPromiseSystem<void> Result;
-					Parser* Parser = new HTTP::Parser();
-					Net.Stream->ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+					Net.Stream->ReadAsync(MaxSize, [this, Result, Subresult, MaxSize, Eat](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
-							int64_t Subresult = Parser->ParseDecodeChunked((char*)Buffer, &Recv);
+							Subresult = Resolver->ParseDecodeChunked((char*)Buffer, &Recv);
 							if (Subresult == -1)
-							{
-								VI_RELEASE(Parser);
-								Result.Set(Core::SystemException("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
 								return false;
-							}
-							else if (Subresult >= 0 || Subresult == -2)
-							{
-								Response.Content.Offset += Recv;
-								Response.Content.Append(Buffer, Recv);
-							}
 
+							Response.Content.Offset += Recv;
+							if (!Eat)
+								Response.Content.Append(Buffer, Recv);
 							return Subresult == -2;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (!Response.Content.Limited)
+							if (Subresult != -2)
 							{
-								Response.Content.Length += Response.Content.Offset;
-								Response.Content.Limited = true;
+								Response.Content.Finalize();
+								if (!Response.Content.Data.empty())
+									VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 							}
 
-							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
-
 							if (Packet::IsErrorOrSkip(Event))
-								Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
+								Result.Set(Core::SystemException("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
 							else
 								Result.Set(Core::Expectation::Met);
-							VI_RELEASE(Parser);
 						}
 
 						return true;
@@ -5985,22 +6070,22 @@ namespace Vitex
 				}
 				else if (!Response.Content.Limited)
 				{
-					const char* Connection = Response.GetHeader("Connection");
-					if (!Connection || Core::Stringify::CaseCompare(Connection, "close"))
-						return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: length is unknown", std::make_error_condition(std::errc::no_protocol_option)));
+					if (!MaxSize)
+						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+					Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
 							Response.Content.Offset += Recv;
-							Response.Content.Append(Buffer, Recv);
+							if (!Eat)
+								Response.Content.Append(Buffer, Recv);
 							return true;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							Response.Content.Length += Response.Content.Offset;
+							Response.Content.Finalize();
 							if (!Response.Content.Data.empty())
 								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
 
@@ -6016,22 +6101,32 @@ namespace Vitex
 				}
                 
 				MaxSize = std::min(MaxSize, Response.Content.Length - Response.Content.Offset);
-				if (!MaxSize || Response.Content.Offset > Response.Content.Length)
+				if (!MaxSize)
+				{
+					Response.Content.Finalize();
+					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+				}
+				else if (Response.Content.Offset > Response.Content.Length)
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
 				Core::ExpectsPromiseSystem<void> Result;
-				Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+				Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
 						Response.Content.Offset += Recv;
-						Response.Content.Append(Buffer, Recv);
+						if (!Eat)
+							Response.Content.Append(Buffer, Recv);
 						return true;
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
-						if (!Response.Content.Data.empty())
-							VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+						if (Response.Content.Length <= Response.Content.Offset)
+						{
+							Response.Content.Finalize();
+							if (!Response.Content.Data.empty())
+								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+						}
 
 						if (Packet::IsErrorOrSkip(Event))
 							Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
@@ -6042,16 +6137,6 @@ namespace Vitex
 					return true;
 				});
 				return Result;
-			}
-			Core::ExpectsPromiseSystem<void> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
-			{
-				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this, MaxSize](Core::ExpectsSystem<ResponseFrame*>&& Response) -> Core::ExpectsPromiseSystem<void>
-				{
-					if (!Response)
-						return Core::ExpectsPromiseSystem<void>(Response.Error());
-
-					return Download(MaxSize);
-				});
 			}
 			Core::ExpectsPromiseSystem<void> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
@@ -6070,16 +6155,16 @@ namespace Vitex
 				else
 					Root.SetHeader("Sec-WebSocket-Key", WEBSOCKET_KEY);
 	
-				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<ResponseFrame*>&& Response) -> Core::ExpectsPromiseSystem<void>
+				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<void>
 				{
 					VI_DEBUG("[ws] handshake %s", Request.URI.c_str());
-					if (!Response)
-						return Core::ExpectsPromiseSystem<void>(Response.Error());
+					if (!Status)
+						return Core::ExpectsPromiseSystem<void>(Status.Error());
 
-					if (Response->StatusCode != 101)
+					if (Response.StatusCode != 101)
 						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
 
-					if (!Response->GetHeader("Sec-WebSocket-Accept"))
+					if (!Response.GetHeader("Sec-WebSocket-Accept"))
 						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
 
 					Future = Core::ExpectsPromiseSystem<void>();
@@ -6087,26 +6172,25 @@ namespace Vitex
 					return Future;
 				});
 			}
-			Core::ExpectsPromiseSystem<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseSystem<void> Client::Send(HTTP::RequestFrame&& Root)
 			{
 				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
 				if (!HasStream())
-					return Core::ExpectsPromiseSystem<ResponseFrame*>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
-				Core::ExpectsPromiseSystem<ResponseFrame*> Result;
+				if (!Response.Content.IsFinalized() || Response.Content.Exceeds)
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException("content error: response body was not read", std::make_error_condition(std::errc::broken_pipe)));
+
+				Core::ExpectsPromiseSystem<void> Result;
 				Request = std::move(Root);
 				Response.Cleanup();
 				State.Done = [Result](SocketClient* Client, Core::ExpectsSystem<void>&& Status) mutable
 				{
 					HTTP::Client* Base = (HTTP::Client*)Client;
 					if (!Status)
-					{
 						Base->GetResponse()->StatusCode = -1;
-						Result.Set(std::move(Status.Error()));
-					}
-					else
-						Result.Set(Base->GetResponse());
+					Result.Set(std::move(Status));
 				};
 
 				if (!Request.GetHeader("Host"))
@@ -6129,9 +6213,6 @@ namespace Vitex
 
 				if (!Request.GetHeader("Accept"))
 					Request.SetHeader("Accept", "*/*");
-
-				if (!Request.GetHeader("User-Agent"))
-					Request.SetHeader("User-Agent", "Lynx/1.1");
 
 				if (!Request.GetHeader("Content-Length"))
 				{
@@ -6186,12 +6267,12 @@ namespace Vitex
 								{
 									if (Packet::IsDone(Event))
 									{
-										Net.Stream->ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+										Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 										{
 											if (Packet::IsData(Event))
 												Response.Content.Append(Buffer, Recv);
 											else if (Packet::IsDone(Event))
-												Receive();
+												Receive(Buffer, Recv);
 											else if (Packet::IsErrorOrSkip(Event))
 												Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
@@ -6204,12 +6285,12 @@ namespace Vitex
 							}
 							else
 							{
-								Net.Stream->ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+								Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 								{
 									if (Packet::IsData(Event))
 										Response.Content.Append(Buffer, Recv);
 									else if (Packet::IsDone(Event))
-										Receive();
+										Receive(Buffer, Recv);
 									else if (Packet::IsErrorOrSkip(Event))
 										Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
@@ -6308,12 +6389,22 @@ namespace Vitex
 
 				return Result;
 			}
+			Core::ExpectsPromiseSystem<void> Client::SendFetch(HTTP::RequestFrame&& Root, size_t MaxSize)
+			{
+				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this, MaxSize](Core::ExpectsSystem<void>&& Response) -> Core::ExpectsPromiseSystem<void>
+				{
+					if (!Response)
+						return Response;
+
+					return Fetch(MaxSize);
+				});
+			}
 			Core::ExpectsPromiseSystem<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Result) -> Core::ExpectsSystem<Core::Schema*>
+				return SendFetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
 				{
-					if (!Result)
-						return Result.Error();
+					if (!Status)
+						return Status.Error();
 
 					auto Data = Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
@@ -6324,10 +6415,10 @@ namespace Vitex
 			}
 			Core::ExpectsPromiseSystem<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Result) -> Core::ExpectsSystem<Core::Schema*>
+				return SendFetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
 				{
-					if (!Result)
-						return Result.Error();
+					if (!Status)
+						return Status.Error();
 
 					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data(), Response.Content.Data.size());
 					if (!Data)
@@ -6335,6 +6426,19 @@ namespace Vitex
 
 					return *Data;
 				});
+			}
+			Core::ExpectsSystem<void> Client::OnReuse()
+			{
+				Response.Content.Cleanup();
+				Response.Content.Finalize();
+				return Core::Expectation::Met;
+			}
+			Core::ExpectsSystem<void> Client::OnDisconnect()
+			{
+				Response.Content.Cleanup();
+				Response.Content.Finalize();
+				Report(Core::Expectation::Met);
+				return Core::Expectation::Met;
 			}
 			void Client::Downgrade()
 			{
@@ -6505,12 +6609,12 @@ namespace Vitex
 				}
 				else
 				{
-					Net.Stream->ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+					Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 							Response.Content.Append(Buffer, Recv);
 						else if (Packet::IsDone(Event))
-							Receive();
+							Receive(Buffer, Recv);
 						else if (Packet::IsErrorOrSkip(Event))
 							Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
@@ -6529,86 +6633,70 @@ namespace Vitex
 
 				return EnableReusability();
 			}
-			void Client::Receive()
+			void Client::Receive(const char* LeftoverBuffer, size_t LeftoverSize)
 			{
 				auto Address = Net.Stream->GetRemoteAddress();
 				if (Address)
 					strncpy(RemoteAddress, Address->c_str(), std::min(Address->size(), sizeof(RemoteAddress)));
 
-				Parser* Parser = new HTTP::Parser();
-				Parser->OnMethodValue = Parsing::ParseMethodValue;
-				Parser->OnPathValue = Parsing::ParsePathValue;
-				Parser->OnQueryValue = Parsing::ParseQueryValue;
-				Parser->OnVersion = Parsing::ParseVersion;
-				Parser->OnStatusCode = Parsing::ParseStatusCode;
-				Parser->OnHeaderField = Parsing::ParseHeaderField;
-				Parser->OnHeaderValue = Parsing::ParseHeaderValue;
-				Parser->Frame.Response = &Response;
-
-				if (Parser->ParseResponse(Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
+				Resolver->PrepareForNextParsing(nullptr, nullptr, &Response, true);
+				if (Resolver->ParseResponse(Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
 				{
-					Response.Content.Prepare(Response.GetHeader("Content-Length"));
-					Response.Content.Data.clear();
+					Response.Content.Prepare(Response.Headers, LeftoverBuffer, LeftoverSize);
 					ManageKeepAlive();
-
-					VI_RELEASE(Parser);
 					Report(Core::Expectation::Met);
 				}
 				else
-				{
-					VI_RELEASE(Parser);
 					Report(Core::SystemException(Core::Stringify::Text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, Response.Content.Data.size()), Response.Content.Data.data()), std::make_error_condition(std::errc::bad_message)));
-				}
 			}
 
 			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)
 			{
-				return Core::Coasync<Core::ExpectsSystem<ResponseFrame>>([Target, Method, Options]() -> Core::ExpectsPromiseSystem<ResponseFrame>
+				Network::Location URL(Target);
+				if (URL.Protocol != "http" && URL.Protocol != "https")
+					return Core::ExpectsPromiseSystem<ResponseFrame>(Core::SystemException("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported)));
+
+				Network::RemoteHost Address;
+				Address.Hostname = URL.Hostname;
+				Address.Secure = (URL.Protocol == "https");
+				Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
+
+				HTTP::RequestFrame Request;
+				Request.Cookies = Options.Cookies;
+				Request.Headers = Options.Headers;
+				Request.Content = Options.Content;
+				Request.SetMethod(Method.c_str());
+				Request.URI.assign(URL.Path);
+				if (!URL.Username.empty() || !URL.Password.empty())
+					Request.SetHeader("Authorization", Permissions::Authorize(URL.Username, URL.Password));
+
+				for (auto& Item : URL.Query)
+					Request.Query += Item.first + "=" + Item.second + "&";
+				if (!Request.Query.empty())
+					Request.Query.pop_back();
+
+				size_t MaxSize = Options.MaxSize;
+				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
+				return Client->Connect(&Address, true, Options.VerifyPeers).Then<Core::ExpectsPromiseSystem<void>>([Client, MaxSize, Request = std::move(Request)](Core::ExpectsSystem<void>&& Status) mutable -> Core::ExpectsPromiseSystem<void>
 				{
-					Network::Location URL(Target);
-					if (URL.Protocol != "http" && URL.Protocol != "https")
-						Coreturn Core::SystemException("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported));
+					if (!Status)
+						return Core::ExpectsPromiseSystem<void>(Status);
 
-					Network::RemoteHost Address;
-					Address.Hostname = URL.Hostname;
-					Address.Secure = (URL.Protocol == "https");
-					Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
-
-					HTTP::RequestFrame Request;
-					Request.Cookies = Options.Cookies;
-					Request.Headers = Options.Headers;
-					Request.Content = Options.Content;
-					Request.SetMethod(Method.c_str());
-					Request.URI.assign(URL.Path);
-
-					if (!URL.Username.empty() || !URL.Password.empty())
-						Request.SetHeader("Authorization", Permissions::Authorize(URL.Username, URL.Password));
-
-					size_t MaxSize = Options.MaxSize;
-					HTTP::Client* Client = new HTTP::Client(Options.Timeout);
-					auto Status = VI_AWAIT(Client->Connect(&Address, true, Options.VerifyPeers));
+					return Client->SendFetch(std::move(Request), MaxSize);
+				}).Then<Core::ExpectsPromiseSystem<ResponseFrame>>([Client](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<ResponseFrame>
+				{
 					if (!Status)
 					{
-						VI_AWAIT(Client->Disconnect());
 						VI_RELEASE(Client);
-						Coreturn Status.Error();
+						return Core::ExpectsPromiseSystem<ResponseFrame>(Status.Error());
 					}
 
-					for (auto& Item : URL.Query)
-						Request.Query += Item.first + "=" + Item.second + "&";
-
-					if (!Request.Query.empty())
-						Request.Query.pop_back();
-
-					Status = VI_AWAIT(Client->Fetch(std::move(Request), MaxSize));
-					ResponseFrame Response = std::move(*Client->GetResponse());
-					VI_AWAIT(Client->Disconnect());
-					VI_RELEASE(Client);
-
-					if (!Status)
-						Coreturn Status.Error();
-
-					Coreturn Response;
+					auto Response = std::move(*Client->GetResponse());
+					return Client->Disconnect().Then<Core::ExpectsSystem<ResponseFrame>>([Client, Response = std::move(Response)](Core::ExpectsSystem<void>&&) mutable -> Core::ExpectsSystem<ResponseFrame>
+					{
+						VI_RELEASE(Client);
+						return std::move(Response);
+					});
 				});
 			}
 		}

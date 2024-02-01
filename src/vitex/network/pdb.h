@@ -368,6 +368,7 @@ namespace Vitex
 				Core::Unique<Core::Schema> GetArrayOfArrays() const;
 				Core::Unique<Core::Schema> GetObject(size_t Index = 0) const;
 				Core::Unique<Core::Schema> GetArray(size_t Index = 0) const;
+				Core::Vector<Core::String> GetColumns() const;
 				Core::String GetCommandStatusText() const;
 				Core::String GetStatusText() const;
 				Core::String GetErrorText() const;

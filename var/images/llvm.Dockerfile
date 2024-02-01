@@ -1,7 +1,7 @@
 FROM silkeh/clang:latest
 ARG CONFIGURE="-DCMAKE_BUILD_TYPE=Release"
 ARG COMPILE="-j"
-RUN apt update && apt upgrade
+RUN apt update -y && apt upgrade -y
 RUN apt install -y cmake \
     zlib1g-dev \
     libassimp-dev \

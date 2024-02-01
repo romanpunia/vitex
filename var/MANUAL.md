@@ -22,13 +22,13 @@ git clone https://github.com/romanpunia/vitex
 ```
 Initialize needed submodules while being inside of repository
 ```bash
-# Initialize required submodules
+# Initialize required submodules:
 git submodule update --init ./deps/concurrentqueue
 
-# Initialize needed for your project submodules, for example
+# Initialize optional submodules, for example:
 git submodule update --init ./deps/stb
 ```
-Generate and build project files while being inside of repository and also disable missing submodules
+Generate and build project files while being inside of repository (don't forget to disable missing submodules)
 ```bash
 # Default
 cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF # -DVI_CXX=14
@@ -41,7 +41,7 @@ cmake --build . --config Release
 ```
 
 ## Build: As a CMake dependency
-Add Vitex toolchain. With vcpkg add needed dependencies in vcpkg.json near your CMakeLists.txt:
+Add Vitex toolchain. Add needed dependencies in vcpkg.json near your CMakeLists.txt if you use vcpkg:
 ```cmake
 include(path/to/vitex/deps/toolchain.cmake)
 # ...

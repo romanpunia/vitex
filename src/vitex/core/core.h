@@ -572,6 +572,7 @@ namespace Vitex
 		using OrderedMap = std::map<K, V, Comparator, typename AllocationType<typename std::map<K, V>::value_type>::type>;
 
 		typedef std::function<void()> TaskCallback;
+		typedef std::function<bool(const char*, size_t)> ProcessCallback;
 		typedef std::function<String(const String&)> SchemaNameCallback;
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
@@ -2017,24 +2018,6 @@ namespace Vitex
 			bool IsExists = false;
 		};
 
-		struct VI_OUT ChildProcess
-		{
-			friend class OS;
-
-		private:
-			bool Valid = false;
-#ifdef VI_MICROSOFT
-			void* Process = nullptr;
-			void* Thread = nullptr;
-			void* Job = nullptr;
-#else
-			pid_t Process;
-#endif
-
-		public:
-			int64_t GetPid();
-		};
-
 		struct VI_OUT DateTime
 		{
 		private:
@@ -2444,12 +2427,8 @@ namespace Vitex
 				static bool SetSignalDefault(Signal Type);
 				static bool SetSignalIgnore(Signal Type);
 				static int GetSignalId(Signal Type);
-				static int ExecutePlain(const String& Command);
-				static ExpectsSystem<void> Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Result);
-				static ExpectsSystem<void> Await(ChildProcess* Process, int* ExitCode);
-				static void Free(ChildProcess* Process);
-				static ExpectsIO<Unique<ProcessStream>> ExecuteWriteOnly(const String& Command);
-				static ExpectsIO<Unique<ProcessStream>> ExecuteReadOnly(const String& Command);
+				static ExpectsIO<int> Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback);
+				static ExpectsIO<Unique<ProcessStream>> Spawn(const String& Command, FileMode Mode);
 				static ExpectsIO<String> GetEnv(const String& Name);
 				static String GetThreadId(const std::thread::id& Id);
 				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
@@ -2853,6 +2832,12 @@ namespace Vitex
 				uint32_t X, Y;
 			};
 
+			struct WindowState
+			{
+				Vector<std::pair<uint64_t, String>> Elements;
+				size_t Position = 0;
+			};
+
 		private:
 			struct
 			{
@@ -2864,6 +2849,7 @@ namespace Vitex
 			struct
 			{
 				UnorderedMap<uint64_t, ElementState> Elements;
+				UnorderedMap<uint64_t, WindowState> Windows;
 				std::recursive_mutex Session;
 				unsigned short Attributes = 0;
 				Mode Status = Mode::Detached;
@@ -2896,7 +2882,13 @@ namespace Vitex
 			void ColorPrint(StdColor BaseColor, const String& Buffer);
 			void ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size);
 			void CaptureTime();
+			uint64_t CaptureWindow(uint32_t Height);
+			void FreeWindow(uint64_t Id, bool RestorePosition);
+			void EmplaceWindow(uint64_t Id, const String& Text);
 			uint64_t CaptureElement();
+			void ResizeElement(uint64_t Id, uint32_t X);
+			void MoveElement(uint64_t Id, uint32_t Y);
+			void ReadElement(uint64_t Id, uint32_t* X, uint32_t* Y);
 			void FreeElement(uint64_t Id);
 			void ReplaceElement(uint64_t Id, const String& Text);
 			void SpinningElement(uint64_t Id, const String& Label);
@@ -2915,10 +2907,6 @@ namespace Vitex
 			void jWriteLine(Schema* Data);
 			void fWriteLine(const char* Format, ...);
 			void fWrite(const char* Format, ...);
-			void sWriteLine(const String& Line);
-			void sWrite(const String& Text);
-			void sfWriteLine(const char* Format, ...);
-			void sfWrite(const char* Format, ...);
 			double GetCapturedTime() const;
 			bool ReadScreen(uint32_t* Width, uint32_t* Height, uint32_t* X, uint32_t* Y);
 			bool ReadLine(String& Data, size_t Size);

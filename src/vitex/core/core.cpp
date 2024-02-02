@@ -6468,6 +6468,7 @@ namespace Vitex
 		}
 		void Console::Allocate()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			if (State.Status != Mode::Detached)
 				return;
 #ifdef VI_MICROSOFT
@@ -6490,6 +6491,7 @@ namespace Vitex
 		}
 		void Console::Deallocate()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			if (State.Status != Mode::Allocated)
 				return;
 #ifdef VI_MICROSOFT
@@ -6500,6 +6502,7 @@ namespace Vitex
 		}
 		void Console::Hide()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 #ifdef VI_MICROSOFT
 			VI_TRACE("[console] hide window");
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
@@ -6507,6 +6510,7 @@ namespace Vitex
 		}
 		void Console::Show()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			Allocate();
 #ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_SHOW);
@@ -6535,6 +6539,7 @@ namespace Vitex
 		}
 		void Console::Attach()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			if (State.Status != Mode::Detached)
 				return;
 #ifdef VI_MICROSOFT
@@ -6550,11 +6555,14 @@ namespace Vitex
 		}
 		void Console::Detach()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			State.Status = Mode::Detached;
 		}
 		void Console::Trace(uint32_t MaxFrames)
 		{
-			std::cout << ErrorHandling::GetStackTrace(0, MaxFrames) << '\n';
+			String Stacktrace = ErrorHandling::GetStackTrace(0, MaxFrames);
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			std::cout << Stacktrace << '\n';
 		}
 		void Console::SetColoring(bool Enabled)
 		{
@@ -6562,6 +6570,7 @@ namespace Vitex
 		}
 		void Console::SetColorTokens(Vector<Console::ColorToken>&& AdditionalTokens)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			Tokens.Custom = std::move(AdditionalTokens);
 			Tokens.Custom.reserve(Tokens.Custom.size() + Tokens.Default.size());
 			Tokens.Custom.insert(Tokens.Custom.end(), Tokens.Default.begin(), Tokens.Default.end());
@@ -6570,6 +6579,8 @@ namespace Vitex
 		{
 			if (!State.Colors)
 				return;
+
+			UMutex<std::recursive_mutex> Unique(State.Session);
 #ifdef VI_MICROSOFT
 			if (Background == StdColor::Zero)
 				Background = StdColor::Black;
@@ -6586,6 +6597,7 @@ namespace Vitex
 		{
 			if (!State.Colors)
 				return;
+			UMutex<std::recursive_mutex> Unique(State.Session);
 #ifdef VI_MICROSOFT
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), State.Attributes);
 #else
@@ -6602,8 +6614,10 @@ namespace Vitex
 			if (!Size)
 				return;
 
-			size_t Offset = 0;
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			ColorBegin(BaseColor);
+
+			size_t Offset = 0;
 			while (Buffer[Offset] != '\0')
 			{
 				auto V = Buffer[Offset];
@@ -6708,6 +6722,88 @@ namespace Vitex
 		{
 			State.Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
 		}
+		uint64_t Console::CaptureWindow(uint32_t Height)
+		{
+			if (!Height)
+				return 0;
+
+			WindowState Window;
+			Window.Elements.reserve(Height);
+
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			for (size_t i = 0; i < Height; i++)
+			{
+				uint64_t Id = CaptureElement();
+				if (Id > 0)
+				{
+					Window.Elements.push_back(std::make_pair(Id, String()));
+					continue;
+				}
+
+				for (auto& Element : Window.Elements)
+					FreeElement(Element.first);
+
+				return 0;
+			}
+
+			uint64_t Id = ++State.Id;
+			State.Windows[Id] = std::move(Window);
+			return Id;
+		}
+		void Console::FreeWindow(uint64_t Id, bool RestorePosition)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Windows.find(Id);
+			if (It == State.Windows.end())
+				return;
+
+			uint32_t Y = 0;
+			bool Exists = false;
+			if (RestorePosition && !It->second.Elements.empty())
+			{
+				auto Root = State.Elements.find(It->second.Elements.front().first);
+				if (Root != State.Elements.end())
+				{
+					Y = Root->second.Y;
+					Exists = true;
+				}
+			}
+
+			for (auto& Element : It->second.Elements)
+			{
+				ClearElement(Element.first);
+				FreeElement(Element.first);
+			}
+
+			State.Windows.erase(Id);
+			if (Exists && RestorePosition)
+				WritePosition(0, Y);
+		}
+		void Console::EmplaceWindow(uint64_t Id, const String& Text)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Windows.find(Id);
+			if (It == State.Windows.end() || It->second.Elements.empty())
+				return;
+
+			size_t Count = It->second.Elements.size();
+			if (++It->second.Position >= Count)
+			{
+				--Count;
+				for (size_t i = 0; i < Count; i++)
+				{
+					auto& PrevElement = It->second.Elements[i + 0];
+					auto& NextElement = It->second.Elements[i + 1];
+					ReplaceElement(PrevElement.first, NextElement.second);
+					PrevElement.second = std::move(NextElement.second);
+				}
+				It->second.Position = Count;
+			}
+
+			auto& Element = It->second.Elements[It->second.Position];
+			Element.second = Text;
+			ReplaceElement(Element.first, Element.second);
+		}
 		uint64_t Console::CaptureElement()
 		{
 			ElementState Element;
@@ -6729,20 +6825,54 @@ namespace Vitex
 			if (It != State.Elements.end())
 				State.Elements.erase(Id);
 		}
+		void Console::ResizeElement(uint64_t Id, uint32_t X)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It != State.Elements.end())
+				It->second.X = X;
+		}
+		void Console::MoveElement(uint64_t Id, uint32_t Y)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It != State.Elements.end())
+				It->second.Y = Y;
+		}
+		void Console::ReadElement(uint64_t Id, uint32_t* X, uint32_t* Y)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It != State.Elements.end())
+			{
+				if (X != nullptr)
+					*X = It->second.X;
+				if (Y != nullptr)
+					*Y = It->second.Y;
+			}
+		}
 		void Console::ReplaceElement(uint64_t Id, const String& Text)
 		{
+			String Writeable = Text;
+			Stringify::ReplaceOf(Writeable, "\b\f\n\r\v", " ");
+			Stringify::Replace(Writeable, "\t", "  ");
+
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			auto It = State.Elements.find(Id);
 			if (It == State.Elements.end())
 				return;
 
-			uint32_t X = It->second.X, Y = It->second.Y;
-			ReadScreen(nullptr, nullptr, &X, &Y);
-			WritePosition(0, It->second.Y);
-			if (!Text.empty())
-				std::cout << Text;
+			uint32_t Width = 0, X = 0, Y = 0;
+			if (!ReadScreen(&Width, nullptr, &X, &Y))
+				return;
+			else if (Width > 0 && Writeable.size() >= Width)
+				Writeable.erase(Writeable.begin() + Width - 1, Writeable.end());
 
-			while (It->second.X > Text.size())
+			WritePosition(0, It->second.Y);
+			if (!Writeable.empty())
+				std::cout << Writeable;
+
+			while (It->second.X > Writeable.size())
 			{
 				std::cout << ' ';
 				--It->second.X;
@@ -6750,7 +6880,7 @@ namespace Vitex
 
 			std::cout << '\n';
 			WritePosition(X, Y);
-			It->second.X = Text.size();
+			It->second.X = Writeable.size();
 		}
 		void Console::ProgressElement(uint64_t Id, double Value, double Coverage)
 		{
@@ -6870,10 +7000,12 @@ namespace Vitex
 		}
 		void Console::Flush()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout.flush();
 		}
 		void Console::FlushWrite()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << std::flush;
 		}
 		void Console::WriteSize(uint32_t Width, uint32_t Height)
@@ -6900,6 +7032,7 @@ namespace Vitex
 		void Console::WriteBuffer(const char* Buffer, size_t Size)
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should be set");
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			if (Size > 0)
 				printf("%.*s", (int)Size, Buffer);
 			else
@@ -6907,18 +7040,22 @@ namespace Vitex
 		}
 		void Console::WriteLine(const String& Line)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Line << '\n';
 		}
 		void Console::WriteChar(char Value)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Value;
 		}
 		void Console::Write(const String& Text)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Text;
 		}
 		void Console::jWrite(Schema* Data)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			if (!Data)
 			{
 				std::cout << "null";
@@ -6955,6 +7092,7 @@ namespace Vitex
 		}
 		void Console::jWriteLine(Schema* Data)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			jWrite(Data);
 			std::cout << '\n';
 		}
@@ -6971,50 +7109,10 @@ namespace Vitex
 #endif
 			va_end(Args);
 
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Buffer << '\n';
 		}
 		void Console::fWrite(const char* Format, ...)
-		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			char Buffer[BLOB_SIZE] = { '\0' };
-			va_list Args;
-			va_start(Args, Format);
-#ifdef VI_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#else
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#endif
-			va_end(Args);
-
-			std::cout << Buffer;
-		}
-		void Console::sWriteLine(const String& Line)
-		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Line << '\n';
-		}
-		void Console::sWrite(const String& Text)
-		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Text;
-		}
-		void Console::sfWriteLine(const char* Format, ...)
-		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			char Buffer[BLOB_SIZE] = { '\0' };
-			va_list Args;
-			va_start(Args, Format);
-#ifdef VI_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#else
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#endif
-			va_end(Args);
-
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Buffer << '\n';
-		}
-		void Console::sfWrite(const char* Format, ...)
 		{
 			VI_ASSERT(Format != nullptr, "format should be set");
 			char Buffer[BLOB_SIZE] = { '\0' };
@@ -8106,15 +8204,6 @@ namespace Vitex
 				Count += Directory->GetFiles();
 
 			return Count;
-		}
-
-		int64_t ChildProcess::GetPid()
-		{
-#ifdef VI_MICROSOFT
-			return GetProcessId(Process);
-#else
-			return (int64_t)Process;
-#endif
 		}
 
 		InlineArgs::InlineArgs() noexcept
@@ -9782,28 +9871,48 @@ namespace Vitex
 			return signal(Id, SIG_IGN) != SIG_ERR;
 #endif
 		}
-		int OS::Process::ExecutePlain(const String& Command)
+		ExpectsIO<int> OS::Process::Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute sp:command [ %s ]", Command.c_str());
-			return system(Command.c_str());
-		}
-		ExpectsIO<ProcessStream*> OS::Process::ExecuteWriteOnly(const String& Command)
-		{
-			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute wo:command [ %s ]", Command.c_str());
+			VI_DEBUG("[os] execute ps [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
-			auto Result = Stream->Open(Command.c_str(), FileMode::Write_Only);
-			if (Result)
-				return Stream;
+			auto Result = Stream->Open(Command.c_str(), FileMode::Read_Only);
+			if (!Result)
+			{
+				VI_RELEASE(Stream);
+				return Result.Error();
+			}
 
+			FILE* Handle = (FILE*)Stream->GetResource();
+			if (!Handle)
+			{
+				VI_RELEASE(Stream);
+				return Result.Error();
+			}
+
+			bool Notify = true;
+			char Buffer[CHUNK_SIZE];
+			while (fgets(Buffer, sizeof(Buffer), Handle) != nullptr)
+			{
+				if (Callback && Notify)
+					Notify = Callback(Buffer, strnlen(Buffer, sizeof(Buffer)));
+			}
+
+			Result = Stream->Close();
+			if (!Result)
+			{
+				VI_RELEASE(Stream);
+				return Result.Error();
+			}
+
+			int ExitCode = Stream->GetExitCode();
 			VI_RELEASE(Stream);
-			return Result.Error();
+			return ExitCode;
 		}
-		ExpectsIO<ProcessStream*> OS::Process::ExecuteReadOnly(const String& Command)
+		ExpectsIO<Unique<ProcessStream>> OS::Process::Spawn(const String& Command, FileMode Mode)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute ro:command [ %s ]", Command.c_str());
+			VI_DEBUG("[os] execute ps [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			auto Result = Stream->Open(Command.c_str(), FileMode::Read_Only);
 			if (Result)
@@ -9811,136 +9920,6 @@ namespace Vitex
 
 			VI_RELEASE(Stream);
 			return Result.Error();
-		}
-		ExpectsSystem<void> OS::Process::Spawn(const String& Path, const Vector<String>& Params, ChildProcess* Child)
-		{
-			VI_MEASURE(Timings::FileSystem);
-#ifdef VI_MICROSOFT
-			HANDLE Job = CreateJobObject(nullptr, nullptr);
-			if (Job == nullptr)
-				return SystemException("cannot create job object for process");
-
-			JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info = { };
-			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
-				return SystemException("cannot set job object for process");
-
-			STARTUPINFO StartupInfo;
-			ZeroMemory(&StartupInfo, sizeof(StartupInfo));
-			StartupInfo.cb = sizeof(StartupInfo);
-			StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
-			StartupInfo.wShowWindow = SW_HIDE;
-
-			PROCESS_INFORMATION Process;
-			ZeroMemory(&Process, sizeof(Process));
-
-			auto Exe = Path::Resolve(Path.c_str());
-			if (!Exe)
-				return SystemException(Stringify::Text("cannot spawn process: %s", Path.c_str()));
-
-			if (!Stringify::EndsWith(*Exe, ".exe"))
-				Exe->append(".exe");
-
-			String Args = Stringify::Text("\"%s\"", Exe->c_str());
-			for (const auto& Param : Params)
-				Args.append(1, ' ').append(Param);
-
-			if (!CreateProcessA(Exe->c_str(), (char*)Args.data(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
-				return SystemException(Stringify::Text("cannot spawn process: %s", Exe->c_str()));
-
-			VI_DEBUG("[os] spawn process %i on %s", (int)GetProcessId(Process.hProcess), Path.c_str());
-			AssignProcessToJobObject(Job, Process.hProcess);
-			if (Child != nullptr && !Child->Valid)
-			{
-				Child->Process = (void*)Process.hProcess;
-				Child->Thread = (void*)Process.hThread;
-				Child->Job = (void*)Job;
-				Child->Valid = true;
-			}
-#else
-			if (!File::IsExists(Path.c_str()))
-				return SystemException(Stringify::Text("cannot spawn process: %s", Path.c_str()));
-
-			pid_t ProcessId = fork();
-			if (ProcessId == 0)
-			{
-				Vector<char*> Args;
-				for (auto It = Params.begin(); It != Params.end(); ++It)
-					Args.push_back((char*)It->c_str());
-				Args.push_back(nullptr);
-
-				execve(Path.c_str(), Args.data(), nullptr);
-				exit(0);
-			}
-			else if (Child != nullptr)
-			{
-				VI_DEBUG("[os] spawn process %i on %s", (int)ProcessId, Path.c_str());
-				Child->Process = ProcessId;
-				Child->Valid = (ProcessId > 0);
-			}
-
-			if (!ProcessId)
-				return SystemException(Stringify::Text("cannot fork process: %s", Path.c_str()));
-#endif
-			return Expectation::Met;
-		}
-		ExpectsSystem<void> OS::Process::Await(ChildProcess* Process, int* ExitCode)
-		{
-			VI_ASSERT(Process != nullptr && Process->Valid, "process should be set and be valid");
-#ifdef VI_MICROSOFT
-			VI_TRACE("[os] await process %s", (int)GetProcessId(Process->Process));
-			WaitForSingleObject(Process->Process, INFINITE);
-			VI_DEBUG("[os] close process %s", (int)GetProcessId(Process->Process));
-
-			if (ExitCode != nullptr)
-			{
-				DWORD Result;
-				if (!GetExitCodeProcess(Process->Process, &Result))
-				{
-					Free(Process);
-					return SystemException("process did not return the exit code");
-				}
-
-				*ExitCode = (int)Result;
-			}
-#else
-			int Status;
-			VI_TRACE("[os] await process %i", (int)Process->Process);
-			waitpid(Process->Process, &Status, 0);
-
-			VI_DEBUG("[os] close process %i", (int)Process->Process);
-			if (ExitCode != nullptr)
-				*ExitCode = WEXITSTATUS(Status);
-#endif
-			Free(Process);
-			return Expectation::Met;
-		}
-		void OS::Process::Free(ChildProcess* Child)
-		{
-			VI_ASSERT(Child != nullptr && Child->Valid, "child should be set and be valid");
-#ifdef VI_MICROSOFT
-			if (Child->Process != nullptr)
-			{
-				VI_TRACE("[os] free process handle 0x%" PRIXPTR, (void*)Child->Process);
-				CloseHandle((HANDLE)Child->Process);
-				Child->Process = nullptr;
-			}
-
-			if (Child->Thread != nullptr)
-			{
-				VI_TRACE("[os] free process thread 0x%" PRIXPTR, (void*)Child->Process);
-				CloseHandle((HANDLE)Child->Thread);
-				Child->Thread = nullptr;
-			}
-
-			if (Child->Job != nullptr)
-			{
-				VI_TRACE("[os] free process job 0x%" PRIXPTR, (void*)Child->Process);
-				CloseHandle((HANDLE)Child->Job);
-				Child->Job = nullptr;
-			}
-#endif
-			Child->Valid = false;
 		}
 		String OS::Process::GetThreadId(const std::thread::id& Id)
 		{

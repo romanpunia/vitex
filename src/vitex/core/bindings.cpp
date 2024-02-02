@@ -4403,7 +4403,7 @@ namespace Vitex
 					}
 				}
 
-				Base->sWriteLine(Buffer);
+				Base->WriteLine(Buffer);
 			}
 			void Format::Write(Core::Console* Base, const Core::String& F, Format* Form)
 			{
@@ -4423,7 +4423,7 @@ namespace Vitex
 					}
 				}
 
-				Base->sWrite(Buffer);
+				Base->Write(Buffer);
 			}
 			void Format::FormatBuffer(VirtualMachine* VM, Core::String& Result, Core::String& Offset, void* Ref, int TypeId)
 			{
@@ -5302,39 +5302,31 @@ namespace Vitex
 				return Core::OS::Path::GetExtension(Path.c_str());
 			}
 
-			int OSProcessAwait(void* ProcessPtr)
+			int OSProcessExecute(const Core::String& Command, Core::FileMode Mode, asIScriptFunction* Callback)
 			{
-				int ExitCode = -1;
-				return ExpectsWrapper::UnwrapVoid(Core::OS::Process::Await((Core::ChildProcess*)ProcessPtr, &ExitCode)) ? ExitCode : -1;
-			}
-			void OSProcessFree(void* ProcessPtr)
-			{
-				auto* Result = (Core::ChildProcess*)ProcessPtr;
-				Core::OS::Process::Free(Result);
-				VI_DELETE(ChildProcess, Result);
-			}
-			void* OSProcessSpawn(const Core::String& Path, Array* Args)
-			{
-				Core::ChildProcess* Result = VI_NEW(Core::ChildProcess);
-				if (!ExpectsWrapper::UnwrapVoid(Core::OS::Process::Spawn(Path, Array::Decompose<Core::String>(Args), Result)))
+				ImmediateContext* Context = ImmediateContext::Get();
+				FunctionDelegate Delegate(Callback);
+				auto ExitCode = Core::OS::Process::Execute(Command, Mode, [Context, &Delegate](const char* Buffer, size_t Size) -> bool
 				{
-					VI_DELETE(ChildProcess, Result);
-					return nullptr;
-				}
+					if (!Context || !Delegate.IsValid())
+						return true;
 
-				return (void*)Result;
+					bool Continue = true;
+					Core::String Input(Buffer, Size);
+					Context->ExecuteSubcall(Delegate.Callable(), [&Input](ImmediateContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Input);
+					}, [&Continue](ImmediateContext* Context)
+					{
+						Continue = (bool)Context->GetReturnByte();
+					});
+					return Continue;
+				});
+				return ExpectsWrapper::Unwrap(std::move(ExitCode), -1, Context);
 			}
 			Core::String OSProcessGetEnv(const Core::String& Name)
 			{
 				return Core::OS::Process::GetEnv(Name).Or(Core::String());
-			}
-			Core::ProcessStream* OSProcessExecuteWriteOnly(const Core::String& Path)
-			{
-				return ExpectsWrapper::Unwrap(Core::OS::Process::ExecuteWriteOnly(Path), (Core::ProcessStream*)nullptr);
-			}
-			Core::ProcessStream* OSProcessExecuteReadOnly(const Core::String& Path)
-			{
-				return ExpectsWrapper::Unwrap(Core::OS::Process::ExecuteReadOnly(Path), (Core::ProcessStream*)nullptr);
 			}
 			Core::InlineArgs OSProcessParseArgs(Array* ArgsArray, size_t Opts, Array* FlagsArray)
 			{
@@ -11661,8 +11653,14 @@ namespace Vitex
 				VConsole->SetMethod("void color_begin(std_color, std_color = std_color::zero)", &Core::Console::ColorBegin);
 				VConsole->SetMethod("void color_end()", &Core::Console::ColorEnd);
 				VConsole->SetMethod("void capture_time()", &Core::Console::CaptureTime);
+				VConsole->SetMethod("uint64 capture_window(uint32)", &Core::Console::CaptureWindow);
+				VConsole->SetMethod("void free_window(uint64, bool)", &Core::Console::FreeWindow);
+				VConsole->SetMethod("void emplace_window(uint64, const string&in)", &Core::Console::EmplaceWindow);
 				VConsole->SetMethod("uint64 capture_element()", &Core::Console::CaptureElement);
 				VConsole->SetMethod("void free_element(uint64)", &Core::Console::FreeElement);
+				VConsole->SetMethod("void resize_element(uint64, uint32)", &Core::Console::ResizeElement);
+				VConsole->SetMethod("void move_element(uint64, uint32)", &Core::Console::MoveElement);
+				VConsole->SetMethod("void read_element(uint64, uint32&out, uint32&out)", &Core::Console::ReadElement);
 				VConsole->SetMethod("void replace_element(uint64, const string&in)", &Core::Console::ReplaceElement);
 				VConsole->SetMethod("void spinning_element(uint64, const string&in)", &Core::Console::SpinningElement);
 				VConsole->SetMethod("void progress_element(uint64, double, double = 0.8)", &Core::Console::ProgressElement);
@@ -11672,9 +11670,9 @@ namespace Vitex
 				VConsole->SetMethod("void flush_write()", &Core::Console::FlushWrite);
 				VConsole->SetMethod("void write_size(uint32, uint32)", &Core::Console::WriteSize);
 				VConsole->SetMethod("void write_position(uint32, uint32)", &Core::Console::WritePosition);
-				VConsole->SetMethod("void write_line(const string &in)", &Core::Console::sWriteLine);
+				VConsole->SetMethod("void write_line(const string &in)", &Core::Console::WriteLine);
 				VConsole->SetMethod("void write_char(uint8)", &Core::Console::WriteChar);
-				VConsole->SetMethod("void write(const string &in)", &Core::Console::sWrite);
+				VConsole->SetMethod("void write(const string &in)", &Core::Console::Write);
 				VConsole->SetMethod("double get_captured_time()", &Core::Console::GetCapturedTime);
 				VConsole->SetMethod("string read(usize)", &Core::Console::Read);
 				VConsole->SetMethod("bool read_screen(uint32 &out, uint32 &out, uint32 &out, uint32 &out)", &Core::Console::ReadScreen);
@@ -12061,16 +12059,13 @@ namespace Vitex
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::process");
+				VM->SetFunctionDef("void process_event(const string&in)");
 				VM->SetFunction("void abort()", &Core::OS::Process::Abort);
 				VM->SetFunction("void exit(int)", &Core::OS::Process::Exit);
 				VM->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
 				VM->SetFunction("string get_env(const string&in)", &OSProcessGetEnv);
-				VM->SetFunction("process_stream@+ execute_write_only(const string &in)", &OSProcessExecuteWriteOnly);
-				VM->SetFunction("process_stream@+ execute_read_only(const string &in)", &OSProcessExecuteReadOnly);
-				VM->SetFunction("int execute_plain(const string &in)", &Core::OS::Process::ExecutePlain);
-				VM->SetFunction("int await(uptr@)", &OSProcessAwait);
-				VM->SetFunction("void free(uptr@)", &OSProcessFree);
-				VM->SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);
+				VM->SetFunction("process_stream@+ spawn(const string &in, file_mode)", &VI_SEXPECTIFY(Core::OS::Process::Spawn));
+				VM->SetFunction("int execute(const string &in, file_mode, process_event@)", &OSProcessExecute);
 				VM->SetFunction("inline_args parse_args(array<string>@+, usize, array<string>@+ = null)", &OSProcessParseArgs);
 				VM->EndNamespace();
 

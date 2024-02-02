@@ -3514,7 +3514,7 @@ namespace Vitex
 				if (ShutdownTimeout > 0 && Core::Schedule::GetClock() - Time > Timeout)
 				{
 					Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-					VI_DEBUG("[stall] server has leaked connections: %i", (int)Active.size());
+					VI_DEBUG("[stall] server is leaking connections: %i", (int)Active.size());
 					for (auto* Next : Active)
 						OnRequestStall(Next);
 					break;

@@ -624,7 +624,7 @@ namespace Vitex
 		ExpectsAudio<void> AudioSource::SetClip(AudioClip* NewClip)
 		{
 #ifdef VI_OPENAL
-			VI_TRACE("[audio] set clip %i on %i source", NewClip ? (int)NewClip->GetBuffer() : 0, (int)Instance);
+			VI_TRACE("[audio] apply clip %i on %i source", NewClip ? (int)NewClip->GetBuffer() : 0, (int)Instance);
 			alSourceStop(Instance);
 
 			VI_RELEASE(Clip);

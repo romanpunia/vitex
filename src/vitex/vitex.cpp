@@ -79,7 +79,7 @@ namespace Vitex
 			WSADATA WSAData;
 			WORD VersionRequested = MAKEWORD(2, 2);
 			int Code = WSAStartup(VersionRequested, &WSAData);
-			VI_PANIC(Code == 0, "WSA initialization failure reason:%i", Code);
+			VI_PANIC(Code == 0, "WSA initialization failed code:%i", Code);
 			VI_TRACE("[lib] initialize windows networking library");
 #endif
 		}
@@ -159,7 +159,7 @@ namespace Vitex
 #ifdef VI_SDL2
 			SDL_SetMainReady();
 			int Code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
-			VI_PANIC(Code == 0, "SDL2 initialization failure reason:%i", Code);
+			VI_PANIC(Code == 0, "SDL2 initialization failed code:%i", Code);
 			SDL_EventState(SDL_QUIT, SDL_ENABLE);
 			SDL_EventState(SDL_APP_TERMINATING, SDL_ENABLE);
 			SDL_EventState(SDL_APP_LOWMEMORY, SDL_ENABLE);

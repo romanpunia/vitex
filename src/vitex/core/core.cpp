@@ -884,7 +884,7 @@ namespace Vitex
 					return;
 
 				String BackTrace = ErrorHandling::GetMeasureTrace();
-				VI_WARN("[stall] operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
+				VI_WARN("[stall] sync operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 #endif
 		};
@@ -1783,7 +1783,7 @@ namespace Vitex
 				Stream << " in " << Frame.Function << "()";
 				if (Frame.Id != nullptr)
 					Stream << " pointed here 0x" << Frame.Id;
-				Stream << ", at most " << Frame.Threshold / 1000 << " ms\n";
+				Stream << " - expects < " << Frame.Threshold / 1000 << " ms\n";
 				Source.pop();
 			}
 
@@ -6302,77 +6302,165 @@ namespace Vitex
 		}
 		Composer::State* Composer::Context = nullptr;
 
-		Console::Console() noexcept : Status(Mode::Detached), Colors(true)
+		Console::Console() noexcept
 		{
-			BaseTokens =
+			Tokens.Default =
 			{
-				ColorToken(StdColor::DarkGreen, "OK"),
-				ColorToken(StdColor::Yellow, "execute"),
+				/* Scheduling */
 				ColorToken(StdColor::Yellow, "spawn"),
+				ColorToken(StdColor::Yellow, "despawn"),
+				ColorToken(StdColor::Yellow, "start"),
+				ColorToken(StdColor::Yellow, "stop"),
+				ColorToken(StdColor::Yellow, "resume"),
+				ColorToken(StdColor::Yellow, "suspend"),
 				ColorToken(StdColor::Yellow, "acquire"),
 				ColorToken(StdColor::Yellow, "release"),
+				ColorToken(StdColor::Yellow, "execute"),
 				ColorToken(StdColor::Yellow, "join"),
+				ColorToken(StdColor::DarkRed, "terminate"),
+				ColorToken(StdColor::DarkRed, "abort"),
+				ColorToken(StdColor::DarkRed, "exit"),
+				ColorToken(StdColor::Cyan, "thread"),
+				ColorToken(StdColor::Cyan, "process"),
+				ColorToken(StdColor::Cyan, "sync"),
+				ColorToken(StdColor::Cyan, "async"),
+				ColorToken(StdColor::Cyan, "ms"),
+				ColorToken(StdColor::Cyan, "us"),
+				ColorToken(StdColor::Cyan, "ns"),
+
+				/* Networking and IO */
+				ColorToken(StdColor::Yellow, "open"),
+				ColorToken(StdColor::Yellow, "close"),
+				ColorToken(StdColor::Yellow, "closed"),
+				ColorToken(StdColor::Yellow, "shutdown"),
 				ColorToken(StdColor::Yellow, "bind"),
 				ColorToken(StdColor::Yellow, "assign"),
 				ColorToken(StdColor::Yellow, "resolve"),
-				ColorToken(StdColor::Yellow, "prepare"),
 				ColorToken(StdColor::Yellow, "listen"),
 				ColorToken(StdColor::Yellow, "unlisten"),
 				ColorToken(StdColor::Yellow, "accept"),
-				ColorToken(StdColor::Yellow, "load"),
-				ColorToken(StdColor::Yellow, "save"),
-				ColorToken(StdColor::Yellow, "open"),
-				ColorToken(StdColor::Yellow, "close"),
-				ColorToken(StdColor::Yellow, "create"),
-				ColorToken(StdColor::Yellow, "remove"),
-				ColorToken(StdColor::Yellow, "compile"),
-				ColorToken(StdColor::Yellow, "transpile"),
-				ColorToken(StdColor::Yellow, "enter"),
-				ColorToken(StdColor::Yellow, "exit"),
 				ColorToken(StdColor::Yellow, "connect"),
 				ColorToken(StdColor::Yellow, "reconnect"),
+				ColorToken(StdColor::Yellow, "handshake"),
+				ColorToken(StdColor::Yellow, "reset"),
+				ColorToken(StdColor::Yellow, "read"),
+				ColorToken(StdColor::Yellow, "write"),
+				ColorToken(StdColor::Yellow, "seek"),
+				ColorToken(StdColor::Yellow, "tell"),
+				ColorToken(StdColor::Yellow, "scan"),
+				ColorToken(StdColor::Yellow, "fetch"),
+				ColorToken(StdColor::Yellow, "check"),
+				ColorToken(StdColor::Yellow, "compare"),
+				ColorToken(StdColor::Yellow, "stat"),
+				ColorToken(StdColor::Yellow, "migrate"),
+				ColorToken(StdColor::Yellow, "prepare"),
+				ColorToken(StdColor::Yellow, "load"),
+				ColorToken(StdColor::Yellow, "unload"),
+				ColorToken(StdColor::Yellow, "save"),
+				ColorToken(StdColor::Magenta, "query"),
+				ColorToken(StdColor::Blue, "template"),
+				ColorToken(StdColor::Cyan, "byte"),
+				ColorToken(StdColor::Cyan, "bytes"),
+				ColorToken(StdColor::Cyan, "epoll"),
+				ColorToken(StdColor::Cyan, "kqueue"),
+				ColorToken(StdColor::Cyan, "poll"),
+				ColorToken(StdColor::Cyan, "dns"),
+				ColorToken(StdColor::Cyan, "file"),
+				ColorToken(StdColor::Cyan, "sock"),
+				ColorToken(StdColor::Cyan, "dir"),
+				ColorToken(StdColor::Cyan, "fs"),
+				ColorToken(StdColor::Cyan, "fd"),
+
+				/* Graphics */
+				ColorToken(StdColor::Yellow, "compile"),
+				ColorToken(StdColor::Yellow, "transpile"),
+				ColorToken(StdColor::Yellow, "show"),
+				ColorToken(StdColor::Yellow, "hide"),
+				ColorToken(StdColor::Yellow, "clear"),
+				ColorToken(StdColor::Yellow, "resize"),
+				ColorToken(StdColor::Magenta, "vcall"),
+				ColorToken(StdColor::Cyan, "shader"),
+				ColorToken(StdColor::Cyan, "bytecode"),
+
+				/* Audio */
+				ColorToken(StdColor::Yellow, "play"),
+				ColorToken(StdColor::Yellow, "stop"),
+				ColorToken(StdColor::Yellow, "apply"),
+
+				/* Engine */
+				ColorToken(StdColor::Yellow, "configure"),
+				ColorToken(StdColor::Yellow, "actualize"),
+				ColorToken(StdColor::Yellow, "register"),
+				ColorToken(StdColor::Yellow, "unregister"),
+				ColorToken(StdColor::Cyan, "entity"),
+				ColorToken(StdColor::Cyan, "component"),
+				ColorToken(StdColor::Cyan, "material"),
+
+				/* Crypto */
+				ColorToken(StdColor::Yellow, "encode"),
+				ColorToken(StdColor::Yellow, "decode"),
+				ColorToken(StdColor::Yellow, "encrypt"),
+				ColorToken(StdColor::Yellow, "decrypt"),
+				ColorToken(StdColor::Yellow, "compress"),
+				ColorToken(StdColor::Yellow, "decompress"),
+				ColorToken(StdColor::Yellow, "transform"),
+				ColorToken(StdColor::Yellow, "shuffle"),
+				ColorToken(StdColor::Yellow, "sign"),
+				ColorToken(StdColor::DarkRed, "expose"),
+
+				/* Memory */
+				ColorToken(StdColor::Yellow, "add"),
+				ColorToken(StdColor::Yellow, "remove"),
+				ColorToken(StdColor::Yellow, "new"),
+				ColorToken(StdColor::Yellow, "delete"),
+				ColorToken(StdColor::Yellow, "create"),
+				ColorToken(StdColor::Yellow, "destroy"),
+				ColorToken(StdColor::Yellow, "push"),
+				ColorToken(StdColor::Yellow, "pop"),
+				ColorToken(StdColor::Yellow, "malloc"),
+				ColorToken(StdColor::Yellow, "free"),
+				ColorToken(StdColor::Yellow, "allocate"),
+				ColorToken(StdColor::Yellow, "deallocate"),
+				ColorToken(StdColor::Yellow, "initialize"),
+				ColorToken(StdColor::Yellow, "generate"),
+				ColorToken(StdColor::Yellow, "finalize"),
+				ColorToken(StdColor::Yellow, "cleanup"),
+				ColorToken(StdColor::Yellow, "copy"),
+				ColorToken(StdColor::Yellow, "fill"),
+				ColorToken(StdColor::Yellow, "store"),
+				ColorToken(StdColor::Yellow, "reuse"),
+				ColorToken(StdColor::Yellow, "update"),
+				ColorToken(StdColor::Cyan, "undefined"),
+				ColorToken(StdColor::Cyan, "nullptr"),
+				ColorToken(StdColor::Cyan, "null"),
+				ColorToken(StdColor::Cyan, "NULL"),
+				ColorToken(StdColor::Cyan, "this"),
+
+				/* Statuses */
+				ColorToken(StdColor::DarkGreen, "OK"),
+				ColorToken(StdColor::DarkGreen, "SUCCESS"),
 				ColorToken(StdColor::Yellow, "ASSERT"),
+				ColorToken(StdColor::Yellow, "warn"),
+				ColorToken(StdColor::Yellow, "warning"),
+				ColorToken(StdColor::Yellow, "debug"),
+				ColorToken(StdColor::Yellow, "debugging"),
+				ColorToken(StdColor::Yellow, "trace"),
+				ColorToken(StdColor::Yellow, "trading"),
 				ColorToken(StdColor::DarkRed, "ERR"),
 				ColorToken(StdColor::DarkRed, "FATAL"),
 				ColorToken(StdColor::DarkRed, "PANIC!"),
-				ColorToken(StdColor::DarkRed, "leak"),
 				ColorToken(StdColor::DarkRed, "leaking"),
-				ColorToken(StdColor::DarkRed, "fail"),
 				ColorToken(StdColor::DarkRed, "failure"),
 				ColorToken(StdColor::DarkRed, "failed"),
 				ColorToken(StdColor::DarkRed, "error"),
 				ColorToken(StdColor::DarkRed, "errors"),
-				ColorToken(StdColor::DarkRed, "not"),
 				ColorToken(StdColor::DarkRed, "cannot"),
-				ColorToken(StdColor::DarkRed, "could"),
-				ColorToken(StdColor::DarkRed, "couldn't"),
-				ColorToken(StdColor::DarkRed, "wasn't"),
-				ColorToken(StdColor::DarkRed, "took"),
 				ColorToken(StdColor::DarkRed, "missing"),
 				ColorToken(StdColor::DarkRed, "invalid"),
 				ColorToken(StdColor::DarkRed, "required"),
 				ColorToken(StdColor::DarkRed, "already"),
-				ColorToken(StdColor::Cyan, "undefined"),
-				ColorToken(StdColor::Cyan, "nullptr"),
-				ColorToken(StdColor::Cyan, "null"),
-				ColorToken(StdColor::Cyan, "this"),
-				ColorToken(StdColor::Cyan, "ms"),
-				ColorToken(StdColor::Cyan, "us"),
-				ColorToken(StdColor::Cyan, "ns"),
-				ColorToken(StdColor::Cyan, "on"),
-				ColorToken(StdColor::Cyan, "from"),
-				ColorToken(StdColor::Cyan, "to"),
-				ColorToken(StdColor::Cyan, "for"),
-				ColorToken(StdColor::Cyan, "and"),
-				ColorToken(StdColor::Cyan, "or"),
-				ColorToken(StdColor::Cyan, "at"),
-				ColorToken(StdColor::Cyan, "in"),
-				ColorToken(StdColor::Cyan, "of"),
-				ColorToken(StdColor::Magenta, "query"),
-				ColorToken(StdColor::Magenta, "vcall"),
-				ColorToken(StdColor::Blue, "template"),
 			};
-			Tokens = BaseTokens;
+			Tokens.Custom = Tokens.Default;
 		}
 		Console::~Console() noexcept
 		{
@@ -6380,7 +6468,7 @@ namespace Vitex
 		}
 		void Console::Allocate()
 		{
-			if (Status != Mode::Detached)
+			if (State.Status != Mode::Detached)
 				return;
 #ifdef VI_MICROSOFT
 			if (AllocConsole())
@@ -6391,28 +6479,24 @@ namespace Vitex
 			}
 
 			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
+			HANDLE Handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(Handle, &ScreenBuffer))
+				State.Attributes = ScreenBuffer.wAttributes;
+
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
-
-			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
-			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
-				Cache.Attributes = ScreenBuffer.wAttributes;
-
-			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Base);
+			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Handle);
 #endif
-			Status = Mode::Allocated;
+			State.Status = Mode::Allocated;
 		}
 		void Console::Deallocate()
 		{
-			if (Status != Mode::Allocated)
+			if (State.Status != Mode::Allocated)
 				return;
 #ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
-#if 0
-			FreeConsole();
-#endif
 			VI_TRACE("[console] deallocate window");
 #endif
-			Status = Mode::Detached;
+			State.Status = Mode::Detached;
 		}
 		void Console::Hide()
 		{
@@ -6431,17 +6515,19 @@ namespace Vitex
 		}
 		void Console::Clear()
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			State.Elements.clear();
 #ifdef VI_MICROSOFT
-			HANDLE Wnd = GetStdHandle(STD_OUTPUT_HANDLE);
+			HANDLE Handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			DWORD Written = 0;
 
 			CONSOLE_SCREEN_BUFFER_INFO Info;
-			GetConsoleScreenBufferInfo((HANDLE)Wnd, &Info);
+			GetConsoleScreenBufferInfo(Handle, &Info);
 
 			COORD TopLeft = { 0, 0 };
-			DWORD Written;
-			FillConsoleOutputCharacterA((HANDLE)Wnd, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
-			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
-			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
+			FillConsoleOutputCharacterA(Handle, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
+			FillConsoleOutputAttribute(Handle, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
+			SetConsoleCursorPosition(Handle, TopLeft);
 #else
 			int ExitCode = std::system("clear");
 			(void)ExitCode;
@@ -6449,66 +6535,42 @@ namespace Vitex
 		}
 		void Console::Attach()
 		{
-			if (Status != Mode::Detached)
+			if (State.Status != Mode::Detached)
 				return;
 #ifdef VI_MICROSOFT
 			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
+			HANDLE Handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(Handle, &ScreenBuffer))
+				State.Attributes = ScreenBuffer.wAttributes;
+
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
-
-			HANDLE Base = GetStdHandle(STD_OUTPUT_HANDLE);
-			if (GetConsoleScreenBufferInfo(Base, &ScreenBuffer))
-				Cache.Attributes = ScreenBuffer.wAttributes;
-
-			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Base);
+			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Handle);
 #endif
-			Status = Mode::Attached;
+			State.Status = Mode::Attached;
 		}
 		void Console::Detach()
 		{
-			Status = Mode::Detached;
-		}
-		void Console::Flush()
-		{
-			std::cout.flush();
-		}
-		void Console::FlushWrite()
-		{
-			std::cout << std::flush;
+			State.Status = Mode::Detached;
 		}
 		void Console::Trace(uint32_t MaxFrames)
 		{
 			std::cout << ErrorHandling::GetStackTrace(0, MaxFrames) << '\n';
 		}
-		void Console::CaptureTime()
-		{
-			Cache.Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
-		}
 		void Console::SetColoring(bool Enabled)
 		{
-			Colors = Enabled;
-		}
-		void Console::SetCursor(uint32_t X, uint32_t Y)
-		{
-#ifdef VI_MICROSOFT
-			HANDLE Wnd = GetStdHandle(STD_OUTPUT_HANDLE);
-			COORD Position = { (short)X, (short)Y };
-
-			SetConsoleCursorPosition(Wnd, Position);
-#else
-			printf("\033[%d;%dH", X, Y);
-#endif
+			State.Colors = Enabled;
 		}
 		void Console::SetColorTokens(Vector<Console::ColorToken>&& AdditionalTokens)
 		{
-			Tokens = std::move(AdditionalTokens);
-			Tokens.reserve(Tokens.size() + BaseTokens.size());
-			Tokens.insert(Tokens.end(), BaseTokens.begin(), BaseTokens.end());
+			Tokens.Custom = std::move(AdditionalTokens);
+			Tokens.Custom.reserve(Tokens.Custom.size() + Tokens.Default.size());
+			Tokens.Custom.insert(Tokens.Custom.end(), Tokens.Default.begin(), Tokens.Default.end());
 		}
 		void Console::ColorBegin(StdColor Text, StdColor Background)
 		{
-			if (!Colors)
+			if (!State.Colors)
 				return;
-#if defined(_WIN32)
+#ifdef VI_MICROSOFT
 			if (Background == StdColor::Zero)
 				Background = StdColor::Black;
 
@@ -6522,10 +6584,10 @@ namespace Vitex
 		}
 		void Console::ColorEnd()
 		{
-			if (!Colors)
+			if (!State.Colors)
 				return;
-#if defined(_WIN32)
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Cache.Attributes);
+#ifdef VI_MICROSOFT
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), State.Attributes);
 #else
 			std::cout << "\033[0m";
 #endif
@@ -6614,7 +6676,7 @@ namespace Vitex
 				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Buffer[Offset - 1])))
 				{
 					bool IsMatched = false;
-					for (auto& Token : Tokens)
+					for (auto& Token : Tokens.Custom)
 					{
 						if (V != Token.First || Size - Offset < Token.Size)
 							continue;
@@ -6642,10 +6704,194 @@ namespace Vitex
 				++Offset;
 			}
 		}
-		void Console::WriteBuffer(const char* Buffer)
+		void Console::CaptureTime()
+		{
+			State.Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
+		}
+		uint64_t Console::CaptureElement()
+		{
+			ElementState Element;
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			if (!ReadScreen(nullptr, nullptr, &Element.X, &Element.Y))
+				return 0;
+
+			uint64_t Id = ++State.Id;
+			State.Elements[Id] = Element;
+			std::cout << '\n';
+			return Id;
+		}
+		void Console::FreeElement(uint64_t Id)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It != State.Elements.end())
+				State.Elements.erase(Id);
+		}
+		void Console::ReplaceElement(uint64_t Id, const String& Text)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It == State.Elements.end())
+				return;
+
+			uint32_t X = It->second.X, Y = It->second.Y;
+			ReadScreen(nullptr, nullptr, &X, &Y);
+			WritePosition(0, It->second.Y);
+			std::cout << Text;
+
+			while (It->second.X > Text.size())
+			{
+				std::cout << ' ';
+				--It->second.X;
+			}
+
+			WritePosition(X, Y);
+			It->second.X = Text.size();
+		}
+		void Console::ProgressElement(uint64_t Id, double Value, double Coverage)
+		{
+			uint32_t ScreenWidth;
+			if (!ReadScreen(&ScreenWidth, nullptr, nullptr, nullptr))
+				return;
+			else if (ScreenWidth < 8)
+				return;
+
+			String BarContent;
+			BarContent.reserve(ScreenWidth);
+			BarContent += '[';
+			ScreenWidth -= 8;
+
+			size_t BarWidth = (size_t)(ScreenWidth * std::max<double>(0.0, std::min<double>(1.0, Coverage)));
+			size_t BarPosition = (size_t)(BarWidth * std::max<double>(0.0, std::min<double>(1.0, Value)));
+			for (size_t i = 0; i < BarWidth; i++)
+			{
+				if (i < BarPosition)
+					BarContent += '=';
+				else if (i == BarPosition)
+					BarContent += '>';
+				else
+					BarContent += ' ';
+			}
+
+			BarContent += "] ";
+			BarContent += ToString<uint32_t>((uint32_t)(Value * 100));
+			BarContent += " %\n";
+			ReplaceElement(Id, BarContent);
+		}
+		void Console::SpinningElement(uint64_t Id, const String& Label)
+		{
+			static uint8_t Position = 0;
+			uint8_t Status = Position++ % 4;
+			switch (Status)
+			{
+				case 0:
+					ReplaceElement(Id, Label.empty() ? "[|]\n" : Label + " [|]\n");
+					break;
+				case 1:
+					ReplaceElement(Id, Label.empty() ? "[/]\n" : Label + " [/]\n");
+					break;
+				case 2:
+					ReplaceElement(Id, Label.empty() ? "[-]\n" : Label + " [-]\n");
+					break;
+				case 3:
+					ReplaceElement(Id, Label.empty() ? "[\\]\n" : Label + " [\\]");
+					break;
+				default:
+					ReplaceElement(Id, Label.empty() ? "[ ]\n" : Label + " [ ]\n");
+					break;
+			}
+		}
+		void Console::SpinningProgressElement(uint64_t Id, double Value, double Coverage)
+		{
+			uint32_t ScreenWidth;
+			if (!ReadScreen(&ScreenWidth, nullptr, nullptr, nullptr))
+				return;
+			else if (ScreenWidth < 8)
+				return;
+
+			String BarContent;
+			BarContent.reserve(ScreenWidth);
+			BarContent += '[';
+			ScreenWidth -= 8;
+
+			size_t BarWidth = (size_t)(ScreenWidth * std::max<double>(0.0, std::min<double>(1.0, Coverage)));
+			size_t BarPosition = (size_t)(BarWidth * std::max<double>(0.0, std::min<double>(1.0, Value)));
+			for (size_t i = 0; i < BarWidth; i++)
+			{
+				if (i == BarPosition)
+				{
+					static uint8_t Position = 0;
+					uint8_t Status = Position++ % 4;
+					switch (Status)
+					{
+						case 0:
+							BarContent += '|';
+							break;
+						case 1:
+							BarContent += '/';
+							break;
+						case 2:
+							BarContent += '-';
+							break;
+						case 3:
+							BarContent += '\\';
+							break;
+						default:
+							BarContent += '>';
+							break;
+					}
+				}
+				else if (i < BarPosition)
+					BarContent += '=';
+				else
+					BarContent += ' ';
+			}
+
+			BarContent += "] ";
+			BarContent += ToString<uint32_t>((uint32_t)(Value * 100));
+			BarContent += " %\n";
+			ReplaceElement(Id, BarContent);
+		}
+		void Console::ClearElement(uint64_t Id)
+		{
+			ReplaceElement(Id, "\n");
+		}
+		void Console::Flush()
+		{
+			std::cout.flush();
+		}
+		void Console::FlushWrite()
+		{
+			std::cout << std::flush;
+		}
+		void Console::WriteSize(uint32_t Width, uint32_t Height)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+#ifdef VI_MICROSOFT
+			SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), { (short)Width, (short)Height });
+#else
+			struct winsize Size;
+			Size.ws_col = Width;
+			Size.ws_row = Height;
+			ioctl(STDOUT_FILENO, TIOCSWINSZ, &Size);
+#endif
+		}
+		void Console::WritePosition(uint32_t X, uint32_t Y)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+#ifdef VI_MICROSOFT
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { (short)X, (short)Y });
+#else
+			std::cout << "\033[" << X << ';' << Y << 'H';
+#endif
+		}
+		void Console::WriteBuffer(const char* Buffer, size_t Size)
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			std::cout << Buffer;
+			if (Size > 0)
+				printf("%.*s", (int)Size, Buffer);
+			else
+				std::cout << Buffer;
 		}
 		void Console::WriteLine(const String& Line)
 		{
@@ -6655,9 +6901,9 @@ namespace Vitex
 		{
 			std::cout << Value;
 		}
-		void Console::Write(const String& Line)
+		void Console::Write(const String& Text)
 		{
-			std::cout << Line;
+			std::cout << Text;
 		}
 		void Console::jWrite(Schema* Data)
 		{
@@ -6732,13 +6978,13 @@ namespace Vitex
 		}
 		void Console::sWriteLine(const String& Line)
 		{
-			UMutex<std::recursive_mutex> Unique(Session);
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Line << '\n';
 		}
-		void Console::sWrite(const String& Line)
+		void Console::sWrite(const String& Text)
 		{
-			UMutex<std::recursive_mutex> Unique(Session);
-			std::cout << Line;
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			std::cout << Text;
 		}
 		void Console::sfWriteLine(const char* Format, ...)
 		{
@@ -6753,7 +6999,7 @@ namespace Vitex
 #endif
 			va_end(Args);
 
-			UMutex<std::recursive_mutex> Unique(Session);
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Buffer << '\n';
 		}
 		void Console::sfWrite(const char* Format, ...)
@@ -6769,38 +7015,63 @@ namespace Vitex
 #endif
 			va_end(Args);
 
-			UMutex<std::recursive_mutex> Unique(Session);
+			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Buffer;
 		}
-		void Console::Size(uint32_t* Width, uint32_t* Height)
+		double Console::GetCapturedTime() const
 		{
+			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - State.Time;
+		}
+		bool Console::ReadScreen(uint32_t* Width, uint32_t* Height, uint32_t* X, uint32_t* Y)
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
 #ifdef VI_MICROSOFT
 			CONSOLE_SCREEN_BUFFER_INFO Size;
-			GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &Size);
+			if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &Size) != TRUE)
+				return false;
 
 			if (Width != nullptr)
 				*Width = (uint32_t)(Size.srWindow.Right - Size.srWindow.Left + 1);
 
 			if (Height != nullptr)
 				*Height = (uint32_t)(Size.srWindow.Bottom - Size.srWindow.Top + 1);
+
+			if (X != nullptr)
+				*X = (uint32_t)Size.dwCursorPosition.X;
+
+			if (Y != nullptr)
+				*Y = (uint32_t)Size.dwCursorPosition.Y;
+
+			return true;
 #else
 			struct winsize Size;
-			ioctl(STDOUT_FILENO, TIOCGWINSZ, &Size);
+			int TargetX, TargetY;
+			if (X != nullptr && Y != nullptr)
+			{
+				std::cout << "\033[6n";
+				std::cout.flush();
+			}
 
-			if (Width != nullptr)
+			int Coords = X && Y ? scanf("\033[%d;%dR", &TargetX, &TargetY) : 2;
+			int Sizes = Width && Height ? (ioctl(STDOUT_FILENO, TIOCGWINSZ, &Size) != -1 ? 2 : 0) : 2;
+			if (Sizes > 0 && Width != nullptr)
 				*Width = (uint32_t)Size.ws_col;
 
-			if (Height != nullptr)
+			if (Sizes > 1 && Height != nullptr)
 				*Height = (uint32_t)Size.ws_row;
+
+			if (Coords > 0 && X != nullptr)
+				*X = (uint32_t)TargetX;
+
+			if (Coords > 1 && Y != nullptr)
+				*Y = (uint32_t)TargetY;
+
+			return Coords > 0 && Sizes > 0;
 #endif
-		}
-		double Console::GetCapturedTime() const
-		{
-			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Cache.Time;
 		}
 		bool Console::ReadLine(String& Data, size_t Size)
 		{
-			VI_ASSERT(Status != Mode::Detached, "console should be shown at least once");
+			VI_ASSERT(State.Status != Mode::Detached, "console should be shown at least once");
 			VI_ASSERT(Size > 0, "read length should be greater than zero");
 			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)Size);
 
@@ -6839,7 +7110,7 @@ namespace Vitex
 		}
 		bool Console::IsAvailable()
 		{
-			return HasInstance() && Get()->Status != Mode::Detached;
+			return HasInstance() && Get()->State.Status != Mode::Detached;
 		}
 
 		static float UnitsToSeconds = 1000000.0f;
@@ -8250,7 +8521,7 @@ namespace Vitex
 		ExpectsIO<void> OS::Directory::SetWorking(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_TRACE("[io] set working dir %s", Path);
+			VI_TRACE("[io] apply working dir %s", Path);
 #ifdef VI_MICROSOFT
 			if (SetCurrentDirectoryA(Path) != TRUE)
 				return OS::Error::GetConditionOr();
@@ -8800,15 +9071,15 @@ namespace Vitex
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					VI_TRACE("[io] seek64 fs %i begin %" PRId64, VI_FILENO(Stream), Offset);
+					VI_TRACE("[io] seek-64 fs %i begin %" PRId64, VI_FILENO(Stream), Offset);
 					Origin = SEEK_SET;
 					break;
 				case FileSeek::Current:
-					VI_TRACE("[io] seek64 fs %i move %" PRId64, VI_FILENO(Stream), Offset);
+					VI_TRACE("[io] seek-64 fs %i move %" PRId64, VI_FILENO(Stream), Offset);
 					Origin = SEEK_CUR;
 					break;
 				case FileSeek::End:
-					VI_TRACE("[io] seek64 fs %i end %" PRId64, VI_FILENO(Stream), Offset);
+					VI_TRACE("[io] seek-64 fs %i end %" PRId64, VI_FILENO(Stream), Offset);
 					Origin = SEEK_END;
 					break;
 				default:
@@ -8825,7 +9096,7 @@ namespace Vitex
 		}
 		ExpectsIO<uint64_t> OS::File::Tell64(FILE* Stream)
 		{
-			VI_TRACE("[io] fs %i tell64", VI_FILENO(Stream));
+			VI_TRACE("[io] fs %i tell-64", VI_FILENO(Stream));
 #ifdef VI_MICROSOFT
 			int64_t Offset = _ftelli64(Stream);
 #else
@@ -9317,7 +9588,7 @@ namespace Vitex
 		void OS::Process::Interrupt()
 		{
 #ifndef NDEBUG
-			VI_DEBUG("[os] process paused on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
+			VI_DEBUG("[os] process suspend on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
 #ifndef VI_MICROSOFT
 #ifndef SIGTRAP
 			__debugbreak();

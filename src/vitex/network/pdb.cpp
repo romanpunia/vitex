@@ -2022,7 +2022,7 @@ namespace Vitex
 				if (!(Context->Options & (size_t)QueryOp::TransactionEnd))
 					return;
 
-				VI_DEBUG("[pq] end transaction on 0x%" PRIXPTR, (uintptr_t)Base);
+				VI_DEBUG("[pq] release transaction on 0x%" PRIXPTR, (uintptr_t)Base);
 				Base->Session = false;
 			}
 			bool Cluster::ValidateTransaction(const Core::String& Command, Request* Next)
@@ -2283,7 +2283,7 @@ namespace Vitex
 						return false;
 				}
 
-				VI_DEBUG("[pq] start transaction on 0x%" PRIXPTR, (uintptr_t)Base);
+				VI_DEBUG("[pq] acquire transaction on 0x%" PRIXPTR, (uintptr_t)Base);
 				Base->Session = true;
 				return true;
 			}

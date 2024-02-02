@@ -1919,7 +1919,7 @@ namespace Vitex
 		}
 		void Material::SetDiffuseMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set diffuse 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply diffuse 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(DiffuseMap);
 			DiffuseMap = New;
 			if (DiffuseMap != nullptr)
@@ -1931,7 +1931,7 @@ namespace Vitex
 		}
 		void Material::SetNormalMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set normal 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply normal 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(NormalMap);
 			NormalMap = New;
 			if (NormalMap != nullptr)
@@ -1943,7 +1943,7 @@ namespace Vitex
 		}
 		void Material::SetMetallicMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set metallic 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply metallic 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(MetallicMap);
 			MetallicMap = New;
 			if (MetallicMap != nullptr)
@@ -1955,7 +1955,7 @@ namespace Vitex
 		}
 		void Material::SetRoughnessMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set roughness 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply roughness 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(RoughnessMap);
 			RoughnessMap = New;
 			if (RoughnessMap != nullptr)
@@ -1967,7 +1967,7 @@ namespace Vitex
 		}
 		void Material::SetHeightMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set height 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply height 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(HeightMap);
 			HeightMap = New;
 			if (HeightMap != nullptr)
@@ -1979,7 +1979,7 @@ namespace Vitex
 		}
 		void Material::SetOcclusionMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set occlusion 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply occlusion 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(OcclusionMap);
 			OcclusionMap = New;
 			if (OcclusionMap != nullptr)
@@ -1991,7 +1991,7 @@ namespace Vitex
 		}
 		void Material::SetEmissionMap(Graphics::Texture2D* New)
 		{
-			VI_TRACE("[engine] material %s set emission 0x%" PRIXPTR, Name.c_str(), (void*)New);
+			VI_TRACE("[engine] material %s apply emission 0x%" PRIXPTR, Name.c_str(), (void*)New);
 			VI_RELEASE(EmissionMap);
 			EmissionMap = New;
 			if (EmissionMap != nullptr)
@@ -3622,13 +3622,13 @@ namespace Vitex
 			double Size = (double)Storage.Capacity();
 			Size *= 1.0 + Grow;
 
-			VI_TRACE("[scene] upgrade buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
+			VI_TRACE("[scene] apply buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
 			Storage.Reserve((size_t)Size);
 		}
 		template <typename T>
 		static void UpgradeBufferBySize(Core::Pool<T>& Storage, size_t Size)
 		{
-			VI_TRACE("[scene] upgrade buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
+			VI_TRACE("[scene] apply buffer 0x%" PRIXPTR " +%" PRIu64 " bytes", (void*)Storage.Get(), (uint64_t)(sizeof(T) * (Size - Storage.Capacity())));
 			Storage.Reserve(Size);
 		}
 
@@ -4182,7 +4182,7 @@ namespace Vitex
 		}
 		void SceneGraph::SetCamera(Entity* NewCamera)
 		{
-			VI_TRACE("[scene] set camera 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)NewCamera, (void*)this);
+			VI_TRACE("[scene] apply camera 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)NewCamera, (void*)this);
 			if (!NewCamera)
 			{
 				Camera = nullptr;
@@ -4719,7 +4719,7 @@ namespace Vitex
 		void SceneGraph::MakeSnapshot(IdxSnapshot* Result)
 		{
 			VI_ASSERT(Result != nullptr, "shapshot result should be set");
-			VI_TRACE("[scene] make snapshot on 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("[scene] generate snapshot on 0x%" PRIXPTR, (void*)this);
 			Result->To.clear();
 			Result->From.clear();
 
@@ -6075,7 +6075,7 @@ namespace Vitex
 		}
 		void AppData::SetKey(const Core::String& Name, Core::Schema* Value)
 		{
-			VI_TRACE("[appd] set %s = %s", Name.c_str(), Value ? Core::Schema::ToJSON(Value).c_str() : "NULL");
+			VI_TRACE("[appd] apply %s = %s", Name.c_str(), Value ? Core::Schema::ToJSON(Value).c_str() : "NULL");
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			if (!Data)
 				Data = Core::Var::Set::Object();

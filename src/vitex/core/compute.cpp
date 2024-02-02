@@ -3972,15 +3972,15 @@ namespace Vitex
 
 		PrivateKey::PrivateKey() noexcept
 		{
-			VI_TRACE("[crypto] init empty private key");
+			VI_TRACE("[crypto] create empty private key");
 		}
 		PrivateKey::PrivateKey(Core::String&& Text, bool) noexcept : Plain(std::move(Text))
 		{
-			VI_TRACE("[crypto] init plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
+			VI_TRACE("[crypto] create plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
 		PrivateKey::PrivateKey(const Core::String& Text, bool) noexcept : Plain(Text)
 		{
-			VI_TRACE("[crypto] init plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
+			VI_TRACE("[crypto] create plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
 		PrivateKey::PrivateKey(const Core::String& Key) noexcept
 		{
@@ -6251,7 +6251,7 @@ namespace Vitex
 
 		MD5Hasher::MD5Hasher() noexcept
 		{
-			VI_TRACE("[crypto] md5 hasher init");
+			VI_TRACE("[crypto] create md5 hasher");
 			memset(Buffer, 0, sizeof(Buffer));
 			memset(Digest, 0, sizeof(Digest));
 			Finalized = false;
@@ -8472,7 +8472,7 @@ namespace Vitex
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			if (!Length)
 				return Core::String();
 
@@ -8487,7 +8487,7 @@ namespace Vitex
 
 			return Core::String((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 				return CryptoException();
@@ -8517,7 +8517,7 @@ namespace Vitex
 
 			return Output;
 #else
-			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			HMAC_CTX Context;
 			HMAC_CTX_init(&Context);
 
@@ -8560,7 +8560,7 @@ namespace Vitex
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] HMAC-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
 			if (!Length)
 				return Core::String();
 
@@ -8586,7 +8586,7 @@ namespace Vitex
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s encrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
+			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 			if (!Length)
 				return Core::String();
 #ifdef VI_OPENSSL
@@ -8662,7 +8662,7 @@ namespace Vitex
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s decrypt%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
+			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
 			if (!Length)
 				return Core::String();
 #ifdef VI_OPENSSL
@@ -8839,7 +8839,7 @@ namespace Vitex
 			VI_ASSERT(From != nullptr, "from stream should be set");
 			VI_ASSERT(To != nullptr, "to stream should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-encrypt%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
+			VI_TRACE("[crypto] %s stream-encrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -8927,7 +8927,7 @@ namespace Vitex
 			VI_ASSERT(From != nullptr, "from stream should be set");
 			VI_ASSERT(To != nullptr, "to stream should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-decrypt%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
+			VI_TRACE("[crypto] %s stream-decrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -9205,7 +9205,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] %s encode64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
+			VI_TRACE("[codec] %s encode-64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
 
 			Core::String Result;
 			unsigned char Row3[3];
@@ -9256,7 +9256,7 @@ namespace Vitex
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(IsAlphabetic != nullptr, "callback should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] decode64 %" PRIu64 " bytes", (uint64_t)Length);
+			VI_TRACE("[codec] decode-64 %" PRIu64 " bytes", (uint64_t)Length);
 
 			Core::String Result;
 			unsigned char Row4[4];
@@ -10147,7 +10147,7 @@ namespace Vitex
 		}
 		void Geometric::SetLeftHanded(bool IsLeftHanded)
 		{
-			VI_TRACE("[geometric] set left-handed: %s", IsLeftHanded ? "on" : "off");
+			VI_TRACE("[geometric] apply left-handed: %s", IsLeftHanded ? "on" : "off");
 			LeftHanded = IsLeftHanded;
 		}
         Core::Vector<int> Geometric::CreateTriangleStrip(TriangleStrip::Desc& Desc, const Core::Vector<int>& Indices)
@@ -10507,7 +10507,7 @@ namespace Vitex
 			if (Expression.empty())
 				return PreprocessorException(PreprocessorError::MacroDefinitionEmpty, 0, ThisFile.Path);
 
-			VI_TRACE("[proc] on 0x%" PRIXPTR " define %s", (void*)this, Expression.c_str());
+			VI_TRACE("[proc] define %s on 0x%" PRIXPTR, Expression.c_str(), (void*)this);
 			Core::String Name; size_t NameOffset = 0;
 			while (NameOffset < Expression.size())
 			{
@@ -10578,7 +10578,7 @@ namespace Vitex
 		}
 		void Preprocessor::Undefine(const Core::String& Name)
 		{
-			VI_TRACE("[proc] on 0x%" PRIXPTR " undefine %s", (void*)this, Name.c_str());
+			VI_TRACE("[proc] undefine %s on 0x%" PRIXPTR, Name.c_str(), (void*)this);
 			Defines.erase(Name);
 		}
 		void Preprocessor::Clear()
@@ -10591,7 +10591,7 @@ namespace Vitex
 		bool Preprocessor::IsDefined(const Core::String& Name) const
 		{
 			bool Exists = Defines.count(Name) > 0;
-			VI_TRACE("[proc] on 0x%" PRIXPTR " ifdef %s: %s", (void*)this, Name.c_str(), Exists ? "yes" : "no");
+			VI_TRACE("[proc] ifdef %s on 0x%: %s" PRIXPTR, Name.c_str(), (void*)this, Exists ? "yes" : "no");
 			return Exists;
 		}
 		bool Preprocessor::IsDefined(const Core::String& Name, const Core::String& Value) const
@@ -11200,7 +11200,7 @@ namespace Vitex
 					{
 						case IncludeType::Preprocess:
 						{
-							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+							VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
 							if (Subbuffer.empty())
 								goto SuccessfulInclude;
 
@@ -11211,10 +11211,10 @@ namespace Vitex
 							return ProcessStatus;
 						}
 						case IncludeType::Unchanged:
-							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+							VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
 							goto SuccessfulInclude;
 						case IncludeType::Virtual:
-							VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+							VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
 							Subbuffer.clear();
 							goto SuccessfulInclude;
 						case IncludeType::Error:
@@ -11237,7 +11237,7 @@ namespace Vitex
 					if (!Status)
 						return Status;
 
-					VI_TRACE("[proc] on 0x%" PRIXPTR " apply pragma %s", (void*)this, Buffer.substr(Next.Start, Next.End - Next.Start).c_str());
+					VI_TRACE("[proc] apply pragma %s on 0x%" PRIXPTR, Buffer.substr(Next.Start, Next.End - Next.Start).c_str(), (void*)this);
 					Offset = ReplaceToken(Next, Buffer, Core::String());
 				}
 				else if (Next.Name == "define")
@@ -11318,7 +11318,7 @@ namespace Vitex
 			{
 				case IncludeType::Preprocess:
 				{
-					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude preprocess %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+					VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
 					if (Subbuffer.empty())
 						goto IncludeResult;
 
@@ -11330,10 +11330,10 @@ namespace Vitex
 					return ProcessStatus.Error();
 				}
 				case IncludeType::Unchanged:
-					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude as-is %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+					VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
 					goto IncludeResult;
 				case IncludeType::Virtual:
-					VI_TRACE("[proc] on 0x%" PRIXPTR " %sinclude virtual %s%s%s", (void*)this, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str());
+					VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
 					Subbuffer.clear();
 					goto IncludeResult;
 				case IncludeType::Error:
@@ -16075,7 +16075,7 @@ namespace Vitex
 			VI_ASSERT(Body->Instance != nullptr, "softbody instance should be set");
 			VI_ASSERT(Body->Instance->getWorldArrayIndex() == -1, "softbody should not be attached to other world");
 			VI_ASSERT(HasSoftBodySupport(), "softbodies should be supported");
-			VI_TRACE("[sim] on 0x%" PRIXPTR " add soft-body 0x%" PRIXPTR, (void*)this, (void*)Body);
+			VI_TRACE("[sim] add soft-body 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Body, (void*)this);
 
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 			SoftWorld->addSoftBody(Body->Instance);
@@ -16088,7 +16088,7 @@ namespace Vitex
 			VI_ASSERT(Body->Instance != nullptr, "softbody instance should be set");
 			VI_ASSERT(Body->Instance->getWorldArrayIndex() >= 0, "softbody should be attached to world");
 			VI_ASSERT(HasSoftBodySupport(), "softbodies should be supported");
-			VI_TRACE("[sim] on 0x%" PRIXPTR " remove soft-body 0x%" PRIXPTR, (void*)this, (void*)Body);
+			VI_TRACE("[sim] remove soft-body 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Body, (void*)this);
 
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 			SoftWorld->removeSoftBody(Body->Instance);
@@ -16100,7 +16100,7 @@ namespace Vitex
 			VI_ASSERT(Body != nullptr, "rigidbody should be set");
 			VI_ASSERT(Body->Instance != nullptr, "rigidbody instance should be set");
 			VI_ASSERT(Body->Instance->getWorldArrayIndex() == -1, "rigidbody should not be attached to other world");
-			VI_TRACE("[sim] on 0x%" PRIXPTR " add rigid-body 0x%" PRIXPTR, (void*)this, (void*)Body);
+			VI_TRACE("[sim] add rigid-body 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Body, (void*)this);
 			World->addRigidBody(Body->Instance);
 #endif
 		}
@@ -16110,7 +16110,7 @@ namespace Vitex
 			VI_ASSERT(Body != nullptr, "rigidbody should be set");
 			VI_ASSERT(Body->Instance != nullptr, "rigidbody instance should be set");
 			VI_ASSERT(Body->Instance->getWorldArrayIndex() >= 0, "rigidbody should be attached to other world");
-			VI_TRACE("[sim] on 0x%" PRIXPTR " remove rigid-body 0x%" PRIXPTR, (void*)this, (void*)Body);
+			VI_TRACE("[sim] remove rigid-body 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Body, (void*)this);
 			World->removeRigidBody(Body->Instance);
 #endif
 		}
@@ -16119,7 +16119,7 @@ namespace Vitex
 #ifdef VI_BULLET3
 			VI_ASSERT(Constraint != nullptr, "slider constraint should be set");
 			VI_ASSERT(Constraint->Get() != nullptr, "slider constraint instance should be set");
-			VI_TRACE("[sim] on 0x%" PRIXPTR " add constraint 0x%" PRIXPTR, (void*)this, (void*)Constraint);
+			VI_TRACE("[sim] add constraint 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Constraint, (void*)this);
 			World->addConstraint(Constraint->Get(), !Constraint->HasCollisions());
 #endif
 		}
@@ -16128,14 +16128,14 @@ namespace Vitex
 #ifdef VI_BULLET3
 			VI_ASSERT(Constraint != nullptr, "slider constraint should be set");
 			VI_ASSERT(Constraint->Get() != nullptr, "slider constraint instance should be set");
-			VI_TRACE("[sim] on 0x%" PRIXPTR " remove constraint 0x%" PRIXPTR, (void*)this, (void*)Constraint);
+			VI_TRACE("[sim] remove constraint 0x%" PRIXPTR " on 0x%" PRIXPTR, (void*)Constraint, (void*)this);
 			World->removeConstraint(Constraint->Get());
 #endif
 		}
 		void Simulator::RemoveAll()
 		{
 #ifdef VI_BULLET3
-			VI_TRACE("[sim] on 0x%" PRIXPTR " remove all collision objects", (void*)this);
+			VI_TRACE("[sim] remove all collision objects on 0x%" PRIXPTR, (void*)this);
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				btCollisionObject* Object = World->getCollisionObjectArray()[i];

@@ -818,7 +818,7 @@ namespace Vitex
 					else if (!IsInTransaction && !(Opts & (size_t)QueryOp::TransactionEnd))
 					{
 						if (Opts & (size_t)QueryOp::TransactionStart)
-							VI_DEBUG("[sqlite] start transaction on 0x%" PRIXPTR, (uintptr_t)*It);
+							VI_DEBUG("[sqlite] acquire transaction on 0x%" PRIXPTR, (uintptr_t)*It);
 						break;
 					}
 					else if (IsInTransaction && !(Opts & (size_t)QueryOp::TransactionStart))
@@ -853,7 +853,7 @@ namespace Vitex
 			{
 				Core::UMutex<std::mutex> Unique(Update);
 				if (Opts & (size_t)QueryOp::TransactionEnd)
-					VI_DEBUG("[sqlite] end transaction on 0x%" PRIXPTR, (uintptr_t)Connection);
+					VI_DEBUG("[sqlite] release transaction on 0x%" PRIXPTR, (uintptr_t)Connection);
 				Busy.erase(Connection);
 				Idle.insert(Connection);
 

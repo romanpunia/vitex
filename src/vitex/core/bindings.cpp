@@ -4312,10 +4312,6 @@ namespace Vitex
 			{
 				Base->WriteLine(Core::ErrorHandling::GetStackTrace(1, (size_t)Frames));
 			}
-			void ConsoleGetSize(Core::Console* Base, uint32_t& X, uint32_t& Y)
-			{
-				Base->Size(&X, &Y);
-			}
 
 			Format::Format() noexcept
 			{
@@ -11661,23 +11657,31 @@ namespace Vitex
 				VConsole->SetMethod("void deallocate()", &Core::Console::Deallocate);
 				VConsole->SetMethod("void attach()", &Core::Console::Attach);
 				VConsole->SetMethod("void detach()", &Core::Console::Detach);
-				VConsole->SetMethod("void flush()", &Core::Console::Flush);
-				VConsole->SetMethod("void flush_write()", &Core::Console::FlushWrite);
-				VConsole->SetMethod("void set_cursor(uint32, uint32)", &Core::Console::SetCursor);
 				VConsole->SetMethod("void set_coloring(bool)", &Core::Console::SetColoring);
 				VConsole->SetMethod("void color_begin(std_color, std_color = std_color::zero)", &Core::Console::ColorBegin);
 				VConsole->SetMethod("void color_end()", &Core::Console::ColorEnd);
 				VConsole->SetMethod("void capture_time()", &Core::Console::CaptureTime);
+				VConsole->SetMethod("uint64 capture_element()", &Core::Console::CaptureElement);
+				VConsole->SetMethod("void free_element(uint64)", &Core::Console::FreeElement);
+				VConsole->SetMethod("void replace_element(uint64, const string&in)", &Core::Console::ReplaceElement);
+				VConsole->SetMethod("void spinning_element(uint64, const string&in)", &Core::Console::SpinningElement);
+				VConsole->SetMethod("void progress_element(uint64, double, double = 0.8)", &Core::Console::ProgressElement);
+				VConsole->SetMethod("void spinning_progress_element(uint64, double, double = 0.8)", &Core::Console::SpinningProgressElement);
+				VConsole->SetMethod("void clear_element(uint64)", &Core::Console::ClearElement);
+				VConsole->SetMethod("void flush()", &Core::Console::Flush);
+				VConsole->SetMethod("void flush_write()", &Core::Console::FlushWrite);
+				VConsole->SetMethod("void write_size(uint32, uint32)", &Core::Console::WriteSize);
+				VConsole->SetMethod("void write_position(uint32, uint32)", &Core::Console::WritePosition);
 				VConsole->SetMethod("void write_line(const string &in)", &Core::Console::sWriteLine);
 				VConsole->SetMethod("void write_char(uint8)", &Core::Console::WriteChar);
 				VConsole->SetMethod("void write(const string &in)", &Core::Console::sWrite);
 				VConsole->SetMethod("double get_captured_time()", &Core::Console::GetCapturedTime);
 				VConsole->SetMethod("string read(usize)", &Core::Console::Read);
+				VConsole->SetMethod("bool read_screen(uint32 &out, uint32 &out, uint32 &out, uint32 &out)", &Core::Console::ReadScreen);
 				VConsole->SetMethod("bool read_line(string&out, usize)", &Core::Console::ReadLine);
 				VConsole->SetMethod("uint8 read_char()", &Core::Console::ReadChar);
 				VConsole->SetMethodStatic("console@+ get()", &Core::Console::Get);
 				VConsole->SetMethodEx("void trace(uint32 = 32)", &ConsoleTrace);
-				VConsole->SetMethodEx("void get_size(uint32 &out, uint32 &out)", &ConsoleGetSize);
 				VConsole->SetMethodEx("void write_line(const string &in, format@+)", &Format::WriteLine);
 				VConsole->SetMethodEx("void write(const string &in, format@+)", &Format::Write);
 

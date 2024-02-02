@@ -600,19 +600,19 @@ namespace Vitex
 
 				int R, G, B, A;
 				GetBackBufferSize(I.BufferFormat, &R, &G, &B, &A);
-				VI_PANIC(Video::GLEW::SetSwapParameters(R, G, B, A, I.Debug), "OGL configuration failure");
+				VI_PANIC(Video::GLEW::SetSwapParameters(R, G, B, A, I.Debug), "OGL configuration failed");
 				if (!Window->GetHandle())
 				{
 					Window->BuildLayer(Backend);
-					VI_PANIC(Window->GetHandle(), "activity creation failure %s", Window->GetError().c_str());
+					VI_PANIC(Window->GetHandle(), "activity creation failed %s", Window->GetError().c_str());
 				}
 				
 				Context = Video::GLEW::CreateContext(Window);
-				VI_PANIC(Context != nullptr, "OGL context creation failure %s", Window->GetError().c_str());
+				VI_PANIC(Context != nullptr, "OGL context creation failed %s", Window->GetError().c_str());
 				SetAsCurrentDevice();
 
 				static const GLenum ErrorCode = glewInit();
-				VI_PANIC(ErrorCode == GLEW_OK, "OGL extension layer initialization failure reason: %i", (int)ErrorCode);
+				VI_PANIC(ErrorCode == GLEW_OK, "OGL extension layer initialization failed reason: %i", (int)ErrorCode);
 				if (I.Debug)
 				{
 					glEnable(GL_DEBUG_OUTPUT);

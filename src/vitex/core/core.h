@@ -2847,6 +2847,12 @@ namespace Vitex
 				Detached
 			};
 
+			struct ElementState
+			{
+				uint32_t X, Y;
+			};
+
+		private:
 			struct
 			{
 				FILE* Input = nullptr;
@@ -2856,16 +2862,20 @@ namespace Vitex
 
 			struct
 			{
+				UnorderedMap<uint64_t, ElementState> Elements;
+				std::recursive_mutex Session;
 				unsigned short Attributes = 0;
+				Mode Status = Mode::Detached;
+				bool Colors = true;
 				double Time = 0.0;
-			} Cache;
+				uint64_t Id = 0;
+			} State;
 
-		protected:
-			std::recursive_mutex Session;
-			Vector<ColorToken> BaseTokens;
-			Vector<ColorToken> Tokens;
-			Mode Status;
-			bool Colors;
+			struct
+			{
+				Vector<ColorToken> Default;
+				Vector<ColorToken> Custom;
+			} Tokens;
 
 		public:
 			Console() noexcept;
@@ -2877,31 +2887,39 @@ namespace Vitex
 			void Detach();
 			void Allocate();
 			void Deallocate();
-			void Flush();
-			void FlushWrite();
 			void Trace(uint32_t MaxFrames = 32);
-			void CaptureTime();
 			void SetColoring(bool Enabled);
-			void SetCursor(uint32_t X, uint32_t Y);
 			void SetColorTokens(Vector<ColorToken>&& AdditionalTokens);
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Zero);
 			void ColorEnd();
 			void ColorPrint(StdColor BaseColor, const String& Buffer);
 			void ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size);
-			void WriteBuffer(const char* Buffer);
+			void CaptureTime();
+			uint64_t CaptureElement();
+			void FreeElement(uint64_t Id);
+			void ReplaceElement(uint64_t Id, const String& Text);
+			void SpinningElement(uint64_t Id, const String& Label);
+			void ProgressElement(uint64_t Id, double Value, double Coverage = 0.8);
+			void SpinningProgressElement(uint64_t Id, double Value, double Coverage = 0.8);
+			void ClearElement(uint64_t Id);
+			void Flush();
+			void FlushWrite();
+			void WriteSize(uint32_t Width, uint32_t Height);
+			void WritePosition(uint32_t X, uint32_t Y);
+			void WriteBuffer(const char* Buffer, size_t Size = 0);
 			void WriteLine(const String& Line);
 			void WriteChar(char Value);
-			void Write(const String& Line);
+			void Write(const String& Text);
 			void jWrite(Schema* Data);
 			void jWriteLine(Schema* Data);
 			void fWriteLine(const char* Format, ...);
 			void fWrite(const char* Format, ...);
 			void sWriteLine(const String& Line);
-			void sWrite(const String& Line);
+			void sWrite(const String& Text);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
-			void Size(uint32_t* Width, uint32_t* Height);
 			double GetCapturedTime() const;
+			bool ReadScreen(uint32_t* Width, uint32_t* Height, uint32_t* X, uint32_t* Y);
 			bool ReadLine(String& Data, size_t Size);
 			String Read(size_t Size);
 			char ReadChar();
@@ -2910,7 +2928,7 @@ namespace Vitex
 			template <typename F>
 			void Synced(F&& Callback)
 			{
-				UMutex<std::recursive_mutex> Unique(Session);
+				UMutex<std::recursive_mutex> Unique(State.Session);
 				Callback(this);
 			}
 
@@ -4055,7 +4073,7 @@ namespace Vitex
 #ifndef NDEBUG
 					int64_t Diff = (Schedule::GetClock() - Time).count();
 					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 					VI_UNWATCH((void*)&Value);
 #endif
 					return Value;
@@ -4401,7 +4419,7 @@ namespace Vitex
 #ifndef NDEBUG
 					int64_t Diff = (Schedule::GetClock() - Time).count();
 					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us)\t\nexpected: %" PRIu64 " ms at most", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 					VI_UNWATCH((void*)&Value);
 #endif
 					return Value;
@@ -4686,7 +4704,7 @@ namespace Vitex
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
 				if (Diff > (int64_t)Timings::Hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us) out of % " PRIu64 "ms budget", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 				VI_UNWATCH((void*)&Future);
 			}
 #endif
@@ -4717,7 +4735,7 @@ namespace Vitex
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
 				if (Diff > (int64_t)Timings::Hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us) out of % " PRIu64 "ms budget", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
 				VI_UNWATCH((void*)&Future);
 			}
 #endif

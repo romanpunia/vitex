@@ -6711,6 +6711,8 @@ namespace Vitex
 		uint64_t Console::CaptureElement()
 		{
 			ElementState Element;
+			Element.State = Compute::Crypto::Random();
+
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			if (!ReadScreen(nullptr, nullptr, &Element.X, &Element.Y))
 				return 0;
@@ -6737,7 +6739,8 @@ namespace Vitex
 			uint32_t X = It->second.X, Y = It->second.Y;
 			ReadScreen(nullptr, nullptr, &X, &Y);
 			WritePosition(0, It->second.Y);
-			std::cout << Text;
+			if (!Text.empty())
+				std::cout << Text;
 
 			while (It->second.X > Text.size())
 			{
@@ -6745,6 +6748,7 @@ namespace Vitex
 				--It->second.X;
 			}
 
+			std::cout << '\n';
 			WritePosition(X, Y);
 			It->second.X = Text.size();
 		}
@@ -6775,34 +6779,43 @@ namespace Vitex
 
 			BarContent += "] ";
 			BarContent += ToString<uint32_t>((uint32_t)(Value * 100));
-			BarContent += " %\n";
+			BarContent += " %";
 			ReplaceElement(Id, BarContent);
 		}
 		void Console::SpinningElement(uint64_t Id, const String& Label)
 		{
-			static uint8_t Position = 0;
-			uint8_t Status = Position++ % 4;
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It == State.Elements.end())
+				return;
+
+			uint64_t Status = It->second.State++ % 4;
 			switch (Status)
 			{
 				case 0:
-					ReplaceElement(Id, Label.empty() ? "[|]\n" : Label + " [|]\n");
+					ReplaceElement(Id, Label.empty() ? "[|]" : Label + " [|]");
 					break;
 				case 1:
-					ReplaceElement(Id, Label.empty() ? "[/]\n" : Label + " [/]\n");
+					ReplaceElement(Id, Label.empty() ? "[/]" : Label + " [/]");
 					break;
 				case 2:
-					ReplaceElement(Id, Label.empty() ? "[-]\n" : Label + " [-]\n");
+					ReplaceElement(Id, Label.empty() ? "[-]" : Label + " [-]");
 					break;
 				case 3:
-					ReplaceElement(Id, Label.empty() ? "[\\]\n" : Label + " [\\]");
+					ReplaceElement(Id, Label.empty() ? "[\\]" : Label + " [\\]");
 					break;
 				default:
-					ReplaceElement(Id, Label.empty() ? "[ ]\n" : Label + " [ ]\n");
+					ReplaceElement(Id, Label.empty() ? "[ ]" : Label + " [ ]");
 					break;
 			}
 		}
 		void Console::SpinningProgressElement(uint64_t Id, double Value, double Coverage)
 		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			auto It = State.Elements.find(Id);
+			if (It == State.Elements.end())
+				return;
+
 			uint32_t ScreenWidth;
 			if (!ReadScreen(&ScreenWidth, nullptr, nullptr, nullptr))
 				return;
@@ -6820,8 +6833,7 @@ namespace Vitex
 			{
 				if (i == BarPosition)
 				{
-					static uint8_t Position = 0;
-					uint8_t Status = Position++ % 4;
+					uint8_t Status = It->second.State++ % 4;
 					switch (Status)
 					{
 						case 0:
@@ -6849,12 +6861,12 @@ namespace Vitex
 
 			BarContent += "] ";
 			BarContent += ToString<uint32_t>((uint32_t)(Value * 100));
-			BarContent += " %\n";
+			BarContent += " %";
 			ReplaceElement(Id, BarContent);
 		}
 		void Console::ClearElement(uint64_t Id)
 		{
-			ReplaceElement(Id, "\n");
+			ReplaceElement(Id, String());
 		}
 		void Console::Flush()
 		{

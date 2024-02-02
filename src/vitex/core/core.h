@@ -2849,6 +2849,7 @@ namespace Vitex
 
 			struct ElementState
 			{
+				uint64_t State;
 				uint32_t X, Y;
 			};
 

@@ -12063,6 +12063,7 @@ namespace Vitex
 				VM->SetFunction("void abort()", &Core::OS::Process::Abort);
 				VM->SetFunction("void exit(int)", &Core::OS::Process::Exit);
 				VM->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
+				VM->SetFunction("string get_readable_command(const string&in)", &Core::OS::Process::GetReadableCommand);
 				VM->SetFunction("string get_env(const string&in)", &OSProcessGetEnv);
 				VM->SetFunction("process_stream@+ spawn(const string &in, file_mode)", &VI_SEXPECTIFY(Core::OS::Process::Spawn));
 				VM->SetFunction("int execute(const string &in, file_mode, process_event@)", &OSProcessExecute);

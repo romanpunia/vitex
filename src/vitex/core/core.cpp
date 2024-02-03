@@ -9925,8 +9925,15 @@ namespace Vitex
 		{
 			StringStream Stream;
 			Stream << Id;
-
 			return Stream.str();
+		}
+		String OS::Process::GetReadableCommand(const String& Command)
+		{
+			const char* Redirector = " 2>&1";
+			if (Command.empty() || Command.find(Redirector) != std::string::npos)
+				return Command;
+
+			return Command + Redirector;
 		}
 		ExpectsIO<String> OS::Process::GetEnv(const String& Name)
 		{

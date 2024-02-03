@@ -2430,6 +2430,7 @@ namespace Vitex
 				static ExpectsIO<int> Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback);
 				static ExpectsIO<Unique<ProcessStream>> Spawn(const String& Command, FileMode Mode);
 				static ExpectsIO<String> GetEnv(const String& Name);
+				static String GetReadableCommand(const String& Command);
 				static String GetThreadId(const std::thread::id& Id);
 				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
 			};

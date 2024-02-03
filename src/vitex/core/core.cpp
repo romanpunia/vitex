@@ -8123,6 +8123,9 @@ namespace Vitex
 
 			VI_PANIC(Readable || Writeable, "file open cannot be issued with mode:%i", (int)Mode);
 			Internal.ErrorExitCode = Compute::Crypto::Random() % std::numeric_limits<int>::max();
+			auto Shell = OS::Process::GetShell();
+			if (!Shell)
+				return Shell.Error();
 #ifdef VI_MICROSOFT
 			SECURITY_ATTRIBUTES PipePolicy = { 0 };
 			PipePolicy.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -8186,9 +8189,11 @@ namespace Vitex
 			StartupPolicy.hStdInput = InputReadable;
 			StartupPolicy.dwFlags |= STARTF_USESTDHANDLES;
 
-			String Executable = File;
+			String Executable = "/c ";
+			Executable += File;
+
 			PROCESS_INFORMATION ProcessInfo = { 0 };
-			if (CreateProcessA(nullptr, (LPSTR)Executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &StartupPolicy, &ProcessInfo) == FALSE)
+			if (CreateProcessA(Shell->c_str(), (LPSTR)Executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &StartupPolicy, &ProcessInfo) == FALSE)
 				goto InputError;
 
 			VI_DEBUG("[io] spawn piped process pid %i (tid = %i)", (int)ProcessInfo.dwProcessId, (int)ProcessInfo.dwThreadId);
@@ -8203,10 +8208,6 @@ namespace Vitex
 			if (InputReadable != nullptr && InputReadable != INVALID_HANDLE_VALUE)
 				CloseHandle(InputReadable);
 #else
-			auto Shell = OS::Process::GetShell();
-			if (!Shell)
-				return Shell.Error();
-
 			int OutputPipe[2] = { 0, 0 };
 			if (Readable)
 			{

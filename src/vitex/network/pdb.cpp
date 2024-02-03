@@ -2045,7 +2045,7 @@ namespace Vitex
 					if (It != Requests.end())
 						Requests.erase(It);
 				}
-				VI_ASSERT(false, "[pq] transaction %" PRIu64 " does not exist", (void*)Next->Session);
+				VI_ASSERT(false, "transaction %" PRIu64 " does not exist", (void*)Next->Session);
 				return false;
 			}
 			bool Cluster::Reestablish(Connection* Target)

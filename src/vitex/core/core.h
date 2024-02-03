@@ -2361,7 +2361,7 @@ namespace Vitex
 				static ExpectsIO<void> Move(const char* From, const char* To);
 				static ExpectsIO<void> Copy(const char* From, const char* To);
 				static ExpectsIO<void> Remove(const char* Path);
-				static ExpectsIO<void> Close(Unique<void> Stream);
+				static ExpectsIO<void> Close(Unique<FILE> Stream);
 				static ExpectsIO<void> GetState(const String& Path, FileEntry* Output);
 				static ExpectsIO<void> Seek64(FILE* Stream, int64_t Offset, FileSeek Mode);
 				static ExpectsIO<uint64_t> Tell64(FILE* Stream);
@@ -2430,7 +2430,7 @@ namespace Vitex
 				static ExpectsIO<int> Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback);
 				static ExpectsIO<Unique<ProcessStream>> Spawn(const String& Command, FileMode Mode);
 				static ExpectsIO<String> GetEnv(const String& Name);
-				static String GetReadableCommand(const String& Command);
+				static ExpectsIO<String> GetShell();
 				static String GetThreadId(const std::thread::id& Id);
 				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
 			};
@@ -3011,13 +3011,16 @@ namespace Vitex
 			virtual ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) = 0;
 			virtual ExpectsIO<void> Move(int64_t Offset) = 0;
 			virtual ExpectsIO<void> Flush() = 0;
-			virtual size_t ReadAny(const char* Format, ...) = 0;
+			virtual size_t ReadScan(const char* Format, ...) = 0;
+			virtual size_t ReadLine(char* Buffer, size_t Length) = 0;
 			virtual size_t Read(char* Buffer, size_t Length) = 0;
-			virtual size_t WriteAny(const char* Format, ...) = 0;
+			virtual size_t WriteFormat(const char* Format, ...) = 0;
 			virtual size_t Write(const char* Buffer, size_t Length) = 0;
 			virtual size_t Tell() = 0;
-			virtual socket_t GetFd() const = 0;
-			virtual void* GetResource() const = 0;
+			virtual socket_t GetReadableFd() const = 0;
+			virtual socket_t GetWriteableFd() const = 0;
+			virtual void* GetReadable() const = 0;
+			virtual void* GetWriteable() const = 0;
 			virtual bool IsSized() const = 0;
 			void SetVirtualSize(size_t Size);
 			size_t ReadAll(const std::function<void(char*, size_t)>& Callback);
@@ -3026,34 +3029,37 @@ namespace Vitex
 			String& Source();
 		};
 
-		class VI_OUT FileStream : public Stream
+		class VI_OUT FileStream final : public Stream
 		{
 		protected:
-			FILE* Resource;
+			FILE* IoStream;
 
 		public:
 			FileStream() noexcept;
 			~FileStream() noexcept override;
-			virtual ExpectsIO<void> Clear() override;
-			virtual ExpectsIO<void> Open(const char* File, FileMode Mode) override;
-			virtual ExpectsIO<void> Close() override;
+			ExpectsIO<void> Clear() override;
+			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
+			ExpectsIO<void> Close() override;
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Move(int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
-			size_t ReadAny(const char* Format, ...) override;
+			size_t ReadScan(const char* Format, ...) override;
+			size_t ReadLine(char* Buffer, size_t Length) override;
 			size_t Read(char* Buffer, size_t Length) override;
-			size_t WriteAny(const char* Format, ...) override;
+			size_t WriteFormat(const char* Format, ...) override;
 			size_t Write(const char* Buffer, size_t Length) override;
 			size_t Tell() override;
-			socket_t GetFd() const override;
-			void* GetResource() const override;
-			virtual bool IsSized() const override;
+			socket_t GetReadableFd() const override;
+			socket_t GetWriteableFd() const override;
+			void* GetReadable() const override;
+			void* GetWriteable() const override;
+			bool IsSized() const override;
 		};
 
 		class VI_OUT GzStream final : public Stream
 		{
 		protected:
-			void* Resource;
+			void* IoStream;
 
 		public:
 			GzStream() noexcept;
@@ -3064,22 +3070,25 @@ namespace Vitex
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Move(int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
-			size_t ReadAny(const char* Format, ...) override;
+			size_t ReadScan(const char* Format, ...) override;
+			size_t ReadLine(char* Buffer, size_t Length) override;
 			size_t Read(char* Buffer, size_t Length) override;
-			size_t WriteAny(const char* Format, ...) override;
+			size_t WriteFormat(const char* Format, ...) override;
 			size_t Write(const char* Buffer, size_t Length) override;
 			size_t Tell() override;
-			socket_t GetFd() const override;
-			void* GetResource() const override;
+			socket_t GetReadableFd() const override;
+			socket_t GetWriteableFd() const override;
+			void* GetReadable() const override;
+			void* GetWriteable() const override;
 			bool IsSized() const override;
 		};
 
 		class VI_OUT WebStream final : public Stream
 		{
 		protected:
-			void* Resource;
 			UnorderedMap<String, String> Headers;
 			Vector<char> Chunk;
+			void* OutputStream;
 			size_t Offset;
 			size_t Length;
 			bool Async;
@@ -3094,33 +3103,62 @@ namespace Vitex
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Move(int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
-			size_t ReadAny(const char* Format, ...) override;
+			size_t ReadScan(const char* Format, ...) override;
+			size_t ReadLine(char* Buffer, size_t Length) override;
 			size_t Read(char* Buffer, size_t Length) override;
-			size_t WriteAny(const char* Format, ...) override;
+			size_t WriteFormat(const char* Format, ...) override;
 			size_t Write(const char* Buffer, size_t Length) override;
 			size_t Tell() override;
-			socket_t GetFd() const override;
-			void* GetResource() const override;
+			socket_t GetReadableFd() const override;
+			socket_t GetWriteableFd() const override;
+			void* GetReadable() const override;
+			void* GetWriteable() const override;
 			bool IsSized() const override;
 		};
 
-		class VI_OUT ProcessStream final : public FileStream
+		class VI_OUT ProcessStream final : public Stream
 		{
 		private:
+			struct
+			{
+				void* OutputPipe = nullptr;
+				void* InputPipe = nullptr;
+				void* Process = nullptr;
+				void* Thread = nullptr;
+				socket_t ProcessId = 0;
+				socket_t ThreadId = 0;
+				int ErrorExitCode = 0;
+			} Internal;
+
+		private:
+			FILE* OutputStream;
+			int InputFd;
 			int ExitCode;
 
 		public:
 			ProcessStream() noexcept;
-			~ProcessStream() noexcept = default;
+			~ProcessStream() noexcept override;
 			ExpectsIO<void> Clear() override;
 			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
 			ExpectsIO<void> Close() override;
+			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
+			ExpectsIO<void> Move(int64_t Offset) override;
+			ExpectsIO<void> Flush() override;
+			size_t ReadLine(char* Buffer, size_t Length) override;
+			size_t ReadScan(const char* Format, ...) override;
+			size_t Read(char* Buffer, size_t Length) override;
+			size_t WriteFormat(const char* Format, ...) override;
+			size_t Write(const char* Buffer, size_t Length) override;
+			size_t Tell() override;
+			socket_t GetProcessId() const;
+			socket_t GetThreadId() const;
+			socket_t GetReadableFd() const override;
+			socket_t GetWriteableFd() const override;
+			void* GetReadable() const override;
+			void* GetWriteable() const override;
 			bool IsSized() const override;
+			bool IsAlive();
 			int GetExitCode() const;
-
-		private:
-			static FILE* OpenPipe(const char* File, const char* Mode);
-			static int ClosePipe(void* Fd);
 		};
 
 		class VI_OUT FileTree final : public Reference<FileTree>

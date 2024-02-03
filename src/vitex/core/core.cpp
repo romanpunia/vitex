@@ -37,6 +37,7 @@
 #endif
 #ifdef VI_MICROSOFT
 #include <Windows.h>
+#include <fcntl.h>
 #include <io.h>
 #else
 #include <string.h>
@@ -6368,7 +6369,6 @@ namespace Vitex
 				ColorToken(StdColor::Cyan, "file"),
 				ColorToken(StdColor::Cyan, "sock"),
 				ColorToken(StdColor::Cyan, "dir"),
-				ColorToken(StdColor::Cyan, "fs"),
 				ColorToken(StdColor::Cyan, "fd"),
 
 				/* Graphics */
@@ -6787,7 +6787,7 @@ namespace Vitex
 				return;
 
 			size_t Count = It->second.Elements.size();
-			if (++It->second.Position >= Count)
+			if (It->second.Position >= Count)
 			{
 				--Count;
 				for (size_t i = 0; i < Count; i++)
@@ -6800,7 +6800,7 @@ namespace Vitex
 				It->second.Position = Count;
 			}
 
-			auto& Element = It->second.Elements[It->second.Position];
+			auto& Element = It->second.Elements[It->second.Position++];
 			Element.second = Text;
 			ReplaceElement(Element.first, Element.second);
 		}
@@ -6880,7 +6880,7 @@ namespace Vitex
 
 			std::cout << '\n';
 			WritePosition(X, Y);
-			It->second.X = Writeable.size();
+			It->second.X = (uint32_t)Writeable.size();
 		}
 		void Console::ProgressElement(uint64_t Id, double Value, double Coverage)
 		{
@@ -7377,7 +7377,7 @@ namespace Vitex
 		size_t Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_TRACE("[io] read all bytes on fd %i", GetFd());
+			VI_TRACE("[io] read all bytes on fd %i", GetReadableFd());
 
 			char Buffer[CHUNK_SIZE];
 			size_t Size = 0, Total = 0;
@@ -7419,7 +7419,7 @@ namespace Vitex
 			return Path;
 		}
 
-		FileStream::FileStream() noexcept : Resource(nullptr)
+		FileStream::FileStream() noexcept : IoStream(nullptr)
 		{
 		}
 		FileStream::~FileStream() noexcept
@@ -7428,7 +7428,7 @@ namespace Vitex
 		}
 		ExpectsIO<void> FileStream::Clear()
 		{
-			VI_TRACE("[io] fs %i clear", GetFd());
+			VI_TRACE("[io] fd %i clear", GetWriteableFd());
 			auto Result = Close();
 			if (!Result)
 				return Result;
@@ -7440,7 +7440,7 @@ namespace Vitex
 			if (!Target)
 				return Target.Error();
 			
-			Resource = *Target;
+			IoStream = *Target;
 			return Expectation::Met;
 		}
 		ExpectsIO<void> FileStream::Open(const char* File, FileMode Mode)
@@ -7503,107 +7503,127 @@ namespace Vitex
 			if (!Target)
 				return Target.Error();
 
-			Resource = *Target;
+			IoStream = *Target;
 			Path = *TargetPath;
 			return Expectation::Met;
 		}
 		ExpectsIO<void> FileStream::Close()
 		{
-			if (!Resource)
+			if (!IoStream)
 				return Expectation::Met;
 
-			void* Target = Resource;
-			Resource = nullptr;
+			FILE* Target = IoStream;
+			IoStream = nullptr;
 			return OS::File::Close(Target);
 		}
 		ExpectsIO<void> FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			return OS::File::Seek64(Resource, Offset, Mode);
+			return OS::File::Seek64(IoStream, Offset, Mode);
 		}
 		ExpectsIO<void> FileStream::Move(int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] seek fs %i move %" PRId64, GetFd(), Offset);
+			VI_TRACE("[io] seek fd %i move %" PRId64, GetReadableFd(), Offset);
 			return Seek(FileSeek::Current, Offset);
 		}
 		ExpectsIO<void> FileStream::Flush()
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] flush fs %i", GetFd());
-			if (fflush(Resource) != 0)
+			VI_TRACE("[io] flush fd %i", GetWriteableFd());
+			if (fflush(IoStream) != 0)
 				return OS::Error::GetConditionOr();
 			return Expectation::Met;
 		}
-		size_t FileStream::ReadAny(const char* Format, ...)
+		size_t FileStream::ReadScan(const char* Format, ...)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
-			size_t R = (size_t)vfscanf(Resource, Format, Args);
+			size_t R = (size_t)vfscanf(IoStream, Format, Args);
 			va_end(Args);
 
-			VI_TRACE("[io] fs %i scan %i bytes", GetFd(), (int)R);
+			VI_TRACE("[io] fd %i scan %i bytes", GetReadableFd(), (int)R);
 			return R;
+		}
+		size_t FileStream::ReadLine(char* Data, size_t Length)
+		{
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
+			if (!fgets(Data, Length, IoStream))
+				return 0;
+
+			return strnlen(Data, Length);
 		}
 		size_t FileStream::Read(char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fs %i read %i bytes", GetFd(), (int)Length);
-			return fread(Data, 1, Length, Resource);
+			VI_TRACE("[io] fd %i read %i bytes", GetReadableFd(), (int)Length);
+			return fread(Data, 1, Length, IoStream);
 		}
-		size_t FileStream::WriteAny(const char* Format, ...)
+		size_t FileStream::WriteFormat(const char* Format, ...)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
-			size_t R = (size_t)vfprintf(Resource, Format, Args);
+			size_t R = (size_t)vfprintf(IoStream, Format, Args);
 			va_end(Args);
 
-			VI_TRACE("[io] fs %i print %i bytes", GetFd(), (int)R);
+			VI_TRACE("[io] fd %i print %i bytes", GetWriteableFd(), (int)R);
 			return R;
 		}
 		size_t FileStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fs %i write %i bytes", GetFd(), (int)Length);
-			return fwrite(Data, 1, Length, Resource);
+			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), (int)Length);
+			return fwrite(Data, 1, Length, IoStream);
 		}
 		size_t FileStream::Tell()
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			auto Offset = OS::File::Tell64(Resource);
+			auto Offset = OS::File::Tell64(IoStream);
 			return Offset ? *Offset : 0;
 		}
-		socket_t FileStream::GetFd() const
+		socket_t FileStream::GetReadableFd() const
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
-			return (socket_t)VI_FILENO(Resource);
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			return (socket_t)VI_FILENO(IoStream);
 		}
-		void* FileStream::GetResource() const
+		socket_t FileStream::GetWriteableFd() const
 		{
-			return (void*)Resource;
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			return (socket_t)VI_FILENO(IoStream);
+		}
+		void* FileStream::GetReadable() const
+		{
+			return IoStream;
+		}
+		void* FileStream::GetWriteable() const
+		{
+			return IoStream;
 		}
 		bool FileStream::IsSized() const
 		{
 			return true;
 		}
 
-		GzStream::GzStream() noexcept : Resource(nullptr)
+		GzStream::GzStream() noexcept : IoStream(nullptr)
 		{
 		}
 		GzStream::~GzStream() noexcept
@@ -7612,7 +7632,7 @@ namespace Vitex
 		}
 		ExpectsIO<void> GzStream::Clear()
 		{
-			VI_TRACE("[gz] fs %i clear", GetFd());
+			VI_TRACE("[gz] fd %i clear", GetWriteableFd());
 			auto Result = Close();
 			if (!Result)
 				return Result;
@@ -7660,8 +7680,8 @@ namespace Vitex
 				return TargetPath.Error();
 
 			VI_DEBUG("[gz] open %s %s", Type, TargetPath->c_str());
-			Resource = gzopen(TargetPath->c_str(), Type);
-			if (!Resource)
+			IoStream = gzopen(TargetPath->c_str(), Type);
+			if (!IoStream)
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
 			Path = *TargetPath;
@@ -7674,14 +7694,14 @@ namespace Vitex
 		{
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
-			if (!Resource)
+			if (!IoStream)
 				return Expectation::Met;
 
-			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
-			if (gzclose((gzFile)Resource) != Z_OK)
+			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)IoStream);
+			if (gzclose((gzFile)IoStream) != Z_OK)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			Resource = nullptr;
+			IoStream = nullptr;
 			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
@@ -7689,19 +7709,19 @@ namespace Vitex
 		}
 		ExpectsIO<void> GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					VI_TRACE("[gz] seek fs %i begin %" PRId64, GetFd(), Offset);
-					if (gzseek((gzFile)Resource, (long)Offset, SEEK_SET) != 0)
+					VI_TRACE("[gz] seek fd %i begin %" PRId64, GetReadableFd(), Offset);
+					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_SET) != 0)
 						return OS::Error::GetConditionOr();
 					return Expectation::Met;
 				case FileSeek::Current:
-					VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
-					if (gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) != 0)
+					VI_TRACE("[gz] seek fd %i move %" PRId64, GetReadableFd(), Offset);
+					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_CUR) != 0)
 						return OS::Error::GetConditionOr();
 					return Expectation::Met;
 				case FileSeek::End:
@@ -7715,11 +7735,11 @@ namespace Vitex
 		}
 		ExpectsIO<void> GzStream::Move(int64_t Offset)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] seek fs %i move %" PRId64, GetFd(), Offset);
-			if (gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) != 0)
+			VI_TRACE("[gz] seek fd %i move %" PRId64, GetReadableFd(), Offset);
+			if (gzseek((gzFile)IoStream, (long)Offset, SEEK_CUR) != 0)
 				return OS::Error::GetConditionOr();
 			return Expectation::Met;
 #else
@@ -7728,89 +7748,112 @@ namespace Vitex
 		}
 		ExpectsIO<void> GzStream::Flush()
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
-			if (gzflush((gzFile)Resource, Z_SYNC_FLUSH) != Z_OK)
+			if (gzflush((gzFile)IoStream, Z_SYNC_FLUSH) != Z_OK)
 				return OS::Error::GetConditionOr();
 			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		size_t GzStream::ReadAny(const char* Format, ...)
+		size_t GzStream::ReadScan(const char* Format, ...)
 		{
-			VI_ASSERT(false, "gz read-format is not supported");
+			VI_ASSERT(false, "gz read-scan is not supported");
 			return 0;
 		}
-		size_t GzStream::Read(char* Data, size_t Length)
+		size_t GzStream::ReadLine(char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fs %i read %i bytes", GetFd(), (int)Length);
-			return gzread((gzFile)Resource, Data, (unsigned int)Length);
+			VI_TRACE("[gz] fd %i readln %i bytes", GetReadableFd(), (int)Length);
+			if (!gzgets((gzFile)IoStream, Data, Length))
+				return 0;
+			
+			return strnlen(Data, Length);
 #else
 			return 0;
 #endif
 		}
-		size_t GzStream::WriteAny(const char* Format, ...)
+		size_t GzStream::Read(char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+#ifdef VI_ZLIB
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[gz] fd %i read %i bytes", GetReadableFd(), (int)Length);
+			return gzread((gzFile)IoStream, Data, (unsigned int)Length);
+#else
+			return 0;
+#endif
+		}
+		size_t GzStream::WriteFormat(const char* Format, ...)
+		{
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Timings::FileSystem);
 
 			va_list Args;
 			va_start(Args, Format);
 #ifdef VI_ZLIB
-			size_t R = (size_t)gzvprintf((gzFile)Resource, Format, Args);
+			size_t R = (size_t)gzvprintf((gzFile)IoStream, Format, Args);
 #else
 			size_t R = 0;
 #endif
 			va_end(Args);
 
-			VI_TRACE("[gz] fs %i print %i bytes", GetFd(), (int)R);
+			VI_TRACE("[gz] fd %i print %i bytes", GetWriteableFd(), (int)R);
 			return R;
 		}
 		size_t GzStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fs %i write %i bytes", GetFd(), (int)Length);
-			return gzwrite((gzFile)Resource, Data, (unsigned int)Length);
+			VI_TRACE("[gz] fd %i write %i bytes", GetWriteableFd(), (int)Length);
+			return gzwrite((gzFile)IoStream, Data, (unsigned int)Length);
 #else
 			return 0;
 #endif
 		}
 		size_t GzStream::Tell()
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(IoStream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fs %i tell", GetFd());
-			auto Value = gztell((gzFile)Resource);
+			VI_TRACE("[gz] fd %i tell", GetReadableFd());
+			auto Value = gztell((gzFile)IoStream);
 			return (Value > 0 ? (size_t)Value : 0);
 #else
 			return 0;
 #endif
 		}
-		socket_t GzStream::GetFd() const
+		socket_t GzStream::GetReadableFd() const
 		{
-			return (socket_t)(uintptr_t)Resource;
+			return (socket_t)(uintptr_t)IoStream;
 		}
-		void* GzStream::GetResource() const
+		socket_t GzStream::GetWriteableFd() const
 		{
-			return Resource;
+			return (socket_t)(uintptr_t)IoStream;
+		}
+		void* GzStream::GetReadable() const
+		{
+			return IoStream;
+		}
+		void* GzStream::GetWriteable() const
+		{
+			return IoStream;
 		}
 		bool GzStream::IsSized() const
 		{
 			return false;
 		}
 
-		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Length(0), Async(IsAsync)
+		WebStream::WebStream(bool IsAsync) noexcept : OutputStream(nullptr), Offset(0), Length(0), Async(IsAsync)
 		{
 		}
 		WebStream::WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept : WebStream(IsAsync)
@@ -7823,7 +7866,7 @@ namespace Vitex
 		}
 		ExpectsIO<void> WebStream::Clear()
 		{
-			VI_ASSERT(false, "web clear is not supported");
+			VI_ASSERT(false, "ws clear is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		ExpectsIO<void> WebStream::Open(const char* File, FileMode Mode)
@@ -7884,16 +7927,16 @@ namespace Vitex
 			else if (Response->Content.Limited)
 				Length = Response->Content.Length;
 
-			VI_DEBUG("[http] open %s %s", Type, File);
-			Resource = Client;
+			VI_DEBUG("[ws] open %s %s", Type, File);
+			OutputStream = Client;
 			Path = File;
 
 			return Expectation::Met;
 		}
 		ExpectsIO<void> WebStream::Close()
 		{
-			auto* Client = (Network::HTTP::Client*)Resource;
-			Resource = nullptr;
+			auto* Client = (Network::HTTP::Client*)OutputStream;
+			OutputStream = nullptr;
 			Offset = Length = 0;
 			Chunk.clear();
 
@@ -7912,11 +7955,11 @@ namespace Vitex
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					VI_TRACE("[http] seek fd %i begin %" PRId64, GetFd(), (int)NewOffset);
+					VI_TRACE("[ws] seek fd %i begin %" PRId64, GetReadableFd(), (int)NewOffset);
 					Offset = NewOffset;
 					return Expectation::Met;
 				case FileSeek::Current:
-					VI_TRACE("[http] seek fd %i move %" PRId64, GetFd(), (int)NewOffset);
+					VI_TRACE("[ws] seek fd %i move %" PRId64, GetReadableFd(), (int)NewOffset);
 					if (NewOffset < 0)
 					{
 						size_t Pointer = (size_t)(-NewOffset);
@@ -7933,7 +7976,7 @@ namespace Vitex
 						Offset += NewOffset;
 					return Expectation::Met;
 				case FileSeek::End:
-					VI_TRACE("[http] seek fd %i end %" PRId64, GetFd(), (int)NewOffset);
+					VI_TRACE("[ws] seek fd %i end %" PRId64, GetReadableFd(), (int)NewOffset);
 					Offset = Length - NewOffset;
 					return Expectation::Met;
 				default:
@@ -7942,30 +7985,33 @@ namespace Vitex
 		}
 		ExpectsIO<void> WebStream::Move(int64_t Offset)
 		{
-			VI_ASSERT(false, "web move is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		ExpectsIO<void> WebStream::Flush()
 		{
-			VI_ASSERT(false, "web flush is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t WebStream::ReadAny(const char* Format, ...)
+		size_t WebStream::ReadScan(const char* Format, ...)
 		{
-			VI_ASSERT(false, "web read-format is not supported");
+			VI_ASSERT(false, "ws read-format is not supported");
+			return 0;
+		}
+		size_t WebStream::ReadLine(char* Data, size_t DataLength)
+		{
+			VI_ASSERT(false, "ws readln is not supported");
 			return 0;
 		}
 		size_t WebStream::Read(char* Data, size_t DataLength)
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_ASSERT(DataLength > 0, "length should be greater than zero");
-			VI_TRACE("[http] fd %i read %i bytes", GetFd(), (int)DataLength);
+			VI_TRACE("[ws] fd %i read %i bytes", GetReadableFd(), (int)DataLength);
 
 			size_t Result = 0;
-			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)Resource)->GetResponse()->Content.Limited)))
+			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)OutputStream)->GetResponse()->Content.Limited)))
 			{
-				auto* Client = (Network::HTTP::Client*)Resource;
+				auto* Client = (Network::HTTP::Client*)OutputStream;
 				if (!Client->Fetch(DataLength).Get())
 					return 0;
 
@@ -7988,41 +8034,57 @@ namespace Vitex
 			Offset += (size_t)Result;
 			return Result;
 		}
-		size_t WebStream::WriteAny(const char* Format, ...)
+		size_t WebStream::WriteFormat(const char* Format, ...)
 		{
 			VI_ASSERT(false, "web write-format is not supported");
 			return 0;
 		}
 		size_t WebStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(false, "web write is not supported");
+			VI_ASSERT(false, "ws write is not supported");
 			return 0;
 		}
 		size_t WebStream::Tell()
 		{
-			VI_TRACE("[http] fd %i tell", GetFd());
+			VI_TRACE("[ws] fd %i tell", GetReadableFd());
 			return (size_t)Offset;
 		}
-		socket_t WebStream::GetFd() const
+		socket_t WebStream::GetReadableFd() const
 		{
-			VI_ASSERT(Resource != nullptr, "file should be opened");
-			return ((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
+			return ((Network::HTTP::Client*)OutputStream)->GetStream()->GetFd();
 		}
-		void* WebStream::GetResource() const
+		socket_t WebStream::GetWriteableFd() const
 		{
-			return Resource;
+#ifndef INVALID_SOCKET
+			return (socket_t)-1;
+#else
+			return INVALID_SOCKET;
+#endif
+		}
+		void* WebStream::GetReadable() const
+		{
+			return OutputStream;
+		}
+		void* WebStream::GetWriteable() const
+		{
+			return nullptr;
 		}
 		bool WebStream::IsSized() const
 		{
 			return true;
 		}
 
-		ProcessStream::ProcessStream() noexcept : FileStream(), ExitCode(-1)
+		ProcessStream::ProcessStream() noexcept : OutputStream(nullptr), InputFd(-1), ExitCode(-1)
 		{
+		}
+		ProcessStream::~ProcessStream() noexcept
+		{
+			Close();
 		}
 		ExpectsIO<void> ProcessStream::Clear()
 		{
-			VI_ASSERT(false, "process clear is not supported");
+			VI_ASSERT(false, "ps is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		ExpectsIO<void> ProcessStream::Open(const char* File, FileMode Mode)
@@ -8032,113 +8094,355 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
-			const char* Type = nullptr;
+			bool Readable = false;
+			bool Writeable = false;
 			switch (Mode)
 			{
 				case FileMode::Read_Only:
-					Type = "r";
+				case FileMode::Binary_Read_Only:
+					Readable = true;
 					break;
 				case FileMode::Write_Only:
-					Type = "w";
-					break;
+				case FileMode::Binary_Write_Only:
 				case FileMode::Append_Only:
-					Type = "a";
+				case FileMode::Binary_Append_Only:
+					Writeable = true;
 					break;
 				case FileMode::Read_Write:
-					Type = "r+";
-					break;
-				case FileMode::Write_Read:
-					Type = "w+";
-					break;
-				case FileMode::Read_Append_Write:
-					Type = "a+";
-					break;
-				case FileMode::Binary_Read_Only:
-					Type = "rb";
-					break;
-				case FileMode::Binary_Write_Only:
-					Type = "wb";
-					break;
-				case FileMode::Binary_Append_Only:
-					Type = "ab";
-					break;
 				case FileMode::Binary_Read_Write:
-					Type = "rb+";
-					break;
+				case FileMode::Write_Read:
 				case FileMode::Binary_Write_Read:
-					Type = "wb+";
-					break;
+				case FileMode::Read_Append_Write:
 				case FileMode::Binary_Read_Append_Write:
-					Type = "ab+";
+					Readable = true;
+					Writeable = true;
 					break;
 				default:
 					break;
 			}
 
-			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
-			Resource = OpenPipe(File, Type);
-			if (!Resource)
-				return OS::Error::GetConditionOr();
+			VI_PANIC(Readable || Writeable, "file open cannot be issued with mode:%i", (int)Mode);
+			Internal.ErrorExitCode = Compute::Crypto::Random() % std::numeric_limits<int>::max();
+#ifdef VI_MICROSOFT
+			SECURITY_ATTRIBUTES PipePolicy = { 0 };
+			PipePolicy.nLength = sizeof(SECURITY_ATTRIBUTES);
+			PipePolicy.lpSecurityDescriptor = nullptr;
+			PipePolicy.bInheritHandle = TRUE;
 
+			HANDLE OutputReadable = nullptr, OutputWriteable = nullptr;
+			if (Readable)
+			{
+				if (CreatePipe(&OutputReadable, &OutputWriteable, &PipePolicy, 0) == FALSE)
+				{
+				OutputError:
+					auto Condition = OS::Error::GetConditionOr();
+					if (OutputReadable != nullptr && OutputReadable != INVALID_HANDLE_VALUE)
+						CloseHandle(OutputReadable);
+					if (OutputWriteable != nullptr && OutputWriteable != INVALID_HANDLE_VALUE)
+						CloseHandle(OutputWriteable);
+					OutputStream = nullptr;
+					return Condition;
+				}
+
+				OutputStream = _fdopen(_open_osfhandle((intptr_t)OutputReadable, _O_RDONLY | _O_BINARY), "rb");
+				if (!OutputStream)
+					goto OutputError;
+
+				VI_DEBUG("[io] open ro:pipe fd %i", VI_FILENO(OutputStream));
+			}
+
+			HANDLE InputReadable = nullptr, InputWriteable = nullptr;
+			if (Writeable)
+			{
+				if (CreatePipe(&InputReadable, &InputWriteable, &PipePolicy, 0) == FALSE)
+				{
+				InputError:
+					auto Condition = OS::Error::GetConditionOr();
+					if (OutputReadable != nullptr && OutputReadable != INVALID_HANDLE_VALUE)
+						CloseHandle(OutputReadable);
+					if (OutputWriteable != nullptr && OutputWriteable != INVALID_HANDLE_VALUE)
+						CloseHandle(OutputWriteable);
+					if (InputReadable != nullptr && InputReadable != INVALID_HANDLE_VALUE)
+						CloseHandle(InputReadable);
+					if (InputWriteable != nullptr && InputWriteable != INVALID_HANDLE_VALUE)
+						CloseHandle(InputWriteable);
+					OutputStream = nullptr;
+					InputFd = -1;
+					return Condition;
+				}
+
+				InputFd = _open_osfhandle((intptr_t)InputWriteable, _O_WRONLY | _O_BINARY);
+				if (InputFd < 0)
+					goto InputError;
+
+				VI_DEBUG("[io] open wo:pipe fd %i", VI_FILENO(InputStream));
+			}
+
+			STARTUPINFO StartupPolicy;
+			ZeroMemory(&StartupPolicy, sizeof(STARTUPINFO));
+			StartupPolicy.cb = sizeof(STARTUPINFO);
+			StartupPolicy.hStdError = OutputWriteable;
+			StartupPolicy.hStdOutput = OutputWriteable;
+			StartupPolicy.hStdInput = InputReadable;
+			StartupPolicy.dwFlags |= STARTF_USESTDHANDLES;
+
+			String Executable = File;
+			PROCESS_INFORMATION ProcessInfo = { 0 };
+			if (CreateProcessA(nullptr, (LPSTR)Executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &StartupPolicy, &ProcessInfo) == FALSE)
+				goto InputError;
+
+			VI_DEBUG("[io] spawn piped process pid %i (tid = %i)", (int)ProcessInfo.dwProcessId, (int)ProcessInfo.dwThreadId);
+			Internal.OutputPipe = OutputReadable;
+			Internal.InputPipe = InputWriteable;
+			Internal.Process = ProcessInfo.hProcess;
+			Internal.Thread = ProcessInfo.hThread;
+			Internal.ProcessId = (socket_t)ProcessInfo.dwProcessId;
+			Internal.ThreadId = (socket_t)ProcessInfo.dwThreadId;
+			if (OutputWriteable != nullptr && OutputWriteable != INVALID_HANDLE_VALUE)
+				CloseHandle(OutputWriteable);
+			if (InputReadable != nullptr && InputReadable != INVALID_HANDLE_VALUE)
+				CloseHandle(InputReadable);
+#else
+			auto Shell = OS::Process::GetShell();
+			if (!Shell)
+				return Shell.Error();
+
+			int OutputPipe[2] = { 0, 0 };
+			if (Readable)
+			{
+				if (pipe(OutputPipe) != 0)
+				{
+				OutputError:
+					auto Condition = OS::Error::GetConditionOr();
+					if (OutputPipe[0] > 0)
+						close(OutputPipe[0]);
+					if (OutputPipe[1] > 0)
+						close(OutputPipe[1]);
+					if (OutputStream != nullptr)
+						fclose(OutputStream);
+					return Condition;
+				}
+
+				OutputStream = fdopen(OutputPipe[0], "r");
+				if (!OutputStream)
+					goto OutputError;
+
+				VI_DEBUG("[io] open readable ro:pipe fd %i", VI_FILENO(OutputStream));
+			}
+
+			int InputPipe[2] = { 0, 0 };
+			if (Writeable)
+			{
+				if (pipe(InputPipe) != 0)
+				{
+				InputError:
+					auto Condition = OS::Error::GetConditionOr();
+					if (OutputPipe[0] > 0)
+						close(OutputPipe[0]);
+					if (OutputPipe[1] > 0)
+						close(OutputPipe[1]);
+					if (OutputStream != nullptr)
+						fclose(OutputStream);
+					if (InputPipe[0] > 0)
+						close(InputPipe[0]);
+					if (InputPipe[1] > 0)
+						close(InputPipe[1]);
+					return Condition;
+				}
+
+				InputFd = InputPipe[1];
+				VI_DEBUG("[io] open writeable wo:pipe fd %i", InputFd);
+			}
+
+			pid_t ProcessId = fork();
+			if (ProcessId < 0)
+				goto InputError;
+
+			int ErrorExitCode = Internal.ErrorExitCode;
+			if (ProcessId == 0)
+			{
+				if (!Readable)
+					OutputPipe[0] = open("/dev/null", O_WRONLY | O_CREAT, 0666);
+				else
+					close(OutputPipe[1]);
+
+				if (!Writeable)
+					InputPipe[1] = open("/dev/null", O_RDONLY | O_CREAT, 0666);
+				else
+					close(InputPipe[0]);
+
+				dup2(OutputPipe[0], 0);
+				dup2(InputPipe[1], 1);
+				execl(Shell->c_str(), "sh", "-c", File, NULL);
+				exit(ErrorExitCode);
+				return std::make_error_condition(std::errc::broken_pipe);
+			}
+			else
+			{
+				VI_DEBUG("[io] spawn piped process pid %i", (int)ProcessId);
+				Internal.OutputPipe = (void*)(uintptr_t)OutputPipe[1];
+				Internal.InputPipe = (void*)(uintptr_t)InputPipe[0];
+				Internal.Process = (void*)(uintptr_t)ProcessId;
+				Internal.Thread = (void*)(uintptr_t)ProcessId;
+				Internal.ProcessId = (socket_t)ProcessId;
+				Internal.ThreadId = (socket_t)ProcessId;
+				if (OutputPipe[0] > 0)
+					close(OutputPipe[0]);
+				if (InputPipe[1] > 0)
+					close(InputPipe[1]);
+			}
+#endif
 			Path = File;
 			return Expectation::Met;
 		}
 		ExpectsIO<void> ProcessStream::Close()
 		{
-			if (Resource != nullptr)
+#ifdef VI_MICROSOFT
+			if (Internal.Thread != nullptr)
 			{
-				ExitCode = ClosePipe(Resource);
-				Resource = nullptr;
+				VI_TRACE("[io] close thread tid %i (wait)", (int)Internal.ThreadId);
+				WaitForSingleObject((HANDLE)Internal.Thread, INFINITE);
+				CloseHandle((HANDLE)Internal.Thread);
 			}
+			if (Internal.Process != nullptr)
+			{
+				VI_DEBUG("[io] close process pid %i (wait)", (int)Internal.ThreadId);
+				WaitForSingleObject((HANDLE)Internal.Process, INFINITE);
 
+				DWORD StatusCode = 0;
+				if (GetExitCodeProcess((HANDLE)Internal.Process, &StatusCode) == TRUE)
+					ExitCode = (int)StatusCode;
+
+				CloseHandle((HANDLE)Internal.Process);
+			}
+#else
+			if (Internal.Process != nullptr)
+			{
+				VI_DEBUG("[io] close process pid %i (wait)", (int)Internal.ThreadId);
+				waitpid((pid_t)(uintptr_t)Internal.Process, &ExitCode, 0);
+			}
+#endif
+			if (OutputStream != nullptr)
+			{
+				OS::File::Close(OutputStream);
+				OutputStream = nullptr;
+			}
+			if (InputFd > 0)
+			{
+				VI_DEBUG("[io] close fd %i", InputFd);
+				close(InputFd);
+				InputFd = -1;
+			}
+			memset(&Internal, 0, sizeof(Internal));
 			return Expectation::Met;
+		}
+		ExpectsIO<void> ProcessStream::Seek(FileSeek Mode, int64_t Offset)
+		{
+			return std::make_error_condition(std::errc::not_supported);
+		}
+		ExpectsIO<void> ProcessStream::Move(int64_t Offset)
+		{
+			return std::make_error_condition(std::errc::not_supported);
+		}
+		ExpectsIO<void> ProcessStream::Flush()
+		{
+			return std::make_error_condition(std::errc::not_supported);
+		}
+		size_t ProcessStream::ReadScan(const char* Format, ...)
+		{
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
+			VI_ASSERT(Format != nullptr, "format should be set");
+			VI_MEASURE(Timings::FileSystem);
+
+			va_list Args;
+			va_start(Args, Format);
+			size_t R = (size_t)vfscanf(OutputStream, Format, Args);
+			va_end(Args);
+
+			VI_TRACE("[io] fd %i scan %i bytes", GetReadableFd(), (int)R);
+			return R;
+		}
+		size_t ProcessStream::ReadLine(char* Data, size_t Length)
+		{
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
+			if (!fgets(Data, Length, OutputStream))
+				return 0;
+
+			return strnlen(Data, Length);
+		}
+		size_t ProcessStream::Read(char* Data, size_t Length)
+		{
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[io] fd %i read %i bytes", GetReadableFd(), (int)Length);
+			return fread(Data, 1, Length, OutputStream);
+		}
+		size_t ProcessStream::WriteFormat(const char* Format, ...)
+		{
+			VI_ASSERT(false, "ps write-format is not supported");
+			return 0;
+		}
+		size_t ProcessStream::Write(const char* Data, size_t Length)
+		{
+			VI_ASSERT(InputFd > 0, "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::FileSystem);
+			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), (int)Length);
+			return write(InputFd, Data, Length);
+		}
+		size_t ProcessStream::Tell()
+		{
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
+			VI_MEASURE(Timings::FileSystem);
+			auto Offset = OS::File::Tell64(OutputStream);
+			return Offset ? *Offset : 0;
+		}
+		socket_t ProcessStream::GetProcessId() const
+		{
+			return Internal.ProcessId;
+		}
+		socket_t ProcessStream::GetThreadId() const
+		{
+			return Internal.ThreadId;
+		}
+		socket_t ProcessStream::GetReadableFd() const
+		{
+			VI_ASSERT(OutputStream != nullptr, "file should be opened");
+			return (socket_t)VI_FILENO(OutputStream);
+		}
+		socket_t ProcessStream::GetWriteableFd() const
+		{
+			return (socket_t)InputFd;
+		}
+		void* ProcessStream::GetReadable() const
+		{
+			return OutputStream;
+		}
+		void* ProcessStream::GetWriteable() const
+		{
+			return (void*)(uintptr_t)InputFd;
 		}
 		bool ProcessStream::IsSized() const
 		{
-			return false;
+			return true;
+		}
+		bool ProcessStream::IsAlive()
+		{
+			if (!Internal.Process)
+				return false;
+#ifdef VI_MICROSOFT
+			return WaitForSingleObject((HANDLE)Internal.Process, 0) == WAIT_TIMEOUT;
+#else
+			return waitpid((pid_t)(uintptr_t)Internal.Process, &ExitCode, WNOHANG) == 0;
+#endif
 		}
 		int ProcessStream::GetExitCode() const
 		{
 			return ExitCode;
-		}
-		FILE* ProcessStream::OpenPipe(const char* Path, const char* Mode)
-		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
-#ifdef VI_MICROSOFT
-			wchar_t Buffer[CHUNK_SIZE], Type[20];
-			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
-			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
-
-			FILE* Stream = _wpopen(Buffer, Type);
-			if (Stream != nullptr)
-				VI_DEBUG("[io] open ps %i %s %s", VI_FILENO(Stream), Mode, Path);
-
-			return Stream;
-#elif defined(VI_LINUX)
-			FILE* Stream = popen(Path, Mode);
-			if (Stream != nullptr)
-				fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
-
-			if (Stream != nullptr)
-				VI_DEBUG("[io] open ps %i %s %s", VI_FILENO(Stream), Mode, Path);
-
-			return Stream;
-#else
-			return nullptr;
-#endif
-		}
-		int ProcessStream::ClosePipe(void* Fd)
-		{
-			VI_ASSERT(Fd != nullptr, "stream should be set");
-			VI_DEBUG("[io] close ps %i", VI_FILENO((FILE*)Fd));
-#ifdef VI_MICROSOFT
-			return _pclose((FILE*)Fd);
-#elif defined(VI_LINUX)
-			return pclose((FILE*)Fd);
-#else
-			return -1;
-#endif
 		}
 
 		FileTree::FileTree(const String& Folder) noexcept
@@ -9117,11 +9421,11 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::File::Close(void* Stream)
+		ExpectsIO<void> OS::File::Close(FILE* Stream)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
-			VI_DEBUG("[io] close fs %i", VI_FILENO((FILE*)Stream));
-			if (fclose((FILE*)Stream) != 0)
+			VI_DEBUG("[io] close fd %i", VI_FILENO(Stream));
+			if (fclose(Stream) != 0)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
@@ -9172,15 +9476,15 @@ namespace Vitex
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					VI_TRACE("[io] seek-64 fs %i begin %" PRId64, VI_FILENO(Stream), Offset);
+					VI_TRACE("[io] seek-64 fd %i begin %" PRId64, VI_FILENO(Stream), Offset);
 					Origin = SEEK_SET;
 					break;
 				case FileSeek::Current:
-					VI_TRACE("[io] seek-64 fs %i move %" PRId64, VI_FILENO(Stream), Offset);
+					VI_TRACE("[io] seek-64 fd %i move %" PRId64, VI_FILENO(Stream), Offset);
 					Origin = SEEK_CUR;
 					break;
 				case FileSeek::End:
-					VI_TRACE("[io] seek-64 fs %i end %" PRId64, VI_FILENO(Stream), Offset);
+					VI_TRACE("[io] seek-64 fd %i end %" PRId64, VI_FILENO(Stream), Offset);
 					Origin = SEEK_END;
 					break;
 				default:
@@ -9197,7 +9501,7 @@ namespace Vitex
 		}
 		ExpectsIO<uint64_t> OS::File::Tell64(FILE* Stream)
 		{
-			VI_TRACE("[io] fs %i tell-64", VI_FILENO(Stream));
+			VI_TRACE("[io] fd %i tell-64", VI_FILENO(Stream));
 #ifdef VI_MICROSOFT
 			int64_t Offset = _ftelli64(Stream);
 #else
@@ -9280,14 +9584,14 @@ namespace Vitex
 			if (!Stream)
 				return OS::Error::GetConditionOr();
 
-			VI_DEBUG("[io] open fs %i %s %s", VI_FILENO(Stream), Mode, Path);
+			VI_DEBUG("[io] open %s:file fd %i on %s", Mode, VI_FILENO(Stream), Path);
 			return Stream;
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (!Stream)
 				return OS::Error::GetConditionOr();
 
-			VI_DEBUG("[io] open fs %i %s %s", VI_FILENO(Stream), Mode, Path);
+			VI_DEBUG("[io] open %s:file fd %i %s on %s", Mode, VI_FILENO(Stream), Path);
 			fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
 			return Stream;
 #endif
@@ -9397,7 +9701,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Stream != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
-			VI_TRACE("[io] fd %i read-all", Stream->GetFd());
+			VI_TRACE("[io] fd %i read-all", Stream->GetReadableFd());
 			if (Length != nullptr)
 				*Length = 0;
 
@@ -9883,19 +10187,15 @@ namespace Vitex
 				return Result.Error();
 			}
 
-			FILE* Handle = (FILE*)Stream->GetResource();
-			if (!Handle)
-			{
-				VI_RELEASE(Stream);
-				return Result.Error();
-			}
-
 			bool Notify = true;
 			char Buffer[CHUNK_SIZE];
-			while (fgets(Buffer, sizeof(Buffer), Handle) != nullptr)
+			while (true)
 			{
-				if (Callback && Notify)
-					Notify = Callback(Buffer, strnlen(Buffer, sizeof(Buffer)));
+				size_t Size = Stream->ReadLine(Buffer, sizeof(Buffer));
+				if (!Size)
+					break;
+				else if (Notify && Callback)
+					Notify = Callback(Buffer, Size);
 			}
 
 			Result = Stream->Close();
@@ -9914,7 +10214,7 @@ namespace Vitex
 			VI_ASSERT(!Command.empty(), "format should be set");
 			VI_DEBUG("[os] execute ps [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
-			auto Result = Stream->Open(Command.c_str(), FileMode::Read_Only);
+			auto Result = Stream->Open(Command.c_str(), Mode);
 			if (Result)
 				return Stream;
 
@@ -9927,14 +10227,6 @@ namespace Vitex
 			Stream << Id;
 			return Stream.str();
 		}
-		String OS::Process::GetReadableCommand(const String& Command)
-		{
-			const char* Redirector = " 2>&1";
-			if (Command.empty() || Command.find(Redirector) != std::string::npos)
-				return Command;
-
-			return Command + Redirector;
-		}
 		ExpectsIO<String> OS::Process::GetEnv(const String& Name)
 		{
 			char* Value = std::getenv(Name.c_str());
@@ -9943,6 +10235,19 @@ namespace Vitex
 
 			String Output(Value, strlen(Value));
 			return Output;
+		}
+		ExpectsIO<String> OS::Process::GetShell()
+		{
+#ifdef VI_MICROSOFT
+			auto Shell = GetEnv("ComSpec");
+			if (Shell)
+				return Shell;
+#else
+			auto Shell = GetEnv("SHELL");
+			if (Shell)
+				return Shell;
+#endif
+			return std::make_error_condition(std::errc::no_such_file_or_directory);
 		}
 		InlineArgs OS::Process::ParseArgs(int ArgsCount, char** Args, size_t Opts, const UnorderedSet<String>& Flags)
 		{

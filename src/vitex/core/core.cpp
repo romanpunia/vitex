@@ -6862,13 +6862,13 @@ namespace Vitex
 			if (It == State.Elements.end())
 				return;
 
-			uint32_t Width = 0, X = 0, Y = 0;
-			if (!ReadScreen(&Width, nullptr, &X, &Y))
+			uint32_t Width = 0, Height = 0, X = 0, Y = 0;
+			if (!ReadScreen(&Width, &Height, &X, &Y))
 				return;
 			else if (Width > 0 && Writeable.size() >= Width)
 				Writeable.erase(Writeable.begin() + Width - 1, Writeable.end());
 
-			WritePosition(0, It->second.Y);
+			WritePosition(0, It->second.Y >= Height - 1 ? It->second.Y - 1 : It->second.Y);
 			if (!Writeable.empty())
 				std::cout << Writeable;
 
@@ -6878,9 +6878,12 @@ namespace Vitex
 				--It->second.X;
 			}
 
-			std::cout << '\n';
-			WritePosition(X, Y);
 			It->second.X = (uint32_t)Writeable.size();
+			if (It->second.Y >= Height - 1)
+			{
+				std::cout << '\n';
+				WritePosition(X, Y);
+			}
 		}
 		void Console::ProgressElement(uint64_t Id, double Value, double Coverage)
 		{

@@ -1695,7 +1695,7 @@ namespace Vitex
 			virtual void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) = 0;
-			virtual void SetTarget(Graphics::RenderTarget* Resource) = 0;;
+			virtual void SetTarget(Graphics::RenderTarget* Resource) = 0;
 			virtual void SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8]) = 0;
 			virtual void SetTargetRect(unsigned int Width, unsigned int Height) = 0;
 			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;

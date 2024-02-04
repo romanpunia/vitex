@@ -6577,7 +6577,7 @@ namespace Vitex
 		}
 		int ImmediateContext::ContextUD = 151;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(nullptr), Translator(nullptr), Imports((uint32_t)Imports::All), SaveSources(false), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(nullptr), Translator(nullptr), SaveSources(false), Cached(true)
 		{
 			auto Directory = Core::OS::Directory::GetWorking();
 			if (Directory)
@@ -7215,10 +7215,6 @@ namespace Vitex
 		void VirtualMachine::SetPreserveSourceCode(bool Enabled)
 		{
 			SaveSources = Enabled;
-		}
-		void VirtualMachine::SetImports(unsigned int Opts)
-		{
-			Imports = Opts;
 		}
 		void VirtualMachine::SetTsImports(bool Enabled, const char* ImportSyntax)
 		{
@@ -7911,11 +7907,6 @@ namespace Vitex
 		}
 		ExpectsVM<void> VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
 		{
-			if (!(Imports & (uint32_t)Imports::Files))
-				return VirtualException("import local file: denied");
-			else if (IsRemote && !(Imports & (uint32_t)Imports::Remotes))
-				return VirtualException("import remote file: denied");
-
 			if (!IsRemote)
 			{
 				if (!Core::OS::File::IsExists(Path.c_str()))
@@ -7929,7 +7920,7 @@ namespace Vitex
 			{
 				auto Data = Core::OS::File::ReadAsString(Path);
 				if (!Data)
-					return VirtualException("file not found: " + Path);
+					return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Path);
 
 				Output.assign(*Data);
 				return Core::Expectation::Met;
@@ -7943,20 +7934,18 @@ namespace Vitex
 				return Core::Expectation::Met;
 			}
 
-			Unique.Negated([&Output, &Path]()
-			{
-				auto Data = Core::OS::File::ReadAsString(Path);
-				if (Data)
-					Output.assign(*Data);
-			});
+			Unique.Negate();
+			auto Data = Core::OS::File::ReadAsString(Path);
+			if (!Data)
+				return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Path);
+
+			Output.assign(*Data);
+			Unique.Negate();
 			Files.insert(std::make_pair(Path, Output));
 			return Core::Expectation::Met;
 		}
 		ExpectsVM<void> VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
 		{
-			if (!(Imports & (uint32_t)Imports::CFunctions))
-				return VirtualException("import cfunction: denied");
-
 			if (!Engine || Decl.empty() || Func.empty())
 				return VirtualException("import cfunction: invalid argument");
 
@@ -7968,7 +7957,7 @@ namespace Vitex
 
 				auto FunctionHandle = Core::OS::Symbol::LoadFunction(Context.Handle, Func);
 				if (!FunctionHandle)
-					return VirtualException("cfunction not found: " + Func);
+					return VirtualException(Core::Copy<Core::String>(FunctionHandle.Error().message()) + ": " + Func);
 
 				FunctionPtr Function = (FunctionPtr)*FunctionHandle;
 				if (!Function)
@@ -8010,9 +7999,6 @@ namespace Vitex
 		}
 		ExpectsVM<void> VirtualMachine::ImportCLibrary(const Core::String& Path, bool IsAddon)
 		{
-			if (!(Imports & (uint32_t)Imports::CLibraries) && !Path.empty())
-				return VirtualException("import clibrary: denied");
-
 			Core::String Name = GetLibraryName(Path);
 			if (!Engine)
 				return VirtualException("import clibrary: invalid argument");
@@ -8025,7 +8011,7 @@ namespace Vitex
 			Unique.Negate();
 			auto Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
-				return VirtualException("clibrary import error: " + Path);
+				return VirtualException(Core::Copy<Core::String>(Handle.Error().message()) + ": " + Path);
 
 			CLibrary Library;
 			Library.Handle = *Handle;
@@ -8049,7 +8035,7 @@ namespace Vitex
 		}
 		ExpectsVM<void> VirtualMachine::ImportSystemAddon(const Core::String& Name)
 		{
-			if (!(Imports & (uint32_t)Imports::Addons))
+			if (!Core::OS::Control::Has(Core::AccessOption::Addons))
 				return VirtualException("import system addon: denied");
 
 			Core::String Target = Name;
@@ -8474,10 +8460,10 @@ namespace Vitex
 			Engine->AddSystemAddon("sqlite", { "network", "schema" }, Bindings::Registry::ImportSQLite);
 			Engine->AddSystemAddon("postgresql", { "network", "schema" }, Bindings::Registry::ImportPostgreSQL);
 			Engine->AddSystemAddon("mongodb", { "network", "schema" }, Bindings::Registry::ImportMongoDB);
-			Engine->AddSystemAddon("gui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);
-			Engine->AddSystemAddon("gui-model", { "gui-control", }, Bindings::Registry::ImportUiModel);
-			Engine->AddSystemAddon("gui-context", { "gui-model" }, Bindings::Registry::ImportUiContext);
-			Engine->AddSystemAddon("engine", { "schema", "schedule", "key-frames", "fs", "graphics", "audio", "physics", "clock", "gui-context" }, Bindings::Registry::ImportEngine);
+			Engine->AddSystemAddon("ui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);
+			Engine->AddSystemAddon("ui-model", { "ui-control", }, Bindings::Registry::ImportUiModel);
+			Engine->AddSystemAddon("ui-context", { "ui-model" }, Bindings::Registry::ImportUiContext);
+			Engine->AddSystemAddon("engine", { "schema", "schedule", "key-frames", "fs", "graphics", "audio", "physics", "clock", "ui-context" }, Bindings::Registry::ImportEngine);
 			Engine->AddSystemAddon("components", { "engine" }, Bindings::Registry::ImportComponents);
 			Engine->AddSystemAddon("renderers", { "engine" }, Bindings::Registry::ImportRenderers);
 		}

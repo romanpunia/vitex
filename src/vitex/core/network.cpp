@@ -64,6 +64,28 @@ namespace Vitex
 {
 	namespace Network
 	{
+		static Core::ExpectsIO<socket_t> ExecuteSocket(int Net, int Type, int Protocol)
+		{
+			if (!Core::OS::Control::Has(Core::AccessOption::Net))
+				return std::make_error_condition(std::errc::permission_denied);
+
+			socket_t Socket = (socket_t)socket(Net, Type, Protocol);
+			if (Socket == INVALID_SOCKET)
+				return Core::OS::Error::GetConditionOr();
+
+			return Socket;
+		}
+		static Core::ExpectsIO<socket_t> ExecuteAccept(socket_t Fd, sockaddr* Address, socket_size_t* AddressLength)
+		{
+			if (!Core::OS::Control::Has(Core::AccessOption::Net))
+				return std::make_error_condition(std::errc::permission_denied);
+
+			socket_t Socket = (socket_t)accept(Fd, Address, AddressLength);
+			if (Socket == INVALID_SOCKET)
+				return Core::OS::Error::GetConditionOr();
+
+			return Socket;
+		}
 		static Core::ExpectsIO<void> SetSocketBlocking(socket_t Fd, bool Enabled)
 		{
 			VI_TRACE("[net] fd %i setopt: blocking %s", (int)Fd, Enabled ? "on" : "off");
@@ -153,7 +175,7 @@ namespace Vitex
 			return std::make_pair(Core::DateTime::FetchWebDateGMT(TimeStamp), TimeStamp);
 		}
 #endif
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL1)
 		struct epoll_array
 		{
 			struct epoll_fd
@@ -179,11 +201,11 @@ namespace Vitex
 			}
 			Core::ExpectsSystem<void> Initialize()
 			{
-				size_t Listener = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-				if (Listener == INVALID_SOCKET)
-					return Core::SystemException("epoll initialize: listener initialization failed");
+				auto Listenable = ExecuteSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+				if (!Listenable)
+					return Core::SystemException("epoll initialize: listener initialization failed", std::move(Listenable.Error()));
 
-				int ReuseAddress = 1;
+				socket_t Listener = *Listenable; int ReuseAddress = 1;
 				if (setsockopt(Listener, SOL_SOCKET, SO_REUSEADDR, (char*)&ReuseAddress, sizeof(ReuseAddress)) != 0)
 				{
 					closesocket(Listener);
@@ -215,32 +237,34 @@ namespace Vitex
 					return Core::SystemException("epoll initialize: listener listen failed");
 				}
 
-				Outgoing = ::socket(AF_INET, SOCK_STREAM, 0);
-				if (Outgoing == INVALID_SOCKET)
+				auto Connectable = ExecuteSocket(AF_INET, SOCK_STREAM, 0);
+				if (!Connectable)
 				{
 					closesocket(Listener);
-					return Core::SystemException("epoll initialize: outgoing pipe initialization failed");
+					return Core::SystemException("epoll initialize: outgoing pipe initialization failed", std::move(Connectable.Error()));
 				}
-				else if (connect(Outgoing, &ListenerAddress, ListenerAddressSize) != 0)
+				
+				Outgoing = *Connectable;
+				if (connect(Outgoing, &ListenerAddress, ListenerAddressSize) != 0)
 				{
 					closesocket(Listener);
 					closesocket(Outgoing);
 					return Core::SystemException("epoll initialize: outgoing pipe connect failed");
 				}
 
-				Incoming = accept(Listener, 0, 0);
+				auto Acceptable = ExecuteAccept(Listener, nullptr, nullptr);
 				closesocket(Listener);
-				if (Incoming != INVALID_SOCKET)
+				if (Acceptable)
 				{
+					Incoming = *Acceptable;
 					SetSocketBlocking(Outgoing, false);
 					SetSocketBlocking(Incoming, false);
 					Upsert(Incoming, true, false, nullptr);
 					return Core::Expectation::Met;
 				}
 
-				closesocket(Listener);
 				closesocket(Outgoing);
-				return Core::SystemException("epoll initialize: outgoing pipe accept failed");
+				return Core::SystemException("epoll initialize: outgoing pipe accept failed", std::move(Acceptable.Error()));
 			}
 			bool Upsert(socket_t Fd, bool Readable, bool Writeable, void* Data)
 			{
@@ -1466,10 +1490,20 @@ namespace Vitex
 			Core::UnorderedMap<socket_t, addrinfo*> Hosts;
 			for (auto It = Addresses; It != nullptr; It = It->ai_next)
 			{
-				socket_t Connection = socket(It->ai_family, It->ai_socktype, It->ai_protocol);
-				if (Connection == INVALID_SOCKET)
+				auto Connectable = ExecuteSocket(It->ai_family, It->ai_socktype, It->ai_protocol);
+				if (!Connectable && Connectable.Error() == std::errc::permission_denied)
+				{
+					for (auto& Host : Hosts)
+					{
+						closesocket(Host.first);
+						VI_DEBUG("[net] close dns fd %i", (int)Host.first);
+					}
+					return Core::SystemException(Core::Stringify::Text("dns resolve %s address", Identity.c_str()), std::move(Connectable.Error()));
+				}
+				else if (!Connectable)
 					continue;
 
+				socket_t Connection = *Connectable;
 				VI_DEBUG("[net] open dns fd %i", (int)Connection);
 				if (DNS == DNSType::Connect)
 				{
@@ -1796,7 +1830,7 @@ namespace Vitex
 		void Uplinks::ExpireConnection(RemoteHost* Address, Socket* Target)
 		{
 			VI_ASSERT(Address != nullptr, "address should be set");
-			ExpireConnectionName(GetName(Address), Target);;
+			ExpireConnectionName(GetName(Address), Target);
 		}
 		void Uplinks::ExpireConnectionName(const Core::String& Name, Socket* Stream)
 		{
@@ -2207,13 +2241,14 @@ namespace Vitex
 
 			sockaddr Address;
 			socket_size_t Length = sizeof(sockaddr);
-			*OutFd = accept(Fd, &Address, &Length);
-			if (*OutFd == INVALID_SOCKET)
+			auto NewFd = ExecuteAccept(Fd, &Address, &Length);
+			if (!NewFd)
 			{
 				VI_TRACE("[net] fd %i: not acceptable", (int)Fd);
-				return Core::OS::Error::GetConditionOr();
+				return NewFd.Error();
 			}
 
+			*OutFd = *NewFd;
 			VI_DEBUG("[net] accept fd %i on %i fd", (int)*OutFd, (int)Fd);
 			if (OutAddr != nullptr)
 				inet_ntop(Address.sa_family, GetAddressStorage(&Address), OutAddr, INET6_ADDRSTRLEN);
@@ -2964,13 +2999,15 @@ namespace Vitex
 			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] assign fd");
+			if (!Core::OS::Control::Has(Core::AccessOption::Net))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			addrinfo* Source = Address->Get();
-			Fd = socket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
-			if (Fd == INVALID_SOCKET)
-				return Core::OS::Error::GetConditionOr();
+			auto Openable = ExecuteSocket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
+			if (!Openable)
+				return Openable.Error();
 
-			int Option = 1;
+			int Option = 1; Fd = *Openable;
 			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
 			return Core::Expectation::Met;
 		}
@@ -3358,7 +3395,7 @@ namespace Vitex
 
 				auto Source = Service->FindAddressFromName(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
 				if (!Source)
-					return Core::SystemException(Core::Stringify::Text("resolve %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::make_error_condition(std::errc::host_unreachable));
+					return Core::SystemException(Core::Stringify::Text("resolve %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Source.Error().error()));
 
 				SocketListener* Value = new SocketListener(It.first, It.second, *Source);
 				auto Status = Value->Stream->Open(*Source);

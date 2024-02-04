@@ -204,6 +204,13 @@ namespace Vitex
 				NUMERIC = NUMBER_LENGTH_PERCENT | ANGLE | X
 			};
 
+			enum class FontWeight : uint16_t
+			{
+				Auto = 0,
+				Normal = 400,
+				Bold = 700
+			};
+
 			inline InputType operator |(InputType A, InputType B)
 			{
 				return static_cast<InputType>(static_cast<size_t>(A) | static_cast<size_t>(B));
@@ -218,6 +225,12 @@ namespace Vitex
 
 			template <typename V>
 			using ExpectsGuiException = Core::Expects<V, GuiException>;
+
+			struct VI_OUT FontInfo
+			{
+				FontWeight Weight;
+				bool Fallback;
+			};
 
 			class VI_OUT IVariant
 			{
@@ -657,8 +670,6 @@ namespace Vitex
 				void EnableMouseCursor(bool Enable);
 				void ClearStyles();
 				bool ClearDocuments();
-				ExpectsGuiException<void> LoadManifest(const Core::String& ConfPath);
-				ExpectsGuiException<void> LoadFontFace(const Core::String& Path, bool UseAsFallback = false);
 				bool IsLoading();
 				bool IsInputFocused();
 				bool WasInputUsed(uint32_t InputTypeMask);
@@ -693,11 +704,14 @@ namespace Vitex
 				void SetDocumentsBaseTag(const Core::String& Tag);
 				void SetMountCallback(const ModelCallback& Callback);
 				Core::String GetDocumentsBaseTag();
-				Core::UnorderedMap<Core::String, bool>* GetFontFaces();
+				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* GetFontFaces();
 				Compute::Vector2 GetDimensions() const;
 				DataModel* SetDataModel(const Core::String& Name);
 				DataModel* GetDataModel(const Core::String& Name);
 				Rml::Context* GetContext();
+
+			public:
+				static ExpectsGuiException<void> LoadFontFace(const Core::String& Path, bool UseAsFallback = false, FontWeight Weight = FontWeight::Auto);
 
 			private:
 				ExpectsGuiException<void> Initialize(Core::Schema* Conf, const Core::String& Relative);

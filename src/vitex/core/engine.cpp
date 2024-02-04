@@ -5568,12 +5568,11 @@ namespace Vitex
 					if (!Entry.second)
 						continue;
 
-					Unique.Negated([&Entry]()
-					{
-						if (Entry.first != nullptr)
-							Entry.first->Free(Entry.second);
-					});
+					Unique.Negate();
+					if (Entry.first != nullptr)
+						Entry.first->Free(Entry.second);
 					VI_DELETE(AssetCache, Entry.second);
+					Unique.Negate();
 				}
 			}
 			Assets.clear();

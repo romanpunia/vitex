@@ -7470,7 +7470,7 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
-			else if (!OS::File::HasOption(FsOption::AllowMem))
+			else if (!OS::Control::Has(AccessOption::Mem))
 				return std::make_error_condition(std::errc::permission_denied);
 
 			switch (Mode)
@@ -7708,7 +7708,7 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
-			else if (!OS::File::HasOption(FsOption::AllowFs))
+			else if (!OS::Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
 			const char* Type = nullptr;
@@ -7923,7 +7923,7 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
-			else if (!OS::File::HasOption(FsOption::AllowGz))
+			else if (!OS::Control::Has(AccessOption::Gz))
 				return std::make_error_condition(std::errc::permission_denied);
 
 			const char* Type = nullptr;
@@ -8149,9 +8149,9 @@ namespace Vitex
 			Address.Hostname = Origin.Hostname;
 			Address.Secure = (Origin.Protocol == "https");
 			Address.Port = (Origin.Port < 0 ? (Address.Secure ? 443 : 80) : Origin.Port);
-			if (Address.Secure && !OS::File::HasOption(FsOption::AllowHttps))
+			if (Address.Secure && !OS::Control::Has(AccessOption::Https))
 				return std::make_error_condition(std::errc::permission_denied);
-			else if (!Address.Secure && !OS::File::HasOption(FsOption::AllowHttp))
+			else if (!Address.Secure && !OS::Control::Has(AccessOption::Http))
 				return std::make_error_condition(std::errc::permission_denied);
 
 			auto* Client = new Network::HTTP::Client(30000);
@@ -8343,7 +8343,7 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
-			else if (!OS::File::HasOption(FsOption::AllowShell))
+			else if (!OS::Control::Has(AccessOption::Shell))
 				return std::make_error_condition(std::errc::permission_denied);
 
 			bool Readable = false;
@@ -9107,6 +9107,8 @@ namespace Vitex
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] check path %s", Path);
+			if (!Control::Has(AccessOption::Fs))
+				return false;
 
 			auto TargetPath = Path::Resolve(Path);
 			if (!TargetPath)
@@ -9123,7 +9125,7 @@ namespace Vitex
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] check dir %s", Path);
-			if (*Path == '\0')
+			if (*Path == '\0' || !Control::Has(AccessOption::Fs))
 				return true;
 #if defined(VI_MICROSOFT)
 			wchar_t Buffer[CHUNK_SIZE];
@@ -9203,6 +9205,9 @@ namespace Vitex
 			VI_ASSERT(Entries != nullptr, "entries should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] scan dir %s", Path.c_str());
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
+
 			if (Path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 #if defined(VI_MICROSOFT)
@@ -9259,6 +9264,8 @@ namespace Vitex
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] create dir %s", Path);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE];
 			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
@@ -9306,6 +9313,8 @@ namespace Vitex
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] remove dir %s", Path);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
 			String FilePath, Pattern = String(Path) + "\\*.*";
@@ -9505,17 +9514,6 @@ namespace Vitex
 #endif
 		}
 
-		void OS::File::SetOption(FsOption Option, bool Enabled)
-		{
-			if (Enabled)
-				Options |= (uint64_t)Option;
-			else
-				Options &= ~((uint64_t)Option);
-		}
-		bool OS::File::HasOption(FsOption Option)
-		{
-			return Options & (uint64_t)Option;
-		}
 		bool OS::File::IsExists(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
@@ -9630,6 +9628,9 @@ namespace Vitex
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] copy file from %s to %s", From, To);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
+
 			std::ifstream Source(From, std::ios::binary);
 			if (!Source)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
@@ -9650,6 +9651,8 @@ namespace Vitex
 			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] move file from %s to %s", From, To);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			if (MoveFileA(From, To) != TRUE)
 				return OS::Error::GetConditionOr();
@@ -9669,6 +9672,8 @@ namespace Vitex
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] remove file %s", Path);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			SetFileAttributesA(Path, 0);
 			if (DeleteFileA(Path) != TRUE)
@@ -9696,6 +9701,8 @@ namespace Vitex
 		ExpectsIO<void> OS::File::GetState(const String& Path, FileEntry* File)
 		{
 			VI_MEASURE(Timings::FileSystem);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 #if defined(VI_MICROSOFT)
 			wchar_t Buffer[CHUNK_SIZE];
 			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
@@ -9780,7 +9787,6 @@ namespace Vitex
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
 			VI_TRACE("[io] join %i path to %s", (int)Paths.size(), To.c_str());
-
 			auto Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
 				return Target.Error();
@@ -9805,6 +9811,8 @@ namespace Vitex
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
+			if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			struct stat Buffer;
 			if (stat(Path, &Buffer) != 0)
@@ -9839,7 +9847,7 @@ namespace Vitex
 		{
 			VI_MEASURE(Timings::FileSystem);
 			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
-			if (!HasOption(FsOption::AllowFs))
+			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
@@ -9866,6 +9874,8 @@ namespace Vitex
 		{
 			if (Path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
+			else if (!Control::Has(AccessOption::Fs))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			Network::Location Origin(Path);
 			if (Origin.Protocol == "file")
@@ -9959,7 +9969,6 @@ namespace Vitex
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
 			VI_TRACE("[io] open join %i path to %s", (int)Paths.size(), To.c_str());
-
 			auto Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
 				return Target;
@@ -10062,8 +10071,7 @@ namespace Vitex
 
 			return Stringify::Split(*Result, '\n');
 		}
-		uint64_t OS::File::Options = (uint64_t)FsOption::AllowFs | (uint64_t)FsOption::AllowGz | (uint64_t)FsOption::AllowHttp | (uint64_t)FsOption::AllowHttps | (uint64_t)FsOption::AllowShell | (uint64_t)FsOption::AllowMem;
-
+		
 		bool OS::Path::IsRemote(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
@@ -10519,6 +10527,9 @@ namespace Vitex
 		}
 		ExpectsIO<String> OS::Process::GetEnv(const String& Name)
 		{
+			if (!Control::Has(AccessOption::Env))
+				return std::make_error_condition(std::errc::permission_denied);
+
 			char* Value = std::getenv(Name.c_str());
 			if (!Value)
 				return OS::Error::GetConditionOr();
@@ -10629,7 +10640,8 @@ namespace Vitex
 		ExpectsIO<void*> OS::Symbol::Load(const String& Path)
 		{
 			VI_MEASURE(Timings::FileSystem);
-			String Name(Path);
+			if (!Control::Has(AccessOption::Lib))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			if (Path.empty())
 			{
@@ -10639,7 +10651,9 @@ namespace Vitex
 
 				return (void*)Module;
 			}
-			else if (!Stringify::EndsWith(Name, ".dll"))
+
+			String Name = Path;
+			if (!Stringify::EndsWith(Name, ".dll"))
 				Name.append(".dll");
 
 			VI_DEBUG("[dl] load dll library %s", Name.c_str());
@@ -10657,7 +10671,9 @@ namespace Vitex
 
 				return (void*)Module;
 			}
-			else if (!Stringify::EndsWith(Name, ".dylib"))
+
+			String Name = Path;
+			if (!Stringify::EndsWith(Name, ".dylib"))
 				Name.append(".dylib");
 
 			VI_DEBUG("[dl] load dylib library %s", Name.c_str());
@@ -10675,7 +10691,9 @@ namespace Vitex
 
 				return (void*)Module;
 			}
-			else if (!Stringify::EndsWith(Name, ".so"))
+
+			String Name = Path;
+			if (!Stringify::EndsWith(Name, ".so"))
 				Name.append(".so");
 
 			VI_DEBUG("[dl] load so library %s", Name.c_str());
@@ -10693,6 +10711,8 @@ namespace Vitex
 			VI_ASSERT(Handle != nullptr && !Name.empty(), "handle should be set and name should not be empty");
 			VI_DEBUG("[dl] load function %s", Name.c_str());
 			VI_MEASURE(Timings::FileSystem);
+			if (!Control::Has(AccessOption::Lib))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
@@ -10939,6 +10959,21 @@ namespace Vitex
 			return Buffer ? Buffer : "";
 #endif
 		}
+
+		void OS::Control::Set(AccessOption Option, bool Enabled)
+		{
+			uint64_t PrevOptions = Options.load();
+			if (Enabled)
+				PrevOptions |= (uint64_t)Option;
+			else
+				PrevOptions &= ~((uint64_t)Option);
+			Options = PrevOptions;
+		}
+		bool OS::Control::Has(AccessOption Option)
+		{
+			return Options & (uint64_t)Option;
+		}
+		std::atomic<uint64_t> OS::Control::Options = (uint64_t)AccessOption::All;
 
 		static thread_local Costate* InternalCoroutine = nullptr;
 		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize), ExternalCondition(nullptr), ExternalMutex(nullptr)

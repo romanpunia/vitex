@@ -1630,9 +1630,11 @@ namespace Vitex
 			{
 #ifdef VI_POSTGRESQL
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
+				if (!Core::OS::Control::Has(Core::AccessOption::Net))
+					return ExpectsPromiseDB<void>(DatabaseException("connect failed: permission denied"));
+
 				Core::UMutex<std::mutex> Unique(Update);
 				Source = Location;
-
 				if (!Pool.empty())
 				{
 					Unique.Negate();
@@ -2059,8 +2061,9 @@ namespace Vitex
 				{
 					Request* Current = Target->Current;
 					Target->Current = nullptr;
-
-					Unique.Negated([&Current]() { Current->Failure(); });
+					Unique.Negate();
+					Current->Failure();
+					Unique.Negate();
 					VI_DEBUG("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)Target->Base);
 					VI_RELEASE(Current);
 				}
@@ -2151,7 +2154,9 @@ namespace Vitex
 				Request* Item = Base->Current;
 				Base->Current = nullptr;
 				PQlogNoticeOf(Base->Base);
-				Unique.Negated([&Item]() { Item->Failure(); });
+				Unique.Negate();
+				Item->Failure();
+				Unique.Negate();
 				VI_RELEASE(Item);
 				return true;
 #else
@@ -2246,11 +2251,10 @@ namespace Vitex
 								TryUnassign(Source, Item);
 							}
 
-							Unique.Negated([&Item, &Future, &Results]()
-							{
-								Item->Finalize(Results);
-								Future.Set(std::move(Results));
-							});
+							Unique.Negate();
+							Item->Finalize(Results);
+							Future.Set(std::move(Results));
+							Unique.Negate();
 							VI_RELEASE(Item);
 						}
 						else

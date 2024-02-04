@@ -218,14 +218,19 @@ namespace Vitex
 			SIG_USR2
 		};
 
-		enum class FsOption
+		enum class AccessOption : uint64_t
 		{
-			AllowFs = (1 << 0),
-			AllowGz = (1 << 1),
-			AllowHttp = (1 << 2),
-			AllowHttps = (1 << 3),
-			AllowShell = (1 << 4),
-			AllowMem = (1 << 5)
+			Mem = (1 << 0),
+			Fs = (1 << 1),
+			Gz = (1 << 2),
+			Net = (1 << 3),
+			Lib = (1 << 4),
+			Http = (1 << 5),
+			Https = (1 << 6),
+			Shell = (1 << 7),
+			Env = (1 << 8),
+			Addons = (1 << 9),
+			All = (uint64_t)(Mem | Fs | Gz | Net | Lib | Http | Https | Shell | Env | Addons)
 		};
 
 		enum class ArgsFormat
@@ -283,6 +288,11 @@ namespace Vitex
 			JSONTermination,
 			JSONUnspecificSyntaxError
 		};
+
+		inline AccessOption operator |(AccessOption A, AccessOption B)
+		{
+			return static_cast<AccessOption>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 
 		template <typename T, typename = void>
 		struct IsIterable : std::false_type { };
@@ -2361,12 +2371,7 @@ namespace Vitex
 
 			class VI_OUT File
 			{
-			private:
-				static uint64_t Options;
-
 			public:
-				static void SetOption(FsOption Option, bool Enabled);
-				static bool HasOption(FsOption Option);
 				static bool IsExists(const char* Path);
 				static int Compare(const String& FirstPath, const String& SecondPath);
 				static uint64_t GetHash(const String& Data);
@@ -2480,6 +2485,16 @@ namespace Vitex
 				static std::error_condition GetCondition(int Code);
 				static std::error_condition GetConditionOr(std::errc Code = std::errc::invalid_argument);
 				static String GetName(int Code);
+			};
+
+			class VI_OUT Control
+			{
+			private:
+				static std::atomic<uint64_t> Options;
+
+			public:
+				static void Set(AccessOption Option, bool Enabled);
+				static bool Has(AccessOption Option);
 			};
 		};
 
@@ -2774,24 +2789,6 @@ namespace Vitex
 				else
 					Mutex.lock();
 				Owns = !Owns;
-			}
-
-		public:
-			template <typename F>
-			inline void Negated(F&& Callback)
-			{
-				if (Owns)
-				{
-					Mutex.unlock();
-					Callback();
-					Mutex.lock();
-				}
-				else
-				{
-					Mutex.lock();
-					Callback();
-					Mutex.unlock();
-				}
 			}
 		};
 

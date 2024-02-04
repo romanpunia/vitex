@@ -4115,7 +4115,7 @@ namespace Vitex
 			Dest[0] = ((size_t(Source) << 16) + 17) % (PRIVATE_KEY_SIZE - sizeof(size_t));
 			char* Buffer = (char*)Dest + sizeof(size_t);
 			for (size_t i = 0; i < PRIVATE_KEY_SIZE - sizeof(size_t); i++)
-				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());;
+				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());
 			Buffer[Dest[0]] = Source;
 		}
 		void PrivateKey::RandomizeBuffer(char* Buffer, size_t Size)

@@ -2975,7 +2975,9 @@ namespace Vitex
 #ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
 				VI_ASSERT(Location && Location->Get(), "location should be valid");
-				if (Connected)
+				if (!Core::OS::Control::Has(Core::AccessOption::Net))
+					return ExpectsPromiseDB<void>(DatabaseException(-1, "connect failed: permission denied"));
+				else if (Connected)
 					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location](ExpectsDB<void>&&) { return this->Connect(Location); });
 
 				TAddress* Address = Location->Get(); *Location = nullptr;
@@ -3213,7 +3215,9 @@ namespace Vitex
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Location && Location->Get(), "location should be set");
-				if (Connected)
+				if (!Core::OS::Control::Has(Core::AccessOption::Net))
+					return ExpectsPromiseDB<void>(DatabaseException(-1, "connect failed: permission denied"));
+				else if (Connected)
 					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location](ExpectsDB<void>&&) { return this->Connect(Location); });
 
 				TAddress* Context = Location->Get(); *Location = nullptr;

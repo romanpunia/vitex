@@ -105,7 +105,8 @@ namespace Vitex
 			PromiseNoCallbacks = 0,
 			PromiseNoConstructor = 1,
 			PromiseAlwaysAwait = 2,
-			CTypesNoPointerCast = 3
+			OsExposeControl = 4,
+			CTypesNoPointerCast = 5
 		};
 
 		enum class Modifiers
@@ -336,16 +337,6 @@ namespace Vitex
 			Const = 2
 		};
 
-		enum class Imports
-		{
-			CLibraries = 1,
-			CFunctions = 2,
-			Addons = 4,
-			Files = 8,
-			Remotes = 8,
-			All = (CLibraries | CFunctions | Addons | Files | Remotes)
-		};
-
 		enum class GarbageCollector
 		{
 			FULL_CYCLE = 1,
@@ -361,10 +352,6 @@ namespace Vitex
 		inline Position operator |(Position A, Position B)
 		{
 			return static_cast<Position>(static_cast<size_t>(A) | static_cast<size_t>(B));
-		}
-		inline Imports operator |(Imports A, Imports B)
-		{
-			return static_cast<Imports>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline GarbageCollector operator |(GarbageCollector A, GarbageCollector B)
 		{
@@ -2038,7 +2025,6 @@ namespace Vitex
 			DebuggerContext* Debugger;
 			asIScriptEngine* Engine;
 			asIScriptTranslator* Translator;
-			unsigned int Imports;
 			bool SaveSources;
 			bool Cached;
 
@@ -2082,7 +2068,6 @@ namespace Vitex
 			bool SetByteCodeTranslator(unsigned int Options);
 			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
 			void SetPreserveSourceCode(bool Enabled);
-			void SetImports(unsigned int Opts);
 			void SetTsImports(bool Enabled, const char* ImportSyntax = "import from");
 			void SetCache(bool Enabled);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);

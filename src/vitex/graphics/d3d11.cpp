@@ -2280,7 +2280,7 @@ namespace Vitex
 					return Core::Expectation::Met;
 
 				D3D_RELEASE(Dest->View);
-				HRESULT ResultCode = Context->CreateTexture2D(&IResource->Options.Texture, nullptr, &Dest->View);;
+				HRESULT ResultCode = Context->CreateTexture2D(&IResource->Options.Texture, nullptr, &Dest->View);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create texture cube for cubemap");
 	

@@ -383,7 +383,7 @@ namespace Vitex
 			{
 			private:
 				Core::UnorderedMap<Core::String, TranslationCallback> Translators;
-				Core::UnorderedMap<Core::String, bool> Fonts;
+				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>> Fonts;
 				Graphics::Activity* Activity;
 				Core::Timer* Time;
 
@@ -548,19 +548,31 @@ namespace Vitex
 					else
 						It->second = Callback;
 				}
-				bool AddFontFace(const Core::String& Path, bool UseAsFallback)
+				bool AddFontFace(const Core::String& Path, bool UseAsFallback, FontWeight Weight)
 				{
 					auto It = Fonts.find(Path);
 					if (It != Fonts.end())
-						return true;
+					{
+						for (auto& Info : It->second)
+						{
+							if (Info.Fallback == UseAsFallback && Info.Weight == Weight)
+								return true;
+						}
+					}
 
-					if (!Rml::LoadFontFace(Path, UseAsFallback))
+					if (!Rml::LoadFontFace(Path, UseAsFallback, (Rml::Style::FontWeight)Weight))
 						return false;
 
-					Fonts.insert(std::make_pair(Path, UseAsFallback));
+					FontInfo Info;
+					Info.Fallback = UseAsFallback;
+					Info.Weight = Weight;
+					if (It != Fonts.end())
+						It->second.push_back(Info);
+					else
+						Fonts[Path].push_back(Info);
 					return true;
 				}
-				Core::UnorderedMap<Core::String, bool>* GetFontFaces()
+				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* GetFontFaces()
 				{
 					return &Fonts;
 				}
@@ -3702,94 +3714,6 @@ namespace Vitex
 				return false;
 #endif
 			}
-			ExpectsGuiException<void> Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
-			{
-				VI_ASSERT(Conf != nullptr, "conf should be set");
-				++Busy;
-				for (auto* Face : Conf->FindCollection("font-face", true))
-				{
-					Core::String Path = Face->GetAttributeVar("path").GetBlob();
-					if (Path.empty())
-					{
-						--Busy;
-						return GuiException("apply font face error: no path");
-					}
-
-					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					auto Status = LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr);
-					if (!Status)
-					{
-						--Busy;
-						return Status;
-					}
-				}
-
-				for (auto* Document : Conf->FindCollection("document", true))
-				{
-					Core::String Path = Document->GetAttributeVar("path").GetBlob();
-					if (Path.empty())
-					{
-						--Busy;
-						return GuiException("apply document error: no path");
-					}
-
-					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					auto Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
-					if (!Result || !Result->IsValid())
-					{
-						--Busy;
-						if (Result)
-							return Result.Error();
-
-						return GuiException("load document error: " + Path);
-					}
-					else if (Document->HasAttribute("show"))
-						Result->Show();
-				}
-
-				--Busy;
-				return Core::Expectation::Met;
-			}
-			ExpectsGuiException<void> Context::LoadManifest(const Core::String& ConfPath)
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(Subsystem::Get()->RenderInterface != nullptr, "render interface should be set");
-				VI_ASSERT(Subsystem::Get()->RenderInterface->GetContent() != nullptr, "content manager should be set");
-				++Busy;
-
-				ContentManager* Content = Subsystem::Get()->RenderInterface->GetContent();
-				auto Sheet = Content->Load<Core::Schema>(ConfPath);
-				if (!Sheet)
-				{
-					--Busy;
-					return GuiException(std::move(Sheet.Error().message()));
-				}
-
-				auto TargetPath = Core::OS::Path::ResolveDirectory(Core::OS::Path::GetDirectory(ConfPath.c_str()), Content->GetEnvironment(), true);
-				auto Result = Initialize(*Sheet, TargetPath ? *TargetPath : Core::String());
-				VI_RELEASE(Sheet);
-
-				--Busy;
-				return Result;
-#else
-				return GuiException("unsupported");
-#endif
-			}
-			ExpectsGuiException<void> Context::LoadFontFace(const Core::String& Path, bool UseAsFallback)
-			{
-#ifdef VI_RMLUI
-				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
-				++Busy;
-				bool IsSuccess = Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback);
-				--Busy;
-				if (!IsSuccess)
-					return GuiException("initialize font face error: " + Path);
-
-				return Core::Expectation::Met;
-#else
-				return GuiException("unsupported");
-#endif
-			}
 			bool Context::IsLoading()
 			{
 				return Busy > 0;
@@ -3822,7 +3746,7 @@ namespace Vitex
 				return 0;
 #endif
 			}
-			Core::UnorderedMap<Core::String, bool>* Context::GetFontFaces()
+			Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* Context::GetFontFaces()
 			{
 #ifdef VI_RMLUI
 				return Subsystem::Get()->GetSystemInterface()->GetFontFaces();
@@ -3882,6 +3806,66 @@ namespace Vitex
 				return true;
 #else
 				return false;
+#endif
+			}
+			ExpectsGuiException<void> Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
+			{
+				VI_ASSERT(Conf != nullptr, "conf should be set");
+				++Busy;
+				for (auto* Face : Conf->FindCollection("font-face", true))
+				{
+					Core::String Path = Face->GetAttributeVar("path").GetBlob();
+					if (Path.empty())
+					{
+						--Busy;
+						return GuiException("apply font face error: no path");
+					}
+
+					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
+					auto Status = LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr);
+					if (!Status)
+					{
+						--Busy;
+						return Status;
+					}
+				}
+
+				for (auto* Document : Conf->FindCollection("document", true))
+				{
+					Core::String Path = Document->GetAttributeVar("path").GetBlob();
+					if (Path.empty())
+					{
+						--Busy;
+						return GuiException("apply document error: no path");
+					}
+
+					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
+					auto Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
+					if (!Result || !Result->IsValid())
+					{
+						--Busy;
+						if (Result)
+							return Result.Error();
+
+						return GuiException("load document error: " + Path);
+					}
+					else if (Document->HasAttribute("show"))
+						Result->Show();
+				}
+
+				--Busy;
+				return Core::Expectation::Met;
+			}
+			ExpectsGuiException<void> Context::LoadFontFace(const Core::String& Path, bool UseAsFallback, FontWeight Weight)
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
+				if (!Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback, Weight))
+					return GuiException("initialize font face error: " + Path);
+
+				return Core::Expectation::Met;
+#else
+				return GuiException("unsupported");
 #endif
 			}
 			ExpectsGuiException<IElementDocument> Context::EvalHTML(const Core::String& HTML, int Index)

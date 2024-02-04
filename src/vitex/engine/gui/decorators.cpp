@@ -67,7 +67,7 @@ namespace Vitex
 
 			public:
 				BoxShadowInstancer(RenderConstants* NewConstants);
-				~BoxShadowInstancer() override;
+				virtual ~BoxShadowInstancer() override;
 				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
 			};
 
@@ -98,7 +98,7 @@ namespace Vitex
 
 			public:
 				BoxBlurInstancer(RenderConstants* NewConstants);
-				~BoxBlurInstancer() override;
+				virtual ~BoxBlurInstancer() override;
 				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
 			};
 
@@ -113,9 +113,7 @@ namespace Vitex
 				BoxShadow(const Compute::Vector4& NewColor, const Compute::Vector2& NewOffset, float NewSoftness) : Color(NewColor.Div(255.0f)), Offset(NewOffset), Softness(NewSoftness)
 				{
 				}
-				~BoxShadow() override
-				{
-				}
+				virtual ~BoxShadow() = default;
 				Rml::DecoratorDataHandle GenerateElementData(Rml::Element* Element) const override
 				{
 					return Rml::Decorator::INVALID_DECORATORDATAHANDLE;
@@ -165,9 +163,7 @@ namespace Vitex
 				BoxBlur(const Compute::Vector4& NewColor, float NewSoftness) : Color(NewColor.Div(255)), Softness(NewSoftness)
 				{
 				}
-				~BoxBlur() override
-				{
-				}
+				virtual ~BoxBlur() = default;
 				Rml::DecoratorDataHandle GenerateElementData(Rml::Element* Element) const override
 				{
 					return Rml::Decorator::INVALID_DECORATORDATAHANDLE;

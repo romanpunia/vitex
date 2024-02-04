@@ -657,18 +657,27 @@ namespace Vitex
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
+				bool IsInMemory = Location == ":memory:";
+				if (IsInMemory)
+				{
+					if (!Core::OS::Control::Has(Core::AccessOption::Mem))
+						return ExpectsPromiseDB<void>(DatabaseException("connect failed: permission denied"));
+				}
+				else if (!Core::OS::Control::Has(Core::AccessOption::Fs))
+					return ExpectsPromiseDB<void>(DatabaseException("connect failed: permission denied"));
+
 				if (IsConnected())
 					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location, Connections](ExpectsDB<void>&&) { return this->Connect(Location, Connections); });
 
 				Core::UMutex<std::mutex> Unique(Update);
 				Source = Location;
-				return Core::Cotask<ExpectsDB<void>>([this, Connections]() -> ExpectsDB<void>
+				return Core::Cotask<ExpectsDB<void>>([this, IsInMemory, Connections]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					VI_DEBUG("[sqlite] try open database using %i connections", (int)Connections);
 
 					int Flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI | SQLITE_OPEN_NOMUTEX;
-					if (Source == ":memory:")
+					if (IsInMemory)
 						Flags |= SQLITE_OPEN_MEMORY;
 
 					Core::UMutex<std::mutex> Unique(Update);

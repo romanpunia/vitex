@@ -3816,16 +3816,14 @@ namespace Vitex
 					return -1;
 
 				VI_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
-				Unique.Negated([this]()
+				Unique.Negate();
+				if (VM != nullptr && VM->HasDebugger())
 				{
-					if (VM != nullptr && VM->HasDebugger())
-					{
-						while (Procedure.joinable() && IsActive())
-							VM->TriggerDebugger(nullptr, 50);
-					}
-					Procedure.join();
-				});
-				
+					while (Procedure.joinable() && IsActive())
+						VM->TriggerDebugger(nullptr, 50);
+				}
+				Procedure.join();
+				Unique.Negate();
 				if (!Raise.Empty())
 					Exception::Throw(Raise);
 				return 1;
@@ -11935,14 +11933,6 @@ namespace Vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
-				auto VFsOption = VM->SetEnum("fs_option");
-				VFsOption->SetValue("allow_fs", (int)Core::FsOption::AllowFs);
-				VFsOption->SetValue("allow_gz", (int)Core::FsOption::AllowGz);
-				VFsOption->SetValue("allow_http", (int)Core::FsOption::AllowHttp);
-				VFsOption->SetValue("allow_https", (int)Core::FsOption::AllowHttps);
-				VFsOption->SetValue("allow_shell", (int)Core::FsOption::AllowShell);
-				VFsOption->SetValue("allow_mem", (int)Core::FsOption::AllowMem);
-
 				auto VArgsFormat = VM->SetEnum("args_format");
 				VArgsFormat->SetValue("key_value", (int)Core::ArgsFormat::KeyValue);
 				VArgsFormat->SetValue("flag_value", (int)Core::ArgsFormat::FlagValue);
@@ -12013,8 +12003,6 @@ namespace Vitex
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::file");
-				VM->SetFunction("bool set_option(fs_option, bool)", &Core::OS::File::SetOption);
-				VM->SetFunction("bool has_option(fs_option)", &Core::OS::File::HasOption);
 				VM->SetFunction("bool write(const string &in, const string &in)", &OSFileWrite);
 				VM->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
 				VM->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
@@ -12080,6 +12068,27 @@ namespace Vitex
 				VM->SetFunction("bool is_error(int32)", &Core::OS::Error::IsError);
 				VM->SetFunction("string get_name(int32)", &Core::OS::Error::GetName);
 				VM->EndNamespace();
+
+				if (VM->GetLibraryProperty(LibraryFeatures::OsExposeControl) > 0)
+				{
+					auto VFsOption = VM->SetEnum("access_option");
+					VFsOption->SetValue("allow_mem", (int)Core::AccessOption::Mem);
+					VFsOption->SetValue("allow_fs", (int)Core::AccessOption::Fs);
+					VFsOption->SetValue("allow_gz", (int)Core::AccessOption::Gz);
+					VFsOption->SetValue("allow_net", (int)Core::AccessOption::Net);
+					VFsOption->SetValue("allow_lib", (int)Core::AccessOption::Lib);
+					VFsOption->SetValue("allow_http", (int)Core::AccessOption::Http);
+					VFsOption->SetValue("allow_https", (int)Core::AccessOption::Https);
+					VFsOption->SetValue("allow_shell", (int)Core::AccessOption::Shell);
+					VFsOption->SetValue("allow_env", (int)Core::AccessOption::Env);
+					VFsOption->SetValue("allow_addons", (int)Core::AccessOption::Addons);
+					VFsOption->SetValue("all", (int)Core::AccessOption::All);
+
+					VM->BeginNamespace("os::control");
+					VM->SetFunction("bool set(access_option, bool)", &Core::OS::Control::Set);
+					VM->SetFunction("bool has(access_option)", &Core::OS::Control::Has);
+					VM->EndNamespace();
+				}
 
 				return true;
 #else
@@ -17654,7 +17663,7 @@ namespace Vitex
 				VM->BeginNamespace("content_series");
 				VM->SetFunction<void(Core::Schema*, bool)>("void pack(schema@+, bool)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, int)>("void pack(schema@+, int32)", &Engine::Series::Pack);
-				VM->SetFunction<void(Core::Schema*, unsigned int)>("void pack(schema@+, uint32)", &Engine::Series::Pack);;
+				VM->SetFunction<void(Core::Schema*, unsigned int)>("void pack(schema@+, uint32)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, float)>("void pack(schema@+, float)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, double)>("void pack(schema@+, double)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, int64_t)>("void pack(schema@+, int64)", &Engine::Series::Pack);
@@ -18164,7 +18173,7 @@ namespace Vitex
 				VApplication->SetFunctionDef("void initialize_callback()");
 				VApplication->SetFunctionDef("void startup_callback()");
 				VApplication->SetFunctionDef("void shutdown_callback()");
-				VApplication->SetFunctionDef("gui_context@ fetch_gui_callback()");
+				VApplication->SetFunctionDef("ui_context@ fetch_ui_callback()");
 				VApplication->SetProperty<Engine::Application>("application_cache_info cache", &Engine::Application::Cache);
 				VApplication->SetProperty<Engine::Application>("audio_device@ audio", &Engine::Application::Audio);
 				VApplication->SetProperty<Engine::Application>("graphics_device@ renderer", &Engine::Application::Renderer);
@@ -18186,7 +18195,7 @@ namespace Vitex
 				VApplication->SetMethod("void set_on_initialize(initialize_callback@)", &Application::SetOnInitialize);
 				VApplication->SetMethod("void set_on_startup(startup_callback@)", &Application::SetOnStartup);
 				VApplication->SetMethod("void set_on_shutdown(shutdown_callback@)", &Application::SetOnShutdown);
-				VApplication->SetMethod("void set_on_fetch_gui(fetch_gui_callback@)", &Application::SetOnGetGUI);
+				VApplication->SetMethod("void set_on_fetch_ui(fetch_ui_callback@)", &Application::SetOnGetGUI);
 				VApplication->SetMethod("int start()", &Engine::Application::Start);
 				VApplication->SetMethod("int restart()", &Engine::Application::Restart);
 				VApplication->SetMethod("void stop(int = 0)", &Engine::Application::Stop);
@@ -18846,9 +18855,9 @@ namespace Vitex
 				VGlitch->SetProperty<Engine::Renderers::Glitch>("float color_drift", &Engine::Renderers::Glitch::ColorDrift);
 				PopulateRendererInterface<Engine::Renderers::Glitch, Engine::RenderSystem*>(*VGlitch, "glitch_renderer@+ f(render_system@+)");
 
-				auto VUserInterface = VM->SetClass<Engine::Renderers::UserInterface>("gui_renderer", false);
-				VUserInterface->SetMethod("gui_context@+ get_context() const", &Engine::Renderers::UserInterface::GetContext);
-				PopulateRendererInterface<Engine::Renderers::UserInterface, Engine::RenderSystem*>(*VUserInterface, "gui_renderer@+ f(render_system@+)");
+				auto VUserInterface = VM->SetClass<Engine::Renderers::UserInterface>("ui_renderer", false);
+				VUserInterface->SetMethod("ui_context@+ get_context() const", &Engine::Renderers::UserInterface::GetContext);
+				PopulateRendererInterface<Engine::Renderers::UserInterface, Engine::RenderSystem*>(*VUserInterface, "ui_renderer@+ f(render_system@+)");
 
 				return true;
 #else
@@ -19239,7 +19248,7 @@ namespace Vitex
 
 				return true;
 #else
-				VI_ASSERT(false, "<gui/control> is not loaded");
+				VI_ASSERT(false, "<ui-control> is not loaded");
 				return false;
 #endif
 			}
@@ -19283,7 +19292,7 @@ namespace Vitex
 
 				return true;
 #else
-				VI_ASSERT(false, "<gui/model> is not loaded");
+				VI_ASSERT(false, "<ui-model> is not loaded");
 				return false;
 #endif
 			}
@@ -19292,6 +19301,11 @@ namespace Vitex
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
+				auto VFontWeight = VM->SetEnum("ui_font_weight");
+				VFontWeight->SetValue("automatic", (int)Engine::GUI::FontWeight::Auto);
+				VFontWeight->SetValue("bold", (int)Engine::GUI::FontWeight::Bold);
+				VFontWeight->SetValue("normal", (int)Engine::GUI::FontWeight::Normal);
+
 				auto VInputType = VM->SetEnum("ui_input_type");
 				VInputType->SetValue("keys", (int)Engine::GUI::InputType::Keys);
 				VInputType->SetValue("scroll", (int)Engine::GUI::InputType::Scroll);
@@ -19299,9 +19313,9 @@ namespace Vitex
 				VInputType->SetValue("cursor", (int)Engine::GUI::InputType::Cursor);
 				VInputType->SetValue("any_of", (int)Engine::GUI::InputType::Any);
 
-				auto VContext = VM->SetClass<Engine::GUI::Context>("gui_context", false);
-				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("gui_context@ f(const vector2&in)");
-				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("gui_context@ f(graphics_device@+)");
+				auto VContext = VM->SetClass<Engine::GUI::Context>("ui_context", false);
+				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("ui_context@ f(const vector2&in)");
+				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("ui_context@ f(graphics_device@+)");
 				VContext->SetMethod("void emit_key(key_code, key_mod, int, int, bool)", &Engine::GUI::Context::EmitKey);
 				VContext->SetMethodEx("void emit_input(const string&in)", &ContextEmitInput);
 				VContext->SetMethod("void emit_wheel(int32, int32, bool, key_mod)", &Engine::GUI::Context::EmitWheel);
@@ -19311,8 +19325,7 @@ namespace Vitex
 				VContext->SetMethod("void update_events(activity@+)", &Engine::GUI::Context::UpdateEvents);
 				VContext->SetMethod("void render_lists(texture_2d@+)", &Engine::GUI::Context::RenderLists);
 				VContext->SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
-				VContext->SetMethodEx("bool load_font_face(const string&in, bool = false)", &VI_EXPECTIFY_VOID(Engine::GUI::Context::LoadFontFace));
-				VContext->SetMethodEx("bool load_manifest(const string &in)", &VI_EXPECTIFY_VOID(Engine::GUI::Context::LoadManifest));
+				VContext->SetMethodStatic("bool load_font_face(const string&in, bool = false, ui_font_weight = ui_font_weight::automatic)", &VI_SEXPECTIFY_VOID(Engine::GUI::Context::LoadFontFace));
 				VContext->SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext->SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
 				VContext->SetMethod("bool was_input_used(uint32)", &Engine::GUI::Context::WasInputUsed);
@@ -19353,7 +19366,7 @@ namespace Vitex
 
 				return true;
 #else
-				VI_ASSERT(false, "<gui/context> is not loaded");
+				VI_ASSERT(false, "<ui-context> is not loaded");
 				return false;
 #endif
 			}

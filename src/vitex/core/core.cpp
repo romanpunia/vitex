@@ -6430,13 +6430,18 @@ namespace Vitex
 				ColorToken(StdColor::Yellow, "store"),
 				ColorToken(StdColor::Yellow, "reuse"),
 				ColorToken(StdColor::Yellow, "update"),
+				ColorToken(StdColor::Cyan, "true"),
+				ColorToken(StdColor::Cyan, "false"),
+				ColorToken(StdColor::Cyan, "on"),
+				ColorToken(StdColor::Cyan, "off"),
 				ColorToken(StdColor::Cyan, "undefined"),
 				ColorToken(StdColor::Cyan, "nullptr"),
 				ColorToken(StdColor::Cyan, "null"),
-				ColorToken(StdColor::Cyan, "NULL"),
 				ColorToken(StdColor::Cyan, "this"),
 
 				/* Statuses */
+				ColorToken(StdColor::DarkGreen, "ON"),
+				ColorToken(StdColor::DarkGreen, "TRUE"),
 				ColorToken(StdColor::DarkGreen, "OK"),
 				ColorToken(StdColor::DarkGreen, "SUCCESS"),
 				ColorToken(StdColor::Yellow, "ASSERT"),
@@ -6446,6 +6451,9 @@ namespace Vitex
 				ColorToken(StdColor::Yellow, "debugging"),
 				ColorToken(StdColor::Yellow, "trace"),
 				ColorToken(StdColor::Yellow, "trading"),
+				ColorToken(StdColor::DarkRed, "OFF"),
+				ColorToken(StdColor::DarkRed, "FALSE"),
+				ColorToken(StdColor::DarkRed, "NULL"),
 				ColorToken(StdColor::DarkRed, "ERR"),
 				ColorToken(StdColor::DarkRed, "FATAL"),
 				ColorToken(StdColor::DarkRed, "PANIC!"),
@@ -10962,6 +10970,7 @@ namespace Vitex
 
 		void OS::Control::Set(AccessOption Option, bool Enabled)
 		{
+			VI_DEBUG("[os] control %s set %s", Control::ToString(Option), Enabled ? "ON" : "OFF");
 			uint64_t PrevOptions = Options.load();
 			if (Enabled)
 				PrevOptions |= (uint64_t)Option;
@@ -10972,6 +10981,66 @@ namespace Vitex
 		bool OS::Control::Has(AccessOption Option)
 		{
 			return Options & (uint64_t)Option;
+		}
+		Option<AccessOption> OS::Control::ToOption(const String& Option)
+		{
+			if (Option == "mem")
+				return AccessOption::Mem;
+			if (Option == "fs")
+				return AccessOption::Fs;
+			if (Option == "gz")
+				return AccessOption::Gz;
+			if (Option == "net")
+				return AccessOption::Net;
+			if (Option == "lib")
+				return AccessOption::Lib;
+			if (Option == "http")
+				return AccessOption::Http;
+			if (Option == "https")
+				return AccessOption::Https;
+			if (Option == "shell")
+				return AccessOption::Shell;
+			if (Option == "env")
+				return AccessOption::Env;
+			if (Option == "addons")
+				return AccessOption::Addons;
+			if (Option == "all")
+				return AccessOption::All;
+			return Optional::None;
+		}
+		const char* OS::Control::ToString(AccessOption Option)
+		{
+			switch (Option)
+			{
+				case AccessOption::Mem:
+					return "mem";
+				case AccessOption::Fs:
+					return "fs";
+				case AccessOption::Gz:
+					return "gz";
+				case AccessOption::Net:
+					return "net";
+				case AccessOption::Lib:
+					return "lib";
+				case AccessOption::Http:
+					return "http";
+				case AccessOption::Https:
+					return "https";
+				case AccessOption::Shell:
+					return "shell";
+				case AccessOption::Env:
+					return "env";
+				case AccessOption::Addons:
+					return "addons";
+				case AccessOption::All:
+					return "all";
+				default:
+					return "";
+			}
+		}
+		const char* OS::Control::ToOptions()
+		{
+			return "mem, fs, gz, net, lib, http, https, shell, env, addons, all";
 		}
 		std::atomic<uint64_t> OS::Control::Options = (uint64_t)AccessOption::All;
 

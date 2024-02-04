@@ -2495,6 +2495,9 @@ namespace Vitex
 			public:
 				static void Set(AccessOption Option, bool Enabled);
 				static bool Has(AccessOption Option);
+				static Option<AccessOption> ToOption(const String& Option);
+				static const char* ToString(AccessOption Option);
+				static const char* ToOptions();
 			};
 		};
 

@@ -19326,6 +19326,7 @@ namespace Vitex
 				VContext->SetMethod("void render_lists(texture_2d@+)", &Engine::GUI::Context::RenderLists);
 				VContext->SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
 				VContext->SetMethodStatic("bool load_font_face(const string&in, bool = false, ui_font_weight = ui_font_weight::automatic)", &VI_SEXPECTIFY_VOID(Engine::GUI::Context::LoadFontFace));
+				VContext->SetMethodStatic("string resolve_resource_path(const ui_element&in, const string&in)", &Engine::GUI::Context::ResolveResourcePath);
 				VContext->SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext->SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
 				VContext->SetMethod("bool was_input_used(uint32)", &Engine::GUI::Context::WasInputUsed);

@@ -712,9 +712,9 @@ namespace Vitex
 
 			public:
 				static ExpectsGuiException<void> LoadFontFace(const Core::String& Path, bool UseAsFallback = false, FontWeight Weight = FontWeight::Auto);
+				static Core::String ResolveResourcePath(const IElement& Element, const Core::String& Path);
 
 			private:
-				ExpectsGuiException<void> Initialize(Core::Schema* Conf, const Core::String& Relative);
 				ExpectsGuiException<void> Preprocess(const Core::String& Path, Core::String& Buffer);
 				void Decompose(Core::String& Buffer);
 				void ClearScope();

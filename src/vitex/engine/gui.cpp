@@ -379,20 +379,52 @@ namespace Vitex
 				}
 			};
 
+			class LoadingSubsystem final : public Rml::Plugin
+			{
+			public:
+				Core::SingleQueue<Core::String> Queue;
+
+			public:
+				LoadingSubsystem() = default;
+				virtual ~LoadingSubsystem() = default;
+				void OnDocumentOpen(Rml::Context*, const Rml::String& Path) override
+				{
+					Queue.push(Path);
+				}
+				void OnDocumentLoad(Rml::ElementDocument* document)
+				{
+					if (!Queue.empty())
+						Queue.pop();
+				}
+				Core::String* GetLoadingPath()
+				{
+					if (Queue.empty())
+						return nullptr;
+
+					auto& Current = Queue.front();
+					return &Current;
+				}
+			};
+
 			class MainSubsystem final : public Rml::SystemInterface
 			{
 			private:
 				Core::UnorderedMap<Core::String, TranslationCallback> Translators;
 				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>> Fonts;
+				LoadingSubsystem* Loader;
 				Graphics::Activity* Activity;
 				Core::Timer* Time;
 
 			public:
 				MainSubsystem() : Rml::SystemInterface(), Activity(nullptr), Time(nullptr)
 				{
+					Loader = VI_NEW(LoadingSubsystem);
+					Rml::RegisterPlugin(Loader);
 				}
 				~MainSubsystem()
 				{
+					Rml::UnregisterPlugin(Loader);
+					VI_DELETE(LoadingSubsystem, Loader);
 					Detach();
 				}
 				void SetMouseCursor(const Rml::String& CursorName) override
@@ -571,6 +603,10 @@ namespace Vitex
 					else
 						Fonts[Path].push_back(Info);
 					return true;
+				}
+				Core::String* GetLoadingDocumentPath()
+				{
+					return Loader->GetLoadingPath();
 				}
 				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* GetFontFaces()
 				{
@@ -3808,54 +3844,6 @@ namespace Vitex
 				return false;
 #endif
 			}
-			ExpectsGuiException<void> Context::Initialize(Core::Schema* Conf, const Core::String& Relative)
-			{
-				VI_ASSERT(Conf != nullptr, "conf should be set");
-				++Busy;
-				for (auto* Face : Conf->FindCollection("font-face", true))
-				{
-					Core::String Path = Face->GetAttributeVar("path").GetBlob();
-					if (Path.empty())
-					{
-						--Busy;
-						return GuiException("apply font face error: no path");
-					}
-
-					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					auto Status = LoadFontFace(Target ? *Target : Path, Face->GetAttribute("fallback") != nullptr);
-					if (!Status)
-					{
-						--Busy;
-						return Status;
-					}
-				}
-
-				for (auto* Document : Conf->FindCollection("document", true))
-				{
-					Core::String Path = Document->GetAttributeVar("path").GetBlob();
-					if (Path.empty())
-					{
-						--Busy;
-						return GuiException("apply document error: no path");
-					}
-
-					auto Target = Core::OS::Path::Resolve(Path, Relative, false);
-					auto Result = LoadDocument(Target ? *Target : Path, Document->GetAttributeVar("includes").GetBoolean());
-					if (!Result || !Result->IsValid())
-					{
-						--Busy;
-						if (Result)
-							return Result.Error();
-
-						return GuiException("load document error: " + Path);
-					}
-					else if (Document->HasAttribute("show"))
-						Result->Show();
-				}
-
-				--Busy;
-				return Core::Expectation::Met;
-			}
 			ExpectsGuiException<void> Context::LoadFontFace(const Core::String& Path, bool UseAsFallback, FontWeight Weight)
 			{
 #ifdef VI_RMLUI
@@ -4306,7 +4294,7 @@ namespace Vitex
 					Desc.Root = *Directory;
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
-				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
+				Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 				{
 					if (File.Module.empty() || (!File.IsFile && !File.IsAbstract))
 						return Compute::IncludeType::Error;
@@ -4322,6 +4310,54 @@ namespace Vitex
 					this->Decompose(Output);
 					return Compute::IncludeType::Preprocess;
 				});
+				Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+				{
+					if (Name != "fontface")
+						return Core::Expectation::Met;
+
+					Core::String Path;
+					FontWeight Weight = FontWeight::Auto;
+					bool UseAsFallback = false;
+					for (auto& Item : Args)
+					{
+						if (Core::Stringify::StartsWith(Item, "path:"))
+						{
+							auto Value = Item.substr(5);
+							if ((Value.front() == '\"' && Value.back() == '\"') || (Value.front() == '\'' && Value.back() == '\''))
+								Path = Value.substr(1, Value.size() - 2);
+							else
+								Path = Value;
+						}
+						else if (Core::Stringify::StartsWith(Item, "weight:"))
+						{
+							auto Value = Core::Var::Auto(Item.substr(7));
+							if (Value.Is(Core::VarType::String))
+							{
+								if (Value.IsString("auto"))
+									Weight = FontWeight::Auto;
+								else if (Value.IsString("normal"))
+									Weight = FontWeight::Normal;
+								else if (Value.IsString("bold"))
+									Weight = FontWeight::Bold;
+							}
+							else
+								Weight = (FontWeight)std::min<uint16_t>(1000, (uint16_t)Value.GetInteger());
+						}
+						else if (Core::Stringify::StartsWith(Item, "fallback:"))
+							UseAsFallback = Core::Var::Auto(Item.substr(9)).GetBoolean();
+					}
+
+					if (Path.empty())
+						return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, "font face path is invalid");
+
+					Rml::String TargetPath;
+					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(Processor->GetCurrentFilePath(), '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
+					auto Status = Context::LoadFontFace(TargetPath, UseAsFallback, Weight);
+					if (Status)
+						return Core::Expectation::Met;
+
+					return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, Status.Error().message());
+				});
 				Processor->SetIncludeOptions(Desc);
 				Processor->SetFeatures(Features);
 
@@ -4334,26 +4370,20 @@ namespace Vitex
 			}
 			void Context::Decompose(Core::String& Data)
 			{
-				Core::TextSettle Result, Start, End;
-				while (Result.End < Data.size())
+				Core::TextSettle Start, End;
+				while (End.End < Data.size())
 				{
-					Start = Core::Stringify::Find(Data, "<!--", End.End);
+					Start = Core::Stringify::Find(Data, "<!---", End.End);
 					if (!Start.Found)
 						return;
 
-					End = Core::Stringify::Find(Data, "-->", Start.End);
+					End = Core::Stringify::Find(Data, "--->", Start.End);
 					if (!End.Found)
 						return;
 
-					Result = Core::Stringify::Find(Data, "#include", Start.End);
-					if (!Result.Found)
-						return;
-
-					if (Result.End >= End.Start)
-						continue;
-
-					Core::Stringify::RemovePart(Data, End.Start, End.End);
-					Core::Stringify::RemovePart(Data, Start.Start, Start.End);
+					Core::String Expression = Data.substr(Start.End, End.Start - Start.End);
+					Core::Stringify::Trim(Expression);
+					Core::Stringify::ReplacePart(Data, Start.Start, End.End, Expression);
 					End.End = Start.Start;
 				}
 			}
@@ -4364,6 +4394,31 @@ namespace Vitex
 
 				Compiler->Clear();
 				Compiler->Prepare("__scope__", true);
+			}
+			Core::String Context::ResolveResourcePath(const IElement& Element, const Core::String& Path)
+			{
+#ifdef VI_RMLUI
+				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
+				auto RootElement = Element.GetOwnerDocument();
+				Core::String TargetPath = Path;
+				if (!RootElement.IsValid())
+				{
+					auto* RootPath = Subsystem::Get()->GetSystemInterface()->GetLoadingDocumentPath();
+					if (RootPath != nullptr)
+					{
+						Rml::String TargetPath;
+						Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(*RootPath, '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
+						return TargetPath;
+					}
+				}
+				else
+				{
+					Rml::String TargetPath;
+					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(RootElement.GetSourceURL(), '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
+					return TargetPath;
+				}
+#endif
+				return Path;
 			}
 			Core::String Context::GetDocumentsBaseTag()
 			{

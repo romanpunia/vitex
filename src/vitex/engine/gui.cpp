@@ -4343,7 +4343,7 @@ namespace Vitex
 
 					if (Path.empty())
 						return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, "font face path is invalid");
-
+#ifdef VI_RMLUI
 					Rml::String TargetPath;
 					Rml::String CurrentPath = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
 					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(CurrentPath, '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
@@ -4352,6 +4352,9 @@ namespace Vitex
 						return Core::Expectation::Met;
 
 					return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, Status.Error().message());
+#else
+					return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, "not supported");
+#endif
 				});
 				Processor->SetIncludeOptions(Desc);
 				Processor->SetFeatures(Features);

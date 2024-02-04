@@ -6802,6 +6802,9 @@ namespace Vitex
 				{
 					auto& PrevElement = It->second.Elements[i + 0];
 					auto& NextElement = It->second.Elements[i + 1];
+					if (NextElement.second == PrevElement.second)
+						continue;
+
 					ReplaceElement(PrevElement.first, NextElement.second);
 					PrevElement.second = std::move(NextElement.second);
 				}
@@ -6873,25 +6876,13 @@ namespace Vitex
 			uint32_t Width = 0, Height = 0, X = 0, Y = 0;
 			if (!ReadScreen(&Width, &Height, &X, &Y))
 				return;
-			else if (Width > 0 && Writeable.size() >= Width)
-				Writeable.erase(Writeable.begin() + Width - 1, Writeable.end());
 
-			WritePosition(0, It->second.Y >= Height - 1 ? It->second.Y - 1 : It->second.Y);
-			if (!Writeable.empty())
-				std::cout << Writeable;
-
-			while (It->second.X > Writeable.size())
-			{
-				std::cout << ' ';
-				--It->second.X;
-			}
-
-			It->second.X = (uint32_t)Writeable.size();
-			if (It->second.Y >= Height - 1)
-			{
-				std::cout << '\n';
-				WritePosition(X, Y);
-			}
+			WritePosition(0, It->second.Y >= --Height ? It->second.Y - 1 : It->second.Y);
+			Writeable = Writeable.substr(0, --Width);
+			Writeable.append(Width - Writeable.size(), ' ');
+			Writeable.append(1, '\n');
+			std::cout << Writeable;
+			WritePosition(X, Y);
 		}
 		void Console::ProgressElement(uint64_t Id, double Value, double Coverage)
 		{

@@ -501,9 +501,9 @@ namespace Vitex
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
 					{
-						auto Path = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()), false);
+						auto Path = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()), true);
 						if (!Path)
-							Path = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment(), false);
+							Path = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment(), true);
 						if (Path)
 							Result = *Path;
 					}
@@ -2889,15 +2889,12 @@ namespace Vitex
 				Rml::Shutdown();
 				VI_DELETE(MainSubsystem, SystemInterface);
 				SystemInterface = nullptr;
-				Rml::SetSystemInterface(nullptr);
 
 				VI_DELETE(FileSubsystem, FileInterface);
 				FileInterface = nullptr;
-				Rml::SetFileInterface(nullptr);
 
 				VI_DELETE(RenderSubsystem, RenderInterface);
 				RenderInterface = nullptr;
-				Rml::SetRenderInterface(nullptr);
 
 				VI_DELETE(DocumentInstancer, DocumentFactory);
 				DocumentFactory = nullptr;
@@ -3968,24 +3965,21 @@ namespace Vitex
 				if (OnMount)
 					OnMount(this);
 
-				auto File = Core::OS::File::ReadAsString(Path);
+				ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
+				auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), true) : Core::OS::Path::Resolve(Path.c_str()));
+				auto TargetPath = Subpath ? *Subpath : Path;
+				auto File = Core::OS::File::ReadAsString(TargetPath);
 				if (!File)
 				{
-					ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
-					auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
-					File = Core::OS::File::ReadAsString(Subpath ? *Subpath : Path);
-					if (!File)
-					{
-						--Busy;
-						return GuiException("load document: invalid path");
-					}
+					--Busy;
+					return GuiException("load document: invalid path");
 				}
 
 				Core::String Data = *File;
 				Decompose(Data);
 				if (AllowIncludes)
 				{
-					auto Status = Preprocess(Path, Data);
+					auto Status = Preprocess(TargetPath, Data);
 					if (!Status)
 					{
 						--Busy;
@@ -3993,7 +3987,7 @@ namespace Vitex
 					}
 				}
 
-				Core::String Location(Path);
+				Core::String Location(TargetPath);
 				Core::Stringify::Replace(Location, '\\', '/');
 				auto* Result = Base->LoadDocumentFromMemory(Data, "file:///" + Location);
 				--Busy;
@@ -4351,7 +4345,8 @@ namespace Vitex
 						return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, "font face path is invalid");
 
 					Rml::String TargetPath;
-					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(Processor->GetCurrentFilePath(), '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
+					Rml::String CurrentPath = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
+					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(CurrentPath, '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
 					auto Status = Context::LoadFontFace(TargetPath, UseAsFallback, Weight);
 					if (Status)
 						return Core::Expectation::Met;
@@ -4373,13 +4368,38 @@ namespace Vitex
 				Core::TextSettle Start, End;
 				while (End.End < Data.size())
 				{
+					Start = Core::Stringify::Find(Data, "<!--", End.End);
+					if (!Start.Found)
+						break;
+
+					End = Core::Stringify::Find(Data, "-->", Start.End);
+					if (!End.Found)
+						break;
+
+					if (!End.Start || Data[End.Start - 1] == '-')
+						continue;
+
+					if (Start.End > Data.size() || Data[Start.End] == '-')
+					{
+						End.End = Start.End;
+						continue;
+					}
+
+					Core::Stringify::RemovePart(Data, Start.Start, End.End);
+					End.End = Start.Start;
+				}
+
+				memset(&Start, 0, sizeof(Start));
+				memset(&End, 0, sizeof(End));
+				while (End.End < Data.size())
+				{
 					Start = Core::Stringify::Find(Data, "<!---", End.End);
 					if (!Start.Found)
-						return;
+						break;
 
 					End = Core::Stringify::Find(Data, "--->", Start.End);
 					if (!End.Found)
-						return;
+						break;
 
 					Core::String Expression = Data.substr(Start.End, End.Start - Start.End);
 					Core::Stringify::Trim(Expression);

@@ -11267,7 +11267,7 @@ namespace Vitex
 				{
 					auto It = Directives.find(Next.Name);
 					if (It == Directives.end())
-						return PreprocessorException(PreprocessorError::DirectiveNotFound, Offset, Next.Name);
+						continue;
 
 					Core::String Result;
 					auto Status = It->second(this, Next, Result);

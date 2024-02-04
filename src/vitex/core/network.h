@@ -98,21 +98,21 @@ namespace Vitex
 		{
 		public:
 			Core::UnorderedMap<Core::String, Core::String> Query;
-			Core::String URL;
 			Core::String Protocol;
 			Core::String Username;
 			Core::String Password;
 			Core::String Hostname;
 			Core::String Fragment;
 			Core::String Path;
+			Core::String Body;
 			int Port;
 
 		public:
-			Location(const Core::String& Src) noexcept;
-			Location(const Location& Other) noexcept;
-			Location(Location&& Other) noexcept;
-			Location& operator= (const Location& Other) noexcept;
-			Location& operator= (Location&& Other) noexcept;
+			Location(const Core::String& From) noexcept;
+			Location(const Location&) = default;
+			Location(Location&&) noexcept = default;
+			Location& operator= (const Location&) = default;
+			Location& operator= (Location&&) noexcept = default;
 		};
 
 		struct VI_OUT X509Blob
@@ -394,10 +394,10 @@ namespace Vitex
 			size_t GetSize();
 
 		private:
-			void ExpireConnectionURL(const Core::String& URL, Socket* Target);
-			void ListenConnectionURL(const Core::String& URL, Socket* Target);
+			void ExpireConnectionName(const Core::String& Name, Socket* Target);
+			void ListenConnectionName(const Core::String& Name, Socket* Target);
 			void UnlistenConnection(Socket* Target);
-			Core::String GetURL(RemoteHost* Address);
+			Core::String GetName(RemoteHost* Address);
 		};
 
 		class VI_OUT CertificateBuilder final : public Core::Reference<CertificateBuilder>

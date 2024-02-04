@@ -653,15 +653,15 @@ namespace Vitex
 			{
 				return TxEnd("ROLLBACK", Session);
 			}
-			ExpectsPromiseDB<void> Cluster::Connect(const Core::String& URI, size_t Connections)
+			ExpectsPromiseDB<void> Cluster::Connect(const Core::String& Location, size_t Connections)
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
 				if (IsConnected())
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI, Connections](ExpectsDB<void>&&) { return this->Connect(URI, Connections); });
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location, Connections](ExpectsDB<void>&&) { return this->Connect(Location, Connections); });
 
 				Core::UMutex<std::mutex> Unique(Update);
-				Source = URI;
+				Source = Location;
 				return Core::Cotask<ExpectsDB<void>>([this, Connections]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);

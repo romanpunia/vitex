@@ -5030,7 +5030,7 @@ namespace Vitex
 				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = Base->Read((char*)Result.data(), Size);
+				size_t Count = ExpectsWrapper::Unwrap(Base->Read((char*)Result.data(), Size), (size_t)0);
 				if (Count < Size)
 					Result.resize(Count);
 
@@ -5041,7 +5041,7 @@ namespace Vitex
 				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = Base->ReadLine((char*)Result.data(), Size);
+				size_t Count = ExpectsWrapper::Unwrap(Base->ReadLine((char*)Result.data(), Size), (size_t)0);
 				if (Count < Size)
 					Result.resize(Count);
 
@@ -5049,131 +5049,7 @@ namespace Vitex
 			}
 			size_t StreamWrite(Core::Stream* Base, const Core::String& Data)
 			{
-				return Base->Write(Data.data(), Data.size());
-			}
-
-			bool FileStreamOpen(Core::FileStream* Base, const Core::String& Path, Core::FileMode Mode)
-			{
-				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
-			}
-			Core::String FileStreamRead(Core::FileStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->Read((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			Core::String FileStreamReadLine(Core::FileStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->ReadLine((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			size_t FileStreamWrite(Core::FileStream* Base, const Core::String& Data)
-			{
-				return Base->Write(Data.data(), Data.size());
-			}
-
-			bool GzStreamOpen(Core::GzStream* Base, const Core::String& Path, Core::FileMode Mode)
-			{
-				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
-			}
-			Core::String GzStreamRead(Core::GzStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->Read((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			Core::String GzStreamReadLine(Core::GzStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->ReadLine((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			size_t GzStreamWrite(Core::GzStream* Base, const Core::String& Data)
-			{
-				return Base->Write(Data.data(), Data.size());
-			}
-
-			bool WebStreamOpen(Core::WebStream* Base, const Core::String& Path, Core::FileMode Mode)
-			{
-				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
-			}
-			Core::String WebStreamRead(Core::WebStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->Read((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			Core::String WebStreamReadLine(Core::WebStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->ReadLine((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			size_t WebStreamWrite(Core::WebStream* Base, const Core::String& Data)
-			{
-				return Base->Write(Data.data(), Data.size());
-			}
-
-			bool ProcessStreamOpen(Core::ProcessStream* Base, const Core::String& Path, Core::FileMode Mode)
-			{
-				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
-			}
-			Core::String ProcessStreamRead(Core::ProcessStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->Read((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			Core::String ProcessStreamReadLine(Core::ProcessStream* Base, size_t Size)
-			{
-				Core::String Result;
-				Result.resize(Size);
-
-				size_t Count = Base->ReadLine((char*)Result.data(), Size);
-				if (Count < Size)
-					Result.resize(Count);
-
-				return Result;
-			}
-			size_t ProcessStreamWrite(Core::ProcessStream* Base, const Core::String& Data)
-			{
-				return Base->Write(Data.data(), Data.size());
+				return ExpectsWrapper::Unwrap(Base->Write(Data.data(), Data.size()), (size_t)0);
 			}
 
 			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback)
@@ -9330,10 +9206,10 @@ namespace Vitex
 				});
 			}
 
-			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& URL, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
+			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& Location, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Network::HTTP::Fetch(URL, Method, Options).Then<Network::HTTP::ResponseFrame>([Context](Core::ExpectsSystem<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
+				return Network::HTTP::Fetch(Location, Method, Options).Then<Network::HTTP::ResponseFrame>([Context](Core::ExpectsSystem<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
 				{
 					return ExpectsWrapper::Unwrap(std::move(Response), Network::HTTP::ResponseFrame(), Context);
 				});
@@ -10717,14 +10593,6 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return Array::Compose<Core::String>(Type, ExpectsWrapper::Unwrap(Base->GetDatabaseNames(Options), Core::Vector<Core::String>()));
 			}
-			Core::Promise<bool> MDBConnectionConnectByURI(Network::MDB::Connection* Base, const Core::String& Address)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->ConnectByURI(Address).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
-				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
-				});
-			}
 			Core::Promise<bool> MDBConnectionConnect(Network::MDB::Connection* Base, Network::MDB::Address* Address)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
@@ -10786,14 +10654,6 @@ namespace Vitex
 			void MDBClusterPush(Network::MDB::Cluster* Base, Network::MDB::Connection* Target)
 			{
 				Base->Push(&Target);
-			}
-			Core::Promise<bool> MDBClusterConnectByURI(Network::MDB::Cluster* Base, const Core::String& Address)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				return Base->ConnectByURI(Address).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
-				{
-					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
-				});
 			}
 			Core::Promise<bool> MDBClusterConnect(Network::MDB::Cluster* Base, Network::MDB::Address* Address)
 			{
@@ -11915,13 +11775,17 @@ namespace Vitex
 				VFileLink->SetProperty("bool is_exists", &FileLink::IsExists);
 
 				auto VStream = VM->SetClass<Core::Stream>("base_stream", false);
-				VStream->SetMethod("bool clear()", &Core::Stream::Clear);
-				VStream->SetMethod("bool close()", &Core::Stream::Close);
-				VStream->SetMethod("bool seek(file_seek, int64)", &Core::Stream::Seek);
-				VStream->SetMethod("bool move(int64)", &Core::Stream::Move);
-				VStream->SetMethod("int32 flush()", &Core::Stream::Flush);
-				VStream->SetMethod("usize size()", &Core::Stream::Size);
-				VStream->SetMethod("usize tell()", &Core::Stream::Tell);
+				VStream->SetMethodEx("bool clear()", &VI_EXPECTIFY_VOID(Core::Stream::Clear));
+				VStream->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Core::Stream::Close));
+				VStream->SetMethodEx("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(Core::Stream::Seek));
+				VStream->SetMethodEx("bool move(int64)", &VI_EXPECTIFY_VOID(Core::Stream::Move));
+				VStream->SetMethodEx("bool flush()", &VI_EXPECTIFY_VOID(Core::Stream::Flush));
+				VStream->SetMethodEx("usize size()", &VI_EXPECTIFY(Core::Stream::Size));
+				VStream->SetMethodEx("usize tell()", &VI_EXPECTIFY(Core::Stream::Tell));
+				VStream->SetMethod("usize virtual_size() const", &Core::Stream::VirtualSize);
+				VStream->SetMethod("const string& virtual_name() const", &Core::Stream::VirtualName);
+				VStream->SetMethod("void set_virtual_size(usize) const", &Core::Stream::SetVirtualSize);
+				VStream->SetMethod("void set_virtual_name(const string&in) const", &Core::Stream::SetVirtualName);
 				VStream->SetMethod("int32 get_readable_fd() const", &Core::Stream::GetReadableFd);
 				VStream->SetMethod("int32 get_writeable_fd() const", &Core::Stream::GetWriteableFd);
 				VStream->SetMethod("uptr@ get_readable() const", &Core::Stream::GetReadable);
@@ -11932,72 +11796,111 @@ namespace Vitex
 				VStream->SetMethodEx("string read(usize)", &StreamRead);
 				VStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
+				auto VMemoryStream = VM->SetClass<Core::MemoryStream>("memory_stream", false);
+				VMemoryStream->SetConstructor<Core::MemoryStream>("memory_stream@ f()");
+				VMemoryStream->SetMethodEx("bool clear()", &VI_EXPECTIFY_VOID(Core::MemoryStream::Clear));
+				VMemoryStream->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Core::MemoryStream::Close));
+				VMemoryStream->SetMethodEx("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(Core::MemoryStream::Seek));
+				VMemoryStream->SetMethodEx("bool move(int64)", &VI_EXPECTIFY_VOID(Core::MemoryStream::Move));
+				VMemoryStream->SetMethodEx("bool flush()", &VI_EXPECTIFY_VOID(Core::MemoryStream::Flush));
+				VMemoryStream->SetMethodEx("usize size()", &VI_EXPECTIFY(Core::MemoryStream::Size));
+				VMemoryStream->SetMethodEx("usize tell()", &VI_EXPECTIFY(Core::MemoryStream::Tell));
+				VMemoryStream->SetMethod("usize virtual_size() const", &Core::MemoryStream::VirtualSize);
+				VMemoryStream->SetMethod("const string& virtual_name() const", &Core::MemoryStream::VirtualName);
+				VMemoryStream->SetMethod("void set_virtual_size(usize) const", &Core::MemoryStream::SetVirtualSize);
+				VMemoryStream->SetMethod("void set_virtual_name(const string&in) const", &Core::MemoryStream::SetVirtualName);
+				VMemoryStream->SetMethod("int32 get_readable_fd() const", &Core::MemoryStream::GetReadableFd);
+				VMemoryStream->SetMethod("int32 get_writeable_fd() const", &Core::MemoryStream::GetWriteableFd);
+				VMemoryStream->SetMethod("uptr@ get_readable() const", &Core::MemoryStream::GetReadable);
+				VMemoryStream->SetMethod("uptr@ get_writeable() const", &Core::MemoryStream::GetWriteable);
+				VMemoryStream->SetMethod("bool is_sized() const", &Core::MemoryStream::IsSized);
+				VMemoryStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
+				VMemoryStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VMemoryStream->SetMethodEx("string read(usize)", &StreamRead);
+				VMemoryStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
+
 				auto VFileStream = VM->SetClass<Core::FileStream>("file_stream", false);
 				VFileStream->SetConstructor<Core::FileStream>("file_stream@ f()");
-				VFileStream->SetMethod("bool clear()", &Core::FileStream::Clear);
-				VFileStream->SetMethod("bool close()", &Core::FileStream::Close);
-				VFileStream->SetMethod("bool seek(file_seek, int64)", &Core::FileStream::Seek);
-				VFileStream->SetMethod("bool move(int64)", &Core::FileStream::Move);
-				VFileStream->SetMethod("int32 flush()", &Core::FileStream::Flush);
-				VFileStream->SetMethod("usize size()", &Core::FileStream::Size);
-				VFileStream->SetMethod("usize tell()", &Core::FileStream::Tell);
+				VFileStream->SetMethodEx("bool clear()", &VI_EXPECTIFY_VOID(Core::FileStream::Clear));
+				VFileStream->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Core::FileStream::Close));
+				VFileStream->SetMethodEx("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(Core::FileStream::Seek));
+				VFileStream->SetMethodEx("bool move(int64)", &VI_EXPECTIFY_VOID(Core::FileStream::Move));
+				VFileStream->SetMethodEx("bool flush()", &VI_EXPECTIFY_VOID(Core::FileStream::Flush));
+				VFileStream->SetMethodEx("usize size()", &VI_EXPECTIFY(Core::FileStream::Size));
+				VFileStream->SetMethodEx("usize tell()", &VI_EXPECTIFY(Core::FileStream::Tell));
+				VFileStream->SetMethod("usize virtual_size() const", &Core::FileStream::VirtualSize);
+				VFileStream->SetMethod("const string& virtual_name() const", &Core::FileStream::VirtualName);
+				VFileStream->SetMethod("void set_virtual_size(usize) const", &Core::FileStream::SetVirtualSize);
+				VFileStream->SetMethod("void set_virtual_name(const string&in) const", &Core::FileStream::SetVirtualName);
 				VFileStream->SetMethod("int32 get_readable_fd() const", &Core::FileStream::GetReadableFd);
 				VFileStream->SetMethod("int32 get_writeable_fd() const", &Core::FileStream::GetWriteableFd);
 				VFileStream->SetMethod("uptr@ get_readable() const", &Core::FileStream::GetReadable);
 				VFileStream->SetMethod("uptr@ get_writeable() const", &Core::FileStream::GetWriteable);
 				VFileStream->SetMethod("bool is_sized() const", &Core::FileStream::IsSized);
-				VFileStream->SetMethodEx("bool open(const string &in, file_mode)", &FileStreamOpen);
-				VFileStream->SetMethodEx("usize write(const string &in)", &FileStreamWrite);
-				VFileStream->SetMethodEx("string read(usize)", &FileStreamRead);
-				VFileStream->SetMethodEx("string read_line(usize)", &FileStreamReadLine);
+				VFileStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
+				VFileStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VFileStream->SetMethodEx("string read(usize)", &StreamRead);
+				VFileStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
 				auto VGzStream = VM->SetClass<Core::GzStream>("gz_stream", false);
 				VGzStream->SetConstructor<Core::GzStream>("gz_stream@ f()");
-				VGzStream->SetMethod("bool clear()", &Core::GzStream::Clear);
-				VGzStream->SetMethod("bool close()", &Core::GzStream::Close);
-				VGzStream->SetMethod("bool seek(file_seek, int64)", &Core::GzStream::Seek);
-				VGzStream->SetMethod("bool move(int64)", &Core::GzStream::Move);
-				VGzStream->SetMethod("int32 flush()", &Core::GzStream::Flush);
-				VGzStream->SetMethod("usize size()", &Core::GzStream::Size);
-				VGzStream->SetMethod("usize tell()", &Core::GzStream::Tell);
+				VGzStream->SetMethodEx("bool clear()", &VI_EXPECTIFY_VOID(Core::GzStream::Clear));
+				VGzStream->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Core::GzStream::Close));
+				VGzStream->SetMethodEx("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(Core::GzStream::Seek));
+				VGzStream->SetMethodEx("bool move(int64)", &VI_EXPECTIFY_VOID(Core::GzStream::Move));
+				VGzStream->SetMethodEx("bool flush()", &VI_EXPECTIFY_VOID(Core::GzStream::Flush));
+				VGzStream->SetMethodEx("usize size()", &VI_EXPECTIFY(Core::GzStream::Size));
+				VGzStream->SetMethodEx("usize tell()", &VI_EXPECTIFY(Core::GzStream::Tell));
+				VGzStream->SetMethod("usize virtual_size() const", &Core::GzStream::VirtualSize);
+				VGzStream->SetMethod("const string& virtual_name() const", &Core::GzStream::VirtualName);
+				VGzStream->SetMethod("void set_virtual_size(usize) const", &Core::GzStream::SetVirtualSize);
+				VGzStream->SetMethod("void set_virtual_name(const string&in) const", &Core::GzStream::SetVirtualName);
 				VGzStream->SetMethod("int32 get_readable_fd() const", &Core::GzStream::GetReadableFd);
 				VGzStream->SetMethod("int32 get_writeable_fd() const", &Core::GzStream::GetWriteableFd);
 				VGzStream->SetMethod("uptr@ get_readable() const", &Core::GzStream::GetReadable);
 				VGzStream->SetMethod("uptr@ get_writeable() const", &Core::GzStream::GetWriteable);
 				VGzStream->SetMethod("bool is_sized() const", &Core::GzStream::IsSized);
-				VGzStream->SetMethodEx("bool open(const string &in, file_mode)", &GzStreamOpen);
-				VGzStream->SetMethodEx("usize write(const string &in)", &GzStreamWrite);
-				VGzStream->SetMethodEx("string read(usize)", &GzStreamRead);
-				VGzStream->SetMethodEx("string read_line(usize)", &GzStreamReadLine);
+				VGzStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
+				VGzStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VGzStream->SetMethodEx("string read(usize)", &StreamRead);
+				VGzStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
 				auto VWebStream = VM->SetClass<Core::WebStream>("web_stream", false);
 				VWebStream->SetConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
-				VWebStream->SetMethod("bool clear()", &Core::WebStream::Clear);
-				VWebStream->SetMethod("bool close()", &Core::WebStream::Close);
-				VWebStream->SetMethod("bool seek(file_seek, int64)", &Core::WebStream::Seek);
-				VWebStream->SetMethod("bool move(int64)", &Core::WebStream::Move);
-				VWebStream->SetMethod("int32 flush()", &Core::WebStream::Flush);
-				VWebStream->SetMethod("usize size()", &Core::WebStream::Size);
-				VWebStream->SetMethod("usize tell()", &Core::WebStream::Tell);
+				VWebStream->SetMethodEx("bool clear()", &VI_EXPECTIFY_VOID(Core::WebStream::Clear));
+				VWebStream->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Core::WebStream::Close));
+				VWebStream->SetMethodEx("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(Core::WebStream::Seek));
+				VWebStream->SetMethodEx("bool move(int64)", &VI_EXPECTIFY_VOID(Core::WebStream::Move));
+				VWebStream->SetMethodEx("bool flush()", &VI_EXPECTIFY_VOID(Core::WebStream::Flush));
+				VWebStream->SetMethodEx("usize size()", &VI_EXPECTIFY(Core::WebStream::Size));
+				VWebStream->SetMethodEx("usize tell()", &VI_EXPECTIFY(Core::WebStream::Tell));
+				VWebStream->SetMethod("usize virtual_size() const", &Core::WebStream::VirtualSize);
+				VWebStream->SetMethod("const string& virtual_name() const", &Core::WebStream::VirtualName);
+				VWebStream->SetMethod("void set_virtual_size(usize) const", &Core::WebStream::SetVirtualSize);
+				VWebStream->SetMethod("void set_virtual_name(const string&in) const", &Core::WebStream::SetVirtualName);
 				VWebStream->SetMethod("int32 get_readable_fd() const", &Core::WebStream::GetReadableFd);
 				VWebStream->SetMethod("int32 get_writeable_fd() const", &Core::WebStream::GetWriteableFd);
 				VWebStream->SetMethod("uptr@ get_readable() const", &Core::WebStream::GetReadable);
 				VWebStream->SetMethod("uptr@ get_writeable() const", &Core::WebStream::GetWriteable);
 				VWebStream->SetMethod("bool is_sized() const", &Core::WebStream::IsSized);
-				VWebStream->SetMethodEx("bool open(const string &in, file_mode)", &WebStreamOpen);
-				VWebStream->SetMethodEx("usize write(const string &in)", &WebStreamWrite);
-				VWebStream->SetMethodEx("string read(usize)", &WebStreamRead);
-				VWebStream->SetMethodEx("string read_line(usize)", &WebStreamReadLine);
+				VWebStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
+				VWebStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VWebStream->SetMethodEx("string read(usize)", &StreamRead);
+				VWebStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
 				auto VProcessStream = VM->SetClass<Core::ProcessStream>("process_stream", false);
 				VProcessStream->SetConstructor<Core::ProcessStream>("process_stream@ f()");
-				VProcessStream->SetMethod("bool clear()", &Core::ProcessStream::Clear);
-				VProcessStream->SetMethod("bool close()", &Core::ProcessStream::Close);
-				VProcessStream->SetMethod("bool seek(file_seek, int64)", &Core::ProcessStream::Seek);
-				VProcessStream->SetMethod("bool move(int64)", &Core::ProcessStream::Move);
-				VProcessStream->SetMethod("int32 flush()", &Core::ProcessStream::Flush);
-				VProcessStream->SetMethod("usize size()", &Core::ProcessStream::Size);
-				VProcessStream->SetMethod("usize tell()", &Core::ProcessStream::Tell);
+				VProcessStream->SetMethodEx("bool clear()", &VI_EXPECTIFY_VOID(Core::ProcessStream::Clear));
+				VProcessStream->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Core::ProcessStream::Close));
+				VProcessStream->SetMethodEx("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(Core::ProcessStream::Seek));
+				VProcessStream->SetMethodEx("bool move(int64)", &VI_EXPECTIFY_VOID(Core::ProcessStream::Move));
+				VProcessStream->SetMethodEx("bool flush()", &VI_EXPECTIFY_VOID(Core::ProcessStream::Flush));
+				VProcessStream->SetMethodEx("usize size()", &VI_EXPECTIFY(Core::ProcessStream::Size));
+				VProcessStream->SetMethodEx("usize tell()", &VI_EXPECTIFY(Core::ProcessStream::Tell));
+				VProcessStream->SetMethod("usize virtual_size() const", &Core::ProcessStream::VirtualSize);
+				VProcessStream->SetMethod("const string& virtual_name() const", &Core::ProcessStream::VirtualName);
+				VProcessStream->SetMethod("void set_virtual_size(usize) const", &Core::ProcessStream::SetVirtualSize);
+				VProcessStream->SetMethod("void set_virtual_name(const string&in) const", &Core::ProcessStream::SetVirtualName);
 				VProcessStream->SetMethod("int32 get_readable_fd() const", &Core::ProcessStream::GetReadableFd);
 				VProcessStream->SetMethod("int32 get_writeable_fd() const", &Core::ProcessStream::GetWriteableFd);
 				VProcessStream->SetMethod("uptr@ get_readable() const", &Core::ProcessStream::GetReadable);
@@ -12007,20 +11910,21 @@ namespace Vitex
 				VProcessStream->SetMethod("int32 get_exit_code() const", &Core::ProcessStream::GetExitCode);
 				VProcessStream->SetMethod("bool is_sized() const", &Core::ProcessStream::IsSized);
 				VProcessStream->SetMethod("bool is_alive()", &Core::ProcessStream::IsAlive);
-				VProcessStream->SetMethodEx("bool open(const string &in, file_mode)", &ProcessStreamOpen);
-				VProcessStream->SetMethodEx("usize write(const string &in)", &ProcessStreamWrite);
-				VProcessStream->SetMethodEx("string read(usize)", &ProcessStreamRead);
-				VProcessStream->SetMethodEx("string read_line(usize)", &ProcessStreamReadLine);
+				VProcessStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
+				VProcessStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VProcessStream->SetMethodEx("string read(usize)", &StreamRead);
+				VProcessStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
+				VStream->SetDynamicCast<Core::Stream, Core::MemoryStream>("memory_stream@+");
 				VStream->SetDynamicCast<Core::Stream, Core::FileStream>("file_stream@+");
 				VStream->SetDynamicCast<Core::Stream, Core::GzStream>("gz_stream@+");
 				VStream->SetDynamicCast<Core::Stream, Core::WebStream>("web_stream@+");
 				VStream->SetDynamicCast<Core::Stream, Core::ProcessStream>("process_stream@+");
+				VMemoryStream->SetDynamicCast<Core::MemoryStream, Core::Stream>("base_stream@+", true);
 				VFileStream->SetDynamicCast<Core::FileStream, Core::Stream>("base_stream@+", true);
 				VGzStream->SetDynamicCast<Core::GzStream, Core::Stream>("base_stream@+", true);
 				VWebStream->SetDynamicCast<Core::WebStream, Core::Stream>("base_stream@+", true);
 				VProcessStream->SetDynamicCast<Core::ProcessStream, Core::Stream>("base_stream@+", true);
-
 				return true;
 #else
 				VI_ASSERT(false, "<file_system> is not loaded");
@@ -12031,6 +11935,14 @@ namespace Vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
+				auto VFsOption = VM->SetEnum("fs_option");
+				VFsOption->SetValue("allow_fs", (int)Core::FsOption::AllowFs);
+				VFsOption->SetValue("allow_gz", (int)Core::FsOption::AllowGz);
+				VFsOption->SetValue("allow_http", (int)Core::FsOption::AllowHttp);
+				VFsOption->SetValue("allow_https", (int)Core::FsOption::AllowHttps);
+				VFsOption->SetValue("allow_shell", (int)Core::FsOption::AllowShell);
+				VFsOption->SetValue("allow_mem", (int)Core::FsOption::AllowMem);
+
 				auto VArgsFormat = VM->SetEnum("args_format");
 				VArgsFormat->SetValue("key_value", (int)Core::ArgsFormat::KeyValue);
 				VArgsFormat->SetValue("flag_value", (int)Core::ArgsFormat::FlagValue);
@@ -12101,6 +12013,8 @@ namespace Vitex
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::file");
+				VM->SetFunction("bool set_option(fs_option, bool)", &Core::OS::File::SetOption);
+				VM->SetFunction("bool has_option(fs_option)", &Core::OS::File::HasOption);
 				VM->SetFunction("bool write(const string &in, const string &in)", &OSFileWrite);
 				VM->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
 				VM->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
@@ -13107,8 +13021,8 @@ namespace Vitex
 				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
 				VM->SetFunction<Core::String(const Core::String&, bool)>("string hex_encode(const string &in, bool = false)", &Compute::Codec::HexEncode);
 				VM->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
-				VM->SetFunction<Core::String(const Core::String&)>("string uri_encode(const string &in)", &Compute::Codec::URIEncode);
-				VM->SetFunction<Core::String(const Core::String&)>("string uri_decode(const string &in)", &Compute::Codec::URIDecode);
+				VM->SetFunction<Core::String(const Core::String&)>("string url_encode(const string &in)", &Compute::Codec::URLEncode);
+				VM->SetFunction<Core::String(const Core::String&)>("string url_decode(const string &in)", &Compute::Codec::URLDecode);
 				VM->SetFunction("string decimal_to_hex(uint64)", &Compute::Codec::DecimalToHex);
 				VM->SetFunction("string base10_to_base_n(uint64, uint8)", &Compute::Codec::Base10ToBaseN);
 				VM->EndNamespace();
@@ -15852,13 +15766,13 @@ namespace Vitex
 				VRemoteHost->SetConstructor<Network::RemoteHost>("void f()");
 
 				auto VLocation = VM->SetStructTrivial<Network::Location>("url_location");
-				VLocation->SetProperty<Network::Location>("string url", &Network::Location::URL);
 				VLocation->SetProperty<Network::Location>("string protocol", &Network::Location::Protocol);
 				VLocation->SetProperty<Network::Location>("string username", &Network::Location::Username);
 				VLocation->SetProperty<Network::Location>("string password", &Network::Location::Password);
 				VLocation->SetProperty<Network::Location>("string hostname", &Network::Location::Hostname);
 				VLocation->SetProperty<Network::Location>("string fragment", &Network::Location::Fragment);
 				VLocation->SetProperty<Network::Location>("string path", &Network::Location::Path);
+				VLocation->SetProperty<Network::Location>("string body", &Network::Location::Body);
 				VLocation->SetProperty<Network::Location>("int32 port", &Network::Location::Port);
 				VLocation->SetConstructor<Network::Location, const Core::String&>("void f(const string &in)");
 				VLocation->SetMethodEx("dictionary@ get_query() const", &LocationGetQuery);
@@ -16231,8 +16145,8 @@ namespace Vitex
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("content_frame content", &Network::HTTP::RequestFrame::Content);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string query", &Network::HTTP::RequestFrame::Query);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string path", &Network::HTTP::RequestFrame::Path);
-				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string uri", &Network::HTTP::RequestFrame::URI);
-				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string where", &Network::HTTP::RequestFrame::Where);
+				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string location", &Network::HTTP::RequestFrame::Location);
+				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("string referrer", &Network::HTTP::RequestFrame::Referrer);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("regex_result match", &Network::HTTP::RequestFrame::Match);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("credentials user", &Network::HTTP::RequestFrame::User);
 				VRequestFrame->SetConstructor<Network::HTTP::RequestFrame>("void f()");
@@ -16323,7 +16237,7 @@ namespace Vitex
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_directory_listing", &Network::HTTP::RouteEntry::AllowDirectoryListing);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_websocket", &Network::HTTP::RouteEntry::AllowWebSocket);
 				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_send_file", &Network::HTTP::RouteEntry::AllowSendFile);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("regex_source uri", &Network::HTTP::RouteEntry::URI);
+				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("regex_source location", &Network::HTTP::RouteEntry::Location);
 				VRouteEntry->SetConstructor<Network::HTTP::RouteEntry>("route_entry@ f()");
 				VRouteEntry->SetConstructor<Network::HTTP::RouteEntry, Network::HTTP::RouteEntry*, const Compute::RegexSource&>("route_entry@ f(route_entry@+, const regex_source&in)");
 				VRouteEntry->SetMethodEx("void set_hidden_files(array<regex_source>@+)", &RouteEntrySetHiddenFiles);
@@ -16944,7 +16858,7 @@ namespace Vitex
 				VAddress->SetMethod("bool set(address_op, const string&in)", &Network::PDB::Address::Set);
 				VAddress->SetMethod<Network::PDB::Address, Core::String, Network::PDB::AddressOp>("string get(address_op) const", &Network::PDB::Address::Get);
 				VAddress->SetMethod("string get_address() const", &Network::PDB::Address::GetAddress);
-				VAddress->SetMethodStatic("host_address from_uri(const string&in)", &VI_SEXPECTIFY(Network::PDB::Address::FromURI));
+				VAddress->SetMethodStatic("host_address from_url(const string&in)", &VI_SEXPECTIFY(Network::PDB::Address::FromURL));
 
 				auto VNotify = VM->SetStructTrivial<Network::PDB::Notify>("notify");
 				VNotify->SetConstructor<Network::PDB::Notify, const Network::PDB::Notify&>("void f(const notify&in)");
@@ -17215,7 +17129,7 @@ namespace Vitex
 				VAddress->SetMethod("void set_database(const string&in)", &Network::MDB::Address::SetDatabase);
 				VAddress->SetMethod("void set_username(const string&in)", &Network::MDB::Address::SetUsername);
 				VAddress->SetMethod("void set_password(const string&in)", &Network::MDB::Address::SetPassword);
-				VAddress->SetMethodStatic("host_address from_uri(const string&in)", &VI_SEXPECTIFY(Network::MDB::Address::FromURI));
+				VAddress->SetMethodStatic("host_address from_url(const string&in)", &VI_SEXPECTIFY(Network::MDB::Address::FromURL));
 
 				auto VStream = VM->SetStruct<Network::MDB::Stream>("stream");
 				VStream->SetConstructor<Network::MDB::Stream>("void f()");
@@ -17372,7 +17286,6 @@ namespace Vitex
 				VConnection->SetMethod("cluster@+ get_master() const", &Network::MDB::Connection::GetMaster);
 				VConnection->SetMethod("bool connected() const", &Network::MDB::Connection::IsConnected);
 				VConnection->SetMethodEx("array<string>@ get_database_names(const document&in) const", &MDBConnectionGetDatabaseNames);
-				VConnection->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_SPROMISIFY(MDBConnectionConnectByURI, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(MDBConnectionConnect, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(MDBConnectionDisconnect, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<bool>@ make_transaction(transaction_event@)", &VI_SPROMISIFY(MDBConnectionMakeTransaction, TypeId::BOOL));
@@ -17383,7 +17296,6 @@ namespace Vitex
 				VCluster->SetMethod("host_address& get_address()", &Network::MDB::Cluster::GetAddress);
 				VCluster->SetMethod("connection@+ pop()", &Network::MDB::Cluster::Pop);
 				VCluster->SetMethodEx("void push(connection@+)", &MDBClusterPush);
-				VCluster->SetMethodEx("promise<bool>@ connect_by_uri(const string&in)", &VI_SPROMISIFY(MDBClusterConnectByURI, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(MDBClusterConnect, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(MDBClusterDisconnect, TypeId::BOOL));
 
@@ -18006,7 +17918,7 @@ namespace Vitex
 
 				VContentManager->SetFunctionDef("void load_callback(uptr@)");
 				VContentManager->SetFunctionDef("void save_callback(bool)");
-				VContentManager->SetGcConstructor<Engine::ContentManager, ContentManager, Graphics::GraphicsDevice*>("content_manager@ f()");
+				VContentManager->SetGcConstructor<Engine::ContentManager, ContentManager, Graphics::GraphicsDevice*>("content_manager@ f(graphics_device@+)");
 				VContentManager->SetMethod("void clear_cache()", &Engine::ContentManager::ClearCache);
 				VContentManager->SetMethod("void clear_archives()", &Engine::ContentManager::ClearArchives);
 				VContentManager->SetMethod("void clear_streams()", &Engine::ContentManager::ClearStreams);
@@ -18027,8 +17939,8 @@ namespace Vitex
 				VContentManager->SetMethodEx("base_processor@+ add_processor(base_processor@+, uint64)", &ContentManagerAddProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, Engine::Processor*, uint64_t>("base_processor@+ get_processor(uint64)", &Engine::ContentManager::GetProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, bool, uint64_t>("bool remove_processor(uint64)", &Engine::ContentManager::RemoveProcessor);
-				VContentManager->SetMethodEx("bool import_fs(const string &in)", &VI_EXPECTIFY_VOID(Engine::ContentManager::Import));
-				VContentManager->SetMethodEx("bool export_fs(const string &in, const string &in, const string &in = \"\")", &VI_EXPECTIFY_VOID(Engine::ContentManager::Export));
+				VContentManager->SetMethodEx("bool import_archive(const string &in, bool)", &VI_EXPECTIFY_VOID(Engine::ContentManager::ImportArchive));
+				VContentManager->SetMethodEx("bool export_archive(const string &in, const string &in, const string &in = \"\")", &VI_EXPECTIFY_VOID(Engine::ContentManager::ExportArchive));
 				VContentManager->SetMethod("uptr@ try_to_cache(base_processor@+, const string &in, uptr@)", &Engine::ContentManager::TryToCache);
 				VContentManager->SetMethod("bool is_busy() const", &Engine::ContentManager::IsBusy);
 				VContentManager->SetMethod("graphics_device@+ get_device() const", &Engine::ContentManager::GetDevice);

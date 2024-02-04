@@ -642,7 +642,7 @@ namespace Vitex
 			ExpectsContent<void*> MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Data = Content->Load<Core::Schema>(Stream->Source());
+				auto Data = Content->Load<Core::Schema>(Stream->VirtualName());
 				if (!Data)
 					return Data.Error();
 
@@ -757,7 +757,7 @@ namespace Vitex
 				Object->SetName(Name);
 				VI_RELEASE(Data);
 
-				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -819,7 +819,7 @@ namespace Vitex
 				Series::Pack(Data->Set("bias"), Object->Surface.Bias);
 				Series::Pack(Data->Set("name"), Object->GetName());
 
-				auto Status = Content->Save<Core::Schema>(Stream->Source(), Data, Args);
+				auto Status = Content->Save<Core::Schema>(Stream->VirtualName(), Data, Args);
 				VI_RELEASE(Data);
 				return Status;
 			}
@@ -839,7 +839,7 @@ namespace Vitex
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(I.Shared.Device != nullptr, "graphics device should be set");
 
-				auto Blob = Content->Load<Core::Schema>(Stream->Source());
+				auto Blob = Content->Load<Core::Schema>(Stream->VirtualName());
 				if (!Blob)
 					return Blob.Error();
 
@@ -1017,7 +1017,7 @@ namespace Vitex
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(Instance != nullptr, "instance should be set");
 
-				const char* Ext = Core::OS::Path::GetExtension(Stream->Source().c_str());
+				const char* Ext = Core::OS::Path::GetExtension(Stream->VirtualName().c_str());
 				if (!Ext)
 				{
 					auto Type = Args.find("type");
@@ -1142,7 +1142,7 @@ namespace Vitex
 				}
 
 				Object->Snapshot = nullptr;
-				auto Status = Content->Save<Core::Schema>(Stream->Source(), Blob, Args);
+				auto Status = Content->Save<Core::Schema>(Stream->VirtualName(), Blob, Args);
 				VI_RELEASE(Blob);
 				return Status;
 			}
@@ -1163,12 +1163,12 @@ namespace Vitex
 			}
 			ExpectsContent<void*> AudioClipProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				if (Core::Stringify::EndsWith(Stream->Source(), ".wav"))
+				if (Core::Stringify::EndsWith(Stream->VirtualName(), ".wav"))
 					return DeserializeWAVE(Stream, Offset, Args);
-				else if (Core::Stringify::EndsWith(Stream->Source(), ".ogg"))
+				else if (Core::Stringify::EndsWith(Stream->VirtualName(), ".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
-				return ContentException("deserialize audio unsupported: " + Core::String(Core::OS::Path::GetExtension(Stream->Source().c_str())));
+				return ContentException("deserialize audio unsupported: " + Core::String(Core::OS::Path::GetExtension(Stream->VirtualName().c_str())));
 			}
 			ExpectsContent<void*> AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
@@ -1216,7 +1216,7 @@ namespace Vitex
 				SDL_FreeWAV(WavSamples);
 				SDL_RWclose(WavData);
 
-				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1258,7 +1258,7 @@ namespace Vitex
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
 				VI_FREE(Buffer);
 
-				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1323,7 +1323,7 @@ namespace Vitex
 				if (!Object)
 					return ContentException(std::move(Object.Error().message()));
 
-				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->Source(), *Object);
+				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1367,7 +1367,7 @@ namespace Vitex
 				});
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Filename = Stream->Source();
+				I.Filename = Stream->VirtualName();
 				I.Data = Data;
 
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
@@ -1375,7 +1375,7 @@ namespace Vitex
 				if (!Object)
 					return ContentException(std::move(Object.Error().message()));
 
-				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->Source(), *Object);
+				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1410,7 +1410,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Model* Object = nullptr;
-				Core::String& Path = Stream->Source();
+				auto& Path = Stream->VirtualName();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					auto Data = Content->Load<Core::Schema>(Path);
@@ -1492,7 +1492,7 @@ namespace Vitex
 					}
 				}
 
-				auto* Existing = (Model*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Model*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1547,7 +1547,7 @@ namespace Vitex
 				});
 
 				Assimp::Importer Importer;
-				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->Source().c_str()));
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->VirtualName().c_str()));
 				if (!Scene)
 					return ContentException(Core::Stringify::Text("import model: %s", Importer.GetErrorString()));
 
@@ -1584,7 +1584,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				SkinModel* Object = nullptr;
-				Core::String& Path = Stream->Source();
+				auto& Path = Stream->VirtualName();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					auto Data = Content->Load<Core::Schema>(Path);
@@ -1673,7 +1673,7 @@ namespace Vitex
 					}
 				}
 
-				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1708,7 +1708,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<Compute::SkinAnimatorClip> Clips;
-				Core::String& Path = Stream->Source();
+				auto& Path = Stream->VirtualName();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
 					auto Data = Content->Load<Core::Schema>(Path);
@@ -1765,7 +1765,7 @@ namespace Vitex
 					return ContentException("load animation: no clips");
 
 				auto* Object = new Engine::SkinAnimation(std::move(Clips));
-				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);
@@ -1825,7 +1825,7 @@ namespace Vitex
 				});
 
 				Assimp::Importer Importer;
-				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->Source().c_str()));
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->VirtualName().c_str()));
 				if (!Scene)
 					return ContentException(Core::Stringify::Text("import animation: %s", Importer.GetErrorString()));
 
@@ -1849,7 +1849,7 @@ namespace Vitex
 			ExpectsContent<void*> SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size) == Size : true; });
+				auto Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size).Or(0) == Size : true; });
 				if (Object)
 					return *Object;
 				
@@ -1959,12 +1959,12 @@ namespace Vitex
 			ExpectsContent<void*> ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Blob = Content->Load<Core::Schema>(Stream->Source());
+				auto Blob = Content->Load<Core::Schema>(Stream->VirtualName());
 				if (!Blob)
 					return Blob.Error();
 
 				Core::String N = Network::Utils::GetLocalAddress();
-				Core::String D = Core::OS::Path::GetDirectory(Stream->Source().c_str());
+				Core::String D = Core::OS::Path::GetDirectory(Stream->VirtualName().c_str());
 				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
 				if (Callback)
@@ -2157,22 +2157,22 @@ namespace Vitex
 						for (auto&& Base : Routes)
 						{
 							Network::HTTP::RouteEntry* Route = nullptr;
-							Core::String SourceURL = "*";
-							Series::Unpack(Base, &SourceURL);
+							Core::String SourceLocation = "*";
+							Series::Unpack(Base, &SourceLocation);
 
 							Core::Schema* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
 							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
 							{
 								auto Subalias = Aliases.find(From->Value.GetBlob());
 								if (Subalias != Aliases.end())
-									Route = Site->Route(SourceURL, Group, Subalias->second);
+									Route = Site->Route(SourceLocation, Group, Subalias->second);
 								else
-									Route = Site->Route(Match, Mode, SourceURL, true);
+									Route = Site->Route(Match, Mode, SourceLocation, true);
 							}
-							else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceURL.empty())
+							else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceLocation.empty())
 								Route = Site->Route(Match, Mode, "..." + For->Value.GetBlob() + "...", true);
 							else
-								Route = Site->Route(Match, Mode, SourceURL, true);
+								Route = Site->Route(Match, Mode, SourceLocation, true);
 
 							Core::Schema* Level = Base->GetAttribute("level");
 							if (Level != nullptr)
@@ -2371,7 +2371,7 @@ namespace Vitex
 			ExpectsContent<void*> HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Data = Content->Load<Core::Schema>(Stream->Source());
+				auto Data = Content->Load<Core::Schema>(Stream->VirtualName());
 				if (!Data)
 					return Data.Error();
 
@@ -2403,7 +2403,7 @@ namespace Vitex
 					return ContentException("import shape: invalid shape");
 				}
 
-				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->Source(), Object);
+				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->VirtualName(), Object);
 				if (Existing != nullptr)
 				{
 					VI_RELEASE(Object);

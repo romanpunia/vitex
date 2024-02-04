@@ -2514,10 +2514,10 @@ namespace Vitex
 			static Core::String HexEncode(const Core::String& Value, bool UpperCase = false);
 			static Core::String HexDecode(const char* Value, size_t Size);
 			static Core::String HexDecode(const Core::String& Value);
-			static Core::String URIEncode(const Core::String& Text);
-			static Core::String URIEncode(const char* Text, size_t Length);
-			static Core::String URIDecode(const Core::String& Text);
-			static Core::String URIDecode(const char* Text, size_t Length);
+			static Core::String URLEncode(const Core::String& Text);
+			static Core::String URLEncode(const char* Text, size_t Length);
+			static Core::String URLDecode(const Core::String& Text);
+			static Core::String URLDecode(const char* Text, size_t Length);
 			static Core::String DecimalToHex(uint64_t V);
 			static Core::String Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
 			static size_t Utf8(int Code, char* Buffer);

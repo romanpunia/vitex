@@ -499,12 +499,12 @@ namespace Vitex
 				AllowWebSocket = Other->AllowWebSocket;
 				AllowSendFile = Other->AllowSendFile;
 				Site = Other->Site;
-				URI = Source;
+				Location = Source;
 			}
 
 			SiteEntry::SiteEntry() : Base(new RouteEntry())
 			{
-				Base->URI = Compute::RegexSource("/");
+				Base->Location = Compute::RegexSource("/");
 				Base->Site = this;
 			}
 			SiteEntry::~SiteEntry() noexcept
@@ -526,10 +526,10 @@ namespace Vitex
 				{
 					static auto Comparator = [](const RouteEntry* A, const RouteEntry* B)
 					{
-						if (A->URI.GetRegex().empty())
+						if (A->Location.GetRegex().empty())
 							return false;
 
-						if (B->URI.GetRegex().empty())
+						if (B->Location.GetRegex().empty())
 							return true;
 
 						if (A->Level > B->Level)
@@ -537,13 +537,13 @@ namespace Vitex
 						else if (A->Level < B->Level)
 							return false;
 
-						bool fA = A->URI.IsSimple(), fB = B->URI.IsSimple();
+						bool fA = A->Location.IsSimple(), fB = B->Location.IsSimple();
 						if (fA && !fB)
 							return false;
 						else if (!fA && fB)
 							return true;
 
-						return A->URI.GetRegex().size() > B->URI.GetRegex().size();
+						return A->Location.GetRegex().size() > B->Location.GetRegex().size();
 					};
 					VI_SORT(Group->Routes.begin(), Group->Routes.end(), Comparator);
 				}
@@ -575,7 +575,7 @@ namespace Vitex
 					Source = Group;
 					for (auto* Entry : Group->Routes)
 					{
-						if (Entry->URI.GetRegex() == Pattern)
+						if (Entry->Location.GetRegex() == Pattern)
 							return Entry;
 					}
 				}
@@ -599,13 +599,13 @@ namespace Vitex
 				{
 					for (auto* Entry : Group->Routes)
 					{
-						Core::String Dest(Entry->URI.GetRegex());
+						Core::String Dest(Entry->Location.GetRegex());
 						Core::Stringify::ToLower(Dest);
 
 						if (Core::Stringify::StartsWith(Dest, "...") && Core::Stringify::EndsWith(Dest, "..."))
 							continue;
 
-						if (Core::Stringify::Find(Src, Dest).Found || Compute::Regex::Match(&Entry->URI, Result, Src))
+						if (Core::Stringify::Find(Src, Dest).Found || Compute::Regex::Match(&Entry->Location, Result, Src))
 						{
 							From = Entry;
 							break;
@@ -626,7 +626,7 @@ namespace Vitex
 				}
 
 				HTTP::RouteEntry* Result = new HTTP::RouteEntry();
-				Result->URI = Compute::RegexSource(Pattern);
+				Result->Location = Compute::RegexSource(Pattern);
 				Group->Routes.push_back(Result);
 				return Result;
 			}
@@ -955,8 +955,8 @@ namespace Vitex
 				Cookies.clear();
 				Query.clear();
 				Path.clear();
-				URI.clear();
-				Where.clear();
+				Location.clear();
+				Referrer.clear();
 			}
 			Core::String RequestFrame::ComposeHeader(const Core::String& Label) const
 			{
@@ -2143,10 +2143,10 @@ namespace Vitex
 			}
 			void Query::NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
 			{
-				Core::String URI = Compute::Codec::URIDecode(Name.Value, Name.Length);
-				char* Data = (char*)URI.c_str();
+				Core::String Body = Compute::Codec::URLDecode(Name.Value, Name.Length);
+				size_t Offset = 0, Length = Body.size();
+				char* Data = (char*)Body.c_str();
 
-				size_t Offset = 0, Length = URI.size();
 				for (size_t i = 0; i < Length; i++)
 				{
 					if (Data[i] != '[')
@@ -2198,24 +2198,24 @@ namespace Vitex
 				}
 
 				if (Parameter != nullptr)
-					Parameter->Value.Deserialize(Compute::Codec::URIDecode(Value.Value, Value.Length));
+					Parameter->Value.Deserialize(Compute::Codec::URLDecode(Value.Value, Value.Length));
 			}
-			void Query::Decode(const char* Type, const Core::String& URI)
+			void Query::Decode(const char* Type, const Core::String& Body)
 			{
-				if (!Type || URI.empty())
+				if (!Type || Body.empty())
 					return;
 
 				if (!Core::Stringify::CaseCompare(Type, "application/x-www-form-urlencoded"))
-					DecodeAXWFD(URI);
+					DecodeAXWFD(Body);
 				else if (!Core::Stringify::CaseCompare(Type, "application/json"))
-					DecodeAJSON(URI);
+					DecodeAJSON(Body);
 			}
-			void Query::DecodeAXWFD(const Core::String& URI)
+			void Query::DecodeAXWFD(const Core::String& Body)
 			{
 				Core::Vector<QueryToken> Tokens;
-				char* Data = (char*)URI.c_str();
+				size_t Offset = 0, Length = Body.size();
+				char* Data = (char*)Body.c_str();
 
-				size_t Offset = 0, Length = URI.size();
 				for (size_t i = 0; i < Length; i++)
 				{
 					if (Data[i] != '&' && Data[i] != '=' && i + 1 < Length)
@@ -2242,10 +2242,10 @@ namespace Vitex
 					i++;
 				}
 			}
-			void Query::DecodeAJSON(const Core::String& URI)
+			void Query::DecodeAJSON(const Core::String& Body)
 			{
 				VI_CLEAR(Object);
-				auto Result = Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
+				auto Result = Core::Schema::ConvertFromJSON(Body.c_str(), Body.size());
 				if (Result)
 					Object = *Result;
 			}
@@ -2334,7 +2334,7 @@ namespace Vitex
 			}
 			Core::String Query::Build(Core::Schema* Base)
 			{
-				Core::String Output, Label = Compute::Codec::URIEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
+				Core::String Output, Label = Compute::Codec::URLEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
 				if (!Base->Empty())
 				{
 					auto& Childs = Base->GetChilds();
@@ -2349,7 +2349,7 @@ namespace Vitex
 				{
 					Core::String V = Base->Value.Serialize();
 					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
+						Output.append(Label).append(1, '=').append(Compute::Codec::URLEncode(V));
 					else
 						Output.append(Label);
 				}
@@ -2358,7 +2358,7 @@ namespace Vitex
 			}
 			Core::String Query::BuildFromBase(Core::Schema* Base)
 			{
-				Core::String Output, Label = Compute::Codec::URIEncode(Base->Key);
+				Core::String Output, Label = Compute::Codec::URLEncode(Base->Key);
 				if (!Base->Empty())
 				{
 					auto& Childs = Base->GetChilds();
@@ -2373,7 +2373,7 @@ namespace Vitex
 				{
 					Core::String V = Base->Value.Serialize();
 					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
+						Output.append(Label).append(1, '=').append(Compute::Codec::URLEncode(V));
 					else
 						Output.append(Label);
 				}
@@ -2488,7 +2488,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				int64_t Time = time(nullptr);
-				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Base->Request.URI + Core::ToString(Time));
+				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Base->Request.Location + Core::ToString(Time));
 				if (Hash)
 					SessionId = *Hash;
 				else
@@ -3920,7 +3920,7 @@ namespace Vitex
 					case 413:
 						return "Request Entity Too Large";
 					case 414:
-						return "Request URI Too Large";
+						return "Request URL Too Large";
 					case 415:
 						return "Unsupported Media Type";
 					case 416:
@@ -4009,14 +4009,14 @@ namespace Vitex
 					return;
 				}
 
-				for (size_t i = 0; i < Base->Request.URI.size(); i++)
+				for (size_t i = 0; i < Base->Request.Location.size(); i++)
 				{
-					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
+					if (Base->Request.Location[i] == '%' && i + 1 < Base->Request.Location.size())
 					{
-						if (Base->Request.URI[i + 1] == 'u')
+						if (Base->Request.Location[i + 1] == 'u')
 						{
 							int Value = 0;
-							if (Compute::Codec::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
+							if (Compute::Codec::HexToDecimal(Base->Request.Location, i + 2, 4, Value))
 							{
 								char Buffer[4];
 								size_t LCount = Compute::Codec::Utf8(Value, Buffer);
@@ -4025,24 +4025,24 @@ namespace Vitex
 								i += 5;
 							}
 							else
-								Base->Request.Path += Base->Request.URI[i];
+								Base->Request.Path += Base->Request.Location[i];
 						}
 						else
 						{
 							int Value = 0;
-							if (Compute::Codec::HexToDecimal(Base->Request.URI, i + 1, 2, Value))
+							if (Compute::Codec::HexToDecimal(Base->Request.Location, i + 1, 2, Value))
 							{
 								Base->Request.Path += Value;
 								i += 2;
 							}
 							else
-								Base->Request.Path += Base->Request.URI[i];
+								Base->Request.Path += Base->Request.Location[i];
 						}
 					}
-					else if (Base->Request.URI[i] == '+')
+					else if (Base->Request.Location[i] == '+')
 						Base->Request.Path += ' ';
 					else
-						Base->Request.Path += Base->Request.URI[i];
+						Base->Request.Path += Base->Request.Location[i];
 				}
 
 				char* Buffer = (char*)Base->Request.Path.c_str();
@@ -4086,10 +4086,10 @@ namespace Vitex
 
 				if (Core::Stringify::EndsOf(Base->Request.Path, "/\\"))
 				{
-					if (!Core::Stringify::EndsOf(Base->Request.URI, "/\\"))
+					if (!Core::Stringify::EndsOf(Base->Request.Location, "/\\"))
 						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
 				}
-				else if (Core::Stringify::EndsOf(Base->Request.URI, "/\\"))
+				else if (Core::Stringify::EndsOf(Base->Request.Location, "/\\"))
 					Base->Request.Path.append(1, '/');
 
 				if (Base->Route->Site->Callbacks.OnRewriteURL)
@@ -4161,7 +4161,7 @@ namespace Vitex
 				if (!Host)
 					return false;
 
-				if (Base->Request.URI.empty() || Base->Request.URI.front() != '/')
+				if (Base->Request.Location.empty() || Base->Request.Location.front() != '/')
 					return false;
 
 				Core::UnorderedMap<Core::String, SiteEntry*>::iterator It;
@@ -4188,51 +4188,51 @@ namespace Vitex
 					It = Router->Sites.begin();
 				}
 
-				Base->Request.Where = Base->Request.URI;
+				Base->Request.Referrer = Base->Request.Location;
 				for (auto& Group : It->second->Groups)
 				{
+					Core::String& Location = Base->Request.Location;
 					if (!Group->Match.empty())
 					{
-						Core::String& URI = Base->Request.URI;
 						if (Group->Mode == RouteMode::Start)
 						{
-							if (!Core::Stringify::StartsWith(URI, Group->Match))
+							if (!Core::Stringify::StartsWith(Location, Group->Match))
 								continue;
 
-							URI = URI.substr(Group->Match.size(), URI.size());
+							Location = Location.substr(Group->Match.size(), Location.size());
 						}
 						else if (Group->Mode == RouteMode::Match)
 						{
-							if (!Core::Stringify::Find(URI, Group->Match).Found)
+							if (!Core::Stringify::Find(Location, Group->Match).Found)
 								continue;
 						}
 						else if (Group->Mode == RouteMode::End)
 						{
-							if (!Core::Stringify::EndsWith(URI, Group->Match))
+							if (!Core::Stringify::EndsWith(Location, Group->Match))
 								continue;
 
-							Core::Stringify::Clip(URI, URI.size() - Group->Match.size());
+							Core::Stringify::Clip(Location, Location.size() - Group->Match.size());
 						}
 
-						if (URI.empty())
-							URI.append(1, '/');
+						if (Location.empty())
+							Location.append(1, '/');
 
 						for (auto* Basis : Group->Routes)
 						{
-							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+							if (Compute::Regex::Match(&Basis->Location, Base->Request.Match, Location))
 							{
 								Base->Route = Basis;
 								return true;
 							}
 						}
 
-						URI.assign(Base->Request.Where);
+						Location.assign(Base->Request.Referrer);
 					}
 					else
 					{
 						for (auto* Basis : Group->Routes)
 						{
-							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+							if (Compute::Regex::Match(&Basis->Location, Base->Request.Match, Location))
 							{
 								Base->Route = Basis;
 								return true;
@@ -4534,7 +4534,7 @@ namespace Vitex
 				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
 					return true;
 
-				Parser->Frame.Request->URI.assign(Data, Length);
+				Parser->Frame.Request->Location.assign(Data, Length);
 				return true;
 			}
 			bool Parsing::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
@@ -4897,7 +4897,7 @@ namespace Vitex
 						Content.append(Base->Request.Version);
 						Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
 						Content.append(Utils::ConnectionResolve(Base));
-						Content.append("Content-Location: ").append(Base->Request.URI).append("\r\n");
+						Content.append("Content-Location: ").append(Base->Request.Location).append("\r\n");
 
 						Core::OS::File::Close(Stream);
 						if (Base->Route->Callbacks.Headers)
@@ -4942,7 +4942,7 @@ namespace Vitex
 				Content.append(Base->Request.Version);
 				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
 				Content.append(Utils::ConnectionResolve(Base));
-				Content.append("Content-Location: ").append(Base->Request.URI).append("\r\n");
+				Content.append("Content-Location: ").append(Base->Request.Location).append("\r\n");
 
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, Content);
@@ -5043,23 +5043,22 @@ namespace Vitex
 				if (Message != nullptr)
 					Content.append("X-Error: ").append(Message).append("\r\n");
 
-				size_t Size = Base->Request.URI.size() - 1;
-				while (Base->Request.URI[Size] != '/')
+				size_t Size = Base->Request.Location.size() - 1;
+				while (Base->Request.Location[Size] != '/')
 					Size--;
 
 				char Direction = (!Base->Request.Query.empty() && Base->Request.Query[1] == 'd') ? 'a' : 'd';
-				Core::String Name = Compute::Codec::URIDecode(Base->Request.URI);
 				Core::String Parent(1, '/');
-				if (Base->Request.URI.size() > 1)
+				if (Base->Request.Location.size() > 1)
 				{
-					Parent = Base->Request.URI.substr(0, Base->Request.URI.size() - 1);
+					Parent = Base->Request.Location.substr(0, Base->Request.Location.size() - 1);
 					Parent = Core::OS::Path::GetDirectory(Parent.c_str());
 				}
 
 				Base->Response.Content.Assign(
-					"<html><head><title>Index of " + Name + "</title>"
+					"<html><head><title>Index of " + Base->Request.Location + "</title>"
 					"<style>" CSS_DIRECTORY_STYLE "</style></head>"
-					"<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
+					"<body><h1>Index of " + Base->Request.Location + "</h1><pre><table cellpadding=\"0\">"
 					"<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
 					"<th><a href=\"?d" + Direction + "\">Modified</a></th>"
 					"<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
@@ -5093,16 +5092,14 @@ namespace Vitex
 
 					char dDate[64];
 					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.second.LastModified);
+					Core::String Location = Compute::Codec::URLEncode(Item.first);
+					Core::String Link = (Base->Request.Location + ((*(Base->Request.Location.c_str() + 1) != '\0' && Base->Request.Location[Base->Request.Location.size() - 1] != '/') ? "/" : "") + Location);
+					if (Item.second.IsDirectory && !Core::Stringify::EndsOf(Link, "/\\"))
+						Link.append(1, '/');
 
-					Core::String URI = Compute::Codec::URIEncode(Item.first);
-					Core::String HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (Item.second.IsDirectory && !Core::Stringify::EndsOf(HREF, "/\\"))
-						HREF.append(1, '/');
-
-					Base->Response.Content.Append("<tr><td><a href=\"" + HREF + "\">" + Item.first + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
+					Base->Response.Content.Append("<tr><td><a href=\"" + Link + "\">" + Item.first + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
 				}
 				Base->Response.Content.Append("</table></pre></body></html>");
-
 #ifdef VI_ZLIB
 				bool Deflate = false, Gzip = false;
 				if (Resources::ResourceCompressed(Base, Base->Response.Content.Data.size()))
@@ -5693,7 +5690,7 @@ namespace Vitex
 				for (auto& Site : Root->Sites)
 				{
 					auto* Entry = Site.second;
-					Entry->Base->URI = Compute::RegexSource("/");
+					Entry->Base->Location = Compute::RegexSource("/");
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 
@@ -5828,7 +5825,7 @@ namespace Vitex
 							if (Redirects++ > MAX_REDIRECTS)
 								return Base->Error(500, "Infinite redirects loop detected");
 
-							Base->Request.URI = Base->Route->Redirect;
+							Base->Request.Location = Base->Route->Redirect;
 							goto Redirect;
 						}
 
@@ -5925,7 +5922,7 @@ namespace Vitex
 			void Server::OnRequestStall(SocketConnection* Root)
 			{
 				auto Base = (HTTP::Connection*)Root;
-				Core::String Status = ", pathname: " + Base->Request.URI;
+				Core::String Status = ", pathname: " + Base->Request.Location;
 				if (Base->WebSocket != nullptr)
 					Status += ", websocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
 				VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(), Status.c_str());
@@ -6157,7 +6154,7 @@ namespace Vitex
 	
 				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<void>
 				{
-					VI_DEBUG("[ws] handshake %s", Request.URI.c_str());
+					VI_DEBUG("[ws] handshake %s", Request.Location.c_str());
 					if (!Status)
 						return Core::ExpectsPromiseSystem<void>(Status.Error());
 
@@ -6178,7 +6175,7 @@ namespace Vitex
 				if (!HasStream())
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				VI_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
+				VI_DEBUG("[http] %s %s", Root.Method, Root.Location.c_str());
 				if (!Response.Content.IsFinalized() || Response.Content.Exceeds)
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("content error: response body was not read", std::make_error_condition(std::errc::broken_pipe)));
 
@@ -6224,20 +6221,20 @@ namespace Vitex
 					Request.SetHeader("Connection", "Keep-Alive");
 
 				Core::String Content;
-				if (Request.URI.empty())
-					Request.URI = "/";
+				if (Request.Location.empty())
+					Request.Location.assign("/");
 
 				if (!Request.Query.empty())
 				{
 					Content.append(Request.Method).append(" ");
-					Content.append(Request.URI).append("?");
+					Content.append(Request.Location).append("?");
 					Content.append(Request.Query).append(" ");
 					Content.append(Request.Version).append("\r\n");
 				}
 				else
 				{
 					Content.append(Request.Method).append(" ");
-					Content.append(Request.URI).append(" ");
+					Content.append(Request.Location).append(" ");
 					Content.append(Request.Version).append("\r\n");
 				}
 
@@ -6650,27 +6647,27 @@ namespace Vitex
 					Report(Core::SystemException(Core::Stringify::Text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, Response.Content.Data.size()), Response.Content.Data.data()), std::make_error_condition(std::errc::bad_message)));
 			}
 
-			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Target, const Core::String& Method, const FetchFrame& Options)
+			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Location, const Core::String& Method, const FetchFrame& Options)
 			{
-				Network::Location URL(Target);
-				if (URL.Protocol != "http" && URL.Protocol != "https")
+				Network::Location Origin(Location);
+				if (Origin.Protocol != "http" && Origin.Protocol != "https")
 					return Core::ExpectsPromiseSystem<ResponseFrame>(Core::SystemException("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported)));
 
 				Network::RemoteHost Address;
-				Address.Hostname = URL.Hostname;
-				Address.Secure = (URL.Protocol == "https");
-				Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
+				Address.Hostname = Origin.Hostname;
+				Address.Secure = (Origin.Protocol == "https");
+				Address.Port = (Origin.Port < 0 ? (Address.Secure ? 443 : 80) : Origin.Port);
 
 				HTTP::RequestFrame Request;
 				Request.Cookies = Options.Cookies;
 				Request.Headers = Options.Headers;
 				Request.Content = Options.Content;
+				Request.Location.assign(Origin.Path);
 				Request.SetMethod(Method.c_str());
-				Request.URI.assign(URL.Path);
-				if (!URL.Username.empty() || !URL.Password.empty())
-					Request.SetHeader("Authorization", Permissions::Authorize(URL.Username, URL.Password));
+				if (!Origin.Username.empty() || !Origin.Password.empty())
+					Request.SetHeader("Authorization", Permissions::Authorize(Origin.Username, Origin.Password));
 
-				for (auto& Item : URL.Query)
+				for (auto& Item : Origin.Query)
 					Request.Query += Item.first + "=" + Item.second + "&";
 				if (!Request.Query.empty())
 					Request.Query.pop_back();

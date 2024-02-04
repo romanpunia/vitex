@@ -1484,7 +1484,7 @@ namespace Vitex
 			}
 
 			char Buffer[Core::BLOB_SIZE]; size_t Size = 0;
-			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
+			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer)).Or(0)) > 0)
 				Data->append(Core::String(Buffer, Size));
 
 			VI_DEBUG("[graphics] load %s program cache", Name.c_str());
@@ -1509,7 +1509,7 @@ namespace Vitex
 			}
 
 			size_t Size = Data.size();
-			bool Result = (Stream->Write(Data.c_str(), Size) == Size);
+			bool Result = (Stream->Write(Data.c_str(), Size).Or(0) == Size);
 			VI_DEBUG("[graphics] save %s program cache", Name.c_str());
 			VI_RELEASE(Stream);
 

@@ -496,11 +496,11 @@ namespace Vitex
 				Result[Index] = nullptr;
 				return Result;
 			}
-			ExpectsDB<Address> Address::FromURI(const Core::String& URI)
+			ExpectsDB<Address> Address::FromURL(const Core::String& Location)
 			{
 #ifdef VI_POSTGRESQL
 				char* Message = nullptr;
-				PQconninfoOption* Result = PQconninfoParse(URI.c_str(), &Message);
+				PQconninfoOption* Result = PQconninfoParse(Location.c_str(), &Message);
 				if (!Result)
 				{
 					DatabaseException Exception("address parser error: " + Core::String(Message));
@@ -1626,17 +1626,17 @@ namespace Vitex
 			{
 				return TxEnd("ROLLBACK", Session);
 			}
-			ExpectsPromiseDB<void> Cluster::Connect(const Address& URI, size_t Connections)
+			ExpectsPromiseDB<void> Cluster::Connect(const Address& Location, size_t Connections)
 			{
 #ifdef VI_POSTGRESQL
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
 				Core::UMutex<std::mutex> Unique(Update);
-				Source = URI;
+				Source = Location;
 
 				if (!Pool.empty())
 				{
 					Unique.Negate();
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI, Connections](ExpectsDB<void>&&) { return this->Connect(URI, Connections); });
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location, Connections](ExpectsDB<void>&&) { return this->Connect(Location, Connections); });
 				}
 
 				return Core::Cotask<ExpectsDB<void>>([this, Connections]() -> ExpectsDB<void>

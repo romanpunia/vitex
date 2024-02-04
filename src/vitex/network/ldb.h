@@ -356,7 +356,7 @@ namespace Vitex
 				ExpectsPromiseDB<void> TxEnd(const Core::String& Command, SessionId Session);
 				ExpectsPromiseDB<void> TxCommit(SessionId Session);
 				ExpectsPromiseDB<void> TxRollback(SessionId Session);
-				ExpectsPromiseDB<void> Connect(const Core::String& URI, size_t Connections);
+				ExpectsPromiseDB<void> Connect(const Core::String& Location, size_t Connections);
 				ExpectsPromiseDB<void> Disconnect();
 				ExpectsPromiseDB<void> Flush();
 				ExpectsPromiseDB<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);

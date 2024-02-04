@@ -194,8 +194,8 @@ namespace Vitex
 				ContentFrame Content;
 				Core::String Query;
 				Core::String Path;
-				Core::String URI;
-				Core::String Where;
+				Core::String Location;
+				Core::String Referrer;
 				Compute::RegexResult Match;
 				Credentials User;
 				char Method[16];
@@ -415,7 +415,7 @@ namespace Vitex
 				bool AllowDirectoryListing = false;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = true;
-				Compute::RegexSource URI;
+				Compute::RegexSource Location;
 				SiteEntry* Site = nullptr;
 
 			public:
@@ -553,7 +553,7 @@ namespace Vitex
 				~Query() noexcept;
 				void Clear();
 				void Steal(Core::Schema** Output);
-				void Decode(const char* ContentType, const Core::String& URI);
+				void Decode(const char* ContentType, const Core::String& Body);
 				Core::String Encode(const char* ContentType) const;
 				Core::Schema* Get(const char* Name) const;
 				Core::Schema* Set(const char* Name);
@@ -561,8 +561,8 @@ namespace Vitex
 
 			private:
 				void NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
-				void DecodeAXWFD(const Core::String& URI);
-				void DecodeAJSON(const Core::String& URI);
+				void DecodeAXWFD(const Core::String& Body);
+				void DecodeAJSON(const Core::String& Body);
 				Core::String EncodeAXWFD() const;
 				Core::String EncodeAJSON() const;
 				Core::Schema* GetParameter(QueryToken* Name);
@@ -896,7 +896,7 @@ namespace Vitex
 				void Receive(const char* LeftoverBuffer, size_t LeftoverSize);
 			};
 
-			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& URL, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());
+			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Location, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());
 		}
 	}
 }

@@ -340,18 +340,13 @@ namespace Vitex
 				Rml::FileHandle Open(const Rml::String& Path) override
 				{
 					Core::String Target = Path;
-					Network::Location URL(Target);
-					if (URL.Protocol == "file")
+					Network::Location Origin(Target);
+					if (Origin.Protocol == "file" && !Core::OS::File::IsExists(Target.c_str()))
 					{
-						if (!Core::OS::File::IsExists(Target.c_str()))
-						{
-							ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
-							auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
-							Target = (Subpath ? *Subpath : Path);
-						}
+						ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
+						auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), false) : Core::OS::Path::Resolve(Path.c_str()));
+						Target = (Subpath ? *Subpath : Path);
 					}
-					else if (URL.Protocol != "http" && URL.Protocol != "https")
-						return (Rml::FileHandle)nullptr;
 
 					auto Stream = Core::OS::File::Open(Target, Core::FileMode::Binary_Read_Only);
 					if (!Stream)
@@ -368,7 +363,7 @@ namespace Vitex
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					VI_ASSERT(Stream != nullptr, "stream should be set");
-					return Stream->Read((char*)Buffer, Size);
+					return Stream->Read((char*)Buffer, Size).Or(0);
 				}
 				bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
@@ -380,7 +375,7 @@ namespace Vitex
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					VI_ASSERT(Stream != nullptr, "stream should be set");
-					return Stream->Tell();
+					return Stream->Tell().Or(0);
 				}
 			};
 
@@ -459,9 +454,8 @@ namespace Vitex
 						return;
 
 					Core::String Proto1, Proto2;
-					Core::String Fixed1 = GetFixedURL(Path1, Proto1);
-					Core::String Fixed2 = GetFixedURL(Path2, Proto2);
-
+					Core::String Fixed1 = GetFixedPath(Path1, Proto1);
+					Core::String Fixed2 = GetFixedPath(Path2, Proto2);
 					if (Proto1 != "file" && Proto2 == "file")
 					{
 						Result.assign(Path1);
@@ -570,15 +564,15 @@ namespace Vitex
 				{
 					return &Fonts;
 				}
-				Core::String GetFixedURL(const Core::String& URL, Core::String& Proto)
+				Core::String GetFixedPath(const Core::String& Location, Core::String& Proto)
 				{
-					if (!Core::Stringify::Find(URL, "://").Found)
+					if (!Core::Stringify::Find(Location, "://").Found)
 					{
 						Proto = "file";
-						return URL;
+						return Location;
 					}
 
-					Rml::URL Base(URL);
+					Rml::URL Base(Location);
 					Proto = Base.GetProtocol();
 					return Base.GetPathedFileName();
 				}
@@ -4027,9 +4021,9 @@ namespace Vitex
 					}
 				}
 
-				Core::String URL(Path);
-				Core::Stringify::Replace(URL, '\\', '/');
-				auto* Result = Base->LoadDocumentFromMemory(Data, "file:///" + URL);
+				Core::String Location(Path);
+				Core::Stringify::Replace(Location, '\\', '/');
+				auto* Result = Base->LoadDocumentFromMemory(Data, "file:///" + Location);
 				--Busy;
 				if (!Result)
 					return GuiException("load document: invalid argument");

@@ -231,7 +231,7 @@ namespace Vitex
 				Core::Unique<const char*> CreateValues() const;
 
 			public:
-				static ExpectsDB<Address> FromURI(const Core::String& URI);
+				static ExpectsDB<Address> FromURL(const Core::String& Location);
 
 			private:
 				static Core::String GetKeyName(AddressOp Key);
@@ -552,7 +552,7 @@ namespace Vitex
 				ExpectsPromiseDB<void> TxEnd(const Core::String& Command, SessionId Session);
 				ExpectsPromiseDB<void> TxCommit(SessionId Session);
 				ExpectsPromiseDB<void> TxRollback(SessionId Session);
-				ExpectsPromiseDB<void> Connect(const Address& URI, size_t Connections = 1);
+				ExpectsPromiseDB<void> Connect(const Address& Location, size_t Connections = 1);
 				ExpectsPromiseDB<void> Disconnect();
 				ExpectsPromiseDB<void> Listen(const Core::Vector<Core::String>& Channels);
 				ExpectsPromiseDB<void> Unlisten(const Core::Vector<Core::String>& Channels);

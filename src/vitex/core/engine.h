@@ -609,6 +609,7 @@ namespace Vitex
 			char* GetBuffer();
 			size_t Size();
 		};
+
 		class VI_OUT Model final : public Core::Reference<Model>
 		{
 		public:
@@ -1338,8 +1339,8 @@ namespace Vitex
 			void ClearPath(const Core::String& Path);
 			void SetEnvironment(const Core::String& Path);
 			void SetDevice(Graphics::GraphicsDevice* NewDevice);
-			ExpectsContent<void> Import(const Core::String& Path);
-			ExpectsContent<void> Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name = "");
+			ExpectsContent<void> ImportArchive(const Core::String& Path, bool ValidateChecksum);
+			ExpectsContent<void> ExportArchive(const Core::String& Path, const Core::String& PhysicalDirectory, const Core::String& VirtualDirectory = Core::String());
 			ExpectsContent<Core::Unique<void>> Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
 			ExpectsContent<void> Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
 			ExpectsPromiseContent<Core::Unique<void>> LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
@@ -1356,7 +1357,7 @@ namespace Vitex
 			const Core::String& GetEnvironment() const;
 
 		private:
-			ExpectsContent<void*> LoadArchived(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			ExpectsContent<void*> LoadFromArchive(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
 			void Enqueue();
 			void Dequeue();
 

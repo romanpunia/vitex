@@ -9,6 +9,11 @@
 #include "../audio/filters.h"
 #include "../vitex.h"
 #define CONTENT_BLOCKED_WAIT_MS 50
+#define CONTENT_ARCHIVE_HEADER_MAGIC "2a20c37fc5ea31f2057d1bc3aa2ad7b8"
+#define CONTENT_ARCHIVE_HASH_MAGIC "a6ef0892ed9fc12442a3ed68b0266b5a"
+#define CONTENT_ARCHIVE_MAX_FILES 1024 * 1024 * 16
+#define CONTENT_ARCHIVE_MAX_PATH 1024
+#define CONTENT_ARCHIVE_MAX_SIZE 1024llu * 1024 * 1024 * 4
 
 namespace Vitex
 {
@@ -5600,15 +5605,16 @@ namespace Vitex
 		void ContentManager::ClearPath(const Core::String& Path)
 		{
 			VI_TRACE("[content] clear path %s on 0x%" PRIXPTR, Path.c_str(), (void*)this);
-			auto File = Core::OS::Path::Resolve(Path, Environment, false);
-			if (!File)
-				return;
-
-			Core::String Target = *File;
-			Core::Stringify::Replace(Target, '\\', '/');
-			Core::Stringify::Replace(Target, Environment, "./");
+			auto File = Core::OS::Path::Resolve(Path, Environment, true);
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Assets.find(Target);
+			if (File)
+			{
+				auto It = Assets.find(*File);
+				if (It != Assets.end())
+					Assets.erase(It);
+			}
+
+			auto It = Assets.find(Path);
 			if (It != Assets.end())
 				Assets.erase(It);
 		}
@@ -5628,158 +5634,316 @@ namespace Vitex
 		{
 			Device = NewDevice;
 		}
-		ExpectsContent<void> ContentManager::Import(const Core::String& Path)
+		ExpectsContent<void> ContentManager::ImportArchive(const Core::String& Path, bool ValidateChecksum)
 		{
-			auto File = Core::OS::Path::Resolve(Path, Environment, false);
-			if (!File)
+			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, true);
+			if (!TargetPath)
 				return ContentException("archive was not found: " + Path);
 
-			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(File->c_str(), Core::FileMode::Binary_Read_Only))
+			auto Stream = Core::OS::File::Open(*TargetPath, Core::FileMode::Binary_Read_Only);
+			if (!Stream)
 			{
 				VI_RELEASE(Stream);
 				return ContentException("cannot open archive: " + Path);
 			}
 
-			char Buffer[16];
-			if (Stream->Read(Buffer, 16) != 16)
+			char Header[32] = { 0 }; size_t HeaderSize = sizeof(Header);
+			if (Stream->Read(Header, HeaderSize).Or(0) != HeaderSize || memcmp(Header, CONTENT_ARCHIVE_HEADER_MAGIC, HeaderSize) != 0)
 			{
 				VI_RELEASE(Stream);
-				return ContentException("corrupted archive header: " + Path);
+				return ContentException("invalid archive header: " + Path);
 			}
 
-			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
+			uint64_t ContentElements = 0;
+			if (Stream->Read((char*)&ContentElements, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
 			{
+			InvalidSize:
 				VI_RELEASE(Stream);
-				return ContentException("invalid archive version: " + Path);
+				return ContentException("invalid archive size: " + Path + " (size = " + Core::ToString(ContentElements) + ")");
 			}
 
-			uint64_t Size = 0;
-			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
+			ContentElements = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, ContentElements);
+			if (!ContentElements || ContentElements > CONTENT_ARCHIVE_MAX_FILES)
+				goto InvalidSize;
+
+			uint64_t ContentOffset = 0;
+			Core::Vector<AssetArchive*> ContentFiles;
+			ContentFiles.reserve((size_t)ContentElements);
+			for (uint64_t i = 0; i < ContentElements; i++)
 			{
-				VI_RELEASE(Stream);
-				return ContentException("invalid archive size: " + Path);
+				uint64_t ContentLength = 0;
+				if (Stream->Read((char*)&ContentLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
+				{
+				InvalidChunkLength:
+					for (auto* Item : ContentFiles)
+						VI_DELETE(AssetArchive, Item);
+					VI_RELEASE(Stream);
+					return ContentException("invalid archive chunk length: " + Path + " (chunk = " + Core::ToString(i) + ")");
+				}
+
+				ContentLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, ContentLength);
+				if (ContentLength > CONTENT_ARCHIVE_MAX_SIZE)
+					goto InvalidChunkLength;
+
+				uint64_t PathLength = 0;
+				if (Stream->Read((char*)&PathLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
+				{
+				InvalidChunkPathLength:
+					for (auto* Item : ContentFiles)
+						VI_DELETE(AssetArchive, Item);
+					VI_RELEASE(Stream);
+					return ContentException("invalid archive chunk path size: " + Path + " (chunk = " + Core::ToString(i) + ")");
+				}
+
+				PathLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, PathLength);
+				if (PathLength > CONTENT_ARCHIVE_MAX_PATH)
+					goto InvalidChunkPathLength;
+
+				Core::String Path = Core::String((size_t)PathLength, '\0');
+				if (Stream->Read((char*)Path.c_str(), sizeof(char) * (size_t)PathLength).Or(0) != (size_t)PathLength)
+				{
+					for (auto* Item : ContentFiles)
+						VI_DELETE(AssetArchive, Item);
+					VI_RELEASE(Stream);
+					return ContentException("invalid archive chunk path data: " + Path + " (chunk = " + Core::ToString(i) + ")");
+				}
+				
+				AssetArchive* Archive = VI_NEW(AssetArchive);
+				Archive->Path = std::move(Path);
+				Archive->Offset = ContentOffset;
+				Archive->Length = ContentLength;
+				Archive->Stream = *Stream;
+				ContentFiles.push_back(Archive);
+				ContentOffset += ContentLength;
+			}
+
+			size_t HeadersOffset = Stream->Tell().Or(0);
+			if (ValidateChecksum)
+			{
+				size_t CalculatedChunk = 0;
+				Core::String CalculatedHash = CONTENT_ARCHIVE_HASH_MAGIC;
+				for (auto* Item : ContentFiles)
+				{
+					size_t DataLength = Item->Length;
+					while (DataLength > 0)
+					{
+						char DataBuffer[Core::CHUNK_SIZE];
+						size_t DataSize = std::min<size_t>(sizeof(DataBuffer), DataLength);
+						size_t ValueSize = Stream->Read(DataBuffer, DataSize).Or(0);
+						DataLength -= ValueSize;
+						if (!ValueSize)
+							break;
+
+						CalculatedHash.append(DataBuffer, ValueSize);
+						CalculatedHash = *Compute::Crypto::HashRaw(Compute::Digests::SHA256(), CalculatedHash);
+						if (ValueSize < DataSize)
+							break;
+					}
+
+					if (DataLength > 0)
+					{
+						for (auto* Item : ContentFiles)
+							VI_DELETE(AssetArchive, Item);
+						VI_RELEASE(Stream);
+						return ContentException("invalid archive chunk content data: " + Path + " (chunk = " + Core::ToString(CalculatedChunk) + ")");
+					}
+
+					++CalculatedChunk;
+				}
+
+				char RequestedHash[64] = { 0 };
+				CalculatedHash = Compute::Codec::HexEncode(CalculatedHash);
+				if (Stream->Read(RequestedHash, sizeof(RequestedHash)).Or(0) != sizeof(RequestedHash) || CalculatedHash.size() != sizeof(RequestedHash) || memcmp(RequestedHash, CalculatedHash.c_str(), sizeof(RequestedHash)) != 0)
+				{
+					for (auto* Item : ContentFiles)
+						VI_DELETE(AssetArchive, Item);
+					VI_RELEASE(Stream);
+					return ContentException("invalid archive checksum: " + Path + " (calculated = " + CalculatedHash + ")");
+				}
+				Stream->Seek(Core::FileSeek::Begin, (int64_t)HeadersOffset);
 			}
 
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (uint64_t i = 0; i < Size; i++)
+			for (auto* Item : ContentFiles)
 			{
-				AssetArchive* Archive = VI_NEW(AssetArchive);
-				Archive->Stream = Stream;
-
-				uint64_t Length;
-				Stream->Read((char*)&Length, sizeof(uint64_t));
-				Stream->Read((char*)&Archive->Offset, sizeof(uint64_t));
-				Stream->Read((char*)&Archive->Length, sizeof(uint64_t));
-
-				if (!Length)
+				auto It = Archives.find(Item->Path);
+				if (It != Archives.end())
 				{
-					VI_DELETE(AssetArchive, Archive);
-					continue;
+					VI_DELETE(AssetArchive, It->second);
+					It->second = Item;
 				}
-
-				Archive->Path.resize((size_t)Length);
-				Stream->Read((char*)Archive->Path.c_str(), sizeof(char) * (size_t)Length);
-				Archives[Archive->Path] = Archive;
+				else
+					Archives[Item->Path] = Item;
 			}
-
-			Streams[Stream] = Stream->Tell();
+			Streams[*Stream] = HeadersOffset;
 			return Core::Expectation::Met;
 		}
-		ExpectsContent<void> ContentManager::Export(const Core::String& Path, const Core::String& Directory, const Core::String& Name)
+		ExpectsContent<void> ContentManager::ExportArchive(const Core::String& Path, const Core::String& PhysicalDirectory, const Core::String& VirtualDirectory)
 		{
-			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
-			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, false);
+			VI_ASSERT(!Path.empty() && !PhysicalDirectory.empty(), "path and directory should not be empty");
+			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, true);
 			if (!TargetPath)
 				return ContentException("cannot resolve archive path: " + Path);
 
-			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(TargetPath->c_str(), Core::FileMode::Write_Only))
+			auto PhysicalVolume = Core::OS::Path::Resolve(PhysicalDirectory, Environment, true);
+			if (!PhysicalVolume)
+				return ContentException("cannot resolve archive target path: " + PhysicalDirectory);
+
+			size_t PathIndex = TargetPath->find(*PhysicalVolume);
+			if (PathIndex != std::string::npos)
+			{
+				auto Copy = TargetPath->substr(PathIndex + PhysicalVolume->size());
+				if (Copy.empty() || Copy.front() != '.' || Copy.find_first_of("\\/") != std::string::npos)
+					return ContentException("export path overlaps physical directory: " + *TargetPath);
+			}
+
+			Core::String VirtualVolume = VirtualDirectory;
+			Core::Stringify::Replace(VirtualVolume, '\\', '/');
+			while (!VirtualVolume.empty() && VirtualVolume.front() == '/')
+				VirtualVolume.erase(VirtualVolume.begin());
+
+			auto Stream = Core::OS::File::Open(*TargetPath, Core::FileMode::Binary_Write_Only);
+			if (!Stream)
 			{
 				VI_RELEASE(Stream);
 				return ContentException("cannot open archive: " + Path);
 			}
 
-			auto DirectoryBase = Core::OS::Path::Resolve(Directory, Environment, false);
-			if (!DirectoryBase)
+			char Header[] = CONTENT_ARCHIVE_HEADER_MAGIC;
+			if (Stream->Write(Header, sizeof(Header) - 1).Or(0) != sizeof(Header) - 1)
 			{
 				VI_RELEASE(Stream);
-				return ContentException("cannot resolve archive target path: " + Directory);
+				Core::OS::File::Remove(TargetPath->c_str());
+				return ContentException("cannot write header: " + *PhysicalVolume);
 			}
 
-			auto Tree = new Core::FileTree(*DirectoryBase);
-			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
-
-			uint64_t Size = Tree->GetFiles();
-			Stream->Write((char*)&Size, sizeof(uint64_t));
-
-			uint64_t Offset = 0;
-			Tree->Loop([Stream, &Offset, &DirectoryBase, &Name](const Core::FileTree* Tree)
+			auto* Scanner = new Core::FileTree(*PhysicalVolume);
+			size_t ContentCount = Scanner->GetFiles();
+			uint64_t ContentElements = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, (uint64_t)ContentCount);
+			if (Stream->Write((char*)&ContentElements, sizeof(uint64_t)).Or(0) != sizeof(uint64_t) || ContentElements > CONTENT_ARCHIVE_MAX_FILES)
 			{
-				for (auto& Resource : Tree->Files)
-				{
-					auto File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
-					if (!File)
-						continue;
+				VI_RELEASE(Scanner);
+				VI_RELEASE(Stream);
+				Core::OS::File::Remove(TargetPath->c_str());
+				return ContentException("too many files: " + *PhysicalVolume);
+			}
 
-					Core::String Path = Resource;
-					Core::Stringify::Replace(Path, *DirectoryBase, Name);
-					Core::Stringify::Replace(Path, '\\', '/');
-					if (Name.empty())
-						Path.assign(Path.substr(1));
-
-					uint64_t Size = (uint64_t)Path.size();
-					uint64_t Length = File->Size();
-
-					Stream->Write((char*)&Size, sizeof(uint64_t));
-					Stream->Write((char*)&Offset, sizeof(uint64_t));
-					Stream->Write((char*)&Length, sizeof(uint64_t));
-
-					Offset += Length;
-					if (Size > 0)
-						Stream->Write((char*)Path.c_str(), sizeof(char) * (size_t)Size);
-					VI_RELEASE(File);
-				}
-
-				return true;
-			});
-			Tree->Loop([Stream](const Core::FileTree* Tree)
+			size_t CalculatedChunk = 0;
+			Core::String CalculatedHash = CONTENT_ARCHIVE_HASH_MAGIC;
+			ExpectsContent<void> ContentError = Core::Expectation::Met;
+			Core::Vector<std::pair<Core::Stream*, size_t>> ContentFiles;
+			Core::Stringify::Replace(*PhysicalVolume, '\\', '/');
+			ContentFiles.reserve(ContentCount);	
+			Scanner->Loop([Stream, &ContentFiles, &ContentError, &PhysicalVolume, &VirtualVolume](const Core::FileTree* Tree) mutable
 			{
-				for (auto& Resource : Tree->Files)
+				Core::Stringify::Replace(((Core::FileTree*)Tree)->Path, '\\', '/');
+				for (auto& PhysicalPath : Tree->Files)
 				{
-					auto File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
+					Core::String VirtualPath = Tree->Path + '/' + PhysicalPath;
+					auto File = Core::OS::File::Open(VirtualPath, Core::FileMode::Binary_Read_Only);
 					if (!File)
-						continue;
-
-					size_t Size = File->Size();
-					while (Size > 0)
 					{
-						char Buffer[Core::BLOB_SIZE];
-						size_t Offset = File->Read(Buffer, Size > Core::BLOB_SIZE ? Core::BLOB_SIZE : Size);
-						if (Offset <= 0)
-							break;
-
-						Stream->Write(Buffer, Offset);
-						Size -= Offset;
+						ContentError = ContentException("cannot open content path: " + PhysicalPath);
+						return false;
 					}
-					VI_RELEASE(File);
-				}
 
+					size_t ContentSize = File->Size().Or(0);
+					uint64_t ContentLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, (uint64_t)ContentSize);
+					if (ContentLength > CONTENT_ARCHIVE_MAX_SIZE || Stream->Write((char*)&ContentLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
+					{
+						ContentError = ContentException("cannot write content length: " + PhysicalPath);
+						VI_RELEASE(File);
+						return false;
+					}
+
+					Core::Stringify::Replace(VirtualPath, *PhysicalVolume, VirtualVolume);
+					Core::Stringify::Replace(VirtualPath, "//", "/");
+					while (VirtualVolume.empty() && !VirtualPath.empty() && VirtualPath.front() == '/')
+						VirtualPath.erase(VirtualPath.begin());
+
+					uint64_t PathLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, (uint64_t)VirtualPath.size());
+					if (PathLength > CONTENT_ARCHIVE_MAX_PATH || Stream->Write((char*)&PathLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
+					{
+						ContentError = ContentException("cannot write content path length: " + PhysicalPath);
+						VI_RELEASE(File);
+						return false;
+					}
+					else if (!VirtualPath.empty() && Stream->Write((char*)VirtualPath.c_str(), sizeof(char) * VirtualPath.size()).Or(0) != VirtualPath.size())
+					{
+						ContentError = ContentException("cannot write content path data: " + PhysicalPath);
+						VI_RELEASE(File);
+						return false;
+					}
+
+					ContentFiles.push_back(std::make_pair(*File, ContentSize));
+				}
 				return true;
 			});
+			VI_RELEASE(Scanner);
 
-			VI_RELEASE(Tree);
+			if (!ContentError)
+			{
+				for (auto& Item : ContentFiles)
+					VI_RELEASE(Item.first);
+				VI_RELEASE(Stream);
+				Core::OS::File::Remove(TargetPath->c_str());
+				return ContentError;
+			}
+
+			for (auto& Item : ContentFiles)
+			{
+				size_t DataLength = Item.second;
+				while (DataLength > 0)
+				{
+					char DataBuffer[Core::CHUNK_SIZE];
+					size_t DataSize = std::min<size_t>(sizeof(DataBuffer), DataLength);
+					size_t ValueSize = Item.first->Read(DataBuffer, DataSize).Or(0);
+					DataLength -= ValueSize;
+					if (!ValueSize)
+						break;
+
+					if (Stream->Write(DataBuffer, ValueSize).Or(0) != ValueSize)
+					{
+						for (auto& Item : ContentFiles)
+							VI_RELEASE(Item.first);
+						VI_RELEASE(Stream);
+						Core::OS::File::Remove(TargetPath->c_str());
+						return ContentException("cannot write content data: " + Item.first->VirtualName() + " (chunk = " + Core::ToString(CalculatedChunk) + ")");
+					}
+
+					CalculatedHash.append(DataBuffer, ValueSize);
+					CalculatedHash = *Compute::Crypto::HashRaw(Compute::Digests::SHA256(), CalculatedHash);
+					if (ValueSize < DataSize)
+						break;
+				}
+
+				if (DataLength > 0)
+				{
+					for (auto& Item : ContentFiles)
+						VI_RELEASE(Item.first);
+					VI_RELEASE(Stream);
+					Core::OS::File::Remove(TargetPath->c_str());
+					return ContentException("cannot read content data: " + Item.first->VirtualName() + " (chunk = " + Core::ToString(CalculatedChunk) + ")");
+				}
+
+				++CalculatedChunk;
+			}
+
+			for (auto& Item : ContentFiles)
+				VI_RELEASE(Item.first);
+
+			CalculatedHash = Compute::Codec::HexEncode(CalculatedHash);
+			if (Stream->Write(CalculatedHash.c_str(), CalculatedHash.size()).Or(0) != CalculatedHash.size())
+			{
+				VI_RELEASE(Stream);
+				return ContentException("cannot write archive checksum: " + Path + " (calculated = " + CalculatedHash + ")");
+			}
+
 			VI_RELEASE(Stream);
 			return Core::Expectation::Met;
 		}
-		ExpectsContent<void*> ContentManager::LoadArchived(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
+		ExpectsContent<void*> ContentManager::LoadFromArchive(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Map)
 		{
-			if (Path.empty())
-			{
-				VI_TRACE("[content] load archived: no path provided");
-				return ContentException("content path is empty");
-			}
-
 			Core::String File(Path);
 			Core::Stringify::Replace(File, '\\', '/');
 			Core::Stringify::Replace(File, "./", "");
@@ -5808,9 +5972,9 @@ namespace Vitex
 				return ContentException("archived content does not contain: " + Path);
 
 			auto* Stream = Archive->second->Stream;
+			Stream->SetVirtualName(File);
 			Stream->SetVirtualSize(Archive->second->Length);
 			Stream->Seek(Core::FileSeek::Begin, It->second + Archive->second->Offset);
-			Stream->Source() = File;
 			Unique.Negate();
 
 			VI_TRACE("[content] load archived: %s", Path.c_str());
@@ -5827,7 +5991,7 @@ namespace Vitex
 			if (!Processor)
 				return ContentException("content processor was not found: " + Path);
 
-			auto Object = LoadArchived(Processor, Path, Map);
+			auto Object = LoadFromArchive(Processor, Path, Map);
 			if (Object && *Object != nullptr)
 			{
 				VI_TRACE("[content] load forward %s: OK", Path.c_str());
@@ -5837,7 +6001,7 @@ namespace Vitex
 			Core::String File = Path;
 			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
-				auto Subfile = Core::OS::Path::Resolve(File, Environment, false);
+				auto Subfile = Core::OS::Path::Resolve(File, Environment, true);
 				if (Subfile && Core::OS::File::IsExists(Subfile->c_str()))
 				{
 					File = *Subfile;
@@ -5883,7 +6047,7 @@ namespace Vitex
 				return ContentException("content processor was not found: " + Path);
 
 			Core::String Directory = Core::OS::Path::GetDirectory(Path.c_str());
-			auto File = Core::OS::Path::Resolve(Directory, Environment, false);
+			auto File = Core::OS::Path::Resolve(Directory, Environment, true);
 			if (!File)
 				return ContentException("cannot resolve saving path: " + Path);
 
@@ -6313,7 +6477,7 @@ namespace Vitex
 				
 				if (!Control.Preferences.empty() && !Database)
 				{
-					auto Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment(), false);
+					auto Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment(), true);
 					Database = new AppData(Content, Path ? *Path : Control.Preferences);
 				}
 			}

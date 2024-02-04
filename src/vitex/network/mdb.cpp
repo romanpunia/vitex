@@ -1054,7 +1054,6 @@ namespace Vitex
 			{
 				if (&Other == this)
 					return *this;
-
 #ifdef VI_MONGOC
 				if (Base != nullptr)
 					mongoc_uri_destroy(Base);
@@ -1134,11 +1133,11 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			ExpectsDB<Address> Address::FromURI(const Core::String& Value)
+			ExpectsDB<Address> Address::FromURL(const Core::String& Location)
 			{
 #ifdef VI_MONGOC
-				TAddress* Result = mongoc_uri_new(Value.c_str());
-				if (!strstr(Value.c_str(), MONGOC_URI_SOCKETTIMEOUTMS))
+				TAddress* Result = mongoc_uri_new(Location.c_str());
+				if (!strstr(Location.c_str(), MONGOC_URI_SOCKETTIMEOUTMS))
 					mongoc_uri_set_option_as_int32(Result, MONGOC_URI_SOCKETTIMEOUTMS, 10000);
 
 				return Address(Result);
@@ -2971,48 +2970,19 @@ namespace Vitex
 				if (Connected && Base != nullptr)
 					Disconnect();
 			}
-			ExpectsPromiseDB<void> Connection::ConnectByURI(const Core::String& Address)
+			ExpectsPromiseDB<void> Connection::Connect(Address* Location)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
+				VI_ASSERT(Location && Location->Get(), "location should be valid");
 				if (Connected)
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Address](ExpectsDB<void>&&) { return this->ConnectByURI(Address); });
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location](ExpectsDB<void>&&) { return this->Connect(Location); });
 
+				TAddress* Address = Location->Get(); *Location = nullptr;
 				return Core::Cotask<ExpectsDB<void>>([this, Address]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
-					bson_error_t Error;
-					memset(&Error, 0, sizeof(bson_error_t));
-
-					TAddress* URI = mongoc_uri_new_with_error(Address.c_str(), &Error);
-					if (!URI)
-						return DatabaseException(Error.code, Error.message);
-
-					Base = mongoc_client_new_from_uri(URI);
-					if (!Base)
-						return DatabaseException(0, "connect: invalid address");
-
-					Driver::Get()->AttachQueryLog(Base);
-					Connected = true;
-					return Core::Expectation::Met;
-				});
-#else
-				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
-#endif
-			}
-			ExpectsPromiseDB<void> Connection::Connect(Address* URL)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Master != nullptr, "connection should be created outside of cluster");
-				VI_ASSERT(URL && URL->Get(), "url should be valid");
-				if (Connected)
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URL](ExpectsDB<void>&&) { return this->Connect(URL); });
-
-				TAddress* URI = URL->Get();
-				return Core::Cotask<ExpectsDB<void>>([this, URI]() -> ExpectsDB<void>
-				{
-					VI_MEASURE(Core::Timings::Intensive);
-					Base = mongoc_client_new_from_uri(URI);
+					Base = mongoc_client_new_from_uri(Address);
 					if (!Base)
 						return DatabaseException(0, "connect: invalid address");
 
@@ -3239,44 +3209,14 @@ namespace Vitex
 				Connected = false;
 #endif
 			}
-			ExpectsPromiseDB<void> Cluster::ConnectByURI(const Core::String& URI)
+			ExpectsPromiseDB<void> Cluster::Connect(Address* Location)
 			{
 #ifdef VI_MONGOC
+				VI_ASSERT(Location && Location->Get(), "location should be set");
 				if (Connected)
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI](ExpectsDB<void>&&) { return this->ConnectByURI(URI); });
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location](ExpectsDB<void>&&) { return this->Connect(Location); });
 
-				return Core::Cotask<ExpectsDB<void>>([this, URI]() -> ExpectsDB<void>
-				{
-					VI_MEASURE(Core::Timings::Intensive);
-					bson_error_t Error;
-					memset(&Error, 0, sizeof(bson_error_t));
-
-					SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
-					if (!SrcAddress.Get())
-						return DatabaseException(Error.code, Error.message);
-
-					Pool = mongoc_client_pool_new(SrcAddress.Get());
-					if (!Pool)
-						return DatabaseException(0, "connect: invalid address");
-
-					Driver::Get()->AttachQueryLog(Pool);
-					Connected = true;
-					return Core::Expectation::Met;
-				});
-#else
-				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
-#endif
-			}
-			ExpectsPromiseDB<void> Cluster::Connect(Address* URI)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(URI && URI->Get(), "url should be set");
-				if (Connected)
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, URI](ExpectsDB<void>&&) { return this->Connect(URI); });
-
-				TAddress* Context = URI->Get();
-				*URI = nullptr;
-
+				TAddress* Context = Location->Get(); *Location = nullptr;
 				return Core::Cotask<ExpectsDB<void>>([this, Context]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);

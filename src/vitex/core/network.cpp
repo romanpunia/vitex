@@ -342,14 +342,14 @@ namespace Vitex
 			}
 		};
 #endif
-		Location::Location(const Core::String& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
+		Location::Location(const Core::String& From) noexcept : Body(From), Port(-1)
 		{
-			VI_ASSERT(!URL.empty(), "url should not be empty");
-			Core::Stringify::Replace(URL, '\\', '/');
+			VI_ASSERT(!Body.empty(), "location should not be empty");
+			Core::Stringify::Replace(Body, '\\', '/');
 
 			const char* ParametersBegin = nullptr;
 			const char* PathBegin = nullptr;
-			const char* HostBegin = strchr(URL.c_str(), ':');
+			const char* HostBegin = strchr(Body.c_str(), ':');
 			if (HostBegin != nullptr)
 			{
 				if (strncmp(HostBegin, "://", 3) != 0)
@@ -358,19 +358,19 @@ namespace Vitex
 						++HostBegin;
 
 					PathBegin = *HostBegin == '\0' || *HostBegin == '/' ? HostBegin : HostBegin + 1;
-					Protocol = Core::String(URL.c_str(), HostBegin);
+					Protocol = Core::String(Body.c_str(), HostBegin);
 					goto InlineURL;
 				}
 				else
 				{
-					Protocol = Core::String(URL.c_str(), HostBegin);
+					Protocol = Core::String(Body.c_str(), HostBegin);
 					HostBegin += 3;
 				}
 			}
 			else
-				HostBegin = URL.c_str();
+				HostBegin = Body.c_str();
 
-			if (HostBegin != URL.c_str())
+			if (HostBegin != Body.c_str())
 			{
 				const char* AtSymbol = strchr(HostBegin, '@');
 				PathBegin = strchr(HostBegin, '/');
@@ -385,11 +385,11 @@ namespace Vitex
 					const char* PasswordPtr = strchr(LoginPassword.c_str(), ':');
 					if (PasswordPtr)
 					{
-						Username = Compute::Codec::URIDecode(Core::String(LoginPassword.c_str(), PasswordPtr));
-						Password = Compute::Codec::URIDecode(Core::String(PasswordPtr + 1));
+						Username = Compute::Codec::URLDecode(Core::String(LoginPassword.c_str(), PasswordPtr));
+						Password = Compute::Codec::URLDecode(Core::String(PasswordPtr + 1));
 					}
 					else
-						Username = Compute::Codec::URIDecode(LoginPassword);
+						Username = Compute::Codec::URLDecode(LoginPassword);
 				}
 
 				const char* PortBegin = strchr(HostBegin, ':');
@@ -414,7 +414,7 @@ namespace Vitex
 				}
 			}
 			else
-				PathBegin = URL.c_str();
+				PathBegin = Body.c_str();
 
 		InlineURL:
 			ParametersBegin = strchr(PathBegin, '?');
@@ -439,10 +439,10 @@ namespace Vitex
 				for (auto& Item : Core::Stringify::Split(Parameters, '&'))
 				{
 					Core::Vector<Core::String> KeyValue = Core::Stringify::Split(Item, '=');
-					KeyValue[0] = Compute::Codec::URIDecode(KeyValue[0]);
+					KeyValue[0] = Compute::Codec::URLDecode(KeyValue[0]);
 
 					if (KeyValue.size() >= 2)
-						Query[KeyValue[0]] = Compute::Codec::URIDecode(KeyValue[1]);
+						Query[KeyValue[0]] = Compute::Codec::URLDecode(KeyValue[1]);
 					else
 						Query[KeyValue[0]] = "";
 				}
@@ -460,14 +460,16 @@ namespace Vitex
 			}
 
 		FinalizeURL:
-			if (Protocol.size() == 1)
+			if (Protocol.size() < 2)
 			{
 				Path = Protocol + ':' + Path;
 				Protocol = "file";
 			}
 
-			if (Path.empty())
-				Path = "/";
+			if (!Path.empty())
+				Path.assign(Compute::Codec::URLDecode(Path));
+			else
+				Path.assign("/");
 
 			if (Port != -1)
 				return;
@@ -496,52 +498,6 @@ namespace Vitex
 				Port = 23;
 			else
 				Port = 0;
-		}
-		Location::Location(const Location& Other) noexcept :
-			Query(Other.Query), URL(Other.URL), Protocol(Other.Protocol),
-			Username(Other.Username), Password(Other.Password), Hostname(Other.Hostname),
-			Fragment(Other.Fragment), Path(Other.Path), Port(Other.Port)
-		{
-		}
-		Location::Location(Location&& Other) noexcept :
-			Query(std::move(Other.Query)), URL(std::move(Other.URL)), Protocol(std::move(Other.Protocol)),
-			Username(std::move(Other.Username)), Password(std::move(Other.Password)), Hostname(std::move(Other.Hostname)),
-			Fragment(std::move(Other.Fragment)), Path(std::move(Other.Path)), Port(Other.Port)
-		{
-		}
-		Location& Location::operator= (const Location& Other) noexcept
-		{
-			if (this == &Other)
-				return *this;
-
-			Query = Other.Query;
-			URL = Other.URL;
-			Protocol = Other.Protocol;
-			Username = Other.Username;
-			Password = Other.Password;
-			Hostname = Other.Hostname;
-			Path = Other.Path;
-			Fragment = Other.Fragment;
-			Port = Other.Port;
-
-			return *this;
-		}
-		Location& Location::operator= (Location&& Other) noexcept
-		{
-			if (this == &Other)
-				return *this;
-
-			Query = std::move(Other.Query);
-			URL = std::move(Other.URL);
-			Protocol = std::move(Other.Protocol);
-			Username = std::move(Other.Username);
-			Password = std::move(Other.Password);
-			Hostname = std::move(Other.Hostname);
-			Path = std::move(Other.Path);
-			Fragment = std::move(Other.Fragment);
-			Port = Other.Port;
-
-			return *this;
 		}
 
 		X509Blob::X509Blob(void* NewPointer) noexcept : Pointer(NewPointer)
@@ -1840,14 +1796,14 @@ namespace Vitex
 		void Uplinks::ExpireConnection(RemoteHost* Address, Socket* Target)
 		{
 			VI_ASSERT(Address != nullptr, "address should be set");
-			ExpireConnectionURL(GetURL(Address), Target);;
+			ExpireConnectionName(GetName(Address), Target);;
 		}
-		void Uplinks::ExpireConnectionURL(const Core::String& URL, Socket* Stream)
+		void Uplinks::ExpireConnectionName(const Core::String& Name, Socket* Stream)
 		{
 			VI_ASSERT(Stream != nullptr, "socket should be set");
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(URL);
+				auto Targets = Connections.find(Name);
 				if (Targets == Connections.end())
 					return;
 
@@ -1857,17 +1813,17 @@ namespace Vitex
 
 				Targets->second.erase(It);
 			}
-			VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), URL.c_str());
+			VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), Name.c_str());
 			Stream->CloseAsync([Stream](const Core::Option<std::error_condition>&) { VI_RELEASE(Stream); });
 		}
-		void Uplinks::ListenConnectionURL(const Core::String& URL, Socket* Target)
+		void Uplinks::ListenConnectionName(const Core::String& Name, Socket* Target)
 		{
-			Multiplexer::Get()->WhenReadable(Target, [this, URL, Target](SocketPoll Event)
+			Multiplexer::Get()->WhenReadable(Target, [this, Name, Target](SocketPoll Event)
 			{
 				if (Packet::IsError(Event))
-					ExpireConnectionURL(URL, Target);
+					ExpireConnectionName(Name, Target);
 				else if (!Packet::IsSkip(Event))
-					ListenConnectionURL(URL, Target);
+					ListenConnectionName(Name, Target);
 			});
 		}
 		void Uplinks::UnlistenConnection(Socket* Target)
@@ -1881,24 +1837,24 @@ namespace Vitex
 			if (!Stream->IsValid())
 				return false;
 
-			Core::String URL = GetURL(Address);
+			Core::String Name = GetName(Address);
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Connections[URL].insert(Stream);
+				Connections[Name].insert(Stream);
 			}
 			Stream->Timeout = 0;
-			ListenConnectionURL(URL, Stream);
-			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), URL.c_str());
+			ListenConnectionName(Name, Stream);
+			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
 			return true;
 		}
 		Socket* Uplinks::PopConnection(RemoteHost* Address)
 		{
 			VI_ASSERT(Address != nullptr, "address should be set");
-			Core::String URL = GetURL(Address);
+			Core::String Name = GetName(Address);
 			Socket* Stream = nullptr;
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(URL);
+				auto Targets = Connections.find(Name);
 				if (Targets == Connections.end() || Targets->second.empty())
 					return nullptr;
 
@@ -1907,7 +1863,7 @@ namespace Vitex
 				Targets->second.erase(It);
 			}
 			UnlistenConnection(Stream);
-			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), URL.c_str());
+			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
 			return Stream;
 		}
 		size_t Uplinks::GetSize()
@@ -1918,7 +1874,7 @@ namespace Vitex
 				Size += Targets.second.size();
 			return Size;
 		}
-		Core::String Uplinks::GetURL(RemoteHost* Address)
+		Core::String Uplinks::GetName(RemoteHost* Address)
 		{
 			return Address->Hostname + ':' + Core::ToString(Address->Port) + (Address->Secure ? "@secure" : "@default");
 		}

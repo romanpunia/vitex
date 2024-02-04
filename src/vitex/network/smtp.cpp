@@ -381,30 +381,30 @@ namespace Vitex
 
 						char InetAddress[INET_ADDRSTRLEN];
 						sockaddr_in* Address = (sockaddr_in*)&Storage;
-						Core::String URI = "smtp/";
+						Core::String Location = "smtp/";
 
 						if (inet_ntop(AF_INET, &(Address->sin_addr), InetAddress, INET_ADDRSTRLEN) != nullptr)
-							URI += InetAddress;
+							Location += InetAddress;
 						else
-							URI += "127.0.0.1";
+							Location += "127.0.0.1";
 
 						unsigned char* UserRealm = Unicode(Realm.c_str());
 						unsigned char* UserUsername = Unicode(Request.Login.c_str());
 						unsigned char* UserPassword = Unicode(Request.Password.c_str());
 						unsigned char* UserNonce = Unicode(Nonce.c_str());
 						unsigned char* UserCNonce = Unicode(CNonce);
-						unsigned char* UserUri = Unicode(URI.c_str());
+						unsigned char* UserLocation = Unicode(Location.c_str());
 						unsigned char* UserNc = Unicode(NC);
 						unsigned char* UserQop = Unicode("auth");
 
-						if (!UserRealm || !UserUsername || !UserPassword || !UserNonce || !UserCNonce || !UserUri || !UserNc || !UserQop)
+						if (!UserRealm || !UserUsername || !UserPassword || !UserNonce || !UserCNonce || !UserLocation || !UserNc || !UserQop)
 						{
 							VI_FREE(UserRealm);
 							VI_FREE(UserUsername);
 							VI_FREE(UserPassword);
 							VI_FREE(UserNonce);
 							VI_FREE(UserCNonce);
-							VI_FREE(UserUri);
+							VI_FREE(UserLocation);
 							VI_FREE(UserNc);
 							VI_FREE(UserQop);
 							return Report(Core::SystemException("smtp authorize: denied", std::make_error_condition(std::errc::permission_denied)));
@@ -430,7 +430,7 @@ namespace Vitex
 
 						Compute::MD5Hasher MD5A2;
 						MD5A2.Update((unsigned char*)"AUTHENTICATE:", 13);
-						MD5A2.Update(UserUri, (unsigned int)URI.size());
+						MD5A2.Update(UserLocation, (unsigned int)Location.size());
 						MD5A2.Finalize();
 						char* UserA2A = MD5A2.HexDigest();
 
@@ -458,7 +458,7 @@ namespace Vitex
 						VI_FREE(UserPassword);
 						VI_FREE(UserNonce);
 						VI_FREE(UserCNonce);
-						VI_FREE(UserUri);
+						VI_FREE(UserLocation);
 						VI_FREE(UserNc);
 						VI_FREE(UserQop);
 						VI_FREE(UserA1A);
@@ -480,7 +480,7 @@ namespace Vitex
 							",cnonce=\"%s\""
 							",digest-uri=\"%s\""
 							",Response=%s"
-							",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.c_str());
+							",qop=auth", Nonce.c_str(), NC, CNonce, Location.c_str(), DecodedChallenge.c_str());
 
 						EncodedChallenge = Compute::Codec::Base64Encode(Content);
 						SendRequest(334, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback]()

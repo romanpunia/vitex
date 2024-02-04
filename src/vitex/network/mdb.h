@@ -242,7 +242,7 @@ namespace Vitex
 				}
 
 			public:
-				static ExpectsDB<Address> FromURI(const Core::String& Value);
+				static ExpectsDB<Address> FromURL(const Core::String& Location);
 			};
 
 			class VI_OUT Stream
@@ -508,8 +508,7 @@ namespace Vitex
 			public:
 				Connection();
 				~Connection() noexcept;
-				ExpectsPromiseDB<void> ConnectByURI(const Core::String& Address);
-				ExpectsPromiseDB<void> Connect(Address* URI);
+				ExpectsPromiseDB<void> Connect(Address* Location);
 				ExpectsPromiseDB<void> Disconnect();
 				ExpectsPromiseDB<void> MakeTransaction(std::function<Core::Promise<bool>(Transaction*)>&& Callback);
 				ExpectsPromiseDB<Cursor> FindDatabases(const Document& Options);
@@ -536,7 +535,6 @@ namespace Vitex
 			public:
 				Cluster();
 				~Cluster() noexcept;
-				ExpectsPromiseDB<void> ConnectByURI(const Core::String& Address);
 				ExpectsPromiseDB<void> Connect(Address* URI);
 				ExpectsPromiseDB<void> Disconnect();
 				void SetProfile(const Core::String& Name);

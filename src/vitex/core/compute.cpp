@@ -8398,7 +8398,7 @@ namespace Vitex
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s stream-hash fd %i", GetDigestName(Type), (int)Stream->GetFd());
+			VI_TRACE("[crypto] %s stream-hash fd %i", GetDigestName(Type), (int)Stream->GetReadableFd());
 
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
@@ -8412,7 +8412,7 @@ namespace Vitex
 			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
 			{
 				char Buffer[Core::BLOB_SIZE]; size_t Size = 0;
-				while ((Size = Stream->Read(Buffer, sizeof(Buffer))) > 0)
+				while ((Size = Stream->Read(Buffer, sizeof(Buffer)).Or(0)) > 0)
 					OK = EVP_DigestUpdate(Context, Buffer, Size) == 1 ? OK : false;
 			}
 			OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
@@ -8839,7 +8839,7 @@ namespace Vitex
 			VI_ASSERT(From != nullptr, "from stream should be set");
 			VI_ASSERT(To != nullptr, "to stream should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-encrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
+			VI_TRACE("[crypto] %s stream-encrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetReadableFd(), (int)To->GetWriteableFd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -8865,7 +8865,7 @@ namespace Vitex
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
 			unsigned char InBuffer[Core::CHUNK_SIZE], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
 			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
-			while ((InBufferSize = From->Read((char*)InBuffer, sizeof(InBuffer))) > 0)
+			while ((InBufferSize = From->Read((char*)InBuffer, sizeof(InBuffer)).Or(0)) > 0)
 			{
 				int OutSize = 0;
 				if (1 != EVP_EncryptUpdate(Context, OutBuffer + TrailingBufferSize, &OutSize, InBuffer, (int)InBufferSize))
@@ -8892,7 +8892,7 @@ namespace Vitex
 				if (Callback && WriteBufferSize > 0)
 					Callback(&WriteBuffer, &WriteBufferSize);
 
-				if (To->Write(WriteBuffer, WriteBufferSize) != WriteBufferSize)
+				if (To->Write(WriteBuffer, WriteBufferSize).Or(0) != WriteBufferSize)
 				{
 					EVP_CIPHER_CTX_free(Context);
 					return CryptoException();
@@ -8927,7 +8927,7 @@ namespace Vitex
 			VI_ASSERT(From != nullptr, "from stream should be set");
 			VI_ASSERT(To != nullptr, "to stream should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-decrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetFd(), (int)To->GetFd());
+			VI_TRACE("[crypto] %s stream-decrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetReadableFd(), (int)To->GetWriteableFd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -8953,7 +8953,7 @@ namespace Vitex
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
 			unsigned char InBuffer[Core::CHUNK_SIZE + 1024], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
 			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
-			while ((InBufferSize = From->Read((char*)InBuffer + TrailingBufferSize, sizeof(TrailingBuffer))) > 0)
+			while ((InBufferSize = From->Read((char*)InBuffer + TrailingBufferSize, sizeof(TrailingBuffer)).Or(0)) > 0)
 			{
 				char* ReadBuffer = (char*)InBuffer;
 				size_t ReadBufferSize = (size_t)InBufferSize + TrailingBufferSize;
@@ -8981,7 +8981,7 @@ namespace Vitex
 
 			Finalize:
 				size_t OutBufferSize = (size_t)OutSize;
-				if (To->Write((char*)OutBuffer, OutBufferSize) != OutBufferSize)
+				if (To->Write((char*)OutBuffer, OutBufferSize).Or(0) != OutBufferSize)
 				{
 					EVP_CIPHER_CTX_free(Context);
 					return CryptoException();
@@ -9678,15 +9678,15 @@ namespace Vitex
 		{
 			return HexDecode(Value.c_str(), Value.size());
 		}
-		Core::String Codec::URIEncode(const Core::String& Text)
+		Core::String Codec::URLEncode(const Core::String& Text)
 		{
-			return URIEncode(Text.c_str(), Text.size());
+			return URLEncode(Text.c_str(), Text.size());
 		}
-		Core::String Codec::URIEncode(const char* Text, size_t Length)
+		Core::String Codec::URLEncode(const char* Text, size_t Length)
 		{
 			VI_ASSERT(Text != nullptr, "text should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
+			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Length);
 
 			static const char* Unescape = "._-$,;~()";
 			static const char* Hex = "0123456789abcdef";
@@ -9710,15 +9710,15 @@ namespace Vitex
 
 			return Value;
 		}
-		Core::String Codec::URIDecode(const Core::String& Text)
+		Core::String Codec::URLDecode(const Core::String& Text)
 		{
-			return URIDecode(Text.c_str(), Text.size());
+			return URLDecode(Text.c_str(), Text.size());
 		}
-		Core::String Codec::URIDecode(const char* Text, size_t Length)
+		Core::String Codec::URLDecode(const char* Text, size_t Length)
 		{
 			VI_ASSERT(Text != nullptr, "text should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] uri encode %" PRIu64 " bytes", (uint64_t)Length);
+			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Length);
 
 			Core::String Value;
 			size_t i = 0;

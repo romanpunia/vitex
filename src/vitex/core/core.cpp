@@ -7373,53 +7373,307 @@ namespace Vitex
 		Stream::Stream() noexcept : VSize(0)
 		{
 		}
-		void Stream::SetVirtualSize(size_t Size)
+		ExpectsIO<void> Stream::Move(int64_t Offset)
 		{
+			return Seek(FileSeek::Current, Offset);
+		}
+		void Stream::OpenVirtual(String&& Path)
+		{
+			VName = std::move(Path);
 			VSize = 0;
 		}
-		size_t Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
+		void Stream::CloseVirtual()
+		{
+			VName.clear();
+			VSize = 0;
+		}
+		void Stream::SetVirtualSize(size_t Size)
+		{
+			VSize = Size;
+		}
+		void Stream::SetVirtualName(const String& File)
+		{
+			VName = File;
+		}
+		ExpectsIO<size_t> Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_TRACE("[io] read all bytes on fd %i", GetReadableFd());
 
+			size_t Total = 0;
 			char Buffer[CHUNK_SIZE];
-			size_t Size = 0, Total = 0;
-
-			do
+			while (true)
 			{
-				size_t Max = sizeof(Buffer);
-				if (VSize > 0 && VSize - Total > Max)
-					Max = VSize - Total;
+				size_t Length = VSize > 0 ? std::min<size_t>(sizeof(Buffer), VSize - Total) : sizeof(Buffer);
+				if (!Length)
+					break;
 
-				Size = Read(Buffer, Max);
-				if (Size > 0)
-				{
-					Callback(Buffer, Size);
-					Total += Size;
-				}
-			} while (Size > 0);
+				auto Size = Read(Buffer, Length);
+				if (!Size || !*Size)
+					return Size;
+
+				Length = *Size;
+				Total += Length;
+				Callback(Buffer, Length);
+			}
 
 			return Total;
+		}
+		ExpectsIO<size_t> Stream::Size()
+		{
+			if (!IsSized())
+				return std::make_error_condition(std::errc::not_supported);
+
+			auto Position = Tell();
+			if (!Position)
+				return Position;
+
+			auto Status = Seek(FileSeek::End, 0);
+			if (!Status)
+				return Status.Error();
+
+			auto Size = Tell();
+			Status = Seek(FileSeek::Begin, *Position);
+			if (!Status)
+				return Status.Error();
+
+			return Size;
 		}
 		size_t Stream::VirtualSize() const
 		{
 			return VSize;
 		}
-		size_t Stream::Size()
+		const String& Stream::VirtualName() const
 		{
-			if (!IsSized())
+			return VName;
+		}
+
+		MemoryStream::MemoryStream() noexcept : Offset(0), Readable(false), Writeable(false)
+		{
+		}
+		MemoryStream::~MemoryStream() noexcept
+		{
+			Close();
+		}
+		ExpectsIO<void> MemoryStream::Clear()
+		{
+			VI_TRACE("[mem] fd %i clear", GetWriteableFd());
+			Buffer.clear();
+			Offset = 0;
+			Readable = false;
+			return Expectation::Met;
+		}
+		ExpectsIO<void> MemoryStream::Open(const char* File, FileMode Mode)
+		{
+			VI_ASSERT(File != nullptr, "filename should be set");
+			VI_MEASURE(Timings::Pass);
+			auto Result = Close();
+			if (!Result)
+				return Result;
+			else if (!OS::File::HasOption(FsOption::AllowMem))
+				return std::make_error_condition(std::errc::permission_denied);
+
+			switch (Mode)
+			{
+				case FileMode::Read_Only:
+				case FileMode::Binary_Read_Only:
+					Readable = true;
+					break;
+				case FileMode::Write_Only:
+				case FileMode::Binary_Write_Only:
+				case FileMode::Append_Only:
+				case FileMode::Binary_Append_Only:
+					Writeable = true;
+					break;
+				case FileMode::Read_Write:
+				case FileMode::Binary_Read_Write:
+				case FileMode::Write_Read:
+				case FileMode::Binary_Write_Read:
+				case FileMode::Read_Append_Write:
+				case FileMode::Binary_Read_Append_Write:
+					Readable = true;
+					Writeable = true;
+					break;
+				default:
+					break;
+			}
+
+			VI_PANIC(Readable || Writeable, "file open cannot be issued with mode:%i", (int)Mode);
+			VI_DEBUG("[mem] open %s%s %s fd", Readable ? "r" : "", Writeable ? "w" : "", File, (int)GetReadableFd());
+			OpenVirtual(File);
+			return Expectation::Met;
+		}
+		ExpectsIO<void> MemoryStream::Close()
+		{
+			VI_MEASURE(Timings::Pass);
+			VI_DEBUG("[mem] close fd %i", GetReadableFd());
+			CloseVirtual();
+			Buffer.clear();
+			Offset = 0;
+			Readable = false;
+			Writeable = false;
+			return Expectation::Met;
+		}
+		ExpectsIO<void> MemoryStream::Seek(FileSeek Mode, int64_t Seek)
+		{
+			VI_ASSERT(!VirtualName().empty(), "file should be opened");
+			VI_MEASURE(Timings::Pass);
+			switch (Mode)
+			{
+				case FileSeek::Begin:
+					VI_TRACE("[mem] seek-64 fd %i begin %" PRId64, GetReadableFd(), Seek);
+					Offset = Seek < 0 ? 0 : Buffer.size() + (size_t)Seek;
+					break;
+				case FileSeek::Current:
+					VI_TRACE("[mem] seek-64 fd %i move %" PRId64, GetReadableFd(), Seek);
+					if (Seek < 0)
+					{
+						size_t Position = (size_t)(-Seek);
+						Offset -= Position > Offset ? 0 : Position;
+					}
+					else
+						Offset += (size_t)Seek;
+					break;
+				case FileSeek::End:
+					VI_TRACE("[mem] seek-64 fd %i end %" PRId64, GetReadableFd(), Seek);
+					if (Seek < 0)
+					{
+						size_t Position = (size_t)(-Seek);
+						Offset = Position > Buffer.size() ? 0 : Buffer.size() - Position;
+					}
+					else
+						Offset = Buffer.size() + (size_t)Seek;
+					break;
+				default:
+					break;
+			}
+			return Expectation::Met;
+		}
+		ExpectsIO<void> MemoryStream::Flush()
+		{
+			return Expectation::Met;
+		}
+		ExpectsIO<size_t> MemoryStream::ReadScan(const char* Format, ...)
+		{
+			VI_ASSERT(!VirtualName().empty(), "file should be opened");
+			VI_ASSERT(Format != nullptr, "format should be set");
+			VI_MEASURE(Timings::Pass);
+			char* Memory = PrepareBuffer(0);
+			if (!Memory)
+				return std::make_error_condition(std::errc::broken_pipe);
+
+			va_list Args;
+			va_start(Args, Format);
+			int Value = vsscanf(Memory, Format, Args);
+			VI_TRACE("[mem] fd %i scan %i bytes", GetReadableFd(), (int)Value);
+			va_end(Args);
+			if (Value >= 0)
+				return (size_t)Value;
+
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+		}
+		ExpectsIO<size_t> MemoryStream::ReadLine(char* Data, size_t Length)
+		{
+			VI_ASSERT(!VirtualName().empty(), "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::Pass);
+			VI_TRACE("[mem] fd %i readln %i bytes", GetReadableFd(), (int)Length);
+			size_t Offset = 0;
+			while (Offset < Length)
+			{
+				auto Status = Read(Data + Offset, sizeof(char));
+				if (!Status)
+					return Status;
+				else if (*Status != sizeof(char))
+					break;
+				else if (std::isspace(Stringify::Literal(Data[Offset++])))
+					break;
+			}
+			return Offset;
+		}
+		ExpectsIO<size_t> MemoryStream::Read(char* Data, size_t Length)
+		{
+			VI_ASSERT(!VirtualName().empty(), "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::Pass);
+			VI_TRACE("[mem] fd %i read %i bytes", GetReadableFd(), (int)Length);
+			if (!Length)
 				return 0;
 
-			size_t Position = Tell();
-			Seek(FileSeek::End, 0);
-			size_t Size = Tell();
-			Seek(FileSeek::Begin, Position);
+			char* Memory = PrepareBuffer(Length);
+			if (!Memory)
+				return std::make_error_condition(std::errc::broken_pipe);
 
-			return Size;
+			memcpy(Data, Memory, Length);
+			return Length;
 		}
-		String& Stream::Source()
+		ExpectsIO<size_t> MemoryStream::WriteFormat(const char* Format, ...)
 		{
-			return Path;
+			VI_ASSERT(!VirtualName().empty(), "file should be opened");
+			VI_ASSERT(Format != nullptr, "format should be set");
+			VI_MEASURE(Timings::Pass);
+			char* Memory = PrepareBuffer(0);
+			if (!Memory)
+				return std::make_error_condition(std::errc::broken_pipe);
+
+			va_list Args;
+			va_start(Args, Format);
+			int Value = vsprintf(Memory, Format, Args);
+			VI_TRACE("[mem] fd %i write %i bytes", GetWriteableFd(), Value);
+			va_end(Args);
+			if (Value >= 0)
+				return (size_t)Value;
+
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+		}
+		ExpectsIO<size_t> MemoryStream::Write(const char* Data, size_t Length)
+		{
+			VI_ASSERT(!VirtualName().empty(), "file should be opened");
+			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_MEASURE(Timings::Pass);
+			VI_TRACE("[mem] fd %i write %i bytes", GetWriteableFd(), (int)Length);
+			if (!Length)
+				return 0;
+
+			char* Memory = PrepareBuffer(Length);
+			if (!Memory)
+				return std::make_error_condition(std::errc::broken_pipe);
+
+			memcpy(Memory, Data, Length);
+			return Length;
+		}
+		ExpectsIO<size_t> MemoryStream::Tell()
+		{
+			return Offset;
+		}
+		socket_t MemoryStream::GetReadableFd() const
+		{
+			return (socket_t)(uintptr_t)Buffer.data();
+		}
+		socket_t MemoryStream::GetWriteableFd() const
+		{
+			return (socket_t)(uintptr_t)Buffer.data();
+		}
+		void* MemoryStream::GetReadable() const
+		{
+			return (void*)Buffer.data();
+		}
+		void* MemoryStream::GetWriteable() const
+		{
+			return (void*)Buffer.data();
+		}
+		bool MemoryStream::IsSized() const
+		{
+			return true;
+		}
+		char* MemoryStream::PrepareBuffer(size_t Size)
+		{
+			if (Offset + Size > Buffer.size())
+				Buffer.resize(Offset);
+
+			char* Target = Buffer.data() + Offset;
+			Offset += Size;
+			return Target;
 		}
 
 		FileStream::FileStream() noexcept : IoStream(nullptr)
@@ -7436,6 +7690,7 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
+			auto& Path = VirtualName();
 			if (Path.empty())
 				return std::make_error_condition(std::errc::invalid_argument);
 
@@ -7453,6 +7708,8 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
+			else if (!OS::File::HasOption(FsOption::AllowFs))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			const char* Type = nullptr;
 			switch (Mode)
@@ -7507,11 +7764,14 @@ namespace Vitex
 				return Target.Error();
 
 			IoStream = *Target;
-			Path = *TargetPath;
+			OpenVirtual(std::move(*TargetPath));
 			return Expectation::Met;
 		}
 		ExpectsIO<void> FileStream::Close()
 		{
+			VI_MEASURE(Timings::FileSystem);
+			CloseVirtual();
+
 			if (!IoStream)
 				return Expectation::Met;
 
@@ -7525,13 +7785,6 @@ namespace Vitex
 			VI_MEASURE(Timings::FileSystem);
 			return OS::File::Seek64(IoStream, Offset, Mode);
 		}
-		ExpectsIO<void> FileStream::Move(int64_t Offset)
-		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] seek fd %i move %" PRId64, GetReadableFd(), Offset);
-			return Seek(FileSeek::Current, Offset);
-		}
 		ExpectsIO<void> FileStream::Flush()
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
@@ -7541,7 +7794,7 @@ namespace Vitex
 				return OS::Error::GetConditionOr();
 			return Expectation::Met;
 		}
-		size_t FileStream::ReadScan(const char* Format, ...)
+		ExpectsIO<size_t> FileStream::ReadScan(const char* Format, ...)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
@@ -7549,32 +7802,35 @@ namespace Vitex
 
 			va_list Args;
 			va_start(Args, Format);
-			size_t R = (size_t)vfscanf(IoStream, Format, Args);
+			int Value = vfscanf(IoStream, Format, Args);
+			VI_TRACE("[io] fd %i scan %i bytes", GetReadableFd(), Value);
 			va_end(Args);
+			if (Value >= 0)
+				return (size_t)Value;
 
-			VI_TRACE("[io] fd %i scan %i bytes", GetReadableFd(), (int)R);
-			return R;
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t FileStream::ReadLine(char* Data, size_t Length)
+		ExpectsIO<size_t> FileStream::ReadLine(char* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			if (!fgets(Data, Length, IoStream))
-				return 0;
-
-			return strnlen(Data, Length);
+			return fgets(Data, Length, IoStream) ? strnlen(Data, Length) : 0;
 		}
-		size_t FileStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> FileStream::Read(char* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			return fread(Data, 1, Length, IoStream);
+			size_t Value = fread(Data, 1, Length, IoStream);
+			if (Value > 0 || feof(IoStream) != 0)
+				return (size_t)Value;
+
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t FileStream::WriteFormat(const char* Format, ...)
+		ExpectsIO<size_t> FileStream::WriteFormat(const char* Format, ...)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
@@ -7582,26 +7838,31 @@ namespace Vitex
 
 			va_list Args;
 			va_start(Args, Format);
-			size_t R = (size_t)vfprintf(IoStream, Format, Args);
+			int Value = vfprintf(IoStream, Format, Args);
+			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), Value);
 			va_end(Args);
+			if (Value >= 0)
+				return (size_t)Value;
 
-			VI_TRACE("[io] fd %i print %i bytes", GetWriteableFd(), (int)R);
-			return R;
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t FileStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> FileStream::Write(const char* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			return fwrite(Data, 1, Length, IoStream);
+			size_t Value = fwrite(Data, 1, Length, IoStream);
+			if (Value > 0 || feof(IoStream) != 0)
+				return (size_t)Value;
+
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t FileStream::Tell()
+		ExpectsIO<size_t> FileStream::Tell()
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			auto Offset = OS::File::Tell64(IoStream);
-			return Offset ? *Offset : 0;
+			return OS::File::Tell64(IoStream);
 		}
 		socket_t FileStream::GetReadableFd() const
 		{
@@ -7640,6 +7901,7 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
+			auto& Path = VirtualName();
 			if (Path.empty())
 				return std::make_error_condition(std::errc::invalid_argument);
 
@@ -7661,16 +7923,20 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
+			else if (!OS::File::HasOption(FsOption::AllowGz))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			const char* Type = nullptr;
 			switch (Mode)
 			{
-				case FileMode::Binary_Read_Only:
 				case FileMode::Read_Only:
+				case FileMode::Binary_Read_Only:
 					Type = "rb";
 					break;
-				case FileMode::Binary_Write_Only:
 				case FileMode::Write_Only:
+				case FileMode::Binary_Write_Only:
+				case FileMode::Append_Only:
+				case FileMode::Binary_Append_Only:
 					Type = "wb";
 					break;
 				default:
@@ -7687,7 +7953,7 @@ namespace Vitex
 			if (!IoStream)
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
-			Path = *TargetPath;
+			OpenVirtual(std::move(*TargetPath));
 			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
@@ -7697,6 +7963,8 @@ namespace Vitex
 		{
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
+			CloseVirtual();
+
 			if (!IoStream)
 				return Expectation::Met;
 
@@ -7719,12 +7987,12 @@ namespace Vitex
 			{
 				case FileSeek::Begin:
 					VI_TRACE("[gz] seek fd %i begin %" PRId64, GetReadableFd(), Offset);
-					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_SET) != 0)
+					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_SET) == -1)
 						return OS::Error::GetConditionOr();
 					return Expectation::Met;
 				case FileSeek::Current:
 					VI_TRACE("[gz] seek fd %i move %" PRId64, GetReadableFd(), Offset);
-					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_CUR) != 0)
+					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_CUR) == -1)
 						return OS::Error::GetConditionOr();
 					return Expectation::Met;
 				case FileSeek::End:
@@ -7732,19 +8000,6 @@ namespace Vitex
 				default:
 					return std::make_error_condition(std::errc::invalid_argument);
 			}
-#else
-			return std::make_error_condition(std::errc::not_supported);
-#endif
-		}
-		ExpectsIO<void> GzStream::Move(int64_t Offset)
-		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-#ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] seek fd %i move %" PRId64, GetReadableFd(), Offset);
-			if (gzseek((gzFile)IoStream, (long)Offset, SEEK_CUR) != 0)
-				return OS::Error::GetConditionOr();
-			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -7761,78 +8016,86 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		size_t GzStream::ReadScan(const char* Format, ...)
+		ExpectsIO<size_t> GzStream::ReadScan(const char* Format, ...)
 		{
-			VI_ASSERT(false, "gz read-scan is not supported");
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t GzStream::ReadLine(char* Data, size_t Length)
+		ExpectsIO<size_t> GzStream::ReadLine(char* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			if (!gzgets((gzFile)IoStream, Data, Length))
-				return 0;
-			
-			return strnlen(Data, Length);
+			return gzgets((gzFile)IoStream, Data, Length) ? strnlen(Data, Length) : 0;
 #else
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		size_t GzStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> GzStream::Read(char* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			return gzread((gzFile)IoStream, Data, (unsigned int)Length);
+			int Value = gzread((gzFile)IoStream, Data, (unsigned int)Length);
+			if (Value >= 0)
+				return (size_t)Value;
+
+			return std::make_error_condition(std::errc::broken_pipe);
 #else
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		size_t GzStream::WriteFormat(const char* Format, ...)
+		ExpectsIO<size_t> GzStream::WriteFormat(const char* Format, ...)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
 			VI_MEASURE(Timings::FileSystem);
-
+#ifdef VI_ZLIB
 			va_list Args;
 			va_start(Args, Format);
-#ifdef VI_ZLIB
-			size_t R = (size_t)gzvprintf((gzFile)IoStream, Format, Args);
-#else
-			size_t R = 0;
-#endif
+			int Value = gzvprintf((gzFile)IoStream, Format, Args);
+			VI_TRACE("[gz] fd %i write %i bytes", GetWriteableFd(), Value);
 			va_end(Args);
+			if (Value >= 0)
+				return (size_t)Value;
 
-			VI_TRACE("[gz] fd %i print %i bytes", GetWriteableFd(), (int)R);
-			return R;
+			return std::make_error_condition(std::errc::broken_pipe);
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
 		}
-		size_t GzStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> GzStream::Write(const char* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			return gzwrite((gzFile)IoStream, Data, (unsigned int)Length);
+			int Value = gzwrite((gzFile)IoStream, Data, (unsigned int)Length);
+			if (Value >= 0)
+				return (size_t)Value;
+
+			return std::make_error_condition(std::errc::broken_pipe);
 #else
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		size_t GzStream::Tell()
+		ExpectsIO<size_t> GzStream::Tell()
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i tell", GetReadableFd());
-			auto Value = gztell((gzFile)IoStream);
-			return (Value > 0 ? (size_t)Value : 0);
+			long Value = gztell((gzFile)IoStream);
+			if (Value >= 0)
+				return (size_t)Value;
+
+			return std::make_error_condition(std::errc::broken_pipe);
 #else
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
 		socket_t GzStream::GetReadableFd() const
@@ -7869,7 +8132,6 @@ namespace Vitex
 		}
 		ExpectsIO<void> WebStream::Clear()
 		{
-			VI_ASSERT(false, "ws clear is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		ExpectsIO<void> WebStream::Open(const char* File, FileMode Mode)
@@ -7879,26 +8141,18 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
-			const char* Type = nullptr;
-			switch (Mode)
-			{
-				case FileMode::Binary_Read_Only:
-				case FileMode::Read_Only:
-					Type = "rb";
-					break;
-				default:
-					break;
-			}
-
-			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
-			Network::Location URL(File);
-			if (URL.Protocol != "http" && URL.Protocol != "https")
+			Network::Location Origin(File);
+			if (Origin.Protocol != "http" && Origin.Protocol != "https")
 				return std::make_error_condition(std::errc::address_family_not_supported);
 
 			Network::RemoteHost Address;
-			Address.Hostname = URL.Hostname;
-			Address.Secure = (URL.Protocol == "https");
-			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
+			Address.Hostname = Origin.Hostname;
+			Address.Secure = (Origin.Protocol == "https");
+			Address.Port = (Origin.Port < 0 ? (Address.Secure ? 443 : 80) : Origin.Port);
+			if (Address.Secure && !OS::File::HasOption(FsOption::AllowHttps))
+				return std::make_error_condition(std::errc::permission_denied);
+			else if (!Address.Secure && !OS::File::HasOption(FsOption::AllowHttp))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			auto* Client = new Network::HTTP::Client(30000);
 			auto Status = Client->Connect(&Address, false).Get();
@@ -7909,9 +8163,10 @@ namespace Vitex
 			}
 
 			Network::HTTP::RequestFrame Request;
-			Request.URI.assign(URL.Path);
+			Request.Location.assign(Origin.Path);
+			VI_DEBUG("[ws] open ro %s", File);
 
-			for (auto& Item : URL.Query)
+			for (auto& Item : Origin.Query)
 				Request.Query += Item.first + "=" + Item.second + "&";
 
 			if (!Request.Query.empty())
@@ -7930,18 +8185,18 @@ namespace Vitex
 			else if (Response->Content.Limited)
 				Length = Response->Content.Length;
 
-			VI_DEBUG("[ws] open %s %s", Type, File);
 			OutputStream = Client;
-			Path = File;
-
+			OpenVirtual(File);
 			return Expectation::Met;
 		}
 		ExpectsIO<void> WebStream::Close()
 		{
 			auto* Client = (Network::HTTP::Client*)OutputStream;
+			VI_DEBUG("[ws] close 0x%" PRIXPTR, (uintptr_t)Client);
 			OutputStream = nullptr;
 			Offset = Length = 0;
 			Chunk.clear();
+			CloseVirtual();
 
 			if (!Client)
 				return Expectation::Met;
@@ -7986,25 +8241,19 @@ namespace Vitex
 					return std::make_error_condition(std::errc::not_supported);
 			}
 		}
-		ExpectsIO<void> WebStream::Move(int64_t Offset)
-		{
-			return std::make_error_condition(std::errc::not_supported);
-		}
 		ExpectsIO<void> WebStream::Flush()
 		{
+			return Expectation::Met;
+		}
+		ExpectsIO<size_t> WebStream::ReadScan(const char* Format, ...)
+		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t WebStream::ReadScan(const char* Format, ...)
+		ExpectsIO<size_t> WebStream::ReadLine(char* Data, size_t DataLength)
 		{
-			VI_ASSERT(false, "ws read-format is not supported");
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t WebStream::ReadLine(char* Data, size_t DataLength)
-		{
-			VI_ASSERT(false, "ws readln is not supported");
-			return 0;
-		}
-		size_t WebStream::Read(char* Data, size_t DataLength)
+		ExpectsIO<size_t> WebStream::Read(char* Data, size_t DataLength)
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -8015,8 +8264,9 @@ namespace Vitex
 			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)OutputStream)->GetResponse()->Content.Limited)))
 			{
 				auto* Client = (Network::HTTP::Client*)OutputStream;
-				if (!Client->Fetch(DataLength).Get())
-					return 0;
+				auto Status = Client->Fetch(DataLength).Get();
+				if (!Status)
+					return Status.Error().error();
 
 				auto* Response = Client->GetResponse();
 				if (!Length && Response->Content.Limited)
@@ -8025,7 +8275,7 @@ namespace Vitex
 					if (!Length)
 						return 0;
 				}
-
+				
 				if (Response->Content.Data.empty())
 					return 0;
 
@@ -8037,20 +8287,18 @@ namespace Vitex
 			Offset += (size_t)Result;
 			return Result;
 		}
-		size_t WebStream::WriteFormat(const char* Format, ...)
+		ExpectsIO<size_t> WebStream::WriteFormat(const char* Format, ...)
 		{
-			VI_ASSERT(false, "web write-format is not supported");
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t WebStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> WebStream::Write(const char* Data, size_t Length)
 		{
-			VI_ASSERT(false, "ws write is not supported");
-			return 0;
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t WebStream::Tell()
+		ExpectsIO<size_t> WebStream::Tell()
 		{
 			VI_TRACE("[ws] fd %i tell", GetReadableFd());
-			return (size_t)Offset;
+			return Offset;
 		}
 		socket_t WebStream::GetReadableFd() const
 		{
@@ -8087,7 +8335,6 @@ namespace Vitex
 		}
 		ExpectsIO<void> ProcessStream::Clear()
 		{
-			VI_ASSERT(false, "ps is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
 		ExpectsIO<void> ProcessStream::Open(const char* File, FileMode Mode)
@@ -8096,6 +8343,8 @@ namespace Vitex
 			auto Result = Close();
 			if (!Result)
 				return Result;
+			else if (!OS::File::HasOption(FsOption::AllowShell))
+				return std::make_error_condition(std::errc::permission_denied);
 
 			bool Readable = false;
 			bool Writeable = false;
@@ -8154,7 +8403,7 @@ namespace Vitex
 				if (!OutputStream)
 					goto OutputError;
 
-				VI_DEBUG("[io] open ro:pipe fd %i", VI_FILENO(OutputStream));
+				VI_DEBUG("[sh] open ro:pipe fd %i", VI_FILENO(OutputStream));
 			}
 
 			HANDLE InputReadable = nullptr, InputWriteable = nullptr;
@@ -8181,7 +8430,7 @@ namespace Vitex
 				if (InputFd < 0)
 					goto InputError;
 
-				VI_DEBUG("[io] open wo:pipe fd %i", VI_FILENO(InputStream));
+				VI_DEBUG("[sh] open wo:pipe fd %i", InputFd);
 			}
 
 			STARTUPINFO StartupPolicy;
@@ -8199,7 +8448,7 @@ namespace Vitex
 			if (CreateProcessA(Shell->c_str(), (LPSTR)Executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &StartupPolicy, &ProcessInfo) == FALSE)
 				goto InputError;
 
-			VI_DEBUG("[io] spawn piped process pid %i (tid = %i)", (int)ProcessInfo.dwProcessId, (int)ProcessInfo.dwThreadId);
+			VI_DEBUG("[sh] spawn piped process pid %i (tid = %i)", (int)ProcessInfo.dwProcessId, (int)ProcessInfo.dwThreadId);
 			Internal.OutputPipe = OutputReadable;
 			Internal.InputPipe = InputWriteable;
 			Internal.Process = ProcessInfo.hProcess;
@@ -8231,7 +8480,7 @@ namespace Vitex
 				if (!OutputStream)
 					goto OutputError;
 
-				VI_DEBUG("[io] open readable ro:pipe fd %i", VI_FILENO(OutputStream));
+				VI_DEBUG("[sh] open readable ro:pipe fd %i", VI_FILENO(OutputStream));
 			}
 
 			int InputPipe[2] = { 0, 0 };
@@ -8255,7 +8504,7 @@ namespace Vitex
 				}
 
 				InputFd = InputPipe[1];
-				VI_DEBUG("[io] open writeable wo:pipe fd %i", InputFd);
+				VI_DEBUG("[sh] open writeable wo:pipe fd %i", InputFd);
 			}
 
 			pid_t ProcessId = fork();
@@ -8283,7 +8532,7 @@ namespace Vitex
 			}
 			else
 			{
-				VI_DEBUG("[io] spawn piped process pid %i", (int)ProcessId);
+				VI_DEBUG("[sh] spawn piped process pid %i", (int)ProcessId);
 				Internal.OutputPipe = (void*)(uintptr_t)OutputPipe[1];
 				Internal.InputPipe = (void*)(uintptr_t)InputPipe[0];
 				Internal.Process = (void*)(uintptr_t)ProcessId;
@@ -8296,21 +8545,22 @@ namespace Vitex
 					close(InputPipe[1]);
 			}
 #endif
-			Path = File;
+			OpenVirtual(File);
 			return Expectation::Met;
 		}
 		ExpectsIO<void> ProcessStream::Close()
 		{
+			CloseVirtual();
 #ifdef VI_MICROSOFT
 			if (Internal.Thread != nullptr)
 			{
-				VI_TRACE("[io] close thread tid %i (wait)", (int)Internal.ThreadId);
+				VI_TRACE("[sh] close thread tid %i (wait)", (int)Internal.ThreadId);
 				WaitForSingleObject((HANDLE)Internal.Thread, INFINITE);
 				CloseHandle((HANDLE)Internal.Thread);
 			}
 			if (Internal.Process != nullptr)
 			{
-				VI_DEBUG("[io] close process pid %i (wait)", (int)Internal.ThreadId);
+				VI_DEBUG("[sh] close process pid %i (wait)", (int)Internal.ThreadId);
 				WaitForSingleObject((HANDLE)Internal.Process, INFINITE);
 
 				DWORD StatusCode = 0;
@@ -8322,7 +8572,7 @@ namespace Vitex
 #else
 			if (Internal.Process != nullptr)
 			{
-				VI_DEBUG("[io] close process pid %i (wait)", (int)Internal.ThreadId);
+				VI_DEBUG("[sh] close process pid %i (wait)", (int)Internal.ThreadId);
 				waitpid((pid_t)(uintptr_t)Internal.Process, &ExitCode, 0);
 			}
 #endif
@@ -8333,7 +8583,7 @@ namespace Vitex
 			}
 			if (InputFd > 0)
 			{
-				VI_DEBUG("[io] close fd %i", InputFd);
+				VI_DEBUG("[sh] close fd %i", InputFd);
 				close(InputFd);
 				InputFd = -1;
 			}
@@ -8344,15 +8594,11 @@ namespace Vitex
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<void> ProcessStream::Move(int64_t Offset)
-		{
-			return std::make_error_condition(std::errc::not_supported);
-		}
 		ExpectsIO<void> ProcessStream::Flush()
 		{
-			return std::make_error_condition(std::errc::not_supported);
+			return Expectation::Met;
 		}
-		size_t ProcessStream::ReadScan(const char* Format, ...)
+		ExpectsIO<size_t> ProcessStream::ReadScan(const char* Format, ...)
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Format != nullptr, "format should be set");
@@ -8360,50 +8606,56 @@ namespace Vitex
 
 			va_list Args;
 			va_start(Args, Format);
-			size_t R = (size_t)vfscanf(OutputStream, Format, Args);
+			int Value = vfscanf(OutputStream, Format, Args);
+			VI_TRACE("[sh] fd %i scan %i bytes", GetReadableFd(), Value);
 			va_end(Args);
+			if (Value >= 0)
+				return (size_t)Value;
 
-			VI_TRACE("[io] fd %i scan %i bytes", GetReadableFd(), (int)R);
-			return R;
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t ProcessStream::ReadLine(char* Data, size_t Length)
+		ExpectsIO<size_t> ProcessStream::ReadLine(char* Data, size_t Length)
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			if (!fgets(Data, Length, OutputStream))
-				return 0;
-
-			return strnlen(Data, Length);
+			VI_TRACE("[sh] fd %i readln %i bytes", GetReadableFd(), (int)Length);
+			return fgets(Data, Length, OutputStream) ? strnlen(Data, Length) : 0;
 		}
-		size_t ProcessStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> ProcessStream::Read(char* Data, size_t Length)
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			return fread(Data, 1, Length, OutputStream);
+			VI_TRACE("[sh] fd %i read %i bytes", GetReadableFd(), (int)Length);
+			size_t Value = fread(Data, 1, Length, OutputStream);
+			if (Value > 0 || feof(OutputStream) != 0)
+				return (size_t)Value;
+
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t ProcessStream::WriteFormat(const char* Format, ...)
+		ExpectsIO<size_t> ProcessStream::WriteFormat(const char* Format, ...)
 		{
-			VI_ASSERT(false, "ps write-format is not supported");
-			return 0;
+			VI_ASSERT(false, "sh write-format is not supported");
+			return std::make_error_condition(std::errc::not_supported);
 		}
-		size_t ProcessStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> ProcessStream::Write(const char* Data, size_t Length)
 		{
 			VI_ASSERT(InputFd > 0, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			return write(InputFd, Data, Length);
+			VI_TRACE("[sh] fd %i write %i bytes", GetWriteableFd(), (int)Length);
+			int Value = write(InputFd, Data, Length);
+			if (Value >= 0)
+				return (size_t)Value;
+
+			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		size_t ProcessStream::Tell()
+		ExpectsIO<size_t> ProcessStream::Tell()
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_MEASURE(Timings::FileSystem);
-			auto Offset = OS::File::Tell64(OutputStream);
-			return Offset ? *Offset : 0;
+			return OS::File::Tell64(OutputStream);
 		}
 		socket_t ProcessStream::GetProcessId() const
 		{
@@ -8432,7 +8684,7 @@ namespace Vitex
 		}
 		bool ProcessStream::IsSized() const
 		{
-			return true;
+			return false;
 		}
 		bool ProcessStream::IsAlive()
 		{
@@ -8452,29 +8704,23 @@ namespace Vitex
 		FileTree::FileTree(const String& Folder) noexcept
 		{
 			auto Target = OS::Path::Resolve(Folder.c_str());
-			if (Target)
-			{
-				Vector<std::pair<String, FileEntry>> Entries;
-				if (!OS::Directory::Scan(Target->c_str(), &Entries))
-					return;
+			if (!Target)
+				return;
+
+			Vector<std::pair<String, FileEntry>> Entries;
+			if (!OS::Directory::Scan(Target->c_str(), &Entries))
+				return;
 				
-				Directories.reserve(Entries.size());
-				Files.reserve(Entries.size());
-				Path = *Target;
+			Directories.reserve(Entries.size());
+			Files.reserve(Entries.size());
+			Path = *Target;
 				
-				for (auto& Item : Entries)
-				{
-					if (!Item.second.IsDirectory)
-						Files.emplace_back(std::move(Item.first));
-					else
-						Directories.push_back(new FileTree(Item.first));
-				}
-			}
-			else
+			for (auto& Item : Entries)
 			{
-				Vector<String> Drives = OS::Directory::GetMounts();
-				for (auto& Drive : Drives)
-					Directories.push_back(new FileTree(Drive));
+				if (Item.second.IsDirectory)
+					Directories.push_back(new FileTree(*Target + VI_SPLITTER + Item.first));
+				else
+					Files.emplace_back(std::move(Item.first));
 			}
 		}
 		FileTree::~FileTree() noexcept
@@ -9259,6 +9505,17 @@ namespace Vitex
 #endif
 		}
 
+		void OS::File::SetOption(FsOption Option, bool Enabled)
+		{
+			if (Enabled)
+				Options |= (uint64_t)Option;
+			else
+				Options &= ~((uint64_t)Option);
+		}
+		bool OS::File::HasOption(FsOption Option)
+		{
+			return Options & (uint64_t)Option;
+		}
 		bool OS::File::IsExists(const char* Path)
 		{
 			VI_ASSERT(Path != nullptr, "path should be set");
@@ -9346,7 +9603,7 @@ namespace Vitex
 
 			return Result;
 		}
-		ExpectsIO<void> OS::File::Write(const String& Path, const char* Data, size_t Length)
+		ExpectsIO<size_t> OS::File::Write(const String& Path, const char* Data, size_t Length)
 		{
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
@@ -9354,15 +9611,17 @@ namespace Vitex
 			if (!Stream)
 				return Stream.Error();
 
-			size_t Size = Length > 0 ? Stream->Write(Data, Length) : 0;
+			if (!Length)
+			{
+				VI_RELEASE(Stream);
+				return 0;
+			}
+
+			auto Status = Stream->Write(Data, Length);
 			VI_RELEASE(Stream);
-
-			if (Size != Length)
-				return std::make_error_condition(std::errc::broken_pipe);
-
-			return Expectation::Met;
+			return Status;
 		}
-		ExpectsIO<void> OS::File::Write(const String& Path, const String& Data)
+		ExpectsIO<size_t> OS::File::Write(const String& Path, const String& Data)
 		{
 			return Write(Path, Data.c_str(), Data.size());
 		}
@@ -9527,13 +9786,14 @@ namespace Vitex
 				return Target.Error();
 
 			size_t Total = 0;
-			Stream* Streamer = *Target;
+			Stream* Pipe = *Target;
 			for (auto& Path : Paths)
 			{
 				auto Base = Open(Path, FileMode::Binary_Read_Only);
 				if (Base)
 				{
-					Total += Base->ReadAll([&Streamer](char* Buffer, size_t Size) { Streamer->Write(Buffer, Size); });
+					auto Size = Base->ReadAll([&Pipe](char* Buffer, size_t Size) { Pipe->Write(Buffer, Size); });
+					Total += Size.Or(0);
 					VI_RELEASE(Base);
 				}
 			}
@@ -9579,6 +9839,8 @@ namespace Vitex
 		{
 			VI_MEASURE(Timings::FileSystem);
 			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
+			if (!HasOption(FsOption::AllowFs))
+				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
 			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
@@ -9605,8 +9867,8 @@ namespace Vitex
 			if (Path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
-			Network::Location URL(Path);
-			if (URL.Protocol == "file")
+			Network::Location Origin(Path);
+			if (Origin.Protocol == "file")
 			{
 				Stream* Target = nullptr;
 				if (Stringify::EndsWith(Path, ".gz"))
@@ -9623,9 +9885,33 @@ namespace Vitex
 
 				return Target;
 			}
-			else if (URL.Protocol == "http" || URL.Protocol == "https")
+			else if (Origin.Protocol == "http" || Origin.Protocol == "https")
 			{
-				Stream* Target = new WebStream(Async);
+				auto* Target = new WebStream(Async);
+				auto Result = Target->Open(Path.c_str(), Mode);
+				if (!Result)
+				{
+					VI_RELEASE(Target);
+					return Result.Error();
+				}
+
+				return Target;
+			}
+			else if (Origin.Protocol == "shell")
+			{
+				auto* Target = new ProcessStream();
+				auto Result = Target->Open(Origin.Path.c_str(), Mode);
+				if (!Result)
+				{
+					VI_RELEASE(Target);
+					return Result.Error();
+				}
+
+				return Target;
+			}
+			else if (Origin.Protocol == "mem")
+			{
+				auto* Target = new MemoryStream();
 				auto Result = Target->Open(Path.c_str(), Mode);
 				if (!Result)
 				{
@@ -9712,13 +9998,13 @@ namespace Vitex
 			bool IsVirtual = Stream->VirtualSize() > 0;
 			if (IsVirtual || Stream->IsSized())
 			{
-				size_t Size = IsVirtual ? Stream->VirtualSize() : Stream->Size();
+				size_t Size = IsVirtual ? Stream->VirtualSize() : Stream->Size().Or(0);
 				auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
-				if (!Stream->Read((char*)Bytes, Size))
+				auto Status = Stream->Read((char*)Bytes, Size);
+				if (!Status)
 				{
-					auto Condition = OS::Error::GetConditionOr();
 					VI_FREE(Bytes);
-					return Condition;
+					return Status.Error();
 				}
 
 				Bytes[Size] = '\0';
@@ -9729,16 +10015,15 @@ namespace Vitex
 			}
 
 			Core::String Data;
-			Stream->ReadAll([&Data](char* Buffer, size_t Length)
+			auto Status = Stream->ReadAll([&Data](char* Buffer, size_t Length)
 			{
 				Data.reserve(Data.size() + Length);
 				Data.append(Buffer, Length);
 			});
+			if (!Status)
+				return Status.Error();
 
 			size_t Size = Data.size();
-			if (Data.empty())
-				return OS::Error::GetConditionOr();
-
 			auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Data.size() + 1));
 			memcpy(Bytes, Data.data(), sizeof(unsigned char) * Data.size());
 			Bytes[Size] = '\0';
@@ -9777,6 +10062,7 @@ namespace Vitex
 
 			return Stringify::Split(*Result, '\n');
 		}
+		uint64_t OS::File::Options = (uint64_t)FsOption::AllowFs | (uint64_t)FsOption::AllowGz | (uint64_t)FsOption::AllowHttp | (uint64_t)FsOption::AllowHttps | (uint64_t)FsOption::AllowShell | (uint64_t)FsOption::AllowMem;
 
 		bool OS::Path::IsRemote(const char* Path)
 		{
@@ -10182,7 +10468,7 @@ namespace Vitex
 		ExpectsIO<int> OS::Process::Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute ps [ %s ]", Command.c_str());
+			VI_DEBUG("[os] execute sh [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			auto Result = Stream->Open(Command.c_str(), FileMode::Read_Only);
 			if (!Result)
@@ -10195,11 +10481,11 @@ namespace Vitex
 			char Buffer[CHUNK_SIZE];
 			while (true)
 			{
-				size_t Size = Stream->ReadLine(Buffer, sizeof(Buffer));
-				if (!Size)
+				auto Size = Stream->ReadLine(Buffer, sizeof(Buffer));
+				if (!Size || !*Size)
 					break;
 				else if (Notify && Callback)
-					Notify = Callback(Buffer, Size);
+					Notify = Callback(Buffer, *Size);
 			}
 
 			Result = Stream->Close();
@@ -10216,7 +10502,7 @@ namespace Vitex
 		ExpectsIO<Unique<ProcessStream>> OS::Process::Spawn(const String& Command, FileMode Mode)
 		{
 			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute ps [ %s ]", Command.c_str());
+			VI_DEBUG("[os] execute sh [ %s ]", Command.c_str());
 			ProcessStream* Stream = new ProcessStream();
 			auto Result = Stream->Open(Command.c_str(), Mode);
 			if (Result)

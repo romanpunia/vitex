@@ -12082,8 +12082,16 @@ namespace Vitex
 		void Schedule::SetThreadRecycling(bool Enabled)
 		{
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (Thread != nullptr)
-				Thread->Recyclable = Enabled;
+			if (!Thread)
+				return;
+
+			if (!Enabled)
+			{
+				if (Thread->Recyclable > 0)
+					--Thread->Recyclable;
+			}
+			else
+				++Thread->Recyclable;
 		}
 		bool Schedule::PostDebug(ThreadTask State, size_t Tasks)
 		{
@@ -12137,7 +12145,7 @@ namespace Vitex
 		bool Schedule::IsThreadRecyclable() const
 		{
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			return Thread ? Thread->Recyclable : false;
+			return Thread ? Thread->Recyclable > 0 : false;
 		}
 		void Schedule::InitializeSpawnTrigger()
 		{

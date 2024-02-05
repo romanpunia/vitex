@@ -40,8 +40,9 @@ extern "C"
 #define CSS_MESSAGE_STYLE "html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;background-color:#101010;color:#fff;}body{display:flex;align-items:center;justify-content:center;height:100%%;}"
 #define CSS_NORMAL_FONT "div{text-align:center;}"
 #define CSS_SMALL_FONT "h1{font-size:16px;font-weight:normal;}"
-#define WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-#define MAX_REDIRECTS 128
+#define HTTP_WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define HTTP_MAX_REDIRECTS 128
+#define HTTP_HRM_SIZE 1024 * 1024 * 4
 #define GZ_HEADER_SIZE 17
 #pragma warning(push)
 #pragma warning(disable: 4996)
@@ -52,6 +53,18 @@ namespace Vitex
 	{
 		namespace HTTP
 		{
+			static bool PathTrailingCheck(const Core::String& Path)
+			{
+#ifdef VI_MICROSOFT
+				return !Path.empty() && (Path.back() == '/' || Path.back() == '\\');
+#else
+				return !Path.empty() && Path.back() == '/';
+#endif
+			}
+			static bool ConnectionValid(Connection* Target)
+			{
+				return Target && Target->Root && Target->Route && Target->Route->Router;
+			}
 			static void TextAppend(Core::Vector<char>& Array, const Core::String& Src)
 			{
 				Array.insert(Array.end(), Src.begin(), Src.end());
@@ -71,18 +84,6 @@ namespace Vitex
 			static Core::String TextSubstring(Core::Vector<char>& Array, size_t Offset, size_t Size)
 			{
 				return Core::String(Array.data() + Offset, Size);
-			}
-			static Core::String TextHTML(const Core::String& Result)
-			{
-				if (Result.empty())
-					return Result;
-
-				Core::String Copy(Result);
-				Core::Stringify::Replace(Copy, "&", "&amp;");
-				Core::Stringify::Replace(Copy, "<", "&lt;");
-				Core::Stringify::Replace(Copy, ">", "&gt;");
-				Core::Stringify::Replace(Copy, "\n", "<br>");
-				return Copy;
 			}
 			static const char* HeaderText(const HeaderMapping& Headers, const Core::String& Key)
 			{
@@ -232,30 +233,38 @@ namespace Vitex
 							Dequeue();
 					}
 				});
-				if (!Status)
-					return Core::SystemException(Status.Error() == std::errc::operation_would_block ? "ws send delay" : "ws send error", std::move(Status.Error()));
+				if (Status)
+					return *Status;
+				else if (Status.Error() == std::errc::operation_would_block)
+					return (size_t)0;
 
-				return *Status;
+				return Core::SystemException("ws send error", std::move(Status.Error()));
 			}
-			Core::ExpectsSystem<void> WebSocketFrame::Finish()
+			Core::ExpectsSystem<void> WebSocketFrame::SendClose(const WebSocketCallback& Callback)
 			{
 				if (Deadly)
+				{
+					if (Callback)
+						Callback(this);
 					return Core::SystemException("ws connection is closed: fd " + Core::ToString(Stream->GetFd()), std::make_error_condition(std::errc::operation_not_permitted));
+				}
 
 				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
 				{
-					Next();
+					if (Callback)
+						Callback(this);
 					return Core::Expectation::Met;
 				}
 
 				if (!Active)
+				{
+					if (Callback)
+						Callback(this);
 					return Core::SystemException("ws connection is closing: fd " + Core::ToString(Stream->GetFd()), std::make_error_condition(std::errc::operation_not_permitted));
+				}
 
 				Finalize();
-				auto Status = Send("", 0, WebSocketOp::Close, [this](WebSocketFrame*)
-				{
-					Next();
-				});
+				auto Status = Send("", 0, WebSocketOp::Close, Callback);
 				if (!Status)
 					return Status.Error();
 
@@ -394,7 +403,7 @@ namespace Vitex
 						VI_DEBUG("[websocket] sock %i frame close", (int)Stream->GetFd());
 						Unique.Negate();
 						if (!Receive || !Receive(this, Opcode, "", 0))
-							Finish();
+							SendClose(std::bind(&WebSocketFrame::Next, std::placeholders::_1));
 					}
 					else if (Receive)
 					{
@@ -421,7 +430,7 @@ namespace Vitex
 					else
 					{
 						Unique.Negate();
-						Finish();
+						SendClose(std::bind(&WebSocketFrame::Next, std::placeholders::_1));
 					}
 				}
 			}
@@ -464,67 +473,49 @@ namespace Vitex
 				return true;
 			}
 
-			RouteGroup::RouteGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
+			RouterGroup::RouterGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
 			{
 			}
-			RouteGroup::~RouteGroup() noexcept
+			RouterGroup::~RouterGroup() noexcept
 			{
 				for (auto* Entry : Routes)
 					VI_RELEASE(Entry);
 				Routes.clear();
 			}
 
-			RouteEntry::RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source)
+			RouterEntry* RouterEntry::From(const RouterEntry& Other, const Compute::RegexSource& Source)
 			{
-				VI_ASSERT(Other != nullptr, "other should be set");
-				Callbacks = Other->Callbacks;
-				Auth = Other->Auth;
-				Compression = Other->Compression;
-				HiddenFiles = Other->HiddenFiles;
-				ErrorFiles = Other->ErrorFiles;
-				MimeTypes = Other->MimeTypes;
-				IndexFiles = Other->IndexFiles;
-				TryFiles = Other->TryFiles;
-				DisallowedMethods = Other->DisallowedMethods;
-				DocumentRoot = Other->DocumentRoot;
-				CharSet = Other->CharSet;
-				ProxyIpAddress = Other->ProxyIpAddress;
-				AccessControlAllowOrigin = Other->AccessControlAllowOrigin;
-				Redirect = Other->Redirect;
-				Override = Other->Override;
-				WebSocketTimeout = Other->WebSocketTimeout;
-				StaticFileMaxAge = Other->StaticFileMaxAge;
-				Level = Other->Level;
-				AllowDirectoryListing = Other->AllowDirectoryListing;
-				AllowWebSocket = Other->AllowWebSocket;
-				AllowSendFile = Other->AllowSendFile;
-				Site = Other->Site;
-				Location = Source;
+				RouterEntry* Route = new RouterEntry(Other);
+				Route->Location = Source;
+				return Route;
 			}
 
-			SiteEntry::SiteEntry() : Base(new RouteEntry())
+			MapRouter::MapRouter() : Base(new RouterEntry())
 			{
 				Base->Location = Compute::RegexSource("/");
-				Base->Site = this;
+				Base->Router = this;
 			}
-			SiteEntry::~SiteEntry() noexcept
+			MapRouter::~MapRouter()
 			{
+				if (Callbacks.OnDestroy != nullptr)
+					Callbacks.OnDestroy(this);
+
 				for (auto& Item : Groups)
 					VI_RELEASE(Item);
 
 				Groups.clear();
 				VI_CLEAR(Base);
 			}
-			void SiteEntry::Sort()
+			void MapRouter::Sort()
 			{
-				VI_SORT(Groups.begin(), Groups.end(), [](const RouteGroup* A, const RouteGroup* B)
+				VI_SORT(Groups.begin(), Groups.end(), [](const RouterGroup* A, const RouterGroup* B)
 				{
 					return A->Match.size() > B->Match.size();
 				});
 
 				for (auto& Group : Groups)
 				{
-					static auto Comparator = [](const RouteEntry* A, const RouteEntry* B)
+					static auto Comparator = [](const RouterEntry* A, const RouterEntry* B)
 					{
 						if (A->Location.GetRegex().empty())
 							return false;
@@ -548,7 +539,7 @@ namespace Vitex
 					VI_SORT(Group->Routes.begin(), Group->Routes.end(), Comparator);
 				}
 			}
-			RouteGroup* SiteEntry::Group(const Core::String& Match, RouteMode Mode)
+			RouterGroup* MapRouter::Group(const Core::String& Match, RouteMode Mode)
 			{
 				for (auto& Group : Groups)
 				{
@@ -556,17 +547,17 @@ namespace Vitex
 						return Group;
 				}
 
-				auto* Result = new RouteGroup(Match, Mode);
+				auto* Result = new RouterGroup(Match, Mode);
 				Groups.emplace_back(Result);
 
 				return Result;
 			}
-			RouteEntry* SiteEntry::Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps)
+			RouterEntry* MapRouter::Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps)
 			{
 				if (Pattern.empty() || Pattern == "/")
 					return Base;
 
-				HTTP::RouteGroup* Source = nullptr;
+				HTTP::RouterGroup* Source = nullptr;
 				for (auto& Group : Groups)
 				{
 					if (Group->Match != Match || Group->Mode != Mode)
@@ -582,7 +573,7 @@ namespace Vitex
 
 				if (!Source)
 				{
-					auto* Result = new RouteGroup(Match, Mode);
+					auto* Result = new RouterGroup(Match, Mode);
 					Groups.emplace_back(Result);
 					Source = Groups.back();
 				}
@@ -590,7 +581,7 @@ namespace Vitex
 				if (!InheritProps)
 					return Route(Pattern, Source, nullptr);
 
-				HTTP::RouteEntry* From = Base;
+				HTTP::RouterEntry* From = Base;
 				Compute::RegexResult Result;
 				Core::String Src(Pattern);
 				Core::Stringify::ToLower(Src);
@@ -615,22 +606,23 @@ namespace Vitex
 
 				return Route(Pattern, Source, From);
 			}
-			RouteEntry* SiteEntry::Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From)
+			RouterEntry* MapRouter::Route(const Core::String& Pattern, RouterGroup* Group, RouterEntry* From)
 			{
 				VI_ASSERT(Group != nullptr, "group should be set");
 				if (From != nullptr)
 				{
-					HTTP::RouteEntry* Result = new HTTP::RouteEntry(From, Compute::RegexSource(Pattern));
+					HTTP::RouterEntry* Result = HTTP::RouterEntry::From(*From, Compute::RegexSource(Pattern));
 					Group->Routes.push_back(Result);
 					return Result;
 				}
 
-				HTTP::RouteEntry* Result = new HTTP::RouteEntry();
+				HTTP::RouterEntry* Result = new HTTP::RouterEntry();
 				Result->Location = Compute::RegexSource(Pattern);
+				Result->Router = this;
 				Group->Routes.push_back(Result);
 				return Result;
 			}
-			bool SiteEntry::Remove(RouteEntry* Source)
+			bool MapRouter::Remove(RouterEntry* Source)
 			{
 				VI_ASSERT(Source != nullptr, "source should be set");
 				for (auto& Group : Groups)
@@ -646,208 +638,174 @@ namespace Vitex
 
 				return false;
 			}
-			bool SiteEntry::Get(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Get(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Get("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Get = Callback;
 				return true;
 			}
-			bool SiteEntry::Post(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Post(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Post("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Post = Callback;
 				return true;
 			}
-			bool SiteEntry::Put(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Put(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Put("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Put = Callback;
 				return true;
 			}
-			bool SiteEntry::Patch(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Patch(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Patch("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Patch = Callback;
 				return true;
 			}
-			bool SiteEntry::Delete(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Delete(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Delete("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Delete = Callback;
 				return true;
 			}
-			bool SiteEntry::Options(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Options(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Options("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Options = Callback;
 				return true;
 			}
-			bool SiteEntry::Access(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Access(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return Access("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Access = Callback;
 				return true;
 			}
-			bool SiteEntry::Headers(const char* Pattern, const HeaderCallback& Callback)
+			bool MapRouter::Headers(const char* Pattern, const HeaderCallback& Callback)
 			{
 				return Headers("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Headers(const Core::String& Match, RouteMode Mode, const char* Pattern, const HeaderCallback& Callback)
+			bool MapRouter::Headers(const Core::String& Match, RouteMode Mode, const char* Pattern, const HeaderCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Headers = Callback;
 				return true;
 			}
-			bool SiteEntry::Authorize(const char* Pattern, const AuthorizeCallback& Callback)
+			bool MapRouter::Authorize(const char* Pattern, const AuthorizeCallback& Callback)
 			{
 				return Authorize("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::Authorize(const Core::String& Match, RouteMode Mode, const char* Pattern, const AuthorizeCallback& Callback)
+			bool MapRouter::Authorize(const Core::String& Match, RouteMode Mode, const char* Pattern, const AuthorizeCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Authorize = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketInitiate(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::WebSocketInitiate(const char* Pattern, const SuccessCallback& Callback)
 			{
 				return WebSocketInitiate("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketInitiate(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::WebSocketInitiate(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.WebSocket.Initiate = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback)
 			{
 				return WebSocketConnect("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.WebSocket.Connect = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback)
 			{
 				return WebSocketDisconnect("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.WebSocket.Disconnect = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback)
+			bool MapRouter::WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback)
 			{
 				return WebSocketReceive("", RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntry::WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
+			bool MapRouter::WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern, true);
+				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.WebSocket.Receive = Callback;
 				return true;
-			}
-
-			MapRouter::MapRouter()
-			{
-			}
-			MapRouter::~MapRouter()
-			{
-				if (Lifetime.Destroy != nullptr)
-					Lifetime.Destroy(this);
-				for (auto& Entry : Sites)
-					VI_RELEASE(Entry.second);
-				Sites.clear();
-			}
-			SiteEntry* MapRouter::Site()
-			{
-				return Site("*");
-			}
-			SiteEntry* MapRouter::Site(const char* Pattern)
-			{
-				VI_ASSERT(Pattern != nullptr, "pattern should be set");
-				auto It = Sites.find(Pattern);
-				if (It != Sites.end())
-					return It->second;
-
-				Core::String Name = Pattern;
-				if (!Name.empty())
-					Core::Stringify::ToLower(Name);
-				else
-					Name = "*";
-
-				HTTP::SiteEntry* Result = new HTTP::SiteEntry();
-				Sites[Name] = Result;
-
-				return Result;
 			}
 
 			void Resource::PutHeader(const Core::String& Label, const Core::String& Value)
@@ -932,17 +890,20 @@ namespace Vitex
 				memset(Version, 0, sizeof(Version));
 				memcpy((void*)Version, (void*)Value.c_str(), std::min<size_t>(Value.size(), sizeof(Version)));
 			}
-			void RequestFrame::PutHeader(const Core::String& Key, const Core::String& Value)
+			Core::String& RequestFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				Headers[Key].push_back(Value);
+				auto& Range = Headers[Key];
+				Range.push_back(Value);
+				return Range.back();
 			}
-			void RequestFrame::SetHeader(const Core::String& Key, const Core::String& Value)
+			Core::String& RequestFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
 				Range.clear();
 				Range.push_back(Value);
+				return Range.back();
 			}
 			void RequestFrame::Cleanup()
 			{
@@ -1120,17 +1081,20 @@ namespace Vitex
 			ResponseFrame::ResponseFrame() : StatusCode(-1), Error(false)
 			{
 			}
-			void ResponseFrame::PutHeader(const Core::String& Key, const Core::String& Value)
+			Core::String& ResponseFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				Headers[Key].push_back(Value);
+				auto& Range = Headers[Key];
+				Range.push_back(Value);
+				return Range.back();
 			}
-			void ResponseFrame::SetHeader(const Core::String& Key, const Core::String& Value)
+			Core::String& ResponseFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
 				Range.clear();
 				Range.push_back(Value);
+				return Range.back();
 			}
 			void ResponseFrame::SetCookie(const Cookie& Value)
 			{
@@ -1333,17 +1297,20 @@ namespace Vitex
 			FetchFrame::FetchFrame() : Timeout(10000), VerifyPeers(9), MaxSize(PAYLOAD_SIZE)
 			{
 			}
-			void FetchFrame::PutHeader(const Core::String& Key, const Core::String& Value)
+			Core::String& FetchFrame::PutHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				Headers[Key].push_back(Value);
+				auto& Range = Headers[Key];
+				Range.push_back(Value);
+				return Range.back();
 			}
-			void FetchFrame::SetHeader(const Core::String& Key, const Core::String& Value)
+			Core::String& FetchFrame::SetHeader(const Core::String& Key, const Core::String& Value)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto& Range = Headers[Key];
 				Range.clear();
 				Range.push_back(Value);
+				return Range.back();
 			}
 			void FetchFrame::Cleanup()
 			{
@@ -1535,16 +1502,257 @@ namespace Vitex
 			}
 			void Connection::Reset(bool Fully)
 			{
+				VI_ASSERT(!Route || (Route->Router && Route->Router->Base), "router should be valid");
 				if (!Fully)
-					Info.Close = (Info.Close || Response.StatusCode < 0);
+					Info.Abort = (Info.Abort || Response.StatusCode <= 0);
 
-				Route = nullptr;
+				if (Route != nullptr)
+					Route = Route->Router->Base;
 				Request.Cleanup();
 				Response.Cleanup();
 				SocketConnection::Reset(Fully);
 			}
+			bool Connection::ComposeResponse(bool ApplyErrorResponse, HeadersCallback&& Callback)
+			{
+				VI_ASSERT(ConnectionValid(this), "connection should be valid");
+				VI_ASSERT(Callback != nullptr, "callback should be set");
+			Retry:
+				auto* Content = HrmCache::Get()->Pop();
+				const char* StatusText = Utils::StatusMessage(Response.StatusCode);
+				Content->append(Request.Version).append(" ");
+				Content->append(Core::ToString(Response.StatusCode)).append(" ");
+				Content->append(StatusText).append("\r\n");
+
+				const char* ContentType = nullptr;
+				if (ApplyErrorResponse)
+				{
+					char Buffer[Core::BLOB_SIZE];
+					int Size = snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Info.Message.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Info.Message.empty() ? StatusText : Info.Message.c_str());
+					if (Size >= 0)
+					{
+						Response.Content.Assign(Buffer, (size_t)Size);
+						Response.SetHeader("Content-Length", Core::ToString(Size));
+						ContentType = Response.GetHeader("Content-Type");
+						if (!ContentType)
+							ContentType = Response.SetHeader("Content-Type", "text/html; charset=" + Route->CharSet).c_str();
+					}
+				}
+
+				if (!Response.GetHeader("Date"))
+				{
+					char Buffer[64];
+					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
+					Content->append("Date: ").append(Buffer).append("\r\n");
+				}
+
+				if (!Response.GetHeader("Connection"))
+					Content->append(Utils::ConnectionResolve(this));
+
+				if (!Response.GetHeader("Accept-Ranges"))
+					Content->append("Accept-Ranges: bytes\r\n", 22);
+
+				Core::Option<Core::String> Boundary = Core::Optional::None;
+				if (!ContentType)
+				{
+					ContentType = Response.GetHeader("Content-Type");
+					if (!ContentType)
+					{
+						ContentType = Utils::ContentType(Request.Path, &Route->MimeTypes);
+						if (Request.GetHeader("Range") != nullptr)
+						{
+							Boundary = Parsing::ParseMultipartDataBoundary();
+							Content->append("Content-Type: multipart/byteranges; boundary=").append(*Boundary).append("; charset=").append(Route->CharSet).append("\r\n");
+						}
+						else
+							Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Route->CharSet).append("\r\n");
+					}
+				}
+
+				if (!Response.Content.Data.empty())
+				{
+#ifdef VI_ZLIB
+					bool Deflate = false, Gzip = false;
+					if (Resources::ResourceCompressed(this, Response.Content.Data.size()))
+					{
+						const char* AcceptEncoding = Request.GetHeader("Accept-Encoding");
+						if (AcceptEncoding != nullptr)
+						{
+							Deflate = strstr(AcceptEncoding, "deflate") != nullptr;
+							Gzip = strstr(AcceptEncoding, "gzip") != nullptr;
+						}
+
+						if (AcceptEncoding != nullptr && (Deflate || Gzip))
+						{
+							z_stream fStream;
+							fStream.zalloc = Z_NULL;
+							fStream.zfree = Z_NULL;
+							fStream.opaque = Z_NULL;
+							fStream.avail_in = (uInt)Response.Content.Data.size();
+							fStream.next_in = (Bytef*)Response.Content.Data.data();
+
+							if (deflateInit2(&fStream, Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Route->Compression.MemoryLevel, (int)Route->Compression.Tune) == Z_OK)
+							{
+								Core::String Buffer(Response.Content.Data.size(), '\0');
+								fStream.avail_out = (uInt)Buffer.size();
+								fStream.next_out = (Bytef*)Buffer.c_str();
+								bool Compress = (deflate(&fStream, Z_FINISH) == Z_STREAM_END);
+								bool Flush = (deflateEnd(&fStream) == Z_OK);
+
+								if (Compress && Flush)
+								{
+									Response.Content.Assign(Buffer.c_str(), (size_t)fStream.total_out);
+									if (!Response.GetHeader("Content-Encoding"))
+									{
+										if (Gzip)
+											Content->append("Content-Encoding: gzip\r\n", 24);
+										else
+											Content->append("Content-Encoding: deflate\r\n", 27);
+									}
+								}
+							}
+						}
+					}
+#endif
+					if (Response.StatusCode != 413 && Request.GetHeader("Range") != nullptr)
+					{
+						Core::Vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
+						if (Ranges.size() > 1)
+						{
+							Core::String Data;
+							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
+							{
+								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Content.Data.size());
+								Core::String ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
+								if (Data.size() > Root->Router->MaxHeapBuffer)
+								{
+									Info.Message.assign("Content range produced too much data.");
+									Response.StatusCode = 413;
+									Response.Content.Data.clear();
+									HrmCache::Get()->Push(Content);
+									goto Retry;
+								}
+
+								Data.append("--", 2);
+								if (Boundary)
+									Data.append(*Boundary);
+								Data.append("\r\n", 2);
+
+								if (ContentType != nullptr)
+								{
+									Data.append("Content-Type: ", 14);
+									Data.append(ContentType);
+									Data.append("\r\n", 2);
+								}
+
+								Data.append("Content-Range: ", 15);
+								Data.append(ContentRange.c_str(), ContentRange.size());
+								Data.append("\r\n", 2);
+								Data.append("\r\n", 2);
+								if (Offset.second > 0)
+									Data.append(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
+								Data.append("\r\n", 2);
+							}
+
+							Data.append("--", 2);
+							if (Boundary)
+								Data.append(*Boundary);
+							Data.append("--\r\n", 4);
+							Response.Content.Assign(Data);
+						}
+						else if (!Ranges.empty())
+						{
+							auto Range = Ranges.begin();
+							bool IsFullLength = (Range->first == -1 && Range->second == -1);
+							std::pair<size_t, size_t> Offset = Request.GetRange(Range, Response.Content.Data.size());
+							if (!Response.GetHeader("Content-Range"))
+								Content->append("Content-Range: ").append(Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size())).append("\r\n");
+							if (!Offset.second)
+								Response.Content.Data.clear();
+							else if (!IsFullLength)
+								Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
+						}
+					}
+
+					if (!Response.GetHeader("Content-Length"))
+						Content->append("Content-Length: ").append(Core::ToString(Response.Content.Data.size())).append("\r\n");
+				}
+				else if (!Response.GetHeader("Content-Length"))
+					Content->append("Content-Length: 0\r\n", 19);
+
+				if (Request.User.Type == Auth::Denied && !Response.GetHeader("WWW-Authenticate"))
+					Content->append("WWW-Authenticate: " + Route->Auth.Type + " realm=\"" + Route->Auth.Realm + "\"\r\n");
+
+				Paths::ConstructHeadFull(&Request, &Response, false, *Content);
+				if (Route->Callbacks.Headers)
+					Route->Callbacks.Headers(this, *Content);
+
+				Content->append("\r\n", 2);
+				auto Status = Stream->WriteAsync(Content->c_str(), Content->size(), [this, Content, Callback = std::move(Callback)](SocketPoll Event) mutable
+				{
+					HrmCache::Get()->Push(Content);
+					Callback(this, Event);
+				}, false);
+				return Status || Status.Error() == std::errc::operation_would_block;
+			}
+			bool Connection::ComposeErrorRequested()
+			{
+				return Response.StatusCode >= 400 && !Response.Error && Response.Content.Data.empty();
+			}
+			bool Connection::WaitingForWebSocket()
+			{
+				if (WebSocket != nullptr && !WebSocket->IsFinished())
+				{
+					WebSocket->SendClose([](WebSocketFrame* Frame) { Frame->Next(); });
+					return true;
+				}
+
+				VI_CLEAR(WebSocket);
+				return false;
+			}
+			bool Connection::SendHeaders(int StatusCode, bool SpecifyTransferEncoding, HeadersCallback&& Callback)
+			{
+				Response.StatusCode = StatusCode;
+				if (Response.StatusCode <= 0 || Stream->Outcome > 0 || !Response.Content.Data.empty())
+					return false;
+
+				if (SpecifyTransferEncoding && !Response.GetHeader("Transfer-Encoding"))
+					Response.SetHeader("Transfer-Encoding", "chunked");
+
+				ComposeResponse(ComposeErrorRequested(), std::move(Callback));
+				return true;
+			}
+			bool Connection::SendChunk(const Core::String& Chunk, HeadersCallback&& Callback)
+			{
+				if (Response.StatusCode <= 0 || !Stream->Outcome || !Response.Content.Data.empty())
+					return false;
+
+				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
+				bool IsTransferEncodingChunked = (TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"));
+				if (IsTransferEncodingChunked)
+				{
+					if (!Chunk.empty())
+					{
+						Core::String Content = Core::Stringify::Text("%X\r\n", (unsigned int)Chunk.size());
+						Content.append(Chunk);
+						Content.append("\r\n");
+						Stream->WriteAsync(Content.c_str(), Content.size(), std::bind(Callback, this, std::placeholders::_1));
+					}
+					else
+						Stream->WriteAsync("0\r\n\r\n", 5, std::bind(Callback, this, std::placeholders::_1), false);
+				}
+				else
+				{
+					if (Chunk.empty())
+						return false;
+
+					Stream->WriteAsync(Chunk.c_str(), Chunk.size(), std::bind(Callback, this, std::placeholders::_1));
+				}
+
+				return true;
+			}
 			bool Connection::Fetch(ContentCallback&& Callback, bool Eat)
 			{
+				VI_ASSERT(ConnectionValid(this), "connection should be valid");
 				if (!Request.Content.Resources.empty())
 				{
 					if (Callback)
@@ -1630,7 +1838,7 @@ namespace Vitex
 							else if (Callback)
 								Callback(this, SocketPoll::Next, Buffer, Recv);
 
-							if (!Route || Request.Content.Data.size() < Root->Router->MaxNetBuffer)
+							if (Request.Content.Data.size() < Root->Router->MaxNetBuffer)
 								Request.Content.Append(Buffer, Recv);
 							return Result == -2;
 						}
@@ -1644,7 +1852,7 @@ namespace Vitex
 						return true;
 					});
 				}
-				else if (!Route || ContentLength > Root->Router->MaxHeapBuffer || ContentLength > Root->Router->MaxNetBuffer)
+				else if (ContentLength > Root->Router->MaxHeapBuffer || ContentLength > Root->Router->MaxNetBuffer)
 				{
 					Request.Content.Exceeds = true;
 					if (Callback)
@@ -1670,7 +1878,7 @@ namespace Vitex
 						if (Callback)
 							Callback(this, SocketPoll::Next, Buffer, Recv);
 
-						if (!Route || Request.Content.Data.size() < Root->Router->MaxHeapBuffer)
+						if (Request.Content.Data.size() < Root->Router->MaxHeapBuffer)
 							Request.Content.Append(Buffer, Recv);
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -1685,6 +1893,7 @@ namespace Vitex
 			}
 			bool Connection::Store(ResourceCallback&& Callback, bool Eat)
 			{
+				VI_ASSERT(ConnectionValid(this), "connection should be valid");
 				if (!Request.Content.Resources.empty())
 				{
 					if (!Callback)
@@ -1719,7 +1928,7 @@ namespace Vitex
 				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
 				if (ContentType != nullptr && BoundaryName != nullptr)
 				{
-					if (Route->Site->ResourceRoot.empty())
+					if (Route->Router->TemporaryDirectory.empty())
 						Eat = true;
 
 					Core::String Boundary("--");
@@ -1859,265 +2068,43 @@ namespace Vitex
 				}, true);
 				return false;
 			}
-			bool Connection::Finish()
+			bool Connection::Next()
 			{
-				Core::UMutex<std::mutex> Unique(Info.Sync);
-				if (WebSocket != nullptr)
-				{
-					if (!WebSocket->IsFinished())
-					{
-						Unique.Negate();
-						WebSocket->Finish();
-						return false;
-					}
+				VI_ASSERT(ConnectionValid(this), "connection should be valid");
+				if (WaitingForWebSocket())
+					return false;
 
-					VI_CLEAR(WebSocket);
-				}
-
-				Unique.Negate();
-				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
+				if (Response.StatusCode <= 0 || Stream->Outcome > 0)
 					return !!Root->Continue(this);
 
-				if (Response.StatusCode >= 400 && !Response.Error && Response.Content.Data.empty())
+				bool ApplyErrorResponse = ComposeErrorRequested();
+				if (ApplyErrorResponse)
 				{
 					Response.Error = true;
-					if (Route != nullptr)
+					for (auto& Page : Route->ErrorFiles)
 					{
-						for (auto& Page : Route->ErrorFiles)
-						{
-							if (Page.StatusCode != Response.StatusCode && Page.StatusCode != 0)
-								continue;
+						if (Page.StatusCode != Response.StatusCode && Page.StatusCode != 0)
+							continue;
 
-							Request.Path = Page.Pattern;
-							Response.SetHeader("X-Error", Info.Message);
-							return Routing::RouteGET(this);
-						}
+						Request.Path = Page.Pattern;
+						Response.SetHeader("X-Error", Info.Message);
+						return Routing::RouteGet(this);
 					}
+				}
 
-					const char* StatusText = Utils::StatusMessage(Response.StatusCode);
-					Core::String Content;
-					Content.append(Request.Version).append(" ");
-					Content.append(Core::ToString(Response.StatusCode)).append(" ");
-					Content.append(StatusText).append("\r\n");
-
-					Paths::ConstructHeadUncache(this, Content);
-					if (Route && Route->Callbacks.Headers)
-						Route->Callbacks.Headers(this, Content);
-
-					char Date[64];
-					Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Info.Start / 1000);
-
-					Core::String Auth;
-					if (Route && Request.User.Type == Auth::Denied)
-						Auth = "WWW-Authenticate: " + Route->Auth.Type + " realm=\"" + Route->Auth.Realm + "\"\r\n";
-
-					int HasContents = (Response.StatusCode > 199 && Response.StatusCode != 204 && Response.StatusCode != 304);
-					if (HasContents)
-					{
-						char Buffer[Core::BLOB_SIZE];
-						Core::String Reason = TextHTML(Info.Message);
-						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
-
-						if (Route && Route->Callbacks.Headers)
-							Route->Callbacks.Headers(this, Content);
-
-						size_t BufferSize = strlen(Buffer);
-						Content.append("Date: ").append(Date).append("\r\n");
-						Content.append(Utils::ConnectionResolve(this));
-						Content.append("Content-Type: text/html; charset=").append(Route ? Route->CharSet.c_str() : "utf-8").append("\r\n");
-						Content.append("Accept-Ranges: bytes\r\nContent-Length: ").append(Core::ToString(BufferSize)).append("\r\n");
-						Content.append(Auth).append("\r\n").append(Buffer, BufferSize);
-					}
+				return ComposeResponse(ApplyErrorResponse, [](Connection* Base, SocketPoll Event)
+				{
+					auto& Content = Base->Response.Content.Data;
+					if (Packet::IsDone(Event) && !Content.empty() && memcmp(Base->Request.Method, "HEAD", 4) != 0)
+						Base->Stream->WriteAsync(Content.data(), Content.size(), [Base](SocketPoll) { Base->Root->Continue(Base); }, false);
 					else
-					{
-						if (Route && Route->Callbacks.Headers)
-							Route->Callbacks.Headers(this, Content);
-
-						Content.append("Date: ").append(Date).append("\r\n");
-						Content.append(Utils::ConnectionResolve(this));
-						Content.append("Accept-Ranges: bytes\r\n");
-						Content.append(Auth).append("\r\n");
-					}
-
-					return !!Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
-					{
-						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
-							Root->Continue(this);
-					});
-				}
-
-				Core::String Content;
-				Content.append(Request.Version).append(" ");
-				Content.append(Core::ToString(Response.StatusCode)).append(" ");
-				Content.append(Utils::StatusMessage(Response.StatusCode)).append("\r\n");
-
-				if (!Response.GetHeader("Date"))
-				{
-					char Buffer[64];
-					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
-					Content.append("Date: ").append(Buffer).append("\r\n");
-				}
-
-				if (!Response.GetHeader("Connection"))
-					Content.append(Utils::ConnectionResolve(this));
-
-				const char* ContentType;
-				if (!Response.GetHeader("Accept-Ranges"))
-					Content.append("Accept-Ranges: bytes\r\n", 22);
-
-				Core::String Boundary;
-				if (!Response.GetHeader("Content-Type"))
-				{
-					if (Route != nullptr)
-						ContentType = Utils::ContentType(Request.Path, &Route->MimeTypes);
-					else
-						ContentType = "application/octet-stream";
-
-					if (Request.GetHeader("Range") != nullptr)
-					{
-						Boundary = Parsing::ParseMultipartDataBoundary();
-						Content.append("Content-Type: multipart/byteranges; boundary=").append(Boundary).append("; charset=").append(Route ? Route->CharSet.c_str() : "utf-8").append("\r\n");
-					}
-					else
-						Content.append("Content-Type: ").append(ContentType).append("; charset=").append(Route ? Route->CharSet.c_str() : "utf-8").append("\r\n");
-				}
-				else
-					ContentType = Response.GetHeader("Content-Type");
-
-				if (!Response.Content.Data.empty())
-				{
-#ifdef VI_ZLIB
-					bool Deflate = false, Gzip = false;
-					if (Resources::ResourceCompressed(this, Response.Content.Data.size()))
-					{
-						const char* AcceptEncoding = Request.GetHeader("Accept-Encoding");
-						if (AcceptEncoding != nullptr)
-						{
-							Deflate = strstr(AcceptEncoding, "deflate") != nullptr;
-							Gzip = strstr(AcceptEncoding, "gzip") != nullptr;
-						}
-
-						if (AcceptEncoding != nullptr && (Deflate || Gzip))
-						{
-							z_stream fStream;
-							fStream.zalloc = Z_NULL;
-							fStream.zfree = Z_NULL;
-							fStream.opaque = Z_NULL;
-							fStream.avail_in = (uInt)Response.Content.Data.size();
-							fStream.next_in = (Bytef*)Response.Content.Data.data();
-
-							if (deflateInit2(&fStream, Route ? Route->Compression.QualityLevel : 8, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Route ? Route->Compression.MemoryLevel : 8, Route ? (int)Route->Compression.Tune : 0) == Z_OK)
-							{
-								Core::String Buffer(Response.Content.Data.size(), '\0');
-								fStream.avail_out = (uInt)Buffer.size();
-								fStream.next_out = (Bytef*)Buffer.c_str();
-								bool Compress = (deflate(&fStream, Z_FINISH) == Z_STREAM_END);
-								bool Flush = (deflateEnd(&fStream) == Z_OK);
-
-								if (Compress && Flush)
-								{
-									Response.Content.Assign(Buffer.c_str(), (size_t)fStream.total_out);
-									if (!Response.GetHeader("Content-Encoding"))
-									{
-										if (Gzip)
-											Content.append("Content-Encoding: gzip\r\n", 24);
-										else
-											Content.append("Content-Encoding: deflate\r\n", 27);
-									}
-								}
-							}
-						}
-					}
-#endif
-					if (Request.GetHeader("Range") != nullptr)
-					{
-						Core::Vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
-						if (Ranges.size() > 1)
-						{
-							Core::String Data;
-							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
-							{
-								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Content.Data.size());
-								Core::String ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
-								if (Data.size() > Root->Router->MaxHeapBuffer)
-								{
-									Response.Content.Data.clear();
-									return Error(413, "Content range produced too much data.");
-								}
-
-								Data.append("--", 2);
-								Data.append(Boundary);
-								Data.append("\r\n", 2);
-
-								if (ContentType != nullptr)
-								{
-									Data.append("Content-Type: ", 14);
-									Data.append(ContentType);
-									Data.append("\r\n", 2);
-								}
-
-								Data.append("Content-Range: ", 15);
-								Data.append(ContentRange.c_str(), ContentRange.size());
-								Data.append("\r\n", 2);
-								Data.append("\r\n", 2);
-								if (Offset.second > 0)
-									Data.append(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
-								Data.append("\r\n", 2);
-							}
-
-							Data.append("--", 2);
-							Data.append(Boundary);
-							Data.append("--\r\n", 4);
-							Response.Content.Assign(Data);
-						}
-						else if (!Ranges.empty())
-						{
-							auto Range = Ranges.begin();
-							bool IsFullLength = (Range->first == -1 && Range->second == -1);
-							std::pair<size_t, size_t> Offset = Request.GetRange(Range, Response.Content.Data.size());
-							if (!Response.GetHeader("Content-Range"))
-								Content.append("Content-Range: ").append(Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size())).append("\r\n");
-							if (!Offset.second)
-								Response.Content.Data.clear();
-							else if (!IsFullLength)
-								Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
-						}
-					}
-
-					if (!Response.GetHeader("Content-Length"))
-						Content.append("Content-Length: ").append(Core::ToString(Response.Content.Data.size())).append("\r\n");
-				}
-				else if (!Response.GetHeader("Content-Length"))
-					Content.append("Content-Length: 0\r\n", 19);
-
-				Paths::ConstructHeadFull(&Request, &Response, false, Content);
-				if (Route && Route->Callbacks.Headers)
-					Route->Callbacks.Headers(this, Content);
-
-				Content.append("\r\n", 2);
-				return !!Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
-				{
-					if (Packet::IsDone(Event))
-					{
-						if (memcmp(Request.Method, "HEAD", 4) != 0 && !Response.Content.Data.empty())
-						{
-							Stream->WriteAsync(Response.Content.Data.data(), Response.Content.Data.size(), [this](SocketPoll Event)
-							{
-								if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
-									Root->Continue(this);
-							});
-						}
-						else
-							Root->Continue(this);
-					}
-					else if (Packet::IsErrorOrSkip(Event))
-						Root->Continue(this);
+						Base->Root->Continue(Base);
 				});
 			}
-			bool Connection::Finish(int StatusCode)
+			bool Connection::Next(int StatusCode)
 			{
 				Response.StatusCode = StatusCode;
-				return Finish();
+				return Next();
 			}
 
 			Query::Query() : Object(Core::Var::Set::Object())
@@ -2420,13 +2407,14 @@ namespace Vitex
 			}
 			Core::ExpectsSystem<void> Session::Write(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				Core::String Path = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				auto* Router = Base->Route->Router;
+				Core::String Path = Router->Session.Directory + FindSessionId(Base);
 				auto Stream = Core::OS::File::Open(Path.c_str(), "wb");
 				if (!Stream)
 					return Core::SystemException("session write error", std::move(Stream.Error()));
 
-				SessionExpires = time(nullptr) + Base->Route->Site->Session.Expires;
+				SessionExpires = time(nullptr) + Router->Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, *Stream);
 				Query->ConvertToJSONB(Query, [&Stream](Core::VarForm, const char* Buffer, size_t Size)
 				{
@@ -2438,8 +2426,8 @@ namespace Vitex
 			}
 			Core::ExpectsSystem<void> Session::Read(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				Core::String Path = Base->Route->Site->Session.DocumentRoot + FindSessionId(Base);
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				Core::String Path = Base->Route->Router->Session.Directory + FindSessionId(Base);
 				auto Stream = Core::OS::File::Open(Path.c_str(), "rb");
 				if (!Stream)
 					return Core::SystemException("session read error", std::move(Stream.Error()));
@@ -2477,8 +2465,8 @@ namespace Vitex
 				if (!SessionId.empty())
 					return SessionId;
 
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				const char* Value = Base->Request.GetCookie(Base->Route->Site->Session.Cookie.Name.c_str());
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				const char* Value = Base->Request.GetCookie(Base->Route->Router->Session.Cookie.Name.c_str());
 				if (!Value)
 					return GenerateSessionId(Base);
 
@@ -2486,7 +2474,7 @@ namespace Vitex
 			}
 			Core::String& Session::GenerateSessionId(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				int64_t Time = time(nullptr);
 				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Base->Request.Location + Core::ToString(Time));
 				if (Hash)
@@ -2494,18 +2482,19 @@ namespace Vitex
 				else
 					SessionId = Core::ToString(Time);
 
+				auto* Router = Base->Route->Router;
 				if (SessionExpires == 0)
-					SessionExpires = Time + Base->Route->Site->Session.Expires;
+					SessionExpires = Time + Router->Session.Expires;
 
 				Cookie Result;
 				Result.Value = SessionId;
-				Result.Name = Base->Route->Site->Session.Cookie.Name;
-				Result.Domain = Base->Route->Site->Session.Cookie.Domain;
-				Result.Path = Base->Route->Site->Session.Cookie.Path;
-				Result.SameSite = Base->Route->Site->Session.Cookie.SameSite;
-				Result.Secure = Base->Route->Site->Session.Cookie.Secure;
-				Result.HttpOnly = Base->Route->Site->Session.Cookie.HttpOnly;
-				Result.SetExpires(Time + (int64_t)Base->Route->Site->Session.Cookie.Expires);
+				Result.Name = Router->Session.Cookie.Name;
+				Result.Domain = Router->Session.Cookie.Domain;
+				Result.Path = Router->Session.Cookie.Path;
+				Result.SameSite = Router->Session.Cookie.SameSite;
+				Result.Secure = Router->Session.Cookie.Secure;
+				Result.HttpOnly = Router->Session.Cookie.HttpOnly;
+				Result.SetExpires(Time + (int64_t)Router->Session.Cookie.Expires);
 				Base->Response.SetCookie(std::move(Result));
 
 				return SessionId;
@@ -2546,7 +2535,7 @@ namespace Vitex
 				else
 					PrepareForNextParsing(nullptr, nullptr, nullptr, ForMultipart);
 			}
-			void Parser::PrepareForNextParsing(RouteEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart)
+			void Parser::PrepareForNextParsing(RouterEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart)
 			{
 				VI_FREE(Multipart.Boundary);
 				Multipart = MultipartData();
@@ -3775,32 +3764,89 @@ namespace Vitex
 				return true;
 			}
 
+			HrmCache::HrmCache() noexcept : HrmCache(HTTP_HRM_SIZE)
+			{
+			}
+			HrmCache::HrmCache(size_t MaxBytesStorage) noexcept : Capacity(MaxBytesStorage), Size(0)
+			{
+			}
+			HrmCache::~HrmCache() noexcept
+			{
+				Size = Capacity = 0;
+				while (!Queue.empty())
+				{
+					auto* Item = Queue.front();
+					VI_DELETE(basic_string, Item);
+					Queue.pop();
+				}
+			}
+			void HrmCache::ShrinkToFit() noexcept
+			{
+				size_t Freed = 0;
+				while (!Queue.empty() && Size > Capacity)
+				{
+					auto* Item = Queue.front();
+					size_t Bytes = Item->capacity();
+					Size -= std::min<size_t>(Size, Bytes);
+					Freed += Bytes;
+					VI_DELETE(basic_string, Item);
+					Queue.pop();
+				}
+				if (Freed > 0)
+					VI_DEBUG("[http] freed up %" PRIu64 " bytes from hrm cache", (uint64_t)Freed);
+			}
+			void HrmCache::Shrink() noexcept
+			{
+				Core::UMutex<std::mutex> Unique(Mutex);
+				ShrinkToFit();
+			}
+			void HrmCache::Rescale(size_t MaxBytesStorage) noexcept
+			{
+				Core::UMutex<std::mutex> Unique(Mutex);
+				Capacity = MaxBytesStorage;
+				ShrinkToFit();
+			}
+			void HrmCache::Push(Core::String* Entry)
+			{
+				Entry->clear();
+				Core::UMutex<std::mutex> Unique(Mutex);
+				Size += Entry->capacity();
+				Queue.push(Entry);
+				ShrinkToFit();
+			}
+			Core::String* HrmCache::Pop() noexcept
+			{
+				Core::UMutex<std::mutex> Unique(Mutex);
+				if (Queue.empty())
+					return VI_NEW(Core::String);
+
+				auto* Item = Queue.front();
+				Size -= std::min<size_t>(Size, Item->capacity());
+				Queue.pop();
+				return Item;
+			}
+
 			Core::String Utils::ConnectionResolve(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "connection should be set");
-				if (Base->Info.KeepAlive <= 0)
-					return "Connection: Close\r\n";
-
-				if (Base->Response.StatusCode == 401)
-					return "Connection: Close\r\n";
-
-				if (Base->Root->Router->KeepAliveMaxCount == 0)
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				auto* Router = Base->Root->Router;
+				if (Router->KeepAliveMaxCount < 0)
 					return "Connection: Close\r\n";
 
 				const char* Connection = Base->Request.GetHeader("Connection");
-				if (Connection != nullptr && Core::Stringify::CaseCompare(Connection, "keep-alive"))
+				if ((Connection != nullptr && Core::Stringify::CaseCompare(Connection, "keep-alive") != 0) || (!Connection && strcmp(Base->Request.Version, "1.1") != 0))
 				{
-					Base->Info.KeepAlive = 0;
+					Base->Info.Reuses = 1;
 					return "Connection: Close\r\n";
 				}
 
-				if (!Connection && strcmp(Base->Request.Version, "1.1") != 0)
+				if (Router->KeepAliveMaxCount == 0)
+					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Router->SocketTimeout / 1000) + "\r\n";
+
+				if (Base->Info.Reuses <= 1)
 					return "Connection: Close\r\n";
 
-				if (Base->Root->Router->KeepAliveMaxCount < 0)
-					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Base->Root->Router->SocketTimeout / 1000) + "\r\n";
-
-				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Base->Root->Router->SocketTimeout / 1000) + ", max=" + Core::ToString(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
+				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Router->SocketTimeout / 1000) + ", max=" + Core::ToString(Router->KeepAliveMaxCount) + "\r\n";
 			}
 			const char* Utils::ContentType(const Core::String& Path, Core::Vector<MimeType>* Types)
 			{
@@ -4000,14 +4046,17 @@ namespace Vitex
 
 			void Paths::ConstructPath(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (!Base->Route->Override.empty())
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				auto* Route = Base->Route;
+				if (!Route->Alias.empty())
 				{
-					Base->Request.Path.assign(Base->Route->Override);
-					if (Base->Route->Site->Callbacks.OnRewriteURL)
-						Base->Route->Site->Callbacks.OnRewriteURL(Base);
+					Base->Request.Path.assign(Route->Alias);
+					if (Route->Router->Callbacks.OnLocation)
+						Route->Router->Callbacks.OnLocation(Base);
 					return;
 				}
+				else if (Route->FilesDirectory.empty())
+					return;
 
 				for (size_t i = 0; i < Base->Request.Location.size(); i++)
 				{
@@ -4067,33 +4116,37 @@ namespace Vitex
 					}
 				}
 
-				*Next = '\0';
-				if (!Base->Request.Match.Empty() && Base->Request.Path.size() > 1)
+				int64_t Size = Buffer - Next;
+				if (Size > 0 && Size != (int64_t)Base->Request.Path.size())
+					Base->Request.Path.resize(Base->Request.Path.size() - (size_t)Size);
+
+				if (Base->Request.Path.size() > 1 && !Base->Request.Match.Empty())
 				{
 					auto& Match = Base->Request.Match.Get()[0];
 					size_t Start = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.Start);
 					size_t End = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.End);
 					Core::Stringify::RemovePart(Base->Request.Path, Start, End);
 				}
-				
-				if (!Base->Route->DocumentRoot.empty())
-				{
-					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
-					auto Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
-					if (Path)
-						Base->Request.Path = *Path;
-				}
+#ifdef VI_MICROSOFT
+				Core::Stringify::Replace(Base->Request.Path, '/', '\\');
+#endif
+				Base->Request.Path = Route->FilesDirectory + Base->Request.Path;
+				auto Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
+				if (Path)
+					Base->Request.Path = *Path;
 
-				if (Core::Stringify::EndsOf(Base->Request.Path, "/\\"))
+				bool PathTrailing = PathTrailingCheck(Base->Request.Path);
+				bool LocationTrailing = PathTrailingCheck(Base->Request.Location);
+				if (PathTrailing != LocationTrailing)
 				{
-					if (!Core::Stringify::EndsOf(Base->Request.Location, "/\\"))
+					if (LocationTrailing)
+						Base->Request.Path.append(1, VI_SPLITTER);
+					else
 						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
 				}
-				else if (Core::Stringify::EndsOf(Base->Request.Location, "/\\"))
-					Base->Request.Path.append(1, '/');
 
-				if (Base->Route->Site->Callbacks.OnRewriteURL)
-					Base->Route->Site->Callbacks.OnRewriteURL(Base);
+				if (Route->Router->Callbacks.OnLocation)
+					Route->Router->Callbacks.OnLocation(Base);
 			}
 			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String& Buffer)
 			{
@@ -4133,17 +4186,16 @@ namespace Vitex
 			}
 			void Paths::ConstructHeadCache(Connection* Base, Core::String& Buffer)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				if (!Base->Route->StaticFileMaxAge)
-					return ConstructHeadUncache(Base, Buffer);
+					return ConstructHeadUncache(Buffer);
 
 				Buffer.append("Cache-Control: max-age=");
 				Buffer.append(Core::ToString(Base->Route->StaticFileMaxAge));
 				Buffer.append("\r\n");
 			}
-			void Paths::ConstructHeadUncache(Connection* Base, Core::String& Buffer)
+			void Paths::ConstructHeadUncache(Core::String& Buffer)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
 				Buffer.append(
 					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
 					"Pragma: no-cache\r\n"
@@ -4152,44 +4204,33 @@ namespace Vitex
 			bool Paths::ConstructRoute(MapRouter* Router, Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				VI_ASSERT(Router != nullptr, "router should be set");
-
-				if (Router->Sites.empty())
-					return false;
-
-				auto* Host = Base->Request.GetHeaderBlob("Host");
-				if (!Host)
-					return false;
-
+				VI_ASSERT(Router != nullptr && Router->Base != nullptr, "router should be valid");
 				if (Base->Request.Location.empty() || Base->Request.Location.front() != '/')
 					return false;
 
-				Core::UnorderedMap<Core::String, SiteEntry*>::iterator It;
 				if (Router->Listeners.size() > 1)
 				{
-					auto Listen = Router->Listeners.find(*Host);
-					if (Listen == Router->Listeners.end())
-					{
-						Listen = Router->Listeners.find("*");
-						if (Listen == Router->Listeners.end())
-							return false;
-					}
+					auto* Host = Base->Request.GetHeaderBlob("Host");
+					if (!Host)
+						return false;
 
-					It = Router->Sites.find(Listen->first);
-					if (It == Router->Sites.end())
+					auto Listen = Router->Listeners.find(*Host);
+					if (Listen == Router->Listeners.end() && Router->Listeners.find("*") == Router->Listeners.end())
 						return false;
 				}
 				else
 				{
 					auto Listen = Router->Listeners.begin();
-					if (Listen->first != "*" && Listen->first != *Host)
-						return false;
-
-					It = Router->Sites.begin();
+					if (Listen->first.size() != 1 || Listen->first.front() != '*')
+					{
+						auto* Host = Base->Request.GetHeaderBlob("Host");
+						if (!Host || Listen->first != *Host)
+							return false;
+					}
 				}
 
 				Base->Request.Referrer = Base->Request.Location;
-				for (auto& Group : It->second->Groups)
+				for (auto& Group : Router->Groups)
 				{
 					Core::String& Location = Base->Request.Location;
 					if (!Group->Match.empty())
@@ -4217,11 +4258,12 @@ namespace Vitex
 						if (Location.empty())
 							Location.append(1, '/');
 
-						for (auto* Basis : Group->Routes)
+						for (auto* Next : Group->Routes)
 						{
-							if (Compute::Regex::Match(&Basis->Location, Base->Request.Match, Location))
+							VI_ASSERT(Next != nullptr, "route should be set");
+							if (Compute::Regex::Match(&Next->Location, Base->Request.Match, Location))
 							{
-								Base->Route = Basis;
+								Base->Route = Next;
 								return true;
 							}
 						}
@@ -4230,18 +4272,19 @@ namespace Vitex
 					}
 					else
 					{
-						for (auto* Basis : Group->Routes)
+						for (auto* Next : Group->Routes)
 						{
-							if (Compute::Regex::Match(&Basis->Location, Base->Request.Match, Location))
+							VI_ASSERT(Next != nullptr, "route should be set");
+							if (Compute::Regex::Match(&Next->Location, Base->Request.Match, Location))
 							{
-								Base->Route = Basis;
+								Base->Route = Next;
 								return true;
 							}
 						}
 					}
 				}
 
-				Base->Route = It->second->Base;
+				Base->Route = Router->Base;
 				return true;
 			}
 			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::String& NameA, const Core::FileEntry& A, const Core::String& NameB, const Core::FileEntry& B)
@@ -4361,7 +4404,7 @@ namespace Vitex
 					return false;
 				}
 
-				if (Parser->Frame.Route && Parser->Frame.Request->Content.Resources.size() >= Parser->Frame.Route->Site->MaxUploadableResources)
+				if (Parser->Frame.Route && Parser->Frame.Request->Content.Resources.size() >= Parser->Frame.Route->Router->MaxUploadableResources)
 				{
 					Parser->Frame.Close = true;
 					return false;
@@ -4376,7 +4419,7 @@ namespace Vitex
 
 				if (Parser->Frame.Route)
 				{
-					Parser->Frame.Source.Path = Parser->Frame.Route->Site->ResourceRoot;
+					Parser->Frame.Source.Path = Parser->Frame.Route->Router->TemporaryDirectory;
 					if (Parser->Frame.Source.Path.back() != '/' && Parser->Frame.Source.Path.back() != '\\')
 						Parser->Frame.Source.Path.append(1, '/');
 
@@ -4576,12 +4619,13 @@ namespace Vitex
 			}
 			bool Permissions::Authorize(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (!Base->Route->Callbacks.Authorize || Base->Route->Auth.Type.empty())
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				auto* Route = Base->Route;
+				if (!Route->Callbacks.Authorize || Route->Auth.Type.empty())
 					return true;
 
 				bool IsSupported = false;
-				for (auto& Item : Base->Route->Auth.Methods)
+				for (auto& Item : Route->Auth.Methods)
 				{
 					if (Item == Base->Request.Method)
 					{
@@ -4590,10 +4634,10 @@ namespace Vitex
 					}
 				}
 
-				if (!IsSupported && !Base->Route->Auth.Methods.empty())
+				if (!IsSupported && !Route->Auth.Methods.empty())
 				{
 					Base->Request.User.Type = Auth::Denied;
-					Base->Error(401, "Authorization method is not allowed");
+					Base->Abort(401, "Authorization method is not allowed");
 					return false;
 				}
 
@@ -4601,7 +4645,7 @@ namespace Vitex
 				if (!Authorization)
 				{
 					Base->Request.User.Type = Auth::Denied;
-					Base->Error(401, "Provide authorization header to continue.");
+					Base->Abort(401, "Provide authorization header to continue.");
 					return false;
 				}
 
@@ -4610,27 +4654,27 @@ namespace Vitex
 					Index++;
 
 				Core::String Type(Authorization, Index);
-				if (Type != Base->Route->Auth.Type)
+				if (Type != Route->Auth.Type)
 				{
 					Base->Request.User.Type = Auth::Denied;
-					Base->Error(401, "Authorization type \"%s\" is not allowed.", Type.c_str());
+					Base->Abort(401, "Authorization type \"%s\" is not allowed.", Type.c_str());
 					return false;
 				}
 
 				Base->Request.User.Token = Authorization + Index + 1;
-				if (Base->Route->Callbacks.Authorize(Base, &Base->Request.User))
+				if (Route->Callbacks.Authorize(Base, &Base->Request.User))
 				{
 					Base->Request.User.Type = Auth::Granted;
 					return true;
 				}
 
 				Base->Request.User.Type = Auth::Denied;
-				Base->Error(401, "Invalid user access credentials were provided. Access denied.");
+				Base->Abort(401, "Invalid user access credentials were provided. Access denied.");
 				return false;
 			}
 			bool Permissions::MethodAllowed(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				for (auto& Item : Base->Route->DisallowedMethods)
 				{
 					if (Item == Base->Request.Method)
@@ -4661,7 +4705,7 @@ namespace Vitex
 
 			bool Resources::ResourceHasAlternative(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				if (Base->Route->TryFiles.empty())
 					return false;
 
@@ -4678,13 +4722,12 @@ namespace Vitex
 			}
 			bool Resources::ResourceHidden(Connection* Base, Core::String* Path)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				if (Base->Route->HiddenFiles.empty())
 					return false;
 
-				const Core::String& Value = (Path ? *Path : Base->Request.Path);
 				Compute::RegexResult Result;
-
+				const auto& Value = (Path ? *Path : Base->Request.Path);
 				for (auto& Item : Base->Route->HiddenFiles)
 				{
 					if (Compute::Regex::Match(&Item, Result, Value))
@@ -4695,21 +4738,14 @@ namespace Vitex
 			}
 			bool Resources::ResourceIndexed(Connection* Base, Core::FileEntry* Resource)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
-
 				if (Base->Route->IndexFiles.empty())
 					return false;
 
 				Core::String Path = Base->Request.Path;
 				if (!Core::Stringify::EndsOf(Path, "/\\"))
-				{
-#ifdef VI_MICROSOFT
-					Path.append(1, '\\');
-#else
-					Path.append(1, '/');
-#endif
-				}
+					Path.append(1, VI_SPLITTER);
 
 				for (auto& Item : Base->Route->IndexFiles)
 				{
@@ -4729,7 +4765,7 @@ namespace Vitex
 			}
 			bool Resources::ResourceModified(Connection* Base, Core::FileEntry* Resource)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 
 				const char* CacheControl = Base->Request.GetHeader("Cache-Control");
@@ -4752,15 +4788,16 @@ namespace Vitex
 			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
 			{
 #ifdef VI_ZLIB
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (!Base->Route->Compression.Enabled || Size < Base->Route->Compression.MinLength)
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				auto* Route = Base->Route;
+				if (!Route->Compression.Enabled || Size < Route->Compression.MinLength)
 					return false;
 
-				if (Base->Route->Compression.Files.empty())
+				if (Route->Compression.Files.empty())
 					return true;
 
 				Compute::RegexResult Result;
-				for (auto& Item : Base->Route->Compression.Files)
+				for (auto& Item : Route->Compression.Files)
 				{
 					if (Compute::Regex::Match(&Item, Result, Base->Request.Path))
 						return true;
@@ -4772,60 +4809,64 @@ namespace Vitex
 #endif
 			}
 
-			bool Routing::RouteWEBSOCKET(Connection* Base)
+			bool Routing::RouteWebSocket(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				if (!Base->Route->AllowWebSocket)
-					return Base->Error(404, "Websocket protocol is not allowed on this server.");
+					return Base->Abort(404, "Websocket protocol is not allowed on this server.");
 
-				const char* WebSocketKey = Base->Request.GetHeader("Sec-WebSocket-Key");
+				const auto* WebSocketKey = Base->Request.GetHeaderBlob("Sec-WebSocket-Key");
 				if (WebSocketKey != nullptr)
-					return Logical::ProcessWebSocket(Base, WebSocketKey);
+					return Logical::ProcessWebSocket(Base, WebSocketKey->c_str(), WebSocketKey->size());
 
 				const char* WebSocketKey1 = Base->Request.GetHeader("Sec-WebSocket-Key1");
 				if (!WebSocketKey1)
-					return Base->Error(400, "Malformed websocket request. Provide first key.");
+					return Base->Abort(400, "Malformed websocket request. Provide first key.");
 
 				const char* WebSocketKey2 = Base->Request.GetHeader("Sec-WebSocket-Key2");
 				if (!WebSocketKey2)
-					return Base->Error(400, "Malformed websocket request. Provide second key.");
+					return Base->Abort(400, "Malformed websocket request. Provide second key.");
 
-				return !!Base->Stream->ReadAsync(8, [Base](SocketPoll Event, const char* Buffer, size_t Recv)
+				const size_t LegacyKeySize = 8;
+				auto ResolveConnection = [Base, LegacyKeySize](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 						Base->Request.Content.Append(Buffer, Recv);
 					else if (Packet::IsDone(Event))
-						Logical::ProcessWebSocket(Base, Base->Request.Content.Data.data());
+						Logical::ProcessWebSocket(Base, Base->Request.Content.Data.data(), LegacyKeySize);
 					else if (Packet::IsError(Event))
-						Base->Break();
-
+						Base->Abort();
 					return true;
-				});
+				};
+				if (Base->Request.Content.Prefetch >= LegacyKeySize)
+					return ResolveConnection(SocketPoll::FinishSync, nullptr, 0);
+
+				return !!Base->Stream->ReadAsync(LegacyKeySize - Base->Request.Content.Prefetch, ResolveConnection);
 			}
-			bool Routing::RouteGET(Connection* Base)
+			bool Routing::RouteGet(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (Base->Route->DocumentRoot.empty() || !Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				if (Base->Route->FilesDirectory.empty() || !Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
 				{
 					if (Permissions::WebSocketUpgradeAllowed(Base))
-						return RouteWEBSOCKET(Base);
+						return RouteWebSocket(Base);
 
 					if (!Resources::ResourceHasAlternative(Base))
-						return Base->Error(404, "Requested resource was not found.");
+						return Base->Abort(404, "Requested resource was not found.");
 				}
 
 				if (Permissions::WebSocketUpgradeAllowed(Base))
-					return RouteWEBSOCKET(Base);
+					return RouteWebSocket(Base);
 
 				if (Resources::ResourceHidden(Base, nullptr))
-					return Base->Error(404, "Requested resource was not found.");
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 				{
 					if (Base->Route->AllowDirectoryListing)
 						return Core::Codefer([Base]() { Logical::ProcessDirectory(Base); }, true);
 
-					return Base->Error(403, "Directory listing denied.");
+					return Base->Abort(403, "Directory listing denied.");
 				}
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
@@ -4833,41 +4874,41 @@ namespace Vitex
 
 				return Logical::ProcessResource(Base);
 			}
-			bool Routing::RoutePOST(Connection* Base)
+			bool Routing::RoutePost(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Error(404, "Requested resource was not found.");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Error(404, "Requested resource was not found.");
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
-					return Base->Error(404, "Requested resource was not found.");
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
 					return Logical::ProcessResourceCache(Base);
 
 				return Logical::ProcessResource(Base);
 			}
-			bool Routing::RoutePUT(Connection* Base)
+			bool Routing::RoutePut(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Error(403, "Resource overwrite denied.");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
+					return Base->Abort(403, "Resource overwrite denied.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Error(403, "Directory overwrite denied.");
+					return Base->Abort(403, "Directory overwrite denied.");
 
 				if (!Base->Resource.IsDirectory)
-					return Base->Error(403, "Directory overwrite denied.");
+					return Base->Abort(403, "Directory overwrite denied.");
 
 				const char* Range = Base->Request.GetHeader("Range");
 				int64_t Range1 = 0, Range2 = 0;
 
 				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "wb");
 				if (!File)
-					return Base->Error(422, "Resource stream cannot be opened.");
+					return Base->Abort(422, "Resource stream cannot be opened.");
 
 				FILE* Stream = *File;
 				if (Range != nullptr && HTTP::Parsing::ParseContentRange(Range, &Range1, &Range2))
@@ -4876,7 +4917,7 @@ namespace Vitex
 						Base->Response.StatusCode = 206;
 
 					if (!Core::OS::File::Seek64(Stream, Range1, Core::FileSeek::Begin))
-						return Base->Error(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
+						return Base->Abort(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
 				}
 				else
 					Base->Response.StatusCode = 204;
@@ -4893,29 +4934,30 @@ namespace Vitex
 						char Date[64];
 						Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-						Core::String Content;
-						Content.append(Base->Request.Version);
-						Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-						Content.append(Utils::ConnectionResolve(Base));
-						Content.append("Content-Location: ").append(Base->Request.Location).append("\r\n");
+						auto* Content = HrmCache::Get()->Pop();
+						Content->append(Base->Request.Version);
+						Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+						Content->append(Utils::ConnectionResolve(Base));
+						Content->append("Content-Location: ").append(Base->Request.Location).append("\r\n");
 
 						Core::OS::File::Close(Stream);
 						if (Base->Route->Callbacks.Headers)
-							Base->Route->Callbacks.Headers(Base, Content);
+							Base->Route->Callbacks.Headers(Base, *Content);
 
-						Content.append("\r\n", 2);
-						return !Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+						Content->append("\r\n", 2);
+						return !Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 						{
+							HrmCache::Get()->Push(Content);
 							if (Packet::IsDone(Event))
-								Base->Finish();
+								Base->Next();
 							else if (Packet::IsError(Event))
-								Base->Break();
-						});
+								Base->Abort();
+						}, false);
 					}
 					else if (Packet::IsError(Event))
 					{
 						Core::OS::File::Close(Stream);
-						return Base->Break();
+						return Base->Abort();
 					}
 					else if (Packet::IsSkip(Event))
 						Core::OS::File::Close(Stream);
@@ -4923,125 +4965,126 @@ namespace Vitex
 					return true;
 				});
 			}
-			bool Routing::RoutePATCH(Connection* Base)
+			bool Routing::RoutePatch(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Error(404, "Requested resource was not found.");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Error(404, "Requested resource was not found.");
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
-					return Base->Error(404, "Requested resource cannot be directory.");
+					return Base->Abort(404, "Requested resource cannot be directory.");
 
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
-				Content.append(Base->Request.Version);
-				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base));
-				Content.append("Content-Location: ").append(Base->Request.Location).append("\r\n");
-
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version);
+				Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base));
+				Content->append("Content-Location: ").append(Base->Request.Location).append("\r\n");
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
-				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+				Content->append("\r\n", 2);
+				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
+					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
-						Base->Finish(204);
+						Base->Next(204);
 					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+						Base->Abort();
+				}, false);
 			}
-			bool Routing::RouteDELETE(Connection* Base)
+			bool Routing::RouteDelete(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (Base->Route->DocumentRoot.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Error(404, "Requested resource was not found.");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Error(404, "Requested resource was not found.");
+					return Base->Abort(404, "Requested resource was not found.");
 
 				if (!Base->Resource.IsDirectory)
 				{
 					if (!Core::OS::File::Remove(Base->Request.Path.c_str()))
-						return Base->Error(403, "Operation denied by system.");
+						return Base->Abort(403, "Operation denied by system.");
 				}
 				else if (!Core::OS::Directory::Remove(Base->Request.Path.c_str()))
-					return Base->Error(403, "Operation denied by system.");
+					return Base->Abort(403, "Operation denied by system.");
 
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
-				Content.append(Base->Request.Version);
-				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base));
-
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version);
+				Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base));
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
-				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+				Content->append("\r\n", 2);
+				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
+					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
-						Base->Finish(204);
+						Base->Next(204);
 					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+						Base->Abort();
+				}, false);
 			}
-			bool Routing::RouteOPTIONS(Connection* Base)
+			bool Routing::RouteOptions(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
-				Content.append(Base->Request.Version);
-				Content.append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base));
-				Content.append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
-
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version);
+				Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base));
+				Content->append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
 				if (Base->Route && Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
-				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+				Content->append("\r\n", 2);
+				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
+					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
-						Base->Finish(204);
+						Base->Next(204);
 					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+						Base->Abort();
+				}, false);
 			}
 
 			bool Logical::ProcessDirectory(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				VI_MEASURE(Core::Timings::FileSystem);
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
 				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
-					return Base->Error(500, "System denied to directory listing.");
+					return Base->Abort(500, "System denied to directory listing.");
 
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Core::String Content;
-				Content.append(Base->Request.Version);
-				Content.append(" 200 OK\r\nDate: ").append(Date).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base));
-				Content.append("Content-Type: text/html; charset=").append(Base->Route->CharSet);
-				Content.append("\r\nAccept-Ranges: bytes\r\n");
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version);
+				Content->append(" 200 OK\r\nDate: ").append(Date).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base));
+				Content->append("Content-Type: text/html; charset=").append(Base->Route->CharSet);
+				Content->append("\r\nAccept-Ranges: bytes\r\n");
 
-				Paths::ConstructHeadCache(Base, Content);
+				Paths::ConstructHeadCache(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Content.append("X-Error: ").append(Message).append("\r\n");
+					Content->append("X-Error: ").append(Message).append("\r\n");
 
 				size_t Size = Base->Request.Location.size() - 1;
 				while (Base->Request.Location[Size] != '/')
@@ -5134,38 +5177,39 @@ namespace Vitex
 								if (!Base->Response.GetHeader("Content-Encoding"))
 								{
 									if (Gzip)
-										Content.append("Content-Encoding: gzip\r\n", 24);
+										Content->append("Content-Encoding: gzip\r\n", 24);
 									else
-										Content.append("Content-Encoding: deflate\r\n", 27);
+										Content->append("Content-Encoding: deflate\r\n", 27);
 								}
 							}
 						}
 					}
 				}
 #endif
-				Content.append("Content-Length: ").append(Core::ToString(Base->Response.Content.Data.size())).append("\r\n\r\n");
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+				Content->append("Content-Length: ").append(Core::ToString(Base->Response.Content.Data.size())).append("\r\n\r\n");
+				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
+					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
 					{
 						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
-							return (void)Base->Finish(200);
+							return (void)Base->Next(200);
 
 						Base->Stream->WriteAsync(Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
-								Base->Finish(200);
+								Base->Next(200);
 							else if (Packet::IsError(Event))
-								Base->Break();
-						});
+								Base->Abort();
+						}, false);
 					}
 					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+						Base->Abort();
+				}, false);
 			}
 			bool Logical::ProcessResource(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				const char* ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* Range = Base->Request.GetHeader("Range");
 				const char* StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
@@ -5206,56 +5250,59 @@ namespace Vitex
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::String Content;
-				Content.append(Base->Request.Version).append(" ");
-				Content.append(Core::ToString(Base->Response.StatusCode)).append(" ");
-				Content.append(StatusMessage).append("\r\n");
-				Content.append("Date: ").append(Date).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base));
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version).append(" ");
+				Content->append(Core::ToString(Base->Response.StatusCode)).append(" ");
+				Content->append(StatusMessage).append("\r\n");
+				Content->append("Date: ").append(Date).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base));
 
 				const char* Origin = Base->Request.GetHeader("Origin");
 				if (Origin != nullptr)
-					Content.append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
+					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
-				Paths::ConstructHeadCache(Base, Content);
+				Paths::ConstructHeadCache(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Content.append("X-Error: ").append(Message).append("\r\n");
+					Content->append("X-Error: ").append(Message).append("\r\n");
 
-				Content.append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
-				Content.append("Etag: ").append(ETag).append("\r\n");
-				Content.append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
-				Content.append("Content-Length: ").append(Core::ToString(ContentLength)).append("\r\n");
-				Content.append(ContentRange).append("\r\n");
+				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
+				Content->append("Etag: ").append(ETag).append("\r\n");
+				Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
+				Content->append("Content-Length: ").append(Core::ToString(ContentLength)).append("\r\n");
+				Content->append(ContentRange).append("\r\n");
 
-				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
+				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base, ContentLength, Range1](SocketPoll Event)
 					{
+						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
-							Base->Finish(200);
+							Core::Codefer([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); }, true);
 						else if (Packet::IsError(Event))
-							Base->Break();
-					});
+							Base->Abort();
+					}, false);
 				}
-
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base, ContentLength, Range1](SocketPoll Event)
+				else
 				{
-					if (Packet::IsDone(Event))
-						Core::Codefer([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); }, true);
-					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					{
+						HrmCache::Get()->Push(Content);
+						if (Packet::IsDone(Event))
+							Base->Next(200);
+						else if (Packet::IsError(Event))
+							Base->Abort();
+					}, false);
+				}
 			}
 			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(ContentRange != nullptr, "content tange should be set");
 				VI_ASSERT(Deflate || Gzip, "uncompressable resource");
-
 				const char* ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t ContentLength = (int64_t)Base->Resource.Size;
@@ -5269,54 +5316,58 @@ namespace Vitex
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::String Content;
-				Content.append(Base->Request.Version).append(" ");
-				Content.append(Core::ToString(Base->Response.StatusCode)).append(" ");
-				Content.append(StatusMessage).append("\r\n");
-				Content.append("Date: ").append(Date).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base));
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version).append(" ");
+				Content->append(Core::ToString(Base->Response.StatusCode)).append(" ");
+				Content->append(StatusMessage).append("\r\n");
+				Content->append("Date: ").append(Date).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base));
 
 				const char* Origin = Base->Request.GetHeader("Origin");
 				if (Origin != nullptr)
-					Content.append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
+					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
-				Paths::ConstructHeadCache(Base, Content);
+				Paths::ConstructHeadCache(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
 				const char* Message = Base->Response.GetHeader("X-Error");
 				if (Message != nullptr)
-					Content.append("X-Error: ").append(Message).append("\r\n");
+					Content->append("X-Error: ").append(Message).append("\r\n");
 
-				Content.append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
-				Content.append("Etag: ").append(ETag).append("\r\n");
-				Content.append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
-				Content.append("Content-Encoding: ").append(Gzip ? "gzip" : "deflate").append("\r\n");
-				Content.append("Transfer-Encoding: chunked\r\n");
-				Content.append(ContentRange).append("\r\n");
+				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
+				Content->append("Etag: ").append(ETag).append("\r\n");
+				Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
+				Content->append("Content-Encoding: ").append(Gzip ? "gzip" : "deflate").append("\r\n");
+				Content->append("Transfer-Encoding: chunked\r\n");
+				Content->append(ContentRange).append("\r\n");
 
-				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
+				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base, Range, ContentLength, Gzip](SocketPoll Event)
 					{
+						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
-							Base->Finish();
+							Core::Codefer([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); }, true);
 						else if (Packet::IsError(Event))
-							Base->Break();
-					});
+							Base->Abort();
+					}, false);
 				}
-
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
+				else
 				{
-					if (Packet::IsDone(Event))
-						Core::Codefer([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); }, true);
-					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					{
+						HrmCache::Get()->Push(Content);
+						if (Packet::IsDone(Event))
+							Base->Next();
+						else if (Packet::IsError(Event))
+							Base->Abort();
+					}, false);
+				}
 			}
 			bool Logical::ProcessResourceCache(Connection* Base)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				char Date[64];
 				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -5326,30 +5377,31 @@ namespace Vitex
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Core::String Content;
-				Content.append(Base->Request.Version);
-				Content.append(" 304 Not Modified\r\nDate: ");
-				Content.append(Date).append("\r\n");
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(Base->Request.Version);
+				Content->append(" 304 Not Modified\r\nDate: ");
+				Content->append(Date).append("\r\n");
 
-				Paths::ConstructHeadCache(Base, Content);
+				Paths::ConstructHeadCache(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
-				Content.append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
-				Content.append("Etag: ").append(ETag).append("\r\n");
-				Content.append(Utils::ConnectionResolve(Base)).append("\r\n");
-
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
+				Content->append("Etag: ").append(ETag).append("\r\n");
+				Content->append(Utils::ConnectionResolve(Base)).append("\r\n");
+				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
+					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
-						Base->Finish(304);
+						Base->Next(304);
 					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+						Base->Abort();
+				}, false);
 			}
 			bool Logical::ProcessFile(Connection* Base, size_t ContentLength, size_t Range)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				VI_MEASURE(Core::Timings::FileSystem);
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -5362,16 +5414,16 @@ namespace Vitex
 						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
-								Base->Finish();
+								Base->Next();
 							else if (Packet::IsError(Event))
-								Base->Break();
-						});
+								Base->Abort();
+						}, false);
 					}
 				}
 
 				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
 				if (!File)
-					return Base->Error(500, "System denied to open resource stream.");
+					return Base->Abort(500, "System denied to open resource stream.");
 
 				FILE* Stream = *File;
                 if (Base->Route->AllowSendFile)
@@ -5381,7 +5433,7 @@ namespace Vitex
                         if (Packet::IsDone(Event))
                         {
                             Core::OS::File::Close(Stream);
-                            Base->Finish();
+                            Base->Next();
                         }
                         else if (Packet::IsError(Event))
 							ProcessFileStream(Base, Stream, ContentLength, Range);
@@ -5396,32 +5448,31 @@ namespace Vitex
 			}
 			bool Logical::ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				if (!Core::OS::File::Seek64(Stream, Range, Core::FileSeek::Begin))
 				{
 					Core::OS::File::Close(Stream);
-					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
+					return Base->Abort(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 
-                return ProcessFileChunk(Base, Base->Root, Stream, ContentLength);
+                return ProcessFileChunk(Base, Stream, ContentLength);
 			}
-			bool Logical::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength)
+			bool Logical::ProcessFileChunk(Connection* Base, FILE* Stream, size_t ContentLength)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				VI_ASSERT(Router != nullptr, "router should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-
+				VI_MEASURE(Core::Timings::FileSystem);
             Retry:
                 char Buffer[Core::BLOB_SIZE];
-				if (!ContentLength || Router->State != ServerState::Working)
+				if (!ContentLength || Base->Root->State != ServerState::Working)
 				{
 				Cleanup:
 					Core::OS::File::Close(Stream);
-					if (Router->State != ServerState::Working)
-						return Base->Break();
+					if (Base->Root->State != ServerState::Working)
+						return Base->Abort();
 
-					return Base->Finish() || true;
+					return Base->Next() || true;
 				}
                 
 				size_t Read = sizeof(Buffer);
@@ -5429,19 +5480,19 @@ namespace Vitex
 					goto Cleanup;
                 
 				ContentLength -= Read;
-                auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
+                auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Stream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
-						Core::Codefer([Base, Router, Stream, ContentLength]()
+						Core::Codefer([Base, Stream, ContentLength]()
 						{
-							ProcessFileChunk(Base, Router, Stream, ContentLength);
+							ProcessFileChunk(Base, Stream, ContentLength);
 						}, true);
 					}
 					else if (Packet::IsError(Event))
 					{
 						Core::OS::File::Close(Stream);
-						Base->Break();
+						Base->Abort();
 					}
 					else if (Packet::IsSkip(Event))
                         Core::OS::File::Close(Stream);
@@ -5454,7 +5505,8 @@ namespace Vitex
 			}
 			bool Logical::ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
+				VI_MEASURE(Core::Timings::FileSystem);
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -5483,25 +5535,24 @@ namespace Vitex
 						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
-								Base->Finish();
+								Base->Next();
 							else if (Packet::IsError(Event))
-								Base->Break();
-						});
+								Base->Abort();
+						}, false);
 					}
 				}
 
 				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
 				if (!File)
-					return Base->Error(500, "System denied to open resource stream.");
+					return Base->Abort(500, "System denied to open resource stream.");
 
 				FILE* Stream = *File;
 				if (Range > 0 && !Core::OS::File::Seek64(Stream, Range, Core::FileSeek::Begin))
 				{
 					Core::OS::File::Close(Stream);
-					return Base->Error(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
+					return Base->Abort(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #ifdef VI_ZLIB
-				Server* Server = Base->Root;
 				z_stream* ZStream = VI_MALLOC(z_stream, sizeof(z_stream));
 				ZStream->zalloc = Z_NULL;
 				ZStream->zfree = Z_NULL;
@@ -5511,40 +5562,40 @@ namespace Vitex
 				{
 					Core::OS::File::Close(Stream);
 					VI_FREE(ZStream);
-					return Base->Break();
+					return Base->Abort();
 				}
 
-				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
+				return ProcessFileCompressChunk(Base, Stream, ZStream, ContentLength);
 #else
 				Core::OS::File::Close(Stream);
-				return Base->Error(500, "Cannot process gzip stream.");
+				return Base->Abort(500, "Cannot process gzip stream.");
 #endif
 			}
-			bool Logical::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength)
+			bool Logical::ProcessFileCompressChunk(Connection* Base, FILE* Stream, void* CStream, size_t ContentLength)
 			{
-				VI_ASSERT(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				VI_ASSERT(Router != nullptr, "router should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(CStream != nullptr, "cstream should be set");
+				VI_MEASURE(Core::Timings::FileSystem);
 #ifdef VI_ZLIB
 #define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); VI_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
             Retry:
                 char Buffer[Core::BLOB_SIZE + GZ_HEADER_SIZE], Deflate[Core::BLOB_SIZE];
-				if (!ContentLength || Router->State != ServerState::Working)
+				if (!ContentLength || Base->Root->State != ServerState::Working)
 				{
 				Cleanup:
 					FREE_STREAMING;
-					if (Router->State != ServerState::Working)
-						return Base->Break();
+					if (Base->Root->State != ServerState::Working)
+						return Base->Abort();
 
 					return !!Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
-							Base->Finish();
+							Base->Next();
 						else if (Packet::IsError(Event))
-							Base->Break();
-					});
+							Base->Abort();
+					}, false);
 				}
                 
 				size_t Read = sizeof(Buffer) - GZ_HEADER_SIZE;
@@ -5574,27 +5625,27 @@ namespace Vitex
 					Read += sizeof(char) * 2;
 				}
 
-				auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](SocketPoll Event)
+				auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Stream, ZStream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
 						if (ContentLength > 0)
 						{
-							Core::Codefer([Base, Router, Stream, ZStream, ContentLength]()
+							Core::Codefer([Base, Stream, ZStream, ContentLength]()
                             {
-                                ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
+                                ProcessFileCompressChunk(Base, Stream, ZStream, ContentLength);
                             }, true);
 						}
 						else
 						{
 							FREE_STREAMING;
-							Base->Finish();
+							Base->Next();
 						}
 					}
 					else if (Packet::IsError(Event))
 					{
 						FREE_STREAMING;
-						Base->Break();
+						Base->Abort();
 					}
 					else if (Packet::IsSkip(Event))
 						FREE_STREAMING;
@@ -5608,47 +5659,49 @@ namespace Vitex
 				return Base->Finish();
 #endif
 			}
-			bool Logical::ProcessWebSocket(Connection* Base, const char* Key)
+			bool Logical::ProcessWebSocket(Connection* Base, const char* Key, size_t KeySize)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
+				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Key != nullptr, "key should be set");
-
 				const char* Version = Base->Request.GetHeader("Sec-WebSocket-Version");
 				if (!Version || strcmp(Version, "13") != 0)
-					return Base->Error(426, "Protocol upgrade required. Version \"%s\" is not allowed", Version);
+					return Base->Abort(426, "Protocol upgrade required. Version \"%s\" is not allowed", Version);
 
 				char Buffer[100];
-				snprintf(Buffer, sizeof(Buffer), "%s%s", Key, WEBSOCKET_KEY);
+				snprintf(Buffer, sizeof(Buffer), "%.*s%s", (int)KeySize, Key, HTTP_WEBSOCKET_KEY);
 				Base->Request.Content.Data.clear();
 
 				char Encoded20[20];
 				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
+				if (Base->Response.StatusCode <= 0)
+					Base->Response.StatusCode = 101;
 
-				Core::String Content;
-				Content.append(
+				auto* Content = HrmCache::Get()->Pop();
+				Content->append(
 					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
 					"Sec-WebSocket-Accept: ");
-				Content.append(Compute::Codec::Base64Encode((const unsigned char*)Encoded20, 20));
-				Content.append("\r\n");
+				Content->append(Compute::Codec::Base64Encode((const unsigned char*)Encoded20, 20));
+				Content->append("\r\n");
 
 				const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
 				if (Protocol != nullptr)
 				{
 					const char* Offset = strchr(Protocol, ',');
 					if (Offset != nullptr)
-						Content.append("Sec-WebSocket-Protocol: ").append(Protocol, (size_t)(Offset - Protocol)).append("\r\n");
+						Content->append("Sec-WebSocket-Protocol: ").append(Protocol, (size_t)(Offset - Protocol)).append("\r\n");
 					else
-						Content.append("Sec-WebSocket-Protocol: ").append(Protocol).append("\r\n");
+						Content->append("Sec-WebSocket-Protocol: ").append(Protocol).append("\r\n");
 				}
 
 				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, Content);
+					Base->Route->Callbacks.Headers(Base, *Content);
 
-				Content.append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content.c_str(), Content.size(), [Base](SocketPoll Event)
+				Content->append("\r\n", 2);
+				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
+					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
 					{
 						Base->WebSocket = new WebSocketFrame(Base->Stream);
@@ -5657,19 +5710,14 @@ namespace Vitex
 						Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
 						Base->WebSocket->Lifetime.Dead = [Base](WebSocketFrame*)
 						{
-							return Base->Info.Close;
+							return Base->Info.Abort;
 						};
 						Base->WebSocket->Lifetime.Close = [Base](WebSocketFrame*, bool Successful)
 						{
 							if (Successful)
-							{
-								Base->Info.KeepAlive = 0;
-								if (Base->Response.StatusCode <= 0)
-									Base->Response.StatusCode = 101;
-								Base->Finish();
-							}
+								Base->Next();
 							else
-								Base->Break();
+								Base->Abort();
 						};
 
 						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
@@ -5677,8 +5725,8 @@ namespace Vitex
 							Base->WebSocket->Next();
 					}
 					else if (Packet::IsError(Event))
-						Base->Break();
-				});
+						Base->Abort();
+				}, false);
 			}
 
 			Server::Server() : SocketServer()
@@ -5686,73 +5734,63 @@ namespace Vitex
 			}
 			Core::ExpectsSystem<void> Server::Update()
 			{
-				auto* Root = (MapRouter*)Router;
-				for (auto& Site : Root->Sites)
+				auto* Target = (MapRouter*)Router;
+				if (!Target->Session.Directory.empty())
 				{
-					auto* Entry = Site.second;
-					Entry->Base->Location = Compute::RegexSource("/");
-					Entry->Base->Site = Entry;
-					Entry->Router = Root;
+					auto Directory = Core::OS::Path::Resolve(Target->Session.Directory.c_str());
+					if (Directory)
+						Target->Session.Directory = *Directory;
 
-					if (!Entry->Session.DocumentRoot.empty())
-					{
-						auto Directory = Core::OS::Path::Resolve(Entry->Session.DocumentRoot.c_str());
-						if (Directory)
-							Entry->Session.DocumentRoot = *Directory;
-
-						auto Status = Core::OS::Directory::Patch(Entry->Session.DocumentRoot);
-						if (!Status)
-							return Core::SystemException("session document root: invalid path", std::move(Status.Error()));
-					}
-
-					if (!Entry->ResourceRoot.empty())
-					{
-						auto Directory = Core::OS::Path::Resolve(Entry->ResourceRoot.c_str());
-						if (Directory)
-							Entry->ResourceRoot = *Directory;
-
-						auto Status = Core::OS::Directory::Patch(Entry->ResourceRoot);
-						if (!Status)
-							return Core::SystemException("resource root: invalid path", std::move(Status.Error()));
-					}
-
-					if (!Entry->Base->DocumentRoot.empty())
-					{
-						auto Directory = Core::OS::Path::Resolve(Entry->Base->DocumentRoot.c_str());
-						if (Directory)
-							Entry->Base->DocumentRoot = *Directory;
-
-						if (!Entry->Base->Override.empty())
-						{
-							auto Directory = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot, false);
-							if (Directory)
-								Entry->Base->Override = *Directory;
-						}
-					}
-
-					for (auto& Group : Entry->Groups)
-					{
-						for (auto* Route : Group->Routes)
-						{
-							Route->Site = Entry;
-							if (!Route->DocumentRoot.empty())
-							{
-								auto Directory = Core::OS::Path::Resolve(Route->DocumentRoot.c_str());
-								if (Directory)
-									Route->DocumentRoot = *Directory;
-
-								if (!Route->Override.empty())
-								{
-									auto Directory = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot, false);
-									if (Directory)
-										Route->Override = *Directory;
-								}
-							}
-						}
-					}
-
-					Entry->Sort();
+					auto Status = Core::OS::Directory::Patch(Target->Session.Directory);
+					if (!Status)
+						return Core::SystemException("session directory: invalid path", std::move(Status.Error()));
 				}
+
+				if (!Target->TemporaryDirectory.empty())
+				{
+					auto Directory = Core::OS::Path::Resolve(Target->TemporaryDirectory.c_str());
+					if (Directory)
+						Target->TemporaryDirectory = *Directory;
+
+					auto Status = Core::OS::Directory::Patch(Target->TemporaryDirectory);
+					if (!Status)
+						return Core::SystemException("temporary directory: invalid path", std::move(Status.Error()));
+				}
+
+				auto Status = UpdateRoute(Target->Base);
+				if (!Status)
+					return Status;
+
+				for (auto& Group : Target->Groups)
+				{
+					for (auto* Route : Group->Routes)
+					{
+						Status = UpdateRoute(Target->Base);
+						if (!Status)
+							return Status;
+					}
+				}
+
+				Target->Sort();
+				return Core::Expectation::Met;
+			}
+			Core::ExpectsSystem<void> Server::UpdateRoute(RouterEntry* Route)
+			{
+				Route->Router = (MapRouter*)Router;
+				if (!Route->FilesDirectory.empty())
+				{
+					auto Directory = Core::OS::Path::Resolve(Route->FilesDirectory.c_str());
+					if (Directory)
+						Route->FilesDirectory = *Directory;
+				}
+
+				if (!Route->Alias.empty())
+				{
+					auto Directory = Core::OS::Path::Resolve(Route->Alias, Route->FilesDirectory.empty() ? *Core::OS::Directory::GetWorking() : Route->FilesDirectory, true);
+					if (Directory)
+						Route->Alias = *Directory;
+				}
+
 				return Core::Expectation::Met;
 			}
 			Core::ExpectsSystem<void> Server::OnConfigure(SocketRouter* NewRouter)
@@ -5763,24 +5801,19 @@ namespace Vitex
 			Core::ExpectsSystem<void> Server::OnUnlisten()
 			{
 				VI_ASSERT(Router != nullptr, "router should be set");
-				MapRouter* Root = (MapRouter*)Router;
-
-				for (auto& Site : Root->Sites)
+				MapRouter* Target = (MapRouter*)Router;
+				if (!Target->TemporaryDirectory.empty())
 				{
-					auto* Entry = Site.second;
-					if (!Entry->ResourceRoot.empty())
-					{
-						auto Status = Core::OS::Directory::Remove(Entry->ResourceRoot.c_str());
-						if (!Status)
-							return Core::SystemException("resource root remove error: " + Entry->ResourceRoot, std::move(Status.Error()));
-					}
+					auto Status = Core::OS::Directory::Remove(Target->TemporaryDirectory.c_str());
+					if (!Status)
+						return Core::SystemException("temporary directory remove error: " + Target->TemporaryDirectory, std::move(Status.Error()));
+				}
 
-					if (!Entry->Session.DocumentRoot.empty())
-					{
-						auto Status = Session::InvalidateCache(Entry->Session.DocumentRoot);
-						if (!Status)
-							return Status;
-					}
+				if (!Target->Session.Directory.empty())
+				{
+					auto Status = Session::InvalidateCache(Target->Session.Directory);
+					if (!Status)
+						return Status;
 				}
 
 				return Core::Expectation::Met;
@@ -5800,7 +5833,7 @@ namespace Vitex
 						Base->Request.Content.Append(Buffer, Size);
 						if (Base->Request.Content.Data.size() > Conf->MaxHeapBuffer)
 						{
-							Base->Error(431, "Request containts too much data in headers");
+							Base->Abort(431, "Request containts too much data in headers");
 							return false;
 						}
 
@@ -5808,7 +5841,7 @@ namespace Vitex
 						if (Offset >= 0 || Offset == -2)
 							return true;
 
-						Base->Error(400, "Invalid request was provided by client");
+						Base->Abort(400, "Invalid request was provided by client");
 						return false;
 					}
 					else if (Packet::IsDone(Event))
@@ -5818,127 +5851,132 @@ namespace Vitex
 						Base->Request.Content.Prepare(Base->Request.Headers, Buffer, Size);
 					Redirect:
 						if (!Paths::ConstructRoute(Conf, Base))
-							return Base->Error(400, "Request cannot be resolved");
+							return Base->Abort(400, "Request cannot be resolved");
 
-						if (!Base->Route->Redirect.empty())
+						auto* Route = Base->Route;
+						if (!Route->Redirect.empty())
 						{
-							if (Redirects++ > MAX_REDIRECTS)
-								return Base->Error(500, "Infinite redirects loop detected");
+							if (Redirects++ > HTTP_MAX_REDIRECTS)
+								return Base->Abort(500, "Infinite redirects loop detected");
 
-							Base->Request.Location = Base->Route->Redirect;
+							Base->Request.Location = Route->Redirect;
 							goto Redirect;
 						}
 
-						if (!Base->Route->ProxyIpAddress.empty())
+						if (!Route->ProxyIpAddress.empty())
 						{
-							const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
+							const char* Address = Base->Request.GetHeader(Route->ProxyIpAddress.c_str());
 							if (Address != nullptr)
 								strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
 						}
 
 						Paths::ConstructPath(Base);
 						if (!Permissions::MethodAllowed(Base))
-							return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
+							return Base->Abort(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
 
 						if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
 						{
 							if (!Permissions::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Get && Base->Route->Callbacks.Get(Base))
+							if (Route->Callbacks.Get && Route->Callbacks.Get(Base))
 								return true;
 
-							return Routing::RouteGET(Base);
+							return Routing::RouteGet(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "POST", 4))
 						{
 							if (!Permissions::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Post && Base->Route->Callbacks.Post(Base))
+							if (Route->Callbacks.Post && Route->Callbacks.Post(Base))
 								return true;
 
-							return Routing::RoutePOST(Base);
+							return Routing::RoutePost(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "PUT", 3))
 						{
 							if (!Permissions::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Put && Base->Route->Callbacks.Put(Base))
+							if (Route->Callbacks.Put && Route->Callbacks.Put(Base))
 								return true;
 
-							return Routing::RoutePUT(Base);
+							return Routing::RoutePut(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "PATCH", 5))
 						{
 							if (!Permissions::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Patch && Base->Route->Callbacks.Patch(Base))
+							if (Route->Callbacks.Patch && Route->Callbacks.Patch(Base))
 								return true;
 
-							return Routing::RoutePATCH(Base);
+							return Routing::RoutePatch(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "DELETE", 6))
 						{
 							if (!Permissions::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Delete && Base->Route->Callbacks.Delete(Base))
+							if (Route->Callbacks.Delete && Route->Callbacks.Delete(Base))
 								return true;
 
-							return Routing::RouteDELETE(Base);
+							return Routing::RouteDelete(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
 						{
-							if (Base->Route->Callbacks.Options && Base->Route->Callbacks.Options(Base))
+							if (Route->Callbacks.Options && Route->Callbacks.Options(Base))
 								return true;
 
-							return Routing::RouteOPTIONS(Base);
+							return Routing::RouteOptions(Base);
 						}
 
 						if (!Permissions::Authorize(Base))
 							return false;
 
-						return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
+						return Base->Abort(405, "Request method \"%s\" is not allowed", Base->Request.Method);
 					}
 					else if (Packet::IsError(Event))
-						Base->Break();
+						Base->Abort();
 
 					return true;
 				});
 			}
-			bool Server::OnRequestCleanup(SocketConnection* Root)
+			bool Server::OnRequestCleanup(SocketConnection* Target)
 			{
-				VI_ASSERT(Root != nullptr, "connection should be set");
-				auto Base = (HTTP::Connection*)Root;
+				VI_ASSERT(Target != nullptr, "connection should be set");
+				auto Base = (HTTP::Connection*)Target;
 				return Base->Skip([](HTTP::Connection* Base)
 				{
 					Base->Root->Finalize(Base);
 					return true;
 				});
 			}
-			void Server::OnRequestStall(SocketConnection* Root)
+			void Server::OnRequestStall(SocketConnection* Target)
 			{
-				auto Base = (HTTP::Connection*)Root;
+				auto Base = (HTTP::Connection*)Target;
 				Core::String Status = ", pathname: " + Base->Request.Location;
 				if (Base->WebSocket != nullptr)
 					Status += ", websocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
 				VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(), Status.c_str());
 			}
-			void Server::OnRequestClose(SocketConnection* Root)
+			void Server::OnRequestClose(SocketConnection* Target)
 			{
-				VI_ASSERT(Root != nullptr, "connection should be set");
-				auto Base = (HTTP::Connection*)Root;
-				if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
+				VI_ASSERT(Target != nullptr, "connection should be set");
+				auto Base = (HTTP::Connection*)Target;
+				if (Base->Response.StatusCode > 0 && Base->Route && Base->Route->Callbacks.Access)
 					Base->Route->Callbacks.Access(Base);
 				Base->Reset(false);
 			}
 			SocketConnection* Server::OnAllocate(SocketListener* Host)
 			{
 				VI_ASSERT(Host != nullptr, "host should be set");
-				return new HTTP::Connection(this);
+				auto* Base = new HTTP::Connection(this);
+				auto* Target = (MapRouter*)Router;
+				Base->Route = Target->Base;
+				Base->Root = this;
+				return Base;
 			}
 			SocketRouter* Server::OnAllocateRouter()
 			{
@@ -6135,24 +6173,24 @@ namespace Vitex
 				});
 				return Result;
 			}
-			Core::ExpectsPromiseSystem<void> Client::Upgrade(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseSystem<void> Client::Upgrade(HTTP::RequestFrame&& Target)
 			{
 				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
 				if (!HasStream())
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				Root.SetHeader("Pragma", "no-cache");
-				Root.SetHeader("Upgrade", "WebSocket");
-				Root.SetHeader("Connection", "Upgrade");
-				Root.SetHeader("Sec-WebSocket-Version", "13");
+				Target.SetHeader("Pragma", "no-cache");
+				Target.SetHeader("Upgrade", "WebSocket");
+				Target.SetHeader("Connection", "Upgrade");
+				Target.SetHeader("Sec-WebSocket-Version", "13");
 
 				auto Random = Compute::Crypto::RandomBytes(16);
 				if (Random)
-					Root.SetHeader("Sec-WebSocket-Key", Compute::Codec::Base64Encode(*Random));
+					Target.SetHeader("Sec-WebSocket-Key", Compute::Codec::Base64Encode(*Random));
 				else
-					Root.SetHeader("Sec-WebSocket-Key", WEBSOCKET_KEY);
+					Target.SetHeader("Sec-WebSocket-Key", HTTP_WEBSOCKET_KEY);
 	
-				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<void>
+				return Send(std::move(Target)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<void>
 				{
 					VI_DEBUG("[ws] handshake %s", Request.Location.c_str());
 					if (!Status)
@@ -6169,18 +6207,18 @@ namespace Vitex
 					return Future;
 				});
 			}
-			Core::ExpectsPromiseSystem<void> Client::Send(HTTP::RequestFrame&& Root)
+			Core::ExpectsPromiseSystem<void> Client::Send(HTTP::RequestFrame&& Target)
 			{
-				VI_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
+				VI_ASSERT(!WebSocket || Target.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
 				if (!HasStream())
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				VI_DEBUG("[http] %s %s", Root.Method, Root.Location.c_str());
+				VI_DEBUG("[http] %s %s", Target.Method, Target.Location.c_str());
 				if (!Response.Content.IsFinalized() || Response.Content.Exceeds)
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("content error: response body was not read", std::make_error_condition(std::errc::broken_pipe)));
 
 				Core::ExpectsPromiseSystem<void> Result;
-				Request = std::move(Root);
+				Request = std::move(Target);
 				Response.Cleanup();
 				State.Done = [Result](SocketClient* Client, Core::ExpectsSystem<void>&& Status) mutable
 				{
@@ -6220,22 +6258,22 @@ namespace Vitex
 				if (!Request.GetHeader("Connection"))
 					Request.SetHeader("Connection", "Keep-Alive");
 
-				Core::String Content;
+				auto* Content = HrmCache::Get()->Pop();
 				if (Request.Location.empty())
 					Request.Location.assign("/");
 
 				if (!Request.Query.empty())
 				{
-					Content.append(Request.Method).append(" ");
-					Content.append(Request.Location).append("?");
-					Content.append(Request.Query).append(" ");
-					Content.append(Request.Version).append("\r\n");
+					Content->append(Request.Method).append(" ");
+					Content->append(Request.Location).append("?");
+					Content->append(Request.Query).append(" ");
+					Content->append(Request.Version).append("\r\n");
 				}
 				else
 				{
-					Content.append(Request.Method).append(" ");
-					Content.append(Request.Location).append(" ");
-					Content.append(Request.Version).append("\r\n");
+					Content->append(Request.Method).append(" ");
+					Content->append(Request.Location).append(" ");
+					Content->append(Request.Version).append("\r\n");
 				}
 
 				if (Request.Content.Resources.empty())
@@ -6251,11 +6289,12 @@ namespace Vitex
 					else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
 						Request.SetHeader("Content-Length", "0");
 
-					Paths::ConstructHeadFull(&Request, &Response, true, Content);
-					Content.append("\r\n");
+					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
+					Content->append("\r\n");
 
-					Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					Net.Stream->WriteAsync(Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
 					{
+						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
 						{
 							if (!Request.Content.Data.empty())
@@ -6278,7 +6317,7 @@ namespace Vitex
 									}
 									else if (Packet::IsErrorOrSkip(Event))
 										Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-								});
+								}, false);
 							}
 							else
 							{
@@ -6297,7 +6336,7 @@ namespace Vitex
 						}
 						else if (Packet::IsErrorOrSkip(Event))
 							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-					});
+					}, false);
 				}
 				else
 				{
@@ -6305,6 +6344,7 @@ namespace Vitex
 					if (!RandomBytes)
 					{
 						Report(Core::SystemException("send boundary error: " + RandomBytes.Error().message(), std::make_error_condition(std::errc::operation_canceled)));
+						HrmCache::Get()->Push(Content);
 						return Result;
 					}
 
@@ -6372,23 +6412,24 @@ namespace Vitex
 					}
 
 					Request.SetHeader("Content-Length", Core::ToString(ContentSize));
-					Paths::ConstructHeadFull(&Request, &Response, true, Content);
-					Content.append("\r\n");
+					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
+					Content->append("\r\n");
 
-					Net.Stream->WriteAsync(Content.c_str(), Content.size(), [this](SocketPoll Event)
+					Net.Stream->WriteAsync(Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
 					{
+						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
 							Upload(0);
 						else if (Packet::IsErrorOrSkip(Event))
 							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-					});
+					}, false);
 				}
 
 				return Result;
 			}
-			Core::ExpectsPromiseSystem<void> Client::SendFetch(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseSystem<void> Client::SendFetch(HTTP::RequestFrame&& Target, size_t MaxSize)
 			{
-				return Send(std::move(Root)).Then<Core::ExpectsPromiseSystem<void>>([this, MaxSize](Core::ExpectsSystem<void>&& Response) -> Core::ExpectsPromiseSystem<void>
+				return Send(std::move(Target)).Then<Core::ExpectsPromiseSystem<void>>([this, MaxSize](Core::ExpectsSystem<void>&& Response) -> Core::ExpectsPromiseSystem<void>
 				{
 					if (!Response)
 						return Response;
@@ -6396,9 +6437,9 @@ namespace Vitex
 					return Fetch(MaxSize);
 				});
 			}
-			Core::ExpectsPromiseSystem<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseSystem<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Target, size_t MaxSize)
 			{
-				return SendFetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
+				return SendFetch(std::move(Target), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
 				{
 					if (!Status)
 						return Status.Error();
@@ -6410,9 +6451,9 @@ namespace Vitex
 					return *Data;
 				});
 			}
-			Core::ExpectsPromiseSystem<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
+			Core::ExpectsPromiseSystem<Core::Schema*> Client::XML(HTTP::RequestFrame&& Target, size_t MaxSize)
 			{
-				return SendFetch(std::move(Root), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
+				return SendFetch(std::move(Target), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
 				{
 					if (!Status)
 						return Status.Error();
@@ -6580,8 +6621,8 @@ namespace Vitex
 						{
 							if (!Boundary->File->IsInMemory)
 							{
-								BoundaryBlock& Target = *Boundary;
-								UploadFile(&Target, [this, Boundary, FileId](Core::ExpectsSystem<void>&& Status)
+								BoundaryBlock& Block = *Boundary;
+								UploadFile(&Block, [this, Boundary, FileId](Core::ExpectsSystem<void>&& Status)
 								{
 									if (Status)
 									{
@@ -6591,7 +6632,7 @@ namespace Vitex
 												Upload(FileId + 1);
 											else if (Packet::IsErrorOrSkip(Event))
 												Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-										});
+										}, false);
 									}
 									else
 										Report(std::move(Status));
@@ -6602,7 +6643,7 @@ namespace Vitex
 						}
 						else if (Packet::IsErrorOrSkip(Event))
 							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-					});
+					}, false);
 				}
 				else
 				{

@@ -57,6 +57,7 @@ namespace Vitex
 			typedef Core::Vector<Core::String> RangePayload;
 			typedef Core::OrderedMap<Core::String, RangePayload, struct HeaderComparator> HeaderMapping;
 			typedef std::function<bool(class Connection*)> SuccessCallback;
+			typedef std::function<void(class Connection*, SocketPoll)> HeadersCallback;
 			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
 			typedef std::function<bool(class Connection*, Core::String&)> HeaderCallback;
@@ -71,9 +72,7 @@ namespace Vitex
 
 			class Connection;
 
-			class RouteEntry;
-
-			class SiteEntry;
+			class RouterEntry;
 
 			class MapRouter;
 
@@ -206,10 +205,10 @@ namespace Vitex
 				RequestFrame(RequestFrame&&) noexcept = default;
 				RequestFrame& operator= (const RequestFrame&) = default;
 				RequestFrame& operator= (RequestFrame&&) noexcept = default;
+				Core::String& PutHeader(const Core::String& Key, const Core::String& Value);
+				Core::String& SetHeader(const Core::String& Key, const Core::String& Value);
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
-				void PutHeader(const Core::String& Key, const Core::String& Value);
-				void SetHeader(const Core::String& Key, const Core::String& Value);
 				void Cleanup();
 				Core::String ComposeHeader(const Core::String& Key) const;
 				RangePayload* GetCookieRanges(const Core::String& Key);
@@ -235,8 +234,8 @@ namespace Vitex
 				ResponseFrame(ResponseFrame&&) noexcept = default;
 				ResponseFrame& operator= (const ResponseFrame&) = default;
 				ResponseFrame& operator= (ResponseFrame&&) noexcept = default;
-				void PutHeader(const Core::String& Key, const Core::String& Value);
-				void SetHeader(const Core::String& Key, const Core::String& Value);
+				Core::String& PutHeader(const Core::String& Key, const Core::String& Value);
+				Core::String& SetHeader(const Core::String& Key, const Core::String& Value);
 				void SetCookie(const Cookie& Value);
 				void SetCookie(Cookie&& Value);
 				void Cleanup();
@@ -263,8 +262,8 @@ namespace Vitex
 				FetchFrame(FetchFrame&&) noexcept = default;
 				FetchFrame& operator= (const FetchFrame&) = default;
 				FetchFrame& operator= (FetchFrame&&) noexcept = default;
-				void PutHeader(const Core::String& Key, const Core::String& Value);
-				void SetHeader(const Core::String& Key, const Core::String& Value);
+				Core::String& PutHeader(const Core::String& Key, const Core::String& Value);
+				Core::String& SetHeader(const Core::String& Key, const Core::String& Value);
 				void Cleanup();
 				Core::String ComposeHeader(const Core::String& Key) const;
 				RangePayload* GetCookieRanges(const Core::String& Key);
@@ -275,18 +274,6 @@ namespace Vitex
 				const char* GetHeader(const Core::String& Key) const;
 				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
 				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
-			};
-
-			class VI_OUT RouteGroup final : public Core::Reference<RouteGroup>
-			{
-			public:
-				Core::Vector<RouteEntry*> Routes;
-				Core::String Match;
-				RouteMode Mode;
-
-			public:
-				RouteGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept;
-				~RouteGroup() noexcept;
 			};
 
 			class VI_OUT WebSocketFrame final : public Core::Reference<WebSocketFrame>
@@ -342,7 +329,7 @@ namespace Vitex
 				~WebSocketFrame() noexcept;
 				Core::ExpectsSystem<size_t> Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				Core::ExpectsSystem<size_t> Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
-				Core::ExpectsSystem<void> Finish();
+				Core::ExpectsSystem<void> SendClose(const WebSocketCallback& Callback);
 				void Next();
 				bool IsFinished();
 				Socket* GetStream();
@@ -357,10 +344,24 @@ namespace Vitex
 				bool IsIgnore();
 			};
 
-			class VI_OUT RouteEntry final : public Core::Reference<RouteEntry>
+			class VI_OUT RouterGroup final : public Core::Reference<RouterGroup>
 			{
 			public:
-				struct RouteCallbacks
+				Core::Vector<RouterEntry*> Routes;
+				Core::String Match;
+				RouteMode Mode;
+
+			public:
+				RouterGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept;
+				~RouterGroup() noexcept;
+			};
+
+			class VI_OUT RouterEntry final : public Core::Reference<RouterEntry>
+			{
+				friend MapRouter;
+
+			public:
+				struct EntryCallbacks
 				{
 					struct WebSocketCallbacks
 					{
@@ -380,13 +381,15 @@ namespace Vitex
 					HeaderCallback Headers;
 					AuthorizeCallback Authorize;
 				} Callbacks;
-				struct RouteAuth
+
+				struct EntryAuth
 				{
 					Core::Vector<Core::String> Methods;
 					Core::String Type;
 					Core::String Realm;
 				} Auth;
-				struct RouteCompression
+
+				struct EntryCompression
 				{
 					Core::Vector<Compute::RegexSource> Files;
 					CompressionTune Tune = CompressionTune::Default;
@@ -403,12 +406,12 @@ namespace Vitex
 				Core::Vector<Core::String> IndexFiles;
 				Core::Vector<Core::String> TryFiles;
 				Core::Vector<Core::String> DisallowedMethods;
-				Core::String DocumentRoot = "./";
+				Core::String FilesDirectory;
 				Core::String CharSet = "utf-8";
 				Core::String ProxyIpAddress;
 				Core::String AccessControlAllowOrigin;
 				Core::String Redirect;
-				Core::String Override;
+				Core::String Alias;
 				size_t WebSocketTimeout = 30000;
 				size_t StaticFileMaxAge = 604800;
 				size_t Level = 0;
@@ -416,19 +419,18 @@ namespace Vitex
 				bool AllowWebSocket = false;
 				bool AllowSendFile = true;
 				Compute::RegexSource Location;
-				SiteEntry* Site = nullptr;
+				MapRouter* Router = nullptr;
 
-			public:
-				RouteEntry() = default;
-				RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source);
+			private:
+				static RouterEntry* From(const RouterEntry& Other, const Compute::RegexSource& Source);
 			};
 
-			class VI_OUT SiteEntry final : public Core::Reference<SiteEntry>
+			class VI_OUT MapRouter final : public SocketRouter
 			{
 			public:
-				struct SiteSession
+				struct RouterSession
 				{
-					struct SiteCookie
+					struct RouterCookie
 					{
 						Core::String Name = "sid";
 						Core::String Domain;
@@ -439,29 +441,30 @@ namespace Vitex
 						bool HttpOnly = true;
 					} Cookie;
 
-					Core::String DocumentRoot;
+					Core::String Directory;
 					uint64_t Expires = 604800;
 				} Session;
-				struct SiteCallbacks
+
+				struct RouterCallbacks
 				{
-					SuccessCallback OnRewriteURL;
+					std::function<void(MapRouter*)> OnDestroy;
+					SuccessCallback OnLocation;
 				} Callbacks;
 
 			public:
-				Core::Vector<RouteGroup*> Groups;
-				Core::String ResourceRoot = "./temp";
+				Core::Vector<RouterGroup*> Groups;
+				Core::String TemporaryDirectory = "./temp";
 				size_t MaxUploadableResources = 10;
-				RouteEntry* Base = nullptr;
-				MapRouter* Router = nullptr;
+				RouterEntry* Base = nullptr;
 
 			public:
-				SiteEntry();
-				~SiteEntry() noexcept;
+				MapRouter();
+				~MapRouter() override;
 				void Sort();
-				RouteGroup* Group(const Core::String& Match, RouteMode Mode);
-				RouteEntry* Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps);
-				RouteEntry* Route(const Core::String& Pattern, RouteGroup* Group, RouteEntry* From);
-				bool Remove(RouteEntry* Source);
+				RouterGroup* Group(const Core::String& Match, RouteMode Mode);
+				RouterEntry* Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps);
+				RouterEntry* Route(const Core::String& Pattern, RouterGroup* Group, RouterEntry* From);
+				bool Remove(RouterEntry* Source);
 				bool Get(const char* Pattern, const SuccessCallback& Callback);
 				bool Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
 				bool Post(const char* Pattern, const SuccessCallback& Callback);
@@ -490,37 +493,19 @@ namespace Vitex
 				bool WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback);
 			};
 
-			class VI_OUT MapRouter final : public SocketRouter
-			{
-			public:
-				struct
-				{
-					std::function<void(MapRouter*)> Destroy;
-				} Lifetime;
-
-			public:
-				Core::UnorderedMap<Core::String, SiteEntry*> Sites;
-
-			public:
-				MapRouter();
-				~MapRouter() override;
-				SiteEntry* Site();
-				SiteEntry* Site(const char* Host);
-			};
-
 			class VI_OUT Connection final : public SocketConnection
 			{
 			public:
 				struct ParserFrame
 				{
-					HTTP::Parser* Multipart = nullptr;
-					HTTP::Parser* Request = nullptr;
+					Parser* Multipart = nullptr;
+					Parser* Request = nullptr;
 				} Parsers;
 
 			public:
 				Core::FileEntry Resource;
 				WebSocketFrame* WebSocket = nullptr;
-				RouteEntry* Route = nullptr;
+				RouterEntry* Route = nullptr;
 				Server* Root = nullptr;
 				RequestFrame Request;
 				ResponseFrame Response;
@@ -529,11 +514,18 @@ namespace Vitex
 				Connection(Server* Source) noexcept;
 				~Connection() noexcept override;
 				void Reset(bool Fully) override;
-				bool Finish() override;
-				bool Finish(int StatusCode) override;
+				bool Next() override;
+				bool Next(int StatusCode) override;
+				bool SendHeaders(int StatusCode, bool SpecifyTransferEncoding, HeadersCallback&& Callback);
+				bool SendChunk(const Core::String& Chunk, HeadersCallback&& Callback);
 				bool Fetch(ContentCallback&& Callback = nullptr, bool Eat = false);
 				bool Store(ResourceCallback&& Callback = nullptr, bool Eat = false);
 				bool Skip(SuccessCallback&& Callback);
+
+			private:
+				bool ComposeResponse(bool ApplyErrorResponse, HeadersCallback&& Callback);
+				bool ComposeErrorRequested();
+				bool WaitingForWebSocket();
 			};
 
 			class VI_OUT Query final : public Core::Reference<Query>
@@ -650,7 +642,7 @@ namespace Vitex
 				{
 					RequestFrame* Request = nullptr;
 					ResponseFrame* Response = nullptr;
-					RouteEntry* Route = nullptr;
+					RouterEntry* Route = nullptr;
 					FILE* Stream = nullptr;
 					Core::String Header;
 					Resource Source;
@@ -676,7 +668,7 @@ namespace Vitex
 				Parser();
 				~Parser() noexcept;
 				void PrepareForNextParsing(Connection* Base, bool ForMultipart);
-				void PrepareForNextParsing(RouteEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart);
+				void PrepareForNextParsing(RouterEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart);
 				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
 				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LengthLastTime);
 				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LengthLastTime);
@@ -740,6 +732,27 @@ namespace Vitex
 				bool GetFrame(WebSocketOp* Op, Core::Vector<char>* Message);
 			};
 
+			class VI_OUT_TS HrmCache final : public Core::Singleton<HrmCache>
+			{
+			private:
+				Core::SingleQueue<Core::String*> Queue;
+				std::mutex Mutex;
+				size_t Capacity;
+				size_t Size;
+
+			public:
+				HrmCache() noexcept;
+				HrmCache(size_t MaxBytesStorage) noexcept;
+				virtual ~HrmCache() noexcept override;
+				void Rescale(size_t MaxBytesStorage) noexcept;
+				void Shrink() noexcept;
+				void Push(Core::String* Entry);
+				Core::String* Pop() noexcept;
+
+			private:
+				void ShrinkToFit() noexcept;
+			};
+
 			class VI_OUT_TS Utils
 			{
 			public:
@@ -754,7 +767,7 @@ namespace Vitex
 				static void ConstructPath(Connection* Base);
 				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String& Buffer);
 				static void ConstructHeadCache(Connection* Base, Core::String& Buffer);
-				static void ConstructHeadUncache(Connection* Base, Core::String& Buffer);
+				static void ConstructHeadUncache(Core::String& Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool ConstructDirectoryEntries(Connection* Base, const Core::String& NameA, const Core::FileEntry& A, const Core::String& NameB, const Core::FileEntry& B);
 				static Core::String ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
@@ -763,18 +776,18 @@ namespace Vitex
 			class VI_OUT_TS Parsing
 			{
 			public:
-				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseMultipartContentData(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseMultipartResourceBegin(Parser* Parser);
-				static bool ParseMultipartResourceEnd(Parser* Parser);
-				static bool ParseHeaderField(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseHeaderValue(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseVersion(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseStatusCode(Parser* Parser, size_t Length);
-				static bool ParseMethodValue(Parser* Parser, const char* Name, size_t Length);
-				static bool ParsePathValue(Parser* Parser, const char* Name, size_t Length);
-				static bool ParseQueryValue(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseMultipartHeaderField(Parser* Target, const char* Name, size_t Length);
+				static bool ParseMultipartHeaderValue(Parser* Target, const char* Name, size_t Length);
+				static bool ParseMultipartContentData(Parser* Target, const char* Name, size_t Length);
+				static bool ParseMultipartResourceBegin(Parser* Target);
+				static bool ParseMultipartResourceEnd(Parser* Target);
+				static bool ParseHeaderField(Parser* Target, const char* Name, size_t Length);
+				static bool ParseHeaderValue(Parser* Target, const char* Name, size_t Length);
+				static bool ParseVersion(Parser* Target, const char* Name, size_t Length);
+				static bool ParseStatusCode(Parser* Target, size_t Length);
+				static bool ParseMethodValue(Parser* Target, const char* Name, size_t Length);
+				static bool ParsePathValue(Parser* Target, const char* Name, size_t Length);
+				static bool ParseQueryValue(Parser* Target, const char* Name, size_t Length);
 				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
 				static Core::String ParseMultipartDataBoundary();
 				static void ParseCookie(const Core::String& Value);
@@ -802,13 +815,13 @@ namespace Vitex
 			class VI_OUT_TS Routing
 			{
 			public:
-				static bool RouteWEBSOCKET(Connection* Base);
-				static bool RouteGET(Connection* Base);
-				static bool RoutePOST(Connection* Base);
-				static bool RoutePUT(Connection* Base);
-				static bool RoutePATCH(Connection* Base);
-				static bool RouteDELETE(Connection* Base);
-				static bool RouteOPTIONS(Connection* Base);
+				static bool RouteWebSocket(Connection* Base);
+				static bool RouteGet(Connection* Base);
+				static bool RoutePost(Connection* Base);
+				static bool RoutePut(Connection* Base);
+				static bool RoutePatch(Connection* Base);
+				static bool RouteDelete(Connection* Base);
+				static bool RouteOptions(Connection* Base);
 			};
 
 			class VI_OUT_TS Logical
@@ -820,10 +833,10 @@ namespace Vitex
 				static bool ProcessResourceCache(Connection* Base);
 				static bool ProcessFile(Connection* Base, size_t ContentLength, size_t Range);
 				static bool ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range);
-				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength);
+				static bool ProcessFileChunk(Connection* Base, FILE* Stream, size_t ContentLength);
 				static bool ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip);
-				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength);
-				static bool ProcessWebSocket(Connection* Base, const char* Key);
+				static bool ProcessFileCompressChunk(Connection* Base, FILE* Stream, void* CStream, size_t ContentLength);
+				static bool ProcessWebSocket(Connection* Base, const char* Key, size_t KeySize);
 			};
 
 			class VI_OUT_TS Server final : public SocketServer
@@ -838,6 +851,7 @@ namespace Vitex
 				Core::ExpectsSystem<void> Update();
 
 			private:
+				Core::ExpectsSystem<void> UpdateRoute(RouterEntry* Route);
 				Core::ExpectsSystem<void> OnConfigure(SocketRouter* New) override;
 				Core::ExpectsSystem<void> OnUnlisten() override;
 				void OnRequestOpen(SocketConnection* Base) override;
@@ -860,7 +874,7 @@ namespace Vitex
 				};
 
 			private:
-				HTTP::Parser* Resolver;
+				Parser* Resolver;
 				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
@@ -875,11 +889,11 @@ namespace Vitex
 				~Client() override;
 				Core::ExpectsPromiseSystem<void> Skip();
 				Core::ExpectsPromiseSystem<void> Fetch(size_t MaxSize = PAYLOAD_SIZE, bool Eat = false);
-				Core::ExpectsPromiseSystem<void> Upgrade(HTTP::RequestFrame&& Root);
-				Core::ExpectsPromiseSystem<void> Send(HTTP::RequestFrame&& Root);
-				Core::ExpectsPromiseSystem<void> SendFetch(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<void> Upgrade(RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<void> Send(RequestFrame&& Root);
+				Core::ExpectsPromiseSystem<void> SendFetch(RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> JSON(RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
+				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> XML(RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
 				void Downgrade();
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();

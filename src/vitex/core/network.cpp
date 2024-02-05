@@ -1,5 +1,4 @@
 #include "network.h"
-#include "../network/http.h"
 #ifdef VI_MICROSOFT
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <winsock2.h>
@@ -583,12 +582,11 @@ namespace Vitex
 		{
 			VI_ASSERT(this != &Other, "this should not be other");
 			Message = Other.Message;
+			Reuses = Other.Reuses;
 			Start = Other.Start;
 			Finish = Other.Finish;
 			Timeout = Other.Timeout;
-			KeepAlive = Other.KeepAlive;
-			Close = Other.Close;
-
+			Abort = Other.Abort;
 			return *this;
 		}
 
@@ -1128,7 +1126,7 @@ namespace Vitex
 				case EINPROGRESS:
 					return std::make_error_condition(std::errc::operation_would_block);
 				case 0:
-					return std::make_error_condition(std::errc());
+					return std::make_error_condition(std::errc::connection_reset);
 				default:
 					return Core::OS::Error::GetCondition(ErrorCode);
 			}
@@ -1580,27 +1578,29 @@ namespace Vitex
 			if (Count < 0)
 				return Count;
 
-			VI_MEASURE(EventTimeout + (uint64_t)Core::Timings::FileSystem);
-			size_t Size = (size_t)Count;
 			auto Time = Core::Schedule::GetClock();
-
-			for (size_t i = 0; i < Size; i++)
-				DispatchEvents(Fds.at(i), Time);
-
-			VI_MEASURE(Core::Timings::FileSystem);
-			if (Timeouts.empty())
-				return Count;
-
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			while (!Timeouts.empty())
+			if (Count > 0)
 			{
-				auto It = Timeouts.begin();
-				if (It->first > Time)
-					break;
+				VI_MEASURE(EventTimeout + (uint64_t)Core::Timings::FileSystem);
+				size_t Size = (size_t)Count;
+				for (size_t i = 0; i < Size; i++)
+					DispatchEvents(Fds.at(i), Time);
+			}
 
-				VI_DEBUG("[net] sock timeout on fd %i", (int)It->second->Fd);
-				CancelEvents(It->second, SocketPoll::Timeout);
-				Timeouts.erase(It);
+			if (!Timeouts.empty())
+			{
+				VI_MEASURE(Core::Timings::FileSystem);
+				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+				while (!Timeouts.empty())
+				{
+					auto It = Timeouts.begin();
+					if (It->first > Time)
+						break;
+
+					VI_DEBUG("[net] sock timeout on fd %i", (int)It->second->Fd);
+					CancelEvents(It->second, SocketPoll::Timeout);
+					Timeouts.erase(It);
+				}
 			}
 
 			return Count;
@@ -1877,6 +1877,7 @@ namespace Vitex
 				Connections[Name].insert(Stream);
 			}
 			Stream->Timeout = 0;
+			Stream->SetBlocking(false);
 			ListenConnectionName(Name, Stream);
 			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
 			return true;
@@ -2527,10 +2528,7 @@ namespace Vitex
 			{
 				int Value = SSL_write(Device, Buffer, (int)Size);
 				if (Value <= 0)
-				{
-					ERR_print_errors_fp(stderr);
 					return Utils::GetLastError(Device, Value);
-				}
 
 				size_t Written = (size_t)Value;
 				Outcome += Written;
@@ -2538,20 +2536,22 @@ namespace Vitex
 			}
 #endif
 			int Value = send(Fd, Buffer, (int)Size, 0);
-			if (Value <= 0)
+			if (Value == 0)
+				return std::make_error_condition(std::errc::operation_would_block);
+			else if (Value < 0)
 				return Utils::GetLastError(Device, Value);
 
 			size_t Written = (size_t)Value;
 			Outcome += Written;
 			return Written;
 		}
-		Core::ExpectsIO<size_t> Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
+		Core::ExpectsIO<size_t> Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync, char* TempBuffer, size_t TempOffset)
 		{
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (Fd == INVALID_SOCKET)
 			{
-				if (TempBuffer != nullptr)
+				if (CopyBufferWhenAsync && TempBuffer != nullptr)
 					VI_FREE(TempBuffer);
 				Callback(SocketPoll::Reset);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
@@ -2569,24 +2569,30 @@ namespace Vitex
 					{
 						if (!TempBuffer)
 						{
-							TempBuffer = VI_MALLOC(char, Payload);
-							memcpy(TempBuffer, Buffer, Payload);
+							if (CopyBufferWhenAsync)
+							{
+								TempBuffer = VI_MALLOC(char, Payload);
+								memcpy(TempBuffer, Buffer, Payload);
+							}
+							else
+								TempBuffer = (char*)Buffer;
 						}
 
-						Multiplexer::Get()->WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+						Multiplexer::Get()->WhenWriteable(this, [this, CopyBufferWhenAsync, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 						{
 							if (!Packet::IsDone(Event))
 							{
-								VI_FREE(TempBuffer);
+								if (CopyBufferWhenAsync && TempBuffer != nullptr)
+									VI_FREE(TempBuffer);
 								Callback(Event);
 							}
 							else
-								WriteAsync(TempBuffer, Size, std::move(Callback), TempBuffer, TempOffset);
+								WriteAsync(TempBuffer, Size, std::move(Callback), CopyBufferWhenAsync, TempBuffer, TempOffset);
 						});
 					}
 					else
 					{
-						if (TempBuffer != nullptr)
+						if (CopyBufferWhenAsync && TempBuffer != nullptr)
 							VI_FREE(TempBuffer);
 						Callback(SocketPoll::Reset);
 					}
@@ -2602,7 +2608,7 @@ namespace Vitex
 				}
 			}
 
-			if (TempBuffer != nullptr)
+			if (CopyBufferWhenAsync && TempBuffer != nullptr)
 				VI_FREE(TempBuffer);
 
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
@@ -2629,7 +2635,9 @@ namespace Vitex
 			}
 #endif
 			int Value = recv(Fd, Buffer, (int)Size, 0);
-			if (Value <= 0)
+			if (Value == 0)
+				return std::make_error_condition(std::errc::connection_reset);
+			else if (Value < 0)
 				return Utils::GetLastError(Device, Value);
 
 			size_t Received = (size_t)Value;
@@ -3292,19 +3300,16 @@ namespace Vitex
 			VI_CLEAR(Stream);
 			VI_CLEAR(Host);
 		}
-		bool SocketConnection::Finish()
+		bool SocketConnection::Abort()
 		{
-			return false;
+			Info.Abort = true;
+			return Next(-1);
 		}
-		bool SocketConnection::Finish(int)
-		{
-			return Finish();
-		}
-		bool SocketConnection::Error(int StatusCode, const char* ErrorMessage, ...)
+		bool SocketConnection::Abort(int StatusCode, const char* ErrorMessage, ...)
 		{
 			char Buffer[Core::BLOB_SIZE];
-			if (Info.Close)
-				return Finish();
+			if (Info.Abort)
+				return Next();
 
 			va_list Args;
 			va_start(Args, ErrorMessage);
@@ -3312,22 +3317,35 @@ namespace Vitex
 			va_end(Args);
 
 			Info.Message.assign(Buffer, Count);
-			return Finish(StatusCode);
+			return Next(StatusCode);
 		}
-		bool SocketConnection::Break()
+		bool SocketConnection::Next()
 		{
-			return Finish(-1);
+			return false;
+		}
+		bool SocketConnection::Next(int)
+		{
+			return Next();
+		}
+		bool SocketConnection::Closable(SocketRouter* Router)
+		{
+			if (Info.Abort)
+				return true;
+			else if (Info.Reuses > 1)
+				return false;
+
+			return Router && Router->KeepAliveMaxCount != 0;
 		}
 		void SocketConnection::Reset(bool Fully)
 		{
 			if (Fully)
 			{
 				Info.Message.clear();
+				Info.Reuses = 1;
 				Info.Start = 0;
 				Info.Finish = 0;
 				Info.Timeout = 0;
-				Info.KeepAlive = 1;
-				Info.Close = false;
+				Info.Abort = false;
 			}
 
 			if (Stream != nullptr)
@@ -3488,8 +3506,7 @@ namespace Vitex
 				while (!Queue.empty())
 				{
 					auto* Base = Queue.front();
-					Base->Info.Close = true;
-					Base->Info.KeepAlive = 0;
+					Base->Info.Abort = true;
 					if (!Core::Schedule::Get()->IsActive())
 						Base->Stream->SetBlocking(true);
 					if (Gracefully)
@@ -3689,10 +3706,7 @@ namespace Vitex
 		Core::ExpectsIO<void> SocketServer::Continue(SocketConnection* Base)
 		{
 			VI_ASSERT(Base != nullptr, "socket should be set");
-			if (Base->Info.KeepAlive < -1)
-				return std::make_error_condition(std::errc::connection_aborted);
-
-			if (!OnRequestCleanup(Base))
+			if (!Base->Closable(Router) && !OnRequestCleanup(Base))
 				return std::make_error_condition(std::errc::operation_in_progress);
 
 			return Finalize(Base);
@@ -3700,24 +3714,18 @@ namespace Vitex
 		Core::ExpectsIO<void> SocketServer::Finalize(SocketConnection* Base)
 		{
 			VI_ASSERT(Base != nullptr, "socket should be set");
-			if (Router->KeepAliveMaxCount >= 0)
-				Base->Info.KeepAlive--;
+			if (Router->KeepAliveMaxCount != 0 && Base->Info.Reuses > 0)
+				--Base->Info.Reuses;
 
-			if (Base->Info.KeepAlive >= -1)
-				Base->Info.Finish = Utils::Clock();
-
+			Base->Info.Finish = Utils::Clock();
 			OnRequestClose(Base);
-			Base->Stream->Timeout = Router->SocketTimeout;
-			Base->Stream->Income = 0;
-			Base->Stream->Outcome = 0;
 
-			if (Base->Info.Close || Base->Info.KeepAlive <= -1)
-			{
-				Base->Info.KeepAlive = -2;
+			Base->Stream->Timeout = Router->SocketTimeout;
+			Base->Stream->Income = Base->Stream->Outcome = 0;
+			if (Base->Info.Abort || !Base->Info.Reuses)
 				return Base->Stream->CloseAsync([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
-			}
 			else if (Base->Stream->IsValid())
-				OnRequestOpen(Base);
+				Core::Codefer(std::bind(&SocketServer::OnRequestOpen, this, Base), false);
 			else
 				Push(Base);
 
@@ -3807,7 +3815,7 @@ namespace Vitex
 			}
 
 			VI_RELEASE(Result->Host);
-			Result->Info.KeepAlive = (Router->KeepAliveMaxCount > 0 ? Router->KeepAliveMaxCount - 1 : 0);
+			Result->Info.Reuses = (Router->KeepAliveMaxCount > 0 ? (size_t)Router->KeepAliveMaxCount : 1);
 			Result->Host = Host;
 			Result->Host->AddRef();
 

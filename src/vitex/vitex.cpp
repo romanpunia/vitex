@@ -4,6 +4,7 @@
 #include "core/network.h"
 #include "core/scripting.h"
 #include "engine/gui.h"
+#include "network/http.h"
 #include "network/ldb.h"
 #include "network/pdb.h"
 #include "network/mdb.h"
@@ -732,6 +733,7 @@ namespace Vitex
 	void Runtime::CleanupInstances()
 	{
 		VI_TRACE("[lib] free singleton instances");
+		Network::HTTP::HrmCache::CleanupInstance();
 		Network::LDB::Driver::CleanupInstance();
 		Network::PDB::Driver::CleanupInstance();
 		Network::MDB::Driver::CleanupInstance();

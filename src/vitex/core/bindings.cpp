@@ -7226,9 +7226,9 @@ namespace Vitex
 			{
 				return Base->RemoteAddress;
 			}
-			bool SocketConnectionError(Network::SocketConnection* Base, int Code, const Core::String& Message)
+			bool SocketConnectionAbort(Network::SocketConnection* Base, int Code, const Core::String& Message)
 			{
-				return Base->Error(Code, "%s", Message.c_str());
+				return Base->Abort(Code, "%s", Message.c_str());
 			}
 
 			template <typename T>
@@ -8461,7 +8461,7 @@ namespace Vitex
 				return Base.Cookies.size();
 			}
 
-			Network::HTTP::RouteEntry* RouteGroupGetRoute(Network::HTTP::RouteGroup* Base, size_t Index)
+			Network::HTTP::RouterEntry* RouterGroupGetRoute(Network::HTTP::RouterGroup* Base, size_t Index)
 			{
 				if (Index >= Base->Routes.size())
 				{
@@ -8471,19 +8471,19 @@ namespace Vitex
 
 				return Base->Routes[Index];
 			}
-			size_t RouteGroupGetRoutesSize(Network::HTTP::RouteGroup* Base)
+			size_t RouterGroupGetRoutesSize(Network::HTTP::RouterGroup* Base)
 			{
 				return Base->Routes.size();
 			}
 
-			void RouteEntrySetHiddenFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			void RouterEntrySetHiddenFiles(Network::HTTP::RouterEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base->HiddenFiles = Array::Decompose<Compute::RegexSource>(Data);
 				else
 					Base->HiddenFiles.clear();
 			}
-			Array* RouteEntryGetHiddenFiles(Network::HTTP::RouteEntry* Base)
+			Array* RouterEntryGetHiddenFiles(Network::HTTP::RouterEntry* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8492,14 +8492,14 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
 				return Array::Compose<Compute::RegexSource>(Type.GetTypeInfo(), Base->HiddenFiles);
 			}
-			void RouteEntrySetErrorFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			void RouterEntrySetErrorFiles(Network::HTTP::RouterEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base->ErrorFiles = Array::Decompose<Network::HTTP::ErrorFile>(Data);
 				else
 					Base->ErrorFiles.clear();
 			}
-			Array* RouteEntryGetErrorFiles(Network::HTTP::RouteEntry* Base)
+			Array* RouterEntryGetErrorFiles(Network::HTTP::RouterEntry* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8508,14 +8508,14 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_HTTPERRORFILE ">@");
 				return Array::Compose<Network::HTTP::ErrorFile>(Type.GetTypeInfo(), Base->ErrorFiles);
 			}
-			void RouteEntrySetMimeTypes(Network::HTTP::RouteEntry* Base, Array* Data)
+			void RouterEntrySetMimeTypes(Network::HTTP::RouterEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base->MimeTypes = Array::Decompose<Network::HTTP::MimeType>(Data);
 				else
 					Base->MimeTypes.clear();
 			}
-			Array* RouteEntryGetMimeTypes(Network::HTTP::RouteEntry* Base)
+			Array* RouterEntryGetMimeTypes(Network::HTTP::RouterEntry* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8524,14 +8524,14 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_HTTPMIMETYPE ">@");
 				return Array::Compose<Network::HTTP::MimeType>(Type.GetTypeInfo(), Base->MimeTypes);
 			}
-			void RouteEntrySetIndexFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			void RouterEntrySetIndexFiles(Network::HTTP::RouterEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base->IndexFiles = Array::Decompose<Core::String>(Data);
 				else
 					Base->IndexFiles.clear();
 			}
-			Array* RouteEntryGetIndexFiles(Network::HTTP::RouteEntry* Base)
+			Array* RouterEntryGetIndexFiles(Network::HTTP::RouterEntry* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8540,14 +8540,14 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->IndexFiles);
 			}
-			void RouteEntrySetTryFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			void RouterEntrySetTryFiles(Network::HTTP::RouterEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base->TryFiles = Array::Decompose<Core::String>(Data);
 				else
 					Base->TryFiles.clear();
 			}
-			Array* RouteEntryGetTryFiles(Network::HTTP::RouteEntry* Base)
+			Array* RouterEntryGetTryFiles(Network::HTTP::RouterEntry* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8556,14 +8556,14 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->TryFiles);
 			}
-			void RouteEntrySetDisallowedMethodsFiles(Network::HTTP::RouteEntry* Base, Array* Data)
+			void RouterEntrySetDisallowedMethodsFiles(Network::HTTP::RouterEntry* Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base->DisallowedMethods = Array::Decompose<Core::String>(Data);
 				else
 					Base->DisallowedMethods.clear();
 			}
-			Array* RouteEntryGetDisallowedMethodsFiles(Network::HTTP::RouteEntry* Base)
+			Array* RouterEntryGetDisallowedMethodsFiles(Network::HTTP::RouterEntry* Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8572,19 +8572,19 @@ namespace Vitex
 				TypeInfo Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base->DisallowedMethods);
 			}
-			Network::HTTP::SiteEntry* RouteEntryGetSite(Network::HTTP::RouteEntry* Base)
+			Network::HTTP::MapRouter* RouterEntryGetRouter(Network::HTTP::RouterEntry* Base)
 			{
-				return Base->Site;
+				return Base->Router;
 			}
 
-			void RouteAuthSetMethods(Network::HTTP::RouteEntry::RouteAuth& Base, Array* Data)
+			void RouteAuthSetMethods(Network::HTTP::RouterEntry::EntryAuth& Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base.Methods = Array::Decompose<Core::String>(Data);
 				else
 					Base.Methods.clear();
 			}
-			Array* RouteAuthGetMethods(Network::HTTP::RouteEntry::RouteAuth& Base)
+			Array* RouteAuthGetMethods(Network::HTTP::RouterEntry::EntryAuth& Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8594,14 +8594,14 @@ namespace Vitex
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base.Methods);
 			}
 
-			void RouteCompressionSetFiles(Network::HTTP::RouteEntry::RouteCompression& Base, Array* Data)
+			void RouteCompressionSetFiles(Network::HTTP::RouterEntry::EntryCompression& Base, Array* Data)
 			{
 				if (Data != nullptr)
 					Base.Files = Array::Decompose<Compute::RegexSource>(Data);
 				else
 					Base.Files.clear();
 			}
-			Array* RouteCompressionGetFiles(Network::HTTP::RouteEntry::RouteCompression& Base)
+			Array* RouteCompressionGetFiles(Network::HTTP::RouterEntry::EntryCompression& Base)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -8611,15 +8611,11 @@ namespace Vitex
 				return Array::Compose<Compute::RegexSource>(Type.GetTypeInfo(), Base.Files);
 			}
 
-			Network::HTTP::RouteEntry* SiteEntryGetBase(Network::HTTP::SiteEntry* Base)
+			Network::HTTP::RouterEntry* MapRouterGetBase(Network::HTTP::MapRouter* Base)
 			{
 				return Base->Base;
 			}
-			Network::HTTP::MapRouter* SiteEntryGetRouter(Network::HTTP::SiteEntry* Base)
-			{
-				return Base->Router;
-			}
-			Network::HTTP::RouteGroup* SiteEntryGetGroup(Network::HTTP::SiteEntry* Base, size_t Index)
+			Network::HTTP::RouterGroup* MapRouterGetGroup(Network::HTTP::MapRouter* Base, size_t Index)
 			{
 				if (Index >= Base->Groups.size())
 				{
@@ -8629,17 +8625,17 @@ namespace Vitex
 
 				return Base->Groups[Index];
 			}
-			size_t SiteEntryGetGroupsSize(Network::HTTP::SiteEntry* Base)
+			size_t MapRouterGetGroupsSize(Network::HTTP::MapRouter* Base)
 			{
 				return Base->Groups.size();
 			}
-			Network::HTTP::RouteEntry* SiteEntryFetchRoute(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern)
+			Network::HTTP::RouterEntry* MapRouterFetchRoute(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern)
 			{
 				return Base->Route(Match, Mode, Pattern, false);
 			}
-			bool SiteEntryGet2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterGet2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8657,13 +8653,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryGet1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterGet1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryGet2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterGet2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryPost2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPost2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8681,13 +8677,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryPost1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPost1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryPost2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterPost2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryPatch2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPatch2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8705,13 +8701,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryPatch1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPatch1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryPatch2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterPatch2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryDelete2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterDelete2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8729,13 +8725,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryDelete1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterDelete1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryDelete2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterDelete2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryOptions2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterOptions2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8753,13 +8749,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryOptions1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterOptions1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryOptions2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterOptions2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryAccess2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAccess2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8777,13 +8773,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryAccess1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAccess1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryAccess2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterAccess2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryHeaders2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterHeaders2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8805,13 +8801,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryHeaders1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterHeaders1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryHeaders2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterHeaders2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryAuthorize2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAuthorize2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8833,13 +8829,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryAuthorize1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAuthorize1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryAuthorize2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterAuthorize2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryWebsocketInitiate2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketInitiate2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8857,13 +8853,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryWebsocketInitiate1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketInitiate1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryWebsocketInitiate2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterWebsocketInitiate2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryWebsocketConnect2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketConnect2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8881,13 +8877,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryWebsocketConnect1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketConnect1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryWebsocketConnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterWebsocketConnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryWebsocketDisconnect2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketDisconnect2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8905,13 +8901,13 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryWebsocketDisconnect1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketDisconnect1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryWebsocketDisconnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterWebsocketDisconnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool SiteEntryWebsocketReceive2(Network::HTTP::SiteEntry* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketReceive2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				auto* Route = SiteEntryFetchRoute(Base, Match, Mode, Pattern);
+				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
 					return false;
 
@@ -8935,9 +8931,9 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool SiteEntryWebsocketReceive1(Network::HTTP::SiteEntry* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketReceive1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
 			{
-				return SiteEntryWebsocketReceive2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
+				return MapRouterWebsocketReceive2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
 			bool WebSocketFrameSetOnConnect(Network::HTTP::WebSocketFrame* Base, asIScriptFunction* Callback)
 			{
@@ -9016,42 +9012,77 @@ namespace Vitex
 			{
 				return WebSocketFrameSend2(Base, 0, Data, Opcode);
 			}
+			Core::Promise<bool> WebSocketFrameSendClose(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
+			{
+				Core::Promise<bool> Result;
+				ExpectsWrapper::UnwrapVoid(Base->SendClose([Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); }));
+				return Result;
+			}
 
-			Network::HTTP::SiteEntry* MapRouterSite1(Network::HTTP::MapRouter* Base)
+			Core::Promise<bool> ConnectionSendHeaders(Network::HTTP::Connection* Base, int StatusCode, bool SpecifyTransferEncoding)
 			{
-				return Base->Site();
-			}
-			Network::HTTP::SiteEntry* MapRouterSite2(Network::HTTP::MapRouter* Base, const Core::String& Host)
-			{
-				return Base->Site(Host.c_str());
-			}
-			Network::HTTP::SiteEntry* MapRouterGetSite1(Network::HTTP::MapRouter* Base, const Core::String& Host)
-			{
-				auto It = Base->Sites.find(Host);
-				if (It != Base->Sites.end())
-					return It->second;
-
-				return nullptr;
-			}
-			Network::HTTP::SiteEntry* MapRouterGetSite2(Network::HTTP::MapRouter* Base, size_t Index)
-			{
-				if (Index >= Base->Sites.size())
+				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get();
+				bool Sending = Base->SendHeaders(StatusCode, SpecifyTransferEncoding,[Result, Context](Network::HTTP::Connection*, Network::SocketPoll Event) mutable
 				{
-					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
-					return nullptr;
-				}
-
-				auto It = Base->Sites.begin();
-				while (Index-- > 0)
-					++It;
-
-				return It->second;
+					switch (Event)
+					{
+						case Network::SocketPoll::Finish:
+						case Network::SocketPoll::FinishSync:
+							Result.Set(true);
+							break;
+						case Network::SocketPoll::Reset:
+							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: connection reset")), Context));
+							break;
+						case Network::SocketPoll::Timeout:
+							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: connection timeout")), Context));
+							break;
+						case Network::SocketPoll::Cancel:
+							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: connection aborted")), Context));
+							break;
+						case Network::SocketPoll::Next:
+						default:
+							break;
+					}
+				});
+				if (!Sending)
+					Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: illegal operation")), Context));
+				return Result;
 			}
-			size_t MapRouterGetSitesSize(Network::HTTP::MapRouter* Base)
+			Core::Promise<bool> ConnectionSendChunk(Network::HTTP::Connection* Base, const Core::String& Chunk)
 			{
-				return Base->Sites.size();
+				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get();
+				bool Sending = Base->SendChunk(Chunk, [Result, Context](Network::HTTP::Connection*, Network::SocketPoll Event) mutable
+				{
+					switch (Event)
+					{
+						case Network::SocketPoll::Finish:
+						case Network::SocketPoll::FinishSync:
+							Result.Set(true);
+							break;
+						case Network::SocketPoll::Reset:
+							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: connection reset")), Context));
+							break;
+						case Network::SocketPoll::Timeout:
+							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: connection timeout")), Context));
+							break;
+						case Network::SocketPoll::Cancel:
+							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: connection aborted")), Context));
+							break;
+						case Network::SocketPoll::Next:
+						default:
+							break;
+					}
+				});
+				if (!Sending)
+					Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: illegal operation")), Context));
+				return Result;
 			}
-
+			Core::Promise<bool> ConnectionSkip(Network::HTTP::Connection* Base)
+			{
+				Core::Promise<bool> Result;
+				Base->Skip([Result](Network::HTTP::Connection*) mutable { Result.Set(true); return true; });
+				return Result;
+			}
 			Core::Promise<Array*> ConnectionStore(Network::HTTP::Connection* Base, bool Eat)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
@@ -9092,17 +9123,11 @@ namespace Vitex
 				}, Eat);
 				return Result;
 			}
-			Core::Promise<bool> ConnectionSkip(Network::HTTP::Connection* Base)
-			{
-				Core::Promise<bool> Result;
-				Base->Skip([Result](Network::HTTP::Connection*) mutable { Result.Set(true); return true; });
-				return Result;
-			}
 			Network::HTTP::WebSocketFrame* ConnectionGetWebSocket(Network::HTTP::Connection* Base)
 			{
 				return Base->WebSocket;
 			}
-			Network::HTTP::RouteEntry* ConnectionGetRoute(Network::HTTP::Connection* Base)
+			Network::HTTP::RouterEntry* ConnectionGetRoute(Network::HTTP::Connection* Base)
 			{
 				return Base->Route;
 			}
@@ -15816,11 +15841,11 @@ namespace Vitex
 
 				auto VDataFrame = VM->SetStructTrivial<Network::DataFrame>("socket_data_frame");
 				VDataFrame->SetProperty<Network::DataFrame>("string message", &Network::DataFrame::Message);
-				VDataFrame->SetProperty<Network::DataFrame>("bool start", &Network::DataFrame::Start);
-				VDataFrame->SetProperty<Network::DataFrame>("bool finish", &Network::DataFrame::Finish);
-				VDataFrame->SetProperty<Network::DataFrame>("bool timeout", &Network::DataFrame::Timeout);
-				VDataFrame->SetProperty<Network::DataFrame>("bool keep_alive", &Network::DataFrame::KeepAlive);
-				VDataFrame->SetProperty<Network::DataFrame>("bool close", &Network::DataFrame::Close);
+				VDataFrame->SetProperty<Network::DataFrame>("usize reuses", &Network::DataFrame::Reuses);
+				VDataFrame->SetProperty<Network::DataFrame>("int64 start", &Network::DataFrame::Start);
+				VDataFrame->SetProperty<Network::DataFrame>("int64 finish", &Network::DataFrame::Finish);
+				VDataFrame->SetProperty<Network::DataFrame>("int64 timeout", &Network::DataFrame::Timeout);
+				VDataFrame->SetProperty<Network::DataFrame>("bool abort", &Network::DataFrame::Abort);
 				VDataFrame->SetConstructor<Network::DataFrame>("void f()");
 
 				auto VSocket = VM->SetClass<Network::Socket>("socket", false);
@@ -15989,10 +16014,10 @@ namespace Vitex
 				VSocketConnection->SetGcConstructor<Network::SocketConnection, SocketConnection>("socket_connection@ f()");
 				VSocketConnection->SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
 				VSocketConnection->SetMethod("void reset(bool)", &Network::SocketConnection::Reset);
-				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool finish()", &Network::SocketConnection::Finish);
-				VSocketConnection->SetMethod<Network::SocketConnection, bool, int>("bool finish(int)", &Network::SocketConnection::Finish);
-				VSocketConnection->SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
-				VSocketConnection->SetMethod("bool stop()", &Network::SocketConnection::Break);
+				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool next()", &Network::SocketConnection::Next);
+				VSocketConnection->SetMethod<Network::SocketConnection, bool, int>("bool next(int32)", &Network::SocketConnection::Next);
+				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool abort()", &Network::SocketConnection::Abort);
+				VSocketConnection->SetMethodEx("bool abort(int, const string &in)", &SocketConnectionAbort);
 				VSocketConnection->SetEnumRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine* VM)
 				{
 					FunctionFactory::GCEnumCallback(VM, Base->Stream);
@@ -16043,7 +16068,7 @@ namespace Vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
-				VI_TYPEREF(RouteGroup, "http::route_group");
+				VI_TYPEREF(RouterGroup, "http::route_group");
 				VI_TYPEREF(SiteEntry, "http::site_entry");
 				VI_TYPEREF(MapRouter, "http::map_router");
 				VI_TYPEREF(Server, "http::server");
@@ -16108,8 +16133,8 @@ namespace Vitex
 				VResource->SetProperty<Network::HTTP::Resource>("usize length", &Network::HTTP::Resource::Length);
 				VResource->SetProperty<Network::HTTP::Resource>("bool is_in_memory", &Network::HTTP::Resource::IsInMemory);
 				VResource->SetConstructor<Network::HTTP::Resource>("void f()");
-				VResource->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::Resource::PutHeader);
-				VResource->SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::Resource::SetHeader);
+				VResource->SetMethod("const string& put_header(const string&in, const string&in)", &Network::HTTP::Resource::PutHeader);
+				VResource->SetMethod("const string& set_header(const string&in, const string&in)", &Network::HTTP::Resource::SetHeader);
 				VResource->SetMethod("string compose_header(const string&in) const", &Network::HTTP::Resource::ComposeHeader);
 				VResource->SetMethodEx("string get_header(const string&in) const", &ResourceGetHeaderBlob);
 				VResource->SetMethod("const string& get_in_memory_contents() const", &Network::HTTP::Resource::GetInMemoryContents);
@@ -16159,9 +16184,9 @@ namespace Vitex
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("regex_result match", &Network::HTTP::RequestFrame::Match);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("credentials user", &Network::HTTP::RequestFrame::User);
 				VRequestFrame->SetConstructor<Network::HTTP::RequestFrame>("void f()");
+				VRequestFrame->SetMethod("const string& put_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::PutHeader);
+				VRequestFrame->SetMethod("const string& set_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::SetHeader);
 				VRequestFrame->SetMethod("void set_version(uint32, uint32)", &Network::HTTP::RequestFrame::SetVersion);
-				VRequestFrame->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::PutHeader);
-				VRequestFrame->SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::SetHeader);
 				VRequestFrame->SetMethod("void cleanup()", &Network::HTTP::RequestFrame::Cleanup);
 				VRequestFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::RequestFrame::ComposeHeader);
 				VRequestFrame->SetMethodEx("string get_cookie(const string&in) const", &RequestFrameGetCookieBlob);
@@ -16180,8 +16205,8 @@ namespace Vitex
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("int32 status_code", &Network::HTTP::ResponseFrame::StatusCode);
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("bool error", &Network::HTTP::ResponseFrame::Error);
 				VResponseFrame->SetConstructor<Network::HTTP::ResponseFrame>("void f()");
-				VResponseFrame->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::PutHeader);
-				VResponseFrame->SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::SetHeader);
+				VResponseFrame->SetMethod("const string& put_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::PutHeader);
+				VResponseFrame->SetMethod("const string& set_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::SetHeader);
 				VResponseFrame->SetMethod<Network::HTTP::ResponseFrame, void, const Network::HTTP::Cookie&>("void set_cookie(const cookie&in)", &Network::HTTP::ResponseFrame::SetCookie);
 				VResponseFrame->SetMethod("void cleanup()", &Network::HTTP::ResponseFrame::Cleanup);
 				VResponseFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::ResponseFrame::ComposeHeader);
@@ -16213,80 +16238,78 @@ namespace Vitex
 				VFetchFrame->SetMethodEx("usize get_cookies_size() const", &FetchFrameGetCookiesSize);
 				VFetchFrame->SetMethodEx("usize get_cookie_size(usize) const", &FetchFrameGetCookieSize);
 
-				auto VRouteAuth = VM->SetStructTrivial<Network::HTTP::RouteEntry::RouteAuth>("route_auth");
-				VRouteAuth->SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string type", &Network::HTTP::RouteEntry::RouteAuth::Type);
-				VRouteAuth->SetProperty<Network::HTTP::RouteEntry::RouteAuth>("string realm", &Network::HTTP::RouteEntry::RouteAuth::Realm);
-				VRouteAuth->SetConstructor<Network::HTTP::RouteEntry::RouteAuth>("void f()");
+				auto VRouteAuth = VM->SetStructTrivial<Network::HTTP::RouterEntry::EntryAuth>("route_auth");
+				VRouteAuth->SetProperty<Network::HTTP::RouterEntry::EntryAuth>("string type", &Network::HTTP::RouterEntry::EntryAuth::Type);
+				VRouteAuth->SetProperty<Network::HTTP::RouterEntry::EntryAuth>("string realm", &Network::HTTP::RouterEntry::EntryAuth::Realm);
+				VRouteAuth->SetConstructor<Network::HTTP::RouterEntry::EntryAuth>("void f()");
 				VRouteAuth->SetMethodEx("void set_methods(array<string>@+)", &RouteAuthSetMethods);
 				VRouteAuth->SetMethodEx("array<string>@ get_methods() const", &RouteAuthGetMethods);
 
-				auto VRouteCompression = VM->SetStructTrivial<Network::HTTP::RouteEntry::RouteCompression>("route_compression");
-				VRouteCompression->SetProperty<Network::HTTP::RouteEntry::RouteCompression>("compression_tune tune", &Network::HTTP::RouteEntry::RouteCompression::Tune);
-				VRouteCompression->SetProperty<Network::HTTP::RouteEntry::RouteCompression>("int32 quality_level", &Network::HTTP::RouteEntry::RouteCompression::QualityLevel);
-				VRouteCompression->SetProperty<Network::HTTP::RouteEntry::RouteCompression>("int32 memory_level", &Network::HTTP::RouteEntry::RouteCompression::MemoryLevel);
-				VRouteCompression->SetProperty<Network::HTTP::RouteEntry::RouteCompression>("usize min_length", &Network::HTTP::RouteEntry::RouteCompression::MinLength);
-				VRouteCompression->SetProperty<Network::HTTP::RouteEntry::RouteCompression>("bool enabled", &Network::HTTP::RouteEntry::RouteCompression::Enabled);
-				VRouteCompression->SetConstructor<Network::HTTP::RouteEntry::RouteCompression>("void f()");
+				auto VRouteCompression = VM->SetStructTrivial<Network::HTTP::RouterEntry::EntryCompression>("route_compression");
+				VRouteCompression->SetProperty<Network::HTTP::RouterEntry::EntryCompression>("compression_tune tune", &Network::HTTP::RouterEntry::EntryCompression::Tune);
+				VRouteCompression->SetProperty<Network::HTTP::RouterEntry::EntryCompression>("int32 quality_level", &Network::HTTP::RouterEntry::EntryCompression::QualityLevel);
+				VRouteCompression->SetProperty<Network::HTTP::RouterEntry::EntryCompression>("int32 memory_level", &Network::HTTP::RouterEntry::EntryCompression::MemoryLevel);
+				VRouteCompression->SetProperty<Network::HTTP::RouterEntry::EntryCompression>("usize min_length", &Network::HTTP::RouterEntry::EntryCompression::MinLength);
+				VRouteCompression->SetProperty<Network::HTTP::RouterEntry::EntryCompression>("bool enabled", &Network::HTTP::RouterEntry::EntryCompression::Enabled);
+				VRouteCompression->SetConstructor<Network::HTTP::RouterEntry::EntryCompression>("void f()");
 				VRouteCompression->SetMethodEx("void set_files(array<regex_source>@+)", &RouteCompressionSetFiles);
 				VRouteCompression->SetMethodEx("array<regex_source>@ get_files() const", &RouteCompressionGetFiles);
 
-				auto VSiteEntry = VM->SetClass<Network::HTTP::SiteEntry>("site_entry", false);
-				auto VRouteEntry = VM->SetClass<Network::HTTP::RouteEntry>("route_entry", false);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("route_auth auths", &Network::HTTP::RouteEntry::Auth);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("route_compression compressions", &Network::HTTP::RouteEntry::Compression);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string document_root", &Network::HTTP::RouteEntry::DocumentRoot);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string char_set", &Network::HTTP::RouteEntry::CharSet);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string proxy_ip_address", &Network::HTTP::RouteEntry::ProxyIpAddress);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string access_control_allow_origin", &Network::HTTP::RouteEntry::AccessControlAllowOrigin);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string redirect", &Network::HTTP::RouteEntry::Redirect);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("string overrides", &Network::HTTP::RouteEntry::Override);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize websocket_timeout", &Network::HTTP::RouteEntry::WebSocketTimeout);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize static_file_max_age", &Network::HTTP::RouteEntry::StaticFileMaxAge);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("usize level", &Network::HTTP::RouteEntry::Level);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_directory_listing", &Network::HTTP::RouteEntry::AllowDirectoryListing);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_websocket", &Network::HTTP::RouteEntry::AllowWebSocket);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("bool allow_send_file", &Network::HTTP::RouteEntry::AllowSendFile);
-				VRouteEntry->SetProperty<Network::HTTP::RouteEntry>("regex_source location", &Network::HTTP::RouteEntry::Location);
-				VRouteEntry->SetConstructor<Network::HTTP::RouteEntry>("route_entry@ f()");
-				VRouteEntry->SetConstructor<Network::HTTP::RouteEntry, Network::HTTP::RouteEntry*, const Compute::RegexSource&>("route_entry@ f(route_entry@+, const regex_source&in)");
-				VRouteEntry->SetMethodEx("void set_hidden_files(array<regex_source>@+)", &RouteEntrySetHiddenFiles);
-				VRouteEntry->SetMethodEx("array<regex_source>@ get_hidden_files() const", &RouteEntryGetHiddenFiles);
-				VRouteEntry->SetMethodEx("void set_error_files(array<error_file>@+)", &RouteEntrySetErrorFiles);
-				VRouteEntry->SetMethodEx("array<error_file>@ get_error_files() const", &RouteEntryGetErrorFiles);
-				VRouteEntry->SetMethodEx("void set_mime_types(array<mime_type>@+)", &RouteEntrySetMimeTypes);
-				VRouteEntry->SetMethodEx("array<mime_type>@ get_mime_types() const", &RouteEntryGetMimeTypes);
-				VRouteEntry->SetMethodEx("void set_index_files(array<string>@+)", &RouteEntrySetIndexFiles);
-				VRouteEntry->SetMethodEx("array<string>@ get_index_files() const", &RouteEntryGetIndexFiles);
-				VRouteEntry->SetMethodEx("void set_try_files(array<string>@+)", &RouteEntrySetTryFiles);
-				VRouteEntry->SetMethodEx("array<string>@ get_try_files() const", &RouteEntryGetTryFiles);
-				VRouteEntry->SetMethodEx("void set_disallowed_methods_files(array<string>@+)", &RouteEntrySetDisallowedMethodsFiles);
-				VRouteEntry->SetMethodEx("array<string>@ get_disallowed_methods_files() const", &RouteEntryGetDisallowedMethodsFiles);
-				VRouteEntry->SetMethodEx("site_entry@+ get_site() const", &RouteEntryGetSite);
-
-				auto VRouteGroup = VM->SetClass<Network::HTTP::RouteGroup>("route_group", false);
-				VRouteGroup->SetProperty<Network::HTTP::RouteGroup>("string match", &Network::HTTP::RouteGroup::Match);
-				VRouteGroup->SetProperty<Network::HTTP::RouteGroup>("route_mode mode", &Network::HTTP::RouteGroup::Mode);
-				VRouteGroup->SetGcConstructor<Network::HTTP::RouteGroup, RouteGroup, const Core::String&, Network::HTTP::RouteMode>("route_group@ f(const string&in, route_mode)");
-				VRouteGroup->SetMethodEx("route_entry@+ get_route(usize) const", &RouteGroupGetRoute);
-				VRouteGroup->SetMethodEx("usize get_routes_size() const", &RouteGroupGetRoutesSize);
-
-				auto VSiteCookie = VM->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("site_cookie");
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string name", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Name);
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string domain", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Domain);
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string path", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Path);
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("string same_site", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::SameSite);
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("uint64 expires", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Expires);
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("bool secure", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::Secure);
-				VSiteCookie->SetProperty<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("bool http_only", &Network::HTTP::SiteEntry::SiteSession::SiteCookie::HttpOnly);
-				VSiteCookie->SetConstructor<Network::HTTP::SiteEntry::SiteSession::SiteCookie>("void f()");
-
-				auto VSiteSession = VM->SetStructTrivial<Network::HTTP::SiteEntry::SiteSession>("site_session");
-				VSiteSession->SetProperty<Network::HTTP::SiteEntry::SiteSession>("site_cookie cookie", &Network::HTTP::SiteEntry::SiteSession::Cookie);
-				VSiteSession->SetProperty<Network::HTTP::SiteEntry::SiteSession>("string document_root", &Network::HTTP::SiteEntry::SiteSession::DocumentRoot);
-				VSiteSession->SetProperty<Network::HTTP::SiteEntry::SiteSession>("uint64 expires", &Network::HTTP::SiteEntry::SiteSession::Expires);
-				VSiteSession->SetConstructor<Network::HTTP::SiteEntry::SiteSession>("void f()");
-
 				auto VMapRouter = VM->SetClass<Network::HTTP::MapRouter>("map_router", true);
+				auto VRouterEntry = VM->SetClass<Network::HTTP::RouterEntry>("route_entry", false);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("route_auth auths", &Network::HTTP::RouterEntry::Auth);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("route_compression compressions", &Network::HTTP::RouterEntry::Compression);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("string files_directory", &Network::HTTP::RouterEntry::FilesDirectory);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("string char_set", &Network::HTTP::RouterEntry::CharSet);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("string proxy_ip_address", &Network::HTTP::RouterEntry::ProxyIpAddress);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("string access_control_allow_origin", &Network::HTTP::RouterEntry::AccessControlAllowOrigin);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("string redirect", &Network::HTTP::RouterEntry::Redirect);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("string alias", &Network::HTTP::RouterEntry::Alias);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("usize websocket_timeout", &Network::HTTP::RouterEntry::WebSocketTimeout);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("usize static_file_max_age", &Network::HTTP::RouterEntry::StaticFileMaxAge);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("usize level", &Network::HTTP::RouterEntry::Level);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("bool allow_directory_listing", &Network::HTTP::RouterEntry::AllowDirectoryListing);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("bool allow_websocket", &Network::HTTP::RouterEntry::AllowWebSocket);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("bool allow_send_file", &Network::HTTP::RouterEntry::AllowSendFile);
+				VRouterEntry->SetProperty<Network::HTTP::RouterEntry>("regex_source location", &Network::HTTP::RouterEntry::Location);
+				VRouterEntry->SetConstructor<Network::HTTP::RouterEntry>("route_entry@ f()");
+				VRouterEntry->SetMethodEx("void set_hidden_files(array<regex_source>@+)", &RouterEntrySetHiddenFiles);
+				VRouterEntry->SetMethodEx("array<regex_source>@ get_hidden_files() const", &RouterEntryGetHiddenFiles);
+				VRouterEntry->SetMethodEx("void set_error_files(array<error_file>@+)", &RouterEntrySetErrorFiles);
+				VRouterEntry->SetMethodEx("array<error_file>@ get_error_files() const", &RouterEntryGetErrorFiles);
+				VRouterEntry->SetMethodEx("void set_mime_types(array<mime_type>@+)", &RouterEntrySetMimeTypes);
+				VRouterEntry->SetMethodEx("array<mime_type>@ get_mime_types() const", &RouterEntryGetMimeTypes);
+				VRouterEntry->SetMethodEx("void set_index_files(array<string>@+)", &RouterEntrySetIndexFiles);
+				VRouterEntry->SetMethodEx("array<string>@ get_index_files() const", &RouterEntryGetIndexFiles);
+				VRouterEntry->SetMethodEx("void set_try_files(array<string>@+)", &RouterEntrySetTryFiles);
+				VRouterEntry->SetMethodEx("array<string>@ get_try_files() const", &RouterEntryGetTryFiles);
+				VRouterEntry->SetMethodEx("void set_disallowed_methods_files(array<string>@+)", &RouterEntrySetDisallowedMethodsFiles);
+				VRouterEntry->SetMethodEx("array<string>@ get_disallowed_methods_files() const", &RouterEntryGetDisallowedMethodsFiles);
+				VRouterEntry->SetMethodEx("map_router@+ get_router() const", &RouterEntryGetRouter);
+
+				auto VRouterGroup = VM->SetClass<Network::HTTP::RouterGroup>("route_group", false);
+				VRouterGroup->SetProperty<Network::HTTP::RouterGroup>("string match", &Network::HTTP::RouterGroup::Match);
+				VRouterGroup->SetProperty<Network::HTTP::RouterGroup>("route_mode mode", &Network::HTTP::RouterGroup::Mode);
+				VRouterGroup->SetGcConstructor<Network::HTTP::RouterGroup, RouterGroup, const Core::String&, Network::HTTP::RouteMode>("route_group@ f(const string&in, route_mode)");
+				VRouterGroup->SetMethodEx("route_entry@+ get_route(usize) const", &RouterGroupGetRoute);
+				VRouterGroup->SetMethodEx("usize get_routes_size() const", &RouterGroupGetRoutesSize);
+
+				auto VRouterCookie = VM->SetStructTrivial<Network::HTTP::MapRouter::RouterSession::RouterCookie>("router_cookie");
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("string name", &Network::HTTP::MapRouter::RouterSession::RouterCookie::Name);
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("string domain", &Network::HTTP::MapRouter::RouterSession::RouterCookie::Domain);
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("string path", &Network::HTTP::MapRouter::RouterSession::RouterCookie::Path);
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("string same_site", &Network::HTTP::MapRouter::RouterSession::RouterCookie::SameSite);
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("uint64 expires", &Network::HTTP::MapRouter::RouterSession::RouterCookie::Expires);
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("bool secure", &Network::HTTP::MapRouter::RouterSession::RouterCookie::Secure);
+				VRouterCookie->SetProperty<Network::HTTP::MapRouter::RouterSession::RouterCookie>("bool http_only", &Network::HTTP::MapRouter::RouterSession::RouterCookie::HttpOnly);
+				VRouterCookie->SetConstructor<Network::HTTP::MapRouter::RouterSession::RouterCookie>("void f()");
+
+				auto VRouterSession = VM->SetStructTrivial<Network::HTTP::MapRouter::RouterSession>("router_session");
+				VRouterSession->SetProperty<Network::HTTP::MapRouter::RouterSession>("router_cookie cookie", &Network::HTTP::MapRouter::RouterSession::Cookie);
+				VRouterSession->SetProperty<Network::HTTP::MapRouter::RouterSession>("string directory", &Network::HTTP::MapRouter::RouterSession::Directory);
+				VRouterSession->SetProperty<Network::HTTP::MapRouter::RouterSession>("uint64 expires", &Network::HTTP::MapRouter::RouterSession::Expires);
+				VRouterSession->SetConstructor<Network::HTTP::MapRouter::RouterSession>("void f()");
+
 				auto VConnection = VM->SetClass<Network::HTTP::Connection>("connection", false);
 				auto VWebSocketFrame = VM->SetClass<Network::HTTP::WebSocketFrame>("websocket_frame", false);
 				VWebSocketFrame->SetFunctionDef("void status_event(websocket_frame@+)");
@@ -16297,53 +16320,11 @@ namespace Vitex
 				VWebSocketFrame->SetMethodEx("bool set_on_receive(data_event@+)", &WebSocketFrameSetOnReceive);
 				VWebSocketFrame->SetMethodEx("promise<bool>@ send(const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend1, TypeId::BOOL));
 				VWebSocketFrame->SetMethodEx("promise<bool>@ send(uint32, const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend2, TypeId::BOOL));
-				VWebSocketFrame->SetMethodEx("bool finish()", &VI_EXPECTIFY_VOID(Network::HTTP::WebSocketFrame::Finish));
+				VWebSocketFrame->SetMethodEx("promise<bool>@ send_close()", &VI_SPROMISIFY(WebSocketFrameSendClose, TypeId::BOOL));
 				VWebSocketFrame->SetMethod("void next()", &Network::HTTP::WebSocketFrame::Next);
 				VWebSocketFrame->SetMethod("bool is_finished() const", &Network::HTTP::WebSocketFrame::IsFinished);
 				VWebSocketFrame->SetMethod("socket@+ get_stream() const", &Network::HTTP::WebSocketFrame::GetStream);
 				VWebSocketFrame->SetMethod("connection@+ get_connection() const", &Network::HTTP::WebSocketFrame::GetConnection);
-
-				VSiteEntry->SetFunctionDef("void net_event(connection@+)");
-				VSiteEntry->SetFunctionDef("void auth_event(connection@+, credentials&in)");
-				VSiteEntry->SetFunctionDef("void header_event(connection@+, string&out)");
-				VSiteEntry->SetFunctionDef("void websocket_event(websocket_frame@+)");
-				VSiteEntry->SetFunctionDef("void websocket_data_event(websocket_frame@+, websocket_op, const string&in)");
-				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("site_session sessions", &Network::HTTP::SiteEntry::Session);
-				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("string resource_root", &Network::HTTP::SiteEntry::ResourceRoot);
-				VSiteEntry->SetProperty<Network::HTTP::SiteEntry>("usize max_uploadable_resources", &Network::HTTP::SiteEntry::MaxUploadableResources);
-				VSiteEntry->SetMethod("void sort()", &Network::HTTP::SiteEntry::Sort);
-				VSiteEntry->SetMethod("route_group@+ group(const string&in, route_mode)", &Network::HTTP::SiteEntry::Group);
-				VSiteEntry->SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&, bool>("route_entry@+ route(const string&in, route_mode, const string&in, bool)", &Network::HTTP::SiteEntry::Route);
-				VSiteEntry->SetMethod<Network::HTTP::SiteEntry, Network::HTTP::RouteEntry*, const Core::String&, Network::HTTP::RouteGroup*, Network::HTTP::RouteEntry*>("route_entry@+ route(const string&in, route_group@+, route_entry@+)", &Network::HTTP::SiteEntry::Route);
-				VSiteEntry->SetMethod("bool remove(route_entry@+)", &Network::HTTP::SiteEntry::Remove);
-				VSiteEntry->SetMethodEx("bool get(const string&in, net_event@) const", &SiteEntryGet1);
-				VSiteEntry->SetMethodEx("bool get(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryGet2);
-				VSiteEntry->SetMethodEx("bool post(const string&in, net_event@) const", &SiteEntryPost1);
-				VSiteEntry->SetMethodEx("bool post(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryPost2);
-				VSiteEntry->SetMethodEx("bool patch(const string&in, net_event@) const", &SiteEntryPatch1);
-				VSiteEntry->SetMethodEx("bool patch(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryPatch2);
-				VSiteEntry->SetMethodEx("bool delete(const string&in, net_event@) const", &SiteEntryDelete1);
-				VSiteEntry->SetMethodEx("bool delete(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryDelete2);
-				VSiteEntry->SetMethodEx("bool options(const string&in, net_event@) const", &SiteEntryOptions1);
-				VSiteEntry->SetMethodEx("bool options(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryOptions2);
-				VSiteEntry->SetMethodEx("bool access(const string&in, net_event@) const", &SiteEntryAccess1);
-				VSiteEntry->SetMethodEx("bool access(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryAccess2);
-				VSiteEntry->SetMethodEx("bool headers(const string&in, header_event@) const", &SiteEntryHeaders1);
-				VSiteEntry->SetMethodEx("bool headers(const string&in, route_mode, const string&in, header_event@) const", &SiteEntryHeaders2);
-				VSiteEntry->SetMethodEx("bool authorize(const string&in, auth_event@) const", &SiteEntryAuthorize1);
-				VSiteEntry->SetMethodEx("bool authorize(const string&in, route_mode, const string&in, auth_event@) const", &SiteEntryAuthorize2);
-				VSiteEntry->SetMethodEx("bool websocket_initiate(const string&in, net_event@) const", &SiteEntryWebsocketInitiate1);
-				VSiteEntry->SetMethodEx("bool websocket_initiate(const string&in, route_mode, const string&in, net_event@) const", &SiteEntryWebsocketInitiate2);
-				VSiteEntry->SetMethodEx("bool websocket_connect(const string&in, websocket_event@) const", &SiteEntryWebsocketConnect1);
-				VSiteEntry->SetMethodEx("bool websocket_connect(const string&in, route_mode, const string&in, websocket_event@) const", &SiteEntryWebsocketConnect2);
-				VSiteEntry->SetMethodEx("bool websocket_disconnect(const string&in, websocket_event@) const", &SiteEntryWebsocketDisconnect1);
-				VSiteEntry->SetMethodEx("bool websocket_disconnect(const string&in, route_mode, const string&in, websocket_event@) const", &SiteEntryWebsocketDisconnect2);
-				VSiteEntry->SetMethodEx("bool websocket_receive(const string&in, websocket_data_event@) const", &SiteEntryWebsocketReceive1);
-				VSiteEntry->SetMethodEx("bool websocket_receive(const string&in, route_mode, const string&in, websocket_data_event@) const", &SiteEntryWebsocketReceive2);
-				VSiteEntry->SetMethodEx("route_entry@+ get_base() const", &SiteEntryGetBase);
-				VSiteEntry->SetMethodEx("map_router@+ get_router() const", &SiteEntryGetRouter);
-				VSiteEntry->SetMethodEx("route_group@+ get_group(usize) const", &SiteEntryGetGroup);
-				VSiteEntry->SetMethodEx("usize get_groups_size() const", &SiteEntryGetGroupsSize);
 
 				VMapRouter->SetProperty<Network::SocketRouter>("usize max_heap_buffer", &Network::SocketRouter::MaxHeapBuffer);
 				VMapRouter->SetProperty<Network::SocketRouter>("usize max_net_buffer", &Network::SocketRouter::MaxNetBuffer);
@@ -16353,6 +16334,9 @@ namespace Vitex
 				VMapRouter->SetProperty<Network::SocketRouter>("int64 keep_alive_max_count", &Network::SocketRouter::KeepAliveMaxCount);
 				VMapRouter->SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
 				VMapRouter->SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
+				VMapRouter->SetProperty<Network::HTTP::MapRouter>("router_session session", &Network::HTTP::MapRouter::Session);
+				VMapRouter->SetProperty<Network::HTTP::MapRouter>("string temporary_directory", &Network::HTTP::MapRouter::TemporaryDirectory);
+				VMapRouter->SetProperty<Network::HTTP::MapRouter>("usize max_uploadable_resources", &Network::HTTP::MapRouter::MaxUploadableResources);
 				VMapRouter->SetGcConstructor<Network::HTTP::MapRouter, MapRouter>("map_router@ f()");
 				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
 				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, const Core::String&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
@@ -16360,22 +16344,50 @@ namespace Vitex
 				VMapRouter->SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
 				VMapRouter->SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
 				VMapRouter->SetMethodEx("dictionary@ get_certificates() const", &SocketRouterGetCertificates);
-				VMapRouter->SetMethodEx("site_entry@+ site()", &MapRouterSite1);
-				VMapRouter->SetMethodEx("site_entry@+ site(const string&in)", &MapRouterSite2);
-				VMapRouter->SetMethodEx("site_entry@+ get_site(const string&in) const", &MapRouterGetSite1);
-				VMapRouter->SetMethodEx("site_entry@+ get_site(usize) const", &MapRouterGetSite2);
-				VMapRouter->SetMethodEx("usize get_sites_size() const", &MapRouterGetSitesSize);
+				VMapRouter->SetFunctionDef("void net_event(connection@+)");
+				VMapRouter->SetFunctionDef("void auth_event(connection@+, credentials&in)");
+				VMapRouter->SetFunctionDef("void header_event(connection@+, string&out)");
+				VMapRouter->SetFunctionDef("void websocket_event(websocket_frame@+)");
+				VMapRouter->SetFunctionDef("void websocket_data_event(websocket_frame@+, websocket_op, const string&in)");
+				VMapRouter->SetMethod("void sort()", &Network::HTTP::MapRouter::Sort);
+				VMapRouter->SetMethod("route_group@+ group(const string&in, route_mode)", &Network::HTTP::MapRouter::Group);
+				VMapRouter->SetMethod<Network::HTTP::MapRouter, Network::HTTP::RouterEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&, bool>("route_entry@+ route(const string&in, route_mode, const string&in, bool)", &Network::HTTP::MapRouter::Route);
+				VMapRouter->SetMethod<Network::HTTP::MapRouter, Network::HTTP::RouterEntry*, const Core::String&, Network::HTTP::RouterGroup*, Network::HTTP::RouterEntry*>("route_entry@+ route(const string&in, route_group@+, route_entry@+)", &Network::HTTP::MapRouter::Route);
+				VMapRouter->SetMethod("bool remove(route_entry@+)", &Network::HTTP::MapRouter::Remove);
+				VMapRouter->SetMethodEx("bool get(const string&in, net_event@) const", &MapRouterGet1);
+				VMapRouter->SetMethodEx("bool get(const string&in, route_mode, const string&in, net_event@) const", &MapRouterGet2);
+				VMapRouter->SetMethodEx("bool post(const string&in, net_event@) const", &MapRouterPost1);
+				VMapRouter->SetMethodEx("bool post(const string&in, route_mode, const string&in, net_event@) const", &MapRouterPost2);
+				VMapRouter->SetMethodEx("bool patch(const string&in, net_event@) const", &MapRouterPatch1);
+				VMapRouter->SetMethodEx("bool patch(const string&in, route_mode, const string&in, net_event@) const", &MapRouterPatch2);
+				VMapRouter->SetMethodEx("bool delete(const string&in, net_event@) const", &MapRouterDelete1);
+				VMapRouter->SetMethodEx("bool delete(const string&in, route_mode, const string&in, net_event@) const", &MapRouterDelete2);
+				VMapRouter->SetMethodEx("bool options(const string&in, net_event@) const", &MapRouterOptions1);
+				VMapRouter->SetMethodEx("bool options(const string&in, route_mode, const string&in, net_event@) const", &MapRouterOptions2);
+				VMapRouter->SetMethodEx("bool access(const string&in, net_event@) const", &MapRouterAccess1);
+				VMapRouter->SetMethodEx("bool access(const string&in, route_mode, const string&in, net_event@) const", &MapRouterAccess2);
+				VMapRouter->SetMethodEx("bool headers(const string&in, header_event@) const", &MapRouterHeaders1);
+				VMapRouter->SetMethodEx("bool headers(const string&in, route_mode, const string&in, header_event@) const", &MapRouterHeaders2);
+				VMapRouter->SetMethodEx("bool authorize(const string&in, auth_event@) const", &MapRouterAuthorize1);
+				VMapRouter->SetMethodEx("bool authorize(const string&in, route_mode, const string&in, auth_event@) const", &MapRouterAuthorize2);
+				VMapRouter->SetMethodEx("bool websocket_initiate(const string&in, net_event@) const", &MapRouterWebsocketInitiate1);
+				VMapRouter->SetMethodEx("bool websocket_initiate(const string&in, route_mode, const string&in, net_event@) const", &MapRouterWebsocketInitiate2);
+				VMapRouter->SetMethodEx("bool websocket_connect(const string&in, websocket_event@) const", &MapRouterWebsocketConnect1);
+				VMapRouter->SetMethodEx("bool websocket_connect(const string&in, route_mode, const string&in, websocket_event@) const", &MapRouterWebsocketConnect2);
+				VMapRouter->SetMethodEx("bool websocket_disconnect(const string&in, websocket_event@) const", &MapRouterWebsocketDisconnect1);
+				VMapRouter->SetMethodEx("bool websocket_disconnect(const string&in, route_mode, const string&in, websocket_event@) const", &MapRouterWebsocketDisconnect2);
+				VMapRouter->SetMethodEx("bool websocket_receive(const string&in, websocket_data_event@) const", &MapRouterWebsocketReceive1);
+				VMapRouter->SetMethodEx("bool websocket_receive(const string&in, route_mode, const string&in, websocket_data_event@) const", &MapRouterWebsocketReceive2);
+				VMapRouter->SetMethodEx("route_entry@+ get_base() const", &MapRouterGetBase);
+				VMapRouter->SetMethodEx("route_group@+ get_group(usize) const", &MapRouterGetGroup);
+				VMapRouter->SetMethodEx("usize get_groups_size() const", &MapRouterGetGroupsSize);
 				VMapRouter->SetEnumRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine* VM)
 				{
-					for (auto& Site : Base->Sites)
+					FunctionFactory::GCEnumCallback(VM, Base->Base);
+					for (auto& Group : Base->Groups)
 					{
-						FunctionFactory::GCEnumCallback(VM, Site.second);
-						FunctionFactory::GCEnumCallback(VM, Site.second->Base);
-						for (auto& Group : Site.second->Groups)
-						{
-							for (auto& Route : Group->Routes)
-								FunctionFactory::GCEnumCallback(VM, Route);
-						}
+						for (auto& Route : Group->Routes)
+							FunctionFactory::GCEnumCallback(VM, Route);
 					}
 				});
 				VMapRouter->SetReleaseRefsEx<Network::HTTP::MapRouter>([](Network::HTTP::MapRouter* Base, asIScriptEngine*)
@@ -16392,11 +16404,13 @@ namespace Vitex
 				VConnection->SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
 				VConnection->SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
 				VConnection->SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
-				VConnection->SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
-				VConnection->SetMethod("bool stop()", &Network::SocketConnection::Break);
+				VConnection->SetMethod<Network::HTTP::Connection, bool>("bool next()", &Network::HTTP::Connection::Next);
+				VConnection->SetMethod<Network::HTTP::Connection, bool, int>("bool next(int32)", &Network::HTTP::Connection::Next);
+				VConnection->SetMethod<Network::SocketConnection, bool>("bool abort()", &Network::SocketConnection::Abort);
+				VConnection->SetMethodEx("bool abort(int32, const string &in)", &SocketConnectionAbort);
 				VConnection->SetMethod("void reset(bool)", &Network::HTTP::Connection::Reset);
-				VConnection->SetMethod<Network::HTTP::Connection, bool>("bool finish()", &Network::HTTP::Connection::Finish);
-				VConnection->SetMethod<Network::HTTP::Connection, bool, int>("bool finish(int32)", &Network::HTTP::Connection::Finish);
+				VConnection->SetMethodEx("promise<bool>@ send_headers(int32, bool = true) const", &VI_SPROMISIFY(ConnectionSendHeaders, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ send_chunk(const string&in) const", &VI_SPROMISIFY(ConnectionSendChunk, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(ConnectionStore, ArrayResourceInfo));
 				VConnection->SetMethodEx("promise<string>@ fetch(bool = false) const", &VI_SPROMISIFY_REF(ConnectionFetch, String));
 				VConnection->SetMethodEx("promise<bool>@ skip() const", &VI_SPROMISIFY(ConnectionSkip, TypeId::BOOL));
@@ -16466,6 +16480,13 @@ namespace Vitex
 				VClient->SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
 				VClient->SetMethod("response_frame& get_response() property", &Network::HTTP::Client::GetResponse);
 				VClient->SetDynamicCast<Network::HTTP::Client, Network::SocketClient>("socket_client@+", true);
+
+				auto VHrmCache = VM->SetClass<Network::HTTP::HrmCache>("hrm_cache", false);
+				VHrmCache->SetConstructor<Network::HTTP::HrmCache>("hrm_cache@ f()");
+				VHrmCache->SetConstructor<Network::HTTP::HrmCache, size_t>("hrm_cache@ f(usize)");
+				VHrmCache->SetMethod("void rescale(usize)", &Network::HTTP::HrmCache::Rescale);
+				VHrmCache->SetMethod("void shrink()", &Network::HTTP::HrmCache::Shrink);
+				VHrmCache->SetMethodStatic("hrm_cache@+ get()", &Network::HTTP::HrmCache::Get);
 
 				VM->SetFunction("promise<response_frame>@ fetch(const string&in, const string&in = \"GET\", const fetch_frame&in = fetch_frame())", &VI_SPROMISIFY_REF(HTTPFetch, ResponseFrame));
 				VM->EndNamespace();

@@ -1970,34 +1970,6 @@ namespace Vitex
 				if (Callback)
 					Callback((void*)Object, *Blob);
 
-				Core::Schema* Config = Blob->Find("netstat");
-				if (Config != nullptr)
-				{
-					if (!Series::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
-						Router->KeepAliveMaxCount = 50;
-
-					if (!Series::Unpack(Config->Find("payload-max-length"), &Router->MaxHeapBuffer))
-						Router->MaxHeapBuffer = 1024 * 1024 * 4;
-
-					if (!Series::Unpack(Config->Find("payload-max-length"), &Router->MaxNetBuffer))
-						Router->MaxNetBuffer = 1024 * 1024 * 32;
-
-					if (!Series::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
-						Router->BacklogQueue = 20;
-
-					if (!Series::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
-						Router->SocketTimeout = 10000;
-
-					if (!Series::Unpack(Config->Find("graceful-time-wait"), &Router->GracefulTimeWait))
-						Router->GracefulTimeWait = -1;
-
-					if (!Series::Unpack(Config->Find("max-connections"), &Router->MaxConnections))
-						Router->MaxConnections = 0;
-
-					if (!Series::Unpack(Config->Find("enable-no-delay"), &Router->EnableNoDelay))
-						Router->EnableNoDelay = false;
-				}
-
 				Core::Vector<Core::Schema*> Certificates = Blob->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
 				{
@@ -2008,6 +1980,10 @@ namespace Vitex
 						Name = "*";
 
 					Network::SocketCertificate* Cert = &Router->Certificates[Name];
+					Series::Unpack(It->Find("ciphers"), &Cert->Ciphers);
+					Series::Unpack(It->Find("verify-peers"), &Cert->VerifyPeers);
+					Series::Unpack(It->Find("pkey"), &Cert->Blob.PrivateKey);
+					Series::Unpack(It->Find("cert"), &Cert->Blob.Certificate);
 					if (Series::Unpack(It->Find("options"), &Name))
 					{
 						if (Name.find("no_ssl_v2") != std::string::npos)
@@ -2023,18 +1999,6 @@ namespace Vitex
 						if (Name.find("no_tls_v1_3") != std::string::npos)
 							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_3);
 					}
-
-					if (!Series::Unpack(It->Find("ciphers"), &Cert->Ciphers))
-						Cert->Ciphers = "ALL";
-
-					if (!Series::Unpack(It->Find("verify-peers"), &Cert->VerifyPeers))
-						Cert->VerifyPeers = 100;
-
-					if (!Series::Unpack(It->Find("pkey"), &Cert->Blob.PrivateKey))
-						Cert->Blob.PrivateKey.clear();
-
-					if (!Series::Unpack(It->Find("cert"), &Cert->Blob.Certificate))
-						Cert->Blob.Certificate.clear();
 
 					Core::Stringify::EvalEnvs(Cert->Blob.PrivateKey, N, D);
 					if (!Cert->Blob.PrivateKey.empty())
@@ -2076,63 +2040,43 @@ namespace Vitex
 
 					Core::Stringify::EvalEnvs(Name, N, D);
 					Network::RemoteHost* Host = &Router->Listeners[Name];
-					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
-						Host->Hostname = "0.0.0.0";
-
+					Series::Unpack(It->Find("hostname"), &Host->Hostname);
+					Series::Unpack(It->Find("port"), &Host->Port);
+					Series::Unpack(It->Find("secure"), &Host->Secure);
 					Core::Stringify::EvalEnvs(Host->Hostname, N, D);
-					if (!Series::Unpack(It->Find("port"), &Host->Port))
+					if (Host->Hostname.empty())
+						Host->Hostname = "0.0.0.0";
+					if (Host->Port <= 0)
 						Host->Port = 80;
-
-					if (!Series::Unpack(It->Find("secure"), &Host->Secure))
-						Host->Secure = false;
 				}
 
-				Core::Vector<Core::Schema*> Sites = Blob->FindCollection("site", true);
-				for (auto&& It : Sites)
+				Core::Schema* Network = Blob->Find("network");
+				if (Network != nullptr)
 				{
-					Core::String Name = "*";
-					Series::Unpack(It, &Name);
-					Core::Stringify::EvalEnvs(Name, N, D);
+					Series::Unpack(Network->Find("keep-alive"), &Router->KeepAliveMaxCount);
+					Series::Unpack(Network->Find("payload-max-length"), &Router->MaxHeapBuffer);
+					Series::Unpack(Network->Find("payload-max-length"), &Router->MaxNetBuffer);
+					Series::Unpack(Network->Find("backlog-queue"), &Router->BacklogQueue);
+					Series::Unpack(Network->Find("socket-timeout"), &Router->SocketTimeout);
+					Series::Unpack(Network->Find("graceful-time-wait"), &Router->GracefulTimeWait);
+					Series::Unpack(Network->Find("max-connections"), &Router->MaxConnections);
+					Series::Unpack(Network->Find("enable-no-delay"), &Router->EnableNoDelay);
+					Series::Unpack(Network->Find("max-uploadable-resources"), &Router->MaxUploadableResources);
+					Series::Unpack(Network->Find("temporary-directory"), &Router->TemporaryDirectory);
+					Series::Unpack(Network->Fetch("session.cookie.name"), &Router->Session.Cookie.Name);
+					Series::Unpack(Network->Fetch("session.cookie.domain"), &Router->Session.Cookie.Domain);
+					Series::Unpack(Network->Fetch("session.cookie.path"), &Router->Session.Cookie.Path);
+					Series::Unpack(Network->Fetch("session.cookie.same-site"), &Router->Session.Cookie.SameSite);
+					Series::Unpack(Network->Fetch("session.cookie.expires"), &Router->Session.Cookie.Expires);
+					Series::Unpack(Network->Fetch("session.cookie.secure"), &Router->Session.Cookie.Secure);
+					Series::Unpack(Network->Fetch("session.cookie.http-only"), &Router->Session.Cookie.HttpOnly);
+					Series::Unpack(Network->Fetch("session.directory"), &Router->Session.Directory);
+					Series::Unpack(Network->Fetch("session.expires"), &Router->Session.Expires);
+					Core::Stringify::EvalEnvs(Router->Session.Directory, N, D);
+					Core::Stringify::EvalEnvs(Router->TemporaryDirectory, N, D);
 
-					Network::HTTP::SiteEntry* Site = Router->Site(Name.c_str());
-					if (Site == nullptr)
-						continue;
-
-					if (!Series::Unpack(It->Fetch("session.cookie.name"), &Site->Session.Cookie.Name))
-						Site->Session.Cookie.Name = "sid";
-
-					if (!Series::Unpack(It->Fetch("session.cookie.domain"), &Site->Session.Cookie.Domain))
-						Site->Session.Cookie.Domain.clear();
-
-					if (!Series::Unpack(It->Fetch("session.cookie.path"), &Site->Session.Cookie.Path))
-						Site->Session.Cookie.Path = "/";
-
-					if (!Series::Unpack(It->Fetch("session.cookie.same-site"), &Site->Session.Cookie.SameSite))
-						Site->Session.Cookie.SameSite = "Strict";
-
-					if (!Series::Unpack(It->Fetch("session.cookie.expires"), &Site->Session.Cookie.Expires))
-						Site->Session.Cookie.Expires = 31536000;
-
-					if (!Series::Unpack(It->Fetch("session.cookie.secure"), &Site->Session.Cookie.Secure))
-						Site->Session.Cookie.Secure = false;
-
-					if (!Series::Unpack(It->Fetch("session.cookie.http-only"), &Site->Session.Cookie.HttpOnly))
-						Site->Session.Cookie.HttpOnly = true;
-
-					if (Series::Unpack(It->Fetch("session.document-root"), &Site->Session.DocumentRoot))
-						Core::Stringify::EvalEnvs(Site->Session.DocumentRoot, N, D);
-
-					if (!Series::Unpack(It->Fetch("session.expires"), &Site->Session.Expires))
-						Site->Session.Expires = 604800;
-
-					if (!Series::Unpack(It->Find("max-uploadable-resources"), &Site->MaxUploadableResources))
-						Site->MaxUploadableResources = 10;
-
-                    Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
-                    Core::Stringify::EvalEnvs(Site->ResourceRoot, N, D);
-
-					Core::UnorderedMap<Core::String, Network::HTTP::RouteEntry*> Aliases;
-					Core::Vector<Core::Schema*> Groups = It->FindCollection("group", true);
+					Core::UnorderedMap<Core::String, Network::HTTP::RouterEntry*> Aliases;
+					Core::Vector<Core::Schema*> Groups = Network->FindCollection("group", true);
 					for (auto&& Subgroup : Groups)
 					{
 						Core::String Match;
@@ -2152,133 +2096,32 @@ namespace Vitex
 								Mode = Network::HTTP::RouteMode::End;
 						}
 
-						Network::HTTP::RouteGroup* Group = Site->Group(Match, Mode);
+						Network::HTTP::RouterGroup* Group = Router->Group(Match, Mode);
 						Core::Vector<Core::Schema*> Routes = Subgroup->FindCollection("route", true);
 						for (auto&& Base : Routes)
 						{
-							Network::HTTP::RouteEntry* Route = nullptr;
+							Network::HTTP::RouterEntry* Route = nullptr;
+							Core::Schema* From = Base->GetAttribute("from");
+							Core::Schema* For = Base->GetAttribute("for");
 							Core::String SourceLocation = "*";
 							Series::Unpack(Base, &SourceLocation);
 
-							Core::Schema* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
 							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
 							{
 								auto Subalias = Aliases.find(From->Value.GetBlob());
 								if (Subalias != Aliases.end())
-									Route = Site->Route(SourceLocation, Group, Subalias->second);
+									Route = Router->Route(SourceLocation, Group, Subalias->second);
 								else
-									Route = Site->Route(Match, Mode, SourceLocation, true);
+									Route = Router->Route(Match, Mode, SourceLocation, true);
 							}
 							else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceLocation.empty())
-								Route = Site->Route(Match, Mode, "..." + For->Value.GetBlob() + "...", true);
+								Route = Router->Route(Match, Mode, "..." + For->Value.GetBlob() + "...", true);
 							else
-								Route = Site->Route(Match, Mode, SourceLocation, true);
+								Route = Router->Route(Match, Mode, SourceLocation, true);
 
 							Core::Schema* Level = Base->GetAttribute("level");
 							if (Level != nullptr)
 								Route->Level = (size_t)Level->Value.GetInteger();
-
-							Core::Vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
-							if (Base->Fetch("auth.methods.[clear]") != nullptr)
-								Route->Auth.Methods.clear();
-
-							for (auto& Method : AuthMethods)
-							{
-								Core::String Value;
-								if (Series::Unpack(Method, &Value))
-									Route->Auth.Methods.push_back(Value);
-							}
-
-							Core::Vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
-							if (Base->Fetch("compression.files.[clear]") != nullptr)
-								Route->Compression.Files.clear();
-
-							for (auto& File : CompressionFiles)
-							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-									Route->Compression.Files.emplace_back(Pattern, true);
-							}
-
-							Core::Vector<Core::Schema*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
-							if (Base->Fetch("hidden-files.[clear]") != nullptr)
-								Route->HiddenFiles.clear();
-
-							for (auto& File : HiddenFiles)
-							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-									Route->HiddenFiles.emplace_back(Pattern, true);
-							}
-
-							Core::Vector<Core::Schema*> IndexFiles = Base->FetchCollection("index-files.index");
-							if (Base->Fetch("index-files.[clear]") != nullptr)
-								Route->IndexFiles.clear();
-
-							for (auto& File : IndexFiles)
-							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-								{
-									if (!File->GetAttribute("use"))
-										Core::Stringify::EvalEnvs(Pattern, N, D);
-
-									Route->IndexFiles.push_back(Pattern);
-								}
-							}
-
-							Core::Vector<Core::Schema*> TryFiles = Base->FetchCollection("try-files.fallback");
-							if (Base->Fetch("try-files.[clear]") != nullptr)
-								Route->TryFiles.clear();
-
-							for (auto& File : TryFiles)
-							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-								{
-									if (!File->GetAttribute("use"))
-										Core::Stringify::EvalEnvs(Pattern, N, D);
-
-									Route->TryFiles.push_back(Pattern);
-								}
-							}
-
-							Core::Vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");
-							if (Base->Fetch("error-files.[clear]") != nullptr)
-								Route->ErrorFiles.clear();
-
-							for (auto& File : ErrorFiles)
-							{
-								Network::HTTP::ErrorFile Source;
-								if (Series::Unpack(File->Find("file"), &Source.Pattern))
-									Core::Stringify::EvalEnvs(Source.Pattern, N, D);
-
-								Series::Unpack(File->Find("status"), &Source.StatusCode);
-								Route->ErrorFiles.push_back(Source);
-							}
-
-							Core::Vector<Core::Schema*> MimeTypes = Base->FetchCollection("mime-types.file");
-							if (Base->Fetch("mime-types.[clear]") != nullptr)
-								Route->MimeTypes.clear();
-
-							for (auto& Type : MimeTypes)
-							{
-								Network::HTTP::MimeType Pattern;
-								Series::Unpack(Type->Find("ext"), &Pattern.Extension);
-								Series::Unpack(Type->Find("type"), &Pattern.Type);
-								Route->MimeTypes.push_back(Pattern);
-							}
-
-							Core::Vector<Core::Schema*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
-							if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
-								Route->DisallowedMethods.clear();
-
-							for (auto& Method : DisallowedMethods)
-							{
-								Core::String Value;
-								if (Series::Unpack(Method, &Value))
-									Route->DisallowedMethods.push_back(Value);
-							}
 
 							Core::String Tune;
 							if (Series::Unpack(Base->Fetch("compression.tune"), &Tune))
@@ -2301,10 +2144,7 @@ namespace Vitex
 							if (Series::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
 								Route->Compression.MemoryLevel = Compute::Math32::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
-							if (Series::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
-								Core::Stringify::EvalEnvs(Route->DocumentRoot, N, D);
-
-							Series::Unpack(Base->Find("override"), &Route->Override);
+							Series::Unpack(Base->Find("alias"), &Route->Alias);
 							Series::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
 							Series::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
 							Series::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
@@ -2318,6 +2158,102 @@ namespace Vitex
 							Series::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
 							Series::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
 							Series::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
+							if (Series::Unpack(Base->Find("files-directory"), &Route->FilesDirectory))
+								Core::Stringify::EvalEnvs(Route->FilesDirectory, N, D);
+
+							Core::Vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
+							Core::Vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
+							Core::Vector<Core::Schema*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
+							Core::Vector<Core::Schema*> IndexFiles = Base->FetchCollection("index-files.index");
+							Core::Vector<Core::Schema*> TryFiles = Base->FetchCollection("try-files.fallback");
+							Core::Vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");
+							Core::Vector<Core::Schema*> MimeTypes = Base->FetchCollection("mime-types.file");
+							Core::Vector<Core::Schema*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
+							if (Base->Fetch("auth.methods.[clear]") != nullptr)
+								Route->Auth.Methods.clear();
+							if (Base->Fetch("compression.files.[clear]") != nullptr)
+								Route->Compression.Files.clear();
+							if (Base->Fetch("hidden-files.[clear]") != nullptr)
+								Route->HiddenFiles.clear();
+							if (Base->Fetch("index-files.[clear]") != nullptr)
+								Route->IndexFiles.clear();
+							if (Base->Fetch("try-files.[clear]") != nullptr)
+								Route->TryFiles.clear();
+							if (Base->Fetch("error-files.[clear]") != nullptr)
+								Route->ErrorFiles.clear();
+							if (Base->Fetch("mime-types.[clear]") != nullptr)
+								Route->MimeTypes.clear();
+							if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
+								Route->DisallowedMethods.clear();
+
+							for (auto& Method : AuthMethods)
+							{
+								Core::String Value;
+								if (Series::Unpack(Method, &Value))
+									Route->Auth.Methods.push_back(Value);
+							}
+
+							for (auto& File : CompressionFiles)
+							{
+								Core::String Pattern;
+								if (Series::Unpack(File, &Pattern))
+									Route->Compression.Files.emplace_back(Pattern, true);
+							}
+
+							for (auto& File : HiddenFiles)
+							{
+								Core::String Pattern;
+								if (Series::Unpack(File, &Pattern))
+									Route->HiddenFiles.emplace_back(Pattern, true);
+							}
+
+							for (auto& File : IndexFiles)
+							{
+								Core::String Pattern;
+								if (Series::Unpack(File, &Pattern))
+								{
+									if (!File->GetAttribute("use"))
+										Core::Stringify::EvalEnvs(Pattern, N, D);
+
+									Route->IndexFiles.push_back(Pattern);
+								}
+							}
+
+							for (auto& File : TryFiles)
+							{
+								Core::String Pattern;
+								if (Series::Unpack(File, &Pattern))
+								{
+									if (!File->GetAttribute("use"))
+										Core::Stringify::EvalEnvs(Pattern, N, D);
+
+									Route->TryFiles.push_back(Pattern);
+								}
+							}
+
+							for (auto& File : ErrorFiles)
+							{
+								Network::HTTP::ErrorFile Source;
+								Series::Unpack(File->Find("status"), &Source.StatusCode);
+								if (Series::Unpack(File->Find("file"), &Source.Pattern))
+									Core::Stringify::EvalEnvs(Source.Pattern, N, D);
+								Route->ErrorFiles.push_back(Source);
+							}
+
+							for (auto& Type : MimeTypes)
+							{
+								Network::HTTP::MimeType Pattern;
+								Series::Unpack(Type->Find("ext"), &Pattern.Extension);
+								Series::Unpack(Type->Find("type"), &Pattern.Type);
+								Route->MimeTypes.push_back(Pattern);
+							}
+
+							for (auto& Method : DisallowedMethods)
+							{
+								Core::String Value;
+								if (Series::Unpack(Method, &Value))
+									Route->DisallowedMethods.push_back(Value);
+							}
 
 							if (!For || For->Value.GetType() != Core::VarType::String)
 								continue;
@@ -2330,7 +2266,7 @@ namespace Vitex
 					}
 
 					for (auto& Item : Aliases)
-						Site->Remove(Item.second);
+						Router->Remove(Item.second);
 				}
 
 				auto Configure = Args.find("configure");

@@ -391,7 +391,7 @@ namespace Vitex
 				{
 					Queue.push(Path);
 				}
-				void OnDocumentLoad(Rml::ElementDocument* document)
+				void OnDocumentLoad(Rml::ElementDocument* document) override
 				{
 					if (!Queue.empty())
 						Queue.pop();

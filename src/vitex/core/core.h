@@ -2559,10 +2559,28 @@ namespace Vitex
 		class Reference
 		{
 		private:
-			std::atomic<uint32_t> __vcnt = 1;
-			std::atomic<uint32_t> __vmrk = 0;
+			std::atomic<uint32_t> __vcnt;
+			std::atomic<uint32_t> __vmrk;
 
 		public:
+			Reference() noexcept : __vcnt(1), __vmrk(0)
+			{
+			}
+			Reference(const Reference&) noexcept : Reference()
+			{
+			}
+			Reference(Reference&&) noexcept : Reference()
+			{
+			}
+			Reference& operator=(const Reference&) noexcept
+			{
+				return *this;
+			}
+			Reference& operator=(Reference&&) noexcept
+			{
+				return *this;
+			}
+			~Reference() = default;
 			void operator delete(void* Ptr) noexcept
 			{
 				if (Ptr != nullptr)
@@ -3394,10 +3412,10 @@ namespace Vitex
 				Difficulty Type;
 				size_t GlobalIndex;
 				size_t LocalIndex;
-				bool Recyclable;
+				size_t Recyclable;
 				bool Daemon;
 
-				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon), Recyclable(true)
+				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon), Recyclable(1)
 				{
 				}
 				~ThreadData() = default;

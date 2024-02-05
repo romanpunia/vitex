@@ -155,12 +155,11 @@ namespace Vitex
 		struct VI_OUT DataFrame
 		{
 			Core::String Message;
-			std::mutex Sync;
+			size_t Reuses = 1;
 			int64_t Start = 0;
 			int64_t Finish = 0;
 			int64_t Timeout = 0;
-			int64_t KeepAlive = 1;
-			bool Close = false;
+			bool Abort = false;
 
 			DataFrame() = default;
 			DataFrame& operator= (const DataFrame& Other);
@@ -483,7 +482,7 @@ namespace Vitex
 			Core::ExpectsIO<size_t> SendFile(FILE* Stream, size_t Offset, size_t Size);
 			Core::ExpectsIO<size_t> SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer = 0);
 			Core::ExpectsIO<size_t> Write(const char* Buffer, size_t Size);
-			Core::ExpectsIO<size_t> WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr, size_t TempOffset = 0);
+			Core::ExpectsIO<size_t> WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync = true, char* TempBuffer = nullptr, size_t TempOffset = 0);
 			Core::ExpectsIO<size_t> Read(char* Buffer, size_t Size);
 			Core::ExpectsIO<size_t> Read(char* Buffer, size_t Size, SocketReadCallback&& Callback);
 			Core::ExpectsIO<size_t> ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
@@ -558,7 +557,7 @@ namespace Vitex
 			size_t BacklogQueue = 20;
 			size_t SocketTimeout = 10000;
 			size_t MaxConnections = 0;
-			int64_t KeepAliveMaxCount = 50;
+			int64_t KeepAliveMaxCount = 0;
 			int64_t GracefulTimeWait = -1;
 			bool EnableNoDelay = false;
 
@@ -581,10 +580,11 @@ namespace Vitex
 			SocketConnection() = default;
 			virtual ~SocketConnection() noexcept;
 			virtual void Reset(bool Fully);
-			virtual bool Finish();
-			virtual bool Finish(int);
-			virtual bool Error(int, const char* ErrorMessage, ...);
-			virtual bool Break();
+			virtual bool Abort();
+			virtual bool Abort(int, const char* ErrorMessage, ...);
+			virtual bool Next();
+			virtual bool Next(int);
+			virtual bool Closable(SocketRouter* Router);
 		};
 
 		class VI_OUT SocketServer : public Core::Reference<SocketServer>

@@ -186,6 +186,23 @@ namespace Vitex
 	{
 		namespace Bindings
 		{
+			Core::ExpectsSystem<void> FromSocketPoll(Network::SocketPoll Poll)
+			{
+				switch (Poll)
+				{
+					case Network::SocketPoll::Reset:
+						return Core::ExpectsSystem<void>(Core::SystemException("connection reset"));
+					case Network::SocketPoll::Timeout:
+						return Core::ExpectsSystem<void>(Core::SystemException("connection timed out"));
+					case Network::SocketPoll::Cancel:
+						return Core::ExpectsSystem<void>(Core::SystemException("connection aborted"));
+					case Network::SocketPoll::Finish:
+					case Network::SocketPoll::FinishSync:
+					case Network::SocketPoll::Next:
+					default:
+						return Core::Expectation::Met;
+				}
+			}
 			void PointerToHandleCast(void* From, void** To, int TypeId)
 			{
 				if (!(TypeId & (size_t)TypeId::OBJHANDLE))
@@ -6856,15 +6873,137 @@ namespace Vitex
 				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Extensions);
 			}
 
+			Core::Promise<bool> SocketConnectFwd(Network::Socket* Base, Network::SocketAddress* Address)
+			{
+				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				Base->ConnectAsync(Address, [Base, Result, Context](const Core::Option<std::error_condition>& Condition) mutable
+				{
+					if (Condition)
+						Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("connect error", std::error_condition(*Condition))), Context));
+					else
+						Result.Set(true);
+					Base->Release();
+				});
+				return Result;
+			}
+			Core::Promise<bool> SocketCloseFwd(Network::Socket* Base)
+			{
+				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				Base->CloseAsync([Base, Result, Context](const Core::Option<std::error_condition>& Condition) mutable
+				{
+					if (Condition)
+						Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("close error", std::error_condition(*Condition))), Context));
+					else
+						Result.Set(true);
+					Base->Release();
+				});
+				return Result;
+			}
+			Core::Promise<bool> SocketWriteFwd(Network::Socket* Base, const Core::String& Data)
+			{
+				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				Base->WriteAsync(Data.c_str(), Data.size(), [Base, Result, Context](Network::SocketPoll Event) mutable
+				{
+					Result.Set(ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context));
+					Base->Release();
+				});
+				return Result;
+			}
+			Core::Promise<Core::String> SocketReadFwd(Network::Socket* Base, size_t Size)
+			{
+				Core::String* Data = VI_NEW(Core::String);
+				Data->reserve(Size);
+				Base->AddRef();
+
+				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
+				Base->ReadAsync(Size, [Base, Result, Context, Data](Network::SocketPoll Event, const char* Buffer, size_t Size) mutable
+				{
+					if (!Network::Packet::IsData(Event))
+					{
+						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
+						Result.Set(std::move(*Data));
+						VI_DELETE(basic_string, Data);
+						Data = nullptr;
+						Base->Release();
+					}
+					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
+						Data->append(Buffer, Size);
+					return Result.IsPending();
+				});
+				return Result;
+			}
+			Core::Promise<Core::String> SocketReadUntilFwd(Network::Socket* Base, size_t MaxSize, const Core::String& Match)
+			{
+				Core::String* Data = VI_NEW(Core::String);
+				Data->reserve(MaxSize);
+				Base->AddRef();
+
+				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
+				Base->ReadUntilAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const char* Buffer, size_t Size) mutable
+				{
+					if (!Network::Packet::IsData(Event))
+					{
+						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
+					Resolve:
+						Result.Set(std::move(*Data));
+						VI_DELETE(basic_string, Data);
+						Data = nullptr;
+						Base->Release();
+					}
+					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
+					{
+						Data->append(Buffer, Size);
+						if (Data->size() >= MaxSize)
+							goto Resolve;
+					}
+					return Result.IsPending();
+				});
+				return Result;
+			}
+			Core::Promise<Core::String> SocketReadUntilChunkedFwd(Network::Socket* Base, size_t MaxSize, const Core::String& Match)
+			{
+				Core::String* Data = VI_NEW(Core::String);
+				Data->reserve(MaxSize);
+				Base->AddRef();
+
+				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
+				Base->ReadUntilChunkedAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const char* Buffer, size_t Size) mutable
+				{
+					if (!Network::Packet::IsData(Event))
+					{
+						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
+					Resolve:
+						Result.Set(std::move(*Data));
+						VI_DELETE(basic_string, Data);
+						Data = nullptr;
+						Base->Release();
+					}
+					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
+					{
+						Data->append(Buffer, Size);
+						if (Data->size() >= MaxSize)
+							goto Resolve;
+					}
+					return Result.IsPending();
+				});
+				return Result;
+			}
 			bool SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
 
-				return ExpectsWrapper::UnwrapVoid(Base->AcceptAsync(WithAddress, [Delegate](socket_t Fd, char* Address) mutable
+				Base->AddRef();
+				return ExpectsWrapper::UnwrapVoid(Base->AcceptAsync(WithAddress, [Base, Delegate](socket_t Fd, char* Address) mutable
 				{
-					Core::String IpAddress = Address; bool Result = false;
+					if (Network::Utils::IsInvalid(Fd))
+					{
+						Base->Release();
+						return false;
+					}
+
+					Core::String IpAddress = Address ? Address : Core::String();
 					Delegate([Fd, IpAddress](ImmediateContext* Context)
 					{
 #ifdef VI_64
@@ -6873,11 +7012,8 @@ namespace Vitex
 						Context->SetArg32(0, (int32_t)Fd);
 #endif
 						Context->SetArgObject(1, (void*)&IpAddress);
-					}, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-					return Result;
+					});
+					return true;
 				}));
 			}
 			bool SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
@@ -6886,18 +7022,17 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return false;
 
-				return ExpectsWrapper::UnwrapVoid(Base->ConnectAsync(Address, [Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
+				Base->AddRef();
+				return ExpectsWrapper::UnwrapVoid(Base->ConnectAsync(Address, [Base, Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
 				{
-					bool Result = false;
 					Delegate([&ErrorCode](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, ErrorCode ? ErrorCode->value() : 0);
-					}, [&Result](ImmediateContext* Context) mutable
+					}, [Base](ImmediateContext*)
 					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-
-					return Result;
+						Base->Release();
+					});
+					return true;
 				}));
 			}
 			bool SocketCloseAsync(Network::Socket* Base, asIScriptFunction* Callback)
@@ -6906,14 +7041,14 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
 
-				return ExpectsWrapper::UnwrapVoid(Base->CloseAsync([Delegate](const Core::Option<std::error_condition>&) mutable
+				Base->AddRef();
+				return ExpectsWrapper::UnwrapVoid(Base->CloseAsync([Base, Delegate](const Core::Option<std::error_condition>&) mutable
 				{
-					bool Result = false;
-					Delegate(nullptr, [&Result](ImmediateContext* Context) mutable
+					Delegate(nullptr, [Base](ImmediateContext*)
 					{
-						Result = (bool)Context->GetReturnByte();
+						Base->Release();
 					});
-					return Result;
+					return true;
 				}));
 			}
 			size_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, size_t Offset, size_t Size, asIScriptFunction* Callback)
@@ -6922,11 +7057,15 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->SendFileAsync(Stream, Offset, Size, [Delegate](Network::SocketPoll Poll) mutable
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->SendFileAsync(Stream, Offset, Size, [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
+					}, [Base](ImmediateContext*)
+					{
+						Base->Release();
 					});
 				}), (size_t)0);
 			}
@@ -6936,12 +7075,16 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->WriteAsync(Data.data(), Data.size(), [Delegate](Network::SocketPoll Poll) mutable
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->WriteAsync(Data.data(), Data.size(), [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Poll](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
-					}).Wait();
+					}, [Base](ImmediateContext*)
+					{
+						Base->Release();
+					});
 				}), (size_t)0);
 			}
 			size_t SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
@@ -6950,7 +7093,8 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->ReadAsync(Size, [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->ReadAsync(Size, [Base, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
 					Core::String Source(Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
@@ -6962,16 +7106,18 @@ namespace Vitex
 						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 
+					Base->Release();
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntilAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntilAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
 					Core::String Source(Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
@@ -6983,16 +7129,18 @@ namespace Vitex
 						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 
+					Base->Release();
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntilChunkedAsync(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntilChunkedAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Data.c_str(), [Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
 				{
 					Core::String Source(Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
@@ -7004,6 +7152,7 @@ namespace Vitex
 						Result = (bool)Context->GetReturnByte();
 					}).Wait();
 
+					Base->Release();
 					return Result;
 				}), (size_t)0);
 			}
@@ -7049,7 +7198,8 @@ namespace Vitex
 				if (!Context || !Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->Read((char*)Data.data(), Data.size(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->Read((char*)Data.data(), Data.size(), [Base, Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					bool Result = false;
 					Core::String Source(Data, Size);
@@ -7061,17 +7211,20 @@ namespace Vitex
 					{
 						Result = (bool)Context->GetReturnByte();
 					});
+
+					Base->Release();
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntil(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntil(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Callback);
 				if (!Context || !Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->ReadUntil(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->ReadUntil(Data.c_str(), [Base, Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					bool Result = false;
 					Core::String Source(Data, Size);
@@ -7083,6 +7236,8 @@ namespace Vitex
 					{
 						Result = (bool)Context->GetReturnByte();
 					});
+
+					Base->Release();
 					return Result;
 				}), (size_t)0);
 			}
@@ -7093,7 +7248,8 @@ namespace Vitex
 				if (!Context || !Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunked(Data.c_str(), [Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				Base->AddRef();
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunked(Data.c_str(), [Base, Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
 				{
 					bool Result = false;
 					Core::String Source(Data, Size);
@@ -7105,6 +7261,8 @@ namespace Vitex
 					{
 						Result = (bool)Context->GetReturnByte();
 					});
+
+					Base->Release();
 					return Result;
 				}), (size_t)0);
 			}
@@ -9022,27 +9180,9 @@ namespace Vitex
 			Core::Promise<bool> ConnectionSendHeaders(Network::HTTP::Connection* Base, int StatusCode, bool SpecifyTransferEncoding)
 			{
 				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get();
-				bool Sending = Base->SendHeaders(StatusCode, SpecifyTransferEncoding,[Result, Context](Network::HTTP::Connection*, Network::SocketPoll Event) mutable
+				bool Sending = Base->SendHeaders(StatusCode, SpecifyTransferEncoding, [Result, Context](Network::HTTP::Connection*, Network::SocketPoll Event) mutable
 				{
-					switch (Event)
-					{
-						case Network::SocketPoll::Finish:
-						case Network::SocketPoll::FinishSync:
-							Result.Set(true);
-							break;
-						case Network::SocketPoll::Reset:
-							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: connection reset")), Context));
-							break;
-						case Network::SocketPoll::Timeout:
-							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: connection timeout")), Context));
-							break;
-						case Network::SocketPoll::Cancel:
-							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: connection aborted")), Context));
-							break;
-						case Network::SocketPoll::Next:
-						default:
-							break;
-					}
+					Result.Set(ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context));
 				});
 				if (!Sending)
 					Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: illegal operation")), Context));
@@ -9053,25 +9193,7 @@ namespace Vitex
 				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get();
 				bool Sending = Base->SendChunk(Chunk, [Result, Context](Network::HTTP::Connection*, Network::SocketPoll Event) mutable
 				{
-					switch (Event)
-					{
-						case Network::SocketPoll::Finish:
-						case Network::SocketPoll::FinishSync:
-							Result.Set(true);
-							break;
-						case Network::SocketPoll::Reset:
-							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: connection reset")), Context));
-							break;
-						case Network::SocketPoll::Timeout:
-							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: connection timeout")), Context));
-							break;
-						case Network::SocketPoll::Cancel:
-							Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: connection aborted")), Context));
-							break;
-						case Network::SocketPoll::Next:
-						default:
-							break;
-					}
+					Result.Set(ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context));
 				});
 				if (!Sending)
 					Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send chunk: illegal operation")), Context));
@@ -15752,6 +15874,7 @@ namespace Vitex
 				VI_TYPEREF(SocketListener, "socket_listener");
 				VI_TYPEREF(SocketConnection, "socket_connection");
 				VI_TYPEREF(SocketServer, "socket_server");
+				VI_TYPEREF(String, "string");
 
 				auto VSecureLayerOptions = VM->SetEnum("secure_layer_options");
 				VSecureLayerOptions->SetValue("all", (int)Network::SecureLayerOptions::All);
@@ -15877,8 +16000,8 @@ namespace Vitex
 				VSocket->SetFunctionDef("void socket_written_event(socket_poll)");
 				VSocket->SetFunctionDef("void socket_opened_event(socket_address@+)");
 				VSocket->SetFunctionDef("void socket_status_event(int)");
+				VSocket->SetFunctionDef("void socket_accepted_event(usize, const string &in)");
 				VSocket->SetFunctionDef("bool socket_read_event(socket_poll, const string &in)");
-				VSocket->SetFunctionDef("bool socket_accepted_event(usize, const string &in)");
 				VSocket->SetProperty<Network::Socket>("uint64 timeout", &Network::Socket::Timeout);
 				VSocket->SetProperty<Network::Socket>("int64 income", &Network::Socket::Income);
 				VSocket->SetProperty<Network::Socket>("int64 outcome", &Network::Socket::Outcome);
@@ -15892,6 +16015,12 @@ namespace Vitex
 				VSocket->SetMethod("bool is_pending() const", &Network::Socket::IsPending);
 				VSocket->SetMethod("bool is_valid() const", &Network::Socket::IsValid);
 				VSocket->SetMethod("bool is_secure() const", &Network::Socket::IsSecure);
+				VSocket->SetMethodEx("promise<bool>@ connect(socket_address@+)", &VI_SPROMISIFY(SocketConnectFwd, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<bool>@ close()", &VI_SPROMISIFY(SocketCloseFwd, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<bool>@ write(const string &in)", &VI_SPROMISIFY(SocketWriteFwd, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<string>@ read(usize)", &VI_SPROMISIFY_REF(SocketReadFwd, String));
+				VSocket->SetMethodEx("promise<string>@ read_until(usize, const string &in)", &VI_SPROMISIFY_REF(SocketReadUntilFwd, String));
+				VSocket->SetMethodEx("promise<string>@ read_until_chunked(usize, const string &in)", &VI_SPROMISIFY_REF(SocketReadUntilChunkedFwd, String));
 				VSocket->SetMethodEx("bool accept_async(bool, socket_accepted_event@)", &SocketAcceptAsync);
 				VSocket->SetMethodEx("bool connect_async(socket_address@+, socket_status_event@)", &SocketConnectAsync);
 				VSocket->SetMethodEx("bool close_async(socket_status_event@)", &SocketCloseAsync);
@@ -15904,11 +16033,11 @@ namespace Vitex
 				VSocket->SetMethodEx("bool accept(usize &out, string &out)", &SocketAccept2);
 				VSocket->SetMethodEx("bool secure(uptr@, const string &in)", &SocketSecure);
 				VSocket->SetMethodEx("usize send_file(uptr@, usize, usize)", &SocketSendFile);
-				VSocket->SetMethodEx("usize write(const string &in)", &SocketWrite);
-				VSocket->SetMethodEx("usize read(string &out, usize)", &SocketRead1);
-				VSocket->SetMethodEx("usize read(string &out, usize, socket_read_event@)", &SocketRead2);
-				VSocket->SetMethodEx("usize read_until(const string &in, socket_read_event@)", &SocketReadUntil);
-				VSocket->SetMethodEx("usize read_until_chunked(const string &in, socket_read_event@)", &SocketReadUntilChunked);
+				VSocket->SetMethodEx("usize write_sync(const string &in)", &SocketWrite);
+				VSocket->SetMethodEx("usize read_sync(string &out, usize)", &SocketRead1);
+				VSocket->SetMethodEx("usize read_sync(string &out, usize, socket_read_event@)", &SocketRead2);
+				VSocket->SetMethodEx("usize read_until_sync(const string &in, socket_read_event@)", &SocketReadUntil);
+				VSocket->SetMethodEx("usize read_until_chunked_sync(const string &in, socket_read_event@)", &SocketReadUntilChunked);
 				VSocket->SetMethodEx("string get_remote_address() const", &VI_EXPECTIFY(Network::Socket::GetRemoteAddress));
 				VSocket->SetMethodEx("int get_port() const", &VI_EXPECTIFY(Network::Socket::GetPort));
 				VSocket->SetMethodEx("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetAnyFlag));
@@ -15921,9 +16050,9 @@ namespace Vitex
 				VSocket->SetMethodEx("bool set_no_delay(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetNoDelay));
 				VSocket->SetMethodEx("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetKeepAlive));
 				VSocket->SetMethodEx("bool set_timeout(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeout));
-				VSocket->SetMethodEx("bool connect(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
+				VSocket->SetMethodEx("bool connect_sync(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
 				VSocket->SetMethodEx("bool shutdown(bool = false)", &VI_EXPECTIFY_VOID(Network::Socket::Shutdown));
-				VSocket->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
+				VSocket->SetMethodEx("bool close_sync()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
 				VSocket->SetMethodEx("bool open(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
 				VSocket->SetMethodEx("bool bind(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
 				VSocket->SetMethodEx("bool listen(int)", &VI_EXPECTIFY_VOID(Network::Socket::Listen));
@@ -15944,8 +16073,8 @@ namespace Vitex
 
 				auto VDNS = VM->SetClass<Network::DNS>("dns", false);
 				VDNS->SetConstructor<Network::DNS>("dns@ f()");
-				VDNS->SetMethodEx("string find_name_from_address(const string &in, const string &in)", &VI_EXPECTIFY(Network::DNS::FindNameFromAddress));
-				VDNS->SetMethodEx("socket_address@+ find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &VI_EXPECTIFY(Network::DNS::FindAddressFromName));
+				VDNS->SetMethodEx("string from_address(const string &in, const string &in)", &VI_EXPECTIFY(Network::DNS::FromAddress));
+				VDNS->SetMethodEx("socket_address@+ from_service(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &VI_EXPECTIFY(Network::DNS::FromService));
 				VDNS->SetMethodStatic("dns@+ get()", &Network::DNS::Get);
 
 				auto VMultiplexer = VM->SetClass<Network::Multiplexer>("multiplexer", false);
@@ -15956,6 +16085,7 @@ namespace Vitex
 				VMultiplexer->SetMethod("void activate()", &Network::Multiplexer::Activate);
 				VMultiplexer->SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
 				VMultiplexer->SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
+				VMultiplexer->SetMethod("bool shutdown()", &Network::Multiplexer::Shutdown);
 				VMultiplexer->SetMethodEx("bool when_readable(socket@+, poll_event@)", &MultiplexerWhenReadable);
 				VMultiplexer->SetMethodEx("bool when_writeable(socket@+, poll_event@)", &MultiplexerWhenWriteable);
 				VMultiplexer->SetMethod("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);

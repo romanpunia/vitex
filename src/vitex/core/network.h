@@ -302,6 +302,7 @@ namespace Vitex
 			static Core::String GetAddress(sockaddr* Info) noexcept;
 			static std::error_condition GetLastError(ssl_st* Device, int ErrorCode) noexcept;
 			static int GetAddressFamily(const char* Address) noexcept;
+			static bool IsInvalid(socket_t Fd) noexcept;
 			static int64_t Clock() noexcept;
 			static void DisplayTransportLog() noexcept;
 		};
@@ -335,8 +336,8 @@ namespace Vitex
 		public:
 			DNS() noexcept;
 			virtual ~DNS() noexcept override;
-			Core::ExpectsSystem<Core::String> FindNameFromAddress(const Core::String& Host, const Core::String& Service);
-			Core::ExpectsSystem<SocketAddress*> FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
+			Core::ExpectsSystem<Core::String> FromAddress(const Core::String& Host, const Core::String& Service);
+			Core::ExpectsSystem<SocketAddress*> FromService(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
 		};
 
 		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
@@ -356,6 +357,7 @@ namespace Vitex
 			void Rescale(uint64_t DispatchTimeout, size_t MaxEvents) noexcept;
 			void Activate() noexcept;
 			void Deactivate() noexcept;
+			void Shutdown() noexcept;
 			int Dispatch(uint64_t Timeout) noexcept;
 			bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
 			bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept;

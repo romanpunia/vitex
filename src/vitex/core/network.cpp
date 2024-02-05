@@ -1131,6 +1131,10 @@ namespace Vitex
 					return Core::OS::Error::GetCondition(ErrorCode);
 			}
 		}
+		bool Utils::IsInvalid(socket_t Fd) noexcept
+		{
+			return Fd == INVALID_SOCKET;
+		}
 		int Utils::GetAddressFamily(const char* Address) noexcept
 		{
 			VI_ASSERT(Address != nullptr, "address should be set");
@@ -1371,7 +1375,7 @@ namespace Vitex
 				VI_RELEASE(Item.second.second);
 			Names.clear();
 		}
-		Core::ExpectsSystem<Core::String> DNS::FindNameFromAddress(const Core::String& Host, const Core::String& Service)
+		Core::ExpectsSystem<Core::String> DNS::FromAddress(const Core::String& Host, const Core::String& Service)
 		{
 			VI_ASSERT(!Host.empty(), "ip address should not be empty");
 			VI_ASSERT(!Service.empty(), "port should be greater than zero");
@@ -1407,7 +1411,7 @@ namespace Vitex
 			VI_DEBUG("[net] dns reverse resolved for identity %s:%i (host %s:%s is used)", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			return Core::String(Hostname, strnlen(Hostname, sizeof(Hostname) - 1));
 		}
-		Core::ExpectsSystem<SocketAddress*> DNS::FindAddressFromName(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
+		Core::ExpectsSystem<SocketAddress*> DNS::FromService(const Core::String& Host, const Core::String& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			VI_ASSERT(!Host.empty(), "host should not be empty");
 			VI_ASSERT(!Service.empty(), "service should not be empty");
@@ -1571,6 +1575,17 @@ namespace Vitex
 		void Multiplexer::Deactivate() noexcept
 		{
 			TryUnlisten();
+		}
+		void Multiplexer::Shutdown() noexcept
+		{
+			VI_MEASURE(Core::Timings::FileSystem);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			for (auto& Item : Timeouts)
+			{
+				VI_DEBUG("[net] sock timeout on fd %i", (int)Item.second->Fd);
+				CancelEvents(Item.second, SocketPoll::Timeout);
+			}
+			Timeouts.clear();
 		}
 		int Multiplexer::Dispatch(uint64_t EventTimeout) noexcept
 		{
@@ -2261,10 +2276,13 @@ namespace Vitex
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (!Multiplexer::Get()->WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
-				if (!Packet::IsDone(Event))
-					return;
-
 				socket_t OutFd = INVALID_SOCKET;
+				if (!Packet::IsDone(Event))
+				{
+					Callback(OutFd, nullptr);
+					return;
+				}
+
 				char OutAddr[INET6_ADDRSTRLEN] = { };
 				char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
 				while (Accept(&OutFd, RemoteAddr))
@@ -3411,7 +3429,7 @@ namespace Vitex
 				if (It.second.Hostname.empty())
 					continue;
 
-				auto Source = Service->FindAddressFromName(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
+				auto Source = Service->FromService(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
 				if (!Source)
 					return Core::SystemException(Core::Stringify::Text("resolve %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Source.Error().error()));
 
@@ -3573,12 +3591,15 @@ namespace Vitex
 			{
 				Source->Stream->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddr)
 				{
-					if (State == ServerState::Working)
+					if (Fd == INVALID_SOCKET || State != ServerState::Working)
 					{
-						Core::String IpAddress = RemoteAddr;
-						Core::Codefer([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable { Accept(Source, Fd, IpAddress); }, true);
+						closesocket(Fd);
+						return false;
 					}
-					return State == ServerState::Working;
+
+					Core::String IpAddress = RemoteAddr;
+					Core::Codefer([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable { Accept(Source, Fd, IpAddress); }, true);
+					return true;
 				});
 			}
 
@@ -3926,7 +3947,7 @@ namespace Vitex
 			State.Done = [Future](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); };
 			if (!Async)
 			{
-				TryConnect(DNS::Get()->FindAddressFromName(State.Hostname.Hostname, Core::ToString(State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
+				TryConnect(DNS::Get()->FromService(State.Hostname.Hostname, Core::ToString(State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
 				return Future;
 			}
 
@@ -3934,7 +3955,7 @@ namespace Vitex
 			Multiplexer::Get()->Activate();
 			Core::Cotask<Core::ExpectsSystem<SocketAddress*>>([Context]()
 			{
-				return DNS::Get()->FindAddressFromName(Context->State.Hostname.Hostname, Core::ToString(Context->State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
+				return DNS::Get()->FromService(Context->State.Hostname.Hostname, Core::ToString(Context->State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
 			}).When([Context](Core::ExpectsSystem<SocketAddress*>&& Host)
 			{
 				Context->TryConnect(std::move(Host));

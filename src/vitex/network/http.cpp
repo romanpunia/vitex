@@ -4230,6 +4230,12 @@ namespace Vitex
 				}
 
 				Base->Request.Referrer = Base->Request.Location;
+				if (Base->Request.Location.size() == 1)
+				{
+					Base->Route = Router->Base;
+					return true;
+				}
+
 				for (auto& Group : Router->Groups)
 				{
 					Core::String& Location = Base->Request.Location;

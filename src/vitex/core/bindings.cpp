@@ -186,23 +186,6 @@ namespace Vitex
 	{
 		namespace Bindings
 		{
-			Core::ExpectsSystem<void> FromSocketPoll(Network::SocketPoll Poll)
-			{
-				switch (Poll)
-				{
-					case Network::SocketPoll::Reset:
-						return Core::ExpectsSystem<void>(Core::SystemException("connection reset"));
-					case Network::SocketPoll::Timeout:
-						return Core::ExpectsSystem<void>(Core::SystemException("connection timed out"));
-					case Network::SocketPoll::Cancel:
-						return Core::ExpectsSystem<void>(Core::SystemException("connection aborted"));
-					case Network::SocketPoll::Finish:
-					case Network::SocketPoll::FinishSync:
-					case Network::SocketPoll::Next:
-					default:
-						return Core::Expectation::Met;
-				}
-			}
 			void PointerToHandleCast(void* From, void** To, int TypeId)
 			{
 				if (!(TypeId & (size_t)TypeId::OBJHANDLE))
@@ -3665,6 +3648,23 @@ namespace Vitex
 				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
 			}
 #ifdef VI_BINDINGS
+			Core::ExpectsSystem<void> FromSocketPoll(Network::SocketPoll Poll)
+			{
+				switch (Poll)
+				{
+					case Network::SocketPoll::Reset:
+						return Core::ExpectsSystem<void>(Core::SystemException("connection reset"));
+					case Network::SocketPoll::Timeout:
+						return Core::ExpectsSystem<void>(Core::SystemException("connection timed out"));
+					case Network::SocketPoll::Cancel:
+						return Core::ExpectsSystem<void>(Core::SystemException("connection aborted"));
+					case Network::SocketPoll::Finish:
+					case Network::SocketPoll::FinishSync:
+					case Network::SocketPoll::Next:
+					default:
+						return Core::Expectation::Met;
+				}
+			}
 			template <typename T>
 			Core::String GetComponentName(T* Base)
 			{

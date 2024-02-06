@@ -33,7 +33,7 @@ namespace Vitex
 	{
 		struct ConcurrentAsyncQueue;
 
-		struct ConcurrentTaskQueue;
+		struct ConcurrentSyncQueue;
 
 		struct Decimal;
 
@@ -2207,7 +2207,7 @@ namespace Vitex
 			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
-		struct VI_OUT ConcurrentTimerQueue
+		struct VI_OUT ConcurrentTimeoutQueue
 		{
 			OrderedMap<std::chrono::microseconds, Timeout> Queue;
 			std::condition_variable Notify;
@@ -3464,18 +3464,18 @@ namespace Vitex
 
 		private:
 			Vector<ThreadData*> Threads[(size_t)Difficulty::Count];
-			ConcurrentTimerQueue* Timers = nullptr;
+			ConcurrentTimeoutQueue* Timeouts = nullptr;
 			ConcurrentAsyncQueue* Async = nullptr;
-			ConcurrentTaskQueue* Tasks = nullptr;
+			ConcurrentSyncQueue* Sync = nullptr;
 			std::atomic<TaskId> Generation;
 			std::mutex Exclusive;
 			ThreadDebugCallback Debug;
 			Desc Policy;
-			bool Suspended;
-			bool Enqueue;
 			bool Terminate;
-			bool Active;
 			bool Immediate;
+			bool Enqueue;
+			bool Suspended;
+			bool Active;
 
 		public:
 			Schedule() noexcept;
@@ -3484,10 +3484,10 @@ namespace Vitex
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
 			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
 			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
-			bool SetTask(const TaskCallback& Callback, bool OnlyMainQueue = false);
-			bool SetTask(TaskCallback&& Callback, bool OnlyMainQueue = false);
-			bool SetCoroutine(const TaskCallback& Callback, bool OnlyMainQueue = false);
-			bool SetCoroutine(TaskCallback&& Callback, bool OnlyMainQueue = false);
+			bool SetTask(const TaskCallback& Callback, bool Recyclable = true);
+			bool SetTask(TaskCallback&& Callback, bool Recyclable = true);
+			bool SetCoroutine(const TaskCallback& Callback, bool Recyclable = true);
+			bool SetCoroutine(TaskCallback&& Callback, bool Recyclable = true);
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
 			bool SetImmediate(bool Enabled);
 			bool ClearTimeout(TaskId WorkId);
@@ -3504,7 +3504,8 @@ namespace Vitex
 			bool IsSuspended() const;
 			void Suspend();
 			void Resume();
-			void SetThreadRecycling(bool Enabled);
+			void PushThreadRecycling();
+			void PopThreadRecycling();
 			size_t GetThreadGlobalIndex();
 			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;
@@ -3801,7 +3802,7 @@ namespace Vitex
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
 				if (Async && Schedule::IsAvailable())
-					Schedule::Get()->SetTask(std::move(Callback), false);
+					Schedule::Get()->SetTask(std::move(Callback));
 				else
 					Callback();
 			}
@@ -4668,7 +4669,7 @@ namespace Vitex
 						if (Status->Output.IsPending())
 							Status->Output.Set();
 					});
-				}, false);
+				});
 				return true;
 			}
 		};
@@ -4689,48 +4690,32 @@ namespace Vitex
 		using ExpectsPromiseSystem = BasicPromise<ExpectsSystem<T>, Executor>;
 
 		template <typename T>
-		inline Promise<T> Cotask(std::function<T()>&& Callback) noexcept
+		inline Promise<T> Cotask(std::function<T()>&& Callback, bool Recyclable = true) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			Promise<T> Result;
-			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
-			{
-				auto* Queue = Schedule::Get();
-				Queue->SetThreadRecycling(false);
-				Result.Set(std::move(Callback()));
-				Queue->SetThreadRecycling(true);
-			}, true);
+			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable { Result.Set(std::move(Callback())); }, Recyclable);
 			return Result;
 		}
 		template <>
-		inline Promise<void> Cotask(std::function<void()>&& Callback) noexcept
+		inline Promise<void> Cotask(std::function<void()>&& Callback, bool Recyclable) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
-
 			Promise<void> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 			{
-				auto* Queue = Schedule::Get();
-				Queue->SetThreadRecycling(false);
 				Callback();
 				Result.Set();
-				Queue->SetThreadRecycling(true);
-			}, true);
+			}, Recyclable);
 			return Result;
 		}
-		inline TaskId Codefer(TaskCallback&& Callback, bool IsHeavy) noexcept
+		inline TaskId Codefer(TaskCallback&& Callback) noexcept
 		{
-			if (!IsHeavy)
-				return Schedule::Get()->SetTask(std::move(Callback));
-
-			return Schedule::Get()->SetTask([Callback = std::move(Callback)]() mutable
-			{
-				auto* Queue = Schedule::Get();
-				Queue->SetThreadRecycling(false);
-				Callback();
-				Queue->SetThreadRecycling(true);
-			}, true);
+			return Schedule::Get()->SetTask(std::move(Callback), true);
+		}
+		inline TaskId Cospawn(TaskCallback&& Callback) noexcept
+		{
+			return Schedule::Get()->SetTask(std::move(Callback), false);
 		}
 #ifdef VI_CXX20
 		template <typename T, typename Executor = ParallelExecutor>
@@ -4755,7 +4740,7 @@ namespace Vitex
 				return (*Callable)().template Then<T>(Finalize);
 
 			Promise<T> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, false);
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, !AlwaysEnqueue);
 			return Value.template Then<T>(Finalize);
 		}
 		template <>
@@ -4768,7 +4753,7 @@ namespace Vitex
 				return (*Callable)().Then(Finalize);
 
 			Promise<void> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, false);
+			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, !AlwaysEnqueue);
 			return Value.Then(Finalize);
 		}
 #else
@@ -4788,10 +4773,7 @@ namespace Vitex
 #endif
 			State->Deactivate(Base, [&Future, &State, &Base]()
 			{
-				Future.When([&State, &Base](T&&)
-				{
-					State->Activate(Base);
-				});
+				Future.When([&State, &Base](T&&) { State->Activate(Base); });
 			});
 #ifndef NDEBUG
 			if (Function != nullptr && Expression != nullptr)
@@ -4819,10 +4801,7 @@ namespace Vitex
 #endif
 			State->Deactivate(Base, [&Future, &State, &Base]()
 			{
-				Future.When([&State, &Base]()
-				{
-					State->Activate(Base);
-				});
+				Future.When([&State, &Base]() { State->Activate(Base); });
 			});
 #ifndef NDEBUG
 			if (Function != nullptr && Expression != nullptr)
@@ -4846,8 +4825,7 @@ namespace Vitex
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
 				Callback().When([Result](T&& Value) mutable { Result.Set(std::move(Value)); });
-			}, AlwaysEnqueue);
-
+			}, !AlwaysEnqueue);
 			return Result;
 		}
 		template <>
@@ -4861,11 +4839,18 @@ namespace Vitex
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
 				Callback().When([Result]() mutable { Result.Set(); });
-			}, AlwaysEnqueue);
-
+			}, !AlwaysEnqueue);
 			return Result;
 		}
 #endif
+		template <typename T>
+		inline Generator<T> Cogenerate(std::function<Promise<void>(Generator<T>&)>&& Callback)
+		{
+			return Generator<T>([Callback = std::move(Callback)](Generator<T>& Results) mutable -> Promise<void>
+			{
+				return Coasync<void>([Results, Callback = std::move(Callback)]() mutable -> Promise<void> { return Callback(Results); });
+			});
+		}
 #ifdef VI_ALLOCATOR
 		template <typename O, typename I>
 		inline O Copy(const I& Other)
@@ -5126,17 +5111,6 @@ namespace Vitex
 		{
 			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
 			return Copy<String, std::string>(std::to_string(Other));
-		}
-		template <typename T>
-		inline Generator<T> Cogenerate(std::function<Promise<void>(Generator<T>&)>&& Callback)
-		{
-			return Generator<T>([Callback = std::move(Callback)](Generator<T>& Results) mutable -> Promise<void>
-			{
-				return Coasync<void>([Results, Callback = std::move(Callback)]() mutable -> Promise<void>
-				{
-					return Callback(Results);
-				});
-			});
 		}
 	}
 }

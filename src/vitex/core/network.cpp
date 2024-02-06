@@ -1669,19 +1669,19 @@ namespace Vitex
 			Unique.Negate();
 			if (Fd.Readable && Fd.Writeable)
 			{
-				Core::Codefer([ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
+				Core::Cospawn([ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
 				{
 					if (WriteCallback)
 						WriteCallback(SocketPoll::Finish);
 
 					if (ReadCallback)
 						ReadCallback(SocketPoll::Finish);
-				}, false);
+				});
 			}
 			else if (Fd.Readable && WasListeningRead)
-				Core::Codefer([ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(SocketPoll::Finish); }, false);
+				Core::Cospawn([ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(SocketPoll::Finish); });
 			else if (Fd.Writeable && WasListeningWrite)
-				Core::Codefer([WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(SocketPoll::Finish); }, false);
+				Core::Cospawn([WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(SocketPoll::Finish); });
 
 			return StillListeningRead || StillListeningWrite;
 		}
@@ -1697,7 +1697,7 @@ namespace Vitex
 			bool Listening = (WhenReady ? Handle.Update(Value, true, !!Value->Events.WriteCallback) : Handle.Add(Value, true, !!Value->Events.WriteCallback));
 			Unique.Negate();
 			if (WhenReady)
-				Core::Codefer([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); }, false);
+				Core::Cospawn([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); });
 
 			return Listening;
 		}
@@ -1712,7 +1712,7 @@ namespace Vitex
 			bool Listening = (WhenReady ? Handle.Update(Value, !!Value->Events.ReadCallback, true) : Handle.Add(Value, !!Value->Events.ReadCallback, true));
 			Unique.Negate();
 			if (WhenReady)
-				Core::Codefer([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); }, false);
+				Core::Cospawn([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); });
 
 			return Listening;
 		}
@@ -1727,17 +1727,24 @@ namespace Vitex
 				RemoveTimeout(Value);
 
 			Unique.Negate();
-			if (Packet::IsDone(Event) || (!WriteCallback && !ReadCallback))
+			if (Packet::IsDone(Event) || (!ReadCallback && !WriteCallback))
 				return NotListening;
 
-			Core::Codefer([Event, ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
+			if (ReadCallback && WriteCallback)
 			{
-				if (WriteCallback)
-					WriteCallback(Event);
-				if (ReadCallback)
-					ReadCallback(Event);
-			}, false);
+				Core::Cospawn([Event, ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
+				{
+					if (WriteCallback)
+						WriteCallback(Event);
 
+					if (ReadCallback)
+						ReadCallback(Event);
+				});
+			}
+			else if (ReadCallback)
+				Core::Cospawn([Event, ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(Event); });
+			else if (WriteCallback)
+				Core::Cospawn([Event, WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(Event); });
 			return NotListening;
 		}
 		bool Multiplexer::ClearEvents(Socket* Value) noexcept
@@ -1775,7 +1782,7 @@ namespace Vitex
 		void Multiplexer::TryEnqueue() noexcept
 		{
 			if (Activations > 0)
-				Core::Codefer(std::bind(&Multiplexer::TryDispatch, this), true);
+				Core::Codefer(std::bind(&Multiplexer::TryDispatch, this));
 		}
 		void Multiplexer::TryListen() noexcept
 		{
@@ -3589,7 +3596,7 @@ namespace Vitex
 
 			for (auto&& Source : Listeners)
 			{
-				Source->Stream->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddr)
+				Source->Stream->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddress)
 				{
 					if (Fd == INVALID_SOCKET || State != ServerState::Working)
 					{
@@ -3597,8 +3604,8 @@ namespace Vitex
 						return false;
 					}
 
-					Core::String IpAddress = RemoteAddr;
-					Core::Codefer([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable { Accept(Source, Fd, IpAddress); }, true);
+					Core::String IpAddress = RemoteAddress;
+					Core::Cospawn([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable { Accept(Source, Fd, IpAddress); });
 					return true;
 				});
 			}
@@ -3746,7 +3753,7 @@ namespace Vitex
 			if (Base->Info.Abort || !Base->Info.Reuses)
 				return Base->Stream->CloseAsync([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 			else if (Base->Stream->IsValid())
-				Core::Codefer(std::bind(&SocketServer::OnRequestOpen, this, Base), false);
+				Core::Codefer(std::bind(&SocketServer::OnRequestOpen, this, Base));
 			else
 				Push(Base);
 

@@ -4016,12 +4016,12 @@ namespace Vitex
 					return;
 
 				Tasking.IsRendering = true;
-				Core::Codefer([this, Time, R, G, B]()
+				Core::Cospawn([this, Time, R, G, B]()
 				{
 					PublishAndSubmit(Time, R, G, B, false);
 					Core::UMutex<std::mutex> Unique(Tasking.Update[(size_t)TaskType::Rendering]);
 					Tasking.IsRendering = false;
-				}, true);
+				});
 			}
 			else
 			{

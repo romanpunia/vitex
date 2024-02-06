@@ -949,12 +949,12 @@ namespace Vitex
 			}
 		};
 
-		struct ConcurrentTaskQueue
+		struct ConcurrentSyncQueue
 		{
 			FastQueue Queue;
 		};
 
-		struct ConcurrentAsyncQueue : ConcurrentTaskQueue
+		struct ConcurrentAsyncQueue : ConcurrentSyncQueue
 		{
 			std::condition_variable Notify;
 			std::mutex Update;
@@ -1635,7 +1635,7 @@ namespace Vitex
 		void ErrorHandling::Enqueue(Details&& Data) noexcept
 		{
 			if (HasFlag(LogOption::Async) && Schedule::IsAvailable())
-				Codefer([Data = std::move(Data)]() mutable { Dispatch(Data); }, false);
+				Codefer([Data = std::move(Data)]() mutable { Dispatch(Data); });
 			else
 				Dispatch(Data);
 		}
@@ -11345,35 +11345,35 @@ namespace Vitex
 		Schedule::Desc::Desc() : Desc(std::max<uint32_t>(2, OS::CPU::GetQuantityInfo().Logical) - 1)
 		{
 		}
-		Schedule::Desc::Desc(size_t Cores) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), MaxRecycles(4), IdleTimeout(std::chrono::milliseconds(2000)), ClockTimeout(std::chrono::milliseconds((uint64_t)Timings::Intensive)), Parallel(true)
+		Schedule::Desc::Desc(size_t Size) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), MaxRecycles(64), IdleTimeout(std::chrono::milliseconds(2000)), ClockTimeout(std::chrono::milliseconds((uint64_t)Timings::Intensive)), Parallel(true)
 		{
-			if (!Cores)
-				Cores = 1;
+			if (!Size)
+				Size = 1;
 #ifndef VI_CXX20
-			size_t Async = (size_t)std::max(std::ceil(Cores * 0.20), 1.0);
+			const size_t Async = (size_t)std::max(std::ceil(Size * 0.20), 1.0);
 #else
-			size_t Async = 0;
+			const size_t Async = 0;
 #endif
-			size_t Timeout = 1;
-			size_t Normal = std::max<size_t>(std::min<size_t>(Cores - Async - Timeout, Cores), 1);
+			const size_t Timeout = 1;
+			const size_t Sync = std::max<size_t>(std::min<size_t>(Size - Async - Timeout, Size), 1);
 			Threads[((size_t)Difficulty::Async)] = Async;
-			Threads[((size_t)Difficulty::Sync)] = Normal;
+			Threads[((size_t)Difficulty::Sync)] = Sync;
 			Threads[((size_t)Difficulty::Timeout)] = Timeout;
-			MaxCoroutines = std::min<size_t>(Cores * 8, 256);
+			MaxCoroutines = std::min<size_t>(Size * 8, 256);
 		}
 
-		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Suspended(false), Enqueue(true), Terminate(false), Active(false), Immediate(false)
+		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Terminate(false), Immediate(false), Enqueue(true), Suspended(false), Active(false)
 		{
-			Timers = VI_NEW(ConcurrentTimerQueue);
+			Timeouts = VI_NEW(ConcurrentTimeoutQueue);
 			Async = VI_NEW(ConcurrentAsyncQueue);
-			Tasks = VI_NEW(ConcurrentTaskQueue);
+			Sync = VI_NEW(ConcurrentSyncQueue);
 		}
 		Schedule::~Schedule() noexcept
 		{
 			Stop();
-			VI_DELETE(ConcurrentTaskQueue, Tasks);
+			VI_DELETE(ConcurrentSyncQueue, Sync);
 			VI_DELETE(ConcurrentAsyncQueue, Async);
-			VI_DELETE(ConcurrentTimerQueue, Timers);
+			VI_DELETE(ConcurrentTimeoutQueue, Timeouts);
 			VI_RELEASE(Dispatcher.State);
 			Scripting::VirtualMachine::CleanupThisThread();
 		}
@@ -11397,10 +11397,10 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Unique(Timers->Update);
-			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
-			Timers->Resync = true;
-			Timers->Notify.notify_all();
+			UMutex<std::mutex> Unique(Timeouts->Update);
+			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
+			Timeouts->Resync = true;
+			Timeouts->Notify.notify_all();
 			return Id;
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -11416,10 +11416,10 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Unique(Timers->Update);
-			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
-			Timers->Resync = true;
-			Timers->Notify.notify_all();
+			UMutex<std::mutex> Unique(Timeouts->Update);
+			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
+			Timeouts->Resync = true;
+			Timeouts->Notify.notify_all();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
@@ -11435,10 +11435,10 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Unique(Timers->Update);
-			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
-			Timers->Resync = true;
-			Timers->Notify.notify_all();
+			UMutex<std::mutex> Unique(Timeouts->Update);
+			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
+			Timeouts->Resync = true;
+			Timeouts->Notify.notify_all();
 			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -11454,13 +11454,13 @@ namespace Vitex
 			auto Expires = GetClock() + Duration;
 			auto Id = GetTaskId();
 
-			UMutex<std::mutex> Unique(Timers->Update);
-			Timers->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
-			Timers->Resync = true;
-			Timers->Notify.notify_all();
+			UMutex<std::mutex> Unique(Timeouts->Update);
+			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
+			Timeouts->Resync = true;
+			Timeouts->Notify.notify_all();
 			return Id;
 		}
-		bool Schedule::SetTask(const TaskCallback& Callback, bool OnlyMainQueue)
+		bool Schedule::SetTask(const TaskCallback& Callback, bool Recyclable)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -11475,11 +11475,11 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (OnlyMainQueue || !FastBypassEnqueue(Difficulty::Sync, Callback))
-				Tasks->Queue.enqueue(Callback);
+			if (!Recyclable || !FastBypassEnqueue(Difficulty::Sync, Callback))
+				Sync->Queue.enqueue(Callback);
 			return true;
 		}
-		bool Schedule::SetTask(TaskCallback&& Callback, bool OnlyMainQueue)
+		bool Schedule::SetTask(TaskCallback&& Callback, bool Recyclable)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -11494,11 +11494,11 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueTask, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (OnlyMainQueue || !FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
-				Tasks->Queue.enqueue(std::move(Callback));
+			if (!Recyclable || !FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
+				Sync->Queue.enqueue(std::move(Callback));
 			return true;
 		}
-		bool Schedule::SetCoroutine(const TaskCallback& Callback, bool OnlyMainQueue)
+		bool Schedule::SetCoroutine(const TaskCallback& Callback, bool Recyclable)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -11507,7 +11507,7 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (!OnlyMainQueue && FastBypassEnqueue(Difficulty::Async, Callback))
+			if (Recyclable && FastBypassEnqueue(Difficulty::Async, Callback))
 				return true;
 
 			Async->Queue.enqueue(Callback);
@@ -11517,7 +11517,7 @@ namespace Vitex
 
 			return true;
 		}
-		bool Schedule::SetCoroutine(TaskCallback&& Callback, bool OnlyMainQueue)
+		bool Schedule::SetCoroutine(TaskCallback&& Callback, bool Recyclable)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
@@ -11526,7 +11526,7 @@ namespace Vitex
 			PostDebug(ThreadTask::EnqueueCoroutine, 1);
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (!OnlyMainQueue && FastBypassEnqueue(Difficulty::Async, Callback))
+			if (Recyclable && FastBypassEnqueue(Difficulty::Async, Callback))
 				return true;
 
 			Async->Queue.enqueue(std::move(Callback));
@@ -11559,14 +11559,14 @@ namespace Vitex
 			if (Target == INVALID_TASK_ID)
 				return false;
 
-			UMutex<std::mutex> Unique(Timers->Update);
-			for (auto It = Timers->Queue.begin(); It != Timers->Queue.end(); ++It)
+			UMutex<std::mutex> Unique(Timeouts->Update);
+			for (auto It = Timeouts->Queue.begin(); It != Timeouts->Queue.end(); ++It)
 			{
 				if (It->second.Id == Target)
 				{
-					Timers->Resync = true;
-					Timers->Queue.erase(It);
-					Timers->Notify.notify_all();
+					Timeouts->Resync = true;
+					Timeouts->Queue.erase(It);
+					Timeouts->Notify.notify_all();
 					return true;
 				}
 			}
@@ -11575,13 +11575,13 @@ namespace Vitex
 		bool Schedule::TriggerTimers()
 		{
 			VI_MEASURE(Timings::Pass);
-			UMutex<std::mutex> Unique(Timers->Update);
-			for (auto& Item : Timers->Queue)
-				SetTask(std::move(Item.second.Callback), true);
+			UMutex<std::mutex> Unique(Timeouts->Update);
+			for (auto& Item : Timeouts->Queue)
+				SetTask(std::move(Item.second.Callback));
 
-			size_t Size = Timers->Queue.size();
-			Timers->Resync = true;
-			Timers->Queue.clear();
+			size_t Size = Timeouts->Queue.size();
+			Timeouts->Resync = true;
+			Timeouts->Queue.clear();
 			return Size > 0;
 		}
 		bool Schedule::Trigger(Difficulty Type)
@@ -11591,13 +11591,13 @@ namespace Vitex
 			{
 				case Difficulty::Timeout:
 				{
-					if (Timers->Queue.empty())
+					if (Timeouts->Queue.empty())
 						return false;
 					else if (Suspended)
 						return true;
 
 					auto Clock = GetClock();
-					auto It = Timers->Queue.begin();
+					auto It = Timeouts->Queue.begin();
 					if (It->first >= Clock)
 						return true;
 #ifndef NDEBUG
@@ -11606,21 +11606,21 @@ namespace Vitex
 					if (It->second.Alive && Active)
 					{
 						Timeout Next(std::move(It->second));
-						Timers->Queue.erase(It);
+						Timeouts->Queue.erase(It);
 
 						SetTask([this, Next = std::move(Next)]() mutable
 						{
 							Next.Callback();
-							UMutex<std::mutex> Unique(Timers->Update);
-							Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-							Timers->Resync = true;
-							Timers->Notify.notify_all();
-						}, true);
+							UMutex<std::mutex> Unique(Timeouts->Update);
+							Timeouts->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+							Timeouts->Resync = true;
+							Timeouts->Notify.notify_all();
+						});
 					}
 					else
 					{
-						SetTask(std::move(It->second.Callback), true);
-						Timers->Queue.erase(It);
+						SetTask(std::move(It->second.Callback));
+						Timeouts->Queue.erase(It);
 					}
 #ifndef NDEBUG
 					PostDebug(ThreadTask::Awake, 0);
@@ -11661,8 +11661,8 @@ namespace Vitex
 				case Difficulty::Sync:
 				{
 					if (Suspended)
-						return Tasks->Queue.size_approx() > 0;
-					else if (!Tasks->Queue.try_dequeue(Dispatcher.Event))
+						return Sync->Queue.size_approx() > 0;
+					else if (!Sync->Queue.try_dequeue(Dispatcher.Event))
 						return false;
 #ifndef NDEBUG
 					PostDebug(ThreadTask::ProcessTask, 1);
@@ -11735,7 +11735,7 @@ namespace Vitex
 				}
 			}
 
-			Timers->Queue.clear();
+			Timeouts->Queue.clear();
 			Terminate = false;
 			Enqueue = true;
 			ChunkCleanup();
@@ -11753,7 +11753,7 @@ namespace Vitex
 					if (Thread->Type == Difficulty::Async)
 						Async->Queue.enqueue_bulk(Dummy, DummySize);
 					else if (Thread->Type == Difficulty::Sync || Thread->Type == Difficulty::Timeout)
-						Tasks->Queue.enqueue_bulk(Dummy, DummySize);
+						Sync->Queue.enqueue_bulk(Dummy, DummySize);
 					Thread->Notify.notify_all();
 				}
 
@@ -11765,9 +11765,9 @@ namespace Vitex
 				}
 				else if (i == (size_t)Difficulty::Timeout)
 				{
-					UMutex<std::mutex> Unique(Timers->Update);
-					Timers->Resync = true;
-					Timers->Notify.notify_all();
+					UMutex<std::mutex> Unique(Timeouts->Update);
+					Timeouts->Resync = true;
+					Timeouts->Notify.notify_all();
 				}
 			}
 			return true;
@@ -11793,7 +11793,7 @@ namespace Vitex
 				case Difficulty::Timeout:
 				{
 					TaskCallback Event;
-					ReceiveToken Token(Tasks->Queue);
+					ReceiveToken Token(Sync->Queue);
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (timers)", ThreadId.c_str());
 					else
@@ -11804,16 +11804,16 @@ namespace Vitex
 						if (SleepThread(Type, Thread))
 							continue;
 
-						std::unique_lock<std::mutex> Unique(Timers->Update);
+						std::unique_lock<std::mutex> Unique(Timeouts->Update);
 					Retry:
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
 #endif
 						std::chrono::microseconds When = std::chrono::microseconds(0);
-						if (!Timers->Queue.empty())
+						if (!Timeouts->Queue.empty())
 						{
 							auto Clock = GetClock();
-							auto It = Timers->Queue.begin();
+							auto It = Timeouts->Queue.begin();
 							if (It->first <= Clock)
 							{
 #ifndef NDEBUG
@@ -11822,21 +11822,21 @@ namespace Vitex
 								if (It->second.Alive)
 								{
 									Timeout Next(std::move(It->second));
-									Timers->Queue.erase(It);
+									Timeouts->Queue.erase(It);
 
 									SetTask([this, Next = std::move(Next)]() mutable
 									{
 										Next.Callback();
-										UMutex<std::mutex> Unique(Timers->Update);
-										Timers->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-										Timers->Resync = true;
-										Timers->Notify.notify_all();
-									}, true);
+										UMutex<std::mutex> Unique(Timeouts->Update);
+										Timeouts->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
+										Timeouts->Resync = true;
+										Timeouts->Notify.notify_all();
+									});
 								}
 								else
 								{
-									SetTask(std::move(It->second.Callback), true);
-									Timers->Queue.erase(It);
+									SetTask(std::move(It->second.Callback));
+									Timeouts->Queue.erase(It);
 								}
 
 								goto Retry;
@@ -11853,11 +11853,11 @@ namespace Vitex
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Sleep, 0);
 #endif
-						Timers->Notify.wait_for(Unique, When, [this, Thread]() { return !ThreadActive(Thread) || Timers->Resync || Tasks->Queue.size_approx() > 0; });
-						Timers->Resync = false;
+						Timeouts->Notify.wait_for(Unique, When, [this, Thread]() { return !ThreadActive(Thread) || Timeouts->Resync || Sync->Queue.size_approx() > 0; });
+						Timeouts->Resync = false;
 						Unique.unlock();
 	
-						if (!Tasks->Queue.try_dequeue(Token, Event))
+						if (!Sync->Queue.try_dequeue(Token, Event))
 							continue;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
@@ -11929,7 +11929,7 @@ namespace Vitex
 				case Difficulty::Sync:
 				{
 					TaskCallback Event;
-					ReceiveToken Token(Tasks->Queue);
+					ReceiveToken Token(Sync->Queue);
 					if (Thread->Daemon)
 						VI_DEBUG("[schedule] acquire thread %s (tasks)", ThreadId.c_str());
 					else
@@ -11947,7 +11947,7 @@ namespace Vitex
 							Event = std::move(Thread->Queue.front());
 							Thread->Queue.pop();
 						}
-						else if (!Tasks->Queue.wait_dequeue_timed(Token, Event, Policy.IdleTimeout))
+						else if (!Sync->Queue.wait_dequeue_timed(Token, Event, Policy.IdleTimeout))
 							continue;
 #ifndef NDEBUG
 						PostDebug(ThreadTask::Awake, 0);
@@ -12055,9 +12055,9 @@ namespace Vitex
 				case Difficulty::Async:
 					return Async->Queue.size_approx() > 0;
 				case Difficulty::Sync:
-					return Tasks->Queue.size_approx() > 0;
+					return Sync->Queue.size_approx() > 0;
 				case Difficulty::Timeout:
-					return Timers->Queue.size() > 0;
+					return Timeouts->Queue.size() > 0;
 				default:
 					return false;
 			}
@@ -12079,19 +12079,17 @@ namespace Vitex
 			Suspended = false;
 			Wakeup();
 		}
-		void Schedule::SetThreadRecycling(bool Enabled)
+		void Schedule::PushThreadRecycling()
 		{
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread)
-				return;
-
-			if (!Enabled)
-			{
-				if (Thread->Recyclable > 0)
-					--Thread->Recyclable;
-			}
-			else
+			if (Thread != nullptr)
 				++Thread->Recyclable;
+		}
+		void Schedule::PopThreadRecycling()
+		{
+			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
+			if (Thread != nullptr && Thread->Recyclable > 0)
+				--Thread->Recyclable;
 		}
 		bool Schedule::PostDebug(ThreadTask State, size_t Tasks)
 		{
@@ -12181,7 +12179,7 @@ namespace Vitex
 		}
 		std::chrono::microseconds Schedule::GetTimeout(std::chrono::microseconds Clock)
 		{
-			while (Timers->Queue.find(Clock) != Timers->Queue.end())
+			while (Timeouts->Queue.find(Clock) != Timeouts->Queue.end())
 				++Clock;
 			return Clock;
 		}

@@ -290,7 +290,7 @@ namespace Vitex
 			}
 			void WebSocketFrame::Next()
 			{
-				Core::Codefer(std::bind(&WebSocketFrame::Update, this), false);
+				Core::Codefer(std::bind(&WebSocketFrame::Update, this));
 			}
 			void WebSocketFrame::Update()
 			{
@@ -1255,11 +1255,11 @@ namespace Vitex
 
 					if (!Paths.empty())
 					{
-						Core::Codefer([Paths = std::move(Paths)]() mutable
+						Core::Cospawn([Paths = std::move(Paths)]() mutable
 						{
 							for (auto& Path : Paths)
 								Core::OS::File::Remove(Path.c_str());
-						}, true);
+						});
 					}
 				}
 
@@ -4870,7 +4870,7 @@ namespace Vitex
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 				{
 					if (Base->Route->AllowDirectoryListing)
-						return Core::Codefer([Base]() { Logical::ProcessDirectory(Base); }, true);
+						return Core::Cospawn([Base]() { Logical::ProcessDirectory(Base); });
 
 					return Base->Abort(403, "Directory listing denied.");
 				}
@@ -5287,7 +5287,7 @@ namespace Vitex
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
-							Core::Codefer([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); }, true);
+							Core::Cospawn([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); });
 						else if (Packet::IsError(Event))
 							Base->Abort();
 					}, false);
@@ -5354,7 +5354,7 @@ namespace Vitex
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
-							Core::Codefer([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); }, true);
+							Core::Cospawn([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); });
 						else if (Packet::IsError(Event))
 							Base->Abort();
 					}, false);
@@ -5490,10 +5490,10 @@ namespace Vitex
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
-						Core::Codefer([Base, Stream, ContentLength]()
+						Core::Cospawn([Base, Stream, ContentLength]()
 						{
 							ProcessFileChunk(Base, Stream, ContentLength);
-						}, true);
+						});
 					}
 					else if (Packet::IsError(Event))
 					{
@@ -5637,10 +5637,10 @@ namespace Vitex
 					{
 						if (ContentLength > 0)
 						{
-							Core::Codefer([Base, Stream, ZStream, ContentLength]()
+							Core::Cospawn([Base, Stream, ZStream, ContentLength]()
                             {
                                 ProcessFileCompressChunk(Base, Stream, ZStream, ContentLength);
-                            }, true);
+                            });
 						}
 						else
 						{
@@ -6601,10 +6601,10 @@ namespace Vitex
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
-						Core::Codefer([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
+						Core::Cospawn([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
 						{
 							UploadFileChunkAsync(FileStream, ContentLength, std::move(Callback));
-						}, true);
+						});
 					}
 					else if (Packet::IsErrorOrSkip(Event))
 					{

@@ -5089,7 +5089,7 @@ namespace Vitex
 				if (!Delegate.IsValid())
 					return Core::INVALID_TASK_ID;
 
-				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); }, false);
+				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); });
 			}
 
 			Dictionary* InlineArgsGetArgs(Core::InlineArgs& Base)
@@ -12282,7 +12282,8 @@ namespace Vitex
 				VSchedule->SetMethod("bool is_suspended() const", &Core::Schedule::IsSuspended);
 				VSchedule->SetMethod("void suspend()", &Core::Schedule::Suspend);
 				VSchedule->SetMethod("void resume()", &Core::Schedule::Resume);
-				VSchedule->SetMethod("void set_thread_recycling(bool)", &Core::Schedule::SetThreadRecycling);
+				VSchedule->SetMethod("void push_thread_recycling()", &Core::Schedule::PushThreadRecycling);
+				VSchedule->SetMethod("void pop_thread_recycling()", &Core::Schedule::PopThreadRecycling);
 				VSchedule->SetMethod("usize get_total_threads() const", &Core::Schedule::GetTotalThreads);
 				VSchedule->SetMethod("usize get_thread_global_index()", &Core::Schedule::GetThreadGlobalIndex);
 				VSchedule->SetMethod("usize get_thread_local_index()", &Core::Schedule::GetThreadLocalIndex);

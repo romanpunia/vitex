@@ -5730,7 +5730,7 @@ namespace Vitex
 					Context->Resume();
 				if (Base != nullptr)
 					Base->Release();
-			}, false) == Core::INVALID_TASK_ID)
+			}) == Core::INVALID_TASK_ID)
 				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
 
 			return Execution::Active;

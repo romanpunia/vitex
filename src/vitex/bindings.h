@@ -432,7 +432,8 @@ namespace Vitex
 				static void Destroy(std::string_view& Base);
 				static bool StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset);
 				static bool EndsWith(const std::string_view& Other, const std::string_view& Value);
-				static int Compare(std::string_view& Base, const Core::String& Other);
+				static int Compare1(std::string_view& Base, const Core::String& Other);
+				static int Compare2(std::string_view& Base, const std::string_view& Other);
 				static Core::String Append1(const std::string_view& Base, const std::string_view& Other);
 				static Core::String Append2(const std::string_view& Base, const Core::String& Other);
 				static Core::String Append3(const Core::String& Other, const std::string_view& Base);
@@ -440,6 +441,14 @@ namespace Vitex
 				static Core::String Append5(char Other, const std::string_view& Base);
 				static Core::String Substring1(std::string_view& Base, size_t Offset);
 				static Core::String Substring2(std::string_view& Base, size_t Offset, size_t Size);
+				static size_t ReverseFind1(std::string_view& Base, const std::string_view& Other, size_t Offset);
+				static size_t ReverseFind2(std::string_view& Base, char Other, size_t Offset);
+				static size_t Find1(std::string_view& Base, const std::string_view& Other, size_t Offset);
+				static size_t Find2(std::string_view& Base, char Other, size_t Offset);
+				static size_t FindFirstOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
+				static size_t FindFirstNotOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
+				static size_t FindLastOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
+				static size_t FindLastNotOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
 				static std::string_view FromBuffer(const char* Buffer, size_t MaxSize);
 				static char* Index(std::string_view& Base, size_t Offset);
 				static char* Front(std::string_view& Base);

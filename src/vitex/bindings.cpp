@@ -392,7 +392,11 @@ namespace Vitex
 			{
 				return Core::Stringify::EndsWith(Other, Value);
 			}
-			int StringView::Compare(std::string_view& Base, const Core::String& Other)
+			int StringView::Compare1(std::string_view& Base, const Core::String& Other)
+			{
+				return Base.compare(Other);
+			}
+			int StringView::Compare2(std::string_view& Base, const std::string_view& Other)
 			{
 				return Base.compare(Other);
 			}
@@ -433,6 +437,38 @@ namespace Vitex
 			Core::String StringView::Substring2(std::string_view& Base, size_t Offset, size_t Size)
 			{
 				return Core::String(Base.substr(Offset, Size));
+			}
+			size_t StringView::ReverseFind1(std::string_view& Base, const std::string_view& Other, size_t Offset)
+			{
+				return Base.rfind(Other, Offset);
+			}
+			size_t StringView::ReverseFind2(std::string_view& Base, char Other, size_t Offset)
+			{
+				return Base.rfind(Other, Offset);
+			}
+			size_t StringView::Find1(std::string_view& Base, const std::string_view& Other, size_t Offset)
+			{
+				return Base.find(Other, Offset);
+			}
+			size_t StringView::Find2(std::string_view& Base, char Other, size_t Offset)
+			{
+				return Base.find(Other, Offset);
+			}
+			size_t StringView::FindFirstOf(std::string_view& Base, const std::string_view& Other, size_t Offset)
+			{
+				return Base.find_first_of(Other, Offset);
+			}
+			size_t StringView::FindFirstNotOf(std::string_view& Base, const std::string_view& Other, size_t Offset)
+			{
+				return Base.find_first_not_of(Other, Offset);
+			}
+			size_t StringView::FindLastOf(std::string_view& Base, const std::string_view& Other, size_t Offset)
+			{
+				return Base.find_last_of(Other, Offset);
+			}
+			size_t StringView::FindLastNotOf(std::string_view& Base, const std::string_view& Other, size_t Offset)
+			{
+				return Base.find_last_not_of(Other, Offset);
 			}
 			std::string_view StringView::FromBuffer(const char* Buffer, size_t MaxSize)
 			{
@@ -10927,7 +10963,7 @@ namespace Vitex
 				VString->SetMethodEx<Core::String&, Core::String&>("string& reverse()", &Core::Stringify::Reverse);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize rfind(const string&in, usize = 0) const", &Core::String::rfind);
 				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize rfind(const string_view&in, usize = 0) const", &Core::String::rfind);
-				VString->SetMethod<Core::String, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &Core::String::rfind);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find(const string&in, usize = 0) const", &Core::String::find);
 				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find(const string_view&in, usize = 0) const", &Core::String::find);
 				VString->SetMethod<Core::String, size_t, char, size_t>("usize find(uint8, usize = 0) const", &Core::String::find);
@@ -10978,8 +11014,8 @@ namespace Vitex
 				VStringView->SetMethodEx<Core::String, const Core::String&, const std::string_view&>("string opAdd_r(const string&in) const", &StringView::Append3);
 				VStringView->SetMethodEx<Core::String, const std::string_view&, char>("string opAdd(uint8) const", &StringView::Append4);
 				VStringView->SetMethodEx<Core::String, char, const std::string_view&>("string opAdd_r(uint8) const", &StringView::Append5);
-				VStringView->SetMethodEx("int opCmp(const string&in) const", &StringView::Compare);
-				VStringView->SetMethod<std::string_view, int, const std::string_view>("int opCmp(const string_view&in) const", &std::string_view::compare);
+				VStringView->SetMethodEx("int opCmp(const string&in) const", &StringView::Compare1);
+				VStringView->SetMethodEx("int opCmp(const string_view&in) const", &StringView::Compare2);
 				VStringView->SetMethodEx("const uint8& opIndex(usize) const", &StringView::Index);
 				VStringView->SetMethodEx("const uint8& at(usize) const", &StringView::Index);
 				VStringView->SetMethodEx("const uint8& front() const", &StringView::Front);
@@ -10994,14 +11030,14 @@ namespace Vitex
 				VStringView->SetMethodEx("string substring(usize, usize) const", &StringView::Substring2);
 				VStringView->SetMethodEx("string substr(usize) const", &StringView::Substring1);
 				VStringView->SetMethodEx("string substr(usize, usize) const", &StringView::Substring2);
-				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize rfind(const string_view&in, usize = 0) const", &std::string_view::rfind);
-				VStringView->SetMethod<std::string_view, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &std::string_view::find);
-				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find(const string_view&in, usize = 0) const", &std::string_view::find);
-				VStringView->SetMethod<std::string_view, size_t, char, size_t>("usize find(uint8, usize = 0) const", &std::string_view::find);
-				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_first_of(const string_view&in, usize = 0) const", &std::string_view::find_first_of);
-				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_first_not_of(const string_view&in, usize = 0) const", &std::string_view::find_first_not_of);
-				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_last_of(const string_view&in, usize = 0) const", &std::string_view::find_last_of);
-				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_last_not_of(const string_view&in, usize = 0) const", &std::string_view::find_last_not_of);
+				VStringView->SetMethodEx("usize rfind(const string_view&in, usize = 0) const", &StringView::ReverseFind1);
+				VStringView->SetMethodEx("usize rfind(uint8, usize = 0) const", &StringView::ReverseFind2);
+				VStringView->SetMethodEx("usize find(const string_view&in, usize = 0) const", &StringView::Find1);
+				VStringView->SetMethodEx("usize find(uint8, usize = 0) const", &StringView::Find2);
+				VStringView->SetMethodEx("usize find_first_of(const string_view&in, usize = 0) const", &StringView::FindFirstOf);
+				VStringView->SetMethodEx("usize find_first_not_of(const string_view&in, usize = 0) const", &StringView::FindFirstNotOf);
+				VStringView->SetMethodEx("usize find_last_of(const string_view&in, usize = 0) const", &StringView::FindLastOf);
+				VStringView->SetMethodEx("usize find_last_not_of(const string_view&in, usize = 0) const", &StringView::FindLastNotOf);
 				VStringView->SetMethodEx("array<string>@ split(const string_view&in) const", &StringView::Split);
 				VStringView->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "string", "", &StringView::ImplCastString);
 				VM->SetFunction("int8 to_int8(const string_view&in)", &StringView::FromString<int8_t>);

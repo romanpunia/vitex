@@ -1988,7 +1988,7 @@ namespace Vitex
 			Desc& GetOptions();
 
 		private:
-			void ApplySystemTheme();
+			bool ApplySystemTheme();
 			bool* GetInputState();
 		};
 

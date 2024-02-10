@@ -18,6 +18,7 @@
 #endif
 #ifdef VI_MICROSOFT
 #include <VersionHelpers.h>
+#include <dwmapi.h>
 #endif
 
 namespace
@@ -1896,7 +1897,7 @@ namespace Vitex
 			}
 #endif
 		}
-		void Activity::ApplySystemTheme()
+		bool Activity::ApplySystemTheme()
 		{
 #ifdef VI_SDL2
 #ifdef VI_MICROSOFT
@@ -1905,40 +1906,42 @@ namespace Vitex
 			SDL_GetWindowWMInfo(Handle, &Info);
 			HWND WindowHandle = Info.info.win.window;
 			if (WindowHandle == INVALID_HANDLE_VALUE)
-				return;
+				return false;
 
-			HKEY Target;
-			if (RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &Target) == ERROR_SUCCESS)
-			{
-				HMODULE Library = LoadLibraryA("dwmapi.dll");
-				if (Library != nullptr)
-				{
-					typedef HRESULT(*DwmSetWindowAttributePtr1)(HWND, DWORD, LPCVOID, DWORD);
-					DwmSetWindowAttributePtr1 DWM_SetWindowAttribute = (DwmSetWindowAttributePtr1)GetProcAddress(Library, "DwmSetWindowAttribute");
-					if (DWM_SetWindowAttribute != nullptr)
-					{
-						DWORD Value = 0, ValueSize = sizeof(DWORD), Type = REG_DWORD;
-						if (RegQueryValueEx(Target, "SystemUsesLightTheme", NULL, &Type, (LPBYTE)&Value, &ValueSize) == ERROR_SUCCESS && Value == 0)
-						{
-							BOOL DarkMode = true;
-							const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-							if (DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode)) != S_OK)
-							{
-								BOOL DarkModeOnOldWindows = true;
-								const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19;
-								DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, &DarkModeOnOldWindows, sizeof(DarkModeOnOldWindows));
-							}
-						}
+			HMODULE Library = LoadLibraryA("dwmapi.dll");
+			if (!Library)
+				return false;
+
+			const DWORD DWMWA_MICA_EFFECT_DEPRECATED = 1029;
+			const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_DEPRECATED = 19;
+			typedef HRESULT(*DwmSetWindowAttributePtr1)(HWND, DWORD, LPCVOID, DWORD);
+			DwmSetWindowAttributePtr1 DWM_SetWindowAttribute = (DwmSetWindowAttributePtr1)GetProcAddress(Library, "DwmSetWindowAttribute");
+			if (!DWM_SetWindowAttribute)
+				return false;
+
+			HKEY Personalize;
+			DWORD IsLightTheme = 0, IsLightThemeSize = sizeof(DWORD), Type = REG_DWORD;
+			if (RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &Personalize) == ERROR_SUCCESS)
+				RegQueryValueEx(Personalize, "SystemUsesLightTheme", NULL, &Type, (LPBYTE)&IsLightTheme, &IsLightThemeSize);
+			RegCloseKey(Personalize);
+
+			BOOL DarkMode = IsLightTheme ? 0 : 1;
+			if (DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode)) != S_OK)
+				DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE_DEPRECATED, &DarkMode, sizeof(DarkMode));
 #if 0
-						const BOOL MicaEffect = true;
-						const DWORD DWMWA_MICA_EFFECT = 1029;
-						DWM_SetWindowAttribute(WindowHandle, DWMWA_MICA_EFFECT, &MicaEffect, sizeof(MicaEffect));
-#endif
-					}
-				}
+			DWM_SYSTEMBACKDROP_TYPE BackdropType = DWMSBT_MAINWINDOW;
+			if (DWM_SetWindowAttribute(WindowHandle, DWMWA_SYSTEMBACKDROP_TYPE, &BackdropType, sizeof(BackdropType)) != S_OK)
+			{
+				BOOL MicaEffect = true;
+				DWM_SetWindowAttribute(WindowHandle, DWMWA_MICA_EFFECT_DEPRECATED, &MicaEffect, sizeof(MicaEffect));
 			}
-			RegCloseKey(Target);
 #endif
+			return true;
+#else
+			return false;
+#endif
+#else
+			return false;
 #endif
 		}
 		void Activity::SetClipboardText(const std::string_view& Text)

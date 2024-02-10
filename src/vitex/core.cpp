@@ -5646,16 +5646,14 @@ namespace Vitex
 		}
 		int Stringify::CaseCompare(const std::string_view& Value1, const std::string_view& Value2)
 		{
-			int Diff = (int)Value1.size() - (int)Value2.size();
-			if (Diff != 0 || Value1.empty())
-				return Diff;
-
+			int Diff = 0;
+			size_t Size = std::min(Value1.size(), Value2.size());
 			size_t Offset = 0;
 			do
 			{
 				Diff = tolower((uint8_t)Value1[Offset]) - tolower((uint8_t)Value2[Offset]);
 				++Offset;
-			} while (Diff == 0 && Offset < Value1.size());
+			} while (Diff == 0 && Offset < Size);
 			return Diff;
 		}
 		int Stringify::Match(const char* Pattern, const std::string_view& Text)

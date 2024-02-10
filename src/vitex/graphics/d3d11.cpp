@@ -1675,34 +1675,34 @@ namespace Vitex
 				ImmediateContext->IAGetPrimitiveTopology(&LastTopology);
 				ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Primitives);
 
-				Core::UPtr<ID3D11InputLayout> LastLayout;
+				Core::UPtr<ID3D11InputLayout, true> LastLayout;
 				ImmediateContext->IAGetInputLayout(LastLayout.Out());
 				ImmediateContext->IASetInputLayout(Immediate.VertexLayout);
 
-				Core::UPtr<ID3D11VertexShader> LastVertexShader;
+				Core::UPtr<ID3D11VertexShader, true> LastVertexShader;
 				ImmediateContext->VSGetShader(LastVertexShader.Out(), nullptr, nullptr);
 				ImmediateContext->VSSetShader(Immediate.VertexShader, nullptr, 0);
 
-				Core::UPtr<ID3D11PixelShader> LastPixelShader;
+				Core::UPtr<ID3D11PixelShader, true> LastPixelShader;
 				ImmediateContext->PSGetShader(LastPixelShader.Out(), nullptr, nullptr);
 				ImmediateContext->PSSetShader(Immediate.PixelShader, nullptr, 0);
 
-				Core::UPtr<ID3D11Buffer> LastVertexBuffer;
+				Core::UPtr<ID3D11Buffer, true> LastVertexBuffer;
 				ImmediateContext->IAGetVertexBuffers(0, 1, LastVertexBuffer.Out(), &LastStride, &LastOffset);
 				ImmediateContext->IASetVertexBuffers(0, 1, &Immediate.VertexBuffer, &Stride, &Offset);
 
-				Core::UPtr<ID3D11Buffer> LastBuffer1, LastBuffer2;
+				Core::UPtr<ID3D11Buffer, true> LastBuffer1, LastBuffer2;
 				ImmediateContext->VSGetConstantBuffers(0, 1, LastBuffer1.Out());
 				ImmediateContext->VSSetConstantBuffers(0, 1, &Immediate.ConstantBuffer);
 				ImmediateContext->PSGetConstantBuffers(0, 1, LastBuffer2.Out());
 				ImmediateContext->PSSetConstantBuffers(0, 1, &Immediate.ConstantBuffer);
 
-				Core::UPtr<ID3D11SamplerState> LastSampler;
+				Core::UPtr<ID3D11SamplerState, true> LastSampler;
 				ImmediateContext->PSGetSamplers(1, 1, LastSampler.Out());
 				ImmediateContext->PSSetSamplers(1, 1, &Immediate.Sampler);
 
 				ID3D11ShaderResourceView* NullTexture = nullptr;
-				Core::UPtr<ID3D11ShaderResourceView> LastTexture;
+				Core::UPtr<ID3D11ShaderResourceView, true> LastTexture;
 				ImmediateContext->PSGetShaderResources(1, 1, LastTexture.Out());
 				ImmediateContext->PSSetShaderResources(1, 1, ViewResource ? &((D3D11Texture2D*)ViewResource)->Resource : &NullTexture);
 
@@ -2463,7 +2463,7 @@ namespace Vitex
 				State.StencilReadMask = I.StencilReadMask;
 				State.StencilWriteMask = I.StencilWriteMask;
 
-				Core::UPtr<ID3D11DepthStencilState> DeviceState;
+				Core::UPtr<ID3D11DepthStencilState, true> DeviceState;
 				HRESULT ResultCode = Context->CreateDepthStencilState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create depth stencil state");
@@ -2489,7 +2489,7 @@ namespace Vitex
 					State.RenderTarget[i].SrcBlendAlpha = (D3D11_BLEND)I.RenderTarget[i].SrcBlendAlpha;
 				}
 
-				Core::UPtr<ID3D11BlendState> DeviceState;
+				Core::UPtr<ID3D11BlendState, true> DeviceState;
 				HRESULT ResultCode = Context->CreateBlendState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create blend state");
@@ -2512,7 +2512,7 @@ namespace Vitex
 				State.ScissorEnable = I.ScissorEnable;
 				State.SlopeScaledDepthBias = I.SlopeScaledDepthBias;
 
-				Core::UPtr<ID3D11RasterizerState> DeviceState;
+				Core::UPtr<ID3D11RasterizerState, true> DeviceState;
 				HRESULT ResultCode = Context->CreateRasterizerState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create rasterizer state");
@@ -2538,7 +2538,7 @@ namespace Vitex
 				State.BorderColor[2] = I.BorderColor[2];
 				State.BorderColor[3] = I.BorderColor[3];
 
-				Core::UPtr<ID3D11SamplerState> DeviceState;
+				Core::UPtr<ID3D11SamplerState, true> DeviceState;
 				HRESULT ResultCode = Context->CreateSamplerState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create sampler state");
@@ -3267,7 +3267,7 @@ namespace Vitex
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 				DSV.Texture2D.MipSlice = 0;
 
-				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<ID3D11Texture2D, true> DepthTexture = DepthTextureAddress;
 				Core::UPtr<D3D11DepthTarget2D> Result = new D3D11DepthTarget2D(I);
 				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
@@ -3321,7 +3321,7 @@ namespace Vitex
 				DSV.Texture2DArray.ArraySize = 6;
 				DSV.Texture2DArray.MipSlice = 0;
 
-				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<ID3D11Texture2D, true> DepthTexture = DepthTextureAddress;
 				Core::UPtr<D3D11DepthTargetCube> Result = new D3D11DepthTargetCube(I);
 				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
@@ -3373,7 +3373,7 @@ namespace Vitex
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 				DSV.Texture2D.MipSlice = 0;
 
-				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<ID3D11Texture2D, true> DepthTexture = DepthTextureAddress;
 				Core::UPtr<D3D11RenderTarget2D> Result = new D3D11RenderTarget2D(I);
 				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
@@ -3494,7 +3494,7 @@ namespace Vitex
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 				DSV.Texture2D.MipSlice = 0;
 
-				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<ID3D11Texture2D, true> DepthTexture = DepthTextureAddress;
 				Core::UPtr<D3D11MultiRenderTarget2D> Result = new D3D11MultiRenderTarget2D(I);
 				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
@@ -3592,7 +3592,7 @@ namespace Vitex
 				DSV.Texture2DArray.ArraySize = 6;
 				DSV.Texture2DArray.MipSlice = 0;
 
-				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<ID3D11Texture2D, true> DepthTexture = DepthTextureAddress;
 				Core::UPtr<D3D11RenderTargetCube> Result = new D3D11RenderTargetCube(I);
 				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
@@ -3689,7 +3689,7 @@ namespace Vitex
 				DSV.Texture2DArray.ArraySize = 6;
 				DSV.Texture2DArray.MipSlice = 0;
 
-				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<ID3D11Texture2D, true> DepthTexture = DepthTextureAddress;
 				Core::UPtr<D3D11MultiRenderTargetCube> Result = new D3D11MultiRenderTargetCube(I);
 				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)

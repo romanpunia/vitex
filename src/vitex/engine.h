@@ -1363,9 +1363,9 @@ namespace Vitex
 			{
 				auto Result = Load(GetProcessor<T>(), Path, Keys);
 				if (!Result)
-					return Result.Error();
+					return ExpectsContent<T*>(Result.Error());
 
-				return (T*)*Result;
+				return ExpectsContent<T*>((T*)*Result);
 			}
 			template <typename T>
 			ExpectsPromiseContent<Core::Unique<T>> LoadAsync(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
@@ -1377,9 +1377,9 @@ namespace Vitex
 					auto Result = Load(GetProcessor<T>(), TargetPath, Keys);
 					Dequeue();
 					if (!Result)
-						return Result.Error();
+						return ExpectsContent<T*>(Result.Error());
 
-					return (T*)*Result;
+					return ExpectsContent<T*>((T*)*Result);
 				});
 			}
 			template <typename T>

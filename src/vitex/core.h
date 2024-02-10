@@ -2831,7 +2831,7 @@ namespace Vitex
 			}
 		};
 
-		template <typename T>
+		template <typename T, bool Releaseable = false>
 		class UPtr
 		{
 		private:
@@ -2904,17 +2904,17 @@ namespace Vitex
 
 		private:
 			template <typename Q>
-			inline typename std::enable_if<std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
+			inline typename std::enable_if<std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value && !Releaseable, void>::type Cleanup()
 			{
 				Memory::Deallocate<T>(Address);
 			}
 			template <typename Q>
-			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
+			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value && !Releaseable, void>::type Cleanup()
 			{
 				Memory::Delete<T>(Address);
 			}
 			template <typename Q>
-			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value&& std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
+			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && (std::is_base_of<Reference<Q>, Q>::value || Releaseable), void>::type Cleanup()
 			{
 				Memory::Release<T>(Address);
 			}

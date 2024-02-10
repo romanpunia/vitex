@@ -16,6 +16,9 @@
 #ifdef VI_SDL2
 #include "internal/sdl2-cross.hpp"
 #endif
+#ifdef VI_MICROSOFT
+#include <VersionHelpers.h>
+#endif
 
 namespace
 {
@@ -1897,44 +1900,44 @@ namespace Vitex
 		{
 #ifdef VI_SDL2
 #ifdef VI_MICROSOFT
-			OSVERSIONINFOEX Version;
-			ZeroMemory(&Version, sizeof(OSVERSIONINFOEX));
-			Version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-#pragma warning(push)
-#pragma warning(disable : 4996)
-			GetVersionEx((LPOSVERSIONINFO)&Version);
-#pragma warning(pop) 
-
-			const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = Version.dwBuildNumber >= 18985 ? 20 : 19;
-			if (Version.dwMajorVersion < 10 || Version.dwBuildNumber < 17763)
+			SDL_SysWMinfo Info;
+			SDL_VERSION(&Info.version);
+			SDL_GetWindowWMInfo(Handle, &Info);
+			HWND WindowHandle = Info.info.win.window;
+			if (WindowHandle == INVALID_HANDLE_VALUE)
 				return;
 
 			HKEY Target;
 			if (RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &Target) == ERROR_SUCCESS)
 			{
-				DWORD Value = 0, ValueSize = sizeof(DWORD), Type = REG_DWORD;
-				if (RegQueryValueEx(Target, "SystemUsesLightTheme", NULL, &Type, (LPBYTE)&Value, &ValueSize) == ERROR_SUCCESS && Value == 0)
+				HMODULE Library = LoadLibraryA("dwmapi.dll");
+				if (Library != nullptr)
 				{
-					SDL_SysWMinfo Info;
-					SDL_VERSION(&Info.version);
-					SDL_GetWindowWMInfo(Handle, &Info);
-					HWND WindowHandle = Info.info.win.window;
-					HMODULE Library = LoadLibraryA("dwmapi.dll");
-
-					if (Library != nullptr)
+					typedef HRESULT(*DwmSetWindowAttributePtr1)(HWND, DWORD, LPCVOID, DWORD);
+					DwmSetWindowAttributePtr1 DWM_SetWindowAttribute = (DwmSetWindowAttributePtr1)GetProcAddress(Library, "DwmSetWindowAttribute");
+					if (DWM_SetWindowAttribute != nullptr)
 					{
-						typedef HRESULT(*DwmSetWindowAttributePtr1)(HWND, DWORD, LPCVOID, DWORD);
-						DwmSetWindowAttributePtr1 DWM_SetWindowAttribute = (DwmSetWindowAttributePtr1)GetProcAddress(Library, "DwmSetWindowAttribute");
-						if (DWM_SetWindowAttribute != nullptr)
+						DWORD Value = 0, ValueSize = sizeof(DWORD), Type = REG_DWORD;
+						if (RegQueryValueEx(Target, "SystemUsesLightTheme", NULL, &Type, (LPBYTE)&Value, &ValueSize) == ERROR_SUCCESS && Value == 0)
 						{
 							BOOL DarkMode = true;
-							DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode));
+							const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+							if (DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode)) != S_OK)
+							{
+								BOOL DarkModeOnOldWindows = true;
+								const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19;
+								DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, &DarkModeOnOldWindows, sizeof(DarkModeOnOldWindows));
+							}
 						}
-						//FreeLibrary(Library); // Needs to be present until app closes otherwise may crash
+#if 0
+						const BOOL MicaEffect = true;
+						const DWORD DWMWA_MICA_EFFECT = 1029;
+						DWM_SetWindowAttribute(WindowHandle, DWMWA_MICA_EFFECT, &MicaEffect, sizeof(MicaEffect));
+#endif
 					}
 				}
-				RegCloseKey(Target);
 			}
+			RegCloseKey(Target);
 #endif
 #endif
 		}

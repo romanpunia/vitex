@@ -4262,6 +4262,8 @@ namespace Vitex
 					Desc.Root = *Directory;
 
 				Core::UPtr<Compute::Preprocessor> Processor = new Compute::Preprocessor();
+				Processor->SetIncludeOptions(Desc);
+				Processor->SetFeatures(Features);
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 				{
 					if (File.Module.empty() || (!File.IsFile && !File.IsAbstract))
@@ -4278,6 +4280,7 @@ namespace Vitex
 					this->Decompose(Output);
 					return Compute::IncludeType::Preprocess;
 				});
+#ifdef VI_RMLUI
 				Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 				{
 					if (Name != "fontface")
@@ -4317,7 +4320,7 @@ namespace Vitex
 
 					if (Path.empty())
 						return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, "font face path is invalid");
-#ifdef VI_RMLUI
+
 					Rml::String TargetPath;
 					Rml::String CurrentPath = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
 					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(CurrentPath, '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
@@ -4326,13 +4329,8 @@ namespace Vitex
 						return Core::Expectation::Met;
 
 					return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, Status.Error().message());
-#else
-					return Compute::PreprocessorException(Compute::PreprocessorError::IncludeError, 0, "not supported");
-#endif
 				});
-				Processor->SetIncludeOptions(Desc);
-				Processor->SetFeatures(Features);
-
+#endif
 				auto Status = Processor->Process(Path, Buffer);
 				if (!Status)
 					return GuiException(std::move(Status.Error().message()));

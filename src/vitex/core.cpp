@@ -281,7 +281,10 @@ namespace Vitex
 				auto It = Watchers.find(Address);
 
 				VI_ASSERT(It == Watchers.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
-				Watchers[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), sizeof(void*), false, false);
+				if (It != Watchers.end())
+					It->second = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), sizeof(void*), false, false);
+				else
+					Watchers[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), sizeof(void*), false, false);
 			}
 			void DebugAllocator::Unwatch(void* Address) noexcept
 			{
@@ -5557,7 +5560,7 @@ namespace Vitex
 
 			size_t Digits = 0, Points = 0;
 			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0);
-			for (size_t i = 0; i < Other.size(); i++)
+			for (i = 0; i < Other.size(); i++)
 			{
 				char V = Other[i];
 				if (IsNumeric(V))

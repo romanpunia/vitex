@@ -59,10 +59,10 @@ namespace Vitex
 				return Cursor(Result);
 			}
 #endif
-			Property::Property() noexcept : Source(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
+			Property::Property() noexcept : Source(nullptr), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), Mod(Type::Unknown), IsValid(false)
 			{
 			}
-			Property::Property(Property&& Other) : Name(std::move(Other.Name)), String(std::move(Other.String)), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
+			Property::Property(Property&& Other) : Name(std::move(Other.Name)), String(std::move(Other.String)), Source(Other.Source), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), Mod(Other.Mod), IsValid(Other.IsValid)
 			{
 				if (Mod == Type::ObjectId)
 					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));

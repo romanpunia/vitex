@@ -598,7 +598,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			return OrEmpty(Info->section);
 #else
-			return "";
+			return OrEmpty("");
 #endif
 		}
 		std::string_view MessageInfo::GetText() const
@@ -1860,11 +1860,10 @@ namespace Vitex
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
 			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)Decl.size());
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -1875,13 +1874,12 @@ namespace Vitex
 			VI_ASSERT(IsValid(), "class should be valid");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
 			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", GetTypeName().data(), GetTypeName().data());
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName().data(), Decl.c_str(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -1893,11 +1891,10 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), (asEBehaviours)Behave, Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -1908,11 +1905,10 @@ namespace Vitex
 			VI_ASSERT(IsValid(), "class should be valid");
 			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)Decl.size(), Offset);
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName().data(), Decl.data(), Offset));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -1925,10 +1921,9 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)Decl.size(), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-#ifdef VI_ANGELSCRIPT
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Type->GetNamespace();
 
@@ -1951,11 +1946,10 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName().data(), Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -1967,14 +1961,13 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-#ifdef VI_ANGELSCRIPT
+
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = this->Type->GetNamespace();
-
 			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName().data() : Core::String(Scope).append("::").append(GetName()).c_str());
 			int R = Engine->RegisterGlobalFunction(Decl.data(), *Value, (asECallConvTypes)Type);
 			Engine->SetDefaultNamespace(Namespace);
@@ -1991,10 +1984,9 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_CONSTRUCT, Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2007,10 +1999,9 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_LIST_CONSTRUCT, Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2023,10 +2014,9 @@ namespace Vitex
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)Decl.size(), (void*)Value);
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_DESTRUCT, Decl.data(), *Value, asCALL_CDECL_OBJFIRST));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2228,11 +2218,10 @@ namespace Vitex
 			VI_ASSERT(IsValid(), "interface should be valid");
 			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)Decl.size());
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName().data(), Decl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2275,11 +2264,10 @@ namespace Vitex
 			VI_ASSERT(IsValid(), "enum should be valid");
 			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)Name.size(), Value);
-#ifdef VI_ANGELSCRIPT
 			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName().data(), Name.data(), Value));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -3034,11 +3022,11 @@ namespace Vitex
 				}
 				else if (Name == "modify" && Args.size() == 2)
 				{
+#ifdef VI_ANGELSCRIPT
 					const Core::String& Key = Args[0];
 					const Core::String& Value = Args[1];
 					auto Numeric = Core::FromString<uint64_t>(Value);
 					size_t Result = Numeric ? (size_t)*Numeric : 0;
-#ifdef VI_ANGELSCRIPT
 					if (Key == "NAME")
 						Scope->SetName(Value.c_str());
 					else if (Key == "NAMESPACE")
@@ -3514,7 +3502,7 @@ namespace Vitex
 		}
 		int Compiler::CompilerUD = 154;
 
-		DebuggerContext::DebuggerContext(DebugType Type) noexcept : ForceSwitchThreads(0), LastContext(nullptr), LastFunction(nullptr), VM(nullptr), Action(Type == DebugType::Suspended ? DebugAction::Trigger : DebugAction::Continue), InputError(false), Attachable(Type != DebugType::Detach)
+		DebuggerContext::DebuggerContext(DebugType Type) noexcept : LastContext(nullptr), ForceSwitchThreads(0), LastFunction(nullptr), VM(nullptr), Action(Type == DebugType::Suspended ? DebugAction::Trigger : DebugAction::Continue), InputError(false), Attachable(Type != DebugType::Detach)
 		{
 			LastCommandAtStackLevel = 0;
 			AddDefaultCommands();
@@ -3794,7 +3782,7 @@ namespace Vitex
 				LastCommandAtStackLevel = (unsigned int)Context->GetCallstackSize();
 				return true;
 			});
-			AddCommand("a, abort", "abort current execution", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			AddCommand("a, abort", "abort current execution", ArgsType::NoArgs, [](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
 			{
 				Context->Abort();
 				return false;
@@ -4036,9 +4024,9 @@ namespace Vitex
 		}
 		void DebuggerContext::LineCallback(asIScriptContext* Base)
 		{
+#ifdef VI_ANGELSCRIPT
 			ImmediateContext* Context = ImmediateContext::Get(Base);
 			VI_ASSERT(Context != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
 			auto State = Base->GetState();
 			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_EXCEPTION)
 			{
@@ -4165,11 +4153,10 @@ namespace Vitex
 		void DebuggerContext::Input(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(Context->GetContext() != nullptr, "context should be set");
 			if (InputError)
 				return;
 
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
 
 			for (;;)
 			{
@@ -4954,10 +4941,10 @@ namespace Vitex
 		void DebuggerContext::ListMemberProperties(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
+
 			void* Pointer = Base->GetThisPointer();
 			if (Pointer != nullptr)
 			{
@@ -4971,10 +4958,10 @@ namespace Vitex
 		void DebuggerContext::ListLocalVariables(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
+
 			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
@@ -4996,10 +4983,10 @@ namespace Vitex
 		void DebuggerContext::ListGlobalVariables(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
+
 			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
@@ -5058,10 +5045,10 @@ namespace Vitex
 		void DebuggerContext::ListStatistics(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
+
 			asIScriptEngine* Engine = Base->GetEngine();
 			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
 			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
@@ -5079,9 +5066,7 @@ namespace Vitex
 		void DebuggerContext::PrintCallstack(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			VI_ASSERT(Context->GetContext() != nullptr, "context should be set");
 
 			Core::StringStream Stream;
 			Stream << Core::ErrorHandling::GetStackTrace(1) << "\n";
@@ -5143,10 +5128,10 @@ namespace Vitex
 		bool DebuggerContext::CheckBreakPoint(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
+#ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
+
 			const char* Temp = 0;
 			int Line = Base->GetLineNumber(0, 0, &Temp);
 
@@ -5219,9 +5204,7 @@ namespace Vitex
 		bool DebuggerContext::InterpretCommand(const std::string_view& Command, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			VI_ASSERT(Context->GetContext() != nullptr, "context should be set");
 
 			for (auto& Item : Core::Stringify::Split(Command, "&&"))
 			{
@@ -7607,6 +7590,7 @@ namespace Vitex
 				}
 			}
 
+			(void)TargetPath;
 			return Processor->Process(Path, InoutBuffer);
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
@@ -8036,6 +8020,8 @@ namespace Vitex
 				VI_DEBUG("[vm] load function %.*s", (int)Func.size(), Func.data());
 				return Core::Expectation::Met;
 #else
+				(void)this;
+				(void)Decl;
 				return VirtualException("cfunction not found: not supported");
 #endif
 			};
@@ -8326,9 +8312,10 @@ namespace Vitex
 		}
 		void VirtualMachine::ExceptionHandler(asIScriptContext* Context, void*)
 		{
+#ifdef VI_ANGELSCRIPT
 			ImmediateContext* Base = ImmediateContext::Get(Context);
 			VI_ASSERT(Base != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
+
 			VirtualMachine* VM = Base->GetVM();
 			if (VM->Debugger != nullptr)
 				return VM->Debugger->ThrowInternalException(Context->GetExceptionString());

@@ -4342,11 +4342,11 @@ namespace Vitex
 		}
 		bool UInt128::operator>=(const UInt128& Right) const
 		{
-			return ((*this > Right) | (*this == Right));
+			return ((*this > Right) || (*this == Right));
 		}
 		bool UInt128::operator<=(const UInt128& Right) const
 		{
-			return ((*this < Right) | (*this == Right));
+			return ((*this < Right) || (*this == Right));
 		}
 		UInt128 UInt128::operator+(const UInt128& Right) const
 		{
@@ -4774,7 +4774,7 @@ namespace Vitex
 		UInt256 UInt256::operator>>(const UInt256& Right) const
 		{
 			const UInt128 Shift = Right.Lower;
-			if (((bool)Right.Upper) | (Shift >= UInt128(128)))
+			if (((bool)Right.Upper) || (Shift >= UInt128(128)))
 				return Min();
 			else if (Shift == UInt128(128))
 				return UInt256(Upper);
@@ -4830,7 +4830,7 @@ namespace Vitex
 		}
 		bool UInt256::operator!=(const UInt256& Right) const
 		{
-			return ((Upper != Right.Upper) | (Lower != Right.Lower));
+			return ((Upper != Right.Upper) || (Lower != Right.Lower));
 		}
 		bool UInt256::operator>(const UInt128& Right) const
 		{
@@ -4862,7 +4862,7 @@ namespace Vitex
 		}
 		bool UInt256::operator>=(const UInt256& Right) const
 		{
-			return ((*this > Right) | (*this == Right));
+			return ((*this > Right) || (*this == Right));
 		}
 		bool UInt256::operator<=(const UInt128& Right) const
 		{
@@ -4870,7 +4870,7 @@ namespace Vitex
 		}
 		bool UInt256::operator<=(const UInt256& Right) const
 		{
-			return ((*this < Right) | (*this == Right));
+			return ((*this < Right) || (*this == Right));
 		}
 		UInt256 UInt256::operator+(const UInt128& Right) const
 		{
@@ -8813,7 +8813,6 @@ namespace Vitex
 
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
 			uint8_t InBuffer[Core::CHUNK_SIZE], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
-			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
 			while ((InBufferSize = From->Read(InBuffer, sizeof(InBuffer)).Or(0)) > 0)
 			{
 				int OutSize = 0;
@@ -8901,7 +8900,6 @@ namespace Vitex
 
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
 			uint8_t InBuffer[Core::CHUNK_SIZE + 1024], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
-			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
 			while ((InBufferSize = From->Read(InBuffer + TrailingBufferSize, sizeof(TrailingBuffer)).Or(0)) > 0)
 			{
 				uint8_t* ReadBuffer = InBuffer;
@@ -10519,7 +10517,7 @@ namespace Vitex
 		ExpectsPreprocessor<void> Preprocessor::Process(const std::string_view& Path, Core::String& Data)
 		{
 			bool Nesting = SaveResult();
-			if (Data.empty() || !Path.empty() && HasResult(Path))
+			if (Data.empty() || (!Path.empty() && HasResult(Path)))
 			{
 				ApplyResult(Nesting);
 				return Core::Expectation::Met;
@@ -10782,7 +10780,7 @@ namespace Vitex
 		}
 		Core::String Preprocessor::Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions)
 		{
-			Core::String Result; bool SkipControlFlow = false;
+			Core::String Result;
 			for (size_t i = 0; i < Conditions.size(); i++)
 			{
 				auto& Next = Conditions[i];
@@ -11033,7 +11031,7 @@ namespace Vitex
 				return PreprocessorException(PreprocessorError::MacroDefinitionError, 0, ThisFile.Path);
 
 			std::string_view Data = Value.substr(Where + 1, Value.size() - Where - 2);
-			Tokens.emplace_back(std::move(Value.substr(0, Where)));
+			Tokens.emplace_back(Value.substr(0, Where));
 			Where = 0;
 
 			size_t Last = 0;
@@ -11064,7 +11062,7 @@ namespace Vitex
 					if (UnpackLiterals && Subvalue.size() >= 2)
 					{
 						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != Core::String::npos)
-							Tokens.emplace_back(std::move(Subvalue.substr(1, Subvalue.size() - 2)));
+							Tokens.emplace_back(Subvalue.substr(1, Subvalue.size() - 2));
 						else
 							Tokens.emplace_back(std::move(Subvalue));
 					}

@@ -2226,7 +2226,6 @@ namespace Vitex
 				float MinX = 0.0f, MaxX = 0.0f;
 				float MinY = 0.0f, MaxY = 0.0f;
 				float MinZ = 0.0f, MaxZ = 0.0f;
-				float Accelerate = Velocity.X != 0.0f || Velocity.Y != 0.0f || Velocity.Z != 0.0f ? Velocity.Length() : 0.0f;
 				auto Begin = Array.begin();
 				auto End = Array.end();
 
@@ -2280,7 +2279,6 @@ namespace Vitex
 				float MinX = 0.0f, MaxX = 0.0f;
 				float MinY = 0.0f, MaxY = 0.0f;
 				float MinZ = 0.0f, MaxZ = 0.0f;
-				float Accelerate = Velocity.X != 0.0f || Velocity.Y != 0.0f || Velocity.Z != 0.0f ? Velocity.Length() : 0.0f;
 				auto Begin = Array.begin();
 				auto End = Array.end();
 
@@ -3617,7 +3615,8 @@ namespace Vitex
 
 					Component* Current = this;
 					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Map);
+					Context->SetArgObject(1, (void*)&Name);
+					Context->SetArgObject(2, Map);
 				});
 			}
 			Component* Scriptable::Copy(Entity* New) const
@@ -3949,7 +3948,7 @@ namespace Vitex
 					Entry.Asleep = GetFunctionByName("asleep", Invoke == InvokeType::Typeless ? 0 : 1).GetFunction();
 					Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
 					Entry.Update = GetFunctionByName("update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-					Entry.Message = GetFunctionByName("message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+					Entry.Message = GetFunctionByName("message", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
 					return Result;
 				});
 			}

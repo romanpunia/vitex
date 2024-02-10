@@ -1443,7 +1443,7 @@ namespace Vitex
 			ExpectsContent<Core::Schema*> ModelProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
 				auto Info = ImportForImmediateUse(Stream, Opts);
-				if (!Info || Info->Meshes.empty() && Info->JointOffsets.empty())
+				if (!Info || (Info->Meshes.empty() && Info->JointOffsets.empty()))
 				{
 					if (!Info)
 						return Info.Error();

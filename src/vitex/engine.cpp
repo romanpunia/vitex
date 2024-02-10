@@ -5952,8 +5952,6 @@ namespace Vitex
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			auto& Entries = Assets[Target];
 			auto& Entry = Entries[Root];
-			void* Existing = nullptr;
-
 			if (Entry != nullptr)
 				return Entry->Resource;
 

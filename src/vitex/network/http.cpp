@@ -69,17 +69,9 @@ namespace Vitex
 			{
 				Array.insert(Array.end(), Src.begin(), Src.end());
 			}
-			static void TextAppend(Core::Vector<char>& Array, const uint8_t* Buffer, size_t Size)
-			{
-				Array.insert(Array.end(), Buffer, Buffer + Size);
-			}
 			static void TextAssign(Core::Vector<char>& Array, const std::string_view& Src)
 			{
 				Array.assign(Src.begin(), Src.end());
-			}
-			static void TextAssign(Core::Vector<char>& Array, const uint8_t* Buffer, size_t Size)
-			{
-				Array.assign(Buffer, Buffer + Size);
 			}
 			static Core::String TextSubstring(Core::Vector<char>& Array, size_t Offset, size_t Size)
 			{
@@ -3769,7 +3761,7 @@ namespace Vitex
 							}
 
 							Core::Vector<char> Message;
-							TextAssign(Message, (uint8_t*)Data, Length);
+							TextAssign(Message, std::string_view(Data, Length));
 							Queue.emplace(std::make_pair(Opcode, std::move(Message)));
 							Opcode = WebSocketOp::Continue;
 
@@ -4863,7 +4855,7 @@ namespace Vitex
 					return Base->Abort(400, "Malformed websocket request. Provide second key.");
 
 				const size_t LegacyKeySize = 8;
-				auto ResolveConnection = [Base, LegacyKeySize](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				auto ResolveConnection = [Base](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 						Base->Request.Content.Append(std::string_view((char*)Buffer, Recv));
@@ -5802,7 +5794,7 @@ namespace Vitex
 				{
 					for (auto* Route : Group->Routes)
 					{
-						Status = UpdateRoute(Target->Base);
+						Status = UpdateRoute(Route);
 						if (!Status)
 							return Status;
 					}
@@ -6098,7 +6090,7 @@ namespace Vitex
 
 					int64_t Subresult = -1;
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, Subresult, MaxSize, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+					Net.Stream->ReadAsync(MaxSize, [this, Result, Subresult, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6136,7 +6128,7 @@ namespace Vitex
 						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+					Net.Stream->ReadAsync(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6172,7 +6164,7 @@ namespace Vitex
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
 				Core::ExpectsPromiseSystem<void> Result;
-				Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+				Net.Stream->ReadAsync(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -6549,7 +6541,7 @@ namespace Vitex
 					return Callback(Core::SystemException("upload file error", std::move(File.Error())));
 
 				FILE* FileStream = *File;
-                auto Result = Net.Stream->SendFileAsync(FileStream, 0, Boundary->File->Length, [this, FileStream, Callback](SocketPoll Event)
+                auto Result = Net.Stream->SendFileAsync(FileStream, 0, Boundary->File->Length, [FileStream, Callback](SocketPoll Event)
                 {
                     if (Packet::IsDone(Event))
                     {
@@ -6653,7 +6645,7 @@ namespace Vitex
 								{
 									if (Status)
 									{
-										Net.Stream->WriteAsync((uint8_t*)Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
+										Net.Stream->WriteAsync((uint8_t*)Boundary->Finish.c_str(), Boundary->Finish.size(), [this, FileId](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 												Upload(FileId + 1);

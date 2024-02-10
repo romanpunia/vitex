@@ -1901,6 +1901,7 @@ namespace Vitex
 					}
 				}
 				Driver::Get()->LogQuery(Command);
+				(void)IsInQueue;
 #ifndef NDEBUG
 				if (!IsInQueue || Next->Session == 0)
 					return Future;

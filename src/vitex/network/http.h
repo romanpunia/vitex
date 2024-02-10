@@ -341,7 +341,6 @@ namespace Vitex
 			class VI_OUT WebSocketFrame final : public Core::Reference<WebSocketFrame>
 			{
 				friend class Connection;
-				friend class Utils;
 
 			private:
 				enum class Tunnel

@@ -167,7 +167,7 @@ namespace Vitex
 			if (!Time)
 				return std::make_pair<Core::String, time_t>(Core::String(), time_t(0));
 
-			struct tm Date; size_t i = 0;
+			struct tm Date;
 			memset(&Date, 0, sizeof(Date));
 			ASN1_TIME_to_tm(Time, &Date);
 
@@ -1324,7 +1324,7 @@ namespace Vitex
 				}
 
 				PCCERT_CONTEXT Next = nullptr; uint32_t Count = 0;
-				while (Next = CertEnumCertificatesInStore(Store, Next))
+				while ((Next = CertEnumCertificatesInStore(Store, Next)) != nullptr)
 				{
 					X509* Certificate = d2i_X509(nullptr, (const uint8_t**)&Next->pbCertEncoded, Next->cbCertEncoded);
 					if (!Certificate)
@@ -1336,6 +1336,7 @@ namespace Vitex
 					++Count;
 				}
 
+				(void)Count;
 				VI_DEBUG("[net] OK load %i root level certificates from ROOT registry", Count);
 				CertCloseStore(Store, 0);
 				Utils::DisplayTransportLog();
@@ -4036,7 +4037,7 @@ namespace Vitex
 			}
 
 			Core::ExpectsPromiseSystem<void> Result;
-			State.Done = [this, Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Result.Set(std::move(Status)); };
+			State.Done = [Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Result.Set(std::move(Status)); };
 			Timeout.Cache = false;
 			OnDisconnect();
 			return Result;

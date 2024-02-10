@@ -1168,14 +1168,14 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT RefClass : public BaseClass
+		struct VI_OUT RefBaseClass : public BaseClass
 		{
 		public:
-			RefClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
+			RefBaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
 			{
 			}
-			RefClass(const RefClass&) = default;
-			RefClass(RefClass&&) = default;
+			RefBaseClass(const RefBaseClass&) = default;
+			RefBaseClass(RefBaseClass&&) = default;
 
 		public:
 			template <typename T, typename... Args>
@@ -1260,7 +1260,7 @@ namespace Vitex
 			template <typename F>
 			ExpectsVM<void> SetAddRef()
 			{
-				auto FactoryPtr = &RefClass::GcAddRef<F>;
+				auto FactoryPtr = &RefBaseClass::GcAddRef<F>;
 				asSFuncPtr* AddRef = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
 				auto Result = SetBehaviourAddress("void f()", Behaviours::ADDREF, AddRef, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&AddRef);
@@ -1269,7 +1269,7 @@ namespace Vitex
 			template <typename F>
 			ExpectsVM<void> SetRelease()
 			{
-				auto FactoryPtr = &RefClass::GcRelease<F>;
+				auto FactoryPtr = &RefBaseClass::GcRelease<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
 				auto Result = SetBehaviourAddress("void f()", Behaviours::RELEASE, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
@@ -1278,7 +1278,7 @@ namespace Vitex
 			template <typename F>
 			ExpectsVM<void> SetMarkRef()
 			{
-				auto FactoryPtr = &RefClass::GcMarkRef<F>;
+				auto FactoryPtr = &RefBaseClass::GcMarkRef<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
 				auto Result = SetBehaviourAddress("void f()", Behaviours::SETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
@@ -1287,7 +1287,7 @@ namespace Vitex
 			template <typename F>
 			ExpectsVM<void> SetIsMarkedRef()
 			{
-				auto FactoryPtr = &RefClass::GcIsMarkedRef<F>;
+				auto FactoryPtr = &RefBaseClass::GcIsMarkedRef<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
 				auto Result = SetBehaviourAddress("bool f()", Behaviours::GETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
@@ -1296,7 +1296,7 @@ namespace Vitex
 			template <typename F>
 			ExpectsVM<void> SetRefCount()
 			{
-				auto FactoryPtr = &RefClass::GcGetRefCount<F>;
+				auto FactoryPtr = &RefBaseClass::GcGetRefCount<F>;
 				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
 				auto Result = SetBehaviourAddress("int f()", Behaviours::GETREFCOUNT, Release, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Release);
@@ -1331,13 +1331,21 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT TemplateClass : public RefClass
+		struct VI_OUT RefClass final : public RefBaseClass
+		{
+		public:
+			RefClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : RefBaseClass(Engine, Source, Type)
+			{
+			}
+		};
+
+		struct VI_OUT TemplateClass final : public RefBaseClass
 		{
 		private:
 			Core::String Name;
 
 		public:
-			TemplateClass(VirtualMachine* Engine, const std::string_view& NewName) noexcept : RefClass(Engine, nullptr, 0), Name(Core::String(NewName))
+			TemplateClass(VirtualMachine* Engine, const std::string_view& NewName) noexcept : RefBaseClass(Engine, nullptr, 0), Name(Core::String(NewName))
 			{
 			}
 			TemplateClass(const TemplateClass&) = default;
@@ -1356,7 +1364,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT TypeClass : public BaseClass
+		struct VI_OUT TypeClass final : public BaseClass
 		{
 		public:
 			TypeClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)

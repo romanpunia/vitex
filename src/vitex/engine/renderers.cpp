@@ -72,7 +72,7 @@ namespace Vitex
 						System->UpdateConstantBuffer(RenderBufferType::Render);
 						Device->SetVertexBuffer(VertexBuffer);
 						Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
-						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+						Device->DrawIndexed((uint32_t)Base->GetIndices().size(), 0, 0);
 						CullingEnd();
 						Count++;
 					}
@@ -90,7 +90,7 @@ namespace Vitex
 						System->Constants->Render.World = Base->GetEntity()->GetBox();
 						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
 						System->UpdateConstantBuffer(RenderBufferType::Render);
-						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Device->DrawIndexed((uint32_t)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 
 						Count++;
@@ -128,7 +128,7 @@ namespace Vitex
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					System->UpdateConstantBuffer(RenderBufferType::Render);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+					Device->DrawIndexed((uint32_t)Base->GetIndices().size(), 0, 0);
 					Count++;
 				}
 
@@ -159,7 +159,7 @@ namespace Vitex
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					System->UpdateConstantBuffer(RenderBufferType::Render);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+					Device->DrawIndexed((uint32_t)Base->GetIndices().size(), 0, 0);
 
 					Count++;
 				}
@@ -194,7 +194,7 @@ namespace Vitex
 					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+					Device->DrawIndexed((uint32_t)Base->GetIndices().size(), 0, 0);
 
 					Count++;
 				}
@@ -230,7 +230,7 @@ namespace Vitex
 					System->UpdateConstantBuffer(RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+					Device->DrawIndexed((uint32_t)Base->GetIndices().size(), 0, 0);
 
 					Count++;
 				}
@@ -336,7 +336,7 @@ namespace Vitex
 						System->Constants->Render.World = Base->GetEntity()->GetBox();
 						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
 						System->UpdateConstantBuffer(RenderBufferType::Render);
-						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Device->DrawIndexed((uint32_t)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 						Count++;
 					}
@@ -358,7 +358,7 @@ namespace Vitex
 				for (auto& Group : Chunk)
 				{
 					System->TryGeometry(Group->MaterialData, true);
-					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (uint32_t)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -377,7 +377,7 @@ namespace Vitex
 				for (auto& Group : Chunk)
 				{
 					System->TryGeometry(Group->MaterialData, true);
-					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (uint32_t)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -399,7 +399,7 @@ namespace Vitex
 				for (auto& Group : Chunk)
 				{
 					System->TryGeometry(Group->MaterialData, true);
-					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (uint32_t)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -423,7 +423,7 @@ namespace Vitex
 				for (auto& Group : Chunk)
 				{
 					System->TryGeometry(Group->MaterialData, true);
-					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (unsigned int)Group->Instances.size());
+					Device->DrawIndexedInstanced(Group->DataBuffer, Group->GeometryBuffer, (uint32_t)Group->Instances.size());
 				}
 
 				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
@@ -522,7 +522,7 @@ namespace Vitex
 						System->Constants->Render.Transform = System->Constants->Render.World * View.ViewProjection;
 						System->UpdateConstantBuffer(RenderBufferType::Animation);
 						System->UpdateConstantBuffer(RenderBufferType::Render);
-						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Device->DrawIndexed((uint32_t)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 						Count++;
 					}
@@ -773,7 +773,7 @@ namespace Vitex
 					Device->SetShader(Base->QuadBased ? BaseShader : nullptr, VI_GS);
 					Device->UpdateBuffer(Base->GetBuffer());
 					System->UpdateConstantBuffer(RenderBufferType::Render);
-					Device->Draw((unsigned int)Base->GetBuffer()->GetArray().size(), 0);
+					Device->Draw((uint32_t)Base->GetBuffer()->GetArray().size(), 0);
 
 					Count++;
 				}
@@ -813,7 +813,7 @@ namespace Vitex
 					Device->SetBuffer(Base->GetBuffer(), 8, VI_VS | VI_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Linear : nullptr, VI_GS);
 					System->UpdateConstantBuffer(RenderBufferType::Render);
-					Device->Draw((unsigned int)Base->GetBuffer()->GetArray().size(), 0);
+					Device->Draw((uint32_t)Base->GetBuffer()->GetArray().size(), 0);
 
 					Count++;
 				}
@@ -857,7 +857,7 @@ namespace Vitex
 					Device->SetBuffer(Base->GetBuffer(), 8, VI_VS | VI_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Quad : Shaders.Depth.Point, VI_VS | VI_PS | VI_GS);
 					System->UpdateConstantBuffer(RenderBufferType::Render);
-					Device->Draw((unsigned int)Base->GetBuffer()->GetArray().size(), 0);
+					Device->Draw((uint32_t)Base->GetBuffer()->GetArray().size(), 0);
 
 					Count++;
 				}
@@ -919,7 +919,7 @@ namespace Vitex
 					System->Constants->Render.World = System->Constants->Render.Transform.Inv();
 					System->Constants->Render.TexCoord = Base->TexCoord;
 					System->UpdateConstantBuffer(RenderBufferType::Render);
-					Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+					Device->DrawIndexed((uint32_t)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 					Count++;
 				}
 
@@ -967,7 +967,7 @@ namespace Vitex
 				System->FreeShader(Shaders.Voxelizer);
 				System->FreeShader(Shaders.Surface);
 
-				for (unsigned int i = 0; i < 2; i++)
+				for (uint32_t i = 0; i < 2; i++)
 				{
 					System->FreeShader(Shaders.Line[i]);
 					System->FreeShader(Shaders.Spot[i]);
@@ -975,16 +975,16 @@ namespace Vitex
 					System->FreeShader(Shaders.Ambient[i]);
 				}
 
-				VI_RELEASE(Voxels.PBuffer);
-				VI_RELEASE(Voxels.SBuffer);
-				VI_RELEASE(Voxels.LBuffer);
-				VI_RELEASE(Surfaces.Subresource);
-				VI_RELEASE(Surfaces.Input);
-				VI_RELEASE(Surfaces.Output);
-				VI_RELEASE(Surfaces.Merger);
-				VI_RELEASE(SkyBase);
-				VI_RELEASE(SkyMap);
-				VI_RELEASE(LightingMap);
+				Core::Memory::Release(Voxels.PBuffer);
+				Core::Memory::Release(Voxels.SBuffer);
+				Core::Memory::Release(Voxels.LBuffer);
+				Core::Memory::Release(Surfaces.Subresource);
+				Core::Memory::Release(Surfaces.Input);
+				Core::Memory::Release(Surfaces.Output);
+				Core::Memory::Release(Surfaces.Merger);
+				Core::Memory::Release(SkyBase);
+				Core::Memory::Release(SkyMap);
+				Core::Memory::Release(LightingMap);
 			}
 			void Lighting::Deserialize(Core::Schema* Node)
 			{
@@ -1033,7 +1033,7 @@ namespace Vitex
 			}
 			void Lighting::ResizeBuffers()
 			{
-				VI_CLEAR(LightingMap);
+				Core::Memory::Release(LightingMap);
 			}
 			void Lighting::BeginPass(Core::Timer* Time)
 			{
@@ -1135,7 +1135,7 @@ namespace Vitex
 					Voxels.LightBuffer = Light->VoxelMap;
 					Light->Regenerate = false;
 
-                    unsigned int Size = (unsigned int)State.Scene->GetConf().VoxelsSize;
+                    uint32_t Size = (uint32_t)State.Scene->GetConf().VoxelsSize;
 					State.Device->ClearWritable(In[(size_t)VoxelType::Diffuse]);
 					State.Device->ClearWritable(In[(size_t)VoxelType::Normal]);
 					State.Device->ClearWritable(In[(size_t)VoxelType::Surface]);
@@ -1185,7 +1185,7 @@ namespace Vitex
 					Light->Locked = true;
 
 					Compute::Vector3 Position = Light->GetEntity()->GetTransform()->GetPosition() * Light->Offset;
-					for (unsigned int j = 0; j < 6; j++)
+					for (uint32_t j = 0; j < 6; j++)
 					{
 						Compute::CubeFace Face = (Compute::CubeFace)j;
 						State.Scene->ClearMRT(TargetType::Main, true, true);
@@ -1301,7 +1301,7 @@ namespace Vitex
 						SurfaceLight.Lighting *= Base->GetVisibility(System->View);
 						State.Device->SetTextureCube(Light->GetProbeCache(), 5, VI_PS);
 						State.Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
-						State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						State.Device->DrawIndexed((uint32_t)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 					}
 				}
 				else if (AmbientLight.Recursive > 0.0f)
@@ -1322,7 +1322,7 @@ namespace Vitex
 						SurfaceLight.Lighting *= Base->GetVisibility(System->View);
 						State.Device->SetTextureCube(Light->GetProbeCache(), 5, VI_PS);
 						State.Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
-						State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						State.Device->DrawIndexed((uint32_t)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 					}
 				}
 			}
@@ -1354,7 +1354,7 @@ namespace Vitex
 					PointLight.Lighting *= Base->GetVisibility(System->View);
 					State.Device->SetShader(BaseShader, VI_VS | VI_PS);
 					State.Device->UpdateBuffer(Shaders.Point[0], &PointLight);
-					State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+					State.Device->DrawIndexed((uint32_t)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
 			}
 			void Lighting::RenderSpotLights()
@@ -1385,7 +1385,7 @@ namespace Vitex
 					SpotLight.Lighting *= Base->GetVisibility(System->View);
 					State.Device->SetShader(BaseShader, VI_VS | VI_PS);
 					State.Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
-					State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+					State.Device->DrawIndexed((uint32_t)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
 			}
 			void Lighting::RenderLineLights()
@@ -1512,7 +1512,7 @@ namespace Vitex
 
 					State.Device->SetTexture3D(Light->VoxelMap, 5, VI_PS);
 					State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
-					State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+					State.Device->DrawIndexed((uint32_t)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
 
 				State.Device->SetTexture2D(System->GetRT(TargetType::Main)->GetTarget(), 1, VI_PS);
@@ -1538,8 +1538,8 @@ namespace Vitex
 			}
 			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
-				VI_CLEAR(SkyMap);
-				VI_RELEASE(SkyBase);
+				Core::Memory::Release(SkyMap);
+				Core::Memory::Release(SkyBase);
 
 				SkyBase = Cubemap;
 				if (SkyBase != nullptr)
@@ -1555,21 +1555,21 @@ namespace Vitex
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D::Desc F1 = Scene->GetDescMRT();
-				F1.MipLevels = Device->GetMipLevel((unsigned int)Surfaces.Size, (unsigned int)Surfaces.Size);
-				F1.Width = (unsigned int)Surfaces.Size;
-				F1.Height = (unsigned int)Surfaces.Size;
+				F1.MipLevels = Device->GetMipLevel((uint32_t)Surfaces.Size, (uint32_t)Surfaces.Size);
+				F1.Width = (uint32_t)Surfaces.Size;
+				F1.Height = (uint32_t)Surfaces.Size;
 				SurfaceLight.Mips = (float)F1.MipLevels;
 				Surfaces.Size = NewSize;
 
-				VI_RELEASE(Surfaces.Merger);
+				Core::Memory::Release(Surfaces.Merger);
 				Surfaces.Merger = *Device->CreateMultiRenderTarget2D(F1);
 
 				Graphics::Cubemap::Desc I;
 				I.Source = Surfaces.Merger;
 				I.MipLevels = F1.MipLevels;
-				I.Size = (unsigned int)Surfaces.Size;
+				I.Size = (uint32_t)Surfaces.Size;
 
-				VI_RELEASE(Surfaces.Subresource);
+				Core::Memory::Release(Surfaces.Subresource);
 				Surfaces.Subresource = *Device->CreateCubemap(I);
 
 				Graphics::RenderTarget2D::Desc F2 = Scene->GetDescRT();
@@ -1577,13 +1577,13 @@ namespace Vitex
 				F2.Width = F1.Width;
 				F2.Height = F1.Height;
 
-				VI_RELEASE(Surfaces.Output);
+				Core::Memory::Release(Surfaces.Output);
 				Surfaces.Output = *Device->CreateRenderTarget2D(F2);
 
-				VI_RELEASE(Surfaces.Input);
+				Core::Memory::Release(Surfaces.Input);
 				Surfaces.Input = *Device->CreateRenderTarget2D(F2);
 			}
-			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
+			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, uint32_t Slot)
 			{
 				VI_ASSERT(System != nullptr, "system should be set");
 				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
@@ -1867,23 +1867,23 @@ namespace Vitex
 				F.MiscFlags = Graphics::ResourceMisc::Buffer_Structured;
 				F.Usage = Graphics::ResourceUsage::Dynamic;
 				F.BindFlags = Graphics::ResourceBind::Shader_Input;
-				F.ElementCount = (unsigned int)Voxels.MaxLights;
+				F.ElementCount = (uint32_t)Voxels.MaxLights;
 				F.ElementWidth = sizeof(IPointLight);
 				F.StructureByteStride = F.ElementWidth;
 
-				VI_RELEASE(Voxels.PBuffer);
+				Core::Memory::Release(Voxels.PBuffer);
 				Voxels.PBuffer = *State.Device->CreateElementBuffer(F);
 				Voxels.PArray.resize(Voxels.MaxLights);
 
 				F.ElementWidth = sizeof(ISpotLight);
 				F.StructureByteStride = F.ElementWidth;
-				VI_RELEASE(Voxels.SBuffer);
+				Core::Memory::Release(Voxels.SBuffer);
 				Voxels.SBuffer = *State.Device->CreateElementBuffer(F);
 				Voxels.SArray.resize(Voxels.MaxLights);
 
 				F.ElementWidth = sizeof(ILineLight);
 				F.StructureByteStride = F.ElementWidth;
-				VI_RELEASE(Voxels.LBuffer);
+				Core::Memory::Release(Voxels.LBuffer);
 				Voxels.LBuffer = *State.Device->CreateElementBuffer(F);
 				Voxels.LArray.resize(Voxels.MaxLights);
 			}
@@ -1919,8 +1919,8 @@ namespace Vitex
 			Transparency::~Transparency()
 			{
 				System->FreeShader(Shader);
-				VI_RELEASE(Merger);
-				VI_RELEASE(Input);
+				Core::Memory::Release(Merger);
+				Core::Memory::Release(Input);
 			}
 			void Transparency::ResizeBuffers()
 			{
@@ -1935,19 +1935,19 @@ namespace Vitex
 				auto* Renderer = System->GetRenderer<Lighting>();
 				if (Renderer != nullptr)
 				{
-					MipLevels[(size_t)TargetType::Secondary] = (float)Device->GetMipLevel((unsigned int)Renderer->Surfaces.Size, (unsigned int)Renderer->Surfaces.Size);
-					F1.MipLevels = (unsigned int)MipLevels[(size_t)TargetType::Secondary];
-					F1.Width = (unsigned int)Renderer->Surfaces.Size;
-					F1.Height = (unsigned int)Renderer->Surfaces.Size;
+					MipLevels[(size_t)TargetType::Secondary] = (float)Device->GetMipLevel((uint32_t)Renderer->Surfaces.Size, (uint32_t)Renderer->Surfaces.Size);
+					F1.MipLevels = (uint32_t)MipLevels[(size_t)TargetType::Secondary];
+					F1.Width = (uint32_t)Renderer->Surfaces.Size;
+					F1.Height = (uint32_t)Renderer->Surfaces.Size;
 					F2.MipLevels = F1.MipLevels;
 					F2.Width = F1.Width;
 					F2.Height = F1.Height;
 				}
 
-				VI_RELEASE(Merger);
+				Core::Memory::Release(Merger);
 				Merger = *Device->CreateMultiRenderTarget2D(F1);
 
-				VI_RELEASE(Input);
+				Core::Memory::Release(Input);
 				Input = *Device->CreateRenderTarget2D(F2);
 			}
 			size_t Transparency::RenderPass(Core::Timer* Time)
@@ -2062,7 +2062,7 @@ namespace Vitex
 			}
 			SSGI::~SSGI()
 			{
-				VI_RELEASE(EmissionMap);
+				Core::Memory::Release(EmissionMap);
 			}
 			void SSGI::Deserialize(Core::Schema* Node)
 			{
@@ -2131,7 +2131,7 @@ namespace Vitex
 			void SSGI::ResizeEffect()
 			{
 				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
-				VI_CLEAR(EmissionMap);
+				Core::Memory::Release(EmissionMap);
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -2357,8 +2357,8 @@ namespace Vitex
 			}
 			Tone::~Tone()
 			{
-				VI_RELEASE(LutTarget);
-				VI_RELEASE(LutMap);
+				Core::Memory::Release(LutTarget);
+				Core::Memory::Release(LutMap);
 			}
 			void Tone::Deserialize(Core::Schema* Node)
 			{
@@ -2444,16 +2444,16 @@ namespace Vitex
 			void Tone::SetLUTSize(size_t Size)
 			{
 				VI_ASSERT(System->GetScene() != nullptr, "scene should be set");
-				VI_CLEAR(LutTarget);
-				VI_CLEAR(LutMap);
+				Core::Memory::Release(LutTarget);
+				Core::Memory::Release(LutMap);
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::RenderTarget2D::Desc RT = Scene->GetDescRT();
-				RT.MipLevels = Device->GetMipLevel((unsigned int)Size, (unsigned int)Size);
+				RT.MipLevels = Device->GetMipLevel((uint32_t)Size, (uint32_t)Size);
 				RT.FormatMode = Graphics::Format::R16_Float;
-				RT.Width = (unsigned int)Size;
-				RT.Height = (unsigned int)Size;
+				RT.Width = (uint32_t)Size;
+				RT.Height = (uint32_t)Size;
 
 				LutTarget = *Device->CreateRenderTarget2D(RT);
 				Device->CopyTexture2D(LutTarget, 0, &LutMap);
@@ -2514,18 +2514,15 @@ namespace Vitex
 				RenderResult(nullptr, &Distortion);
 			}
 
-			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->Activity : nullptr)
+			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->FetchUI() : nullptr, Application::Get() ? Application::Get()->Activity : nullptr)
 			{
 			}
-			UserInterface::UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity)
+			UserInterface::UserInterface(RenderSystem* Lab, GUI::Context* NewContext, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity), Context(NewContext)
 			{
 				VI_ASSERT(System != nullptr, "render system should be set");
 				VI_ASSERT(System->GetDevice() != nullptr, "graphics device should be set");
-				Context = new GUI::Context(System->GetDevice());
-			}
-			UserInterface::~UserInterface()
-			{
-				VI_RELEASE(Context);
+				VI_ASSERT(Activity != nullptr, "activity should be set");
+				VI_ASSERT(Context != nullptr, "context should be set");
 			}
 			size_t UserInterface::RenderPass(Core::Timer* Timer)
 			{

@@ -1,6 +1,6 @@
 #ifndef VI_NETWORK_MONGODB_H
 #define VI_NETWORK_MONGODB_H
-#include "../core/network.h"
+#include "../network.h"
 
 struct _bson_t;
 struct _mongoc_client_t;
@@ -29,7 +29,7 @@ namespace Vitex
 			typedef _mongoc_client_t TConnection;
 			typedef _mongoc_change_stream_t TWatcher;
 			typedef _mongoc_client_session_t TTransaction;
-			typedef std::function<void(const Core::String&)> OnQueryLog;
+			typedef std::function<void(const std::string_view&)> OnQueryLog;
 
 			class Transaction;
 
@@ -85,7 +85,7 @@ namespace Vitex
 			{
 				Core::String Name;
 				Core::String String;
-				unsigned char ObjectId[12] = { };
+				uint8_t ObjectId[12] = { };
 				TDocument* Source;
 				int64_t Integer;
 				uint64_t High;
@@ -105,9 +105,9 @@ namespace Vitex
 				Core::String& ToString();
 				Core::String ToObjectId();
 				Document AsDocument() const;
-				Property At(const Core::String& Name) const;
-				Property operator [](const char* Name);
-				Property operator [](const char* Name) const;
+				Property At(const std::string_view& Name) const;
+				Property operator [](const std::string_view& Name);
+				Property operator [](const std::string_view& Name) const;
 			};
 
 			class DatabaseException final : public Core::BasicException
@@ -144,37 +144,21 @@ namespace Vitex
 				void Cleanup();
 				void Join(const Document& Value);
 				void Loop(const std::function<bool(Property*)>& Callback) const;
-				bool SetSchema(const char* Key, const Document& Value, size_t ArrayId = 0);
-				bool SetArray(const char* Key, const Document& Array, size_t ArrayId = 0);
-				bool SetString(const char* Key, const char* Value, size_t ArrayId = 0);
-				bool SetBlob(const char* Key, const char* Value, size_t Length, size_t ArrayId = 0);
-				bool SetInteger(const char* Key, int64_t Value, size_t ArrayId = 0);
-				bool SetNumber(const char* Key, double Value, size_t ArrayId = 0);
-				bool SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId = 0);
-				bool SetDecimalString(const char* Key, const Core::String& Value, size_t ArrayId = 0);
-				bool SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId = 0);
-				bool SetDecimalNumber(const char* Key, double Value, size_t ArrayId = 0);
-				bool SetBoolean(const char* Key, bool Value, size_t ArrayId = 0);
-				bool SetObjectId(const char* Key, unsigned char Value[12], size_t ArrayId = 0);
-				bool SetNull(const char* Key, size_t ArrayId = 0);
-				bool SetProperty(const char* Key, Property* Value, size_t ArrayId = 0);
-				bool HasProperty(const char* Key) const;
-				bool GetProperty(const char* Key, Property* Output) const;
-				bool SetSchemaAt(const Core::String& Key, const Document& Value, size_t ArrayId = 0);
-				bool SetArrayAt(const Core::String& Key, const Document& Array, size_t ArrayId = 0);
-				bool SetStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId = 0);
-				bool SetIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId = 0);
-				bool SetNumberAt(const Core::String& Key, double Value, size_t ArrayId = 0);
-				bool SetDecimalAt(const Core::String& Key, uint64_t High, uint64_t Low, size_t ArrayId = 0);
-				bool SetDecimalStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId = 0);
-				bool SetDecimalIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId = 0);
-				bool SetDecimalNumberAt(const Core::String& Key, double Value, size_t ArrayId = 0);
-				bool SetBooleanAt(const Core::String& Key, bool Value, size_t ArrayId = 0);
-				bool SetObjectIdAt(const Core::String& Key, const Core::String& Value, size_t ArrayId = 0);
-				bool SetNullAt(const Core::String& Key, size_t ArrayId = 0);
-				bool SetPropertyAt(const Core::String& Key, Property* Value, size_t ArrayId = 0);
-				bool HasPropertyAt(const Core::String& Key) const;
-				bool GetPropertyAt(const Core::String& Key, Property* Output) const;
+				bool SetSchema(const std::string_view& Key, const Document& Value, size_t ArrayId = 0);
+				bool SetArray(const std::string_view& Key, const Document& Array, size_t ArrayId = 0);
+				bool SetString(const std::string_view& Key, const std::string_view& Value, size_t ArrayId = 0);
+				bool SetInteger(const std::string_view& Key, int64_t Value, size_t ArrayId = 0);
+				bool SetNumber(const std::string_view& Key, double Value, size_t ArrayId = 0);
+				bool SetDecimal(const std::string_view& Key, uint64_t High, uint64_t Low, size_t ArrayId = 0);
+				bool SetDecimalString(const std::string_view& Key, const std::string_view& Value, size_t ArrayId = 0);
+				bool SetDecimalInteger(const std::string_view& Key, int64_t Value, size_t ArrayId = 0);
+				bool SetDecimalNumber(const std::string_view& Key, double Value, size_t ArrayId = 0);
+				bool SetBoolean(const std::string_view& Key, bool Value, size_t ArrayId = 0);
+				bool SetObjectId(const std::string_view& Key, uint8_t Value[12], size_t ArrayId = 0);
+				bool SetNull(const std::string_view& Key, size_t ArrayId = 0);
+				bool SetProperty(const std::string_view& Key, Property* Value, size_t ArrayId = 0);
+				bool HasProperty(const std::string_view& Key) const;
+				bool GetProperty(const std::string_view& Key, Property* Output) const;
 				size_t Count() const;
 				Core::String ToRelaxedJSON() const;
 				Core::String ToExtendedJSON() const;
@@ -184,18 +168,18 @@ namespace Vitex
 				TDocument* Get() const;
 				Document Copy() const;
 				Document& Persist(bool Keep = true);
-				Property At(const Core::String& Name) const;
+				Property At(const std::string_view& Name) const;
 				explicit operator bool() const
 				{
 					return Base != nullptr;
 				}
-				Property operator [](const char* Name)
+				Property operator [](const std::string_view& Name)
 				{
 					Property Result;
 					GetProperty(Name, &Result);
 					return Result;
 				}
-				Property operator [](const char* Name) const
+				Property operator [](const std::string_view& Name) const
 				{
 					Property Result;
 					GetProperty(Name, &Result);
@@ -205,8 +189,8 @@ namespace Vitex
 			public:
 				static Document FromEmpty();
 				static Document FromSchema(Core::Schema* Document);
-				static ExpectsDB<Document> FromJSON(const Core::String& JSON);
-				static Document FromBuffer(const unsigned char* Buffer, size_t Length);
+				static ExpectsDB<Document> FromJSON(const std::string_view& JSON);
+				static Document FromBuffer(const uint8_t* Buffer, size_t Length);
 				static Document FromSource(TDocument* Src);
 
 			private:
@@ -226,15 +210,15 @@ namespace Vitex
 				~Address();
 				Address& operator =(const Address& Other);
 				Address& operator =(Address&& Other);
-				void SetOption(const Core::String& Name, int64_t Value);
-				void SetOption(const Core::String& Name, bool Value);
-				void SetOption(const Core::String& Name, const Core::String& Value);
-				void SetAuthMechanism(const Core::String& Value);
-				void SetAuthSource(const Core::String& Value);
-				void SetCompressors(const Core::String& Value);
-				void SetDatabase(const Core::String& Value);
-				void SetUsername(const Core::String& Value);
-				void SetPassword(const Core::String& Value);
+				void SetOption(const std::string_view& Name, int64_t Value);
+				void SetOption(const std::string_view& Name, bool Value);
+				void SetOption(const std::string_view& Name, const std::string_view& Value);
+				void SetAuthMechanism(const std::string_view& Value);
+				void SetAuthSource(const std::string_view& Value);
+				void SetCompressors(const std::string_view& Value);
+				void SetDatabase(const std::string_view& Value);
+				void SetUsername(const std::string_view& Value);
+				void SetPassword(const std::string_view& Value);
 				TAddress* Get() const;
 				explicit operator bool() const
 				{
@@ -242,7 +226,7 @@ namespace Vitex
 				}
 
 			public:
-				static ExpectsDB<Address> FromURL(const Core::String& Location);
+				static ExpectsDB<Address> FromURL(const std::string_view& Location);
 			};
 
 			class VI_OUT Stream
@@ -267,7 +251,7 @@ namespace Vitex
 				ExpectsDB<void> InsertOne(const Document& Result, const Document& Options);
 				ExpectsDB<void> UpdateOne(const Document& Match, const Document& Result, const Document& Options);
 				ExpectsDB<void> UpdateMany(const Document& Match, const Document& Result, const Document& Options);
-				ExpectsDB<void> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				ExpectsDB<void> TemplateQuery(const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				ExpectsDB<void> Query(const Document& Command);
 				ExpectsPromiseDB<Document> ExecuteWithReply();
 				ExpectsPromiseDB<void> Execute();
@@ -341,11 +325,11 @@ namespace Vitex
 				Response& operator =(Response&& Other);
 				ExpectsPromiseDB<Core::Unique<Core::Schema>> Fetch();
 				ExpectsPromiseDB<Core::Unique<Core::Schema>> FetchAll();
-				ExpectsPromiseDB<Property> GetProperty(const Core::String& Name);
+				ExpectsPromiseDB<Property> GetProperty(const std::string_view& Name);
 				Cursor&& GetCursor();
 				Document&& GetDocument();
 				bool Success() const;
-				ExpectsPromiseDB<Property> operator [](const Core::String& Name)
+				ExpectsPromiseDB<Property> operator [](const std::string_view& Name)
 				{
 					return GetProperty(Name);
 				}
@@ -382,7 +366,7 @@ namespace Vitex
 				ExpectsPromiseDB<Cursor> FindMany(Collection& Base, const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> FindOne(Collection& Base, const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> Aggregate(Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options);
-				ExpectsPromiseDB<Response> TemplateQuery(Collection& Base, const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				ExpectsPromiseDB<Response> TemplateQuery(Collection& Base, const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				ExpectsPromiseDB<Response> Query(Collection& Base, const Document& Command);
 				Core::Promise<TransactionState> Commit();
 				TTransaction* Get() const;
@@ -405,12 +389,12 @@ namespace Vitex
 				~Collection();
 				Collection& operator =(const Collection& Other) = delete;
 				Collection& operator =(Collection&& Other);
-				ExpectsPromiseDB<void> Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
-				ExpectsPromiseDB<void> RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
-				ExpectsPromiseDB<void> RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName);
-				ExpectsPromiseDB<void> RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options);
+				ExpectsPromiseDB<void> Rename(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName);
+				ExpectsPromiseDB<void> RenameWithOptions(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName, const Document& Options);
+				ExpectsPromiseDB<void> RenameWithRemove(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName);
+				ExpectsPromiseDB<void> RenameWithOptionsAndRemove(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName, const Document& Options);
 				ExpectsPromiseDB<void> Remove(const Document& Options);
-				ExpectsPromiseDB<void> RemoveIndex(const Core::String& Name, const Document& Options);
+				ExpectsPromiseDB<void> RemoveIndex(const std::string_view& Name, const Document& Options);
 				ExpectsPromiseDB<Document> RemoveMany(const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Document> RemoveOne(const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
@@ -425,7 +409,7 @@ namespace Vitex
 				ExpectsPromiseDB<Cursor> FindMany(const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> FindOne(const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options);
-				ExpectsPromiseDB<Response> TemplateQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, const Transaction& Session = Transaction());
+				ExpectsPromiseDB<Response> TemplateQuery(const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, const Transaction& Session = Transaction());
 				ExpectsPromiseDB<Response> Query(const Document& Command, const Transaction& Session = Transaction());
 				Core::String GetName() const;
 				ExpectsDB<Stream> CreateStream(Document& Options);
@@ -450,16 +434,16 @@ namespace Vitex
 				Database& operator =(const Database& Other) = delete;
 				Database& operator =(Database&& Other);
 				ExpectsPromiseDB<void> RemoveAllUsers();
-				ExpectsPromiseDB<void> RemoveUser(const Core::String& Name);
+				ExpectsPromiseDB<void> RemoveUser(const std::string_view& Name);
 				ExpectsPromiseDB<void> Remove();
 				ExpectsPromiseDB<void> RemoveWithOptions(const Document& Options);
-				ExpectsPromiseDB<void> AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom);
-				ExpectsPromiseDB<void> HasCollection(const Core::String& Name);
-				ExpectsPromiseDB<Collection> CreateCollection(const Core::String& Name, const Document& Options);
+				ExpectsPromiseDB<void> AddUser(const std::string_view& Username, const std::string_view& Password, const Document& Roles, const Document& Custom);
+				ExpectsPromiseDB<void> HasCollection(const std::string_view& Name);
+				ExpectsPromiseDB<Collection> CreateCollection(const std::string_view& Name, const Document& Options);
 				ExpectsPromiseDB<Cursor> FindCollections(const Document& Options);
 				ExpectsDB<Core::Vector<Core::String>> GetCollectionNames(const Document& Options) const;
 				Core::String GetName() const;
-				Collection GetCollection(const Core::String& Name);
+				Collection GetCollection(const std::string_view& Name);
 				TDatabase* Get() const;
 				explicit operator bool() const
 				{
@@ -512,12 +496,12 @@ namespace Vitex
 				ExpectsPromiseDB<void> Disconnect();
 				ExpectsPromiseDB<void> MakeTransaction(std::function<Core::Promise<bool>(Transaction*)>&& Callback);
 				ExpectsPromiseDB<Cursor> FindDatabases(const Document& Options);
-				void SetProfile(const Core::String& Name);
+				void SetProfile(const std::string_view& Name);
 				ExpectsDB<void> SetServer(bool Writeable);
 				ExpectsDB<Transaction*> GetSession();
-				Database GetDatabase(const Core::String& Name) const;
+				Database GetDatabase(const std::string_view& Name) const;
 				Database GetDefaultDatabase() const;
-				Collection GetCollection(const Core::String& DatabaseName, const Core::String& Name) const;
+				Collection GetCollection(const std::string_view& DatabaseName, const std::string_view& Name) const;
 				Address GetAddress() const;
 				Cluster* GetMaster() const;
 				TConnection* Get() const;
@@ -537,7 +521,7 @@ namespace Vitex
 				~Cluster() noexcept;
 				ExpectsPromiseDB<void> Connect(Address* URI);
 				ExpectsPromiseDB<void> Disconnect();
-				void SetProfile(const Core::String& Name);
+				void SetProfile(const std::string_view& Name);
 				void Push(Connection** Client);
 				Connection* Pop();
 				TConnectionPool* Get() const;
@@ -547,12 +531,12 @@ namespace Vitex
 			class VI_OUT_TS Utils
 			{
 			public:
-				static bool GetId(unsigned char* Id12) noexcept;
-				static bool GetDecimal(const char* Value, int64_t* High, int64_t* Low) noexcept;
-				static unsigned int GetHashId(unsigned char* Id12) noexcept;
-				static int64_t GetTimeId(unsigned char* Id12) noexcept;
-				static Core::String IdToString(unsigned char* Id12) noexcept;
-				static Core::String StringToId(const Core::String& Id24) noexcept;
+				static bool GetId(uint8_t* Id12) noexcept;
+				static bool GetDecimal(const std::string_view& Value, int64_t* High, int64_t* Low) noexcept;
+				static uint32_t GetHashId(uint8_t* Id12) noexcept;
+				static int64_t GetTimeId(uint8_t* Id12) noexcept;
+				static Core::String IdToString(uint8_t* Id12) noexcept;
+				static Core::String StringToId(const std::string_view& Id24) noexcept;
 				static Core::String GetJSON(Core::Schema* Source, bool Escape) noexcept;
 			};
 
@@ -590,15 +574,14 @@ namespace Vitex
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
 				void AttachQueryLog(TConnection* Connection) noexcept;
 				void AttachQueryLog(TConnectionPool* Connection) noexcept;
-				void AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
-				ExpectsDB<void> AddQuery(const Core::String& Name, const Core::String& Data);
-				ExpectsDB<void> AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size);
-				ExpectsDB<void> AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
-				bool RemoveConstant(const Core::String& Name) noexcept;
-				bool RemoveQuery(const Core::String& Name) noexcept;
+				void AddConstant(const std::string_view& Name, const std::string_view& Value) noexcept;
+				ExpectsDB<void> AddQuery(const std::string_view& Name, const std::string_view& Data);
+				ExpectsDB<void> AddDirectory(const std::string_view& Directory, const std::string_view& Origin = "");
+				bool RemoveConstant(const std::string_view& Name) noexcept;
+				bool RemoveQuery(const std::string_view& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				ExpectsDB<Document> GetQuery(const Core::String& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true) noexcept;
+				ExpectsDB<Document> GetQuery(const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

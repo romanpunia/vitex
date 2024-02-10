@@ -1,6 +1,6 @@
 #ifndef VI_AUDIO_FILTERS_H
 #define VI_AUDIO_FILTERS_H
-#include "../core/audio.h"
+#include "../audio.h"
 
 namespace Vitex
 {

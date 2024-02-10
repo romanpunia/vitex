@@ -1,7 +1,8 @@
 #include "compute.h"
-#include "../vitex.h"
+#include "vitex.h"
 #include <cctype>
 #include <random>
+#include <sstream>
 #ifdef VI_BULLET3
 #pragma warning(disable: 4244)
 #pragma warning(disable: 4305)
@@ -12,7 +13,7 @@
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #endif
 #ifdef VI_SIMD
-#include "../internal/simd-cross.hpp"
+#include "internal/simd-cross.hpp"
 #endif
 #ifdef VI_ZLIB
 extern "C"
@@ -3285,7 +3286,7 @@ namespace Vitex
 			State(RegexState::No_Match), IgnoreCase(false)
 		{
 		}
-		RegexSource::RegexSource(const Core::String& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
+		RegexSource::RegexSource(const std::string_view& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
 			Expression(Regexp),
 			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
 			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
@@ -3416,7 +3417,7 @@ namespace Vitex
 					}
 					else
 					{
-						REGEX_FAIL_IN(!Regex::Meta((const unsigned char*)vPtr + i + 1), RegexState::Invalid_Metacharacter);
+						REGEX_FAIL_IN(!Regex::Meta((const uint8_t*)vPtr + i + 1), RegexState::Invalid_Metacharacter);
 					}
 				}
 				else if (vPtr[i] == '(')
@@ -3519,21 +3520,17 @@ namespace Vitex
 			return Array;
 		}
 
-		bool Regex::Match(RegexSource* Value, RegexResult& Result, const Core::String& Buffer)
-		{
-			return Match(Value, Result, Buffer.c_str(), Buffer.size());
-		}
-		bool Regex::Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length)
+		bool Regex::Match(RegexSource* Value, RegexResult& Result, const std::string_view& Buffer)
 		{
 			VI_ASSERT(Value != nullptr && Value->State == RegexState::Preprocessed, "invalid regex source");
-			VI_ASSERT(Buffer != nullptr && Length > 0, "invalid buffer");
+			VI_ASSERT(!Buffer.empty(), "invalid buffer");
 
 			Result.Src = Value;
 			Result.State = RegexState::Preprocessed;
 			Result.Matches.clear();
 			Result.Matches.reserve(8);
 
-			int64_t Code = Parse(Buffer, Length, &Result);
+			int64_t Code = Parse(Buffer.data(), Buffer.size(), &Result);
 			if (Code <= 0)
 			{
 				Result.State = (RegexState)Code;
@@ -3543,14 +3540,14 @@ namespace Vitex
 
 			for (auto It = Result.Matches.begin(); It != Result.Matches.end(); ++It)
 			{
-				It->Start = It->Pointer - Buffer;
+				It->Start = It->Pointer - Buffer.data();
 				It->End = It->Start + It->Length;
 			}
 
 			Result.State = RegexState::Match_Found;
 			return true;
 		}
-		bool Regex::Replace(RegexSource* Value, const Core::String& To, Core::String& Buffer)
+		bool Regex::Replace(RegexSource* Value, const std::string_view& To, Core::String& Buffer)
 		{
 			Core::String Emplace;
 			RegexResult Result;
@@ -3561,7 +3558,7 @@ namespace Vitex
 				Emplace.assign(To);
 
 			size_t Start = 0;
-			while (Match(Value, Result, Buffer.c_str() + Start, Buffer.size() - Start))
+			while (Match(Value, Result, std::string_view(Buffer.c_str() + Start, Buffer.size() - Start)))
 			{
 				Matches++;
 				if (Result.Matches.empty())
@@ -3584,7 +3581,7 @@ namespace Vitex
 
 			return Matches > 0;
 		}
-		int64_t Regex::Meta(const unsigned char* Buffer)
+		int64_t Regex::Meta(const uint8_t* Buffer)
 		{
 			VI_ASSERT(Buffer != nullptr, "invalid buffer");
 			static const char* Chars = "^$().[]*+?|\\Ssdbfnrtv";
@@ -3618,12 +3615,12 @@ namespace Vitex
 		{
 			return (int64_t)(isdigit((int)x) ? (int)x - '0' : (int)x - 'W');
 		}
-		int64_t Regex::HexToInt(const unsigned char* Buffer)
+		int64_t Regex::HexToInt(const uint8_t* Buffer)
 		{
 			VI_ASSERT(Buffer != nullptr, "invalid buffer");
 			return (ToInt(tolower(Buffer[0])) << 4) | ToInt(tolower(Buffer[1]));
 		}
-		int64_t Regex::MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info)
+		int64_t Regex::MatchOp(const uint8_t* Value, const uint8_t* Buffer, RegexResult* Info)
 		{
 			VI_ASSERT(Buffer != nullptr, "invalid buffer");
 			VI_ASSERT(Value != nullptr, "invalid value");
@@ -3672,7 +3669,7 @@ namespace Vitex
 							Result++;
 							break;
 						case 'x':
-							REGEX_FAIL((unsigned char)HexToInt(Value + 2) != *Buffer, (int64_t)RegexState::No_Match);
+							REGEX_FAIL((uint8_t)HexToInt(Value + 2) != *Buffer, (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						default:
@@ -3724,7 +3721,7 @@ namespace Vitex
 				}
 				else
 				{
-					Result = MatchOp((const unsigned char*)Value + Length, (const unsigned char*)Buffer, Info);
+					Result = MatchOp((const uint8_t*)Value + Length, (const uint8_t*)Buffer, Info);
 					Length += OpLength(Value + Length);
 				}
 			}
@@ -3844,7 +3841,7 @@ namespace Vitex
 				else
 				{
 					REGEX_FAIL(j >= BufferLength, (int64_t)RegexState::No_Match);
-					n = MatchOp((const unsigned char*)(Value + i), (const unsigned char*)(Buffer + j), Info);
+					n = MatchOp((const uint8_t*)(Value + i), (const uint8_t*)(Buffer + j), Info);
 					REGEX_FAIL(n <= 0, n);
 					j += n;
 				}
@@ -3920,9 +3917,9 @@ namespace Vitex
 				"\"[^...]\" - Match any character but ones from set\n";
 		}
 
-		unsigned char AdjTriangle::FindEdge(unsigned int vref0, unsigned int vref1)
+		uint8_t AdjTriangle::FindEdge(uint32_t vref0, uint32_t vref1)
 		{
-			unsigned char EdgeNb = 0xff;
+			uint8_t EdgeNb = 0xff;
 			if (VRef[0] == vref0 && VRef[1] == vref1)
 				EdgeNb = 0;
 			else if (VRef[0] == vref1 && VRef[1] == vref0)
@@ -3938,9 +3935,9 @@ namespace Vitex
 
 			return EdgeNb;
 		}
-		unsigned int AdjTriangle::OppositeVertex(unsigned int vref0, unsigned int vref1)
+		uint32_t AdjTriangle::OppositeVertex(uint32_t vref0, uint32_t vref1)
 		{
-			unsigned int Ref = 0xffffffff;
+			uint32_t Ref = 0xffffffff;
 			if (VRef[0] == vref0 && VRef[1] == vref1)
 				Ref = VRef[2];
 			else if (VRef[0] == vref1 && VRef[1] == vref0)
@@ -3978,22 +3975,13 @@ namespace Vitex
 		{
 			VI_TRACE("[crypto] create plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
-		PrivateKey::PrivateKey(const Core::String& Text, bool) noexcept : Plain(Text)
+		PrivateKey::PrivateKey(const std::string_view& Text, bool) noexcept : Plain(Text)
 		{
 			VI_TRACE("[crypto] create plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
 		}
-		PrivateKey::PrivateKey(const Core::String& Key) noexcept
+		PrivateKey::PrivateKey(const std::string_view& Key) noexcept
 		{
 			Secure(Key);
-		}
-		PrivateKey::PrivateKey(const char* Buffer) noexcept
-		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			Secure(Buffer, strlen(Buffer));
-		}
-		PrivateKey::PrivateKey(const char* Buffer, size_t Size) noexcept
-		{
-			Secure(Buffer, Size);
 		}
 		PrivateKey::PrivateKey(const PrivateKey& Other) noexcept
 		{
@@ -4025,26 +4013,21 @@ namespace Vitex
 			{
 				size_t* Partition = (size_t*)Blocks[i];
 				RollPartition(Partition, Size, i);
-				VI_FREE(Partition);
+				Core::Memory::Deallocate(Partition);
 			}
 			Blocks.clear();
 			Plain.clear();
 		}
-		void PrivateKey::Secure(const Core::String& Key)
+		void PrivateKey::Secure(const std::string_view& Key)
 		{
-			Secure(Key.c_str(), Key.size());
-		}
-		void PrivateKey::Secure(const char* Buffer, size_t Size)
-		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			VI_TRACE("[crypto] secure private key on %" PRIu64 " bytes", (uint64_t)Size);
-			Blocks.reserve(Size);
+			VI_TRACE("[crypto] secure private key on %" PRIu64 " bytes", (uint64_t)Key.size());
+			Blocks.reserve(Key.size());
 			Clear();
 
-			for (size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < Key.size(); i++)
 			{
-				size_t* Partition = VI_MALLOC(size_t, PRIVATE_KEY_SIZE);
-				FillPartition(Partition, Size, i, Buffer[i]);
+				size_t* Partition = Core::Memory::Allocate<size_t>(PRIVATE_KEY_SIZE);
+				FillPartition(Partition, Key.size(), i, Key[i]);
 				Blocks.emplace_back(Partition);
 			}
 		}
@@ -4088,7 +4071,7 @@ namespace Vitex
 				Blocks.reserve(Other.Blocks.size());
 				for (auto* Partition : Other.Blocks)
 				{
-					void* CopiedPartition = VI_MALLOC(void, PRIVATE_KEY_SIZE);
+					void* CopiedPartition = Core::Memory::Allocate<void>(PRIVATE_KEY_SIZE);
 					memcpy(CopiedPartition, Partition, PRIVATE_KEY_SIZE);
 					Blocks.emplace_back(CopiedPartition);
 				}
@@ -4108,14 +4091,14 @@ namespace Vitex
 		void PrivateKey::RollPartition(size_t* Dest, size_t Size, size_t Index) const
 		{
 			char* Buffer = (char*)Dest + sizeof(size_t);
-			Buffer[Dest[0]] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());
+			Buffer[Dest[0]] = (char)(Crypto::Random() % std::numeric_limits<uint8_t>::max());
 		}
 		void PrivateKey::FillPartition(size_t* Dest, size_t Size, size_t Index, char Source) const
 		{
 			Dest[0] = ((size_t(Source) << 16) + 17) % (PRIVATE_KEY_SIZE - sizeof(size_t));
 			char* Buffer = (char*)Dest + sizeof(size_t);
 			for (size_t i = 0; i < PRIVATE_KEY_SIZE - sizeof(size_t); i++)
-				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());
+				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<uint8_t>::max());
 			Buffer[Dest[0]] = Source;
 		}
 		void PrivateKey::RandomizeBuffer(char* Buffer, size_t Size)
@@ -4128,16 +4111,16 @@ namespace Vitex
 			PrivateKey Key = PrivateKey(std::move(Value), true);
 			return Key;
 		}
-		PrivateKey PrivateKey::GetPlain(const Core::String& Value)
+		PrivateKey PrivateKey::GetPlain(const std::string_view& Value)
 		{
 			PrivateKey Key = PrivateKey(Value, true);
 			return Key;
 		}
 
-		UInt128::UInt128(const Core::String& Text) : UInt128(Text, 10)
+		UInt128::UInt128(const std::string_view& Text) : UInt128(Text, 10)
 		{
 		}
-		UInt128::UInt128(const Core::String& Text, uint8_t Base)
+		UInt128::UInt128(const std::string_view& Text, uint8_t Base)
 		{
 			if (Text.empty())
 			{
@@ -4146,8 +4129,8 @@ namespace Vitex
 			}
 
 			size_t Size = Text.size();
-			char* Data = (char*)Text.c_str();
-			while (*Data && Size && std::isspace(Core::Stringify::Literal(*Data)))
+			char* Data = (char*)Text.data();
+			while (Size > 0 && Core::Stringify::IsWhitespace(*Data))
 			{
 				++Data;
 				Size--;
@@ -4638,10 +4621,10 @@ namespace Vitex
 			return Stream;
 		}
 
-		UInt256::UInt256(const Core::String& Text) : UInt256(Text, 10)
+		UInt256::UInt256(const std::string_view& Text) : UInt256(Text, 10)
 		{
 		}
-		UInt256::UInt256(const Core::String& Text, uint8_t Base)
+		UInt256::UInt256(const std::string_view& Text, uint8_t Base)
 		{
 			*this = 0;
 			UInt256 power(1);
@@ -5311,10 +5294,10 @@ namespace Vitex
 		PreprocessorException::PreprocessorException(PreprocessorError NewType) : PreprocessorException(NewType, 0)
 		{
 		}
-		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset) : PreprocessorException(NewType, NewOffset, nullptr)
+		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset) : PreprocessorException(NewType, NewOffset, "")
 		{
 		}
-		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& NewMessage) : Type(NewType), Offset(NewOffset)
+		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset, const std::string_view& NewMessage) : Type(NewType), Offset(NewOffset)
 		{
 			switch (Type)
 			{
@@ -5429,7 +5412,7 @@ namespace Vitex
 			Message = "error:unsupported";
 #endif
 		}
-		CryptoException::CryptoException(size_t NewErrorCode, const Core::String& NewMessage) : ErrorCode(NewErrorCode)
+		CryptoException::CryptoException(size_t NewErrorCode, const std::string_view& NewMessage) : ErrorCode(NewErrorCode)
 		{
 			Message = "error:" + Core::ToString(ErrorCode) + ":";
 			if (!NewMessage.empty())
@@ -5446,7 +5429,7 @@ namespace Vitex
 			return ErrorCode;
 		}
 
-		CompressionException::CompressionException(int NewErrorCode, const Core::String& NewMessage) : ErrorCode(NewErrorCode)
+		CompressionException::CompressionException(int NewErrorCode, const std::string_view& NewMessage) : ErrorCode(NewErrorCode)
 		{
 			if (!NewMessage.empty())
 				Message += NewMessage;
@@ -5468,20 +5451,19 @@ namespace Vitex
 		}
 		Adjacencies::~Adjacencies() noexcept
 		{
-			VI_FREE(Faces);
-			VI_FREE(Edges);
+			Core::Memory::Deallocate(Faces);
+			Core::Memory::Deallocate(Edges);
 		}
 		bool Adjacencies::Fill(Adjacencies::Desc& create)
 		{
 			NbFaces = create.NbFaces;
-			Faces = VI_MALLOC(AdjTriangle, sizeof(AdjTriangle) * NbFaces);
-			Edges = VI_MALLOC(AdjEdge, sizeof(AdjEdge) * NbFaces * 3);
-
-			for (unsigned int i = 0; i < NbFaces; i++)
+			Faces = Core::Memory::Allocate<AdjTriangle>(sizeof(AdjTriangle) * NbFaces);
+			Edges = Core::Memory::Allocate<AdjEdge>(sizeof(AdjEdge) * NbFaces * 3);
+			for (uint32_t i = 0; i < NbFaces; i++)
 			{
-				unsigned int Ref0 = create.Faces[i * 3 + 0];
-				unsigned int Ref1 = create.Faces[i * 3 + 1];
-				unsigned int Ref2 = create.Faces[i * 3 + 2];
+				uint32_t Ref0 = create.Faces[i * 3 + 0];
+				uint32_t Ref1 = create.Faces[i * 3 + 1];
+				uint32_t Ref2 = create.Faces[i * 3 + 2];
 				AddTriangle(Ref0, Ref1, Ref2);
 			}
 
@@ -5490,37 +5472,36 @@ namespace Vitex
 		bool Adjacencies::Resolve()
 		{
 			RadixSorter Core;
-			unsigned int* FaceNb = VI_MALLOC(unsigned int, sizeof(unsigned int) * NbEdges);
-			unsigned int* VRefs0 = VI_MALLOC(unsigned int, sizeof(unsigned int) * NbEdges);
-			unsigned int* VRefs1 = VI_MALLOC(unsigned int, sizeof(unsigned int) * NbEdges);
-
-			for (unsigned int i = 0; i < NbEdges; i++)
+			uint32_t* FaceNb = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * NbEdges);
+			uint32_t* VRefs0 = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * NbEdges);
+			uint32_t* VRefs1 = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * NbEdges);
+			for (uint32_t i = 0; i < NbEdges; i++)
 			{
 				FaceNb[i] = Edges[i].FaceNb;
 				VRefs0[i] = Edges[i].Ref0;
 				VRefs1[i] = Edges[i].Ref1;
 			}
 
-			unsigned int* Sorted = Core.Sort(FaceNb, NbEdges).Sort(VRefs0, NbEdges).Sort(VRefs1, NbEdges).GetIndices();
-			unsigned int LastRef0 = VRefs0[Sorted[0]];
-			unsigned int LastRef1 = VRefs1[Sorted[0]];
-			unsigned int Count = 0;
-			unsigned int TmpBuffer[3];
+			uint32_t* Sorted = Core.Sort(FaceNb, NbEdges).Sort(VRefs0, NbEdges).Sort(VRefs1, NbEdges).GetIndices();
+			uint32_t LastRef0 = VRefs0[Sorted[0]];
+			uint32_t LastRef1 = VRefs1[Sorted[0]];
+			uint32_t Count = 0;
+			uint32_t TmpBuffer[3];
 
-			for (unsigned int i = 0; i < NbEdges; i++)
+			for (uint32_t i = 0; i < NbEdges; i++)
 			{
-				unsigned int Face = FaceNb[Sorted[i]];
-				unsigned int Ref0 = VRefs0[Sorted[i]];
-				unsigned int Ref1 = VRefs1[Sorted[i]];
+				uint32_t Face = FaceNb[Sorted[i]];
+				uint32_t Ref0 = VRefs0[Sorted[i]];
+				uint32_t Ref1 = VRefs1[Sorted[i]];
 
 				if (Ref0 == LastRef0 && Ref1 == LastRef1)
 				{
 					TmpBuffer[Count++] = Face;
 					if (Count == 3)
 					{
-						VI_FREE(FaceNb);
-						VI_FREE(VRefs0);
-						VI_FREE(VRefs1);
+						Core::Memory::Deallocate(FaceNb);
+						Core::Memory::Deallocate(VRefs0);
+						Core::Memory::Deallocate(VRefs1);
 						return false;
 					}
 				}
@@ -5531,9 +5512,9 @@ namespace Vitex
 						bool Status = UpdateLink(TmpBuffer[0], TmpBuffer[1], LastRef0, LastRef1);
 						if (!Status)
 						{
-							VI_FREE(FaceNb);
-							VI_FREE(VRefs0);
-							VI_FREE(VRefs1);
+							Core::Memory::Deallocate(FaceNb);
+							Core::Memory::Deallocate(VRefs0);
+							Core::Memory::Deallocate(VRefs1);
 							return Status;
 						}
 					}
@@ -5549,14 +5530,14 @@ namespace Vitex
 			if (Count == 2)
 				Status = UpdateLink(TmpBuffer[0], TmpBuffer[1], LastRef0, LastRef1);
 
-			VI_FREE(FaceNb);
-			VI_FREE(VRefs0);
-			VI_FREE(VRefs1);
-			VI_FREE(Edges);
+			Core::Memory::Deallocate(FaceNb);
+			Core::Memory::Deallocate(VRefs0);
+			Core::Memory::Deallocate(VRefs1);
+			Core::Memory::Deallocate(Edges);
 
 			return Status;
 		}
-		bool Adjacencies::AddTriangle(unsigned int ref0, unsigned int ref1, unsigned int ref2)
+		bool Adjacencies::AddTriangle(uint32_t ref0, uint32_t ref1, uint32_t ref2)
 		{
 			Faces[CurrentNbFaces].VRef[0] = ref0;
 			Faces[CurrentNbFaces].VRef[1] = ref1;
@@ -5583,7 +5564,7 @@ namespace Vitex
 			CurrentNbFaces++;
 			return true;
 		}
-		bool Adjacencies::AddEdge(unsigned int ref0, unsigned int ref1, unsigned int face)
+		bool Adjacencies::AddEdge(uint32_t ref0, uint32_t ref1, uint32_t face)
 		{
 			Edges[NbEdges].Ref0 = ref0;
 			Edges[NbEdges].Ref1 = ref1;
@@ -5592,20 +5573,20 @@ namespace Vitex
 
 			return true;
 		}
-		bool Adjacencies::UpdateLink(unsigned int firsttri, unsigned int secondtri, unsigned int ref0, unsigned int ref1)
+		bool Adjacencies::UpdateLink(uint32_t firsttri, uint32_t secondtri, uint32_t ref0, uint32_t ref1)
 		{
 			AdjTriangle* Tri0 = &Faces[firsttri];
 			AdjTriangle* Tri1 = &Faces[secondtri];
-			unsigned char EdgeNb0 = Tri0->FindEdge(ref0, ref1);
+			uint8_t EdgeNb0 = Tri0->FindEdge(ref0, ref1);
 			if (EdgeNb0 == 0xff)
 				return false;
 
-			unsigned char EdgeNb1 = Tri1->FindEdge(ref0, ref1);
+			uint8_t EdgeNb1 = Tri1->FindEdge(ref0, ref1);
 			if (EdgeNb1 == 0xff)
 				return false;
 
-			Tri0->ATri[EdgeNb0] = secondtri | ((unsigned int)EdgeNb1 << 30);
-			Tri1->ATri[EdgeNb1] = firsttri | ((unsigned int)EdgeNb0 << 30);
+			Tri0->ATri[EdgeNb0] = secondtri | ((uint32_t)EdgeNb1 << 30);
+			Tri1->ATri[EdgeNb1] = firsttri | ((uint32_t)EdgeNb0 << 30);
 
 			return true;
 		}
@@ -5619,15 +5600,13 @@ namespace Vitex
 		}
 		TriangleStrip& TriangleStrip::FreeBuffers()
 		{
-			Core::Vector<unsigned int>().swap(SingleStrip);
-			Core::Vector<unsigned int>().swap(StripRuns);
-			Core::Vector<unsigned int>().swap(StripLengths);
-			VI_FREE(Tags);
+			Core::Vector<uint32_t>().swap(SingleStrip);
+			Core::Vector<uint32_t>().swap(StripRuns);
+			Core::Vector<uint32_t>().swap(StripLengths);
+			Core::Memory::Deallocate(Tags);
 			Tags = nullptr;
 
-			VI_DELETE(Adjacencies, Adj);
-			Adj = nullptr;
-
+			Core::Memory::Delete(Adj);
 			return *this;
 		}
 		bool TriangleStrip::Fill(const TriangleStrip::Desc& create)
@@ -5637,17 +5616,17 @@ namespace Vitex
 			ac.Faces = create.Faces;
 			FreeBuffers();
 
-			Adj = VI_NEW(Adjacencies);
+			Adj = Core::Memory::New<Adjacencies>();
 			if (!Adj->Fill(ac))
 			{
-				VI_DELETE(Adjacencies, Adj);
+				Core::Memory::Delete(Adj);
 				Adj = nullptr;
 				return false;
 			}
 
 			if (!Adj->Resolve())
 			{
-				VI_DELETE(Adjacencies, Adj);
+				Core::Memory::Delete(Adj);
 				Adj = nullptr;
 				return false;
 			}
@@ -5661,15 +5640,15 @@ namespace Vitex
 		bool TriangleStrip::Resolve(TriangleStrip::Result& result)
 		{
 			VI_ASSERT(Adj != nullptr, "triangle strip should be initialized");
-			Tags = VI_MALLOC(bool, sizeof(bool) * Adj->NbFaces);
-			unsigned int* Connectivity = VI_MALLOC(unsigned int, sizeof(unsigned int) * Adj->NbFaces);
+			Tags = Core::Memory::Allocate<bool>(sizeof(bool) * Adj->NbFaces);
+			uint32_t* Connectivity = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * Adj->NbFaces);
 
 			memset(Tags, 0, Adj->NbFaces * sizeof(bool));
-			memset(Connectivity, 0, Adj->NbFaces * sizeof(unsigned int));
+			memset(Connectivity, 0, Adj->NbFaces * sizeof(uint32_t));
 
 			if (SGICipher)
 			{
-				for (unsigned int i = 0; i < Adj->NbFaces; i++)
+				for (uint32_t i = 0; i < Adj->NbFaces; i++)
 				{
 					AdjTriangle* Tri = &Adj->Faces[i];
 					if (!IS_BOUNDARY(Tri->ATri[0]))
@@ -5683,31 +5662,31 @@ namespace Vitex
 				}
 
 				RadixSorter RS;
-				unsigned int* Sorted = RS.Sort(Connectivity, Adj->NbFaces).GetIndices();
-				memcpy(Connectivity, Sorted, Adj->NbFaces * sizeof(unsigned int));
+				uint32_t* Sorted = RS.Sort(Connectivity, Adj->NbFaces).GetIndices();
+				memcpy(Connectivity, Sorted, Adj->NbFaces * sizeof(uint32_t));
 			}
 			else
 			{
-				for (unsigned int i = 0; i < Adj->NbFaces; i++)
+				for (uint32_t i = 0; i < Adj->NbFaces; i++)
 					Connectivity[i] = i;
 			}
 
 			NbStrips = 0;
-			unsigned int TotalNbFaces = 0;
-			unsigned int Index = 0;
+			uint32_t TotalNbFaces = 0;
+			uint32_t Index = 0;
 
 			while (TotalNbFaces != Adj->NbFaces)
 			{
 				while (Tags[Connectivity[Index]])
 					Index++;
 
-				unsigned int FirstFace = Connectivity[Index];
+				uint32_t FirstFace = Connectivity[Index];
 				TotalNbFaces += ComputeStrip(FirstFace);
 				NbStrips++;
 			}
 
-			VI_FREE(Connectivity);
-			VI_FREE(Tags);
+			Core::Memory::Deallocate(Connectivity);
+			Core::Memory::Deallocate(Tags);
 			result.Groups = StripLengths;
 			result.Strips = StripRuns;
 
@@ -5716,14 +5695,14 @@ namespace Vitex
 
 			return true;
 		}
-		unsigned int TriangleStrip::ComputeStrip(unsigned int face)
+		uint32_t TriangleStrip::ComputeStrip(uint32_t face)
 		{
-			unsigned int* Strip[3];
-			unsigned int* Faces[3];
-			unsigned int Length[3];
-			unsigned int FirstLength[3];
-			unsigned int Refs0[3];
-			unsigned int Refs1[3];
+			uint32_t* Strip[3];
+			uint32_t* Faces[3];
+			uint32_t Length[3];
+			uint32_t FirstLength[3];
+			uint32_t Refs0[3];
+			uint32_t Refs1[3];
 
 			Refs0[0] = Adj->Faces[face].VRef[0];
 			Refs1[0] = Adj->Faces[face].VRef[1];
@@ -5734,42 +5713,42 @@ namespace Vitex
 			Refs0[2] = Adj->Faces[face].VRef[1];
 			Refs1[2] = Adj->Faces[face].VRef[2];
 
-			for (unsigned int j = 0; j < 3; j++)
+			for (uint32_t j = 0; j < 3; j++)
 			{
-				Strip[j] = VI_MALLOC(unsigned int, sizeof(unsigned int) * (Adj->NbFaces + 2 + 1 + 2));
-				Faces[j] = VI_MALLOC(unsigned int, sizeof(unsigned int) * (Adj->NbFaces + 2));
-				memset(Strip[j], 0xff, (Adj->NbFaces + 2 + 1 + 2) * sizeof(unsigned int));
-				memset(Faces[j], 0xff, (Adj->NbFaces + 2) * sizeof(unsigned int));
+				Strip[j] = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * (Adj->NbFaces + 2 + 1 + 2));
+				Faces[j] = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * (Adj->NbFaces + 2));
+				memset(Strip[j], 0xff, (Adj->NbFaces + 2 + 1 + 2) * sizeof(uint32_t));
+				memset(Faces[j], 0xff, (Adj->NbFaces + 2) * sizeof(uint32_t));
 
-				bool* vTags = VI_MALLOC(bool, sizeof(bool) * Adj->NbFaces);
+				bool* vTags = Core::Memory::Allocate<bool>(sizeof(bool) * Adj->NbFaces);
 				memcpy(vTags, Tags, Adj->NbFaces * sizeof(bool));
 
 				Length[j] = TrackStrip(face, Refs0[j], Refs1[j], &Strip[j][0], &Faces[j][0], vTags);
 				FirstLength[j] = Length[j];
 
-				for (unsigned int i = 0; i < Length[j] / 2; i++)
+				for (uint32_t i = 0; i < Length[j] / 2; i++)
 				{
 					Strip[j][i] ^= Strip[j][Length[j] - i - 1];
 					Strip[j][Length[j] - i - 1] ^= Strip[j][i];
 					Strip[j][i] ^= Strip[j][Length[j] - i - 1];
 				}
 
-				for (unsigned int i = 0; i < (Length[j] - 2) / 2; i++)
+				for (uint32_t i = 0; i < (Length[j] - 2) / 2; i++)
 				{
 					Faces[j][i] ^= Faces[j][Length[j] - i - 3];
 					Faces[j][Length[j] - i - 3] ^= Faces[j][i];
 					Faces[j][i] ^= Faces[j][Length[j] - i - 3];
 				}
 
-				unsigned int NewRef0 = Strip[j][Length[j] - 3];
-				unsigned int NewRef1 = Strip[j][Length[j] - 2];
-				unsigned int ExtraLength = TrackStrip(face, NewRef0, NewRef1, &Strip[j][Length[j] - 3], &Faces[j][Length[j] - 3], vTags);
+				uint32_t NewRef0 = Strip[j][Length[j] - 3];
+				uint32_t NewRef1 = Strip[j][Length[j] - 2];
+				uint32_t ExtraLength = TrackStrip(face, NewRef0, NewRef1, &Strip[j][Length[j] - 3], &Faces[j][Length[j] - 3], vTags);
 				Length[j] += ExtraLength - 3;
-				VI_FREE(vTags);
+				Core::Memory::Deallocate(vTags);
 			}
 
-			unsigned int Longest = Length[0];
-			unsigned int Best = 0;
+			uint32_t Longest = Length[0];
+			uint32_t Best = 0;
 			if (Length[1] > Longest)
 			{
 				Longest = Length[1];
@@ -5782,8 +5761,8 @@ namespace Vitex
 				Best = 2;
 			}
 
-			unsigned int NbFaces = Longest - 2;
-			for (unsigned int j = 0; j < Longest - 2; j++)
+			uint32_t NbFaces = Longest - 2;
+			for (uint32_t j = 0; j < Longest - 2; j++)
 				Tags[Faces[Best][j]] = true;
 
 			if (OneSided && FirstLength[Best] & 1)
@@ -5796,56 +5775,56 @@ namespace Vitex
 				}
 				else
 				{
-					for (unsigned int j = 0; j < Longest / 2; j++)
+					for (uint32_t j = 0; j < Longest / 2; j++)
 					{
 						Strip[Best][j] ^= Strip[Best][Longest - j - 1];
 						Strip[Best][Longest - j - 1] ^= Strip[Best][j];
 						Strip[Best][j] ^= Strip[Best][Longest - j - 1];
 					}
 
-					unsigned int NewPos = Longest - FirstLength[Best];
+					uint32_t NewPos = Longest - FirstLength[Best];
 					if (NewPos & 1)
 					{
-						for (unsigned int j = 0; j < Longest; j++)
+						for (uint32_t j = 0; j < Longest; j++)
 							Strip[Best][Longest - j] = Strip[Best][Longest - j - 1];
 						Longest++;
 					}
 				}
 			}
 
-			for (unsigned int j = 0; j < Longest; j++)
+			for (uint32_t j = 0; j < Longest; j++)
 			{
-				unsigned int Ref = Strip[Best][j];
+				uint32_t Ref = Strip[Best][j];
 				StripRuns.push_back(Ref);
 			}
 
 			StripLengths.push_back(Longest);
-			for (unsigned int j = 0; j < 3; j++)
+			for (uint32_t j = 0; j < 3; j++)
 			{
-				VI_FREE(Faces[j]);
-				VI_FREE(Strip[j]);
+				Core::Memory::Deallocate(Faces[j]);
+				Core::Memory::Deallocate(Strip[j]);
 			}
 
 			return NbFaces;
 		}
-		unsigned int TriangleStrip::TrackStrip(unsigned int face, unsigned int oldest, unsigned int middle, unsigned int* strip, unsigned int* faces, bool* tags)
+		uint32_t TriangleStrip::TrackStrip(uint32_t face, uint32_t oldest, uint32_t middle, uint32_t* strip, uint32_t* faces, bool* tags)
 		{
-			unsigned int Length = 2;
+			uint32_t Length = 2;
 			strip[0] = oldest;
 			strip[1] = middle;
 
 			bool DoTheStrip = true;
 			while (DoTheStrip)
 			{
-				unsigned int Newest = Adj->Faces[face].OppositeVertex(oldest, middle);
+				uint32_t Newest = Adj->Faces[face].OppositeVertex(oldest, middle);
 				strip[Length++] = Newest;
 				*faces++ = face;
 				tags[face] = true;
 
-				unsigned char CurEdge = Adj->Faces[face].FindEdge(middle, Newest);
+				uint8_t CurEdge = Adj->Faces[face].FindEdge(middle, Newest);
 				if (!IS_BOUNDARY(CurEdge))
 				{
-					unsigned int Link = Adj->Faces[face].ATri[CurEdge];
+					uint32_t Link = Adj->Faces[face].ATri[CurEdge];
 					face = MAKE_ADJ_TRI(Link);
 					if (tags[face])
 						DoTheStrip = false;
@@ -5861,23 +5840,23 @@ namespace Vitex
 		}
 		bool TriangleStrip::ConnectStrips(TriangleStrip::Result& result)
 		{
-			unsigned int* drefs = (unsigned int*)result.Strips.data();
+			uint32_t* drefs = (uint32_t*)result.Strips.data();
 			SingleStrip.clear();
 			TotalLength = 0;
 
-			for (unsigned int k = 0; k < result.Groups.size(); k++)
+			for (uint32_t k = 0; k < result.Groups.size(); k++)
 			{
 				if (k)
 				{
-					unsigned int LastRef = drefs[-1];
-					unsigned int FirstRef = drefs[0];
+					uint32_t LastRef = drefs[-1];
+					uint32_t FirstRef = drefs[0];
 					SingleStrip.push_back(LastRef);
 					SingleStrip.push_back(FirstRef);
 					TotalLength += 2;
 
 					if (OneSided && TotalLength & 1)
 					{
-						unsigned int SecondRef = drefs[1];
+						uint32_t SecondRef = drefs[1];
 						if (FirstRef != SecondRef)
 						{
 							SingleStrip.push_back(FirstRef);
@@ -5891,9 +5870,9 @@ namespace Vitex
 					}
 				}
 
-				for (unsigned int j = 0; j < result.Groups[k]; j++)
+				for (uint32_t j = 0; j < result.Groups[k]; j++)
 				{
-					unsigned int Ref = drefs[j];
+					uint32_t Ref = drefs[j];
 					SingleStrip.push_back(Ref);
 				}
 
@@ -5902,7 +5881,7 @@ namespace Vitex
 			}
 
 			result.Strips = SingleStrip;
-			result.Groups = Core::Vector<unsigned int>({ TotalLength });
+			result.Groups = Core::Vector<uint32_t>({ TotalLength });
 
 			return true;
 		}
@@ -5946,14 +5925,14 @@ namespace Vitex
 
 		RadixSorter::RadixSorter() noexcept : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
-			Histogram = VI_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
-			Offset = VI_MALLOC(unsigned int, sizeof(unsigned int) * 256);
+			Histogram = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * 256 * 4);
+			Offset = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * 256);
 			ResetIndices();
 		}
 		RadixSorter::RadixSorter(const RadixSorter& Other) noexcept : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
-			Histogram = VI_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
-			Offset = VI_MALLOC(unsigned int, sizeof(unsigned int) * 256);
+			Histogram = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * 256 * 4);
+			Offset = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * 256);
 			ResetIndices();
 		}
 		RadixSorter::RadixSorter(RadixSorter&& Other) noexcept : Histogram(Other.Histogram), Offset(Other.Offset), CurrentSize(Other.CurrentSize), Indices(Other.Indices), Indices2(Other.Indices2)
@@ -5966,28 +5945,28 @@ namespace Vitex
 		}
 		RadixSorter::~RadixSorter() noexcept
 		{
-			VI_FREE(Offset);
-			VI_FREE(Histogram);
-			VI_FREE(Indices2);
-			VI_FREE(Indices);
+			Core::Memory::Deallocate(Offset);
+			Core::Memory::Deallocate(Histogram);
+			Core::Memory::Deallocate(Indices2);
+			Core::Memory::Deallocate(Indices);
 		}
 		RadixSorter& RadixSorter::operator =(const RadixSorter& V)
 		{
-			VI_FREE(Histogram);
-			Histogram = VI_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
+			Core::Memory::Deallocate(Histogram);
+			Histogram = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * 256 * 4);
 
-			VI_FREE(Offset);
-			Offset = VI_MALLOC(unsigned int, sizeof(unsigned int) * 256);
+			Core::Memory::Deallocate(Offset);
+			Offset = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * 256);
 			ResetIndices();
 
 			return *this;
 		}
 		RadixSorter& RadixSorter::operator =(RadixSorter&& Other) noexcept
 		{
-			VI_FREE(Offset);
-			VI_FREE(Histogram);
-			VI_FREE(Indices2);
-			VI_FREE(Indices);
+			Core::Memory::Deallocate(Offset);
+			Core::Memory::Deallocate(Histogram);
+			Core::Memory::Deallocate(Indices2);
+			Core::Memory::Deallocate(Indices);
 			Indices = Other.Indices;
 			Indices2 = Other.Indices2;
 			CurrentSize = Other.CurrentSize;
@@ -6001,35 +5980,35 @@ namespace Vitex
 
 			return *this;
 		}
-		RadixSorter& RadixSorter::Sort(unsigned int* input, unsigned int nb, bool signedvalues)
+		RadixSorter& RadixSorter::Sort(uint32_t* input, uint32_t nb, bool signedvalues)
 		{
 			if (nb > CurrentSize)
 			{
-				VI_FREE(Indices2);
-				VI_FREE(Indices);
-				Indices = VI_MALLOC(unsigned int, sizeof(unsigned int) * nb);
-				Indices2 = VI_MALLOC(unsigned int, sizeof(unsigned int) * nb);
+				Core::Memory::Deallocate(Indices2);
+				Core::Memory::Deallocate(Indices);
+				Indices = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * nb);
+				Indices2 = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * nb);
 				CurrentSize = nb;
 				ResetIndices();
 			}
 
-			memset(Histogram, 0, 256 * 4 * sizeof(unsigned int));
+			memset(Histogram, 0, 256 * 4 * sizeof(uint32_t));
 
 			bool AlreadySorted = true;
-			unsigned int* vIndices = Indices;
-			unsigned char* p = (unsigned char*)input;
-			unsigned char* pe = &p[nb * 4];
-			unsigned int* h0 = &Histogram[0];
-			unsigned int* h1 = &Histogram[256];
-			unsigned int* h2 = &Histogram[512];
-			unsigned int* h3 = &Histogram[768];
+			uint32_t* vIndices = Indices;
+			uint8_t* p = (uint8_t*)input;
+			uint8_t* pe = &p[nb * 4];
+			uint32_t* h0 = &Histogram[0];
+			uint32_t* h1 = &Histogram[256];
+			uint32_t* h2 = &Histogram[512];
+			uint32_t* h3 = &Histogram[768];
 
 			if (!signedvalues)
 			{
-				unsigned int PrevVal = input[Indices[0]];
+				uint32_t PrevVal = input[Indices[0]];
 				while (p != pe)
 				{
-					unsigned int Val = input[*vIndices++];
+					uint32_t Val = input[*vIndices++];
 					if (Val < PrevVal)
 						AlreadySorted = false;
 
@@ -6060,20 +6039,20 @@ namespace Vitex
 			if (AlreadySorted)
 				return *this;
 
-			unsigned int NbNegativeValues = 0;
+			uint32_t NbNegativeValues = 0;
 			if (signedvalues)
 			{
-				unsigned int* h4 = &Histogram[768];
-				for (unsigned int i = 128; i < 256; i++)
+				uint32_t* h4 = &Histogram[768];
+				for (uint32_t i = 128; i < 256; i++)
 					NbNegativeValues += h4[i];
 			}
 
-			for (unsigned int j = 0; j < 4; j++)
+			for (uint32_t j = 0; j < 4; j++)
 			{
-				unsigned int* CurCount = &Histogram[j << 8];
+				uint32_t* CurCount = &Histogram[j << 8];
 				bool PerformPass = true;
 
-				for (unsigned int i = 0; i < 256; i++)
+				for (uint32_t i = 0; i < 256; i++)
 				{
 					if (CurCount[i] == nb)
 					{
@@ -6090,32 +6069,32 @@ namespace Vitex
 					if (j != 3 || !signedvalues)
 					{
 						Offset[0] = 0;
-						for (unsigned int i = 1; i < 256; i++)
+						for (uint32_t i = 1; i < 256; i++)
 							Offset[i] = Offset[i - 1] + CurCount[i - 1];
 					}
 					else
 					{
 						Offset[0] = NbNegativeValues;
-						for (unsigned int i = 1; i < 128; i++)
+						for (uint32_t i = 1; i < 128; i++)
 							Offset[i] = Offset[i - 1] + CurCount[i - 1];
 
 						Offset[128] = 0;
-						for (unsigned int i = 129; i < 256; i++)
+						for (uint32_t i = 129; i < 256; i++)
 							Offset[i] = Offset[i - 1] + CurCount[i - 1];
 					}
 
-					unsigned char* InputBytes = (unsigned char*)input;
-					unsigned int* IndicesStart = Indices;
-					unsigned int* IndicesEnd = &Indices[nb];
+					uint8_t* InputBytes = (uint8_t*)input;
+					uint32_t* IndicesStart = Indices;
+					uint32_t* IndicesEnd = &Indices[nb];
 					InputBytes += j;
 
 					while (IndicesStart != IndicesEnd)
 					{
-						unsigned int id = *IndicesStart++;
+						uint32_t id = *IndicesStart++;
 						Indices2[Offset[InputBytes[id << 2]]++] = id;
 					}
 
-					unsigned int* Tmp = Indices;
+					uint32_t* Tmp = Indices;
 					Indices = Indices2;
 					Indices2 = Tmp;
 				}
@@ -6123,30 +6102,30 @@ namespace Vitex
 
 			return *this;
 		}
-		RadixSorter& RadixSorter::Sort(float* input2, unsigned int nb)
+		RadixSorter& RadixSorter::Sort(float* input2, uint32_t nb)
 		{
-			unsigned int* input = (unsigned int*)input2;
+			uint32_t* input = (uint32_t*)input2;
 			if (nb > CurrentSize)
 			{
-				VI_FREE(Indices2);
-				VI_FREE(Indices);
-				Indices = VI_MALLOC(unsigned int, sizeof(unsigned int) * nb);
-				Indices2 = VI_MALLOC(unsigned int, sizeof(unsigned int) * nb);
+				Core::Memory::Deallocate(Indices2);
+				Core::Memory::Deallocate(Indices);
+				Indices = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * nb);
+				Indices2 = Core::Memory::Allocate<uint32_t>(sizeof(uint32_t) * nb);
 				CurrentSize = nb;
 				ResetIndices();
 			}
 
-			memset(Histogram, 0, 256 * 4 * sizeof(unsigned int));
+			memset(Histogram, 0, 256 * 4 * sizeof(uint32_t));
 			{
 				float PrevVal = input2[Indices[0]];
 				bool AlreadySorted = true;
-				unsigned int* vIndices = Indices;
-				unsigned char* p = (unsigned char*)input;
-				unsigned char* pe = &p[nb * 4];
-				unsigned int* h0 = &Histogram[0];
-				unsigned int* h1 = &Histogram[256];
-				unsigned int* h2 = &Histogram[512];
-				unsigned int* h3 = &Histogram[768];
+				uint32_t* vIndices = Indices;
+				uint8_t* p = (uint8_t*)input;
+				uint8_t* pe = &p[nb * 4];
+				uint32_t* h0 = &Histogram[0];
+				uint32_t* h1 = &Histogram[256];
+				uint32_t* h2 = &Histogram[512];
+				uint32_t* h3 = &Histogram[768];
 
 				while (p != pe)
 				{
@@ -6165,17 +6144,17 @@ namespace Vitex
 					return *this;
 			}
 
-			unsigned int NbNegativeValues = 0;
-			unsigned int* h3 = &Histogram[768];
-			for (unsigned int i = 128; i < 256; i++)
+			uint32_t NbNegativeValues = 0;
+			uint32_t* h3 = &Histogram[768];
+			for (uint32_t i = 128; i < 256; i++)
 				NbNegativeValues += h3[i];
 
-			for (unsigned int j = 0; j < 4; j++)
+			for (uint32_t j = 0; j < 4; j++)
 			{
-				unsigned int* CurCount = &Histogram[j << 8];
+				uint32_t* CurCount = &Histogram[j << 8];
 				bool PerformPass = true;
 
-				for (unsigned int i = 0; i < 256; i++)
+				for (uint32_t i = 0; i < 256; i++)
 				{
 					if (CurCount[i] == nb)
 					{
@@ -6192,36 +6171,36 @@ namespace Vitex
 					if (j != 3)
 					{
 						Offset[0] = 0;
-						for (unsigned int i = 1; i < 256; i++)
+						for (uint32_t i = 1; i < 256; i++)
 							Offset[i] = Offset[i - 1] + CurCount[i - 1];
 
-						unsigned char* InputBytes = (unsigned char*)input;
-						unsigned int* IndicesStart = Indices;
-						unsigned int* IndicesEnd = &Indices[nb];
+						uint8_t* InputBytes = (uint8_t*)input;
+						uint32_t* IndicesStart = Indices;
+						uint32_t* IndicesEnd = &Indices[nb];
 						InputBytes += j;
 
 						while (IndicesStart != IndicesEnd)
 						{
-							unsigned int id = *IndicesStart++;
+							uint32_t id = *IndicesStart++;
 							Indices2[Offset[InputBytes[id << 2]]++] = id;
 						}
 					}
 					else
 					{
 						Offset[0] = NbNegativeValues;
-						for (unsigned int i = 1; i < 128; i++)
+						for (uint32_t i = 1; i < 128; i++)
 							Offset[i] = Offset[i - 1] + CurCount[i - 1];
 
 						Offset[255] = 0;
-						for (unsigned int i = 0; i < 127; i++)
+						for (uint32_t i = 0; i < 127; i++)
 							Offset[254 - i] = Offset[255 - i] + CurCount[255 - i];
 
-						for (unsigned int i = 128; i < 256; i++)
+						for (uint32_t i = 128; i < 256; i++)
 							Offset[i] += CurCount[i];
 
-						for (unsigned int i = 0; i < nb; i++)
+						for (uint32_t i = 0; i < nb; i++)
 						{
-							unsigned int Radix = input[Indices[i]] >> 24;
+							uint32_t Radix = input[Indices[i]] >> 24;
 							if (Radix < 128)
 								Indices2[Offset[Radix]++] = Indices[i];
 							else
@@ -6229,7 +6208,7 @@ namespace Vitex
 						}
 					}
 
-					unsigned int* Tmp = Indices;
+					uint32_t* Tmp = Indices;
 					Indices = Indices2;
 					Indices2 = Tmp;
 				}
@@ -6239,12 +6218,12 @@ namespace Vitex
 		}
 		RadixSorter& RadixSorter::ResetIndices()
 		{
-			for (unsigned int i = 0; i < CurrentSize; i++)
+			for (uint32_t i = 0; i < CurrentSize; i++)
 				Indices[i] = i;
 
 			return *this;
 		}
-		unsigned int* RadixSorter::GetIndices()
+		uint32_t* RadixSorter::GetIndices()
 		{
 			return Indices;
 		}
@@ -6262,17 +6241,17 @@ namespace Vitex
 			State[2] = 0x98badcfe;
 			State[3] = 0x10325476;
 		}
-		void MD5Hasher::Decode(UInt4* Output, const UInt1* Input, unsigned int Length)
+		void MD5Hasher::Decode(UInt4* Output, const UInt1* Input, uint32_t Length)
 		{
 			VI_ASSERT(Output != nullptr && Input != nullptr, "output and input should be set");
-			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
+			for (uint32_t i = 0, j = 0; j < Length; i++, j += 4)
 				Output[i] = ((UInt4)Input[j]) | (((UInt4)Input[j + 1]) << 8) | (((UInt4)Input[j + 2]) << 16) | (((UInt4)Input[j + 3]) << 24);
 			VI_TRACE("[crypto] md5 hasher decode to 0x%" PRIXPTR, (void*)Output);
 		}
-		void MD5Hasher::Encode(UInt1* Output, const UInt4* Input, unsigned int Length)
+		void MD5Hasher::Encode(UInt1* Output, const UInt4* Input, uint32_t Length)
 		{
 			VI_ASSERT(Output != nullptr && Input != nullptr, "output and input should be set");
-			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
+			for (uint32_t i = 0, j = 0; j < Length; i++, j += 4)
 			{
 				Output[j] = Input[i] & 0xff;
 				Output[j + 1] = (Input[i] >> 8) & 0xff;
@@ -6281,7 +6260,7 @@ namespace Vitex
 			}
 			VI_TRACE("[crypto] md5 hasher encode to 0x%" PRIXPTR, (void*)Output);
 		}
-		void MD5Hasher::Transform(const UInt1* Block, unsigned int Length)
+		void MD5Hasher::Transform(const UInt1* Block, uint32_t Length)
 		{
 			VI_ASSERT(Block != nullptr, "block should be set");
 			VI_TRACE("[crypto] md5 hasher transform from 0x%" PRIXPTR, (void*)Block);
@@ -6363,21 +6342,21 @@ namespace Vitex
 			memset(X, 0, sizeof(X));
 #endif
 		}
-		void MD5Hasher::Update(const Core::String& Input, unsigned int BlockSize)
+		void MD5Hasher::Update(const std::string_view& Input, uint32_t BlockSize)
 		{
-			Update(Input.c_str(), (unsigned int)Input.size(), BlockSize);
+			Update(Input.data(), (uint32_t)Input.size(), BlockSize);
 		}
-		void MD5Hasher::Update(const unsigned char* Input, unsigned int Length, unsigned int BlockSize)
+		void MD5Hasher::Update(const uint8_t* Input, uint32_t Length, uint32_t BlockSize)
 		{
 			VI_ASSERT(Input != nullptr, "input should be set");
 			VI_TRACE("[crypto] md5 hasher update from 0x%" PRIXPTR, (void*)Input);
-			unsigned int Index = Count[0] / 8 % BlockSize;
+			uint32_t Index = Count[0] / 8 % BlockSize;
 			Count[0] += (Length << 3);
 			if (Count[0] < Length << 3)
 				Count[1]++;
 
 			Count[1] += (Length >> 29);
-			unsigned int Chunk = 64 - Index, i = 0;
+			uint32_t Chunk = 64 - Index, i = 0;
 			if (Length >= Chunk)
 			{
 				memcpy(&Buffer[Index], Input, Chunk);
@@ -6392,22 +6371,22 @@ namespace Vitex
 
 			memcpy(&Buffer[Index], &Input[i], Length - i);
 		}
-		void MD5Hasher::Update(const char* Input, unsigned int Length, unsigned int BlockSize)
+		void MD5Hasher::Update(const char* Input, uint32_t Length, uint32_t BlockSize)
 		{
-			Update((const unsigned char*)Input, Length, BlockSize);
+			Update((const uint8_t*)Input, Length, BlockSize);
 		}
 		void MD5Hasher::Finalize()
 		{
 			VI_TRACE("[crypto] md5 hasher finalize at 0x%" PRIXPTR, (void*)this);
-			static unsigned char Padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			static uint8_t Padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 			if (Finalized)
 				return;
 
-			unsigned char Bits[8];
+			uint8_t Bits[8];
 			Encode(Bits, Count, 8);
 
-			unsigned int Index = Count[0] / 8 % 64;
-			unsigned int Size = (Index < 56) ? (56 - Index) : (120 - Index);
+			uint32_t Index = Count[0] / 8 % 64;
+			uint32_t Size = (Index < 56) ? (56 - Index) : (120 - Index);
 			Update(Padding, Size);
 			Update(Bits, 8);
 			Encode(Digest, State, 16);
@@ -6419,18 +6398,18 @@ namespace Vitex
 		char* MD5Hasher::HexDigest() const
 		{
 			VI_ASSERT(Finalized, "md5 hash should be finalized");
-			char* Data = VI_MALLOC(char, sizeof(char) * 48);
+			char* Data = Core::Memory::Allocate<char>(sizeof(char) * 48);
 			memset(Data, 0, sizeof(char) * 48);
 
 			for (size_t i = 0; i < 16; i++)
-				snprintf(Data + i * 2, 4, "%02x", (unsigned int)Digest[i]);
+				snprintf(Data + i * 2, 4, "%02x", (uint32_t)Digest[i]);
 
 			return Data;
 		}
-		unsigned char* MD5Hasher::RawDigest() const
+		uint8_t* MD5Hasher::RawDigest() const
 		{
 			VI_ASSERT(Finalized, "md5 hash should be finalized");
-			UInt1* Output = VI_MALLOC(UInt1, sizeof(UInt1) * 17);
+			UInt1* Output = Core::Memory::Allocate<UInt1>(sizeof(UInt1) * 17);
 			memcpy(Output, Digest, 16);
 			Output[16] = '\0';
 
@@ -6443,7 +6422,7 @@ namespace Vitex
 			memset(Data, 0, sizeof(Data));
 
 			for (size_t i = 0; i < 16; i++)
-				snprintf(Data + i * 2, 4, "%02x", (unsigned int)Digest[i]);
+				snprintf(Data + i * 2, 4, "%02x", (uint32_t)Digest[i]);
 
 			return Data;
 		}
@@ -8323,45 +8302,45 @@ namespace Vitex
 #endif
 		}
 
-		Digest Crypto::GetDigestByName(const Core::String& Name)
+		Digest Crypto::GetDigestByName(const std::string_view& Name)
 		{
-			VI_ASSERT(!Name.empty(), "digest name should not be empty");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "digest name should not be empty");
 #ifdef EVP_MD_name
-			return (Digest)EVP_get_digestbyname(Name.c_str());
+			return (Digest)EVP_get_digestbyname(Name.data());
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Crypto::GetCipherByName(const Core::String& Name)
+		Cipher Crypto::GetCipherByName(const std::string_view& Name)
 		{
-			VI_ASSERT(!Name.empty(), "cipher name should not be empty");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "cipher name should not be empty");
 #ifdef EVP_MD_name
-			return (Cipher)EVP_get_cipherbyname(Name.c_str());
+			return (Cipher)EVP_get_cipherbyname(Name.data());
 #else
 			return nullptr;
 #endif
 		}
-		const char* Crypto::GetDigestName(Digest Type)
+		std::string_view Crypto::GetDigestName(Digest Type)
 		{
 			VI_ASSERT(Type != nullptr, "digest should be set");
 #ifdef EVP_MD_name
 			const char* Name = EVP_MD_name((EVP_MD*)Type);
-			return Name ? Name : "0x?";
+			return Name ? Name : "";
 #else
-			return "0x?";
+			return "";
 #endif
 		}
-		const char* Crypto::GetCipherName(Cipher Type)
+		std::string_view Crypto::GetCipherName(Cipher Type)
 		{
 			VI_ASSERT(Type != nullptr, "cipher should be set");
 #ifdef EVP_CIPHER_name
 			const char* Name = EVP_CIPHER_name((EVP_CIPHER*)Type);
-			return Name ? Name : "0x?";
+			return Name ? Name : "";
 #else
-			return "0x?";
+			return "";
 #endif
 		}
-		ExpectsCrypto<void> Crypto::FillRandomBytes(unsigned char* Buffer, size_t Length)
+		ExpectsCrypto<void> Crypto::FillRandomBytes(uint8_t* Buffer, size_t Length)
 		{
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
@@ -8374,12 +8353,12 @@ namespace Vitex
 		{
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] generate random %" PRIu64 " bytes", (uint64_t)Length);
-			unsigned char* Buffer = VI_MALLOC(unsigned char, sizeof(unsigned char) * Length);
+			uint8_t* Buffer = Core::Memory::Allocate<uint8_t>(sizeof(uint8_t) * Length);
 			if (RAND_bytes(Buffer, (int)Length) != 1)
 				return CryptoException();
 
 			Core::String Output((const char*)Buffer, Length);
-			VI_FREE(Buffer);
+			Core::Memory::Deallocate(Buffer);
 			return Output;
 #else
 			return CryptoException();
@@ -8408,14 +8387,14 @@ namespace Vitex
 			Core::String Result;
 			Result.resize(EVP_MD_size(Method));
 
-			unsigned int Size = 0; bool OK = true;
+			uint32_t Size = 0; bool OK = true;
 			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
 			{
-				char Buffer[Core::BLOB_SIZE]; size_t Size = 0;
+				uint8_t Buffer[Core::BLOB_SIZE]; size_t Size = 0;
 				while ((Size = Stream->Read(Buffer, sizeof(Buffer)).Or(0)) > 0)
 					OK = EVP_DigestUpdate(Context, Buffer, Size) == 1 ? OK : false;
 			}
-			OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
+			OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
 			EVP_MD_CTX_destroy(Context);
 
 			if (!OK)
@@ -8427,7 +8406,7 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::HashHex(Digest Type, const Core::String& Value)
+		ExpectsCrypto<Core::String> Crypto::HashHex(Digest Type, const std::string_view& Value)
 		{
 			auto Data = Crypto::HashRaw(Type, Value);
 			if (!Data)
@@ -8435,13 +8414,13 @@ namespace Vitex
 
 			return Codec::HexEncode(*Data);
 		}
-		ExpectsCrypto<Core::String> Crypto::HashRaw(Digest Type, const Core::String& Value)
+		ExpectsCrypto<Core::String> Crypto::HashRaw(Digest Type, const std::string_view& Value)
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
 			if (Value.empty())
-				return Value;
+				return Core::String(Value);
 
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
@@ -8451,12 +8430,11 @@ namespace Vitex
 			Core::String Result;
 			Result.resize(EVP_MD_size(Method));
 
-			unsigned int Size = 0; bool OK = true;
+			uint32_t Size = 0; bool OK = true;
 			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
-			OK = EVP_DigestUpdate(Context, Value.c_str(), Value.size()) == 1 ? OK : false;
-			OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
+			OK = EVP_DigestUpdate(Context, Value.data(), Value.size()) == 1 ? OK : false;
+			OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
 			EVP_MD_CTX_destroy(Context);
-
 			if (!OK)
 				return CryptoException();
 
@@ -8466,46 +8444,44 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, const std::string_view& Value, const PrivateKey& Key)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
-			if (!Length)
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			if (Value.empty())
 				return Core::String();
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
-			unsigned char Result[EVP_MAX_MD_SIZE];
-			unsigned int Size = sizeof(Result);
-			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size);
+			uint8_t Result[EVP_MAX_MD_SIZE];
+			uint32_t Size = sizeof(Result);
+			uint8_t* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const uint8_t*)Value.data(), Value.size(), Result, &Size);
 
 			if (!Pointer)
 				return CryptoException();
 
 			return Core::String((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 				return CryptoException();
 
-			unsigned char Result[EVP_MAX_MD_SIZE];
+			uint8_t Result[EVP_MAX_MD_SIZE];
 			if (1 != HMAC_Init_ex(Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
 			{
 				HMAC_CTX_free(Context);
 				return CryptoException();
 			}
 
-			if (1 != HMAC_Update(Context, (const unsigned char*)Value, (int)Length))
+			if (1 != HMAC_Update(Context, (const uint8_t*)Value.data(), (int)Value.size()))
 			{
 				HMAC_CTX_free(Context);
 				return CryptoException();
 			}
 
-			unsigned int Size = sizeof(Result);
+			uint32_t Size = sizeof(Result);
 			if (1 != HMAC_Final(Context, Result, &Size))
 			{
 				HMAC_CTX_free(Context);
@@ -8517,24 +8493,24 @@ namespace Vitex
 
 			return Output;
 #else
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
 			HMAC_CTX Context;
 			HMAC_CTX_init(&Context);
 
-			unsigned char Result[EVP_MAX_MD_SIZE];
+			uint8_t Result[EVP_MAX_MD_SIZE];
 			if (1 != HMAC_Init_ex(&Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
 			{
 				HMAC_CTX_cleanup(&Context);
 				return CryptoException();
 			}
 
-			if (1 != HMAC_Update(&Context, (const unsigned char*)Value, (int)Length))
+			if (1 != HMAC_Update(&Context, (const uint8_t*)Value.data(), (int)Value.size()))
 			{
 				HMAC_CTX_cleanup(&Context);
 				return CryptoException();
 			}
 
-			unsigned int Size = sizeof(Result);
+			uint32_t Size = sizeof(Result);
 			if (1 != HMAC_Final(&Context, Result, &Size))
 			{
 				HMAC_CTX_cleanup(&Context);
@@ -8550,25 +8526,19 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, const Core::String& Value, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key)
 		{
-			return Sign(Type, Value.c_str(), (uint64_t)Value.size(), Key);
-		}
-		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Length);
-			if (!Length)
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			if (Value.empty())
 				return Core::String();
 
 			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
-			unsigned char Result[EVP_MAX_MD_SIZE];
-			unsigned int Size = sizeof(Result);
+			uint8_t Result[EVP_MAX_MD_SIZE];
+			uint32_t Size = sizeof(Result);
 
-			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size))
+			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const uint8_t*)Value.data(), Value.size(), Result, &Size))
 				return CryptoException();
 
 			Core::String Output((const char*)Result, Size);
@@ -8577,17 +8547,12 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key)
-		{
-			return Crypto::HMAC(Type, Value.c_str(), Value.size(), Key);
-		}
-		ExpectsCrypto<Core::String> Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		ExpectsCrypto<Core::String> Crypto::Encrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
-			if (!Length)
+			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Value.size());
+			if (Value.empty())
 				return Core::String();
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
@@ -8605,21 +8570,21 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
 			}
 
 			Core::String Output;
-			Output.reserve(Length);
+			Output.reserve(Value.size());
 
 			size_t Offset = 0; bool IsFinalized = false;
-			unsigned char OutBuffer[Core::BLOB_SIZE + 2048];
-			const unsigned char* InBuffer = (const unsigned char*)Value;
-			while (Offset < Length)
+			uint8_t OutBuffer[Core::BLOB_SIZE + 2048];
+			const uint8_t* InBuffer = (const uint8_t*)Value.data();
+			while (Offset < Value.size())
 			{
-				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Length - Offset)), OutSize = 0;
+				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Value.size() - Offset)), OutSize = 0;
 				if (1 != EVP_EncryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
 				{
 					EVP_CIPHER_CTX_free(Context);
@@ -8632,7 +8597,7 @@ namespace Vitex
 				Output.resize(Output.size() + OutBufferSize);
 				memcpy((char*)Output.data() + OutputOffset, OutBuffer, OutBufferSize);
 				Offset += (size_t)InSize;
-				if (Offset < Length)
+				if (Offset < Value.size())
 					continue;
 				else if (IsFinalized)
 					break;
@@ -8653,17 +8618,12 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
-		{
-			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt, ComplexityBytes);
-		}
-		ExpectsCrypto<Core::String> Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		ExpectsCrypto<Core::String> Crypto::Decrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Length);
-			if (!Length)
+			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Value.size());
+			if (Value.empty())
 				return Core::String();
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
@@ -8681,21 +8641,21 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
 			}
 
 			Core::String Output;
-			Output.reserve(Length);
+			Output.reserve(Value.size());
 
 			size_t Offset = 0; bool IsFinalized = false;
-			unsigned char OutBuffer[Core::BLOB_SIZE + 2048];
-			const unsigned char* InBuffer = (const unsigned char*)Value;
-			while (Offset < Length)
+			uint8_t OutBuffer[Core::BLOB_SIZE + 2048];
+			const uint8_t* InBuffer = (const uint8_t*)Value.data();
+			while (Offset < Value.size())
 			{
-				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Length - Offset)), OutSize = 0;
+				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Value.size() - Offset)), OutSize = 0;
 				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
 				{
 					EVP_CIPHER_CTX_free(Context);
@@ -8708,7 +8668,7 @@ namespace Vitex
 				Output.resize(Output.size() + OutBufferSize);
 				memcpy((char*)Output.data() + OutputOffset, OutBuffer, OutBufferSize);
 				Offset += (size_t)InSize;
-				if (Offset < Length)
+				if (Offset < Value.size())
 					continue;
 				else if (IsFinalized)
 					break;
@@ -8729,11 +8689,7 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
-		{
-			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt, ComplexityBytes);
-		}
-		ExpectsCrypto<Core::String> Crypto::JWTSign(const Core::String& Alg, const Core::String& Payload, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::JWTSign(const std::string_view& Alg, const std::string_view& Payload, const PrivateKey& Key)
 		{
 			Digest Hash = nullptr;
 			if (Alg == "HS256")
@@ -8755,10 +8711,10 @@ namespace Vitex
 				return CryptoException(-1, "jwt:algorithm_error");
 
 			Core::String Header;
-			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size) { Header.append(Buffer, Size); });
+			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const std::string_view& Buffer) { Header.append(Buffer); });
 
 			Core::String Payload;
-			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, size_t Size) { Payload.append(Buffer, Size); });
+			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const std::string_view& Buffer) { Payload.append(Buffer); });
 
 			Core::String Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
 			auto Signature = JWTSign(Alg, Data, Key);
@@ -8768,7 +8724,7 @@ namespace Vitex
 			Src->Signature = *Signature;
 			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
 		}
-		ExpectsCrypto<WebToken*> Crypto::JWTDecode(const Core::String& Value, const PrivateKey& Key)
+		ExpectsCrypto<WebToken*> Crypto::JWTDecode(const std::string_view& Value, const PrivateKey& Key)
 		{
 			Core::Vector<Core::String> Source = Core::Stringify::Split(Value, '.');
 			if (Source.size() != 3)
@@ -8776,38 +8732,31 @@ namespace Vitex
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Codec::Base64URLDecode(Source[0]);
-			auto Header = Core::Schema::ConvertFromJSON(Source[0].c_str(), Source[0].size());
+			Core::UPtr<Core::Schema> Header = Core::Schema::ConvertFromJSON(Source[0]).Or(nullptr);
 			if (!Header)
 				return CryptoException(-3, "jwt:header_parser_error");
 
 			Source[1] = Codec::Base64URLDecode(Source[1]);
-			auto Payload = Core::Schema::ConvertFromJSON(Source[1].c_str(), Source[1].size());
+			Core::UPtr<Core::Schema> Payload = Core::Schema::ConvertFromJSON(Source[1]).Or(nullptr);
 			if (!Payload)
-			{
-				VI_RELEASE(Header);
 				return CryptoException(-4, "jwt:payload_parser_error");
-			}
 
 			Source[0] = Header->GetVar("alg").GetBlob();
 			auto Signature = JWTSign(Source[0], Value.substr(0, Offset), Key);
 			if (!Signature || Codec::Base64URLEncode(*Signature) != Source[2])
-			{
-				VI_RELEASE(Header);
 				return CryptoException(-5, "jwt:signature_error");
-			}
 
 			WebToken* Result = new WebToken();
 			Result->Signature = Codec::Base64URLDecode(Source[2]);
-			Result->Header = *Header;
-			Result->Payload = *Payload;
-
+			Result->Header = Header.Reset();
+			Result->Payload = Payload.Reset();
 			return Result;
 		}
 		ExpectsCrypto<Core::String> Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(Src != nullptr, "schema should be set");
 			Core::String Result;
-			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size) { Result.append(Buffer, Size); });
+			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const std::string_view& Buffer) { Result.append(Buffer); });
 
 			auto Data = Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt);
 			if (!Data)
@@ -8816,7 +8765,7 @@ namespace Vitex
 			Result = Codec::Bep45Encode(*Data);
 			return Result;
 		}
-		ExpectsCrypto<Core::Schema*> Crypto::DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		ExpectsCrypto<Core::Schema*> Crypto::DocDecrypt(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			VI_ASSERT(!Value.empty(), "value should not be empty");
 			if (Value.empty())
@@ -8826,7 +8775,7 @@ namespace Vitex
 			if (!Source)
 				return Source.Error();
 
-			auto Result = Core::Schema::ConvertFromJSON(Source->c_str(), Source->size());
+			auto Result = Core::Schema::ConvertFromJSON(*Source);
 			if (!Result)
 				return CryptoException(-7, "doc:payload_parser_error");
 
@@ -8856,16 +8805,16 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
 			}
 
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
-			unsigned char InBuffer[Core::CHUNK_SIZE], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
+			uint8_t InBuffer[Core::CHUNK_SIZE], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
 			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
-			while ((InBufferSize = From->Read((char*)InBuffer, sizeof(InBuffer)).Or(0)) > 0)
+			while ((InBufferSize = From->Read(InBuffer, sizeof(InBuffer)).Or(0)) > 0)
 			{
 				int OutSize = 0;
 				if (1 != EVP_EncryptUpdate(Context, OutBuffer + TrailingBufferSize, &OutSize, InBuffer, (int)InBufferSize))
@@ -8875,7 +8824,7 @@ namespace Vitex
 				}
 
 			Finalize:
-				char* WriteBuffer = (char*)OutBuffer;
+				uint8_t* WriteBuffer = OutBuffer;
 				size_t WriteBufferSize = (size_t)OutSize + TrailingBufferSize;
 				size_t TrailingOffset = WriteBufferSize % ReadInterval;
 				memcpy(WriteBuffer, TrailingBuffer, TrailingBufferSize);
@@ -8944,18 +8893,18 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
 			}
 
 			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
-			unsigned char InBuffer[Core::CHUNK_SIZE + 1024], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
+			uint8_t InBuffer[Core::CHUNK_SIZE + 1024], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
 			size_t TrailingBufferCapacity = sizeof(TrailingBuffer) - sizeof(TrailingBuffer) % ReadInterval;
-			while ((InBufferSize = From->Read((char*)InBuffer + TrailingBufferSize, sizeof(TrailingBuffer)).Or(0)) > 0)
+			while ((InBufferSize = From->Read(InBuffer + TrailingBufferSize, sizeof(TrailingBuffer)).Or(0)) > 0)
 			{
-				char* ReadBuffer = (char*)InBuffer;
+				uint8_t* ReadBuffer = InBuffer;
 				size_t ReadBufferSize = (size_t)InBufferSize + TrailingBufferSize;
 				size_t TrailingOffset = ReadBufferSize % ReadInterval;
 				memcpy(ReadBuffer, TrailingBuffer, TrailingBufferSize);
@@ -8973,7 +8922,7 @@ namespace Vitex
 					Callback(&ReadBuffer, &ReadBufferSize);
 
 				int OutSize = 0;
-				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, (unsigned char*)ReadBuffer, (int)ReadBufferSize))
+				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, (uint8_t*)ReadBuffer, (int)ReadBufferSize))
 				{
 					EVP_CIPHER_CTX_free(Context);
 					return CryptoException();
@@ -8981,7 +8930,7 @@ namespace Vitex
 
 			Finalize:
 				size_t OutBufferSize = (size_t)OutSize;
-				if (To->Write((char*)OutBuffer, OutBufferSize).Or(0) != OutBufferSize)
+				if (To->Write(OutBuffer, OutBufferSize).Or(0) != OutBufferSize)
 				{
 					EVP_CIPHER_CTX_free(Context);
 					return CryptoException();
@@ -9010,12 +8959,12 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		unsigned char Crypto::RandomUC()
+		uint8_t Crypto::RandomUC()
 		{
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			return Alphabet[(size_t)(Random() % (sizeof(Alphabet) - 1))];
 		}
-		uint64_t Crypto::CRC32(const Core::String& Data)
+		uint64_t Crypto::CRC32(const std::string_view& Data)
 		{
 			VI_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)Data.size());
 			int64_t Result = 0xFFFFFFFF;
@@ -9024,7 +8973,7 @@ namespace Vitex
 			int64_t Offset = 0;
 			size_t Index = 0;
 
-			while (Data[Index] != 0)
+			while (Index < Data.size())
 			{
 				Byte = Data[Index];
 				Result = Result ^ Byte;
@@ -9046,7 +8995,7 @@ namespace Vitex
 			if (Min > Max)
 				return Raw;
 #ifdef VI_OPENSSL
-			if (RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t)) != 1)
+			if (RAND_bytes((uint8_t*)&Raw, sizeof(uint64_t)) != 1)
 			{
 				ERR_clear_error();
 				Raw = Random();
@@ -9064,25 +9013,25 @@ namespace Vitex
 
 			return Range(Engine);
 		}
-		void Crypto::Sha1CollapseBufferBlock(unsigned int* Buffer)
+		void Crypto::Sha1CollapseBufferBlock(uint32_t* Buffer)
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer should be set");
 			for (int i = 16; --i >= 0;)
 				Buffer[i] = 0;
 		}
-		void Crypto::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
+		void Crypto::Sha1ComputeHashBlock(uint32_t* Result, uint32_t* W)
 		{
 			VI_ASSERT(Result != nullptr, "result should be set");
 			VI_ASSERT(W != nullptr, "salt should be set");
-			unsigned int A = Result[0];
-			unsigned int B = Result[1];
-			unsigned int C = Result[2];
-			unsigned int D = Result[3];
-			unsigned int E = Result[4];
+			uint32_t A = Result[0];
+			uint32_t B = Result[1];
+			uint32_t C = Result[2];
+			uint32_t D = Result[3];
+			uint32_t E = Result[4];
 			int R = 0;
 
 #define Sha1Roll(A1, A2) (((A1) << (A2)) | ((A1) >> (32 - (A2))))
-#define Sha1Make(F, V) {const unsigned int T = Sha1Roll(A, 5) + (F) + E + V + W[R]; E = D; D = C; C = Sha1Roll(B, 30); B = A; A = T; R++;}
+#define Sha1Make(F, V) {const uint32_t T = Sha1Roll(A, 5) + (F) + E + V + W[R]; E = D; D = C; C = Sha1Roll(B, 30); B = A; A = T; R++;}
 
 			while (R < 16)
 				Sha1Make((B & C) | (~B & D), 0x5a827999);
@@ -9125,9 +9074,9 @@ namespace Vitex
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Hash20 != nullptr, "hash of size 20 should be set");
 
-			unsigned int Result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
-			const unsigned char* ValueCUC = (const unsigned char*)Value;
-			unsigned int W[80];
+			uint32_t Result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
+			const uint8_t* ValueCUC = (const uint8_t*)Value;
+			uint32_t W[80];
 
 			const int EndOfFullBlocks = Length - 64;
 			int EndCurrentBlock, CurrentBlock = 0;
@@ -9136,7 +9085,7 @@ namespace Vitex
 			{
 				EndCurrentBlock = CurrentBlock + 64;
 				for (int i = 0; CurrentBlock < EndCurrentBlock; CurrentBlock += 4)
-					W[i++] = (unsigned int)ValueCUC[CurrentBlock + 3] | (((unsigned int)ValueCUC[CurrentBlock + 2]) << 8) | (((unsigned int)ValueCUC[CurrentBlock + 1]) << 16) | (((unsigned int)ValueCUC[CurrentBlock]) << 24);
+					W[i++] = (uint32_t)ValueCUC[CurrentBlock + 3] | (((uint32_t)ValueCUC[CurrentBlock + 2]) << 8) | (((uint32_t)ValueCUC[CurrentBlock + 1]) << 16) | (((uint32_t)ValueCUC[CurrentBlock]) << 24);
 				Sha1ComputeHashBlock(Result, W);
 			}
 
@@ -9145,7 +9094,7 @@ namespace Vitex
 
 			int LastBlockBytes = 0;
 			for (; LastBlockBytes < EndCurrentBlock; LastBlockBytes++)
-				W[LastBlockBytes >> 2] |= (unsigned int)ValueCUC[LastBlockBytes + CurrentBlock] << ((3 - (LastBlockBytes & 3)) << 3);
+				W[LastBlockBytes >> 2] |= (uint32_t)ValueCUC[LastBlockBytes + CurrentBlock] << ((3 - (LastBlockBytes & 3)) << 3);
 
 			W[LastBlockBytes >> 2] |= 0x80 << ((3 - (LastBlockBytes & 3)) << 3);
 			if (EndCurrentBlock >= 56)
@@ -9179,7 +9128,7 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
 			{
-				while (Size > 0 && std::isspace(Core::Stringify::Literal(Message[Size - 1])))
+				while (Size > 0 && Core::Stringify::IsWhitespace(Message[Size - 1]))
 					--Size;
 				VI_ERR("[openssl] %.*s", (int)Size, Message);
 				return 0;
@@ -9187,7 +9136,7 @@ namespace Vitex
 #endif
 		}
 
-		Core::String Codec::Move(const Core::String& Text, int Offset)
+		Core::String Codec::Move(const std::string_view& Text, int Offset)
 		{
 			Core::String Result;
 			Result.reserve(Text.size());
@@ -9201,15 +9150,15 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding)
+		Core::String Codec::Encode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool Padding)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Length > 0, "length should be greater than zero");
 			VI_TRACE("[codec] %s encode-64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
 
 			Core::String Result;
-			unsigned char Row3[3];
-			unsigned char Row4[4];
+			uint8_t Row3[3];
+			uint8_t Row4[4];
 			uint32_t Offset = 0, Step = 0;
 
 			while (Length--)
@@ -9251,7 +9200,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char))
+		Core::String Codec::Decode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool(*IsAlphabetic)(uint8_t))
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(IsAlphabetic != nullptr, "callback should be set");
@@ -9259,8 +9208,8 @@ namespace Vitex
 			VI_TRACE("[codec] decode-64 %" PRIu64 " bytes", (uint64_t)Length);
 
 			Core::String Result;
-			unsigned char Row4[4];
-			unsigned char Row3[3];
+			uint8_t Row4[4];
+			uint8_t Row3[3];
 			uint32_t Offset = 0, Step = 0;
 			uint32_t Focus = 0;
 
@@ -9271,7 +9220,7 @@ namespace Vitex
 					continue;
 
 				for (Offset = 0; Offset < 4; Offset++)
-					Row4[Offset] = (unsigned char)OffsetOf64(Alphabet, Row4[Offset]);
+					Row4[Offset] = (uint8_t)OffsetOf64(Alphabet, Row4[Offset]);
 
 				Row3[0] = (Row4[0] << 2) + ((Row4[1] & 0x30) >> 4);
 				Row3[1] = ((Row4[1] & 0xf) << 4) + ((Row4[2] & 0x3c) >> 2);
@@ -9290,7 +9239,7 @@ namespace Vitex
 				Row4[Step] = 0;
 
 			for (Step = 0; Step < 4; Step++)
-				Row4[Step] = (unsigned char)OffsetOf64(Alphabet, Row4[Step]);
+				Row4[Step] = (uint8_t)OffsetOf64(Alphabet, Row4[Step]);
 
 			Row3[0] = (Row4[0] << 2) + ((Row4[1] & 0x30) >> 4);
 			Row3[1] = ((Row4[1] & 0xf) << 4) + ((Row4[2] & 0x3c) >> 2);
@@ -9301,7 +9250,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Bep45Encode(const Core::String& Data)
+		Core::String Codec::Bep45Encode(const std::string_view& Data)
 		{
 			static const char From[] = " $%*+-./:";
 			static const char To[] = "abcdefghi";
@@ -9312,7 +9261,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Bep45Decode(const Core::String& Data)
+		Core::String Codec::Bep45Decode(const std::string_view& Data)
 		{
 			static const char From[] = "abcdefghi";
 			static const char To[] = " $%*+-./:";
@@ -9323,7 +9272,7 @@ namespace Vitex
 
 			return Base45Decode(Result);
 		}
-		Core::String Codec::Base32Encode(const Core::String& Value)
+		Core::String Codec::Base32Encode(const std::string_view& Value)
 		{
 			static const char Alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 			Core::String Result;
@@ -9358,7 +9307,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Base32Decode(const Core::String& Value)
+		Core::String Codec::Base32Decode(const std::string_view& Value)
 		{
 			Core::String Result;
 			Result.reserve(Value.size());
@@ -9395,7 +9344,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Base45Encode(const Core::String& Data)
+		Core::String Codec::Base45Encode(const std::string_view& Data)
 		{
 			VI_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)Data.size());
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
@@ -9408,11 +9357,11 @@ namespace Vitex
 				if (Size - i > 1)
 				{
 					int x = ((uint8_t)(Data[i]) << 8) + (uint8_t)Data[i + 1];
-					unsigned char e = x / (45 * 45);
+					uint8_t e = x / (45 * 45);
 					x %= 45 * 45;
 
-					unsigned char d = x / 45;
-					unsigned char c = x % 45;
+					uint8_t d = x / 45;
+					uint8_t c = x % 45;
 					Result += Alphabet[c];
 					Result += Alphabet[d];
 					Result += Alphabet[e];
@@ -9420,8 +9369,8 @@ namespace Vitex
 				else
 				{
 					int x = (uint8_t)Data[i];
-					unsigned char d = x / 45;
-					unsigned char c = x % 45;
+					uint8_t d = x / 45;
+					uint8_t c = x % 45;
 
 					Result += Alphabet[c];
 					Result += Alphabet[d];
@@ -9430,10 +9379,10 @@ namespace Vitex
 
 			return Result;
 		}
-		Core::String Codec::Base45Decode(const Core::String& Data)
+		Core::String Codec::Base45Decode(const std::string_view& Data)
 		{
 			VI_TRACE("[codec] base45 decode %" PRIu64 " bytes", (uint64_t)Data.size());
-			static unsigned char CharToInt[256] =
+			static uint8_t CharToInt[256] =
 			{
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -9463,13 +9412,13 @@ namespace Vitex
 				if (Size - i < 2)
 					break;
 
-				if ((255 == (a = (char)CharToInt[(unsigned char)Data[i]])) || (255 == (b = (char)CharToInt[(unsigned char)Data[i + 1]])))
+				if ((255 == (a = (char)CharToInt[(uint8_t)Data[i]])) || (255 == (b = (char)CharToInt[(uint8_t)Data[i + 1]])))
 					break;
 
 				x = a + 45 * b;
 				if (Size - i >= 3)
 				{
-					if (255 == (a = (char)CharToInt[(unsigned char)Data[i + 2]]))
+					if (255 == (a = (char)CharToInt[(uint8_t)Data[i + 2]]))
 						break;
 
 					x += a * 45 * 45;
@@ -9482,47 +9431,31 @@ namespace Vitex
 
 			return Core::String(Result.c_str(), Offset);
 		}
-		Core::String Codec::Base64Encode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64Encode(const std::string_view& Value)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			return Encode64(Set, Value, Length, true);
+			return Encode64(Set, (uint8_t*)Value.data(), Value.size(), true);
 		}
-		Core::String Codec::Base64Encode(const Core::String& Value)
-		{
-			return Base64Encode((const unsigned char*)Value.c_str(), Value.size());
-		}
-		Core::String Codec::Base64Decode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64Decode(const std::string_view& Value)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			return Decode64(Set, Value, Length, IsBase64);
+			return Decode64(Set, (uint8_t*)Value.data(), Value.size(), IsBase64);
 		}
-		Core::String Codec::Base64Decode(const Core::String& Value)
-		{
-			return Base64Decode((const unsigned char*)Value.c_str(), Value.size());
-		}
-		Core::String Codec::Base64URLEncode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64URLEncode(const std::string_view& Value)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-			return Encode64(Set, Value, Length, false);
+			return Encode64(Set, (uint8_t*)Value.data(), Value.size(), false);
 		}
-		Core::String Codec::Base64URLEncode(const Core::String& Value)
-		{
-			return Base64URLEncode((const unsigned char*)Value.c_str(), Value.size());
-		}
-		Core::String Codec::Base64URLDecode(const unsigned char* Value, size_t Length)
+		Core::String Codec::Base64URLDecode(const std::string_view& Value)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-			size_t Padding = Length % 4;
+			size_t Padding = Value.size() % 4;
 			if (Padding == 0)
-				return Decode64(Set, Value, Length, IsBase64URL);
+				return Decode64(Set, (uint8_t*)Value.data(), Value.size(), IsBase64URL);
 
-			Core::String Padded((const char*)Value, Length);
+			Core::String Padded = Core::String(Value);
 			Padded.append(4 - Padding, '=');
-			return Decode64(Set, (const unsigned char*)Padded.c_str(), Padded.size(), IsBase64URL);
-		}
-		Core::String Codec::Base64URLDecode(const Core::String& Value)
-		{
-			return Base64URLDecode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+			return Decode64(Set, (uint8_t*)Padded.c_str(), Padded.size(), IsBase64URL);
 		}
 		Core::String Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
 		{
@@ -9542,7 +9475,7 @@ namespace Vitex
 
 			return Result;
 		}
-		ExpectsCompression<Core::String> Codec::Compress(const Core::String& Data, Compression Type)
+		ExpectsCompression<Core::String> Codec::Compress(const std::string_view& Data, Compression Type)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
@@ -9550,22 +9483,22 @@ namespace Vitex
 				return CompressionException(Z_DATA_ERROR, "empty input buffer");
 
 			uLongf Size = compressBound((uLong)Data.size());
-			Bytef* Buffer = VI_MALLOC(Bytef, Size);
+			Bytef* Buffer = Core::Memory::Allocate<Bytef>(Size);
 			int Code = compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type);
 			if (Code != Z_OK)
 			{
-				VI_FREE(Buffer);
+				Core::Memory::Deallocate(Buffer);
 				return CompressionException(Code, "buffer compression using comress2 error");
 			}
 
 			Core::String Output((char*)Buffer, (size_t)Size);
-			VI_FREE(Buffer);
+			Core::Memory::Deallocate(Buffer);
 			return Output;
 #else
 			return CompressionException(-1, "unsupported");
 #endif
 		}
-		ExpectsCompression<Core::String> Codec::Decompress(const Core::String& Data)
+		ExpectsCompression<Core::String> Codec::Decompress(const std::string_view& Data)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
@@ -9577,22 +9510,22 @@ namespace Vitex
 			while (true)
 			{
 				uLongf Size = TotalSize, FinalSize = SourceSize;
-				Bytef* Buffer = VI_MALLOC(Bytef, Size);
+				Bytef* Buffer = Core::Memory::Allocate<Bytef>(Size);
 				int Code = uncompress2(Buffer, &Size, (const Bytef*)Data.data(), &FinalSize);
 				if (Code == Z_MEM_ERROR || Code == Z_BUF_ERROR)
 				{
-					VI_FREE(Buffer);
+					Core::Memory::Deallocate(Buffer);
 					TotalSize += SourceSize;
 					continue;
 				}
 				else if (Code != Z_OK)
 				{
-					VI_FREE(Buffer);
+					Core::Memory::Deallocate(Buffer);
 					return CompressionException(Code, "buffer decompression using uncomress2 error");
 				}
 
 				Core::String Output((char*)Buffer, (size_t)Size);
-				VI_FREE(Buffer);
+				Core::Memory::Deallocate(Buffer);
 				return Output;
 			}
 
@@ -9601,21 +9534,19 @@ namespace Vitex
 			return CompressionException(-1, "unsupported");
 #endif
 		}
-		Core::String Codec::HexEncodeOdd(const char* Value, size_t Size, bool UpperCase)
+		Core::String Codec::HexEncodeOdd(const std::string_view& Value, bool UpperCase)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Size > 0, "length should be greater than zero");
-			VI_TRACE("[codec] hex encode odd %" PRIu64 " bytes", (uint64_t)Size);
+			VI_TRACE("[codec] hex encode odd %" PRIu64 " bytes", (uint64_t)Value.size());
 			static const char HexLowerCase[17] = "0123456789abcdef";
 			static const char HexUpperCase[17] = "0123456789ABCDEF";
 
 			Core::String Output;
-			Output.reserve(Size * 2);
+			Output.reserve(Value * 2);
 
 			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
-			for (size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < Value.size(); i++)
 			{
-				unsigned char C = static_cast<unsigned char>(Value[i]);
+				uint8_t C = static_cast<uint8_t>(Value[i]);
 				if (C >= 16)
 					Output += Hex[C >> 4];
 				Output += Hex[C & 0xf];
@@ -9623,111 +9554,84 @@ namespace Vitex
 
 			return Output;
 		}
-		Core::String Codec::HexEncodeOdd(const Core::String& Value, bool UpperCase)
+		Core::String Codec::HexEncode(const std::string_view& Value, bool UpperCase)
 		{
-			return HexEncodeOdd(Value.c_str(), Value.size(), UpperCase);
-		}
-		Core::String Codec::HexEncode(const char* Value, size_t Size, bool UpperCase)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Size > 0, "length should be greater than zero");
-			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Size);
+			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Value.size());
 			static const char HexLowerCase[17] = "0123456789abcdef";
 			static const char HexUpperCase[17] = "0123456789ABCDEF";
+			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
 
 			Core::String Output;
-			Output.reserve(Size * 2);
+			Output.reserve(Value.size() * 2);
 
-			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
-			for (size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < Value.size(); i++)
 			{
-				unsigned char C = static_cast<unsigned char>(Value[i]);
+				uint8_t C = static_cast<uint8_t>(Value[i]);
 				Output += Hex[C >> 4];
 				Output += Hex[C & 0xf];
 			}
 
 			return Output;
 		}
-		Core::String Codec::HexEncode(const Core::String& Value, bool UpperCase)
+		Core::String Codec::HexDecode(const std::string_view& Value)
 		{
-			return HexEncode(Value.c_str(), Value.size(), UpperCase);
-		}
-		Core::String Codec::HexDecode(const char* Value, size_t Size)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Size > 0, "length should be greater than zero");
-			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Size);
-
+			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Value.size());
 			size_t Offset = 0;
-			if (Size >= 2 && Value[0] == '0' && Value[1] == 'x')
+			if (Value.size() >= 2 && Value[0] == '0' && Value[1] == 'x')
 				Offset = 2;
 
 			Core::String Output;
-			Output.reserve(Size / 2);
+			Output.reserve(Value.size() / 2);
+			if (Value.size() - Offset < 2)
+				return Output;
 
 			char Hex[3] = { 0, 0, 0 };
-			for (size_t i = Offset; i < Size; i += 2)
+			for (size_t i = Offset; i < Value.size(); i += 2)
 			{
-				memcpy(Hex, Value + i, sizeof(char) * 2);
+				memcpy(Hex, Value.data() + i, sizeof(char) * 2);
 				Output.push_back((char)(int)strtol(Hex, nullptr, 16));
 			}
 
 			return Output;
 		}
-		Core::String Codec::HexDecode(const Core::String& Value)
+		Core::String Codec::URLEncode(const std::string_view& Text)
 		{
-			return HexDecode(Value.c_str(), Value.size());
-		}
-		Core::String Codec::URLEncode(const Core::String& Text)
-		{
-			return URLEncode(Text.c_str(), Text.size());
-		}
-		Core::String Codec::URLEncode(const char* Text, size_t Length)
-		{
-			VI_ASSERT(Text != nullptr, "text should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Length);
-
+			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Text.size());
 			static const char* Unescape = "._-$,;~()";
 			static const char* Hex = "0123456789abcdef";
 
 			Core::String Value;
-			Value.reserve(Length);
+			Value.reserve(Text.size());
 
-			while (*Text != '\0')
+			size_t Offset = 0;
+			while (Offset < Text.size())
 			{
-				if (!isalnum(*(const unsigned char*)Text) && !strchr(Unescape, *(const unsigned char*)Text))
+				uint8_t V = Text[Offset++];
+				if (!isalnum(V) && !strchr(Unescape, V))
 				{
 					Value += '%';
-					Value += (Hex[(*(const unsigned char*)Text) >> 4]);
-					Value += (Hex[(*(const unsigned char*)Text) & 0xf]);
+					Value += (Hex[V >> 4]);
+					Value += (Hex[V & 0xf]);
 				}
 				else
-					Value += *Text;
-
-				Text++;
+					Value += V;
 			}
 
 			return Value;
 		}
-		Core::String Codec::URLDecode(const Core::String& Text)
+		Core::String Codec::URLDecode(const std::string_view& Text)
 		{
-			return URLDecode(Text.c_str(), Text.size());
-		}
-		Core::String Codec::URLDecode(const char* Text, size_t Length)
-		{
-			VI_ASSERT(Text != nullptr, "text should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Length);
-
+			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Text.size());
 			Core::String Value;
+			uint8_t* Data = (uint8_t*)Text.data();
+			size_t Size = Text.size();
 			size_t i = 0;
 
-			while (i < Length)
+			while (i < Size)
 			{
-				if (Length >= 2 && i < Length - 2 && Text[i] == '%' && isxdigit(*(const unsigned char*)(Text + i + 1)) && isxdigit(*(const unsigned char*)(Text + i + 2)))
+				if (Size >= 2 && i < Size - 2 && Text[i] == '%' && isxdigit(*(Data + i + 1)) && isxdigit(*(Data + i + 2)))
 				{
-					int A = tolower(*(const unsigned char*)(Text + i + 1)), B = tolower(*(const unsigned char*)(Text + i + 2));
+					int A = tolower(*(Data + i + 1)), B = tolower(*(Data + i + 2));
 					Value += (char)(((isdigit(A) ? (A - '0') : (A - 'W')) << 4) | (isdigit(B) ? (B - '0') : (B - 'W')));
 					i += 2;
 				}
@@ -9741,7 +9645,7 @@ namespace Vitex
 
 			return Value;
 		}
-		Core::String Codec::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
+		Core::String Codec::Base10ToBaseN(uint64_t Value, uint32_t BaseLessThan65)
 		{
 			VI_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, "base should be between 1 and 64");
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
@@ -9836,26 +9740,27 @@ namespace Vitex
 
 			return false;
 		}
-		bool Codec::HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength)
+		bool Codec::HexToString(const std::string_view& Data, char* Buffer, size_t BufferLength)
 		{
-			VI_ASSERT(Data != nullptr && Length > 0, "data buffer should be set");
 			VI_ASSERT(Buffer != nullptr && BufferLength > 0, "buffer should be set");
-			VI_ASSERT(BufferLength >= (3 * Length), "buffer is too small");
+			VI_ASSERT(BufferLength >= (3 * Data.size()), "buffer is too small");
+			if (Data.empty())
+				return false;
 
 			static const char HEX[] = "0123456789abcdef";
-			for (size_t i = 0; i < Length; i++)
+			uint8_t* Value = (uint8_t*)Data.data();
+			for (size_t i = 0; i < Data.size(); i++)
 			{
 				if (i > 0)
 					Buffer[3 * i - 1] = ' ';
-
-				Buffer[3 * i] = HEX[(((uint8_t*)Data)[i] >> 4) & 0xF];
-				Buffer[3 * i + 1] = HEX[((uint8_t*)Data)[i] & 0xF];
+				Buffer[3 * i] = HEX[(Value[i] >> 4) & 0xF];
+				Buffer[3 * i + 1] = HEX[Value[i] & 0xF];
 			}
 
-			Buffer[3 * Length - 1] = 0;
+			Buffer[3 * Data.size() - 1] = 0;
 			return true;
 		}
-		bool Codec::HexToDecimal(const Core::String& Text, size_t Index, size_t Count, int& Value)
+		bool Codec::HexToDecimal(const std::string_view& Text, size_t Index, size_t Count, int& Value)
 		{
 			VI_ASSERT(Index < Text.size(), "index outside of range");
 
@@ -9874,11 +9779,11 @@ namespace Vitex
 
 			return true;
 		}
-		bool Codec::IsBase64(unsigned char Value)
+		bool Codec::IsBase64(uint8_t Value)
 		{
 			return (isalnum(Value) || (Value == '+') || (Value == '/'));
 		}
-		bool Codec::IsBase64URL(unsigned char Value)
+		bool Codec::IsBase64URL(uint8_t Value)
 		{
 			return (isalnum(Value) || (Value == '-') || (Value == '_'));
 		}
@@ -10152,14 +10057,14 @@ namespace Vitex
 		}
         Core::Vector<int> Geometric::CreateTriangleStrip(TriangleStrip::Desc& Desc, const Core::Vector<int>& Indices)
 		{
-			Core::Vector<unsigned int> Src;
+			Core::Vector<uint32_t> Src;
 			Src.reserve(Indices.size());
 
 			for (auto& Index : Indices)
-				Src.push_back((unsigned int)Index);
+				Src.push_back((uint32_t)Index);
 
 			Desc.Faces = Src.data();
-			Desc.NbFaces = (unsigned int)Src.size() / 3;
+			Desc.NbFaces = (uint32_t)Src.size() / 3;
 
 			TriangleStrip Strip;
 			if (!Strip.Fill(Desc))
@@ -10268,7 +10173,7 @@ namespace Vitex
 		WebToken::WebToken() noexcept : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
 		}
-		WebToken::WebToken(const Core::String& Issuer, const Core::String& Subject, int64_t Expiration) noexcept : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
+		WebToken::WebToken(const std::string_view& Issuer, const std::string_view& Subject, int64_t Expiration) noexcept : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
 		{
 			Header->Set("alg", Core::Var::String("HS256"));
 			Header->Set("typ", Core::Var::String("JWT"));
@@ -10278,16 +10183,16 @@ namespace Vitex
 		}
 		WebToken::~WebToken() noexcept
 		{
-			VI_CLEAR(Header);
-			VI_CLEAR(Payload);
-			VI_CLEAR(Token);
+			Core::Memory::Release(Header);
+			Core::Memory::Release(Payload);
+			Core::Memory::Release(Token);
 		}
 		void WebToken::Unsign()
 		{
 			Signature.clear();
 			Data.clear();
 		}
-		void WebToken::SetAlgorithm(const Core::String& Value)
+		void WebToken::SetAlgorithm(const std::string_view& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
@@ -10295,7 +10200,7 @@ namespace Vitex
 			Header->Set("alg", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetType(const Core::String& Value)
+		void WebToken::SetType(const std::string_view& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
@@ -10303,7 +10208,7 @@ namespace Vitex
 			Header->Set("typ", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetContentType(const Core::String& Value)
+		void WebToken::SetContentType(const std::string_view& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
@@ -10311,7 +10216,7 @@ namespace Vitex
 			Header->Set("cty", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetIssuer(const Core::String& Value)
+		void WebToken::SetIssuer(const std::string_view& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
@@ -10319,7 +10224,7 @@ namespace Vitex
 			Payload->Set("iss", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetSubject(const Core::String& Value)
+		void WebToken::SetSubject(const std::string_view& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
@@ -10327,7 +10232,7 @@ namespace Vitex
 			Payload->Set("sub", Core::Var::String(Value));
 			Unsign();
 		}
-		void WebToken::SetId(const Core::String& Value)
+		void WebToken::SetId(const std::string_view& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
@@ -10371,9 +10276,9 @@ namespace Vitex
 			Payload->Set("iat", Core::Var::Integer(Value));
 			Unsign();
 		}
-		void WebToken::SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		void WebToken::SetRefreshToken(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
-			VI_RELEASE(Token);
+			Core::Memory::Release(Token);
 			auto NewToken = Crypto::DocDecrypt(Value, Key, Salt);
 			if (NewToken)
 			{
@@ -10460,12 +10365,20 @@ namespace Vitex
 		{
 			Pragma = Callback;
 		}
-		void Preprocessor::SetDirectiveCallback(const Core::String& Name, ProcDirectiveCallback&& Callback)
+		void Preprocessor::SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback)
 		{
-			if (Callback)
-				Directives[Name] = std::move(Callback);
+			auto It = Directives.find(Core::HglCast(Name));
+			if (It != Directives.end())
+			{
+				if (Callback)
+					It->second = std::move(Callback);
+				else
+					Directives.erase(It);
+			}
+			else if (Callback)
+				Directives[Core::String(Name)] = std::move(Callback);
 			else
-				Directives.erase(Name);
+				Directives.erase(Core::String(Name));
 		}
 		void Preprocessor::SetFeatures(const Desc& F)
 		{
@@ -10498,22 +10411,21 @@ namespace Vitex
 				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
 			});
 		}
-		ExpectsPreprocessor<void> Preprocessor::Define(const Core::String& Expression)
+		ExpectsPreprocessor<void> Preprocessor::Define(const std::string_view& Expression)
 		{
 			return DefineDynamic(Expression, nullptr);
 		}
-		ExpectsPreprocessor<void> Preprocessor::DefineDynamic(const Core::String& Expression, ProcExpansionCallback&& Callback)
+		ExpectsPreprocessor<void> Preprocessor::DefineDynamic(const std::string_view& Expression, ProcExpansionCallback&& Callback)
 		{
 			if (Expression.empty())
 				return PreprocessorException(PreprocessorError::MacroDefinitionEmpty, 0, ThisFile.Path);
 
-			VI_TRACE("[proc] define %s on 0x%" PRIXPTR, Expression.c_str(), (void*)this);
+			VI_TRACE("[proc] define %.*s on 0x%" PRIXPTR, (int)Expression.size(), Expression.data(), (void*)this);
 			Core::String Name; size_t NameOffset = 0;
 			while (NameOffset < Expression.size())
 			{
 				char V = Expression[NameOffset++];
-				int L = Core::Stringify::Literal(V);
-				if ((!std::isalpha(L) && !std::isdigit(L) && V != '_'))
+				if (V != '_' && !Core::Stringify::IsAlphanum(V))
 				{
 					Name = Expression.substr(0, --NameOffset);
 					break;
@@ -10547,7 +10459,7 @@ namespace Vitex
 				else if (Pose > 1)
 					return PreprocessorException(PreprocessorError::MacroParenthesisNotClosed, 0, Expression);
 
-				Core::String Template = Expression.substr(0, TemplateEnd);
+				Core::String Template = Core::String(Expression.substr(0, TemplateEnd));
 				Core::Stringify::Trim(Template);
 
 				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
@@ -10576,10 +10488,12 @@ namespace Vitex
 			Defines[Name] = std::move(Data);
 			return Core::Expectation::Met;
 		}
-		void Preprocessor::Undefine(const Core::String& Name)
+		void Preprocessor::Undefine(const std::string_view& Name)
 		{
-			VI_TRACE("[proc] undefine %s on 0x%" PRIXPTR, Name.c_str(), (void*)this);
-			Defines.erase(Name);
+			VI_TRACE("[proc] undefine %.*s on 0x%" PRIXPTR, (int)Name.size(), Name.data(), (void*)this);
+			auto It = Defines.find(Core::HglCast(Name));
+			if (It != Defines.end())
+				Defines.erase(It);
 		}
 		void Preprocessor::Clear()
 		{
@@ -10588,21 +10502,21 @@ namespace Vitex
 			ThisFile.Path.clear();
 			ThisFile.Line = 0;
 		}
-		bool Preprocessor::IsDefined(const Core::String& Name) const
+		bool Preprocessor::IsDefined(const std::string_view& Name) const
 		{
-			bool Exists = Defines.count(Name) > 0;
-			VI_TRACE("[proc] ifdef %s on 0x%: %s" PRIXPTR, Name.c_str(), (void*)this, Exists ? "yes" : "no");
+			bool Exists = Defines.count(Core::HglCast(Name)) > 0;
+			VI_TRACE("[proc] ifdef %.*s on 0x%: %s" PRIXPTR, (int)Name.size(), Name.data(), (void*)this, Exists ? "yes" : "no");
 			return Exists;
 		}
-		bool Preprocessor::IsDefined(const Core::String& Name, const Core::String& Value) const
+		bool Preprocessor::IsDefined(const std::string_view& Name, const std::string_view& Value) const
 		{
-			auto It = Defines.find(Name);
+			auto It = Defines.find(Core::HglCast(Name));
 			if (It != Defines.end())
 				return It->second.Expansion == Value;
 
 			return Value.empty();
 		}
-		ExpectsPreprocessor<void> Preprocessor::Process(const Core::String& Path, Core::String& Data)
+		ExpectsPreprocessor<void> Preprocessor::Process(const std::string_view& Path, Core::String& Data)
 		{
 			bool Nesting = SaveResult();
 			if (Data.empty() || !Path.empty() && HasResult(Path))
@@ -10616,7 +10530,7 @@ namespace Vitex
 			ThisFile.Line = 0;
 
 			if (!Path.empty())
-				Sets.insert(Path);
+				Sets.insert(Core::String(Path));
 
 			auto TokensStatus = ConsumeTokens(Path, Data);
 			if (!TokensStatus)
@@ -10649,9 +10563,9 @@ namespace Vitex
 				ThisFile.Line = 0;
 			}
 		}
-		bool Preprocessor::HasResult(const Core::String& Path)
+		bool Preprocessor::HasResult(const std::string_view& Path)
 		{
-			return Sets.count(Path) > 0 && Path != ThisFile.Path;
+			return Path != ThisFile.Path && Sets.count(Core::HglCast(Path)) > 0;
 		}
 		bool Preprocessor::SaveResult()
 		{
@@ -10670,12 +10584,12 @@ namespace Vitex
 			while (Offset < Buffer.size())
 			{
 				char V = Buffer[Offset];
-				if (V == '#' && Offset + 1 < Buffer.size() && !std::isspace(Core::Stringify::Literal(Buffer[Offset + 1])))
+				if (V == '#' && Offset + 1 < Buffer.size() && !Core::Stringify::IsWhitespace(Buffer[Offset + 1]))
 				{
 					Result.Start = Offset;
 					while (Offset < Buffer.size())
 					{
-						if (std::isspace(Core::Stringify::Literal(Buffer[++Offset])))
+						if (Core::Stringify::IsWhitespace(Buffer[++Offset]))
 						{
 							Result.Name = Buffer.substr(Result.Start + 1, Offset - Result.Start - 1);
 							break;
@@ -10770,7 +10684,7 @@ namespace Vitex
 
 			return Next;
 		}
-		size_t Preprocessor::ReplaceToken(ProcDirective& Where, Core::String& Buffer, const Core::String& To)
+		size_t Preprocessor::ReplaceToken(ProcDirective& Where, Core::String& Buffer, const std::string_view& To)
 		{
 			Buffer.replace(Where.Start, Where.End - Where.Start, To);
 			return Where.Start;
@@ -10889,23 +10803,23 @@ namespace Vitex
 
 			return Result;
 		}
-		std::pair<Core::String, Core::String> Preprocessor::GetExpressionParts(const Core::String& Value)
+		std::pair<Core::String, Core::String> Preprocessor::GetExpressionParts(const std::string_view& Value)
 		{
 			size_t Offset = 0;
 			while (Offset < Value.size())
 			{
 				char V = Value[Offset];
-				if (!std::isspace(Core::Stringify::Literal(V)))
+				if (!Core::Stringify::IsWhitespace(V))
 				{
 					++Offset;
 					continue;
 				}
 
 				size_t Count = Offset;
-				while (Offset < Value.size() && std::isspace(Core::Stringify::Literal(Value[++Offset])));
+				while (Offset < Value.size() && Core::Stringify::IsWhitespace(Value[++Offset]));
 
-				Core::String Right = Value.substr(Offset);
-				Core::String Left = Value.substr(0, Count);
+				Core::String Right = Core::String(Value.substr(Offset));
+				Core::String Left = Core::String(Value.substr(0, Count));
 				Core::Stringify::Trim(Right);
 				Core::Stringify::Trim(Left);
 
@@ -10918,7 +10832,7 @@ namespace Vitex
 				return std::make_pair(Left, Right);
 			}
 
-			Core::String Expression = Value;
+			Core::String Expression = Core::String(Value);
 			Core::Stringify::Trim(Expression);
 			return std::make_pair(Expression, Core::String());
 		}
@@ -11112,13 +11026,13 @@ namespace Vitex
 			Buffer.insert(0, Formatter);
 			return Core::Expectation::Met;
 		}
-		ExpectsPreprocessor<void> Preprocessor::ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
+		ExpectsPreprocessor<void> Preprocessor::ParseArguments(const std::string_view& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
 		{
 			size_t Where = Value.find('(');
 			if (Where == Core::String::npos || Value.back() != ')')
 				return PreprocessorException(PreprocessorError::MacroDefinitionError, 0, ThisFile.Path);
 
-			Core::String Data = Value.substr(Where + 1, Value.size() - Where - 2);
+			std::string_view Data = Value.substr(Where + 1, Value.size() - Where - 2);
 			Tokens.emplace_back(std::move(Value.substr(0, Where)));
 			Where = 0;
 
@@ -11144,7 +11058,7 @@ namespace Vitex
 				else if (V == ',' || Where + 1 >= Data.size())
 				{
 				AddValue:
-					Core::String Subvalue = Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last);
+					Core::String Subvalue = Core::String(Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last));
 					Core::Stringify::Trim(Subvalue);
 
 					if (UnpackLiterals && Subvalue.size() >= 2)
@@ -11163,7 +11077,7 @@ namespace Vitex
 
 			return Core::Expectation::Met;
 		}
-		ExpectsPreprocessor<void> Preprocessor::ConsumeTokens(const Core::String& Path, Core::String& Buffer)
+		ExpectsPreprocessor<void> Preprocessor::ConsumeTokens(const std::string_view& Path, Core::String& Buffer)
 		{
 			size_t Offset = 0;
 			while (true)
@@ -11175,7 +11089,7 @@ namespace Vitex
 				if (Next.Name == "include")
 				{
 					if (!Features.Includes)
-						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Path + " << " + Next.Value);
+						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Core::String(Path) + " << " + Next.Value);
 
 					Core::String Subbuffer;
 					FileDesc.Path = Next.Value;
@@ -11190,7 +11104,7 @@ namespace Vitex
 					}
 
 					if (!Include)
-						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Path + " << " + Next.Value);
+						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Core::String(Path) + " << " + Next.Value);
 
 					auto Status = Include(this, File, Subbuffer);
 					if (!Status)
@@ -11219,7 +11133,7 @@ namespace Vitex
 							goto SuccessfulInclude;
 						case IncludeType::Error:
 						default:
-							return PreprocessorException(PreprocessorError::IncludeNotFound, Offset, Path + " << " + Next.Value);
+							return PreprocessorException(PreprocessorError::IncludeNotFound, Offset, Core::String(Path) + " << " + Next.Value);
 					}
 				}
 				else if (Next.Name == "pragma")
@@ -11280,10 +11194,10 @@ namespace Vitex
 
 			return Core::Expectation::Met;
 		}
-		ExpectsPreprocessor<Core::String> Preprocessor::ResolveFile(const Core::String& Path, const Core::String& IncludePath)
+		ExpectsPreprocessor<Core::String> Preprocessor::ResolveFile(const std::string_view& Path, const std::string_view& IncludePath)
 		{
 			if (!Features.Includes)
-				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Path + " << " + IncludePath);
+				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Core::String(Path) + " << " + Core::String(IncludePath));
 
 			FileContext LastFile = ThisFile;
 			ThisFile.Path = Path;
@@ -11304,7 +11218,7 @@ namespace Vitex
 			if (!Include)
 			{
 				ThisFile = LastFile;
-				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Path + " << " + IncludePath);
+				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Core::String(Path) + " << " + Core::String(IncludePath));
 			}
 
 			auto Status = Include(this, File, Subbuffer);
@@ -11339,7 +11253,7 @@ namespace Vitex
 				case IncludeType::Error:
 				default:
 					ThisFile = LastFile;
-					return PreprocessorException(PreprocessorError::IncludeNotFound, 0, Path + " << " + IncludePath);
+					return PreprocessorException(PreprocessorError::IncludeNotFound, 0, Core::String(Path) + " << " + Core::String(IncludePath));
 			}
 		}
 		const Core::String& Preprocessor::GetCurrentFilePath() const
@@ -11494,7 +11408,7 @@ namespace Vitex
 		{
 			SetRoot(nullptr);
 			RemoveChilds();
-			VI_DELETE(Spacing, Local);
+			Core::Memory::Delete(Local);
 		}
 		void Transform::Synchronize()
 		{
@@ -11577,10 +11491,9 @@ namespace Vitex
 		void Transform::Copy(Transform* Target)
 		{
 			VI_ASSERT(Target != nullptr && Target != this, "target should be set");
-			VI_DELETE(Spacing, Local);
-
+			Core::Memory::Delete(Local);
 			if (Target->Root != nullptr)
-				Local = VI_NEW(Spacing, *Target->Local);
+				Local = Core::Memory::New<Spacing>(*Target->Local);
 			else
 				Local = nullptr;
 
@@ -11683,7 +11596,7 @@ namespace Vitex
 		}
 		void Transform::SetPivot(Transform* Parent, Spacing* Pivot)
 		{
-			VI_DELETE(Spacing, Local);
+			Core::Memory::Delete(Local);
 			Root = Parent;
 			Local = Pivot;
 
@@ -11700,7 +11613,7 @@ namespace Vitex
 				Specialize(Global);
 				if (Parent != nullptr)
 				{
-					VI_DELETE(Spacing, Local);
+					Core::Memory::Delete(Local);
 					Local = nullptr;
 				}
 
@@ -11719,7 +11632,7 @@ namespace Vitex
 			{
 				Root->AddChild(this);
 				if (!Local)
-					Local = VI_NEW(Spacing);
+					Local = Core::Memory::New<Spacing>();
 
 				*Local = Global;
 				Localize(*Local);
@@ -12397,7 +12310,7 @@ namespace Vitex
 		HullShape::HullShape(Core::Vector<Vertex>&& NewVertices, Core::Vector<int>&& NewIndices) noexcept : Vertices(std::move(NewVertices)), Indices(std::move(NewIndices)), Shape(nullptr)
 		{
 #ifdef VI_BULLET3
-			Shape = VI_NEW(btConvexHullShape);
+			Shape = Core::Memory::New<btConvexHullShape>();
 			btConvexHullShape* Hull = (btConvexHullShape*)Shape;
 			for (auto& Item : Vertices)
 				Hull->addPoint(btVector3(Item.PositionX, Item.PositionY, Item.PositionZ), false);
@@ -12410,7 +12323,7 @@ namespace Vitex
 		HullShape::HullShape(Core::Vector<Vertex>&& NewVertices) noexcept : Vertices(std::move(NewVertices)), Shape(nullptr)
 		{
 #ifdef VI_BULLET3
-			Shape = VI_NEW(btConvexHullShape);
+			Shape = Core::Memory::New<btConvexHullShape>();
 			btConvexHullShape* Hull = (btConvexHullShape*)Shape;
 			Indices.reserve(Vertices.size());
 
@@ -12431,7 +12344,7 @@ namespace Vitex
 			VI_ASSERT(From != nullptr, "shape should be set");
 			VI_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, "shape type should be convex hull");
 
-			btConvexHullShape* Hull = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Hull = Core::Memory::New<btConvexHullShape>();
 			btConvexHullShape* Base = (btConvexHullShape*)From;
 			Vertices.reserve((size_t)Base->getNumPoints());
 			Indices.reserve((size_t)Base->getNumPoints());
@@ -12452,7 +12365,7 @@ namespace Vitex
 		HullShape::~HullShape() noexcept
 		{
 #ifdef VI_BULLET3
-			VI_DELETE(btCollisionShape, Shape);
+			Core::Memory::Delete(Shape);
 #endif
 		}
 		const Core::Vector<Vertex>& HullShape::GetVertices() const
@@ -12490,8 +12403,8 @@ namespace Vitex
 			Rotation.setEulerZYX(Initial.Rotation.Z, Initial.Rotation.Y, Initial.Rotation.X);
 
 			btTransform BtTransform(Rotation, btVector3(Initial.Position.X, Initial.Position.Y, Initial.Position.Z));
-			btRigidBody::btRigidBodyConstructionInfo Info(Initial.Mass, VI_NEW(btDefaultMotionState, BtTransform), Initial.Shape, LocalInertia);
-			Instance = VI_NEW(btRigidBody, Info);
+			btRigidBody::btRigidBodyConstructionInfo Info(Initial.Mass, Core::Memory::New<btDefaultMotionState>(BtTransform), Initial.Shape, LocalInertia);
+			Instance = Core::Memory::New<btRigidBody>(Info);
 			Instance->setUserPointer(this);
 			Instance->setGravity(Engine->GetWorld()->getGravity());
 
@@ -12542,7 +12455,7 @@ namespace Vitex
 			if (Instance->getMotionState())
 			{
 				btMotionState* Object = Instance->getMotionState();
-				VI_DELETE(btMotionState, Object);
+				Core::Memory::Delete(Object);
 				Instance->setMotionState(nullptr);
 			}
 
@@ -12554,7 +12467,7 @@ namespace Vitex
 			if (Initial.Shape)
 				Engine->FreeShape(&Initial.Shape);
 
-			VI_DELETE(btRigidBody, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		RigidBody* RigidBody::Copy()
@@ -12886,7 +12799,7 @@ namespace Vitex
 #ifdef VI_BULLET3
 			VI_ASSERT(Instance != nullptr, "rigidbody should be initialized");
 			btCollisionShape* Collision = Instance->getCollisionShape();
-			VI_DELETE(btCollisionShape, Collision);
+			Core::Memory::Delete(Collision);
 
 			Instance->setCollisionShape(Shape);
 			if (Transform)
@@ -13353,7 +13266,7 @@ namespace Vitex
 				World->removeSoftBody(Instance);
 
 			Instance->setUserPointer(nullptr);
-			VI_DELETE(btSoftBody, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		SoftBody* SoftBody::Copy()
@@ -13449,7 +13362,7 @@ namespace Vitex
 			for (int i = 0; i < Instance->m_faces.size(); i++)
 			{
 				btSoftBody::Face& Face = Instance->m_faces[i];
-				for (unsigned int j = 0; j < 3; j++)
+				for (uint32_t j = 0; j < 3; j++)
 				{
 					auto It = Nodes.find(Face.m_n[j]);
 					if (It != Nodes.end())
@@ -14314,9 +14227,9 @@ namespace Vitex
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
 
 			if (Second != nullptr)
-				Instance = VI_NEW(btPoint2PointConstraint, *First, *Second, V3_TO_BT(I.PivotA), V3_TO_BT(I.PivotB));
+				Instance = Core::Memory::New<btPoint2PointConstraint>(*First, *Second, V3_TO_BT(I.PivotA), V3_TO_BT(I.PivotB));
 			else
-				Instance = VI_NEW(btPoint2PointConstraint, *First, V3_TO_BT(I.PivotA));
+				Instance = Core::Memory::New<btPoint2PointConstraint>(*First, V3_TO_BT(I.PivotA));
 
 			Instance->setUserConstraintPtr(this);
 			Engine->AddConstraint(this);
@@ -14326,7 +14239,7 @@ namespace Vitex
 		{
 #ifdef VI_BULLET3
 			Engine->RemoveConstraint(this);
-			VI_DELETE(btPoint2PointConstraint, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		Constraint* PConstraint::Copy() const
@@ -14403,9 +14316,9 @@ namespace Vitex
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
 
 			if (Second != nullptr)
-				Instance = VI_NEW(btHingeConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.References);
+				Instance = Core::Memory::New<btHingeConstraint>(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.References);
 			else
-				Instance = VI_NEW(btHingeConstraint, *First, btTransform::getIdentity(), I.References);
+				Instance = Core::Memory::New<btHingeConstraint>(*First, btTransform::getIdentity(), I.References);
 
 			Instance->setUserConstraintPtr(this);
 			Engine->AddConstraint(this);
@@ -14415,7 +14328,7 @@ namespace Vitex
 		{
 #ifdef VI_BULLET3
 			Engine->RemoveConstraint(this);
-			VI_DELETE(btHingeConstraint, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		Constraint* HConstraint::Copy() const
@@ -14687,9 +14600,9 @@ namespace Vitex
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
 
 			if (Second != nullptr)
-				Instance = VI_NEW(btSliderConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.Linear);
+				Instance = Core::Memory::New<btSliderConstraint>(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.Linear);
 			else
-				Instance = VI_NEW(btSliderConstraint, *First, btTransform::getIdentity(), I.Linear);
+				Instance = Core::Memory::New<btSliderConstraint>(*First, btTransform::getIdentity(), I.Linear);
 
 			Instance->setUserConstraintPtr(this);
 			Engine->AddConstraint(this);
@@ -14699,7 +14612,7 @@ namespace Vitex
 		{
 #ifdef VI_BULLET3
 			Engine->RemoveConstraint(this);
-			VI_DELETE(btSliderConstraint, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		Constraint* SConstraint::Copy() const
@@ -15214,9 +15127,9 @@ namespace Vitex
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
 
 			if (Second != nullptr)
-				Instance = VI_NEW(btConeTwistConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity());
+				Instance = Core::Memory::New<btConeTwistConstraint>(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity());
 			else
-				Instance = VI_NEW(btConeTwistConstraint, *First, btTransform::getIdentity());
+				Instance = Core::Memory::New<btConeTwistConstraint>(*First, btTransform::getIdentity());
 
 			Instance->setUserConstraintPtr(this);
 			Engine->AddConstraint(this);
@@ -15226,7 +15139,7 @@ namespace Vitex
 		{
 #ifdef VI_BULLET3
 			Engine->RemoveConstraint(this);
-			VI_DELETE(btConeTwistConstraint, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		Constraint* CTConstraint::Copy() const
@@ -15535,9 +15448,9 @@ namespace Vitex
 			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
 
 			if (Second != nullptr)
-				Instance = VI_NEW(btGeneric6DofSpring2Constraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity());
+				Instance = Core::Memory::New<btGeneric6DofSpring2Constraint>(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity());
 			else
-				Instance = VI_NEW(btGeneric6DofSpring2Constraint, *First, btTransform::getIdentity());
+				Instance = Core::Memory::New<btGeneric6DofSpring2Constraint>(*First, btTransform::getIdentity());
 
 			Instance->setUserConstraintPtr(this);
 			Engine->AddConstraint(this);
@@ -15547,7 +15460,7 @@ namespace Vitex
 		{
 #ifdef VI_BULLET3
 			Engine->RemoveConstraint(this);
-			VI_DELETE(btGeneric6DofSpring2Constraint, Instance);
+			Core::Memory::Delete(Instance);
 #endif
 		}
 		Constraint* DF6Constraint::Copy() const
@@ -15851,16 +15764,15 @@ namespace Vitex
 		Simulator::Simulator(const Desc& I) noexcept : SoftSolver(nullptr), Speedup(1.0f), Active(true)
 		{
 #ifdef VI_BULLET3
-			Broadphase = VI_NEW(btDbvtBroadphase);
-			Solver = VI_NEW(btSequentialImpulseConstraintSolver);
+			Broadphase = Core::Memory::New<btDbvtBroadphase>();
+			Solver = Core::Memory::New<btSequentialImpulseConstraintSolver>();
 
 			if (I.EnableSoftBody)
 			{
-				SoftSolver = VI_NEW(btDefaultSoftBodySolver);
-				Collision = VI_NEW(btSoftBodyRigidBodyCollisionConfiguration);
-				Dispatcher = VI_NEW(btCollisionDispatcher, Collision);
-				World = VI_NEW(btSoftRigidDynamicsWorld, Dispatcher, Broadphase, Solver, Collision, SoftSolver);
-
+				SoftSolver = Core::Memory::New<btDefaultSoftBodySolver>();
+				Collision = Core::Memory::New<btSoftBodyRigidBodyCollisionConfiguration>();
+				Dispatcher = Core::Memory::New<btCollisionDispatcher>(Collision);
+				World = Core::Memory::New<btSoftRigidDynamicsWorld>(Dispatcher, Broadphase, Solver, Collision, SoftSolver);
 				btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 				SoftWorld->getDispatchInfo().m_enableSPU = true;
 
@@ -15874,9 +15786,9 @@ namespace Vitex
 			}
 			else
 			{
-				Collision = VI_NEW(btDefaultCollisionConfiguration);
-				Dispatcher = VI_NEW(btCollisionDispatcher, Collision);
-				World = VI_NEW(btDiscreteDynamicsWorld, Dispatcher, Broadphase, Solver, Collision);
+				Collision = Core::Memory::New<btDefaultCollisionConfiguration>();
+				Dispatcher = Core::Memory::New<btCollisionDispatcher>(Collision);
+				World = Core::Memory::New<btDiscreteDynamicsWorld>(Dispatcher, Broadphase, Solver, Collision);
 			}
 
 			World->setWorldUserInfo(this);
@@ -15931,15 +15843,15 @@ namespace Vitex
 			for (auto It = Shapes.begin(); It != Shapes.end(); ++It)
 			{
 				btCollisionShape* Item = (btCollisionShape*)It->first;
-				VI_DELETE(btCollisionShape, Item);
+				Core::Memory::Delete(Item);
 			}
 
-			VI_DELETE(btCollisionDispatcher, Dispatcher);
-			VI_DELETE(btCollisionConfiguration, Collision);
-			VI_DELETE(btConstraintSolver, Solver);
-			VI_DELETE(btBroadphaseInterface, Broadphase);
-			VI_DELETE(btSoftBodySolver, SoftSolver);
-			VI_DELETE(btDiscreteDynamicsWorld, World);
+			Core::Memory::Delete(Dispatcher);
+			Core::Memory::Delete(Collision);
+			Core::Memory::Delete(Solver);
+			Core::Memory::Delete(Broadphase);
+			Core::Memory::Delete(SoftSolver);
+			Core::Memory::Delete(World);
 #endif
 		}
 		void Simulator::SetGravity(const Vector3& Gravity)
@@ -16143,16 +16055,16 @@ namespace Vitex
 				if (Body != nullptr)
 				{
 					auto* State = Body->getMotionState();
-					VI_DELETE(btMotionState, State);
+					Core::Memory::Delete(State);
 					Body->setMotionState(nullptr);
 
 					auto* Shape = Body->getCollisionShape();
-					VI_DELETE(btCollisionShape, Shape);
+					Core::Memory::Delete(Shape);
 					Body->setCollisionShape(nullptr);
 				}
 
 				World->removeCollisionObject(Object);
-				VI_DELETE(btCollisionObject, Object);
+				Core::Memory::Delete(Object);
 			}
 #endif
 		}
@@ -16287,7 +16199,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateCube(const Vector3& Scale)
 		{
 #ifdef VI_BULLET3
-			btCollisionShape* Shape = VI_NEW(btBoxShape, V3_TO_BT(Scale));
+			btCollisionShape* Shape = Core::Memory::New<btBoxShape>(V3_TO_BT(Scale));
 			VI_TRACE("[sim] save cube shape 0x%" PRIXPTR, (void*)Shape);
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
@@ -16299,7 +16211,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateSphere(float Radius)
 		{
 #ifdef VI_BULLET3
-			btCollisionShape* Shape = VI_NEW(btSphereShape, Radius);
+			btCollisionShape* Shape = Core::Memory::New<btSphereShape>(Radius);
 			VI_TRACE("[sim] save sphere shape 0x%" PRIXPTR, (void*)Shape);
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
@@ -16311,7 +16223,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateCapsule(float Radius, float Height)
 		{
 #ifdef VI_BULLET3
-			btCollisionShape* Shape = VI_NEW(btCapsuleShape, Radius, Height);
+			btCollisionShape* Shape = Core::Memory::New<btCapsuleShape>(Radius, Height);
 			VI_TRACE("[sim] save capsule shape 0x%" PRIXPTR, (void*)Shape);
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
@@ -16323,7 +16235,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateCone(float Radius, float Height)
 		{
 #ifdef VI_BULLET3
-			btCollisionShape* Shape = VI_NEW(btConeShape, Radius, Height);
+			btCollisionShape* Shape = Core::Memory::New<btConeShape>(Radius, Height);
 			VI_TRACE("[sim] save cone shape 0x%" PRIXPTR, (void*)Shape);
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
@@ -16335,7 +16247,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateCylinder(const Vector3& Scale)
 		{
 #ifdef VI_BULLET3
-			btCollisionShape* Shape = VI_NEW(btCylinderShape, V3_TO_BT(Scale));
+			btCollisionShape* Shape = Core::Memory::New<btCylinderShape>(V3_TO_BT(Scale));
 			VI_TRACE("[sim] save cylinder shape 0x%" PRIXPTR, (void*)Shape);
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			Shapes[Shape] = 1;
@@ -16347,7 +16259,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<SkinVertex>& Vertices)
 		{
 #ifdef VI_BULLET3
-			btConvexHullShape* Shape = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Shape = Core::Memory::New<btConvexHullShape>();
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
@@ -16366,7 +16278,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vertex>& Vertices)
 		{
 #ifdef VI_BULLET3
-			btConvexHullShape* Shape = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Shape = Core::Memory::New<btConvexHullShape>();
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
@@ -16385,7 +16297,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vector2>& Vertices)
 		{
 #ifdef VI_BULLET3
-			btConvexHullShape* Shape = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Shape = Core::Memory::New<btConvexHullShape>();
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, 0), false);
 
@@ -16404,7 +16316,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vector3>& Vertices)
 		{
 #ifdef VI_BULLET3
-			btConvexHullShape* Shape = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Shape = Core::Memory::New<btConvexHullShape>();
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
 
@@ -16423,7 +16335,7 @@ namespace Vitex
 		btCollisionShape* Simulator::CreateConvexHull(Core::Vector<Vector4>& Vertices)
 		{
 #ifdef VI_BULLET3
-			btConvexHullShape* Shape = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Shape = Core::Memory::New<btConvexHullShape>();
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
 
@@ -16445,7 +16357,7 @@ namespace Vitex
 			VI_ASSERT(From != nullptr, "shape should be set");
 			VI_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, "shape type should be convex hull");
 
-			btConvexHullShape* Hull = VI_NEW(btConvexHullShape);
+			btConvexHullShape* Hull = Core::Memory::New<btConvexHullShape>();
 			btConvexHullShape* Base = (btConvexHullShape*)From;
 
 			for (size_t i = 0; i < (size_t)Base->getNumPoints(); i++)
@@ -16557,7 +16469,7 @@ namespace Vitex
 
 			btCollisionShape* Item = (btCollisionShape*)It->first;
 			VI_TRACE("[sim] free shape 0x%" PRIXPTR, (void*)Item);
-			VI_DELETE(btCollisionShape, Item);
+			Core::Memory::Delete(Item);
 			Shapes.erase(It);
 #endif
 		}

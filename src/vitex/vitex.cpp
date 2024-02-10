@@ -1,14 +1,15 @@
 #include "vitex.h"
-#include "core/compute.h"
-#include "core/audio.h"
-#include "core/network.h"
-#include "core/scripting.h"
+#include "compute.h"
+#include "audio.h"
+#include "network.h"
+#include "scripting.h"
 #include "engine/gui.h"
 #include "network/http.h"
 #include "network/ldb.h"
 #include "network/pdb.h"
 #include "network/mdb.h"
 #include <clocale>
+#include <sstream>
 #ifdef VI_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
@@ -59,212 +60,30 @@ namespace Vitex
 	{
 		VI_ASSERT(!Instance, "vitex runtime should not be already initialized");
 		Instance = this;
-#ifndef NDEBUG
-		Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
-		if (!Allocator)
-		{
-			Allocator = new Core::Allocators::DebugAllocator();
-			VI_TRACE("[lib] initialize global debug allocator");
-		}
-#else
-		if (!Allocator)
-		{
-			Allocator = new Core::Allocators::DefaultAllocator();
-			VI_TRACE("[lib] initialize global default allocator");
-		}
-#endif
-		Core::Memory::SetGlobalAllocator(Allocator);
+
+		InitializeAllocator(&Allocator);
 		if (Modes & (uint64_t)Init::Network)
-		{
-#ifdef VI_MICROSOFT
-			WSADATA WSAData;
-			WORD VersionRequested = MAKEWORD(2, 2);
-			int Code = WSAStartup(VersionRequested, &WSAData);
-			VI_PANIC(Code == 0, "WSA initialization failed code:%i", Code);
-			VI_TRACE("[lib] initialize windows networking library");
-#endif
-		}
+			InitializeNetwork();
 
 		if (Modes & (uint64_t)Init::Cryptography)
-		{
-#ifdef VI_OPENSSL
-			SSL_library_init();
-			SSL_load_error_strings();
-#if OPENSSL_VERSION_MAJOR >= 3
-			Crypto = VI_NEW(CryptoData);
-			if (Modes & (uint64_t)Init::Providers)
-			{
-				VI_TRACE("[lib] load openssl providers from: *");
-				Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
-				Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
-				if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
-				{
-					auto Path = Core::OS::Directory::GetModule();
-					bool IsModuleDirectory = true;
-				Retry:
-					VI_TRACE("[lib] load openssl providers from: %s", Path ? Path->c_str() : "no path");
-					if (Path)
-						OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
-
-					if (!Crypto->DefaultProvider)
-						Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
-
-					if (!Crypto->LegacyProvider)
-						Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
-
-					if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
-					{
-						if (IsModuleDirectory)
-						{
-							Path = Core::OS::Directory::GetWorking();
-							IsModuleDirectory = false;
-							goto Retry;
-						}
-						Compute::Crypto::DisplayCryptoLog();
-					}
-					else
-						ERR_clear_error();
-				}
-			}
-#else
-			FIPS_mode_set(1);
-#endif
-			RAND_poll();
-
-			int Count = CRYPTO_num_locks();
-			Crypto->Locks.reserve(Count);
-			for (int i = 0; i < Count; i++)
-				Crypto->Locks.push_back(std::make_shared<std::mutex>());
-
-			CRYPTO_set_id_callback([]() -> long unsigned int
-			{
-#ifdef VI_MICROSOFT
-				return (unsigned long)GetCurrentThreadId();
-#else
-				return (unsigned long)syscall(SYS_gettid);
-#endif
-			});
-			CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
-			{
-				if (Mode & CRYPTO_LOCK)
-					Crypto->Locks.at(Id)->lock();
-				else
-					Crypto->Locks.at(Id)->unlock();
-			});
-#endif
-			VI_TRACE("[lib] initialize openssl library");
-		}
+			InitializeCryptography(&Crypto, Modes & (uint64_t)Init::Providers);
 
 		if (Modes & (uint64_t)Init::Platform)
-		{
-#ifdef VI_SDL2
-			SDL_SetMainReady();
-			int Code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
-			VI_PANIC(Code == 0, "SDL2 initialization failed code:%i", Code);
-			SDL_EventState(SDL_QUIT, SDL_ENABLE);
-			SDL_EventState(SDL_APP_TERMINATING, SDL_ENABLE);
-			SDL_EventState(SDL_APP_LOWMEMORY, SDL_ENABLE);
-			SDL_EventState(SDL_APP_WILLENTERBACKGROUND, SDL_ENABLE);
-			SDL_EventState(SDL_APP_DIDENTERBACKGROUND, SDL_ENABLE);
-			SDL_EventState(SDL_APP_WILLENTERFOREGROUND, SDL_ENABLE);
-			SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
-			SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
-			SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
-			SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
-			SDL_EventState(SDL_KEYDOWN, SDL_ENABLE);
-			SDL_EventState(SDL_KEYUP, SDL_ENABLE);
-			SDL_EventState(SDL_TEXTEDITING, SDL_ENABLE);
-			SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-			SDL_EventState(SDL_KEYMAPCHANGED, SDL_DISABLE);
-#endif
-			SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
-			SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
-			SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
-			SDL_EventState(SDL_MOUSEWHEEL, SDL_ENABLE);
-			SDL_EventState(SDL_JOYAXISMOTION, SDL_ENABLE);
-			SDL_EventState(SDL_JOYBALLMOTION, SDL_ENABLE);
-			SDL_EventState(SDL_JOYHATMOTION, SDL_ENABLE);
-			SDL_EventState(SDL_JOYBUTTONDOWN, SDL_ENABLE);
-			SDL_EventState(SDL_JOYBUTTONUP, SDL_ENABLE);
-			SDL_EventState(SDL_JOYDEVICEADDED, SDL_ENABLE);
-			SDL_EventState(SDL_JOYDEVICEREMOVED, SDL_ENABLE);
-			SDL_EventState(SDL_CONTROLLERAXISMOTION, SDL_ENABLE);
-			SDL_EventState(SDL_CONTROLLERBUTTONDOWN, SDL_ENABLE);
-			SDL_EventState(SDL_CONTROLLERBUTTONUP, SDL_ENABLE);
-			SDL_EventState(SDL_CONTROLLERDEVICEADDED, SDL_ENABLE);
-			SDL_EventState(SDL_CONTROLLERDEVICEREMOVED, SDL_ENABLE);
-			SDL_EventState(SDL_CONTROLLERDEVICEREMAPPED, SDL_ENABLE);
-			SDL_EventState(SDL_FINGERDOWN, SDL_ENABLE);
-			SDL_EventState(SDL_FINGERUP, SDL_ENABLE);
-			SDL_EventState(SDL_FINGERMOTION, SDL_ENABLE);
-			SDL_EventState(SDL_DOLLARGESTURE, SDL_ENABLE);
-			SDL_EventState(SDL_DOLLARRECORD, SDL_ENABLE);
-			SDL_EventState(SDL_MULTIGESTURE, SDL_ENABLE);
-			SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_DISABLE);
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-			SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
-			SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
-			SDL_EventState(SDL_DROPBEGIN, SDL_ENABLE);
-			SDL_EventState(SDL_DROPCOMPLETE, SDL_ENABLE);
-#endif
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-			SDL_EventState(SDL_AUDIODEVICEADDED, SDL_DISABLE);
-			SDL_EventState(SDL_AUDIODEVICEREMOVED, SDL_DISABLE);
-			SDL_EventState(SDL_RENDER_DEVICE_RESET, SDL_DISABLE);
-#endif
-			SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
-			SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-			SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-
-			const char* Platform = SDL_GetPlatform();
-			if (!strcmp(Platform, "iOS") || !strcmp(Platform, "Android") || !strcmp(Platform, "Unknown"))
-				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-			else
-				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-			VI_TRACE("[lib] initialize sdl2 library");
-#endif
-		}
+			InitializePlatform();
 
 		if (Modes & (uint64_t)Init::Graphics)
-		{
-#ifdef VI_GLEW
-			glewExperimental = true;
-			VI_TRACE("[lib] initialize graphics library");
-#endif
-		}
+			InitializeGraphics();
 
 		if (Modes & (uint64_t)Init::Locale)
-		{
-			setlocale(LC_TIME, "C");
-			VI_TRACE("[lib] initialize locale library");
-		}
+			InitializeLocale();
 
 		if (Modes & (uint64_t)Init::Cryptography)
-		{
-#ifdef VI_OPENSSL
-			int64_t Raw = 0;
-			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
-			VI_TRACE("[lib] initialize random library");
-#ifdef VI_POSTGRESQL
-			PQinitOpenSSL(0, 0);
-			VI_TRACE("[lib] initialize pq library");
-#endif
-#endif
-		}
+			InitializeRandom();
 
 		if (Modes & (uint64_t)Init::Audio)
-		{
-			Audio::AudioContext::Initialize();
-			VI_TRACE("[lib] initialize audio library");
-		}
+			InitializeAudio();
 
-		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::Malloc, Core::Memory::Free);
+		InitializeScripting();
 #ifndef VI_MICROSOFT
 		signal(SIGPIPE, SIG_IGN);
 #endif
@@ -274,195 +93,378 @@ namespace Vitex
 		auto* Allocator = Core::Memory::GetGlobalAllocator();
 		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
 		CleanupInstances();
-#ifdef VI_OPENSSL
 		if (Modes & (uint64_t)Init::Cryptography)
-		{
-#if OPENSSL_VERSION_MAJOR >= 3
-			VI_TRACE("[lib] free openssl providers");
-			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->LegacyProvider);
-			OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->DefaultProvider);
-#else
-			FIPS_mode_set(0);
-#endif
-			CRYPTO_set_locking_callback(nullptr);
-			CRYPTO_set_id_callback(nullptr);
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
-			ERR_remove_thread_state(NULL);
-#elif OPENSSL_VERSION_NUMBER < 0x10000000L
-			ERR_remove_state(0);
-#endif
-#if !defined(OPENSSL_NO_DEPRECATED_1_1_0) && OPENSSL_VERSION_MAJOR < 3
-			SSL_COMP_free_compression_methods();
-			ENGINE_cleanup();
-			CONF_modules_free();
-			COMP_zlib_cleanup();
-			ERR_free_strings();
-			EVP_cleanup();
-			CRYPTO_cleanup_all_ex_data();
-			CONF_modules_unload(1);
-#endif
-			VI_DELETE(CryptoData, Crypto);
-			VI_TRACE("[lib] free openssl library");
-			Crypto = nullptr;
-		}
-#endif
-#ifdef VI_SDL2
+			CleanupCryptography(&Crypto);
+
 		if (Modes & (uint64_t)Init::Platform)
-		{
-			SDL_Quit();
-			VI_TRACE("[lib] free sdl2 library");
-		}
-#endif
-#ifdef VI_MICROSOFT
+			CleanupPlatform();
+
 		if (Modes & (uint64_t)Init::Network)
-		{
-			WSACleanup();
-			VI_TRACE("[lib] free windows networking library");
-		}
-#endif
-#ifdef VI_ASSIMP
-		Assimp::DefaultLogger::kill();
-		VI_TRACE("[lib] free assimp library");
-#endif
-		Scripting::VirtualMachine::Cleanup();
-		VI_TRACE("[lib] free virtual machine");
-
-		Core::Composer::Cleanup();
-		VI_TRACE("[lib] free component composer");
-
-		Core::ErrorHandling::Cleanup();
-		VI_TRACE("[lib] free error handling");
-
-		Core::Memory::Cleanup();
-		VI_TRACE("[lib] free memory allocators");
-
-		if (Allocator != nullptr && Allocator->IsFinalizable())
-			delete Allocator;
-
+			CleanupNetwork();
+		CleanupImporter();
+		CleanupScripting();
+		CleanupComposer();
+		CleanupErrorHandling();
+		CleanupMemory();
+		CleanupAllocator(&Allocator);
 		if (Instance == this)
 			Instance = nullptr;
 	}
-	bool Runtime::HasDirectX() const noexcept
+	bool Runtime::InitializeAllocator(Core::GlobalAllocator** InoutAllocator) noexcept
+	{
+		if (!InoutAllocator)
+			return false;
+#ifndef NDEBUG
+		Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
+		if (!*InoutAllocator)
+		{
+			*InoutAllocator = new Core::Allocators::DebugAllocator();
+			VI_TRACE("[lib] initialize global debug allocator");
+		}
+#else
+		if (!*InoutAllocator)
+		{
+			*InoutAllocator = new Core::Allocators::DefaultAllocator();
+			VI_TRACE("[lib] initialize global default allocator");
+		}
+#endif
+		Core::Memory::SetGlobalAllocator(*InoutAllocator);
+		return *InoutAllocator != nullptr;
+	}
+	bool Runtime::InitializeNetwork() noexcept
 	{
 #ifdef VI_MICROSOFT
+		WSADATA WSAData;
+		WORD VersionRequested = MAKEWORD(2, 2);
+		int Code = WSAStartup(VersionRequested, &WSAData);
+		VI_PANIC(Code == 0, "WSA initialization failed code:%i", Code);
+		VI_TRACE("[lib] initialize windows networking library");
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasOpenGL() const noexcept
-	{
-#ifdef VI_OPENGL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasOpenSSL() const noexcept
+	bool Runtime::InitializeProviders(CryptographyState* Crypto) noexcept
 	{
 #ifdef VI_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+		if (!Crypto)
+			return false;
+
+		VI_TRACE("[lib] load openssl providers from: *");
+		Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+		Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+		if (Crypto->LegacyProvider != nullptr && Crypto->DefaultProvider != nullptr)
+			return true;
+
+		auto Path = Core::OS::Directory::GetModule();
+		bool IsModuleDirectory = true;
+	Retry:
+		VI_TRACE("[lib] load openssl providers from: %s", Path ? Path->c_str() : "no path");
+		if (Path)
+			OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
+
+		if (!Crypto->DefaultProvider)
+			Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+
+		if (!Crypto->LegacyProvider)
+			Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+
+		if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
+		{
+			if (IsModuleDirectory)
+			{
+				Path = Core::OS::Directory::GetWorking();
+				IsModuleDirectory = false;
+				goto Retry;
+			}
+			Compute::Crypto::DisplayCryptoLog();
+		}
+		else
+			ERR_clear_error();
+
 		return true;
 #else
 		return false;
 #endif
-	}
-	bool Runtime::HasGLEW() const noexcept
-	{
-#ifdef VI_GLEW
-		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasZLib() const noexcept
+	bool Runtime::InitializeCryptography(CryptographyState** OutputCrypto, bool InitProviders) noexcept
 	{
-#ifdef VI_ZLIB
-		return true;
+#ifdef VI_OPENSSL
+		if (!OutputCrypto)
+			return false;
+
+		SSL_library_init();
+		SSL_load_error_strings();
+
+		auto Crypto = Core::Memory::New<CryptographyState>();
+		*OutputCrypto = Crypto;
+#if OPENSSL_VERSION_MAJOR >= 3
+		if (InitProviders && !InitializeProviders(Crypto))
+			return false;
 #else
-		return false;
+		FIPS_mode_set(1);
 #endif
-	}
-	bool Runtime::HasAssimp() const noexcept
-	{
-#ifdef VI_ASSIMP
-		return true;
+		RAND_poll();
+
+		int Count = CRYPTO_num_locks();
+		Crypto->Locks.reserve(Count);
+		for (int i = 0; i < Count; i++)
+			Crypto->Locks.push_back(std::make_shared<std::mutex>());
+
+		CRYPTO_set_id_callback([]() -> long unsigned int
+		{
+#ifdef VI_MICROSOFT
+			return (unsigned long)GetCurrentThreadId();
 #else
-		return false;
+			return (unsigned long)syscall(SYS_gettid);
 #endif
-	}
-	bool Runtime::HasMongoDB() const noexcept
-	{
-#ifdef VI_MONGOC
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasPostgreSQL() const noexcept
-	{
+		});
+		CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
+		{
+			if (Mode & CRYPTO_LOCK)
+				Crypto->Locks.at(Id)->lock();
+			else
+				Crypto->Locks.at(Id)->unlock();
+		});
+
+		VI_TRACE("[lib] initialize openssl library");
 #ifdef VI_POSTGRESQL
+		PQinitSSL(0);
+		VI_TRACE("[lib] initialize pq library");
+#endif
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasSQLite() const noexcept
-	{
-#ifdef VI_SQLITE
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasOpenAL() const noexcept
-	{
-#ifdef VI_OPENAL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasSDL2() const noexcept
+	bool Runtime::InitializePlatform() noexcept
 	{
 #ifdef VI_SDL2
+		SDL_SetMainReady();
+		int Code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+		VI_PANIC(Code == 0, "SDL2 initialization failed code:%i", Code);
+		SDL_EventState(SDL_QUIT, SDL_ENABLE);
+		SDL_EventState(SDL_APP_TERMINATING, SDL_ENABLE);
+		SDL_EventState(SDL_APP_LOWMEMORY, SDL_ENABLE);
+		SDL_EventState(SDL_APP_WILLENTERBACKGROUND, SDL_ENABLE);
+		SDL_EventState(SDL_APP_DIDENTERBACKGROUND, SDL_ENABLE);
+		SDL_EventState(SDL_APP_WILLENTERFOREGROUND, SDL_ENABLE);
+		SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
+		SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
+		SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
+		SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
+		SDL_EventState(SDL_KEYDOWN, SDL_ENABLE);
+		SDL_EventState(SDL_KEYUP, SDL_ENABLE);
+		SDL_EventState(SDL_TEXTEDITING, SDL_ENABLE);
+		SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+		SDL_EventState(SDL_KEYMAPCHANGED, SDL_DISABLE);
+#endif
+		SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
+		SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
+		SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
+		SDL_EventState(SDL_MOUSEWHEEL, SDL_ENABLE);
+		SDL_EventState(SDL_JOYAXISMOTION, SDL_ENABLE);
+		SDL_EventState(SDL_JOYBALLMOTION, SDL_ENABLE);
+		SDL_EventState(SDL_JOYHATMOTION, SDL_ENABLE);
+		SDL_EventState(SDL_JOYBUTTONDOWN, SDL_ENABLE);
+		SDL_EventState(SDL_JOYBUTTONUP, SDL_ENABLE);
+		SDL_EventState(SDL_JOYDEVICEADDED, SDL_ENABLE);
+		SDL_EventState(SDL_JOYDEVICEREMOVED, SDL_ENABLE);
+		SDL_EventState(SDL_CONTROLLERAXISMOTION, SDL_ENABLE);
+		SDL_EventState(SDL_CONTROLLERBUTTONDOWN, SDL_ENABLE);
+		SDL_EventState(SDL_CONTROLLERBUTTONUP, SDL_ENABLE);
+		SDL_EventState(SDL_CONTROLLERDEVICEADDED, SDL_ENABLE);
+		SDL_EventState(SDL_CONTROLLERDEVICEREMOVED, SDL_ENABLE);
+		SDL_EventState(SDL_CONTROLLERDEVICEREMAPPED, SDL_ENABLE);
+		SDL_EventState(SDL_FINGERDOWN, SDL_ENABLE);
+		SDL_EventState(SDL_FINGERUP, SDL_ENABLE);
+		SDL_EventState(SDL_FINGERMOTION, SDL_ENABLE);
+		SDL_EventState(SDL_DOLLARGESTURE, SDL_ENABLE);
+		SDL_EventState(SDL_DOLLARRECORD, SDL_ENABLE);
+		SDL_EventState(SDL_MULTIGESTURE, SDL_ENABLE);
+		SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_DISABLE);
+#if SDL_VERSION_ATLEAST(2, 0, 5)
+		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+		SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
+		SDL_EventState(SDL_DROPBEGIN, SDL_ENABLE);
+		SDL_EventState(SDL_DROPCOMPLETE, SDL_ENABLE);
+#endif
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+		SDL_EventState(SDL_AUDIODEVICEADDED, SDL_DISABLE);
+		SDL_EventState(SDL_AUDIODEVICEREMOVED, SDL_DISABLE);
+		SDL_EventState(SDL_RENDER_DEVICE_RESET, SDL_DISABLE);
+#endif
+		SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+		SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+		SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
+		const char* Platform = SDL_GetPlatform();
+		if (!strcmp(Platform, "iOS") || !strcmp(Platform, "Android") || !strcmp(Platform, "Unknown"))
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+		else
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+		VI_TRACE("[lib] initialize sdl2 library");
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasSIMD() const noexcept
+	bool Runtime::InitializeGraphics() noexcept
 	{
-#ifdef VI_SIMD
+#ifdef VI_GLEW
+		glewExperimental = true;
+		VI_TRACE("[lib] initialize graphics library");
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasJIT() const noexcept
+	bool Runtime::InitializeLocale() noexcept
 	{
-#ifdef VI_JIT
+		VI_TRACE("[lib] initialize locale library");
+		setlocale(LC_TIME, "C");
 		return true;
-#else
-		return false;
-#endif
 	}
-	bool Runtime::HasAngelScript() const noexcept
+	bool Runtime::InitializeRandom() noexcept
 	{
-#ifdef VI_ANGELSCRIPT
+#ifdef VI_OPENSSL
+		int64_t Raw = 0;
+		RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
+		VI_TRACE("[lib] initialize random library");
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasBindings() const noexcept
+	bool Runtime::InitializeAudio() noexcept
 	{
-#ifdef VI_BINDINGS
+		VI_TRACE("[lib] initialize audio library");
+		auto Status = Audio::AudioContext::Initialize();
+		Status.Report("audio initialization error");
+		return !!Status;
+	}
+	bool Runtime::InitializeScripting() noexcept
+	{
+		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::DefaultAllocate, Core::Memory::DefaultDeallocate);
 		return true;
+	}
+	void Runtime::CleanupInstances() noexcept
+	{
+		VI_TRACE("[lib] free singleton instances");
+		Network::HTTP::HrmCache::CleanupInstance();
+		Network::LDB::Driver::CleanupInstance();
+		Network::PDB::Driver::CleanupInstance();
+		Network::MDB::Driver::CleanupInstance();
+		Network::Uplinks::CleanupInstance();
+		Network::Multiplexer::CleanupInstance();
+		Network::TransportLayer::CleanupInstance();
+		Network::DNS::CleanupInstance();
+		Engine::Application::CleanupInstance();
+		Engine::GUI::Subsystem::CleanupInstance();
+		Core::Schedule::CleanupInstance();
+		Core::Console::CleanupInstance();
+	}
+	void Runtime::CleanupCryptography(CryptographyState** InCrypto) noexcept
+	{
+#ifdef VI_OPENSSL
+		if (!InCrypto)
+			return;
+
+		auto* Crypto = *InCrypto;
+		*InCrypto = nullptr;
+#if OPENSSL_VERSION_MAJOR >= 3
+		VI_TRACE("[lib] free openssl providers");
+		OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->LegacyProvider);
+		OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->DefaultProvider);
 #else
-		return false;
+		FIPS_mode_set(0);
+#endif
+		CRYPTO_set_locking_callback(nullptr);
+		CRYPTO_set_id_callback(nullptr);
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
+		ERR_remove_thread_state(NULL);
+#elif OPENSSL_VERSION_NUMBER < 0x10000000L
+		ERR_remove_state(0);
+#endif
+#if !defined(OPENSSL_NO_DEPRECATED_1_1_0) && OPENSSL_VERSION_MAJOR < 3
+		SSL_COMP_free_compression_methods();
+		ENGINE_cleanup();
+		CONF_modules_free();
+		COMP_zlib_cleanup();
+		ERR_free_strings();
+		EVP_cleanup();
+		CRYPTO_cleanup_all_ex_data();
+		CONF_modules_unload(1);
+#endif
+		Core::Memory::Delete(Crypto);
+		VI_TRACE("[lib] free openssl library");
 #endif
 	}
-	bool Runtime::HasAllocator() const noexcept
+	void Runtime::CleanupPlatform() noexcept
+	{
+#ifdef VI_SDL2
+		SDL_Quit();
+		VI_TRACE("[lib] free sdl2 library");
+#endif
+	}
+	void Runtime::CleanupNetwork() noexcept
+	{
+#ifdef VI_MICROSOFT
+		WSACleanup();
+		VI_TRACE("[lib] free windows networking library");
+#endif
+	}
+	void Runtime::CleanupImporter() noexcept
+	{
+#ifdef VI_ASSIMP
+		Assimp::DefaultLogger::kill();
+		VI_TRACE("[lib] free importer library");
+#endif
+	}
+	void Runtime::CleanupScripting() noexcept
+	{
+		Scripting::VirtualMachine::Cleanup();
+		VI_TRACE("[lib] free virtual machine");
+	}
+	void Runtime::CleanupComposer() noexcept
+	{
+		Core::Composer::Cleanup();
+		VI_TRACE("[lib] free component composer");
+	}
+	void Runtime::CleanupErrorHandling() noexcept
+	{
+		Core::ErrorHandling::Cleanup();
+		VI_TRACE("[lib] free error handling");
+	}
+	void Runtime::CleanupMemory() noexcept
+	{
+		Core::Memory::Cleanup();
+		VI_TRACE("[lib] free memory allocators");
+	}
+	void Runtime::CleanupAllocator(Core::GlobalAllocator** InAllocator) noexcept
+	{
+		if (!InAllocator)
+			return;
+
+		auto* Allocator = *InAllocator;
+		if (Allocator != nullptr && Allocator->IsFinalizable())
+		{
+			*InAllocator = nullptr;
+			delete Allocator;
+		}
+	}
+	bool Runtime::HasFtAllocator() const noexcept
 	{
 #ifdef VI_ALLOCATOR
 		return true;
@@ -470,31 +472,67 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasBacktrace() const noexcept
+	bool Runtime::HasFtPessimistic() const noexcept
 	{
-#ifdef VI_BACKTRACE
+#ifdef VI_PESSIMISTIC
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasBullet3() const noexcept
+	bool Runtime::HasFtBindings() const noexcept
 	{
-#ifdef VI_BULLET3
+#ifdef VI_BINDINGS
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasFreeType() const noexcept
+	bool Runtime::HasFtShaders() const noexcept
 	{
-#ifdef VI_FREETYPE
+		return HasSoSpirv();
+	}
+	bool Runtime::HasSoOpenGL() const noexcept
+	{
+#ifdef VI_OPENGL
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasSPIRV() const noexcept
+	bool Runtime::HasSoOpenAL() const noexcept
+	{
+#ifdef VI_OPENAL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoOpenSSL() const noexcept
+	{
+#ifdef VI_OPENSSL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoSDL2() const noexcept
+	{
+#ifdef VI_SDL2
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoGLEW() const noexcept
+	{
+#ifdef VI_GLEW
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoSpirv() const noexcept
 	{
 #ifdef VI_SPIRV
 		return true;
@@ -502,7 +540,71 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasRmlUI() const noexcept
+	bool Runtime::HasSoZLib() const noexcept
+	{
+#ifdef VI_ZLIB
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoAssimp() const noexcept
+	{
+#ifdef VI_ASSIMP
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoMongoc() const noexcept
+	{
+#ifdef VI_MONGOC
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoPostgreSQL() const noexcept
+	{
+#ifdef VI_POSTGRESQL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoSQLite() const noexcept
+	{
+#ifdef VI_SQLITE
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasSoFreeType() const noexcept
+	{
+#ifdef VI_FREETYPE
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMdAngelScript() const noexcept
+	{
+#ifdef VI_ANGELSCRIPT
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMdBacktrace() const noexcept
+	{
+#ifdef VI_BACKTRACE
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMdRmlUI() const noexcept
 	{
 #ifdef VI_RMLUI
 		return true;
@@ -510,23 +612,15 @@ namespace Vitex
 		return false;
 #endif
 	}
-    bool Runtime::HasFContext() const noexcept
-    {
-    #ifdef VI_FCTX
-        return true;
-    #else
-        return false;
-    #endif
-    }
-	bool Runtime::HasWindowsEpoll() const noexcept
+	bool Runtime::HasMdBullet3() const noexcept
 	{
-#ifdef VI_WEPOLL
+#ifdef VI_BULLET3
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::HasTinyFileDialogs() const noexcept
+	bool Runtime::HasMdTinyFileDialogs() const noexcept
 	{
 #ifdef VI_TINYFILEDIALOGS
 		return true;
@@ -534,7 +628,15 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSTB() const noexcept
+	bool Runtime::HasMdWepoll() const noexcept
+	{
+#ifdef VI_WEPOLL
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMdStb() const noexcept
 	{
 #ifdef VI_STB
 		return true;
@@ -542,7 +644,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasPugiXML() const noexcept
+	bool Runtime::HasMdPugiXml() const noexcept
 	{
 #ifdef VI_PUGIXML
 		return true;
@@ -550,7 +652,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasRapidJSON() const noexcept
+	bool Runtime::HasMdRapidJson() const noexcept
 	{
 #ifdef VI_RAPIDJSON
 		return true;
@@ -558,9 +660,29 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasShaders() const noexcept
+	bool Runtime::HasMdSimd() const noexcept
 	{
-		return HasSPIRV();
+#ifdef VI_SIMD
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMdJit() const noexcept
+	{
+#ifdef VI_JIT
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Runtime::HasMdFContext() const noexcept
+	{
+#ifdef VI_FCTX
+		return true;
+#else
+		return false;
+#endif
 	}
 	int Runtime::GetMajorVersion() const noexcept
 	{
@@ -597,50 +719,62 @@ namespace Vitex
 	Core::String Runtime::GetDetails() const noexcept
 	{
 		Core::Vector<Core::String> Features;
-		if (HasDirectX())
-			Features.push_back("so:d3d11");
-		if (HasOpenGL())
+		if (HasSoOpenGL())
 			Features.push_back("so:opengl");
-		if (HasOpenAL())
+		if (HasSoOpenAL())
 			Features.push_back("so:openal");
-		if (HasOpenSSL())
+		if (HasSoOpenSSL())
 			Features.push_back("so:openssl");
-		if (HasGLEW())
-			Features.push_back("so:glew");
-		if (HasZLib())
-			Features.push_back("so:zlib");
-		if (HasAssimp())
-			Features.push_back("so:assimp");
-		if (HasMongoDB())
-			Features.push_back("so:mongoc");
-		if (HasPostgreSQL())
-			Features.push_back("so:pq");
-		if (HasSDL2())
+		if (HasSoSDL2())
 			Features.push_back("so:sdl2");
-		if (HasFreeType())
-			Features.push_back("so:freetype");
-		if (HasSPIRV())
+		if (HasSoGLEW())
+			Features.push_back("so:glew");
+		if (HasSoSpirv())
 			Features.push_back("so:spirv");
-		if (HasRmlUI())
-			Features.push_back("lib:rmlui");
-		if (HasFContext())
-			Features.push_back("lib:fcontext");
-		if (HasWindowsEpoll())
-			Features.push_back("lib:wepoll");
-		if (HasBullet3())
-			Features.push_back("lib:bullet3");
-		if (HasBacktrace())
-			Features.push_back("lib:backward-cxx");
-		if (HasSIMD())
-			Features.push_back("feature:simd");
-		if (HasJIT())
-			Features.push_back("feature:as-jit");
-		if (HasBindings())
-			Features.push_back("feature:as-stdlib");
-		if (HasAllocator())
-			Features.push_back("feature:cxx-stdalloc");
-		if (HasShaders())
-			Features.push_back("feature:shaders");
+		if (HasSoZLib())
+			Features.push_back("so:zlib");
+		if (HasSoAssimp())
+			Features.push_back("so:assimp");
+		if (HasSoMongoc())
+			Features.push_back("so:mongoc");
+		if (HasSoPostgreSQL())
+			Features.push_back("so:pq");
+		if (HasSoSQLite())
+			Features.push_back("so:sqlite");
+		if (HasSoFreeType())
+			Features.push_back("so:freetype");
+		if (HasMdAngelScript())
+			Features.push_back("md:angelscript");
+		if (HasMdBacktrace())
+			Features.push_back("md:backward-cxx");
+		if (HasMdRmlUI())
+			Features.push_back("md:rmlui");
+		if (HasMdBullet3())
+			Features.push_back("md:bullet3");
+		if (HasMdTinyFileDialogs())
+			Features.push_back("md:tinyfiledialogs");
+		if (HasMdWepoll())
+			Features.push_back("md:wepoll");
+		if (HasMdStb())
+			Features.push_back("md:stb");
+		if (HasMdPugiXml())
+			Features.push_back("md:pugixml");
+		if (HasMdRapidJson())
+			Features.push_back("md:rapidjson");
+		if (HasMdFContext())
+			Features.push_back("md:fcontext");
+		if (HasMdSimd())
+			Features.push_back("md:simd");
+		if (HasMdJit())
+			Features.push_back("md:jit");
+		if (HasFtAllocator())
+			Features.push_back("ft:allocator");
+		if (HasFtPessimistic())
+			Features.push_back("ft:pessimistic");
+		if (HasFtBindings())
+			Features.push_back("ft:bindings");
+		if (HasFtShaders())
+			Features.push_back("ft:shaders");
 
 		Core::StringStream Result;
 		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << "." << BUILD_VERSION << " / " << VERSION << "\n";
@@ -653,7 +787,7 @@ namespace Vitex
 
 		return Result.str();
 	}
-	const char* Runtime::GetBuild() const noexcept
+	std::string_view Runtime::GetBuild() const noexcept
 	{
 #ifndef NDEBUG
 		return "Debug";
@@ -661,7 +795,7 @@ namespace Vitex
 		return "Release";
 #endif
 	}
-	const char* Runtime::GetCompiler() const noexcept
+	std::string_view Runtime::GetCompiler() const noexcept
 	{
 #ifdef _MSC_VER
 #ifdef VI_64
@@ -699,7 +833,7 @@ namespace Vitex
 #endif
 		return "C/C++ compiler";
 	}
-	const char* Runtime::GetPlatform() const noexcept
+	std::string_view Runtime::GetPlatform() const noexcept
 	{
 #ifdef __ANDROID__
 		return "Android";
@@ -729,22 +863,6 @@ namespace Vitex
 		return "Fuschia";
 #endif
 		return "OS with C/C++ support";
-	}
-	void Runtime::CleanupInstances()
-	{
-		VI_TRACE("[lib] free singleton instances");
-		Network::HTTP::HrmCache::CleanupInstance();
-		Network::LDB::Driver::CleanupInstance();
-		Network::PDB::Driver::CleanupInstance();
-		Network::MDB::Driver::CleanupInstance();
-		Network::Uplinks::CleanupInstance();
-		Network::Multiplexer::CleanupInstance();
-		Network::TransportLayer::CleanupInstance();
-		Network::DNS::CleanupInstance();
-		Engine::Application::CleanupInstance();
-		Engine::GUI::Subsystem::CleanupInstance();
-		Core::Schedule::CleanupInstance();
-		Core::Console::CleanupInstance();
 	}
 	Runtime* Runtime::Get() noexcept
 	{

@@ -1,6 +1,6 @@
 #ifndef VI_NETWORK_HTTP_H
 #define VI_NETWORK_HTTP_H
-#include "../core/network.h"
+#include "../network.h"
 
 namespace Vitex
 {
@@ -10,6 +10,8 @@ namespace Vitex
 		{
 			enum
 			{
+				LABEL_SIZE = 16,
+				INLINING_SIZE = 768,
 				PAYLOAD_SIZE = (size_t)(1024 * 64)
 			};
 
@@ -54,23 +56,101 @@ namespace Vitex
 				End
 			};
 
-			typedef Core::Vector<Core::String> RangePayload;
-			typedef Core::OrderedMap<Core::String, RangePayload, struct HeaderComparator> HeaderMapping;
+			template <typename T, T OffsetBasis, T Prime>
+			struct LFNV1AHash
+			{
+				static_assert(std::is_unsigned<T>::value, "Q needs to be unsigned integer");
+
+				inline T operator()(const void* Address, size_t Size) const noexcept
+				{
+					const auto Data = static_cast<const uint8_t*>(Address);
+					auto State = OffsetBasis;
+					for (size_t i = 0; i < Size; ++i)
+						State = (State ^ (size_t)tolower(Data[i])) * Prime;
+					return State;
+				}
+			};
+
+			template <size_t Bits>
+			struct LFNV1ABits;
+
+			template <>
+			struct LFNV1ABits<32> { using type = LFNV1AHash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>; };
+
+			template <>
+			struct LFNV1ABits<64> { using type = LFNV1AHash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>; };
+
+			template <size_t Bits>
+			using LFNV1A = typename LFNV1ABits<Bits>::type;
+
+			struct KimvEqualTo
+			{
+				typedef Core::String first_argument_type;
+				typedef Core::String second_argument_type;
+				typedef bool result_type;
+				using is_transparent = void;
+
+				inline result_type operator()(const Core::String& Left, const Core::String& Right) const noexcept
+				{
+					return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+				}
+				inline result_type operator()(const Core::String& Left, const char* Right) const noexcept
+				{
+					size_t Size = strlen(Right);
+					return Left.size() == Size && std::equal(Left.begin(), Left.end(), Right, [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+				}
+				inline result_type operator()(const Core::String& Left, const std::string_view& Right) const noexcept
+				{
+					return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+				}
+				inline result_type operator()(const char* Left, const Core::String& Right) const noexcept
+				{
+					size_t Size = strlen(Left);
+					return Size == Right.size() && std::equal(Left, Left + Size, Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+				}
+				inline result_type operator()(const std::string_view& Left, const Core::String& Right) const noexcept
+				{
+					return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+				}
+			};
+
+			struct KimvKeyHasher
+			{
+				typedef float argument_type;
+				typedef size_t result_type;
+				using is_transparent = void;
+
+				inline result_type operator()(const char* Value) const noexcept
+				{
+					return LFNV1A<8 * sizeof(size_t)>()(Value, strlen(Value));
+				}
+				inline result_type operator()(const std::string_view& Value) const noexcept
+				{
+					return LFNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
+				}
+				inline result_type operator()(const Core::String& Value) const noexcept
+				{
+					return LFNV1A<8 * sizeof(size_t)>()(Value.c_str(), Value.size());
+				}
+			};
+
+			typedef Core::UnorderedMap<Core::String, Core::Vector<Core::String>, KimvKeyHasher, KimvEqualTo> KimvUnorderedMap;
 			typedef std::function<bool(class Connection*)> SuccessCallback;
 			typedef std::function<void(class Connection*, SocketPoll)> HeadersCallback;
-			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
+			typedef std::function<bool(class Connection*, SocketPoll, const std::string_view&)> ContentCallback;
 			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
 			typedef std::function<bool(class Connection*, Core::String&)> HeaderCallback;
 			typedef std::function<bool(struct Resource*)> ResourceCallback;
 			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
-			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
+			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const std::string_view&)> WebSocketReadCallback;
 			typedef std::function<void(class WebSocketFrame*, bool)> WebSocketStatusCallback;
 			typedef std::function<bool(class WebSocketFrame*)> WebSocketCheckCallback;
-			typedef std::function<bool(class Parser*, int)> ParserCodeCallback;
-			typedef std::function<bool(class Parser*, const char*, size_t)> ParserDataCallback;
-			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
+
+			class Parser;
 
 			class Connection;
+
+			class Client;
 
 			class RouterEntry;
 
@@ -81,22 +161,6 @@ namespace Vitex
 			class Query;
 
 			class WebCodec;
-
-			struct VI_OUT HeaderComparator
-			{
-				struct Insensitive
-				{
-					bool operator() (const unsigned char& A, const unsigned char& B) const
-					{
-						return tolower(A) < tolower(B);
-					}
-				};
-
-				bool operator() (const Core::String& Left, const Core::String& Right) const
-				{
-					return std::lexicographical_compare(Left.begin(), Left.end(), Right.begin(), Right.end(), Insensitive());
-				}
-			};
 
 			struct VI_OUT ErrorFile
 			{
@@ -112,10 +176,10 @@ namespace Vitex
 
 			struct VI_OUT MimeStatic
 			{
-				const char* Extension = nullptr;
-				const char* Type = nullptr;
+				std::string_view Extension = "";
+				std::string_view Type = "";
 
-				MimeStatic(const char* Ext, const char* T);
+				MimeStatic(const std::string_view& Ext, const std::string_view& T);
 			};
 
 			struct VI_OUT Credentials
@@ -126,7 +190,7 @@ namespace Vitex
 
 			struct VI_OUT Resource
 			{
-				HeaderMapping Headers;
+				KimvUnorderedMap Headers;
 				Core::String Path;
 				Core::String Type;
 				Core::String Name;
@@ -134,12 +198,12 @@ namespace Vitex
 				size_t Length = 0;
 				bool IsInMemory = false;
 
-				void PutHeader(const Core::String& Key, const Core::String& Value);
-				void SetHeader(const Core::String& Key, const Core::String& Value);
-				Core::String ComposeHeader(const Core::String& Key) const;
-				RangePayload* GetHeaderRanges(const Core::String& Key);
-				const Core::String* GetHeaderBlob(const Core::String& Key) const;
-				const char* GetHeader(const Core::String& Key) const;
+				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String ComposeHeader(const std::string_view& Key) const;
+				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
+				Core::String* GetHeaderBlob(const std::string_view& Key);
+				std::string_view GetHeader(const std::string_view& Key) const;
 				const Core::String& GetInMemoryContents() const;
 			};
 
@@ -173,11 +237,9 @@ namespace Vitex
 				ContentFrame(ContentFrame&&) noexcept = default;
 				ContentFrame& operator= (const ContentFrame&) = default;
 				ContentFrame& operator= (ContentFrame&&) noexcept = default;
-				void Append(const Core::String& Data);
-				void Append(const char* Data, size_t Size);
-				void Assign(const Core::String& Data);
-				void Assign(const char* Data, size_t Size);
-				void Prepare(const HeaderMapping& Headers, const char* Buffer, size_t Size);
+				void Append(const std::string_view& Data);
+				void Assign(const std::string_view& Data);
+				void Prepare(const KimvUnorderedMap& Headers, const uint8_t* Buffer, size_t Size);
 				void Finalize();
 				void Cleanup();
 				Core::ExpectsParser<Core::Unique<Core::Schema>> GetJSON() const;
@@ -188,8 +250,8 @@ namespace Vitex
 
 			struct VI_OUT RequestFrame
 			{
-				HeaderMapping Cookies;
-				HeaderMapping Headers;
+				KimvUnorderedMap Cookies;
+				KimvUnorderedMap Headers;
 				ContentFrame Content;
 				Core::String Query;
 				Core::String Path;
@@ -197,33 +259,33 @@ namespace Vitex
 				Core::String Referrer;
 				Compute::RegexResult Match;
 				Credentials User;
-				char Method[16];
-				char Version[16];
+				char Method[LABEL_SIZE];
+				char Version[LABEL_SIZE];
 
 				RequestFrame();
 				RequestFrame(const RequestFrame&) = default;
 				RequestFrame(RequestFrame&&) noexcept = default;
 				RequestFrame& operator= (const RequestFrame&) = default;
 				RequestFrame& operator= (RequestFrame&&) noexcept = default;
-				Core::String& PutHeader(const Core::String& Key, const Core::String& Value);
-				Core::String& SetHeader(const Core::String& Key, const Core::String& Value);
-				void SetMethod(const char* Value);
-				void SetVersion(unsigned int Major, unsigned int Minor);
+				void SetMethod(const std::string_view& Value);
+				void SetVersion(uint32_t Major, uint32_t Minor);
 				void Cleanup();
-				Core::String ComposeHeader(const Core::String& Key) const;
-				RangePayload* GetCookieRanges(const Core::String& Key);
-				const Core::String* GetCookieBlob(const Core::String& Key) const;
-				const char* GetCookie(const Core::String& Key) const;
-				RangePayload* GetHeaderRanges(const Core::String& Key);
-				const Core::String* GetHeaderBlob(const Core::String& Key) const;
-				const char* GetHeader(const Core::String& Key) const;
+				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String ComposeHeader(const std::string_view& Key) const;
+				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
+				Core::String* GetHeaderBlob(const std::string_view& Key);
+				std::string_view GetHeader(const std::string_view& Key) const;
+				Core::Vector<Core::String>* GetCookieRanges(const std::string_view& Key);
+				Core::String* GetCookieBlob(const std::string_view& Key);
+				std::string_view GetCookie(const std::string_view& Key) const;
 				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
 				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
 
 			struct VI_OUT ResponseFrame
 			{
-				HeaderMapping Headers;
+				KimvUnorderedMap Headers;
 				ContentFrame Content;
 				Core::Vector<Cookie> Cookies;
 				int StatusCode;
@@ -234,24 +296,24 @@ namespace Vitex
 				ResponseFrame(ResponseFrame&&) noexcept = default;
 				ResponseFrame& operator= (const ResponseFrame&) = default;
 				ResponseFrame& operator= (ResponseFrame&&) noexcept = default;
-				Core::String& PutHeader(const Core::String& Key, const Core::String& Value);
-				Core::String& SetHeader(const Core::String& Key, const Core::String& Value);
 				void SetCookie(const Cookie& Value);
 				void SetCookie(Cookie&& Value);
 				void Cleanup();
-				Core::String ComposeHeader(const Core::String& Key) const;
-				Cookie* GetCookie(const char* Key);
-				RangePayload* GetHeaderRanges(const Core::String& Key);
-				const Core::String* GetHeaderBlob(const Core::String& Key) const;
-				const char* GetHeader(const Core::String& Key) const;
+				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String ComposeHeader(const std::string_view& Key) const;
+				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
+				Core::String* GetHeaderBlob(const std::string_view& Key);
+				std::string_view GetHeader(const std::string_view& Key) const;
+				Cookie* GetCookie(const std::string_view& Key);
 				bool IsUndefined() const;
 				bool IsOK() const;
 			};
 
 			struct VI_OUT FetchFrame
 			{
-				HeaderMapping Cookies;
-				HeaderMapping Headers;
+				KimvUnorderedMap Cookies;
+				KimvUnorderedMap Headers;
 				ContentFrame Content;
 				uint64_t Timeout;
 				uint32_t VerifyPeers;
@@ -262,16 +324,16 @@ namespace Vitex
 				FetchFrame(FetchFrame&&) noexcept = default;
 				FetchFrame& operator= (const FetchFrame&) = default;
 				FetchFrame& operator= (FetchFrame&&) noexcept = default;
-				Core::String& PutHeader(const Core::String& Key, const Core::String& Value);
-				Core::String& SetHeader(const Core::String& Key, const Core::String& Value);
 				void Cleanup();
-				Core::String ComposeHeader(const Core::String& Key) const;
-				RangePayload* GetCookieRanges(const Core::String& Key);
-				const Core::String* GetCookieBlob(const Core::String& Key) const;
-				const char* GetCookie(const Core::String& Key) const;
-				RangePayload* GetHeaderRanges(const Core::String& Key);
-				const Core::String* GetHeaderBlob(const Core::String& Key) const;
-				const char* GetHeader(const Core::String& Key) const;
+				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
+				Core::String ComposeHeader(const std::string_view& Key) const;
+				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
+				Core::String* GetHeaderBlob(const std::string_view& Key);
+				std::string_view GetHeader(const std::string_view& Key) const;
+				Core::Vector<Core::String>* GetCookieRanges(const std::string_view& Key);
+				Core::String* GetCookieBlob(const std::string_view& Key);
+				std::string_view GetCookie(const std::string_view& Key) const;
 				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
 				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
@@ -292,7 +354,7 @@ namespace Vitex
 			private:
 				struct Message
 				{
-					unsigned int Mask;
+					uint32_t Mask;
 					char* Buffer;
 					size_t Size;
 					WebSocketOp Opcode;
@@ -323,23 +385,25 @@ namespace Vitex
 				WebSocketCallback BeforeDisconnect;
 				WebSocketCallback Disconnect;
 				WebSocketReadCallback Receive;
+				void* UserData;
 
 			public:
-				WebSocketFrame(Socket* NewStream);
+				WebSocketFrame(Socket* NewStream, void* NewUserData);
 				~WebSocketFrame() noexcept;
-				Core::ExpectsSystem<size_t> Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
-				Core::ExpectsSystem<size_t> Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				Core::ExpectsSystem<size_t> Send(const std::string_view& Buffer, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				Core::ExpectsSystem<size_t> Send(uint32_t Mask, const std::string_view& Buffer, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				Core::ExpectsSystem<void> SendClose(const WebSocketCallback& Callback);
 				void Next();
 				bool IsFinished();
 				Socket* GetStream();
 				Connection* GetConnection();
+				Client* GetClient();
 
 			private:
 				void Update();
 				void Finalize();
 				void Dequeue();
-				bool Enqueue(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				bool Enqueue(uint32_t Mask, const std::string_view& Buffer, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				bool IsWriteable();
 				bool IsIgnore();
 			};
@@ -352,7 +416,7 @@ namespace Vitex
 				RouteMode Mode;
 
 			public:
-				RouterGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept;
+				RouterGroup(const std::string_view& NewMatch, RouteMode NewMode) noexcept;
 				~RouterGroup() noexcept;
 			};
 
@@ -461,49 +525,43 @@ namespace Vitex
 				MapRouter();
 				~MapRouter() override;
 				void Sort();
-				RouterGroup* Group(const Core::String& Match, RouteMode Mode);
-				RouterEntry* Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps);
-				RouterEntry* Route(const Core::String& Pattern, RouterGroup* Group, RouterEntry* From);
+				RouterGroup* Group(const std::string_view& Match, RouteMode Mode);
+				RouterEntry* Route(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, bool InheritProps);
+				RouterEntry* Route(const std::string_view& Pattern, RouterGroup* Group, RouterEntry* From);
 				bool Remove(RouterEntry* Source);
-				bool Get(const char* Pattern, const SuccessCallback& Callback);
-				bool Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Post(const char* Pattern, const SuccessCallback& Callback);
-				bool Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Put(const char* Pattern, const SuccessCallback& Callback);
-				bool Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Patch(const char* Pattern, const SuccessCallback& Callback);
-				bool Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Delete(const char* Pattern, const SuccessCallback& Callback);
-				bool Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Options(const char* Pattern, const SuccessCallback& Callback);
-				bool Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Access(const char* Pattern, const SuccessCallback& Callback);
-				bool Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool Headers(const char* Pattern, const HeaderCallback& Callback);
-				bool Headers(const Core::String& Match, RouteMode Mode, const char* Pattern, const HeaderCallback& Callback);
-				bool Authorize(const char* Pattern, const AuthorizeCallback& Callback);
-				bool Authorize(const Core::String& Match, RouteMode Mode, const char* Pattern, const AuthorizeCallback& Callback);
-				bool WebSocketInitiate(const char* Pattern, const SuccessCallback& Callback);
-				bool WebSocketInitiate(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
-				bool WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback);
-				bool WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
-				bool WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback);
-				bool WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
-				bool WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback);
-				bool WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback);
+				bool Get(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Get(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Post(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Post(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Put(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Put(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Patch(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Patch(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Delete(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Delete(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Options(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Options(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Access(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Access(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool Headers(const std::string_view& Pattern, const HeaderCallback& Callback);
+				bool Headers(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const HeaderCallback& Callback);
+				bool Authorize(const std::string_view& Pattern, const AuthorizeCallback& Callback);
+				bool Authorize(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const AuthorizeCallback& Callback);
+				bool WebSocketInitiate(const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool WebSocketInitiate(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback);
+				bool WebSocketConnect(const std::string_view& Pattern, const WebSocketCallback& Callback);
+				bool WebSocketConnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketCallback& Callback);
+				bool WebSocketDisconnect(const std::string_view& Pattern, const WebSocketCallback& Callback);
+				bool WebSocketDisconnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketCallback& Callback);
+				bool WebSocketReceive(const std::string_view& Pattern, const WebSocketReadCallback& Callback);
+				bool WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketReadCallback& Callback);
 			};
 
 			class VI_OUT Connection final : public SocketConnection
 			{
 			public:
-				struct ParserFrame
-				{
-					Parser* Multipart = nullptr;
-					Parser* Request = nullptr;
-				} Parsers;
-
-			public:
 				Core::FileEntry Resource;
+				Parser* Resolver = nullptr;
 				WebSocketFrame* WebSocket = nullptr;
 				RouterEntry* Route = nullptr;
 				Server* Root = nullptr;
@@ -517,14 +575,15 @@ namespace Vitex
 				bool Next() override;
 				bool Next(int StatusCode) override;
 				bool SendHeaders(int StatusCode, bool SpecifyTransferEncoding, HeadersCallback&& Callback);
-				bool SendChunk(const Core::String& Chunk, HeadersCallback&& Callback);
+				bool SendChunk(const std::string_view& Chunk, HeadersCallback&& Callback);
 				bool Fetch(ContentCallback&& Callback = nullptr, bool Eat = false);
 				bool Store(ResourceCallback&& Callback = nullptr, bool Eat = false);
 				bool Skip(SuccessCallback&& Callback);
 
 			private:
-				bool ComposeResponse(bool ApplyErrorResponse, HeadersCallback&& Callback);
-				bool ComposeErrorRequested();
+				bool ComposeResponse(bool ApplyErrorResponse, bool ApplyBodyInline, HeadersCallback&& Callback);
+				bool ErrorResponseRequested();
+				bool BodyInliningRequested();
 				bool WaitingForWebSocket();
 			};
 
@@ -545,16 +604,16 @@ namespace Vitex
 				~Query() noexcept;
 				void Clear();
 				void Steal(Core::Schema** Output);
-				void Decode(const char* ContentType, const Core::String& Body);
-				Core::String Encode(const char* ContentType) const;
-				Core::Schema* Get(const char* Name) const;
-				Core::Schema* Set(const char* Name);
-				Core::Schema* Set(const char* Name, const char* Value);
+				void Decode(const std::string_view& ContentType, const std::string_view& Body);
+				Core::String Encode(const std::string_view& ContentType) const;
+				Core::Schema* Get(const std::string_view& Name) const;
+				Core::Schema* Set(const std::string_view& Name);
+				Core::Schema* Set(const std::string_view& Name, const std::string_view& Value);
 
 			private:
 				void NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
-				void DecodeAXWFD(const Core::String& Body);
-				void DecodeAJSON(const Core::String& Body);
+				void DecodeAXWFD(const std::string_view& Body);
+				void DecodeAJSON(const std::string_view& Body);
 				Core::String EncodeAXWFD() const;
 				Core::String EncodeAJSON() const;
 				Core::Schema* GetParameter(QueryToken* Name);
@@ -584,103 +643,102 @@ namespace Vitex
 				Core::String& GenerateSessionId(Connection* Base);
 
 			public:
-				static Core::ExpectsSystem<void> InvalidateCache(const Core::String& Path);
+				static Core::ExpectsSystem<void> InvalidateCache(const std::string_view& Path);
 			};
 
 			class VI_OUT Parser final : public Core::Reference<Parser>
 			{
 			private:
-				enum MultipartState
+				enum class MultipartStatus : uint8_t
 				{
-					MultipartState_Uninitialized = 1,
-					MultipartState_Start,
-					MultipartState_Start_Boundary,
-					MultipartState_Header_Field_Start,
-					MultipartState_Header_Field,
-					MultipartState_Header_Field_Waiting,
-					MultipartState_Header_Value_Start,
-					MultipartState_Header_Value,
-					MultipartState_Header_Value_Waiting,
-					MultipartState_Resource_Start,
-					MultipartState_Resource,
-					MultipartState_Resource_Boundary_Waiting,
-					MultipartState_Resource_Boundary,
-					MultipartState_Resource_Waiting,
-					MultipartState_Resource_End,
-					MultipartState_Resource_Hyphen,
-					MultipartState_End
+					Uninitialized = 1,
+					Start,
+					Start_Boundary,
+					Header_Field_Start,
+					Header_Field,
+					Header_Field_Waiting,
+					Header_Value_Start,
+					Header_Value,
+					Header_Value_Waiting,
+					Resource_Start,
+					Resource,
+					Resource_Boundary_Waiting,
+					Resource_Boundary,
+					Resource_Waiting,
+					Resource_End,
+					Resource_Hyphen,
+					End
 				};
 
-				enum ChunkedState
+				enum class ChunkedStatus : int8_t
 				{
-					ChunkedState_Size,
-					ChunkedState_Ext,
-					ChunkedState_Data,
-					ChunkedState_End,
-					ChunkedState_Head,
-					ChunkedState_Middle
+					Size,
+					Ext,
+					Data,
+					End,
+					Head,
+					Middle
 				};
 
 			public:
-				struct MultipartData
+				struct MessageState
 				{
-					char* LookBehind = nullptr;
-					char* Boundary = nullptr;
-					unsigned char State = MultipartState_Start;
-					int64_t Index = 0, Length = 0;
-				} Multipart;
+					Core::String Header;
+					char* Version = nullptr;
+					char* Method = nullptr;
+					int* StatusCode = nullptr;
+					Core::String* Location = nullptr;
+					Core::String* Query = nullptr;
+					KimvUnorderedMap* Cookies = nullptr;
+					KimvUnorderedMap* Headers = nullptr;
+					ContentFrame* Content = nullptr;
+				} Message;
 
-				struct ChunkedData
+				struct ChunkedState
 				{
 					size_t Length = 0;
-					char ConsumeTrailer = 1;
-					char HexCount = 0;
-					char State = 0;
+					ChunkedStatus State = ChunkedStatus::Size;
+					int8_t ConsumeTrailer = 1;
+					int8_t HexCount = 0;
 				} Chunked;
 
-				struct FrameInfo
+				struct MultipartState
 				{
-					RequestFrame* Request = nullptr;
-					ResponseFrame* Response = nullptr;
-					RouterEntry* Route = nullptr;
-					FILE* Stream = nullptr;
-					Core::String Header;
-					Resource Source;
+					Resource Data;
 					ResourceCallback Callback;
-					bool Close = false;
-					bool Ignore = false;
-				} Frame;
-
-			public:
-				ParserCodeCallback OnStatusCode;
-				ParserDataCallback OnStatusMessage;
-				ParserDataCallback OnQueryValue;
-				ParserDataCallback OnVersion;
-				ParserDataCallback OnPathValue;
-				ParserDataCallback OnMethodValue;
-				ParserDataCallback OnHeaderField;
-				ParserDataCallback OnHeaderValue;
-				ParserDataCallback OnContentData;
-				ParserNotifyCallback OnResourceBegin;
-				ParserNotifyCallback OnResourceEnd;
+					Core::String Header;
+					Core::String* TemporaryDirectory = nullptr;
+					ContentFrame* Content = nullptr;
+					FILE* Stream = nullptr;
+					uint8_t* LookBehind = nullptr;
+					uint8_t* Boundary = nullptr;
+					int64_t Index = 0;
+					int64_t Length = 0;
+					size_t MaxResources = 0;
+					bool Skip = false;
+					bool Finish = false;
+					MultipartStatus State = MultipartStatus::Start;
+				} Multipart;
 
 			public:
 				Parser();
 				~Parser() noexcept;
-				void PrepareForNextParsing(Connection* Base, bool ForMultipart);
-				void PrepareForNextParsing(RouterEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart);
-				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
-				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LengthLastTime);
-				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LengthLastTime);
-				int64_t ParseDecodeChunked(char* Buffer, size_t* BufferLength);
+				void PrepareForRequestParsing(RequestFrame* Request);
+				void PrepareForResponseParsing(ResponseFrame* Response);
+				void PrepareForChunkedParsing();
+				void PrepareForMultipartParsing(ContentFrame* Content, Core::String* TemporaryDirectory, size_t MaxResources, bool Skip, ResourceCallback&& Callback);
+				int64_t MultipartParse(const std::string_view& Boundary, const uint8_t* Buffer, size_t Length);
+				int64_t ParseRequest(const uint8_t* BufferStart, size_t Length, size_t LengthLastTime);
+				int64_t ParseResponse(const uint8_t* BufferStart, size_t Length, size_t LengthLastTime);
+				int64_t ParseDecodeChunked(uint8_t* Buffer, size_t* BufferLength);
 
 			private:
-				const char* IsCompleted(const char* Buffer, const char* BufferEnd, size_t Offset, int* Out);
-				const char* Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, size_t* TokenLength, int* Out);
-				const char* ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out);
-				const char* ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out);
-				const char* ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out);
-				const char* ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out);
+				const uint8_t* IsCompleted(const uint8_t* Buffer, const uint8_t* BufferEnd, size_t Offset, int* Out);
+				const uint8_t* Tokenize(const uint8_t* Buffer, const uint8_t* BufferEnd, const uint8_t** Token, size_t* TokenLength, int* Out);
+				const uint8_t* ProcessVersion(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
+				const uint8_t* ProcessHeaders(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
+				const uint8_t* ProcessRequest(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
+				const uint8_t* ProcessResponse(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
 			};
 
 			class VI_OUT WebCodec final : public Core::Reference<WebCodec>
@@ -728,7 +786,7 @@ namespace Vitex
 
 			public:
 				WebCodec();
-				bool ParseFrame(const char* Data, size_t Size);
+				bool ParseFrame(const uint8_t* Buffer, size_t Size);
 				bool GetFrame(WebSocketOp* Op, Core::Vector<char>* Message);
 			};
 
@@ -757,8 +815,8 @@ namespace Vitex
 			{
 			public:
 				static Core::String ConnectionResolve(Connection* Base);
-				static const char* StatusMessage(int StatusCode);
-				static const char* ContentType(const Core::String& Path, Core::Vector<MimeType>* MimeTypes);
+				static std::string_view StatusMessage(int StatusCode);
+				static std::string_view ContentType(const std::string_view& Path, Core::Vector<MimeType>* MimeTypes);
 			};
 
 			class VI_OUT_TS Paths
@@ -776,27 +834,28 @@ namespace Vitex
 			class VI_OUT_TS Parsing
 			{
 			public:
-				static bool ParseMultipartHeaderField(Parser* Target, const char* Name, size_t Length);
-				static bool ParseMultipartHeaderValue(Parser* Target, const char* Name, size_t Length);
-				static bool ParseMultipartContentData(Parser* Target, const char* Name, size_t Length);
+				static bool ParseMultipartHeaderField(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParseMultipartHeaderValue(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParseMultipartContentData(Parser* Target, const uint8_t* Name, size_t Length);
 				static bool ParseMultipartResourceBegin(Parser* Target);
 				static bool ParseMultipartResourceEnd(Parser* Target);
-				static bool ParseHeaderField(Parser* Target, const char* Name, size_t Length);
-				static bool ParseHeaderValue(Parser* Target, const char* Name, size_t Length);
-				static bool ParseVersion(Parser* Target, const char* Name, size_t Length);
+				static bool ParseHeaderField(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParseHeaderValue(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParseVersion(Parser* Target, const uint8_t* Name, size_t Length);
 				static bool ParseStatusCode(Parser* Target, size_t Length);
-				static bool ParseMethodValue(Parser* Target, const char* Name, size_t Length);
-				static bool ParsePathValue(Parser* Target, const char* Name, size_t Length);
-				static bool ParseQueryValue(Parser* Target, const char* Name, size_t Length);
-				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
+				static bool ParseStatusMessage(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParseMethodValue(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParsePathValue(Parser* Target, const uint8_t* Name, size_t Length);
+				static bool ParseQueryValue(Parser* Target, const uint8_t* Name, size_t Length);
+				static int ParseContentRange(const std::string_view& ContentRange, int64_t* Range1, int64_t* Range2);
 				static Core::String ParseMultipartDataBoundary();
-				static void ParseCookie(const Core::String& Value);
+				static void ParseCookie(const std::string_view& Value);
 			};
 
 			class VI_OUT_TS Permissions
 			{
 			public:
-				static Core::String Authorize(const Core::String& Username, const Core::String& Password, const Core::String& Type = "Basic");
+				static Core::String Authorize(const std::string_view& Username, const std::string_view& Password, const std::string_view& Type = "Basic");
 				static bool Authorize(Connection* Base);
 				static bool MethodAllowed(Connection* Base);
 				static bool WebSocketUpgradeAllowed(Connection* Base);
@@ -829,14 +888,14 @@ namespace Vitex
 			public:
 				static bool ProcessDirectory(Connection* Base);
 				static bool ProcessResource(Connection* Base);
-				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range);
+				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const std::string_view& ContentRange, size_t Range);
 				static bool ProcessResourceCache(Connection* Base);
 				static bool ProcessFile(Connection* Base, size_t ContentLength, size_t Range);
 				static bool ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range);
 				static bool ProcessFileChunk(Connection* Base, FILE* Stream, size_t ContentLength);
 				static bool ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip);
 				static bool ProcessFileCompressChunk(Connection* Base, FILE* Stream, void* CStream, size_t ContentLength);
-				static bool ProcessWebSocket(Connection* Base, const char* Key, size_t KeySize);
+				static bool ProcessWebSocket(Connection* Base, const uint8_t* Key, size_t KeySize);
 			};
 
 			class VI_OUT_TS Server final : public SocketServer
@@ -907,10 +966,10 @@ namespace Vitex
 				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void Upload(size_t FileId);
 				void ManageKeepAlive();
-				void Receive(const char* LeftoverBuffer, size_t LeftoverSize);
+				void Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize);
 			};
 
-			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Location, const Core::String& Method = "GET", const FetchFrame& Options = FetchFrame());
+			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const std::string_view& Location, const std::string_view& Method = "GET", const FetchFrame& Options = FetchFrame());
 		}
 	}
 }

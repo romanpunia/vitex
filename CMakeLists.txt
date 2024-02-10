@@ -36,8 +36,9 @@ set_target_properties(vitex PROPERTIES
         SOVERSION ${PROJECT_VERSION})
 
 #Project's basic settings
-set(VI_BINDINGS ON CACHE BOOL "Enable full script bindings")
 set(VI_ALLOCATOR ON CACHE BOOL "Enable custom allocator for standard containers")
+set(VI_PESSIMISTIC OFF CACHE BOOL "Enable assert statements for release build")
+set(VI_BINDINGS ON CACHE BOOL "Enable full script bindings")
 set(VI_LOGGING "default" CACHE STRING "Logging level (errors, warnings, default, debug, verbose)")
 if (${VI_LOGGING} STREQUAL "verbose")
     message(STATUS "Verbose logging is enabled")

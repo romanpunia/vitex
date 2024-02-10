@@ -1,6 +1,6 @@
 #ifndef VI_GRAPHICS_OPENGL45_H
 #define VI_GRAPHICS_OPENGL45_H
-#include "../core/graphics.h"
+#include "../graphics.h"
 #include <array>
 #ifdef VI_MICROSOFT
 #include <Windows.h>
@@ -94,7 +94,7 @@ namespace Vitex
 				void* GetResource() const override;
 
 			public:
-				static Core::String GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count);
+				static Core::String GetLayoutHash(OGLElementBuffer** Buffers, uint32_t Count);
 			};
 
 			class OGLShader final : public Shader
@@ -378,7 +378,7 @@ namespace Vitex
 				} Register;
 
 			private:
-				const char* ShaderVersion;
+				std::string_view ShaderVersion;
 
 			public:
 				Activity* Window;
@@ -393,35 +393,35 @@ namespace Vitex
 				void SetRasterizerState(RasterizerState* State) override;
 				void SetDepthStencilState(DepthStencilState* State) override;
 				void SetInputLayout(InputLayout* State) override;
-				ExpectsGraphics<void> SetShader(Shader* Resource, unsigned int Type) override;
-				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) override;
-				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
+				ExpectsGraphics<void> SetShader(Shader* Resource, uint32_t Type) override;
+				void SetSamplerState(SamplerState* State, uint32_t Slot, uint32_t Count, uint32_t Type) override;
+				void SetBuffer(Shader* Resource, uint32_t Slot, uint32_t Type) override;
+				void SetBuffer(InstanceBuffer* Resource, uint32_t Slot, uint32_t Type) override;
+				void SetConstantBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type) override;
+				void SetStructureBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type) override;
 				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
-				void SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage = false) override;
-				void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
-				void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
-				void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
-				void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetVertexBuffers(ElementBuffer** Resources, uint32_t Count, bool DynamicLinkage = false) override;
+				void SetTexture2D(Texture2D* Resource, uint32_t Slot, uint32_t Type) override;
+				void SetTexture3D(Texture3D* Resource, uint32_t Slot, uint32_t Type) override;
+				void SetTextureCube(TextureCube* Resource, uint32_t Slot, uint32_t Type) override;
+				void SetWriteable(ElementBuffer** Resource, uint32_t Slot, uint32_t Count, bool Computable) override;
+				void SetWriteable(Texture2D** Resource, uint32_t Slot, uint32_t Count, bool Computable) override;
+				void SetWriteable(Texture3D** Resource, uint32_t Slot, uint32_t Count, bool Computable) override;
+				void SetWriteable(TextureCube** Resource, uint32_t Slot, uint32_t Count, bool Computable) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthTarget2D* Resource) override;
 				void SetTarget(DepthTargetCube* Resource) override;
-				void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
-				void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target) override;
+				void SetTarget(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B) override;
+				void SetTarget(Graphics::RenderTarget* Resource, uint32_t Target) override;
 				void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) override;
 				void SetTarget(Graphics::RenderTarget* Resource) override;
 				void SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8]) override;
-				void SetTargetRect(unsigned int Width, unsigned int Height) override;
-				void SetViewports(unsigned int Count, Viewport* Viewports) override;
-				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
+				void SetTargetRect(uint32_t Width, uint32_t Height) override;
+				void SetViewports(uint32_t Count, Viewport* Viewports) override;
+				void SetScissorRects(uint32_t Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
-				void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) override;
+				void FlushTexture(uint32_t Slot, uint32_t Count, uint32_t Type) override;
 				void FlushState() override;
 				void ClearBuffer(InstanceBuffer* Resource) override;
 				void ClearWritable(Texture2D* Resource) override;
@@ -431,22 +431,22 @@ namespace Vitex
 				void ClearWritable(TextureCube* Resource) override;
 				void ClearWritable(TextureCube* Resource, float R, float G, float B) override;
 				void Clear(float R, float G, float B) override;
-				void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
+				void Clear(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B) override;
 				void ClearDepth() override;
 				void ClearDepth(DepthTarget2D* Resource) override;
 				void ClearDepth(DepthTargetCube* Resource) override;
 				void ClearDepth(Graphics::RenderTarget* Resource) override;
-				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
+				void DrawIndexed(uint32_t Count, uint32_t IndexLocation, uint32_t BaseLocation) override;
 				void DrawIndexed(MeshBuffer* Resource) override;
 				void DrawIndexed(SkinMeshBuffer* Resource) override;
-				void DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation) override;
-				void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount) override;
-				void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount) override;
-				void Draw(unsigned int Count, unsigned int Location) override;
-				void DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation) override;
-				void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) override;
-				void GetViewports(unsigned int* Count, Viewport* Out) override;
-				void GetScissorRects(unsigned int* Count, Compute::Rectangle* Out) override;
+				void DrawIndexedInstanced(uint32_t IndexCountPerInstance, uint32_t InstanceCount, uint32_t IndexLocation, uint32_t VertexLocation, uint32_t InstanceLocation) override;
+				void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, uint32_t InstanceCount) override;
+				void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, uint32_t InstanceCount) override;
+				void Draw(uint32_t Count, uint32_t Location) override;
+				void DrawInstanced(uint32_t VertexCountPerInstance, uint32_t InstanceCount, uint32_t VertexLocation, uint32_t InstanceLocation) override;
+				void Dispatch(uint32_t GroupX, uint32_t GroupY, uint32_t GroupZ) override;
+				void GetViewports(uint32_t* Count, Viewport* Out) override;
+				void GetScissorRects(uint32_t* Count, Compute::Rectangle* Out) override;
 				void QueryBegin(Query* Resource) override;
 				void QueryEnd(Query* Resource) override;
 				void GenerateMips(Texture2D* Resource) override;
@@ -481,17 +481,17 @@ namespace Vitex
 				ExpectsGraphics<void> UpdateBufferSize(Shader* Resource, size_t Size) override;
 				ExpectsGraphics<void> UpdateBufferSize(InstanceBuffer* Resource, size_t Size) override;
 				ExpectsGraphics<void> CopyTexture2D(Texture2D* Resource, Texture2D** Result) override;
-				ExpectsGraphics<void> CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result) override;
+				ExpectsGraphics<void> CopyTexture2D(Graphics::RenderTarget* Resource, uint32_t Target, Texture2D** Result) override;
 				ExpectsGraphics<void> CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result) override;
-				ExpectsGraphics<void> CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result) override;
+				ExpectsGraphics<void> CopyTexture2D(MultiRenderTargetCube* Resource, uint32_t Cube, Compute::CubeFace Face, Texture2D** Result) override;
 				ExpectsGraphics<void> CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) override;
-				ExpectsGraphics<void> CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
-				ExpectsGraphics<void> CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned ToTarget) override;
+				ExpectsGraphics<void> CopyTextureCube(MultiRenderTargetCube* Resource, uint32_t Cube, TextureCube** Result) override;
+				ExpectsGraphics<void> CopyTarget(Graphics::RenderTarget* From, uint32_t FromTarget, Graphics::RenderTarget* To, uint32_t ToTarget) override;
 				ExpectsGraphics<void> CubemapPush(Cubemap* Resource, TextureCube* Result) override;
 				ExpectsGraphics<void> CubemapFace(Cubemap* Resource, Compute::CubeFace Face) override;
 				ExpectsGraphics<void> CubemapPop(Cubemap* Resource) override;
 				ExpectsGraphics<void> CopyBackBuffer(Texture2D** Result) override;
-				ExpectsGraphics<void> ResizeBuffers(unsigned int Width, unsigned int Height) override;
+				ExpectsGraphics<void> ResizeBuffers(uint32_t Width, uint32_t Height) override;
 				ExpectsGraphics<void> GenerateTexture(Texture2D* Resource) override;
 				ExpectsGraphics<void> GenerateTexture(Texture3D* Resource) override;
 				ExpectsGraphics<void> GenerateTexture(TextureCube* Resource) override;
@@ -531,7 +531,7 @@ namespace Vitex
 				void* GetContext() const override;
 				bool IsValid() const override;
 				void SetVSyncMode(VSync Mode) override;
-				const char* GetShaderVersion();
+				const std::string_view& GetShaderVersion();
 				ExpectsGraphics<void> CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size);
 				ExpectsGraphics<void> CreateConstantBuffer(GLuint* Buffer, size_t Size);
 				ExpectsGraphics<void> CreateDirectBuffer(size_t Size);

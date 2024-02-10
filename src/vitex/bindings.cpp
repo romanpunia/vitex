@@ -1,16 +1,16 @@
 #include "bindings.h"
 #ifdef VI_BINDINGS
 #include "network.h"
-#include "../network/http.h"
-#include "../network/smtp.h"
-#include "../network/ldb.h"
-#include "../network/pdb.h"
-#include "../network/mdb.h"
-#include "../engine/processors.h"
-#include "../engine/components.h"
-#include "../engine/renderers.h"
-#include "../audio/effects.h"
-#include "../audio/filters.h"
+#include "network/http.h"
+#include "network/smtp.h"
+#include "network/ldb.h"
+#include "network/pdb.h"
+#include "network/mdb.h"
+#include "engine/processors.h"
+#include "engine/components.h"
+#include "engine/renderers.h"
+#include "audio/effects.h"
+#include "audio/filters.h"
 #endif
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
@@ -98,7 +98,7 @@ namespace
 		static StringFactory* Base;
 
 	public:
-		Vitex::Core::UnorderedMap<Vitex::Core::String, int> Cache;
+		Vitex::Core::UnorderedMap<Vitex::Core::String, std::atomic<int32_t>> Cache;
 
 	public:
 		StringFactory()
@@ -112,34 +112,41 @@ namespace
 		{
 			VI_ASSERT(Buffer != nullptr, "buffer must not be null");
 
-			asAcquireExclusiveLock();
-			Vitex::Core::String Source(Buffer, Length);
-			auto It = Cache.find(Source);
-
-			if (It == Cache.end())
-				It = Cache.insert(std::make_pair(std::move(Source), 1)).first;
-			else
+			asAcquireSharedLock();
+			std::string_view Source(Buffer, Length);
+			auto It = Cache.find(Vitex::Core::HglCast(Source));
+			if (It != Cache.end())
+			{
 				It->second++;
+				asReleaseSharedLock();
+				return reinterpret_cast<const void*>(&It->first);
+			}
 
+			asReleaseSharedLock();
+			asAcquireExclusiveLock();
+			It = Cache.insert(std::make_pair(std::move(Source), 1)).first;
 			asReleaseExclusiveLock();
 			return reinterpret_cast<const void*>(&It->first);
 		}
 		int ReleaseStringConstant(const void* Source)
 		{
 			VI_ASSERT(Source != nullptr, "source must not be null");
-
-			asAcquireExclusiveLock();
+			asAcquireSharedLock();
 			auto It = Cache.find(*reinterpret_cast<const Vitex::Core::String*>(Source));
 			if (It == Cache.end())
 			{
-				asReleaseExclusiveLock();
+				asReleaseSharedLock();
 				return asERROR;
 			}
+			else if (--It->second > 0)
+			{
+				asReleaseSharedLock();
+				return asSUCCESS;
+			}
 
-			It->second--;
-			if (It->second <= 0)
-				Cache.erase(It);
-
+			asReleaseSharedLock();
+			asAcquireExclusiveLock();
+			Cache.erase(It);
 			asReleaseExclusiveLock();
 			return asSUCCESS;
 		}
@@ -159,17 +166,14 @@ namespace
 		static StringFactory* Get()
 		{
 			if (!Base)
-				Base = VI_NEW(StringFactory);
+				Base = Vitex::Core::Memory::New<StringFactory>();
 
 			return Base;
 		}
 		static void Free()
 		{
 			if (Base != nullptr && Base->Cache.empty())
-			{
-				VI_DELETE(StringFactory, Base);
-				Base = nullptr;
-			}
+				Vitex::Core::Memory::Delete(Base);
 		}
 	};
 	StringFactory* StringFactory::Base = nullptr;
@@ -222,20 +226,26 @@ namespace Vitex
 				return *reinterpret_cast<void**>(From);
 			}
 
-			void String::Create(Core::String* Base)
+			std::string_view String::ImplCastStringView(Core::String& Base)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
-				new(Base) Core::String();
+				ImmediateContext* Context = ImmediateContext::Get();
+				return std::string_view(Context ? Context->ExtendStringLifetime(Base) : Base);
 			}
-			void String::CreateCopy(Core::String* Base, const Core::String& Other)
+			void String::Create(Core::String& Base)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
-				new(Base) Core::String(Other);
+				new(&Base) Core::String();
 			}
-			void String::Destroy(Core::String* Base)
+			void String::CreateCopy1(Core::String& Base, const Core::String& Other)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
-				Base->~basic_string();
+				new(&Base) Core::String(Other);
+			}
+			void String::CreateCopy2(Core::String& Base, const std::string_view& Other)
+			{
+				new(&Base) Core::String(Other);
+			}
+			void String::Destroy(Core::String& Base)
+			{
+				Base.~basic_string();
 			}
 			void String::PopBack(Core::String& Base)
 			{
@@ -243,6 +253,38 @@ namespace Vitex
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
 				else
 					Base.pop_back();
+			}
+			Core::String& String::Replace1(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start)
+			{
+				return Core::Stringify::Replace(Other, From, To, Start);
+			}
+			Core::String& String::ReplacePart1(Core::String& Other, size_t Start, size_t End, const Core::String& To)
+			{
+				return Core::Stringify::ReplacePart(Other, Start, End, To);
+			}
+			bool String::StartsWith1(const Core::String& Other, const Core::String& Value, size_t Offset)
+			{
+				return Core::Stringify::StartsWith(Other, Value, Offset);
+			}
+			bool String::EndsWith1(const Core::String& Other, const Core::String& Value)
+			{
+				return Core::Stringify::EndsWith(Other, Value);
+			}
+			Core::String& String::Replace2(Core::String& Other, const std::string_view& From, const std::string_view& To, size_t Start)
+			{
+				return Core::Stringify::Replace(Other, From, To, Start);
+			}
+			Core::String& String::ReplacePart2(Core::String& Other, size_t Start, size_t End, const std::string_view& To)
+			{
+				return Core::Stringify::ReplacePart(Other, Start, End, To);
+			}
+			bool String::StartsWith2(const Core::String& Other, const std::string_view& Value, size_t Offset)
+			{
+				return Core::Stringify::StartsWith(Other, Value, Offset);
+			}
+			bool String::EndsWith2(const Core::String& Other, const std::string_view& Value)
+			{
+				return Core::Stringify::EndsWith(Other, Value);
 			}
 			Core::String String::Substring1(Core::String& Base, size_t Offset)
 			{
@@ -299,7 +341,7 @@ namespace Vitex
 				char& Target = Base.back();
 				return &Target;
 			}
-			Array* String::Split(Core::String& Base, const Core::String& Delimiter)
+			Array* String::Split(Core::String& Base, const std::string_view& Delimiter)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				asITypeInfo* ArrayType = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@").GetTypeInfo();
@@ -307,6 +349,143 @@ namespace Vitex
 
 				int Offset = 0, Prev = 0, Count = 0;
 				while ((Offset = (int)Base.find(Delimiter, Prev)) != (int)Core::String::npos)
+				{
+					Array->Resize(Array->Size() + 1);
+					((Core::String*)Array->At(Count))->assign(&Base[Prev], Offset - Prev);
+					Prev = Offset + (int)Delimiter.size();
+					Count++;
+				}
+
+				Array->Resize(Array->Size() + 1);
+				((Core::String*)Array->At(Count))->assign(&Base[Prev]);
+				return Array;
+			}
+
+			Core::String StringView::ImplCastString(std::string_view& Base)
+			{
+				return Core::String(Base);
+			}
+			void StringView::Create(std::string_view& Base)
+			{
+				VI_ASSERT(Base != nullptr, "base should be set");
+				new(&Base) std::string_view();
+			}
+			void StringView::CreateCopy1(std::string_view& Base, const Core::String& Other)
+			{
+				VI_ASSERT(Base != nullptr, "base should be set");
+				new(&Base) std::string_view(Other);
+			}
+			void StringView::CreateCopy2(std::string_view& Base, const std::string_view& Other)
+			{
+				VI_ASSERT(Base != nullptr, "base should be set");
+				new(&Base) std::string_view(Other);
+			}
+			void StringView::Destroy(std::string_view& Base)
+			{
+				Base.~basic_string_view();
+			}
+			bool StringView::StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset)
+			{
+				return Core::Stringify::StartsWith(Other, Value, Offset);
+			}
+			bool StringView::EndsWith(const std::string_view& Other, const std::string_view& Value)
+			{
+				return Core::Stringify::EndsWith(Other, Value);
+			}
+			int StringView::Compare(std::string_view& Base, const Core::String& Other)
+			{
+				return Base.compare(Other);
+			}
+			Core::String StringView::Append1(const std::string_view& Base, const std::string_view& Other)
+			{
+				Core::String Result = Core::String(Base);
+				Result.append(Other);
+				return Result;
+			}
+			Core::String StringView::Append2(const std::string_view& Base, const Core::String& Other)
+			{
+				Core::String Result = Core::String(Base);
+				Result.append(Other);
+				return Result;
+			}
+			Core::String StringView::Append3(const Core::String& Other, const std::string_view& Base)
+			{
+				Core::String Result = Other;
+				Result.append(Base);
+				return Result;
+			}
+			Core::String StringView::Append4(const std::string_view& Base, char Other)
+			{
+				Core::String Result = Core::String(Base);
+				Result.append(1, Other);
+				return Result;
+			}
+			Core::String StringView::Append5(char Other, const std::string_view& Base)
+			{
+				Core::String Result = Core::String(1, Other);
+				Result.append(Base);
+				return Result;
+			}
+			Core::String StringView::Substring1(std::string_view& Base, size_t Offset)
+			{
+				return Core::String(Base.substr(Offset));
+			}
+			Core::String StringView::Substring2(std::string_view& Base, size_t Offset, size_t Size)
+			{
+				return Core::String(Base.substr(Offset, Size));
+			}
+			std::string_view StringView::FromBuffer(const char* Buffer, size_t MaxSize)
+			{
+				if (!Buffer)
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_NULLPOINTER));
+					return std::string_view();
+				}
+
+				size_t Size = strnlen(Buffer, MaxSize);
+				return std::string_view(Buffer, Size);
+			}
+			char* StringView::Index(std::string_view& Base, size_t Offset)
+			{
+				if (Offset >= Base.size())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return nullptr;
+				}
+
+				char* Data = (char*)Base.data();
+				return &Data[Offset];
+			}
+			char* StringView::Front(std::string_view& Base)
+			{
+				if (Base.empty())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return nullptr;
+				}
+
+				const char& Target = Base.front();
+				return (char*)&Target;
+			}
+			char* StringView::Back(std::string_view& Base)
+			{
+				if (Base.empty())
+				{
+					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFBOUNDS));
+					return nullptr;
+				}
+
+				const char& Target = Base.back();
+				return (char*)&Target;
+			}
+			Array* StringView::Split(std::string_view& Base, const std::string_view& Delimiter)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				asITypeInfo* ArrayType = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@").GetTypeInfo();
+				Array* Array = Array::Create(ArrayType);
+
+				int Offset = 0, Prev = 0, Count = 0;
+				while ((Offset = (int)Base.find(Delimiter, Prev)) != (int)std::string::npos)
 				{
 					Array->Resize(Array->Size() + 1);
 					((Core::String*)Array->At(Count))->assign(&Base[Prev], Offset - Prev);
@@ -358,18 +537,17 @@ namespace Vitex
 				return diff / (fabs(A) + fabs(B)) < Epsilon;
 			}
 
-			void Imports::BindSyntax(VirtualMachine* VM, bool Enabled, const char* Syntax)
+			void Imports::BindSyntax(VirtualMachine* VM, bool Enabled, const std::string_view& Syntax)
 			{
 				VI_ASSERT(VM != nullptr, "vm should be set");
-				VI_ASSERT(Syntax != nullptr && Syntax[0] != '\0', "syntax should be set");
 				if (Enabled)
 					VM->SetCodeGenerator("import-syntax", std::bind(&Bindings::Imports::GeneratorCallback, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, Syntax));
 				else
 					VM->SetCodeGenerator("import-syntax", nullptr);
 			}
-			ExpectsVM<void> Imports::GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax)
+			ExpectsVM<void> Imports::GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, const std::string_view& Syntax)
 			{
-				return Parser::ReplaceDirectivePreconditions(Syntax, Code, [Base, &Path](const Core::String& Text) -> ExpectsVM<Core::String>
+				return Parser::ReplaceDirectivePreconditions(Syntax, Code, [Base, &Path](const std::string_view& Text) -> ExpectsVM<Core::String>
 				{
 					Core::Vector<std::pair<Core::String, Core::TextSettle>> Includes = Core::Stringify::FindInBetweenInCode(Text, "\"", "\"");
 					Core::String Output;
@@ -384,7 +562,7 @@ namespace Vitex
 
 					size_t Prev = Core::Stringify::CountLines(Text);
 					size_t Next = Core::Stringify::CountLines(Output);
-					size_t Diff = (Next < Prev ? Prev - Next : 1);
+					size_t Diff = (Next < Prev ? Prev - Next : 0);
 					Output.append(Diff, '\n');
 					return Output;
 				});
@@ -395,23 +573,23 @@ namespace Vitex
 			}
 			Exception::Pointer::Pointer(ImmediateContext* NewContext) : Context(NewContext)
 			{
-				const char* Value = (Context ? Context->GetExceptionString() : nullptr);
-				if (Value != nullptr && Value[0] != '\0' && (Context ? !Context->WillExceptionBeCaught() : false))
+				auto Value = (Context ? Context->GetExceptionString() : std::string_view());
+				if (!Value.empty() && (Context ? !Context->WillExceptionBeCaught() : false))
 				{
-					LoadExceptionData(Context->GetExceptionString());
+					LoadExceptionData(Value);
 					Origin = LoadStackHere();
 				}
 			}
-			Exception::Pointer::Pointer(const Core::String& Value) : Context(ImmediateContext::Get())
+			Exception::Pointer::Pointer(const std::string_view& Value) : Context(ImmediateContext::Get())
 			{
 				LoadExceptionData(Value);
 				Origin = LoadStackHere();
 			}
-			Exception::Pointer::Pointer(const Core::String& NewType, const Core::String& NewText) : Type(NewType), Text(NewText), Context(ImmediateContext::Get())
+			Exception::Pointer::Pointer(const std::string_view& NewType, const std::string_view& NewText) : Type(NewType), Text(NewText), Context(ImmediateContext::Get())
 			{
 				Origin = LoadStackHere();
 			}
-			void Exception::Pointer::LoadExceptionData(const Core::String& Value)
+			void Exception::Pointer::LoadExceptionData(const std::string_view& Value)
 			{
 				size_t Offset = Value.find(':');
 				if (Offset != std::string::npos)
@@ -460,13 +638,13 @@ namespace Vitex
 				if (!Function.IsValid())
 					return Data;
 
-				const char* Decl = Function.GetDecl();
+				auto Decl = Function.GetDecl();
 				Data.append("\n  in function ");
-				Data.append(Decl ? Decl : "<any>");
+				Data.append(Decl.empty() ? "<any>" : Decl);
 
-				const char* Module = Function.GetModuleName();
+				auto Module = Function.GetModuleName();
 				Data.append("\n  in module ");
-				Data.append(Module ? Module : "<anonymous>");
+				Data.append(Module.empty() ? "<anonymous>" : Module);
 
 				int LineNumber = Context->GetExceptionLineNumber();
 				if (LineNumber > 0)
@@ -502,11 +680,7 @@ namespace Vitex
 			}
 			bool Exception::HasExceptionAt(ImmediateContext* Context)
 			{
-				if (!Context)
-					return false;
-
-				const char* Message = Context->GetExceptionString();
-				return Message != nullptr && Message[0] != '\0';
+				return Context ? !Context->GetExceptionString().empty() : false;
 			}
 			bool Exception::HasException()
 			{
@@ -517,8 +691,8 @@ namespace Vitex
 				if (!Context)
 					return Pointer();
 
-				const char* Message = Context->GetExceptionString();
-				if (!Message)
+				auto Message = Context->GetExceptionString();
+				if (Message.empty())
 					return Pointer();
 
 				return Pointer(Core::String(Message));
@@ -527,11 +701,14 @@ namespace Vitex
 			{
 				return GetExceptionAt(ImmediateContext::Get());
 			}
-			ExpectsVM<void> Exception::GeneratorCallback(Compute::Preprocessor*, const Core::String& Path, Core::String& Code)
+			ExpectsVM<void> Exception::GeneratorCallback(Compute::Preprocessor*, const std::string_view& Path, Core::String& Code)
 			{
-				return Parser::ReplaceInlinePreconditions("throw", Code, [](const Core::String& Expression) -> ExpectsVM<Core::String>
+				return Parser::ReplaceInlinePreconditions("throw", Code, [](const std::string_view& Expression) -> ExpectsVM<Core::String>
 				{
-					return Core::String("exception::throw(" + Expression + ")");
+					Core::String Result = "exception::throw(";
+					Result.append(Expression);
+					Result.append(1, ')');
+					return Result;
 				});
 			}
 
@@ -546,6 +723,10 @@ namespace Vitex
 			Exception::Pointer ExpectsWrapper::TranslateThrow(const std::error_condition& Error)
 			{
 				return Exception::Pointer(EXCEPTIONCAT_SYSTEM, Core::Copy<Core::String>(Error.message()));
+			}
+			Exception::Pointer ExpectsWrapper::TranslateThrow(const std::string_view& Error)
+			{
+				return Exception::Pointer(EXCEPTIONCAT_SYSTEM, Error);
 			}
 			Exception::Pointer ExpectsWrapper::TranslateThrow(const Core::String& Error)
 			{
@@ -974,14 +1155,14 @@ namespace Vitex
 				if (!CheckMaxSize(MaxElements))
 					return;
 
-				SBuffer* NewBuffer = VI_MALLOC(SBuffer, sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)MaxElements);
+				SBuffer* NewBuffer = Core::Memory::Allocate<SBuffer>(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)MaxElements);
 				if (!NewBuffer)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
 				NewBuffer->NumElements = Buffer->NumElements;
 				NewBuffer->MaxElements = MaxElements;
 				memcpy(NewBuffer->Data, Buffer->Data, (size_t)Buffer->NumElements * (size_t)ElementSize);
-				VI_FREE(Buffer);
+				Core::Memory::Deallocate(Buffer);
 				Buffer = NewBuffer;
 			}
 			void Array::Resize(size_t NumElements)
@@ -1031,7 +1212,7 @@ namespace Vitex
 				if (Buffer->MaxElements < Buffer->NumElements + Delta)
 				{
 					size_t Count = (size_t)Buffer->NumElements + (size_t)Delta, Size = (size_t)ElementSize;
-					SBuffer* NewBuffer = VI_MALLOC(SBuffer, sizeof(SBuffer) - 1 + Size * Count);
+					SBuffer* NewBuffer = Core::Memory::Allocate<SBuffer>(sizeof(SBuffer) - 1 + Size * Count);
 					if (!NewBuffer)
 						return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -1042,7 +1223,7 @@ namespace Vitex
 						memcpy(NewBuffer->Data + (Where + Delta) * (size_t)ElementSize, Buffer->Data + Where * (size_t)ElementSize, (size_t)(Buffer->NumElements - Where) * (size_t)ElementSize);
 
 					Create(NewBuffer, Where, Where + Delta);
-					VI_FREE(Buffer);
+					Core::Memory::Deallocate(Buffer);
 					Buffer = NewBuffer;
 				}
 				else if (Delta < 0)
@@ -1200,7 +1381,7 @@ namespace Vitex
 			}
 			void Array::CreateBuffer(SBuffer** BufferPtr, size_t NumElements)
 			{
-				*BufferPtr = VI_MALLOC(SBuffer, sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)NumElements);
+				*BufferPtr = Core::Memory::Allocate<SBuffer>(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)NumElements);
 				if (!*BufferPtr)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
 
@@ -1211,7 +1392,7 @@ namespace Vitex
 			void Array::DeleteBuffer(SBuffer* BufferPtr)
 			{
 				Destroy(BufferPtr, 0, BufferPtr->NumElements);
-				VI_FREE(BufferPtr);
+				Core::Memory::Deallocate(BufferPtr);
 			}
 			void Array::Create(SBuffer* BufferPtr, size_t Start, size_t End)
 			{
@@ -1359,7 +1540,7 @@ namespace Vitex
 					case (size_t)TypeId::INT16: return COMPARE(signed short);
 					case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
 					case (size_t)TypeId::INT32: return COMPARE(signed int);
-					case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
+					case (size_t)TypeId::UINT32: return COMPARE(uint32_t);
 					case (size_t)TypeId::FLOAT: return COMPARE(float);
 					case (size_t)TypeId::DOUBLE: return COMPARE(double);
 					default: return COMPARE(signed int);
@@ -1412,7 +1593,7 @@ namespace Vitex
 					case (size_t)TypeId::INT16: return COMPARE(signed short);
 					case (size_t)TypeId::UINT16: return COMPARE(unsigned short);
 					case (size_t)TypeId::INT32: return COMPARE(signed int);
-					case (size_t)TypeId::UINT32: return COMPARE(unsigned int);
+					case (size_t)TypeId::UINT32: return COMPARE(uint32_t);
 					case (size_t)TypeId::FLOAT: return COMPARE(float);
 					case (size_t)TypeId::DOUBLE: return COMPARE(double);
 					default: return COMPARE(signed int);
@@ -1590,7 +1771,7 @@ namespace Vitex
 				if (Cache)
 					return asReleaseExclusiveLock();
 
-				Cache = VI_MALLOC(SCache, sizeof(SCache));
+				Cache = Core::Memory::Allocate<SCache>(sizeof(SCache));
 				if (!Cache)
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
@@ -1614,9 +1795,9 @@ namespace Vitex
 								continue;
 
 							bool IsCmp = false, IsEquals = false;
-							if (ReturnTypeId == (size_t)TypeId::INT32 && strcmp(Function.GetName(), "opCmp") == 0)
+							if (ReturnTypeId == (size_t)TypeId::INT32 && Function.GetName() == "opCmp")
 								IsCmp = true;
-							if (ReturnTypeId == (size_t)TypeId::BOOL && strcmp(Function.GetName(), "opEquals") == 0)
+							if (ReturnTypeId == (size_t)TypeId::BOOL && Function.GetName() == "opEquals")
 								IsEquals = true;
 
 							if (!IsCmp && !IsEquals)
@@ -1735,7 +1916,7 @@ namespace Vitex
 				if (Cache != nullptr)
 				{
 					Cache->~SCache();
-					VI_FREE(Cache);
+					Core::Memory::Deallocate(Cache);
 				}
 			}
 			bool Array::TemplateCallback(asITypeInfo* InfoContext, bool& DontGarbageCollect)
@@ -2198,7 +2379,7 @@ namespace Vitex
 								Integer64 = *(unsigned short*)RefPtr;
 								break;
 							case (size_t)TypeId::UINT32:
-								Integer64 = *(unsigned int*)RefPtr;
+								Integer64 = *(uint32_t*)RefPtr;
 								break;
 							case (size_t)TypeId::INT64:
 							case (size_t)TypeId::UINT64:
@@ -2292,13 +2473,17 @@ namespace Vitex
 
 				return *this;
 			}
-			Storable* Dictionary::operator[](const Core::String& Key)
+			Storable* Dictionary::operator[](const std::string_view& Key)
 			{
-				return &Data[Key];
+				auto It = Data.find(Core::HglCast(Key));
+				if (It != Data.end())
+					return &It->second;
+
+				return &Data[Core::String(Key)];
 			}
-			const Storable* Dictionary::operator[](const Core::String& Key) const
+			const Storable* Dictionary::operator[](const std::string_view& Key) const
 			{
-				auto It = Data.find(Key);
+				auto It = Data.find(Core::HglCast(Key));
 				if (It != Data.end())
 					return &It->second;
 
@@ -2331,17 +2516,17 @@ namespace Vitex
 				Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_ACCESSINVALID));
 				return 0;
 			}
-			void Dictionary::Set(const Core::String& Key, void* Value, int TypeId)
+			void Dictionary::Set(const std::string_view& Key, void* Value, int TypeId)
 			{
-				auto It = Data.find(Key);
+				auto It = Data.find(Core::HglCast(Key));
 				if (It == Data.end())
 					It = Data.insert(InternalMap::value_type(Key, Storable())).first;
 
 				It->second.Set(Engine, Value, TypeId);
 			}
-			bool Dictionary::Get(const Core::String& Key, void* Value, int TypeId) const
+			bool Dictionary::Get(const std::string_view& Key, void* Value, int TypeId) const
 			{
-				auto It = Data.find(Key);
+				auto It = Data.find(Core::HglCast(Key));
 				if (It != Data.end())
 					return It->second.Get(Engine, Value, TypeId);
 
@@ -2388,17 +2573,17 @@ namespace Vitex
 
 				return It.GetValue(Value, TypeId);
 			}
-			int Dictionary::GetTypeId(const Core::String& Key) const
+			int Dictionary::GetTypeId(const std::string_view& Key) const
 			{
-				auto It = Data.find(Key);
+				auto It = Data.find(Core::HglCast(Key));
 				if (It != Data.end())
 					return It->second.Value.TypeId;
 
 				return -1;
 			}
-			bool Dictionary::Exists(const Core::String& Key) const
+			bool Dictionary::Exists(const std::string_view& Key) const
 			{
-				auto It = Data.find(Key);
+				auto It = Data.find(Core::HglCast(Key));
 				if (It != Data.end())
 					return true;
 
@@ -2415,9 +2600,9 @@ namespace Vitex
 			{
 				return size_t(Data.size());
 			}
-			bool Dictionary::Erase(const Core::String& Key)
+			bool Dictionary::Erase(const std::string_view& Key)
 			{
-				auto It = Data.find(Key);
+				auto It = Data.find(Core::HglCast(Key));
 				if (It != Data.end())
 				{
 					It->second.ReleaseReferences(Engine->GetEngine());
@@ -2453,9 +2638,9 @@ namespace Vitex
 			{
 				return LocalIterator(*this, Data.end());
 			}
-			Dictionary::LocalIterator Dictionary::Find(const Core::String& Key) const
+			Dictionary::LocalIterator Dictionary::Find(const std::string_view& Key) const
 			{
-				return LocalIterator(*this, Data.find(Key));
+				return LocalIterator(*this, Data.find(Core::HglCast(Key)));
 			}
 			Dictionary* Dictionary::Create(VirtualMachine* Engine)
 			{
@@ -2478,13 +2663,13 @@ namespace Vitex
 				Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(Engine->GetUserData(DictionaryId));
 				if (Cache == 0)
 				{
-					Cache = VI_NEW(Dictionary::SCache);
+					Cache = Core::Memory::New<Dictionary::SCache>();
 					Engine->SetUserData(Cache, DictionaryId);
 					Engine->SetEngineUserDataCleanupCallback([](asIScriptEngine* Engine)
 					{
 						VirtualMachine* VM = VirtualMachine::Get(Engine);
 						Dictionary::SCache* Cache = reinterpret_cast<Dictionary::SCache*>(VM->GetUserData(DictionaryId));
-						VI_DELETE(SCache, Cache);
+						Core::Memory::Delete(Cache);
 					}, DictionaryId);
 
 					Cache->DictionaryType = Engine->GetTypeInfoByName(TYPENAME_DICTIONARY).GetTypeInfo();
@@ -2632,7 +2817,7 @@ namespace Vitex
 
 				if (Delegate.IsValid())
 					Delegate.Release();
-				VI_CLEAR(Context);
+				Core::Memory::Release(Context);
 			}
 			int Promise::GetTypeId()
 			{
@@ -2877,12 +3062,14 @@ namespace Vitex
 
 				return true;
 			}
-			ExpectsVM<void> Promise::GeneratorCallback(Compute::Preprocessor*, const Core::String&, Core::String& Code)
+			ExpectsVM<void> Promise::GeneratorCallback(Compute::Preprocessor*, const std::string_view&, Core::String& Code)
 			{
 				Core::Stringify::Replace(Code, "promise<void>", "promise_v");
-				return Parser::ReplaceInlinePreconditions("co_await", Code, [](const Core::String& Expression) -> ExpectsVM<Core::String>
+				return Parser::ReplaceInlinePreconditions("co_await", Code, [](const std::string_view& Expression) -> ExpectsVM<Core::String>
 				{
-					return Core::String(Expression + ".yield().unwrap()");
+					Core::String Result = Core::String(Expression);
+					Result.append(".yield().unwrap()");
+					return Result;
 				});
 			}
 			bool Promise::IsContextPending(ImmediateContext* Context)
@@ -3353,7 +3540,7 @@ namespace Vitex
 								Result->Set(Name, Core::Var::Integer(*(unsigned short*)Ref));
 								break;
 							case (size_t)TypeId::UINT32:
-								Result->Set(Name, Core::Var::Integer(*(unsigned int*)Ref));
+								Result->Set(Name, Core::Var::Integer(*(uint32_t*)Ref));
 								break;
 							case (size_t)TypeId::INT64:
 							case (size_t)TypeId::UINT64:
@@ -3380,7 +3567,7 @@ namespace Vitex
 						{
 							Result->Set(Name, Core::Var::Null());
 						}
-						else if (Type.IsValid() && !strcmp(TYPENAME_SCHEMA, Type.GetName()))
+						else if (Type.IsValid() && Type.GetName() == TYPENAME_SCHEMA)
 						{
 							Core::Schema* Base = (Core::Schema*)Ref;
 							if (Base->GetParent() != Result)
@@ -3388,9 +3575,9 @@ namespace Vitex
 
 							Result->Set(Name, Base);
 						}
-						else if (Type.IsValid() && !strcmp(TYPENAME_STRING, Type.GetName()))
+						else if (Type.IsValid() && Type.GetName() == TYPENAME_STRING)
 							Result->Set(Name, Core::Var::String(*(Core::String*)Ref));
-						else if (Type.IsValid() && !strcmp(TYPENAME_DECIMAL, Type.GetName()))
+						else if (Type.IsValid() && Type.GetName() == TYPENAME_DECIMAL)
 							Result->Set(Name, Core::Var::Decimal(*(Core::Decimal*)Ref));
 					}
 
@@ -3422,7 +3609,7 @@ namespace Vitex
 				SchemaNotifyAllReferences(New, VM, VM->GetTypeInfoByName(TYPENAME_SCHEMA).GetTypeInfo());
 				*(Core::Schema**)Args.GetAddressOfReturnLocation() = New;
 			}
-			Core::Schema* SchemaGetIndex(Core::Schema* Base, const Core::String& Name)
+			Core::Schema* SchemaGetIndex(Core::Schema* Base, const std::string_view& Name)
 			{
 				Core::Schema* Result = Base->Fetch(Name);
 				if (Result != nullptr)
@@ -3434,7 +3621,7 @@ namespace Vitex
 			{
 				return Base->Get(Offset);
 			}
-			Core::Schema* SchemaSet(Core::Schema* Base, const Core::String& Name, Core::Schema* Value)
+			Core::Schema* SchemaSet(Core::Schema* Base, const std::string_view& Name, Core::Schema* Value)
 			{
 				if (Value != nullptr && Value->GetParent() != Base)
 					Value->AddRef();
@@ -3468,7 +3655,7 @@ namespace Vitex
 				auto& Childs = Base->GetChilds();
 				return Childs.empty() ? Core::Var::Undefined() : Childs.back()->Value;
 			}
-			Array* SchemaGetCollection(Core::Schema* Base, const Core::String& Name, bool Deep)
+			Array* SchemaGetCollection(Core::Schema* Base, const std::string_view& Name, bool Deep)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				if (!Context)
@@ -3535,23 +3722,13 @@ namespace Vitex
 			Core::String SchemaToJSON(Core::Schema* Base)
 			{
 				Core::String Stream;
-				Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
-				{
-					if (Buffer != nullptr && Length > 0)
-						Stream.append(Buffer, Length);
-				});
-
+				Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const std::string_view& Buffer) { Stream.append(Buffer); });
 				return Stream;
 			}
 			Core::String SchemaToXML(Core::Schema* Base)
 			{
 				Core::String Stream;
-				Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
-				{
-					if (Buffer != nullptr && Length > 0)
-						Stream.append(Buffer, Length);
-				});
-
+				Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const std::string_view& Buffer) { Stream.append(Buffer); });
 				return Stream;
 			}
 			Core::String SchemaToString(Core::Schema* Base)
@@ -3599,15 +3776,15 @@ namespace Vitex
 			{
 				return Base->Value.GetBoolean();
 			}
-			Core::Schema* SchemaFromJSON(const Core::String& Value)
+			Core::Schema* SchemaFromJSON(const std::string_view& Value)
 			{
-				return ExpectsWrapper::Unwrap(Core::Schema::ConvertFromJSON(Value.c_str(), Value.size()), (Core::Schema*)nullptr);
+				return ExpectsWrapper::Unwrap(Core::Schema::ConvertFromJSON(Value), (Core::Schema*)nullptr);
 			}
-			Core::Schema* SchemaFromXML(const Core::String& Value)
+			Core::Schema* SchemaFromXML(const std::string_view& Value)
 			{
-				return ExpectsWrapper::Unwrap(Core::Schema::ConvertFromXML(Value.c_str(), Value.size()), (Core::Schema*)nullptr);
+				return ExpectsWrapper::Unwrap(Core::Schema::ConvertFromXML(Value), (Core::Schema*)nullptr);
 			}
-			Core::Schema* SchemaImport(const Core::String& Value)
+			Core::Schema* SchemaImport(const std::string_view& Value)
 			{
 				auto Data = Core::OS::File::ReadAsString(Value);
 				if (!Data)
@@ -3646,6 +3823,15 @@ namespace Vitex
 
 				Core::VarType Type = Base->Value.GetType();
 				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
+			}
+
+			Core::String DateTimeFormat(Core::DateTime& Base, const std::string_view& Format)
+			{
+				return Base.Format(Core::String(Format).c_str());
+			}
+			Core::String DateTimeDate(Core::DateTime& Base, const std::string_view& Format)
+			{
+				return Base.Date(Core::String(Format).c_str());
 			}
 #ifdef VI_BINDINGS
 			Core::ExpectsSystem<void> FromSocketPoll(Network::SocketPoll Poll)
@@ -3778,7 +3964,7 @@ namespace Vitex
 				Raise = Exception::Pointer(Function.Context);
 				VM->ReturnContext(Function.Context);
 				Function.Release();
-				VI_CLEAR(Loop);
+				Core::Memory::Release(Loop);
 				Release();
 				VirtualMachine::CleanupThisThread();
 			}
@@ -3814,7 +4000,7 @@ namespace Vitex
 					auto& Source = Pipe[i];
 					Core::UMutex<std::mutex> Unique(Source.Mutex);
 					for (auto Any : Source.Queue)
-						VI_RELEASE(Any);
+						Core::Memory::Release(Any);
 					Source.Queue.clear();
 				}
 
@@ -3893,7 +4079,7 @@ namespace Vitex
 					return false;
 
 				Source.Queue.erase(Source.Queue.begin());
-				VI_RELEASE(Result);
+				Core::Memory::Release(Result);
 				return true;
 			}
 			bool Thread::IsActive()
@@ -3975,7 +4161,7 @@ namespace Vitex
 				if (!NewSize)
 					return false;
 
-				Buffer = VI_MALLOC(char, NewSize);
+				Buffer = Core::Memory::Allocate<char>(NewSize);
 				if (!Buffer)
 				{
 					Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_OUTOFMEMORY));
@@ -3989,7 +4175,7 @@ namespace Vitex
 			void CharBuffer::Deallocate()
 			{
 				if (Length > 0)
-					VI_FREE(Buffer);
+					Core::Memory::Deallocate(Buffer);
 
 				Buffer = nullptr;
 				Length = 0;
@@ -4010,9 +4196,9 @@ namespace Vitex
 				memset(Buffer + Offset, (int32_t)Value, SetSize);
 				return true;
 			}
-			bool CharBuffer::StoreBytes(size_t Offset, const Core::String& Value)
+			bool CharBuffer::StoreBytes(size_t Offset, const std::string_view& Value)
 			{
-				return Store(Offset, Value.c_str(), sizeof(char) * Value.size());
+				return Store(Offset, Value.data(), sizeof(char) * Value.size());
 			}
 			bool CharBuffer::StoreInt8(size_t Offset, int8_t Value)
 			{
@@ -4328,411 +4514,6 @@ namespace Vitex
 				Base->WriteLine(Core::ErrorHandling::GetStackTrace(1, (size_t)Frames));
 			}
 
-			Format::Format() noexcept
-			{
-			}
-			Format::Format(unsigned char* Buffer) noexcept
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context || !Buffer)
-					return;
-
-				VirtualMachine* VM = Context->GetVM();
-				unsigned int Length = *(unsigned int*)Buffer;
-				Buffer += 4;
-
-				while (Length--)
-				{
-					if (uintptr_t(Buffer) & 0x3)
-						Buffer += 4 - (uintptr_t(Buffer) & 0x3);
-
-					int TypeId = *(int*)Buffer;
-					Buffer += sizeof(int);
-
-					Core::String Result; Core::String Offset;
-					FormatBuffer(VM, Result, Offset, (void*)Buffer, TypeId);
-					if (!Result.empty() && Result.front() == '\n')
-						Result.erase(0, 1);
-
-					Args.push_back(Result);
-					if (TypeId & (int)TypeId::MASK_OBJECT)
-					{
-						TypeInfo Type = VM->GetTypeInfoById(TypeId);
-						if (Type.IsValid() && Type.Flags() & (size_t)ObjectBehaviours::VALUE)
-							Buffer += Type.Size();
-						else
-							Buffer += sizeof(void*);
-					}
-					else if (TypeId != 0)
-					{
-						auto Sizing = VM->GetSizeOfPrimitiveType(TypeId);
-						if (Sizing)
-							Buffer += *Sizing;
-					}
-					else
-						Buffer += sizeof(void*);
-				}
-			}
-			Core::String Format::JSON(void* Ref, int TypeId)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				if (!Context)
-					return "{}";
-
-				Core::String Result;
-				FormatJSON(Context->GetVM(), Result, Ref, TypeId);
-				return Result;
-			}
-			Core::String Format::Form(const Core::String& F, const Format& Form)
-			{
-				Core::String Buffer = F;
-				size_t Offset = 0;
-
-				for (auto& Item : Form.Args)
-				{
-					auto R = Core::Stringify::FindUnescaped(Buffer, '?', Offset);
-					if (!R.Found)
-						break;
-
-					Core::Stringify::ReplacePart(Buffer, R.Start, R.End, Item);
-					Offset = R.End;
-				}
-
-				return Buffer;
-			}
-			void Format::WriteLine(Core::Console* Base, const Core::String& F, Format* Form)
-			{
-				Core::String Buffer = F;
-				size_t Offset = 0;
-
-				if (Form != nullptr)
-				{
-					for (auto& Item : Form->Args)
-					{
-						auto R = Core::Stringify::FindUnescaped(Buffer, '?', Offset);
-						if (!R.Found)
-							break;
-
-						Core::Stringify::ReplacePart(Buffer, R.Start, R.End, Item);
-						Offset = R.End;
-					}
-				}
-
-				Base->WriteLine(Buffer);
-			}
-			void Format::Write(Core::Console* Base, const Core::String& F, Format* Form)
-			{
-				Core::String Buffer = F;
-				size_t Offset = 0;
-
-				if (Form != nullptr)
-				{
-					for (auto& Item : Form->Args)
-					{
-						auto R = Core::Stringify::FindUnescaped(Buffer, '?', Offset);
-						if (!R.Found)
-							break;
-
-						Core::Stringify::ReplacePart(Buffer, R.Start, R.End, Item);
-						Offset = R.End;
-					}
-				}
-
-				Base->Write(Buffer);
-			}
-			void Format::FormatBuffer(VirtualMachine* VM, Core::String& Result, Core::String& Offset, void* Ref, int TypeId)
-			{
-				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
-				{
-					TypeInfo Type = VM->GetTypeInfoById(TypeId);
-					if (!Ref || VM->IsNullable(TypeId))
-					{
-						Result.append("null");
-						return;
-					}
-
-					if (TypeInfo::IsScriptObject(TypeId))
-					{
-						ScriptObject VObject = *(asIScriptObject**)Ref;
-						Core::String Decl;
-
-						Offset += '\t';
-						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
-						{
-							const char* Name = VObject.GetPropertyName(i);
-							Decl.append(Offset);
-							Core::Stringify::Append(Decl, "%s: ", Name ? Name : "");
-							FormatBuffer(VM, Decl, Offset, VObject.GetAddressOfProperty(i), VObject.GetPropertyTypeId(i));
-							Decl.append(",\n");
-						}
-
-						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 2);
-							Core::Stringify::Append(Result, "\n%s{\n%s\n%s}", Offset.c_str(), Decl.c_str(), Offset.c_str());
-						}
-						else
-							Result.append("{}");
-					}
-					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
-					{
-						Dictionary* Base = *(Dictionary**)Ref;
-						Core::String Decl; Core::String Name;
-
-						Offset += '\t';
-						for (unsigned int i = 0; i < Base->Size(); i++)
-						{
-							void* ElementRef; int ElementTypeId;
-							if (!Base->GetIndex(i, &Name, &ElementRef, &ElementTypeId))
-								continue;
-
-							Decl.append(Offset);
-							Core::Stringify::Append(Decl, "%s: ", Name.c_str());
-							FormatBuffer(VM, Decl, Offset, ElementRef, ElementTypeId);
-							Decl.append(",\n");
-						}
-
-						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 2);
-							Core::Stringify::Append(Result, "\n%s{\n%s\n%s}", Offset.c_str(), Decl.c_str(), Offset.c_str());
-						}
-						else
-							Result.append("{}");
-					}
-					else if (strcmp(Type.GetName(), TYPENAME_ARRAY) == 0)
-					{
-						Array* Base = *(Array**)Ref;
-						int ArrayTypeId = Base->GetElementTypeId();
-						Core::String Decl;
-
-						Offset += '\t';
-						for (unsigned int i = 0; i < Base->Size(); i++)
-						{
-							Decl.append(Offset);
-							FormatBuffer(VM, Decl, Offset, Base->At(i), ArrayTypeId);
-							Decl.append(", ");
-						}
-
-						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 2);
-							Core::Stringify::Append(Result, "\n%s[\n%s\n%s]", Offset.c_str(), Decl.c_str(), Offset.c_str());
-						}
-						else
-							Result.append("[]");
-					}
-					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
-					{
-						Core::String Decl;
-						Offset += '\t';
-
-						Type.ForEachProperty([&Decl, VM, &Offset, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
-						{
-							Decl.append(Offset);
-							Core::Stringify::Append(Decl, "%s: ", Prop->Name ? Prop->Name : "");
-							FormatBuffer(VM, Decl, Offset, Base->GetProperty<void>(Ref, Prop->Offset, TypeId), Prop->TypeId);
-							Decl.append(",\n");
-						});
-
-						Offset = Offset.substr(0, Offset.size() - 1);
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 2);
-							Core::Stringify::Append(Result, "\n%s{\n%s\n%s}", Offset.c_str(), Decl.c_str(), Offset.c_str());
-						}
-						else
-							Core::Stringify::Append(Result, "{}\n", Type.GetName());
-					}
-					else
-						Result.append(*(Core::String*)Ref);
-				}
-				else
-				{
-					switch (TypeId)
-					{
-						case (int)TypeId::BOOL:
-							Core::Stringify::Append(Result, "%s", *(bool*)Ref ? "true" : "false");
-							break;
-						case (int)TypeId::INT8:
-							Core::Stringify::Append(Result, "%i", *(char*)Ref);
-							break;
-						case (int)TypeId::INT16:
-							Core::Stringify::Append(Result, "%i", *(short*)Ref);
-							break;
-						case (int)TypeId::INT32:
-							Core::Stringify::Append(Result, "%i", *(int*)Ref);
-							break;
-						case (int)TypeId::INT64:
-							Core::Stringify::Append(Result, "%ll", *(int64_t*)Ref);
-							break;
-						case (int)TypeId::UINT8:
-							Core::Stringify::Append(Result, "%u", *(unsigned char*)Ref);
-							break;
-						case (int)TypeId::UINT16:
-							Core::Stringify::Append(Result, "%u", *(unsigned short*)Ref);
-							break;
-						case (int)TypeId::UINT32:
-							Core::Stringify::Append(Result, "%u", *(unsigned int*)Ref);
-							break;
-						case (int)TypeId::UINT64:
-							Core::Stringify::Append(Result, "%" PRIu64, *(uint64_t*)Ref);
-							break;
-						case (int)TypeId::FLOAT:
-							Core::Stringify::Append(Result, "%f", *(float*)Ref);
-							break;
-						case (int)TypeId::DOUBLE:
-							Core::Stringify::Append(Result, "%f", *(double*)Ref);
-							break;
-						default:
-							Result.append("null");
-							break;
-					}
-				}
-			}
-			void Format::FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId)
-			{
-				if (TypeId < (int)TypeId::BOOL || TypeId >(int)TypeId::DOUBLE)
-				{
-					TypeInfo Type = VM->GetTypeInfoById(TypeId);
-					void* Object = Type.GetInstance<void>(Ref, TypeId);
-
-					if (!Object)
-					{
-						Result.append("null");
-						return;
-					}
-
-					if (TypeInfo::IsScriptObject(TypeId))
-					{
-						ScriptObject VObject = (asIScriptObject*)Object;
-						Core::String Decl;
-
-						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
-						{
-							const char* Name = VObject.GetPropertyName(i);
-							Core::Stringify::Append(Decl, "\"%s\":", Name ? Name : "");
-							FormatJSON(VM, Decl, VObject.GetAddressOfProperty(i), VObject.GetPropertyTypeId(i));
-							Decl.append(",");
-						}
-
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 1);
-							Core::Stringify::Append(Result, "{%s}", Decl.c_str());
-						}
-						else
-							Result.append("{}");
-					}
-					else if (strcmp(Type.GetName(), TYPENAME_DICTIONARY) == 0)
-					{
-						Dictionary* Base = (Dictionary*)Object;
-						Core::String Decl; Core::String Name;
-
-						for (unsigned int i = 0; i < Base->Size(); i++)
-						{
-							void* ElementRef; int ElementTypeId;
-							if (!Base->GetIndex(i, &Name, &ElementRef, &ElementTypeId))
-								continue;
-
-							Core::Stringify::Append(Decl, "\"%s\":", Name.c_str());
-							FormatJSON(VM, Decl, ElementRef, ElementTypeId);
-							Decl.append(",");
-						}
-
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 1);
-							Core::Stringify::Append(Result, "{%s}", Decl.c_str());
-						}
-						else
-							Result.append("{}");
-					}
-					else if (strcmp(Type.GetName(), TYPENAME_ARRAY) == 0)
-					{
-						Array* Base = (Array*)Object;
-						int ArrayTypeId = Base->GetElementTypeId();
-						Core::String Decl;
-
-						for (unsigned int i = 0; i < Base->Size(); i++)
-						{
-							FormatJSON(VM, Decl, Base->At(i), ArrayTypeId);
-							Decl.append(",");
-						}
-
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 1);
-							Core::Stringify::Append(Result, "[%s]", Decl.c_str());
-						}
-						else
-							Result.append("[]");
-					}
-					else if (strcmp(Type.GetName(), TYPENAME_STRING) != 0)
-					{
-						Core::String Decl;
-						Type.ForEachProperty([&Decl, VM, Ref, TypeId](TypeInfo* Base, FunctionInfo* Prop)
-						{
-							Core::Stringify::Append(Decl, "\"%s\":", Prop->Name ? Prop->Name : "");
-							FormatJSON(VM, Decl, Base->GetProperty<void>(Ref, Prop->Offset, TypeId), Prop->TypeId);
-							Decl.append(",");
-						});
-
-						if (!Decl.empty())
-						{
-							Core::Stringify::Clip(Decl, Decl.size() - 1);
-							Core::Stringify::Append(Result, "{%s}", Decl.c_str());
-						}
-						else
-							Core::Stringify::Append(Result, "{}", Type.GetName());
-					}
-					else
-						Core::Stringify::Append(Result, "\"%s\"", ((Core::String*)Object)->c_str());
-				}
-				else
-				{
-					switch (TypeId)
-					{
-						case (int)TypeId::BOOL:
-							Core::Stringify::Append(Result, "%s", *(bool*)Ref ? "true" : "false");
-							break;
-						case (int)TypeId::INT8:
-							Core::Stringify::Append(Result, "%i", *(char*)Ref);
-							break;
-						case (int)TypeId::INT16:
-							Core::Stringify::Append(Result, "%i", *(short*)Ref);
-							break;
-						case (int)TypeId::INT32:
-							Core::Stringify::Append(Result, "%i", *(int*)Ref);
-							break;
-						case (int)TypeId::INT64:
-							Core::Stringify::Append(Result, "%ll", *(int64_t*)Ref);
-							break;
-						case (int)TypeId::UINT8:
-							Core::Stringify::Append(Result, "%u", *(unsigned char*)Ref);
-							break;
-						case (int)TypeId::UINT16:
-							Core::Stringify::Append(Result, "%u", *(unsigned short*)Ref);
-							break;
-						case (int)TypeId::UINT32:
-							Core::Stringify::Append(Result, "%u", *(unsigned int*)Ref);
-							break;
-						case (int)TypeId::UINT64:
-							Core::Stringify::Append(Result, "%" PRIu64, *(uint64_t*)Ref);
-							break;
-						case (int)TypeId::FLOAT:
-							Core::Stringify::Append(Result, "%f", *(float*)Ref);
-							break;
-						case (int)TypeId::DOUBLE:
-							Core::Stringify::Append(Result, "%f", *(double*)Ref);
-							break;
-					}
-				}
-			}
-
 			Application::Application(Desc& I, void* NewObject, int NewTypeId) noexcept : Engine::Application(&I), ProcessedEvents(0), InitiatorType(nullptr), InitiatorObject(NewObject)
 			{
 				VirtualMachine* CurrentVM = VirtualMachine::Get();
@@ -4787,7 +4568,6 @@ namespace Vitex
 				OnInitialize.Release();
 				OnStartup.Release();
 				OnShutdown.Release();
-				OnGetGUI.Release();
 				InitiatorObject = nullptr;
 				InitiatorType = nullptr;
 				VM = nullptr;
@@ -4836,10 +4616,6 @@ namespace Vitex
 			{
 				OnShutdown = FunctionDelegate(Callback);
 			}
-			void Application::SetOnGetGUI(asIScriptFunction* Callback)
-			{
-				OnGetGUI = FunctionDelegate(Callback);
-			}
 			void Application::ScriptHook()
 			{
 				if (!OnScriptHook.IsValid())
@@ -4870,7 +4646,7 @@ namespace Vitex
 				if (!OnInputEvent.IsValid())
 					return;
 
-				Core::String Text(Buffer, Length);
+				std::string_view Text = std::string_view(Buffer, Length);
 				auto* Context = ImmediateContext::Get();
 				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
 				Context->ExecuteSubcall(OnInputEvent.Callable(), [&Text](ImmediateContext* Context)
@@ -4978,20 +4754,6 @@ namespace Vitex
 
 				return Future.Then(std::function<void(ExpectsVM<Execution>&&)>(nullptr));
 			}
-			Engine::GUI::Context* Application::GetGUI() const
-			{
-				if (!OnGetGUI.IsValid())
-					return Engine::Application::GetGUI();
-
-				auto* Context = ImmediateContext::Get();
-				VI_ASSERT(Context != nullptr, "application method cannot be called outside of script context");
-				Engine::GUI::Context* Result = nullptr;
-				Context->ExecuteSubcall(OnGetGUI.Callable(), nullptr, [&Result](ImmediateContext* Context)
-				{
-					Result = Context->GetReturnObject<Engine::GUI::Context>();
-				});
-				return Result;
-			}
 			size_t Application::GetProcessedEvents() const
 			{
 				return ProcessedEvents;
@@ -5036,16 +4798,16 @@ namespace Vitex
 				return ExitCode == Engine::EXIT_RESTART;
 			}
 
-			bool StreamOpen(Core::Stream* Base, const Core::String& Path, Core::FileMode Mode)
+			bool StreamOpen(Core::Stream* Base, const std::string_view& Path, Core::FileMode Mode)
 			{
-				return ExpectsWrapper::UnwrapVoid(Base->Open(Path.c_str(), Mode));
+				return ExpectsWrapper::UnwrapVoid(Base->Open(Path, Mode));
 			}
 			Core::String StreamRead(Core::Stream* Base, size_t Size)
 			{
 				Core::String Result;
 				Result.resize(Size);
 
-				size_t Count = ExpectsWrapper::Unwrap(Base->Read((char*)Result.data(), Size), (size_t)0);
+				size_t Count = ExpectsWrapper::Unwrap(Base->Read((uint8_t*)Result.data(), Size), (size_t)0);
 				if (Count < Size)
 					Result.resize(Count);
 
@@ -5062,9 +4824,9 @@ namespace Vitex
 
 				return Result;
 			}
-			size_t StreamWrite(Core::Stream* Base, const Core::String& Data)
+			size_t StreamWrite(Core::Stream* Base, const std::string_view& Data)
 			{
-				return ExpectsWrapper::Unwrap(Base->Write(Data.data(), Data.size()), (size_t)0);
+				return ExpectsWrapper::Unwrap(Base->Write((uint8_t*)Data.data(), Data.size()), (size_t)0);
 			}
 
 			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, asIScriptFunction* Callback)
@@ -5103,10 +4865,10 @@ namespace Vitex
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base.Params);
 			}
 
-			Array* OSDirectoryScan(const Core::String& Path)
+			Array* OSDirectoryScan(const std::string_view& Path)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				auto Status = Core::OS::Directory::Scan(Path, &Entries);
+				auto Status = Core::OS::Directory::Scan(Path, Entries);
 				if (!Status)
 					return ExpectsWrapper::UnwrapVoid(std::move(Status)) ? nullptr : nullptr;
 
@@ -5123,81 +4885,81 @@ namespace Vitex
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_FILELINK ">@");
 				return Array::Compose<FileLink>(Type.GetTypeInfo(), Results);
 			}
-			Array* OSDirectoryGetMounts(const Core::String& Path)
+			Array* OSDirectoryGetMounts()
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Core::OS::Directory::GetMounts());
 			}
-			bool OSDirectoryCreate(const Core::String& Path)
+			bool OSDirectoryCreate(const std::string_view& Path)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Create(Path.c_str()));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Create(Path));
 			}
-			bool OSDirectoryRemove(const Core::String& Path)
+			bool OSDirectoryRemove(const std::string_view& Path)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Remove(Path.c_str()));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Remove(Path));
 			}
-			bool OSDirectoryIsExists(const Core::String& Path)
+			bool OSDirectoryIsExists(const std::string_view& Path)
 			{
-				return Core::OS::Directory::IsExists(Path.c_str());
+				return Core::OS::Directory::IsExists(Path);
 			}
-			bool OSDirectoryIsEmpty(const Core::String& Path)
+			bool OSDirectoryIsEmpty(const std::string_view& Path)
 			{
-				return Core::OS::Directory::IsEmpty(Path.c_str());
+				return Core::OS::Directory::IsEmpty(Path);
 			}
-			bool OSDirectorySetWorking(const Core::String& Path)
+			bool OSDirectorySetWorking(const std::string_view& Path)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::SetWorking(Path.c_str()));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::SetWorking(Path));
 			}
-			bool OSDirectoryPatch(const Core::String& Path)
+			bool OSDirectoryPatch(const std::string_view& Path)
 			{
 				return ExpectsWrapper::UnwrapVoid(Core::OS::Directory::Patch(Path));
 			}
 
-			bool OSFileWrite(const Core::String& Path, const Core::String& Data)
+			bool OSFileState(const std::string_view& Path, Core::FileEntry& Data)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Write(Path, Data));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::GetState(Path, &Data));
 			}
-			bool OSFileState(const Core::String& Path, Core::FileEntry& Data)
+			bool OSFileMove(const std::string_view& From, const std::string_view& To)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::File::GetState(Path.c_str(), &Data));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Move(From, To));
 			}
-			bool OSFileMove(const Core::String& From, const Core::String& To)
+			bool OSFileCopy(const std::string_view& From, const std::string_view& To)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Move(From.c_str(), To.c_str()));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Copy(From, To));
 			}
-			bool OSFileCopy(const Core::String& From, const Core::String& To)
+			bool OSFileRemove(const std::string_view& Path)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Copy(From.c_str(), To.c_str()));
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Remove(Path));
 			}
-			bool OSFileRemove(const Core::String& Path)
+			bool OSFileIsExists(const std::string_view& Path)
 			{
-				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Remove(Path.c_str()));
+				return Core::OS::File::IsExists(Path);
 			}
-			bool OSFileIsExists(const Core::String& Path)
+			bool OSFileWrite(const std::string_view& Path, const std::string_view& Data)
 			{
-				return Core::OS::File::IsExists(Path.c_str());
+				return ExpectsWrapper::UnwrapVoid(Core::OS::File::Write(Path, (uint8_t*)Data.data(), Data.size()));
 			}
-			size_t OSFileJoin(const Core::String& From, Array* Paths)
+			size_t OSFileJoin(const std::string_view& From, Array* Paths)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::File::Join(From.c_str(), Array::Decompose<Core::String>(Paths)), (size_t)0);
+				return ExpectsWrapper::Unwrap(Core::OS::File::Join(From, Array::Decompose<Core::String>(Paths)), (size_t)0);
 			}
-			Core::FileState OSFileGetProperties(const Core::String& Path)
+			Core::FileState OSFileGetProperties(const std::string_view& Path)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::File::GetProperties(Path.c_str()), Core::FileState());
+				return ExpectsWrapper::Unwrap(Core::OS::File::GetProperties(Path), Core::FileState());
 			}
-			Core::Stream* OSFileOpenJoin(const Core::String& From, Array* Paths)
+			Core::Stream* OSFileOpenJoin(const std::string_view& From, Array* Paths)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<Core::String>(Paths)), (Core::Stream*)nullptr);
+				return ExpectsWrapper::Unwrap(Core::OS::File::OpenJoin(From, Array::Decompose<Core::String>(Paths)), (Core::Stream*)nullptr);
 			}
-			Core::Stream* OSFileOpenArchive(const Core::String& Path, size_t UnarchivedMaxSize)
+			Core::Stream* OSFileOpenArchive(const std::string_view& Path, size_t UnarchivedMaxSize)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::File::OpenArchive(Path.c_str(), UnarchivedMaxSize), (Core::Stream*)nullptr);
+				return ExpectsWrapper::Unwrap(Core::OS::File::OpenArchive(Path, UnarchivedMaxSize), (Core::Stream*)nullptr);
 			}
-			Core::Stream* OSFileOpen(const Core::String& Path, Core::FileMode Mode, bool Async)
+			Core::Stream* OSFileOpen(const std::string_view& Path, Core::FileMode Mode, bool Async)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::File::Open(Path.c_str(), Mode, Async), (Core::Stream*)nullptr);
+				return ExpectsWrapper::Unwrap(Core::OS::File::Open(Path, Mode, Async), (Core::Stream*)nullptr);
 			}
-			Array* OSFileReadAsArray(const Core::String& Path)
+			Array* OSFileReadAsArray(const std::string_view& Path)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				auto Data = Core::OS::File::ReadAsArray(Path);
@@ -5207,61 +4969,60 @@ namespace Vitex
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), *Data);
 			}
 
-			bool OSPathIsRemote(const Core::String& Path)
+			bool OSPathIsRemote(const std::string_view& Path)
 			{
-				return Core::OS::Path::IsRemote(Path.c_str());
+				return Core::OS::Path::IsRemote(Path);
 			}
-			bool OSPathIsRelative(const Core::String& Path)
+			bool OSPathIsRelative(const std::string_view& Path)
 			{
-				return Core::OS::Path::IsRelative(Path.c_str());
+				return Core::OS::Path::IsRelative(Path);
 			}
-			bool OSPathIsAbsolute(const Core::String& Path)
+			bool OSPathIsAbsolute(const std::string_view& Path)
 			{
-				return Core::OS::Path::IsAbsolute(Path.c_str());
+				return Core::OS::Path::IsAbsolute(Path);
 			}
-			Core::String OSPathResolve1(const Core::String& Path)
+			Core::String OSPathResolve1(const std::string_view& Path)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::Path::Resolve(Path.c_str()), Core::String());
+				return ExpectsWrapper::Unwrap(Core::OS::Path::Resolve(Path), Core::String());
 			}
-			Core::String OSPathResolveDirectory1(const Core::String& Path)
+			Core::String OSPathResolveDirectory1(const std::string_view& Path)
 			{
-				return ExpectsWrapper::Unwrap(Core::OS::Path::ResolveDirectory(Path.c_str()), Core::String());
+				return ExpectsWrapper::Unwrap(Core::OS::Path::ResolveDirectory(Path), Core::String());
 			}
-			Core::String OSPathResolve2(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
+			Core::String OSPathResolve2(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists)
 			{
 				return ExpectsWrapper::Unwrap(Core::OS::Path::Resolve(Path, Directory, EvenIfExists), Core::String());
 			}
-			Core::String OSPathResolveDirectory2(const Core::String& Path, const Core::String& Directory, bool EvenIfExists)
+			Core::String OSPathResolveDirectory2(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists)
 			{
 				return ExpectsWrapper::Unwrap(Core::OS::Path::ResolveDirectory(Path, Directory, EvenIfExists), Core::String());
 			}
-			Core::String OSPathGetDirectory(const Core::String& Path, size_t Level)
+			Core::String OSPathGetDirectory(const std::string_view& Path, size_t Level)
 			{
-				return Core::OS::Path::GetDirectory(Path.c_str(), Level);
+				return Core::OS::Path::GetDirectory(Path, Level);
 			}
-			Core::String OSPathGetFilename(const Core::String& Path)
+			Core::String OSPathGetFilename(const std::string_view& Path)
 			{
-				return Core::OS::Path::GetFilename(Path.c_str());
+				return Core::String(Core::OS::Path::GetFilename(Path));
 			}
-			Core::String OSPathGetExtension(const Core::String& Path)
+			Core::String OSPathGetExtension(const std::string_view& Path)
 			{
-				return Core::OS::Path::GetExtension(Path.c_str());
+				return Core::String(Core::OS::Path::GetExtension(Path));
 			}
 
-			int OSProcessExecute(const Core::String& Command, Core::FileMode Mode, asIScriptFunction* Callback)
+			int OSProcessExecute(const std::string_view& Command, Core::FileMode Mode, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Callback);
-				auto ExitCode = Core::OS::Process::Execute(Command, Mode, [Context, &Delegate](const char* Buffer, size_t Size) -> bool
+				auto ExitCode = Core::OS::Process::Execute(Command, Mode, [Context, &Delegate](const std::string_view& Value) -> bool
 				{
 					if (!Context || !Delegate.IsValid())
 						return true;
 
-					bool Continue = true;
-					Core::String Input(Buffer, Size);
-					Context->ExecuteSubcall(Delegate.Callable(), [&Input](ImmediateContext* Context)
+					Core::String Copy = Core::String(Value); bool Continue = true;
+					Context->ExecuteSubcall(Delegate.Callable(), [&Copy](ImmediateContext* Context)
 					{
-						Context->SetArgObject(0, (void*)&Input);
+						Context->SetArgObject(0, (void*)&Copy);
 					}, [&Continue](ImmediateContext* Context)
 					{
 						Continue = (bool)Context->GetReturnByte();
@@ -5289,11 +5050,11 @@ namespace Vitex
 				return Core::OS::Process::ParseArgs((int)Args.size(), Args.data(), Opts, Flags);
 			}
 
-			void* OSSymbolLoad(const Core::String& Path)
+			void* OSSymbolLoad(const std::string_view& Path)
 			{
 				return ExpectsWrapper::Unwrap(Core::OS::Symbol::Load(Path), (void*)nullptr);
 			}
-			void* OSSymbolLoadFunction(void* LibHandle, const Core::String& Path)
+			void* OSSymbolLoadFunction(void* LibHandle, const std::string_view& Path)
 			{
 				return ExpectsWrapper::Unwrap(Core::OS::Symbol::LoadFunction(LibHandle, Path), (void*)nullptr);
 			}
@@ -5663,15 +5424,15 @@ namespace Vitex
 				return Array::Compose<Core::String>(Type.GetTypeInfo(), Base.ToArray());
 			}
 
-			Compute::RegexResult RegexSourceMatch(Compute::RegexSource& Base, const Core::String& Text)
+			Compute::RegexResult RegexSourceMatch(Compute::RegexSource& Base, const std::string_view& Text)
 			{
 				Compute::RegexResult Result;
 				Compute::Regex::Match(&Base, Result, Text);
 				return Result;
 			}
-			Core::String RegexSourceReplace(Compute::RegexSource& Base, const Core::String& Text, const Core::String& To)
+			Core::String RegexSourceReplace(Compute::RegexSource& Base, const std::string_view& Text, const std::string_view& To)
 			{
-				Core::String Copy = Text;
+				Core::String Copy = Core::String(Text);
 				Compute::RegexResult Result;
 				Compute::Regex::Replace(&Base, To, Copy);
 				return Copy;
@@ -5682,19 +5443,19 @@ namespace Vitex
 				Base->SetAudience(Array::Decompose<Core::String>(Data));
 			}
 
-			Core::String CryptoSign(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
+			Core::String CryptoSign(Compute::Digest Type, const std::string_view& Data, const Compute::PrivateKey& Key)
 			{
 				return ExpectsWrapper::Unwrap(Compute::Crypto::Sign(Type, Data, Key), Core::String());
 			}
-			Core::String CryptoHMAC(Compute::Digest Type, const Core::String& Data, const Compute::PrivateKey& Key)
+			Core::String CryptoHMAC(Compute::Digest Type, const std::string_view& Data, const Compute::PrivateKey& Key)
 			{
 				return ExpectsWrapper::Unwrap(Compute::Crypto::HMAC(Type, Data, Key), Core::String());
 			}
-			Core::String CryptoEncrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
+			Core::String CryptoEncrypt(Compute::Cipher Type, const std::string_view& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
 			{
 				return ExpectsWrapper::Unwrap(Compute::Crypto::Encrypt(Type, Data, Key, Salt, Complexity), Core::String());
 			}
-			Core::String CryptoDecrypt(Compute::Cipher Type, const Core::String& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
+			Core::String CryptoDecrypt(Compute::Cipher Type, const std::string_view& Data, const Compute::PrivateKey& Key, const Compute::PrivateKey& Salt, int Complexity)
 			{
 				return ExpectsWrapper::Unwrap(Compute::Crypto::Decrypt(Type, Data, Key, Salt, Complexity), Core::String());
 			}
@@ -5703,12 +5464,12 @@ namespace Vitex
 				Core::String Intermediate;
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Transform);
-				auto Callback = [Context, &Delegate, &Intermediate](char** Buffer, size_t* Size) -> void
+				auto Callback = [Context, &Delegate, &Intermediate](uint8_t** Buffer, size_t* Size) -> void
 				{
 					if (!Context || !Delegate.IsValid())
 						return;
 
-					Core::String Input(*Buffer, *Size);
+					std::string_view Input((char*)*Buffer, *Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [&Input](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Input);
@@ -5718,7 +5479,7 @@ namespace Vitex
 						if (Result != nullptr)
 							Intermediate = *Result;
 					});
-					*Buffer = (char*)Intermediate.data();
+					*Buffer = (uint8_t*)Intermediate.data();
 					*Size = Intermediate.size();
 				};
 				return ExpectsWrapper::Unwrap(Compute::Crypto::Encrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
@@ -5728,12 +5489,12 @@ namespace Vitex
 				Core::String Intermediate;
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Transform);
-				auto Callback = [Context, &Delegate, &Intermediate](char** Buffer, size_t* Size) -> void
+				auto Callback = [Context, &Delegate, &Intermediate](uint8_t** Buffer, size_t* Size) -> void
 				{
 					if (!Context || !Delegate.IsValid())
 						return;
 
-					Core::String Input(*Buffer, *Size);
+					std::string_view Input((char*)*Buffer, *Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [&Input](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, (void*)&Input);
@@ -5743,7 +5504,7 @@ namespace Vitex
 						if (Result != nullptr)
 							Intermediate = *Result;
 					});
-					*Buffer = (char*)Intermediate.data();
+					*Buffer = (uint8_t*)Intermediate.data();
 					*Size = Intermediate.size();
 				};
 				return ExpectsWrapper::Unwrap(Compute::Crypto::Decrypt(Type, From, To, Key, Salt, std::move(Callback), ReadInterval, Complexity), (size_t)0);
@@ -5775,11 +5536,11 @@ namespace Vitex
 				});
 			}
 
-			void IncludeDescAddExt(Compute::IncludeDesc& Base, const Core::String& Value)
+			void IncludeDescAddExt(Compute::IncludeDesc& Base, const std::string_view& Value)
 			{
-				Base.Exts.push_back(Value);
+				Base.Exts.push_back(Core::String(Value));
 			}
-			void IncludeDescRemoveExt(Compute::IncludeDesc& Base, const Core::String& Value)
+			void IncludeDescRemoveExt(Compute::IncludeDesc& Base, const std::string_view& Value)
 			{
 				auto It = std::find(Base.Exts.begin(), Base.Exts.end(), Value);
 				if (It != Base.Exts.end())
@@ -5816,27 +5577,26 @@ namespace Vitex
 					return Base->SetPragmaCallback(nullptr);
 
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				Base->SetPragmaCallback([Type, Context, Delegate](Compute::Preprocessor* Base, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+				Base->SetPragmaCallback([Type, Context, Delegate](Compute::Preprocessor* Base, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 				{
 					bool Success = false;
-					Array* Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
+					Core::UPtr<Array> Params = Array::Compose<Core::String>(Type.GetTypeInfo(), Args);
 					Context->ExecuteSubcall(Delegate.Callable(), [Base, &Name, &Params](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArgObject(1, (void*)&Name);
-						Context->SetArgObject(2, Params);
+						Context->SetArgObject(2, *Params);
 					}, [&Success](ImmediateContext* Context)
 					{
 						Success = (bool)Context->GetReturnByte();
 					});
-					VI_RELEASE(Params);
 					if (!Success)
-						return Compute::PreprocessorException(Compute::PreprocessorError::PragmaNotFound, 0, "pragma name: " + Name);
+						return Compute::PreprocessorException(Compute::PreprocessorError::PragmaNotFound, 0, "pragma name: " + Core::String(Name));
 
 					return Core::Expectation::Met;
 				});
 			}
-			void PreprocessorSetDirectiveCallback(Compute::Preprocessor* Base, const Core::String& Name, asIScriptFunction* Callback)
+			void PreprocessorSetDirectiveCallback(Compute::Preprocessor* Base, const std::string_view& Name, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Callback);
@@ -5861,9 +5621,9 @@ namespace Vitex
 					return Core::Expectation::Met;
 				});
 			}
-			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const Core::String& Name)
+			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const std::string_view& Name)
 			{
-				return Base->IsDefined(Name.c_str());
+				return Base->IsDefined(Name);
 			}
 
 			Array* HullShapeGetVertices(Compute::HullShape* Base)
@@ -5882,7 +5642,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Hull);
+				Core::Memory::Release(Base.Hull);
 				Base = Other;
 				if (Base.Hull != nullptr)
 					Base.Hull->AddRef();
@@ -5891,7 +5651,7 @@ namespace Vitex
 			}
 			void SoftBodySConvexDestructor(Compute::SoftBody::Desc::CV::SConvex& Base)
 			{
-				VI_RELEASE(Base.Hull);
+				Core::Memory::Release(Base.Hull);
 			}
 
 			Array* SoftBodyGetIndices(Compute::SoftBody* Base)
@@ -5964,10 +5724,6 @@ namespace Vitex
 				});
 			}
 
-			void ActivitySetTitle(Graphics::Activity* Base, const Core::String& Value)
-			{
-				Base->SetTitle(Value.c_str());
-			}
 			void ActivitySetAppStateChange(Graphics::Activity* Base, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
@@ -6033,7 +5789,7 @@ namespace Vitex
 					FunctionDelegate Delegate(Callback);
 					Base->Callbacks.InputEdit = [Context, Delegate](char* Buffer, int X, int Y)
 					{
-						Core::String Text = (Buffer ? Buffer : Core::String());
+						std::string_view Text = (Buffer ? Buffer : std::string_view());
 						Context->ExecuteSubcall(Delegate.Callable(), [Text, X, Y](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
@@ -6053,7 +5809,7 @@ namespace Vitex
 					FunctionDelegate Delegate(Callback);
 					Base->Callbacks.Input = [Context, Delegate](char* Buffer, int X)
 					{
-						Core::String Text = (Buffer ? Buffer : Core::String());
+						std::string_view Text = (Buffer ? Buffer : std::string_view());
 						Context->ExecuteSubcall(Delegate.Callable(), [Text, X](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, (void*)&Text);
@@ -6352,7 +6108,7 @@ namespace Vitex
 				if (Context != nullptr && Callback != nullptr)
 				{
 					FunctionDelegate Delegate(Callback);
-					Base->Callbacks.DropFile = [Context, Delegate](const Core::String& Text)
+					Base->Callbacks.DropFile = [Context, Delegate](const std::string_view& Text)
 					{
 						Context->ExecuteSubcall(Delegate.Callable(), [Text](ImmediateContext* Context)
 						{
@@ -6369,7 +6125,7 @@ namespace Vitex
 				if (Context != nullptr && Callback != nullptr)
 				{
 					FunctionDelegate Delegate(Callback);
-					Base->Callbacks.DropText = [Context, Delegate](const Core::String& Text)
+					Base->Callbacks.DropText = [Context, Delegate](const std::string_view& Text)
 					{
 						Context->ExecuteSubcall(Delegate.Callable(), [Text](ImmediateContext* Context)
 						{
@@ -6396,7 +6152,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Source);
+				Core::Memory::Release(Base.Source);
 				Base = Other;
 				if (Base.Source != nullptr)
 					Base.Source->AddRef();
@@ -6405,7 +6161,7 @@ namespace Vitex
 			}
 			void InputLayoutDescDestructor(Graphics::InputLayout::Desc& Base)
 			{
-				VI_RELEASE(Base.Source);
+				Core::Memory::Release(Base.Source);
 			}
 			void InputLayoutDescSetAttributes(Graphics::InputLayout::Desc& Base, Array* Data)
 			{
@@ -6446,7 +6202,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Device);
+				Core::Memory::Release(Base.Device);
 				Base = Other;
 				if (Base.Device != nullptr)
 					Base.Device->AddRef();
@@ -6455,7 +6211,7 @@ namespace Vitex
 			}
 			void InstanceBufferDescDestructor(Graphics::InstanceBuffer::Desc& Base)
 			{
-				VI_RELEASE(Base.Device);
+				Core::Memory::Release(Base.Device);
 			}
 
 			void InstanceBufferSetArray(Graphics::InstanceBuffer* Base, Array* Data)
@@ -6484,7 +6240,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Source);
+				Core::Memory::Release(Base.Source);
 				Base = Other;
 				if (Base.Source != nullptr)
 					Base.Source->AddRef();
@@ -6493,7 +6249,7 @@ namespace Vitex
 			}
 			void CubemapDescDestructor(Graphics::Cubemap::Desc& Base)
 			{
-				VI_RELEASE(Base.Source);
+				Core::Memory::Release(Base.Source);
 			}
 
 			Graphics::GraphicsDevice::Desc& GraphicsDeviceDescCopy(Graphics::GraphicsDevice::Desc& Base, Graphics::GraphicsDevice::Desc& Other)
@@ -6501,7 +6257,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Window);
+				Core::Memory::Release(Base.Window);
 				Base = Other;
 				if (Base.Window != nullptr)
 					Base.Window->AddRef();
@@ -6510,7 +6266,7 @@ namespace Vitex
 			}
 			void GraphicsDeviceDescDestructor(Graphics::GraphicsDevice::Desc& Base)
 			{
-				VI_RELEASE(Base.Window);
+				Core::Memory::Release(Base.Window);
 			}
 
 			void GraphicsDeviceSetVertexBuffers(Graphics::GraphicsDevice* Base, Array* Data, bool Value)
@@ -6899,10 +6655,10 @@ namespace Vitex
 				});
 				return Result;
 			}
-			Core::Promise<bool> SocketWriteFwd(Network::Socket* Base, const Core::String& Data)
+			Core::Promise<bool> SocketWriteFwd(Network::Socket* Base, const std::string_view& Data)
 			{
 				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
-				Base->WriteAsync(Data.c_str(), Data.size(), [Base, Result, Context](Network::SocketPoll Event) mutable
+				Base->WriteAsync((uint8_t*)Data.data(), Data.size(), [Base, Result, Context](Network::SocketPoll Event) mutable
 				{
 					Result.Set(ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context));
 					Base->Release();
@@ -6911,48 +6667,46 @@ namespace Vitex
 			}
 			Core::Promise<Core::String> SocketReadFwd(Network::Socket* Base, size_t Size)
 			{
-				Core::String* Data = VI_NEW(Core::String);
+				Core::String* Data = Core::Memory::New<Core::String>();
 				Data->reserve(Size);
 				Base->AddRef();
 
 				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
-				Base->ReadAsync(Size, [Base, Result, Context, Data](Network::SocketPoll Event, const char* Buffer, size_t Size) mutable
+				Base->ReadAsync(Size, [Base, Result, Context, Data](Network::SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
 				{
 					if (!Network::Packet::IsData(Event))
 					{
 						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
 						Result.Set(std::move(*Data));
-						VI_DELETE(basic_string, Data);
-						Data = nullptr;
+						Core::Memory::Delete(Data);
 						Base->Release();
 					}
 					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
-						Data->append(Buffer, Size);
+						Data->append((char*)Buffer, Size);
 					return Result.IsPending();
 				});
 				return Result;
 			}
-			Core::Promise<Core::String> SocketReadUntilFwd(Network::Socket* Base, size_t MaxSize, const Core::String& Match)
+			Core::Promise<Core::String> SocketReadUntilFwd(Network::Socket* Base, size_t MaxSize, const std::string_view& Match)
 			{
-				Core::String* Data = VI_NEW(Core::String);
+				Core::String* Data = Core::Memory::New<Core::String>();
 				Data->reserve(MaxSize);
 				Base->AddRef();
 
 				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
-				Base->ReadUntilAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const char* Buffer, size_t Size) mutable
+				Base->ReadUntilAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
 				{
 					if (!Network::Packet::IsData(Event))
 					{
 						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
 					Resolve:
 						Result.Set(std::move(*Data));
-						VI_DELETE(basic_string, Data);
-						Data = nullptr;
+						Core::Memory::Delete(Data);
 						Base->Release();
 					}
 					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
 					{
-						Data->append(Buffer, Size);
+						Data->append((char*)Buffer, Size);
 						if (Data->size() >= MaxSize)
 							goto Resolve;
 					}
@@ -6960,27 +6714,26 @@ namespace Vitex
 				});
 				return Result;
 			}
-			Core::Promise<Core::String> SocketReadUntilChunkedFwd(Network::Socket* Base, size_t MaxSize, const Core::String& Match)
+			Core::Promise<Core::String> SocketReadUntilChunkedFwd(Network::Socket* Base, size_t MaxSize, const std::string_view& Match)
 			{
-				Core::String* Data = VI_NEW(Core::String);
+				Core::String* Data = Core::Memory::New<Core::String>();
 				Data->reserve(MaxSize);
 				Base->AddRef();
 
 				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
-				Base->ReadUntilChunkedAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const char* Buffer, size_t Size) mutable
+				Base->ReadUntilChunkedAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
 				{
 					if (!Network::Packet::IsData(Event))
 					{
 						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
 					Resolve:
 						Result.Set(std::move(*Data));
-						VI_DELETE(basic_string, Data);
-						Data = nullptr;
+						Core::Memory::Delete(Data);
 						Base->Release();
 					}
 					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
 					{
-						Data->append(Buffer, Size);
+						Data->append((char*)Buffer, Size);
 						if (Data->size() >= MaxSize)
 							goto Resolve;
 					}
@@ -6995,7 +6748,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
 
 				Base->AddRef();
-				return ExpectsWrapper::UnwrapVoid(Base->AcceptAsync(WithAddress, [Base, Delegate](socket_t Fd, char* Address) mutable
+				return ExpectsWrapper::UnwrapVoid(Base->AcceptAsync(WithAddress, [Base, Delegate](socket_t Fd, const std::string_view& Address) mutable
 				{
 					if (Network::Utils::IsInvalid(Fd))
 					{
@@ -7003,7 +6756,7 @@ namespace Vitex
 						return false;
 					}
 
-					Core::String IpAddress = Address ? Address : Core::String();
+					Core::String IpAddress = Core::String(Address);
 					Delegate([Fd, IpAddress](ImmediateContext* Context)
 					{
 #ifdef VI_64
@@ -7069,14 +6822,14 @@ namespace Vitex
 					});
 				}), (size_t)0);
 			}
-			size_t SocketWriteAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketWriteAsync(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->WriteAsync(Data.data(), Data.size(), [Base, Delegate](Network::SocketPoll Poll) mutable
+				return ExpectsWrapper::Unwrap(Base->WriteAsync((uint8_t*)Data.data(), Data.size(), [Base, Delegate](Network::SocketPoll Poll) mutable
 				{
 					Delegate([Poll](ImmediateContext* Context)
 					{
@@ -7094,9 +6847,9 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadAsync(Size, [Base, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				return ExpectsWrapper::Unwrap(Base->ReadAsync(Size, [Base, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size) mutable
 				{
-					Core::String Source(Data, Size); bool Result = false;
+					std::string_view Source = std::string_view((char*)Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -7110,16 +6863,16 @@ namespace Vitex
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntilAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntilAsync(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size) mutable
 				{
-					Core::String Source(Data, Size); bool Result = false;
+					std::string_view Source = std::string_view((char*)Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -7133,16 +6886,16 @@ namespace Vitex
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntilChunkedAsync(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntilChunkedAsync(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size) mutable
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size) mutable
 				{
-					Core::String Source(Data, Size); bool Result = false;
+					std::string_view Source = std::string_view((char*)Data, Size); bool Result = false;
 					Delegate([Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -7158,38 +6911,28 @@ namespace Vitex
 			}
 			bool SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
 			{
-				char IpAddress[64];
-				memset(IpAddress, 0, sizeof(IpAddress));
-				auto Status = Base->Accept(Fd, IpAddress);
-				if (Status)
-					Address = IpAddress;
-				return ExpectsWrapper::UnwrapVoid(std::move(Status));
+				return ExpectsWrapper::UnwrapVoid(Base->Accept(Fd, &Address));
 			}
 			bool SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
 			{
-				char IpAddress[64];
-				memset(IpAddress, 0, sizeof(IpAddress));
-				auto Status = Base->Accept(&Fd, IpAddress);
-				if (Status)
-					Address = IpAddress;
-				return ExpectsWrapper::UnwrapVoid(std::move(Status));
+				return ExpectsWrapper::UnwrapVoid(Base->Accept(&Fd, &Address));
 			}
-			bool SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const Core::String& Value)
+			bool SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const std::string_view& Value)
 			{
-				return ExpectsWrapper::UnwrapVoid(Base->Secure(Context, Value.c_str()));
+				return ExpectsWrapper::UnwrapVoid(Base->Secure(Context, Value));
 			}
 			size_t SocketSendFile(Network::Socket* Base, Core::FileStream* Stream, size_t Offset, size_t Size)
 			{
 				return ExpectsWrapper::Unwrap(Base->SendFile((FILE*)Stream->GetReadable(), Offset, Size), (size_t)0);
 			}
-			size_t SocketWrite(Network::Socket* Base, const Core::String& Data)
+			size_t SocketWrite(Network::Socket* Base, const std::string_view& Data)
 			{
-				return ExpectsWrapper::Unwrap(Base->Write(Data.data(), (int)Data.size()), (size_t)0);
+				return ExpectsWrapper::Unwrap(Base->Write((uint8_t*)Data.data(), (int)Data.size()), (size_t)0);
 			}
 			size_t SocketRead1(Network::Socket* Base, Core::String& Data, size_t Size)
 			{
 				Data.resize(Size);
-				return ExpectsWrapper::Unwrap(Base->Read((char*)Data.data(), Size), (size_t)0);
+				return ExpectsWrapper::Unwrap(Base->Read((uint8_t*)Data.data(), Size), (size_t)0);
 			}
 			size_t SocketRead2(Network::Socket* Base, Core::String& Data, size_t Size, asIScriptFunction* Callback)
 			{
@@ -7199,10 +6942,10 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->Read((char*)Data.data(), Data.size(), [Base, Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				return ExpectsWrapper::Unwrap(Base->Read((uint8_t*)Data.data(), Data.size(), [Base, Context, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size)
 				{
 					bool Result = false;
-					Core::String Source(Data, Size);
+					std::string_view Source = std::string_view((char*)Data, Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -7216,7 +6959,7 @@ namespace Vitex
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntil(Network::Socket* Base, const Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntil(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Callback);
@@ -7224,10 +6967,10 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadUntil(Data.c_str(), [Base, Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				return ExpectsWrapper::Unwrap(Base->ReadUntil(Data, [Base, Context, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size)
 				{
 					bool Result = false;
-					Core::String Source(Data, Size);
+					std::string_view Source = std::string_view((char*)Data, Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -7241,7 +6984,7 @@ namespace Vitex
 					return Result;
 				}), (size_t)0);
 			}
-			size_t SocketReadUntilChunked(Network::Socket* Base, Core::String& Data, asIScriptFunction* Callback)
+			size_t SocketReadUntilChunked(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Callback);
@@ -7249,10 +6992,10 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
 
 				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunked(Data.c_str(), [Base, Context, Delegate](Network::SocketPoll Poll, const char* Data, size_t Size)
+				return ExpectsWrapper::Unwrap(Base->ReadUntilChunked(Data, [Base, Context, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size)
 				{
 					bool Result = false;
-					Core::String Source(Data, Size);
+					std::string_view Source = std::string_view((char*)Data, Size);
 					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
 					{
 						Context->SetArg32(0, (int)Poll);
@@ -7272,7 +7015,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Base);
+				Core::Memory::Release(Base.Base);
 				Base = Other;
 				if (Base.Base != nullptr)
 					Base.Base->AddRef();
@@ -7281,7 +7024,7 @@ namespace Vitex
 			}
 			void EpollFdDestructor(Network::EpollFd& Base)
 			{
-				VI_RELEASE(Base.Base);
+				Core::Memory::Release(Base.Base);
 			}
 
 			int EpollHandleWait(Network::EpollHandle& Base, Array* Data, uint64_t Timeout)
@@ -7302,7 +7045,7 @@ namespace Vitex
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Poll);
-					}).Wait();
+					});
 				});
 			}
 			bool MultiplexerWhenWriteable(Network::Socket* Base, asIScriptFunction* Callback)
@@ -7317,7 +7060,7 @@ namespace Vitex
 					{
 						Context->SetArgObject(0, Base);
 						Context->SetArg32(1, (int)Poll);
-					}).Wait();
+					});
 				});
 			}
 
@@ -7384,9 +7127,9 @@ namespace Vitex
 			{
 				return Base->RemoteAddress;
 			}
-			bool SocketConnectionAbort(Network::SocketConnection* Base, int Code, const Core::String& Message)
+			bool SocketConnectionAbort(Network::SocketConnection* Base, int Code, const std::string_view& Message)
 			{
-				return Base->Abort(Code, "%s", Message.c_str());
+				return Base->Abort(Code, "%.*s", (int)Message.size(), Message.data());
 			}
 
 			template <typename T>
@@ -7449,7 +7192,7 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Renderer);
+				Core::Memory::Release(Base.Renderer);
 				Base = Other;
 				if (Base.Renderer != nullptr)
 					Base.Renderer->AddRef();
@@ -7458,7 +7201,7 @@ namespace Vitex
 			}
 			void ViewerDestructor(Engine::Viewer& Base)
 			{
-				VI_RELEASE(Base.Renderer);
+				Core::Memory::Release(Base.Renderer);
 			}
 
 			Array* SkinAnimationGetClips(Engine::SkinAnimation* Base)
@@ -7515,7 +7258,7 @@ namespace Vitex
 			}
 
 			template <typename T>
-			void ComponentMessage(T* Base, const Core::String& Name, Core::Schema* Args)
+			void ComponentMessage(T* Base, const std::string_view& Name, Core::Schema* Args)
 			{
 				auto Data = ToVariantKeys(Args);
 				return Base->Message(Name, Data);
@@ -7533,7 +7276,7 @@ namespace Vitex
 				Class.SetMethod("void synchronize(clock_timer@+)", &Engine::Component::Synchronize);
 				Class.SetMethod("void animate(clock_timer@+)", &Engine::Component::Animate);
 				Class.SetMethod("void update(clock_timer@+)", &Engine::Component::Update);
-				Class.SetMethodEx("void message(const string &in, schema@+)", &ComponentMessage<T>);
+				Class.SetMethodEx("void message(const string_view&in, schema@+)", &ComponentMessage<T>);
 				Class.SetMethod("void movement()", &Engine::Component::Movement);
 				Class.SetMethod("usize get_unit_bounds(vector3 &out, vector3 &out) const", &Engine::Component::GetUnitBounds);
 				Class.SetMethod("float get_visibility(const viewer_t &in, float) const", &Engine::Component::GetVisibility);
@@ -7652,14 +7395,14 @@ namespace Vitex
 				if (Source != nullptr)
 					Base->RemoveRenderer(Source->GetId());
 			}
-			void RenderSystemFreeBuffers1(Engine::RenderSystem* Base, const Core::String& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			void RenderSystemFreeBuffers1(Engine::RenderSystem* Base, const std::string_view& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
 				Buffers[1] = Buffer2;
 				Base->FreeBuffers(Name, Buffers);
 			}
-			void RenderSystemFreeBuffers2(Engine::RenderSystem* Base, const Core::String& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			void RenderSystemFreeBuffers2(Engine::RenderSystem* Base, const std::string_view& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
@@ -7670,11 +7413,11 @@ namespace Vitex
 			{
 				return ExpectsWrapper::Unwrap(Base->CompileShader(Desc, BufferSize), (Graphics::Shader*)nullptr);
 			}
-			Graphics::Shader* RenderSystemCompileShader2(Engine::RenderSystem* Base, const Core::String& SectionName, size_t BufferSize)
+			Graphics::Shader* RenderSystemCompileShader2(Engine::RenderSystem* Base, const std::string_view& SectionName, size_t BufferSize)
 			{
 				return ExpectsWrapper::Unwrap(Base->CompileShader(SectionName, BufferSize), (Graphics::Shader*)nullptr);
 			}
-			Array* RenderSystemCompileBuffers(Engine::RenderSystem* Base, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
+			Array* RenderSystemCompileBuffers(Engine::RenderSystem* Base, const std::string_view& Name, size_t ElementSize, size_t ElementsCount)
 			{
 				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
@@ -7725,7 +7468,7 @@ namespace Vitex
 				});
 			}
 
-			Array* PrimitiveCacheCompile(Engine::PrimitiveCache* Base, const Core::String& Name, size_t ElementSize, size_t ElementsCount)
+			Array* PrimitiveCacheCompile(Engine::PrimitiveCache* Base, const std::string_view& Name, size_t ElementSize, size_t ElementsCount)
 			{
 				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
@@ -7737,7 +7480,7 @@ namespace Vitex
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Buffers);
 			}
-			Array* PrimitiveCacheGet(Engine::PrimitiveCache* Base, const Core::String& Name)
+			Array* PrimitiveCacheGet(Engine::PrimitiveCache* Base, const std::string_view& Name)
 			{
 				Core::Vector<Graphics::ElementBuffer*> Buffers;
 				Buffers.push_back(nullptr);
@@ -7749,7 +7492,7 @@ namespace Vitex
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTBUFFER "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Buffers);
 			}
-			bool PrimitiveCacheFree(Engine::PrimitiveCache* Base, const Core::String& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
+			bool PrimitiveCacheFree(Engine::PrimitiveCache* Base, const std::string_view& Name, Graphics::ElementBuffer* Buffer1, Graphics::ElementBuffer* Buffer2)
 			{
 				Graphics::ElementBuffer* Buffers[2];
 				Buffers[0] = Buffer1;
@@ -7804,15 +7547,15 @@ namespace Vitex
 				return Array::Compose(Type.GetTypeInfo(), Buffers);
 			}
 
-			void* ContentManagerLoad(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args)
+			void* ContentManagerLoad(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, Core::Schema* Args)
 			{
 				return ExpectsWrapper::Unwrap(Base->Load(Source, Path, ToVariantKeys(Args)), (void*)nullptr);
 			}
-			bool ContentManagerSave(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, Core::Schema* Args)
+			bool ContentManagerSave(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, Core::Schema* Args)
 			{
 				return ExpectsWrapper::UnwrapVoid(Base->Save(Source, Path, Object, ToVariantKeys(Args)));
 			}
-			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -7827,11 +7570,11 @@ namespace Vitex
 					});
 				});
 			}
-			void ContentManagerLoadAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, asIScriptFunction* Callback)
+			void ContentManagerLoadAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, asIScriptFunction* Callback)
 			{
 				ContentManagerLoadAsync2(Base, Source, Path, nullptr, Callback);
 			}
-			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
+			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -7846,11 +7589,11 @@ namespace Vitex
 					});
 				});
 			}
-			void ContentManagerSaveAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const Core::String& Path, void* Object, asIScriptFunction* Callback)
+			void ContentManagerSaveAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, asIScriptFunction* Callback)
 			{
 				ContentManagerSaveAsync2(Base, Source, Path, Object, nullptr, Callback);
 			}
-			bool ContentManagerFindCache1(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, const Core::String& Path)
+			bool ContentManagerFindCache1(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, const std::string_view& Path)
 			{
 				auto* Cache = Base->FindCache(Source, Path);
 				if (!Cache)
@@ -7881,12 +7624,12 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Device);
-				VI_RELEASE(Base.Activity);
-				VI_RELEASE(Base.VM);
-				VI_RELEASE(Base.Content);
-				VI_RELEASE(Base.Primitives);
-				VI_RELEASE(Base.Shaders);
+				Core::Memory::Release(Base.Device);
+				Core::Memory::Release(Base.Activity);
+				Core::Memory::Release(Base.VM);
+				Core::Memory::Release(Base.Content);
+				Core::Memory::Release(Base.Primitives);
+				Core::Memory::Release(Base.Shaders);
 				Base = Other;
 				if (Base.Device != nullptr)
 					Base.Device->AddRef();
@@ -7905,12 +7648,12 @@ namespace Vitex
 			}
 			void SceneGraphSharedDescDestructor(Engine::SceneGraph::Desc::Dependencies& Base)
 			{
-				VI_RELEASE(Base.Device);
-				VI_RELEASE(Base.Activity);
-				VI_RELEASE(Base.VM);
-				VI_RELEASE(Base.Content);
-				VI_RELEASE(Base.Primitives);
-				VI_RELEASE(Base.Shaders);
+				Core::Memory::Release(Base.Device);
+				Core::Memory::Release(Base.Activity);
+				Core::Memory::Release(Base.VM);
+				Core::Memory::Release(Base.Content);
+				Core::Memory::Release(Base.Primitives);
+				Core::Memory::Release(Base.Shaders);
 			}
 
 			void SceneGraphRayTest(Engine::SceneGraph* Base, uint64_t Id, const Compute::Ray& Ray, asIScriptFunction* Callback)
@@ -7934,21 +7677,21 @@ namespace Vitex
 					return Result;
 				});
 			}
-			void SceneGraphMutate1(Engine::SceneGraph* Base, Engine::Entity* Source, Engine::Entity* Child, const Core::String& Name)
+			void SceneGraphMutate1(Engine::SceneGraph* Base, Engine::Entity* Source, Engine::Entity* Child, const std::string_view& Name)
 			{
-				Base->Mutate(Source, Child, Name.c_str());
+				Base->Mutate(Source, Child, Name);
 			}
-			void SceneGraphMutate2(Engine::SceneGraph* Base, Engine::Entity* Source, const Core::String& Name)
+			void SceneGraphMutate2(Engine::SceneGraph* Base, Engine::Entity* Source, const std::string_view& Name)
 			{
-				Base->Mutate(Source, Name.c_str());
+				Base->Mutate(Source, Name);
 			}
-			void SceneGraphMutate3(Engine::SceneGraph* Base, Engine::Component* Source, const Core::String& Name)
+			void SceneGraphMutate3(Engine::SceneGraph* Base, Engine::Component* Source, const std::string_view& Name)
 			{
-				Base->Mutate(Source, Name.c_str());
+				Base->Mutate(Source, Name);
 			}
-			void SceneGraphMutate4(Engine::SceneGraph* Base, Engine::Material* Source, const Core::String& Name)
+			void SceneGraphMutate4(Engine::SceneGraph* Base, Engine::Material* Source, const std::string_view& Name)
 			{
-				Base->Mutate(Source, Name.c_str());
+				Base->Mutate(Source, Name);
 			}
 			void SceneGraphTransaction(Engine::SceneGraph* Base, asIScriptFunction* Callback)
 			{
@@ -7961,42 +7704,40 @@ namespace Vitex
 					Delegate(nullptr).Wait();
 				});
 			}
-			void SceneGraphPushEvent1(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, bool Propagate)
+			void SceneGraphPushEvent1(Engine::SceneGraph* Base, const std::string_view& Name, Core::Schema* Args, bool Propagate)
 			{
 				Base->PushEvent(Name, ToVariantKeys(Args), Propagate);
 			}
-			void SceneGraphPushEvent2(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, Engine::Component* Source)
+			void SceneGraphPushEvent2(Engine::SceneGraph* Base, const std::string_view& Name, Core::Schema* Args, Engine::Component* Source)
 			{
 				Base->PushEvent(Name, ToVariantKeys(Args), Source);
 			}
-			void SceneGraphPushEvent3(Engine::SceneGraph* Base, const Core::String& Name, Core::Schema* Args, Engine::Entity* Source)
+			void SceneGraphPushEvent3(Engine::SceneGraph* Base, const std::string_view& Name, Core::Schema* Args, Engine::Entity* Source)
 			{
 				Base->PushEvent(Name, ToVariantKeys(Args), Source);
 			}
-			void* SceneGraphSetListener(Engine::SceneGraph* Base, const Core::String& Name, asIScriptFunction* Callback)
+			void* SceneGraphSetListener(Engine::SceneGraph* Base, const std::string_view& Name, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return nullptr;
 
-				return Base->SetListener(Name, [Delegate](const Core::String& Name, Core::VariantArgs& BaseArgs) mutable
+				return Base->SetListener(Name, [Delegate](const std::string_view& Name, Core::VariantArgs& BaseArgs) mutable
 				{
 					Core::Schema* Args = Core::Var::Set::Object();
 					Args->Reserve(BaseArgs.size());
 					for (auto& Item : BaseArgs)
 						Args->Set(Item.first, Item.second);
 
-					Delegate([Name, Args](ImmediateContext* Context)
+					Core::String Copy = Core::String(Name);
+					Delegate([Copy, Args](ImmediateContext* Context)
 					{
-						Context->SetArgObject(0, (void*)&Name);
+						Context->SetArgObject(0, (void*)&Copy);
 						Context->SetArgObject(1, (void*)Args);
-					}).When([Args](ExpectsVM<Execution>&&)
-					{
-						VI_RELEASE(Args);
-					});
+					}).When([Args](ExpectsVM<Execution>&&) { Args->Release(); });
 				});
 			}
-			void SceneGraphLoadResource(Engine::SceneGraph* Base, uint64_t Id, Engine::Component* Source, const Core::String& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			void SceneGraphLoadResource(Engine::SceneGraph* Base, uint64_t Id, Engine::Component* Source, const std::string_view& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -8045,7 +7786,7 @@ namespace Vitex
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->QueryByParent(Source));
 			}
-			Array* SceneGraphQueryByName(Engine::SceneGraph* Base, const Core::String& Source)
+			Array* SceneGraphQueryByName(Engine::SceneGraph* Base, const std::string_view& Source)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ENTITY "@>@");
 				return Array::Compose(Type.GetTypeInfo(), Base->QueryByName(Source));
@@ -8092,8 +7833,8 @@ namespace Vitex
 				if (&Base == &Other)
 					return Base;
 
-				VI_RELEASE(Base.Primitives);
-				VI_RELEASE(Base.Shaders);
+				Core::Memory::Release(Base.Primitives);
+				Core::Memory::Release(Base.Shaders);
 				Base = Other;
 				if (Base.Primitives != nullptr)
 					Base.Primitives->AddRef();
@@ -8104,11 +7845,11 @@ namespace Vitex
 			}
 			void ApplicationCacheInfoDestructor(Application::CacheInfo& Base)
 			{
-				VI_RELEASE(Base.Primitives);
-				VI_RELEASE(Base.Shaders);
+				Core::Memory::Release(Base.Primitives);
+				Core::Memory::Release(Base.Shaders);
 			}
 
-			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const Core::String& Name, Core::Schema* Args)
+			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string_view& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
 				if (Args != nullptr)
@@ -8120,13 +7861,13 @@ namespace Vitex
 
 				return Base.DispatchEvent(Name, Data);
 			}
-			Array* IElementQuerySelectorAll(Engine::GUI::IElement& Base, const Core::String& Value)
+			Array* IElementQuerySelectorAll(Engine::GUI::IElement& Base, const std::string_view& Value)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTNODE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Base.QuerySelectorAll(Value));
 			}
 
-			bool IElementDocumentDispatchEvent(Engine::GUI::IElementDocument& Base, const Core::String& Name, Core::Schema* Args)
+			bool IElementDocumentDispatchEvent(Engine::GUI::IElementDocument& Base, const std::string_view& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
 				if (Args != nullptr)
@@ -8138,7 +7879,7 @@ namespace Vitex
 
 				return Base.DispatchEvent(Name, Data);
 			}
-			Array* IElementDocumentQuerySelectorAll(Engine::GUI::IElementDocument& Base, const Core::String& Value)
+			Array* IElementDocumentQuerySelectorAll(Engine::GUI::IElementDocument& Base, const std::string_view& Value)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTNODE ">@");
 				return Array::Compose(Type.GetTypeInfo(), Base.QuerySelectorAll(Value));
@@ -8169,7 +7910,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool DataModelSet(Engine::GUI::DataModel* Base, const Core::String& Name, Core::Schema* Data)
+			bool DataModelSet(Engine::GUI::DataModel* Base, const std::string_view& Name, Core::Schema* Data)
 			{
 				if (!Data->Value.IsObject())
 					return Base->SetProperty(Name, Data->Value) != nullptr;
@@ -8180,35 +7921,35 @@ namespace Vitex
 
 				return DataModelSetRecursive(Node, Data, 0);
 			}
-			bool DataModelSetVar(Engine::GUI::DataModel* Base, const Core::String& Name, const Core::Variant& Data)
+			bool DataModelSetVar(Engine::GUI::DataModel* Base, const std::string_view& Name, const Core::Variant& Data)
 			{
 				return Base->SetProperty(Name, Data) != nullptr;
 			}
-			bool DataModelSetString(Engine::GUI::DataModel* Base, const Core::String& Name, const Core::String& Value)
+			bool DataModelSetString(Engine::GUI::DataModel* Base, const std::string_view& Name, const std::string_view& Value)
 			{
 				return Base->SetString(Name, Value) != nullptr;
 			}
-			bool DataModelSetInteger(Engine::GUI::DataModel* Base, const Core::String& Name, int64_t Value)
+			bool DataModelSetInteger(Engine::GUI::DataModel* Base, const std::string_view& Name, int64_t Value)
 			{
 				return Base->SetInteger(Name, Value) != nullptr;
 			}
-			bool DataModelSetFloat(Engine::GUI::DataModel* Base, const Core::String& Name, float Value)
+			bool DataModelSetFloat(Engine::GUI::DataModel* Base, const std::string_view& Name, float Value)
 			{
 				return Base->SetFloat(Name, Value) != nullptr;
 			}
-			bool DataModelSetDouble(Engine::GUI::DataModel* Base, const Core::String& Name, double Value)
+			bool DataModelSetDouble(Engine::GUI::DataModel* Base, const std::string_view& Name, double Value)
 			{
 				return Base->SetDouble(Name, Value) != nullptr;
 			}
-			bool DataModelSetBoolean(Engine::GUI::DataModel* Base, const Core::String& Name, bool Value)
+			bool DataModelSetBoolean(Engine::GUI::DataModel* Base, const std::string_view& Name, bool Value)
 			{
 				return Base->SetBoolean(Name, Value) != nullptr;
 			}
-			bool DataModelSetPointer(Engine::GUI::DataModel* Base, const Core::String& Name, void* Value)
+			bool DataModelSetPointer(Engine::GUI::DataModel* Base, const std::string_view& Name, void* Value)
 			{
 				return Base->SetPointer(Name, Value) != nullptr;
 			}
-			bool DataModelSetCallback(Engine::GUI::DataModel* Base, const Core::String& Name, asIScriptFunction* Callback)
+			bool DataModelSetCallback(Engine::GUI::DataModel* Base, const std::string_view& Name, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -8229,7 +7970,7 @@ namespace Vitex
 					});
 				});
 			}
-			Core::Schema* DataModelGet(Engine::GUI::DataModel* Base, const Core::String& Name)
+			Core::Schema* DataModelGet(Engine::GUI::DataModel* Base, const std::string_view& Name)
 			{
 				Engine::GUI::DataNode* Node = Base->GetProperty(Name);
 				if (!Node)
@@ -8246,20 +7987,20 @@ namespace Vitex
 			{
 				return Base->GetElementAtPoint(Value);
 			}
-			void ContextEmitInput(Engine::GUI::Context* Base, const Core::String& Data)
+			void ContextEmitInput(Engine::GUI::Context* Base, const std::string_view& Data)
 			{
-				Base->EmitInput(Data.c_str(), (int)Data.size());
+				Base->EmitInput(Data.data(), (int)Data.size());
 			}
 
 			ModelListener::ModelListener(asIScriptFunction* NewCallback) noexcept : Delegate(), Base(new Engine::GUI::Listener(Bind(NewCallback)))
 			{
 			}
-			ModelListener::ModelListener(const Core::String& FunctionName) noexcept : Delegate(), Base(new Engine::GUI::Listener(FunctionName))
+			ModelListener::ModelListener(const std::string_view& FunctionName) noexcept : Delegate(), Base(new Engine::GUI::Listener(FunctionName))
 			{
 			}
 			ModelListener::~ModelListener() noexcept
 			{
-				VI_CLEAR(Base);
+				Core::Memory::Release(Base);
 			}
 			FunctionDelegate& ModelListener::GetDelegate()
 			{
@@ -8285,7 +8026,7 @@ namespace Vitex
 				};
 			}
 
-			void ComponentsSoftBodyLoad(Engine::Components::SoftBody* Base, const Core::String& Path, float Ant, asIScriptFunction* Callback)
+			void ComponentsSoftBodyLoad(Engine::Components::SoftBody* Base, const std::string_view& Path, float Ant, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -8297,7 +8038,7 @@ namespace Vitex
 				});
 			}
 
-			void ComponentsRigidBodyLoad(Engine::Components::RigidBody* Base, const Core::String& Path, float Mass, float Ant, asIScriptFunction* Callback)
+			void ComponentsRigidBodyLoad(Engine::Components::RigidBody* Base, const std::string_view& Path, float Mass, float Ant, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -8309,7 +8050,7 @@ namespace Vitex
 				});
 			}
 
-			void ComponentsKeyAnimatorLoadAnimation(Engine::Components::KeyAnimator* Base, const Core::String& Path, asIScriptFunction* Callback)
+			void ComponentsKeyAnimatorLoadAnimation(Engine::Components::KeyAnimator* Base, const std::string_view& Path, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -8321,7 +8062,7 @@ namespace Vitex
 				});
 			}
 
-			Core::String ResourceGetHeaderBlob(Network::HTTP::Resource* Base, const Core::String& Name)
+			Core::String ResourceGetHeaderBlob(Network::HTTP::Resource* Base, const std::string_view& Name)
 			{
 				auto* Value = Base->GetHeaderBlob(Name);
 				return Value ? *Value : Core::String();
@@ -8335,17 +8076,17 @@ namespace Vitex
 			{
 				return ExpectsWrapper::Unwrap(Base.GetXML(), (Core::Schema*)nullptr);
 			}
-			void ContentFramePrepare1(Network::HTTP::ContentFrame& Base, const Network::HTTP::RequestFrame& Target, const Core::String& LeftoverContent)
+			void ContentFramePrepare1(Network::HTTP::ContentFrame& Base, const Network::HTTP::RequestFrame& Target, const std::string_view& LeftoverContent)
 			{
-				Base.Prepare(Target.Headers, LeftoverContent.c_str(), LeftoverContent.size());
+				Base.Prepare(Target.Headers, (uint8_t*)LeftoverContent.data(), LeftoverContent.size());
 			}
-			void ContentFramePrepare2(Network::HTTP::ContentFrame& Base, const Network::HTTP::ResponseFrame& Target, const Core::String& LeftoverContent)
+			void ContentFramePrepare2(Network::HTTP::ContentFrame& Base, const Network::HTTP::ResponseFrame& Target, const std::string_view& LeftoverContent)
 			{
-				Base.Prepare(Target.Headers, LeftoverContent.c_str(), LeftoverContent.size());
+				Base.Prepare(Target.Headers, (uint8_t*)LeftoverContent.data(), LeftoverContent.size());
 			}
-			void ContentFramePrepare3(Network::HTTP::ContentFrame& Base, const Network::HTTP::FetchFrame& Target, const Core::String& LeftoverContent)
+			void ContentFramePrepare3(Network::HTTP::ContentFrame& Base, const Network::HTTP::FetchFrame& Target, const std::string_view& LeftoverContent)
 			{
-				Base.Prepare(Target.Headers, LeftoverContent.c_str(), LeftoverContent.size());
+				Base.Prepare(Target.Headers, (uint8_t*)LeftoverContent.data(), LeftoverContent.size());
 			}
 			void ContentFrameAddResource(Network::HTTP::ContentFrame& Base, const Network::HTTP::Resource& Item)
 			{
@@ -8370,7 +8111,7 @@ namespace Vitex
 				return Base.Resources[Index];
 			}
 
-			Core::String RequestFrameGetHeaderBlob(Network::HTTP::RequestFrame& Base, const Core::String& Name)
+			Core::String RequestFrameGetHeaderBlob(Network::HTTP::RequestFrame& Base, const std::string_view& Name)
 			{
 				auto* Value = Base.GetHeaderBlob(Name);
 				return Value ? *Value : Core::String();
@@ -8413,7 +8154,7 @@ namespace Vitex
 			{
 				return Base.Headers.size();
 			}
-			Core::String RequestFrameGetCookieBlob(Network::HTTP::RequestFrame& Base, const Core::String& Name)
+			Core::String RequestFrameGetCookieBlob(Network::HTTP::RequestFrame& Base, const std::string_view& Name)
 			{
 				auto* Value = Base.GetCookieBlob(Name);
 				return Value ? *Value : Core::String();
@@ -8456,9 +8197,9 @@ namespace Vitex
 			{
 				return Base.Cookies.size();
 			}
-			void RequestFrameSetMethod(Network::HTTP::RequestFrame& Base, const Core::String& Value)
+			void RequestFrameSetMethod(Network::HTTP::RequestFrame& Base, const std::string_view& Value)
 			{
-				Base.SetMethod(Value.c_str());
+				Base.SetMethod(Value);
 			}
 			Core::String RequestFrameGetMethod(Network::HTTP::RequestFrame& Base)
 			{
@@ -8469,7 +8210,7 @@ namespace Vitex
 				return Base.Version;
 			}
 
-			Core::String ResponseFrameGetHeaderBlob(Network::HTTP::ResponseFrame& Base, const Core::String& Name)
+			Core::String ResponseFrameGetHeaderBlob(Network::HTTP::ResponseFrame& Base, const std::string_view& Name)
 			{
 				auto* Value = Base.GetHeaderBlob(Name);
 				return Value ? *Value : Core::String();
@@ -8512,9 +8253,9 @@ namespace Vitex
 			{
 				return Base.Headers.size();
 			}
-			Network::HTTP::Cookie ResponseFrameGetCookie1(Network::HTTP::ResponseFrame& Base, const Core::String& Name)
+			Network::HTTP::Cookie ResponseFrameGetCookie1(Network::HTTP::ResponseFrame& Base, const std::string_view& Name)
 			{
-				auto Value = Base.GetCookie(Name.c_str());
+				auto Value = Base.GetCookie(Name);
 				return Value ? *Value : Network::HTTP::Cookie();
 			}
 			Network::HTTP::Cookie ResponseFrameGetCookie2(Network::HTTP::ResponseFrame& Base, size_t Index)
@@ -8532,7 +8273,7 @@ namespace Vitex
 				return Base.Cookies.size();
 			}
 
-			Core::String FetchFrameGetHeaderBlob(Network::HTTP::FetchFrame& Base, const Core::String& Name)
+			Core::String FetchFrameGetHeaderBlob(Network::HTTP::FetchFrame& Base, const std::string_view& Name)
 			{
 				auto* Value = Base.GetHeaderBlob(Name);
 				return Value ? *Value : Core::String();
@@ -8575,7 +8316,7 @@ namespace Vitex
 			{
 				return Base.Headers.size();
 			}
-			Core::String FetchFrameGetCookieBlob(Network::HTTP::FetchFrame& Base, const Core::String& Name)
+			Core::String FetchFrameGetCookieBlob(Network::HTTP::FetchFrame& Base, const std::string_view& Name)
 			{
 				auto* Value = Base.GetCookieBlob(Name);
 				return Value ? *Value : Core::String();
@@ -8787,11 +8528,11 @@ namespace Vitex
 			{
 				return Base->Groups.size();
 			}
-			Network::HTTP::RouterEntry* MapRouterFetchRoute(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern)
+			Network::HTTP::RouterEntry* MapRouterFetchRoute(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern)
 			{
 				return Base->Route(Match, Mode, Pattern, false);
 			}
-			bool MapRouterGet2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterGet2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8811,11 +8552,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterGet1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterGet1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterGet2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterPost2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPost2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8835,11 +8576,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterPost1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPost1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterPost2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterPatch2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPatch2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8859,11 +8600,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterPatch1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterPatch1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterPatch2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterDelete2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterDelete2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8883,11 +8624,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterDelete1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterDelete1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterDelete2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterOptions2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterOptions2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8907,11 +8648,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterOptions1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterOptions1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterOptions2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterAccess2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAccess2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8931,11 +8672,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterAccess1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAccess1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterAccess2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterHeaders2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterHeaders2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8959,11 +8700,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterHeaders1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterHeaders1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterHeaders2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterAuthorize2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAuthorize2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -8987,11 +8728,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterAuthorize1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterAuthorize1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterAuthorize2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterWebsocketInitiate2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketInitiate2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -9011,11 +8752,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterWebsocketInitiate1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketInitiate1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterWebsocketInitiate2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterWebsocketConnect2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketConnect2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -9035,11 +8776,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterWebsocketConnect1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketConnect1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterWebsocketConnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterWebsocketDisconnect2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketDisconnect2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -9059,11 +8800,11 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterWebsocketDisconnect1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketDisconnect1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterWebsocketDisconnect2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouterWebsocketReceive2(Network::HTTP::MapRouter* Base, const Core::String& Match, Network::HTTP::RouteMode Mode, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketReceive2(Network::HTTP::MapRouter* Base, const std::string_view& Match, Network::HTTP::RouteMode Mode, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				auto* Route = MapRouterFetchRoute(Base, Match, Mode, Pattern);
 				if (!Route)
@@ -9076,9 +8817,9 @@ namespace Vitex
 					return false;
 				}
 
-				Route->Callbacks.WebSocket.Receive = [Delegate](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size) mutable
+				Route->Callbacks.WebSocket.Receive = [Delegate](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const std::string_view& Data) mutable
 				{
-					Core::String Buffer(Data ? Data : "", Data ? Size : 0);
+					Core::String Buffer = Core::String(Data);
 					Delegate([Base, Opcode, Buffer](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
@@ -9089,7 +8830,7 @@ namespace Vitex
 				};
 				return true;
 			}
-			bool MapRouterWebsocketReceive1(Network::HTTP::MapRouter* Base, const Core::String& Pattern, asIScriptFunction* Callback)
+			bool MapRouterWebsocketReceive1(Network::HTTP::MapRouter* Base, const std::string_view& Pattern, asIScriptFunction* Callback)
 			{
 				return MapRouterWebsocketReceive2(Base, "", Network::HTTP::RouteMode::Start, Pattern, Callback);
 			}
@@ -9147,9 +8888,9 @@ namespace Vitex
 					return false;
 				}
 
-				Base->Receive = [Delegate](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const char* Data, size_t Size) mutable
+				Base->Receive = [Delegate](Network::HTTP::WebSocketFrame* Base, Network::HTTP::WebSocketOp Opcode, const std::string_view& Data) mutable
 				{
-					Core::String Buffer(Data ? Data : "", Data ? Size : 0);
+					Core::String Buffer = Core::String(Data);
 					Delegate([Base, Opcode, Buffer](ImmediateContext* Context)
 					{
 						Context->SetArgObject(0, Base);
@@ -9160,17 +8901,17 @@ namespace Vitex
 				};
 				return true;
 			}
-			Core::Promise<bool> WebSocketFrameSend2(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
+			Core::Promise<bool> WebSocketFrameSend2(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const std::string_view& Data, Network::HTTP::WebSocketOp Opcode)
 			{
 				Core::Promise<bool> Result;
-				ExpectsWrapper::UnwrapVoid(Base->Send(Mask, Data.c_str(), Data.size(), Opcode, [Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); }));
+				ExpectsWrapper::UnwrapVoid(Base->Send(Mask, Data, Opcode, [Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); }));
 				return Result;
 			}
-			Core::Promise<bool> WebSocketFrameSend1(Network::HTTP::WebSocketFrame* Base, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
+			Core::Promise<bool> WebSocketFrameSend1(Network::HTTP::WebSocketFrame* Base, const std::string_view& Data, Network::HTTP::WebSocketOp Opcode)
 			{
 				return WebSocketFrameSend2(Base, 0, Data, Opcode);
 			}
-			Core::Promise<bool> WebSocketFrameSendClose(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const Core::String& Data, Network::HTTP::WebSocketOp Opcode)
+			Core::Promise<bool> WebSocketFrameSendClose(Network::HTTP::WebSocketFrame* Base, uint32_t Mask, const std::string_view& Data, Network::HTTP::WebSocketOp Opcode)
 			{
 				Core::Promise<bool> Result;
 				ExpectsWrapper::UnwrapVoid(Base->SendClose([Result](Network::HTTP::WebSocketFrame* Base) mutable { Result.Set(true); }));
@@ -9188,7 +8929,7 @@ namespace Vitex
 					Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("cannot send headers: illegal operation")), Context));
 				return Result;
 			}
-			Core::Promise<bool> ConnectionSendChunk(Network::HTTP::Connection* Base, const Core::String& Chunk)
+			Core::Promise<bool> ConnectionSendChunk(Network::HTTP::Connection* Base, const std::string_view& Chunk)
 			{
 				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get();
 				bool Sending = Base->SendChunk(Chunk, [Result, Context](Network::HTTP::Connection*, Network::SocketPoll Event) mutable
@@ -9212,7 +8953,7 @@ namespace Vitex
 					return Core::Promise<Array*>((Array*)nullptr);
 
 				Core::Promise<Array*> Result;
-				Core::Vector<Network::HTTP::Resource>* Resources = VI_NEW(Core::Vector<Network::HTTP::Resource>);
+				Core::Vector<Network::HTTP::Resource>* Resources = Core::Memory::New<Core::Vector<Network::HTTP::Resource>>();
 				asITypeInfo* Type = VM->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_HTTPRESOURCEINFO ">@").GetTypeInfo();
 				Base->Store([Result, Resources, Type](Network::HTTP::Resource* Next) mutable
 				{
@@ -9223,7 +8964,7 @@ namespace Vitex
 					}
 
 					Result.Set(Array::Compose<Network::HTTP::Resource>(Type, *Resources));
-					VI_DELETE(vector, Resources);
+					Core::Memory::Delete(Resources);
 					return true;
 				}, Eat);
 				return Result;
@@ -9231,16 +8972,16 @@ namespace Vitex
 			Core::Promise<Core::String> ConnectionFetch(Network::HTTP::Connection* Base, bool Eat)
 			{
 				Core::Promise<Core::String> Result;
-				Core::String* Data = VI_NEW(Core::String);
-				Base->Fetch([Result, Data](Network::HTTP::Connection*, Network::SocketPoll Poll, const char* Buffer, size_t Size) mutable
+				Core::String* Data = Core::Memory::New<Core::String>();
+				Base->Fetch([Result, Data](Network::HTTP::Connection*, Network::SocketPoll Poll, const std::string_view& Buffer) mutable
 				{
-					if (!Buffer || !Size)
+					if (Buffer.empty())
 					{
 						Result.Set(std::move(*Data));
-						VI_DELETE(basic_string, Data);
+						Core::Memory::Delete(Data);
 					}
 					else
-						Data->append(Buffer, Size);
+						Data->append(Buffer);
 					return true;
 				}, Eat);
 				return Result;
@@ -9258,17 +8999,17 @@ namespace Vitex
 				return Base->Root;
 			}
 
-			void QueryDecode(Network::HTTP::Query* Base, const Core::String& ContentType, const Core::String& Data)
+			void QueryDecode(Network::HTTP::Query* Base, const std::string_view& ContentType, const std::string_view& Data)
 			{
-				Base->Decode(ContentType.c_str(), Data);
+				Base->Decode(ContentType, Data);
 			}
-			Core::String QueryEncode(Network::HTTP::Query* Base, const Core::String& ContentType)
+			Core::String QueryEncode(Network::HTTP::Query* Base, const std::string_view& ContentType)
 			{
-				return Base->Encode(ContentType.c_str());
+				return Base->Encode(ContentType);
 			}
 			void QuerySetData(Network::HTTP::Query* Base, Core::Schema* Data)
 			{
-				VI_CLEAR(Base->Object);
+				Core::Memory::Release(Base->Object);
 				Base->Object = Data;
 				if (Base->Object != nullptr)
 					Base->Object->AddRef();
@@ -9280,7 +9021,7 @@ namespace Vitex
 
 			void SessionSetData(Network::HTTP::Session* Base, Core::Schema* Data)
 			{
-				VI_CLEAR(Base->Query);
+				Core::Memory::Release(Base->Query);
 				Base->Query = Data;
 				if (Base->Query != nullptr)
 					Base->Query->AddRef();
@@ -9351,7 +9092,7 @@ namespace Vitex
 				});
 			}
 
-			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const Core::String& Location, const Core::String& Method, const Network::HTTP::FetchFrame& Options)
+			Core::Promise<Network::HTTP::ResponseFrame> HTTPFetch(const std::string_view& Location, const std::string_view& Method, const Network::HTTP::FetchFrame& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Network::HTTP::Fetch(Location, Method, Options).Then<Network::HTTP::ResponseFrame>([Context](Core::ExpectsSystem<Network::HTTP::ResponseFrame>&& Response) -> Network::HTTP::ResponseFrame
@@ -9440,16 +9181,16 @@ namespace Vitex
 				else
 					Base->Messages.clear();
 			}
-			void SMTPRequestSetHeader(Network::SMTP::RequestFrame* Base, const Core::String& Name, const Core::String& Value)
+			void SMTPRequestSetHeader(Network::SMTP::RequestFrame* Base, const std::string_view& Name, const std::string_view& Value)
 			{
 				if (Value.empty())
-					Base->Headers.erase(Name);
+					Base->Headers.erase(Core::String(Name));
 				else
-					Base->Headers[Name] = Value;
+					Base->Headers[Core::String(Name)] = Value;
 			}
-			Core::String SMTPRequestGetHeader(Network::SMTP::RequestFrame* Base, const Core::String& Name)
+			Core::String SMTPRequestGetHeader(Network::SMTP::RequestFrame* Base, const std::string_view& Name)
 			{
-				auto It = Base->Headers.find(Name);
+				auto It = Base->Headers.find(Core::HglCast(Name));
 				return It == Base->Headers.end() ? Core::String() : It->second;
 			}
 			Core::String SMTPRequestGetRemoteAddress(Network::SMTP::RequestFrame* Base)
@@ -9518,9 +9259,8 @@ namespace Vitex
 					StepDelegate.Context->ExecuteSubcall(StepDelegate.Callable(), [&Args](ImmediateContext* Context)
 					{
 						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
-						Array* Data = Array::Compose<Core::Variant>(Type, Args);
-						Context->SetArgObject(0, Data);
-						VI_RELEASE(Data);
+						Core::UPtr<Array> Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, *Data);
 					});
 				}
 				Core::Variant Finalize() override
@@ -9551,9 +9291,8 @@ namespace Vitex
 					StepDelegate.Context->ExecuteSubcall(StepDelegate.Callable(), [&Args](ImmediateContext* Context)
 					{
 						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
-						Array* Data = Array::Compose<Core::Variant>(Type, Args);
-						Context->SetArgObject(0, Data);
-						VI_RELEASE(Data);
+						Core::UPtr<Array> Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, *Data);
 					});
 				}
 				void Inverse(const Core::VariantList& Args) override
@@ -9561,9 +9300,8 @@ namespace Vitex
 					InverseDelegate.Context->ExecuteSubcall(InverseDelegate.Callable(), [&Args](ImmediateContext* Context)
 					{
 						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
-						Array* Data = Array::Compose<Core::Variant>(Type, Args);
-						Context->SetArgObject(0, Data);
-						VI_RELEASE(Data);
+						Core::UPtr<Array> Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, *Data);
 					});
 				}
 				Core::Variant Value() override
@@ -9590,7 +9328,7 @@ namespace Vitex
 				}
 			};
 
-			void LDBClusterSetFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* Callback)
+			void LDBClusterSetFunction(Network::LDB::Cluster* Base, const std::string_view& Name, uint8_t Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -9602,9 +9340,8 @@ namespace Vitex
 					Delegate.Context->ExecuteSubcall(Delegate.Callable(), [&Args](ImmediateContext* Context)
 					{
 						TypeInfo Type = Context->GetVM()->GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
-						Array* Data = Array::Compose<Core::Variant>(Type, Args);
-						Context->SetArgObject(0, Data);
-						VI_RELEASE(Data);
+						Core::UPtr<Array> Data = Array::Compose<Core::Variant>(Type, Args);
+						Context->SetArgObject(0, *Data);
 					}, [&Result](ImmediateContext* Context) mutable
 					{
 						Core::Variant* Target = Context->GetReturnObject<Core::Variant>();
@@ -9614,7 +9351,7 @@ namespace Vitex
 					return Result;
 				});
 			}
-			void LDBClusterSetAggregateFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* StepCallback, asIScriptFunction* FinalizeCallback)
+			void LDBClusterSetAggregateFunction(Network::LDB::Cluster* Base, const std::string_view& Name, uint8_t Args, asIScriptFunction* StepCallback, asIScriptFunction* FinalizeCallback)
 			{
 				FunctionDelegate StepDelegate(StepCallback);
 				FunctionDelegate FinalizeDelegate(FinalizeCallback);
@@ -9626,7 +9363,7 @@ namespace Vitex
 				Aggregate->FinalizeDelegate = std::move(FinalizeDelegate);
 				Base->SetAggregateFunction(Name, Args, Aggregate);
 			}
-			void LDBClusterSetWindowFunction(Network::LDB::Cluster* Base, const Core::String& Name, uint8_t Args, asIScriptFunction* StepCallback, asIScriptFunction* InverseCallback, asIScriptFunction* ValueCallback, asIScriptFunction* FinalizeCallback)
+			void LDBClusterSetWindowFunction(Network::LDB::Cluster* Base, const std::string_view& Name, uint8_t Args, asIScriptFunction* StepCallback, asIScriptFunction* InverseCallback, asIScriptFunction* ValueCallback, asIScriptFunction* FinalizeCallback)
 			{
 				FunctionDelegate StepDelegate(StepCallback);
 				FunctionDelegate InverseDelegate(InverseCallback);
@@ -9650,7 +9387,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), (Network::LDB::SessionId)nullptr, Context);
 				});
 			}
-			Core::Promise<Network::LDB::SessionId> LDBClusterTxStart(Network::LDB::Cluster* Base, const Core::String& Command)
+			Core::Promise<Network::LDB::SessionId> LDBClusterTxStart(Network::LDB::Cluster* Base, const std::string_view& Command)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->TxStart(Command).Then<Network::LDB::SessionId>([Context](Network::LDB::ExpectsDB<Network::LDB::SessionId>&& Result)
@@ -9658,7 +9395,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), (Network::LDB::SessionId)nullptr, Context);
 				});
 			}
-			Core::Promise<bool> LDBClusterTxEnd(Network::LDB::Cluster* Base, const Core::String& Command, Network::LDB::SessionId Session)
+			Core::Promise<bool> LDBClusterTxEnd(Network::LDB::Cluster* Base, const std::string_view& Command, Network::LDB::SessionId Session)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->TxEnd(Command, Session).Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
@@ -9682,7 +9419,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> LDBClusterConnect(Network::LDB::Cluster* Base, const Core::String& Address, size_t Connections)
+			Core::Promise<bool> LDBClusterConnect(Network::LDB::Cluster* Base, const std::string_view& Address, size_t Connections)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->Connect(Address, Connections).Then<bool>([Context](Network::LDB::ExpectsDB<void>&& Result)
@@ -9706,7 +9443,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<Network::LDB::Cursor> LDBClusterQuery(Network::LDB::Cluster* Base, const Core::String& Command, size_t Args, Network::LDB::SessionId Session)
+			Core::Promise<Network::LDB::Cursor> LDBClusterQuery(Network::LDB::Cluster* Base, const std::string_view& Command, size_t Args, Network::LDB::SessionId Session)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->Query(Command, Args, Session).Then<Network::LDB::Cursor>([Context](Network::LDB::ExpectsDB<Network::LDB::Cursor>&& Result)
@@ -9714,7 +9451,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::LDB::Cursor(nullptr), Context);
 				});
 			}
-			Core::Promise<Network::LDB::Cursor> LDBClusterEmplaceQuery(Network::LDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::LDB::SessionId Session)
+			Core::Promise<Network::LDB::Cursor> LDBClusterEmplaceQuery(Network::LDB::Cluster* Base, const std::string_view& Command, Array* Data, size_t Options, Network::LDB::SessionId Session)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
 				for (auto& Item : Args)
@@ -9726,7 +9463,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::LDB::Cursor(nullptr), Context);
 				});
 			}
-			Core::Promise<Network::LDB::Cursor> LDBClusterTemplateQuery(Network::LDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::LDB::SessionId Session)
+			Core::Promise<Network::LDB::Cursor> LDBClusterTemplateQuery(Network::LDB::Cluster* Base, const std::string_view& Command, Dictionary* Data, size_t Options, Network::LDB::SessionId Session)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -9755,7 +9492,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::LDB::Cursor(nullptr), Context);
 				});
 			}
-			Array* LDBClusterWalCheckpoint(Network::LDB::Cluster* Base, Network::LDB::CheckpointMode Mode, const Core::String& Database)
+			Array* LDBClusterWalCheckpoint(Network::LDB::Cluster* Base, Network::LDB::CheckpointMode Mode, const std::string_view& Database)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				if (!VM)
@@ -9765,7 +9502,7 @@ namespace Vitex
 				return Array::Compose(Type.GetTypeInfo(), Base->WalCheckpoint(Mode, Database));
 			}
 
-			Core::String LDBUtilsInlineQuery(Core::Schema* Where, Dictionary* WhitelistData, const Core::String& Default)
+			Core::String LDBUtilsInlineQuery(Core::Schema* Where, Dictionary* WhitelistData, const std::string_view& Default)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				int TypeId = VM ? VM->GetTypeIdByDecl("string") : -1;
@@ -9778,18 +9515,19 @@ namespace Vitex
 				FunctionDelegate Delegate(Callback);
 				if (Delegate.IsValid())
 				{
-					Base->SetQueryLog([Delegate](const Core::String& Data) mutable
+					Base->SetQueryLog([Delegate](const std::string_view& Data) mutable
 					{
-						Delegate([Data](ImmediateContext* Context)
+						Core::String Copy = Core::String(Data);
+						Delegate([Copy](ImmediateContext* Context)
 						{
-							Context->SetArgObject(0, (void*)&Data);
+							Context->SetArgObject(0, (void*)&Copy);
 						});
 					});
 				}
 				else
 					Base->SetQueryLog(nullptr);
 			}
-			Core::String LDBDriverEmplace(Network::LDB::Driver* Base, const Core::String& SQL, Array* Data)
+			Core::String LDBDriverEmplace(Network::LDB::Driver* Base, const std::string_view& SQL, Array* Data)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
 				for (auto& Item : Args)
@@ -9797,7 +9535,7 @@ namespace Vitex
 
 				return ExpectsWrapper::Unwrap(Base->Emplace(SQL, &Args), Core::String());
 			}
-			Core::String LDBDriverGetQuery(Network::LDB::Driver* Base, const Core::String& SQL, Dictionary* Data)
+			Core::String LDBDriverGetQuery(Network::LDB::Driver* Base, const std::string_view& SQL, Dictionary* Data)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -9903,7 +9641,7 @@ namespace Vitex
 				else
 					Base->SetWhenReconnected(nullptr);
 			}
-			uint64_t PDBClusterAddChannel(Network::PDB::Cluster* Base, const Core::String& Name, asIScriptFunction* Callback)
+			uint64_t PDBClusterAddChannel(Network::PDB::Cluster* Base, const std::string_view& Name, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
@@ -9944,7 +9682,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), (Network::PDB::SessionId)nullptr, Context);
 				});
 			}
-			Core::Promise<Network::PDB::SessionId> PDBClusterTxStart(Network::PDB::Cluster* Base, const Core::String& Command)
+			Core::Promise<Network::PDB::SessionId> PDBClusterTxStart(Network::PDB::Cluster* Base, const std::string_view& Command)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->TxStart(Command).Then<Network::PDB::SessionId>([Context](Network::PDB::ExpectsDB<Network::PDB::SessionId>&& Result)
@@ -9952,7 +9690,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), (Network::PDB::SessionId)nullptr, Context);
 				});
 			}
-			Core::Promise<bool> PDBClusterTxEnd(Network::PDB::Cluster* Base, const Core::String& Command, Network::PDB::SessionId Session)
+			Core::Promise<bool> PDBClusterTxEnd(Network::PDB::Cluster* Base, const std::string_view& Command, Network::PDB::SessionId Session)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->TxEnd(Command, Session).Then<bool>([Context](Network::PDB::ExpectsDB<void>&& Result)
@@ -9992,7 +9730,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<Network::PDB::Cursor> PDBClusterQuery(Network::PDB::Cluster* Base, const Core::String& Command, size_t Args, Network::PDB::SessionId Session)
+			Core::Promise<Network::PDB::Cursor> PDBClusterQuery(Network::PDB::Cluster* Base, const std::string_view& Command, size_t Args, Network::PDB::SessionId Session)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->Query(Command, Args, Session).Then<Network::PDB::Cursor>([Context](Network::PDB::ExpectsDB<Network::PDB::Cursor>&& Result)
@@ -10000,7 +9738,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::PDB::Cursor(), Context);
 				});
 			}
-			Core::Promise<Network::PDB::Cursor> PDBClusterEmplaceQuery(Network::PDB::Cluster* Base, const Core::String& Command, Array* Data, size_t Options, Network::PDB::Connection* Session)
+			Core::Promise<Network::PDB::Cursor> PDBClusterEmplaceQuery(Network::PDB::Cluster* Base, const std::string_view& Command, Array* Data, size_t Options, Network::PDB::Connection* Session)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
 				for (auto& Item : Args)
@@ -10012,7 +9750,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::PDB::Cursor(), Context);
 				});
 			}
-			Core::Promise<Network::PDB::Cursor> PDBClusterTemplateQuery(Network::PDB::Cluster* Base, const Core::String& Command, Dictionary* Data, size_t Options, Network::PDB::Connection* Session)
+			Core::Promise<Network::PDB::Cursor> PDBClusterTemplateQuery(Network::PDB::Cluster* Base, const std::string_view& Command, Dictionary* Data, size_t Options, Network::PDB::Connection* Session)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -10042,7 +9780,7 @@ namespace Vitex
 				});
 			}
 
-			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Dictionary* WhitelistData, const Core::String& Default)
+			Core::String PDBUtilsInlineQuery(Network::PDB::Cluster* Client, Core::Schema* Where, Dictionary* WhitelistData, const std::string_view& Default)
 			{
 				VirtualMachine* VM = VirtualMachine::Get();
 				int TypeId = VM ? VM->GetTypeIdByDecl("string") : -1;
@@ -10055,18 +9793,19 @@ namespace Vitex
 				FunctionDelegate Delegate(Callback);
 				if (Delegate.IsValid())
 				{
-					Base->SetQueryLog([Delegate](const Core::String& Data) mutable
+					Base->SetQueryLog([Delegate](const std::string_view& Data) mutable
 					{
-						Delegate([Data](ImmediateContext* Context)
+						Core::String Copy = Core::String(Data);
+						Delegate([Copy](ImmediateContext* Context)
 						{
-							Context->SetArgObject(0, (void*)&Data);
+							Context->SetArgObject(0, (void*)&Copy);
 						});
 					});
 				}
 				else
 					Base->SetQueryLog(nullptr);
 			}
-			Core::String PDBDriverEmplace(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Array* Data)
+			Core::String PDBDriverEmplace(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const std::string_view& SQL, Array* Data)
 			{
 				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
 				for (auto& Item : Args)
@@ -10074,7 +9813,7 @@ namespace Vitex
 
 				return ExpectsWrapper::Unwrap(Base->Emplace(Cluster, SQL, &Args), Core::String());
 			}
-			Core::String PDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Dictionary* Data)
+			Core::String PDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const std::string_view& SQL, Dictionary* Data)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -10137,35 +9876,35 @@ namespace Vitex
 						switch (TypeId)
 						{
 							case (size_t)TypeId::BOOL:
-								Result.SetBooleanAt(Name, *(bool*)Ref);
+								Result.SetBoolean(Name, *(bool*)Ref);
 								break;
 							case (size_t)TypeId::INT8:
-								Result.SetIntegerAt(Name, *(char*)Ref);
+								Result.SetInteger(Name, *(char*)Ref);
 								break;
 							case (size_t)TypeId::INT16:
-								Result.SetIntegerAt(Name, *(short*)Ref);
+								Result.SetInteger(Name, *(short*)Ref);
 								break;
 							case (size_t)TypeId::INT32:
-								Result.SetIntegerAt(Name, *(int*)Ref);
+								Result.SetInteger(Name, *(int*)Ref);
 								break;
 							case (size_t)TypeId::UINT8:
-								Result.SetIntegerAt(Name, *(unsigned char*)Ref);
+								Result.SetInteger(Name, *(unsigned char*)Ref);
 								break;
 							case (size_t)TypeId::UINT16:
-								Result.SetIntegerAt(Name, *(unsigned short*)Ref);
+								Result.SetInteger(Name, *(unsigned short*)Ref);
 								break;
 							case (size_t)TypeId::UINT32:
-								Result.SetIntegerAt(Name, *(unsigned int*)Ref);
+								Result.SetInteger(Name, *(uint32_t*)Ref);
 								break;
 							case (size_t)TypeId::INT64:
 							case (size_t)TypeId::UINT64:
-								Result.SetIntegerAt(Name, *(int64_t*)Ref);
+								Result.SetInteger(Name, *(int64_t*)Ref);
 								break;
 							case (size_t)TypeId::FLOAT:
-								Result.SetNumberAt(Name, *(float*)Ref);
+								Result.SetNumber(Name, *(float*)Ref);
 								break;
 							case (size_t)TypeId::DOUBLE:
-								Result.SetNumberAt(Name, *(double*)Ref);
+								Result.SetNumber(Name, *(double*)Ref);
 								break;
 						}
 					}
@@ -10180,17 +9919,17 @@ namespace Vitex
 
 						if (VM->IsNullable(TypeId) || !Ref)
 						{
-							Result.SetNullAt(Name);
+							Result.SetNull(Name);
 						}
-						else if (Type.IsValid() && !strcmp(TYPENAME_SCHEMA, Type.GetName()))
+						else if (Type.IsValid() && Type.GetName() == TYPENAME_SCHEMA)
 						{
 							Core::Schema* Base = (Core::Schema*)Ref;
-							Result.SetSchemaAt(Name, Network::MDB::Document::FromSchema(Base));
+							Result.SetSchema(Name, Network::MDB::Document::FromSchema(Base));
 						}
-						else if (Type.IsValid() && !strcmp(TYPENAME_STRING, Type.GetName()))
-							Result.SetStringAt(Name, *(Core::String*)Ref);
-						else if (Type.IsValid() && !strcmp(TYPENAME_DECIMAL, Type.GetName()))
-							Result.SetDecimalStringAt(Name, ((Core::Decimal*)Ref)->ToString());
+						else if (Type.IsValid() && Type.GetName() == TYPENAME_STRING)
+							Result.SetString(Name, *(Core::String*)Ref);
+						else if (Type.IsValid() && Type.GetName() == TYPENAME_DECIMAL)
+							Result.SetDecimalString(Name, ((Core::Decimal*)Ref)->ToString());
 					}
 
 					if (TypeId & (size_t)TypeId::MASK_OBJECT)
@@ -10219,7 +9958,7 @@ namespace Vitex
 				*(Network::MDB::Document*)Args.GetAddressOfReturnLocation() = MDBDocumentConstructBuffer(Buffer);
 			}
 
-			bool MDBStreamTemplateQuery(Network::MDB::Stream& Base, const Core::String& Command, Dictionary* Data)
+			bool MDBStreamTemplateQuery(Network::MDB::Stream& Base, const std::string_view& Command, Dictionary* Data)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -10291,7 +10030,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), (Core::Schema*)nullptr, Context);
 				});
 			}
-			Core::Promise<Network::MDB::Property> MDBResponseGetProperty(Network::MDB::Response& Base, const Core::String& Name)
+			Core::Promise<Network::MDB::Property> MDBResponseGetProperty(Network::MDB::Response& Base, const std::string_view& Name)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.GetProperty(Name).Then<Network::MDB::Property>([Context](Network::MDB::ExpectsDB<Network::MDB::Property>&& Result)
@@ -10405,7 +10144,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(nullptr), Context);
 				});
 			}
-			Core::Promise<Network::MDB::Response> MDBTransactionTemplateQuery(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const Core::String& Name, Dictionary* Data)
+			Core::Promise<Network::MDB::Response> MDBTransactionTemplateQuery(Network::MDB::Transaction& Base, Network::MDB::Collection& Collection, const std::string_view& Name, Dictionary* Data)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -10451,7 +10190,7 @@ namespace Vitex
 				});
 			}
 
-			Core::Promise<bool> MDBCollectionRename(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			Core::Promise<bool> MDBCollectionRename(Network::MDB::Collection& Base, const std::string_view& DatabaseName, const std::string_view& CollectionName, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.Rename(DatabaseName, CollectionName).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10459,7 +10198,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBCollectionRenameWithOptions(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			Core::Promise<bool> MDBCollectionRenameWithOptions(Network::MDB::Collection& Base, const std::string_view& DatabaseName, const std::string_view& CollectionName, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.RenameWithOptions(DatabaseName, CollectionName, Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10467,7 +10206,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBCollectionRenameWithRemove(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			Core::Promise<bool> MDBCollectionRenameWithRemove(Network::MDB::Collection& Base, const std::string_view& DatabaseName, const std::string_view& CollectionName, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.RenameWithRemove(DatabaseName, CollectionName).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10475,7 +10214,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBCollectionRenameWithOptionsAndRemove(Network::MDB::Collection& Base, const Core::String& DatabaseName, const Core::String& CollectionName, const Network::MDB::Document& Options)
+			Core::Promise<bool> MDBCollectionRenameWithOptionsAndRemove(Network::MDB::Collection& Base, const std::string_view& DatabaseName, const std::string_view& CollectionName, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.RenameWithOptionsAndRemove(DatabaseName, CollectionName, Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10483,7 +10222,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBCollectionRemove(Network::MDB::Collection& Base, const Core::String& Name, const Network::MDB::Document& Options)
+			Core::Promise<bool> MDBCollectionRemove(Network::MDB::Collection& Base, const std::string_view& Name, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.Remove(Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10491,7 +10230,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBCollectionRemoveIndex(Network::MDB::Collection& Base, const Core::String& Name, const Network::MDB::Document& Options)
+			Core::Promise<bool> MDBCollectionRemoveIndex(Network::MDB::Collection& Base, const std::string_view& Name, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.RemoveIndex(Name, Options).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10604,7 +10343,7 @@ namespace Vitex
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Cursor(), Context);
 				});
 			}
-			Core::Promise<Network::MDB::Response> MDBCollectionTemplateQuery(Network::MDB::Collection& Base, const Core::String& Name, Dictionary* Data, Network::MDB::Transaction& Session)
+			Core::Promise<Network::MDB::Response> MDBCollectionTemplateQuery(Network::MDB::Collection& Base, const std::string_view& Name, Dictionary* Data, Network::MDB::Transaction& Session)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -10642,7 +10381,7 @@ namespace Vitex
 				});
 			}
 
-			Core::Promise<bool> MDBDatabaseRemoveAllUsers(Network::MDB::Database& Base, const Core::String& Name)
+			Core::Promise<bool> MDBDatabaseRemoveAllUsers(Network::MDB::Database& Base, const std::string_view& Name)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.RemoveAllUsers().Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10650,7 +10389,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBDatabaseRemoveUser(Network::MDB::Database& Base, const Core::String& Name)
+			Core::Promise<bool> MDBDatabaseRemoveUser(Network::MDB::Database& Base, const std::string_view& Name)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.RemoveUser(Name).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10674,7 +10413,7 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBDatabaseAddUser(Network::MDB::Database& Base, const Core::String& Username, const Core::String& Password, const Network::MDB::Document& Roles, const Network::MDB::Document& Custom)
+			Core::Promise<bool> MDBDatabaseAddUser(Network::MDB::Database& Base, const std::string_view& Username, const std::string_view& Password, const Network::MDB::Document& Roles, const Network::MDB::Document& Custom)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.AddUser(Username, Password, Roles, Custom).Then<bool>([Context](Network::MDB::ExpectsDB<void>&& Result)
@@ -10682,11 +10421,11 @@ namespace Vitex
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
 			}
-			Core::Promise<bool> MDBDatabaseHasCollection(Network::MDB::Database& Base, const Core::String& Name)
+			Core::Promise<bool> MDBDatabaseHasCollection(Network::MDB::Database& Base, const std::string_view& Name)
 			{
 				return Base.HasCollection(Name).Then<bool>([](Network::MDB::ExpectsDB<void>&& Result) { return !!Result; });
 			}
-			Core::Promise<Network::MDB::Collection> MDBDatabaseCreateCollection(Network::MDB::Database& Base, const Core::String& Name, const Network::MDB::Document& Options)
+			Core::Promise<Network::MDB::Collection> MDBDatabaseCreateCollection(Network::MDB::Database& Base, const std::string_view& Name, const Network::MDB::Document& Options)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base.CreateCollection(Name, Options).Then<Network::MDB::Collection>([Context](Network::MDB::ExpectsDB<Network::MDB::Collection>&& Result)
@@ -10822,18 +10561,19 @@ namespace Vitex
 				FunctionDelegate Delegate(Callback);
 				if (Delegate.IsValid())
 				{
-					Base->SetQueryLog([Delegate](const Core::String& Data) mutable
+					Base->SetQueryLog([Delegate](const std::string_view& Data) mutable
 					{
-						Delegate([Data](ImmediateContext* Context)
+						Core::String Copy = Core::String(Data);
+						Delegate([Copy](ImmediateContext* Context)
 						{
-							Context->SetArgObject(0, (void*)&Data);
+							Context->SetArgObject(0, (void*)&Copy);
 						});
 					});
 				}
 				else
 					Base->SetQueryLog(nullptr);
 			}
-			Core::String MDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const Core::String& SQL, Dictionary* Data)
+			Core::String MDBDriverGetQuery(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const std::string_view& SQL, Dictionary* Data)
 			{
 				Core::SchemaArgs Args;
 				if (Data != nullptr)
@@ -10912,7 +10652,7 @@ namespace Vitex
 				{
 					auto VArray = VM->SetTemplateClass<Array>("array<class T>", "array<T>", true);
 					VArray->SetTemplateCallback(&Array::TemplateCallback);
-					VArray->SetFunctionDef("bool array<T>::less_event(const T&in a, const T&in b)");
+					VArray->SetFunctionDef("bool array<T>::less_sync(const T&in a, const T&in b)");
 					VArray->SetConstructorEx<Array, asITypeInfo*>("array<T>@ f(int&in)", &Array::Create);
 					VArray->SetConstructorEx<Array, asITypeInfo*, size_t>("array<T>@ f(int&in, usize) explicit", &Array::Create);
 					VArray->SetConstructorEx<Array, asITypeInfo*, size_t, void*>("array<T>@ f(int&in, usize, const T&in)", &Array::Create);
@@ -10941,7 +10681,7 @@ namespace Vitex
 					VArray->SetMethod("void erase(usize, usize)", &Array::RemoveRange);
 					VArray->SetMethod("void reverse()", &Array::Reverse);
 					VArray->SetMethod("void swap(usize, usize)", &Array::Swap);
-					VArray->SetMethod("void sort(less_event@ = null)", &Array::Sort);
+					VArray->SetMethod("void sort(less_sync@ = null)", &Array::Sort);
 					VArray->SetMethod<Array, size_t, void*, size_t>("usize find(const T&in if_handle_then_const, usize = 0) const", &Array::Find);
 					VArray->SetMethod<Array, size_t, void*, size_t>("usize find_ref(const T&in if_handle_then_const, usize = 0) const", &Array::FindByRef);
 				}
@@ -11019,17 +10759,17 @@ namespace Vitex
 					VDictionary->SetEnumRefs(&Dictionary::EnumReferences);
 					VDictionary->SetReleaseRefs(&Dictionary::ReleaseReferences);
 					VDictionary->SetMethod("dictionary &opAssign(const dictionary &in)", &Dictionary::operator=);
-					VDictionary->SetMethod<Dictionary, Storable*, const Core::String&>("storable& opIndex(const string&in)", &Dictionary::operator[]);
-					VDictionary->SetMethod<Dictionary, const Storable*, const Core::String&>("const storable& opIndex(const string&in) const", &Dictionary::operator[]);
+					VDictionary->SetMethod<Dictionary, Storable*, const std::string_view&>("storable& opIndex(const string_view&in)", &Dictionary::operator[]);
+					VDictionary->SetMethod<Dictionary, const Storable*, const std::string_view&>("const storable& opIndex(const string_view&in) const", &Dictionary::operator[]);
 					VDictionary->SetMethod<Dictionary, Storable*, size_t>("storable& opIndex(usize)", &Dictionary::operator[]);
 					VDictionary->SetMethod<Dictionary, const Storable*, size_t>("const storable& opIndex(usize) const", &Dictionary::operator[]);
-					VDictionary->SetMethod("void set(const string&in, const ?&in)", &Dictionary::Set);
-					VDictionary->SetMethod("bool get(const string&in, ?&out) const", &Dictionary::Get);
-					VDictionary->SetMethod("bool exists(const string&in) const", &Dictionary::Exists);
+					VDictionary->SetMethod("void set(const string_view&in, const ?&in)", &Dictionary::Set);
+					VDictionary->SetMethod("bool get(const string_view&in, ?&out) const", &Dictionary::Get);
+					VDictionary->SetMethod("bool exists(const string_view&in) const", &Dictionary::Exists);
 					VDictionary->SetMethod("bool empty() const", &Dictionary::Empty);
 					VDictionary->SetMethod("bool at(usize, string&out, ?&out) const", &Dictionary::TryGetIndex);
 					VDictionary->SetMethod("usize size() const", &Dictionary::Size);
-					VDictionary->SetMethod("bool erase(const string&in)", &Dictionary::Erase);
+					VDictionary->SetMethod("bool erase(const string_view&in)", &Dictionary::Erase);
 					VDictionary->SetMethod("void clear()", &Dictionary::Clear);
 					VDictionary->SetMethod("array<string>@ get_keys() const", &Dictionary::GetKeys);
 					Dictionary::Setup(VM);
@@ -11121,20 +10861,25 @@ namespace Vitex
 			bool Registry::ImportString(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
+				auto VStringView = VM->SetStructAddress("string_view", sizeof(std::string_view), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<std::string_view>());
 				auto VString = VM->SetStructAddress("string", sizeof(Core::String), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<Core::String>());
 #ifdef VI_ANGELSCRIPT
 				VM->SetStringFactoryAddress("string", StringFactory::Get());
 #endif
 				VString->SetConstructorEx("void f()", &String::Create);
-				VString->SetConstructorEx("void f(const string &in)", &String::CreateCopy);
+				VString->SetConstructorEx("void f(const string&in)", &String::CreateCopy1);
+				VString->SetConstructorEx("void f(const string_view&in)", &String::CreateCopy2);
 				VString->SetDestructorEx("void f()", &String::Destroy);
-				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAssign(const string &in)", &Core::String::operator=);
-				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAddAssign(const string &in)", &Core::String::operator+=);
-				VString->SetMethodEx<Core::String, const Core::String&, const Core::String&>("string opAdd(const string &in) const", &std::operator+);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAssign(const string&in)", &Core::String::operator=);
+				VString->SetMethod<Core::String, Core::String&, const std::string_view&>("string& opAssign(const string_view&in)", &Core::String::operator=);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAddAssign(const string&in)", &Core::String::operator+=);
+				VString->SetMethod<Core::String, Core::String&, const std::string_view&>("string& opAddAssign(const string_view&in)", &Core::String::operator+=);
+				VString->SetMethodEx<Core::String, const Core::String&, const Core::String&>("string opAdd(const string&in) const", &std::operator+);
 				VString->SetMethod<Core::String, Core::String&, char>("string& opAddAssign(uint8)", &Core::String::operator+=);
 				VString->SetMethodEx<Core::String, const Core::String&, char>("string opAdd(uint8) const", &std::operator+);
 				VString->SetMethodEx<Core::String, char, const Core::String&>("string opAdd_r(uint8) const", &std::operator+);
-				VString->SetMethod<Core::String, int, const Core::String&>("int opCmp(const string &in) const", &Core::String::compare);
+				VString->SetMethod<Core::String, int, const Core::String&>("int opCmp(const string&in) const", &Core::String::compare);
+				VString->SetMethod<Core::String, int, const std::string_view&>("int opCmp(const string_view&in) const", &Core::String::compare);
 				VString->SetMethodEx("uint8& opIndex(usize)", &String::Index);
 				VString->SetMethodEx("const uint8& opIndex(usize) const", &String::Index);
 				VString->SetMethodEx("uint8& at(usize)", &String::Index);
@@ -11155,15 +10900,21 @@ namespace Vitex
 				VString->SetMethod("void clear()", &Core::String::clear);
 				VString->SetMethod<Core::String, Core::String&, size_t, size_t, char>("string& insert(usize, usize, uint8)", &Core::String::insert);
 				VString->SetMethod<Core::String, Core::String&, size_t, const Core::String&>("string& insert(usize, const string&in)", &Core::String::insert);
+				VString->SetMethod<Core::String, Core::String&, size_t, const std::string_view&>("string& insert(usize, const string_view&in)", &Core::String::insert);
 				VString->SetMethod<Core::String, Core::String&, size_t, size_t>("string& erase(usize, usize)", &Core::String::erase);
 				VString->SetMethod<Core::String, Core::String&, size_t, char>("string& append(usize, uint8)", &Core::String::append);
 				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& append(const string&in)", &Core::String::append);
+				VString->SetMethod<Core::String, Core::String&, const std::string_view&>("string& append(const string_view&in)", &Core::String::append);
 				VString->SetMethod("void push(uint8)", &Core::String::push_back);
 				VString->SetMethodEx("void pop()", &String::PopBack);
-				VString->SetMethodEx<bool, const Core::String&, const Core::String&, size_t>("bool starts_with(const string&in, usize = 0) const", &Core::Stringify::StartsWith);
-				VString->SetMethodEx<bool, const Core::String&, const Core::String&>("bool ends_with(const string&in) const", &Core::Stringify::EndsWith);
-				VString->SetMethodEx<Core::String&, Core::String&, size_t, size_t, const Core::String&>("string& replace(usize, usize, const string&in)", &Core::Stringify::ReplacePart);
-				VString->SetMethodEx<Core::String&, Core::String&, const Core::String&, const Core::String&, size_t>("string& replace_all(const string&in, const string&in, usize)", &Core::Stringify::Replace);
+				VString->SetMethodEx("bool starts_with(const string&in, usize = 0) const", &String::StartsWith1);
+				VString->SetMethodEx("bool ends_with(const string&in) const", &String::EndsWith1);
+				VString->SetMethodEx("string& replace(usize, usize, const string&in)", &String::ReplacePart1);
+				VString->SetMethodEx("string& replace_all(const string&in, const string&in, usize)", &String::Replace1);
+				VString->SetMethodEx("bool starts_with(const string_view&in, usize = 0) const", &String::StartsWith2);
+				VString->SetMethodEx("bool ends_with(const string_view&in) const", &String::EndsWith2);
+				VString->SetMethodEx("string& replace(usize, usize, const string_view&in)", &String::ReplacePart2);
+				VString->SetMethodEx("string& replace_all(const string_view&in, const string_view&in, usize)", &String::Replace2);
 				VString->SetMethodEx("string substring(usize) const", &String::Substring1);
 				VString->SetMethodEx("string substring(usize, usize) const", &String::Substring2);
 				VString->SetMethodEx("string substr(usize) const", &String::Substring1);
@@ -11175,14 +10926,21 @@ namespace Vitex
 				VString->SetMethodEx("string& to_upper()", &Core::Stringify::ToUpper);
 				VString->SetMethodEx<Core::String&, Core::String&>("string& reverse()", &Core::Stringify::Reverse);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize rfind(const string&in, usize = 0) const", &Core::String::rfind);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize rfind(const string_view&in, usize = 0) const", &Core::String::rfind);
 				VString->SetMethod<Core::String, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &Core::String::find);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find(const string&in, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find(const string_view&in, usize = 0) const", &Core::String::find);
 				VString->SetMethod<Core::String, size_t, char, size_t>("usize find(uint8, usize = 0) const", &Core::String::find);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_first_of(const string&in, usize = 0) const", &Core::String::find_first_of);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_first_not_of(const string&in, usize = 0) const", &Core::String::find_first_not_of);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_last_of(const string&in, usize = 0) const", &Core::String::find_last_of);
 				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_last_not_of(const string&in, usize = 0) const", &Core::String::find_last_not_of);
-				VString->SetMethodEx("array<string>@ split(const string &in) const", &String::Split);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_first_of(const string_view&in, usize = 0) const", &Core::String::find_first_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_first_not_of(const string_view&in, usize = 0) const", &Core::String::find_first_not_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_last_of(const string_view&in, usize = 0) const", &Core::String::find_last_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_last_not_of(const string_view&in, usize = 0) const", &Core::String::find_last_not_of);
+				VString->SetMethodEx("array<string>@ split(const string&in) const", &String::Split);
+				VString->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "string_view", "", &String::ImplCastStringView);
 				VM->SetFunction("int8 to_int8(const string&in)", &String::FromString<int8_t>);
 				VM->SetFunction("int16 to_int16(const string&in)", &String::FromString<int16_t>);
 				VM->SetFunction("int32 to_int32(const string&in)", &String::FromString<int32_t>);
@@ -11205,10 +10963,60 @@ namespace Vitex
 				VM->SetFunction("string to_string(double)", &Core::ToString<double>);
 				VM->SetFunction("string to_string(uptr@, usize)", &String::FromBuffer);
 				VM->SetFunction("string handle_id(uptr@)", &String::FromPointer);
-				VM->SetFunction("uint64 component_id(const string &in)", &Core::OS::File::GetHash);
-
 				VM->BeginNamespace("string");
 				VM->SetProperty("const usize npos", &Core::String::npos);
+				VM->EndNamespace();
+
+				VStringView->SetConstructorEx("void f()", &StringView::Create);
+				VStringView->SetConstructorEx("void f(const string&in)", &StringView::CreateCopy1);
+				VStringView->SetConstructorEx("void f(const string_view&in)", &StringView::CreateCopy2);
+				VStringView->SetDestructorEx("void f()", &StringView::Destroy);
+				VStringView->SetMethod<std::string_view, std::string_view&, const std::string_view&>("string& opAssign(const string&in)", &std::string_view::operator=);
+				VStringView->SetMethod<std::string_view, std::string_view&, const std::string_view&>("string& opAssign(const string_view&in)", &std::string_view::operator=);
+				VStringView->SetMethodEx<Core::String, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &StringView::Append1);
+				VStringView->SetMethodEx<Core::String, const std::string_view&, const Core::String&>("string opAdd(const string&in) const", &StringView::Append2);
+				VStringView->SetMethodEx<Core::String, const Core::String&, const std::string_view&>("string opAdd_r(const string&in) const", &StringView::Append3);
+				VStringView->SetMethodEx<Core::String, const std::string_view&, char>("string opAdd(uint8) const", &StringView::Append4);
+				VStringView->SetMethodEx<Core::String, char, const std::string_view&>("string opAdd_r(uint8) const", &StringView::Append5);
+				VStringView->SetMethodEx("int opCmp(const string&in) const", &StringView::Compare);
+				VStringView->SetMethod<std::string_view, int, const std::string_view>("int opCmp(const string_view&in) const", &std::string_view::compare);
+				VStringView->SetMethodEx("const uint8& opIndex(usize) const", &StringView::Index);
+				VStringView->SetMethodEx("const uint8& at(usize) const", &StringView::Index);
+				VStringView->SetMethodEx("const uint8& front() const", &StringView::Front);
+				VStringView->SetMethodEx("const uint8& back() const", &StringView::Back);
+				VStringView->SetMethod("uptr@ data() const", &std::string_view::data);
+				VStringView->SetMethod("bool empty() const", &std::string_view::empty);
+				VStringView->SetMethod("usize size() const", &std::string_view::size);
+				VStringView->SetMethod("usize max_size() const", &std::string_view::max_size);
+				VStringView->SetMethodEx("bool starts_with(const string_view&in, usize = 0) const", &StringView::StartsWith);
+				VStringView->SetMethodEx("bool ends_with(const string_view&in) const", &StringView::EndsWith);
+				VStringView->SetMethodEx("string substring(usize) const", &StringView::Substring1);
+				VStringView->SetMethodEx("string substring(usize, usize) const", &StringView::Substring2);
+				VStringView->SetMethodEx("string substr(usize) const", &StringView::Substring1);
+				VStringView->SetMethodEx("string substr(usize, usize) const", &StringView::Substring2);
+				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize rfind(const string_view&in, usize = 0) const", &std::string_view::rfind);
+				VStringView->SetMethod<std::string_view, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &std::string_view::find);
+				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find(const string_view&in, usize = 0) const", &std::string_view::find);
+				VStringView->SetMethod<std::string_view, size_t, char, size_t>("usize find(uint8, usize = 0) const", &std::string_view::find);
+				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_first_of(const string_view&in, usize = 0) const", &std::string_view::find_first_of);
+				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_first_not_of(const string_view&in, usize = 0) const", &std::string_view::find_first_not_of);
+				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_last_of(const string_view&in, usize = 0) const", &std::string_view::find_last_of);
+				VStringView->SetMethod<std::string_view, size_t, const std::string_view, size_t>("usize find_last_not_of(const string_view&in, usize = 0) const", &std::string_view::find_last_not_of);
+				VStringView->SetMethodEx("array<string>@ split(const string_view&in) const", &StringView::Split);
+				VStringView->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "string", "", &StringView::ImplCastString);
+				VM->SetFunction("int8 to_int8(const string_view&in)", &StringView::FromString<int8_t>);
+				VM->SetFunction("int16 to_int16(const string_view&in)", &StringView::FromString<int16_t>);
+				VM->SetFunction("int32 to_int32(const string_view&in)", &StringView::FromString<int32_t>);
+				VM->SetFunction("int64 to_int64(const string_view&in)", &StringView::FromString<int64_t>);
+				VM->SetFunction("uint8 to_uint8(const string_view&in)", &StringView::FromString<uint8_t>);
+				VM->SetFunction("uint16 to_uint16(const string_view&in)", &StringView::FromString<uint16_t>);
+				VM->SetFunction("uint32 to_uint32(const string_view&in)", &StringView::FromString<uint32_t>);
+				VM->SetFunction("uint64 to_uint64(const string_view&in)", &StringView::FromString<uint64_t>);
+				VM->SetFunction("float to_float(const string_view&in)", &StringView::FromString<float>);
+				VM->SetFunction("double to_double(const string_view&in)", &StringView::FromString<double>);
+				VM->SetFunction("uint64 component_id(const string_view&in)", &Core::OS::File::GetHash);
+				VM->BeginNamespace("string_view");
+				VM->SetProperty("const usize npos", &std::string_view::npos);
 				VM->EndNamespace();
 
 				return true;
@@ -11221,8 +11029,8 @@ namespace Vitex
 				VExceptionPtr->SetProperty("string text", &Exception::Pointer::Text);
 				VExceptionPtr->SetProperty("string origin", &Exception::Pointer::Origin);
 				VExceptionPtr->SetConstructor<Exception::Pointer>("void f()");
-				VExceptionPtr->SetConstructor<Exception::Pointer, const Core::String&>("void f(const string&in)");
-				VExceptionPtr->SetConstructor<Exception::Pointer, const Core::String&, const Core::String&>("void f(const string&in, const string&in)");
+				VExceptionPtr->SetConstructor<Exception::Pointer, const std::string_view&>("void f(const string_view&in)");
+				VExceptionPtr->SetConstructor<Exception::Pointer, const std::string_view&, const std::string_view&>("void f(const string_view&in, const string_view&in)");
 				VExceptionPtr->SetMethod("const string& get_type() const", &Exception::Pointer::GetType);
 				VExceptionPtr->SetMethod("const string& get_text() const", &Exception::Pointer::GetText);
 				VExceptionPtr->SetMethod("string what() const", &Exception::Pointer::What);
@@ -11257,8 +11065,8 @@ namespace Vitex
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				auto VThread = VM->SetClass<Thread>("thread", true);
-				VThread->SetFunctionDef("void thread_event(thread@+)");
-				VThread->SetConstructorEx("thread@ f(thread_event@)", &Thread::Create);
+				VThread->SetFunctionDef("void thread_async(thread@+)");
+				VThread->SetConstructorEx("thread@ f(thread_async@)", &Thread::Create);
 				VThread->SetEnumRefs(&Thread::EnumReferences);
 				VThread->SetReleaseRefs(&Thread::ReleaseReferences);
 				VThread->SetMethod("bool is_active()", &Thread::IsActive);
@@ -11299,7 +11107,7 @@ namespace Vitex
 				VCharBuffer->SetMethod("bool empty() const", &CharBuffer::Empty);
 				VCharBuffer->SetMethod("bool set(usize, int8, usize)", &CharBuffer::SetInt8);
 				VCharBuffer->SetMethod("bool set(usize, uint8, usize)", &CharBuffer::SetUint8);
-				VCharBuffer->SetMethod("bool store(usize, const string&in)", &CharBuffer::StoreBytes);
+				VCharBuffer->SetMethod("bool store(usize, const string_view&in)", &CharBuffer::StoreBytes);
 				VCharBuffer->SetMethod("bool store(usize, int8)", &CharBuffer::StoreInt8);
 				VCharBuffer->SetMethod("bool store(usize, uint8)", &CharBuffer::StoreUint8);
 				VCharBuffer->SetMethod("bool store(usize, int16)", &CharBuffer::StoreInt16);
@@ -11379,29 +11187,14 @@ namespace Vitex
 				bool HasCallbacks = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoCallbacks));
 				if (HasCallbacks)
 				{
-					VPromise->SetFunctionDef("void promise<T>::when_callback(T&in)");
-					VPromise->SetMethod<Promise, void, asIScriptFunction*>("void when(when_callback@)", &Promise::When);
-					VPromiseVoid->SetFunctionDef("void promise_v::when_callback()");
-					VPromiseVoid->SetMethod<Promise, void, asIScriptFunction*>("void when(when_callback@)", &Promise::When);
+					VPromise->SetFunctionDef("void promise<T>::when_async(T&in)");
+					VPromise->SetMethod<Promise, void, asIScriptFunction*>("void when(when_async@)", &Promise::When);
+					VPromiseVoid->SetFunctionDef("void promise_v::when_async()");
+					VPromiseVoid->SetMethod<Promise, void, asIScriptFunction*>("void when(when_async@)", &Promise::When);
 				}
 
 				VM->SetCodeGenerator("await-syntax", &Promise::GeneratorCallback);
 				return true;
-			}
-			bool Registry::ImportFormat(VirtualMachine* VM)
-			{
-#ifdef VI_BINDINGS
-				VI_ASSERT(VM != nullptr, "manager should be set");
-				auto VFormat = VM->SetClass<Format>("format", false);
-				VFormat->SetConstructor<Format>("format@ f()");
-				VFormat->SetConstructorList<Format>("format@ f(int &in) {repeat ?}");
-				VFormat->SetMethodStatic("string to_json(const ? &in)", &Format::JSON);
-
-				return true;
-#else
-				VI_ASSERT(false, "<format> is not loaded");
-				return false;
-#endif
 			}
 			bool Registry::ImportDecimal(VirtualMachine* VM)
 			{
@@ -11417,7 +11210,7 @@ namespace Vitex
 				VDecimal->SetConstructor<Core::Decimal, uint64_t>("void f(uint64)");
 				VDecimal->SetConstructor<Core::Decimal, float>("void f(float)");
 				VDecimal->SetConstructor<Core::Decimal, double>("void f(double)");
-				VDecimal->SetConstructor<Core::Decimal, const Core::String&>("void f(const string &in)");
+				VDecimal->SetConstructor<Core::Decimal, const std::string_view&>("void f(const string_view&in)");
 				VDecimal->SetConstructor<Core::Decimal, const Core::Decimal&>("void f(const decimal &in)");
 				VDecimal->SetMethod("decimal& truncate(int)", &Core::Decimal::Truncate);
 				VDecimal->SetMethod("decimal& round(int)", &Core::Decimal::Round);
@@ -11476,7 +11269,7 @@ namespace Vitex
 				VUInt128->SetConstructor<Compute::UInt128, uint32_t>("void f(uint32)");
 				VUInt128->SetConstructor<Compute::UInt128, int64_t>("void f(int64)");
 				VUInt128->SetConstructor<Compute::UInt128, uint64_t>("void f(uint64)");
-				VUInt128->SetConstructor<Compute::UInt128, const Core::String&>("void f(const string &in)");
+				VUInt128->SetConstructor<Compute::UInt128, const std::string_view&>("void f(const string_view&in)");
 				VUInt128->SetConstructor<Compute::UInt128, const Compute::UInt128&>("void f(const uint128 &in)");
 				VUInt128->SetMethodEx("int8 to_int8() const", &UInt128ToInt8);
 				VUInt128->SetMethodEx("uint8 to_uint8() const", &UInt128ToUInt8);
@@ -11525,7 +11318,7 @@ namespace Vitex
 				VUInt256->SetConstructor<Compute::UInt256, uint64_t>("void f(uint64)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&>("void f(uint128)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&, const Compute::UInt128&>("void f(uint128, uint128)");
-				VUInt256->SetConstructor<Compute::UInt256, const Core::String&>("void f(const string &in)");
+				VUInt256->SetConstructor<Compute::UInt256, const std::string_view&>("void f(const string_view&in)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt256&>("void f(const uint256 &in)");
 				VUInt256->SetMethodEx("int8 to_int8() const", &UInt256ToInt8);
 				VUInt256->SetMethodEx("uint8 to_uint8() const", &UInt256ToUInt8);
@@ -11578,7 +11371,7 @@ namespace Vitex
 				auto VVariant = VM->SetStructTrivial<Core::Variant>("variant");
 				VVariant->SetConstructor<Core::Variant>("void f()");
 				VVariant->SetConstructor<Core::Variant, const Core::Variant&>("void f(const variant &in)");
-				VVariant->SetMethod("bool deserialize(const string &in, bool = false)", &Core::Variant::Deserialize);
+				VVariant->SetMethod("bool deserialize(const string_view&in, bool = false)", &Core::Variant::Deserialize);
 				VVariant->SetMethod("string serialize() const", &Core::Variant::Serialize);
 				VVariant->SetMethod("decimal to_decimal() const", &Core::Variant::GetDecimal);
 				VVariant->SetMethod("string to_string() const", &Core::Variant::GetBlob);
@@ -11601,7 +11394,7 @@ namespace Vitex
 				VVariant->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "bool", "", &VariantImplCast);
 
 				VM->BeginNamespace("var");
-				VM->SetFunction("variant auto_t(const string &in, bool = false)", &Core::Var::Auto);
+				VM->SetFunction("variant auto_t(const string_view&in, bool = false)", &Core::Var::Auto);
 				VM->SetFunction("variant null_t()", &Core::Var::Null);
 				VM->SetFunction("variant undefined_t()", &Core::Var::Undefined);
 				VM->SetFunction("variant object_t()", &Core::Var::Object);
@@ -11610,9 +11403,9 @@ namespace Vitex
 				VM->SetFunction("variant integer_t(int64)", &Core::Var::Integer);
 				VM->SetFunction("variant number_t(double)", &Core::Var::Number);
 				VM->SetFunction("variant boolean_t(bool)", &Core::Var::Boolean);
-				VM->SetFunction<Core::Variant(const Core::String&)>("variant string_t(const string &in)", &Core::Var::String);
-				VM->SetFunction<Core::Variant(const Core::String&)>("variant binary_t(const string &in)", &Core::Var::Binary);
-				VM->SetFunction<Core::Variant(const Core::String&)>("variant decimal_t(const string &in)", &Core::Var::DecimalString);
+				VM->SetFunction<Core::Variant(const std::string_view&)>("variant string_t(const string_view&in)", &Core::Var::String);
+				VM->SetFunction<Core::Variant(const std::string_view&)>("variant binary_t(const string_view&in)", &Core::Var::Binary);
+				VM->SetFunction<Core::Variant(const std::string_view&)>("variant decimal_t(const string_view&in)", &Core::Var::DecimalString);
 				VM->SetFunction<Core::Variant(const Core::Decimal&)>("variant decimal_t(const decimal &in)", &Core::Var::Decimal);
 				VM->EndNamespace();
 
@@ -11625,8 +11418,8 @@ namespace Vitex
 				VDateTime->SetConstructor<Core::DateTime>("void f()");
 				VDateTime->SetConstructor<Core::DateTime, uint64_t>("void f(uint64)");
 				VDateTime->SetConstructor<Core::DateTime, const Core::DateTime&>("void f(const timestamp &in)");
-				VDateTime->SetMethod("string format(const string &in)", &Core::DateTime::Format);
-				VDateTime->SetMethod("string date(const string &in)", &Core::DateTime::Date);
+				VDateTime->SetMethodEx("string format(const string_view&in)", &DateTimeFormat);
+				VDateTime->SetMethodEx("string date(const string_view&in)", &DateTimeDate);
 				VDateTime->SetMethod("string to_iso8601()", &Core::DateTime::Iso8601);
 				VDateTime->SetMethod("timestamp now()", &Core::DateTime::Now);
 				VDateTime->SetMethod("timestamp from_nanoseconds(uint64)", &Core::DateTime::FromNanoseconds);
@@ -11711,14 +11504,14 @@ namespace Vitex
 				VConsole->SetMethod("void capture_time()", &Core::Console::CaptureTime);
 				VConsole->SetMethod("uint64 capture_window(uint32)", &Core::Console::CaptureWindow);
 				VConsole->SetMethod("void free_window(uint64, bool)", &Core::Console::FreeWindow);
-				VConsole->SetMethod("void emplace_window(uint64, const string&in)", &Core::Console::EmplaceWindow);
+				VConsole->SetMethod("void emplace_window(uint64, const string_view&in)", &Core::Console::EmplaceWindow);
 				VConsole->SetMethod("uint64 capture_element()", &Core::Console::CaptureElement);
 				VConsole->SetMethod("void free_element(uint64)", &Core::Console::FreeElement);
 				VConsole->SetMethod("void resize_element(uint64, uint32)", &Core::Console::ResizeElement);
 				VConsole->SetMethod("void move_element(uint64, uint32)", &Core::Console::MoveElement);
 				VConsole->SetMethod("void read_element(uint64, uint32&out, uint32&out)", &Core::Console::ReadElement);
-				VConsole->SetMethod("void replace_element(uint64, const string&in)", &Core::Console::ReplaceElement);
-				VConsole->SetMethod("void spinning_element(uint64, const string&in)", &Core::Console::SpinningElement);
+				VConsole->SetMethod("void replace_element(uint64, const string_view&in)", &Core::Console::ReplaceElement);
+				VConsole->SetMethod("void spinning_element(uint64, const string_view&in)", &Core::Console::SpinningElement);
 				VConsole->SetMethod("void progress_element(uint64, double, double = 0.8)", &Core::Console::ProgressElement);
 				VConsole->SetMethod("void spinning_progress_element(uint64, double, double = 0.8)", &Core::Console::SpinningProgressElement);
 				VConsole->SetMethod("void clear_element(uint64)", &Core::Console::ClearElement);
@@ -11726,9 +11519,9 @@ namespace Vitex
 				VConsole->SetMethod("void flush_write()", &Core::Console::FlushWrite);
 				VConsole->SetMethod("void write_size(uint32, uint32)", &Core::Console::WriteSize);
 				VConsole->SetMethod("void write_position(uint32, uint32)", &Core::Console::WritePosition);
-				VConsole->SetMethod("void write_line(const string &in)", &Core::Console::WriteLine);
+				VConsole->SetMethod("void write_line(const string_view&in)", &Core::Console::WriteLine);
 				VConsole->SetMethod("void write_char(uint8)", &Core::Console::WriteChar);
-				VConsole->SetMethod("void write(const string &in)", &Core::Console::Write);
+				VConsole->SetMethod("void write(const string_view&in)", &Core::Console::Write);
 				VConsole->SetMethod("double get_captured_time()", &Core::Console::GetCapturedTime);
 				VConsole->SetMethod("string read(usize)", &Core::Console::Read);
 				VConsole->SetMethod("bool read_screen(uint32 &out, uint32 &out, uint32 &out, uint32 &out)", &Core::Console::ReadScreen);
@@ -11736,8 +11529,6 @@ namespace Vitex
 				VConsole->SetMethod("uint8 read_char()", &Core::Console::ReadChar);
 				VConsole->SetMethodStatic("console@+ get()", &Core::Console::Get);
 				VConsole->SetMethodEx("void trace(uint32 = 32)", &ConsoleTrace);
-				VConsole->SetMethodEx("void write_line(const string &in, format@+)", &Format::WriteLine);
-				VConsole->SetMethodEx("void write(const string &in, format@+)", &Format::Write);
 
 				return true;
 #else
@@ -11757,21 +11548,21 @@ namespace Vitex
 				VSchema->SetGcConstructor<Core::Schema, Schema, const Core::Variant&>("schema@ f(const variant &in)");
 				VSchema->SetGcConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
 				VSchema->SetMethod<Core::Schema, Core::Variant, size_t>("variant get_var(usize) const", &Core::Schema::GetVar);
-				VSchema->SetMethod<Core::Schema, Core::Variant, const Core::String&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
-				VSchema->SetMethod<Core::Schema, Core::Variant, const Core::String&>("variant get_attribute_var(const string &in) const", &Core::Schema::GetAttributeVar);
+				VSchema->SetMethod<Core::Schema, Core::Variant, const std::string_view&>("variant get_var(const string_view&in) const", &Core::Schema::GetVar);
+				VSchema->SetMethod<Core::Schema, Core::Variant, const std::string_view&>("variant get_attribute_var(const string_view&in) const", &Core::Schema::GetAttributeVar);
 				VSchema->SetMethod("schema@+ get_parent() const", &Core::Schema::GetParent);
-				VSchema->SetMethod("schema@+ get_attribute(const string &in) const", &Core::Schema::GetAttribute);
+				VSchema->SetMethod("schema@+ get_attribute(const string_view&in) const", &Core::Schema::GetAttribute);
 				VSchema->SetMethod<Core::Schema, Core::Schema*, size_t>("schema@+ get(usize) const", &Core::Schema::Get);
-				VSchema->SetMethod<Core::Schema, Core::Schema*, const Core::String&, bool>("schema@+ get(const string &in, bool = false) const", &Core::Schema::Fetch);
-				VSchema->SetMethod<Core::Schema, Core::Schema*, const Core::String&>("schema@+ set(const string &in)", &Core::Schema::Set);
-				VSchema->SetMethod<Core::Schema, Core::Schema*, const Core::String&, const Core::Variant&>("schema@+ set(const string &in, const variant &in)", &Core::Schema::Set);
-				VSchema->SetMethod<Core::Schema, Core::Schema*, const Core::String&, const Core::Variant&>("schema@+ set_attribute(const string& in, const variant &in)", &Core::Schema::SetAttribute);
+				VSchema->SetMethod<Core::Schema, Core::Schema*, const std::string_view&, bool>("schema@+ get(const string_view&in, bool = false) const", &Core::Schema::Fetch);
+				VSchema->SetMethod<Core::Schema, Core::Schema*, const std::string_view&>("schema@+ set(const string_view&in)", &Core::Schema::Set);
+				VSchema->SetMethod<Core::Schema, Core::Schema*, const std::string_view&, const Core::Variant&>("schema@+ set(const string_view&in, const variant &in)", &Core::Schema::Set);
+				VSchema->SetMethod<Core::Schema, Core::Schema*, const std::string_view&, const Core::Variant&>("schema@+ set_attribute(const string& in, const variant &in)", &Core::Schema::SetAttribute);
 				VSchema->SetMethod<Core::Schema, Core::Schema*, const Core::Variant&>("schema@+ push(const variant &in)", &Core::Schema::Push);
 				VSchema->SetMethod<Core::Schema, Core::Schema*, size_t>("schema@+ pop(usize)", &Core::Schema::Pop);
-				VSchema->SetMethod<Core::Schema, Core::Schema*, const Core::String&>("schema@+ pop(const string &in)", &Core::Schema::Pop);
+				VSchema->SetMethod<Core::Schema, Core::Schema*, const std::string_view&>("schema@+ pop(const string_view&in)", &Core::Schema::Pop);
 				VSchema->SetMethod("schema@ copy() const", &Core::Schema::Copy);
-				VSchema->SetMethod("bool has(const string &in) const", &Core::Schema::Has);
-				VSchema->SetMethod("bool has_attribute(const string &in) const", &Core::Schema::HasAttribute);
+				VSchema->SetMethod("bool has(const string_view&in) const", &Core::Schema::Has);
+				VSchema->SetMethod("bool has_attribute(const string_view&in) const", &Core::Schema::HasAttribute);
 				VSchema->SetMethod("bool empty() const", &Core::Schema::Empty);
 				VSchema->SetMethod("bool is_attribute() const", &Core::Schema::IsAttribute);
 				VSchema->SetMethod("bool is_saved() const", &Core::Schema::IsAttribute);
@@ -11784,9 +11575,9 @@ namespace Vitex
 				VSchema->SetMethodEx("variant last_var() const", &SchemaLastVar);
 				VSchema->SetMethodEx("schema@+ first() const", &SchemaFirst);
 				VSchema->SetMethodEx("schema@+ last() const", &SchemaLast);
-				VSchema->SetMethodEx("schema@+ set(const string &in, schema@+)", &SchemaSet);
+				VSchema->SetMethodEx("schema@+ set(const string_view&in, schema@+)", &SchemaSet);
 				VSchema->SetMethodEx("schema@+ push(schema@+)", &SchemaPush);
-				VSchema->SetMethodEx("array<schema@>@ get_collection(const string &in, bool = false) const", &SchemaGetCollection);
+				VSchema->SetMethodEx("array<schema@>@ get_collection(const string_view&in, bool = false) const", &SchemaGetCollection);
 				VSchema->SetMethodEx("array<schema@>@ get_attributes() const", &SchemaGetAttributes);
 				VSchema->SetMethodEx("array<schema@>@ get_childs() const", &SchemaGetChilds);
 				VSchema->SetMethodEx("dictionary@ get_names() const", &SchemaGetNames);
@@ -11806,19 +11597,19 @@ namespace Vitex
 				VSchema->SetMethodEx("double to_number() const", &SchemaToNumber);
 				VSchema->SetMethodEx("decimal to_decimal() const", &SchemaToDecimal);
 				VSchema->SetMethodEx("bool to_boolean() const", &SchemaToBoolean);
-				VSchema->SetMethodStatic("schema@ from_json(const string &in)", &SchemaFromJSON);
-				VSchema->SetMethodStatic("schema@ from_xml(const string &in)", &SchemaFromXML);
-				VSchema->SetMethodStatic("schema@ import_json(const string &in)", &SchemaImport);
+				VSchema->SetMethodStatic("schema@ from_json(const string_view&in)", &SchemaFromJSON);
+				VSchema->SetMethodStatic("schema@ from_xml(const string_view&in)", &SchemaFromXML);
+				VSchema->SetMethodStatic("schema@ import_json(const string_view&in)", &SchemaImport);
 				VSchema->SetOperatorEx(Operators::Assign, (uint32_t)Position::Left, "schema@+", "const variant &in", &SchemaCopyAssign1);
 				VSchema->SetOperatorEx(Operators::Assign, (uint32_t)Position::Left, "schema@+", "schema@+", &SchemaCopyAssign2);
 				VSchema->SetOperatorEx(Operators::Equals, (uint32_t)(Position::Left | Position::Const), "bool", "schema@+", &SchemaEquals);
-				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "const string &in", &SchemaGetIndex);
+				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "const string_view&in", &SchemaGetIndex);
 				VSchema->SetOperatorEx(Operators::Index, (uint32_t)Position::Left, "schema@+", "usize", &SchemaGetIndexOffset);
 				VSchema->SetEnumRefsEx<Core::Schema>([](Core::Schema* Base, asIScriptEngine*) { });
 				VSchema->SetReleaseRefsEx<Core::Schema>([](Core::Schema* Base, asIScriptEngine*) { });
 
 				VM->BeginNamespace("var::set");
-				VM->SetFunction("schema@ auto_t(const string &in, bool = false)", &Core::Var::Auto);
+				VM->SetFunction("schema@ auto_t(const string_view&in, bool = false)", &Core::Var::Auto);
 				VM->SetFunction("schema@ null_t()", &Core::Var::Set::Null);
 				VM->SetFunction("schema@ undefined_t()", &Core::Var::Set::Undefined);
 				VM->SetFunction("schema@ object_t()", &Core::Var::Set::Object);
@@ -11827,9 +11618,9 @@ namespace Vitex
 				VM->SetFunction("schema@ integer_t(int64)", &Core::Var::Set::Integer);
 				VM->SetFunction("schema@ number_t(double)", &Core::Var::Set::Number);
 				VM->SetFunction("schema@ boolean_t(bool)", &Core::Var::Set::Boolean);
-				VM->SetFunction<Core::Schema* (const Core::String&)>("schema@ string_t(const string &in)", &Core::Var::Set::String);
-				VM->SetFunction<Core::Schema* (const Core::String&)>("schema@ binary_t(const string &in)", &Core::Var::Set::Binary);
-				VM->SetFunction<Core::Schema* (const Core::String&)>("schema@ decimal_t(const string &in)", &Core::Var::Set::DecimalString);
+				VM->SetFunction<Core::Schema* (const std::string_view&)>("schema@ string_t(const string_view&in)", &Core::Var::Set::String);
+				VM->SetFunction<Core::Schema* (const std::string_view&)>("schema@ binary_t(const string_view&in)", &Core::Var::Set::Binary);
+				VM->SetFunction<Core::Schema* (const std::string_view&)>("schema@ decimal_t(const string_view&in)", &Core::Var::Set::DecimalString);
 				VM->SetFunction<Core::Schema* (const Core::Decimal&)>("schema@ decimal_t(const decimal &in)", &Core::Var::Set::Decimal);
 				VM->SetFunction("schema@+ as(schema@+)", &SchemaInit);
 				VM->EndNamespace();
@@ -11930,14 +11721,14 @@ namespace Vitex
 				VStream->SetMethod("usize virtual_size() const", &Core::Stream::VirtualSize);
 				VStream->SetMethod("const string& virtual_name() const", &Core::Stream::VirtualName);
 				VStream->SetMethod("void set_virtual_size(usize) const", &Core::Stream::SetVirtualSize);
-				VStream->SetMethod("void set_virtual_name(const string&in) const", &Core::Stream::SetVirtualName);
+				VStream->SetMethod("void set_virtual_name(const string_view&in) const", &Core::Stream::SetVirtualName);
 				VStream->SetMethod("int32 get_readable_fd() const", &Core::Stream::GetReadableFd);
 				VStream->SetMethod("int32 get_writeable_fd() const", &Core::Stream::GetWriteableFd);
 				VStream->SetMethod("uptr@ get_readable() const", &Core::Stream::GetReadable);
 				VStream->SetMethod("uptr@ get_writeable() const", &Core::Stream::GetWriteable);
 				VStream->SetMethod("bool is_sized() const", &Core::Stream::IsSized);
-				VStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
-				VStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VStream->SetMethodEx("bool open(const string_view&in, file_mode)", &StreamOpen);
+				VStream->SetMethodEx("usize write(const string_view&in)", &StreamWrite);
 				VStream->SetMethodEx("string read(usize)", &StreamRead);
 				VStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
@@ -11953,14 +11744,14 @@ namespace Vitex
 				VMemoryStream->SetMethod("usize virtual_size() const", &Core::MemoryStream::VirtualSize);
 				VMemoryStream->SetMethod("const string& virtual_name() const", &Core::MemoryStream::VirtualName);
 				VMemoryStream->SetMethod("void set_virtual_size(usize) const", &Core::MemoryStream::SetVirtualSize);
-				VMemoryStream->SetMethod("void set_virtual_name(const string&in) const", &Core::MemoryStream::SetVirtualName);
+				VMemoryStream->SetMethod("void set_virtual_name(const string_view&in) const", &Core::MemoryStream::SetVirtualName);
 				VMemoryStream->SetMethod("int32 get_readable_fd() const", &Core::MemoryStream::GetReadableFd);
 				VMemoryStream->SetMethod("int32 get_writeable_fd() const", &Core::MemoryStream::GetWriteableFd);
 				VMemoryStream->SetMethod("uptr@ get_readable() const", &Core::MemoryStream::GetReadable);
 				VMemoryStream->SetMethod("uptr@ get_writeable() const", &Core::MemoryStream::GetWriteable);
 				VMemoryStream->SetMethod("bool is_sized() const", &Core::MemoryStream::IsSized);
-				VMemoryStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
-				VMemoryStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VMemoryStream->SetMethodEx("bool open(const string_view&in, file_mode)", &StreamOpen);
+				VMemoryStream->SetMethodEx("usize write(const string_view&in)", &StreamWrite);
 				VMemoryStream->SetMethodEx("string read(usize)", &StreamRead);
 				VMemoryStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
@@ -11976,14 +11767,14 @@ namespace Vitex
 				VFileStream->SetMethod("usize virtual_size() const", &Core::FileStream::VirtualSize);
 				VFileStream->SetMethod("const string& virtual_name() const", &Core::FileStream::VirtualName);
 				VFileStream->SetMethod("void set_virtual_size(usize) const", &Core::FileStream::SetVirtualSize);
-				VFileStream->SetMethod("void set_virtual_name(const string&in) const", &Core::FileStream::SetVirtualName);
+				VFileStream->SetMethod("void set_virtual_name(const string_view&in) const", &Core::FileStream::SetVirtualName);
 				VFileStream->SetMethod("int32 get_readable_fd() const", &Core::FileStream::GetReadableFd);
 				VFileStream->SetMethod("int32 get_writeable_fd() const", &Core::FileStream::GetWriteableFd);
 				VFileStream->SetMethod("uptr@ get_readable() const", &Core::FileStream::GetReadable);
 				VFileStream->SetMethod("uptr@ get_writeable() const", &Core::FileStream::GetWriteable);
 				VFileStream->SetMethod("bool is_sized() const", &Core::FileStream::IsSized);
-				VFileStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
-				VFileStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VFileStream->SetMethodEx("bool open(const string_view&in, file_mode)", &StreamOpen);
+				VFileStream->SetMethodEx("usize write(const string_view&in)", &StreamWrite);
 				VFileStream->SetMethodEx("string read(usize)", &StreamRead);
 				VFileStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
@@ -11999,14 +11790,14 @@ namespace Vitex
 				VGzStream->SetMethod("usize virtual_size() const", &Core::GzStream::VirtualSize);
 				VGzStream->SetMethod("const string& virtual_name() const", &Core::GzStream::VirtualName);
 				VGzStream->SetMethod("void set_virtual_size(usize) const", &Core::GzStream::SetVirtualSize);
-				VGzStream->SetMethod("void set_virtual_name(const string&in) const", &Core::GzStream::SetVirtualName);
+				VGzStream->SetMethod("void set_virtual_name(const string_view&in) const", &Core::GzStream::SetVirtualName);
 				VGzStream->SetMethod("int32 get_readable_fd() const", &Core::GzStream::GetReadableFd);
 				VGzStream->SetMethod("int32 get_writeable_fd() const", &Core::GzStream::GetWriteableFd);
 				VGzStream->SetMethod("uptr@ get_readable() const", &Core::GzStream::GetReadable);
 				VGzStream->SetMethod("uptr@ get_writeable() const", &Core::GzStream::GetWriteable);
 				VGzStream->SetMethod("bool is_sized() const", &Core::GzStream::IsSized);
-				VGzStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
-				VGzStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VGzStream->SetMethodEx("bool open(const string_view&in, file_mode)", &StreamOpen);
+				VGzStream->SetMethodEx("usize write(const string_view&in)", &StreamWrite);
 				VGzStream->SetMethodEx("string read(usize)", &StreamRead);
 				VGzStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
@@ -12022,14 +11813,14 @@ namespace Vitex
 				VWebStream->SetMethod("usize virtual_size() const", &Core::WebStream::VirtualSize);
 				VWebStream->SetMethod("const string& virtual_name() const", &Core::WebStream::VirtualName);
 				VWebStream->SetMethod("void set_virtual_size(usize) const", &Core::WebStream::SetVirtualSize);
-				VWebStream->SetMethod("void set_virtual_name(const string&in) const", &Core::WebStream::SetVirtualName);
+				VWebStream->SetMethod("void set_virtual_name(const string_view&in) const", &Core::WebStream::SetVirtualName);
 				VWebStream->SetMethod("int32 get_readable_fd() const", &Core::WebStream::GetReadableFd);
 				VWebStream->SetMethod("int32 get_writeable_fd() const", &Core::WebStream::GetWriteableFd);
 				VWebStream->SetMethod("uptr@ get_readable() const", &Core::WebStream::GetReadable);
 				VWebStream->SetMethod("uptr@ get_writeable() const", &Core::WebStream::GetWriteable);
 				VWebStream->SetMethod("bool is_sized() const", &Core::WebStream::IsSized);
-				VWebStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
-				VWebStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VWebStream->SetMethodEx("bool open(const string_view&in, file_mode)", &StreamOpen);
+				VWebStream->SetMethodEx("usize write(const string_view&in)", &StreamWrite);
 				VWebStream->SetMethodEx("string read(usize)", &StreamRead);
 				VWebStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
@@ -12045,7 +11836,7 @@ namespace Vitex
 				VProcessStream->SetMethod("usize virtual_size() const", &Core::ProcessStream::VirtualSize);
 				VProcessStream->SetMethod("const string& virtual_name() const", &Core::ProcessStream::VirtualName);
 				VProcessStream->SetMethod("void set_virtual_size(usize) const", &Core::ProcessStream::SetVirtualSize);
-				VProcessStream->SetMethod("void set_virtual_name(const string&in) const", &Core::ProcessStream::SetVirtualName);
+				VProcessStream->SetMethod("void set_virtual_name(const string_view&in) const", &Core::ProcessStream::SetVirtualName);
 				VProcessStream->SetMethod("int32 get_readable_fd() const", &Core::ProcessStream::GetReadableFd);
 				VProcessStream->SetMethod("int32 get_writeable_fd() const", &Core::ProcessStream::GetWriteableFd);
 				VProcessStream->SetMethod("uptr@ get_readable() const", &Core::ProcessStream::GetReadable);
@@ -12055,8 +11846,8 @@ namespace Vitex
 				VProcessStream->SetMethod("int32 get_exit_code() const", &Core::ProcessStream::GetExitCode);
 				VProcessStream->SetMethod("bool is_sized() const", &Core::ProcessStream::IsSized);
 				VProcessStream->SetMethod("bool is_alive()", &Core::ProcessStream::IsAlive);
-				VProcessStream->SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
-				VProcessStream->SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VProcessStream->SetMethodEx("bool open(const string_view&in, file_mode)", &StreamOpen);
+				VProcessStream->SetMethodEx("usize write(const string_view&in)", &StreamWrite);
 				VProcessStream->SetMethodEx("string read(usize)", &StreamRead);
 				VProcessStream->SetMethodEx("string read_line(usize)", &StreamReadLine);
 
@@ -12090,11 +11881,11 @@ namespace Vitex
 				auto VInlineArgs = VM->SetStructTrivial<Core::InlineArgs>("inline_args");
 				VInlineArgs->SetProperty<Core::InlineArgs>("string path", &Core::InlineArgs::Path);
 				VInlineArgs->SetConstructor<Core::InlineArgs>("void f()");
-				VInlineArgs->SetMethod("bool is_enabled(const string&in, const string&in = \"\") const", &Core::InlineArgs::IsEnabled);
-				VInlineArgs->SetMethod("bool is_disabled(const string&in, const string&in = \"\") const", &Core::InlineArgs::IsDisabled);
-				VInlineArgs->SetMethod("bool has(const string&in, const string&in = \"\") const", &Core::InlineArgs::Has);
-				VInlineArgs->SetMethod("string& get(const string&in, const string&in = \"\") const", &Core::InlineArgs::Get);
-				VInlineArgs->SetMethod("string& get_if(const string&in, const string&in, const string&in) const", &Core::InlineArgs::GetIf);
+				VInlineArgs->SetMethod("bool is_enabled(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::IsEnabled);
+				VInlineArgs->SetMethod("bool is_disabled(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::IsDisabled);
+				VInlineArgs->SetMethod("bool has(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::Has);
+				VInlineArgs->SetMethod("string& get(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::Get);
+				VInlineArgs->SetMethod("string& get_if(const string_view&in, const string_view&in, const string_view&in) const", &Core::InlineArgs::GetIf);
 				VInlineArgs->SetMethodEx("dictionary@ get_args() const", &InlineArgsGetArgs);
 				VInlineArgs->SetMethodEx("array<string>@ get_params() const", &InlineArgsGetParams);
 
@@ -12137,75 +11928,75 @@ namespace Vitex
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::directory");
-				VM->SetFunction("array<file_state>@ scan(const string &in)", &OSDirectoryScan);
-				VM->SetFunction("array<string>@ get_mounts(const string &in)", &OSDirectoryGetMounts);
-				VM->SetFunction("bool create(const string &in)", &OSDirectoryCreate);
-				VM->SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
-				VM->SetFunction("bool is_exists(const string &in)", &OSDirectoryIsExists);
-				VM->SetFunction("bool is_empty(const string &in)", &OSDirectoryIsEmpty);
-				VM->SetFunction("bool patch(const string &in)", &OSDirectoryPatch);
-				VM->SetFunction("bool set_working(const string &in)", &OSDirectorySetWorking);
+				VM->SetFunction("array<file_state>@ scan(const string_view&in)", &OSDirectoryScan);
+				VM->SetFunction("array<string>@ get_mounts(const string_view&in)", &OSDirectoryGetMounts);
+				VM->SetFunction("bool create(const string_view&in)", &OSDirectoryCreate);
+				VM->SetFunction("bool remove(const string_view&in)", &OSDirectoryRemove);
+				VM->SetFunction("bool is_exists(const string_view&in)", &OSDirectoryIsExists);
+				VM->SetFunction("bool is_empty(const string_view&in)", &OSDirectoryIsEmpty);
+				VM->SetFunction("bool patch(const string_view&in)", &OSDirectoryPatch);
+				VM->SetFunction("bool set_working(const string_view&in)", &OSDirectorySetWorking);
 				VM->SetFunction("string get_module()", &VI_SEXPECTIFY(Core::OS::Directory::GetModule));
 				VM->SetFunction("string get_working()", &VI_SEXPECTIFY(Core::OS::Directory::GetWorking));
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::file");
-				VM->SetFunction("bool write(const string &in, const string &in)", &OSFileWrite);
-				VM->SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
-				VM->SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
-				VM->SetFunction("bool copy(const string &in, const string &in)", &OSFileCopy);
-				VM->SetFunction("bool remove(const string &in)", &OSFileRemove);
-				VM->SetFunction("bool is_exists(const string &in)", &OSFileIsExists);
-				VM->SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);
-				VM->SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
-				VM->SetFunction("usize join(const string &in, array<string>@+)", &OSFileJoin);
-				VM->SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
-				VM->SetFunction("int64 get_hash(const string &in)", &Core::OS::File::GetHash);
-				VM->SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
-				VM->SetFunction("base_stream@ open_archive(const string &in, usize = 134217728)", &OSFileOpenArchive);
-				VM->SetFunction("base_stream@ open(const string &in, file_mode, bool = false)", &OSFileOpen);
-				VM->SetFunction("string read_as_string(const string &in)", &VI_SEXPECTIFY(Core::OS::File::ReadAsString));
+				VM->SetFunction("bool write(const string_view&in, const string_view&in)", &OSFileWrite);
+				VM->SetFunction("bool state(const string_view&in, file_entry &out)", &OSFileState);
+				VM->SetFunction("bool move(const string_view&in, const string_view&in)", &OSFileMove);
+				VM->SetFunction("bool copy(const string_view&in, const string_view&in)", &OSFileCopy);
+				VM->SetFunction("bool remove(const string_view&in)", &OSFileRemove);
+				VM->SetFunction("bool is_exists(const string_view&in)", &OSFileIsExists);
+				VM->SetFunction("file_state get_properties(const string_view&in)", &OSFileGetProperties);
+				VM->SetFunction("array<string>@ read_as_array(const string_view&in)", &OSFileReadAsArray);
+				VM->SetFunction("usize join(const string_view&in, array<string>@+)", &OSFileJoin);
+				VM->SetFunction("int32 compare(const string_view&in, const string_view&in)", &Core::OS::File::Compare);
+				VM->SetFunction("int64 get_hash(const string_view&in)", &Core::OS::File::GetHash);
+				VM->SetFunction("base_stream@ open_join(const string_view&in, array<string>@+)", &OSFileOpenJoin);
+				VM->SetFunction("base_stream@ open_archive(const string_view&in, usize = 134217728)", &OSFileOpenArchive);
+				VM->SetFunction("base_stream@ open(const string_view&in, file_mode, bool = false)", &OSFileOpen);
+				VM->SetFunction("string read_as_string(const string_view&in)", &VI_SEXPECTIFY(Core::OS::File::ReadAsString));
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::path");
-				VM->SetFunction("bool is_remote(const string &in)", &OSPathIsRemote);
-				VM->SetFunction("bool is_relative(const string &in)", &OSPathIsRelative);
-				VM->SetFunction("bool is_absolute(const string &in)", &OSPathIsAbsolute);
-				VM->SetFunction("string resolve(const string &in)", &OSPathResolve1);
-				VM->SetFunction("string resolve_directory(const string &in)", &OSPathResolveDirectory1);
-				VM->SetFunction("string get_directory(const string &in, usize = 0)", &OSPathGetDirectory);
-				VM->SetFunction("string get_filename(const string &in)", &OSPathGetFilename);
-				VM->SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
-				VM->SetFunction("string get_non_existant(const string &in)", &Core::OS::Path::GetNonExistant);
-				VM->SetFunction("string resolve(const string &in, const string &in, bool)", &OSPathResolve2);
-				VM->SetFunction("string resolve_directory(const string &in, const string &in, bool)", &OSPathResolveDirectory2);
+				VM->SetFunction("bool is_remote(const string_view&in)", &OSPathIsRemote);
+				VM->SetFunction("bool is_relative(const string_view&in)", &OSPathIsRelative);
+				VM->SetFunction("bool is_absolute(const string_view&in)", &OSPathIsAbsolute);
+				VM->SetFunction("string resolve(const string_view&in)", &OSPathResolve1);
+				VM->SetFunction("string resolve_directory(const string_view&in)", &OSPathResolveDirectory1);
+				VM->SetFunction("string get_directory(const string_view&in, usize = 0)", &OSPathGetDirectory);
+				VM->SetFunction("string get_filename(const string_view&in)", &OSPathGetFilename);
+				VM->SetFunction("string get_extension(const string_view&in)", &OSPathGetExtension);
+				VM->SetFunction("string get_non_existant(const string_view&in)", &Core::OS::Path::GetNonExistant);
+				VM->SetFunction("string resolve(const string_view&in, const string_view&in, bool)", &OSPathResolve2);
+				VM->SetFunction("string resolve_directory(const string_view&in, const string_view&in, bool)", &OSPathResolveDirectory2);
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::process");
-				VM->SetFunctionDef("void process_event(const string&in)");
+				VM->SetFunctionDef("void process_async(const string_view&in)");
 				VM->SetFunction("void abort()", &Core::OS::Process::Abort);
 				VM->SetFunction("void exit(int)", &Core::OS::Process::Exit);
 				VM->SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
-				VM->SetFunction("string get_env(const string&in)", &Core::OS::Process::GetEnv);
+				VM->SetFunction("string get_env(const string_view&in)", &Core::OS::Process::GetEnv);
 				VM->SetFunction("string get_shell()", &Core::OS::Process::GetShell);
-				VM->SetFunction("process_stream@+ spawn(const string &in, file_mode)", &VI_SEXPECTIFY(Core::OS::Process::Spawn));
-				VM->SetFunction("int execute(const string &in, file_mode, process_event@)", &OSProcessExecute);
+				VM->SetFunction("process_stream@+ spawn(const string_view&in, file_mode)", &VI_SEXPECTIFY(Core::OS::Process::Spawn));
+				VM->SetFunction("int execute(const string_view&in, file_mode, process_async@)", &OSProcessExecute);
 				VM->SetFunction("inline_args parse_args(array<string>@+, usize, array<string>@+ = null)", &OSProcessParseArgs);
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::symbol");
-				VM->SetFunction("uptr@ load(const string &in)", &OSSymbolLoad);
-				VM->SetFunction("uptr@ load_function(uptr@, const string &in)", &OSSymbolLoadFunction);
+				VM->SetFunction("uptr@ load(const string_view&in)", &OSSymbolLoad);
+				VM->SetFunction("uptr@ load_function(uptr@, const string_view&in)", &OSSymbolLoadFunction);
 				VM->SetFunction("bool unload(uptr@)", &OSSymbolUnload);
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::input");
-				VM->SetFunction("bool text(const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Text);
-				VM->SetFunction("bool password(const string &in, const string &in, string &out)", &Core::OS::Input::Password);
-				VM->SetFunction("bool save(const string &in, const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Save);
-				VM->SetFunction("bool open(const string &in, const string &in, const string &in, const string &in, bool, string &out)", &Core::OS::Input::Open);
-				VM->SetFunction("bool folder(const string &in, const string &in, string &out)", &Core::OS::Input::Folder);
-				VM->SetFunction("bool color(const string &in, const string &in, string &out)", &Core::OS::Input::Color);
+				VM->SetFunction("bool text(const string_view&in, const string_view&in, const string_view&in, string &out)", &Core::OS::Input::Text);
+				VM->SetFunction("bool password(const string_view&in, const string_view&in, string &out)", &Core::OS::Input::Password);
+				VM->SetFunction("bool save(const string_view&in, const string_view&in, const string_view&in, const string_view&in, string &out)", &Core::OS::Input::Save);
+				VM->SetFunction("bool open(const string_view&in, const string_view&in, const string_view&in, const string_view&in, bool, string &out)", &Core::OS::Input::Open);
+				VM->SetFunction("bool folder(const string_view&in, const string_view&in, string &out)", &Core::OS::Input::Folder);
+				VM->SetFunction("bool color(const string_view&in, const string_view&in, string &out)", &Core::OS::Input::Color);
 				VM->EndNamespace();
 
 				VM->BeginNamespace("os::error");
@@ -12264,10 +12055,10 @@ namespace Vitex
 				VDesc->SetConstructor<Core::Schedule::Desc, size_t>("void f(usize)");
 
 				auto VSchedule = VM->SetClass<Core::Schedule>("schedule", false);
-				VSchedule->SetFunctionDef("void task_event()");
-				VSchedule->SetMethodEx("task_id set_interval(uint64, task_event@)", &ScheduleSetInterval);
-				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_event@)", &ScheduleSetTimeout);
-				VSchedule->SetMethodEx("bool set_immediate(task_event@)", &ScheduleSetImmediate);
+				VSchedule->SetFunctionDef("void task_async()");
+				VSchedule->SetMethodEx("task_id set_interval(uint64, task_async@)", &ScheduleSetInterval);
+				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_async@)", &ScheduleSetTimeout);
+				VSchedule->SetMethodEx("bool set_immediate(task_async@)", &ScheduleSetImmediate);
 				VSchedule->SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule->SetMethod("bool trigger_timers()", &Core::Schedule::TriggerTimers);
 				VSchedule->SetMethod("bool trigger(difficulty)", &Core::Schedule::Trigger);
@@ -12282,13 +12073,11 @@ namespace Vitex
 				VSchedule->SetMethod("bool is_suspended() const", &Core::Schedule::IsSuspended);
 				VSchedule->SetMethod("void suspend()", &Core::Schedule::Suspend);
 				VSchedule->SetMethod("void resume()", &Core::Schedule::Resume);
-				VSchedule->SetMethod("void push_thread_recycling()", &Core::Schedule::PushThreadRecycling);
-				VSchedule->SetMethod("void pop_thread_recycling()", &Core::Schedule::PopThreadRecycling);
 				VSchedule->SetMethod("usize get_total_threads() const", &Core::Schedule::GetTotalThreads);
 				VSchedule->SetMethod("usize get_thread_global_index()", &Core::Schedule::GetThreadGlobalIndex);
 				VSchedule->SetMethod("usize get_thread_local_index()", &Core::Schedule::GetThreadLocalIndex);
 				VSchedule->SetMethod("usize get_threads(difficulty) const", &Core::Schedule::GetThreads);
-				VSchedule->SetMethod("bool is_thread_recyclable() const", &Core::Schedule::IsThreadRecyclable);
+				VSchedule->SetMethod("bool has_parallel_threads(difficulty) const", &Core::Schedule::HasParallelThreads);
 				VSchedule->SetMethod("const schedule_policy& get_policy() const", &Core::Schedule::GetPolicy);
 				VSchedule->SetMethodStatic("schedule@+ get()", &Core::Schedule::Get);
 
@@ -12886,16 +12675,16 @@ namespace Vitex
 				auto VRegexSource = VM->SetStructTrivial<Compute::RegexSource>("regex_source");
 				VRegexSource->SetProperty<Compute::RegexSource>("bool ignoreCase", &Compute::RegexSource::IgnoreCase);
 				VRegexSource->SetConstructor<Compute::RegexSource>("void f()");
-				VRegexSource->SetConstructor<Compute::RegexSource, const Core::String&, bool, int64_t, int64_t, int64_t>("void f(const string &in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
+				VRegexSource->SetConstructor<Compute::RegexSource, const std::string_view&, bool, int64_t, int64_t, int64_t>("void f(const string_view&in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
 				VRegexSource->SetMethod("const string& get_regex() const", &Compute::RegexSource::GetRegex);
 				VRegexSource->SetMethod("int64 get_max_branches() const", &Compute::RegexSource::GetMaxBranches);
 				VRegexSource->SetMethod("int64 get_max_brackets() const", &Compute::RegexSource::GetMaxBrackets);
 				VRegexSource->SetMethod("int64 get_max_matches() const", &Compute::RegexSource::GetMaxMatches);
 				VRegexSource->SetMethod("int64 get_complexity() const", &Compute::RegexSource::GetComplexity);
-				VRegexSource->SetMethod("regex_state getState() const", &Compute::RegexSource::GetState);
+				VRegexSource->SetMethod("regex_state get_state() const", &Compute::RegexSource::GetState);
 				VRegexSource->SetMethod("bool is_simple() const", &Compute::RegexSource::IsSimple);
-				VRegexSource->SetMethodEx("regex_result match(const string &in) const", &RegexSourceMatch);
-				VRegexSource->SetMethodEx("string replace(const string &in, const string &in) const", &RegexSourceReplace);
+				VRegexSource->SetMethodEx("regex_result match(const string_view&in) const", &RegexSourceMatch);
+				VRegexSource->SetMethodEx("string replace(const string_view&in, const string_view&in) const", &RegexSourceReplace);
 
 				return true;
 #else
@@ -12912,12 +12701,12 @@ namespace Vitex
 
 				auto VPrivateKey = VM->SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey->SetConstructor<Compute::PrivateKey>("void f()");
-				VPrivateKey->SetConstructor<Compute::PrivateKey, const Core::String&>("void f(const string &in)");
+				VPrivateKey->SetConstructor<Compute::PrivateKey, const std::string_view&>("void f(const string_view&in)");
 				VPrivateKey->SetMethod("void clear()", &Compute::PrivateKey::Clear);
-				VPrivateKey->SetMethod<Compute::PrivateKey, void, const Core::String&>("void secure(const string &in)", &Compute::PrivateKey::Secure);
+				VPrivateKey->SetMethod<Compute::PrivateKey, void, const std::string_view&>("void secure(const string_view&in)", &Compute::PrivateKey::Secure);
 				VPrivateKey->SetMethod("string expose_to_heap() const", &Compute::PrivateKey::ExposeToHeap);
 				VPrivateKey->SetMethod("usize size() const", &Compute::PrivateKey::Clear);
-				VPrivateKey->SetMethodStatic<Compute::PrivateKey, const Core::String&>("private_key get_plain(const string &in)", &Compute::PrivateKey::GetPlain);
+				VPrivateKey->SetMethodStatic<Compute::PrivateKey, const std::string_view&>("private_key get_plain(const string_view&in)", &Compute::PrivateKey::GetPlain);
 
 				auto VWebToken = VM->SetClass<Compute::WebToken>("web_token", true);
 				VWebToken->SetProperty<Compute::WebToken>("schema@ header", &Compute::WebToken::Header);
@@ -12927,18 +12716,18 @@ namespace Vitex
 				VWebToken->SetProperty<Compute::WebToken>("string signature", &Compute::WebToken::Signature);
 				VWebToken->SetProperty<Compute::WebToken>("string data", &Compute::WebToken::Data);
 				VWebToken->SetGcConstructor<Compute::WebToken, WebToken>("web_token@ f()");
-				VWebToken->SetGcConstructor<Compute::WebToken, WebToken, const Core::String&, const Core::String&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
+				VWebToken->SetGcConstructor<Compute::WebToken, WebToken, const std::string_view&, const std::string_view&, int64_t>("web_token@ f(const string_view&in, const string_view&in, int64)");
 				VWebToken->SetMethod("void unsign()", &Compute::WebToken::Unsign);
-				VWebToken->SetMethod("void set_algorithm(const string &in)", &Compute::WebToken::SetAlgorithm);
-				VWebToken->SetMethod("void set_type(const string &in)", &Compute::WebToken::SetType);
-				VWebToken->SetMethod("void set_content_type(const string &in)", &Compute::WebToken::SetContentType);
-				VWebToken->SetMethod("void set_issuer(const string &in)", &Compute::WebToken::SetIssuer);
-				VWebToken->SetMethod("void set_subject(const string &in)", &Compute::WebToken::SetSubject);
-				VWebToken->SetMethod("void set_id(const string &in)", &Compute::WebToken::SetId);
+				VWebToken->SetMethod("void set_algorithm(const string_view&in)", &Compute::WebToken::SetAlgorithm);
+				VWebToken->SetMethod("void set_type(const string_view&in)", &Compute::WebToken::SetType);
+				VWebToken->SetMethod("void set_content_type(const string_view&in)", &Compute::WebToken::SetContentType);
+				VWebToken->SetMethod("void set_issuer(const string_view&in)", &Compute::WebToken::SetIssuer);
+				VWebToken->SetMethod("void set_subject(const string_view&in)", &Compute::WebToken::SetSubject);
+				VWebToken->SetMethod("void set_id(const string_view&in)", &Compute::WebToken::SetId);
 				VWebToken->SetMethod("void set_expiration(int64)", &Compute::WebToken::SetExpiration);
 				VWebToken->SetMethod("void set_not_before(int64)", &Compute::WebToken::SetNotBefore);
 				VWebToken->SetMethod("void set_created(int64)", &Compute::WebToken::SetCreated);
-				VWebToken->SetMethod("void set_refresh_token(const string &in, const private_key &in, const private_key &in)", &Compute::WebToken::SetRefreshToken);
+				VWebToken->SetMethod("void set_refresh_token(const string_view&in, const private_key &in, const private_key &in)", &Compute::WebToken::SetRefreshToken);
 				VWebToken->SetMethod("bool sign(const private_key &in)", &Compute::WebToken::Sign);
 				VWebToken->SetMethod("bool is_valid()", &Compute::WebToken::IsValid);
 				VWebToken->SetMethodEx("string get_refresh_token(const private_key &in, const private_key &in)", &VI_EXPECTIFY(Compute::WebToken::GetRefreshToken));
@@ -13122,28 +12911,28 @@ namespace Vitex
 				VM->EndNamespace();
 
 				VM->BeginNamespace("crypto");
-				VM->SetFunctionDef("string block_transform_event(const string&in)");
+				VM->SetFunctionDef("string block_transform_sync(const string_view&in)");
 				VM->SetFunction("uint8 random_uc()", &Compute::Crypto::RandomUC);
 				VM->SetFunction<uint64_t()>("uint64 random()", &Compute::Crypto::Random);
 				VM->SetFunction<uint64_t(uint64_t, uint64_t)>("uint64 random(uint64, uint64)", &Compute::Crypto::Random);
-				VM->SetFunction("uint64 crc32(const string &in)", &Compute::Crypto::CRC32);
+				VM->SetFunction("uint64 crc32(const string_view&in)", &Compute::Crypto::CRC32);
 				VM->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
 				VM->SetFunction("string random_bytes(usize)", &VI_SEXPECTIFY(Compute::Crypto::RandomBytes));
-				VM->SetFunction("string checksum_hex(base_stream@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumHex));
-				VM->SetFunction("string checksum_raw(base_stream@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumRaw));
-				VM->SetFunction("string hash_hex(uptr@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::HashHex));
-				VM->SetFunction("string hash_raw(uptr@, const string &in)", &VI_SEXPECTIFY(Compute::Crypto::HashRaw));
-				VM->SetFunction("string jwt_sign(const string &in, const string &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTSign));
+				VM->SetFunction("string checksum_hex(base_stream@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumHex));
+				VM->SetFunction("string checksum_raw(base_stream@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumRaw));
+				VM->SetFunction("string hash_hex(uptr@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::HashHex));
+				VM->SetFunction("string hash_raw(uptr@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::HashRaw));
+				VM->SetFunction("string jwt_sign(const string_view&in, const string_view&in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTSign));
 				VM->SetFunction("string jwt_encode(web_token@+, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTEncode));
-				VM->SetFunction("web_token@ jwt_decode(const string &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTDecode));
+				VM->SetFunction("web_token@ jwt_decode(const string_view&in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTDecode));
 				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocEncrypt));
-				VM->SetFunction("schema@ doc_decrypt(const string &in, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocDecrypt));
-				VM->SetFunction("string sign(uptr@, const string &in, const private_key &in)", &CryptoSign);
-				VM->SetFunction("string hmac(uptr@, const string &in, const private_key &in)", &CryptoHMAC);
-				VM->SetFunction("string encrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
-				VM->SetFunction("string decrypt(uptr@, const string &in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
-				VM->SetFunction("usize encrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoEncryptStream);
-				VM->SetFunction("usize decrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_event@ = null, usize = 1, int = -1)", &CryptoDecryptStream);
+				VM->SetFunction("schema@ doc_decrypt(const string_view&in, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocDecrypt));
+				VM->SetFunction("string sign(uptr@, const string_view&in, const private_key &in)", &CryptoSign);
+				VM->SetFunction("string hmac(uptr@, const string_view&in, const private_key &in)", &CryptoHMAC);
+				VM->SetFunction("string encrypt(uptr@, const string_view&in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
+				VM->SetFunction("string decrypt(uptr@, const string_view&in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
+				VM->SetFunction("usize encrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_sync@ = null, usize = 1, int = -1)", &CryptoEncryptStream);
+				VM->SetFunction("usize decrypt(uptr@, base_stream@, const private_key &in, const private_key &in, block_transform_sync@ = null, usize = 1, int = -1)", &CryptoDecryptStream);
 				VM->EndNamespace();
 
 				return true;
@@ -13163,23 +12952,23 @@ namespace Vitex
 				VCompression->SetValue("default_compression", (int)Compute::Compression::Default);
 
 				VM->BeginNamespace("codec");
-				VM->SetFunction("string move(const string &in, int)", &Compute::Codec::Move);
-				VM->SetFunction("string bep45_encode(const string &in)", &Compute::Codec::Bep45Encode);
-				VM->SetFunction("string bep45_decode(const string &in)", &Compute::Codec::Bep45Decode);
-				VM->SetFunction("string base32_encode(const string &in)", &Compute::Codec::Base32Encode);
-				VM->SetFunction("string base32_decode(const string &in)", &Compute::Codec::Base32Decode);
-				VM->SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
-				VM->SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
-				VM->SetFunction("string compress(const string &in, compression_cdc)", &VI_SEXPECTIFY(Compute::Codec::Compress));
-				VM->SetFunction("string decompress(const string &in)", &VI_SEXPECTIFY(Compute::Codec::Decompress));
-				VM->SetFunction<Core::String(const Core::String&)>("string base64_encode(const string &in)", &Compute::Codec::Base64Encode);
-				VM->SetFunction<Core::String(const Core::String&)>("string base64_decode(const string &in)", &Compute::Codec::Base64Decode);
-				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);
-				VM->SetFunction<Core::String(const Core::String&)>("string base64_url_decode(const string &in)", &Compute::Codec::Base64URLDecode);
-				VM->SetFunction<Core::String(const Core::String&, bool)>("string hex_encode(const string &in, bool = false)", &Compute::Codec::HexEncode);
-				VM->SetFunction<Core::String(const Core::String&)>("string hex_decode(const string &in)", &Compute::Codec::HexDecode);
-				VM->SetFunction<Core::String(const Core::String&)>("string url_encode(const string &in)", &Compute::Codec::URLEncode);
-				VM->SetFunction<Core::String(const Core::String&)>("string url_decode(const string &in)", &Compute::Codec::URLDecode);
+				VM->SetFunction("string move(const string_view&in, int)", &Compute::Codec::Move);
+				VM->SetFunction("string bep45_encode(const string_view&in)", &Compute::Codec::Bep45Encode);
+				VM->SetFunction("string bep45_decode(const string_view&in)", &Compute::Codec::Bep45Decode);
+				VM->SetFunction("string base32_encode(const string_view&in)", &Compute::Codec::Base32Encode);
+				VM->SetFunction("string base32_decode(const string_view&in)", &Compute::Codec::Base32Decode);
+				VM->SetFunction("string base45_encode(const string_view&in)", &Compute::Codec::Base45Encode);
+				VM->SetFunction("string base45_decode(const string_view&in)", &Compute::Codec::Base45Decode);
+				VM->SetFunction("string compress(const string_view&in, compression_cdc)", &VI_SEXPECTIFY(Compute::Codec::Compress));
+				VM->SetFunction("string decompress(const string_view&in)", &VI_SEXPECTIFY(Compute::Codec::Decompress));
+				VM->SetFunction<Core::String(const std::string_view&)>("string base64_encode(const string_view&in)", &Compute::Codec::Base64Encode);
+				VM->SetFunction<Core::String(const std::string_view&)>("string base64_decode(const string_view&in)", &Compute::Codec::Base64Decode);
+				VM->SetFunction<Core::String(const std::string_view&)>("string base64_url_encode(const string_view&in)", &Compute::Codec::Base64URLEncode);
+				VM->SetFunction<Core::String(const std::string_view&)>("string base64_url_decode(const string_view&in)", &Compute::Codec::Base64URLDecode);
+				VM->SetFunction<Core::String(const std::string_view&, bool)>("string hex_encode(const string_view&in, bool = false)", &Compute::Codec::HexEncode);
+				VM->SetFunction<Core::String(const std::string_view&)>("string hex_decode(const string_view&in)", &Compute::Codec::HexDecode);
+				VM->SetFunction<Core::String(const std::string_view&)>("string url_encode(const string_view&in)", &Compute::Codec::URLEncode);
+				VM->SetFunction<Core::String(const std::string_view&)>("string url_decode(const string_view&in)", &Compute::Codec::URLDecode);
 				VM->SetFunction("string decimal_to_hex(uint64)", &Compute::Codec::DecimalToHex);
 				VM->SetFunction("string base10_to_base_n(uint64, uint8)", &Compute::Codec::Base10ToBaseN);
 				VM->EndNamespace();
@@ -13259,8 +13048,8 @@ namespace Vitex
 				VNode->SetMethod("bool is_leaf() const", &Compute::Cosmos::Node::IsLeaf);
 
 				auto VCosmos = VM->SetStructTrivial<Compute::Cosmos>("cosmos");
-				VCosmos->SetFunctionDef("bool cosmos_query_overlaps(const bounding &in)");
-				VCosmos->SetFunctionDef("void cosmos_query_match(uptr@)");
+				VCosmos->SetFunctionDef("bool cosmos_query_overlaps_sync(const bounding &in)");
+				VCosmos->SetFunctionDef("void cosmos_query_match_sync(uptr@)");
 				VCosmos->SetConstructor<Compute::Cosmos>("void f(usize = 16)");
 				VCosmos->SetMethod("void reserve(usize)", &Compute::Cosmos::Reserve);
 				VCosmos->SetMethod("void clear()", &Compute::Cosmos::Clear);
@@ -13277,7 +13066,7 @@ namespace Vitex
 				VCosmos->SetMethod("float get_volume_ratio() const", &Compute::Cosmos::GetVolumeRatio);
 				VCosmos->SetMethod("bool is_null(usize) const", &Compute::Cosmos::IsNull);
 				VCosmos->SetMethod("bool is_empty() const", &Compute::Cosmos::Empty);
-				VCosmos->SetMethodEx("void query_index(cosmos_query_overlaps@, cosmos_query_match@)", &CosmosQueryIndex);
+				VCosmos->SetMethodEx("void query_index(cosmos_query_overlaps_sync@, cosmos_query_match_sync@)", &CosmosQueryIndex);
 
 				VM->BeginNamespace("geometric");
 				VM->SetFunction("bool is_cube_in_frustum(const matrix4x4 &in, float)", &Compute::Geometric::IsCubeInFrustum);
@@ -13332,8 +13121,8 @@ namespace Vitex
 				VIncludeDesc->SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
 				VIncludeDesc->SetProperty<Compute::IncludeDesc>("string root", &Compute::IncludeDesc::Root);
 				VIncludeDesc->SetConstructor<Compute::IncludeDesc>("void f()");
-				VIncludeDesc->SetMethodEx("void add_ext(const string &in)", &IncludeDescAddExt);
-				VIncludeDesc->SetMethodEx("void remove_ext(const string &in)", &IncludeDescRemoveExt);
+				VIncludeDesc->SetMethodEx("void add_ext(const string_view&in)", &IncludeDescAddExt);
+				VIncludeDesc->SetMethodEx("void remove_ext(const string_view&in)", &IncludeDescRemoveExt);
 
 				auto VIncludeResult = VM->SetStructTrivial<Compute::IncludeResult>("include_result");
 				VIncludeResult->SetProperty<Compute::IncludeResult>("string module", &Compute::IncludeResult::Module);
@@ -13353,23 +13142,23 @@ namespace Vitex
 				VDesc->SetConstructor<Compute::Preprocessor::Desc>("void f()");
 
 				auto VPreprocessor = VM->SetClass<Compute::Preprocessor>("preprocessor", false);
-				VPreprocessor->SetFunctionDef("include_type proc_include_event(preprocessor@+, const include_result &in, string &out)");
-				VPreprocessor->SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
-				VPreprocessor->SetFunctionDef("bool proc_directive_event(preprocessor@+, const proc_directive&in, string&out)");
+				VPreprocessor->SetFunctionDef("include_type proc_include_sync(preprocessor@+, const include_result &in, string &out)");
+				VPreprocessor->SetFunctionDef("bool proc_pragma_sync(preprocessor@+, const string_view&in, array<string>@+)");
+				VPreprocessor->SetFunctionDef("bool proc_directive_sync(preprocessor@+, const proc_directive&in, string&out)");
 				VPreprocessor->SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor->SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor->SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
 				VPreprocessor->SetMethod("void add_default_definitions()", &Compute::Preprocessor::AddDefaultDefinitions);
-				VPreprocessor->SetMethodEx("bool define(const string &in)", &VI_EXPECTIFY_VOID(Compute::Preprocessor::Define));
-				VPreprocessor->SetMethod("void undefine(const string &in)", &Compute::Preprocessor::Undefine);
+				VPreprocessor->SetMethodEx("bool define(const string_view&in)", &VI_EXPECTIFY_VOID(Compute::Preprocessor::Define));
+				VPreprocessor->SetMethod("void undefine(const string_view&in)", &Compute::Preprocessor::Undefine);
 				VPreprocessor->SetMethod("void clear()", &Compute::Preprocessor::Clear);
-				VPreprocessor->SetMethodEx("bool process(const string &in, string &out)", &VI_EXPECTIFY_VOID(Compute::Preprocessor::Process));
-				VPreprocessor->SetMethodEx("string resolve_file(const string &in, const string &in)", &VI_EXPECTIFY(Compute::Preprocessor::ResolveFile));
+				VPreprocessor->SetMethodEx("bool process(const string_view&in, string &out)", &VI_EXPECTIFY_VOID(Compute::Preprocessor::Process));
+				VPreprocessor->SetMethodEx("string resolve_file(const string_view&in, const string_view&in)", &VI_EXPECTIFY(Compute::Preprocessor::ResolveFile));
 				VPreprocessor->SetMethod("const string& get_current_file_path() const", &Compute::Preprocessor::GetCurrentFilePath);
-				VPreprocessor->SetMethodEx("void set_include_callback(proc_include_event@)", &PreprocessorSetIncludeCallback);
-				VPreprocessor->SetMethodEx("void set_pragma_callback(proc_pragma_event@)", &PreprocessorSetPragmaCallback);
-				VPreprocessor->SetMethodEx("void set_directive_callback(const string&in, proc_directive_event@)", &PreprocessorSetDirectiveCallback);
-				VPreprocessor->SetMethodEx("bool is_defined(const string &in) const", &PreprocessorIsDefined);
+				VPreprocessor->SetMethodEx("void set_include_callback(proc_include_sync@)", &PreprocessorSetIncludeCallback);
+				VPreprocessor->SetMethodEx("void set_pragma_callback(proc_pragma_sync@)", &PreprocessorSetPragmaCallback);
+				VPreprocessor->SetMethodEx("void set_directive_callback(const string_view&in, proc_directive_sync@)", &PreprocessorSetDirectiveCallback);
+				VPreprocessor->SetMethodEx("bool is_defined(const string_view&in) const", &PreprocessorIsDefined);
 
 				return true;
 #else
@@ -14795,11 +14584,11 @@ namespace Vitex
 
 				auto VActivity = VM->SetClass<Graphics::Activity>("activity", false);
 				auto VAlert = VM->SetStructTrivial<Graphics::Alert>("activity_alert");
-				VAlert->SetFunctionDef("void alert_event(int)");
+				VAlert->SetFunctionDef("void alert_sync(int)");
 				VAlert->SetConstructor<Graphics::Alert, Graphics::Activity*>("void f(activity@+)");
-				VAlert->SetMethod("void setup(alert_type, const string &in, const string &in)", &Graphics::Alert::Setup);
-				VAlert->SetMethod("void button(alert_confirm, const string &in, int32)", &Graphics::Alert::Button);
-				VAlert->SetMethodEx("void result(alert_event@)", &AlertResult);
+				VAlert->SetMethod("void setup(alert_type, const string_view&in, const string_view&in)", &Graphics::Alert::Setup);
+				VAlert->SetMethod("void button(alert_confirm, const string_view&in, int32)", &Graphics::Alert::Button);
+				VAlert->SetMethodEx("void result(alert_sync@)", &AlertResult);
 
 				auto VSurface = VM->SetClass<Graphics::Surface>("activity_surface", false);
 				VSurface->SetConstructor<Graphics::Surface>("activity_surface@ f()");
@@ -14836,49 +14625,49 @@ namespace Vitex
 
 				VActivity->SetProperty<Graphics::Activity>("activity_alert message", &Graphics::Activity::Message);
 				VActivity->SetConstructor<Graphics::Activity, const Graphics::Activity::Desc&>("activity@ f(const activity_desc &in)");
-				VActivity->SetFunctionDef("void app_state_change_event(app_state)");
-				VActivity->SetFunctionDef("void window_state_change_event(window_state, int, int)");
-				VActivity->SetFunctionDef("void key_state_event(key_code, key_mod, int, int, bool)");
-				VActivity->SetFunctionDef("void input_edit_event(const string &in, int, int)");
-				VActivity->SetFunctionDef("void input_event(const string &in, int)");
-				VActivity->SetFunctionDef("void cursor_move_event(int, int, int, int)");
-				VActivity->SetFunctionDef("void cursor_wheel_state_event(int, int, bool)");
-				VActivity->SetFunctionDef("void joy_stick_axis_move_event(int, int, int)");
-				VActivity->SetFunctionDef("void joy_stick_ball_move_event(int, int, int, int)");
-				VActivity->SetFunctionDef("void joy_stick_hat_move_event(joy_stick_hat, int, int)");
-				VActivity->SetFunctionDef("void joy_stick_key_state_event(int, int, bool)");
-				VActivity->SetFunctionDef("void joy_stick_state_event(int, bool)");
-				VActivity->SetFunctionDef("void controller_axis_move_event(int, int, int)");
-				VActivity->SetFunctionDef("void controller_key_state_event(int, int, bool)");
-				VActivity->SetFunctionDef("void controller_state_event(int, int)");
-				VActivity->SetFunctionDef("void touch_move_event(int, int, float, float, float, float, float)");
-				VActivity->SetFunctionDef("void touch_state_event(int, int, float, float, float, float, float, bool)");
-				VActivity->SetFunctionDef("void gesture_state_event(int, int, int, float, float, float, bool)");
-				VActivity->SetFunctionDef("void multi_gesture_state_event(int, int, float, float, float, float)");
-				VActivity->SetFunctionDef("void drop_file_event(const string &in)");
-				VActivity->SetFunctionDef("void drop_text_event(const string &in)");
-				VActivity->SetMethodEx("void set_app_state_change(app_state_change_event@)", &ActivitySetAppStateChange);
-				VActivity->SetMethodEx("void set_window_state_change(window_state_change_event@)", &ActivitySetWindowStateChange);
-				VActivity->SetMethodEx("void set_key_state(key_state_event@)", &ActivitySetKeyState);
-				VActivity->SetMethodEx("void set_input_edit(input_edit_event@)", &ActivitySetInputEdit);
-				VActivity->SetMethodEx("void set_input(input_event@)", &ActivitySetInput);
-				VActivity->SetMethodEx("void set_cursor_move(cursor_move_event@)", &ActivitySetCursorMove);
-				VActivity->SetMethodEx("void set_cursor_wheel_state(cursor_wheel_state_event@)", &ActivitySetCursorWheelState);
-				VActivity->SetMethodEx("void set_joy_stick_axis_move(joy_stick_axis_move_event@)", &ActivitySetJoyStickAxisMove);
-				VActivity->SetMethodEx("void set_joy_stick_ball_move(joy_stick_ball_move_event@)", &ActivitySetJoyStickBallMove);
-				VActivity->SetMethodEx("void set_joy_stick_hat_move(joy_stick_hat_move_event@)", &ActivitySetJoyStickHatMove);
-				VActivity->SetMethodEx("void set_joy_stickKeyState(joy_stick_key_state_event@)", &ActivitySetJoyStickKeyState);
-				VActivity->SetMethodEx("void set_joy_stickState(joy_stick_state_event@)", &ActivitySetJoyStickState);
-				VActivity->SetMethodEx("void set_controller_axis_move(controller_axis_move_event@)", &ActivitySetControllerAxisMove);
-				VActivity->SetMethodEx("void set_controller_key_state(controller_key_state_event@)", &ActivitySetControllerKeyState);
-				VActivity->SetMethodEx("void set_controller_state(controller_state_event@)", &ActivitySetControllerState);
-				VActivity->SetMethodEx("void set_touch_move(touch_move_event@)", &ActivitySetTouchMove);
-				VActivity->SetMethodEx("void set_touch_state(touch_state_event@)", &ActivitySetTouchState);
-				VActivity->SetMethodEx("void set_gesture_state(gesture_state_event@)", &ActivitySetGestureState);
-				VActivity->SetMethodEx("void set_multi_gesture_state(multi_gesture_state_event@)", &ActivitySetMultiGestureState);
-				VActivity->SetMethodEx("void set_drop_file(drop_file_event@)", &ActivitySetDropFile);
-				VActivity->SetMethodEx("void set_drop_text(drop_text_event@)", &ActivitySetDropText);
-				VActivity->SetMethod("void set_clipboard_text(const string &in)", &Graphics::Activity::SetClipboardText);
+				VActivity->SetFunctionDef("void app_state_change_sync(app_state)");
+				VActivity->SetFunctionDef("void window_state_change_sync(window_state, int, int)");
+				VActivity->SetFunctionDef("void key_state_sync(key_code, key_mod, int, int, bool)");
+				VActivity->SetFunctionDef("void input_edit_sync(const string_view&in, int, int)");
+				VActivity->SetFunctionDef("void input_sync(const string_view&in, int)");
+				VActivity->SetFunctionDef("void cursor_move_sync(int, int, int, int)");
+				VActivity->SetFunctionDef("void cursor_wheel_state_sync(int, int, bool)");
+				VActivity->SetFunctionDef("void joy_stick_axis_move_sync(int, int, int)");
+				VActivity->SetFunctionDef("void joy_stick_ball_move_sync(int, int, int, int)");
+				VActivity->SetFunctionDef("void joy_stick_hat_move_sync(joy_stick_hat, int, int)");
+				VActivity->SetFunctionDef("void joy_stick_key_state_sync(int, int, bool)");
+				VActivity->SetFunctionDef("void joy_stick_state_sync(int, bool)");
+				VActivity->SetFunctionDef("void controller_axis_move_sync(int, int, int)");
+				VActivity->SetFunctionDef("void controller_key_state_sync(int, int, bool)");
+				VActivity->SetFunctionDef("void controller_state_sync(int, int)");
+				VActivity->SetFunctionDef("void touch_move_sync(int, int, float, float, float, float, float)");
+				VActivity->SetFunctionDef("void touch_state_sync(int, int, float, float, float, float, float, bool)");
+				VActivity->SetFunctionDef("void gesture_state_sync(int, int, int, float, float, float, bool)");
+				VActivity->SetFunctionDef("void multi_gesture_state_sync(int, int, float, float, float, float)");
+				VActivity->SetFunctionDef("void drop_file_sync(const string_view&in)");
+				VActivity->SetFunctionDef("void drop_text_sync(const string_view&in)");
+				VActivity->SetMethodEx("void set_app_state_change(app_state_change_sync@)", &ActivitySetAppStateChange);
+				VActivity->SetMethodEx("void set_window_state_change(window_state_change_sync@)", &ActivitySetWindowStateChange);
+				VActivity->SetMethodEx("void set_key_state(key_state_sync@)", &ActivitySetKeyState);
+				VActivity->SetMethodEx("void set_input_edit(input_edit_sync@)", &ActivitySetInputEdit);
+				VActivity->SetMethodEx("void set_input(input_sync@)", &ActivitySetInput);
+				VActivity->SetMethodEx("void set_cursor_move(cursor_move_sync@)", &ActivitySetCursorMove);
+				VActivity->SetMethodEx("void set_cursor_wheel_state(cursor_wheel_state_sync@)", &ActivitySetCursorWheelState);
+				VActivity->SetMethodEx("void set_joy_stick_axis_move(joy_stick_axis_move_sync@)", &ActivitySetJoyStickAxisMove);
+				VActivity->SetMethodEx("void set_joy_stick_ball_move(joy_stick_ball_move_sync@)", &ActivitySetJoyStickBallMove);
+				VActivity->SetMethodEx("void set_joy_stick_hat_move(joy_stick_hat_move_sync@)", &ActivitySetJoyStickHatMove);
+				VActivity->SetMethodEx("void set_joy_stickKeyState(joy_stick_key_state_sync@)", &ActivitySetJoyStickKeyState);
+				VActivity->SetMethodEx("void set_joy_stickState(joy_stick_state_sync@)", &ActivitySetJoyStickState);
+				VActivity->SetMethodEx("void set_controller_axis_move(controller_axis_move_sync@)", &ActivitySetControllerAxisMove);
+				VActivity->SetMethodEx("void set_controller_key_state(controller_key_state_sync@)", &ActivitySetControllerKeyState);
+				VActivity->SetMethodEx("void set_controller_state(controller_state_sync@)", &ActivitySetControllerState);
+				VActivity->SetMethodEx("void set_touch_move(touch_move_sync@)", &ActivitySetTouchMove);
+				VActivity->SetMethodEx("void set_touch_state(touch_state_sync@)", &ActivitySetTouchState);
+				VActivity->SetMethodEx("void set_gesture_state(gesture_state_sync@)", &ActivitySetGestureState);
+				VActivity->SetMethodEx("void set_multi_gesture_state(multi_gesture_state_sync@)", &ActivitySetMultiGestureState);
+				VActivity->SetMethodEx("void set_drop_file(drop_file_sync@)", &ActivitySetDropFile);
+				VActivity->SetMethodEx("void set_drop_text(drop_text_sync@)", &ActivitySetDropText);
+				VActivity->SetMethod("void set_clipboard_text(const string_view&in)", &Graphics::Activity::SetClipboardText);
 				VActivity->SetMethod<Graphics::Activity, void, const Compute::Vector2&>("void set_cursor_position(const vector2 &in)", &Graphics::Activity::SetCursorPosition);
 				VActivity->SetMethod<Graphics::Activity, void, float, float>("void set_cursor_position(float, float)", &Graphics::Activity::SetCursorPosition);
 				VActivity->SetMethod<Graphics::Activity, void, const Compute::Vector2&>("void set_global_cursor_position(const vector2 &in)", &Graphics::Activity::SetGlobalCursorPosition);
@@ -14890,7 +14679,7 @@ namespace Vitex
 				VActivity->SetMethod("void set_fullscreen(bool)", &Graphics::Activity::SetFullscreen);
 				VActivity->SetMethod("void set_borderless(bool)", &Graphics::Activity::SetBorderless);
 				VActivity->SetMethod("void set_icon(activity_surface@+)", &Graphics::Activity::SetIcon);
-				VActivity->SetMethodEx("void set_title(const string &in)", &ActivitySetTitle);
+				VActivity->SetMethod("void set_title(const string_view&in)", &Graphics::Activity::SetTitle);
 				VActivity->SetMethod("void set_screen_keyboard(bool)", &Graphics::Activity::SetScreenKeyboard);
 				VActivity->SetMethod("void build_layer(render_backend)", &Graphics::Activity::BuildLayer);
 				VActivity->SetMethod("void hide()", &Graphics::Activity::Hide);
@@ -15829,16 +15618,16 @@ namespace Vitex
 				VGraphicsDevice->SetMethod("void set_vsync_mode(vsync)", &Graphics::GraphicsDevice::SetVSyncMode);
 				VGraphicsDevice->SetMethod("bool preprocess(shader_desc &in)", &Graphics::GraphicsDevice::Preprocess);
 				VGraphicsDevice->SetMethod("bool transpile(string &out, shader_type, shader_lang)", &Graphics::GraphicsDevice::Transpile);
-				VGraphicsDevice->SetMethod("bool add_section(const string &in, const string &in)", &Graphics::GraphicsDevice::AddSection);
-				VGraphicsDevice->SetMethod("bool remove_section(const string &in)", &Graphics::GraphicsDevice::RemoveSection);
-				VGraphicsDevice->SetMethod("bool get_section_data(const string &in, shader_desc &out)", &Graphics::GraphicsDevice::GetSectionData);
+				VGraphicsDevice->SetMethod("bool add_section(const string_view&in, const string_view&in)", &Graphics::GraphicsDevice::AddSection);
+				VGraphicsDevice->SetMethod("bool remove_section(const string_view&in)", &Graphics::GraphicsDevice::RemoveSection);
+				VGraphicsDevice->SetMethod("bool get_section_data(const string_view&in, shader_desc &out)", &Graphics::GraphicsDevice::GetSectionData);
 				VGraphicsDevice->SetMethod("bool is_left_handed() const", &Graphics::GraphicsDevice::IsLeftHanded);
 				VGraphicsDevice->SetMethod("string get_shader_main(shader_type) const", &Graphics::GraphicsDevice::GetShaderMain);
-				VGraphicsDevice->SetMethod("depth_stencil_state@+ get_depth_stencil_state(const string &in)", &Graphics::GraphicsDevice::GetDepthStencilState);
-				VGraphicsDevice->SetMethod("blend_state@+ get_blend_state(const string &in)", &Graphics::GraphicsDevice::GetBlendState);
-				VGraphicsDevice->SetMethod("rasterizer_state@+ get_rasterizer_state(const string &in)", &Graphics::GraphicsDevice::GetRasterizerState);
-				VGraphicsDevice->SetMethod("sampler_state@+ get_sampler_state(const string &in)", &Graphics::GraphicsDevice::GetSamplerState);
-				VGraphicsDevice->SetMethod("input_layout@+ get_input_layout(const string &in)", &Graphics::GraphicsDevice::GetInputLayout);
+				VGraphicsDevice->SetMethod("depth_stencil_state@+ get_depth_stencil_state(const string_view&in)", &Graphics::GraphicsDevice::GetDepthStencilState);
+				VGraphicsDevice->SetMethod("blend_state@+ get_blend_state(const string_view&in)", &Graphics::GraphicsDevice::GetBlendState);
+				VGraphicsDevice->SetMethod("rasterizer_state@+ get_rasterizer_state(const string_view&in)", &Graphics::GraphicsDevice::GetRasterizerState);
+				VGraphicsDevice->SetMethod("sampler_state@+ get_sampler_state(const string_view&in)", &Graphics::GraphicsDevice::GetSamplerState);
+				VGraphicsDevice->SetMethod("input_layout@+ get_input_layout(const string_view&in)", &Graphics::GraphicsDevice::GetInputLayout);
 				VGraphicsDevice->SetMethod("shader_model get_shader_model() const", &Graphics::GraphicsDevice::GetShaderModel);
 				VGraphicsDevice->SetMethod("render_target_2d@+ get_render_target()", &Graphics::GraphicsDevice::GetRenderTarget);
 				VGraphicsDevice->SetMethod("render_backend get_backend() const", &Graphics::GraphicsDevice::GetBackend);
@@ -15932,7 +15721,7 @@ namespace Vitex
 				VLocation->SetProperty<Network::Location>("string path", &Network::Location::Path);
 				VLocation->SetProperty<Network::Location>("string body", &Network::Location::Body);
 				VLocation->SetProperty<Network::Location>("int32 port", &Network::Location::Port);
-				VLocation->SetConstructor<Network::Location, const Core::String&>("void f(const string &in)");
+				VLocation->SetConstructor<Network::Location, const std::string_view&>("void f(const string_view&in)");
 				VLocation->SetMethodEx("dictionary@ get_query() const", &LocationGetQuery);
 
 				auto VCertificate = VM->SetStructTrivial<Network::Certificate>("certificate");
@@ -15998,47 +15787,45 @@ namespace Vitex
 				VSocketAddress->SetMethod("uptr@ get_alternatives() const", &Network::SocketAddress::GetAlternatives);
 				VSocketAddress->SetMethod("string get_address() const", &Network::SocketAddress::GetAddress);
 
-				VSocket->SetFunctionDef("void socket_written_event(socket_poll)");
-				VSocket->SetFunctionDef("void socket_opened_event(socket_address@+)");
-				VSocket->SetFunctionDef("void socket_status_event(int)");
-				VSocket->SetFunctionDef("void socket_accepted_event(usize, const string &in)");
-				VSocket->SetFunctionDef("bool socket_read_event(socket_poll, const string &in)");
-				VSocket->SetProperty<Network::Socket>("uint64 timeout", &Network::Socket::Timeout);
+				VSocket->SetFunctionDef("void socket_accept_async(usize, const string&in)");
+				VSocket->SetFunctionDef("void socket_status_async(int)");
+				VSocket->SetFunctionDef("void socket_send_async(socket_poll)");
+				VSocket->SetFunctionDef("bool socket_recv_async(socket_poll, const string_view&in)");
 				VSocket->SetProperty<Network::Socket>("int64 income", &Network::Socket::Income);
 				VSocket->SetProperty<Network::Socket>("int64 outcome", &Network::Socket::Outcome);
-				VSocket->SetProperty<Network::Socket>("uptr@ user_data", &Network::Socket::UserData);
 				VSocket->SetConstructor<Network::Socket>("socket@ f()");
 				VSocket->SetConstructor<Network::Socket, socket_t>("socket@ f(usize)");
 				VSocket->SetMethod("usize get_fd() const", &Network::Socket::GetFd);
 				VSocket->SetMethod("uptr@ get_device() const", &Network::Socket::GetDevice);
-				VSocket->SetMethod("bool is_pending_for_read() const", &Network::Socket::IsPendingForRead);
-				VSocket->SetMethod("bool is_pending_for_write() const", &Network::Socket::IsPendingForWrite);
-				VSocket->SetMethod("bool is_pending() const", &Network::Socket::IsPending);
+				VSocket->SetMethod("bool is_awaiting_readable() const", &Network::Socket::IsAwaitingReadable);
+				VSocket->SetMethod("bool is_awaiting_writeable() const", &Network::Socket::IsAwaitingWriteable);
+				VSocket->SetMethod("bool is_awaiting_events() const", &Network::Socket::IsAwaitingEvents);
 				VSocket->SetMethod("bool is_valid() const", &Network::Socket::IsValid);
 				VSocket->SetMethod("bool is_secure() const", &Network::Socket::IsSecure);
+				VSocket->SetMethod("void set_io_timeout(uint64)", &Network::Socket::SetIoTimeout);
 				VSocket->SetMethodEx("promise<bool>@ connect(socket_address@+)", &VI_SPROMISIFY(SocketConnectFwd, TypeId::BOOL));
 				VSocket->SetMethodEx("promise<bool>@ close()", &VI_SPROMISIFY(SocketCloseFwd, TypeId::BOOL));
-				VSocket->SetMethodEx("promise<bool>@ write(const string &in)", &VI_SPROMISIFY(SocketWriteFwd, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<bool>@ write(const string_view&in)", &VI_SPROMISIFY(SocketWriteFwd, TypeId::BOOL));
 				VSocket->SetMethodEx("promise<string>@ read(usize)", &VI_SPROMISIFY_REF(SocketReadFwd, String));
-				VSocket->SetMethodEx("promise<string>@ read_until(usize, const string &in)", &VI_SPROMISIFY_REF(SocketReadUntilFwd, String));
-				VSocket->SetMethodEx("promise<string>@ read_until_chunked(usize, const string &in)", &VI_SPROMISIFY_REF(SocketReadUntilChunkedFwd, String));
-				VSocket->SetMethodEx("bool accept_async(bool, socket_accepted_event@)", &SocketAcceptAsync);
-				VSocket->SetMethodEx("bool connect_async(socket_address@+, socket_status_event@)", &SocketConnectAsync);
-				VSocket->SetMethodEx("bool close_async(socket_status_event@)", &SocketCloseAsync);
-				VSocket->SetMethodEx("usize send_file_async(uptr@, usize, usize, socket_written_event@)", &SocketSendFileAsync);
-				VSocket->SetMethodEx("usize write_async(const string &in, socket_written_event@)", &SocketWriteAsync);
-				VSocket->SetMethodEx("usize read_async(usize, socket_read_event@)", &SocketReadAsync);
-				VSocket->SetMethodEx("usize read_until_async(const string &in, socket_read_event@)", &SocketReadUntilAsync);
-				VSocket->SetMethodEx("usize read_until_chunked_async(const string &in, socket_read_event@)", &SocketReadUntilChunkedAsync);
+				VSocket->SetMethodEx("promise<string>@ read_until(usize, const string_view&in)", &VI_SPROMISIFY_REF(SocketReadUntilFwd, String));
+				VSocket->SetMethodEx("promise<string>@ read_until_chunked(usize, const string_view&in)", &VI_SPROMISIFY_REF(SocketReadUntilChunkedFwd, String));
+				VSocket->SetMethodEx("bool accept_async(bool, socket_accept_async@)", &SocketAcceptAsync);
+				VSocket->SetMethodEx("bool connect_async(socket_address@+, socket_status_async@)", &SocketConnectAsync);
+				VSocket->SetMethodEx("bool close_async(socket_status_async@)", &SocketCloseAsync);
+				VSocket->SetMethodEx("usize send_file_async(uptr@, usize, usize, socket_send_async@)", &SocketSendFileAsync);
+				VSocket->SetMethodEx("usize write_async(const string_view&in, socket_send_async@)", &SocketWriteAsync);
+				VSocket->SetMethodEx("usize read_async(usize, socket_recv_async@)", &SocketReadAsync);
+				VSocket->SetMethodEx("usize read_until_async(const string_view&in, socket_recv_async@)", &SocketReadUntilAsync);
+				VSocket->SetMethodEx("usize read_until_chunked_async(const string_view&in, socket_recv_async@)", &SocketReadUntilChunkedAsync);
 				VSocket->SetMethodEx("bool accept(socket@+, string &out)", &SocketAccept1);
 				VSocket->SetMethodEx("bool accept(usize &out, string &out)", &SocketAccept2);
-				VSocket->SetMethodEx("bool secure(uptr@, const string &in)", &SocketSecure);
+				VSocket->SetMethodEx("bool secure(uptr@, const string_view&in)", &SocketSecure);
 				VSocket->SetMethodEx("usize send_file(uptr@, usize, usize)", &SocketSendFile);
-				VSocket->SetMethodEx("usize write_sync(const string &in)", &SocketWrite);
+				VSocket->SetMethodEx("usize write_sync(const string_view&in)", &SocketWrite);
 				VSocket->SetMethodEx("usize read_sync(string &out, usize)", &SocketRead1);
-				VSocket->SetMethodEx("usize read_sync(string &out, usize, socket_read_event@)", &SocketRead2);
-				VSocket->SetMethodEx("usize read_until_sync(const string &in, socket_read_event@)", &SocketReadUntil);
-				VSocket->SetMethodEx("usize read_until_chunked_sync(const string &in, socket_read_event@)", &SocketReadUntilChunked);
+				VSocket->SetMethodEx("usize read_sync(string &out, usize, socket_recv_async@)", &SocketRead2);
+				VSocket->SetMethodEx("usize read_until_sync(const string_view&in, socket_recv_async@)", &SocketReadUntil);
+				VSocket->SetMethodEx("usize read_until_chunked_sync(const string_view&in, socket_recv_async@)", &SocketReadUntilChunked);
 				VSocket->SetMethodEx("string get_remote_address() const", &VI_EXPECTIFY(Network::Socket::GetRemoteAddress));
 				VSocket->SetMethodEx("int get_port() const", &VI_EXPECTIFY(Network::Socket::GetPort));
 				VSocket->SetMethodEx("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetAnyFlag));
@@ -16074,12 +15861,12 @@ namespace Vitex
 
 				auto VDNS = VM->SetClass<Network::DNS>("dns", false);
 				VDNS->SetConstructor<Network::DNS>("dns@ f()");
-				VDNS->SetMethodEx("string from_address(const string &in, const string &in)", &VI_EXPECTIFY(Network::DNS::FromAddress));
-				VDNS->SetMethodEx("socket_address@+ from_service(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &VI_EXPECTIFY(Network::DNS::FromService));
+				VDNS->SetMethodEx("string from_address(const string_view&in, const string_view&in)", &VI_EXPECTIFY(Network::DNS::FromAddress));
+				VDNS->SetMethodEx("socket_address@+ from_service(const string_view&in, const string_view&in, dns_type, socket_protocol, socket_type)", &VI_EXPECTIFY(Network::DNS::FromService));
 				VDNS->SetMethodStatic("dns@+ get()", &Network::DNS::Get);
 
 				auto VMultiplexer = VM->SetClass<Network::Multiplexer>("multiplexer", false);
-				VMultiplexer->SetFunctionDef("void poll_event(socket@+, socket_poll)");
+				VMultiplexer->SetFunctionDef("void poll_async(socket@+, socket_poll)");
 				VMultiplexer->SetConstructor<Network::Multiplexer>("multiplexer@ f()");
 				VMultiplexer->SetConstructor<Network::Multiplexer, uint64_t, size_t>("multiplexer@ f(uint64, usize)");
 				VMultiplexer->SetMethod("void rescale(uint64, usize)", &Network::Multiplexer::Rescale);
@@ -16087,13 +15874,10 @@ namespace Vitex
 				VMultiplexer->SetMethod("void deactivate()", &Network::Multiplexer::Deactivate);
 				VMultiplexer->SetMethod("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
 				VMultiplexer->SetMethod("bool shutdown()", &Network::Multiplexer::Shutdown);
-				VMultiplexer->SetMethodEx("bool when_readable(socket@+, poll_event@)", &MultiplexerWhenReadable);
-				VMultiplexer->SetMethodEx("bool when_writeable(socket@+, poll_event@)", &MultiplexerWhenWriteable);
+				VMultiplexer->SetMethodEx("bool when_readable(socket@+, poll_async@)", &MultiplexerWhenReadable);
+				VMultiplexer->SetMethodEx("bool when_writeable(socket@+, poll_async@)", &MultiplexerWhenWriteable);
 				VMultiplexer->SetMethod("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
 				VMultiplexer->SetMethod("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
-				VMultiplexer->SetMethod("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
-				VMultiplexer->SetMethod("bool is_awaiting_readable(socket@+)", &Network::Multiplexer::IsAwaitingReadable);
-				VMultiplexer->SetMethod("bool is_awaiting_writeable(socket@+)", &Network::Multiplexer::IsAwaitingWriteable);
 				VMultiplexer->SetMethod("bool is_listening()", &Network::Multiplexer::IsListening);
 				VMultiplexer->SetMethod("usize get_activations()", &Network::Multiplexer::GetActivations);
 				VMultiplexer->SetMethodStatic("multiplexer@+ get()", &Network::Multiplexer::Get);
@@ -16111,7 +15895,7 @@ namespace Vitex
 				VSocketListener->SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
 				VSocketListener->SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
 				VSocketListener->SetProperty<Network::SocketListener>("socket@ stream", &Network::SocketListener::Stream);
-				VSocketListener->SetGcConstructor<Network::SocketListener, SocketListener, const Core::String&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
+				VSocketListener->SetGcConstructor<Network::SocketListener, SocketListener, const std::string_view&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string_view&in, const remote_host &in, socket_address@+)");
 				VSocketListener->SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* VM)
 				{
 					FunctionFactory::GCEnumCallback(VM, Base->Stream);
@@ -16131,8 +15915,8 @@ namespace Vitex
 				VSocketRouter->SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
 				VSocketRouter->SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
 				VSocketRouter->SetConstructor<Network::SocketRouter>("socket_router@ f()");
-				VSocketRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
-				VSocketRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, const Core::String&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
 				VSocketRouter->SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
 				VSocketRouter->SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
 				VSocketRouter->SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
@@ -16148,7 +15932,7 @@ namespace Vitex
 				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool next()", &Network::SocketConnection::Next);
 				VSocketConnection->SetMethod<Network::SocketConnection, bool, int>("bool next(int32)", &Network::SocketConnection::Next);
 				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool abort()", &Network::SocketConnection::Abort);
-				VSocketConnection->SetMethodEx("bool abort(int, const string &in)", &SocketConnectionAbort);
+				VSocketConnection->SetMethodEx("bool abort(int, const string_view&in)", &SocketConnectionAbort);
 				VSocketConnection->SetEnumRefsEx<Network::SocketConnection>([](Network::SocketConnection* Base, asIScriptEngine* VM)
 				{
 					FunctionFactory::GCEnumCallback(VM, Base->Stream);
@@ -16264,10 +16048,10 @@ namespace Vitex
 				VResource->SetProperty<Network::HTTP::Resource>("usize length", &Network::HTTP::Resource::Length);
 				VResource->SetProperty<Network::HTTP::Resource>("bool is_in_memory", &Network::HTTP::Resource::IsInMemory);
 				VResource->SetConstructor<Network::HTTP::Resource>("void f()");
-				VResource->SetMethod("const string& put_header(const string&in, const string&in)", &Network::HTTP::Resource::PutHeader);
-				VResource->SetMethod("const string& set_header(const string&in, const string&in)", &Network::HTTP::Resource::SetHeader);
-				VResource->SetMethod("string compose_header(const string&in) const", &Network::HTTP::Resource::ComposeHeader);
-				VResource->SetMethodEx("string get_header(const string&in) const", &ResourceGetHeaderBlob);
+				VResource->SetMethod("string& put_header(const string_view&in, const string_view&in)", &Network::HTTP::Resource::PutHeader);
+				VResource->SetMethod("string& set_header(const string_view&in, const string_view&in)", &Network::HTTP::Resource::SetHeader);
+				VResource->SetMethod("string compose_header(const string_view&in) const", &Network::HTTP::Resource::ComposeHeader);
+				VResource->SetMethodEx("string get_header(const string_view&in) const", &ResourceGetHeaderBlob);
 				VResource->SetMethod("const string& get_in_memory_contents() const", &Network::HTTP::Resource::GetInMemoryContents);
 
 				auto VCookie = VM->SetStructTrivial<Network::HTTP::Cookie>("cookie");
@@ -16291,17 +16075,17 @@ namespace Vitex
 				VContentFrame->SetProperty<Network::HTTP::ContentFrame>("bool exceeds", &Network::HTTP::ContentFrame::Exceeds);
 				VContentFrame->SetProperty<Network::HTTP::ContentFrame>("bool limited", &Network::HTTP::ContentFrame::Limited);
 				VContentFrame->SetConstructor<Network::HTTP::ContentFrame>("void f()");
-				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void append(const string&in)", &Network::HTTP::ContentFrame::Append);
-				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const Core::String&>("void assign(const string&in)", &Network::HTTP::ContentFrame::Assign);
+				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const std::string_view&>("void append(const string_view&in)", &Network::HTTP::ContentFrame::Append);
+				VContentFrame->SetMethod<Network::HTTP::ContentFrame, void, const std::string_view&>("void assign(const string_view&in)", &Network::HTTP::ContentFrame::Assign);
 				VContentFrame->SetMethod("void finalize()", &Network::HTTP::ContentFrame::Finalize);
 				VContentFrame->SetMethod("void cleanup()", &Network::HTTP::ContentFrame::Cleanup);
 				VContentFrame->SetMethod("bool is_finalized() const", &Network::HTTP::ContentFrame::IsFinalized);
 				VContentFrame->SetMethod("string get_text() const", &Network::HTTP::ContentFrame::GetText);
 				VContentFrame->SetMethodEx("schema@ get_json() const", &ContentFrameGetJSON);
 				VContentFrame->SetMethodEx("schema@ get_xml() const", &ContentFrameGetXML);
-				VContentFrame->SetMethodEx("void prepare(const request_frame&in, const string&in)", &ContentFramePrepare1);
-				VContentFrame->SetMethodEx("void prepare(const response_frame&in, const string&in)", &ContentFramePrepare2);
-				VContentFrame->SetMethodEx("void prepare(const fetch_frame&in, const string&in)", &ContentFramePrepare3);
+				VContentFrame->SetMethodEx("void prepare(const request_frame&in, const string_view&in)", &ContentFramePrepare1);
+				VContentFrame->SetMethodEx("void prepare(const response_frame&in, const string_view&in)", &ContentFramePrepare2);
+				VContentFrame->SetMethodEx("void prepare(const fetch_frame&in, const string_view&in)", &ContentFramePrepare3);
 				VContentFrame->SetMethodEx("void add_resource(const resource_info&in)", &ContentFrameAddResource);
 				VContentFrame->SetMethodEx("void clear_resources()", &ContentFrameClearResources);
 				VContentFrame->SetMethodEx("resource_info get_resource(usize) const", &ContentFrameGetResource);
@@ -16315,20 +16099,20 @@ namespace Vitex
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("regex_result match", &Network::HTTP::RequestFrame::Match);
 				VRequestFrame->SetProperty<Network::HTTP::RequestFrame>("credentials user", &Network::HTTP::RequestFrame::User);
 				VRequestFrame->SetConstructor<Network::HTTP::RequestFrame>("void f()");
-				VRequestFrame->SetMethod("const string& put_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::PutHeader);
-				VRequestFrame->SetMethod("const string& set_header(const string&in, const string&in)", &Network::HTTP::RequestFrame::SetHeader);
+				VRequestFrame->SetMethod("string& put_header(const string_view&in, const string_view&in)", &Network::HTTP::RequestFrame::PutHeader);
+				VRequestFrame->SetMethod("string& set_header(const string_view&in, const string_view&in)", &Network::HTTP::RequestFrame::SetHeader);
 				VRequestFrame->SetMethod("void set_version(uint32, uint32)", &Network::HTTP::RequestFrame::SetVersion);
 				VRequestFrame->SetMethod("void cleanup()", &Network::HTTP::RequestFrame::Cleanup);
-				VRequestFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::RequestFrame::ComposeHeader);
-				VRequestFrame->SetMethodEx("string get_cookie(const string&in) const", &RequestFrameGetCookieBlob);
-				VRequestFrame->SetMethodEx("string get_header(const string&in) const", &RequestFrameGetHeaderBlob);
+				VRequestFrame->SetMethod("string compose_header(const string_view&in) const", &Network::HTTP::RequestFrame::ComposeHeader);
+				VRequestFrame->SetMethodEx("string get_cookie(const string_view&in) const", &RequestFrameGetCookieBlob);
+				VRequestFrame->SetMethodEx("string get_header(const string_view&in) const", &RequestFrameGetHeaderBlob);
 				VRequestFrame->SetMethodEx("string get_header(usize, usize = 0) const", &RequestFrameGetHeader);
 				VRequestFrame->SetMethodEx("string get_cookie(usize, usize = 0) const", &RequestFrameGetCookie);
 				VRequestFrame->SetMethodEx("usize get_headers_size() const", &RequestFrameGetHeadersSize);
 				VRequestFrame->SetMethodEx("usize get_header_size(usize) const", &RequestFrameGetHeaderSize);
 				VRequestFrame->SetMethodEx("usize get_cookies_size() const", &RequestFrameGetCookiesSize);
 				VRequestFrame->SetMethodEx("usize get_cookie_size(usize) const", &RequestFrameGetCookieSize);
-				VRequestFrame->SetMethodEx("void set_method(const string&in)", &RequestFrameSetMethod);
+				VRequestFrame->SetMethodEx("void set_method(const string_view&in)", &RequestFrameSetMethod);
 				VRequestFrame->SetMethodEx("string get_method() const", &RequestFrameGetMethod);
 				VRequestFrame->SetMethodEx("string get_version() const", &RequestFrameGetVersion);
 
@@ -16336,16 +16120,16 @@ namespace Vitex
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("int32 status_code", &Network::HTTP::ResponseFrame::StatusCode);
 				VResponseFrame->SetProperty<Network::HTTP::ResponseFrame>("bool error", &Network::HTTP::ResponseFrame::Error);
 				VResponseFrame->SetConstructor<Network::HTTP::ResponseFrame>("void f()");
-				VResponseFrame->SetMethod("const string& put_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::PutHeader);
-				VResponseFrame->SetMethod("const string& set_header(const string&in, const string&in)", &Network::HTTP::ResponseFrame::SetHeader);
+				VResponseFrame->SetMethod("string& put_header(const string_view&in, const string_view&in)", &Network::HTTP::ResponseFrame::PutHeader);
+				VResponseFrame->SetMethod("string& set_header(const string_view&in, const string_view&in)", &Network::HTTP::ResponseFrame::SetHeader);
 				VResponseFrame->SetMethod<Network::HTTP::ResponseFrame, void, const Network::HTTP::Cookie&>("void set_cookie(const cookie&in)", &Network::HTTP::ResponseFrame::SetCookie);
 				VResponseFrame->SetMethod("void cleanup()", &Network::HTTP::ResponseFrame::Cleanup);
-				VResponseFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::ResponseFrame::ComposeHeader);
-				VResponseFrame->SetMethodEx("string get_header(const string&in) const", &ResponseFrameGetHeaderBlob);
+				VResponseFrame->SetMethod("string compose_header(const string_view&in) const", &Network::HTTP::ResponseFrame::ComposeHeader);
+				VResponseFrame->SetMethodEx("string get_header(const string_view&in) const", &ResponseFrameGetHeaderBlob);
 				VResponseFrame->SetMethod("bool is_undefined() const", &Network::HTTP::ResponseFrame::IsUndefined);
 				VResponseFrame->SetMethod("bool is_ok() const", &Network::HTTP::ResponseFrame::IsOK);
 				VResponseFrame->SetMethodEx("string get_header(usize, usize) const", &ResponseFrameGetHeader);
-				VResponseFrame->SetMethodEx("cookie get_cookie(const string&in) const", &ResponseFrameGetCookie1);
+				VResponseFrame->SetMethodEx("cookie get_cookie(const string_view&in) const", &ResponseFrameGetCookie1);
 				VResponseFrame->SetMethodEx("cookie get_cookie(usize) const", &ResponseFrameGetCookie2);
 				VResponseFrame->SetMethodEx("usize get_headers_size() const", &ResponseFrameGetHeadersSize);
 				VResponseFrame->SetMethodEx("usize get_header_size(usize) const", &ResponseFrameGetHeaderSize);
@@ -16356,12 +16140,12 @@ namespace Vitex
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("uint32 verify_peers", &Network::HTTP::FetchFrame::VerifyPeers);
 				VFetchFrame->SetProperty<Network::HTTP::FetchFrame>("usize max_size", &Network::HTTP::FetchFrame::MaxSize);
 				VFetchFrame->SetConstructor<Network::HTTP::FetchFrame>("void f()");
-				VFetchFrame->SetMethod("void put_header(const string&in, const string&in)", &Network::HTTP::FetchFrame::PutHeader);
-				VFetchFrame->SetMethod("void set_header(const string&in, const string&in)", &Network::HTTP::FetchFrame::SetHeader);
+				VFetchFrame->SetMethod("void put_header(const string_view&in, const string_view&in)", &Network::HTTP::FetchFrame::PutHeader);
+				VFetchFrame->SetMethod("void set_header(const string_view&in, const string_view&in)", &Network::HTTP::FetchFrame::SetHeader);
 				VFetchFrame->SetMethod("void cleanup()", &Network::HTTP::FetchFrame::Cleanup);
-				VFetchFrame->SetMethod("string compose_header(const string&in) const", &Network::HTTP::FetchFrame::ComposeHeader);
-				VFetchFrame->SetMethodEx("string get_cookie(const string&in) const", &FetchFrameGetCookieBlob);
-				VFetchFrame->SetMethodEx("string get_header(const string&in) const", &FetchFrameGetHeaderBlob);
+				VFetchFrame->SetMethod("string compose_header(const string_view&in) const", &Network::HTTP::FetchFrame::ComposeHeader);
+				VFetchFrame->SetMethodEx("string get_cookie(const string_view&in) const", &FetchFrameGetCookieBlob);
+				VFetchFrame->SetMethodEx("string get_header(const string_view&in) const", &FetchFrameGetHeaderBlob);
 				VFetchFrame->SetMethodEx("string get_header(usize, usize = 0) const", &FetchFrameGetHeader);
 				VFetchFrame->SetMethodEx("string get_cookie(usize, usize = 0) const", &FetchFrameGetCookie);
 				VFetchFrame->SetMethodEx("usize get_headers_size() const", &FetchFrameGetHeadersSize);
@@ -16421,7 +16205,7 @@ namespace Vitex
 				auto VRouterGroup = VM->SetClass<Network::HTTP::RouterGroup>("route_group", false);
 				VRouterGroup->SetProperty<Network::HTTP::RouterGroup>("string match", &Network::HTTP::RouterGroup::Match);
 				VRouterGroup->SetProperty<Network::HTTP::RouterGroup>("route_mode mode", &Network::HTTP::RouterGroup::Mode);
-				VRouterGroup->SetGcConstructor<Network::HTTP::RouterGroup, RouterGroup, const Core::String&, Network::HTTP::RouteMode>("route_group@ f(const string&in, route_mode)");
+				VRouterGroup->SetGcConstructor<Network::HTTP::RouterGroup, RouterGroup, const std::string_view&, Network::HTTP::RouteMode>("route_group@ f(const string_view&in, route_mode)");
 				VRouterGroup->SetMethodEx("route_entry@+ get_route(usize) const", &RouterGroupGetRoute);
 				VRouterGroup->SetMethodEx("usize get_routes_size() const", &RouterGroupGetRoutesSize);
 
@@ -16443,14 +16227,14 @@ namespace Vitex
 
 				auto VConnection = VM->SetClass<Network::HTTP::Connection>("connection", false);
 				auto VWebSocketFrame = VM->SetClass<Network::HTTP::WebSocketFrame>("websocket_frame", false);
-				VWebSocketFrame->SetFunctionDef("void status_event(websocket_frame@+)");
-				VWebSocketFrame->SetFunctionDef("void data_event(websocket_frame@+, websocket_op, const string&in)");
-				VWebSocketFrame->SetMethodEx("bool set_on_connect(status_event@+)", &WebSocketFrameSetOnConnect);
-				VWebSocketFrame->SetMethodEx("bool set_on_before_disconnect(status_event@+)", &WebSocketFrameSetOnBeforeDisconnect);
-				VWebSocketFrame->SetMethodEx("bool set_on_disconnect(status_event@+)", &WebSocketFrameSetOnDisconnect);
-				VWebSocketFrame->SetMethodEx("bool set_on_receive(data_event@+)", &WebSocketFrameSetOnReceive);
-				VWebSocketFrame->SetMethodEx("promise<bool>@ send(const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend1, TypeId::BOOL));
-				VWebSocketFrame->SetMethodEx("promise<bool>@ send(uint32, const string&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend2, TypeId::BOOL));
+				VWebSocketFrame->SetFunctionDef("void status_async(websocket_frame@+)");
+				VWebSocketFrame->SetFunctionDef("void recv_async(websocket_frame@+, websocket_op, const string&in)");
+				VWebSocketFrame->SetMethodEx("bool set_on_connect(status_async@+)", &WebSocketFrameSetOnConnect);
+				VWebSocketFrame->SetMethodEx("bool set_on_before_disconnect(status_async@+)", &WebSocketFrameSetOnBeforeDisconnect);
+				VWebSocketFrame->SetMethodEx("bool set_on_disconnect(status_async@+)", &WebSocketFrameSetOnDisconnect);
+				VWebSocketFrame->SetMethodEx("bool set_on_receive(recv_async@+)", &WebSocketFrameSetOnReceive);
+				VWebSocketFrame->SetMethodEx("promise<bool>@ send(const string_view&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend1, TypeId::BOOL));
+				VWebSocketFrame->SetMethodEx("promise<bool>@ send(uint32, const string_view&in, websocket_op)", &VI_SPROMISIFY(WebSocketFrameSend2, TypeId::BOOL));
 				VWebSocketFrame->SetMethodEx("promise<bool>@ send_close()", &VI_SPROMISIFY(WebSocketFrameSendClose, TypeId::BOOL));
 				VWebSocketFrame->SetMethod("void next()", &Network::HTTP::WebSocketFrame::Next);
 				VWebSocketFrame->SetMethod("bool is_finished() const", &Network::HTTP::WebSocketFrame::IsFinished);
@@ -16469,46 +16253,46 @@ namespace Vitex
 				VMapRouter->SetProperty<Network::HTTP::MapRouter>("string temporary_directory", &Network::HTTP::MapRouter::TemporaryDirectory);
 				VMapRouter->SetProperty<Network::HTTP::MapRouter>("usize max_uploadable_resources", &Network::HTTP::MapRouter::MaxUploadableResources);
 				VMapRouter->SetGcConstructor<Network::HTTP::MapRouter, MapRouter>("map_router@ f()");
-				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
-				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const Core::String&, const Core::String&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
+				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
 				VMapRouter->SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
 				VMapRouter->SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
 				VMapRouter->SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
 				VMapRouter->SetMethodEx("dictionary@ get_certificates() const", &SocketRouterGetCertificates);
-				VMapRouter->SetFunctionDef("void net_event(connection@+)");
-				VMapRouter->SetFunctionDef("void auth_event(connection@+, credentials&in)");
-				VMapRouter->SetFunctionDef("void header_event(connection@+, string&out)");
-				VMapRouter->SetFunctionDef("void websocket_event(websocket_frame@+)");
-				VMapRouter->SetFunctionDef("void websocket_data_event(websocket_frame@+, websocket_op, const string&in)");
+				VMapRouter->SetFunctionDef("void route_async(connection@+)");
+				VMapRouter->SetFunctionDef("void authorize_sync(connection@+, credentials&in)");
+				VMapRouter->SetFunctionDef("void headers_sync(connection@+, string&out)");
+				VMapRouter->SetFunctionDef("void websocket_status_async(websocket_frame@+)");
+				VMapRouter->SetFunctionDef("void websocket_recv_async(websocket_frame@+, websocket_op, const string&in)");
 				VMapRouter->SetMethod("void sort()", &Network::HTTP::MapRouter::Sort);
-				VMapRouter->SetMethod("route_group@+ group(const string&in, route_mode)", &Network::HTTP::MapRouter::Group);
-				VMapRouter->SetMethod<Network::HTTP::MapRouter, Network::HTTP::RouterEntry*, const Core::String&, Network::HTTP::RouteMode, const Core::String&, bool>("route_entry@+ route(const string&in, route_mode, const string&in, bool)", &Network::HTTP::MapRouter::Route);
-				VMapRouter->SetMethod<Network::HTTP::MapRouter, Network::HTTP::RouterEntry*, const Core::String&, Network::HTTP::RouterGroup*, Network::HTTP::RouterEntry*>("route_entry@+ route(const string&in, route_group@+, route_entry@+)", &Network::HTTP::MapRouter::Route);
+				VMapRouter->SetMethod("route_group@+ group(const string_view&in, route_mode)", &Network::HTTP::MapRouter::Group);
+				VMapRouter->SetMethod<Network::HTTP::MapRouter, Network::HTTP::RouterEntry*, const std::string_view&, Network::HTTP::RouteMode, const std::string_view&, bool>("route_entry@+ route(const string_view&in, route_mode, const string_view&in, bool)", &Network::HTTP::MapRouter::Route);
+				VMapRouter->SetMethod<Network::HTTP::MapRouter, Network::HTTP::RouterEntry*, const std::string_view&, Network::HTTP::RouterGroup*, Network::HTTP::RouterEntry*>("route_entry@+ route(const string_view&in, route_group@+, route_entry@+)", &Network::HTTP::MapRouter::Route);
 				VMapRouter->SetMethod("bool remove(route_entry@+)", &Network::HTTP::MapRouter::Remove);
-				VMapRouter->SetMethodEx("bool get(const string&in, net_event@) const", &MapRouterGet1);
-				VMapRouter->SetMethodEx("bool get(const string&in, route_mode, const string&in, net_event@) const", &MapRouterGet2);
-				VMapRouter->SetMethodEx("bool post(const string&in, net_event@) const", &MapRouterPost1);
-				VMapRouter->SetMethodEx("bool post(const string&in, route_mode, const string&in, net_event@) const", &MapRouterPost2);
-				VMapRouter->SetMethodEx("bool patch(const string&in, net_event@) const", &MapRouterPatch1);
-				VMapRouter->SetMethodEx("bool patch(const string&in, route_mode, const string&in, net_event@) const", &MapRouterPatch2);
-				VMapRouter->SetMethodEx("bool delete(const string&in, net_event@) const", &MapRouterDelete1);
-				VMapRouter->SetMethodEx("bool delete(const string&in, route_mode, const string&in, net_event@) const", &MapRouterDelete2);
-				VMapRouter->SetMethodEx("bool options(const string&in, net_event@) const", &MapRouterOptions1);
-				VMapRouter->SetMethodEx("bool options(const string&in, route_mode, const string&in, net_event@) const", &MapRouterOptions2);
-				VMapRouter->SetMethodEx("bool access(const string&in, net_event@) const", &MapRouterAccess1);
-				VMapRouter->SetMethodEx("bool access(const string&in, route_mode, const string&in, net_event@) const", &MapRouterAccess2);
-				VMapRouter->SetMethodEx("bool headers(const string&in, header_event@) const", &MapRouterHeaders1);
-				VMapRouter->SetMethodEx("bool headers(const string&in, route_mode, const string&in, header_event@) const", &MapRouterHeaders2);
-				VMapRouter->SetMethodEx("bool authorize(const string&in, auth_event@) const", &MapRouterAuthorize1);
-				VMapRouter->SetMethodEx("bool authorize(const string&in, route_mode, const string&in, auth_event@) const", &MapRouterAuthorize2);
-				VMapRouter->SetMethodEx("bool websocket_initiate(const string&in, net_event@) const", &MapRouterWebsocketInitiate1);
-				VMapRouter->SetMethodEx("bool websocket_initiate(const string&in, route_mode, const string&in, net_event@) const", &MapRouterWebsocketInitiate2);
-				VMapRouter->SetMethodEx("bool websocket_connect(const string&in, websocket_event@) const", &MapRouterWebsocketConnect1);
-				VMapRouter->SetMethodEx("bool websocket_connect(const string&in, route_mode, const string&in, websocket_event@) const", &MapRouterWebsocketConnect2);
-				VMapRouter->SetMethodEx("bool websocket_disconnect(const string&in, websocket_event@) const", &MapRouterWebsocketDisconnect1);
-				VMapRouter->SetMethodEx("bool websocket_disconnect(const string&in, route_mode, const string&in, websocket_event@) const", &MapRouterWebsocketDisconnect2);
-				VMapRouter->SetMethodEx("bool websocket_receive(const string&in, websocket_data_event@) const", &MapRouterWebsocketReceive1);
-				VMapRouter->SetMethodEx("bool websocket_receive(const string&in, route_mode, const string&in, websocket_data_event@) const", &MapRouterWebsocketReceive2);
+				VMapRouter->SetMethodEx("bool get(const string_view&in, route_async@) const", &MapRouterGet1);
+				VMapRouter->SetMethodEx("bool get(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterGet2);
+				VMapRouter->SetMethodEx("bool post(const string_view&in, route_async@) const", &MapRouterPost1);
+				VMapRouter->SetMethodEx("bool post(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterPost2);
+				VMapRouter->SetMethodEx("bool patch(const string_view&in, route_async@) const", &MapRouterPatch1);
+				VMapRouter->SetMethodEx("bool patch(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterPatch2);
+				VMapRouter->SetMethodEx("bool delete(const string_view&in, route_async@) const", &MapRouterDelete1);
+				VMapRouter->SetMethodEx("bool delete(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterDelete2);
+				VMapRouter->SetMethodEx("bool options(const string_view&in, route_async@) const", &MapRouterOptions1);
+				VMapRouter->SetMethodEx("bool options(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterOptions2);
+				VMapRouter->SetMethodEx("bool access(const string_view&in, route_async@) const", &MapRouterAccess1);
+				VMapRouter->SetMethodEx("bool access(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterAccess2);
+				VMapRouter->SetMethodEx("bool headers(const string_view&in, headers_sync@) const", &MapRouterHeaders1);
+				VMapRouter->SetMethodEx("bool headers(const string_view&in, route_mode, const string_view&in, headers_sync@) const", &MapRouterHeaders2);
+				VMapRouter->SetMethodEx("bool authorize(const string_view&in, authorize_sync@) const", &MapRouterAuthorize1);
+				VMapRouter->SetMethodEx("bool authorize(const string_view&in, route_mode, const string_view&in, authorize_sync@) const", &MapRouterAuthorize2);
+				VMapRouter->SetMethodEx("bool websocket_initiate(const string_view&in, route_async@) const", &MapRouterWebsocketInitiate1);
+				VMapRouter->SetMethodEx("bool websocket_initiate(const string_view&in, route_mode, const string_view&in, route_async@) const", &MapRouterWebsocketInitiate2);
+				VMapRouter->SetMethodEx("bool websocket_connect(const string_view&in, websocket_status_async@) const", &MapRouterWebsocketConnect1);
+				VMapRouter->SetMethodEx("bool websocket_connect(const string_view&in, route_mode, const string_view&in, websocket_status_async@) const", &MapRouterWebsocketConnect2);
+				VMapRouter->SetMethodEx("bool websocket_disconnect(const string_view&in, websocket_status_async@) const", &MapRouterWebsocketDisconnect1);
+				VMapRouter->SetMethodEx("bool websocket_disconnect(const string_view&in, route_mode, const string_view&in, websocket_status_async@) const", &MapRouterWebsocketDisconnect2);
+				VMapRouter->SetMethodEx("bool websocket_receive(const string_view&in, websocket_recv_async@) const", &MapRouterWebsocketReceive1);
+				VMapRouter->SetMethodEx("bool websocket_receive(const string_view&in, route_mode, const string_view&in, websocket_recv_async@) const", &MapRouterWebsocketReceive2);
 				VMapRouter->SetMethodEx("route_entry@+ get_base() const", &MapRouterGetBase);
 				VMapRouter->SetMethodEx("route_group@+ get_group(usize) const", &MapRouterGetGroup);
 				VMapRouter->SetMethodEx("usize get_groups_size() const", &MapRouterGetGroupsSize);
@@ -16538,10 +16322,10 @@ namespace Vitex
 				VConnection->SetMethod<Network::HTTP::Connection, bool>("bool next()", &Network::HTTP::Connection::Next);
 				VConnection->SetMethod<Network::HTTP::Connection, bool, int>("bool next(int32)", &Network::HTTP::Connection::Next);
 				VConnection->SetMethod<Network::SocketConnection, bool>("bool abort()", &Network::SocketConnection::Abort);
-				VConnection->SetMethodEx("bool abort(int32, const string &in)", &SocketConnectionAbort);
+				VConnection->SetMethodEx("bool abort(int32, const string_view&in)", &SocketConnectionAbort);
 				VConnection->SetMethod("void reset(bool)", &Network::HTTP::Connection::Reset);
 				VConnection->SetMethodEx("promise<bool>@ send_headers(int32, bool = true) const", &VI_SPROMISIFY(ConnectionSendHeaders, TypeId::BOOL));
-				VConnection->SetMethodEx("promise<bool>@ send_chunk(const string&in) const", &VI_SPROMISIFY(ConnectionSendChunk, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ send_chunk(const string_view&in) const", &VI_SPROMISIFY(ConnectionSendChunk, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(ConnectionStore, ArrayResourceInfo));
 				VConnection->SetMethodEx("promise<string>@ fetch(bool = false) const", &VI_SPROMISIFY_REF(ConnectionFetch, String));
 				VConnection->SetMethodEx("promise<bool>@ skip() const", &VI_SPROMISIFY(ConnectionSkip, TypeId::BOOL));
@@ -16552,8 +16336,8 @@ namespace Vitex
 				auto VQuery = VM->SetClass<Network::HTTP::Query>("query", false);
 				VQuery->SetConstructor<Network::HTTP::Query>("query@ f()");
 				VQuery->SetMethod("void clear()", &Network::HTTP::Query::Clear);
-				VQuery->SetMethodEx("void decode(const string&in, const string&in)", &QueryDecode);
-				VQuery->SetMethodEx("string encode(const string&in)", &QueryEncode);
+				VQuery->SetMethodEx("void decode(const string_view&in, const string_view&in)", &QueryDecode);
+				VQuery->SetMethodEx("string encode(const string_view&in)", &QueryEncode);
 				VQuery->SetMethodEx("void set_data(schema@+)", &QuerySetData);
 				VQuery->SetMethodEx("schema@+ get_data()", &QueryGetData);
 
@@ -16564,7 +16348,7 @@ namespace Vitex
 				VSession->SetMethod("void clear()", &Network::HTTP::Session::Clear);
 				VSession->SetMethodEx("bool write(connection@+)", &VI_EXPECTIFY_VOID(Network::HTTP::Session::Write));
 				VSession->SetMethodEx("bool read(connection@+)", &VI_EXPECTIFY_VOID(Network::HTTP::Session::Read));
-				VSession->SetMethodStatic("bool invalidate_cache(const string&in)", &VI_SEXPECTIFY_VOID(Network::HTTP::Session::InvalidateCache));
+				VSession->SetMethodStatic("bool invalidate_cache(const string_view&in)", &VI_SEXPECTIFY_VOID(Network::HTTP::Session::InvalidateCache));
 				VSession->SetMethodEx("void set_data(schema@+)", &SessionSetData);
 				VSession->SetMethodEx("schema@+ get_data()", &SessionGetData);
 
@@ -16619,7 +16403,7 @@ namespace Vitex
 				VHrmCache->SetMethod("void shrink()", &Network::HTTP::HrmCache::Shrink);
 				VHrmCache->SetMethodStatic("hrm_cache@+ get()", &Network::HTTP::HrmCache::Get);
 
-				VM->SetFunction("promise<response_frame>@ fetch(const string&in, const string&in = \"GET\", const fetch_frame&in = fetch_frame())", &VI_SPROMISIFY_REF(HTTPFetch, ResponseFrame));
+				VM->SetFunction("promise<response_frame>@ fetch(const string_view&in, const string_view&in = \"GET\", const fetch_frame&in = fetch_frame())", &VI_SPROMISIFY_REF(HTTPFetch, ResponseFrame));
 				VM->EndNamespace();
 
 				return true;
@@ -16663,8 +16447,8 @@ namespace Vitex
 				VRequestFrame->SetProperty<Network::SMTP::RequestFrame>("bool no_notification", &Network::SMTP::RequestFrame::NoNotification);
 				VRequestFrame->SetProperty<Network::SMTP::RequestFrame>("bool allow_html", &Network::SMTP::RequestFrame::AllowHTML);
 				VRequestFrame->SetConstructor<Network::SMTP::RequestFrame>("void f()");
-				VRequestFrame->SetMethodEx("void set_header(const string&in, const string&in)", &SMTPRequestSetHeader);
-				VRequestFrame->SetMethodEx("string get_header(const string&in)", &SMTPRequestGetHeader);
+				VRequestFrame->SetMethodEx("void set_header(const string_view&in, const string_view&in)", &SMTPRequestSetHeader);
+				VRequestFrame->SetMethodEx("string get_header(const string_view&in)", &SMTPRequestGetHeader);
 				VRequestFrame->SetMethodEx("void set_recipients(array<recipient>@+)", &SMTPRequestSetRecipients);
 				VRequestFrame->SetMethodEx("array<string>@ get_recipients() const", &SMTPRequestGetRecipients);
 				VRequestFrame->SetMethodEx("void set_cc_recipients(array<recipient>@+)", &SMTPRequestSetCCRecipients);
@@ -16678,7 +16462,7 @@ namespace Vitex
 				VRequestFrame->SetMethodEx("string get_remote_address() const", &SMTPRequestGetRemoteAddress);
 
 				auto VClient = VM->SetClass<Network::SMTP::Client>("client", false);
-				VClient->SetConstructor<Network::SMTP::Client, const Core::String&, int64_t>("client@ f(const string&in, int64)");
+				VClient->SetConstructor<Network::SMTP::Client, const std::string_view&, int64_t>("client@ f(const string_view&in, int64)");
 				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
@@ -16746,10 +16530,12 @@ namespace Vitex
 				VRow->SetMethod("usize index() const", &Network::LDB::Row::Index);
 				VRow->SetMethod("usize size() const", &Network::LDB::Row::Size);
 				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, size_t>("column get_column(usize) const", &Network::LDB::Row::GetColumn);
-				VRow->SetMethod("column get_column(const string&in) const", &Network::LDB::Row::GetColumnByName);
+				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, const std::string_view&>("column get_column(const string_view&in) const", &Network::LDB::Row::GetColumn);
 				VRow->SetMethod("bool exists() const", &Network::LDB::Row::Exists);
 				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, size_t>("column opIndex(usize)", &Network::LDB::Row::GetColumn);
 				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, size_t>("column opIndex(usize) const", &Network::LDB::Row::GetColumn);
+				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, const std::string_view&>("column opIndex(const string_view&in)", &Network::LDB::Row::GetColumn);
+				VRow->SetMethod<Network::LDB::Row, Network::LDB::Column, const std::string_view&>("column opIndex(const string_view&in) const", &Network::LDB::Row::GetColumn);
 
 				VResponse->SetConstructor<Network::LDB::Response>("void f()");
 				VResponse->SetOperatorCopyStatic(&LDBResponseCopy);
@@ -16779,8 +16565,8 @@ namespace Vitex
 				VCursor->SetConstructor<Network::LDB::Cursor>("void f()");
 				VCursor->SetOperatorCopyStatic(&LDBCursorCopy);
 				VCursor->SetDestructor<Network::LDB::Cursor>("void f()");
-				VCursor->SetMethod("column opIndex(const string&in)", &Network::LDB::Cursor::GetColumn);
-				VCursor->SetMethod("column opIndex(const string&in) const", &Network::LDB::Cursor::GetColumn);
+				VCursor->SetMethod("column opIndex(const string_view&in)", &Network::LDB::Cursor::GetColumn);
+				VCursor->SetMethod("column opIndex(const string_view&in) const", &Network::LDB::Cursor::GetColumn);
 				VCursor->SetMethod("bool success() const", &Network::LDB::Cursor::Success);
 				VCursor->SetMethod("bool empty() const", &Network::LDB::Cursor::Empty);
 				VCursor->SetMethod("bool error() const", &Network::LDB::Cursor::Error);
@@ -16799,18 +16585,18 @@ namespace Vitex
 
 				auto VCluster = VM->SetClass<Network::LDB::Cluster>("cluster", false);
 				VCluster->SetConstructor<Network::LDB::Cluster>("cluster@ f()");
-				VCluster->SetFunctionDef("variant constant_event(array<variant>@+)");
-				VCluster->SetFunctionDef("variant finalize_event()");
-				VCluster->SetFunctionDef("variant value_event()");
-				VCluster->SetFunctionDef("void step_event(array<variant>@+)");
-				VCluster->SetFunctionDef("void inverse_event(array<variant>@+)");
+				VCluster->SetFunctionDef("variant constant_sync(array<variant>@+)");
+				VCluster->SetFunctionDef("variant finalize_sync()");
+				VCluster->SetFunctionDef("variant value_sync()");
+				VCluster->SetFunctionDef("void step_sync(array<variant>@+)");
+				VCluster->SetFunctionDef("void inverse_sync(array<variant>@+)");
 				VCluster->SetMethod("void set_wal_autocheckpoint(uint32)", &Network::LDB::Cluster::SetWalAutocheckpoint);
 				VCluster->SetMethod("void set_soft_heap_limit(uint64)", &Network::LDB::Cluster::SetSoftHeapLimit);
 				VCluster->SetMethod("void set_hard_heap_limit(uint64)", &Network::LDB::Cluster::SetHardHeapLimit);
 				VCluster->SetMethod("void set_shared_cache(bool)", &Network::LDB::Cluster::SetSharedCache);
 				VCluster->SetMethod("void set_extensions(bool)", &Network::LDB::Cluster::SetExtensions);
-				VCluster->SetMethod("void overload_function(const string&in, uint8)", &Network::LDB::Cluster::OverloadFunction);
-				VCluster->SetMethodEx("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string&in = \"\")", &LDBClusterWalCheckpoint);
+				VCluster->SetMethod("void overload_function(const string_view&in, uint8)", &Network::LDB::Cluster::OverloadFunction);
+				VCluster->SetMethodEx("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string_view&in = \"\")", &LDBClusterWalCheckpoint);
 				VCluster->SetMethod("usize free_memory_used(usize)", &Network::LDB::Cluster::FreeMemoryUsed);
 				VCluster->SetMethod("usize get_memory_used()", &Network::LDB::Cluster::GetMemoryUsed);
 				VCluster->SetMethod("uptr@ get_idle_connection()", &Network::LDB::Cluster::GetIdleConnection);
@@ -16818,44 +16604,44 @@ namespace Vitex
 				VCluster->SetMethod("uptr@ get_any_connection()", &Network::LDB::Cluster::GetAnyConnection);
 				VCluster->SetMethod("const string& get_address() const", &Network::LDB::Cluster::GetAddress);
 				VCluster->SetMethod("bool is_connected() const", &Network::LDB::Cluster::IsConnected);
-				VCluster->SetMethodEx("void set_function(const string&in, uint8, constant_event@)", &LDBClusterSetFunction);
-				VCluster->SetMethodEx("void set_aggregate_function(const string&in, uint8, step_event@, finalize_event@)", &LDBClusterSetAggregateFunction);
-				VCluster->SetMethodEx("void set_window_function(const string&in, uint8, step_event@, inverse_event@, value_event@, finalize_event@)", &LDBClusterSetWindowFunction);
+				VCluster->SetMethodEx("void set_function(const string_view&in, uint8, constant_sync@)", &LDBClusterSetFunction);
+				VCluster->SetMethodEx("void set_aggregate_function(const string_view&in, uint8, step_sync@, finalize_sync@)", &LDBClusterSetAggregateFunction);
+				VCluster->SetMethodEx("void set_window_function(const string_view&in, uint8, step_sync@, inverse_sync@, value_sync@, finalize_sync@)", &LDBClusterSetWindowFunction);
 				VCluster->SetMethodEx("promise<uptr@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(LDBClusterTxBegin, Connection));
-				VCluster->SetMethodEx("promise<uptr@>@ tx_start(const string&in)", &VI_SPROMISIFY_REF(LDBClusterTxStart, Connection));
-				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, uptr@)", &VI_SPROMISIFY(LDBClusterTxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<uptr@>@ tx_start(const string_view&in)", &VI_SPROMISIFY_REF(LDBClusterTxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@ tx_end(const string_view&in, uptr@)", &VI_SPROMISIFY(LDBClusterTxEnd, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ tx_commit(uptr@)", &VI_SPROMISIFY(LDBClusterTxCommit, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ tx_rollback(uptr@)", &VI_SPROMISIFY(LDBClusterTxRollback, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<bool>@ connect(const string&in, usize = 1)", &VI_SPROMISIFY(LDBClusterConnect, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<bool>@ connect(const string_view&in, usize = 1)", &VI_SPROMISIFY(LDBClusterConnect, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(LDBClusterDisconnect, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ flush()", &VI_SPROMISIFY(LDBClusterFlush, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterQuery, Cursor));
-				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterEmplaceQuery, Cursor));
-				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterTemplateQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ query(const string_view&in, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string_view&in, array<schema@>@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterEmplaceQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ template_query(const string_view&in, dictionary@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(LDBClusterTemplateQuery, Cursor));
 
 				auto VDriver = VM->SetClass<Network::LDB::Driver>("driver", false);
-				VDriver->SetFunctionDef("void query_event(const string&in)");
+				VDriver->SetFunctionDef("void query_log_async(const string&in)");
 				VDriver->SetConstructor<Network::LDB::Driver>("driver@ f()");
-				VDriver->SetMethod("void log_query(const string&in)", &Network::LDB::Driver::LogQuery);
-				VDriver->SetMethod("void add_constant(const string&in, const string&in)", &Network::LDB::Driver::AddConstant);
-				VDriver->SetMethodEx("bool add_query(const string&in, const string&in)", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddQuery));
-				VDriver->SetMethodEx("bool add_directory(const string&in, const string&in = \"\")", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddDirectory));
-				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::LDB::Driver::RemoveConstant);
-				VDriver->SetMethod("bool remove_query(const string&in)", &Network::LDB::Driver::RemoveQuery);
+				VDriver->SetMethod("void log_query(const string_view&in)", &Network::LDB::Driver::LogQuery);
+				VDriver->SetMethod("void add_constant(const string_view&in, const string_view&in)", &Network::LDB::Driver::AddConstant);
+				VDriver->SetMethodEx("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddQuery));
+				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddDirectory));
+				VDriver->SetMethod("bool remove_constant(const string_view&in)", &Network::LDB::Driver::RemoveConstant);
+				VDriver->SetMethod("bool remove_query(const string_view&in)", &Network::LDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::LDB::Driver::LoadCacheDump);
 				VDriver->SetMethod("schema@ get_cache_dump()", &Network::LDB::Driver::GetCacheDump);
-				VDriver->SetMethodEx("void set_query_log(query_event@)", &LDBDriverSetQueryLog);
-				VDriver->SetMethodEx("string emplace(const string&in, array<schema@>@+)", &LDBDriverEmplace);
-				VDriver->SetMethodEx("string get_query(const string&in, dictionary@+)", &LDBDriverGetQuery);
+				VDriver->SetMethodEx("void set_query_log(query_log_async@)", &LDBDriverSetQueryLog);
+				VDriver->SetMethodEx("string emplace(const string_view&in, array<schema@>@+)", &LDBDriverEmplace);
+				VDriver->SetMethodEx("string get_query(const string_view&in, dictionary@+)", &LDBDriverGetQuery);
 				VDriver->SetMethodEx("array<string>@ get_queries()", &LDBDriverGetQueries);
 				VDriver->SetMethodStatic("driver@+ get()", &Network::LDB::Driver::Get);
 
 				VM->EndNamespace();
 				VM->BeginNamespace("ldb::utils");
 				VM->SetFunction("string inline_array(schema@+)", &VI_SEXPECTIFY(Network::LDB::Utils::InlineArray));
-				VM->SetFunction("string inline_query(schema@+, dictionary@+, const string&in = \"TRUE\")", &LDBUtilsInlineQuery);
-				VM->SetFunction("string get_char_array(const string&in)", &Network::LDB::Utils::GetCharArray);
-				VM->SetFunction<Core::String(*)(const Core::String&)>("string get_byte_array(const string&in)", &Network::LDB::Utils::GetByteArray);
+				VM->SetFunction("string inline_query(schema@+, dictionary@+, const string_view&in = \"TRUE\")", &LDBUtilsInlineQuery);
+				VM->SetFunction("string get_char_array(const string_view&in)", &Network::LDB::Utils::GetCharArray);
+				VM->SetFunction<Core::String(*)(const std::string_view&)>("string get_byte_array(const string_view&in)", &Network::LDB::Utils::GetByteArray);
 				VM->SetFunction("string get_sql(schema@+, bool, bool)", &Network::LDB::Utils::GetSQL);
 				VM->EndNamespace();
 
@@ -17015,11 +16801,11 @@ namespace Vitex
 
 				auto VAddress = VM->SetStructTrivial<Network::PDB::Address>("host_address");
 				VAddress->SetConstructor<Network::PDB::Address>("void f()");
-				VAddress->SetMethod("void override(const string&in, const string&in)", &Network::PDB::Address::Override);
-				VAddress->SetMethod("bool set(address_op, const string&in)", &Network::PDB::Address::Set);
+				VAddress->SetMethod("void override(const string_view&in, const string_view&in)", &Network::PDB::Address::Override);
+				VAddress->SetMethod("bool set(address_op, const string_view&in)", &Network::PDB::Address::Set);
 				VAddress->SetMethod<Network::PDB::Address, Core::String, Network::PDB::AddressOp>("string get(address_op) const", &Network::PDB::Address::Get);
 				VAddress->SetMethod("string get_address() const", &Network::PDB::Address::GetAddress);
-				VAddress->SetMethodStatic("host_address from_url(const string&in)", &VI_SEXPECTIFY(Network::PDB::Address::FromURL));
+				VAddress->SetMethodStatic("host_address from_url(const string_view&in)", &VI_SEXPECTIFY(Network::PDB::Address::FromURL));
 
 				auto VNotify = VM->SetStructTrivial<Network::PDB::Notify>("notify");
 				VNotify->SetConstructor<Network::PDB::Notify, const Network::PDB::Notify&>("void f(const notify&in)");
@@ -17052,10 +16838,12 @@ namespace Vitex
 				VRow->SetMethod("usize index() const", &Network::PDB::Row::Index);
 				VRow->SetMethod("usize size() const", &Network::PDB::Row::Size);
 				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column get_column(usize) const", &Network::PDB::Row::GetColumn);
-				VRow->SetMethod("column get_column(const string&in) const", &Network::PDB::Row::GetColumnByName);
+				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, const std::string_view&>("column get_column(const string_view&in) const", &Network::PDB::Row::GetColumn);
 				VRow->SetMethod("bool exists() const", &Network::PDB::Row::Exists);
 				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column opIndex(usize)", &Network::PDB::Row::GetColumn);
 				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, size_t>("column opIndex(usize) const", &Network::PDB::Row::GetColumn);
+				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, const std::string_view&>("column opIndex(const string_view&in)", &Network::PDB::Row::GetColumn);
+				VRow->SetMethod<Network::PDB::Row, Network::PDB::Column, const std::string_view&>("column opIndex(const string_view&in) const", &Network::PDB::Row::GetColumn);
 				
 				VResponse->SetConstructor<Network::PDB::Response>("void f()");
 				VResponse->SetOperatorCopyStatic(&PDBResponseCopy);
@@ -17071,7 +16859,7 @@ namespace Vitex
 				VResponse->SetMethod("string get_status_text() const", &Network::PDB::Response::GetStatusText);
 				VResponse->SetMethod("string get_error_text() const", &Network::PDB::Response::GetErrorText);
 				VResponse->SetMethod("string get_error_field(field_code) const", &Network::PDB::Response::GetErrorField);
-				VResponse->SetMethod("int32 get_name_index(const string&in) const", &Network::PDB::Response::GetNameIndex);
+				VResponse->SetMethod("int32 get_name_index(const string_view&in) const", &Network::PDB::Response::GetNameIndex);
 				VResponse->SetMethod("query_exec get_status() const", &Network::PDB::Response::GetStatus);
 				VResponse->SetMethod("uint64 get_value_id() const", &Network::PDB::Response::GetValueId);
 				VResponse->SetMethod("usize affected_rows() const", &Network::PDB::Response::AffectedRows);
@@ -17091,8 +16879,8 @@ namespace Vitex
 				VCursor->SetConstructor<Network::PDB::Cursor>("void f()");
 				VCursor->SetOperatorCopyStatic(&PDBCursorCopy);
 				VCursor->SetDestructor<Network::PDB::Cursor>("void f()");
-				VCursor->SetMethod("column opIndex(const string&in)", &Network::PDB::Cursor::GetColumn);
-				VCursor->SetMethod("column opIndex(const string&in) const", &Network::PDB::Cursor::GetColumn);
+				VCursor->SetMethod("column opIndex(const string_view&in)", &Network::PDB::Cursor::GetColumn);
+				VCursor->SetMethod("column opIndex(const string_view&in) const", &Network::PDB::Cursor::GetColumn);
 				VCursor->SetMethod("bool success() const", &Network::PDB::Cursor::Success);
 				VCursor->SetMethod("bool empty() const", &Network::PDB::Cursor::Empty);
 				VCursor->SetMethod("bool error() const", &Network::PDB::Cursor::Error);
@@ -17125,54 +16913,54 @@ namespace Vitex
 				VRequest->SetMethod("bool pending() const", &Network::PDB::Request::Pending);
 
 				auto VCluster = VM->SetClass<Network::PDB::Cluster>("cluster", false);
-				VCluster->SetFunctionDef("promise<bool>@ reconnect_event(cluster@+, array<string>@+)");
-				VCluster->SetFunctionDef("void notification_event(cluster@+, const notify&in)");
+				VCluster->SetFunctionDef("promise<bool>@ reconnect_async(cluster@+, array<string>@+)");
+				VCluster->SetFunctionDef("void notification_async(cluster@+, const notify&in)");
 				VCluster->SetConstructor<Network::PDB::Cluster>("cluster@ f()");
 				VCluster->SetMethod("void clear_cache()", &Network::PDB::Cluster::ClearCache);
 				VCluster->SetMethod("void set_cache_cleanup(uint64)", &Network::PDB::Cluster::SetCacheCleanup);
 				VCluster->SetMethod("void set_cache_duration(query_op, uint64)", &Network::PDB::Cluster::SetCacheDuration);
-				VCluster->SetMethod("bool remove_channel(const string&in, uint64)", &Network::PDB::Cluster::RemoveChannel);
+				VCluster->SetMethod("bool remove_channel(const string_view&in, uint64)", &Network::PDB::Cluster::RemoveChannel);
 				VCluster->SetMethod("connection@+ get_connection(query_state)", &Network::PDB::Cluster::GetConnection);
 				VCluster->SetMethod("connection@+ get_any_connection()", &Network::PDB::Cluster::GetAnyConnection);
 				VCluster->SetMethod("bool is_connected() const", &Network::PDB::Cluster::IsConnected);
 				VCluster->SetMethodEx("promise<connection@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(PDBClusterTxBegin, Connection));
-				VCluster->SetMethodEx("promise<connection@>@ tx_start(const string&in)", &VI_SPROMISIFY_REF(PDBClusterTxStart, Connection));
-				VCluster->SetMethodEx("promise<bool>@ tx_end(const string&in, connection@+)", &VI_SPROMISIFY(PDBClusterTxEnd, TypeId::BOOL));
+				VCluster->SetMethodEx("promise<connection@>@ tx_start(const string_view&in)", &VI_SPROMISIFY_REF(PDBClusterTxStart, Connection));
+				VCluster->SetMethodEx("promise<bool>@ tx_end(const string_view&in, connection@+)", &VI_SPROMISIFY(PDBClusterTxEnd, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ tx_commit(connection@+)", &VI_SPROMISIFY(PDBClusterTxCommit, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ tx_rollback(connection@+)", &VI_SPROMISIFY(PDBClusterTxRollback, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_SPROMISIFY(PDBClusterConnect, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(PDBClusterDisconnect, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@ query(const string&in, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterQuery, Cursor));
-				VCluster->SetMethodEx("void set_when_reconnected(reconnect_event@)", &PDBClusterSetWhenReconnected);
-				VCluster->SetMethodEx("uint64 add_channel(const string&in, notification_event@)", &PDBClusterAddChannel);
+				VCluster->SetMethodEx("promise<cursor>@ query(const string_view&in, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterQuery, Cursor));
+				VCluster->SetMethodEx("void set_when_reconnected(reconnect_async@)", &PDBClusterSetWhenReconnected);
+				VCluster->SetMethodEx("uint64 add_channel(const string_view&in, notification_async@)", &PDBClusterAddChannel);
 				VCluster->SetMethodEx("promise<bool>@ listen(array<string>@+)", &VI_SPROMISIFY(PDBClusterListen, TypeId::BOOL));
 				VCluster->SetMethodEx("promise<bool>@ unlisten(array<string>@+)", &VI_SPROMISIFY(PDBClusterUnlisten, TypeId::BOOL));
-				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterEmplaceQuery, Cursor));
-				VCluster->SetMethodEx("promise<cursor>@ template_query(const string&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterTemplateQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ emplace_query(const string_view&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterEmplaceQuery, Cursor));
+				VCluster->SetMethodEx("promise<cursor>@ template_query(const string_view&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(PDBClusterTemplateQuery, Cursor));
 
 				auto VDriver = VM->SetClass<Network::PDB::Driver>("driver", false);
-				VDriver->SetFunctionDef("void query_event(const string&in)");
+				VDriver->SetFunctionDef("void query_log_async(const string_view&in)");
 				VDriver->SetConstructor<Network::PDB::Driver>("driver@ f()");
-				VDriver->SetMethod("void log_query(const string&in)", &Network::PDB::Driver::LogQuery);
-				VDriver->SetMethod("void add_constant(const string&in, const string&in)", &Network::PDB::Driver::AddConstant);
-				VDriver->SetMethodEx("bool add_query(const string&in, const string&in)", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddQuery));
-				VDriver->SetMethodEx("bool add_directory(const string&in, const string&in = \"\")", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddDirectory));
-				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::PDB::Driver::RemoveConstant);
-				VDriver->SetMethod("bool remove_query(const string&in)", &Network::PDB::Driver::RemoveQuery);
+				VDriver->SetMethod("void log_query(const string_view&in)", &Network::PDB::Driver::LogQuery);
+				VDriver->SetMethod("void add_constant(const string_view&in, const string_view&in)", &Network::PDB::Driver::AddConstant);
+				VDriver->SetMethodEx("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddQuery));
+				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddDirectory));
+				VDriver->SetMethod("bool remove_constant(const string_view&in)", &Network::PDB::Driver::RemoveConstant);
+				VDriver->SetMethod("bool remove_query(const string_view&in)", &Network::PDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::PDB::Driver::LoadCacheDump);
 				VDriver->SetMethod("schema@ get_cache_dump()", &Network::PDB::Driver::GetCacheDump);
-				VDriver->SetMethodEx("void set_query_log(query_event@)", &PDBDriverSetQueryLog);
-				VDriver->SetMethodEx("string emplace(cluster@+, const string&in, array<schema@>@+)", &PDBDriverEmplace);
-				VDriver->SetMethodEx("string get_query(cluster@+, const string&in, dictionary@+)", &PDBDriverGetQuery);
+				VDriver->SetMethodEx("void set_query_log(query_log_async@)", &PDBDriverSetQueryLog);
+				VDriver->SetMethodEx("string emplace(cluster@+, const string_view&in, array<schema@>@+)", &PDBDriverEmplace);
+				VDriver->SetMethodEx("string get_query(cluster@+, const string_view&in, dictionary@+)", &PDBDriverGetQuery);
 				VDriver->SetMethodEx("array<string>@ get_queries()", &PDBDriverGetQueries);
 				VDriver->SetMethodStatic("driver@+ get()", &Network::PDB::Driver::Get);
 
 				VM->EndNamespace();
 				VM->BeginNamespace("pdb::utils");
 				VM->SetFunction("string inline_array(pdb::cluster@+, schema@+)", &VI_SEXPECTIFY(Network::PDB::Utils::InlineArray));
-				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, dictionary@+, const string&in = \"TRUE\")", &PDBUtilsInlineQuery);
-				VM->SetFunction("string get_char_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetCharArray);
-				VM->SetFunction<Core::String(*)(Network::PDB::Connection*, const Core::String&)>("string get_byte_array(pdb::connection@+, const string&in)", &Network::PDB::Utils::GetByteArray);
+				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, dictionary@+, const string_view&in = \"TRUE\")", &PDBUtilsInlineQuery);
+				VM->SetFunction("string get_char_array(pdb::connection@+, const string_view&in)", &Network::PDB::Utils::GetCharArray);
+				VM->SetFunction<Core::String(*)(Network::PDB::Connection*, const std::string_view&)>("string get_byte_array(pdb::connection@+, const string_view&in)", &Network::PDB::Utils::GetByteArray);
 				VM->SetFunction("string get_sql(pdb::connection@+, schema@+, bool, bool)", &Network::PDB::Utils::GetSQL);
 				VM->EndNamespace();
 
@@ -17239,7 +17027,7 @@ namespace Vitex
 				VProperty->SetDestructor<Network::MDB::Property>("void f()");
 				VProperty->SetMethod("string& to_string()", &Network::MDB::Property::ToString);
 				VProperty->SetMethod("document as_document() const", &Network::MDB::Property::AsDocument);
-				VProperty->SetMethod("doc_property opIndex(const string&in) const", &Network::MDB::Property::At);
+				VProperty->SetMethod("doc_property opIndex(const string_view&in) const", &Network::MDB::Property::At);
 
 				VDocument->SetConstructor<Network::MDB::Document>("void f()");
 				VDocument->SetConstructorListEx<Network::MDB::Document>("void f(int &in) { repeat { string, ? } }", &MDBDocumentConstruct);
@@ -17248,21 +17036,21 @@ namespace Vitex
 				VDocument->SetMethod("bool is_valid() const", &Network::MDB::Document::operator bool);
 				VDocument->SetMethod("void cleanup()", &Network::MDB::Document::Cleanup);
 				VDocument->SetMethod("void join(const document&in)", &Network::MDB::Document::Join);
-				VDocument->SetMethod("bool set_schema(const string&in, const document&in, usize = 0)", &Network::MDB::Document::SetSchemaAt);
-				VDocument->SetMethod("bool set_array(const string&in, const document&in, usize = 0)", &Network::MDB::Document::SetArrayAt);
-				VDocument->SetMethod("bool set_string(const string&in, const string&in, usize = 0)", &Network::MDB::Document::SetStringAt);
-				VDocument->SetMethod("bool set_integer(const string&in, int64, usize = 0)", &Network::MDB::Document::SetIntegerAt);
-				VDocument->SetMethod("bool set_number(const string&in, double, usize = 0)", &Network::MDB::Document::SetNumberAt);
-				VDocument->SetMethod("bool set_decimal(const string&in, uint64, uint64, usize = 0)", &Network::MDB::Document::SetDecimalAt);
-				VDocument->SetMethod("bool set_decimal_string(const string&in, const string&in, usize = 0)", &Network::MDB::Document::SetDecimalStringAt);
-				VDocument->SetMethod("bool set_decimal_integer(const string&in, int64, usize = 0)", &Network::MDB::Document::SetDecimalIntegerAt);
-				VDocument->SetMethod("bool set_decimal_number(const string&in, double, usize = 0)", &Network::MDB::Document::SetDecimalNumberAt);
-				VDocument->SetMethod("bool set_boolean(const string&in, bool, usize = 0)", &Network::MDB::Document::SetBooleanAt);
-				VDocument->SetMethod("bool set_object_id(const string&in, const string&in, usize = 0)", &Network::MDB::Document::SetObjectIdAt);
-				VDocument->SetMethod("bool set_null(const string&in, usize = 0)", &Network::MDB::Document::SetNullAt);
-				VDocument->SetMethod("bool set_property(const string&in, doc_property&in, usize = 0)", &Network::MDB::Document::SetPropertyAt);
-				VDocument->SetMethod("bool has_property(const string&in) const", &Network::MDB::Document::HasPropertyAt);
-				VDocument->SetMethod("bool get_property(const string&in, doc_property&out) const", &Network::MDB::Document::GetPropertyAt);
+				VDocument->SetMethod("bool set_schema(const string_view&in, const document&in, usize = 0)", &Network::MDB::Document::SetSchema);
+				VDocument->SetMethod("bool set_array(const string_view&in, const document&in, usize = 0)", &Network::MDB::Document::SetArray);
+				VDocument->SetMethod("bool set_string(const string_view&in, const string_view&in, usize = 0)", &Network::MDB::Document::SetString);
+				VDocument->SetMethod("bool set_integer(const string_view&in, int64, usize = 0)", &Network::MDB::Document::SetInteger);
+				VDocument->SetMethod("bool set_number(const string_view&in, double, usize = 0)", &Network::MDB::Document::SetNumber);
+				VDocument->SetMethod("bool set_decimal(const string_view&in, uint64, uint64, usize = 0)", &Network::MDB::Document::SetDecimal);
+				VDocument->SetMethod("bool set_decimal_string(const string_view&in, const string_view&in, usize = 0)", &Network::MDB::Document::SetDecimalString);
+				VDocument->SetMethod("bool set_decimal_integer(const string_view&in, int64, usize = 0)", &Network::MDB::Document::SetDecimalInteger);
+				VDocument->SetMethod("bool set_decimal_number(const string_view&in, double, usize = 0)", &Network::MDB::Document::SetDecimalNumber);
+				VDocument->SetMethod("bool set_boolean(const string_view&in, bool, usize = 0)", &Network::MDB::Document::SetBoolean);
+				VDocument->SetMethod("bool set_object_id(const string_view&in, const string_view&in, usize = 0)", &Network::MDB::Document::SetObjectId);
+				VDocument->SetMethod("bool set_null(const string_view&in, usize = 0)", &Network::MDB::Document::SetNull);
+				VDocument->SetMethod("bool set_property(const string_view&in, doc_property&in, usize = 0)", &Network::MDB::Document::SetProperty);
+				VDocument->SetMethod("bool has_property(const string_view&in) const", &Network::MDB::Document::HasProperty);
+				VDocument->SetMethod("bool get_property(const string_view&in, doc_property&out) const", &Network::MDB::Document::GetProperty);
 				VDocument->SetMethod("usize count() const", &Network::MDB::Document::Count);
 				VDocument->SetMethod("string to_relaxed_json() const", &Network::MDB::Document::ToRelaxedJSON);
 				VDocument->SetMethod("string to_extended_json() const", &Network::MDB::Document::ToExtendedJSON);
@@ -17271,26 +17059,26 @@ namespace Vitex
 				VDocument->SetMethod("schema@ to_schema(bool = false) const", &Network::MDB::Document::ToSchema);
 				VDocument->SetMethod("document copy() const", &Network::MDB::Document::Copy);
 				VDocument->SetMethod("document& persist(bool = true) const", &Network::MDB::Document::Persist);
-				VDocument->SetMethod("doc_property opIndex(const string&in) const", &Network::MDB::Document::At);
+				VDocument->SetMethod("doc_property opIndex(const string_view&in) const", &Network::MDB::Document::At);
 				VDocument->SetMethodStatic("document from_empty()", &Network::MDB::Document::FromEmpty);
 				VDocument->SetMethodStatic("document from_schema(schema@+)", &Network::MDB::Document::FromSchema);
-				VDocument->SetMethodStatic("document from_json(const string&in)", &VI_SEXPECTIFY(Network::MDB::Document::FromJSON));
+				VDocument->SetMethodStatic("document from_json(const string_view&in)", &VI_SEXPECTIFY(Network::MDB::Document::FromJSON));
 
 				auto VAddress = VM->SetStruct<Network::MDB::Address>("host_address");
 				VAddress->SetConstructor<Network::MDB::Address>("void f()");
 				VAddress->SetOperatorMoveCopy<Network::MDB::Address>();
 				VAddress->SetDestructor<Network::MDB::Address>("void f()");
 				VAddress->SetMethod("bool is_valid() const", &Network::MDB::Address::operator bool);
-				VAddress->SetMethod<Network::MDB::Address, void, const Core::String&, int64_t>("void set_option(const string&in, int64)", &Network::MDB::Address::SetOption);
-				VAddress->SetMethod<Network::MDB::Address, void, const Core::String&, bool>("void set_option(const string&in, bool)", &Network::MDB::Address::SetOption);
-				VAddress->SetMethod<Network::MDB::Address, void, const Core::String&, const Core::String&>("void set_option(const string&in, const string&in)", &Network::MDB::Address::SetOption);
-				VAddress->SetMethod("void set_auth_mechanism(const string&in)", &Network::MDB::Address::SetAuthMechanism);
-				VAddress->SetMethod("void set_auth_source(const string&in)", &Network::MDB::Address::SetAuthSource);
-				VAddress->SetMethod("void set_compressors(const string&in)", &Network::MDB::Address::SetCompressors);
-				VAddress->SetMethod("void set_database(const string&in)", &Network::MDB::Address::SetDatabase);
-				VAddress->SetMethod("void set_username(const string&in)", &Network::MDB::Address::SetUsername);
-				VAddress->SetMethod("void set_password(const string&in)", &Network::MDB::Address::SetPassword);
-				VAddress->SetMethodStatic("host_address from_url(const string&in)", &VI_SEXPECTIFY(Network::MDB::Address::FromURL));
+				VAddress->SetMethod<Network::MDB::Address, void, const std::string_view&, int64_t>("void set_option(const string_view&in, int64)", &Network::MDB::Address::SetOption);
+				VAddress->SetMethod<Network::MDB::Address, void, const std::string_view&, bool>("void set_option(const string_view&in, bool)", &Network::MDB::Address::SetOption);
+				VAddress->SetMethod<Network::MDB::Address, void, const std::string_view&, const std::string_view&>("void set_option(const string_view&in, const string_view&in)", &Network::MDB::Address::SetOption);
+				VAddress->SetMethod("void set_auth_mechanism(const string_view&in)", &Network::MDB::Address::SetAuthMechanism);
+				VAddress->SetMethod("void set_auth_source(const string_view&in)", &Network::MDB::Address::SetAuthSource);
+				VAddress->SetMethod("void set_compressors(const string_view&in)", &Network::MDB::Address::SetCompressors);
+				VAddress->SetMethod("void set_database(const string_view&in)", &Network::MDB::Address::SetDatabase);
+				VAddress->SetMethod("void set_username(const string_view&in)", &Network::MDB::Address::SetUsername);
+				VAddress->SetMethod("void set_password(const string_view&in)", &Network::MDB::Address::SetPassword);
+				VAddress->SetMethodStatic("host_address from_url(const string_view&in)", &VI_SEXPECTIFY(Network::MDB::Address::FromURL));
 
 				auto VStream = VM->SetStruct<Network::MDB::Stream>("stream");
 				VStream->SetConstructor<Network::MDB::Stream>("void f()");
@@ -17305,7 +17093,7 @@ namespace Vitex
 				VStream->SetMethodEx("bool update_many(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::UpdateMany));
 				VStream->SetMethodEx("bool query(const document&in)", &VI_EXPECTIFY_VOID(Network::MDB::Stream::Query));
 				VStream->SetMethod("usize get_hint() const", &Network::MDB::Stream::GetHint);
-				VStream->SetMethodEx("bool template_query(const string&in, dictionary@+)", &MDBStreamTemplateQuery);
+				VStream->SetMethodEx("bool template_query(const string_view&in, dictionary@+)", &MDBStreamTemplateQuery);
 				VStream->SetMethodEx("promise<document>@ execute_with_reply()", &VI_SPROMISIFY_REF(MDBStreamExecuteWithReply, Document));
 				VStream->SetMethodEx("promise<bool>@ execute()", &VI_SPROMISIFY(MDBStreamExecute, TypeId::BOOL));
 
@@ -17343,8 +17131,8 @@ namespace Vitex
 				VResponse->SetMethod("document& get_document() const", &Network::MDB::Response::GetDocument);
 				VResponse->SetMethodEx("promise<schema@>@ fetch() const", &VI_SPROMISIFY_REF(MDBResponseFetch, Schema));
 				VResponse->SetMethodEx("promise<schema@>@ fetch_all() const", &VI_SPROMISIFY_REF(MDBResponseFetchAll, Schema));
-				VResponse->SetMethodEx("promise<doc_property>@ get_property(const string&in) const", &VI_SPROMISIFY_REF(MDBResponseGetProperty, Property));
-				VResponse->SetMethodEx("promise<doc_property>@ opIndex(const string&in) const", &VI_SPROMISIFY_REF(MDBResponseGetProperty, Property));
+				VResponse->SetMethodEx("promise<doc_property>@ get_property(const string_view&in) const", &VI_SPROMISIFY_REF(MDBResponseGetProperty, Property));
+				VResponse->SetMethodEx("promise<doc_property>@ opIndex(const string_view&in) const", &VI_SPROMISIFY_REF(MDBResponseGetProperty, Property));
 
 				auto VCollection = VM->SetStruct<Network::MDB::Collection>("collection");
 				auto VTransaction = VM->SetStruct<Network::MDB::Transaction>("transaction");
@@ -17366,7 +17154,7 @@ namespace Vitex
 				VTransaction->SetMethodEx("promise<cursor>@ find_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionFindMany, Cursor));
 				VTransaction->SetMethodEx("promise<cursor>@ find_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionFindOne, Cursor));
 				VTransaction->SetMethodEx("promise<cursor>@ aggregate(collection&in, query_flags, const document&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionAggregate, Cursor));
-				VTransaction->SetMethodEx("promise<response>@ template_query(collection&in, const string&in, dictionary@+)", &VI_SPROMISIFY_REF(MDBTransactionTemplateQuery, Response));
+				VTransaction->SetMethodEx("promise<response>@ template_query(collection&in, const string_view&in, dictionary@+)", &VI_SPROMISIFY_REF(MDBTransactionTemplateQuery, Response));
 				VTransaction->SetMethodEx("promise<response>@ query(collection&in, const document&in)", &VI_SPROMISIFY_REF(MDBTransactionQuery, Response));
 				VTransaction->SetMethodEx("promise<transaction_state>@ commit()", &VI_SPROMISIFY_REF(MDBTransactionCommit, TransactionState));
 
@@ -17376,12 +17164,12 @@ namespace Vitex
 				VCollection->SetMethod("bool is_valid() const", &Network::MDB::Collection::operator bool);
 				VCollection->SetMethod("string get_name() const", &Network::MDB::Collection::GetName);
 				VCollection->SetMethodEx("stream create_stream(document&in) const", &VI_EXPECTIFY(Network::MDB::Collection::CreateStream));
-				VCollection->SetMethodEx("promise<bool>@ rename(const string&in, const string&in) const", &VI_SPROMISIFY(MDBCollectionRename, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ rename_with_options(const string&in, const string&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithOptions, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ rename_with_remove(const string&in, const string&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithRemove, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ rename_with_options_and_remove(const string&in, const string&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithOptionsAndRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename(const string_view&in, const string_view&in) const", &VI_SPROMISIFY(MDBCollectionRename, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_options(const string_view&in, const string_view&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithOptions, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_remove(const string_view&in, const string_view&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithRemove, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ rename_with_options_and_remove(const string_view&in, const string_view&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRenameWithOptionsAndRemove, TypeId::BOOL));
 				VCollection->SetMethodEx("promise<bool>@ remove(const document&in) const", &VI_SPROMISIFY(MDBCollectionRemove, TypeId::BOOL));
-				VCollection->SetMethodEx("promise<bool>@ remove_index(const string&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRemoveIndex, TypeId::BOOL));
+				VCollection->SetMethodEx("promise<bool>@ remove_index(const string_view&in, const document&in) const", &VI_SPROMISIFY(MDBCollectionRemoveIndex, TypeId::BOOL));
 				VCollection->SetMethodEx("promise<document>@ remove_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionRemoveMany, Document));
 				VCollection->SetMethodEx("promise<document>@ remove_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionRemoveOne, Document));
 				VCollection->SetMethodEx("promise<document>@ replace_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionReplaceOne, Document));
@@ -17401,7 +17189,7 @@ namespace Vitex
 				VCollection->SetMethodEx("promise<cursor>@ find_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionFindMany, Cursor));
 				VCollection->SetMethodEx("promise<cursor>@ find_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionFindOne, Cursor));
 				VCollection->SetMethodEx("promise<cursor>@ aggregate(query_flags, const document&in, const document&in) const", &VI_SPROMISIFY_REF(MDBCollectionAggregate, Cursor));
-				VCollection->SetMethodEx("promise<response>@ template_query(const string&in, dictionary@+, bool = true, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(MDBCollectionTemplateQuery, Response));
+				VCollection->SetMethodEx("promise<response>@ template_query(const string_view&in, dictionary@+, bool = true, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(MDBCollectionTemplateQuery, Response));
 				VCollection->SetMethodEx("promise<response>@ query(const document&in, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(MDBCollectionQuery, Response));
 
 				auto VDatabase = VM->SetStruct<Network::MDB::Database>("database");
@@ -17410,14 +17198,14 @@ namespace Vitex
 				VDatabase->SetDestructor<Network::MDB::Database>("void f()");
 				VDatabase->SetMethod("bool is_valid() const", &Network::MDB::Database::operator bool);
 				VDatabase->SetMethod("string get_name() const", &Network::MDB::Database::GetName);
-				VDatabase->SetMethod("collection get_collection(const string&in) const", &Network::MDB::Database::GetCollection);
+				VDatabase->SetMethod("collection get_collection(const string_view&in) const", &Network::MDB::Database::GetCollection);
 				VDatabase->SetMethodEx("promise<bool>@ remove_all_users()", &VI_SPROMISIFY(MDBDatabaseRemoveAllUsers, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ remove_user(const string&in)", &VI_SPROMISIFY(MDBDatabaseRemoveUser, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ remove_user(const string_view&in)", &VI_SPROMISIFY(MDBDatabaseRemoveUser, TypeId::BOOL));
 				VDatabase->SetMethodEx("promise<bool>@ remove()", &VI_SPROMISIFY(MDBDatabaseRemove, TypeId::BOOL));
 				VDatabase->SetMethodEx("promise<bool>@ remove_with_options(const document&in)", &VI_SPROMISIFY(MDBDatabaseRemoveWithOptions, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ add_user(const string&in, const string&in, const document&in, const document&in)", &VI_SPROMISIFY(MDBDatabaseAddUser, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<bool>@ has_collection(const string&in)", &VI_SPROMISIFY(MDBDatabaseHasCollection, TypeId::BOOL));
-				VDatabase->SetMethodEx("promise<collection>@ create_collection(const string&in, const document&in)", &VI_SPROMISIFY_REF(MDBDatabaseCreateCollection, Collection));
+				VDatabase->SetMethodEx("promise<bool>@ add_user(const string_view&in, const string_view&in, const document&in, const document&in)", &VI_SPROMISIFY(MDBDatabaseAddUser, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<bool>@ has_collection(const string_view&in)", &VI_SPROMISIFY(MDBDatabaseHasCollection, TypeId::BOOL));
+				VDatabase->SetMethodEx("promise<collection>@ create_collection(const string_view&in, const document&in)", &VI_SPROMISIFY_REF(MDBDatabaseCreateCollection, Collection));
 				VDatabase->SetMethodEx("promise<cursor>@ find_collections(const document&in)", &VI_SPROMISIFY_REF(MDBDatabaseFindCollections, Cursor));
 				VDatabase->SetMethodEx("array<string>@ get_collection_names(const document&in)", &MDBDatabaseGetCollectionNames);
 
@@ -17434,26 +17222,25 @@ namespace Vitex
 				VWatcher->SetMethodStatic("watcher from_collection(const collection&in, const document&in, const document&in)", &VI_SEXPECTIFY(Network::MDB::Watcher::FromCollection));
 
 				auto VCluster = VM->SetClass<Network::MDB::Cluster>("cluster", false);
-				VConnection->SetFunctionDef("promise<bool>@ transaction_event(connection@+, transaction&in)");
-				VConnection->SetFunctionDef("bool cotransaction_event(connection@+, transaction&in)");
+				VConnection->SetFunctionDef("promise<bool>@ transaction_async(connection@+, transaction&in)");
 				VConnection->SetConstructor<Network::MDB::Connection>("connection@ f()");
-				VConnection->SetMethod("void set_profile(const string&in)", &Network::MDB::Connection::SetProfile);
+				VConnection->SetMethod("void set_profile(const string_view&in)", &Network::MDB::Connection::SetProfile);
 				VConnection->SetMethodEx("bool set_server(bool)", &VI_EXPECTIFY_VOID(Network::MDB::Connection::SetServer));
 				VConnection->SetMethodEx("transaction& get_session()", &VI_EXPECTIFY(Network::MDB::Connection::GetSession));
-				VConnection->SetMethod("database get_database(const string&in) const", &Network::MDB::Connection::GetDatabase);
+				VConnection->SetMethod("database get_database(const string_view&in) const", &Network::MDB::Connection::GetDatabase);
 				VConnection->SetMethod("database get_default_database() const", &Network::MDB::Connection::GetDefaultDatabase);
-				VConnection->SetMethod("collection get_collection(const string&in, const string&in) const", &Network::MDB::Connection::GetCollection);
+				VConnection->SetMethod("collection get_collection(const string_view&in, const string_view&in) const", &Network::MDB::Connection::GetCollection);
 				VConnection->SetMethod("host_address get_address() const", &Network::MDB::Connection::GetAddress);
 				VConnection->SetMethod("cluster@+ get_master() const", &Network::MDB::Connection::GetMaster);
 				VConnection->SetMethod("bool connected() const", &Network::MDB::Connection::IsConnected);
 				VConnection->SetMethodEx("array<string>@ get_database_names(const document&in) const", &MDBConnectionGetDatabaseNames);
 				VConnection->SetMethodEx("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(MDBConnectionConnect, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(MDBConnectionDisconnect, TypeId::BOOL));
-				VConnection->SetMethodEx("promise<bool>@ make_transaction(transaction_event@)", &VI_SPROMISIFY(MDBConnectionMakeTransaction, TypeId::BOOL));
+				VConnection->SetMethodEx("promise<bool>@ make_transaction(transaction_async@)", &VI_SPROMISIFY(MDBConnectionMakeTransaction, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<cursor>@ find_databases(const document&in)", &VI_SPROMISIFY_REF(MDBConnectionFindDatabases, Cursor));
 
 				VCluster->SetConstructor<Network::MDB::Cluster>("cluster@ f()");
-				VCluster->SetMethod("void set_profile(const string&in)", &Network::MDB::Cluster::SetProfile);
+				VCluster->SetMethod("void set_profile(const string_view&in)", &Network::MDB::Cluster::SetProfile);
 				VCluster->SetMethod("host_address& get_address()", &Network::MDB::Cluster::GetAddress);
 				VCluster->SetMethod("connection@+ pop()", &Network::MDB::Cluster::Pop);
 				VCluster->SetMethodEx("void push(connection@+)", &MDBClusterPush);
@@ -17461,17 +17248,17 @@ namespace Vitex
 				VCluster->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(MDBClusterDisconnect, TypeId::BOOL));
 
 				auto VDriver = VM->SetClass<Network::MDB::Driver>("driver", false);
-				VDriver->SetFunctionDef("void query_event(const string&in)");
+				VDriver->SetFunctionDef("void query_log_async(const string&in)");
 				VDriver->SetConstructor<Network::MDB::Driver>("driver@ f()");
-				VDriver->SetMethod("void add_constant(const string&in, const string&in)", &Network::MDB::Driver::AddConstant);
-				VDriver->SetMethodEx("bool add_query(const string&in, const string&in)", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddQuery));
-				VDriver->SetMethodEx("bool add_directory(const string&in, const string&in = \"\")", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddDirectory));
-				VDriver->SetMethod("bool remove_constant(const string&in)", &Network::MDB::Driver::RemoveConstant);
-				VDriver->SetMethod("bool remove_query(const string&in)", &Network::MDB::Driver::RemoveQuery);
+				VDriver->SetMethod("void add_constant(const string_view&in, const string_view&in)", &Network::MDB::Driver::AddConstant);
+				VDriver->SetMethodEx("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddQuery));
+				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddDirectory));
+				VDriver->SetMethod("bool remove_constant(const string_view&in)", &Network::MDB::Driver::RemoveConstant);
+				VDriver->SetMethod("bool remove_query(const string_view&in)", &Network::MDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::MDB::Driver::LoadCacheDump);
 				VDriver->SetMethod("schema@ get_cache_dump()", &Network::MDB::Driver::GetCacheDump);
-				VDriver->SetMethodEx("void set_query_log(query_event@)", &MDBDriverSetQueryLog);
-				VDriver->SetMethodEx("string get_query(cluster@+, const string&in, dictionary@+)", &MDBDriverGetQuery);
+				VDriver->SetMethodEx("void set_query_log(query_log_async@)", &MDBDriverSetQueryLog);
+				VDriver->SetMethodEx("string get_query(cluster@+, const string_view&in, dictionary@+)", &MDBDriverGetQuery);
 				VDriver->SetMethodEx("array<string>@ get_queries()", &MDBDriverGetQueries);
 				VDriver->SetMethodStatic("driver@+ get()", &Network::MDB::Driver::Get);
 
@@ -17650,7 +17437,7 @@ namespace Vitex
 
 				auto VEvent = VM->SetStructTrivial<Engine::Event>("scene_event");
 				VEvent->SetProperty<Engine::Event>("string name", &Engine::Event::Name);
-				VEvent->SetConstructor<Engine::Event, const Core::String&>("void f(const string &in)");
+				VEvent->SetConstructor<Engine::Event, const std::string_view&>("void f(const string_view&in)");
 				VEvent->SetMethodEx("void set_args(dictionary@+)", &EventSetArgs);
 				VEvent->SetMethodEx("dictionary@ get_args() const", &EventGetArgs);
 
@@ -17774,8 +17561,8 @@ namespace Vitex
 				VMaterial->SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
 				VMaterial->SetProperty<Engine::Material>("usize slot", &Engine::Material::Slot);
 				VMaterial->SetGcConstructor<Engine::Material, Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
-				VMaterial->SetMethod("void set_name(const string &in)", &Engine::Material::SetName);
-				VMaterial->SetMethod("const string& get_name(const string &in)", &Engine::Material::GetName);
+				VMaterial->SetMethod("void set_name(const string_view&in)", &Engine::Material::SetName);
+				VMaterial->SetMethod("const string& get_name(const string_view&in)", &Engine::Material::GetName);
 				VMaterial->SetMethod("void set_diffuse_map(texture_2d@+)", &Engine::Material::SetDiffuseMap);
 				VMaterial->SetMethod("texture_2d@+ get_diffuse_map() const", &Engine::Material::GetDiffuseMap);
 				VMaterial->SetMethod("void set_normal_map(texture_2d@+)", &Engine::Material::SetNormalMap);
@@ -17814,12 +17601,12 @@ namespace Vitex
 
 				VM->BeginNamespace("content_series");
 				VM->SetFunction<void(Core::Schema*, bool)>("void pack(schema@+, bool)", &Engine::Series::Pack);
-				VM->SetFunction<void(Core::Schema*, int)>("void pack(schema@+, int32)", &Engine::Series::Pack);
-				VM->SetFunction<void(Core::Schema*, unsigned int)>("void pack(schema@+, uint32)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, int32_t)>("void pack(schema@+, int32)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, int64_t)>("void pack(schema@+, int64)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, uint32_t)>("void pack(schema@+, uint32)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, uint64_t)>("void pack(schema@+, uint64)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, float)>("void pack(schema@+, float)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, double)>("void pack(schema@+, double)", &Engine::Series::Pack);
-				VM->SetFunction<void(Core::Schema*, int64_t)>("void pack(schema@+, int64)", &Engine::Series::Pack);
-				VM->SetFunction<void(Core::Schema*, unsigned long long)>("void pack(schema@+, uint64)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, const Compute::Vector2&)>("void pack(schema@+, const vector2 &in)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, const Compute::Vector3&)>("void pack(schema@+, const vector3 &in)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, const Compute::Vector4&)>("void pack(schema@+, const vector4 &in)", &Engine::Series::Pack);
@@ -17836,14 +17623,14 @@ namespace Vitex
 				VM->SetFunction<void(Core::Schema*, const Compute::Vertex&)>("void pack(schema@+, const vertex &in)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, const Compute::SkinVertex&)>("void pack(schema@+, const skin_vertex &in)", &Engine::Series::Pack);
 				VM->SetFunction<void(Core::Schema*, const Engine::Ticker&)>("void pack(schema@+, const clock_ticker &in)", &Engine::Series::Pack);
-				VM->SetFunction<void(Core::Schema*, const Core::String&)>("void pack(schema@+, const string &in)", &Engine::Series::Pack);
+				VM->SetFunction<void(Core::Schema*, const std::string_view&)>("void pack(schema@+, const string_view&in)", &Engine::Series::Pack);
 				VM->SetFunction<bool(Core::Schema*, bool*)>("bool unpack(schema@+, bool &out)", &Engine::Series::Unpack);
-				VM->SetFunction<bool(Core::Schema*, int*)>("bool unpack(schema@+, int32 &out)", &Engine::Series::Unpack);
-				VM->SetFunction<bool(Core::Schema*, unsigned int*)>("bool unpack(schema@+, uint32 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, int32_t*)>("bool unpack(schema@+, int32 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, int64_t*)>("bool unpack(schema@+, int64 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, uint64_t*)>("bool unpack(schema@+, uint64 &out)", &Engine::Series::Unpack);
+				VM->SetFunction<bool(Core::Schema*, uint32_t*)>("bool unpack(schema@+, uint32 &out)", &Engine::Series::Unpack);
 				VM->SetFunction<bool(Core::Schema*, float*)>("bool unpack(schema@+, float &out)", &Engine::Series::Unpack);
 				VM->SetFunction<bool(Core::Schema*, double*)>("bool unpack(schema@+, double &out)", &Engine::Series::Unpack);
-				VM->SetFunction<bool(Core::Schema*, int64_t*)>("bool unpack(schema@+, int64 &out)", &Engine::Series::Unpack);
-				VM->SetFunction<bool(Core::Schema*, unsigned long long*)>("bool unpack(schema@+, uint64 &out)", &Engine::Series::Unpack);
 				VM->SetFunction<bool(Core::Schema*, Compute::Vector2*)>("bool unpack(schema@+, vector2 &out)", &Engine::Series::Unpack);
 				VM->SetFunction<bool(Core::Schema*, Compute::Vector3*)>("bool unpack(schema@+, vector3 &out)", &Engine::Series::Unpack);
 				VM->SetFunction<bool(Core::Schema*, Compute::Vector4*)>("bool unpack(schema@+, vector4 &out)", &Engine::Series::Unpack);
@@ -17867,7 +17654,7 @@ namespace Vitex
 				VModel->SetProperty<Engine::Model>("vector4 max", &Engine::Model::Max);
 				VModel->SetProperty<Engine::Model>("vector4 min", &Engine::Model::Min);
 				VModel->SetGcConstructor<Engine::Model, Model>("model@ f()");
-				VModel->SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Engine::Model::FindMesh);
+				VModel->SetMethod("mesh_buffer@+ find_mesh(const string_view&in) const", &Engine::Model::FindMesh);
 				VModel->SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
 				VModel->SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
 				VModel->SetEnumRefsEx<Engine::Model>([](Engine::Model* Base, asIScriptEngine* VM)
@@ -17886,9 +17673,9 @@ namespace Vitex
 				VSkinModel->SetProperty<Engine::SkinModel>("vector4 max", &Engine::SkinModel::Max);
 				VSkinModel->SetProperty<Engine::SkinModel>("vector4 min", &Engine::SkinModel::Min);
 				VSkinModel->SetGcConstructor<Engine::SkinModel, SkinModel>("skin_model@ f()");
-				VSkinModel->SetMethod<Engine::SkinModel, bool, const Core::String&, Compute::Joint*>("bool find_joint(const string &in, joint &out) const", &Engine::SkinModel::FindJoint);
+				VSkinModel->SetMethod<Engine::SkinModel, bool, const std::string_view&, Compute::Joint*>("bool find_joint(const string_view&in, joint &out) const", &Engine::SkinModel::FindJoint);
 				VSkinModel->SetMethod<Engine::SkinModel, bool, size_t, Compute::Joint*>("bool find_joint(usize, joint &out) const", &Engine::SkinModel::FindJoint);
-				VSkinModel->SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Engine::SkinModel::FindMesh);
+				VSkinModel->SetMethod("skin_mesh_buffer@+ find_mesh(const string_view&in) const", &Engine::SkinModel::FindMesh);
 				VSkinModel->SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
 				VSkinModel->SetMethodEx("void set_meshes(array<skin_mesh_buffer@>@+)", &SkinModelSetMeshes);
 				VSkinModel->SetEnumRefsEx<Engine::SkinModel>([](Engine::SkinModel* Base, asIScriptEngine* VM)
@@ -17908,7 +17695,7 @@ namespace Vitex
 				auto VEntity = VM->SetClass<Engine::Entity>("scene_entity", true);
 				PopulateComponentBase<Engine::Component>(*VComponent);
 
-				VEntity->SetMethod("void set_name(const string &in)", &Engine::Entity::SetName);
+				VEntity->SetMethod("void set_name(const string_view&in)", &Engine::Entity::SetName);
 				VEntity->SetMethod("void set_root(scene_entity@+)", &Engine::Entity::SetRoot);
 				VEntity->SetMethod("void update_bounds()", &Engine::Entity::UpdateBounds);
 				VEntity->SetMethod("void remove_childs()", &Engine::Entity::RemoveChilds);
@@ -17953,7 +17740,7 @@ namespace Vitex
 				VRsState->SetMethod("render_state get_state() const", &Engine::RenderSystem::RsState::Get);
 
 				auto VPrimitiveCache = VM->SetClass<Engine::Renderer>("primitive_cache", true);
-				VRenderSystem->SetFunctionDef("void overlapping_result(base_component@+)");
+				VRenderSystem->SetFunctionDef("void overlapping_result_sync(base_component@+)");
 				VRenderSystem->SetProperty<Engine::RenderSystem>("rs_state state", &Engine::RenderSystem::State);
 				VRenderSystem->SetProperty<Engine::RenderSystem>("viewer_t view", &Engine::RenderSystem::View);
 				VRenderSystem->SetProperty<Engine::RenderSystem>("usize max_queries", &Engine::RenderSystem::MaxQueries);
@@ -17980,9 +17767,9 @@ namespace Vitex
 				VRenderSystem->SetMethodEx("void move_renderer(base_renderer@+, usize)", &RenderSystemMoveRenderer);
 				VRenderSystem->SetMethodEx("void remove_renderer(base_renderer@+, usize)", &RenderSystemRemoveRenderer);
 				VRenderSystem->SetMethod("void restore_output()", &Engine::RenderSystem::RestoreOutput);
-				VRenderSystem->SetMethod<Engine::RenderSystem, void, const Core::String&, Graphics::Shader*>("void free_shader(const string &in, shader@+)", &Engine::RenderSystem::FreeShader);
+				VRenderSystem->SetMethod<Engine::RenderSystem, void, const std::string_view&, Graphics::Shader*>("void free_shader(const string_view&in, shader@+)", &Engine::RenderSystem::FreeShader);
 				VRenderSystem->SetMethod<Engine::RenderSystem, void, Graphics::Shader*>("void free_shader(shader@+)", &Engine::RenderSystem::FreeShader);
-				VRenderSystem->SetMethodEx("void free_buffers(const string &in, element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers1);
+				VRenderSystem->SetMethodEx("void free_buffers(const string_view&in, element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers1);
 				VRenderSystem->SetMethodEx("void free_buffers(element_buffer@+, element_buffer@+)", &RenderSystemFreeBuffers2);
 				VRenderSystem->SetMethod("void update_constant_buffer(render_buffer_type)", &Engine::RenderSystem::UpdateConstantBuffer);
 				VRenderSystem->SetMethod("void clear_materials()", &Engine::RenderSystem::ClearMaterials);
@@ -17992,8 +17779,8 @@ namespace Vitex
 				VRenderSystem->SetMethod("bool try_geometry(material@+, bool)", &Engine::RenderSystem::TryGeometry);
 				VRenderSystem->SetMethod("bool has_category(geo_category)", &Engine::RenderSystem::HasCategory);
 				VRenderSystem->SetMethodEx("shader@+ compile_shader(shader_desc &in, usize = 0)", &RenderSystemCompileShader1);
-				VRenderSystem->SetMethodEx("shader@+ compile_shader(const string &in, usize = 0)", &RenderSystemCompileShader2);
-				VRenderSystem->SetMethodEx("array<element_buffer@>@ compile_buffers(const string &in, usize, usize)", &RenderSystemCompileBuffers);
+				VRenderSystem->SetMethodEx("shader@+ compile_shader(const string_view&in, usize = 0)", &RenderSystemCompileShader2);
+				VRenderSystem->SetMethodEx("array<element_buffer@>@ compile_buffers(const string_view&in, usize, usize)", &RenderSystemCompileBuffers);
 				VRenderSystem->SetMethodEx("bool add_renderer(base_renderer@+)", &RenderSystemAddRenderer);
 				VRenderSystem->SetMethodEx("base_renderer@+ get_renderer(uint64) const", &RenderSystemGetRenderer);
 				VRenderSystem->SetMethodEx("base_renderer@+ get_renderer_by_index(usize) const", &RenderSystemGetRendererByIndex);
@@ -18007,7 +17794,7 @@ namespace Vitex
 				VRenderSystem->SetMethod("shader@+ get_basic_effect()", &Engine::RenderSystem::GetBasicEffect);
 				VRenderSystem->SetMethod("scene_graph@+ get_scene()", &Engine::RenderSystem::GetScene);
 				VRenderSystem->SetMethod("base_component@+ get_component()", &Engine::RenderSystem::GetComponent);
-				VRenderSystem->SetMethodEx("void query_sync(uint64, overlapping_result@)", &RenderSystemQuerySync);
+				VRenderSystem->SetMethodEx("void query_sync(uint64, overlapping_result_sync@)", &RenderSystemQuerySync);
 				VRenderSystem->SetEnumRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine* VM)
 				{
 					for (auto* Item : Base->GetRenderers())
@@ -18020,11 +17807,11 @@ namespace Vitex
 
 				auto VShaderCache = VM->SetClass<Engine::ShaderCache>("shader_cache", true);
 				VShaderCache->SetGcConstructor<Engine::ShaderCache, ShaderCache, Graphics::GraphicsDevice*>("shader_cache@ f()");
-				VShaderCache->SetMethodEx("shader@+ compile(const string &in, const shader_desc &in, usize = 0)", &VI_EXPECTIFY(Engine::ShaderCache::Compile));
-				VShaderCache->SetMethod("shader@+ get(const string &in)", &Engine::ShaderCache::Get);
+				VShaderCache->SetMethodEx("shader@+ compile(const string_view&in, const shader_desc &in, usize = 0)", &VI_EXPECTIFY(Engine::ShaderCache::Compile));
+				VShaderCache->SetMethod("shader@+ get(const string_view&in)", &Engine::ShaderCache::Get);
 				VShaderCache->SetMethod("string find(shader@+)", &Engine::ShaderCache::Find);
-				VShaderCache->SetMethod("bool has(const string &in)", &Engine::ShaderCache::Has);
-				VShaderCache->SetMethod("bool free(const string &in, shader@+ = null)", &Engine::ShaderCache::Free);
+				VShaderCache->SetMethod("bool has(const string_view&in)", &Engine::ShaderCache::Has);
+				VShaderCache->SetMethod("bool free(const string_view&in, shader@+ = null)", &Engine::ShaderCache::Free);
 				VShaderCache->SetMethod("void clear_cache()", &Engine::ShaderCache::ClearCache);
 				VShaderCache->SetEnumRefsEx<Engine::ShaderCache>([](Engine::ShaderCache* Base, asIScriptEngine* VM)
 				{
@@ -18037,10 +17824,10 @@ namespace Vitex
 				});
 
 				VPrimitiveCache->SetGcConstructor<Engine::PrimitiveCache, PrimitiveCache, Graphics::GraphicsDevice*>("primitive_cache@ f()");
-				VPrimitiveCache->SetMethodEx("array<element_buffer@>@ compile(const string &in, usize, usize)", &PrimitiveCacheCompile);
-				VPrimitiveCache->SetMethodEx("array<element_buffer@>@ get(const string &in) const", &PrimitiveCacheGet);
-				VPrimitiveCache->SetMethod("bool has(const string &in) const", &Engine::PrimitiveCache::Has);
-				VPrimitiveCache->SetMethodEx("bool free(const string &in, element_buffer@+, element_buffer@+)", &PrimitiveCacheFree);
+				VPrimitiveCache->SetMethodEx("array<element_buffer@>@ compile(const string_view&in, usize, usize)", &PrimitiveCacheCompile);
+				VPrimitiveCache->SetMethodEx("array<element_buffer@>@ get(const string_view&in) const", &PrimitiveCacheGet);
+				VPrimitiveCache->SetMethod("bool has(const string_view&in) const", &Engine::PrimitiveCache::Has);
+				VPrimitiveCache->SetMethodEx("bool free(const string_view&in, element_buffer@+, element_buffer@+)", &PrimitiveCacheFree);
 				VPrimitiveCache->SetMethodEx("string find(element_buffer@+, element_buffer@+) const", &PrimitiveCacheFind);
 				VPrimitiveCache->SetMethod("model@+ get_box_model() const", &Engine::PrimitiveCache::GetBoxModel);
 				VPrimitiveCache->SetMethod("skin_model@+ get_skin_box_model() const", &Engine::PrimitiveCache::GetSkinBoxModel);
@@ -18077,32 +17864,32 @@ namespace Vitex
 					Base->ClearCache();
 				});
 
-				VContentManager->SetFunctionDef("void load_callback(uptr@)");
-				VContentManager->SetFunctionDef("void save_callback(bool)");
+				VContentManager->SetFunctionDef("void load_result_async(uptr@)");
+				VContentManager->SetFunctionDef("void save_result_async(bool)");
 				VContentManager->SetGcConstructor<Engine::ContentManager, ContentManager, Graphics::GraphicsDevice*>("content_manager@ f(graphics_device@+)");
 				VContentManager->SetMethod("void clear_cache()", &Engine::ContentManager::ClearCache);
 				VContentManager->SetMethod("void clear_archives()", &Engine::ContentManager::ClearArchives);
 				VContentManager->SetMethod("void clear_streams()", &Engine::ContentManager::ClearStreams);
 				VContentManager->SetMethod("void clear_processors()", &Engine::ContentManager::ClearProcessors);
-				VContentManager->SetMethod("void clear_path(const string &in)", &Engine::ContentManager::ClearPath);
-				VContentManager->SetMethod("void set_environment(const string &in)", &Engine::ContentManager::SetEnvironment);
+				VContentManager->SetMethod("void clear_path(const string_view&in)", &Engine::ContentManager::ClearPath);
+				VContentManager->SetMethod("void set_environment(const string_view&in)", &Engine::ContentManager::SetEnvironment);
 				VContentManager->SetMethod("void set_device(graphics_device@+)", &Engine::ContentManager::SetDevice);
-				VContentManager->SetMethodEx("uptr@ load(base_processor@+, const string &in, schema@+ = null)", &ContentManagerLoad);
-				VContentManager->SetMethodEx("bool save(base_processor@+, const string &in, uptr@, schema@+ = null)", &ContentManagerSave);
-				VContentManager->SetMethodEx("void load_async(base_processor@+, const string &in, load_callback@)", &ContentManagerLoadAsync1);
-				VContentManager->SetMethodEx("void load_async(base_processor@+, const string &in, schema@+, load_callback@)", &ContentManagerLoadAsync2);
-				VContentManager->SetMethodEx("void save_async(base_processor@+, const string &in, uptr@, save_callback@)", &ContentManagerSaveAsync1);
-				VContentManager->SetMethodEx("void save_async(base_processor@+, const string &in, uptr@, schema@+, save_callback@)", &ContentManagerSaveAsync2);
-				VContentManager->SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, const string &in)", &ContentManagerFindCache1);
+				VContentManager->SetMethodEx("uptr@ load(base_processor@+, const string_view&in, schema@+ = null)", &ContentManagerLoad);
+				VContentManager->SetMethodEx("bool save(base_processor@+, const string_view&in, uptr@, schema@+ = null)", &ContentManagerSave);
+				VContentManager->SetMethodEx("void load_async(base_processor@+, const string_view&in, load_result_async@)", &ContentManagerLoadAsync1);
+				VContentManager->SetMethodEx("void load_async(base_processor@+, const string_view&in, schema@+, load_result_async@)", &ContentManagerLoadAsync2);
+				VContentManager->SetMethodEx("void save_async(base_processor@+, const string_view&in, uptr@, save_result_async@)", &ContentManagerSaveAsync1);
+				VContentManager->SetMethodEx("void save_async(base_processor@+, const string_view&in, uptr@, schema@+, save_result_async@)", &ContentManagerSaveAsync2);
+				VContentManager->SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, const string_view&in)", &ContentManagerFindCache1);
 				VContentManager->SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, uptr@)", &ContentManagerFindCache2);
-				VContentManager->SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, const Core::String&>("uptr@ find_cache(base_processor@+, const string &in)", &Engine::ContentManager::FindCache);
+				VContentManager->SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, const std::string_view&>("uptr@ find_cache(base_processor@+, const string_view&in)", &Engine::ContentManager::FindCache);
 				VContentManager->SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, void*>("uptr@ find_cache(base_processor@+, uptr@)", &Engine::ContentManager::FindCache);
 				VContentManager->SetMethodEx("base_processor@+ add_processor(base_processor@+, uint64)", &ContentManagerAddProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, Engine::Processor*, uint64_t>("base_processor@+ get_processor(uint64)", &Engine::ContentManager::GetProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, bool, uint64_t>("bool remove_processor(uint64)", &Engine::ContentManager::RemoveProcessor);
-				VContentManager->SetMethodEx("bool import_archive(const string &in, bool)", &VI_EXPECTIFY_VOID(Engine::ContentManager::ImportArchive));
-				VContentManager->SetMethodEx("bool export_archive(const string &in, const string &in, const string &in = \"\")", &VI_EXPECTIFY_VOID(Engine::ContentManager::ExportArchive));
-				VContentManager->SetMethod("uptr@ try_to_cache(base_processor@+, const string &in, uptr@)", &Engine::ContentManager::TryToCache);
+				VContentManager->SetMethodEx("bool import_archive(const string_view&in, bool)", &VI_EXPECTIFY_VOID(Engine::ContentManager::ImportArchive));
+				VContentManager->SetMethodEx("bool export_archive(const string_view&in, const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Engine::ContentManager::ExportArchive));
+				VContentManager->SetMethod("uptr@ try_to_cache(base_processor@+, const string_view&in, uptr@)", &Engine::ContentManager::TryToCache);
 				VContentManager->SetMethod("bool is_busy() const", &Engine::ContentManager::IsBusy);
 				VContentManager->SetMethod("graphics_device@+ get_device() const", &Engine::ContentManager::GetDevice);
 				VContentManager->SetMethod("const string& get_environment() const", &Engine::ContentManager::GetEnvironment);
@@ -18117,13 +17904,13 @@ namespace Vitex
 				});
 
 				auto VAppData = VM->SetClass<Engine::AppData>("app_data", true);
-				VAppData->SetGcConstructor<Engine::AppData, AppData, Engine::ContentManager*, const Core::String&>("app_data@ f(content_manager@+, const string &in)");
-				VAppData->SetMethod("void migrate(const string &in)", &Engine::AppData::Migrate);
-				VAppData->SetMethod("void set_key(const string &in, schema@+)", &Engine::AppData::SetKey);
-				VAppData->SetMethod("void set_text(const string &in, const string &in)", &Engine::AppData::SetText);
-				VAppData->SetMethod("schema@ get_key(const string &in)", &Engine::AppData::GetKey);
-				VAppData->SetMethod("string get_text(const string &in)", &Engine::AppData::GetText);
-				VAppData->SetMethod("bool has(const string &in)", &Engine::AppData::Has);
+				VAppData->SetGcConstructor<Engine::AppData, AppData, Engine::ContentManager*, const std::string_view&>("app_data@ f(content_manager@+, const string_view&in)");
+				VAppData->SetMethod("void migrate(const string_view&in)", &Engine::AppData::Migrate);
+				VAppData->SetMethod("void set_key(const string_view&in, schema@+)", &Engine::AppData::SetKey);
+				VAppData->SetMethod("void set_text(const string_view&in, const string_view&in)", &Engine::AppData::SetText);
+				VAppData->SetMethod("schema@ get_key(const string_view&in)", &Engine::AppData::GetKey);
+				VAppData->SetMethod("string get_text(const string_view&in)", &Engine::AppData::GetText);
+				VAppData->SetMethod("bool has(const string_view&in)", &Engine::AppData::Has);
 				VAppData->SetEnumRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine* VM) { });
 				VAppData->SetReleaseRefsEx<Engine::AppData>([](Engine::AppData* Base, asIScriptEngine*) { });
 
@@ -18169,11 +17956,11 @@ namespace Vitex
 				VSceneGraphStatistics->SetProperty<Engine::SceneGraph::SgStatistics>("usize draw_calls", &Engine::SceneGraph::SgStatistics::DrawCalls);
 
 				VSceneGraph->SetGcConstructor<Engine::SceneGraph, SceneGraph, const Engine::SceneGraph::Desc&>("scene_graph@ f(const scene_graph_desc &in)");
-				VSceneGraph->SetFunctionDef("bool ray_test_callback(base_component@+, const vector3 &in)");
-				VSceneGraph->SetFunctionDef("void transaction_callback()");
-				VSceneGraph->SetFunctionDef("void event_callback(const string &in, schema@+)");
-				VSceneGraph->SetFunctionDef("void match_callback(const bounding &in)");
-				VSceneGraph->SetFunctionDef("void resource_callback(uptr@)");
+				VSceneGraph->SetFunctionDef("bool ray_test_sync(base_component@+, const vector3 &in)");
+				VSceneGraph->SetFunctionDef("void transaction_sync()");
+				VSceneGraph->SetFunctionDef("void event_async(const string&in, schema@+)");
+				VSceneGraph->SetFunctionDef("void match_sync(const bounding &in)");
+				VSceneGraph->SetFunctionDef("void resource_async(uptr@)");
 				VSceneGraph->SetProperty("scene_graph_statistics statistics", &Engine::SceneGraph::Statistics);
 				VSceneGraph->SetMethod("void configure(const scene_graph_desc &in)", &Engine::SceneGraph::Configure);
 				VSceneGraph->SetMethod("void actualize()", &Engine::SceneGraph::Actualize);
@@ -18186,8 +17973,8 @@ namespace Vitex
 				VSceneGraph->SetMethod("void remove_entity(scene_entity@+)", &Engine::SceneGraph::RemoveEntity);
 				VSceneGraph->SetMethod("void delete_entity(scene_entity@+)", &Engine::SceneGraph::DeleteEntity);
 				VSceneGraph->SetMethod("void set_camera(scene_entity@+)", &Engine::SceneGraph::SetCamera);
-				VSceneGraph->SetMethodEx("void ray_test(uint64, const ray &in, ray_test_callback@)", &SceneGraphRayTest);
-				VSceneGraph->SetMethod("void script_hook(const string &in = \"main\")", &Engine::SceneGraph::ScriptHook);
+				VSceneGraph->SetMethodEx("void ray_test(uint64, const ray &in, ray_test_sync@)", &SceneGraphRayTest);
+				VSceneGraph->SetMethod("void script_hook(const string_view&in = \"main\")", &Engine::SceneGraph::ScriptHook);
 				VSceneGraph->SetMethod("void set_active(bool)", &Engine::SceneGraph::SetActive);
 				VSceneGraph->SetMethod("void set_mrt(target_type, bool)", &Engine::SceneGraph::SetMRT);
 				VSceneGraph->SetMethod("void set_rt(target_type, bool)", &Engine::SceneGraph::SetRT);
@@ -18195,24 +17982,24 @@ namespace Vitex
 				VSceneGraph->SetMethod("void swap_rt(target_type, render_target_2d@+)", &Engine::SceneGraph::SwapRT);
 				VSceneGraph->SetMethod("void clear_mrt(target_type, bool, bool)", &Engine::SceneGraph::ClearMRT);
 				VSceneGraph->SetMethod("void clear_rt(target_type, bool, bool)", &Engine::SceneGraph::ClearRT);
-				VSceneGraph->SetMethodEx("void mutate(scene_entity@+, scene_entity@+, const string &in)", &SceneGraphMutate1);
-				VSceneGraph->SetMethodEx("void mutate(scene_entity@+, const string &in)", &SceneGraphMutate2);
-				VSceneGraph->SetMethodEx("void mutate(base_component@+, const string &in)", &SceneGraphMutate3);
-				VSceneGraph->SetMethodEx("void mutate(material@+, const string &in)", &SceneGraphMutate4);
-				VSceneGraph->SetMethodEx("void transaction(transaction_callback@)", &SceneGraphTransaction);
+				VSceneGraph->SetMethodEx("void mutate(scene_entity@+, scene_entity@+, const string_view&in)", &SceneGraphMutate1);
+				VSceneGraph->SetMethodEx("void mutate(scene_entity@+, const string_view&in)", &SceneGraphMutate2);
+				VSceneGraph->SetMethodEx("void mutate(base_component@+, const string_view&in)", &SceneGraphMutate3);
+				VSceneGraph->SetMethodEx("void mutate(material@+, const string_view&in)", &SceneGraphMutate4);
+				VSceneGraph->SetMethodEx("void transaction(transaction_sync@)", &SceneGraphTransaction);
 				VSceneGraph->SetMethod("void clear_culling()", &Engine::SceneGraph::ClearCulling);
 				VSceneGraph->SetMethod("void reserve_materials(usize)", &Engine::SceneGraph::ReserveMaterials);
 				VSceneGraph->SetMethod("void reserve_entities(usize)", &Engine::SceneGraph::ReserveEntities);
 				VSceneGraph->SetMethod("void reserve_components(uint64, usize)", &Engine::SceneGraph::ReserveComponents);
-				VSceneGraph->SetMethodEx("bool push_event(const string &in, schema@+, bool)", &SceneGraphPushEvent1);
-				VSceneGraph->SetMethodEx("bool push_event(const string &in, schema@+, base_component@+)", &SceneGraphPushEvent2);
-				VSceneGraph->SetMethodEx("bool push_event(const string &in, schema@+, scene_entity@+)", &SceneGraphPushEvent3);
-				VSceneGraph->SetMethodEx("uptr@ set_listener(const string &in, event_callback@)", &SceneGraphSetListener);
-				VSceneGraph->SetMethod("bool clear_listener(const string &in, uptr@)", &Engine::SceneGraph::ClearListener);
+				VSceneGraph->SetMethodEx("bool push_event(const string_view&in, schema@+, bool)", &SceneGraphPushEvent1);
+				VSceneGraph->SetMethodEx("bool push_event(const string_view&in, schema@+, base_component@+)", &SceneGraphPushEvent2);
+				VSceneGraph->SetMethodEx("bool push_event(const string_view&in, schema@+, scene_entity@+)", &SceneGraphPushEvent3);
+				VSceneGraph->SetMethodEx("uptr@ set_listener(const string_view&in, event_async@)", &SceneGraphSetListener);
+				VSceneGraph->SetMethod("bool clear_listener(const string_view&in, uptr@)", &Engine::SceneGraph::ClearListener);
 				VSceneGraph->SetMethod("material@+ get_invalid_material()", &Engine::SceneGraph::GetInvalidMaterial);
 				VSceneGraph->SetMethod<Engine::SceneGraph, bool, Engine::Material*>("bool add_material(material@+)", &Engine::SceneGraph::AddMaterial);
 				VSceneGraph->SetMethod<Engine::SceneGraph, Engine::Material*>("material@+ add_material()", &Engine::SceneGraph::AddMaterial);
-				VSceneGraph->SetMethodEx("void load_resource(uint64, base_component@+, const string &in, schema@+, resource_callback@)", &SceneGraphLoadResource);
+				VSceneGraph->SetMethodEx("void load_resource(uint64, base_component@+, const string_view&in, schema@+, resource_async@)", &SceneGraphLoadResource);
 				VSceneGraph->SetMethod<Engine::SceneGraph, Core::String, uint64_t, void*>("string find_resource_id(uint64, uptr@)", &Engine::SceneGraph::FindResourceId);
 				VSceneGraph->SetMethod("material@+ clone_material(material@+)", &Engine::SceneGraph::CloneMaterial);
 				VSceneGraph->SetMethod("scene_entity@+ get_entity(usize) const", &Engine::SceneGraph::GetEntity);
@@ -18222,7 +18009,7 @@ namespace Vitex
 				VSceneGraph->SetMethod("base_component@+ get_camera() const", &Engine::SceneGraph::GetCamera);
 				VSceneGraph->SetMethod("render_system@+ get_renderer() const", &Engine::SceneGraph::GetRenderer);
 				VSceneGraph->SetMethod("viewer_t get_camera_viewer() const", &Engine::SceneGraph::GetCameraViewer);
-				VSceneGraph->SetMethod<Engine::SceneGraph, Engine::Material*, const Core::String&>("material@+ get_material(const string &in) const", &Engine::SceneGraph::GetMaterial);
+				VSceneGraph->SetMethod<Engine::SceneGraph, Engine::Material*, const std::string_view&>("material@+ get_material(const string_view&in) const", &Engine::SceneGraph::GetMaterial);
 				VSceneGraph->SetMethod<Engine::SceneGraph, Engine::Material*, size_t>("material@+ get_material(usize) const", &Engine::SceneGraph::GetMaterial);
 				VSceneGraph->SetMethod<Engine::SceneGraph, Engine::SparseIndex&, uint64_t>("sparse_index& get_storage(uint64) const", &Engine::SceneGraph::GetStorage);
 				VSceneGraph->SetMethodEx("array<base_component@>@ get_components(uint64) const", &SceneGraphGetComponents);
@@ -18232,12 +18019,12 @@ namespace Vitex
 				VSceneGraph->SetMethod("surface_format get_format_mrt(uint32) const", &Engine::SceneGraph::GetFormatMRT);
 				VSceneGraph->SetMethodEx("array<scene_entity@>@ clone_entity_as_array(scene_entity@+)", &SceneGraphCloneEntityAsArray);
 				VSceneGraph->SetMethodEx("array<scene_entity@>@ query_by_parent(scene_entity@+) const", &SceneGraphQueryByParent);
-				VSceneGraph->SetMethodEx("array<scene_entity@>@ query_by_name(const string &in) const", &SceneGraphQueryByName);
+				VSceneGraph->SetMethodEx("array<scene_entity@>@ query_by_name(const string_view&in) const", &SceneGraphQueryByName);
 				VSceneGraph->SetMethodEx("array<base_component@>@ query_by_position(uint64, const vector3 &in, float) const", &SceneGraphQueryByPosition);
 				VSceneGraph->SetMethodEx("array<base_component@>@ query_by_area(uint64, const vector3 &in, const vector3 &in) const", &SceneGraphQueryByArea);
 				VSceneGraph->SetMethodEx("array<base_component@>@ query_by_ray(uint64, const ray &in) const", &SceneGraphQueryByRay);
-				VSceneGraph->SetMethodEx("array<base_component@>@ query_by_match(uint64, match_callback@) const", &SceneGraphQueryByMatch);
-				VSceneGraph->SetMethod("string as_resource_path(const string &in) const", &Engine::SceneGraph::AsResourcePath);
+				VSceneGraph->SetMethodEx("array<base_component@>@ query_by_match(uint64, match_sync@) const", &SceneGraphQueryByMatch);
+				VSceneGraph->SetMethod("string as_resource_path(const string_view&in) const", &Engine::SceneGraph::AsResourcePath);
 				VSceneGraph->SetMethod<Engine::SceneGraph, Engine::Entity*>("scene_entity@+ add_entity()", &Engine::SceneGraph::AddEntity);
 				VSceneGraph->SetMethod("scene_entity@+ clone_entity(scene_entity@+)", &Engine::SceneGraph::CloneEntity);
 				VSceneGraph->SetMethod<Engine::SceneGraph, bool, Engine::Entity*>("bool add_entity(scene_entity@+)", &Engine::SceneGraph::AddEntity);
@@ -18314,18 +18101,17 @@ namespace Vitex
 				VApplicationDesc->SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
 				VApplicationDesc->SetConstructor<Application::Desc>("void f()");
 
-				VApplication->SetFunctionDef("void key_event_callback(key_code, key_mod, int32, int32, bool)");
-				VApplication->SetFunctionDef("void input_event_callback(const string &in)");
-				VApplication->SetFunctionDef("void wheel_event_callback(int, int, bool)");
-				VApplication->SetFunctionDef("void window_event_callback(window_state, int, int)");
-				VApplication->SetFunctionDef("void dispatch_callback(clock_timer@+)");
-				VApplication->SetFunctionDef("void publish_callback(clock_timer@+)");
-				VApplication->SetFunctionDef("void composition_callback()");
-				VApplication->SetFunctionDef("void script_hook_callback()");
-				VApplication->SetFunctionDef("void initialize_callback()");
-				VApplication->SetFunctionDef("void startup_callback()");
-				VApplication->SetFunctionDef("void shutdown_callback()");
-				VApplication->SetFunctionDef("ui_context@ fetch_ui_callback()");
+				VApplication->SetFunctionDef("void key_event_sync(key_code, key_mod, int32, int32, bool)");
+				VApplication->SetFunctionDef("void input_event_sync(const string_view&in)");
+				VApplication->SetFunctionDef("void wheel_event_sync(int, int, bool)");
+				VApplication->SetFunctionDef("void window_event_sync(window_state, int, int)");
+				VApplication->SetFunctionDef("void dispatch_sync(clock_timer@+)");
+				VApplication->SetFunctionDef("void publish_sync(clock_timer@+)");
+				VApplication->SetFunctionDef("void composition_sync()");
+				VApplication->SetFunctionDef("void script_hook_sync()");
+				VApplication->SetFunctionDef("void initialize_sync()");
+				VApplication->SetFunctionDef("void startup_sync()");
+				VApplication->SetFunctionDef("void shutdown_sync()");
 				VApplication->SetProperty<Engine::Application>("application_cache_info cache", &Engine::Application::Cache);
 				VApplication->SetProperty<Engine::Application>("audio_device@ audio", &Engine::Application::Audio);
 				VApplication->SetProperty<Engine::Application>("graphics_device@ renderer", &Engine::Application::Renderer);
@@ -18336,18 +18122,17 @@ namespace Vitex
 				VApplication->SetProperty<Engine::Application>("scene_graph@ scene", &Engine::Application::Scene);
 				VApplication->SetProperty<Engine::Application>("application_desc control", &Engine::Application::Control);
 				VApplication->SetGcConstructor<Application, ApplicationName, Application::Desc&, void*, int>("application@ f(application_desc &in, ?&in)");
-				VApplication->SetMethod("void set_on_key_event(key_event_callback@)", &Application::SetOnKeyEvent);
-				VApplication->SetMethod("void set_on_input_event(input_event_callback@)", &Application::SetOnInputEvent);
-				VApplication->SetMethod("void set_on_wheel_event(wheel_event_callback@)", &Application::SetOnWheelEvent);
-				VApplication->SetMethod("void set_on_window_event(window_event_callback@)", &Application::SetOnWindowEvent);
-				VApplication->SetMethod("void set_on_dispatch(dispatch_callback@)", &Application::SetOnDispatch);
-				VApplication->SetMethod("void set_on_publish(publish_callback@)", &Application::SetOnPublish);
-				VApplication->SetMethod("void set_on_composition(composition_callback@)", &Application::SetOnComposition);
-				VApplication->SetMethod("void set_on_script_hook(script_hook_callback@)", &Application::SetOnScriptHook);
-				VApplication->SetMethod("void set_on_initialize(initialize_callback@)", &Application::SetOnInitialize);
-				VApplication->SetMethod("void set_on_startup(startup_callback@)", &Application::SetOnStartup);
-				VApplication->SetMethod("void set_on_shutdown(shutdown_callback@)", &Application::SetOnShutdown);
-				VApplication->SetMethod("void set_on_fetch_ui(fetch_ui_callback@)", &Application::SetOnGetGUI);
+				VApplication->SetMethod("void set_on_key_event(key_event_sync@)", &Application::SetOnKeyEvent);
+				VApplication->SetMethod("void set_on_input_event(input_event_sync@)", &Application::SetOnInputEvent);
+				VApplication->SetMethod("void set_on_wheel_event(wheel_event_sync@)", &Application::SetOnWheelEvent);
+				VApplication->SetMethod("void set_on_window_event(window_event_sync@)", &Application::SetOnWindowEvent);
+				VApplication->SetMethod("void set_on_dispatch(dispatch_sync@)", &Application::SetOnDispatch);
+				VApplication->SetMethod("void set_on_publish(publish_sync@)", &Application::SetOnPublish);
+				VApplication->SetMethod("void set_on_composition(composition_sync@)", &Application::SetOnComposition);
+				VApplication->SetMethod("void set_on_script_hook(script_hook_sync@)", &Application::SetOnScriptHook);
+				VApplication->SetMethod("void set_on_initialize(initialize_sync@)", &Application::SetOnInitialize);
+				VApplication->SetMethod("void set_on_startup(startup_sync@)", &Application::SetOnStartup);
+				VApplication->SetMethod("void set_on_shutdown(shutdown_sync@)", &Application::SetOnShutdown);
 				VApplication->SetMethod("int start()", &Engine::Application::Start);
 				VApplication->SetMethod("int restart()", &Engine::Application::Restart);
 				VApplication->SetMethod("void stop(int = 0)", &Engine::Application::Stop);
@@ -18356,6 +18141,8 @@ namespace Vitex
 				VApplication->SetMethod("usize get_processed_events() const", &Application::GetProcessedEvents);
 				VApplication->SetMethod("bool has_processed_events() const", &Application::HasProcessedEvents);
 				VApplication->SetMethod("bool retrieve_initiator(?&out) const", &Application::RetrieveInitiatorObject);
+				VApplication->SetMethod("ui_context@+ try_get_ui() const", &Application::TryGetUI);
+				VApplication->SetMethod("ui_context@+ fetch_ui()", &Application::FetchUI);
 				VApplication->SetMethodStatic("application@+ get()", &Engine::Application::Get);
 				VApplication->SetMethodStatic("bool wants_restart(int)", &Application::WantsRestart);
 				VApplication->SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* VM)
@@ -18379,7 +18166,6 @@ namespace Vitex
 					FunctionFactory::GCEnumCallback(VM, &Base->OnInitialize);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnStartup);
 					FunctionFactory::GCEnumCallback(VM, &Base->OnShutdown);
-					FunctionFactory::GCEnumCallback(VM, &Base->OnGetGUI);
 				});
 				VApplication->SetReleaseRefsEx<Application>([](Application* Base, asIScriptEngine*)
 				{
@@ -18402,7 +18188,7 @@ namespace Vitex
 				VSoftBody->SetProperty<Engine::Components::SoftBody>("vector2 texcoord", &Engine::Components::SoftBody::TexCoord);
 				VSoftBody->SetProperty<Engine::Components::SoftBody>("bool kinematic", &Engine::Components::SoftBody::Kinematic);
 				VSoftBody->SetProperty<Engine::Components::SoftBody>("bool manage", &Engine::Components::SoftBody::Manage);
-				VSoftBody->SetMethodEx("void load(const string &in, float = 0.0f, component_resource_event@ = null)", &ComponentsSoftBodyLoad);
+				VSoftBody->SetMethodEx("void load(const string_view&in, float = 0.0f, component_resource_event@ = null)", &ComponentsSoftBodyLoad);
 				VSoftBody->SetMethod<Engine::Components::SoftBody, void, Compute::HullShape*, float>("void load(physics_hull_shape@+, float = 0.0f)", &Engine::Components::SoftBody::Load);
 				VSoftBody->SetMethod("void load_ellipsoid(const physics_softbody_desc_cv_sconvex &in, float)", &Engine::Components::SoftBody::LoadEllipsoid);
 				VSoftBody->SetMethod("void load_patch(const physics_softbody_desc_cv_spatch &in, float)", &Engine::Components::SoftBody::LoadPatch);
@@ -18418,7 +18204,7 @@ namespace Vitex
 				auto VRigidBody = VM->SetClass<Engine::Components::RigidBody>("rigid_body_component", false);
 				VRigidBody->SetProperty<Engine::Components::RigidBody>("bool kinematic", &Engine::Components::RigidBody::Kinematic);
 				VRigidBody->SetProperty<Engine::Components::RigidBody>("bool manage", &Engine::Components::RigidBody::Manage);
-				VRigidBody->SetMethodEx("void load(const string &in, float, float = 0.0f, component_resource_event@ = null)", &ComponentsRigidBodyLoad);
+				VRigidBody->SetMethodEx("void load(const string_view&in, float, float = 0.0f, component_resource_event@ = null)", &ComponentsRigidBodyLoad);
 				VRigidBody->SetMethod<Engine::Components::RigidBody, void, btCollisionShape*, float, float>("void load(uptr@, float, float = 0.0f)", &Engine::Components::RigidBody::Load);
 				VRigidBody->SetMethod("void clear()", &Engine::Components::RigidBody::Clear);
 				VRigidBody->SetMethod("void set_mass(float)", &Engine::Components::RigidBody::SetMass);
@@ -18447,18 +18233,18 @@ namespace Vitex
 				auto VModel = VM->SetClass<Engine::Components::Model>("model_component", false);
 				VModel->SetProperty<Engine::Components::Model>("vector2 texcoord", &Engine::Components::Model::TexCoord);
 				VModel->SetMethod("void set_drawable(model@+)", &Engine::Components::Model::SetDrawable);
-				VModel->SetMethod("void set_material_for(const string &in, material@+)", &Engine::Components::Model::SetMaterialFor);
+				VModel->SetMethod("void set_material_for(const string_view&in, material@+)", &Engine::Components::Model::SetMaterialFor);
 				VModel->SetMethod("model@+ get_drawable() const", &Engine::Components::Model::GetDrawable);
-				VModel->SetMethod("material@+ get_material_for(const string &in)", &Engine::Components::Model::GetMaterialFor);
+				VModel->SetMethod("material@+ get_material_for(const string_view&in)", &Engine::Components::Model::GetMaterialFor);
 				PopulateDrawableInterface<Engine::Components::Model, Engine::Entity*>(*VModel, "model_component@+ f(scene_entity@+)");
 
 				auto VSkin = VM->SetClass<Engine::Components::Skin>("skin_component", false);
 				VSkin->SetProperty<Engine::Components::Skin>("vector2 texcoord", &Engine::Components::Skin::TexCoord);
 				VSkin->SetProperty<Engine::Components::Skin>("pose_buffer skeleton", &Engine::Components::Skin::Skeleton);
 				VSkin->SetMethod("void set_drawable(skin_model@+)", &Engine::Components::Skin::SetDrawable);
-				VSkin->SetMethod("void set_material_for(const string &in, material@+)", &Engine::Components::Skin::SetMaterialFor);
+				VSkin->SetMethod("void set_material_for(const string_view&in, material@+)", &Engine::Components::Skin::SetMaterialFor);
 				VSkin->SetMethod("skin_model@+ get_drawable() const", &Engine::Components::Skin::GetDrawable);
-				VSkin->SetMethod("material@+ get_material_for(const string &in)", &Engine::Components::Skin::GetMaterialFor);
+				VSkin->SetMethod("material@+ get_material_for(const string_view&in)", &Engine::Components::Skin::GetMaterialFor);
 				PopulateDrawableInterface<Engine::Components::Skin, Engine::Entity*>(*VSkin, "skin_component@+ f(scene_entity@+)");
 
 				auto VEmitter = VM->SetClass<Engine::Components::Emitter>("emitter_component", false);
@@ -18485,7 +18271,7 @@ namespace Vitex
 				VSkinAnimator->SetMethod("skin_component@+ get_skin() const", &Engine::Components::SkinAnimator::GetSkin);
 				VSkinAnimator->SetMethod("skin_animation@+ get_animation() const", &Engine::Components::SkinAnimator::GetAnimation);
 				VSkinAnimator->SetMethod("string get_path() const", &Engine::Components::SkinAnimator::GetPath);
-				VSkinAnimator->SetMethod("int64 get_clip_by_name(const string &in) const", &Engine::Components::SkinAnimator::GetClipByName);
+				VSkinAnimator->SetMethod("int64 get_clip_by_name(const string_view&in) const", &Engine::Components::SkinAnimator::GetClipByName);
 				VSkinAnimator->SetMethod("usize get_clips_count() const", &Engine::Components::SkinAnimator::GetClipsCount);
 				PopulateComponentInterface<Engine::Components::SkinAnimator, Engine::Entity*>(*VSkinAnimator, "skin_animator_component@+ f(scene_entity@+)");
 
@@ -18493,7 +18279,7 @@ namespace Vitex
 				VKeyAnimator->SetProperty<Engine::Components::KeyAnimator>("animator_key offset_pose", &Engine::Components::KeyAnimator::Offset);
 				VKeyAnimator->SetProperty<Engine::Components::KeyAnimator>("animator_key default_pose", &Engine::Components::KeyAnimator::Default);
 				VKeyAnimator->SetProperty<Engine::Components::KeyAnimator>("animator_state state", &Engine::Components::KeyAnimator::State);
-				VKeyAnimator->SetMethodEx("void load_animation(const string &in, component_resource_event@ = null)", &ComponentsKeyAnimatorLoadAnimation);
+				VKeyAnimator->SetMethodEx("void load_animation(const string_view&in, component_resource_event@ = null)", &ComponentsKeyAnimatorLoadAnimation);
 				VKeyAnimator->SetMethod("void clear_animation()", &Engine::Components::KeyAnimator::ClearAnimation);
 				VKeyAnimator->SetMethod("void play(int64 = -1, int64 = -1)", &Engine::Components::KeyAnimator::Play);
 				VKeyAnimator->SetMethod("void pause()", &Engine::Components::KeyAnimator::Pause);
@@ -19066,19 +18852,19 @@ namespace Vitex
 				VEvent->SetMethod("bool is_interruptible() const", &Engine::GUI::IEvent::IsInterruptible);
 				VEvent->SetMethod("bool is_propagating() const", &Engine::GUI::IEvent::IsPropagating);
 				VEvent->SetMethod("bool is_immediate_propagating() const", &Engine::GUI::IEvent::IsImmediatePropagating);
-				VEvent->SetMethod("bool get_boolean(const string &in) const", &Engine::GUI::IEvent::GetBoolean);
-				VEvent->SetMethod("int64 get_integer(const string &in) const", &Engine::GUI::IEvent::GetInteger);
-				VEvent->SetMethod("double get_number(const string &in) const", &Engine::GUI::IEvent::GetNumber);
-				VEvent->SetMethod("string get_string(const string &in) const", &Engine::GUI::IEvent::GetString);
-				VEvent->SetMethod("vector2 get_vector2(const string &in) const", &Engine::GUI::IEvent::GetVector2);
-				VEvent->SetMethod("vector3 get_vector3(const string &in) const", &Engine::GUI::IEvent::GetVector3);
-				VEvent->SetMethod("vector4 get_vector4(const string &in) const", &Engine::GUI::IEvent::GetVector4);
-				VEvent->SetMethod("uptr@ get_pointer(const string &in) const", &Engine::GUI::IEvent::GetPointer);
+				VEvent->SetMethod("bool get_boolean(const string_view&in) const", &Engine::GUI::IEvent::GetBoolean);
+				VEvent->SetMethod("int64 get_integer(const string_view&in) const", &Engine::GUI::IEvent::GetInteger);
+				VEvent->SetMethod("double get_number(const string_view&in) const", &Engine::GUI::IEvent::GetNumber);
+				VEvent->SetMethod("string get_string(const string_view&in) const", &Engine::GUI::IEvent::GetString);
+				VEvent->SetMethod("vector2 get_vector2(const string_view&in) const", &Engine::GUI::IEvent::GetVector2);
+				VEvent->SetMethod("vector3 get_vector3(const string_view&in) const", &Engine::GUI::IEvent::GetVector3);
+				VEvent->SetMethod("vector4 get_vector4(const string_view&in) const", &Engine::GUI::IEvent::GetVector4);
+				VEvent->SetMethod("uptr@ get_pointer(const string_view&in) const", &Engine::GUI::IEvent::GetPointer);
 				VEvent->SetMethod("uptr@ get_event() const", &Engine::GUI::IEvent::GetEvent);
 				VEvent->SetMethod("bool is_valid() const", &Engine::GUI::IEvent::IsValid);
 
 				VListener->SetGcConstructor<ModelListener, ModelListenerName, asIScriptFunction*>("ui_listener@ f(model_listener_event@)");
-				VListener->SetGcConstructor<ModelListener, ModelListenerName, const Core::String&>("ui_listener@ f(const string &in)");
+				VListener->SetGcConstructor<ModelListener, ModelListenerName, const std::string_view&>("ui_listener@ f(const string_view&in)");
 				VListener->SetEnumRefsEx<ModelListener>([](ModelListener* Base, asIScriptEngine* VM)
 				{
 					auto& Delegate = Base->GetDelegate();
@@ -19172,9 +18958,9 @@ namespace Vitex
 				VElement->SetConstructor<Engine::GUI::IElement>("void f()");
 				VElement->SetConstructor<Engine::GUI::IElement, Rml::Element*>("void f(uptr@)");
 				VElement->SetMethod("ui_element clone() const", &Engine::GUI::IElement::Clone);
-				VElement->SetMethod("void set_class(const string &in, bool)", &Engine::GUI::IElement::SetClass);
-				VElement->SetMethod("bool is_class_set(const string &in) const", &Engine::GUI::IElement::IsClassSet);
-				VElement->SetMethod("void set_class_names(const string &in)", &Engine::GUI::IElement::SetClassNames);
+				VElement->SetMethod("void set_class(const string_view&in, bool)", &Engine::GUI::IElement::SetClass);
+				VElement->SetMethod("bool is_class_set(const string_view&in) const", &Engine::GUI::IElement::IsClassSet);
+				VElement->SetMethod("void set_class_names(const string_view&in)", &Engine::GUI::IElement::SetClassNames);
 				VElement->SetMethod("string get_class_names() const", &Engine::GUI::IElement::GetClassNames);
 				VElement->SetMethod("string get_address(bool = false, bool = true) const", &Engine::GUI::IElement::GetAddress);
 				VElement->SetMethod("void set_offset(const vector2 &in, const ui_element &in, bool = false)", &Engine::GUI::IElement::SetOffset);
@@ -19188,25 +18974,25 @@ namespace Vitex
 				VElement->SetMethod("bool is_point_within_element(const vector2 &in)", &Engine::GUI::IElement::IsPointWithinElement);
 				VElement->SetMethod("bool is_visible() const", &Engine::GUI::IElement::IsVisible);
 				VElement->SetMethod("float get_zindex() const", &Engine::GUI::IElement::GetZIndex);
-				VElement->SetMethod("bool set_property(const string &in, const string &in)", &Engine::GUI::IElement::SetProperty);
-				VElement->SetMethod("void remove_property(const string &in)", &Engine::GUI::IElement::RemoveProperty);
-				VElement->SetMethod("string get_property(const string &in) const", &Engine::GUI::IElement::GetProperty);
-				VElement->SetMethod("string get_local_property(const string &in) const", &Engine::GUI::IElement::GetLocalProperty);
-				VElement->SetMethod("float resolve_numeric_property(const string &in) const", &Engine::GUI::IElement::ResolveNumericProperty);
+				VElement->SetMethod("bool set_property(const string_view&in, const string_view&in)", &Engine::GUI::IElement::SetProperty);
+				VElement->SetMethod("void remove_property(const string_view&in)", &Engine::GUI::IElement::RemoveProperty);
+				VElement->SetMethod("string get_property(const string_view&in) const", &Engine::GUI::IElement::GetProperty);
+				VElement->SetMethod("string get_local_property(const string_view&in) const", &Engine::GUI::IElement::GetLocalProperty);
+				VElement->SetMethod("float resolve_numeric_property(const string_view&in) const", &Engine::GUI::IElement::ResolveNumericProperty);
 				VElement->SetMethod("vector2 get_containing_block() const", &Engine::GUI::IElement::GetContainingBlock);
 				VElement->SetMethod("ui_position get_position() const", &Engine::GUI::IElement::GetPosition);
 				VElement->SetMethod("ui_float get_float() const", &Engine::GUI::IElement::GetFloat);
 				VElement->SetMethod("ui_display get_display() const", &Engine::GUI::IElement::GetDisplay);
 				VElement->SetMethod("float get_line_height() const", &Engine::GUI::IElement::GetLineHeight);
 				VElement->SetMethod("bool project(vector2 &out) const", &Engine::GUI::IElement::Project);
-				VElement->SetMethod("bool animate(const string &in, const string &in, float, ui_timing_func, ui_timing_dir, int = -1, bool = true, float = 0)", &Engine::GUI::IElement::Animate);
-				VElement->SetMethod("bool add_animation_key(const string &in, const string &in, float, ui_timing_func, ui_timing_dir)", &Engine::GUI::IElement::AddAnimationKey);
-				VElement->SetMethod("void set_pseudo_Class(const string &in, bool)", &Engine::GUI::IElement::SetPseudoClass);
-				VElement->SetMethod("bool is_pseudo_class_set(const string &in) const", &Engine::GUI::IElement::IsPseudoClassSet);
-				VElement->SetMethod("void set_attribute(const string &in, const string &in)", &Engine::GUI::IElement::SetAttribute);
-				VElement->SetMethod("string get_attribute(const string &in) const", &Engine::GUI::IElement::GetAttribute);
-				VElement->SetMethod("bool has_attribute(const string &in) const", &Engine::GUI::IElement::HasAttribute);
-				VElement->SetMethod("void remove_attribute(const string &in)", &Engine::GUI::IElement::RemoveAttribute);
+				VElement->SetMethod("bool animate(const string_view&in, const string_view&in, float, ui_timing_func, ui_timing_dir, int = -1, bool = true, float = 0)", &Engine::GUI::IElement::Animate);
+				VElement->SetMethod("bool add_animation_key(const string_view&in, const string_view&in, float, ui_timing_func, ui_timing_dir)", &Engine::GUI::IElement::AddAnimationKey);
+				VElement->SetMethod("void set_pseudo_Class(const string_view&in, bool)", &Engine::GUI::IElement::SetPseudoClass);
+				VElement->SetMethod("bool is_pseudo_class_set(const string_view&in) const", &Engine::GUI::IElement::IsPseudoClassSet);
+				VElement->SetMethod("void set_attribute(const string_view&in, const string_view&in)", &Engine::GUI::IElement::SetAttribute);
+				VElement->SetMethod("string get_attribute(const string_view&in) const", &Engine::GUI::IElement::GetAttribute);
+				VElement->SetMethod("bool has_attribute(const string_view&in) const", &Engine::GUI::IElement::HasAttribute);
+				VElement->SetMethod("void remove_attribute(const string_view&in)", &Engine::GUI::IElement::RemoveAttribute);
 				VElement->SetMethod("ui_element get_focus_leaf_node()", &Engine::GUI::IElement::GetFocusLeafNode);
 				VElement->SetMethod("string get_tag_name() const", &Engine::GUI::IElement::GetTagName);
 				VElement->SetMethod("string get_id() const", &Engine::GUI::IElement::GetId);
@@ -19237,7 +19023,7 @@ namespace Vitex
 				VElement->SetMethod("int get_num_children(bool = false) const", &Engine::GUI::IElement::GetNumChildren);
 				VElement->SetMethod<Engine::GUI::IElement, void, Core::String&>("void get_inner_html(string &out) const", &Engine::GUI::IElement::GetInnerHTML);
 				VElement->SetMethod<Engine::GUI::IElement, Core::String>("string get_inner_html() const", &Engine::GUI::IElement::GetInnerHTML);
-				VElement->SetMethod("void set_inner_html(const string &in)", &Engine::GUI::IElement::SetInnerHTML);
+				VElement->SetMethod("void set_inner_html(const string_view&in)", &Engine::GUI::IElement::SetInnerHTML);
 				VElement->SetMethod("bool is_focused()", &Engine::GUI::IElement::IsFocused);
 				VElement->SetMethod("bool is_hovered()", &Engine::GUI::IElement::IsHovered);
 				VElement->SetMethod("bool is_active()", &Engine::GUI::IElement::IsActive);
@@ -19245,17 +19031,17 @@ namespace Vitex
 				VElement->SetMethod("bool focus()", &Engine::GUI::IElement::Focus);
 				VElement->SetMethod("void blur()", &Engine::GUI::IElement::Blur);
 				VElement->SetMethod("void click()", &Engine::GUI::IElement::Click);
-				VElement->SetMethod("void add_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::IElement::AddEventListener);
-				VElement->SetMethod("void remove_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::IElement::RemoveEventListener);
-				VElement->SetMethodEx("bool dispatch_event(const string &in, schema@+)", &IElementDocumentDispatchEvent);
+				VElement->SetMethod("void add_event_listener(const string_view&in, ui_listener@+, bool = false)", &Engine::GUI::IElement::AddEventListener);
+				VElement->SetMethod("void remove_event_listener(const string_view&in, ui_listener@+, bool = false)", &Engine::GUI::IElement::RemoveEventListener);
+				VElement->SetMethodEx("bool dispatch_event(const string_view&in, schema@+)", &IElementDocumentDispatchEvent);
 				VElement->SetMethod("void scroll_into_view(bool = true)", &Engine::GUI::IElement::ScrollIntoView);
 				VElement->SetMethod("ui_element append_child(const ui_element &in, bool = true)", &Engine::GUI::IElement::AppendChild);
 				VElement->SetMethod("ui_element insert_before(const ui_element &in, const ui_element &in)", &Engine::GUI::IElement::InsertBefore);
 				VElement->SetMethod("ui_element replace_child(const ui_element &in, const ui_element &in)", &Engine::GUI::IElement::ReplaceChild);
 				VElement->SetMethod("ui_element remove_child(const ui_element &in)", &Engine::GUI::IElement::RemoveChild);
 				VElement->SetMethod("bool has_child_nodes() const", &Engine::GUI::IElement::HasChildNodes);
-				VElement->SetMethod("ui_element get_element_by_id(const string &in)", &Engine::GUI::IElement::GetElementById);
-				VElement->SetMethodEx("array<ui_element>@ query_selector_all(const string &in)", &IElementDocumentQuerySelectorAll);
+				VElement->SetMethod("ui_element get_element_by_id(const string_view&in)", &Engine::GUI::IElement::GetElementById);
+				VElement->SetMethodEx("array<ui_element>@ query_selector_all(const string_view&in)", &IElementDocumentQuerySelectorAll);
 				VElement->SetMethod("bool cast_form_color(vector4 &out, bool)", &Engine::GUI::IElement::CastFormColor);
 				VElement->SetMethod("bool cast_form_string(string &out)", &Engine::GUI::IElement::CastFormString);
 				VElement->SetMethod("bool cast_form_pointer(uptr@ &out)", &Engine::GUI::IElement::CastFormPointer);
@@ -19270,9 +19056,9 @@ namespace Vitex
 				VElement->SetMethod("bool cast_form_double(double &out)", &Engine::GUI::IElement::CastFormDouble);
 				VElement->SetMethod("bool cast_form_boolean(bool &out)", &Engine::GUI::IElement::CastFormBoolean);
 				VElement->SetMethod("string get_form_name() const", &Engine::GUI::IElement::GetFormName);
-				VElement->SetMethod("void set_form_name(const string &in)", &Engine::GUI::IElement::SetFormName);
+				VElement->SetMethod("void set_form_name(const string_view&in)", &Engine::GUI::IElement::SetFormName);
 				VElement->SetMethod("string get_form_value() const", &Engine::GUI::IElement::GetFormValue);
-				VElement->SetMethod("void set_form_value(const string &in)", &Engine::GUI::IElement::SetFormValue);
+				VElement->SetMethod("void set_form_value(const string_view&in)", &Engine::GUI::IElement::SetFormValue);
 				VElement->SetMethod("bool is_form_disabled() const", &Engine::GUI::IElement::IsFormDisabled);
 				VElement->SetMethod("void set_form_disabled(bool)", &Engine::GUI::IElement::SetFormDisabled);
 				VElement->SetMethod("uptr@ get_element() const", &Engine::GUI::IElement::GetElement);
@@ -19281,9 +19067,9 @@ namespace Vitex
 				VDocument->SetConstructor<Engine::GUI::IElementDocument>("void f()");
 				VDocument->SetConstructor<Engine::GUI::IElementDocument, Rml::ElementDocument*>("void f(uptr@)");
 				VDocument->SetMethod("ui_element clone() const", &Engine::GUI::IElementDocument::Clone);
-				VDocument->SetMethod("void set_class(const string &in, bool)", &Engine::GUI::IElementDocument::SetClass);
-				VDocument->SetMethod("bool is_class_set(const string &in) const", &Engine::GUI::IElementDocument::IsClassSet);
-				VDocument->SetMethod("void set_class_names(const string &in)", &Engine::GUI::IElementDocument::SetClassNames);
+				VDocument->SetMethod("void set_class(const string_view&in, bool)", &Engine::GUI::IElementDocument::SetClass);
+				VDocument->SetMethod("bool is_class_set(const string_view&in) const", &Engine::GUI::IElementDocument::IsClassSet);
+				VDocument->SetMethod("void set_class_names(const string_view&in)", &Engine::GUI::IElementDocument::SetClassNames);
 				VDocument->SetMethod("string get_class_names() const", &Engine::GUI::IElementDocument::GetClassNames);
 				VDocument->SetMethod("string get_address(bool = false, bool = true) const", &Engine::GUI::IElementDocument::GetAddress);
 				VDocument->SetMethod("void set_offset(const vector2 &in, const ui_element &in, bool = false)", &Engine::GUI::IElementDocument::SetOffset);
@@ -19297,10 +19083,10 @@ namespace Vitex
 				VDocument->SetMethod("bool is_point_within_element(const vector2 &in)", &Engine::GUI::IElementDocument::IsPointWithinElement);
 				VDocument->SetMethod("bool is_visible() const", &Engine::GUI::IElementDocument::IsVisible);
 				VDocument->SetMethod("float get_zindex() const", &Engine::GUI::IElementDocument::GetZIndex);
-				VDocument->SetMethod("bool set_property(const string &in, const string &in)", &Engine::GUI::IElementDocument::SetProperty);
-				VDocument->SetMethod("void remove_property(const string &in)", &Engine::GUI::IElementDocument::RemoveProperty);
-				VDocument->SetMethod("string get_property(const string &in) const", &Engine::GUI::IElementDocument::GetProperty);
-				VDocument->SetMethod("string get_local_property(const string &in) const", &Engine::GUI::IElementDocument::GetLocalProperty);
+				VDocument->SetMethod("bool set_property(const string_view&in, const string_view&in)", &Engine::GUI::IElementDocument::SetProperty);
+				VDocument->SetMethod("void remove_property(const string_view&in)", &Engine::GUI::IElementDocument::RemoveProperty);
+				VDocument->SetMethod("string get_property(const string_view&in) const", &Engine::GUI::IElementDocument::GetProperty);
+				VDocument->SetMethod("string get_local_property(const string_view&in) const", &Engine::GUI::IElementDocument::GetLocalProperty);
 				VDocument->SetMethod("float resolve_numeric_property(float, numeric_unit, float) const", &Engine::GUI::IElementDocument::ResolveNumericProperty);
 				VDocument->SetMethod("vector2 get_containing_block() const", &Engine::GUI::IElementDocument::GetContainingBlock);
 				VDocument->SetMethod("ui_position get_position() const", &Engine::GUI::IElementDocument::GetPosition);
@@ -19308,14 +19094,14 @@ namespace Vitex
 				VDocument->SetMethod("ui_display get_display() const", &Engine::GUI::IElementDocument::GetDisplay);
 				VDocument->SetMethod("float get_line_height() const", &Engine::GUI::IElementDocument::GetLineHeight);
 				VDocument->SetMethod("bool project(vector2 &out) const", &Engine::GUI::IElementDocument::Project);
-				VDocument->SetMethod("bool animate(const string &in, const string &in, float, ui_timing_func, ui_timing_dir, int = -1, bool = true, float = 0)", &Engine::GUI::IElementDocument::Animate);
-				VDocument->SetMethod("bool add_animation_key(const string &in, const string &in, float, ui_timing_func, ui_timing_dir)", &Engine::GUI::IElementDocument::AddAnimationKey);
-				VDocument->SetMethod("void set_pseudo_Class(const string &in, bool)", &Engine::GUI::IElementDocument::SetPseudoClass);
-				VDocument->SetMethod("bool is_pseudo_class_set(const string &in) const", &Engine::GUI::IElementDocument::IsPseudoClassSet);
-				VDocument->SetMethod("void set_attribute(const string &in, const string &in)", &Engine::GUI::IElementDocument::SetAttribute);
-				VDocument->SetMethod("string get_attribute(const string &in) const", &Engine::GUI::IElementDocument::GetAttribute);
-				VDocument->SetMethod("bool has_attribute(const string &in) const", &Engine::GUI::IElementDocument::HasAttribute);
-				VDocument->SetMethod("void remove_attribute(const string &in)", &Engine::GUI::IElementDocument::RemoveAttribute);
+				VDocument->SetMethod("bool animate(const string_view&in, const string_view&in, float, ui_timing_func, ui_timing_dir, int = -1, bool = true, float = 0)", &Engine::GUI::IElementDocument::Animate);
+				VDocument->SetMethod("bool add_animation_key(const string_view&in, const string_view&in, float, ui_timing_func, ui_timing_dir)", &Engine::GUI::IElementDocument::AddAnimationKey);
+				VDocument->SetMethod("void set_pseudo_Class(const string_view&in, bool)", &Engine::GUI::IElementDocument::SetPseudoClass);
+				VDocument->SetMethod("bool is_pseudo_class_set(const string_view&in) const", &Engine::GUI::IElementDocument::IsPseudoClassSet);
+				VDocument->SetMethod("void set_attribute(const string_view&in, const string_view&in)", &Engine::GUI::IElementDocument::SetAttribute);
+				VDocument->SetMethod("string get_attribute(const string_view&in) const", &Engine::GUI::IElementDocument::GetAttribute);
+				VDocument->SetMethod("bool has_attribute(const string_view&in) const", &Engine::GUI::IElementDocument::HasAttribute);
+				VDocument->SetMethod("void remove_attribute(const string_view&in)", &Engine::GUI::IElementDocument::RemoveAttribute);
 				VDocument->SetMethod("ui_element get_focus_leaf_node()", &Engine::GUI::IElementDocument::GetFocusLeafNode);
 				VDocument->SetMethod("string get_tag_name() const", &Engine::GUI::IElementDocument::GetTagName);
 				VDocument->SetMethod("string get_id() const", &Engine::GUI::IElementDocument::GetId);
@@ -19346,7 +19132,7 @@ namespace Vitex
 				VDocument->SetMethod("int get_num_children(bool = false) const", &Engine::GUI::IElementDocument::GetNumChildren);
 				VDocument->SetMethod<Engine::GUI::IElement, void, Core::String&>("void get_inner_html(string &out) const", &Engine::GUI::IElementDocument::GetInnerHTML);
 				VDocument->SetMethod<Engine::GUI::IElement, Core::String>("string get_inner_html() const", &Engine::GUI::IElementDocument::GetInnerHTML);
-				VDocument->SetMethod("void set_inner_html(const string &in)", &Engine::GUI::IElementDocument::SetInnerHTML);
+				VDocument->SetMethod("void set_inner_html(const string_view&in)", &Engine::GUI::IElementDocument::SetInnerHTML);
 				VDocument->SetMethod("bool is_focused()", &Engine::GUI::IElementDocument::IsFocused);
 				VDocument->SetMethod("bool is_hovered()", &Engine::GUI::IElementDocument::IsHovered);
 				VDocument->SetMethod("bool is_active()", &Engine::GUI::IElementDocument::IsActive);
@@ -19354,17 +19140,17 @@ namespace Vitex
 				VDocument->SetMethod("bool focus()", &Engine::GUI::IElementDocument::Focus);
 				VDocument->SetMethod("void blur()", &Engine::GUI::IElementDocument::Blur);
 				VDocument->SetMethod("void click()", &Engine::GUI::IElementDocument::Click);
-				VDocument->SetMethod("void add_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::IElementDocument::AddEventListener);
-				VDocument->SetMethod("void remove_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::IElementDocument::RemoveEventListener);
-				VDocument->SetMethodEx("bool dispatch_event(const string &in, schema@+)", &IElementDocumentDispatchEvent);
+				VDocument->SetMethod("void add_event_listener(const string_view&in, ui_listener@+, bool = false)", &Engine::GUI::IElementDocument::AddEventListener);
+				VDocument->SetMethod("void remove_event_listener(const string_view&in, ui_listener@+, bool = false)", &Engine::GUI::IElementDocument::RemoveEventListener);
+				VDocument->SetMethodEx("bool dispatch_event(const string_view&in, schema@+)", &IElementDocumentDispatchEvent);
 				VDocument->SetMethod("void scroll_into_view(bool = true)", &Engine::GUI::IElementDocument::ScrollIntoView);
 				VDocument->SetMethod("ui_element append_child(const ui_element &in, bool = true)", &Engine::GUI::IElementDocument::AppendChild);
 				VDocument->SetMethod("ui_element insert_before(const ui_element &in, const ui_element &in)", &Engine::GUI::IElementDocument::InsertBefore);
 				VDocument->SetMethod("ui_element replace_child(const ui_element &in, const ui_element &in)", &Engine::GUI::IElementDocument::ReplaceChild);
 				VDocument->SetMethod("ui_element remove_child(const ui_element &in)", &Engine::GUI::IElementDocument::RemoveChild);
 				VDocument->SetMethod("bool has_child_nodes() const", &Engine::GUI::IElementDocument::HasChildNodes);
-				VDocument->SetMethod("ui_element get_element_by_id(const string &in)", &Engine::GUI::IElementDocument::GetElementById);
-				VDocument->SetMethodEx("array<ui_element>@ query_selector_all(const string &in)", &IElementDocumentQuerySelectorAll);
+				VDocument->SetMethod("ui_element get_element_by_id(const string_view&in)", &Engine::GUI::IElementDocument::GetElementById);
+				VDocument->SetMethodEx("array<ui_element>@ query_selector_all(const string_view&in)", &IElementDocumentQuerySelectorAll);
 				VDocument->SetMethod("bool cast_form_color(vector4 &out, bool)", &Engine::GUI::IElementDocument::CastFormColor);
 				VDocument->SetMethod("bool cast_form_string(string &out)", &Engine::GUI::IElementDocument::CastFormString);
 				VDocument->SetMethod("bool cast_form_pointer(uptr@ &out)", &Engine::GUI::IElementDocument::CastFormPointer);
@@ -19379,14 +19165,14 @@ namespace Vitex
 				VDocument->SetMethod("bool cast_form_double(double &out)", &Engine::GUI::IElementDocument::CastFormDouble);
 				VDocument->SetMethod("bool cast_form_boolean(bool &out)", &Engine::GUI::IElementDocument::CastFormBoolean);
 				VDocument->SetMethod("string get_form_name() const", &Engine::GUI::IElementDocument::GetFormName);
-				VDocument->SetMethod("void set_form_name(const string &in)", &Engine::GUI::IElementDocument::SetFormName);
+				VDocument->SetMethod("void set_form_name(const string_view&in)", &Engine::GUI::IElementDocument::SetFormName);
 				VDocument->SetMethod("string get_form_value() const", &Engine::GUI::IElementDocument::GetFormValue);
-				VDocument->SetMethod("void set_form_value(const string &in)", &Engine::GUI::IElementDocument::SetFormValue);
+				VDocument->SetMethod("void set_form_value(const string_view&in)", &Engine::GUI::IElementDocument::SetFormValue);
 				VDocument->SetMethod("bool is_form_disabled() const", &Engine::GUI::IElementDocument::IsFormDisabled);
 				VDocument->SetMethod("void set_form_disabled(bool)", &Engine::GUI::IElementDocument::SetFormDisabled);
 				VDocument->SetMethod("uptr@ get_element() const", &Engine::GUI::IElementDocument::GetElement);
 				VDocument->SetMethod("bool is_valid() const", &Engine::GUI::IElementDocument::IsValid);
-				VDocument->SetMethod("void set_title(const string &in)", &Engine::GUI::IElementDocument::SetTitle);
+				VDocument->SetMethod("void set_title(const string_view&in)", &Engine::GUI::IElementDocument::SetTitle);
 				VDocument->SetMethod("void pull_to_front()", &Engine::GUI::IElementDocument::PullToFront);
 				VDocument->SetMethod("void push_to_back()", &Engine::GUI::IElementDocument::PushToBack);
 				VDocument->SetMethod("void show(ui_modal_flag = ui_modal_flag::none, ui_focus_flag = ui_focus_flag::automatic)", &Engine::GUI::IElementDocument::Show);
@@ -19394,7 +19180,7 @@ namespace Vitex
 				VDocument->SetMethod("void close()", &Engine::GUI::IElementDocument::Close);
 				VDocument->SetMethod("string get_title() const", &Engine::GUI::IElementDocument::GetTitle);
 				VDocument->SetMethod("string get_source_url() const", &Engine::GUI::IElementDocument::GetSourceURL);
-				VDocument->SetMethod("ui_element create_element(const string &in)", &Engine::GUI::IElementDocument::CreateElement);
+				VDocument->SetMethod("ui_element create_element(const string_view&in)", &Engine::GUI::IElementDocument::CreateElement);
 				VDocument->SetMethod("bool is_modal() const", &Engine::GUI::IElementDocument::IsModal);
 				VDocument->SetMethod("uptr@ get_element_document() const", &Engine::GUI::IElementDocument::GetElementDocument);
 
@@ -19411,35 +19197,35 @@ namespace Vitex
 				VM->SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
 
 				auto VModel = VM->SetClass<Engine::GUI::DataModel>("ui_model", false);
-				VModel->SetMethodEx("bool set(const string &in, schema@+)", &DataModelSet);
-				VModel->SetMethodEx("bool set_var(const string &in, const variant &in)", &DataModelSetVar);
-				VModel->SetMethodEx("bool set_string(const string &in, const string &in)", &DataModelSetString);
-				VModel->SetMethodEx("bool set_integer(const string &in, int64)", &DataModelSetInteger);
-				VModel->SetMethodEx("bool set_float(const string &in, float)", &DataModelSetFloat);
-				VModel->SetMethodEx("bool set_double(const string &in, double)", &DataModelSetDouble);
-				VModel->SetMethodEx("bool set_boolean(const string &in, bool)", &DataModelSetBoolean);
-				VModel->SetMethodEx("bool set_pointer(const string &in, uptr@)", &DataModelSetPointer);
-				VModel->SetMethodEx("bool set_callback(const string &in, ui_data_event@)", &DataModelSetCallback);
-				VModel->SetMethodEx("schema@ get(const string &in)", &DataModelGet);
-				VModel->SetMethod("string get_string(const string &in)", &Engine::GUI::DataModel::GetString);
-				VModel->SetMethod("int64 get_integer(const string &in)", &Engine::GUI::DataModel::GetInteger);
-				VModel->SetMethod("float get_float(const string &in)", &Engine::GUI::DataModel::GetFloat);
-				VModel->SetMethod("double get_double(const string &in)", &Engine::GUI::DataModel::GetDouble);
-				VModel->SetMethod("bool get_boolean(const string &in)", &Engine::GUI::DataModel::GetBoolean);
-				VModel->SetMethod("uptr@ get_pointer(const string &in)", &Engine::GUI::DataModel::GetPointer);
-				VModel->SetMethod("bool has_changed(const string &in)", &Engine::GUI::DataModel::HasChanged);
-				VModel->SetMethod("void change(const string &in)", &Engine::GUI::DataModel::Change);
+				VModel->SetMethodEx("bool set(const string_view&in, schema@+)", &DataModelSet);
+				VModel->SetMethodEx("bool set_var(const string_view&in, const variant &in)", &DataModelSetVar);
+				VModel->SetMethodEx("bool set_string(const string_view&in, const string_view&in)", &DataModelSetString);
+				VModel->SetMethodEx("bool set_integer(const string_view&in, int64)", &DataModelSetInteger);
+				VModel->SetMethodEx("bool set_float(const string_view&in, float)", &DataModelSetFloat);
+				VModel->SetMethodEx("bool set_double(const string_view&in, double)", &DataModelSetDouble);
+				VModel->SetMethodEx("bool set_boolean(const string_view&in, bool)", &DataModelSetBoolean);
+				VModel->SetMethodEx("bool set_pointer(const string_view&in, uptr@)", &DataModelSetPointer);
+				VModel->SetMethodEx("bool set_callback(const string_view&in, ui_data_event@)", &DataModelSetCallback);
+				VModel->SetMethodEx("schema@ get(const string_view&in)", &DataModelGet);
+				VModel->SetMethod("string get_string(const string_view&in)", &Engine::GUI::DataModel::GetString);
+				VModel->SetMethod("int64 get_integer(const string_view&in)", &Engine::GUI::DataModel::GetInteger);
+				VModel->SetMethod("float get_float(const string_view&in)", &Engine::GUI::DataModel::GetFloat);
+				VModel->SetMethod("double get_double(const string_view&in)", &Engine::GUI::DataModel::GetDouble);
+				VModel->SetMethod("bool get_boolean(const string_view&in)", &Engine::GUI::DataModel::GetBoolean);
+				VModel->SetMethod("uptr@ get_pointer(const string_view&in)", &Engine::GUI::DataModel::GetPointer);
+				VModel->SetMethod("bool has_changed(const string_view&in)", &Engine::GUI::DataModel::HasChanged);
+				VModel->SetMethod("void change(const string_view&in)", &Engine::GUI::DataModel::Change);
 				VModel->SetMethod("bool isValid() const", &Engine::GUI::DataModel::IsValid);
-				VModel->SetMethodStatic("vector4 to_color4(const string &in)", &Engine::GUI::IVariant::ToColor4);
+				VModel->SetMethodStatic("vector4 to_color4(const string_view&in)", &Engine::GUI::IVariant::ToColor4);
 				VModel->SetMethodStatic("string from_color4(const vector4 &in, bool)", &Engine::GUI::IVariant::FromColor4);
-				VModel->SetMethodStatic("vector4 to_color3(const string &in)", &Engine::GUI::IVariant::ToColor3);
+				VModel->SetMethodStatic("vector4 to_color3(const string_view&in)", &Engine::GUI::IVariant::ToColor3);
 				VModel->SetMethodStatic("string from_color3(const vector4 &in, bool)", &Engine::GUI::IVariant::ToColor3);
-				VModel->SetMethodStatic("int get_vector_type(const string &in)", &Engine::GUI::IVariant::GetVectorType);
-				VModel->SetMethodStatic("vector4 to_vector4(const string &in)", &Engine::GUI::IVariant::ToVector4);
+				VModel->SetMethodStatic("int get_vector_type(const string_view&in)", &Engine::GUI::IVariant::GetVectorType);
+				VModel->SetMethodStatic("vector4 to_vector4(const string_view&in)", &Engine::GUI::IVariant::ToVector4);
 				VModel->SetMethodStatic("string from_vector4(const vector4 &in)", &Engine::GUI::IVariant::FromVector4);
-				VModel->SetMethodStatic("vector3 to_vector3(const string &in)", &Engine::GUI::IVariant::ToVector3);
+				VModel->SetMethodStatic("vector3 to_vector3(const string_view&in)", &Engine::GUI::IVariant::ToVector3);
 				VModel->SetMethodStatic("string from_vector3(const vector3 &in)", &Engine::GUI::IVariant::FromVector3);
-				VModel->SetMethodStatic("vector2 to_vector2(const string &in)", &Engine::GUI::IVariant::ToVector2);
+				VModel->SetMethodStatic("vector2 to_vector2(const string_view&in)", &Engine::GUI::IVariant::ToVector2);
 				VModel->SetMethodStatic("string from_vector2(const vector2 &in)", &Engine::GUI::IVariant::FromVector2);
 
 				return true;
@@ -19469,21 +19255,21 @@ namespace Vitex
 				VContext->SetConstructor<Engine::GUI::Context, const Compute::Vector2&>("ui_context@ f(const vector2&in)");
 				VContext->SetConstructor<Engine::GUI::Context, Graphics::GraphicsDevice*>("ui_context@ f(graphics_device@+)");
 				VContext->SetMethod("void emit_key(key_code, key_mod, int, int, bool)", &Engine::GUI::Context::EmitKey);
-				VContext->SetMethodEx("void emit_input(const string&in)", &ContextEmitInput);
+				VContext->SetMethodEx("void emit_input(const string_view&in)", &ContextEmitInput);
 				VContext->SetMethod("void emit_wheel(int32, int32, bool, key_mod)", &Engine::GUI::Context::EmitWheel);
 				VContext->SetMethod("void emit_resize(int32, int32)", &Engine::GUI::Context::EmitResize);
-				VContext->SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
+				VContext->SetMethod("void set_documents_base_tag(const string_view&in)", &Engine::GUI::Context::SetDocumentsBaseTag);
 				VContext->SetMethod("void clear_styles()", &Engine::GUI::Context::ClearStyles);
 				VContext->SetMethod("void update_events(activity@+)", &Engine::GUI::Context::UpdateEvents);
 				VContext->SetMethod("void render_lists(texture_2d@+)", &Engine::GUI::Context::RenderLists);
 				VContext->SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);
-				VContext->SetMethodStatic("bool load_font_face(const string&in, bool = false, ui_font_weight = ui_font_weight::automatic)", &VI_SEXPECTIFY_VOID(Engine::GUI::Context::LoadFontFace));
-				VContext->SetMethodStatic("string resolve_resource_path(const ui_element&in, const string&in)", &Engine::GUI::Context::ResolveResourcePath);
+				VContext->SetMethodStatic("bool load_font_face(const string_view&in, bool = false, ui_font_weight = ui_font_weight::automatic)", &VI_SEXPECTIFY_VOID(Engine::GUI::Context::LoadFontFace));
+				VContext->SetMethodStatic("string resolve_resource_path(const ui_element&in, const string_view&in)", &Engine::GUI::Context::ResolveResourcePath);
 				VContext->SetMethod("bool is_input_focused()", &Engine::GUI::Context::IsInputFocused);
 				VContext->SetMethod("bool is_loading()", &Engine::GUI::Context::IsLoading);
 				VContext->SetMethod("bool was_input_used(uint32)", &Engine::GUI::Context::WasInputUsed);
-				VContext->SetMethod("bool replace_html(const string &in, const string &in, int = 0)", &Engine::GUI::Context::ReplaceHTML);
-				VContext->SetMethod("bool remove_data_model(const string &in)", &Engine::GUI::Context::RemoveDataModel);
+				VContext->SetMethod("bool replace_html(const string_view&in, const string_view&in, int = 0)", &Engine::GUI::Context::ReplaceHTML);
+				VContext->SetMethod("bool remove_data_model(const string_view&in)", &Engine::GUI::Context::RemoveDataModel);
 				VContext->SetMethod("bool remove_data_models()", &Engine::GUI::Context::RemoveDataModels);
 				VContext->SetMethod("uint64 get_idle_timeout_ms(uint64) const", &Engine::GUI::Context::GetIdleTimeoutMs);
 				VContext->SetMethod("uptr@ get_context()", &Engine::GUI::Context::GetContext);
@@ -19492,16 +19278,16 @@ namespace Vitex
 				VContext->SetMethod("void set_density_independent_pixel_ratio(float)", &Engine::GUI::Context::GetDensityIndependentPixelRatio);
 				VContext->SetMethod("float get_density_independent_pixel_ratio() const", &Engine::GUI::Context::GetDensityIndependentPixelRatio);
 				VContext->SetMethod("void enable_mouse_cursor(bool)", &Engine::GUI::Context::EnableMouseCursor);
-				VContext->SetMethodEx("ui_document eval_html(const string &in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::EvalHTML));
-				VContext->SetMethodEx("ui_document add_css(const string &in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::AddCSS));
-				VContext->SetMethodEx("ui_document load_css(const string &in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::LoadCSS));
-				VContext->SetMethodEx("ui_document load_document(const string &in, bool = false)", &VI_EXPECTIFY(Engine::GUI::Context::LoadDocument));
-				VContext->SetMethodEx("ui_document add_document(const string &in)", &VI_EXPECTIFY(Engine::GUI::Context::AddDocument));
-				VContext->SetMethodEx("ui_document add_document_empty(const string &in = \"body\")", &VI_EXPECTIFY(Engine::GUI::Context::AddDocumentEmpty));
-				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const Core::String&>("ui_document get_document(const string &in)", &Engine::GUI::Context::GetDocument);
+				VContext->SetMethodEx("ui_document eval_html(const string_view&in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::EvalHTML));
+				VContext->SetMethodEx("ui_document add_css(const string_view&in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::AddCSS));
+				VContext->SetMethodEx("ui_document load_css(const string_view&in, int = 0)", &VI_EXPECTIFY(Engine::GUI::Context::LoadCSS));
+				VContext->SetMethodEx("ui_document load_document(const string_view&in, bool = false)", &VI_EXPECTIFY(Engine::GUI::Context::LoadDocument));
+				VContext->SetMethodEx("ui_document add_document(const string_view&in)", &VI_EXPECTIFY(Engine::GUI::Context::AddDocument));
+				VContext->SetMethodEx("ui_document add_document_empty(const string_view&in = \"body\")", &VI_EXPECTIFY(Engine::GUI::Context::AddDocumentEmpty));
+				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const std::string_view&>("ui_document get_document(const string_view&in)", &Engine::GUI::Context::GetDocument);
 				VContext->SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, int>("ui_document get_document(int)", &Engine::GUI::Context::GetDocument);
 				VContext->SetMethod("int get_num_documents() const", &Engine::GUI::Context::GetNumDocuments);
-				VContext->SetMethod("ui_element get_element_by_id(const string &in, int = 0)", &Engine::GUI::Context::GetElementById);
+				VContext->SetMethod("ui_element get_element_by_id(const string_view&in, int = 0)", &Engine::GUI::Context::GetElementById);
 				VContext->SetMethod("ui_element get_hover_element()", &Engine::GUI::Context::GetHoverElement);
 				VContext->SetMethod("ui_element get_focus_element()", &Engine::GUI::Context::GetFocusElement);
 				VContext->SetMethod("ui_element get_root_element()", &Engine::GUI::Context::GetRootElement);
@@ -19509,13 +19295,13 @@ namespace Vitex
 				VContext->SetMethod("void pull_document_to_front(const ui_document &in)", &Engine::GUI::Context::PullDocumentToFront);
 				VContext->SetMethod("void push_document_to_back(const ui_document &in)", &Engine::GUI::Context::PushDocumentToBack);
 				VContext->SetMethod("void unfocus_document(const ui_document &in)", &Engine::GUI::Context::UnfocusDocument);
-				VContext->SetMethod("void add_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::Context::AddEventListener);
-				VContext->SetMethod("void remove_event_listener(const string &in, ui_listener@+, bool = false)", &Engine::GUI::Context::RemoveEventListener);
+				VContext->SetMethod("void add_event_listener(const string_view&in, ui_listener@+, bool = false)", &Engine::GUI::Context::AddEventListener);
+				VContext->SetMethod("void remove_event_listener(const string_view&in, ui_listener@+, bool = false)", &Engine::GUI::Context::RemoveEventListener);
 				VContext->SetMethod("bool is_mouse_interacting()", &Engine::GUI::Context::IsMouseInteracting);
 				VContext->SetMethod("bool get_active_clip_region(vector2 &out, vector2 &out)", &Engine::GUI::Context::GetActiveClipRegion);
 				VContext->SetMethod("void set_active_clip_region(const vector2 &in, const vector2 &in)", &Engine::GUI::Context::SetActiveClipRegion);
-				VContext->SetMethod("ui_model@+ set_model(const string &in)", &Engine::GUI::Context::SetDataModel);
-				VContext->SetMethod("ui_model@+ get_model(const string &in)", &Engine::GUI::Context::GetDataModel);
+				VContext->SetMethod("ui_model@+ set_model(const string_view&in)", &Engine::GUI::Context::SetDataModel);
+				VContext->SetMethod("ui_model@+ get_model(const string_view&in)", &Engine::GUI::Context::GetDataModel);
 
 				return true;
 #else

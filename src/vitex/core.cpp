@@ -2,7 +2,7 @@
 #define _FILE_OFFSET_BITS 64
 #include "core.h"
 #include "scripting.h"
-#include "../network/http.h"
+#include "network/http.h"
 #include <iomanip>
 #include <cctype>
 #include <ctime>
@@ -10,6 +10,7 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <bitset>
 #include <signal.h>
 #include <sys/stat.h>
@@ -33,7 +34,7 @@
 #include <backward.hpp>
 #endif
 #ifdef VI_FCTX
-#include "../internal/fcontext/fcontext.h"
+#include "internal/fcontext/fcontext.h"
 #endif
 #ifdef VI_MICROSOFT
 #include <Windows.h>
@@ -168,10 +169,10 @@ namespace
 #endif
 namespace
 {
-	bool IsPathExists(const char* Path)
+	bool IsPathExists(const std::string_view& Path)
 	{
 		struct stat Buffer;
-		return stat(Path, &Buffer) == 0;
+		return stat(Path.data(), &Buffer) == 0;
 	}
 	void EscapeText(char* Text, size_t Size)
 	{
@@ -236,24 +237,24 @@ namespace Vitex
 	{
 		namespace Allocators
 		{
-			DebugAllocator::TracingBlock::TracingBlock() : Thread(std::this_thread::get_id()), Time(0), Size(0), Active(false)
+			DebugAllocator::TracingInfo::TracingInfo() : Thread(std::this_thread::get_id()), Time(0), Size(0), Active(false)
 			{
 			}
-			DebugAllocator::TracingBlock::TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic) : Thread(std::this_thread::get_id()), TypeName(NewTypeName ? NewTypeName : "void"), Origin(std::move(NewOrigin)), Time(NewTime), Size(NewSize), Active(IsActive), Static(IsStatic)
+			DebugAllocator::TracingInfo::TracingInfo(const char* NewTypeName, MemoryLocation&& NewLocation, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic) : Thread(std::this_thread::get_id()), TypeName(NewTypeName ? NewTypeName : "void"), Location(std::move(NewLocation)), Time(NewTime), Size(NewSize), Active(IsActive), Static(IsStatic)
 			{
 			}
 
 			void* DebugAllocator::Allocate(size_t Size) noexcept
 			{
-				return Allocate(MemoryContext("[unknown]", "[external]", "void", 0), Size);
+				return Allocate(MemoryLocation("[unknown]", "[external]", "void", 0), Size);
 			}
-			void* DebugAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+			void* DebugAllocator::Allocate(MemoryLocation&& Location, size_t Size) noexcept
 			{
 				void* Address = malloc(Size);
 				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 
 				UMutex<std::recursive_mutex> Unique(Mutex);
-				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, false);
+				Blocks[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), Size, true, false);
 				return Address;
 			}
 			void DebugAllocator::Free(void* Address) noexcept
@@ -265,22 +266,22 @@ namespace Vitex
 				Blocks.erase(It);
 				free(Address);
 			}
-			void DebugAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+			void DebugAllocator::Transfer(void* Address, size_t Size) noexcept
 			{
 				VI_ASSERT(false, "invalid allocator transfer call without memory context");
 			}
-			void DebugAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+			void DebugAllocator::Transfer(void* Address, MemoryLocation&& Location, size_t Size) noexcept
 			{
 				UMutex<std::recursive_mutex> Unique(Mutex);
-				Blocks[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), Size, true, true);
+				Blocks[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), Size, true, true);
 			}
-			void DebugAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+			void DebugAllocator::Watch(MemoryLocation&& Location, void* Address) noexcept
 			{
 				UMutex<std::recursive_mutex> Unique(Mutex);
 				auto It = Watchers.find(Address);
 
 				VI_ASSERT(It == Watchers.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
-				Watchers[Address] = TracingBlock(Origin.TypeName, std::move(Origin), time(nullptr), sizeof(void*), false, false);
+				Watchers[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), sizeof(void*), false, false);
 			}
 			void DebugAllocator::Unwatch(void* Address) noexcept
 			{
@@ -322,11 +323,11 @@ namespace Vitex
 					{
 						char Date[64];
 						DateTime::FetchDateTime(Date, sizeof(Date), It->second.Time);
-						ErrorHandling::Message(LogLevel::Debug, It->second.Origin.Line, It->second.Origin.Source, "[mem] %saddress at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+						ErrorHandling::Message(LogLevel::Debug, It->second.Location.Line, It->second.Location.Source, "[mem] %saddress at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							It->second.Static ? "static " : "",
 							It->first, Date, It->second.TypeName.c_str(),
 							(uint64_t)It->second.Size,
-							It->second.Origin.Function,
+							It->second.Location.Function,
 							OS::Process::GetThreadId(It->second.Thread).c_str());
 						Exists = true;
 					}
@@ -336,11 +337,11 @@ namespace Vitex
 					{
 						char Date[64];
 						DateTime::FetchDateTime(Date, sizeof(Date), It->second.Time);
-						ErrorHandling::Message(LogLevel::Debug, It->second.Origin.Line, It->second.Origin.Source, "[mem-watch] %saddress at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+						ErrorHandling::Message(LogLevel::Debug, It->second.Location.Line, It->second.Location.Source, "[mem-watch] %saddress at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							It->second.Static ? "static " : "",
 							It->first, Date, It->second.TypeName.c_str(),
 							(uint64_t)It->second.Size,
-							It->second.Origin.Function,
+							It->second.Location.Function,
 							OS::Process::GetThreadId(It->second.Thread).c_str());
 						Exists = true;
 					}
@@ -375,7 +376,8 @@ namespace Vitex
 					for (auto& Item : Watchers)
 						TotalMemory += Item.second.Size;
 
-					VI_DEBUG("[mem] %" PRIu64 " addresses are still used (%" PRIu64 " bytes)", (uint64_t)(Blocks.size() + Watchers.size() - StaticAddresses), (uint64_t)TotalMemory);
+					uint64_t Count = (uint64_t)(Blocks.size() + Watchers.size() - StaticAddresses);
+					VI_DEBUG("[mem] %" PRIu64 " address%s still used (memory still in use: %" PRIu64 " bytes inc. static allocations)", Count, Count > 1 ? "es are" : " is", (uint64_t)TotalMemory);
 					for (auto& Item : Blocks)
 					{
 						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
@@ -383,12 +385,12 @@ namespace Vitex
 
 						char Date[64];
 						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
-						ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+						ErrorHandling::Message(LogLevel::Debug, Item.second.Location.Line, Item.second.Location.Source, "[mem] address at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							Item.first,
 							Date,
 							Item.second.TypeName.c_str(),
 							(uint64_t)Item.second.Size,
-							Item.second.Origin.Function,
+							Item.second.Location.Function,
 							OS::Process::GetThreadId(Item.second.Thread).c_str());
 					}
 					for (auto& Item : Watchers)
@@ -398,12 +400,12 @@ namespace Vitex
 
 						char Date[64];
 						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
-						ErrorHandling::Message(LogLevel::Debug, Item.second.Origin.Line, Item.second.Origin.Source, "[mem-watch] address at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+						ErrorHandling::Message(LogLevel::Debug, Item.second.Location.Line, Item.second.Location.Source, "[mem-watch] address at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							Item.first,
 							Date,
 							Item.second.TypeName.c_str(),
 							(uint64_t)Item.second.Size,
-							Item.second.Origin.Function,
+							Item.second.Location.Function,
 							OS::Process::GetThreadId(Item.second.Thread).c_str());
 					}
 
@@ -413,7 +415,7 @@ namespace Vitex
 #endif
 				return false;
 			}
-			bool DebugAllocator::FindBlock(void* Address, TracingBlock* Output)
+			bool DebugAllocator::FindBlock(void* Address, TracingInfo* Output)
 			{
 				VI_ASSERT(Address != nullptr, "address should not be null");
 				UMutex<std::recursive_mutex> Unique(Mutex);
@@ -430,11 +432,11 @@ namespace Vitex
 
 				return true;
 			}
-			const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetBlocks() const
+			const std::unordered_map<void*, DebugAllocator::TracingInfo>& DebugAllocator::GetBlocks() const
 			{
 				return Blocks;
 			}
-			const std::unordered_map<void*, DebugAllocator::TracingBlock>& DebugAllocator::GetWatchers() const
+			const std::unordered_map<void*, DebugAllocator::TracingInfo>& DebugAllocator::GetWatchers() const
 			{
 				return Watchers;
 			}
@@ -445,7 +447,7 @@ namespace Vitex
 				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
 				return Address;
 			}
-			void* DefaultAllocator::Allocate(MemoryContext&& Origin, size_t Size) noexcept
+			void* DefaultAllocator::Allocate(MemoryLocation&& Location, size_t Size) noexcept
 			{
 				void* Address = malloc(Size);
 				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
@@ -455,13 +457,13 @@ namespace Vitex
 			{
 				free(Address);
 			}
-			void DefaultAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+			void DefaultAllocator::Transfer(void* Address, size_t Size) noexcept
 			{
 			}
-			void DefaultAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+			void DefaultAllocator::Transfer(void* Address, MemoryLocation&& Location, size_t Size) noexcept
 			{
 			}
-			void DefaultAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+			void DefaultAllocator::Watch(MemoryLocation&& Location, void* Address) noexcept
 			{
 			}
 			void DefaultAllocator::Unwatch(void* Address) noexcept
@@ -508,7 +510,7 @@ namespace Vitex
 				Cache->Addresses.pop_back();
 				return Address->Address;
 			}
-			void* CachedAllocator::Allocate(MemoryContext&&, size_t Size) noexcept
+			void* CachedAllocator::Allocate(MemoryLocation&&, size_t Size) noexcept
 			{
 				return Allocate(Size);
 			}
@@ -533,13 +535,13 @@ namespace Vitex
 					free(Cache);
 				}
 			}
-			void CachedAllocator::Transfer(Unique<void> Address, size_t Size) noexcept
+			void CachedAllocator::Transfer(void* Address, size_t Size) noexcept
 			{
 			}
-			void CachedAllocator::Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept
+			void CachedAllocator::Transfer(void* Address, MemoryLocation&& Location, size_t Size) noexcept
 			{
 			}
-			void CachedAllocator::Watch(MemoryContext&& Origin, void* Address) noexcept
+			void CachedAllocator::Watch(MemoryLocation&& Location, void* Address) noexcept
 			{
 			}
 			void CachedAllocator::Unwatch(void* Address) noexcept
@@ -701,7 +703,7 @@ namespace Vitex
 				LocalAllocator* Current = Memory::GetLocalAllocator();
 				Memory::SetLocalAllocator(nullptr);
 
-				Region* Next = VI_MALLOC(Region, sizeof(Region) + Size);
+				Region* Next = Memory::Allocate<Region>(sizeof(Region) + Size);
 				Next->BaseAddress = (char*)Next + sizeof(Region);
 				Next->FreeAddress = Next->BaseAddress;
 				Next->UpperAddress = Bottom;
@@ -729,7 +731,7 @@ namespace Vitex
 				{
 					void* Address = (void*)Next;
 					Next = Next->UpperAddress;
-					VI_FREE(Address);
+					Memory::Deallocate(Address);
 				}
 
 				Memory::SetLocalAllocator(Current);
@@ -818,7 +820,7 @@ namespace Vitex
 				LocalAllocator* Current = Memory::GetLocalAllocator();
 				Memory::SetLocalAllocator(nullptr);
 
-				Region* Next = VI_MALLOC(Region, sizeof(Region) + Size);
+				Region* Next = Memory::Allocate<Region>(sizeof(Region) + Size);
 				Next->BaseAddress = (char*)Next + sizeof(Region);
 				Next->FreeAddress = Next->BaseAddress;
 				Next->UpperAddress = Bottom;
@@ -846,7 +848,7 @@ namespace Vitex
 				{
 					void* Address = (void*)Next;
 					Next = Next->UpperAddress;
-					VI_FREE(Address);
+					Memory::Deallocate(Address);
 				}
 
 				Memory::SetLocalAllocator(Current);
@@ -914,7 +916,7 @@ namespace Vitex
 			Cocontext(Costate* State)
 			{
 #ifdef VI_FCTX
-				Stack = VI_MALLOC(char, sizeof(char) * State->Size);
+				Stack = Memory::Allocate<char>(sizeof(char) * State->Size);
 				Context = make_fcontext(Stack + State->Size, State->Size, [](transfer_t Transfer)
 				{
 					Costate::ExecutionEntry(&Transfer);
@@ -923,7 +925,7 @@ namespace Vitex
 				Context = CreateFiber(State->Size, &Costate::ExecutionEntry, (LPVOID)State);
 #else
 				getcontext(&Context);
-				Stack = VI_MALLOC(char, sizeof(char) * State->Size);
+				Stack = Memory::Allocate<char>(sizeof(char) * State->Size);
 				Context.uc_stack.ss_sp = Stack;
 				Context.uc_stack.ss_size = State->Size;
 				Context.uc_stack.ss_flags = 0;
@@ -937,14 +939,14 @@ namespace Vitex
 			~Cocontext()
 			{
 #ifdef VI_FCTX
-				VI_FREE(Stack);
+				Memory::Deallocate(Stack);
 #elif VI_MICROSOFT
 				if (Main)
 					ConvertFiberToThread();
 				else if (Context != nullptr)
 					DeleteFiber(Context);
 #else
-				VI_FREE(Stack);
+				Memory::Deallocate(Stack);
 #endif
 			}
 		};
@@ -961,7 +963,7 @@ namespace Vitex
 			std::atomic<bool> Resync = true;
 		};
 
-		BasicException::BasicException(const String& NewMessage) noexcept : Message(NewMessage)
+		BasicException::BasicException(const std::string_view& NewMessage) noexcept : Message(NewMessage)
 		{
 		}
 		BasicException::BasicException(String&& NewMessage) noexcept : Message(std::move(NewMessage))
@@ -994,7 +996,7 @@ namespace Vitex
 		ParserException::ParserException(ParserError NewType, size_t NewOffset) : ParserException(NewType, NewOffset, Core::String())
 		{
 		}
-		ParserException::ParserException(ParserError NewType, size_t NewOffset, const String& NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
+		ParserException::ParserException(ParserError NewType, size_t NewOffset, const std::string_view& NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
 		{
 			if (NewMessage.empty())
 			{
@@ -1159,7 +1161,7 @@ namespace Vitex
 		SystemException::SystemException() : SystemException(String())
 		{
 		}
-		SystemException::SystemException(const String& NewMessage) : Error(OS::Error::GetConditionOr(std::errc::operation_not_permitted))
+		SystemException::SystemException(const std::string_view& NewMessage) : Error(OS::Error::GetConditionOr(std::errc::operation_not_permitted))
 		{
 			if (!NewMessage.empty())
 			{
@@ -1171,7 +1173,7 @@ namespace Vitex
 			else
 				Message = Copy<String>(Error.message());
 		}
-		SystemException::SystemException(const String& NewMessage, std::error_condition&& Condition) : Error(std::move(Condition))
+		SystemException::SystemException(const std::string_view& NewMessage, std::error_condition&& Condition) : Error(std::move(Condition))
 		{
 			if (!NewMessage.empty())
 			{
@@ -1204,15 +1206,15 @@ namespace Vitex
 			return std::move(Error);
 		}
 
-		MemoryContext::MemoryContext() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
+		MemoryLocation::MemoryLocation() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
 		{
 		}
-		MemoryContext::MemoryContext(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine) : Source(NewSource ? NewSource : "?.cpp"), Function(NewFunction ? NewFunction : "?"), TypeName(NewTypeName ? NewTypeName : "void"), Line(NewLine >= 0 ? NewLine : 0)
+		MemoryLocation::MemoryLocation(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine) : Source(NewSource ? NewSource : "?.cpp"), Function(NewFunction ? NewFunction : "?"), TypeName(NewTypeName ? NewTypeName : "void"), Line(NewLine >= 0 ? NewLine : 0)
 		{
 		}
 
 		static thread_local LocalAllocator* InternalAllocator = nullptr;
-		void* Memory::Malloc(size_t Size) noexcept
+		void* Memory::DefaultAllocate(size_t Size) noexcept
 		{
 			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
 			if (InternalAllocator != nullptr)
@@ -1236,7 +1238,7 @@ namespace Vitex
 			Context->Allocations[Address].second = Size;
 			return Address;
 		}
-		void* Memory::MallocContext(size_t Size, MemoryContext&& Origin) noexcept
+		void* Memory::TracingAllocate(size_t Size, MemoryLocation&& Origin) noexcept
 		{
 			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
 			if (InternalAllocator != nullptr)
@@ -1262,7 +1264,7 @@ namespace Vitex
 			Item.second = Size;
 			return Address;
 		}
-		void Memory::Free(void* Address) noexcept
+		void Memory::DefaultDeallocate(void* Address) noexcept
 		{
 			if (!Address)
 				return;
@@ -1278,7 +1280,7 @@ namespace Vitex
 			Context->Allocations.erase(Address);
 			free(Address);
 		}
-		void Memory::Watch(void* Address, MemoryContext&& Origin) noexcept
+		void Memory::Watch(void* Address, MemoryLocation&& Origin) noexcept
 		{
 			VI_ASSERT(Global != nullptr, "allocator should be set");
 			VI_ASSERT(Address != nullptr, "address should be set");
@@ -1305,7 +1307,7 @@ namespace Vitex
 				for (auto& Item : Context->Allocations)
 				{
 #ifndef NDEBUG
-					Global->Transfer(Item.first, MemoryContext(Item.second.first), Item.second.second);
+					Global->Transfer(Item.first, MemoryLocation(Item.second.first), Item.second.second);
 #else
 					Global->Transfer(Item.first, Item.second.second);
 #endif
@@ -1352,10 +1354,10 @@ namespace Vitex
 					int ColumnNumber = 0;
 					int LineNumber = Context->GetLineNumber(i, &ColumnNumber);
 					Scripting::Function Next = Context->GetFunction(i);
+					auto SectionName = Next.GetSectionName();
 					Frame Target;
-					if (Next.GetSectionName())
+					if (!SectionName.empty())
 					{
-						const char* SectionName = Next.GetSectionName();
 						auto SourceCode = VM->GetSourceCodeAppendixByPath("source", SectionName, (uint32_t)LineNumber, (uint32_t)ColumnNumber, 5);
 						if (SourceCode)
 							Target.Code = *SourceCode;
@@ -1363,7 +1365,7 @@ namespace Vitex
 					}
 					else
 						Target.File = "[native]";
-					Target.Function = (Next.GetDecl() ? Next.GetDecl() : "[optimized]");
+					Target.Function = (Next.GetDecl().empty() ? "[optimized]" : Next.GetDecl());
 					Target.Line = (uint32_t)LineNumber;
 					Target.Column = (uint32_t)ColumnNumber;
 					Target.Handle = (void*)Next.GetFunction();
@@ -1495,7 +1497,7 @@ namespace Vitex
 		void ErrorHandling::Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept
 		{
 			Details Data;
-			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
+			Data.Origin.File = OS::Path::GetFilename(Source).data();
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
@@ -1553,7 +1555,7 @@ namespace Vitex
 		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept
 		{
 			Details Data;
-			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
+			Data.Origin.File = OS::Path::GetFilename(Source).data();
 			Data.Origin.Line = Line;
 			Data.Type.Level = LogLevel::Error;
 			Data.Type.Fatal = true;
@@ -1597,7 +1599,7 @@ namespace Vitex
 				return;
 
 			Details Data;
-			Data.Origin.File = Source ? OS::Path::GetFilename(Source) : nullptr;
+			Data.Origin.File = OS::Path::GetFilename(Source).data();
 			Data.Origin.Line = Line;
 			Data.Type.Level = Level;
 			Data.Type.Fatal = false;
@@ -1634,7 +1636,7 @@ namespace Vitex
 		}
 		void ErrorHandling::Enqueue(Details&& Data) noexcept
 		{
-			if (HasFlag(LogOption::Async) && Schedule::IsAvailable())
+			if (HasFlag(LogOption::Async) && Schedule::IsAvailable(Difficulty::Sync))
 				Codefer([Data = std::move(Data)]() mutable { Dispatch(Data); });
 			else
 				Dispatch(Data);
@@ -1671,30 +1673,30 @@ namespace Vitex
 			Base->ColorBegin(ParseTokens ? StdColor::Cyan : StdColor::Gray);
 			if (HasFlag(LogOption::Dated))
 			{
-				Base->WriteBuffer(Data.Message.Date);
-				Base->WriteBuffer(" ");
+				Base->Write(Data.Message.Date);
+				Base->Write(" ");
 #ifndef NDEBUG
 				if (Data.Origin.File != nullptr)
 				{
 					Base->ColorBegin(StdColor::Gray);
-					Base->WriteBuffer(Data.Origin.File);
-					Base->WriteBuffer(":");
+					Base->Write(Data.Origin.File);
+					Base->Write(":");
 					if (Data.Origin.Line > 0)
 					{
 						Base->Write(Core::ToString(Data.Origin.Line));
-						Base->WriteBuffer(" ");
+						Base->Write(" ");
 					}
 				}
 #endif
 			}
 			Base->ColorBegin(GetMessageColor(Data));
-			Base->WriteBuffer(GetMessageType(Data));
-			Base->WriteBuffer(" ");
+			Base->Write(GetMessageType(Data));
+			Base->Write(" ");
 			if (ParseTokens)
-				Base->ColorPrintBuffer(StdColor::LightGray, Data.Message.Data, Data.Message.Size);
+				Base->ColorPrint(StdColor::LightGray, std::string_view(Data.Message.Data, Data.Message.Size));
 			else
-				Base->WriteBuffer(Data.Message.Data);
-			Base->WriteBuffer("\n");
+				Base->Write(Data.Message.Data);
+			Base->Write("\n");
 			Base->ColorEnd();
 		}
 		void ErrorHandling::Pause() noexcept
@@ -1828,7 +1830,7 @@ namespace Vitex
 
 			return Stream.str();
 		}
-		const char* ErrorHandling::GetMessageType(const Details& Base) noexcept
+		std::string_view ErrorHandling::GetMessageType(const Details& Base) noexcept
 		{
 			switch (Base.Type.Level)
 			{
@@ -1886,23 +1888,23 @@ namespace Vitex
 		}
 		ErrorHandling::State* ErrorHandling::Context = nullptr;
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coexecution::Active), Callback(Procedure), Slave(VI_NEW(Cocontext, Base)), Master(Base), UserData(nullptr)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coexecution::Active), Callback(Procedure), Slave(Memory::New<Cocontext>(Base)), Master(Base), UserData(nullptr)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coexecution::Active), Callback(std::move(Procedure)), Slave(VI_NEW(Cocontext, Base)), Master(Base), UserData(nullptr)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coexecution::Active), Callback(std::move(Procedure)), Slave(Memory::New<Cocontext>(Base)), Master(Base), UserData(nullptr)
 		{
 		}
 		Coroutine::~Coroutine() noexcept
 		{
-			VI_DELETE(Cocontext, Slave);
+			Memory::Delete(Slave);
 		}
 
 		Decimal::Decimal() noexcept : Length(0), Sign('\0')
 		{
 		}
-		Decimal::Decimal(const String& Value) noexcept : Length(0)
+		Decimal::Decimal(const std::string_view& Value) noexcept : Length(0)
 		{
-			InitializeFromText(Value.c_str(), Value.size());
+			InitializeFromText(Value);
 		}
 		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign)
 		{
@@ -1910,9 +1912,9 @@ namespace Vitex
 		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign)
 		{
 		}
-		void Decimal::InitializeFromText(const char* Text, size_t Size) noexcept
+		void Decimal::InitializeFromText(const std::string_view& Text) noexcept
 		{
-			if (!Size)
+			if (Text.empty())
 			{
 			InvalidNumber:
 				Source.clear();
@@ -1923,7 +1925,7 @@ namespace Vitex
 
 			bool Points = false;
 			size_t Index = 0;
-			int8_t Direction = Text[0];
+			uint8_t Direction = Text[0];
 			if (Direction != '+' && Direction != '-')
 			{
 				if (!isdigit(Direction))
@@ -1934,7 +1936,7 @@ namespace Vitex
 				Index = 1;
 
 			Sign = Direction;
-			while (Text[Index] != '\0')
+			while (Index < Text.size())
 			{
 				if (!Points && Text[Index] == '.')
 				{
@@ -1944,7 +1946,7 @@ namespace Vitex
 					Points = true;
 					++Index;
 				}
-				else if (!isdigit(Text[Index]))
+				else if (!isdigit((uint8_t)Text[Index]))
 					goto InvalidNumber;
 
 				Source.insert(0, 1, Text[Index++]);
@@ -3078,7 +3080,7 @@ namespace Vitex
 				return 0;
 			}
 		}
-		int Decimal::CharToInt(const char& Value)
+		int Decimal::CharToInt(char Value)
 		{
 			return Value - '0';
 		}
@@ -3107,7 +3109,7 @@ namespace Vitex
 		{
 			Free();
 		}
-		bool Variant::Deserialize(const String& Text, bool Strict)
+		bool Variant::Deserialize(const std::string_view& Text, bool Strict)
 		{
 			Free();
 			if (!Strict && !Text.empty())
@@ -3179,9 +3181,13 @@ namespace Vitex
 			}
 
 			if (Text.size() > 2 && Text.front() == PREFIX_BINARY[0] && Text.back() == PREFIX_BINARY[0])
-				Move(Var::Binary(Compute::Codec::Bep45Decode(String(Text.substr(1).c_str(), Text.size() - 2))));
+			{
+				auto Data = Compute::Codec::Bep45Decode(Text.substr(1, Text.size() - 2));
+				Move(Var::Binary((uint8_t*)Data.data(), Data.size()));
+			}
 			else
 				Move(Var::String(Text));
+
 			return true;
 		}
 		String Variant::Serialize() const
@@ -3199,9 +3205,9 @@ namespace Vitex
 				case VarType::Pointer:
 					return PREFIX_ENUM "void*" PREFIX_ENUM;
 				case VarType::String:
-					return String(GetString(), Size());
+					return String(GetString());
 				case VarType::Binary:
-					return PREFIX_BINARY + Compute::Codec::Bep45Encode(String(GetString(), Size())) + PREFIX_BINARY;
+					return PREFIX_BINARY + Compute::Codec::Bep45Encode(GetString()) + PREFIX_BINARY;
 				case VarType::Decimal:
 				{
 					auto* Data = ((Decimal*)Value.Pointer);
@@ -3223,7 +3229,7 @@ namespace Vitex
 		String Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Binary)
-				return String(GetString(), Length);
+				return String(GetString());
 
 			if (Type == VarType::Decimal)
 				return ((Decimal*)Value.Pointer)->ToString();
@@ -3273,7 +3279,7 @@ namespace Vitex
 					return Value.Pointer;
 				case VarType::String:
 				case VarType::Binary:
-					return (void*)GetString();
+					return (void*)GetString().data();
 				case VarType::Integer:
 					return &Value.Integer;
 				case VarType::Number:
@@ -3290,16 +3296,19 @@ namespace Vitex
 					return nullptr;
 			}
 		}
-		const char* Variant::GetString() const
+		std::string_view Variant::GetString() const
+		{
+			if (Type != VarType::String && Type != VarType::Binary)
+				return std::string_view("", 0);
+
+			return std::string_view(Length <= GetMaxSmallStringSize() ? Value.String : Value.Pointer, Length);
+		}
+		uint8_t* Variant::GetBinary() const
 		{
 			if (Type != VarType::String && Type != VarType::Binary)
 				return nullptr;
 
-			return Length <= GetMaxSmallStringSize() ? Value.String : Value.Pointer;
-		}
-		unsigned char* Variant::GetBinary() const
-		{
-			return (unsigned char*)GetString();
+			return Length <= GetMaxSmallStringSize() ? (uint8_t*)Value.String : (uint8_t*)Value.Pointer;
 		}
 		int64_t Variant::GetInteger() const
 		{
@@ -3317,7 +3326,7 @@ namespace Vitex
 
 			if (Type == VarType::String)
 			{
-				auto Result = FromString<int64_t>(String(GetString(), Size()));
+				auto Result = FromString<int64_t>(GetString());
 				if (Result)
 					return *Result;
 			}
@@ -3340,7 +3349,7 @@ namespace Vitex
 
 			if (Type == VarType::String)
 			{
-				auto Result = FromString<double>(String(GetString(), Size()));
+				auto Result = FromString<double>(GetString());
 				if (Result)
 					return *Result;
 			}
@@ -3419,14 +3428,9 @@ namespace Vitex
 		{
 			return !Empty();
 		}
-		bool Variant::IsString(const char* Text) const
+		bool Variant::IsString(const std::string_view& Text) const
 		{
-			VI_ASSERT(Text != nullptr, "text should be set");
-			const char* Other = GetString();
-			if (Other == Text)
-				return true;
-
-			return strcmp(Other, Text) == 0;
+			return GetString() == Text;
 		}
 		bool Variant::IsObject() const
 		{
@@ -3482,12 +3486,7 @@ namespace Vitex
 					if (Sizing != Other.Size())
 						return false;
 
-					const char* Src1 = GetString();
-					const char* Src2 = Other.GetString();
-					if (!Src1 || !Src2)
-						return false;
-
-					return strncmp(Src1, Src2, sizeof(char) * Sizing) == 0;
+					return GetString() == Other.GetString();
 				}
 				case VarType::Decimal:
 					return (*(Decimal*)Value.Pointer) == (*(Decimal*)Other.Value.Pointer);
@@ -3522,14 +3521,14 @@ namespace Vitex
 				{
 					size_t StringSize = sizeof(char) * (Length + 1);
 					if (Length > GetMaxSmallStringSize())
-						Value.Pointer = VI_MALLOC(char, StringSize);
-					memcpy((void*)GetString(), Other.GetString(), StringSize);
+						Value.Pointer = Memory::Allocate<char>(StringSize);
+					memcpy((void*)GetString().data(), Other.GetString().data(), StringSize);
 					break;
 				}
 				case VarType::Decimal:
 				{
 					Decimal* From = (Decimal*)Other.Value.Pointer;
-					Value.Pointer = (char*)VI_NEW(Decimal, *From);
+					Value.Pointer = (char*)Memory::New<Decimal>(*From);
 					break;
 				}
 				case VarType::Integer:
@@ -3565,7 +3564,7 @@ namespace Vitex
 				case VarType::String:
 				case VarType::Binary:
 					if (Length <= GetMaxSmallStringSize())
-						memcpy((void*)GetString(), Other.GetString(), sizeof(char) * (Length + 1));
+						memcpy((void*)GetString().data(), Other.GetString().data(), sizeof(char) * (Length + 1));
 					else
 						Value.Pointer = Other.Value.Pointer;
 					Other.Value.Pointer = nullptr;
@@ -3599,7 +3598,7 @@ namespace Vitex
 					if (!Value.Pointer || Length <= GetMaxSmallStringSize())
 						break;
 
-					VI_FREE(Value.Pointer);
+					Memory::Deallocate(Value.Pointer);
 					Value.Pointer = nullptr;
 					break;
 				}
@@ -3609,7 +3608,7 @@ namespace Vitex
 						break;
 
 					Decimal* Buffer = (Decimal*)Value.Pointer;
-					VI_DELETE(Decimal, Buffer);
+					Memory::Delete(Buffer);
 					Value.Pointer = nullptr;
 					break;
 				}
@@ -3724,29 +3723,30 @@ namespace Vitex
 		{
 			return Time == Right.Time;
 		}
-		String DateTime::Format(const String& Value)
+		String DateTime::Format(const char* Format)
 		{
+			VI_ASSERT(Format != nullptr, "format should be set");
 			if (DateRebuild)
 				Rebuild();
 
 			char Buffer[CHUNK_SIZE];
-			strftime(Buffer, sizeof(Buffer), Value.c_str(), &DateValue);
+			strftime(Buffer, sizeof(Buffer), Format, &DateValue);
 			return Buffer;
 		}
-		String DateTime::Date(const String& Value)
+		String DateTime::Date(const char* Format)
 		{
+			VI_ASSERT(Format != nullptr, "format should be set");
 			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
 			if (DateRebuild)
 				Rebuild();
 
 			struct tm T;
+			String Result = Format;
 			if (!LocalTime(&Offset, &T))
-				return Value;
+				return Result;
 
 			T.tm_mon++;
 			T.tm_year += 1900;
-
-			String Result = Value;
 			Stringify::Replace(Result, "{s}", T.tm_sec < 10 ? Stringify::Text("0%i", T.tm_sec) : Core::ToString(T.tm_sec));
 			Stringify::Replace(Result, "{m}", T.tm_min < 10 ? Stringify::Text("0%i", T.tm_min) : Core::ToString(T.tm_min));
 			Stringify::Replace(Result, "{h}", Core::ToString(T.tm_hour));
@@ -4188,9 +4188,7 @@ namespace Vitex
 		}
 		bool DateTime::FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time)
 		{
-			if (!Buffer || !Length)
-				return false;
-
+			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
 			auto TimeStamp = (time_t)Time;
 			struct tm Date { };
 #if defined(_WIN32_CE)
@@ -4235,6 +4233,7 @@ namespace Vitex
 		}
 		bool DateTime::FetchWebDateTime(char* Buffer, size_t Length, int64_t Time)
 		{
+			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
 			time_t TimeStamp = (time_t)Time;
 			struct tm Date { };
 #if defined(_WIN32_WCE)
@@ -4281,6 +4280,7 @@ namespace Vitex
 		}
 		void DateTime::FetchDateTime(char* Date, size_t Size, int64_t TargetTime)
 		{
+			VI_ASSERT(Date != nullptr, "date should be set");
 			tm Data{ }; time_t Time = (time_t)TargetTime;
 			if (!LocalTime(&Time, &Data))
 				strncpy(Date, "1970-01-01 00:00:00", Size);
@@ -4441,10 +4441,10 @@ namespace Vitex
 				Other.erase(Length, Other.size() - Length);
 			return Other;
 		}
-		String& Stringify::Compress(String& Other, const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
+		String& Stringify::Compress(String& Other, const std::string_view& Tokenbase, const std::string_view& NotInBetweenOf, size_t Start)
 		{
-			size_t TokenbaseSize = (Tokenbase ? strlen(Tokenbase) : 0);
-			size_t NiboSize = (NotInBetweenOf ? strlen(NotInBetweenOf) : 0);
+			size_t TokenbaseSize = Tokenbase.size();
+			size_t NiboSize = NotInBetweenOf.size();
 			char Skip = '\0';
 
 			for (size_t i = Start; i < Other.size(); i++)
@@ -4508,11 +4508,11 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplaceOf(String& Other, const char* Chars, const char* To, size_t Start)
+		String& Stringify::ReplaceOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start)
 		{
-			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
+			VI_ASSERT(!Chars.empty(), "match list and replacer should not be empty");
 			TextSettle Result{ };
-			size_t Offset = Start, ToSize = strlen(To);
+			size_t Offset = Start, ToSize = To.size();
 			while ((Result = FindOf(Other, Chars, Offset)).Found)
 			{
 				EraseOffsets(Other, Result.Start, Result.End);
@@ -4521,11 +4521,11 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplaceNotOf(String& Other, const char* Chars, const char* To, size_t Start)
+		String& Stringify::ReplaceNotOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start)
 		{
-			VI_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, "match list and replacer should not be empty");
+			VI_ASSERT(!Chars.empty(), "match list and replacer should not be empty");
 			TextSettle Result{};
-			size_t Offset = Start, ToSize = strlen(To);
+			size_t Offset = Start, ToSize = To.size();
 			while ((Result = FindNotOf(Other, Chars, Offset)).Found)
 			{
 				EraseOffsets(Other, Result.Start, Result.End);
@@ -4534,7 +4534,7 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::Replace(String& Other, const String& From, const String& To, size_t Start)
+		String& Stringify::Replace(String& Other, const std::string_view& From, const std::string_view& To, size_t Start)
 		{
 			VI_ASSERT(!From.empty(), "match should not be empty");
 			size_t Offset = Start;
@@ -4548,28 +4548,13 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplaceGroups(String& Other, const String& FromRegex, const String& To)
+		String& Stringify::ReplaceGroups(String& Other, const std::string_view& FromRegex, const std::string_view& To)
 		{
-			Compute::RegexSource Source('(' + FromRegex + ')');
+			Compute::RegexSource Source('(' + String(FromRegex) + ')');
 			Compute::Regex::Replace(&Source, To, Other);
 			return Other;
 		}
-		String& Stringify::Replace(String& Other, const char* From, const char* To, size_t Start)
-		{
-			VI_ASSERT(From != nullptr && To != nullptr, "from and to should not be empty");
-			size_t Offset = Start;
-			size_t Size = strlen(To);
-			TextSettle Result{ };
-
-			while ((Result = Find(Other, From, Offset)).Found)
-			{
-				EraseOffsets(Other, Result.Start, Result.End);
-				Other.insert(Result.Start, To);
-				Offset = Result.Start + Size;
-			}
-			return Other;
-		}
-		String& Stringify::Replace(String& Other, const char& From, const char& To, size_t Position)
+		String& Stringify::Replace(String& Other, char From, char To, size_t Position)
 		{
 			for (size_t i = Position; i < Other.size(); i++)
 			{
@@ -4579,7 +4564,7 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::Replace(String& Other, const char& From, const char& To, size_t Position, size_t Count)
+		String& Stringify::Replace(String& Other, char From, char To, size_t Position, size_t Count)
 		{
 			VI_ASSERT(Other.size() >= (Position + Count), "invalid offset");
 			size_t Size = Position + Count;
@@ -4591,35 +4576,30 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplacePart(String& Other, size_t Start, size_t End, const String& Value)
-		{
-			return ReplacePart(Other, Start, End, Value.c_str());
-		}
-		String& Stringify::ReplacePart(String& Other, size_t Start, size_t End, const char* Value)
+		String& Stringify::ReplacePart(String& Other, size_t Start, size_t End, const std::string_view& Value)
 		{
 			VI_ASSERT(Start < Other.size(), "invalid start");
 			VI_ASSERT(End <= Other.size(), "invalid end");
 			VI_ASSERT(Start < End, "start should be less than end");
-			VI_ASSERT(Value != nullptr, "replacer should not be empty");
 			if (Start == 0)
 			{
 				if (Other.size() != End)
-					Other.assign(Value + Other.substr(End, Other.size() - End));
+					Other.assign(String(Value) + Other.substr(End, Other.size() - End));
 				else
 					Other.assign(Value);
 			}
 			else if (Other.size() == End)
-				Other.assign(Other.substr(0, Start) + Value);
+				Other.assign(Other.substr(0, Start) + String(Value));
 			else
-				Other.assign(Other.substr(0, Start) + Value + Other.substr(End, Other.size() - End));
+				Other.assign(Other.substr(0, Start) + String(Value) + Other.substr(End, Other.size() - End));
 			return Other;
 		}
-		String& Stringify::ReplaceStartsWithEndsOf(String& Other, const char* Begins, const char* EndsOf, const String& With, size_t Start)
+		String& Stringify::ReplaceStartsWithEndsOf(String& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& With, size_t Start)
 		{
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
-			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
+			VI_ASSERT(!Begins.empty(), "begin should not be empty");
+			VI_ASSERT(!EndsOf.empty(), "end should not be empty");
 
-			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
+			size_t BeginsSize = Begins.size(), EndsOfSize = EndsOf.size();
 			for (size_t i = Start; i < Other.size(); i++)
 			{
 				size_t From = i, BeginsOffset = 0;
@@ -4661,12 +4641,12 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplaceInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start)
+		String& Stringify::ReplaceInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start)
 		{
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
+			VI_ASSERT(!Begins.empty(), "begin should not be empty");
+			VI_ASSERT(!Ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
 			for (size_t i = Start; i < Other.size(); i++)
 			{
 				size_t From = i, BeginsOffset = 0;
@@ -4724,12 +4704,12 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplaceNotInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start)
+		String& Stringify::ReplaceNotInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start)
 		{
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
+			VI_ASSERT(!Begins.empty(), "begin should not be empty");
+			VI_ASSERT(!Ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
 			size_t ReplaceAt = String::npos;
 
 			for (size_t i = Start; i < Other.size(); i++)
@@ -4792,7 +4772,7 @@ namespace Vitex
 				Other.replace(Other.begin() + ReplaceAt, Other.end(), With);
 			return Other;
 		}
-		String& Stringify::ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const String& With, const std::function<char(const String&, char, int)>& Surrounding)
+		String& Stringify::ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const std::string_view& With, const std::function<char(const std::string_view&, char, int)>& Surrounding)
 		{
 			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<String, TextSettle>& A, const std::pair<String, TextSettle>& B)
 			{
@@ -4810,7 +4790,7 @@ namespace Vitex
 				Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
 				if (Surrounding != nullptr)
 				{
-					String Replacement = With;
+					String Replacement = String(With);
 					if (Item.second.Start > 0)
 					{
 						char Next = Surrounding(Item.first, Other.at(Item.second.Start - 1), -1);
@@ -4838,7 +4818,7 @@ namespace Vitex
 			}
 			return Other;
 		}
-		String& Stringify::ReplaceParts(String& Other, Vector<TextSettle>& Inout, const String& With, const std::function<char(char, int)>& Surrounding)
+		String& Stringify::ReplaceParts(String& Other, Vector<TextSettle>& Inout, const std::string_view& With, const std::function<char(char, int)>& Surrounding)
 		{
 			VI_SORT(Inout.begin(), Inout.end(), [](const TextSettle& A, const TextSettle& B)
 			{
@@ -4856,7 +4836,7 @@ namespace Vitex
 				Item.End = (size_t)((int64_t)Item.End + Offset);
 				if (Surrounding != nullptr)
 				{
-					String Replacement = With;
+					String Replacement = String(With);
 					if (Item.Start > 0)
 					{
 						char Next = Surrounding(Other.at(Item.Start - 1), -1);
@@ -4953,32 +4933,26 @@ namespace Vitex
 		}
 		String& Stringify::TrimStart(String& Other)
 		{
-			Other.erase(Other.begin(), std::find_if(Other.begin(), Other.end(), [](int C) -> int
-			{
-				return std::isspace(Literal(C)) == 0 ? 1 : 0;
-			}));
+			Other.erase(Other.begin(), std::find_if(Other.begin(), Other.end(), [](uint8_t V) -> bool { return std::isspace(V) == 0; }));
 			return Other;
 		}
 		String& Stringify::TrimEnd(String& Other)
 		{
-			Other.erase(std::find_if(Other.rbegin(), Other.rend(), [](int C) -> int
-			{
-				return std::isspace(Literal(C)) == 0 ? 1 : 0;
-			}).base(), Other.end());
+			Other.erase(std::find_if(Other.rbegin(), Other.rend(), [](uint8_t V) -> bool { return std::isspace(V) == 0; }).base(), Other.end());
 			return Other;
 		}
-		String& Stringify::Fill(String& Other, const char& Char)
+		String& Stringify::Fill(String& Other, char Char)
 		{
 			for (char& i : Other)
 				i = Char;
 			return Other;
 		}
-		String& Stringify::Fill(String& Other, const char& Char, size_t Count)
+		String& Stringify::Fill(String& Other, char Char, size_t Count)
 		{
 			Other.assign(Count, Char);
 			return Other;
 		}
-		String& Stringify::Fill(String& Other, const char& Char, size_t Start, size_t Count)
+		String& Stringify::Fill(String& Other, char Char, size_t Start, size_t Count)
 		{
 			VI_ASSERT(!Other.empty(), "length should be greater than Zero");
 			VI_ASSERT(Start <= Other.size(), "start should be less or equal than length");
@@ -5021,7 +4995,7 @@ namespace Vitex
 		{
 			return Erase(Other, Start, End - Start);
 		}
-		ExpectsSystem<void> Stringify::EvalEnvs(String& Other, const String& Net, const String& Dir)
+		ExpectsSystem<void> Stringify::EvalEnvs(String& Other, const std::string_view& Net, const std::string_view& Dir)
 		{
 			if (Other.empty())
 				return Core::Expectation::Met;
@@ -5034,31 +5008,48 @@ namespace Vitex
 			}
 			else if (Other.front() == '$' && Other.size() > 1)
 			{
-				const char* Env = std::getenv(Other.c_str() + 1);
+				auto Env = OS::Process::GetEnv(Other.c_str() + 1);
 				if (!Env)
-					return SystemException("invalid env name: " + Other.substr(1));
-				Other.assign(Env);
+					return SystemException("invalid env name: " + Other.substr(1), std::move(Env.Error()));
+				Other.assign(*Env);
 			}
 			else
 				Replace(Other, "[subnet]", Net);
 
 			return Core::Expectation::Met;
 		}
-		Vector<std::pair<String, TextSettle>> Stringify::FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset)
+		Vector<std::pair<String, TextSettle>> Stringify::FindInBetween(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset)
 		{
 			Vector<std::pair<String, TextSettle>> Result;
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
+			PmFindInBetween(Result, Other, Begins, Ends, NotInSubBetweenOf, Offset);
+			return Result;
+		}
+		Vector<std::pair<String, TextSettle>> Stringify::FindInBetweenInCode(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset)
+		{
+			Vector<std::pair<String, TextSettle>> Result;
+			PmFindInBetweenInCode(Result, Other, Begins, Ends, Offset);
+			return Result;
+		}
+		Vector<std::pair<String, TextSettle>> Stringify::FindStartsWithEndsOf(const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset)
+		{
+			Vector<std::pair<String, TextSettle>> Result;
+			PmFindStartsWithEndsOf(Result, Other, Begins, EndsOf, NotInSubBetweenOf, Offset);
+			return Result;
+		}
+		void Stringify::PmFindInBetween(Vector<std::pair<String, TextSettle>>& Result, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset)
+		{
+			VI_ASSERT(!Begins.empty(), "begin should not be empty");
+			VI_ASSERT(!Ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
-			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
+			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
+			size_t NisboSize = NotInSubBetweenOf.size();
 			char Skip = '\0';
 
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				for (size_t j = 0; j < NisboSize; j++)
 				{
-					const char& Next = Other.at(i);
+					char Next = Other.at(i);
 					if (Next == NotInSubBetweenOf[j])
 					{
 						Skip = Next;
@@ -5109,18 +5100,15 @@ namespace Vitex
 				At.End = To;
 				At.Found = true;
 
-				Result.push_back(std::make_pair(Other.substr(From, (To - EndsSize) - From), std::move(At)));
+				Result.push_back(std::make_pair(String(Other.substr(From, (To - EndsSize) - From)), std::move(At)));
 			}
-
-			return Result;
 		}
-		Vector<std::pair<String, TextSettle>> Stringify::FindInBetweenInCode(const String& Other, const char* Begins, const char* Ends, size_t Offset)
+		void Stringify::PmFindInBetweenInCode(Vector<std::pair<String, TextSettle>>& Result, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset)
 		{
-			Vector<std::pair<String, TextSettle>> Result;
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
-			VI_ASSERT(Ends != nullptr && Ends[0] != '\0', "end should not be empty");
+			VI_ASSERT(!Begins.empty(), "begin should not be empty");
+			VI_ASSERT(!Ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				if (Other.at(i) == '/' && i + 1 < Other.size() && (Other[i + 1] == '/' || Other[i + 1] == '*'))
@@ -5179,26 +5167,23 @@ namespace Vitex
 				At.End = To;
 				At.Found = true;
 
-				Result.push_back(std::make_pair(Other.substr(From, (To - EndsSize) - From), std::move(At)));
+				Result.push_back(std::make_pair(String(Other.substr(From, (To - EndsSize) - From)), std::move(At)));
 			}
-
-			return Result;
 		}
-		Vector<std::pair<String, TextSettle>> Stringify::FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset)
+		void Stringify::PmFindStartsWithEndsOf(Vector<std::pair<String, TextSettle>>& Result, const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset)
 		{
-			Vector<std::pair<String, TextSettle>> Result;
-			VI_ASSERT(Begins != nullptr && Begins[0] != '\0', "begin should not be empty");
-			VI_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', "end should not be empty");
+			VI_ASSERT(!Begins.empty(), "begin should not be empty");
+			VI_ASSERT(!EndsOf.empty(), "end should not be empty");
 
-			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
-			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
+			size_t BeginsSize = Begins.size(), EndsOfSize = EndsOf.size();
+			size_t NisboSize = NotInSubBetweenOf.size();
 			char Skip = '\0';
 
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
 				for (size_t j = 0; j < NisboSize; j++)
 				{
-					const char& Next = Other.at(i);
+					char Next = Other.at(i);
 					if (Next == NotInSubBetweenOf[j])
 					{
 						Skip = Next;
@@ -5257,24 +5242,22 @@ namespace Vitex
 				At.End = To;
 				At.Found = true;
 
-				Result.push_back(std::make_pair(Other.substr(From, To - From), std::move(At)));
+				Result.push_back(std::make_pair(String(Other.substr(From, To - From)), std::move(At)));
 			}
-
-			return Result;
 		}
-		TextSettle Stringify::ReverseFind(const String& Other, const String& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFind(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
 
-			const char* Ptr = Other.c_str() - Offset;
-			if (Needle.c_str() > Ptr)
+			const char* Ptr = Other.data() - Offset;
+			if (Needle.data() > Ptr)
 				return { Other.size(), Other.size(), false };
 
 			const char* It = nullptr;
 			for (It = Ptr + Other.size() - Needle.size(); It > Ptr; --It)
 			{
-				if (strncmp(Ptr, Needle.c_str(), Needle.size()) == 0)
+				if (strncmp(Ptr, Needle.data(), Needle.size()) == 0)
 				{
 					size_t Set = (size_t)(It - Ptr);
 					return { Set, Set + Needle.size(), true };
@@ -5283,29 +5266,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFind(const String& Other, const char* Needle, size_t Offset)
-		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
-
-			if (!Needle)
-				return { Other.size(), Other.size(), false };
-
-			const char* Ptr = Other.c_str() - Offset;
-			if (Needle > Ptr)
-				return { Other.size(), Other.size(), false };
-
-			const char* It = nullptr;
-			size_t Length = strlen(Needle);
-			for (It = Ptr + Other.size() - Length; It > Ptr; --It)
-			{
-				if (strncmp(Ptr, Needle, Length) == 0)
-					return { (size_t)(It - Ptr), (size_t)(It - Ptr + Length), true };
-			}
-
-			return { Other.size(), Other.size(), false };
-		}
-		TextSettle Stringify::ReverseFind(const String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFind(const std::string_view& Other, char Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5319,7 +5280,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindUnescaped(const String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFindUnescaped(const std::string_view& Other, char Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5333,7 +5294,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindOf(const String& Other, const String& Needle, size_t Offset)
+		TextSettle Stringify::ReverseFindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
@@ -5350,53 +5311,19 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindOf(const String& Other, const char* Needle, size_t Offset)
+		TextSettle Stringify::Find(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
 		{
 			if (Other.empty() || Offset >= Other.size())
 				return { Other.size(), Other.size(), false };
 
-			if (!Needle)
-				return { Other.size(), Other.size(), false };
-
-			size_t Length = strlen(Needle);
-			size_t Size = Other.size() - Offset;
-			for (size_t i = Size; i-- > 0;)
-			{
-				for (size_t k = 0; k < Length; k++)
-				{
-					if (Other.at(i) == Needle[k])
-						return { i, i + 1, true };
-				}
-			}
-
-			return { Other.size(), Other.size(), false };
-		}
-		TextSettle Stringify::Find(const String& Other, const String& Needle, size_t Offset)
-		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
-
-			const char* It = strstr(Other.c_str() + Offset, Needle.c_str());
+			const char* It = strstr(Other.data() + Offset, Needle.data());
 			if (It == nullptr)
 				return { Other.size(), Other.size(), false };
 
-			size_t Set = (size_t)(It - Other.c_str());
+			size_t Set = (size_t)(It - Other.data());
 			return { Set, Set + Needle.size(), true };
 		}
-		TextSettle Stringify::Find(const String& Other, const char* Needle, size_t Offset)
-		{
-			VI_ASSERT(Needle != nullptr, "needle should be set");
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
-
-			const char* It = strstr(Other.c_str() + Offset, Needle);
-			if (It == nullptr)
-				return { Other.size(), Other.size(), false };
-
-			size_t Set = (size_t)(It - Other.c_str());
-			return { Set, Set + strlen(Needle), true };
-		}
-		TextSettle Stringify::Find(const String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::Find(const std::string_view& Other, char Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5406,7 +5333,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindUnescaped(const String& Other, const char& Needle, size_t Offset)
+		TextSettle Stringify::FindUnescaped(const std::string_view& Other, char Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5416,7 +5343,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindOf(const String& Other, const String& Needle, size_t Offset)
+		TextSettle Stringify::FindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5429,22 +5356,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindOf(const String& Other, const char* Needle, size_t Offset)
-		{
-			VI_ASSERT(Needle != nullptr, "needle should be set");
-			size_t Length = strlen(Needle);
-			for (size_t i = Offset; i < Other.size(); i++)
-			{
-				for (size_t k = 0; k < Length; k++)
-				{
-					if (Other.at(i) == Needle[k])
-						return { i, i + 1, true };
-				}
-			}
-
-			return { Other.size(), Other.size(), false };
-		}
-		TextSettle Stringify::FindNotOf(const String& Other, const String& Needle, size_t Offset)
+		TextSettle Stringify::FindNotOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
 		{
 			for (size_t i = Offset; i < Other.size(); i++)
 			{
@@ -5464,29 +5376,7 @@ namespace Vitex
 
 			return { Other.size(), Other.size(), false };
 		}
-		TextSettle Stringify::FindNotOf(const String& Other, const char* Needle, size_t Offset)
-		{
-			VI_ASSERT(Needle != nullptr, "needle should be set");
-			size_t Length = strlen(Needle);
-			for (size_t i = Offset; i < Other.size(); i++)
-			{
-				bool Result = false;
-				for (size_t k = 0; k < Length; k++)
-				{
-					if (Other.at(i) == Needle[k])
-					{
-						Result = true;
-						break;
-					}
-				}
-
-				if (!Result)
-					return { i, i + 1, true };
-			}
-
-			return { Other.size(), Other.size(), false };
-		}
-		size_t Stringify::CountLines(const String& Other)
+		size_t Stringify::CountLines(const std::string_view& Other)
 		{
 			size_t Lines = 1;
 			for (char Item : Other)
@@ -5496,39 +5386,40 @@ namespace Vitex
 			}
 			return Lines;
 		}
-		bool Stringify::IsNotPrecededByEscape(const char* Buffer, size_t Offset, char Escape)
+		bool Stringify::IsCString(const std::string_view& Other)
 		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
+			auto* Data = Other.data();
+			return Data != nullptr && Data[Other.size()] == '\0';
+		}
+		bool Stringify::IsNotPrecededByEscape(const std::string_view& Buffer, size_t Offset, char Escape)
+		{
+			VI_ASSERT(!Buffer.empty(), "buffer should be set");
 			if (Offset < 1 || Buffer[Offset - 1] != Escape)
 				return true;
 
 			return Offset > 1 && Buffer[Offset - 2] == Escape;
 		}
-		bool Stringify::IsNotPrecededByEscape(const String& Other, size_t Offset, char Escape)
-		{
-			return IsNotPrecededByEscape(Other.c_str(), Offset, Escape);
-		}
-		bool Stringify::IsEmptyOrWhitespace(const String& Other)
+		bool Stringify::IsEmptyOrWhitespace(const std::string_view& Other)
 		{
 			if (Other.empty())
 				return true;
 
 			for (char Next : Other)
 			{
-				if (!std::isspace(Literal(Next)))
+				if (!IsWhitespace(Next))
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::IsPrecededBy(const String& Other, size_t At, const char* Of)
+		bool Stringify::IsPrecededBy(const std::string_view& Other, size_t At, const std::string_view& Of)
 		{
-			VI_ASSERT(Of != nullptr, "tokenbase should be set");
+			VI_ASSERT(!Of.empty(), "tokenbase should be set");
 			if (!At || At - 1 >= Other.size())
 				return false;
 
-			size_t Size = strlen(Of);
-			const char& Next = Other.at(At - 1);
+			size_t Size = Of.size();
+			char Next = Other.at(At - 1);
 			for (size_t i = 0; i < Size; i++)
 			{
 				if (Next == Of[i])
@@ -5537,14 +5428,14 @@ namespace Vitex
 
 			return false;
 		}
-		bool Stringify::IsFollowedBy(const String& Other, size_t At, const char* Of)
+		bool Stringify::IsFollowedBy(const std::string_view& Other, size_t At, const std::string_view& Of)
 		{
-			VI_ASSERT(Of != nullptr, "tokenbase should be set");
+			VI_ASSERT(!Of.empty(), "tokenbase should be set");
 			if (At + 1 >= Other.size())
 				return false;
 
-			size_t Size = strlen(Of);
-			const char& Next = Other.at(At + 1);
+			size_t Size = Of.size();
+			char Next = Other.at(At + 1);
 			for (size_t i = 0; i < Size; i++)
 			{
 				if (Next == Of[i])
@@ -5553,7 +5444,7 @@ namespace Vitex
 
 			return false;
 		}
-		bool Stringify::StartsWith(const String& Other, const String& Value, size_t Offset)
+		bool Stringify::StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset)
 		{
 			if (Other.size() < Value.size())
 				return false;
@@ -5566,25 +5457,10 @@ namespace Vitex
 
 			return true;
 		}
-		bool Stringify::StartsWith(const String& Other, const char* Value, size_t Offset)
+		bool Stringify::StartsOf(const std::string_view& Other, const std::string_view& Value, size_t Offset)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			size_t Length = strlen(Value);
-			if (Other.size() < Length)
-				return false;
-
-			for (size_t i = Offset; i < Length; i++)
-			{
-				if (Value[i] != Other.at(i))
-					return false;
-			}
-
-			return true;
-		}
-		bool Stringify::StartsOf(const String& Other, const char* Value, size_t Offset)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			size_t Length = strlen(Value);
+			VI_ASSERT(!Value.empty(), "value should be set");
+			size_t Length = Value.size();
 			if (Offset >= Other.size())
 				return false;
 
@@ -5596,10 +5472,10 @@ namespace Vitex
 
 			return false;
 		}
-		bool Stringify::StartsNotOf(const String& Other, const char* Value, size_t Offset)
+		bool Stringify::StartsNotOf(const std::string_view& Other, const std::string_view& Value, size_t Offset)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			size_t Length = strlen(Value);
+			VI_ASSERT(!Value.empty(), "value should be set");
+			size_t Length = Value.size();
 			if (Offset >= Other.size())
 				return false;
 
@@ -5615,33 +5491,24 @@ namespace Vitex
 
 			return Result;
 		}
-		bool Stringify::EndsWith(const String& Other, const String& Value)
+		bool Stringify::EndsWith(const std::string_view& Other, const std::string_view& Value)
 		{
 			if (Other.empty() || Value.size() > Other.size())
 				return false;
 
-			return strcmp(Other.c_str() + Other.size() - Value.size(), Value.c_str()) == 0;
+			return strcmp(Other.data() + Other.size() - Value.size(), Value.data()) == 0;
 		}
-		bool Stringify::EndsWith(const String& Other, const char* Value)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			size_t Size = strlen(Value);
-			if (Other.empty() || Size > Other.size())
-				return false;
-
-			return strcmp(Other.c_str() + Other.size() - Size, Value) == 0;
-		}
-		bool Stringify::EndsWith(const String& Other, const char& Value)
+		bool Stringify::EndsWith(const std::string_view& Other, char Value)
 		{
 			return !Other.empty() && Other.back() == Value;
 		}
-		bool Stringify::EndsOf(const String& Other, const char* Value)
+		bool Stringify::EndsOf(const std::string_view& Other, const std::string_view& Value)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(!Value.empty(), "value should be set");
 			if (Other.empty())
 				return false;
 
-			size_t Length = strlen(Value);
+			size_t Length = Value.size();
 			for (size_t j = 0; j < Length; j++)
 			{
 				if (Other.back() == Value[j])
@@ -5650,13 +5517,13 @@ namespace Vitex
 
 			return false;
 		}
-		bool Stringify::EndsNotOf(const String& Other, const char* Value)
+		bool Stringify::EndsNotOf(const std::string_view& Other, const std::string_view& Value)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(!Value.empty(), "value should be set");
 			if (Other.empty())
 				return true;
 
-			size_t Length = strlen(Value);
+			size_t Length = Value.size();
 			for (size_t j = 0; j < Length; j++)
 			{
 				if (Other.back() == Value[j])
@@ -5665,17 +5532,17 @@ namespace Vitex
 
 			return true;
 		}
-		bool Stringify::HasInteger(const String& Other)
+		bool Stringify::HasInteger(const std::string_view& Other)
 		{
-			if (Other.empty() || (Other.size() == 1 && !IsDigit(Other.front())))
+			if (Other.empty() || (Other.size() == 1 && !IsNumeric(Other.front())))
 				return false;
 			
 			size_t Digits = 0;
 			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0); 
 			for (; i < Other.size(); i++)
 			{
-				const char& V = Other[i];
-				if (!IsDigit(V))
+				char V = Other[i];
+				if (!IsNumeric(V))
 					return false;
 
 				++Digits;
@@ -5683,17 +5550,17 @@ namespace Vitex
 
 			return Digits > 0;
 		}
-		bool Stringify::HasNumber(const String& Other)
+		bool Stringify::HasNumber(const std::string_view& Other)
 		{
-			if (Other.empty() || (Other.size() == 1 && !IsDigit(Other.front())))
+			if (Other.empty() || (Other.size() == 1 && !IsNumeric(Other.front())))
 				return false;
 
 			size_t Digits = 0, Points = 0;
 			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0);
 			for (size_t i = 0; i < Other.size(); i++)
 			{
-				const char& V = Other[i];
-				if (IsDigit(V))
+				char V = Other[i];
+				if (IsNumeric(V))
 				{
 					++Digits;
 					continue;
@@ -5710,7 +5577,7 @@ namespace Vitex
 
 			return Digits > 0 && Points < 2;
 		}
-		bool Stringify::HasDecimal(const String& Other)
+		bool Stringify::HasDecimal(const std::string_view& Other)
 		{
 			auto F = Find(Other, '.');
 			if (!F.Found)
@@ -5726,21 +5593,17 @@ namespace Vitex
 
 			return D1.size() >= 19 || D2.size() > 6;
 		}
-		bool Stringify::IsDigit(char Char)
+		bool Stringify::IsNumericOrDot(char Char)
 		{
-			return Char >= '0' && Char <= '9';
+			return Char == '.' || IsNumeric(Char);
 		}
-		bool Stringify::IsDigitOrDot(char Char)
+		bool Stringify::IsNumericOrDotOrWhitespace(char Char)
 		{
-			return Char == '.' || IsDigit(Char);
-		}
-		bool Stringify::IsDigitOrDotOrWhitespace(char Char)
-		{
-			return std::isspace(Literal(Char)) || IsDigitOrDot(Char);
+			return IsWhitespace(Char) || IsNumericOrDot(Char);
 		}
 		bool Stringify::IsHex(char Char)
 		{
-			return IsDigit(Char) || (Char >= 'a' && Char <= 'f') || (Char >= 'A' && Char <= 'F');
+			return IsNumeric(Char) || (Char >= 'a' && Char <= 'f') || (Char >= 'A' && Char <= 'F');
 		}
 		bool Stringify::IsHexOrDot(char Char)
 		{
@@ -5748,37 +5611,61 @@ namespace Vitex
 		}
 		bool Stringify::IsHexOrDotOrWhitespace(char Char)
 		{
-			return std::isspace(Literal(Char)) || IsHexOrDot(Char);
+			return IsWhitespace(Char) || IsHexOrDot(Char);
 		}
 		bool Stringify::IsAlphabetic(char Char)
 		{
-			return std::isalpha(Literal(Char)) != 0;
+			return std::isalpha(static_cast<uint8_t>(Char)) != 0;
 		}
-		int Stringify::Literal(char Char)
+		bool Stringify::IsNumeric(char Char)
 		{
-			int Value = (int)(unsigned char)Char;
-			return Value >= 0 && Value <= 255 ? Value : 63;
+			return std::isdigit(static_cast<uint8_t>(Char)) != 0;
 		}
-		int Stringify::CaseCompare(const char* Value1, const char* Value2)
+		bool Stringify::IsAlphanum(char Char)
 		{
-			VI_ASSERT(Value1 != nullptr && Value2 != nullptr, "both values should be set");
+			return std::isalnum(static_cast<uint8_t>(Char)) != 0;
+		}
+		bool Stringify::IsWhitespace(char Char)
+		{
+			return std::isspace(static_cast<uint8_t>(Char)) != 0;
+		}
+		char Stringify::ToLowerLiteral(char Char)
+		{
+			return static_cast<char>(std::tolower(static_cast<uint8_t>(Char)));
+		}
+		char Stringify::ToUpperLiteral(char Char)
+		{
+			return static_cast<char>(std::toupper(static_cast<uint8_t>(Char)));
+		}
+		bool Stringify::CaseEquals(const std::string_view& Value1, const std::string_view& Value2)
+		{
+			return Value1.size() == Value2.size() && std::equal(Value1.begin(), Value1.end(), Value2.begin(), [](const uint8_t A, const uint8_t B)
+			{
+				return std::tolower(A) == std::tolower(B);
+			});
+		}
+		int Stringify::CaseCompare(const std::string_view& Value1, const std::string_view& Value2)
+		{
+			int Diff = (int)Value1.size() - (int)Value2.size();
+			if (Diff != 0 || Value1.empty())
+				return Diff;
 
-			int Result;
+			size_t Offset = 0;
 			do
 			{
-				Result = tolower(*(const unsigned char*)(Value1++)) - tolower(*(const unsigned char*)(Value2++));
-			} while (Result == 0 && Value1[-1] != '\0');
-
-			return Result;
+				Diff = tolower((uint8_t)Value1[Offset]) - tolower((uint8_t)Value2[Offset]);
+				++Offset;
+			} while (Diff == 0 && Offset < Value1.size());
+			return Diff;
 		}
-		int Stringify::Match(const char* Pattern, const char* Text)
+		int Stringify::Match(const char* Pattern, const std::string_view& Text)
 		{
-			VI_ASSERT(Pattern != nullptr && Text != nullptr, "pattern and text should be set");
+			VI_ASSERT(Pattern != nullptr, "pattern and text should be set");
 			return Match(Pattern, strlen(Pattern), Text);
 		}
-		int Stringify::Match(const char* Pattern, size_t Length, const char* Text)
+		int Stringify::Match(const char* Pattern, size_t Length, const std::string_view& Text)
 		{
-			VI_ASSERT(Pattern != nullptr && Text != nullptr, "pattern and text should be set");
+			VI_ASSERT(Pattern != nullptr, "pattern and text should be set");
 			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
 			if (Token != nullptr)
 			{
@@ -5801,23 +5688,23 @@ namespace Vitex
 					i++;
 					if (Pattern[i] == '*')
 					{
-						Offset = (int)strlen(Text + j);
+						Offset = (int)Text.substr(j).size();
 						i++;
 					}
 					else
-						Offset = (int)strcspn(Text + j, "/");
+						Offset = (int)strcspn(Text.data() + j, "/");
 
 					if (i == Length)
 						return j + Offset;
 
 					do
 					{
-						Result = Match(Pattern + i, Length - i, Text + j + Offset);
+						Result = Match(Pattern + i, Length - i, Text.substr(j + Offset));
 					} while (Result == -1 && Offset-- > 0);
 
 					return (Result == -1) ? -1 : j + Result + Offset;
 				}
-				else if (tolower((const unsigned char)Pattern[i]) != tolower((const unsigned char)Text[j]))
+				else if (tolower((const uint8_t)Pattern[i]) != tolower((const uint8_t)Text[j]))
 					return -1;
 
 				i++;
@@ -5838,7 +5725,7 @@ namespace Vitex
 			va_end(Args);
 			return String(Buffer, (size_t)Size);
 		}
-		WideString Stringify::ToWide(const String& Other)
+		WideString Stringify::ToWide(const std::string_view& Other)
 		{
 			WideString Output;
 			Output.reserve(Other.size());
@@ -5900,11 +5787,40 @@ namespace Vitex
 
 			return Output;
 		}
-		Vector<String> Stringify::Split(const String& Other, const String& With, size_t Start)
+		Vector<String> Stringify::Split(const std::string_view& Other, const std::string_view& With, size_t Start)
 		{
 			Vector<String> Output;
+			PmSplit(Output, Other, With, Start);
+			return Output;
+		}
+		Vector<String> Stringify::Split(const std::string_view& Other, char With, size_t Start)
+		{
+			Vector<String> Output;
+			PmSplit(Output, Other, With, Start);
+			return Output;
+		}
+		Vector<String> Stringify::SplitMax(const std::string_view& Other, char With, size_t Count, size_t Start)
+		{
+			Vector<String> Output;
+			PmSplitMax(Output, Other, With, Count, Start);
+			return Output;
+		}
+		Vector<String> Stringify::SplitOf(const std::string_view& Other, const std::string_view& With, size_t Start)
+		{
+			Vector<String> Output;
+			PmSplitOf(Output, Other, With, Start);
+			return Output;
+		}
+		Vector<String> Stringify::SplitNotOf(const std::string_view& Other, const std::string_view& With, size_t Start)
+		{
+			Vector<String> Output;
+			PmSplitNotOf(Output, Other, With, Start);
+			return Output;
+		}
+		void Stringify::PmSplit(Vector<String>& Output, const std::string_view& Other, const std::string_view& With, size_t Start)
+		{
 			if (Start >= Other.size())
-				return Output;
+				return;
 
 			size_t Offset = Start;
 			TextSettle Result = Find(Other, With, Offset);
@@ -5916,14 +5832,11 @@ namespace Vitex
 
 			if (Offset < Other.size())
 				Output.emplace_back(Other.substr(Offset));
-
-			return Output;
 		}
-		Vector<String> Stringify::Split(const String& Other, char With, size_t Start)
+		void Stringify::PmSplit(Vector<String>& Output, const std::string_view& Other, char With, size_t Start)
 		{
-			Vector<String> Output;
 			if (Start >= Other.size())
-				return Output;
+				return;
 
 			size_t Offset = Start;
 			TextSettle Result = Find(Other, With, Start);
@@ -5935,14 +5848,11 @@ namespace Vitex
 
 			if (Offset < Other.size())
 				Output.emplace_back(Other.substr(Offset));
-
-			return Output;
 		}
-		Vector<String> Stringify::SplitMax(const String& Other, char With, size_t Count, size_t Start)
+		void Stringify::PmSplitMax(Vector<String>& Output, const std::string_view& Other, char With, size_t Count, size_t Start)
 		{
-			Vector<String> Output;
 			if (Start >= Other.size())
-				return Output;
+				return;
 
 			size_t Offset = Start;
 			TextSettle Result = Find(Other, With, Start);
@@ -5954,14 +5864,11 @@ namespace Vitex
 
 			if (Offset < Other.size() && Output.size() < Count)
 				Output.emplace_back(Other.substr(Offset));
-
-			return Output;
 		}
-		Vector<String> Stringify::SplitOf(const String& Other, const char* With, size_t Start)
+		void Stringify::PmSplitOf(Vector<String>& Output, const std::string_view& Other, const std::string_view& With, size_t Start)
 		{
-			Vector<String> Output;
 			if (Start >= Other.size())
-				return Output;
+				return;
 
 			size_t Offset = Start;
 			TextSettle Result = FindOf(Other, With, Start);
@@ -5973,14 +5880,11 @@ namespace Vitex
 
 			if (Offset < Other.size())
 				Output.emplace_back(Other.substr(Offset));
-
-			return Output;
 		}
-		Vector<String> Stringify::SplitNotOf(const String& Other, const char* With, size_t Start)
+		void Stringify::PmSplitNotOf(Vector<String>& Output, const std::string_view& Other, const std::string_view& With, size_t Start)
 		{
-			Vector<String> Output;
 			if (Start >= Other.size())
-				return Output;
+				return;
 
 			size_t Offset = Start;
 			TextSettle Result = FindNotOf(Other, With, Start);
@@ -5992,16 +5896,13 @@ namespace Vitex
 
 			if (Offset < Other.size())
 				Output.emplace_back(Other.substr(Offset));
-
-			return Output;
 		}
-		void Stringify::ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize)
+		void Stringify::ConvertToWide(const std::string_view& Input, wchar_t* Output, size_t OutputSize)
 		{
-			VI_ASSERT(Input != nullptr, "input should be set");
 			VI_ASSERT(Output != nullptr && OutputSize > 0, "output should be set");
 
 			wchar_t W = '\0'; size_t Size = 0;
-			for (size_t i = 0; i < InputSize;)
+			for (size_t i = 0; i < Input.size();)
 			{
 				char C = Input[i];
 				if ((C & 0x80) == 0)
@@ -6069,7 +5970,7 @@ namespace Vitex
 		{
 			return new Schema(Value);
 		}
-		Schema* Var::Set::Auto(const Core::String& Value, bool Strict)
+		Schema* Var::Set::Auto(const std::string_view& Value, bool Strict)
 		{
 			return new Schema(Var::Auto(Value, Strict));
 		}
@@ -6093,23 +5994,15 @@ namespace Vitex
 		{
 			return new Schema(Var::Pointer(Value));
 		}
-		Schema* Var::Set::String(const Core::String& Value)
+		Schema* Var::Set::String(const std::string_view& Value)
 		{
 			return new Schema(Var::String(Value));
 		}
-		Schema* Var::Set::String(const char* Value, size_t Size)
+		Schema* Var::Set::Binary(const std::string_view& Value)
 		{
-			return new Schema(Var::String(Value, Size));
+			return Binary((uint8_t*)Value.data(), Value.size());
 		}
-		Schema* Var::Set::Binary(const Core::String& Value)
-		{
-			return new Schema(Var::Binary(Value));
-		}
-		Schema* Var::Set::Binary(const unsigned char* Value, size_t Size)
-		{
-			return new Schema(Var::Binary(Value, Size));
-		}
-		Schema* Var::Set::Binary(const char* Value, size_t Size)
+		Schema* Var::Set::Binary(const uint8_t* Value, size_t Size)
 		{
 			return new Schema(Var::Binary(Value, Size));
 		}
@@ -6129,7 +6022,7 @@ namespace Vitex
 		{
 			return new Schema(Var::Decimal(std::move(Value)));
 		}
-		Schema* Var::Set::DecimalString(const Core::String& Value)
+		Schema* Var::Set::DecimalString(const std::string_view& Value)
 		{
 			return new Schema(Var::DecimalString(Value));
 		}
@@ -6138,11 +6031,10 @@ namespace Vitex
 			return new Schema(Var::Boolean(Value));
 		}
 
-		Variant Var::Auto(const Core::String& Value, bool Strict)
+		Variant Var::Auto(const std::string_view& Value, bool Strict)
 		{
 			Variant Result;
 			Result.Deserialize(Value, Strict);
-
 			return Result;
 		}
 		Variant Var::Null()
@@ -6170,35 +6062,26 @@ namespace Vitex
 			Result.Value.Pointer = (char*)Value;
 			return Result;
 		}
-		Variant Var::String(const Core::String& Value)
+		Variant Var::String(const std::string_view& Value)
 		{
-			return String(Value.c_str(), Value.size());
-		}
-		Variant Var::String(const char* Value, size_t Size)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::String);
-			Result.Length = Size;
+			Result.Length = Value.size();
 
 			size_t StringSize = sizeof(char) * (Result.Length + 1);
 			if (Result.Length > Variant::GetMaxSmallStringSize())
-				Result.Value.Pointer = VI_MALLOC(char, StringSize);
+				Result.Value.Pointer = Memory::Allocate<char>(StringSize);
 
-			char* Data = (char*)Result.GetString();
-			memcpy(Data, Value, StringSize - sizeof(char));
+			char* Data = (char*)Result.GetString().data();
+			memcpy(Data, Value.data(), StringSize - sizeof(char));
 			Data[StringSize - 1] = '\0';
 
 			return Result;
 		}
-		Variant Var::Binary(const Core::String& Value)
+		Variant Var::Binary(const std::string_view& Value)
 		{
-			return Binary(Value.c_str(), Value.size());
+			return Binary((uint8_t*)Value.data(), Value.size());
 		}
-		Variant Var::Binary(const unsigned char* Value, size_t Size)
-		{
-			return Binary((const char*)Value, Size);
-		}
-		Variant Var::Binary(const char* Value, size_t Size)
+		Variant Var::Binary(const uint8_t* Value, size_t Size)
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::Binary);
@@ -6206,9 +6089,9 @@ namespace Vitex
 
 			size_t StringSize = sizeof(char) * (Result.Length + 1);
 			if (Result.Length > Variant::GetMaxSmallStringSize())
-				Result.Value.Pointer = VI_MALLOC(char, StringSize);
+				Result.Value.Pointer = Memory::Allocate<char>(StringSize);
 
-			char* Data = (char*)Result.GetString();
+			char* Data = (char*)Result.GetString().data();
 			memcpy(Data, Value, StringSize - sizeof(char));
 			Data[StringSize - 1] = '\0';
 
@@ -6228,21 +6111,21 @@ namespace Vitex
 		}
 		Variant Var::Decimal(const Core::Decimal& Value)
 		{
-			Core::Decimal* Buffer = VI_NEW(Core::Decimal, Value);
+			Core::Decimal* Buffer = Memory::New<Core::Decimal>(Value);
 			Variant Result(VarType::Decimal);
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
 		Variant Var::Decimal(Core::Decimal&& Value)
 		{
-			Core::Decimal* Buffer = VI_NEW(Core::Decimal, std::move(Value));
+			Core::Decimal* Buffer = Memory::New<Core::Decimal>(std::move(Value));
 			Variant Result(VarType::Decimal);
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
 		}
-		Variant Var::DecimalString(const Core::String& Value)
+		Variant Var::DecimalString(const std::string_view& Value)
 		{
-			Core::Decimal* Buffer = VI_NEW(Core::Decimal, Value);
+			Core::Decimal* Buffer = Memory::New<Core::Decimal>(Value);
 			Variant Result(VarType::Decimal);
 			Result.Value.Pointer = (char*)Buffer;
 			return Result;
@@ -6266,10 +6149,10 @@ namespace Vitex
 
 			return Hashes;
 		}
-		bool Composer::Pop(const String& Hash) noexcept
+		bool Composer::Pop(const std::string_view& Hash) noexcept
 		{
 			VI_ASSERT(Context != nullptr, "composer should be initialized");
-			VI_TRACE("[composer] pop %s", Hash.c_str());
+			VI_TRACE("[composer] pop %.*s", (int)Hash.size(), Hash.data());
 
 			auto It = Context->Factory.find(VI_HASH(Hash));
 			if (It == Context->Factory.end())
@@ -6280,14 +6163,14 @@ namespace Vitex
 		}
 		void Composer::Cleanup() noexcept
 		{
-			VI_DELETE(State, Context);
+			Memory::Delete(Context);
 			Context = nullptr;
 		}
 		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback) noexcept
 		{
 			VI_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, TypeId, Tag);
 			if (!Context)
-				Context = VI_NEW(State);
+				Context = Memory::New<State>();
 
 			if (Context->Factory.find(TypeId) == Context->Factory.end())
 				Context->Factory[TypeId] = std::make_pair(Tag, Callback);
@@ -6612,27 +6495,22 @@ namespace Vitex
 			std::cout << "\033[0m";
 #endif
 		}
-		void Console::ColorPrint(StdColor BaseColor, const String& Buffer)
+		void Console::ColorPrint(StdColor BaseColor, const std::string_view& Buffer)
 		{
-			ColorPrintBuffer(BaseColor, Buffer.c_str(), Buffer.size());
-		}
-		void Console::ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size)
-		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			if (!Size)
+			if (Buffer.empty())
 				return;
 
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			ColorBegin(BaseColor);
 
 			size_t Offset = 0;
-			while (Buffer[Offset] != '\0')
+			while (Offset < Buffer.size())
 			{
 				auto V = Buffer[Offset];
-				if (Stringify::IsDigitOrDot(V) && (!Offset || !std::isalnum(Stringify::Literal(Buffer[Offset - 1]))))
+				if (Stringify::IsNumericOrDot(V) && (!Offset || !Stringify::IsAlphanum(Buffer[Offset - 1])))
 				{
 					ColorBegin(StdColor::Yellow);
-					while (Offset < Size)
+					while (Offset < Buffer.size())
 					{
 						char N = Buffer[Offset];
 						if (!Stringify::IsHexOrDot(N) && N != 'x')
@@ -6649,13 +6527,13 @@ namespace Vitex
 					ColorBegin(StdColor::LightBlue);
 					WriteChar(V);
 
-					while (Offset < Size && (Stringify::IsDigit(Buffer[++Offset]) || Stringify::IsAlphabetic(Buffer[Offset]) || Buffer[Offset] == '-' || Buffer[Offset] == '_'))
+					while (Offset < Buffer.size() && (Stringify::IsNumeric(Buffer[++Offset]) || Stringify::IsAlphabetic(Buffer[Offset]) || Buffer[Offset] == '-' || Buffer[Offset] == '_'))
 						WriteChar(Buffer[Offset]);
 
 					ColorBegin(BaseColor);
 					continue;
 				}
-				else if (V == '[' && strstr(Buffer + Offset + 1, "]") != nullptr)
+				else if (V == '[' && Buffer.substr(Offset + 1).find(']') != std::string::npos)
 				{
 					size_t Iterations = 0, Skips = 0;
 					ColorBegin(StdColor::Cyan);
@@ -6664,33 +6542,33 @@ namespace Vitex
 						WriteChar(Buffer[Offset]);
 						if (Iterations++ > 0 && Buffer[Offset] == '[')
 							Skips++;
-					} while (Offset < Size && (Buffer[Offset++] != ']' || Skips > 0));
+					} while (Offset < Buffer.size() && (Buffer[Offset++] != ']' || Skips > 0));
 
 					ColorBegin(BaseColor);
 					continue;
 				}
-				else if (V == '\"' && strstr(Buffer + Offset + 1, "\"") != nullptr)
+				else if (V == '\"' && Buffer.substr(Offset + 1).find('\"') != std::string::npos)
 				{
 					ColorBegin(StdColor::LightBlue);
 					do
 					{
 						WriteChar(Buffer[Offset]);
-					} while (Offset < Size && Buffer[++Offset] != '\"');
+					} while (Offset < Buffer.size() && Buffer[++Offset] != '\"');
 
-					if (Offset < Size)
+					if (Offset < Buffer.size())
 						WriteChar(Buffer[Offset++]);
 					ColorBegin(BaseColor);
 					continue;
 				}
-				else if (V == '\'' && strstr(Buffer + Offset + 1, "\'") != nullptr)
+				else if (V == '\'' && Buffer.substr(Offset + 1).find('\'') != std::string::npos)
 				{
 					ColorBegin(StdColor::LightBlue);
 					do
 					{
 						WriteChar(Buffer[Offset]);
-					} while (Offset < Size && Buffer[++Offset] != '\'');
+					} while (Offset < Buffer.size() && Buffer[++Offset] != '\'');
 
-					if (Offset < Size)
+					if (Offset < Buffer.size())
 						WriteChar(Buffer[Offset++]);
 					ColorBegin(BaseColor);
 					continue;
@@ -6700,13 +6578,13 @@ namespace Vitex
 					bool IsMatched = false;
 					for (auto& Token : Tokens.Custom)
 					{
-						if (V != Token.First || Size - Offset < Token.Size)
+						if (V != Token.First || Buffer.size() - Offset < Token.Size)
 							continue;
 
-						if (Offset + Token.Size < Size && Stringify::IsAlphabetic(Buffer[Offset + Token.Size]))
+						if (Offset + Token.Size < Buffer.size() && Stringify::IsAlphabetic(Buffer[Offset + Token.Size]))
 							continue;
 
-						if (memcmp(Buffer + Offset, Token.Token, Token.Size) == 0)
+						if (memcmp(Buffer.data() + Offset, Token.Token, Token.Size) == 0)
 						{
 							ColorBegin(Token.Color);
 							for (size_t j = 0; j < Token.Size; j++)
@@ -6787,7 +6665,7 @@ namespace Vitex
 			if (Exists && RestorePosition)
 				WritePosition(0, Y);
 		}
-		void Console::EmplaceWindow(uint64_t Id, const String& Text)
+		void Console::EmplaceWindow(uint64_t Id, const std::string_view& Text)
 		{
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			auto It = State.Windows.find(Id);
@@ -6862,9 +6740,9 @@ namespace Vitex
 					*Y = It->second.Y;
 			}
 		}
-		void Console::ReplaceElement(uint64_t Id, const String& Text)
+		void Console::ReplaceElement(uint64_t Id, const std::string_view& Text)
 		{
-			String Writeable = Text;
+			String Writeable = String(Text);
 			Stringify::ReplaceOf(Writeable, "\b\f\n\r\v", " ");
 			Stringify::Replace(Writeable, "\t", "  ");
 
@@ -6914,7 +6792,7 @@ namespace Vitex
 			BarContent += " %";
 			ReplaceElement(Id, BarContent);
 		}
-		void Console::SpinningElement(uint64_t Id, const String& Label)
+		void Console::SpinningElement(uint64_t Id, const std::string_view& Label)
 		{
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			auto It = State.Elements.find(Id);
@@ -6925,19 +6803,19 @@ namespace Vitex
 			switch (Status)
 			{
 				case 0:
-					ReplaceElement(Id, Label.empty() ? "[|]" : Label + " [|]");
+					ReplaceElement(Id, Label.empty() ? "[|]" : String(Label) + " [|]");
 					break;
 				case 1:
-					ReplaceElement(Id, Label.empty() ? "[/]" : Label + " [/]");
+					ReplaceElement(Id, Label.empty() ? "[/]" : String(Label) + " [/]");
 					break;
 				case 2:
-					ReplaceElement(Id, Label.empty() ? "[-]" : Label + " [-]");
+					ReplaceElement(Id, Label.empty() ? "[-]" : String(Label) + " [-]");
 					break;
 				case 3:
-					ReplaceElement(Id, Label.empty() ? "[\\]" : Label + " [\\]");
+					ReplaceElement(Id, Label.empty() ? "[\\]" : String(Label) + " [\\]");
 					break;
 				default:
-					ReplaceElement(Id, Label.empty() ? "[ ]" : Label + " [ ]");
+					ReplaceElement(Id, Label.empty() ? "[ ]" : String(Label) + " [ ]");
 					break;
 			}
 		}
@@ -7031,16 +6909,7 @@ namespace Vitex
 			std::cout << "\033[" << X << ';' << Y << 'H';
 #endif
 		}
-		void Console::WriteBuffer(const char* Buffer, size_t Size)
-		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			if (Size > 0)
-				printf("%.*s", (int)Size, Buffer);
-			else
-				std::cout << Buffer;
-		}
-		void Console::WriteLine(const String& Line)
+		void Console::WriteLine(const std::string_view& Line)
 		{
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Line << '\n';
@@ -7050,7 +6919,7 @@ namespace Vitex
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Value;
 		}
-		void Console::Write(const String& Text)
+		void Console::Write(const std::string_view& Text)
 		{
 			UMutex<std::recursive_mutex> Unique(State.Session);
 			std::cout << Text;
@@ -7065,10 +6934,10 @@ namespace Vitex
 			}
 
 			String Offset;
-			Schema::ConvertToJSON(Data, [&Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
+			Schema::ConvertToJSON(Data, [&Offset](Core::VarForm Pretty, const std::string_view& Buffer)
 			{
-				if (Buffer != nullptr && Length > 0)
-					std::cout << String(Buffer, Length);
+				if (!Buffer.empty())
+					std::cout << Buffer;
 
 				switch (Pretty)
 				{
@@ -7190,13 +7059,13 @@ namespace Vitex
 			bool Success;
 			if (Size > CHUNK_SIZE - 1)
 			{
-				char* Value = VI_MALLOC(char, sizeof(char) * (Size + 1));
+				char* Value = Memory::Allocate<char>(sizeof(char) * (Size + 1));
 				memset(Value, 0, (Size + 1) * sizeof(char));
 				if ((Success = (bool)std::cin.getline(Value, Size)))
 					Data.assign(Value);
 				else
 					Data.clear();
-				VI_FREE(Value);
+				Memory::Deallocate(Value);
 			}
 			else
 			{
@@ -7390,17 +7259,17 @@ namespace Vitex
 		{
 			VSize = Size;
 		}
-		void Stream::SetVirtualName(const String& File)
+		void Stream::SetVirtualName(const std::string_view& File)
 		{
 			VName = File;
 		}
-		ExpectsIO<size_t> Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
+		ExpectsIO<size_t> Stream::ReadAll(const std::function<void(uint8_t*, size_t)>& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_TRACE("[io] read all bytes on fd %i", GetReadableFd());
 
 			size_t Total = 0;
-			char Buffer[CHUNK_SIZE];
+			uint8_t Buffer[CHUNK_SIZE];
 			while (true)
 			{
 				size_t Length = VSize > 0 ? std::min<size_t>(sizeof(Buffer), VSize - Total) : sizeof(Buffer);
@@ -7442,7 +7311,7 @@ namespace Vitex
 		{
 			return VSize;
 		}
-		const String& Stream::VirtualName() const
+		std::string_view Stream::VirtualName() const
 		{
 			return VName;
 		}
@@ -7462,9 +7331,9 @@ namespace Vitex
 			Readable = false;
 			return Expectation::Met;
 		}
-		ExpectsIO<void> MemoryStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> MemoryStream::Open(const std::string_view& File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, "filename should be set");
+			VI_ASSERT(!File.empty(), "filename should be set");
 			VI_MEASURE(Timings::Pass);
 			auto Result = Close();
 			if (!Result)
@@ -7499,7 +7368,7 @@ namespace Vitex
 
 			VI_PANIC(Readable || Writeable, "file open cannot be issued with mode:%i", (int)Mode);
 			VI_DEBUG("[mem] open %s%s %s fd", Readable ? "r" : "", Writeable ? "w" : "", File, (int)GetReadableFd());
-			OpenVirtual(File);
+			OpenVirtual(String(File));
 			return Expectation::Met;
 		}
 		ExpectsIO<void> MemoryStream::Close()
@@ -7580,17 +7449,17 @@ namespace Vitex
 			size_t Offset = 0;
 			while (Offset < Length)
 			{
-				auto Status = Read(Data + Offset, sizeof(char));
+				auto Status = Read((uint8_t*)Data + Offset, sizeof(uint8_t));
 				if (!Status)
 					return Status;
-				else if (*Status != sizeof(char))
+				else if (*Status != sizeof(uint8_t))
 					break;
-				else if (std::isspace(Stringify::Literal(Data[Offset++])))
+				else if (Stringify::IsWhitespace(Data[Offset++]))
 					break;
 			}
 			return Offset;
 		}
-		ExpectsIO<size_t> MemoryStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> MemoryStream::Read(uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(!VirtualName().empty(), "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -7625,7 +7494,7 @@ namespace Vitex
 
 			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> MemoryStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> MemoryStream::Write(const uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(!VirtualName().empty(), "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -7689,20 +7558,20 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
-			auto& Path = VirtualName();
+			auto Path = VirtualName();
 			if (Path.empty())
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			auto Target = OS::File::Open(Path.c_str(), "w");
+			auto Target = OS::File::Open(Path, "w");
 			if (!Target)
 				return Target.Error();
 			
 			IoStream = *Target;
 			return Expectation::Met;
 		}
-		ExpectsIO<void> FileStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> FileStream::Open(const std::string_view& File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, "filename should be set");
+			VI_ASSERT(!File.empty(), "filename should be set");
 			VI_MEASURE(Timings::FileSystem);
 			auto Result = Close();
 			if (!Result)
@@ -7758,7 +7627,7 @@ namespace Vitex
 			if (!TargetPath)
 				return TargetPath.Error();
 
-			auto Target = OS::File::Open(TargetPath->c_str(), Type);
+			auto Target = OS::File::Open(*TargetPath, Type);
 			if (!Target)
 				return Target.Error();
 
@@ -7817,7 +7686,7 @@ namespace Vitex
 			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
 			return fgets(Data, Length, IoStream) ? strnlen(Data, Length) : 0;
 		}
-		ExpectsIO<size_t> FileStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> FileStream::Read(uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -7845,7 +7714,7 @@ namespace Vitex
 
 			return OS::Error::GetConditionOr(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> FileStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> FileStream::Write(const uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -7900,11 +7769,11 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
-			auto& Path = VirtualName();
+			auto Path = VirtualName();
 			if (Path.empty())
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			auto Target = OS::File::Open(Path.c_str(), "w");
+			auto Target = OS::File::Open(Path, "w");
 			if (!Target)
 				return Target.Error();
 
@@ -7912,11 +7781,11 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
-			return Open(Path.c_str(), FileMode::Binary_Write_Only);
+			return Open(Path, FileMode::Binary_Write_Only);
 		}
-		ExpectsIO<void> GzStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> GzStream::Open(const std::string_view& File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, "filename should be set");
+			VI_ASSERT(!File.empty(), "filename should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			auto Result = Close();
@@ -8031,14 +7900,14 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> GzStream::Read(uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			int Value = gzread((gzFile)IoStream, Data, (unsigned int)Length);
+			int Value = gzread((gzFile)IoStream, Data, (uint32_t)Length);
 			if (Value >= 0)
 				return (size_t)Value;
 
@@ -8066,14 +7935,14 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> GzStream::Write(const uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(IoStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			int Value = gzwrite((gzFile)IoStream, Data, (unsigned int)Length);
+			int Value = gzwrite((gzFile)IoStream, Data, (uint32_t)Length);
 			if (Value >= 0)
 				return (size_t)Value;
 
@@ -8133,9 +8002,9 @@ namespace Vitex
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<void> WebStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> WebStream::Open(const std::string_view& File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, "filename should be set");
+			VI_ASSERT(!File.empty(), "filename should be set");
 			auto Result = Close();
 			if (!Result)
 				return Result;
@@ -8153,13 +8022,10 @@ namespace Vitex
 			else if (!Address.Secure && !OS::Control::Has(AccessOption::Http))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			auto* Client = new Network::HTTP::Client(30000);
+			Core::UPtr<Network::HTTP::Client> Client = new Network::HTTP::Client(30000);
 			auto Status = Client->Connect(&Address, false).Get();
 			if (!Status)
-			{
-				VI_RELEASE(Client);
 				return Status.Error().error();
-			}
 
 			Network::HTTP::RequestFrame Request;
 			Request.Location.assign(Origin.Path);
@@ -8177,15 +8043,12 @@ namespace Vitex
 			auto* Response = Client->GetResponse();
 			Status = Client->Send(std::move(Request)).Get();
 			if (!Status || Response->StatusCode < 0)
-			{
-				VI_RELEASE(Client);
 				return Status ? std::make_error_condition(std::errc::protocol_error) : Status.Error().error();
-			}
 			else if (Response->Content.Limited)
 				Length = Response->Content.Length;
 
-			OutputStream = Client;
-			OpenVirtual(File);
+			OutputStream = Client.Reset();
+			OpenVirtual(String(File));
 			return Expectation::Met;
 		}
 		ExpectsIO<void> WebStream::Close()
@@ -8201,7 +8064,7 @@ namespace Vitex
 				return Expectation::Met;
 
 			auto Status = Client->Disconnect().Get();
-			VI_RELEASE(Client);
+			Memory::Release(Client);
 			if (!Status)
 				return Status.Error().error();
 
@@ -8252,7 +8115,7 @@ namespace Vitex
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> WebStream::Read(char* Data, size_t DataLength)
+		ExpectsIO<size_t> WebStream::Read(uint8_t* Data, size_t DataLength)
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -8290,7 +8153,7 @@ namespace Vitex
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> WebStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> WebStream::Write(const uint8_t* Data, size_t Length)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
@@ -8336,9 +8199,9 @@ namespace Vitex
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<void> ProcessStream::Open(const char* File, FileMode Mode)
+		ExpectsIO<void> ProcessStream::Open(const std::string_view& File, FileMode Mode)
 		{
-			VI_ASSERT(File != nullptr, "command should be set");
+			VI_ASSERT(!File.empty(), "command should be set");
 			auto Result = Close();
 			if (!Result)
 				return Result;
@@ -8510,6 +8373,7 @@ namespace Vitex
 			if (ProcessId < 0)
 				goto InputError;
 
+			String Executable = String(File);
 			int ErrorExitCode = Internal.ErrorExitCode;
 			if (ProcessId == 0)
 			{
@@ -8525,7 +8389,7 @@ namespace Vitex
 
 				dup2(OutputPipe[0], 0);
 				dup2(InputPipe[1], 1);
-				execl(Shell->c_str(), "sh", "-c", File, NULL);
+				execl(Shell->c_str(), "sh", "-c", Executable.c_str(), NULL);
 				exit(ErrorExitCode);
 				return std::make_error_condition(std::errc::broken_pipe);
 			}
@@ -8544,7 +8408,7 @@ namespace Vitex
 					close(InputPipe[1]);
 			}
 #endif
-			OpenVirtual(File);
+			OpenVirtual(String(File));
 			return Expectation::Met;
 		}
 		ExpectsIO<void> ProcessStream::Close()
@@ -8621,7 +8485,7 @@ namespace Vitex
 			VI_TRACE("[sh] fd %i readln %i bytes", GetReadableFd(), (int)Length);
 			return fgets(Data, Length, OutputStream) ? strnlen(Data, Length) : 0;
 		}
-		ExpectsIO<size_t> ProcessStream::Read(char* Data, size_t Length)
+		ExpectsIO<size_t> ProcessStream::Read(uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(OutputStream != nullptr, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -8635,10 +8499,9 @@ namespace Vitex
 		}
 		ExpectsIO<size_t> ProcessStream::WriteFormat(const char* Format, ...)
 		{
-			VI_ASSERT(false, "sh write-format is not supported");
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> ProcessStream::Write(const char* Data, size_t Length)
+		ExpectsIO<size_t> ProcessStream::Write(const uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(InputFd > 0, "file should be opened");
 			VI_ASSERT(Data != nullptr, "data should be set");
@@ -8700,14 +8563,14 @@ namespace Vitex
 			return ExitCode;
 		}
 
-		FileTree::FileTree(const String& Folder) noexcept
+		FileTree::FileTree(const std::string_view& Folder) noexcept
 		{
-			auto Target = OS::Path::Resolve(Folder.c_str());
+			auto Target = OS::Path::Resolve(Folder);
 			if (!Target)
 				return;
 
 			Vector<std::pair<String, FileEntry>> Entries;
-			if (!OS::Directory::Scan(Target->c_str(), &Entries))
+			if (!OS::Directory::Scan(Target->c_str(), Entries))
 				return;
 				
 			Directories.reserve(Entries.size());
@@ -8725,7 +8588,7 @@ namespace Vitex
 		FileTree::~FileTree() noexcept
 		{
 			for (auto& Directory : Directories)
-				VI_RELEASE(Directory);
+				Memory::Release(Directory);
 		}
 		void FileTree::Loop(const std::function<bool(const FileTree*)>& Callback) const
 		{
@@ -8736,7 +8599,7 @@ namespace Vitex
 			for (auto& Directory : Directories)
 				Directory->Loop(Callback);
 		}
-		const FileTree* FileTree::Find(const String& V) const
+		const FileTree* FileTree::Find(const std::string_view& V) const
 		{
 			if (Path == V)
 				return this;
@@ -8762,49 +8625,61 @@ namespace Vitex
 		InlineArgs::InlineArgs() noexcept
 		{
 		}
-		bool InlineArgs::IsEnabled(const String& Option, const String& Shortcut) const
+		bool InlineArgs::IsEnabled(const std::string_view& Option, const std::string_view& Shortcut) const
 		{
-			auto It = Args.find(Option);
+			auto It = Args.find(HglCast(Option));
 			if (It == Args.end() || !IsTrue(It->second))
 				return Shortcut.empty() ? false : IsEnabled(Shortcut);
 
 			return true;
 		}
-		bool InlineArgs::IsDisabled(const String& Option, const String& Shortcut) const
+		bool InlineArgs::IsDisabled(const std::string_view& Option, const std::string_view& Shortcut) const
 		{
-			auto It = Args.find(Option);
+			auto It = Args.find(HglCast(Option));
 			if (It == Args.end())
 				return Shortcut.empty() ? true : IsDisabled(Shortcut);
 
 			return IsFalse(It->second);
 		}
-		bool InlineArgs::Has(const String& Option, const String& Shortcut) const
+		bool InlineArgs::Has(const std::string_view& Option, const std::string_view& Shortcut) const
 		{
-			if (Args.find(Option) != Args.end())
+			if (Args.find(HglCast(Option)) != Args.end())
 				return true;
 
-			return Shortcut.empty() ? false : Args.find(Shortcut) != Args.end();
+			return Shortcut.empty() ? false : Args.find(HglCast(Shortcut)) != Args.end();
 		}
-		String& InlineArgs::Get(const String& Option, const String& Shortcut)
+		String& InlineArgs::Get(const std::string_view& Option, const std::string_view& Shortcut)
 		{
-			if (Args.find(Option) != Args.end())
-				return Args[Option];
+			auto It = Args.find(HglCast(Option));
+			if (It != Args.end())
+				return It->second;
+			else if (Shortcut.empty())
+				return Args[String(Option)];
 
-			return Shortcut.empty() ? Args[Option] : Args[Shortcut];
+			It = Args.find(HglCast(Shortcut));
+			if (It != Args.end())
+				return It->second;
+			
+			return Args[String(Shortcut)];
 		}
-		String& InlineArgs::GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty)
+		String& InlineArgs::GetIf(const std::string_view& Option, const std::string_view& Shortcut, const std::string_view& WhenEmpty)
 		{
-			if (Args.find(Option) != Args.end())
-				return Args[Option];
+			auto It = Args.find(HglCast(Option));
+			if (It != Args.end())
+				return It->second;
 
-			if (!Shortcut.empty() && Args.find(Shortcut) != Args.end())
-				return Args[Shortcut];
+			if (!Shortcut.empty())
+			{
+				It = Args.find(HglCast(Shortcut));
+				if (It != Args.end())
+					return It->second;
+			}
 
-			String& Value = Args[Option];
+			String& Value = Args[String(Option)];
 			Value = WhenEmpty;
 			return Value;
 		}
-		bool InlineArgs::IsTrue(const String& Value) const
+		bool InlineArgs::IsTrue(const std::string_view& Value) const
 		{
 			if (Value.empty())
 				return false;
@@ -8817,7 +8692,7 @@ namespace Vitex
 			Stringify::ToLower(Data);
 			return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
 		}
-		bool InlineArgs::IsFalse(const String& Value) const
+		bool InlineArgs::IsFalse(const std::string_view& Value) const
 		{
 			if (Value.empty())
 				return true;
@@ -8856,7 +8731,7 @@ namespace Vitex
 			{
 				const auto ThreadData = SysExtract(CtlThreadData);
 				if (ThreadData.first)
-					Result.Logical = (unsigned int)ThreadData.second;
+					Result.Logical = (uint32_t)ThreadData.second;
 			}
 
 			const auto CtlCoreData = SysControl("machdep.cpu.core_count");
@@ -8864,7 +8739,7 @@ namespace Vitex
 			{
 				const auto CoreData = SysExtract(CtlCoreData);
 				if (CoreData.first)
-					Result.Physical = (unsigned int)CoreData.second;
+					Result.Physical = (uint32_t)CoreData.second;
 			}
 
 			const auto CtlPackagesData = SysControl("hw.packages");
@@ -8872,7 +8747,7 @@ namespace Vitex
 			{
 				const auto PackagesData = SysExtract(CtlPackagesData);
 				if (PackagesData.first)
-					Result.Packages = (unsigned int)PackagesData.second;
+					Result.Packages = (uint32_t)PackagesData.second;
 			}
 #else
 			Result.Logical = sysconf(_SC_NPROCESSORS_ONLN);
@@ -8881,7 +8756,7 @@ namespace Vitex
 			if (!Info.is_open() || !Info)
 				return Result;
 
-			Vector<unsigned int> Packages;
+			Vector<uint32_t> Packages;
 			for (String Line; std::getline(Info, Line);)
 			{
 				if (Line.find("physical id") == 0)
@@ -8897,7 +8772,7 @@ namespace Vitex
 #endif
 			return Result;
 		}
-		OS::CPU::CacheInfo OS::CPU::GetCacheInfo(unsigned int Level)
+		OS::CPU::CacheInfo OS::CPU::GetCacheInfo(uint32_t Level)
 		{
 #ifdef VI_MICROSOFT
 			for (auto&& Info : CPUInfoBuffer())
@@ -8990,7 +8865,7 @@ namespace Vitex
 
 			if (Associativity.is_open() && Associativity)
 			{
-				unsigned int Temp;
+				uint32_t Temp;
 				Associativity >> Temp;
 				Result.Associativity = Temp;
 			}
@@ -9101,11 +8976,10 @@ namespace Vitex
 #endif
 		}
 
-		bool OS::Directory::IsExists(const char* Path)
+		bool OS::Directory::IsExists(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check path %s", Path);
+			VI_TRACE("[io] check path %.*s", (int)Path.size(), Path.data());
 			if (!Control::Has(AccessOption::Fs))
 				return false;
 
@@ -9119,16 +8993,15 @@ namespace Vitex
 
 			return Buffer.st_mode & S_IFDIR;
 		}
-		bool OS::Directory::IsEmpty(const char* Path)
+		bool OS::Directory::IsEmpty(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check dir %s", Path);
-			if (*Path == '\0' || !Control::Has(AccessOption::Fs))
+			VI_TRACE("[io] check dir %.*s", (int)Path.size(), Path.data());
+			if (Path.empty() || !Control::Has(AccessOption::Fs))
 				return true;
 #if defined(VI_MICROSOFT)
 			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
+			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
 
 			DWORD Attributes = GetFileAttributesW(Buffer);
 			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
@@ -9156,7 +9029,7 @@ namespace Vitex
 			FindClose(Handle);
 			return true;
 #else
-			DIR* Handle = opendir(Path);
+			DIR* Handle = opendir(Path.data());
 			if (!Handle)
 				return true;
 
@@ -9174,17 +9047,16 @@ namespace Vitex
 			return true;
 #endif
 		}
-		ExpectsIO<void> OS::Directory::SetWorking(const char* Path)
+		ExpectsIO<void> OS::Directory::SetWorking(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-			VI_TRACE("[io] apply working dir %s", Path);
+			VI_TRACE("[io] apply working dir %.*s", (int)Path.size(), Path.data());
 #ifdef VI_MICROSOFT
-			if (SetCurrentDirectoryA(Path) != TRUE)
+			if (SetCurrentDirectoryA(Path.data()) != TRUE)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
 #elif defined(VI_LINUX)
-			if (chdir(Path) != 0)
+			if (chdir(Path.data()) != 0)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
@@ -9192,18 +9064,17 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::Directory::Patch(const String& Path)
+		ExpectsIO<void> OS::Directory::Patch(const std::string_view& Path)
 		{
-			if (IsExists(Path.c_str()))
+			if (IsExists(Path.data()))
 				return Expectation::Met;
 
-			return Create(Path.c_str());
+			return Create(Path.data());
 		}
-		ExpectsIO<void> OS::Directory::Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries)
+		ExpectsIO<void> OS::Directory::Scan(const std::string_view& Path, Vector<std::pair<String, FileEntry>>& Entries)
 		{
-			VI_ASSERT(Entries != nullptr, "entries should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] scan dir %s", Path.c_str());
+			VI_TRACE("[io] scan dir %.*s", (int)Path.size(), Path.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
@@ -9211,7 +9082,7 @@ namespace Vitex
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 #if defined(VI_MICROSOFT)
 			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
+			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
 
 			DWORD Attributes = GetFileAttributesW(Buffer);
 			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
@@ -9233,14 +9104,14 @@ namespace Vitex
 				WideCharToMultiByte(CP_UTF8, 0, Info.cFileName, -1, Directory, sizeof(Directory), nullptr, nullptr);
 				if (strcmp(Directory, ".") != 0 && strcmp(Directory, "..") != 0)
 				{
-					auto State = File::GetState(Path + '/' + Directory);
+					auto State = File::GetState(String(Path) + '/' + Directory);
 					if (State)
-						Entries->push_back(std::make_pair<String, FileEntry>(Directory, std::move(*State)));
+						Entries.push_back(std::make_pair<String, FileEntry>(Directory, std::move(*State)));
 				}
 			} while (FindNextFileW(Handle, &Info) == TRUE);
 			FindClose(Handle);
 #else
-			DIR* Handle = opendir(Path.c_str());
+			DIR* Handle = opendir(Path.data());
 			if (!Handle)
 				return OS::Error::GetConditionOr();
 
@@ -9249,25 +9120,24 @@ namespace Vitex
 			{
 				if (strcmp(Next->d_name, ".") != 0 && strcmp(Next->d_name, "..") != 0)
 				{
-					auto State = File::GetState(Path + '/' + Next->d_name);
+					auto State = File::GetState(String(Path) + '/' + Next->d_name);
 					if (State)
-						Entries->push_back(std::make_pair<String, FileEntry>(Next->d_name, std::move(*State)));
+						Entries.push_back(std::make_pair<String, FileEntry>(Next->d_name, std::move(*State)));
 				}
 			}
 			closedir(Handle);
 #endif
 			return Expectation::Met;
 		}
-		ExpectsIO<void> OS::Directory::Create(const char* Path)
+		ExpectsIO<void> OS::Directory::Create(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] create dir %s", Path);
+			VI_DEBUG("[io] create dir %.*s", (int)Path.size(), Path.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
+			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
 
 			size_t Length = wcslen(Buffer);
 			if (!Length)
@@ -9283,35 +9153,33 @@ namespace Vitex
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
-			String Subpath(Path, Index);
+			String Subpath(Path.data(), Index);
 			if (Index > 0 && !Create(Subpath.c_str()))
 				return OS::Error::GetConditionOr();
 
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
 				return Expectation::Met;
 #else
-			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+			if (mkdir(Path.data(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
 				return Expectation::Met;
 
-			size_t Index = strlen(Path) - 1;
+			size_t Index = Path.empty() ? 0 : Path.size() - 1;
 			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
 				Index--;
 
-			String Subpath(Path);
-			Subpath.erase(0, Index);
+			String Subpath(Path.data(), Index);
 			if (Index > 0 && !Create(Subpath.c_str()))
 				return OS::Error::GetConditionOr();
 
-			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+			if (mkdir(Path.data(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
 				return Expectation::Met;
 #endif
 			return OS::Error::GetConditionOr();
 		}
-		ExpectsIO<void> OS::Directory::Remove(const char* Path)
+		ExpectsIO<void> OS::Directory::Remove(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] remove dir %s", Path);
+			VI_DEBUG("[io] remove dir %.*s", (int)Path.size(), Path.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
@@ -9361,15 +9229,15 @@ namespace Vitex
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
 				return OS::Error::GetConditionOr();
 
-			if (::SetFileAttributes(Path, FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(Path) == FALSE)
+			if (::SetFileAttributes(Path.data(), FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(Path.data()) == FALSE)
 				return OS::Error::GetConditionOr();
 #elif defined VI_LINUX
-			DIR* Handle = opendir(Path);
-			size_t Size = strlen(Path);
+			DIR* Handle = opendir(Path.data());
+			size_t Size = Path.size();
 
 			if (!Handle)
 			{
-				if (rmdir(Path) != 0)
+				if (rmdir(Path.data()) != 0)
 					return OS::Error::GetConditionOr();
 
 				return Expectation::Met;
@@ -9382,14 +9250,14 @@ namespace Vitex
 					continue;
 
 				size_t Length = Size + strlen(It->d_name) + 2;
-				char* Buffer = VI_MALLOC(char, Length);
-				snprintf(Buffer, Length, "%s/%s", Path, It->d_name);
+				char* Buffer = Memory::Allocate<char>(Length);
+				snprintf(Buffer, Length, "%.*s/%s", (int)Path.size(), Path.data(), It->d_name);
 
 				struct stat State;
 				if (stat(Buffer, &State) != 0)
 				{
 					auto Condition = OS::Error::GetConditionOr();
-					VI_FREE(Buffer);
+					Memory::Deallocate(Buffer);
 					closedir(Handle);
 					return Condition;
 				}
@@ -9397,7 +9265,7 @@ namespace Vitex
 				if (S_ISDIR(State.st_mode))
 				{
 					auto Result = Remove(Buffer);
-					VI_FREE(Buffer);
+					Memory::Deallocate(Buffer);
 					if (Result)
 						continue;
 
@@ -9408,16 +9276,16 @@ namespace Vitex
 				if (unlink(Buffer) != 0)
 				{
 					auto Condition = OS::Error::GetConditionOr();
-					VI_FREE(Buffer);
+					Memory::Deallocate(Buffer);
 					closedir(Handle);
 					return Condition;
 				}
 
-				VI_FREE(Buffer);
+				Memory::Deallocate(Buffer);
 			}
 
 			closedir(Handle);
-			if (rmdir(Path) != 0)
+			if (rmdir(Path.data()) != 0)
 				return OS::Error::GetConditionOr();
 #endif
 			return Expectation::Met;
@@ -9513,21 +9381,20 @@ namespace Vitex
 #endif
 		}
 
-		bool OS::File::IsExists(const char* Path)
+		bool OS::File::IsExists(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check path %s", Path);
+			VI_TRACE("[io] check path %.*s", (int)Path.size(), Path.data());
 			auto TargetPath = OS::Path::Resolve(Path);
 			return TargetPath && IsPathExists(TargetPath->c_str());
 		}
-		int OS::File::Compare(const String& FirstPath, const String& SecondPath)
+		int OS::File::Compare(const std::string_view& FirstPath, const std::string_view& SecondPath)
 		{
 			VI_ASSERT(!FirstPath.empty(), "first path should not be empty");
 			VI_ASSERT(!SecondPath.empty(), "second path should not be empty");
 
-			auto Props1 = GetProperties(FirstPath.c_str());
-			auto Props2 = GetProperties(SecondPath.c_str());
+			auto Props1 = GetProperties(FirstPath);
+			auto Props2 = GetProperties(SecondPath);
 			if (!Props1 || !Props2)
 			{
 				if (!Props1 && !Props2)
@@ -9539,18 +9406,18 @@ namespace Vitex
 			}
 
 			size_t Size1 = Props1->Size, Size2 = Props2->Size;
-			VI_TRACE("[io] compare paths { %s (%" PRIu64 "), %s (%" PRIu64 ") }", FirstPath.c_str(), Size1, SecondPath.c_str(), Size2);
+			VI_TRACE("[io] compare paths { %.*s (%" PRIu64 "), %.*s (%" PRIu64 ") }", (int)FirstPath.size(), FirstPath.data(), Size1, (int)SecondPath.size(), SecondPath.data(), Size2);
 
 			if (Size1 > Size2)
 				return 1;
 			else if (Size1 < Size2)
 				return -1;
 
-			auto First = Open(FirstPath.c_str(), "rb");
+			auto First = Open(FirstPath, "rb");
 			if (!First)
 				return -1;
 
-			auto Second = Open(SecondPath.c_str(), "rb");
+			auto Second = Open(SecondPath, "rb");
 			if (!Second)
 			{
 				OS::File::Close(*First);
@@ -9584,15 +9451,14 @@ namespace Vitex
 			OS::File::Close(*Second);
 			return Diff;
 		}
-		uint64_t OS::File::GetHash(const String& Data)
+		uint64_t OS::File::GetHash(const std::string_view& Data)
 		{
 			return Compute::Crypto::CRC32(Data);
 		}
-		uint64_t OS::File::GetIndex(const char* Data, size_t Size)
+		uint64_t OS::File::GetIndex(const std::string_view& Data)
 		{
-			VI_ASSERT(Data != nullptr, "data buffer should be set");
 			uint64_t Result = 0xcbf29ce484222325;
-			for (size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < Data.size(); i++)
 			{
 				Result ^= Data[i];
 				Result *= 1099511628211;
@@ -9600,37 +9466,29 @@ namespace Vitex
 
 			return Result;
 		}
-		ExpectsIO<size_t> OS::File::Write(const String& Path, const char* Data, size_t Length)
+		ExpectsIO<size_t> OS::File::Write(const std::string_view& Path, const uint8_t* Data, size_t Length)
 		{
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
-			auto Stream = Open(Path, FileMode::Binary_Write_Only);
-			if (!Stream)
-				return Stream.Error();
+			auto Status = Open(Path, FileMode::Binary_Write_Only);
+			if (!Status)
+				return Status.Error();
 
+			UPtr<Core::Stream> Stream = *Status;
 			if (!Length)
-			{
-				VI_RELEASE(Stream);
 				return 0;
-			}
 
-			auto Status = Stream->Write(Data, Length);
-			VI_RELEASE(Stream);
-			return Status;
+			return Stream->Write(Data, Length);
 		}
-		ExpectsIO<size_t> OS::File::Write(const String& Path, const String& Data)
+		ExpectsIO<void> OS::File::Copy(const std::string_view& From, const std::string_view& To)
 		{
-			return Write(Path, Data.c_str(), Data.size());
-		}
-		ExpectsIO<void> OS::File::Copy(const char* From, const char* To)
-		{
-			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
+			VI_ASSERT(Stringify::IsCString(From) && Stringify::IsCString(To), "from and to should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] copy file from %s to %s", From, To);
+			VI_DEBUG("[io] copy file from %.*s to %.*s", (int)From.size(), From.data(), (int)To.size(), To.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			std::ifstream Source(From, std::ios::binary);
+			std::ifstream Source(std::string(From), std::ios::binary);
 			if (!Source)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			
@@ -9638,27 +9496,27 @@ namespace Vitex
 			if (!Result)
 				return Result;
 
-			std::ofstream Destination(To, std::ios::binary);
+			std::ofstream Destination(std::string(To), std::ios::binary);
 			if (!Source)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
 			Destination << Source.rdbuf();
 			return Expectation::Met;
 		}
-		ExpectsIO<void> OS::File::Move(const char* From, const char* To)
+		ExpectsIO<void> OS::File::Move(const std::string_view& From, const std::string_view& To)
 		{
-			VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
+			VI_ASSERT(Stringify::IsCString(From) && Stringify::IsCString(To), "from and to should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] move file from %s to %s", From, To);
+			VI_DEBUG("[io] move file from %.*s to %.*s", (int)From.size(), From.data(), (int)To.size(), To.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			if (MoveFileA(From, To) != TRUE)
+			if (MoveFileA(From.data(), To.data()) != TRUE)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
 #elif defined VI_LINUX
-			if (rename(From, To) != 0)
+			if (rename(From.data(), To.data()) != 0)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
@@ -9666,21 +9524,21 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::File::Remove(const char* Path)
+		ExpectsIO<void> OS::File::Remove(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
+			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_DEBUG("[io] remove file %s", Path);
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			SetFileAttributesA(Path, 0);
-			if (DeleteFileA(Path) != TRUE)
+			SetFileAttributesA(Path.data(), 0);
+			if (DeleteFileA(Path.data()) != TRUE)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
 #elif defined VI_LINUX
-			if (unlink(Path) != 0)
+			if (unlink(Path.data()) != 0)
 				return OS::Error::GetConditionOr();
 
 			return Expectation::Met;
@@ -9697,14 +9555,15 @@ namespace Vitex
 
 			return Expectation::Met;
 		}
-		ExpectsIO<void> OS::File::GetState(const String& Path, FileEntry* File)
+		ExpectsIO<void> OS::File::GetState(const std::string_view& Path, FileEntry* File)
 		{
+			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #if defined(VI_MICROSOFT)
 			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path.c_str(), Path.size(), Buffer, CHUNK_SIZE);
+			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
@@ -9723,7 +9582,7 @@ namespace Vitex
 				File->IsExists = (isalnum(Path.back()) || strchr("_-", Path.back()) != nullptr);
 #else
 			struct stat State;
-			if (stat(Path.c_str(), &State) != 0)
+			if (stat(Path.data(), &State) != 0)
 				return OS::Error::GetConditionOr();
 
 			struct tm Time;
@@ -9736,7 +9595,7 @@ namespace Vitex
 			File->IsReferenced = false;
 			File->IsExists = true;
 #endif
-			VI_TRACE("[io] stat %s: %s %" PRIu64 " bytes", Path.c_str(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
+			VI_TRACE("[io] stat %.*s: %s %" PRIu64 " bytes", (int)Path.size(), Path.data(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
 			return Core::Expectation::Met;
 		}
 		ExpectsIO<void> OS::File::Seek64(FILE* Stream, int64_t Offset, FileSeek Mode)
@@ -9781,40 +9640,35 @@ namespace Vitex
 
 			return (uint64_t)Offset;
 		}
-		ExpectsIO<size_t> OS::File::Join(const String& To, const Vector<String>& Paths)
+		ExpectsIO<size_t> OS::File::Join(const std::string_view& To, const Vector<String>& Paths)
 		{
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] join %i path to %s", (int)Paths.size(), To.c_str());
+			VI_TRACE("[io] join %i path to %.*s", (int)Paths.size(), (int)To.size(), To.data());
 			auto Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
 				return Target.Error();
 
 			size_t Total = 0;
-			Stream* Pipe = *Target;
+			UPtr<Stream> Pipe = *Target;
 			for (auto& Path : Paths)
 			{
-				auto Base = Open(Path, FileMode::Binary_Read_Only);
+				UPtr<Stream> Base = Open(Path, FileMode::Binary_Read_Only).Or(nullptr);
 				if (Base)
-				{
-					auto Size = Base->ReadAll([&Pipe](char* Buffer, size_t Size) { Pipe->Write(Buffer, Size); });
-					Total += Size.Or(0);
-					VI_RELEASE(Base);
-				}
+					Total += Base->ReadAll([&Pipe](uint8_t* Buffer, size_t Size) { Pipe->Write(Buffer, Size); }).Or(0);
 			}
 
-			VI_RELEASE(Target);
 			return Total;
 		}
-		ExpectsIO<FileState> OS::File::GetProperties(const char* Path)
+		ExpectsIO<FileState> OS::File::GetProperties(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
+			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
 			struct stat Buffer;
-			if (stat(Path, &Buffer) != 0)
+			if (stat(Path.data(), &Buffer) != 0)
 				return OS::Error::GetConditionOr();
 
 			FileState State;
@@ -9830,10 +9684,10 @@ namespace Vitex
 			State.LastPermissionChange = Buffer.st_ctime;
 			State.LastModified = Buffer.st_mtime;
 
-			VI_TRACE("[io] stat %s: %" PRIu64 " bytes", Path, (uint64_t)State.Size);
+			VI_TRACE("[io] stat %.*s: %" PRIu64 " bytes", (int)Path.size(), Path.data(), (uint64_t)State.Size);
 			return State;
 		}
-		ExpectsIO<FileEntry> OS::File::GetState(const String& Path)
+		ExpectsIO<FileEntry> OS::File::GetState(const std::string_view& Path)
 		{
 			FileEntry File;
 			auto Status = GetState(Path, &File);
@@ -9842,34 +9696,35 @@ namespace Vitex
 
 			return File;
 		}
-		ExpectsIO<FILE*> OS::File::Open(const char* Path, const char* Mode)
+		ExpectsIO<FILE*> OS::File::Open(const std::string_view& Path, const std::string_view& Mode)
 		{
 			VI_MEASURE(Timings::FileSystem);
-			VI_ASSERT(Path != nullptr && Mode != nullptr, "path and mode should be set");
+			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
+			VI_ASSERT(Stringify::IsCString(Mode), "mode should be set");
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
 			wchar_t Buffer[CHUNK_SIZE], Type[20];
-			Stringify::ConvertToWide(Path, strlen(Path), Buffer, CHUNK_SIZE);
-			Stringify::ConvertToWide(Mode, strlen(Mode), Type, 20);
+			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
+			Stringify::ConvertToWide(Mode, Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
 			if (!Stream)
 				return OS::Error::GetConditionOr();
 
-			VI_DEBUG("[io] open %s:file fd %i on %s", Mode, VI_FILENO(Stream), Path);
+			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)Mode.size(), Mode.data(), VI_FILENO(Stream), (int)Path.size(), Path.data());
 			return Stream;
 #else
-			FILE* Stream = fopen(Path, Mode);
+			FILE* Stream = fopen(Path.data(), Mode.data());
 			if (!Stream)
 				return OS::Error::GetConditionOr();
 
-			VI_DEBUG("[io] open %s:file fd %i %s on %s", Mode, VI_FILENO(Stream), Path);
+			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)Mode.size(), Mode.data(), VI_FILENO(Stream), (int)Path.size(), Path.data());
 			fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
 			return Stream;
 #endif
 		}
-		ExpectsIO<Stream*> OS::File::Open(const String& Path, FileMode Mode, bool Async)
+		ExpectsIO<Stream*> OS::File::Open(const std::string_view& Path, FileMode Mode, bool Async)
 		{
 			if (Path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
@@ -9879,68 +9734,56 @@ namespace Vitex
 			Network::Location Origin(Path);
 			if (Origin.Protocol == "file")
 			{
-				Stream* Target = nullptr;
+				UPtr<Stream> Target;
 				if (Stringify::EndsWith(Path, ".gz"))
 					Target = new GzStream();
 				else
 					Target = new FileStream();
 
-				auto Result = Target->Open(Path.c_str(), Mode);
+				auto Result = Target->Open(Path, Mode);
 				if (!Result)
-				{
-					VI_RELEASE(Target);
 					return Result.Error();
-				}
 
-				return Target;
+				return Target.Reset();
 			}
 			else if (Origin.Protocol == "http" || Origin.Protocol == "https")
 			{
-				auto* Target = new WebStream(Async);
-				auto Result = Target->Open(Path.c_str(), Mode);
+				UPtr<Stream> Target = new WebStream(Async);
+				auto Result = Target->Open(Path, Mode);
 				if (!Result)
-				{
-					VI_RELEASE(Target);
 					return Result.Error();
-				}
 
-				return Target;
+				return Target.Reset();
 			}
 			else if (Origin.Protocol == "shell")
 			{
-				auto* Target = new ProcessStream();
+				UPtr<Stream> Target = new ProcessStream();
 				auto Result = Target->Open(Origin.Path.c_str(), Mode);
 				if (!Result)
-				{
-					VI_RELEASE(Target);
 					return Result.Error();
-				}
 
-				return Target;
+				return Target.Reset();
 			}
 			else if (Origin.Protocol == "mem")
 			{
-				auto* Target = new MemoryStream();
-				auto Result = Target->Open(Path.c_str(), Mode);
+				UPtr<Stream> Target = new MemoryStream();
+				auto Result = Target->Open(Path, Mode);
 				if (!Result)
-				{
-					VI_RELEASE(Target);
 					return Result.Error();
-				}
 
-				return Target;
+				return Target.Reset();
 			}
 
 			return std::make_error_condition(std::errc::invalid_argument);
 		}
-		ExpectsIO<Stream*> OS::File::OpenArchive(const String& Path, size_t UnarchivedMaxSize)
+		ExpectsIO<Stream*> OS::File::OpenArchive(const std::string_view& Path, size_t UnarchivedMaxSize)
 		{
 			auto State = OS::File::GetState(Path);
 			if (!State)
 				return Open(Path, FileMode::Binary_Write_Only);
 
 			String Temp = Path::GetNonExistant(Path);
-			Move(Path.c_str(), Temp.c_str());
+			Move(Path, Temp.c_str());
 
 			if (State->Size <= UnarchivedMaxSize)
 			{
@@ -9954,48 +9797,41 @@ namespace Vitex
 			if (Stringify::EndsWith(Temp, ".gz"))
 				return Target;
 
-			auto Archive = OpenJoin(Temp + ".gz", { Temp });
+			UPtr<Stream> Archive = OpenJoin(Temp + ".gz", { Temp }).Or(nullptr);
 			if (Archive)
-			{
 				Remove(Temp.c_str());
-				VI_RELEASE(Archive);
-			}
 
 			return Target;
 		}
-		ExpectsIO<Stream*> OS::File::OpenJoin(const String& To, const Vector<String>& Paths)
+		ExpectsIO<Stream*> OS::File::OpenJoin(const std::string_view& To, const Vector<String>& Paths)
 		{
 			VI_ASSERT(!To.empty(), "to should not be empty");
 			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] open join %i path to %s", (int)Paths.size(), To.c_str());
+			VI_TRACE("[io] open join %i path to %.*s", (int)Paths.size(), (int)To.size(), To.data());
 			auto Target = Open(To, FileMode::Binary_Write_Only);
 			if (!Target)
 				return Target;
 
-			Stream* Streamer = *Target;
+			auto* Channel = *Target;
 			for (auto& Path : Paths)
 			{
-				auto Base = Open(Path, FileMode::Binary_Read_Only);
+				UPtr<Stream> Base = Open(Path, FileMode::Binary_Read_Only).Or(nullptr);
 				if (Base)
-				{
-					Base->ReadAll([&Streamer](char* Buffer, size_t Size) { Streamer->Write(Buffer, Size); });
-					VI_RELEASE(Base);
-				}
+					Base->ReadAll([&Channel](uint8_t* Buffer, size_t Size) { Channel->Write(Buffer, Size); });
 			}
 
 			return Target;
 		}
-		ExpectsIO<unsigned char*> OS::File::ReadAll(const String& Path, size_t* Length)
+		ExpectsIO<uint8_t*> OS::File::ReadAll(const std::string_view& Path, size_t* Length)
 		{
-			auto Base = Open(Path, FileMode::Binary_Read_Only);
-			if (!Base)
-				return Base.Error();
+			auto Target = Open(Path, FileMode::Binary_Read_Only);
+			if (!Target)
+				return Target.Error();
 
-			auto Result = ReadAll(*Base, Length);
-			VI_RELEASE(Base);
-			return Result;
+			UPtr<Stream> Base = *Target;
+			return ReadAll(*Base, Length);
 		}
-		ExpectsIO<unsigned char*> OS::File::ReadAll(Stream* Stream, size_t* Length)
+		ExpectsIO<uint8_t*> OS::File::ReadAll(Stream* Stream, size_t* Length)
 		{
 			VI_ASSERT(Stream != nullptr, "path should be set");
 			VI_MEASURE(Core::Timings::FileSystem);
@@ -10007,11 +9843,11 @@ namespace Vitex
 			if (IsVirtual || Stream->IsSized())
 			{
 				size_t Size = IsVirtual ? Stream->VirtualSize() : Stream->Size().Or(0);
-				auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
-				auto Status = Stream->Read((char*)Bytes, Size);
+				auto* Bytes = Memory::Allocate<uint8_t>(sizeof(uint8_t) * (Size + 1));
+				auto Status = Stream->Read(Bytes, Size);
 				if (!Status)
 				{
-					VI_FREE(Bytes);
+					Memory::Deallocate(Bytes);
 					return Status.Error();
 				}
 
@@ -10023,33 +9859,32 @@ namespace Vitex
 			}
 
 			Core::String Data;
-			auto Status = Stream->ReadAll([&Data](char* Buffer, size_t Length)
+			auto Status = Stream->ReadAll([&Data](uint8_t* Buffer, size_t Length)
 			{
 				Data.reserve(Data.size() + Length);
-				Data.append(Buffer, Length);
+				Data.append((char*)Buffer, Length);
 			});
 			if (!Status)
 				return Status.Error();
 
 			size_t Size = Data.size();
-			auto* Bytes = VI_MALLOC(unsigned char, sizeof(unsigned char) * (Data.size() + 1));
-			memcpy(Bytes, Data.data(), sizeof(unsigned char) * Data.size());
+			auto* Bytes = Memory::Allocate<uint8_t>(sizeof(uint8_t) * (Data.size() + 1));
+			memcpy(Bytes, Data.data(), sizeof(uint8_t) * Data.size());
 			Bytes[Size] = '\0';
 			if (Length != nullptr)
 				*Length = Size;
 
 			return Bytes;
 		}
-		ExpectsIO<unsigned char*> OS::File::ReadChunk(Stream* Stream, size_t Length)
+		ExpectsIO<uint8_t*> OS::File::ReadChunk(Stream* Stream, size_t Length)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
-			auto* Bytes = VI_MALLOC(unsigned char, (Length + 1));
-			Stream->Read((char*)Bytes, Length);
+			auto* Bytes = Memory::Allocate<uint8_t>(Length + 1);
+			Stream->Read(Bytes, Length);
 			Bytes[Length] = '\0';
-
 			return Bytes;
 		}
-		ExpectsIO<String> OS::File::ReadAsString(const String& Path)
+		ExpectsIO<String> OS::File::ReadAsString(const std::string_view& Path)
 		{
 			size_t Length = 0;
 			auto FileData = ReadAll(Path, &Length);
@@ -10058,11 +9893,10 @@ namespace Vitex
 
 			auto* Data = (char*)*FileData;
 			String Output(Data, Length);
-			VI_FREE(Data);
-
+			Memory::Deallocate(Data);
 			return Output;
 		}
-		ExpectsIO<Vector<String>> OS::File::ReadAsArray(const String& Path)
+		ExpectsIO<Vector<String>> OS::File::ReadAsArray(const std::string_view& Path)
 		{
 			ExpectsIO<String> Result = ReadAsString(Path);
 			if (!Result)
@@ -10071,12 +9905,11 @@ namespace Vitex
 			return Stringify::Split(*Result, '\n');
 		}
 		
-		bool OS::Path::IsRemote(const char* Path)
+		bool OS::Path::IsRemote(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 			return Network::Location(Path).Protocol != "file";
 		}
-		bool OS::Path::IsRelative(const char* Path)
+		bool OS::Path::IsRelative(const std::string_view& Path)
 		{
 #ifdef VI_MICROSOFT
 			return !IsAbsolute(Path);
@@ -10084,72 +9917,70 @@ namespace Vitex
 			return Path[0] == '/' || Path[0] == '\\';
 #endif
 		}
-		bool OS::Path::IsAbsolute(const char* Path)
+		bool OS::Path::IsAbsolute(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
 #ifdef VI_MICROSOFT
 			if (Path[0] == '/' || Path[0] == '\\')
 				return true;
 
-			size_t Size = strnlen(Path, 2);
-			if (Size < 2)
+			if (Path.size() < 2)
 				return false;
 
-			return std::isalnum(Stringify::Literal(Path[0])) && Path[1] == ':';
+			return Path[1] == ':' && Stringify::IsAlphanum(Path[0]);
 #else
 			return Path[0] == '/' || Path[0] == '\\';
 #endif
 		}
-		ExpectsIO<String> OS::Path::Resolve(const char* Path)
+		ExpectsIO<String> OS::Path::Resolve(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
+			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
 			VI_MEASURE(Timings::FileSystem);
 			char Buffer[BLOB_SIZE] = { };
 #ifdef VI_MICROSOFT
-			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
+			if (GetFullPathNameA(Path.data(), sizeof(Buffer), Buffer, nullptr) == 0)
 				return OS::Error::GetConditionOr();
 #else
-			if (!realpath(Path, Buffer))
+			if (!realpath(Path.data(), Buffer))
 			{
-				if (Buffer[0] == '\0' || memcmp(Path, Buffer, strnlen(Buffer, BLOB_SIZE)) != 0)
+				if (Buffer[0] == '\0' || memcmp(Path.data(), Buffer, strnlen(Buffer, BLOB_SIZE)) != 0)
 				{
-					if (*Path == '\0' || strstr(Path, "./") != nullptr || strstr(Path, ".\\") != nullptr)
+					if (Path.empty() || Path.find("./") != std::string::npos || Path.find(".\\") != std::string::npos)
 						return OS::Error::GetConditionOr();
 				}
 
-				String Output(Path);
-				VI_TRACE("[io] resolve %s path (non-existant)", Path);
+				String Output = String(Path);
+				VI_TRACE("[io] resolve %.*s path (non-existant)", (int)Path.size(), Path.data());
 				return Output;
 			}
 #endif
 			String Output(Buffer, strnlen(Buffer, BLOB_SIZE));
-			VI_TRACE("[io] resolve %s path: %s", Path, Output.c_str());
+			VI_TRACE("[io] resolve %.*s path: %s", (int)Path.size(), Path.data(), Output.c_str());
 			return Output;
 		}
-		ExpectsIO<String> OS::Path::Resolve(const String& Path, const String& Directory, bool EvenIfExists)
+		ExpectsIO<String> OS::Path::Resolve(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists)
 		{
 			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
-			if (IsAbsolute(Path.c_str()))
-				return Path;
-			else if (!EvenIfExists && IsPathExists(Path.c_str()) && Path.find("..") == std::string::npos)
-				return Path;
+			if (IsAbsolute(Path))
+				return String(Path);
+			else if (!EvenIfExists && IsPathExists(Path) && Path.find("..") == std::string::npos)
+				return String(Path);
 
 			bool Prefixed = Stringify::StartsOf(Path, "/\\");
 			bool Relative = !Prefixed && (Stringify::StartsWith(Path, "./") || Stringify::StartsWith(Path, ".\\"));
 			bool Postfixed = Stringify::EndsOf(Directory, "/\\");
 
-			String Target = Directory;
+			String Target = String(Directory);
 			if (!Prefixed && !Postfixed)
 				Target.append(1, VI_SPLITTER);
 
 			if (Relative)
-				Target.append(Path.c_str() + 2, Path.size() - 2);
+				Target.append(Path.data() + 2, Path.size() - 2);
 			else
 				Target.append(Path);
 
 			return Resolve(Target.c_str());
 		}
-		ExpectsIO<String> OS::Path::ResolveDirectory(const char* Path)
+		ExpectsIO<String> OS::Path::ResolveDirectory(const std::string_view& Path)
 		{
 			ExpectsIO<String> Result = Resolve(Path);
 			if (!Result)
@@ -10160,7 +9991,7 @@ namespace Vitex
 
 			return Result;
 		}
-		ExpectsIO<String> OS::Path::ResolveDirectory(const String& Path, const String& Directory, bool EvenIfExists)
+		ExpectsIO<String> OS::Path::ResolveDirectory(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists)
 		{
 			ExpectsIO<String> Result = Resolve(Path, Directory, EvenIfExists);
 			if (!Result)
@@ -10171,18 +10002,18 @@ namespace Vitex
 
 			return Result;
 		}
-		String OS::Path::GetNonExistant(const String& Path)
+		String OS::Path::GetNonExistant(const std::string_view& Path)
 		{
 			VI_ASSERT(!Path.empty(), "path should not be empty");
-			const char* Extension = GetExtension(Path.c_str());
-			bool IsTrueFile = Extension != nullptr && *Extension != '\0';
+			auto Extension = GetExtension(Path);
+			bool IsTrueFile = !Extension.empty();
 			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
 			if (ExtensionAt == String::npos)
-				return Path;
+				return String(Path);
 
-			String First = Path.substr(0, ExtensionAt).append(1, '.');
-			String Second = IsTrueFile ? Extension : String();
-			String Filename = Path;
+			String First = String(Path.substr(0, ExtensionAt)).append(1, '.');
+			String Second = String(Extension);
+			String Filename = String(Path);
 			size_t Nonce = 0;
 
 			while (true)
@@ -10196,14 +10027,12 @@ namespace Vitex
 
 			return Filename;
 		}
-		String OS::Path::GetDirectory(const char* Path, size_t Level)
+		String OS::Path::GetDirectory(const std::string_view& Path, size_t Level)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-
 			String Buffer(Path);
 			TextSettle Result = Stringify::ReverseFindOf(Buffer, "/\\");
 			if (!Result.Found)
-				return Path;
+				return Buffer;
 
 			size_t Size = Buffer.size();
 			for (size_t i = 0; i < Level; i++)
@@ -10223,36 +10052,31 @@ namespace Vitex
 
 			Stringify::Splice(Buffer, 0, Result.End);
 			if (Buffer.empty())
-				return "/";
+				Buffer.assign("/");
 
 			return Buffer;
 		}
-		const char* OS::Path::GetFilename(const char* Path)
+		std::string_view OS::Path::GetFilename(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-			size_t Size = strlen(Path);
+			size_t Size = Path.size();
 			for (size_t i = Size; i-- > 0;)
 			{
 				if (Path[i] == '/' || Path[i] == '\\')
-					return Path + i + 1;
+					return Path.substr(i + 1);
 			}
 
 			return Path;
 		}
-		const char* OS::Path::GetExtension(const char* Path)
+		std::string_view OS::Path::GetExtension(const std::string_view& Path)
 		{
-			VI_ASSERT(Path != nullptr, "path should be set");
-			const char* Buffer = Path;
-			while (*Buffer != '\0')
-				Buffer++;
+			if (Path.empty())
+				return "";
 
-			while (*Buffer != '.' && Buffer != Path)
-				Buffer--;
+			size_t Index = Path.rfind('.');
+			if (Index == std::string::npos)
+				return "";
 
-			if (Buffer == Path)
-				return nullptr;
-
-			return Buffer;
+			return Path.substr(Index + 1);
 		}
 
 		bool OS::Net::GetETag(char* Buffer, size_t Length, FileEntry* Resource)
@@ -10472,17 +10296,14 @@ namespace Vitex
 			return signal(Id, SIG_IGN) != SIG_ERR;
 #endif
 		}
-		ExpectsIO<int> OS::Process::Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback)
+		ExpectsIO<int> OS::Process::Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback)
 		{
-			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute sh [ %s ]", Command.c_str());
-			ProcessStream* Stream = new ProcessStream();
-			auto Result = Stream->Open(Command.c_str(), FileMode::Read_Only);
+			VI_ASSERT(!Command.empty(), "commmand should be set");
+			VI_DEBUG("[os] execute sh [ %.*s ]", (int)Command.size(), Command.data());
+			UPtr<ProcessStream> Stream = new ProcessStream();
+			auto Result = Stream->Open(Command, FileMode::Read_Only);
 			if (!Result)
-			{
-				VI_RELEASE(Stream);
 				return Result.Error();
-			}
 
 			bool Notify = true;
 			char Buffer[CHUNK_SIZE];
@@ -10492,30 +10313,24 @@ namespace Vitex
 				if (!Size || !*Size)
 					break;
 				else if (Notify && Callback)
-					Notify = Callback(Buffer, *Size);
+					Notify = Callback(std::string_view(Buffer, *Size));
 			}
 
 			Result = Stream->Close();
 			if (!Result)
-			{
-				VI_RELEASE(Stream);
 				return Result.Error();
-			}
 
-			int ExitCode = Stream->GetExitCode();
-			VI_RELEASE(Stream);
-			return ExitCode;
+			return Stream->GetExitCode();
 		}
-		ExpectsIO<Unique<ProcessStream>> OS::Process::Spawn(const String& Command, FileMode Mode)
+		ExpectsIO<Unique<ProcessStream>> OS::Process::Spawn(const std::string_view& Command, FileMode Mode)
 		{
-			VI_ASSERT(!Command.empty(), "format should be set");
-			VI_DEBUG("[os] execute sh [ %s ]", Command.c_str());
-			ProcessStream* Stream = new ProcessStream();
-			auto Result = Stream->Open(Command.c_str(), Mode);
+			VI_ASSERT(!Command.empty(), "command should be set");
+			VI_DEBUG("[os] execute sh [ %.*s ]", (int)Command.size(), Command.data());
+			UPtr<ProcessStream> Stream = new ProcessStream();
+			auto Result = Stream->Open(Command, Mode);
 			if (Result)
-				return Stream;
+				return Stream.Reset();
 
-			VI_RELEASE(Stream);
 			return Result.Error();
 		}
 		String OS::Process::GetThreadId(const std::thread::id& Id)
@@ -10524,12 +10339,14 @@ namespace Vitex
 			Stream << Id;
 			return Stream.str();
 		}
-		ExpectsIO<String> OS::Process::GetEnv(const String& Name)
+		ExpectsIO<String> OS::Process::GetEnv(const std::string_view& Name)
 		{
+			VI_ASSERT(Stringify::IsCString(Name), "name should be set");
+			VI_TRACE("[os] load env %.*s", (int)Name.size(), Name.data());
 			if (!Control::Has(AccessOption::Env))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			char* Value = std::getenv(Name.c_str());
+			char* Value = std::getenv(Name.data());
 			if (!Value)
 				return OS::Error::GetConditionOr();
 
@@ -10565,7 +10382,7 @@ namespace Vitex
 			Params.reserve(Context.Params.size());
 
 			String Default = "1";
-			auto InlineText = [&Default](const String& Value) -> const String& { return Value.empty() ? Default : Value; };
+			auto InlineText = [&Default](const Core::String& Value) -> const Core::String& { return Value.empty() ? Default : Value; };
 			for (size_t i = 1; i < Context.Params.size(); i++)
 			{
 				auto& Item = Context.Params[i];
@@ -10636,7 +10453,7 @@ namespace Vitex
 			return Context;
 		}
 
-		ExpectsIO<void*> OS::Symbol::Load(const String& Path)
+		ExpectsIO<void*> OS::Symbol::Load(const std::string_view& Path)
 		{
 			VI_MEASURE(Timings::FileSystem);
 			if (!Control::Has(AccessOption::Lib))
@@ -10651,7 +10468,7 @@ namespace Vitex
 				return (void*)Module;
 			}
 
-			String Name = Path;
+			String Name = String(Path);
 			if (!Stringify::EndsWith(Name, ".dll"))
 				Name.append(".dll");
 
@@ -10671,7 +10488,7 @@ namespace Vitex
 				return (void*)Module;
 			}
 
-			String Name = Path;
+			String Name = String(Path);
 			if (!Stringify::EndsWith(Name, ".dylib"))
 				Name.append(".dylib");
 
@@ -10691,7 +10508,7 @@ namespace Vitex
 				return (void*)Module;
 			}
 
-			String Name = Path;
+			String Name = String(Path);
 			if (!Stringify::EndsWith(Name, ".so"))
 				Name.append(".so");
 
@@ -10705,21 +10522,21 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void*> OS::Symbol::LoadFunction(void* Handle, const String& Name)
+		ExpectsIO<void*> OS::Symbol::LoadFunction(void* Handle, const std::string_view& Name)
 		{
-			VI_ASSERT(Handle != nullptr && !Name.empty(), "handle should be set and name should not be empty");
-			VI_DEBUG("[dl] load function %s", Name.c_str());
+			VI_ASSERT(Handle != nullptr && Stringify::IsCString(Name), "handle should be set and name should not be empty");
+			VI_DEBUG("[dl] load function %.*s", (int)Name.size(), Name.data());
 			VI_MEASURE(Timings::FileSystem);
 			if (!Control::Has(AccessOption::Lib))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
+			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.data());
 			if (!Result)
 				return OS::Error::GetConditionOr();
 
 			return Result;
 #elif defined(VI_LINUX)
-			void* Result = (void*)dlsym(Handle, Name.c_str());
+			void* Result = (void*)dlsym(Handle, Name.data());
 			if (!Result)
 				return OS::Error::GetConditionOr();
 
@@ -10748,11 +10565,12 @@ namespace Vitex
 #endif
 		}
 
-		bool OS::Input::Text(const String& Title, const String& Message, const String& DefaultInput, String* Result)
+		bool OS::Input::Text(const std::string_view& Title, const std::string_view& Message, const std::string_view& DefaultInput, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[tfd] open input { title: %s, message: %s }", Title.c_str(), Message.c_str());
-			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
+			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(Message), "title and message should be set");
+			VI_TRACE("[tfd] open input { title: %.*s, message: %.*s }", (int)Title.size(), Title.data(), (int)Message.size(), Message.data());
+			const char* Data = tinyfd_inputBox(Title.data(), Message.data(), DefaultInput.data());
 			if (!Data)
 				return false;
 
@@ -10765,11 +10583,12 @@ namespace Vitex
 			return false;
 #endif
 		}
-		bool OS::Input::Password(const String& Title, const String& Message, String* Result)
+		bool OS::Input::Password(const std::string_view& Title, const std::string_view& Message, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[tfd] open password { title: %s, message: %s }", Title.c_str(), Message.c_str());
-			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
+			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(Message), "title and message should be set");
+			VI_TRACE("[tfd] open password { title: %.*s, message: %.*s }", (int)Title.size(), Title.data(), (int)Message.size(), Message.data());
+			const char* Data = tinyfd_inputBox(Title.data(), Message.data(), nullptr);
 			if (!Data)
 				return false;
 
@@ -10782,17 +10601,19 @@ namespace Vitex
 			return false;
 #endif
 		}
-		bool OS::Input::Save(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, String* Result)
+		bool OS::Input::Save(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
+			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultPath) && Stringify::IsCString(Filter) && Stringify::IsCString(FilterDescription), "title, default and filter should be set");
+			VI_ASSERT(FilterDescription.empty() || Stringify::IsCString(FilterDescription), "desc should be set");
 			Vector<String> Sources = Stringify::Split(Filter, ',');
 			Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
-			VI_TRACE("[tfd] open save { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
-			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
-				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str());
+			VI_TRACE("[tfd] open save { title: %.*s, filter: %.*s }", (int)Title.size(), Title.data(), (int)Filter.size(), Filter.data());
+			const char* Data = tinyfd_saveFileDialog(Title.data(), DefaultPath.data(), (int)Patterns.size(),
+				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.data());
 
 			if (!Data)
 				return false;
@@ -10806,17 +10627,19 @@ namespace Vitex
 			return false;
 #endif
 		}
-		bool OS::Input::Open(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, bool Multiple, String* Result)
+		bool OS::Input::Open(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, bool Multiple, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
+			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultPath) && Stringify::IsCString(Filter) && Stringify::IsCString(FilterDescription), "title, default and filter should be set");
+			VI_ASSERT(FilterDescription.empty() || Stringify::IsCString(FilterDescription), "desc should be set");
 			Vector<String> Sources = Stringify::Split(Filter, ',');
 			Vector<char*> Patterns;
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
-			VI_TRACE("[tfd] open load { title: %s, filter: %s }", Title.c_str(), Filter.c_str());
-			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
-				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str(), Multiple);
+			VI_TRACE("[tfd] open load { title: %.*s, filter: %.*s }", (int)Title.size(), Title.data(), (int)Filter.size(), Filter.data());
+			const char* Data = tinyfd_openFileDialog(Title.data(), DefaultPath.data(), (int)Patterns.size(),
+				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.data(), Multiple);
 
 			if (!Data)
 				return false;
@@ -10830,11 +10653,12 @@ namespace Vitex
 			return false;
 #endif
 		}
-		bool OS::Input::Folder(const String& Title, const String& DefaultPath, String* Result)
+		bool OS::Input::Folder(const std::string_view& Title, const std::string_view& DefaultPath, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[tfd] open folder { title: %s }", Title.c_str());
-			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
+			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultPath), "title and default should be set");
+			VI_TRACE("[tfd] open folder { title: %.*s }", (int)Title.size(), Title.data());
+			const char* Data = tinyfd_selectFolderDialog(Title.data(), DefaultPath.data());
 			if (!Data)
 				return false;
 
@@ -10847,12 +10671,13 @@ namespace Vitex
 			return false;
 #endif
 		}
-		bool OS::Input::Color(const String& Title, const String& DefaultHexRGB, String* Result)
+		bool OS::Input::Color(const std::string_view& Title, const std::string_view& DefaultHexRGB, String* Result)
 		{
 #ifdef VI_TINYFILEDIALOGS
-			VI_TRACE("[tfd] open color { title: %s }", Title.c_str());
-			unsigned char RGB[3] = { 0, 0, 0 };
-			const char* Data = tinyfd_colorChooser(Title.c_str(), DefaultHexRGB.c_str(), RGB, RGB);
+			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultHexRGB), "title and default should be set");
+			VI_TRACE("[tfd] open color { title: %.*s }", (int)Title.size(), Title.data());
+			uint8_t RGB[3] = { 0, 0, 0 };
+			const char* Data = tinyfd_colorChooser(Title.data(), DefaultHexRGB.data(), RGB, RGB);
 			if (!Data)
 				return false;
 
@@ -10973,7 +10798,7 @@ namespace Vitex
 		{
 			return Options & (uint64_t)Option;
 		}
-		Option<AccessOption> OS::Control::ToOption(const String& Option)
+		Option<AccessOption> OS::Control::ToOption(const std::string_view& Option)
 		{
 			if (Option == "mem")
 				return AccessOption::Mem;
@@ -10999,7 +10824,7 @@ namespace Vitex
 				return AccessOption::All;
 			return Optional::None;
 		}
-		const char* OS::Control::ToString(AccessOption Option)
+		std::string_view OS::Control::ToString(AccessOption Option)
 		{
 			switch (Option)
 			{
@@ -11029,14 +10854,14 @@ namespace Vitex
 					return "";
 			}
 		}
-		const char* OS::Control::ToOptions()
+		std::string_view OS::Control::ToOptions()
 		{
 			return "mem, fs, gz, net, lib, http, https, shell, env, addons, all";
 		}
 		std::atomic<uint64_t> OS::Control::Options = (uint64_t)AccessOption::All;
 
 		static thread_local Costate* InternalCoroutine = nullptr;
-		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(VI_NEW(Cocontext)), Size(StackSize), ExternalCondition(nullptr), ExternalMutex(nullptr)
+		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(Memory::New<Cocontext>()), Size(StackSize), ExternalCondition(nullptr), ExternalMutex(nullptr)
 		{
 			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
 		}
@@ -11047,12 +10872,12 @@ namespace Vitex
 				InternalCoroutine = nullptr;
 
 			for (auto& Routine : Cached)
-				VI_DELETE(Coroutine, Routine);
+				Memory::Delete(Routine);
 
 			for (auto& Routine : Used)
-				VI_DELETE(Coroutine, Routine);
+				Memory::Delete(Routine);
 
-			VI_DELETE(Cocontext, Master);
+			Memory::Delete(Master);
 		}
 		Coroutine* Costate::Pop(const TaskCallback& Procedure)
 		{
@@ -11067,7 +10892,7 @@ namespace Vitex
 				Cached.erase(Cached.begin());
 			}
 			else
-				Routine = VI_NEW(Coroutine, this, Procedure);
+				Routine = Memory::New<Coroutine>(this, Procedure);
 
 			Used.emplace(Routine);
 			return Routine;
@@ -11085,7 +10910,7 @@ namespace Vitex
 				Cached.erase(Cached.begin());
 			}
 			else
-				Routine = VI_NEW(Coroutine, this, std::move(Procedure));
+				Routine = Memory::New<Coroutine>(this, std::move(Procedure));
 
 			Used.emplace(Routine);
 			return Routine;
@@ -11154,7 +10979,7 @@ namespace Vitex
 
 			Cached.erase(Routine);
 			Used.erase(Routine);
-			VI_DELETE(Coroutine, Routine);
+			Memory::Delete(Routine);
 		}
 		void Costate::Activate(Coroutine* Routine)
 		{
@@ -11200,7 +11025,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
 			for (auto& Routine : Cached)
-				VI_DELETE(Coroutine, Routine);
+				Memory::Delete(Routine);
 			Cached.clear();
 		}
 		bool Costate::Dispatch()
@@ -11362,19 +11187,19 @@ namespace Vitex
 			MaxCoroutines = std::min<size_t>(Size * 8, 256);
 		}
 
-		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Terminate(false), Immediate(false), Enqueue(true), Suspended(false), Active(false)
+		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Terminate(false), Enqueue(true), Suspended(false), Active(false)
 		{
-			Timeouts = VI_NEW(ConcurrentTimeoutQueue);
-			Async = VI_NEW(ConcurrentAsyncQueue);
-			Sync = VI_NEW(ConcurrentSyncQueue);
+			Timeouts = Memory::New<ConcurrentTimeoutQueue>();
+			Async = Memory::New<ConcurrentAsyncQueue>();
+			Sync = Memory::New<ConcurrentSyncQueue>();
 		}
 		Schedule::~Schedule() noexcept
 		{
 			Stop();
-			VI_DELETE(ConcurrentSyncQueue, Sync);
-			VI_DELETE(ConcurrentAsyncQueue, Async);
-			VI_DELETE(ConcurrentTimeoutQueue, Timeouts);
-			VI_RELEASE(Dispatcher.State);
+			Memory::Delete(Sync);
+			Memory::Delete(Async);
+			Memory::Delete(Timeouts);
+			Memory::Release(Dispatcher.State);
 			Scripting::VirtualMachine::CleanupThisThread();
 		}
 		TaskId Schedule::GetTaskId()
@@ -11390,7 +11215,7 @@ namespace Vitex
 			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTimer, 1);
+			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -11409,7 +11234,7 @@ namespace Vitex
 			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTimer, 1);
+			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -11428,7 +11253,7 @@ namespace Vitex
 			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTimer, 1);
+			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -11447,7 +11272,7 @@ namespace Vitex
 			if (!Enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTimer, 1);
+			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -11465,14 +11290,8 @@ namespace Vitex
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-			
-			if (Immediate)
-			{
-				Callback();
-				return true;
-			}
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTask, 1);
+			ReportThread(ThreadTask::EnqueueTask, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			if (!Recyclable || !FastBypassEnqueue(Difficulty::Sync, Callback))
@@ -11484,14 +11303,8 @@ namespace Vitex
 			VI_ASSERT(Callback, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-			
-			if (Immediate)
-			{
-				Callback();
-				return true;
-			}
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueTask, 1);
+			ReportThread(ThreadTask::EnqueueTask, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			if (!Recyclable || !FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
@@ -11504,7 +11317,7 @@ namespace Vitex
 			if (!Enqueue)
 				return false;
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueCoroutine, 1);
+			ReportThread(ThreadTask::EnqueueCoroutine, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			if (Recyclable && FastBypassEnqueue(Difficulty::Async, Callback))
@@ -11523,7 +11336,7 @@ namespace Vitex
 			if (!Enqueue)
 				return false;
 #ifndef NDEBUG
-			PostDebug(ThreadTask::EnqueueCoroutine, 1);
+			ReportThread(ThreadTask::EnqueueCoroutine, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
 			if (Recyclable && FastBypassEnqueue(Difficulty::Async, Callback))
@@ -11544,14 +11357,6 @@ namespace Vitex
 #else
 			return false;
 #endif
-		}
-		bool Schedule::SetImmediate(bool Enabled)
-		{
-			if (Active || !Enqueue)
-				return false;
-
-			Immediate = Enabled;
-			return true;
 		}
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
@@ -11601,7 +11406,7 @@ namespace Vitex
 					if (It->first >= Clock)
 						return true;
 #ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessTimer, 1);
+					ReportThread(ThreadTask::ProcessTimer, 1, nullptr);
 #endif
 					if (It->second.Alive && Active)
 					{
@@ -11623,7 +11428,7 @@ namespace Vitex
 						Timeouts->Queue.erase(It);
 					}
 #ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
+					ReportThread(ThreadTask::Awake, 0, nullptr);
 #endif
 					return true;
 				}
@@ -11642,11 +11447,11 @@ namespace Vitex
 						--Cache; ++Executions;
 						Dispatcher.State->Pop(std::move(Dispatcher.Event));
 #ifndef NDEBUG
-						PostDebug(ThreadTask::ConsumeCoroutine, 1);
+						ReportThread(ThreadTask::ConsumeCoroutine, 1, nullptr);
 #endif
 					}
 #ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
+					ReportThread(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount(), nullptr);
 #endif
 					{
 						VI_MEASURE(Timings::Frame);
@@ -11654,7 +11459,7 @@ namespace Vitex
 							++Executions;
 					}
 #ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
+					ReportThread(ThreadTask::Awake, 0, nullptr);
 #endif
 					return Executions > 0;
 				}
@@ -11665,11 +11470,11 @@ namespace Vitex
 					else if (!Sync->Queue.try_dequeue(Dispatcher.Event))
 						return false;
 #ifndef NDEBUG
-					PostDebug(ThreadTask::ProcessTask, 1);
+					ReportThread(ThreadTask::ProcessTask, 1, nullptr);
 #endif
 					Dispatcher.Event();
 #ifndef NDEBUG
-					PostDebug(ThreadTask::Awake, 0);
+					ReportThread(ThreadTask::Awake, 0, nullptr);
 #endif
 					return true;
 				}
@@ -11687,7 +11492,6 @@ namespace Vitex
 			VI_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
 
 			Policy = NewPolicy;
-			Immediate = false;
 			Active = true;
 
 			if (!Policy.Parallel)
@@ -11807,7 +11611,7 @@ namespace Vitex
 						std::unique_lock<std::mutex> Unique(Timeouts->Update);
 					Retry:
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Awake, 0);
+						ReportThread(ThreadTask::Awake, 0, Thread);
 #endif
 						std::chrono::microseconds When = std::chrono::microseconds(0);
 						if (!Timeouts->Queue.empty())
@@ -11817,7 +11621,7 @@ namespace Vitex
 							if (It->first <= Clock)
 							{
 #ifndef NDEBUG
-								PostDebug(ThreadTask::ProcessTimer, 1);
+								ReportThread(ThreadTask::ProcessTimer, 1, Thread);
 #endif
 								if (It->second.Alive)
 								{
@@ -11851,7 +11655,7 @@ namespace Vitex
 						else
 							When = Policy.IdleTimeout;
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Sleep, 0);
+						ReportThread(ThreadTask::Sleep, 0, Thread);
 #endif
 						Timeouts->Notify.wait_for(Unique, When, [this, Thread]() { return !ThreadActive(Thread) || Timeouts->Resync || Sync->Queue.size_approx() > 0; });
 						Timeouts->Resync = false;
@@ -11860,8 +11664,8 @@ namespace Vitex
 						if (!Sync->Queue.try_dequeue(Token, Event))
 							continue;
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Awake, 0);
-						PostDebug(ThreadTask::ProcessTask, 1);
+						ReportThread(ThreadTask::Awake, 0, Thread);
+						ReportThread(ThreadTask::ProcessTask, 1, Thread);
 #endif
 						VI_MEASURE(Timings::Intensive);
 						Event();
@@ -11877,7 +11681,7 @@ namespace Vitex
 					else
 						VI_DEBUG("[schedule] spawn thread %s (coroutines)", ThreadId.c_str());
 
-					Costate* State = new Costate(Policy.StackSize);
+					UPtr<Costate> State = new Costate(Policy.StackSize);
 					State->ExternalCondition = &Thread->Notify;
 					State->ExternalMutex = &Thread->Update;
 
@@ -11886,7 +11690,7 @@ namespace Vitex
 						if (SleepThread(Type, Thread))
 							continue;
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Awake, 0);
+						ReportThread(ThreadTask::Awake, 0, Thread);
 #endif
 						size_t Cache = Policy.MaxCoroutines - State->GetCount();
 						while (Cache > 0)
@@ -11902,28 +11706,26 @@ namespace Vitex
 							--Cache;
 							State->Pop(std::move(Event));
 #ifndef NDEBUG
-							PostDebug(ThreadTask::EnqueueCoroutine, 1);
+							ReportThread(ThreadTask::EnqueueCoroutine, 1, Thread);
 #endif
 						}
 #ifndef NDEBUG
-						PostDebug(ThreadTask::ProcessCoroutine, State->GetCount());
+						ReportThread(ThreadTask::ProcessCoroutine, State->GetCount(), Thread);
 #endif
 						{
 							VI_MEASURE(Timings::Frame);
 							State->Dispatch();
 						}
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Sleep, 0);
+						ReportThread(ThreadTask::Sleep, 0, Thread);
 #endif
 						std::unique_lock<std::mutex> Unique(Thread->Update);
-						Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, State, Thread]()
+						Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, &State, Thread]()
 						{
 							return !ThreadActive(Thread) || State->HasResumableCoroutines() || Async->Resync.load() || (Async->Queue.size_approx() > 0 && State->GetCount() + 1 < Policy.MaxCoroutines);
 						});
 						Async->Resync = false;
 					} while (ThreadActive(Thread));
-
-					VI_RELEASE(State);
 					break;
 				}
 				case Difficulty::Sync:
@@ -11940,7 +11742,7 @@ namespace Vitex
 						if (SleepThread(Type, Thread))
 							continue;
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Sleep, 0);
+						ReportThread(ThreadTask::Sleep, 0, Thread);
 #endif
 						if (!Thread->Queue.empty())
 						{
@@ -11950,8 +11752,8 @@ namespace Vitex
 						else if (!Sync->Queue.wait_dequeue_timed(Token, Event, Policy.IdleTimeout))
 							continue;
 #ifndef NDEBUG
-						PostDebug(ThreadTask::Awake, 0);
-						PostDebug(ThreadTask::ProcessTask, 1);
+						ReportThread(ThreadTask::Awake, 0, Thread);
+						ReportThread(ThreadTask::ProcessTask, 1, Thread);
 #endif
 						VI_MEASURE(Timings::Intensive);
 						Event();
@@ -11978,7 +11780,7 @@ namespace Vitex
 				return false;
 
 #ifndef NDEBUG
-			PostDebug(ThreadTask::Sleep, 0);
+			ReportThread(ThreadTask::Sleep, 0, Thread);
 #endif
 			std::unique_lock<std::mutex> Unique(Thread->Update);
 			Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, Thread]()
@@ -11986,7 +11788,7 @@ namespace Vitex
 				return !ThreadActive(Thread) || !Suspended;
 			});
 #ifndef NDEBUG
-			PostDebug(ThreadTask::Awake, 0);
+			ReportThread(ThreadTask::Awake, 0, Thread);
 #endif
 			return true;
 		}
@@ -12002,7 +11804,7 @@ namespace Vitex
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				for (auto* Thread : Threads[i])
-					VI_DELETE(ThreadData, Thread);
+					Memory::Delete(Thread);
 				Threads[i].clear();
 			}
 
@@ -12010,7 +11812,7 @@ namespace Vitex
 		}
 		bool Schedule::PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon)
 		{
-			ThreadData* Thread = VI_NEW(ThreadData, Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
+			ThreadData* Thread = Memory::New<ThreadData>(Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
 			if (!Thread->Daemon)
 			{
 				Thread->Handle = std::thread(&Schedule::TriggerThread, this, Type, Thread);
@@ -12019,7 +11821,7 @@ namespace Vitex
 			else
 				Thread->Id = std::this_thread::get_id();
 #ifndef NDEBUG
-			PostDebug(ThreadTask::Spawn, 0);
+			ReportThread(ThreadTask::Spawn, 0, Thread);
 #endif
 			Threads[(size_t)Type].emplace_back(Thread);
 			return Thread->Daemon ? TriggerThread(Type, Thread) : Thread->Handle.joinable();
@@ -12035,7 +11837,7 @@ namespace Vitex
 			if (Thread->Handle.joinable())
 				Thread->Handle.join();
 #ifndef NDEBUG
-			PostDebug(ThreadTask::Despawn, 0);
+			ReportThread(ThreadTask::Despawn, 0, Thread);
 #endif
 			return true;
 		}
@@ -12079,30 +11881,21 @@ namespace Vitex
 			Suspended = false;
 			Wakeup();
 		}
-		void Schedule::PushThreadRecycling()
-		{
-			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (Thread != nullptr)
-				++Thread->Recyclable;
-		}
-		void Schedule::PopThreadRecycling()
-		{
-			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (Thread != nullptr && Thread->Recyclable > 0)
-				--Thread->Recyclable;
-		}
-		bool Schedule::PostDebug(ThreadTask State, size_t Tasks)
+		bool Schedule::ReportThread(ThreadTask State, size_t Tasks, const ThreadData* Thread)
 		{
 			if (!Debug)
 				return false;
 
-			Debug(ThreadMessage(GetThread(), State, Tasks));
+			Debug(ThreadMessage(Thread, State, Tasks));
 			return true;
 		}
 		bool Schedule::FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback)
 		{
+			if (!HasParallelThreads(Type))
+				return false;
+
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread || Thread->Type != Type || !Thread->Recyclable || Thread->Queue.size() >= Policy.MaxRecycles)
+			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
 				return false;
 
 			Thread->Queue.push(Callback);
@@ -12110,8 +11903,11 @@ namespace Vitex
 		}
 		bool Schedule::FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback)
 		{
+			if (!HasParallelThreads(Type))
+				return false;
+
 			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread || Thread->Type != Type || !Thread->Recyclable || Thread->Queue.size() >= Policy.MaxRecycles)
+			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
 				return false;
 
 			Thread->Queue.push(std::move(Callback));
@@ -12140,10 +11936,10 @@ namespace Vitex
 			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
 			return Threads[(size_t)Type].size();
 		}
-		bool Schedule::IsThreadRecyclable() const
+		bool Schedule::HasParallelThreads(Difficulty Type) const
 		{
-			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			return Thread ? Thread->Recyclable > 0 : false;
+			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
+			return Threads[(size_t)Type].size() > 1;
 		}
 		void Schedule::InitializeSpawnTrigger()
 		{
@@ -12187,9 +11983,16 @@ namespace Vitex
 		{
 			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
 		}
-		bool Schedule::IsAvailable()
+		bool Schedule::IsAvailable(Difficulty Type)
 		{
-			return HasInstance() && Get()->Active;
+			if (!HasInstance())
+				return false;
+
+			auto* Instance = Get();
+			if (!Instance->Active)
+				return false;
+
+			return Type == Difficulty::Count || Instance->HasParallelThreads(Type);
 		}
 
 		Schema::Schema(const Variant& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(Base)
@@ -12210,7 +12013,7 @@ namespace Vitex
 			GenerateNamingTable(this, &Mapping, Index);
 			return Mapping;
 		}
-		Vector<Schema*> Schema::FindCollection(const String& Name, bool Deep) const
+		Vector<Schema*> Schema::FindCollection(const std::string_view& Name, bool Deep) const
 		{
 			Vector<Schema*> Result;
 			if (!Nodes)
@@ -12231,7 +12034,7 @@ namespace Vitex
 
 			return Result;
 		}
-		Vector<Schema*> Schema::FetchCollection(const String& Notation, bool Deep) const
+		Vector<Schema*> Schema::FetchCollection(const std::string_view& Notation, bool Deep) const
 		{
 			Vector<String> Names = Stringify::Split(Notation, '.');
 			if (Names.empty())
@@ -12272,7 +12075,7 @@ namespace Vitex
 			Allocate();
 			return *Nodes;
 		}
-		Schema* Schema::Find(const String& Name, bool Deep) const
+		Schema* Schema::Find(const std::string_view& Name, bool Deep) const
 		{
 			if (!Nodes)
 				return nullptr;
@@ -12299,7 +12102,7 @@ namespace Vitex
 
 			return nullptr;
 		}
-		Schema* Schema::Fetch(const String& Notation, bool Deep) const
+		Schema* Schema::Fetch(const std::string_view& Notation, bool Deep) const
 		{
 			Vector<String> Names = Stringify::Split(Notation, '.');
 			if (Names.empty())
@@ -12322,11 +12125,11 @@ namespace Vitex
 		{
 			return Parent;
 		}
-		Schema* Schema::GetAttribute(const String& Name) const
+		Schema* Schema::GetAttribute(const std::string_view& Name) const
 		{
-			return Get(':' + Name);
+			return Get(String(':' + Name));
 		}
-		Variant Schema::FetchVar(const String& fKey, bool Deep) const
+		Variant Schema::FetchVar(const std::string_view& fKey, bool Deep) const
 		{
 			Schema* Result = Fetch(fKey, Deep);
 			if (!Result)
@@ -12342,7 +12145,7 @@ namespace Vitex
 
 			return Result->Value;
 		}
-		Variant Schema::GetVar(const String& fKey) const
+		Variant Schema::GetVar(const std::string_view& fKey) const
 		{
 			Schema* Result = Get(fKey);
 			if (!Result)
@@ -12350,9 +12153,9 @@ namespace Vitex
 
 			return Result->Value;
 		}
-		Variant Schema::GetAttributeVar(const String& Key) const
+		Variant Schema::GetAttributeVar(const std::string_view& Key) const
 		{
-			return GetVar(':' + Key);
+			return GetVar(String(':' + Key));
 		}
 		Schema* Schema::Get(size_t Index) const
 		{
@@ -12361,7 +12164,7 @@ namespace Vitex
 
 			return (*Nodes)[Index];
 		}
-		Schema* Schema::Get(const String& Name) const
+		Schema* Schema::Get(const std::string_view& Name) const
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 			if (!Nodes)
@@ -12375,11 +12178,11 @@ namespace Vitex
 
 			return nullptr;
 		}
-		Schema* Schema::Set(const String& Name)
+		Schema* Schema::Set(const std::string_view& Name)
 		{
 			return Set(Name, Var::Object());
 		}
-		Schema* Schema::Set(const String& Name, const Variant& Base)
+		Schema* Schema::Set(const std::string_view& Name, const Variant& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -12405,7 +12208,7 @@ namespace Vitex
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Schema* Schema::Set(const String& Name, Variant&& Base)
+		Schema* Schema::Set(const std::string_view& Name, Variant&& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -12431,7 +12234,7 @@ namespace Vitex
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Schema* Schema::Set(const String& Name, Schema* Base)
+		Schema* Schema::Set(const std::string_view& Name, Schema* Base)
 		{
 			if (!Base)
 				return Set(Name, Var::Null());
@@ -12450,9 +12253,8 @@ namespace Vitex
 						return Base;
 
 					(*It)->Parent = nullptr;
-					VI_RELEASE(*It);
+					Memory::Release(*It);
 					*It = Base;
-
 					return Base;
 				}
 			}
@@ -12461,13 +12263,13 @@ namespace Vitex
 			Nodes->push_back(Base);
 			return Base;
 		}
-		Schema* Schema::SetAttribute(const String& Name, const Variant& fValue)
+		Schema* Schema::SetAttribute(const std::string_view& Name, const Variant& fValue)
 		{
-			return Set(':' + Name, fValue);
+			return Set(String(':' + Name), fValue);
 		}
-		Schema* Schema::SetAttribute(const String& Name, Variant&& fValue)
+		Schema* Schema::SetAttribute(const std::string_view& Name, Variant&& fValue)
 		{
-			return Set(':' + Name, std::move(fValue));
+			return Set(String(':' + Name), std::move(fValue));
 		}
 		Schema* Schema::Push(const Variant& Base)
 		{
@@ -12505,13 +12307,13 @@ namespace Vitex
 			auto It = Nodes->begin() + Index;
 			Schema* Base = *It;
 			Base->Parent = nullptr;
-			VI_RELEASE(Base);
+			Memory::Release(Base);
 			Nodes->erase(It);
 			Saved = false;
 
 			return this;
 		}
-		Schema* Schema::Pop(const String& Name)
+		Schema* Schema::Pop(const std::string_view& Name)
 		{
 			if (!Nodes)
 				return this;
@@ -12522,7 +12324,7 @@ namespace Vitex
 					continue;
 
 				(*It)->Parent = nullptr;
-				VI_RELEASE(*It);
+				Memory::Release(*It);
 				Nodes->erase(It);
 				Saved = false;
 				break;
@@ -12548,7 +12350,7 @@ namespace Vitex
 
 			return New;
 		}
-		bool Schema::Rename(const String& Name, const String& NewName)
+		bool Schema::Rename(const std::string_view& Name, const std::string_view& NewName)
 		{
 			VI_ASSERT(!Name.empty() && !NewName.empty(), "name and new name should not be empty");
 
@@ -12559,13 +12361,13 @@ namespace Vitex
 			Result->Key = NewName;
 			return true;
 		}
-		bool Schema::Has(const String& Name) const
+		bool Schema::Has(const std::string_view& Name) const
 		{
 			return Fetch(Name) != nullptr;
 		}
-		bool Schema::HasAttribute(const String& Name) const
+		bool Schema::HasAttribute(const std::string_view& Name) const
 		{
-			return Fetch(':' + Name) != nullptr;
+			return Fetch(String(':' + Name)) != nullptr;
 		}
 		bool Schema::Empty() const
 		{
@@ -12601,7 +12403,7 @@ namespace Vitex
 				for (auto& Node : *Base->Nodes)
 				{
 					auto& Next = Nodes[Node->Key];
-					VI_RELEASE(Next);
+					Memory::Release(Next);
 					Next = Node;
 				}
 
@@ -12666,16 +12468,16 @@ namespace Vitex
 			if (!Nodes)
 				return;
 
-			for (auto& Schema : *Nodes)
+			for (auto& Next : *Nodes)
 			{
-				if (Schema != nullptr)
+				if (Next != nullptr)
 				{
-					Schema->Parent = nullptr;
-					VI_RELEASE(Schema);
+					Next->Parent = nullptr;
+					Memory::Release(Next);
 				}
 			}
 
-			VI_DELETE(vector, Nodes);
+			Memory::Delete(Nodes);
 			Nodes = nullptr;
 		}
 		void Schema::Save()
@@ -12715,12 +12517,12 @@ namespace Vitex
 		void Schema::Allocate()
 		{
 			if (!Nodes)
-				Nodes = VI_NEW(Vector<Schema*>);
+				Nodes = Memory::New<Vector<Schema*>>();
 		}
 		void Schema::Allocate(const Vector<Schema*>& Other)
 		{
 			if (!Nodes)
-				Nodes = VI_NEW(Vector<Schema*>, Other);
+				Nodes = Memory::New<Vector<Schema*>>(Other);
 			else
 				*Nodes = Other;
 		}
@@ -12742,62 +12544,62 @@ namespace Vitex
 			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
 			Vector<Schema*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.Size() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
-			Callback(VarForm::Write_Tab, "", 0);
-			Callback(VarForm::Dummy, "<", 1);
-			Callback(VarForm::Dummy, Base->Key.c_str(), Base->Key.size());
+			Callback(VarForm::Write_Tab, "");
+			Callback(VarForm::Dummy, "<");
+			Callback(VarForm::Dummy, Base->Key);
 
 			if (Attributes.empty())
 			{
 				if (Scalable)
-					Callback(VarForm::Dummy, ">", 1);
+					Callback(VarForm::Dummy, ">");
 				else
-					Callback(VarForm::Dummy, " />", 3);
+					Callback(VarForm::Dummy, " />");
 			}
 			else
-				Callback(VarForm::Dummy, " ", 1);
+				Callback(VarForm::Dummy, " ");
 
 			for (auto It = Attributes.begin(); It != Attributes.end(); ++It)
 			{
 				String Key = (*It)->GetName();
 				String Value = (*It)->Value.Serialize();
 
-				Callback(VarForm::Dummy, Key.c_str(), Key.size());
-				Callback(VarForm::Dummy, "=\"", 2);
-				Callback(VarForm::Dummy, Value.c_str(), Value.size());
+				Callback(VarForm::Dummy, Key);
+				Callback(VarForm::Dummy, "=\"");
+				Callback(VarForm::Dummy, Value);
 				++It;
 
 				if (It == Attributes.end())
 				{
 					if (!Scalable)
 					{
-						Callback(VarForm::Write_Space, "\"", 1);
-						Callback(VarForm::Dummy, "/>", 2);
+						Callback(VarForm::Write_Space, "\"");
+						Callback(VarForm::Dummy, "/>");
 					}
 					else
-						Callback(VarForm::Dummy, "\">", 2);
+						Callback(VarForm::Dummy, "\">");
 				}
 				else
-					Callback(VarForm::Write_Space, "\"", 1);
+					Callback(VarForm::Write_Space, "\"");
 
 				--It;
 			}
 
-			Callback(VarForm::Tab_Increase, "", 0);
+			Callback(VarForm::Tab_Increase, "");
 			if (Base->Value.Size() > 0)
 			{
 				String Text = Base->Value.Serialize();
 				if (Base->Nodes != nullptr && !Base->Nodes->empty())
 				{
-					Callback(VarForm::Write_Line, "", 0);
-					Callback(VarForm::Write_Tab, "", 0);
-					Callback(VarForm::Dummy, Text.c_str(), Text.size());
-					Callback(VarForm::Write_Line, "", 0);
+					Callback(VarForm::Write_Line, "");
+					Callback(VarForm::Write_Tab, "");
+					Callback(VarForm::Dummy, Text);
+					Callback(VarForm::Write_Line, "");
 				}
 				else
-					Callback(VarForm::Dummy, Text.c_str(), Text.size());
+					Callback(VarForm::Dummy, Text);
 			}
 			else
-				Callback(VarForm::Write_Line, "", 0);
+				Callback(VarForm::Write_Line, "");
 
 			if (Base->Nodes != nullptr)
 			{
@@ -12808,16 +12610,16 @@ namespace Vitex
 				}
 			}
 
-			Callback(VarForm::Tab_Decrease, "", 0);
+			Callback(VarForm::Tab_Decrease, "");
 			if (!Scalable)
 				return;
 
 			if (Base->Nodes != nullptr && !Base->Nodes->empty())
-				Callback(VarForm::Write_Tab, "", 0);
+				Callback(VarForm::Write_Tab, "");
 
-			Callback(VarForm::Dummy, "</", 2);
-			Callback(VarForm::Dummy, Base->Key.c_str(), Base->Key.size());
-			Callback(Base->Parent ? VarForm::Write_Line : VarForm::Dummy, ">", 1);
+			Callback(VarForm::Dummy, "</");
+			Callback(VarForm::Dummy, Base->Key);
+			Callback(Base->Parent ? VarForm::Write_Line : VarForm::Dummy, ">");
 		}
 		void Schema::ConvertToJSON(Schema* Base, const SchemaWriteCallback& Callback)
 		{
@@ -12830,15 +12632,15 @@ namespace Vitex
 				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Binary)
 				{
 					if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
-						Callback(VarForm::Dummy, Value.c_str() + 1, Value.size() - 2);
+						Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));
 					else
-						Callback(VarForm::Dummy, Value.c_str(), Value.size());
+						Callback(VarForm::Dummy, Value);
 				}
 				else
 				{
-					Callback(VarForm::Dummy, "\"", 1);
-					Callback(VarForm::Dummy, Value.c_str(), Value.size());
-					Callback(VarForm::Dummy, "\"", 1);
+					Callback(VarForm::Dummy, "\"");
+					Callback(VarForm::Dummy, Value);
+					Callback(VarForm::Dummy, "\"");
 				}
 				return;
 			}
@@ -12847,22 +12649,22 @@ namespace Vitex
 			bool Array = (Base->Value.Type == VarType::Array);
 
 			if (Base->Parent != nullptr)
-				Callback(VarForm::Write_Line, "", 0);
+				Callback(VarForm::Write_Line, "");
 
-			Callback(VarForm::Write_Tab, "", 0);
-			Callback(VarForm::Dummy, Array ? "[" : "{", 1);
-			Callback(VarForm::Tab_Increase, "", 0);
+			Callback(VarForm::Write_Tab, "");
+			Callback(VarForm::Dummy, Array ? "[" : "{");
+			Callback(VarForm::Tab_Increase, "");
 
 			for (size_t i = 0; i < Size; i++)
 			{
 				auto* Next = (*Base->Nodes)[i];
 				if (!Array)
 				{
-					Callback(VarForm::Write_Line, "", 0);
-					Callback(VarForm::Write_Tab, "", 0);
-					Callback(VarForm::Dummy, "\"", 1);
-					Callback(VarForm::Dummy, Next->Key.c_str(), Next->Key.size());
-					Callback(VarForm::Write_Space, "\":", 2);
+					Callback(VarForm::Write_Line, "");
+					Callback(VarForm::Write_Tab, "");
+					Callback(VarForm::Dummy, "\"");
+					Callback(VarForm::Dummy, Next->Key);
+					Callback(VarForm::Write_Space, "\":");
 				}
 
 				if (!Next->Value.IsObject())
@@ -12872,38 +12674,38 @@ namespace Vitex
 
 					if (Array)
 					{
-						Callback(VarForm::Write_Line, "", 0);
-						Callback(VarForm::Write_Tab, "", 0);
+						Callback(VarForm::Write_Line, "");
+						Callback(VarForm::Write_Tab, "");
 					}
 
 					if (!Next->Value.IsObject() && Next->Value.Type != VarType::String && Next->Value.Type != VarType::Binary)
 					{
 						if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
-							Callback(VarForm::Dummy, Value.c_str() + 1, Value.size() - 2);
+							Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));
 						else
-							Callback(VarForm::Dummy, Value.c_str(), Value.size());
+							Callback(VarForm::Dummy, Value);
 					}
 					else
 					{
-						Callback(VarForm::Dummy, "\"", 1);
-						Callback(VarForm::Dummy, Value.c_str(), Value.size());
-						Callback(VarForm::Dummy, "\"", 1);
+						Callback(VarForm::Dummy, "\"");
+						Callback(VarForm::Dummy, Value);
+						Callback(VarForm::Dummy, "\"");
 					}
 				}
 				else
 					ConvertToJSON(Next, Callback);
 
 				if (i + 1 < Size)
-					Callback(VarForm::Dummy, ",", 1);
+					Callback(VarForm::Dummy, ",");
 			}
 
-			Callback(VarForm::Tab_Decrease, "", 0);
-			Callback(VarForm::Write_Line, "", 0);
+			Callback(VarForm::Tab_Decrease, "");
+			Callback(VarForm::Write_Line, "");
 
 			if (Base->Parent != nullptr)
-				Callback(VarForm::Write_Tab, "", 0);
+				Callback(VarForm::Write_Tab, "");
 
-			Callback(VarForm::Dummy, Array ? "]" : "}", 1);
+			Callback(VarForm::Dummy, Array ? "]" : "}");
 		}
 		void Schema::ConvertToJSONB(Schema* Base, const SchemaWriteCallback& Callback)
 		{
@@ -12911,57 +12713,56 @@ namespace Vitex
 			UnorderedMap<String, size_t> Mapping = Base->GetNames();
 			uint32_t Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Mapping.size());
 			uint64_t Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, JSONB_VERSION);
-			Callback(VarForm::Dummy, (const char*)&Version, sizeof(uint64_t));
-			Callback(VarForm::Dummy, (const char*)&Set, sizeof(uint32_t));
+			Callback(VarForm::Dummy, std::string_view((const char*)&Version, sizeof(uint64_t)));
+			Callback(VarForm::Dummy, std::string_view((const char*)&Set, sizeof(uint32_t)));
 
 			for (auto It = Mapping.begin(); It != Mapping.end(); ++It)
 			{
 				uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)It->second);
-				Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
+				Callback(VarForm::Dummy, std::string_view((const char*)&Id, sizeof(uint32_t)));
 
 				uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)It->first.size());
-				Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
+				Callback(VarForm::Dummy, std::string_view((const char*)&Size, sizeof(uint16_t)));
 
 				if (Size > 0)
-					Callback(VarForm::Dummy, It->first.c_str(), sizeof(char) * (size_t)Size);
+					Callback(VarForm::Dummy, std::string_view(It->first.c_str(), sizeof(char) * (size_t)Size));
 			}
 			ProcessConvertionToJSONB(Base, &Mapping, Callback);
 		}
 		String Schema::ToXML(Schema* Value)
 		{
 			String Result;
-			ConvertToXML(Value, [&](VarForm Type, const char* Buffer, size_t Length) { Result.append(Buffer, Length); });
+			ConvertToXML(Value, [&](VarForm Type, const std::string_view& Buffer) { Result.append(Buffer); });
 			return Result;
 		}
 		String Schema::ToJSON(Schema* Value)
 		{
 			String Result;
-			ConvertToJSON(Value, [&](VarForm Type, const char* Buffer, size_t Length) { Result.append(Buffer, Length); });
+			ConvertToJSON(Value, [&](VarForm Type, const std::string_view& Buffer) { Result.append(Buffer); });
 			return Result;
 		}
 		Vector<char> Schema::ToJSONB(Schema* Value)
 		{
 			Vector<char> Result;
-			ConvertToJSONB(Value, [&](VarForm Type, const char* Buffer, size_t Length)
+			ConvertToJSONB(Value, [&](VarForm Type, const std::string_view& Buffer)
 			{
-				if (!Length)
+				if (Buffer.empty())
 					return;
 
 				size_t Offset = Result.size();
-				Result.resize(Offset + Length);
-				memcpy(&Result[Offset], Buffer, Length);
+				Result.resize(Offset + Buffer.size());
+				memcpy(&Result[Offset], Buffer.data(), Buffer.size());
 			});
 			return Result;
 		}
-		ExpectsParser<Schema*> Schema::ConvertFromXML(const char* Buffer, size_t Size)
+		ExpectsParser<Schema*> Schema::ConvertFromXML(const std::string_view& Buffer)
 		{
 #ifdef VI_PUGIXML
-			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
-			if (!Size)
+			if (Buffer.empty())
 				return ParserException(ParserError::XMLNoDocumentElement, 0, "empty XML buffer");
 
 			pugi::xml_document Data;
-			pugi::xml_parse_result Status = Data.load_buffer(Buffer, Size);
+			pugi::xml_parse_result Status = Data.load_buffer(Buffer.data(), Buffer.size());
 			if (!Status)
 			{
 				switch (Status.status)
@@ -13007,15 +12808,14 @@ namespace Vitex
 			return ParserException(ParserError::NotSupported, 0, "no capabilities to parse XML");
 #endif
 		}
-		ExpectsParser<Schema*> Schema::ConvertFromJSON(const char* Buffer, size_t Size)
+		ExpectsParser<Schema*> Schema::ConvertFromJSON(const std::string_view& Buffer)
 		{
 #ifdef VI_RAPIDJSON
-			VI_ASSERT(Buffer != nullptr, "buffer should not be null");
-			if (!Size)
+			if (Buffer.empty())
 				return ParserException(ParserError::JSONDocumentEmpty, 0);
 
 			rapidjson::Document Base;
-			Base.Parse<rapidjson::kParseNumbersAsStringsFlag>(Buffer, Size);
+			Base.Parse<rapidjson::kParseNumbersAsStringsFlag>(Buffer.data(), Buffer.size());
 
 			Schema* Result = nullptr;
 			if (Base.HasParseError())
@@ -13105,7 +12905,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
 			uint64_t Version = 0;
-			if (!Callback((char*)&Version, sizeof(uint64_t)))
+			if (!Callback((uint8_t*)&Version, sizeof(uint64_t)))
 				return ParserException(ParserError::BadVersion);
 
 			Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, Version);
@@ -13113,7 +12913,7 @@ namespace Vitex
 				return ParserException(ParserError::BadVersion);
 
 			uint32_t Set = 0;
-			if (!Callback((char*)&Set, sizeof(uint32_t)))
+			if (!Callback((uint8_t*)&Set, sizeof(uint32_t)))
 				return ParserException(ParserError::BadDictionary);
 
 			UnorderedMap<size_t, String> Map;
@@ -13122,11 +12922,11 @@ namespace Vitex
 			for (uint32_t i = 0; i < Set; ++i)
 			{
 				uint32_t Index = 0;
-				if (!Callback((char*)&Index, sizeof(uint32_t)))
+				if (!Callback((uint8_t*)&Index, sizeof(uint32_t)))
 					return ParserException(ParserError::BadNameIndex);
 
 				uint16_t Size = 0;
-				if (!Callback((char*)&Size, sizeof(uint16_t)))
+				if (!Callback((uint8_t*)&Size, sizeof(uint16_t)))
 					return ParserException(ParserError::BadName);
 
 				Index = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Index);
@@ -13137,34 +12937,31 @@ namespace Vitex
 
 				String Name;
 				Name.resize((size_t)Size);
-				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
+				if (!Callback((uint8_t*)Name.c_str(), sizeof(char) * Size))
 					return ParserException(ParserError::BadName);
 
 				Map.insert({ Index, Name });
 			}
 
-			Schema* Current = Var::Set::Object();
-			auto Status = ProcessConvertionFromJSONB(Current, &Map, Callback);
+			UPtr<Schema> Current = Var::Set::Object();
+			auto Status = ProcessConvertionFromJSONB(*Current, &Map, Callback);
 			if (!Status)
-			{
-				VI_RELEASE(Current);
 				return Status.Error();
-			}
 
-			return Current;
+			return Current.Reset();
 		}
-		ExpectsParser<Schema*> Schema::FromXML(const String& Text)
+		ExpectsParser<Schema*> Schema::FromXML(const std::string_view& Text)
 		{
-			return ConvertFromXML(Text.c_str(), Text.size());
+			return ConvertFromXML(Text);
 		}
-		ExpectsParser<Schema*> Schema::FromJSON(const String& Text)
+		ExpectsParser<Schema*> Schema::FromJSON(const std::string_view& Text)
 		{
-			return ConvertFromJSON(Text.c_str(), Text.size());
+			return ConvertFromJSON(Text);
 		}
 		ExpectsParser<Schema*> Schema::FromJSONB(const Vector<char>& Binary)
 		{
 			size_t Offset = 0;
-			return ConvertFromJSONB([&Binary, &Offset](char* Buffer, size_t Length)
+			return ConvertFromJSONB([&Binary, &Offset](uint8_t* Buffer, size_t Length)
 			{
 				if (Offset + Length > Binary.size())
 					return false;
@@ -13177,7 +12974,7 @@ namespace Vitex
 		Expects<void, ParserException> Schema::ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback)
 		{
 			uint32_t Id = 0;
-			if (!Callback((char*)&Id, sizeof(uint32_t)))
+			if (!Callback((uint8_t*)&Id, sizeof(uint32_t)))
 				return ParserException(ParserError::BadKeyName);
 
 			if (Id != (uint32_t)-1)
@@ -13187,7 +12984,7 @@ namespace Vitex
 					Current->Key = It->second;
 			}
 
-			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
+			if (!Callback((uint8_t*)&Current->Value.Type, sizeof(VarType)))
 				return ParserException(ParserError::BadKeyType);
 
 			switch (Current->Value.Type)
@@ -13196,7 +12993,7 @@ namespace Vitex
 				case VarType::Array:
 				{
 					uint32_t Count = 0;
-					if (!Callback((char*)&Count, sizeof(uint32_t)))
+					if (!Callback((uint8_t*)&Count, sizeof(uint32_t)))
 						return ParserException(ParserError::BadValue);
 
 					Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Count);
@@ -13221,14 +13018,14 @@ namespace Vitex
 				case VarType::String:
 				{
 					uint32_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint32_t)))
+					if (!Callback((uint8_t*)&Size, sizeof(uint32_t)))
 						return ParserException(ParserError::BadValue);
 
 					String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
-					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
+					if (!Callback((uint8_t*)Buffer.c_str(), (size_t)Size * sizeof(char)))
 						return ParserException(ParserError::BadString);
 
 					Current->Value = Var::String(Buffer);
@@ -13237,23 +13034,23 @@ namespace Vitex
 				case VarType::Binary:
 				{
 					uint32_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint32_t)))
+					if (!Callback((uint8_t*)&Size, sizeof(uint32_t)))
 						return ParserException(ParserError::BadValue);
 
 					String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize(Size);
 
-					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
+					if (!Callback((uint8_t*)Buffer.c_str(), (size_t)Size * sizeof(char)))
 						return ParserException(ParserError::BadString);
 
-					Current->Value = Var::Binary(Buffer);
+					Current->Value = Var::Binary((uint8_t*)Buffer.data(), Buffer.size());
 					break;
 				}
 				case VarType::Integer:
 				{
 					int64_t Integer = 0;
-					if (!Callback((char*)&Integer, sizeof(int64_t)))
+					if (!Callback((uint8_t*)&Integer, sizeof(int64_t)))
 						return ParserException(ParserError::BadInteger);
 
 					Current->Value = Var::Integer(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Integer));
@@ -13262,7 +13059,7 @@ namespace Vitex
 				case VarType::Number:
 				{
 					double Number = 0.0;
-					if (!Callback((char*)&Number, sizeof(double)))
+					if (!Callback((uint8_t*)&Number, sizeof(double)))
 						return ParserException(ParserError::BadDouble);
 
 					Current->Value = Var::Number(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Number));
@@ -13271,23 +13068,23 @@ namespace Vitex
 				case VarType::Decimal:
 				{
 					uint16_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint16_t)))
+					if (!Callback((uint8_t*)&Size, sizeof(uint16_t)))
 						return ParserException(ParserError::BadValue);
 
 					String Buffer;
 					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
-					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
+					if (!Callback((uint8_t*)Buffer.c_str(), (size_t)Size * sizeof(char)))
 						return ParserException(ParserError::BadString);
 
-					Current->Value = Var::Decimal(Buffer);
+					Current->Value = Var::DecimalString(Buffer);
 					break;
 				}
 				case VarType::Boolean:
 				{
 					bool Boolean = false;
-					if (!Callback((char*)&Boolean, sizeof(bool)))
+					if (!Callback((uint8_t*)&Boolean, sizeof(bool)))
 						return ParserException(ParserError::BadBoolean);
 
 					Current->Value = Var::Boolean(Boolean);
@@ -13439,9 +13236,9 @@ namespace Vitex
 						{
 							const char* Buffer = It->GetString(); size_t Size = It->GetStringLength();
 							if (Size >= 2 && *Buffer == PREFIX_BINARY[0] && Buffer[Size - 1] == PREFIX_BINARY[0])
-								Current->Push(Var::Binary(Buffer + 1, Size - 2));
+								Current->Push(Var::Binary((uint8_t*)Buffer + 1, Size - 2));
 							else
-								Current->Push(Var::String(Buffer, Size));
+								Current->Push(Var::String(std::string_view(Buffer, Size)));
 							break;
 						}
 						case rapidjson::kNumberType:
@@ -13460,8 +13257,8 @@ namespace Vitex
 		void Schema::ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback)
 		{
 			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Key.empty() ? (uint32_t)-1 : (uint32_t)Map->at(Current->Key));
-			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
-			Callback(VarForm::Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
+			Callback(VarForm::Dummy, std::string_view((const char*)&Id, sizeof(uint32_t)));
+			Callback(VarForm::Dummy, std::string_view((const char*)&Current->Value.Type, sizeof(VarType)));
 
 			switch (Current->Value.Type)
 			{
@@ -13469,7 +13266,7 @@ namespace Vitex
 				case VarType::Array:
 				{
 					uint32_t Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)(Current->Nodes ? Current->Nodes->size() : 0));
-					Callback(VarForm::Dummy, (const char*)&Count, sizeof(uint32_t));
+					Callback(VarForm::Dummy, std::string_view((const char*)&Count, sizeof(uint32_t)));
 					if (Count > 0)
 					{
 						for (auto& Schema : *Current->Nodes)
@@ -13481,33 +13278,33 @@ namespace Vitex
 				case VarType::Binary:
 				{
 					uint32_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Current->Value.Size());
-					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint32_t));
-					Callback(VarForm::Dummy, Current->Value.GetString(), Size * sizeof(char));
+					Callback(VarForm::Dummy, std::string_view((const char*)&Size, sizeof(uint32_t)));
+					Callback(VarForm::Dummy, std::string_view(Current->Value.GetString().data(), Size * sizeof(char)));
 					break;
 				}
 				case VarType::Decimal:
 				{
 					String Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
 					uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)Number.size());
-					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
-					Callback(VarForm::Dummy, Number.c_str(), (size_t)Size * sizeof(char));
+					Callback(VarForm::Dummy, std::string_view((const char*)&Size, sizeof(uint16_t)));
+					Callback(VarForm::Dummy, std::string_view(Number.c_str(), (size_t)Size * sizeof(char)));
 					break;
 				}
 				case VarType::Integer:
 				{
 					int64_t Value = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Value.Value.Integer);
-					Callback(VarForm::Dummy, (const char*)&Value, sizeof(int64_t));
+					Callback(VarForm::Dummy, std::string_view((const char*)&Value, sizeof(int64_t)));
 					break;
 				}
 				case VarType::Number:
 				{
 					double Value = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Value.Value.Number);
-					Callback(VarForm::Dummy, (const char*)&Value, sizeof(double));
+					Callback(VarForm::Dummy, std::string_view((const char*)&Value, sizeof(double)));
 					break;
 				}
 				case VarType::Boolean:
 				{
-					Callback(VarForm::Dummy, (const char*)&Current->Value.Value.Boolean, sizeof(bool));
+					Callback(VarForm::Dummy, std::string_view((const char*)&Current->Value.Value.Boolean, sizeof(bool)));
 					break;
 				}
 				default:

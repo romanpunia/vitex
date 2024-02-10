@@ -123,7 +123,7 @@ namespace Vitex
 					VI_DEBUG("[pq] %s", Item.c_str());
 #endif
 			}
-			static Core::Schema* ToSchema(const char* Data, int Size, unsigned int Id);
+			static Core::Schema* ToSchema(const char* Data, int Size, uint32_t Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
 			{
 				VI_ASSERT(Context != nullptr, "context should be set");
@@ -137,7 +137,7 @@ namespace Vitex
 					if (!Subdata->Parse(&Next, ToArrayField))
 					{
 						Base->first->Push(new Core::Schema(Core::Var::Null()));
-						VI_RELEASE(Next.first);
+						Core::Memory::Release(Next.first);
 					}
 					else
 						Base->first->Push(Next.first);
@@ -156,7 +156,7 @@ namespace Vitex
 						Base->first->Push(new Core::Schema(Core::Var::Null()));
 				}
 			}
-			static Core::Variant ToVariant(const char* Data, int Size, unsigned int Id)
+			static Core::Variant ToVariant(const char* Data, int Size, uint32_t Id)
 			{
 				if (!Data)
 					return Core::Var::Null();
@@ -173,7 +173,7 @@ namespace Vitex
 						if (Core::Stringify::HasInteger(Source))
 							return Core::Var::Integer(*Core::FromString<int64_t>(Source));
 
-						return Core::Var::String(Data, (size_t)Size);
+						return Core::Var::String(std::string_view(Data, (size_t)Size));
 					}
 					case OidType::Bool:
 					{
@@ -195,7 +195,7 @@ namespace Vitex
 						if (Core::Stringify::HasNumber(Source))
 							return Core::Var::Number(*Core::FromString<double>(Source));
 
-						return Core::Var::String(Data, (size_t)Size);
+						return Core::Var::String(std::string_view(Data, (size_t)Size));
 					}
 					case OidType::Money:
 					case OidType::Numeric:
@@ -203,7 +203,7 @@ namespace Vitex
 					case OidType::Bytea:
 					{
 						size_t Length = 0;
-						unsigned char* Buffer = PQunescapeBytea((const unsigned char*)Data, &Length);
+						uint8_t* Buffer = PQunescapeBytea((const uint8_t*)Data, &Length);
 						Core::Variant Result = Core::Var::Binary(Buffer, Length);
 
 						PQfreemem(Buffer);
@@ -244,10 +244,10 @@ namespace Vitex
 					case OidType::Bit:
 					case OidType::VarBit:
 					default:
-						return Core::Var::String(Data, (size_t)Size);
+						return Core::Var::String(std::string_view(Data, (size_t)Size));
 				}
 			}
-			static Core::Schema* ToArray(const char* Data, int Size, unsigned int Id)
+			static Core::Schema* ToArray(const char* Data, int Size, uint32_t Id)
 			{
 				std::pair<Core::Schema*, Oid> Context;
 				Context.first = Core::Var::Set::Array();
@@ -256,13 +256,13 @@ namespace Vitex
 				ArrayFilter Filter(Data, (size_t)Size);
 				if (!Filter.Parse(&Context, ToArrayField))
 				{
-					VI_RELEASE(Context.first);
-					return new Core::Schema(Core::Var::String(Data, (size_t)Size));
+					Core::Memory::Release(Context.first);
+					return new Core::Schema(Core::Var::String(std::string_view(Data, (size_t)Size)));
 				}
 
 				return Context.first;
 			}
-			Core::Schema* ToSchema(const char* Data, int Size, unsigned int Id)
+			Core::Schema* ToSchema(const char* Data, int Size, uint32_t Id)
 			{
 				if (!Data)
 					return nullptr;
@@ -273,11 +273,11 @@ namespace Vitex
 					case OidType::JSON:
 					case OidType::JSONB:
 					{
-						auto Result = Core::Schema::ConvertFromJSON(Data, (size_t)Size);
+						auto Result = Core::Schema::ConvertFromJSON(std::string_view(Data, (size_t)Size));
 						if (Result)
 							return *Result;
 
-						return new Core::Schema(Core::Var::String(Data, (size_t)Size));
+						return new Core::Schema(Core::Var::String(std::string_view(Data, (size_t)Size)));
 					}
 					case OidType::Any_Array:
 						return ToArray(Data, Size, (Oid)OidType::Any);
@@ -381,13 +381,13 @@ namespace Vitex
 			Address::Address()
 			{
 			}
-			void Address::Override(const Core::String& Key, const Core::String& Value)
+			void Address::Override(const std::string_view& Key, const std::string_view& Value)
 			{
-				Params[Key] = Value;
+				Params[Core::String(Key)] = Value;
 			}
-			bool Address::Set(AddressOp Key, const Core::String& Value)
+			bool Address::Set(AddressOp Key, const std::string_view& Value)
 			{
-				Core::String Name = GetKeyName(Key);
+				Core::String Name = Core::String(GetKeyName(Key));
 				if (Name.empty())
 					return false;
 
@@ -396,7 +396,7 @@ namespace Vitex
 			}
 			Core::String Address::Get(AddressOp Key) const
 			{
-				auto It = Params.find(GetKeyName(Key));
+				auto It = Params.find(Core::HglCast(GetKeyName(Key)));
 				if (It == Params.end())
 					return "";
 
@@ -414,7 +414,7 @@ namespace Vitex
 			{
 				return Params;
 			}
-			Core::String Address::GetKeyName(AddressOp Key)
+			std::string_view Address::GetKeyName(AddressOp Key)
 			{
 				switch (Key)
 				{
@@ -476,7 +476,7 @@ namespace Vitex
 			}
 			const char** Address::CreateKeys() const
 			{
-				const char** Result = VI_MALLOC(const char*, sizeof(const char*) * (Params.size() + 1));
+				const char** Result = Core::Memory::Allocate<const char*>(sizeof(const char*) * (Params.size() + 1));
 				size_t Index = 0;
 
 				for (auto& Key : Params)
@@ -487,7 +487,7 @@ namespace Vitex
 			}
 			const char** Address::CreateValues() const
 			{
-				const char** Result = VI_MALLOC(const char*, sizeof(const char*) * (Params.size() + 1));
+				const char** Result = Core::Memory::Allocate<const char*>(sizeof(const char*) * (Params.size() + 1));
 				size_t Index = 0;
 
 				for (auto& Key : Params)
@@ -496,11 +496,12 @@ namespace Vitex
 				Result[Index] = nullptr;
 				return Result;
 			}
-			ExpectsDB<Address> Address::FromURL(const Core::String& Location)
+			ExpectsDB<Address> Address::FromURL(const std::string_view& Location)
 			{
 #ifdef VI_POSTGRESQL
+				VI_ASSERT(Core::Stringify::IsCString(Location), "location should be set");
 				char* Message = nullptr;
-				PQconninfoOption* Result = PQconninfoParse(Location.c_str(), &Message);
+				PQconninfoOption* Result = PQconninfoParse(Location.data(), &Message);
 				if (!Result)
 				{
 					DatabaseException Exception("address parser error: " + Core::String(Message));
@@ -544,7 +545,7 @@ namespace Vitex
 				if (Data.empty())
 					return nullptr;
 
-				auto Result = Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
+				auto Result = Core::Schema::ConvertFromJSON(Data);
 				return Result ? *Result : nullptr;
 #else
 				return nullptr;
@@ -844,14 +845,14 @@ namespace Vitex
 				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 #endif
 			}
-			Column Row::GetColumn(const char* Name) const
+			Column Row::GetColumn(const std::string_view& Name) const
 			{
 #ifdef VI_POSTGRESQL
-				VI_ASSERT(Name != nullptr, "name should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
 					return Column(Base, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 
-				int Index = PQfnumber(Base, Name);
+				int Index = PQfnumber(Base, Name.data());
 				if (Index < 0)
 					return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 
@@ -859,10 +860,6 @@ namespace Vitex
 #else
 				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 #endif
-			}
-			Column Row::GetColumnByName(const Core::String& Name) const
-			{
-				return GetColumn(Name.c_str());
 			}
 			bool Row::GetColumns(Column* Output, size_t OutputSize) const
 			{
@@ -1151,13 +1148,13 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			int Response::GetNameIndex(const Core::String& Name) const
+			int Response::GetNameIndex(const std::string_view& Name) const
 			{
 #ifdef VI_POSTGRESQL
 				VI_ASSERT(Base != nullptr, "context should be valid");
-				VI_ASSERT(!Name.empty(), "name should not be empty");
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 
-				return PQfnumber(Base, Name.c_str());
+				return PQfnumber(Base, Name.data());
 #else
 				return 0;
 #endif
@@ -1421,7 +1418,7 @@ namespace Vitex
 			}
 			Connection::~Connection() noexcept
 			{
-				VI_RELEASE(Stream);
+				Core::Memory::Release(Stream);
 			}
 			TConnection* Connection::GetBase() const
 			{
@@ -1470,7 +1467,7 @@ namespace Vitex
 				return Current != nullptr;
 			}
 
-			Request::Request(const Core::String& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
+			Request::Request(const std::string_view& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1517,13 +1514,13 @@ namespace Vitex
 				{
 					Item.first->ClearEvents(false);
 					PQfinish(Item.second->Base);
-					VI_RELEASE(Item.second);
+					Core::Memory::Release(Item.second);
 				}
 #endif
 				for (auto* Item : Requests)
 				{
 					Item->Failure();
-					VI_RELEASE(Item);
+					Core::Memory::Release(Item);
 				}
 				Multiplexer::Get()->Deactivate();
 			}
@@ -1559,19 +1556,19 @@ namespace Vitex
 				Core::UMutex<std::mutex> Unique(Update);
 				Reconnected = NewCallback;
 			}
-			uint64_t Cluster::AddChannel(const Core::String& Name, const OnNotification& NewCallback)
+			uint64_t Cluster::AddChannel(const std::string_view& Name, const OnNotification& NewCallback)
 			{
 				VI_ASSERT(NewCallback != nullptr, "callback should be set");
 
 				uint64_t Id = Channel++;
 				Core::UMutex<std::mutex> Unique(Update);
-				Listeners[Name][Id] = NewCallback;
+				Listeners[Core::String(Name)][Id] = NewCallback;
 				return Id;
 			}
-			bool Cluster::RemoveChannel(const Core::String& Name, uint64_t Id)
+			bool Cluster::RemoveChannel(const std::string_view& Name, uint64_t Id)
 			{
 				Core::UMutex<std::mutex> Unique(Update);
-				auto& Base = Listeners[Name];
+				auto& Base = Listeners[Core::String(Name)];
 				auto It = Base.find(Id);
 				if (It == Base.end())
 					return false;
@@ -1594,7 +1591,7 @@ namespace Vitex
 						return TxStart("BEGIN");
 				}
 			}
-			ExpectsPromiseDB<SessionId> Cluster::TxStart(const Core::String& Command)
+			ExpectsPromiseDB<SessionId> Cluster::TxStart(const std::string_view& Command)
 			{
 				return Query(Command, (size_t)QueryOp::TransactionStart).Then<ExpectsDB<SessionId>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<SessionId>
 				{
@@ -1606,7 +1603,7 @@ namespace Vitex
 					return DatabaseException("transaction start error");
 				});
 			}
-			ExpectsPromiseDB<void> Cluster::TxEnd(const Core::String& Command, SessionId Session)
+			ExpectsPromiseDB<void> Cluster::TxEnd(const std::string_view& Command, SessionId Session)
 			{
 				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<ExpectsDB<void>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<void>
 				{
@@ -1641,6 +1638,7 @@ namespace Vitex
 					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location, Connections](ExpectsDB<void>&&) { return this->Connect(Location, Connections); });
 				}
 
+				Unique.Negate();
 				return Core::Cotask<ExpectsDB<void>>([this, Connections]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
@@ -1713,10 +1711,8 @@ namespace Vitex
 										Pool.insert(std::make_pair(Next->Stream, Next));
 										Queue.erase(Fd.Fd);
 										Sockets.erase(It);
-
 										Reprocess(Next);
 										Ready = true;
-
 										break;
 									}
 								}
@@ -1735,22 +1731,22 @@ namespace Vitex
 						{
 							for (auto& Base : Queue)
 								PQfinish(Base.second);
-							VI_FREE(Keys);
-							VI_FREE(Values);
+							Core::Memory::Deallocate(Keys);
+							Core::Memory::Deallocate(Values);
 							return DatabaseException(Core::Stringify::Text("connection to %s has timed out (took %" PRIu64 " seconds)", Address.c_str(), ConnectTimeout));
 						}
 					} while (!Sockets.empty() && Network::Utils::Poll(Sockets.data(), (int)Sockets.size(), 50) >= 0);
 
-					VI_FREE(Keys);
-					VI_FREE(Values);
+					Core::Memory::Deallocate(Keys);
+					Core::Memory::Deallocate(Values);
 					return Core::Expectation::Met;
 				Failure:
 					DatabaseException Exception = DatabaseException(Error);
 					for (auto& Base : Queue)
 						PQfinish(Base.second);
 					
-					VI_FREE(Keys);
-					VI_FREE(Values);
+					Core::Memory::Deallocate(Keys);
+					Core::Memory::Deallocate(Values);
 					return Exception;
 				});
 #else
@@ -1770,7 +1766,7 @@ namespace Vitex
 					{
 						Item.first->ClearEvents(false);
 						PQfinish(Item.second->Base);
-						VI_RELEASE(Item.second);
+						Core::Memory::Release(Item.second);
 					}
 
 					Pool.clear();
@@ -1850,7 +1846,7 @@ namespace Vitex
 					Coreturn Core::Expectation::Met;
 				});
 			}
-			ExpectsPromiseDB<Cursor> Cluster::EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
+			ExpectsPromiseDB<Cursor> Cluster::EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
 			{
 				auto Template = Driver::Get()->Emplace(this, Command, Map, !(Opts & (size_t)QueryOp::ReuseArgs));
 				if (!Template)
@@ -1858,16 +1854,16 @@ namespace Vitex
 
 				return Query(*Template, Opts, Session);
 			}
-			ExpectsPromiseDB<Cursor> Cluster::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
+			ExpectsPromiseDB<Cursor> Cluster::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
-				VI_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
+				VI_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
 				auto Template = Driver::Get()->GetQuery(this, Name, Map, !(Opts & (size_t)QueryOp::ReuseArgs));
 				if (!Template)
 					return ExpectsPromiseDB<Cursor>(Template.Error());
 
 				return Query(*Template, Opts, Session);
 			}
-			ExpectsPromiseDB<Cursor> Cluster::Query(const Core::String& Command, size_t Opts, SessionId Session)
+			ExpectsPromiseDB<Cursor> Cluster::Query(const std::string_view& Command, size_t Opts, SessionId Session)
 			{
 				VI_ASSERT(!Command.empty(), "command should not be empty");
 				Core::String Reference;
@@ -1912,7 +1908,7 @@ namespace Vitex
 				if (!ValidateTransaction(Command, Next))
 				{
 					Future.Set(Cursor());
-					VI_RELEASE(Next);
+					Core::Memory::Release(Next);
 				}
 #endif
 				return Future;
@@ -1935,17 +1931,18 @@ namespace Vitex
 
 				return nullptr;
 			}
-			Connection* Cluster::IsListens(const Core::String& Name)
+			Connection* Cluster::IsListens(const std::string_view& Name)
 			{
+				auto Copy = Core::HglCast(Name);
 				for (auto& Item : Pool)
 				{
-					if (Item.second->Listens.count(Name) > 0)
+					if (Item.second->Listens.count(Copy) > 0)
 						return Item.second;
 				}
 
 				return nullptr;
 			}
-			Core::String Cluster::GetCacheOid(const Core::String& Payload, size_t Opts)
+			Core::String Cluster::GetCacheOid(const std::string_view& Payload, size_t Opts)
 			{
 				auto Hash = Compute::Crypto::HashHex(Compute::Digests::SHA256(), Payload);
 				Core::String Reference = Hash ? Compute::Codec::HexEncode(*Hash) : Compute::Codec::HexEncode(Payload.substr(0, 32));
@@ -1962,13 +1959,13 @@ namespace Vitex
 			{
 				return !Pool.empty();
 			}
-			bool Cluster::GetCache(const Core::String& CacheOid, Cursor* Data)
+			bool Cluster::GetCache(const std::string_view& CacheOid, Cursor* Data)
 			{
 				VI_ASSERT(!CacheOid.empty(), "cache oid should not be empty");
 				VI_ASSERT(Data != nullptr, "cursor should be set");
 
 				Core::UMutex<std::mutex> Unique(Cache.Context);
-				auto It = Cache.Objects.find(CacheOid);
+				auto It = Cache.Objects.find(Core::HglCast(CacheOid));
 				if (It == Cache.Objects.end())
 					return false;
 
@@ -1983,7 +1980,7 @@ namespace Vitex
 
 				return true;
 			}
-			void Cluster::SetCache(const Core::String& CacheOid, Cursor* Data, size_t Opts)
+			void Cluster::SetCache(const std::string_view& CacheOid, Cursor* Data, size_t Opts)
 			{
 				VI_ASSERT(!CacheOid.empty(), "cache oid should not be empty");
 				VI_ASSERT(Data != nullptr, "cursor should be set");
@@ -2010,14 +2007,14 @@ namespace Vitex
 					}
 				}
 
-				auto It = Cache.Objects.find(CacheOid);
+				auto It = Cache.Objects.find(Core::HglCast(CacheOid));
 				if (It != Cache.Objects.end())
 				{
 					It->second.second = Data->Copy();
 					It->second.first = Timeout;
 				}
 				else
-					Cache.Objects[CacheOid] = std::make_pair(Timeout, Data->Copy());
+					Cache.Objects[Core::String(CacheOid)] = std::make_pair(Timeout, Data->Copy());
 			}
 			void Cluster::TryUnassign(Connection* Base, Request* Context)
 			{
@@ -2027,9 +2024,9 @@ namespace Vitex
 				VI_DEBUG("[pq] release transaction on 0x%" PRIXPTR, (uintptr_t)Base);
 				Base->Session = false;
 			}
-			bool Cluster::ValidateTransaction(const Core::String& Command, Request* Next)
+			bool Cluster::ValidateTransaction(const std::string_view& Command, Request* Next)
 			{
-				Core::String Tx = Command;
+				Core::String Tx = Core::String(Command);
 				Core::Stringify::Trim(Tx);
 				Core::Stringify::ToUpper(Tx);
 
@@ -2065,7 +2062,7 @@ namespace Vitex
 					Current->Failure();
 					Unique.Negate();
 					VI_DEBUG("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)Target->Base);
-					VI_RELEASE(Current);
+					Core::Memory::Release(Current);
 				}
 
 				Target->Stream->ClearEvents(false);
@@ -2073,8 +2070,8 @@ namespace Vitex
 
 				VI_DEBUG("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->Base = PQconnectdbParams(Keys, Values, 0);
-				VI_FREE(Keys);
-				VI_FREE(Values);
+				Core::Memory::Deallocate(Keys);
+				Core::Memory::Deallocate(Values);
 
 				if (!Target->Base || PQstatus(Target->Base) != ConnStatusType::CONNECTION_OK)
 				{
@@ -2151,13 +2148,12 @@ namespace Vitex
 					return true;
 				}
 
-				Request* Item = Base->Current;
+				Core::UPtr<Request> Item = Base->Current;
 				Base->Current = nullptr;
 				PQlogNoticeOf(Base->Base);
 				Unique.Negate();
 				Item->Failure();
 				Unique.Negate();
-				VI_RELEASE(Item);
 				return true;
 #else
 				return false;
@@ -2240,7 +2236,7 @@ namespace Vitex
 						{
 							ExpectsPromiseDB<Cursor> Future = Source->Current->Future;
 							Cursor Results(std::move(Source->Current->Result));
-							Request* Item = Source->Current;
+							Core::UPtr<Request> Item = Source->Current;
 							Source->State = QueryState::Idle;
 							Source->Current = nullptr;
 							PQlogNoticeOf(Source->Base);
@@ -2248,14 +2244,13 @@ namespace Vitex
 							if (!Results.Error())
 							{
 								VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Source, Item->GetTiming());
-								TryUnassign(Source, Item);
+								TryUnassign(Source, *Item);
 							}
 
 							Unique.Negate();
 							Item->Finalize(Results);
 							Future.Set(std::move(Results));
 							Unique.Negate();
-							VI_RELEASE(Item);
 						}
 						else
 							Source->Current->Result.Base.emplace_back(std::move(Frame));
@@ -2327,10 +2322,10 @@ namespace Vitex
 				if (Result && !Result->empty() && Result->back() == ',')
 					Result->erase(Result->end() - 1);
 
-				VI_RELEASE(Array);
+				Core::Memory::Release(Array);
 				return Result;
 			}
-			ExpectsDB<Core::String> Utils::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default)
+			ExpectsDB<Core::String> Utils::InlineQuery(Cluster* Client, Core::Schema* Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default)
 			{
 				VI_ASSERT(Client != nullptr, "cluster should be set");
 				VI_ASSERT(Where != nullptr, "array should be set");
@@ -2384,12 +2379,12 @@ namespace Vitex
 
 				auto Result = PDB::Driver::Get()->Emplace(Client, Def, &Map, false);
 				if (Result && Result->empty())
-					Result = Default;
+					Result = Core::String(Default);
 
-				VI_RELEASE(Where);
+				Core::Memory::Release(Where);
 				return Result;
 			}
-			Core::String Utils::GetCharArray(Connection* Base, const Core::String& Src) noexcept
+			Core::String Utils::GetCharArray(Connection* Base, const std::string_view& Src) noexcept
 			{
 #ifdef VI_POSTGRESQL
 				if (Src.empty())
@@ -2404,7 +2399,7 @@ namespace Vitex
 					return Dest;
 				}
 
-				char* Subresult = PQescapeLiteral(Base->GetBase(), Src.c_str(), Src.size());
+				char* Subresult = PQescapeLiteral(Base->GetBase(), Src.data(), Src.size());
 				Core::String Result(Subresult);
 				PQfreemem(Subresult);
 
@@ -2417,29 +2412,25 @@ namespace Vitex
 				return Dest;
 #endif
 			}
-			Core::String Utils::GetByteArray(Connection* Base, const Core::String& Src) noexcept
-			{
-				return GetByteArray(Base, Src.c_str(), Src.size());
-			}
-			Core::String Utils::GetByteArray(Connection* Base, const char* Src, size_t Size) noexcept
+			Core::String Utils::GetByteArray(Connection* Base, const std::string_view& Src) noexcept
 			{
 #ifdef VI_POSTGRESQL
-				if (!Src || !Size)
+				if (Src.empty())
 					return "''";
 
 				if (!Base)
-					return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
+					return "'\\x" + Compute::Codec::HexEncode(Src) + "'::bytea";
 
 				size_t Length = 0;
-				char* Subresult = (char*)PQescapeByteaConn(Base->GetBase(), (unsigned char*)Src, Size, &Length);
+				char* Subresult = (char*)PQescapeByteaConn(Base->GetBase(), (uint8_t*)Src.data(), Src.size(), &Length);
 				Core::String Result(Subresult, Length > 1 ? Length - 1 : Length);
-				PQfreemem((unsigned char*)Subresult);
+				PQfreemem((uint8_t*)Subresult);
 
 				Result.insert(Result.begin(), '\'');
 				Result.append("'::bytea");
 				return Result;
 #else
-				return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
+				return "'\\x" + Compute::Codec::HexEncode(Src) + "'::bytea";
 #endif
 			}
 			Core::String Utils::GetSQL(Connection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept
@@ -2453,12 +2444,7 @@ namespace Vitex
 					case Core::VarType::Object:
 					{
 						Core::String Result;
-						Core::Schema::ConvertToJSON(Source, [&Result](Core::VarForm, const char* Buffer, size_t Length)
-						{
-							if (Buffer != nullptr && Length > 0)
-								Result.append(Buffer, Length);
-						});
-
+						Core::Schema::ConvertToJSON(Source, [&Result](Core::VarForm, const std::string_view& Buffer) { Result.append(Buffer); });
 						return Escape ? GetCharArray(Base, Result) : Result;
 					}
 					case Core::VarType::Array:
@@ -2495,7 +2481,7 @@ namespace Vitex
 						return Result.find('.') != Core::String::npos ? Result : Result + ".0";
 					}
 					case Core::VarType::Binary:
-						return GetByteArray(Base, Source->Value.GetString(), Source->Value.Size());
+						return GetByteArray(Base, Source->Value.GetString());
 					case Core::VarType::Null:
 					case Core::VarType::Undefined:
 						return "NULL";
@@ -2518,30 +2504,25 @@ namespace Vitex
 			{
 				Logger = Callback;
 			}
-			void Driver::LogQuery(const Core::String& Command) noexcept
+			void Driver::LogQuery(const std::string_view& Command) noexcept
 			{
 				if (Logger)
-					Logger(Command + '\n');
+					Logger(Command);
 			}
-			void Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
+			void Driver::AddConstant(const std::string_view& Name, const std::string_view& Value) noexcept
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Constants[Name] = Value;
+				Constants[Core::String(Name)] = Value;
 			}
-			ExpectsDB<void> Driver::AddQuery(const Core::String& Name, const Core::String& Data)
-			{
-				return AddQueryFromBuffer(Name, Data.c_str(), Data.size());
-			}
-			ExpectsDB<void> Driver::AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size)
+			ExpectsDB<void> Driver::AddQuery(const std::string_view& Name, const std::string_view& Buffer)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
-				VI_ASSERT(Buffer, "buffer should be set");
-				if (!Size)
-					return DatabaseException("import empty query error: " + Name);
+				if (Buffer.empty())
+					return DatabaseException("import empty query error: " + Core::String(Name));
 
 				Sequence Result;
-				Result.Request.assign(Buffer, Size);
+				Result.Request.assign(Buffer);
 
 				Core::String Lines = "\r\n";
 				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
@@ -2567,7 +2548,7 @@ namespace Vitex
 
 						auto It = Constants.find(Item.first);
 						if (It == Constants.end())
-							return DatabaseException("query expects " + Item.first + " constrant: " + Name);
+							return DatabaseException("query expects " + Item.first + " constrant: " + Core::String(Name));
 
 						Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
 						size_t NewSize = It->second.size();
@@ -2601,7 +2582,7 @@ namespace Vitex
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String& Name, char Left, int Side)
+				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const std::string_view& Name, char Left, int Side)
 				{
 					if (Side < 0 && Name.find(";negate") != Core::String::npos)
 						return '\0';
@@ -2623,16 +2604,16 @@ namespace Vitex
 					Result.Cache = Result.Request;
 
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Queries[Name] = std::move(Result);
+				Queries[Core::String(Name)] = std::move(Result);
 				return Core::Expectation::Met;
 			}
-			ExpectsDB<void> Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
+			ExpectsDB<void> Driver::AddDirectory(const std::string_view& Directory, const std::string_view& Origin)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				if (!Core::OS::Directory::Scan(Directory, &Entries))
-					return DatabaseException("import directory scan error: " + Directory);
+				if (!Core::OS::Directory::Scan(Directory, Entries))
+					return DatabaseException("import directory scan error: " + Core::String(Directory));
 
-				Core::String Path = Directory;
+				Core::String Path = Core::String(Directory);
 				if (Path.back() != '/' && Path.back() != '\\')
 					Path.append(1, '/');
 
@@ -2662,28 +2643,28 @@ namespace Vitex
 					if (Core::Stringify::StartsOf(Base, "\\/"))
 						Base.erase(0, 1);
 
-					auto Status = AddQueryFromBuffer(Base, (char*)*Buffer, Size);
-					VI_FREE(*Buffer);
+					auto Status = AddQuery(Base, std::string_view((char*)*Buffer, Size));
+					Core::Memory::Deallocate(*Buffer);
 					if (!Status)
 						return Status;
 				}
 
 				return Core::Expectation::Met;
 			}
-			bool Driver::RemoveConstant(const Core::String& Name) noexcept
+			bool Driver::RemoveConstant(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Constants.find(Name);
+				auto It = Constants.find(Core::HglCast(Name));
 				if (It == Constants.end())
 					return false;
 
 				Constants.erase(It);
 				return true;
 			}
-			bool Driver::RemoveQuery(const Core::String& Name) noexcept
+			bool Driver::RemoveQuery(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Name);
+				auto It = Queries.find(Core::HglCast(Name));
 				if (It == Queries.end())
 					return false;
 
@@ -2758,10 +2739,10 @@ namespace Vitex
 				VI_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
 				return Result;
 			}
-			ExpectsDB<Core::String> Driver::Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once) noexcept
+			ExpectsDB<Core::String> Driver::Emplace(Cluster* Base, const std::string_view& SQL, Core::SchemaList* Map, bool Once) noexcept
 			{
 				if (!Map || Map->empty())
-					return SQL;
+					return Core::String(SQL);
 
 				Connection* Remote = Base->GetAnyConnection();
 				Core::String Buffer(SQL);
@@ -2773,7 +2754,7 @@ namespace Vitex
 				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
 				{
 					if (Next >= Map->size())
-						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + SQL.substr(Set.Start, 64));
+						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + Core::String(SQL.substr(Set.Start, 64)));
 
 					bool Escape = true, Negate = false;
 					if (Set.Start > 0)
@@ -2811,25 +2792,25 @@ namespace Vitex
 					return Src;
 
 				for (auto* Item : *Map)
-					VI_RELEASE(Item);
+					Core::Memory::Release(Item);
 				Map->clear();
 
 				return Src;
 			}
-			ExpectsDB<Core::String> Driver::GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			ExpectsDB<Core::String> Driver::GetQuery(Cluster* Base, const std::string_view& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Name);
+				auto It = Queries.find(Core::HglCast(Name));
 				if (It == Queries.end())
 				{
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
+							Core::Memory::Release(Item.second);
 						Map->clear();
 					}
 
-					return DatabaseException("query not found: " + Name);
+					return DatabaseException("query not found: " + Core::String(Name));
 				}
 
 				if (!It->second.Cache.empty())
@@ -2838,7 +2819,7 @@ namespace Vitex
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
+							Core::Memory::Release(Item.second);
 						Map->clear();
 					}
 
@@ -2851,7 +2832,7 @@ namespace Vitex
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
+							Core::Memory::Release(Item.second);
 						Map->clear();
 					}
 
@@ -2868,7 +2849,7 @@ namespace Vitex
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
-						return DatabaseException("query expects " + Word.Key + " constrant: " + Name);
+						return DatabaseException("query expects " + Word.Key + " constrant: " + Core::String(Name));
 
 					Core::String Value = Utils::GetSQL(Remote, It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
@@ -2881,13 +2862,13 @@ namespace Vitex
 				if (Once)
 				{
 					for (auto& Item : *Map)
-						VI_RELEASE(Item.second);
+						Core::Memory::Release(Item.second);
 					Map->clear();
 				}
 
 				Core::String Data = Origin.Request;
 				if (Data.empty())
-					return DatabaseException("query construction error: " + Name);
+					return DatabaseException("query construction error: " + Core::String(Name));
 
 				return Data;
 			}

@@ -5,10 +5,7 @@ git clone https://github.com/romanpunia/vitex --recursive
 ```
 Generate and build project files while being inside of repository
 ```bash
-# Default
-cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=14
-# With vcpkg
-cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
+cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=17
 ```
 Build project files while being inside of repository
 ```bash
@@ -30,10 +27,7 @@ git submodule update --init ./deps/stb
 ```
 Generate and build project files while being inside of repository (don't forget to disable missing submodules)
 ```bash
-# Default
-cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF # -DVI_CXX=14
-# With vcpkg
-cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake # -DVI_CXX=14
+cmake . -DCMAKE_BUILD_TYPE=Release -DVI_ANGELSCRIPT=OFF -DVI_...=OFF # -DVI_CXX=17
 ```
 Build project files while being inside of repository
 ```bash

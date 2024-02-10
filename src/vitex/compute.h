@@ -981,7 +981,7 @@ namespace Vitex
 
 		public:
 			RegexSource() noexcept;
-			RegexSource(const Core::String& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
+			RegexSource(const std::string_view& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
 			RegexSource(const RegexSource& Other) noexcept;
 			RegexSource(RegexSource&& Other) noexcept;
 			RegexSource& operator =(const RegexSource& V) noexcept;
@@ -1043,22 +1043,19 @@ namespace Vitex
 			Core::String Plain;
 
 		private:
-			PrivateKey(const Core::String& Text, bool) noexcept;
+			PrivateKey(const std::string_view& Text, bool) noexcept;
 			PrivateKey(Core::String&& Text, bool) noexcept;
 
 		public:
 			PrivateKey() noexcept;
 			PrivateKey(const PrivateKey& Other) noexcept;
 			PrivateKey(PrivateKey&& Other) noexcept;
-			explicit PrivateKey(const Core::String& Key) noexcept;
-			explicit PrivateKey(const char* Buffer) noexcept;
-			explicit PrivateKey(const char* Buffer, size_t Size) noexcept;
+			explicit PrivateKey(const std::string_view& Key) noexcept;
 			~PrivateKey() noexcept;
 			PrivateKey& operator =(const PrivateKey& V) noexcept;
 			PrivateKey& operator =(PrivateKey&& V) noexcept;
 			void Clear();
-			void Secure(const Core::String& Key);
-			void Secure(const char* Buffer, size_t Size);
+			void Secure(const std::string_view& Key);
 			void ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize = nullptr) const;
 			Core::String ExposeToHeap() const;
 			size_t Size() const;
@@ -1074,7 +1071,7 @@ namespace Vitex
 
 		public:
 			static PrivateKey GetPlain(Core::String&& Value);
-			static PrivateKey GetPlain(const Core::String& Value);
+			static PrivateKey GetPlain(const std::string_view& Value);
 			static void RandomizeBuffer(char* Data, size_t Size);
 
 		private:
@@ -1138,18 +1135,18 @@ namespace Vitex
 
 		struct VI_OUT AdjTriangle
 		{
-			unsigned int VRef[3];
-			unsigned int ATri[3];
+			uint32_t VRef[3];
+			uint32_t ATri[3];
 
-			unsigned char FindEdge(unsigned int VRef0, unsigned int VRef1);
-			unsigned int OppositeVertex(unsigned int VRef0, unsigned int VRef1);
+			uint8_t FindEdge(uint32_t VRef0, uint32_t VRef1);
+			uint32_t OppositeVertex(uint32_t VRef0, uint32_t VRef1);
 		};
 
 		struct VI_OUT AdjEdge
 		{
-			unsigned int Ref0;
-			unsigned int Ref1;
-			unsigned int FaceNb;
+			uint32_t Ref0;
+			uint32_t Ref1;
+			uint32_t FaceNb;
 		};
 
 		struct VI_OUT ProcDirective
@@ -1175,8 +1172,8 @@ namespace Vitex
 			UInt128() = default;
 			UInt128(const UInt128& Right) = default;
 			UInt128(UInt128&& Right) = default;
-			UInt128(const Core::String& Text);
-			UInt128(const Core::String& Text, uint8_t Base);
+			UInt128(const std::string_view& Text);
+			UInt128(const std::string_view& Text, uint8_t Base);
 			UInt128& operator=(const UInt128& Right) = default;
 			UInt128& operator=(UInt128&& Right) = default;
 			operator bool() const;
@@ -1568,8 +1565,8 @@ namespace Vitex
 			UInt256() = default;
 			UInt256(const UInt256& Right) = default;
 			UInt256(UInt256&& Right) = default;
-			UInt256(const Core::String& Text);
-			UInt256(const Core::String& Text, uint8_t Base);
+			UInt256(const std::string_view& Text);
+			UInt256(const std::string_view& Text, uint8_t Base);
 			UInt256(const UInt128& UpperRight, const UInt128& LowerRight)
 #ifdef VI_ENDIAN_BIG
 				: Upper(UpperRight), Lower(LowerRight)
@@ -2033,7 +2030,7 @@ namespace Vitex
 		public:
 			VI_OUT PreprocessorException(PreprocessorError NewType);
 			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset);
-			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset, const Core::String& Message);
+			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset, const std::string_view& Message);
 			VI_OUT const char* type() const noexcept override;
 			VI_OUT PreprocessorError status() const noexcept;
 			VI_OUT size_t offset() const noexcept;
@@ -2046,7 +2043,7 @@ namespace Vitex
 
 		public:
 			VI_OUT CryptoException();
-			VI_OUT CryptoException(size_t ErrorCode, const Core::String& Message);
+			VI_OUT CryptoException(size_t ErrorCode, const std::string_view& Message);
 			VI_OUT const char* type() const noexcept override;
 			VI_OUT size_t error_code() const noexcept;
 		};
@@ -2057,7 +2054,7 @@ namespace Vitex
 			int ErrorCode;
 
 		public:
-			VI_OUT CompressionException(int ErrorCode, const Core::String& Message);
+			VI_OUT CompressionException(int ErrorCode, const std::string_view& Message);
 			VI_OUT const char* type() const noexcept override;
 			VI_OUT int error_code() const noexcept;
 		};
@@ -2072,7 +2069,7 @@ namespace Vitex
 		using ExpectsCompression = Core::Expects<V, CompressionException>;
 
 		typedef std::function<ExpectsPreprocessor<IncludeType>(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
-		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
+		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const std::string_view& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
 		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const struct ProcDirective&, Core::String& Output)> ProcDirectiveCallback;
 		typedef std::function<ExpectsPreprocessor<Core::String>(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
 
@@ -2081,17 +2078,17 @@ namespace Vitex
 		public:
 			struct Desc
 			{
-				unsigned int NbFaces = 0;
-				unsigned int* Faces = nullptr;
+				uint32_t NbFaces = 0;
+				uint32_t* Faces = nullptr;
 			};
 
 		private:
-			unsigned int NbEdges;
-			unsigned int CurrentNbFaces;
+			uint32_t NbEdges;
+			uint32_t CurrentNbFaces;
 			AdjEdge* Edges;
 
 		public:
-			unsigned int NbFaces;
+			uint32_t NbFaces;
 			AdjTriangle* Faces;
 
 		public:
@@ -2101,9 +2098,9 @@ namespace Vitex
 			bool Resolve();
 
 		private:
-			bool AddTriangle(unsigned int Ref0, unsigned int Ref1, unsigned int Ref2);
-			bool AddEdge(unsigned int Ref0, unsigned int Ref1, unsigned int Face);
-			bool UpdateLink(unsigned int FirstTri, unsigned int SecondTri, unsigned int Ref0, unsigned int Ref1);
+			bool AddTriangle(uint32_t Ref0, uint32_t Ref1, uint32_t Ref2);
+			bool AddEdge(uint32_t Ref0, uint32_t Ref1, uint32_t Face);
+			bool UpdateLink(uint32_t FirstTri, uint32_t SecondTri, uint32_t Ref0, uint32_t Ref1);
 		};
 
 		class VI_OUT TriangleStrip
@@ -2111,8 +2108,8 @@ namespace Vitex
 		public:
 			struct Desc
 			{
-				unsigned int* Faces = nullptr;
-				unsigned int NbFaces = 0;
+				uint32_t* Faces = nullptr;
+				uint32_t NbFaces = 0;
 				bool OneSided = true;
 				bool SGICipher = true;
 				bool ConnectAllStrips = false;
@@ -2120,21 +2117,21 @@ namespace Vitex
 
 			struct Result
 			{
-				Core::Vector<unsigned int> Strips;
-				Core::Vector<unsigned int> Groups;
+				Core::Vector<uint32_t> Strips;
+				Core::Vector<uint32_t> Groups;
 
 				Core::Vector<int> GetIndices(int Group = -1);
 				Core::Vector<int> GetInvIndices(int Group = -1);
 			};
 
 		private:
-			Core::Vector<unsigned int> SingleStrip;
-			Core::Vector<unsigned int> StripLengths;
-			Core::Vector<unsigned int> StripRuns;
+			Core::Vector<uint32_t> SingleStrip;
+			Core::Vector<uint32_t> StripLengths;
+			Core::Vector<uint32_t> StripRuns;
 			Adjacencies* Adj;
 			bool* Tags;
-			unsigned int NbStrips;
-			unsigned int TotalLength;
+			uint32_t NbStrips;
+			uint32_t TotalLength;
 			bool OneSided;
 			bool SGICipher;
 			bool ConnectAllStrips;
@@ -2147,19 +2144,19 @@ namespace Vitex
 
 		private:
 			TriangleStrip& FreeBuffers();
-			unsigned int ComputeStrip(unsigned int Face);
-			unsigned int TrackStrip(unsigned int Face, unsigned int Oldest, unsigned int Middle, unsigned int* Strip, unsigned int* Faces, bool* Tags);
+			uint32_t ComputeStrip(uint32_t Face);
+			uint32_t TrackStrip(uint32_t Face, uint32_t Oldest, uint32_t Middle, uint32_t* Strip, uint32_t* Faces, bool* Tags);
 			bool ConnectStrips(TriangleStrip::Result& Result);
 		};
 
 		class VI_OUT RadixSorter
 		{
 		private:
-			unsigned int* Histogram;
-			unsigned int* Offset;
-			unsigned int CurrentSize;
-			unsigned int* Indices;
-			unsigned int* Indices2;
+			uint32_t* Histogram;
+			uint32_t* Offset;
+			uint32_t CurrentSize;
+			uint32_t* Indices;
+			uint32_t* Indices2;
 
 		public:
 			RadixSorter() noexcept;
@@ -2168,35 +2165,35 @@ namespace Vitex
 			~RadixSorter() noexcept;
 			RadixSorter& operator =(const RadixSorter& V);
 			RadixSorter& operator =(RadixSorter&& V) noexcept;
-			RadixSorter& Sort(unsigned int* Input, unsigned int Nb, bool SignedValues = true);
-			RadixSorter& Sort(float* Input, unsigned int Nb);
+			RadixSorter& Sort(uint32_t* Input, uint32_t Nb, bool SignedValues = true);
+			RadixSorter& Sort(float* Input, uint32_t Nb);
 			RadixSorter& ResetIndices();
-			unsigned int* GetIndices();
+			uint32_t* GetIndices();
 		};
 
 		class VI_OUT MD5Hasher
 		{
 		private:
-			typedef unsigned char UInt1;
-			typedef unsigned int UInt4;
+			typedef uint8_t UInt1;
+			typedef uint32_t UInt4;
 
 		private:
-			unsigned int S11 = 7;
-			unsigned int S12 = 12;
-			unsigned int S13 = 17;
-			unsigned int S14 = 22;
-			unsigned int S21 = 5;
-			unsigned int S22 = 9;
-			unsigned int S23 = 14;
-			unsigned int S24 = 20;
-			unsigned int S31 = 4;
-			unsigned int S32 = 11;
-			unsigned int S33 = 16;
-			unsigned int S34 = 23;
-			unsigned int S41 = 6;
-			unsigned int S42 = 10;
-			unsigned int S43 = 15;
-			unsigned int S44 = 21;
+			uint32_t S11 = 7;
+			uint32_t S12 = 12;
+			uint32_t S13 = 17;
+			uint32_t S14 = 22;
+			uint32_t S21 = 5;
+			uint32_t S22 = 9;
+			uint32_t S23 = 14;
+			uint32_t S24 = 20;
+			uint32_t S31 = 4;
+			uint32_t S32 = 11;
+			uint32_t S33 = 16;
+			uint32_t S34 = 23;
+			uint32_t S41 = 6;
+			uint32_t S42 = 10;
+			uint32_t S43 = 15;
+			uint32_t S44 = 21;
 
 		private:
 			bool Finalized;
@@ -2207,19 +2204,19 @@ namespace Vitex
 
 		public:
 			MD5Hasher() noexcept;
-			void Transform(const UInt1* Buffer, unsigned int Length = 64);
-			void Update(const Core::String& Buffer, unsigned int BlockSize = 64);
-			void Update(const unsigned char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
-			void Update(const char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
+			void Transform(const UInt1* Buffer, uint32_t Length = 64);
+			void Update(const std::string_view& Buffer, uint32_t BlockSize = 64);
+			void Update(const uint8_t* Buffer, uint32_t Length, uint32_t BlockSize = 64);
+			void Update(const char* Buffer, uint32_t Length, uint32_t BlockSize = 64);
 			void Finalize();
 			Core::Unique<char> HexDigest() const;
-			Core::Unique<unsigned char> RawDigest() const;
+			Core::Unique<uint8_t> RawDigest() const;
 			Core::String ToHex() const;
 			Core::String ToRaw() const;
 
 		private:
-			static void Decode(UInt4* Output, const UInt1* Input, unsigned int Length);
-			static void Encode(UInt1* Output, const UInt4* Input, unsigned int Length);
+			static void Decode(UInt4* Output, const UInt1* Input, uint32_t Length);
+			static void Encode(UInt1* Output, const UInt4* Input, uint32_t Length);
 			static void FF(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
 			static void GG(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
 			static void HH(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
@@ -2446,40 +2443,36 @@ namespace Vitex
 		class VI_OUT_TS Crypto
 		{
 		public:
-			typedef std::function<void(char**, size_t*)> BlockCallback;
+			typedef std::function<void(uint8_t**, size_t*)> BlockCallback;
 
 		public:
-			static Digest GetDigestByName(const Core::String& Name);
-			static Cipher GetCipherByName(const Core::String& Name);
-			static const char* GetDigestName(Digest Type);
-			static const char* GetCipherName(Cipher Type);
-			static ExpectsCrypto<void> FillRandomBytes(unsigned char* Buffer, size_t Length);
+			static Digest GetDigestByName(const std::string_view& Name);
+			static Cipher GetCipherByName(const std::string_view& Name);
+			static std::string_view GetDigestName(Digest Type);
+			static std::string_view GetCipherName(Cipher Type);
+			static ExpectsCrypto<void> FillRandomBytes(uint8_t* Buffer, size_t Length);
 			static ExpectsCrypto<Core::String> RandomBytes(size_t Length);
 			static ExpectsCrypto<Core::String> ChecksumHex(Digest Type, Core::Stream* Stream);
 			static ExpectsCrypto<Core::String> ChecksumRaw(Digest Type, Core::Stream* Stream);
-			static ExpectsCrypto<Core::String> HashHex(Digest Type, const Core::String& Value);
-			static ExpectsCrypto<Core::String> HashRaw(Digest Type, const Core::String& Value);
-			static ExpectsCrypto<Core::String> Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> Sign(Digest Type, const Core::String& Value, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> HMAC(Digest Type, const Core::String& Value, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static ExpectsCrypto<Core::String> JWTSign(const Core::String& Algo, const Core::String& Payload, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> HashHex(Digest Type, const std::string_view& Value);
+			static ExpectsCrypto<Core::String> HashRaw(Digest Type, const std::string_view& Value);
+			static ExpectsCrypto<Core::String> Sign(Digest Type, const std::string_view& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static ExpectsCrypto<Core::String> JWTSign(const std::string_view& Algo, const std::string_view& Payload, const PrivateKey& Key);
 			static ExpectsCrypto<Core::String> JWTEncode(WebToken* Src, const PrivateKey& Key);
-			static ExpectsCrypto<Core::Unique<WebToken>> JWTDecode(const Core::String& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::Unique<WebToken>> JWTDecode(const std::string_view& Value, const PrivateKey& Key);
 			static ExpectsCrypto<Core::String> DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
-			static ExpectsCrypto<Core::Unique<Core::Schema>> DocDecrypt(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			static ExpectsCrypto<Core::Unique<Core::Schema>> DocDecrypt(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			static ExpectsCrypto<size_t> Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
 			static ExpectsCrypto<size_t> Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
-			static unsigned char RandomUC();
-			static uint64_t CRC32(const Core::String& Data);
+			static uint8_t RandomUC();
+			static uint64_t CRC32(const std::string_view& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);
 			static uint64_t Random();
-			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
-			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
+			static void Sha1CollapseBufferBlock(uint32_t* Buffer);
+			static void Sha1ComputeHashBlock(uint32_t* Result, uint32_t* W);
 			static void Sha1Compute(const void* Value, int Length, char* Hash20);
 			static void Sha1Hash20ToHex(const char* Hash20, char* HexString);
 			static void DisplayCryptoLog();
@@ -2488,44 +2481,35 @@ namespace Vitex
 		class VI_OUT_TS Codec
 		{
 		public:
-			static Core::String Move(const Core::String& Text, int Offset);
-			static Core::String Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding);
-			static Core::String Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char));
-			static Core::String Bep45Encode(const Core::String& Value);
-			static Core::String Bep45Decode(const Core::String& Value);
-			static Core::String Base32Encode(const Core::String& Value);
-			static Core::String Base32Decode(const Core::String& Value);
-			static Core::String Base45Encode(const Core::String& Value);
-			static Core::String Base45Decode(const Core::String& Value);
-			static Core::String Base64Encode(const unsigned char* Value, size_t Length);
-			static Core::String Base64Encode(const Core::String& Value);
-			static Core::String Base64Decode(const unsigned char* Value, size_t Length);
-			static Core::String Base64Decode(const Core::String& Value);
-			static Core::String Base64URLEncode(const unsigned char* Value, size_t Length);
-			static Core::String Base64URLEncode(const Core::String& Value);
-			static Core::String Base64URLDecode(const unsigned char* Value, size_t Length);
-			static Core::String Base64URLDecode(const Core::String& Value);
+			static Core::String Move(const std::string_view& Text, int Offset);
+			static Core::String Encode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool Padding);
+			static Core::String Decode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool(*IsAlphabetic)(uint8_t));
+			static Core::String Bep45Encode(const std::string_view& Value);
+			static Core::String Bep45Decode(const std::string_view& Value);
+			static Core::String Base32Encode(const std::string_view& Value);
+			static Core::String Base32Decode(const std::string_view& Value);
+			static Core::String Base45Encode(const std::string_view& Value);
+			static Core::String Base45Decode(const std::string_view& Value);
+			static Core::String Base64Encode(const std::string_view& Value);
+			static Core::String Base64Decode(const std::string_view& Value);
+			static Core::String Base64URLEncode(const std::string_view& Value);
+			static Core::String Base64URLDecode(const std::string_view& Value);
 			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
-			static ExpectsCompression<Core::String> Compress(const Core::String& Data, Compression Type = Compression::Default);
-			static ExpectsCompression<Core::String> Decompress(const Core::String& Data);
-			static Core::String HexEncodeOdd(const char* Value, size_t Size, bool UpperCase = false);
-			static Core::String HexEncodeOdd(const Core::String& Value, bool UpperCase = false);
-			static Core::String HexEncode(const char* Value, size_t Size, bool UpperCase = false);
-			static Core::String HexEncode(const Core::String& Value, bool UpperCase = false);
-			static Core::String HexDecode(const char* Value, size_t Size);
-			static Core::String HexDecode(const Core::String& Value);
-			static Core::String URLEncode(const Core::String& Text);
-			static Core::String URLEncode(const char* Text, size_t Length);
-			static Core::String URLDecode(const Core::String& Text);
-			static Core::String URLDecode(const char* Text, size_t Length);
+			static ExpectsCompression<Core::String> Compress(const std::string_view& Data, Compression Type = Compression::Default);
+			static ExpectsCompression<Core::String> Decompress(const std::string_view& Data);
+			static Core::String HexEncodeOdd(const std::string_view& Value, bool UpperCase = false);
+			static Core::String HexEncode(const std::string_view& Value, bool UpperCase = false);
+			static Core::String HexDecode(const std::string_view& Value);
+			static Core::String URLEncode(const std::string_view& Text);
+			static Core::String URLDecode(const std::string_view& Text);
 			static Core::String DecimalToHex(uint64_t V);
-			static Core::String Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
+			static Core::String Base10ToBaseN(uint64_t Value, uint32_t BaseLessThan65);
 			static size_t Utf8(int Code, char* Buffer);
 			static bool Hex(char Code, int& Value);
-			static bool HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength);
-			static bool HexToDecimal(const Core::String& Text, size_t Index, size_t Size, int& Value);
-			static bool IsBase64URL(unsigned char Value);
-			static bool IsBase64(unsigned char Value);
+			static bool HexToString(const std::string_view& Data, char* Buffer, size_t BufferLength);
+			static bool HexToDecimal(const std::string_view& Text, size_t Index, size_t Size, int& Value);
+			static bool IsBase64URL(uint8_t Value);
+			static bool IsBase64(uint8_t Value);
 		};
 
 		class VI_OUT_TS Geometric
@@ -2576,23 +2560,22 @@ namespace Vitex
 			friend RegexSource;
 
 		private:
-			static int64_t Meta(const unsigned char* Buffer);
+			static int64_t Meta(const uint8_t* Buffer);
 			static int64_t OpLength(const char* Value);
 			static int64_t SetLength(const char* Value, int64_t ValueLength);
 			static int64_t GetOpLength(const char* Value, int64_t ValueLength);
 			static int64_t Quantifier(const char* Value);
 			static int64_t ToInt(int64_t x);
-			static int64_t HexToInt(const unsigned char* Buffer);
-			static int64_t MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info);
+			static int64_t HexToInt(const uint8_t* Buffer);
+			static int64_t MatchOp(const uint8_t* Value, const uint8_t* Buffer, RegexResult* Info);
 			static int64_t MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info);
 			static int64_t ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
 			static int64_t ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
 			static int64_t Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info);
 
 		public:
-			static bool Match(RegexSource* Value, RegexResult& Result, const Core::String& Buffer);
-			static bool Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length);
-			static bool Replace(RegexSource* Value, const Core::String& ToExpression, Core::String& Buffer);
+			static bool Match(RegexSource* Value, RegexResult& Result, const std::string_view& Buffer);
+			static bool Replace(RegexSource* Value, const std::string_view& ToExpression, Core::String& Buffer);
 			static const char* Syntax();
 		};
 
@@ -2608,20 +2591,20 @@ namespace Vitex
 
 		public:
 			WebToken() noexcept;
-			WebToken(const Core::String& Issuer, const Core::String& Subject, int64_t Expiration) noexcept;
+			WebToken(const std::string_view& Issuer, const std::string_view& Subject, int64_t Expiration) noexcept;
 			virtual ~WebToken() noexcept;
 			void Unsign();
-			void SetAlgorithm(const Core::String& Value);
-			void SetType(const Core::String& Value);
-			void SetContentType(const Core::String& Value);
-			void SetIssuer(const Core::String& Value);
-			void SetSubject(const Core::String& Value);
-			void SetId(const Core::String& Value);
+			void SetAlgorithm(const std::string_view& Value);
+			void SetType(const std::string_view& Value);
+			void SetContentType(const std::string_view& Value);
+			void SetIssuer(const std::string_view& Value);
+			void SetSubject(const std::string_view& Value);
+			void SetId(const std::string_view& Value);
 			void SetAudience(const Core::Vector<Core::String>& Value);
 			void SetExpiration(int64_t Value);
 			void SetNotBefore(int64_t Value);
 			void SetCreated(int64_t Value);
-			void SetRefreshToken(const Core::String& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			void SetRefreshToken(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			bool Sign(const PrivateKey& Key);
 			ExpectsCrypto<Core::String> GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
 			bool IsValid() const;
@@ -2712,35 +2695,35 @@ namespace Vitex
 			void SetIncludeOptions(const IncludeDesc& NewDesc);
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
-			void SetDirectiveCallback(const Core::String& Name, ProcDirectiveCallback&& Callback);
+			void SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback);
 			void SetFeatures(const Desc& Value);
 			void AddDefaultDefinitions();
-			ExpectsPreprocessor<void> Define(const Core::String& Expression);
-			ExpectsPreprocessor<void> DefineDynamic(const Core::String& Expression, ProcExpansionCallback&& Callback);
-			void Undefine(const Core::String& Name);
+			ExpectsPreprocessor<void> Define(const std::string_view& Expression);
+			ExpectsPreprocessor<void> DefineDynamic(const std::string_view& Expression, ProcExpansionCallback&& Callback);
+			void Undefine(const std::string_view& Name);
 			void Clear();
-			bool IsDefined(const Core::String& Name) const;
-			bool IsDefined(const Core::String& Name, const Core::String& Value) const;
-			ExpectsPreprocessor<void> Process(const Core::String& Path, Core::String& Buffer);
-			ExpectsPreprocessor<Core::String> ResolveFile(const Core::String& Path, const Core::String& Include);
+			bool IsDefined(const std::string_view& Name) const;
+			bool IsDefined(const std::string_view& Name, const std::string_view& Value) const;
+			ExpectsPreprocessor<void> Process(const std::string_view& Path, Core::String& Buffer);
+			ExpectsPreprocessor<Core::String> ResolveFile(const std::string_view& Path, const std::string_view& Include);
 			const Core::String& GetCurrentFilePath() const;
 			size_t GetCurrentLineNumber();
 
 		private:
 			ProcDirective FindNextToken(Core::String& Buffer, size_t& Offset);
 			ProcDirective FindNextConditionalToken(Core::String& Buffer, size_t& Offset);
-			size_t ReplaceToken(ProcDirective& Where, Core::String& Buffer, const Core::String& To);
+			size_t ReplaceToken(ProcDirective& Where, Core::String& Buffer, const std::string_view& To);
 			ExpectsPreprocessor<Core::Vector<Conditional>> PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top);
 			Core::String Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions);
-			std::pair<Core::String, Core::String> GetExpressionParts(const Core::String& Value);
+			std::pair<Core::String, Core::String> GetExpressionParts(const std::string_view& Value);
 			std::pair<Core::String, Core::String> UnpackExpression(const std::pair<Core::String, Core::String>& Expression);
 			int SwitchCase(const Conditional& Value);
 			size_t GetLinesCount(Core::String& Buffer, size_t End);
 			ExpectsPreprocessor<void> ExpandDefinitions(Core::String& Buffer, size_t& Size);
-			ExpectsPreprocessor<void> ParseArguments(const Core::String& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
-			ExpectsPreprocessor<void> ConsumeTokens(const Core::String& Path, Core::String& Buffer);
+			ExpectsPreprocessor<void> ParseArguments(const std::string_view& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
+			ExpectsPreprocessor<void> ConsumeTokens(const std::string_view& Path, Core::String& Buffer);
 			void ApplyResult(bool WasNested);
-			bool HasResult(const Core::String& Path);
+			bool HasResult(const std::string_view& Path);
 			bool SaveResult();
 
 		public:

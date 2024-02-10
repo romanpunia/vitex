@@ -247,8 +247,8 @@ namespace Vitex
 			}
 			BoxShadowInstancer::~BoxShadowInstancer()
 			{
-				VI_RELEASE(Shader);
-				VI_RELEASE(VertexBuffer);
+				Core::Memory::Release(Shader);
+				Core::Memory::Release(VertexBuffer);
 			}
 			Rml::SharedPtr<Rml::Decorator> BoxShadowInstancer::InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface)
 			{
@@ -303,9 +303,9 @@ namespace Vitex
 			}
 			BoxBlurInstancer::~BoxBlurInstancer()
 			{
-				VI_RELEASE(Shader);
-				VI_RELEASE(VertexBuffer);
-				VI_RELEASE(Background);
+				Core::Memory::Release(Shader);
+				Core::Memory::Release(VertexBuffer);
+				Core::Memory::Release(Background);
 			}
 			Rml::SharedPtr<Rml::Decorator> BoxBlurInstancer::InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface)
 			{
@@ -321,25 +321,25 @@ namespace Vitex
 			void Subsystem::ResizeDecorators(int Width, int Height) noexcept
 			{
 				if (IBoxBlur != nullptr)
-					VI_CLEAR(IBoxBlur->Background);
+					Core::Memory::Release(IBoxBlur->Background);
 			}
 			void Subsystem::CreateDecorators(RenderConstants* Constants) noexcept
 			{
 				VI_ASSERT(Constants != nullptr, "render constants should be set");
 				ReleaseDecorators();
 
-				IBoxShadow = VI_NEW(BoxShadowInstancer, Constants);
+				IBoxShadow = Core::Memory::New<BoxShadowInstancer>(Constants);
 				Rml::Factory::RegisterDecoratorInstancer("box-shadow", IBoxShadow);
 
-				IBoxBlur = VI_NEW(BoxBlurInstancer, Constants);
+				IBoxBlur = Core::Memory::New<BoxBlurInstancer>(Constants);
 				Rml::Factory::RegisterDecoratorInstancer("box-blur", IBoxBlur);
 			}
 			void Subsystem::ReleaseDecorators() noexcept
 			{
-				VI_DELETE(BoxShadowInstancer, IBoxShadow);
+				Core::Memory::Delete(IBoxShadow);
 				IBoxShadow = nullptr;
 
-				VI_DELETE(BoxBlurInstancer, IBoxBlur);
+				Core::Memory::Delete(IBoxBlur);
 				IBoxBlur = nullptr;
 			}
 		}

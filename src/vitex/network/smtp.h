@@ -1,6 +1,6 @@
 #ifndef VI_NETWORK_SMTP_H
 #define VI_NETWORK_SMTP_H
-#include "../core/network.h"
+#include "../network.h"
 
 namespace Vitex
 {
@@ -65,7 +65,7 @@ namespace Vitex
 				bool Authorized;
 
 			public:
-				Client(const Core::String& Domain, int64_t ReadTimeout);
+				Client(const std::string_view& Domain, int64_t ReadTimeout);
 				~Client() override = default;
 				Core::ExpectsPromiseSystem<void> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();
@@ -80,9 +80,9 @@ namespace Vitex
 				bool ProcessAttachment();
 				bool ReadResponses(int Code, const ReplyCallback& Callback);
 				bool ReadResponse(int Code, const ReplyCallback& Callback);
-				bool SendRequest(int Code, const Core::String& Content, const ReplyCallback& Callback);
-				bool CanRequest(const char* Keyword);
-				unsigned char* Unicode(const char* String);
+				bool SendRequest(int Code, const std::string_view& Content, const ReplyCallback& Callback);
+				bool CanRequest(const std::string_view& Keyword);
+				uint8_t* Unicode(const std::string_view& Value);
 			};
 		}
 	}

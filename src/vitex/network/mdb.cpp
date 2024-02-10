@@ -1,11 +1,7 @@
 #include "mdb.h"
-
-extern "C"
-{
 #ifdef VI_MONGOC
-#include <mongoc.h>
+#include <mongoc/mongoc.h>
 #endif
-}
 #define MongoExecuteQuery(Function, Context, ...) ExecuteQuery(#Function, Function, Context, ##__VA_ARGS__)
 #define MongoExecuteCursor(Function, Context, ...) ExecuteCursor(#Function, Function, Context, ##__VA_ARGS__)
 
@@ -192,19 +188,19 @@ namespace Vitex
 			{
 				return Document(Source);
 			}
-			Property Property::At(const Core::String& Label) const
-			{
-				Property Result;
-				AsDocument().GetProperty(Label.c_str(), &Result);
-				return Result;
-			}
-			Property Property::operator [](const char* Label)
+			Property Property::At(const std::string_view& Label) const
 			{
 				Property Result;
 				AsDocument().GetProperty(Label, &Result);
 				return Result;
 			}
-			Property Property::operator [](const char* Label) const
+			Property Property::operator [](const std::string_view& Label)
+			{
+				Property Result;
+				AsDocument().GetProperty(Label, &Result);
+				return Result;
+			}
+			Property Property::operator [](const std::string_view& Label) const
 			{
 				Property Result;
 				AsDocument().GetProperty(Label, &Result);
@@ -317,137 +313,162 @@ namespace Vitex
 				}
 #endif
 			}
-			bool Document::SetSchema(const char* Key, const Document& Value, size_t ArrayId)
+			bool Document::SetSchema(const std::string_view& Key, const Document& Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_document((bson_t*)Base, Key, -1, (bson_t*)Value.Base);
+				return bson_append_document((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), (bson_t*)Value.Base);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetArray(const char* Key, const Document& Value, size_t ArrayId)
+			bool Document::SetArray(const std::string_view& Key, const Document& Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value.Base != nullptr, "other schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_array((bson_t*)Base, Key, -1, (bson_t*)Value.Base);
+				return bson_append_array((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), (bson_t*)Value.Base);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetString(const char* Key, const char* Value, size_t ArrayId)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Base != nullptr, "schema should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
-
-				return bson_append_utf8((bson_t*)Base, Key, -1, Value, -1);
-#else
-				return false;
-#endif
-			}
-			bool Document::SetBlob(const char* Key, const char* Value, size_t Length, size_t ArrayId)
-			{
-#ifdef VI_MONGOC
-				VI_ASSERT(Base != nullptr, "schema should be set");
-				VI_ASSERT(Value != nullptr, "value should be set");
-
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
-
-				return bson_append_utf8((bson_t*)Base, Key, -1, Value, (int)Length);
-#else
-				return false;
-#endif
-			}
-			bool Document::SetInteger(const char* Key, int64_t Value, size_t ArrayId)
+			bool Document::SetString(const std::string_view& Key, const std::string_view& Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_int64((bson_t*)Base, Key, -1, Value);
+				return bson_append_utf8((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), Value.data(), (int)Value.size());
 #else
 				return false;
 #endif
 			}
-			bool Document::SetNumber(const char* Key, double Value, size_t ArrayId)
+			bool Document::SetInteger(const std::string_view& Key, int64_t Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_double((bson_t*)Base, Key, -1, Value);
+				return bson_append_int64((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), Value);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId)
+			bool Document::SetNumber(const std::string_view& Key, double Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
+
+				return bson_append_double((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), Value);
+#else
+				return false;
+#endif
+			}
+			bool Document::SetDecimal(const std::string_view& Key, uint64_t High, uint64_t Low, size_t ArrayId)
+			{
+#ifdef VI_MONGOC
+				VI_ASSERT(Base != nullptr, "schema should be set");
+
+				char Index[16];
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
 				bson_decimal128_t Decimal;
 				Decimal.high = (uint64_t)High;
 				Decimal.low = (uint64_t)Low;
 
-				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimalString(const char* Key, const Core::String& Value, size_t ArrayId)
+			bool Document::SetDecimalString(const std::string_view& Key, const std::string_view& Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
 				bson_decimal128_t Decimal;
-				bson_decimal128_from_string(Value.c_str(), &Decimal);
+				bson_decimal128_from_string(Value.data(), &Decimal);
 
-				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId)
+			bool Document::SetDecimalInteger(const std::string_view& Key, int64_t Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
 				char Data[64];
 				snprintf(Data, 64, "%" PRId64 "", Value);
@@ -455,19 +476,24 @@ namespace Vitex
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimalNumber(const char* Key, double Value, size_t ArrayId)
+			bool Document::SetDecimalNumber(const std::string_view& Key, double Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
 				char Data[64];
 				snprintf(Data, 64, "%f", Value);
@@ -478,65 +504,85 @@ namespace Vitex
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetBoolean(const char* Key, bool Value, size_t ArrayId)
+			bool Document::SetBoolean(const std::string_view& Key, bool Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_bool((bson_t*)Base, Key, -1, Value);
+				return bson_append_bool((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), Value);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetObjectId(const char* Key, unsigned char Value[12], size_t ArrayId)
+			bool Document::SetObjectId(const std::string_view& Key, uint8_t Value[12], size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				bson_oid_t ObjectId;
-				memcpy(ObjectId.bytes, Value, sizeof(unsigned char) * 12);
+				memcpy(ObjectId.bytes, Value, sizeof(uint8_t) * 12);
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_oid((bson_t*)Base, Key, -1, &ObjectId);
+				return bson_append_oid((bson_t*)Base, ValueKey.data(), (int)ValueKey.size(), &ObjectId);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetNull(const char* Key, size_t ArrayId)
+			bool Document::SetNull(const std::string_view& Key, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
-				return bson_append_null((bson_t*)Base, Key, -1);
+				return bson_append_null((bson_t*)Base, ValueKey.data(), (int)ValueKey.size());
 #else
 				return false;
 #endif
 			}
-			bool Document::SetProperty(const char* Key, Property* Value, size_t ArrayId)
+			bool Document::SetProperty(const std::string_view& Key, Property* Value, size_t ArrayId)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
 				VI_ASSERT(Value != nullptr, "property should be set");
 
 				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+				std::string_view ValueKey = Key;
+				if (ValueKey.empty())
+				{
+					const char* IndexKey = Index;
+					bson_uint32_to_string((uint32_t)ArrayId, &IndexKey, Index, sizeof(Index));
+					ValueKey = IndexKey;
+				}
 
 				switch (Value->Mod)
 				{
@@ -563,96 +609,31 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Document::HasProperty(const char* Key) const
+			bool Document::HasProperty(const std::string_view& Key) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
-				VI_ASSERT(Key != nullptr, "key should be set");
-				return bson_has_field(Base, Key);
+				VI_ASSERT(Core::Stringify::IsCString(Key), "key should be set");
+				return bson_has_field(Base, Key.data());
 #else
 				return false;
 #endif
 			}
-			bool Document::GetProperty(const char* Key, Property* Output) const
+			bool Document::GetProperty(const std::string_view& Key, Property* Output) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "schema should be set");
-				VI_ASSERT(Key != nullptr, "key should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Key), "key should be set");
 				VI_ASSERT(Output != nullptr, "property should be set");
 
 				bson_iter_t It;
-				if (!bson_iter_init_find(&It, Base, Key))
+				if (!bson_iter_init_find(&It, Base, Key.data()))
 					return false;
 
 				return Clone(&It, Output);
 #else
 				return false;
 #endif
-			}
-			bool Document::SetSchemaAt(const Core::String& Key, const Document& Value, size_t ArrayId)
-			{
-				return SetSchema(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetArrayAt(const Core::String& Key, const Document& Array, size_t ArrayId)
-			{
-				return SetArray(Key.c_str(), Array, ArrayId);
-			}
-			bool Document::SetStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId)
-			{
-				return SetString(Key.c_str(), Value.c_str(), ArrayId);
-			}
-			bool Document::SetIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId)
-			{
-				return SetInteger(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetNumberAt(const Core::String& Key, double Value, size_t ArrayId)
-			{
-				return SetNumber(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetDecimalAt(const Core::String& Key, uint64_t High, uint64_t Low, size_t ArrayId)
-			{
-				return SetDecimal(Key.c_str(), High, Low, ArrayId);
-			}
-			bool Document::SetDecimalStringAt(const Core::String& Key, const Core::String& Value, size_t ArrayId)
-			{
-				return SetDecimalString(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetDecimalIntegerAt(const Core::String& Key, int64_t Value, size_t ArrayId)
-			{
-				return SetDecimalInteger(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetDecimalNumberAt(const Core::String& Key, double Value, size_t ArrayId)
-			{
-				return SetDecimalNumber(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetBooleanAt(const Core::String& Key, bool Value, size_t ArrayId)
-			{
-				return SetBoolean(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::SetObjectIdAt(const Core::String& Key, const Core::String& Value, size_t ArrayId)
-			{
-				unsigned char ObjectId[12];
-				memset(ObjectId, 0, sizeof(ObjectId));
-
-				Core::String Oid = Utils::StringToId(Value);
-				memcpy(ObjectId, Oid.c_str(), std::min(Oid.size(), sizeof(ObjectId)));
-				return SetObjectId(Key.c_str(), ObjectId, ArrayId);
-			}
-			bool Document::SetNullAt(const Core::String& Key, size_t ArrayId)
-			{
-				return SetNull(Key.c_str(), ArrayId);
-			}
-			bool Document::SetPropertyAt(const Core::String& Key, Property* Value, size_t ArrayId)
-			{
-				return SetProperty(Key.c_str(), Value, ArrayId);
-			}
-			bool Document::HasPropertyAt(const Core::String& Key) const
-			{
-				return HasProperty(Key.c_str());
-			}
-			bool Document::GetPropertyAt(const Core::String& Key, Property* Output) const
-			{
-				return GetProperty(Key.c_str(), Output);
 			}
 			bool Document::Clone(void* It, Property* Output)
 			{
@@ -739,7 +720,7 @@ namespace Vitex
 						break;
 					case BSON_TYPE_OID:
 						New.Mod = Type::ObjectId;
-						memcpy(New.ObjectId, Value->value.v_oid.bytes, sizeof(unsigned char) * 12);
+						memcpy(New.ObjectId, Value->value.v_oid.bytes, sizeof(uint8_t) * 12);
 						break;
 					case BSON_TYPE_EOD:
 					case BSON_TYPE_BINARY:
@@ -915,10 +896,10 @@ namespace Vitex
 				Store = Keep;
 				return *this;
 			}
-			Property Document::At(const Core::String& Name) const
+			Property Document::At(const std::string_view& Name) const
 			{
 				Property Result;
-				GetProperty(Name.c_str(), &Result);
+				GetProperty(Name, &Result);
 				return Result;
 			}
 			Document Document::FromSchema(Core::Schema* Src)
@@ -940,7 +921,7 @@ namespace Vitex
 							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromSchema(Node), Index);
 							break;
 						case Core::VarType::String:
-							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.Size(), Index);
+							Result.SetString(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Index);
 							break;
 						case Core::VarType::Boolean:
 							Result.SetBoolean(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
@@ -962,7 +943,7 @@ namespace Vitex
 							if (Node->Value.Size() != 12)
 							{
 								Core::String Base = Compute::Codec::Bep45Encode(Node->Value.GetBlob());
-								Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
+								Result.SetString(Array ? nullptr : Node->Key.c_str(), Base, Index);
 							}
 							else
 								Result.SetObjectId(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBinary(), Index);
@@ -987,13 +968,13 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			ExpectsDB<Document> Document::FromJSON(const Core::String& JSON)
+			ExpectsDB<Document> Document::FromJSON(const std::string_view& JSON)
 			{
 #ifdef VI_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				TDocument* Result = bson_new_from_json((unsigned char*)JSON.c_str(), (ssize_t)JSON.size(), &Error);
+				TDocument* Result = bson_new_from_json((uint8_t*)JSON.data(), (ssize_t)JSON.size(), &Error);
 				if (Result != nullptr && Error.code == 0)
 					return Document(Result);
 				else if (Result != nullptr)
@@ -1004,7 +985,7 @@ namespace Vitex
 				return DatabaseException(0, "not supported");
 #endif
 			}
-			Document Document::FromBuffer(const unsigned char* Buffer, size_t Length)
+			Document Document::FromBuffer(const uint8_t* Buffer, size_t Length)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
@@ -1062,67 +1043,77 @@ namespace Vitex
 				Other.Base = nullptr;
 				return *this;
 			}
-			void Address::SetOption(const Core::String& Name, int64_t Value)
+			void Address::SetOption(const std::string_view& Name, int64_t Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_option_as_int32(Base, Name.c_str(), (int32_t)Value);
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				mongoc_uri_set_option_as_int32(Base, Name.data(), (int32_t)Value);
 #endif
 			}
-			void Address::SetOption(const Core::String& Name, bool Value)
+			void Address::SetOption(const std::string_view& Name, bool Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_option_as_bool(Base, Name.c_str(), Value);
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				mongoc_uri_set_option_as_bool(Base, Name.data(), Value);
 #endif
 			}
-			void Address::SetOption(const Core::String& Name, const Core::String& Value)
+			void Address::SetOption(const std::string_view& Name, const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_option_as_utf8(Base, Name.c_str(), Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_option_as_utf8(Base, Name.data(), Value.data());
 #endif
 			}
-			void Address::SetAuthMechanism(const Core::String& Value)
+			void Address::SetAuthMechanism(const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_auth_mechanism(Base, Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_auth_mechanism(Base, Value.data());
 #endif
 			}
-			void Address::SetAuthSource(const Core::String& Value)
+			void Address::SetAuthSource(const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_auth_source(Base, Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_auth_source(Base, Value.data());
 #endif
 			}
-			void Address::SetCompressors(const Core::String& Value)
+			void Address::SetCompressors(const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_compressors(Base, Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_compressors(Base, Value.data());
 #endif
 			}
-			void Address::SetDatabase(const Core::String& Value)
+			void Address::SetDatabase(const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_database(Base, Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_database(Base, Value.data());
 #endif
 			}
-			void Address::SetUsername(const Core::String& Value)
+			void Address::SetUsername(const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_username(Base, Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_username(Base, Value.data());
 #endif
 			}
-			void Address::SetPassword(const Core::String& Value)
+			void Address::SetPassword(const std::string_view& Value)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				mongoc_uri_set_password(Base, Value.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+				mongoc_uri_set_password(Base, Value.data());
 #endif
 			}
 			TAddress* Address::Get() const
@@ -1133,11 +1124,12 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			ExpectsDB<Address> Address::FromURL(const Core::String& Location)
+			ExpectsDB<Address> Address::FromURL(const std::string_view& Location)
 			{
 #ifdef VI_MONGOC
-				TAddress* Result = mongoc_uri_new(Location.c_str());
-				if (!strstr(Location.c_str(), MONGOC_URI_SOCKETTIMEOUTMS))
+				VI_ASSERT(Core::Stringify::IsCString(Location), "location should be set");
+				TAddress* Result = mongoc_uri_new(Location.data());
+				if (!strstr(Location.data(), MONGOC_URI_SOCKETTIMEOUTMS))
 					mongoc_uri_set_option_as_int32(Result, MONGOC_URI_SOCKETTIMEOUTMS, 10000);
 
 				return Address(Result);
@@ -1266,9 +1258,9 @@ namespace Vitex
 				return DatabaseException(0, "not supported");
 #endif
 			}
-			ExpectsDB<void> Stream::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once)
+			ExpectsDB<void> Stream::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
+				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
 				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
 				if (!Template)
 					return Template.Error();
@@ -1691,7 +1683,7 @@ namespace Vitex
 
 				return Core::Coasync<ExpectsDB<Core::Schema*>>([this]() -> ExpectsPromiseDB<Core::Schema*>
 				{
-					Core::Schema* Result = Core::Var::Set::Array();
+					Core::UPtr<Core::Schema> Result = Core::Var::Set::Array();
 					while (true)
 					{
 						auto Status = VI_AWAIT(NetCursor.Next());
@@ -1701,21 +1693,18 @@ namespace Vitex
 							continue;
 						}
 						else if (Status.Error().error_code() != 0 && Result->Empty())
-						{
-							VI_RELEASE(Result);
 							Coreturn Status.Error();
-						}
 						break;
 					}
-					Coreturn Result;
+					Coreturn Result.Reset();
 				});
 			}
-			ExpectsPromiseDB<Property> Response::GetProperty(const Core::String& Name)
+			ExpectsPromiseDB<Property> Response::GetProperty(const std::string_view& Name)
 			{
 				if (NetDocument)
 				{
 					Property Result;
-					NetDocument.GetPropertyAt(Name, &Result);
+					NetDocument.GetProperty(Name, &Result);
 					return ExpectsPromiseDB<Property>(std::move(Result));
 				}
 
@@ -1726,11 +1715,12 @@ namespace Vitex
 				if (Source)
 				{
 					Property Result;
-					Source.GetPropertyAt(Name, &Result);
+					Source.GetProperty(Name, &Result);
 					return ExpectsPromiseDB<Property>(std::move(Result));
 				}
 
-				return NetCursor.Next().Then<ExpectsDB<Property>>([this, Name](ExpectsDB<void>&& Status) mutable -> ExpectsDB<Property>
+				Core::String Copy = Core::String(Name);
+				return NetCursor.Next().Then<ExpectsDB<Property>>([this, Copy](ExpectsDB<void>&& Status) mutable -> ExpectsDB<Property>
 				{
 					Property Result;
 					if (!Status)
@@ -1738,9 +1728,9 @@ namespace Vitex
 
 					Document Source = NetCursor.Current();
 					if (!Source)
-						return DatabaseException(0, "property not found: " + Name);
+						return DatabaseException(0, "property not found: " + Copy);
 
-					Source.GetPropertyAt(Name, &Result);
+					Source.GetProperty(Copy, &Result);
 					return Result;
 				});
 			}
@@ -1931,7 +1921,7 @@ namespace Vitex
 				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<Response> Transaction::TemplateQuery(Collection& Source, const Core::String& Name, Core::SchemaArgs* Map, bool Once)
+			ExpectsPromiseDB<Response> Transaction::TemplateQuery(Collection& Source, const std::string_view& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
 				if (!Template)
@@ -2010,49 +2000,57 @@ namespace Vitex
 				Other.Base = nullptr;
 				return *this;
 			}
-			ExpectsPromiseDB<void> Collection::Rename(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
+			ExpectsPromiseDB<void> Collection::Rename(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName]()
+				auto NewDatabaseNameCopy = Core::String(NewDatabaseName);
+				auto NewCollectionNameCopy = Core::String(NewDatabaseName);
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseNameCopy = std::move(NewDatabaseNameCopy), NewCollectionNameCopy = std::move(NewCollectionNameCopy)]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false);
+					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseNameCopy.data(), NewCollectionNameCopy.data(), false);
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Collection::RenameWithOptions(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
+			ExpectsPromiseDB<void> Collection::RenameWithOptions(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName, &Options]()
+				auto NewDatabaseNameCopy = Core::String(NewDatabaseName);
+				auto NewCollectionNameCopy = Core::String(NewDatabaseName);
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseNameCopy = std::move(NewDatabaseNameCopy), NewCollectionNameCopy = std::move(NewCollectionNameCopy), &Options]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseNameCopy.c_str(), NewCollectionNameCopy.c_str(), false, Options.Get());
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Collection::RenameWithRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName)
+			ExpectsPromiseDB<void> Collection::RenameWithRemove(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName]()
+				auto NewDatabaseNameCopy = Core::String(NewDatabaseName);
+				auto NewCollectionNameCopy = Core::String(NewDatabaseName);
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseNameCopy = std::move(NewDatabaseNameCopy), NewCollectionNameCopy = std::move(NewCollectionNameCopy)]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true);
+					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseNameCopy.c_str(), NewCollectionNameCopy.c_str(), true);
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Collection::RenameWithOptionsAndRemove(const Core::String& NewDatabaseName, const Core::String& NewCollectionName, const Document& Options)
+			ExpectsPromiseDB<void> Collection::RenameWithOptionsAndRemove(const std::string_view& NewDatabaseName, const std::string_view& NewCollectionName, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseName, NewCollectionName, &Options]()
+				auto NewDatabaseNameCopy = Core::String(NewDatabaseName);
+				auto NewCollectionNameCopy = Core::String(NewDatabaseName);
+				return Core::Cotask<ExpectsDB<void>>([Context, NewDatabaseNameCopy = std::move(NewDatabaseNameCopy), NewCollectionNameCopy = std::move(NewCollectionNameCopy), &Options]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseNameCopy.c_str(), NewCollectionNameCopy.c_str(), true, Options.Get());
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
@@ -2070,13 +2068,14 @@ namespace Vitex
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Collection::RemoveIndex(const Core::String& Name, const Document& Options)
+			ExpectsPromiseDB<void> Collection::RemoveIndex(const std::string_view& Name, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, Name, &Options]()
+				auto NameCopy = Core::String(Name);
+				return Core::Cotask<ExpectsDB<void>>([Context, NameCopy = std::move(NameCopy), &Options]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_drop_index_with_opts, Context, NameCopy.c_str(), Options.Get());
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
@@ -2349,9 +2348,9 @@ namespace Vitex
 				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<Response> Collection::TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once, const Transaction& Session)
+			ExpectsPromiseDB<Response> Collection::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once, const Transaction& Session)
 			{
-				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
+				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
 				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
 				if (!Template)
 					return ExpectsPromiseDB<Response>(Template.Error());
@@ -2689,13 +2688,14 @@ namespace Vitex
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Database::RemoveUser(const Core::String& Name)
+			ExpectsPromiseDB<void> Database::RemoveUser(const std::string_view& Name)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, Name]()
+				auto NameCopy = Core::String(Name);
+				return Core::Cotask<ExpectsDB<void>>([Context, NameCopy = std::move(NameCopy)]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_database_remove_user, Context, Name.c_str());
+					return MongoExecuteQuery(&mongoc_database_remove_user, Context, NameCopy.c_str());
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
@@ -2728,27 +2728,30 @@ namespace Vitex
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Database::AddUser(const Core::String& Username, const Core::String& Password, const Document& Roles, const Document& Custom)
+			ExpectsPromiseDB<void> Database::AddUser(const std::string_view& Username, const std::string_view& Password, const Document& Roles, const Document& Custom)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, Username, Password, &Roles, &Custom]()
+				auto UsernameCopy = Core::String(Username);
+				auto PasswordCopy = Core::String(Password);
+				return Core::Cotask<ExpectsDB<void>>([Context, UsernameCopy = std::move(UsernameCopy), PasswordCopy = std::move(PasswordCopy), &Roles, &Custom]() mutable
 				{
-					return MongoExecuteQuery(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
+					return MongoExecuteQuery(&mongoc_database_add_user, Context, UsernameCopy.c_str(), PasswordCopy.c_str(), Roles.Get(), Custom.Get());
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<void> Database::HasCollection(const Core::String& Name)
+			ExpectsPromiseDB<void> Database::HasCollection(const std::string_view& Name)
 			{
 #ifdef VI_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<void>>([Context, Name]() -> ExpectsDB<void>
+				auto NameCopy = Core::String(Name);
+				return Core::Cotask<ExpectsDB<void>>([Context, NameCopy = std::move(NameCopy)]() mutable -> ExpectsDB<void>
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
-					if (!mongoc_database_has_collection(Context, Name.c_str(), &Error))
+					if (!mongoc_database_has_collection(Context, NameCopy.c_str(), &Error))
 						return DatabaseException(Error.code, Error.message);
 
 					return Core::Expectation::Met;
@@ -2769,18 +2772,19 @@ namespace Vitex
 				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<Collection> Database::CreateCollection(const Core::String& Name, const Document& Options)
+			ExpectsPromiseDB<Collection> Database::CreateCollection(const std::string_view& Name, const Document& Options)
 			{
 #ifdef VI_MONGOC
 				if (!Base)
 					return ExpectsPromiseDB<Collection>(DatabaseException(0, "invalid operation"));
 
 				auto* Context = Base;
-				return Core::Cotask<ExpectsDB<Collection>>([Context, Name, &Options]() -> ExpectsDB<Collection>
+				auto NameCopy = Core::String(Name);
+				return Core::Cotask<ExpectsDB<Collection>>([Context, NameCopy = std::move(NameCopy), &Options]() mutable -> ExpectsDB<Collection>
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
-					TCollection* Result = mongoc_database_create_collection(Context, Name.c_str(), Options.Get(), &Error);
+					TCollection* Result = mongoc_database_create_collection(Context, NameCopy.c_str(), Options.Get(), &Error);
 					if (!Result)
 						return DatabaseException(Error.code, Error.message);
 					
@@ -2822,11 +2826,12 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			Collection Database::GetCollection(const Core::String& Name)
+			Collection Database::GetCollection(const std::string_view& Name)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				return mongoc_database_get_collection(Base, Name.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				return mongoc_database_get_collection(Base, Name.data());
 #else
 				return nullptr;
 #endif
@@ -3089,10 +3094,11 @@ namespace Vitex
 				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			void Connection::SetProfile(const Core::String& Name)
+			void Connection::SetProfile(const std::string_view& Name)
 			{
 #ifdef VI_MONGOC
-				mongoc_client_set_appname(Base, Name.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				mongoc_client_set_appname(Base, Name.data());
 #endif
 			}
 			ExpectsDB<void> Connection::SetServer(bool ForWrites)
@@ -3127,11 +3133,12 @@ namespace Vitex
 				return &Session;
 #endif
 			}
-			Database Connection::GetDatabase(const Core::String& Name) const
+			Database Connection::GetDatabase(const std::string_view& Name) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				return mongoc_client_get_database(Base, Name.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				return mongoc_client_get_database(Base, Name.data());
 #else
 				return nullptr;
 #endif
@@ -3145,11 +3152,13 @@ namespace Vitex
 				return nullptr;
 #endif
 			}
-			Collection Connection::GetCollection(const Core::String& DatabaseName, const Core::String& Name) const
+			Collection Connection::GetCollection(const std::string_view& DatabaseName, const std::string_view& Name) const
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
-				return mongoc_client_get_collection(Base, DatabaseName.c_str(), Name.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(DatabaseName), "db name should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				return mongoc_client_get_collection(Base, DatabaseName.data(), Name.data());
 #else
 				return nullptr;
 #endif
@@ -3257,11 +3266,12 @@ namespace Vitex
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));
 #endif
 			}
-			void Cluster::SetProfile(const Core::String& Name)
+			void Cluster::SetProfile(const std::string_view& Name)
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Pool != nullptr, "connection should be established");
-				mongoc_client_pool_set_appname(Pool, Name.c_str());
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				mongoc_client_pool_set_appname(Pool, Name.data());
 #endif
 			}
 			void Cluster::Push(Connection** Client)
@@ -3272,9 +3282,7 @@ namespace Vitex
 				(*Client)->Base = nullptr;
 				(*Client)->Connected = false;
 				(*Client)->Master = nullptr;
-
-				VI_RELEASE(*Client);
-				*Client = nullptr;
+				Core::Memory::Release(*Client);
 #endif
 			}
 			Connection* Cluster::Pop()
@@ -3303,7 +3311,7 @@ namespace Vitex
 				return SrcAddress;
 			}
 
-			bool Utils::GetId(unsigned char* Id12) noexcept
+			bool Utils::GetId(uint8_t* Id12) noexcept
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
@@ -3316,14 +3324,14 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Utils::GetDecimal(const char* Value, int64_t* High, int64_t* Low) noexcept
+			bool Utils::GetDecimal(const std::string_view& Value, int64_t* High, int64_t* Low) noexcept
 			{
-				VI_ASSERT(Value != nullptr, "value should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
 				VI_ASSERT(High != nullptr, "high should be set");
 				VI_ASSERT(Low != nullptr, "low should be set");
 #ifdef VI_MONGOC
 				bson_decimal128_t Decimal;
-				if (!bson_decimal128_from_string(Value, &Decimal))
+				if (!bson_decimal128_from_string(Value.data(), &Decimal))
 					return false;
 
 				*High = Decimal.high;
@@ -3333,7 +3341,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			unsigned int Utils::GetHashId(unsigned char* Id12) noexcept
+			uint32_t Utils::GetHashId(uint8_t* Id12) noexcept
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
@@ -3345,7 +3353,7 @@ namespace Vitex
 				return 0;
 #endif
 			}
-			int64_t Utils::GetTimeId(unsigned char* Id12) noexcept
+			int64_t Utils::GetTimeId(uint8_t* Id12) noexcept
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
@@ -3358,13 +3366,13 @@ namespace Vitex
 				return 0;
 #endif
 			}
-			Core::String Utils::IdToString(unsigned char* Id12) noexcept
+			Core::String Utils::IdToString(uint8_t* Id12) noexcept
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Id12 != nullptr, "id should be set");
 
 				bson_oid_t Id;
-				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
+				memcpy(Id.bytes, Id12, sizeof(uint8_t) * 12);
 
 				char Result[25];
 				bson_oid_to_string(&Id, Result);
@@ -3374,12 +3382,13 @@ namespace Vitex
 				return "";
 #endif
 			}
-			Core::String Utils::StringToId(const Core::String& Id24) noexcept
+			Core::String Utils::StringToId(const std::string_view& Id24) noexcept
 			{
 				VI_ASSERT(Id24.size() == 24, "id should be 24 chars long");
+				VI_ASSERT(Core::Stringify::IsCString(Id24), "id should be set");
 #ifdef VI_MONGOC
 				bson_oid_t Id;
-				bson_oid_init_from_string(&Id, Id24.c_str());
+				bson_oid_init_from_string(&Id, Id24.data());
 
 				return Core::String((const char*)Id.bytes, 12);
 #else
@@ -3539,25 +3548,20 @@ namespace Vitex
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
-			void Driver::AddConstant(const Core::String& Name, const Core::String& Value) noexcept
+			void Driver::AddConstant(const std::string_view& Name, const std::string_view& Value) noexcept
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Constants[Name] = Value;
+				Constants[Core::String(Name)] = Value;
 			}
-			ExpectsDB<void> Driver::AddQuery(const Core::String& Name, const Core::String& Data)
-			{
-				return AddQueryFromBuffer(Name, Data.c_str(), Data.size());
-			}
-			ExpectsDB<void> Driver::AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size)
+			ExpectsDB<void> Driver::AddQuery(const std::string_view& Name, const std::string_view& Buffer)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
-				VI_ASSERT(Buffer, "buffer should be set");
-				if (!Size)
-					return DatabaseException(0, "import empty query error: " + Name);
+				if (Buffer.empty())
+					return DatabaseException(0, "import empty query error: " + Core::String(Name));
 
 				Sequence Result;
-				Result.Request.assign(Buffer, Size);
+				Result.Request.assign(Buffer);
 
 				Core::String Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
 				Core::String Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
@@ -3581,7 +3585,7 @@ namespace Vitex
 
 						auto It = Constants.find(Item.first);
 						if (It == Constants.end())
-							return DatabaseException(0, "query expects " + Item.first + " constrant: " + Name);
+							return DatabaseException(0, "query expects " + Item.first + " constrant: " + Core::String(Name));
 
 						Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
 						size_t NewSize = It->second.size();
@@ -3603,7 +3607,7 @@ namespace Vitex
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const Core::String&, char Left, int)
+				Core::Stringify::ReplaceParts(Base, Variables, "", [&Erasable](const std::string_view&, char Left, int)
 				{
 					return Erasable.find(Left) == Core::String::npos ? ' ' : '\0';
 				});
@@ -3626,16 +3630,16 @@ namespace Vitex
 				}
 
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Queries[Name] = std::move(Result);
+				Queries[Core::String(Name)] = std::move(Result);
 				return Core::Expectation::Met;
 			}
-			ExpectsDB<void> Driver::AddDirectory(const Core::String& Directory, const Core::String& Origin)
+			ExpectsDB<void> Driver::AddDirectory(const std::string_view& Directory, const std::string_view& Origin)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				if (!Core::OS::Directory::Scan(Directory, &Entries))
-					return DatabaseException(0, "import directory scan error: " + Directory);
+				if (!Core::OS::Directory::Scan(Directory, Entries))
+					return DatabaseException(0, "import directory scan error: " + Core::String(Directory));
 
-				Core::String Path = Directory;
+				Core::String Path = Core::String(Directory);
 				if (Path.back() != '/' && Path.back() != '\\')
 					Path.append(1, '/');
 
@@ -3665,28 +3669,28 @@ namespace Vitex
 					if (Core::Stringify::StartsOf(Base, "\\/"))
 						Base.erase(0, 1);
 
-					auto Status = AddQueryFromBuffer(Base, (char*)*Buffer, Size);
-					VI_FREE(*Buffer);
+					auto Status = AddQuery(Base, std::string_view((char*)*Buffer, Size));
+					Core::Memory::Deallocate(*Buffer);
 					if (!Status)
 						return Status;
 				}
 
 				return Core::Expectation::Met;
 			}
-			bool Driver::RemoveConstant(const Core::String& Name) noexcept
+			bool Driver::RemoveConstant(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Constants.find(Name);
+				auto It = Constants.find(Core::HglCast(Name));
 				if (It == Constants.end())
 					return false;
 
 				Constants.erase(It);
 				return true;
 			}
-			bool Driver::RemoveQuery(const Core::String& Name) noexcept
+			bool Driver::RemoveQuery(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Name);
+				auto It = Queries.find(Core::HglCast(Name));
 				if (It == Queries.end())
 					return false;
 
@@ -3763,20 +3767,20 @@ namespace Vitex
 				VI_DEBUG("[mdb] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
 				return Result;
 			}
-			ExpectsDB<Document> Driver::GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			ExpectsDB<Document> Driver::GetQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Name);
+				auto It = Queries.find(Core::HglCast(Name));
 				if (It == Queries.end())
 				{
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
+							Core::Memory::Release(Item.second);
 						Map->clear();
 					}
 
-					return DatabaseException(0, "query not found: " + Name);
+					return DatabaseException(0, "query not found: " + Core::String(Name));
 				}
 
 				if (It->second.Cache.Get() != nullptr)
@@ -3785,7 +3789,7 @@ namespace Vitex
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
+							Core::Memory::Release(Item.second);
 						Map->clear();
 					}
 
@@ -3798,7 +3802,7 @@ namespace Vitex
 					if (Once && Map != nullptr)
 					{
 						for (auto& Item : *Map)
-							VI_RELEASE(Item.second);
+							Core::Memory::Release(Item.second);
 						Map->clear();
 					}
 
@@ -3814,7 +3818,7 @@ namespace Vitex
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
-						return DatabaseException(0, "query expects " + Word.Key + " constrant: " + Name);
+						return DatabaseException(0, "query expects " + Word.Key + " constrant: " + Core::String(Name));
 
 					Core::String Value = Utils::GetJSON(It->second, Word.Escape);
 					if (Value.empty())
@@ -3827,7 +3831,7 @@ namespace Vitex
 				if (Once)
 				{
 					for (auto& Item : *Map)
-						VI_RELEASE(Item.second);
+						Core::Memory::Release(Item.second);
 					Map->clear();
 				}
 
@@ -3835,7 +3839,7 @@ namespace Vitex
 				if (!Data)
 					return Data.Error();
 				else if (!Data->Get())
-					return DatabaseException(0, "query construction error: " + Name);
+					return DatabaseException(0, "query construction error: " + Core::String(Name));
 
 				return Data;
 			}

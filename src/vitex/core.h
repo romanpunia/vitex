@@ -1,30 +1,27 @@
 #ifndef VI_CORE_H
 #define VI_CORE_H
-#include "../config.hpp"
-#include <inttypes.h>
-#include <thread>
-#include <algorithm>
-#include <map>
-#include <unordered_map>
-#include <unordered_set>
-#include <mutex>
-#include <cstdarg>
-#include <cstring>
+#include "config.hpp"
+#include <atomic>
+#include <condition_variable>
 #include <functional>
-#include <vector>
+#include <inttypes.h>
+#include <limits>
+#include <map>
+#include <mutex>
 #include <queue>
 #include <string>
-#include <condition_variable>
-#include <atomic>
-#include <limits>
-#include <array>
-#include <list>
-#include <sstream>
-#ifdef VI_CXX17
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 #include <charconv>
-#endif
+#include <cstring>
+#include <list>
 #ifdef VI_CXX20
 #include <coroutine>
+#ifndef NDEBUG
+#include <source_location>
+#endif
 #endif
 
 namespace Vitex
@@ -313,15 +310,15 @@ namespace Vitex
 
 		struct Singletonish { };
 
-		struct VI_OUT MemoryContext
+		struct VI_OUT MemoryLocation
 		{
 			const char* Source;
 			const char* Function;
 			const char* TypeName;
 			int Line;
 
-			MemoryContext();
-			MemoryContext(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
+			MemoryLocation();
+			MemoryLocation(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
 		};
 
 		class VI_OUT_TS GlobalAllocator
@@ -329,11 +326,11 @@ namespace Vitex
 		public:
 			virtual ~GlobalAllocator() = default;
 			virtual Unique<void> Allocate(size_t Size) noexcept = 0;
-			virtual Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept = 0;
+			virtual Unique<void> Allocate(MemoryLocation&& Location, size_t Size) noexcept = 0;
 			virtual void Transfer(Unique<void> Address, size_t Size) noexcept = 0;
-			virtual void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept = 0;
+			virtual void Transfer(Unique<void> Address, MemoryLocation&& Location, size_t Size) noexcept = 0;
 			virtual void Free(Unique<void> Address) noexcept = 0;
-			virtual void Watch(MemoryContext&& Origin, void* Address) noexcept = 0;
+			virtual void Watch(MemoryLocation&& Location, void* Address) noexcept = 0;
 			virtual void Unwatch(void* Address) noexcept = 0;
 			virtual void Finalize() noexcept = 0;
 			virtual bool IsValid(void* Address) noexcept = 0;
@@ -355,7 +352,7 @@ namespace Vitex
 		private:
 			struct State
 			{
-				std::unordered_map<void*, std::pair<MemoryContext, size_t>> Allocations;
+				std::unordered_map<void*, std::pair<MemoryLocation, size_t>> Allocations;
 				std::mutex Mutex;
 			};
 
@@ -364,10 +361,10 @@ namespace Vitex
 			static State* Context;
 
 		public:
-			static Unique<void> Malloc(size_t Size) noexcept;
-			static Unique<void> MallocContext(size_t Size, MemoryContext&& Origin) noexcept;
-			static void Free(Unique<void> Address) noexcept;
-			static void Watch(void* Address, MemoryContext&& Origin) noexcept;
+			static Unique<void> DefaultAllocate(size_t Size) noexcept;
+			static Unique<void> TracingAllocate(size_t Size, MemoryLocation&& Location) noexcept;
+			static void DefaultDeallocate(Unique<void> Address) noexcept;
+			static void Watch(void* Address, MemoryLocation&& Location) noexcept;
 			static void Unwatch(void* Address) noexcept;
 			static void Cleanup() noexcept;
 			static void SetGlobalAllocator(GlobalAllocator* NewAllocator) noexcept;
@@ -375,6 +372,130 @@ namespace Vitex
 			static bool IsValidAddress(void* Address) noexcept;
 			static GlobalAllocator* GetGlobalAllocator() noexcept;
 			static LocalAllocator* GetLocalAllocator() noexcept;
+
+		public:
+			template <typename T>
+			static void Delete(T*& Value)
+			{
+				if (Value != nullptr)
+				{
+					Value->~T();
+					DefaultDeallocate(static_cast<void*>(Value));
+					Value = nullptr;
+				}
+			}
+			template <typename T>
+			static void Delete(T* const& Value)
+			{
+				if (Value != nullptr)
+				{
+					Value->~T();
+					DefaultDeallocate(static_cast<void*>(Value));
+				}
+			}
+			template <typename T>
+			static void Deallocate(T*& Value)
+			{
+				if (Value != nullptr)
+				{
+					DefaultDeallocate(static_cast<void*>(Value));
+					Value = nullptr;
+				}
+			}
+			template <typename T>
+			static void Deallocate(T* const& Value)
+			{
+				DefaultDeallocate(static_cast<void*>(Value));
+			}
+			template <typename T>
+			static void Release(T*& Value)
+			{
+				if (Value != nullptr)
+				{
+					Value->Release();
+					Value = nullptr;
+				}
+			}
+			template <typename T>
+			static void Release(T* const& Value)
+			{
+				if (Value != nullptr)
+					Value->Release();
+			}
+
+		public:
+#ifndef NDEBUG
+#ifdef VI_CXX20
+			template <typename T>
+			static T* Allocate(size_t Size, const std::source_location& Location = std::source_location::current())
+			{
+				return static_cast<T*>(TracingAllocate(Size, MemoryLocation(Location.file_name(), Location.function_name(), typeid(T).name(), Location.line())));
+			}
+			template <typename T>
+			static T* New(const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T();
+			}
+			template <typename T, typename P1>
+			static T* New(P1&& Ph1, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1));
+			}
+			template <typename T, typename P1, typename P2>
+			static T* New(P1&& Ph1, P2&& Ph2, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2));
+			}
+			template <typename T, typename P1, typename P2, typename P3>
+			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3));
+			}
+			template <typename T, typename P1, typename P2, typename P3, typename P4>
+			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4));
+			}
+			template <typename T, typename P1, typename P2, typename P3, typename P4, typename P5>
+			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, P5&& Ph5, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4), std::forward<P5>(Ph5));
+			}
+			template <typename T, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, P5&& Ph5, P6&& Ph6, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4), std::forward<P5>(Ph5), std::forward<P6>(Ph6));
+			}
+			template <typename T, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7>
+			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, P5&& Ph5, P6&& Ph6, P7&& Ph7, const std::source_location& Location = std::source_location::current())
+			{
+				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4), std::forward<P5>(Ph5), std::forward<P6>(Ph6), std::forward<P7>(Ph7));
+			}
+#else
+			template <typename T>
+			static T* Allocate(size_t Size)
+			{
+				return static_cast<T*>(TracingAllocate(Size, MemoryLocation(__FILE__, __func__, typeid(T).name(), __LINE__)));
+			}
+			template <typename T, typename... Args>
+			static T* New(Args&&... Values)
+			{
+				void* Address = static_cast<T*>(TracingAllocate(sizeof(T), MemoryLocation(__FILE__, __func__, typeid(T).name(), __LINE__)));
+				return new(Address) T(std::forward<Args>(Values)...);
+			}
+#endif
+#else
+			template <typename T>
+			static T* Allocate(size_t Size)
+			{
+				return static_cast<T*>(DefaultAllocate(Size));
+			}
+			template <typename T, typename... Args>
+			static T* New(Args&&... Values)
+			{
+				return new(Allocate<T>(sizeof(T))) T(std::forward<Args>(Values)...);
+			}
+#endif
 		};
 
 		template <typename T>
@@ -396,27 +517,19 @@ namespace Vitex
 			StandardAllocator(const StandardAllocator&) = default;
 			value_type* allocate(size_t Count)
 			{
-				return VI_MALLOC(T, Count * sizeof(T));
+				return Memory::Allocate<T>(Count * sizeof(T));
 			}
 			value_type* allocate(size_t Count, const void*)
 			{
-				return VI_MALLOC(T, Count * sizeof(T));
+				return Memory::Allocate<T>(Count * sizeof(T));
 			}
 			void deallocate(value_type* Address, size_t Count)
 			{
-				VI_FREE((void*)Address);
+				Memory::Deallocate<value_type>(Address);
 			}
 			size_t max_size() const
 			{
 				return std::numeric_limits<size_t>::max() / sizeof(T);
-			}
-			bool operator== (const StandardAllocator&)
-			{
-				return true;
-			}
-			bool operator!=(const StandardAllocator&)
-			{
-				return false;
 			}
 
 		public:
@@ -425,6 +538,12 @@ namespace Vitex
 			{
 			}
 		};
+
+		template <class A, class B>
+		bool operator== (const StandardAllocator<A>&, const StandardAllocator<B>&) noexcept
+		{
+			return true;
+		}
 
 		template <typename T>
 		struct AllocationType
@@ -439,15 +558,14 @@ namespace Vitex
 		template <typename T, T OffsetBasis, T Prime>
 		struct FNV1AHash
 		{
-			static_assert(std::is_unsigned<T>::value, "Q needs to be unsigned integer");
+			static_assert(std::is_unsigned<T>::value, "Q needs to be uint32_teger");
 
 			inline T operator()(const void* Address, size_t Size) const noexcept
 			{
-				const auto Data = static_cast<const unsigned char*>(Address);
+				const auto Data = static_cast<const uint8_t*>(Address);
 				auto State = OffsetBasis;
 				for (size_t i = 0; i < Size; ++i)
 					State = (State ^ (size_t)Data[i]) * Prime;
-
 				return State;
 			}
 		};
@@ -456,16 +574,10 @@ namespace Vitex
 		struct FNV1ABits;
 
 		template <>
-		struct FNV1ABits<32>
-		{
-			using type = FNV1AHash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>;
-		};
+		struct FNV1ABits<32> { using type = FNV1AHash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>; };
 
 		template <>
-		struct FNV1ABits<64>
-		{
-			using type = FNV1AHash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>;
-		};
+		struct FNV1ABits<64> { using type = FNV1AHash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>; };
 
 		template <size_t Bits>
 		using FNV1A = typename FNV1ABits<Bits>::type;
@@ -512,24 +624,22 @@ namespace Vitex
 			{
 				return Left == Right;
 			}
-			inline result_type operator()(const char* Left, const String& Right) const noexcept
-			{
-				return Right.compare(Left) == 0;
-			}
 			inline result_type operator()(const String& Left, const char* Right) const noexcept
 			{
 				return Left.compare(Right) == 0;
-			}
-#ifdef VI_CXX17
-			inline result_type operator()(const std::string_view& Left, const String& Right) const noexcept
-			{
-				return Left == Right;
 			}
 			inline result_type operator()(const String& Left, const std::string_view& Right) const noexcept
 			{
 				return Left == Right;
 			}
-#endif
+			inline result_type operator()(const char* Left, const String& Right) const noexcept
+			{
+				return Right.compare(Left) == 0;
+			}
+			inline result_type operator()(const std::string_view& Left, const String& Right) const noexcept
+			{
+				return Left == Right;
+			}
 		};
 
 		template <>
@@ -543,16 +653,14 @@ namespace Vitex
 			{
 				return FNV1A<8 * sizeof(size_t)>()(Value, strlen(Value));
 			}
-			inline result_type operator()(const String& Value) const noexcept
-			{
-				return FNV1A<8 * sizeof(size_t)>()(Value.c_str(), Value.size());
-			}
-#ifdef VI_CXX17
 			inline result_type operator()(const std::string_view& Value) const noexcept
 			{
 				return FNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
 			}
-#endif
+			inline result_type operator()(const String& Value) const noexcept
+			{
+				return FNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
+			}
 		};
 
 		template <>
@@ -564,6 +672,10 @@ namespace Vitex
 			inline result_type operator()(const WideString& Value) const noexcept
 			{
 				return FNV1A<8 * sizeof(std::size_t)>()(Value.c_str(), Value.size());
+			}
+			inline result_type operator()(const std::wstring_view& Value) const noexcept
+			{
+				return FNV1A<8 * sizeof(std::size_t)>()(Value.data(), Value.size());
 			}
 		};
 
@@ -579,6 +691,9 @@ namespace Vitex
 		template <typename T>
 		using DoubleQueue = std::deque<T, typename AllocationType<T>::type>;
 
+		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
+		using OrderedMap = std::map<K, V, Comparator, typename AllocationType<typename std::map<K, V>::value_type>::type>;
+
 		template <typename K, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
 		using UnorderedSet = std::unordered_set<K, Hash, KeyEqual, typename AllocationType<typename std::unordered_set<K>::value_type>::type>;
 
@@ -588,14 +703,11 @@ namespace Vitex
 		template <typename K, typename V, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
 		using UnorderedMultiMap = std::unordered_multimap<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_multimap<K, V>::value_type>::type>;
 
-		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
-		using OrderedMap = std::map<K, V, Comparator, typename AllocationType<typename std::map<K, V>::value_type>::type>;
-
 		typedef std::function<void()> TaskCallback;
-		typedef std::function<bool(const char*, size_t)> ProcessCallback;
-		typedef std::function<String(const String&)> SchemaNameCallback;
-		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
-		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
+		typedef std::function<bool(const std::string_view&)> ProcessCallback;
+		typedef std::function<String(const std::string_view&)> SchemaNameCallback;
+		typedef std::function<void(VarForm, const std::string_view&)> SchemaWriteCallback;
+		typedef std::function<bool(uint8_t*, size_t)> SchemaReadCallback;
 		typedef std::function<bool()> ActivityCallback;
 		typedef std::function<void(TaskCallback&&)> SpawnerCallback;
 		typedef void(*SignalCallback)(int);
@@ -605,41 +717,41 @@ namespace Vitex
 			class VI_OUT_TS DebugAllocator final : public GlobalAllocator
 			{
 			public:
-				struct VI_OUT_TS TracingBlock
+				struct VI_OUT_TS TracingInfo
 				{
 					std::thread::id Thread;
 					std::string TypeName;
-					MemoryContext Origin;
+					MemoryLocation Location;
 					time_t Time;
 					size_t Size;
 					bool Active;
 					bool Static;
 
-					TracingBlock();
-					TracingBlock(const char* NewTypeName, MemoryContext&& NewOrigin, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic);
+					TracingInfo();
+					TracingInfo(const char* NewTypeName, MemoryLocation&& NewLocation, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic);
 				};
 
 			private:
-				std::unordered_map<void*, TracingBlock> Blocks;
-				std::unordered_map<void*, TracingBlock> Watchers;
+				std::unordered_map<void*, TracingInfo> Blocks;
+				std::unordered_map<void*, TracingInfo> Watchers;
 				std::recursive_mutex Mutex;
 
 			public:
 				~DebugAllocator() override = default;
 				Unique<void> Allocate(size_t Size) noexcept override;
-				Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+				Unique<void> Allocate(MemoryLocation&& Origin, size_t Size) noexcept override;
 				void Free(Unique<void> Address) noexcept override;
 				void Transfer(Unique<void> Address, size_t Size) noexcept override;
-				void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
-				void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+				void Transfer(Unique<void> Address, MemoryLocation&& Origin, size_t Size) noexcept override;
+				void Watch(MemoryLocation&& Origin, void* Address) noexcept override;
 				void Unwatch(void* Address) noexcept override;
 				void Finalize() noexcept override;
 				bool IsValid(void* Address) noexcept override;
 				bool IsFinalizable() noexcept override;
 				bool Dump(void* Address);
-				bool FindBlock(void* Address, TracingBlock* Output);
-				const std::unordered_map<void*, TracingBlock>& GetBlocks() const;
-				const std::unordered_map<void*, TracingBlock>& GetWatchers() const;
+				bool FindBlock(void* Address, TracingInfo* Output);
+				const std::unordered_map<void*, TracingInfo>& GetBlocks() const;
+				const std::unordered_map<void*, TracingInfo>& GetWatchers() const;
 			};
 
 			class VI_OUT_TS DefaultAllocator final : public GlobalAllocator
@@ -647,11 +759,11 @@ namespace Vitex
 			public:
 				~DefaultAllocator() override = default;
 				Unique<void> Allocate(size_t Size) noexcept override;
-				Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+				Unique<void> Allocate(MemoryLocation&& Origin, size_t Size) noexcept override;
 				void Free(Unique<void> Address) noexcept override;
 				void Transfer(Unique<void> Address, size_t Size) noexcept override;
-				void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
-				void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+				void Transfer(Unique<void> Address, MemoryLocation&& Origin, size_t Size) noexcept override;
+				void Watch(MemoryLocation&& Origin, void* Address) noexcept override;
 				void Unwatch(void* Address) noexcept override;
 				void Finalize() noexcept override;
 				bool IsValid(void* Address) noexcept override;
@@ -697,11 +809,11 @@ namespace Vitex
 				CachedAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
 				~CachedAllocator() noexcept override;
 				Unique<void> Allocate(size_t Size) noexcept override;
-				Unique<void> Allocate(MemoryContext&& Origin, size_t Size) noexcept override;
+				Unique<void> Allocate(MemoryLocation&& Origin, size_t Size) noexcept override;
 				void Free(Unique<void> Address) noexcept override;
 				void Transfer(Unique<void> Address, size_t Size) noexcept override;
-				void Transfer(Unique<void> Address, MemoryContext&& Origin, size_t Size) noexcept override;
-				void Watch(MemoryContext&& Origin, void* Address) noexcept override;
+				void Transfer(Unique<void> Address, MemoryLocation&& Origin, size_t Size) noexcept override;
+				void Watch(MemoryLocation&& Origin, void* Address) noexcept override;
 				void Unwatch(void* Address) noexcept override;
 				void Finalize() noexcept override;
 				bool IsValid(void* Address) noexcept override;
@@ -870,7 +982,7 @@ namespace Vitex
 			static String GetMeasureTrace() noexcept;
 			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS) noexcept;
 			static void MeasureLoop() noexcept;
-			static const char* GetMessageType(const Details& Base) noexcept;
+			static std::string_view GetMessageType(const Details& Base) noexcept;
 			static StdColor GetMessageColor(const Details& Base) noexcept;
 			static String GetMessageText(const Details& Base) noexcept;
 
@@ -943,6 +1055,11 @@ namespace Vitex
 				return IsError ? ((Q*)Src)->message() : std::string("accessing a none value");
 			}
 			template <typename Q>
+			static typename std::enable_if<std::is_same<std::string_view, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
+			{
+				return String(IsError ? *(Q*)Src : Q("accessing a none value"));
+			}
+			template <typename Q>
 			static typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
 			{
 				return IsError ? *(Q*)Src : Q("accessing a none value");
@@ -968,7 +1085,7 @@ namespace Vitex
 
 		public:
 			BasicException() = default;
-			VI_OUT BasicException(const String& NewMessage) noexcept;
+			VI_OUT BasicException(const std::string_view& NewMessage) noexcept;
 			VI_OUT BasicException(String&& NewMessage) noexcept;
 			BasicException(const BasicException&) = default;
 			BasicException(BasicException&&) = default;
@@ -992,7 +1109,7 @@ namespace Vitex
 		public:
 			VI_OUT ParserException(ParserError NewType);
 			VI_OUT ParserException(ParserError NewType, size_t NewOffset);
-			VI_OUT ParserException(ParserError NewType, size_t NewOffset, const String& NewMessage);
+			VI_OUT ParserException(ParserError NewType, size_t NewOffset, const std::string_view& NewMessage);
 			VI_OUT const char* type() const noexcept override;
 			VI_OUT ParserError status() const noexcept;
 			VI_OUT size_t offset() const noexcept;
@@ -1005,8 +1122,8 @@ namespace Vitex
 
 		public:
 			VI_OUT SystemException();
-			VI_OUT SystemException(const String& Message);
-			VI_OUT SystemException(const String& Message, std::error_condition&& Condition);
+			VI_OUT SystemException(const std::string_view& Message);
+			VI_OUT SystemException(const std::string_view& Message, std::error_condition&& Condition);
 			virtual VI_OUT const char* type() const noexcept override;
 			virtual VI_OUT const std::error_condition& error() const& noexcept;
 			virtual VI_OUT const std::error_condition&& error() const&& noexcept;
@@ -1143,31 +1260,27 @@ namespace Vitex
 
 				return *this;
 			}
-			const V& Expect(const char* Message) const&
+			const V& Expect(const std::string_view& Message) const&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
 				const V& Reference = *(V*)Value;
 				return Reference;
 			}
-			const V&& Expect(const char* Message) const&&
+			const V&& Expect(const std::string_view& Message) const&&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
-			V& Expect(const char* Message)&
+			V& Expect(const std::string_view& Message)&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value;
 				return Reference;
 			}
-			V&& Expect(const char* Message)&&
+			V&& Expect(const std::string_view& Message)&&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
@@ -1306,10 +1419,9 @@ namespace Vitex
 			}
 			Option& operator= (const Option&) = default;
 			Option& operator= (Option&&) = default;
-			void Expect(const char* Message) const
+			void Expect(const std::string_view& Message) const
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", Message);
+				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
 			}
 			void Unwrap() const
 			{
@@ -1449,31 +1561,27 @@ namespace Vitex
 
 				return *this;
 			}
-			const V& Expect(const char* Message) const&
+			const V& Expect(const std::string_view& Message) const&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
-			const V&& Expect(const char* Message) const&&
+			const V&& Expect(const std::string_view& Message) const&&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
-			V& Expect(const char* Message)&
+			V& Expect(const std::string_view& Message)&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
-			V&& Expect(const char* Message)&&
+			V&& Expect(const std::string_view& Message)&&
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
@@ -1563,11 +1671,10 @@ namespace Vitex
 				auto Reason = OptionUtils::ToErrorText<E>(Value.Buffer, IsError());
 				return String(Reason.begin(), Reason.end());
 			}
-			void Report(const char* Message) const
+			void Report(const std::string_view& Message) const
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s causing %s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), Message);
+					VI_ERR("%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 			}
 			void Reset()
 			{
@@ -1715,10 +1822,9 @@ namespace Vitex
 
 				return *this;
 			}
-			void Expect(const char* Message) const
+			void Expect(const std::string_view& Message) const
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(IsValue(), "%s causing %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), Message);
+				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
 			}
 			void Unwrap() const
 			{
@@ -1754,11 +1860,10 @@ namespace Vitex
 				auto Reason = OptionUtils::ToErrorText<E>(Value, IsError());
 				return String(Reason.begin(), Reason.end());
 			}
-			void Report(const char* Message) const
+			void Report(const std::string_view& Message) const
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "report case message should be set");
 				if (IsError())
-					VI_ERR("%s causing %s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), Message);
+					VI_ERR("%s causing %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
 			}
 			void Reset()
 			{
@@ -1810,7 +1915,7 @@ namespace Vitex
 			TaskCallback Return;
 			void* UserData;
 
-		private:
+		public:
 			Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept;
 			Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept;
 			~Coroutine() noexcept;
@@ -1825,7 +1930,7 @@ namespace Vitex
 
 		public:
 			Decimal() noexcept;
-			Decimal(const String& Value) noexcept;
+			Decimal(const std::string_view& Value) noexcept;
 			Decimal(const Decimal& Value) noexcept;
 			Decimal(Decimal&& Value) noexcept;
 			Decimal& Truncate(uint32_t Value);
@@ -1892,7 +1997,7 @@ namespace Vitex
 			}
 
 		private:
-			void InitializeFromText(const char* Text, size_t Size) noexcept;
+			void InitializeFromText(const std::string_view& Text) noexcept;
 			void InitializeFromZero() noexcept;
 
 		public:
@@ -1900,10 +2005,7 @@ namespace Vitex
 			Decimal(const T& Right) noexcept : Decimal()
 			{
 				if (Right != T(0))
-				{
-					std::string Text = std::to_string(Right);
-					InitializeFromText(Text.c_str(), Text.size());
-				}
+					InitializeFromText(std::to_string(Right));
 				else
 					InitializeFromZero();
 			}
@@ -1924,7 +2026,7 @@ namespace Vitex
 			static Decimal Subtract(const Decimal& Left, const Decimal& Right);
 			static Decimal Multiply(const Decimal& Left, const Decimal& Right);
 			static int CompareNum(const Decimal& Left, const Decimal& Right);
-			static int CharToInt(const char& Value);
+			static int CharToInt(char Value);
 			static char IntToChar(const int& Value);
 		};
 
@@ -1952,14 +2054,14 @@ namespace Vitex
 			Variant(const Variant& Other) noexcept;
 			Variant(Variant&& Other) noexcept;
 			~Variant() noexcept;
-			bool Deserialize(const String& Value, bool Strict = false);
+			bool Deserialize(const std::string_view& Value, bool Strict = false);
 			String Serialize() const;
 			String GetBlob() const;
 			Decimal GetDecimal() const;
 			void* GetPointer() const;
 			void* GetContainer();
-			const char* GetString() const;
-			unsigned char* GetBinary() const;
+			std::string_view GetString() const;
+			uint8_t* GetBinary() const;
 			int64_t GetInteger() const;
 			double GetNumber() const;
 			bool GetBoolean() const;
@@ -1970,7 +2072,7 @@ namespace Vitex
 			bool operator== (const Variant& Other) const;
 			bool operator!= (const Variant& Other) const;
 			explicit operator bool() const;
-			bool IsString(const char* Value) const;
+			bool IsString(const std::string_view& Value) const;
 			bool IsObject() const;
 			bool Empty() const;
 			bool Is(VarType Value) const;
@@ -2057,8 +2159,8 @@ namespace Vitex
 			bool operator >(const DateTime& Right);
 			bool operator <(const DateTime& Right);
 			bool operator ==(const DateTime& Right);
-			String Format(const String& Value);
-			String Date(const String& Value);
+			String Format(const char* Format);
+			String Date(const char* Format);
 			String Iso8601();
 			DateTime Now();
 			DateTime FromNanoseconds(uint64_t Value);
@@ -2120,21 +2222,19 @@ namespace Vitex
 			static String& ToUpper(String& Other);
 			static String& ToLower(String& Other);
 			static String& Clip(String& Other, size_t Length);
-			static String& Compress(String& Other, const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
-			static String& ReplaceOf(String& Other, const char* Chars, const char* To, size_t Start = 0U);
-			static String& ReplaceNotOf(String& Other, const char* Chars, const char* To, size_t Start = 0U);
-			static String& ReplaceGroups(String& Other, const String& FromRegex, const String& To);
-			static String& Replace(String& Other, const String& From, const String& To, size_t Start = 0U);
-			static String& Replace(String& Other, const char* From, const char* To, size_t Start = 0U);
-			static String& Replace(String& Other, const char& From, const char& To, size_t Position = 0U);
-			static String& Replace(String& Other, const char& From, const char& To, size_t Position, size_t Count);
-			static String& ReplacePart(String& Other, size_t Start, size_t End, const String& Value);
-			static String& ReplacePart(String& Other, size_t Start, size_t End, const char* Value);
-			static String& ReplaceStartsWithEndsOf(String& Other, const char* Begins, const char* EndsOf, const String& With, size_t Start = 0U);
-			static String& ReplaceInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start = 0U);
-			static String& ReplaceNotInBetween(String& Other, const char* Begins, const char* Ends, const String& With, bool Recursive, size_t Start = 0U);
-			static String& ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const String& With, const std::function<char(const String&, char, int)>& Surrounding = nullptr);
-			static String& ReplaceParts(String& Other, Vector<TextSettle>& Inout, const String& With, const std::function<char(char, int)>& Surrounding = nullptr);
+			static String& Compress(String& Other, const std::string_view& SpaceIfNotFollowedOrPrecededByOf, const std::string_view& NotInBetweenOf, size_t Start = 0U);
+			static String& ReplaceOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start = 0U);
+			static String& ReplaceNotOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start = 0U);
+			static String& ReplaceGroups(String& Other, const std::string_view& FromRegex, const std::string_view& To);
+			static String& Replace(String& Other, const std::string_view& From, const std::string_view& To, size_t Start = 0U);
+			static String& Replace(String& Other, char From, char To, size_t Position = 0U);
+			static String& Replace(String& Other, char From, char To, size_t Position, size_t Count);
+			static String& ReplacePart(String& Other, size_t Start, size_t End, const std::string_view& Value);
+			static String& ReplaceStartsWithEndsOf(String& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& With, size_t Start = 0U);
+			static String& ReplaceInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start = 0U);
+			static String& ReplaceNotInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start = 0U);
+			static String& ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const std::string_view& With, const std::function<char(const std::string_view&, char, int)>& Surrounding = nullptr);
+			static String& ReplaceParts(String& Other, Vector<TextSettle>& Inout, const std::string_view& With, const std::function<char(char, int)>& Surrounding = nullptr);
 			static String& RemovePart(String& Other, size_t Start, size_t End);
 			static String& Reverse(String& Other);
 			static String& Reverse(String& Other, size_t Start, size_t End);
@@ -2143,68 +2243,73 @@ namespace Vitex
 			static String& Trim(String& Other);
 			static String& TrimStart(String& Other);
 			static String& TrimEnd(String& Other);
-			static String& Fill(String& Other, const char& Char);
-			static String& Fill(String& Other, const char& Char, size_t Count);
-			static String& Fill(String& Other, const char& Char, size_t Start, size_t Count);
+			static String& Fill(String& Other, char Char);
+			static String& Fill(String& Other, char Char, size_t Count);
+			static String& Fill(String& Other, char Char, size_t Start, size_t Count);
 			static String& Append(String& Other, const char* Format, ...);
 			static String& Erase(String& Other, size_t Position);
 			static String& Erase(String& Other, size_t Position, size_t Count);
 			static String& EraseOffsets(String& Other, size_t Start, size_t End);
-			static ExpectsSystem<void> EvalEnvs(String& Other, const String& Net, const String& Dir);
-			static Vector<std::pair<String, TextSettle>> FindInBetween(const String& Other, const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U);
-			static Vector<std::pair<String, TextSettle>> FindInBetweenInCode(const String& Other, const char* Begins, const char* Ends, size_t Offset = 0U);
-			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const String& Other, const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U);
-			static TextSettle ReverseFind(const String& Other, const String& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFind(const String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle ReverseFind(const String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindUnescaped(const String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindOf(const String& Other, const String& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindOf(const String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle Find(const String& Other, const String& Needle, size_t Offset = 0U);
-			static TextSettle Find(const String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle Find(const String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle FindUnescaped(const String& Other, const char& Needle, size_t Offset = 0U);
-			static TextSettle FindOf(const String& Other, const String& Needle, size_t Offset = 0U);
-			static TextSettle FindOf(const String& Other, const char* Needle, size_t Offset = 0U);
-			static TextSettle FindNotOf(const String& Other, const String& Needle, size_t Offset = 0U);
-			static TextSettle FindNotOf(const String& Other, const char* Needle, size_t Offset = 0U);
-			static size_t CountLines(const String& Other);
-			static bool IsNotPrecededByEscape(const char* Buffer, size_t Offset, char Escape = '\\');
-			static bool IsNotPrecededByEscape(const String& Other, size_t Offset, char Escape = '\\');
-			static bool IsEmptyOrWhitespace(const String& Other);
-			static bool IsPrecededBy(const String& Other, size_t At, const char* Of);
-			static bool IsFollowedBy(const String& Other, size_t At, const char* Of);
-			static bool StartsWith(const String& Other, const String& Value, size_t Offset = 0U);
-			static bool StartsWith(const String& Other, const char* Value, size_t Offset = 0U);
-			static bool StartsOf(const String& Other, const char* Value, size_t Offset = 0U);
-			static bool StartsNotOf(const String& Other, const char* Value, size_t Offset = 0U);
-			static bool EndsWith(const String& Other, const String& Value);
-			static bool EndsOf(const String& Other, const char* Value);
-			static bool EndsNotOf(const String& Other, const char* Value);
-			static bool EndsWith(const String& Other, const char* Value);
-			static bool EndsWith(const String& Other, const char& Value);
-			static bool HasInteger(const String& Other);
-			static bool HasNumber(const String& Other);
-			static bool HasDecimal(const String& Other);
+			static ExpectsSystem<void> EvalEnvs(String& Other, const std::string_view& Net, const std::string_view& Dir);
+			static Vector<std::pair<String, TextSettle>> FindInBetween(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
+			static Vector<std::pair<String, TextSettle>> FindInBetweenInCode(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset = 0U);
+			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
+			static void PmFindInBetween(Vector<std::pair<String, TextSettle>>& Data, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
+			static void PmFindInBetweenInCode(Vector<std::pair<String, TextSettle>>& Data, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset = 0U);
+			static void PmFindStartsWithEndsOf(Vector<std::pair<String, TextSettle>>& Data, const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
+			static TextSettle ReverseFind(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
+			static TextSettle ReverseFind(const std::string_view& Other, char Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindUnescaped(const std::string_view& Other, char Needle, size_t Offset = 0U);
+			static TextSettle ReverseFindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
+			static TextSettle Find(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
+			static TextSettle Find(const std::string_view& Other, char Needle, size_t Offset = 0U);
+			static TextSettle FindUnescaped(const std::string_view& Other, char Needle, size_t Offset = 0U);
+			static TextSettle FindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
+			static TextSettle FindNotOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
+			static size_t CountLines(const std::string_view& Other);
+			static bool IsCString(const std::string_view& Other);
+			static bool IsNotPrecededByEscape(const std::string_view& Other, size_t Offset, char Escape = '\\');
+			static bool IsEmptyOrWhitespace(const std::string_view& Other);
+			static bool IsPrecededBy(const std::string_view& Other, size_t At, const std::string_view& Of);
+			static bool IsFollowedBy(const std::string_view& Other, size_t At, const std::string_view& Of);
+			static bool StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset = 0U);
+			static bool StartsOf(const std::string_view& Other, const std::string_view& Value, size_t Offset = 0U);
+			static bool StartsNotOf(const std::string_view& Other, const std::string_view& Value, size_t Offset = 0U);
+			static bool EndsWith(const std::string_view& Other, const std::string_view& Value);
+			static bool EndsWith(const std::string_view& Other, char Value);
+			static bool EndsOf(const std::string_view& Other, const std::string_view& Value);
+			static bool EndsNotOf(const std::string_view& Other, const std::string_view& Value);
+			static bool HasInteger(const std::string_view& Other);
+			static bool HasNumber(const std::string_view& Other);
+			static bool HasDecimal(const std::string_view& Other);
 			static String Text(const char* Format, ...);
-			static WideString ToWide(const String& Other);
-			static Vector<String> Split(const String& Other, const String& With, size_t Start = 0U);
-			static Vector<String> Split(const String& Other, char With, size_t Start = 0U);
-			static Vector<String> SplitMax(const String& Other, char With, size_t MaxCount, size_t Start = 0U);
-			static Vector<String> SplitOf(const String& Other, const char* With, size_t Start = 0U);
-			static Vector<String> SplitNotOf(const String& Other, const char* With, size_t Start = 0U);
-			static bool IsDigit(char Char);
-			static bool IsDigitOrDot(char Char);
-			static bool IsDigitOrDotOrWhitespace(char Char);
+			static WideString ToWide(const std::string_view& Other);
+			static Vector<String> Split(const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
+			static Vector<String> Split(const std::string_view& Other, char With, size_t Start = 0U);
+			static Vector<String> SplitMax(const std::string_view& Other, char With, size_t MaxCount, size_t Start = 0U);
+			static Vector<String> SplitOf(const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
+			static Vector<String> SplitNotOf(const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
+			static void PmSplit(Vector<String>& Data, const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
+			static void PmSplit(Vector<String>& Data, const std::string_view& Other, char With, size_t Start = 0U);
+			static void PmSplitMax(Vector<String>& Data, const std::string_view& Other, char With, size_t MaxCount, size_t Start = 0U);
+			static void PmSplitOf(Vector<String>& Data, const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
+			static void PmSplitNotOf(Vector<String>& Data, const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
+			static bool IsNumericOrDot(char Char);
+			static bool IsNumericOrDotOrWhitespace(char Char);
 			static bool IsHex(char Char);
 			static bool IsHexOrDot(char Char);
 			static bool IsHexOrDotOrWhitespace(char Char);
 			static bool IsAlphabetic(char Char);
-			static int Literal(char Char);
-			static int CaseCompare(const char* Value1, const char* Value2);
-			static int Match(const char* Pattern, const char* Text);
-			static int Match(const char* Pattern, size_t Length, const char* Text);
-			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
+			static bool IsNumeric(char Char);
+			static bool IsAlphanum(char Char);
+			static bool IsWhitespace(char Char);
+			static char ToLowerLiteral(char Char);
+			static char ToUpperLiteral(char Char);
+			static bool CaseEquals(const std::string_view& Value1, const std::string_view& Value2);
+			static int CaseCompare(const std::string_view& Value1, const std::string_view& Value2);
+			static int Match(const char* Pattern, const std::string_view& Text);
+			static int Match(const char* Pattern, size_t Length, const std::string_view& Text);
+			static void ConvertToWide(const std::string_view& Input, wchar_t* Output, size_t OutputSize);
 		};
 
 		struct VI_OUT ConcurrentTimeoutQueue
@@ -2224,15 +2329,15 @@ namespace Vitex
 
 		public:
 			InlineArgs() noexcept;
-			bool IsEnabled(const String& Option, const String& Shortcut = "") const;
-			bool IsDisabled(const String& Option, const String& Shortcut = "") const;
-			bool Has(const String& Option, const String& Shortcut = "") const;
-			String& Get(const String& Option, const String& Shortcut = "");
-			String& GetIf(const String& Option, const String& Shortcut, const String& WhenEmpty);
+			bool IsEnabled(const std::string_view& Option, const std::string_view& Shortcut = "") const;
+			bool IsDisabled(const std::string_view& Option, const std::string_view& Shortcut = "") const;
+			bool Has(const std::string_view& Option, const std::string_view& Shortcut = "") const;
+			String& Get(const std::string_view& Option, const std::string_view& Shortcut = "");
+			String& GetIf(const std::string_view& Option, const std::string_view& Shortcut, const std::string_view& WhenEmpty);
 
 		private:
-			bool IsTrue(const String& Value) const;
-			bool IsFalse(const String& Value) const;
+			bool IsTrue(const std::string_view& Value) const;
+			bool IsFalse(const std::string_view& Value) const;
 		};
 
 		class VI_OUT_TS Var
@@ -2243,42 +2348,38 @@ namespace Vitex
 			public:
 				static Unique<Schema> Auto(Variant&& Value);
 				static Unique<Schema> Auto(const Variant& Value);
-				static Unique<Schema> Auto(const Core::String& Value, bool Strict = false);
+				static Unique<Schema> Auto(const std::string_view& Value, bool Strict = false);
 				static Unique<Schema> Null();
 				static Unique<Schema> Undefined();
 				static Unique<Schema> Object();
 				static Unique<Schema> Array();
 				static Unique<Schema> Pointer(void* Value);
-				static Unique<Schema> String(const Core::String& Value);
-				static Unique<Schema> String(const char* Value, size_t Size);
-				static Unique<Schema> Binary(const Core::String& Value);
-				static Unique<Schema> Binary(const unsigned char* Value, size_t Size);
-				static Unique<Schema> Binary(const char* Value, size_t Size);
+				static Unique<Schema> String(const std::string_view& Value);
+				static Unique<Schema> Binary(const std::string_view& Value);
+				static Unique<Schema> Binary(const uint8_t* Value, size_t Size);
 				static Unique<Schema> Integer(int64_t Value);
 				static Unique<Schema> Number(double Value);
 				static Unique<Schema> Decimal(const Core::Decimal& Value);
 				static Unique<Schema> Decimal(Core::Decimal&& Value);
-				static Unique<Schema> DecimalString(const Core::String& Value);
+				static Unique<Schema> DecimalString(const std::string_view& Value);
 				static Unique<Schema> Boolean(bool Value);
 			};
 
 		public:
-			static Variant Auto(const Core::String& Value, bool Strict = false);
+			static Variant Auto(const std::string_view& Value, bool Strict = false);
 			static Variant Null();
 			static Variant Undefined();
 			static Variant Object();
 			static Variant Array();
 			static Variant Pointer(void* Value);
-			static Variant String(const Core::String& Value);
-			static Variant String(const char* Value, size_t Size);
-			static Variant Binary(const Core::String& Value);
-			static Variant Binary(const unsigned char* Value, size_t Size);
-			static Variant Binary(const char* Value, size_t Size);
+			static Variant String(const std::string_view& Value);
+			static Variant Binary(const std::string_view& Value);
+			static Variant Binary(const uint8_t* Value, size_t Size);
 			static Variant Integer(int64_t Value);
 			static Variant Number(double Value);
 			static Variant Decimal(const Core::Decimal& Value);
 			static Variant Decimal(Core::Decimal&& Value);
-			static Variant DecimalString(const Core::String& Value);
+			static Variant DecimalString(const std::string_view& Value);
 			static Variant Boolean(bool Value);
 		};
 
@@ -2328,7 +2429,7 @@ namespace Vitex
 
 			public:
 				static QuantityInfo GetQuantityInfo();
-				static CacheInfo GetCacheInfo(unsigned int level);
+				static CacheInfo GetCacheInfo(uint32_t level);
 				static Arch GetArch() noexcept;
 				static Endian GetEndianness() noexcept;
 				static size_t GetFrequency() noexcept;
@@ -2339,13 +2440,13 @@ namespace Vitex
 				{
 					union U
 					{
-						T Value;
-						std::array<std::uint8_t, sizeof(T)> Data;
+						T Numeric;
+						uint8_t Buffer[sizeof(T)];
 					} From, To;
 
-					From.Value = Value;
-					std::reverse_copy(From.Data.begin(), From.Data.end(), To.Data.begin());
-					return To.Value;
+					From.Numeric = Value;
+					std::reverse_copy(std::begin(From.Buffer), std::end(From.Buffer), std::begin(To.Buffer));
+					return To.Numeric;
 				}
 				template <typename T>
 				static typename std::enable_if<std::is_arithmetic<T>::value, T>::type ToEndianness(Endian Type, T Value)
@@ -2357,13 +2458,13 @@ namespace Vitex
 			class VI_OUT Directory
 			{
 			public:
-				static bool IsExists(const char* Path);
-				static bool IsEmpty(const char* Path);
-				static ExpectsIO<void> SetWorking(const char* Path);
-				static ExpectsIO<void> Patch(const String& Path);
-				static ExpectsIO<void> Scan(const String& Path, Vector<std::pair<String, FileEntry>>* Entries);
-				static ExpectsIO<void> Create(const char* Path);
-				static ExpectsIO<void> Remove(const char* Path);
+				static bool IsExists(const std::string_view& Path);
+				static bool IsEmpty(const std::string_view& Path);
+				static ExpectsIO<void> SetWorking(const std::string_view& Path);
+				static ExpectsIO<void> Patch(const std::string_view& Path);
+				static ExpectsIO<void> Scan(const std::string_view& Path, Vector<std::pair<String, FileEntry>>& Entries);
+				static ExpectsIO<void> Create(const std::string_view& Path);
+				static ExpectsIO<void> Remove(const std::string_view& Path);
 				static ExpectsIO<String> GetModule();
 				static ExpectsIO<String> GetWorking();
 				static Vector<String> GetMounts();
@@ -2372,31 +2473,30 @@ namespace Vitex
 			class VI_OUT File
 			{
 			public:
-				static bool IsExists(const char* Path);
-				static int Compare(const String& FirstPath, const String& SecondPath);
-				static uint64_t GetHash(const String& Data);
-				static uint64_t GetIndex(const char* Data, size_t Size);
-				static ExpectsIO<size_t> Write(const String& Path, const char* Data, size_t Length);
-				static ExpectsIO<size_t> Write(const String& Path, const String& Data);
-				static ExpectsIO<void> Move(const char* From, const char* To);
-				static ExpectsIO<void> Copy(const char* From, const char* To);
-				static ExpectsIO<void> Remove(const char* Path);
+				static bool IsExists(const std::string_view& Path);
+				static int Compare(const std::string_view& FirstPath, const std::string_view& SecondPath);
+				static uint64_t GetHash(const std::string_view& Data);
+				static uint64_t GetIndex(const std::string_view& Data);
+				static ExpectsIO<size_t> Write(const std::string_view& Path, const uint8_t* Data, size_t Size);
+				static ExpectsIO<void> Move(const std::string_view& From, const std::string_view& To);
+				static ExpectsIO<void> Copy(const std::string_view& From, const std::string_view& To);
+				static ExpectsIO<void> Remove(const std::string_view& Path);
 				static ExpectsIO<void> Close(Unique<FILE> Stream);
-				static ExpectsIO<void> GetState(const String& Path, FileEntry* Output);
+				static ExpectsIO<void> GetState(const std::string_view& Path, FileEntry* Output);
 				static ExpectsIO<void> Seek64(FILE* Stream, int64_t Offset, FileSeek Mode);
 				static ExpectsIO<uint64_t> Tell64(FILE* Stream);
-				static ExpectsIO<size_t> Join(const String& To, const Vector<String>& Paths);
-				static ExpectsIO<FileState> GetProperties(const char* Path);
-				static ExpectsIO<FileEntry> GetState(const String& Path);
-				static ExpectsIO<Unique<Stream>> OpenJoin(const String& Path, const Vector<String>& Paths);
-				static ExpectsIO<Unique<Stream>> OpenArchive(const String& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
-				static ExpectsIO<Unique<Stream>> Open(const String& Path, FileMode Mode, bool Async = false);
-				static ExpectsIO<Unique<FILE>> Open(const char* Path, const char* Mode);
-				static ExpectsIO<Unique<unsigned char>> ReadChunk(Stream* Stream, size_t Length);
-				static ExpectsIO<Unique<unsigned char>> ReadAll(const String& Path, size_t* ByteLength);
-				static ExpectsIO<Unique<unsigned char>> ReadAll(Stream* Stream, size_t* ByteLength);
-				static ExpectsIO<String> ReadAsString(const String& Path);
-				static ExpectsIO<Vector<String>> ReadAsArray(const String& Path);
+				static ExpectsIO<size_t> Join(const std::string_view& To, const Vector<String>& Paths);
+				static ExpectsIO<FileState> GetProperties(const std::string_view& Path);
+				static ExpectsIO<FileEntry> GetState(const std::string_view& Path);
+				static ExpectsIO<Unique<Stream>> OpenJoin(const std::string_view& Path, const Vector<String>& Paths);
+				static ExpectsIO<Unique<Stream>> OpenArchive(const std::string_view& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
+				static ExpectsIO<Unique<Stream>> Open(const std::string_view& Path, FileMode Mode, bool Async = false);
+				static ExpectsIO<Unique<FILE>> Open(const std::string_view& Path, const std::string_view& Mode);
+				static ExpectsIO<Unique<uint8_t>> ReadChunk(Stream* Stream, size_t Length);
+				static ExpectsIO<Unique<uint8_t>> ReadAll(const std::string_view& Path, size_t* ByteLength);
+				static ExpectsIO<Unique<uint8_t>> ReadAll(Stream* Stream, size_t* ByteLength);
+				static ExpectsIO<String> ReadAsString(const std::string_view& Path);
+				static ExpectsIO<Vector<String>> ReadAsArray(const std::string_view& Path);
 
 			public:
 				template <size_t Size>
@@ -2416,17 +2516,17 @@ namespace Vitex
 			class VI_OUT Path
 			{
 			public:
-				static bool IsRemote(const char* Path);
-				static bool IsRelative(const char* Path);
-				static bool IsAbsolute(const char* Path);
-				static const char* GetFilename(const char* Path);
-				static const char* GetExtension(const char* Path);
-				static String GetDirectory(const char* Path, size_t Level = 0);
-				static String GetNonExistant(const String& Path);
-				static ExpectsIO<String> Resolve(const char* Path);
-				static ExpectsIO<String> Resolve(const String& Path, const String& Directory, bool EvenIfExists);
-				static ExpectsIO<String> ResolveDirectory(const char* Path);
-				static ExpectsIO<String> ResolveDirectory(const String& Path, const String& Directory, bool EvenIfExists);
+				static bool IsRemote(const std::string_view& Path);
+				static bool IsRelative(const std::string_view& Path);
+				static bool IsAbsolute(const std::string_view& Path);
+				static std::string_view GetFilename(const std::string_view& Path);
+				static std::string_view GetExtension(const std::string_view& Path);
+				static String GetDirectory(const std::string_view& Path, size_t Level = 0);
+				static String GetNonExistant(const std::string_view& Path);
+				static ExpectsIO<String> Resolve(const std::string_view& Path);
+				static ExpectsIO<String> Resolve(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists);
+				static ExpectsIO<String> ResolveDirectory(const std::string_view& Path);
+				static ExpectsIO<String> ResolveDirectory(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists);
 			};
 
 			class VI_OUT Net
@@ -2447,9 +2547,9 @@ namespace Vitex
 				static bool SetSignalDefault(Signal Type);
 				static bool SetSignalIgnore(Signal Type);
 				static int GetSignalId(Signal Type);
-				static ExpectsIO<int> Execute(const String& Command, FileMode Mode, ProcessCallback&& Callback);
-				static ExpectsIO<Unique<ProcessStream>> Spawn(const String& Command, FileMode Mode);
-				static ExpectsIO<String> GetEnv(const String& Name);
+				static ExpectsIO<int> Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback);
+				static ExpectsIO<Unique<ProcessStream>> Spawn(const std::string_view& Command, FileMode Mode);
+				static ExpectsIO<String> GetEnv(const std::string_view& Name);
 				static ExpectsIO<String> GetShell();
 				static String GetThreadId(const std::thread::id& Id);
 				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
@@ -2458,20 +2558,20 @@ namespace Vitex
 			class VI_OUT Symbol
 			{
 			public:
-				static ExpectsIO<Unique<void>> Load(const String& Path = "");
-				static ExpectsIO<Unique<void>> LoadFunction(void* Handle, const String& Name);
+				static ExpectsIO<Unique<void>> Load(const std::string_view& Path = "");
+				static ExpectsIO<Unique<void>> LoadFunction(void* Handle, const std::string_view& Name);
 				static ExpectsIO<void> Unload(void* Handle);
 			};
 
 			class VI_OUT Input
 			{
 			public:
-				static bool Text(const String& Title, const String& Message, const String& DefaultInput, String* Result);
-				static bool Password(const String& Title, const String& Message, String* Result);
-				static bool Save(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, String* Result);
-				static bool Open(const String& Title, const String& DefaultPath, const String& Filter, const String& FilterDescription, bool Multiple, String* Result);
-				static bool Folder(const String& Title, const String& DefaultPath, String* Result);
-				static bool Color(const String& Title, const String& DefaultHexRGB, String* Result);
+				static bool Text(const std::string_view& Title, const std::string_view& Message, const std::string_view& DefaultInput, String* Result);
+				static bool Password(const std::string_view& Title, const std::string_view& Message, String* Result);
+				static bool Save(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, String* Result);
+				static bool Open(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, bool Multiple, String* Result);
+				static bool Folder(const std::string_view& Title, const std::string_view& DefaultPath, String* Result);
+				static bool Color(const std::string_view& Title, const std::string_view& DefaultHexRGB, String* Result);
 			};
 
 			class VI_OUT Error
@@ -2495,9 +2595,9 @@ namespace Vitex
 			public:
 				static void Set(AccessOption Option, bool Enabled);
 				static bool Has(AccessOption Option);
-				static Option<AccessOption> ToOption(const String& Option);
-				static const char* ToString(AccessOption Option);
-				static const char* ToOptions();
+				static Option<AccessOption> ToOption(const std::string_view& Option);
+				static std::string_view ToString(AccessOption Option);
+				static std::string_view ToOptions();
 			};
 		};
 
@@ -2515,7 +2615,7 @@ namespace Vitex
 
 		public:
 			static UnorderedSet<uint64_t> Fetch(uint64_t Id) noexcept;
-			static bool Pop(const String& Hash) noexcept;
+			static bool Pop(const std::string_view& Hash) noexcept;
 			static void Cleanup() noexcept;
 
 		private:
@@ -2524,7 +2624,7 @@ namespace Vitex
 
 		public:
 			template <typename T, typename... Args>
-			static Unique<T> Create(const String& Hash, Args... Data) noexcept
+			static Unique<T> Create(const std::string_view& Hash, Args... Data) noexcept
 			{
 				return Create<T, Args...>(VI_HASH(Hash), Data...);
 			}
@@ -2581,19 +2681,6 @@ namespace Vitex
 				return *this;
 			}
 			~Reference() = default;
-			void operator delete(void* Ptr) noexcept
-			{
-				if (Ptr != nullptr)
-				{
-					auto Handle = (T*)Ptr;
-					VI_ASSERT(Handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Ptr, typeid(T).name(), __func__);
-					VI_FREE(Ptr);
-				}
-			}
-			void* operator new(size_t Size) noexcept
-			{
-				return (void*)VI_MALLOC(T, Size);
-			}
 			bool IsMarkedRef() const noexcept
 			{
 				return __vmrk.load() > 0;
@@ -2619,6 +2706,40 @@ namespace Vitex
 				else
 					__vmrk = 0;
 			}
+
+		public:
+#ifndef NDEBUG
+#ifdef VI_CXX20
+			void* operator new(size_t Size, const std::source_location& Location = std::source_location::current()) noexcept
+			{
+				return static_cast<void*>(Memory::Allocate<T>(Size, Location));
+			}
+			void operator delete(void* Address, const std::source_location& Location) noexcept
+			{
+				VI_ASSERT(false, "illegal usage of no-op delete operator usable only by compiler");
+			}
+#else
+			void* operator new(size_t Size) noexcept
+			{
+				return Memory::TracingAllocate(Size, MemoryLocation(__FILE__, __func__, typeid(T).name(), __LINE__));
+			}
+#endif
+			void operator delete(void* Address) noexcept
+			{
+				auto* Handle = static_cast<T*>(Address);
+				VI_ASSERT(!Handle || Handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Address, typeid(T).name(), __func__);
+				Memory::Deallocate<T>(Handle);
+			}
+#else
+			void* operator new(size_t Size) noexcept
+			{
+				return Memory::DefaultAllocate(Size);
+			}
+			void operator delete(void* Address) noexcept
+			{
+				Memory::Deallocate<T>(static_cast<T*>(Address));
+			}
+#endif
 		};
 
 		template <typename T>
@@ -2649,6 +2770,10 @@ namespace Vitex
 			static bool UnlinkInstance(T* Unlinkable) noexcept
 			{
 				return (UpdateInstance(nullptr, Action::Fetch) == Unlinkable) && !UpdateInstance(nullptr, Action::Restore);
+			}
+			static bool LinkInstance()
+			{
+				return UpdateInstance(nullptr, Action::Create) != nullptr;
 			}
 			static bool CleanupInstance() noexcept
 			{
@@ -2681,7 +2806,7 @@ namespace Vitex
 				{
 					case Action::Destroy:
 					{
-						VI_RELEASE(Instance);
+						Memory::Release(Instance);
 						Instance = Other;
 						return nullptr;
 					}
@@ -2696,7 +2821,7 @@ namespace Vitex
 					case Action::Store:
 					{
 						if (Instance != Other)
-							VI_RELEASE(Instance);
+							Memory::Release(Instance);
 						Instance = Other;
 						return Instance;
 					}
@@ -2710,16 +2835,19 @@ namespace Vitex
 		class UPtr
 		{
 		private:
-			T* Pointer;
+			T* Address;
 
 		public:
-			UPtr(T* NewPointer) noexcept : Pointer(NewPointer)
+			UPtr() noexcept : Address(nullptr)
+			{
+			}
+			UPtr(T* NewAddress) noexcept : Address(NewAddress)
 			{
 			}
 			UPtr(const UPtr& Other) noexcept = delete;
-			UPtr(UPtr&& Other) noexcept : Pointer(Other.Pointer)
+			UPtr(UPtr&& Other) noexcept : Address(Other.Address)
 			{
-				Other.Pointer = nullptr;
+				Other.Address = nullptr;
 			}
 			~UPtr()
 			{
@@ -2732,33 +2860,45 @@ namespace Vitex
 					return *this;
 
 				Cleanup<T>();
-				Pointer = Other.Pointer;
-				Other.Pointer = nullptr;
+				Address = Other.Address;
+				Other.Address = nullptr;
 				return *this;
 			}
 			explicit operator bool() const
 			{
-				return Pointer != nullptr;
+				return Address != nullptr;
 			}
 			T* operator-> ()
 			{
-				VI_ASSERT(Pointer != nullptr, "unique null pointer access");
-				return Pointer;
+				VI_ASSERT(Address != nullptr, "unique null pointer access");
+				return Address;
 			}
 			T* operator* ()
 			{
-				return Pointer;
+				return Address;
 			}
-			T* Expect(const char* Message)
+			T* operator* () const
 			{
-				VI_ASSERT(Message != nullptr && Message[0] != '\0', "panic case message should be set");
-				VI_PANIC(Pointer != nullptr, "%s causing panic", Message);
-				return Pointer;
+				return Address;
+			}
+			T** Out()
+			{
+				VI_ASSERT(!Address, "pointer should be null when performing output update");
+				return &Address;
+			}
+			T*const* In() const
+			{
+				return &Address;
+			}
+			T* Expect(const std::string_view& Message)
+			{
+				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				return Address;
 			}
 			Unique<T> Reset()
 			{
-				T* Result = Pointer;
-				Pointer = nullptr;
+				T* Result = Address;
+				Address = nullptr;
 				return Result;
 			}
 
@@ -2766,19 +2906,17 @@ namespace Vitex
 			template <typename Q>
 			inline typename std::enable_if<std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
 			{
-				VI_FREE(Pointer);
-				Pointer = nullptr;
+				Memory::Deallocate<T>(Address);
 			}
 			template <typename Q>
 			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
 			{
-				VI_DELETE(T, Pointer);
-				Pointer = nullptr;
+				Memory::Delete<T>(Address);
 			}
 			template <typename Q>
 			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value&& std::is_base_of<Reference<Q>, Q>::value, void>::type Cleanup()
 			{
-				VI_CLEAR(Pointer);
+				Memory::Release<T>(Address);
 			}
 		};
 
@@ -2913,19 +3051,18 @@ namespace Vitex
 			void SetColorTokens(Vector<ColorToken>&& AdditionalTokens);
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Zero);
 			void ColorEnd();
-			void ColorPrint(StdColor BaseColor, const String& Buffer);
-			void ColorPrintBuffer(StdColor BaseColor, const char* Buffer, size_t Size);
+			void ColorPrint(StdColor BaseColor, const std::string_view& Buffer);
 			void CaptureTime();
 			uint64_t CaptureWindow(uint32_t Height);
 			void FreeWindow(uint64_t Id, bool RestorePosition);
-			void EmplaceWindow(uint64_t Id, const String& Text);
+			void EmplaceWindow(uint64_t Id, const std::string_view& Text);
 			uint64_t CaptureElement();
 			void ResizeElement(uint64_t Id, uint32_t X);
 			void MoveElement(uint64_t Id, uint32_t Y);
 			void ReadElement(uint64_t Id, uint32_t* X, uint32_t* Y);
 			void FreeElement(uint64_t Id);
-			void ReplaceElement(uint64_t Id, const String& Text);
-			void SpinningElement(uint64_t Id, const String& Label);
+			void ReplaceElement(uint64_t Id, const std::string_view& Text);
+			void SpinningElement(uint64_t Id, const std::string_view& Label);
 			void ProgressElement(uint64_t Id, double Value, double Coverage = 0.8);
 			void SpinningProgressElement(uint64_t Id, double Value, double Coverage = 0.8);
 			void ClearElement(uint64_t Id);
@@ -2933,10 +3070,9 @@ namespace Vitex
 			void FlushWrite();
 			void WriteSize(uint32_t Width, uint32_t Height);
 			void WritePosition(uint32_t X, uint32_t Y);
-			void WriteBuffer(const char* Buffer, size_t Size = 0);
-			void WriteLine(const String& Line);
+			void WriteLine(const std::string_view& Line);
 			void WriteChar(char Value);
-			void Write(const String& Text);
+			void Write(const std::string_view& Text);
 			void jWrite(Schema* Data);
 			void jWriteLine(Schema* Data);
 			void fWriteLine(const char* Format, ...);
@@ -3039,16 +3175,16 @@ namespace Vitex
 			Stream() noexcept;
 			virtual ~Stream() noexcept = default;
 			virtual ExpectsIO<void> Clear() = 0;
-			virtual ExpectsIO<void> Open(const char* File, FileMode Mode) = 0;
+			virtual ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) = 0;
 			virtual ExpectsIO<void> Close() = 0;
 			virtual ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) = 0;
 			virtual ExpectsIO<void> Move(int64_t Offset);
 			virtual ExpectsIO<void> Flush() = 0;
 			virtual ExpectsIO<size_t> ReadScan(const char* Format, ...) = 0;
 			virtual ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) = 0;
-			virtual ExpectsIO<size_t> Read(char* Buffer, size_t Length) = 0;
+			virtual ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) = 0;
 			virtual ExpectsIO<size_t> WriteFormat(const char* Format, ...) = 0;
-			virtual ExpectsIO<size_t> Write(const char* Buffer, size_t Length) = 0;
+			virtual ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) = 0;
 			virtual ExpectsIO<size_t> Tell() = 0;
 			virtual socket_t GetReadableFd() const = 0;
 			virtual socket_t GetWriteableFd() const = 0;
@@ -3056,11 +3192,11 @@ namespace Vitex
 			virtual void* GetWriteable() const = 0;
 			virtual bool IsSized() const = 0;
 			void SetVirtualSize(size_t Size);
-			void SetVirtualName(const String& File);
-			ExpectsIO<size_t> ReadAll(const std::function<void(char*, size_t)>& Callback);
+			void SetVirtualName(const std::string_view& File);
+			ExpectsIO<size_t> ReadAll(const std::function<void(uint8_t*, size_t)>& Callback);
 			ExpectsIO<size_t> Size();
 			size_t VirtualSize() const;
-			const String& VirtualName() const;
+			std::string_view VirtualName() const;
 
 		protected:
 			void OpenVirtual(String&& Path);
@@ -3079,15 +3215,15 @@ namespace Vitex
 			MemoryStream() noexcept;
 			~MemoryStream() noexcept override;
 			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
+			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
 			ExpectsIO<void> Close() override;
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
 			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
 			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> Tell() override;
 			socket_t GetReadableFd() const override;
 			socket_t GetWriteableFd() const override;
@@ -3108,15 +3244,15 @@ namespace Vitex
 			FileStream() noexcept;
 			~FileStream() noexcept override;
 			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
+			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
 			ExpectsIO<void> Close() override;
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
 			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
 			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> Tell() override;
 			socket_t GetReadableFd() const override;
 			socket_t GetWriteableFd() const override;
@@ -3134,15 +3270,15 @@ namespace Vitex
 			GzStream() noexcept;
 			~GzStream() noexcept override;
 			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
+			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
 			ExpectsIO<void> Close() override;
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
 			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
 			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> Tell() override;
 			socket_t GetReadableFd() const override;
 			socket_t GetWriteableFd() const override;
@@ -3166,15 +3302,15 @@ namespace Vitex
 			WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept;
 			~WebStream() noexcept override;
 			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
+			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
 			ExpectsIO<void> Close() override;
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
 			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
 			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> Tell() override;
 			socket_t GetReadableFd() const override;
 			socket_t GetWriteableFd() const override;
@@ -3206,15 +3342,15 @@ namespace Vitex
 			ProcessStream() noexcept;
 			~ProcessStream() noexcept override;
 			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const char* File, FileMode Mode) override;
+			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
 			ExpectsIO<void> Close() override;
 			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
 			ExpectsIO<void> Flush() override;
 			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
 			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
-			ExpectsIO<size_t> Read(char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const char* Buffer, size_t Length) override;
+			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
 			ExpectsIO<size_t> Tell() override;
 			socket_t GetProcessId() const;
 			socket_t GetThreadId() const;
@@ -3235,10 +3371,10 @@ namespace Vitex
 			String Path;
 
 		public:
-			FileTree(const String& Path) noexcept;
+			FileTree(const std::string_view& Path) noexcept;
 			~FileTree() noexcept;
 			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
-			const FileTree* Find(const String& Path) const;
+			const FileTree* Find(const std::string_view& Path) const;
 			size_t GetFiles() const;
 		};
 
@@ -3312,35 +3448,35 @@ namespace Vitex
 			Schema(Variant&& Base) noexcept;
 			~Schema() noexcept;
 			UnorderedMap<String, size_t> GetNames() const;
-			Vector<Schema*> FindCollection(const String& Name, bool Deep = false) const;
-			Vector<Schema*> FetchCollection(const String& Notation, bool Deep = false) const;
+			Vector<Schema*> FindCollection(const std::string_view& Name, bool Deep = false) const;
+			Vector<Schema*> FetchCollection(const std::string_view& Notation, bool Deep = false) const;
 			Vector<Schema*> GetAttributes() const;
 			Vector<Schema*>& GetChilds();
-			Schema* Find(const String& Name, bool Deep = false) const;
-			Schema* Fetch(const String& Notation, bool Deep = false) const;
-			Variant FetchVar(const String& Key, bool Deep = false) const;
+			Schema* Find(const std::string_view& Name, bool Deep = false) const;
+			Schema* Fetch(const std::string_view& Notation, bool Deep = false) const;
+			Variant FetchVar(const std::string_view& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
-			Variant GetVar(const String& Key) const;
-			Variant GetAttributeVar(const String& Key) const;
+			Variant GetVar(const std::string_view& Key) const;
+			Variant GetAttributeVar(const std::string_view& Key) const;
 			Schema* GetParent() const;
-			Schema* GetAttribute(const String& Key) const;
+			Schema* GetAttribute(const std::string_view& Key) const;
 			Schema* Get(size_t Index) const;
-			Schema* Get(const String& Key) const;
-			Schema* Set(const String& Key);
-			Schema* Set(const String& Key, const Variant& Value);
-			Schema* Set(const String& Key, Variant&& Value);
-			Schema* Set(const String& Key, Unique<Schema> Value);
-			Schema* SetAttribute(const String& Key, const Variant& Value);
-			Schema* SetAttribute(const String& Key, Variant&& Value);
+			Schema* Get(const std::string_view& Key) const;
+			Schema* Set(const std::string_view& Key);
+			Schema* Set(const std::string_view& Key, const Variant& Value);
+			Schema* Set(const std::string_view& Key, Variant&& Value);
+			Schema* Set(const std::string_view& Key, Unique<Schema> Value);
+			Schema* SetAttribute(const std::string_view& Key, const Variant& Value);
+			Schema* SetAttribute(const std::string_view& Key, Variant&& Value);
 			Schema* Push(const Variant& Value);
 			Schema* Push(Variant&& Value);
 			Schema* Push(Unique<Schema> Value);
 			Schema* Pop(size_t Index);
-			Schema* Pop(const String& Name);
+			Schema* Pop(const std::string_view& Name);
 			Unique<Schema> Copy() const;
-			bool Rename(const String& Name, const String& NewName);
-			bool Has(const String& Name) const;
-			bool HasAttribute(const String& Name) const;
+			bool Rename(const std::string_view& Name, const std::string_view& NewName);
+			bool Has(const std::string_view& Name) const;
+			bool HasAttribute(const std::string_view& Name) const;
 			bool Empty() const;
 			bool IsAttribute() const;
 			bool IsSaved() const;
@@ -3367,11 +3503,11 @@ namespace Vitex
 			static String ToXML(Schema* Value);
 			static String ToJSON(Schema* Value);
 			static Vector<char> ToJSONB(Schema* Value);
-			static ExpectsParser<Unique<Schema>> ConvertFromXML(const char* Buffer, size_t Size);
-			static ExpectsParser<Unique<Schema>> ConvertFromJSON(const char* Buffer, size_t Size);
+			static ExpectsParser<Unique<Schema>> ConvertFromXML(const std::string_view& Buffer);
+			static ExpectsParser<Unique<Schema>> ConvertFromJSON(const std::string_view& Buffer);
 			static ExpectsParser<Unique<Schema>> ConvertFromJSONB(const SchemaReadCallback& Callback);
-			static ExpectsParser<Unique<Schema>> FromXML(const String& Text);
-			static ExpectsParser<Unique<Schema>> FromJSON(const String& Text);
+			static ExpectsParser<Unique<Schema>> FromXML(const std::string_view& Text);
+			static ExpectsParser<Unique<Schema>> FromJSON(const std::string_view& Text);
 			static ExpectsParser<Unique<Schema>> FromJSONB(const Vector<char>& Binary);
 
 		private:
@@ -3412,10 +3548,9 @@ namespace Vitex
 				Difficulty Type;
 				size_t GlobalIndex;
 				size_t LocalIndex;
-				size_t Recyclable;
 				bool Daemon;
 
-				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon), Recyclable(1)
+				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon)
 				{
 				}
 				~ThreadData() = default;
@@ -3472,7 +3607,6 @@ namespace Vitex
 			ThreadDebugCallback Debug;
 			Desc Policy;
 			bool Terminate;
-			bool Immediate;
 			bool Enqueue;
 			bool Suspended;
 			bool Active;
@@ -3489,7 +3623,6 @@ namespace Vitex
 			bool SetCoroutine(const TaskCallback& Callback, bool Recyclable = true);
 			bool SetCoroutine(TaskCallback&& Callback, bool Recyclable = true);
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
-			bool SetImmediate(bool Enabled);
 			bool ClearTimeout(TaskId WorkId);
 			bool TriggerTimers();
 			bool Trigger(Difficulty Type);
@@ -3504,13 +3637,11 @@ namespace Vitex
 			bool IsSuspended() const;
 			void Suspend();
 			void Resume();
-			void PushThreadRecycling();
-			void PopThreadRecycling();
 			size_t GetThreadGlobalIndex();
 			size_t GetThreadLocalIndex();
 			size_t GetTotalThreads() const;
 			size_t GetThreads(Difficulty Type) const;
-			bool IsThreadRecyclable() const;
+			bool HasParallelThreads(Difficulty Type) const;
 			const ThreadData* GetThread() const;
 			const Desc& GetPolicy() const;
 
@@ -3519,7 +3650,7 @@ namespace Vitex
 			void InitializeSpawnTrigger();
 			bool FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback);
 			bool FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback);
-			bool PostDebug(ThreadTask State, size_t Tasks);
+			bool ReportThread(ThreadTask State, size_t Tasks, const ThreadData* Thread);
 			bool TriggerThread(Difficulty Type, ThreadData* Thread);
 			bool SleepThread(Difficulty Type, ThreadData* Thread);
 			bool ThreadActive(ThreadData* Thread);
@@ -3531,7 +3662,7 @@ namespace Vitex
 
 		public:
 			static std::chrono::microseconds GetClock();
-			static bool IsAvailable();
+			static bool IsAvailable(Difficulty Type = Difficulty::Count);
 		};
 
 		template <>
@@ -3590,7 +3721,7 @@ namespace Vitex
 			}
 			void Release()
 			{
-				VI_FREE(Data);
+				Memory::Deallocate(Data);
 				Data = nullptr;
 				Count = 0;
 				Volume = 0;
@@ -3601,13 +3732,13 @@ namespace Vitex
 					return;
 
 				size_t Size = Capacity * sizeof(T);
-				T* NewData = VI_MALLOC(T, Size);
+				T* NewData = Memory::Allocate<T>(Size);
 				memset(NewData, 0, Size);
 
 				if (Data != nullptr)
 				{
 					memcpy(NewData, Data, Count * sizeof(T));
-					VI_FREE(Data);
+					Memory::Deallocate(Data);
 				}
 
 				Volume = Capacity;
@@ -3627,8 +3758,8 @@ namespace Vitex
 
 				if (!Data || Ref.Count > Count)
 				{
-					VI_FREE(Data);
-					Data = VI_MALLOC(T, Ref.Volume * sizeof(T));
+					Memory::Deallocate<T>(Data);
+					Data = Memory::Allocate<T>(Ref.Volume * sizeof(T));
 					memset(Data, 0, Ref.Volume * sizeof(T));
 				}
 
@@ -3801,7 +3932,7 @@ namespace Vitex
 		{
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
-				if (Async && Schedule::IsAvailable())
+				if (Async && Schedule::IsAvailable(Difficulty::Sync))
 					Schedule::Get()->SetTask(std::move(Callback));
 				else
 					Callback();
@@ -3887,16 +4018,16 @@ namespace Vitex
 			Status* Data;
 
 		public:
-			BasicPromise() noexcept : Data(VI_NEW(Status))
+			BasicPromise() noexcept : Data(Memory::New<Status>())
 			{
 			}
-			BasicPromise(const T& Value) noexcept : Data(VI_NEW(Status, Value))
+			BasicPromise(const T& Value) noexcept : Data(Memory::New<Status>(Value))
 			{
 			}
-			BasicPromise(T&& Value) noexcept : Data(VI_NEW(Status, std::move(Value)))
+			BasicPromise(T&& Value) noexcept : Data(Memory::New<Status>(std::move(Value)))
 			{
 			}
-			BasicPromise(const BasicPromise& Other) : Data(Other.Data)
+			BasicPromise(const BasicPromise& Other) noexcept : Data(Other.Data)
 			{
 				AddRef();
 			}
@@ -3919,7 +4050,7 @@ namespace Vitex
 				Other.Data = nullptr;
 				return *this;
 			}
-			void Set(const T& Other)
+			void Set(const T& Other) noexcept
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				UMutex<std::mutex> Unique(Data->Update);
@@ -3928,7 +4059,7 @@ namespace Vitex
 				Data->Code = Deferred::Ready;
 				Execute(Data, Unique, Async);
 			}
-			void Set(T&& Other)
+			void Set(T&& Other) noexcept
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				UMutex<std::mutex> Unique(Data->Update);
@@ -3937,7 +4068,7 @@ namespace Vitex
 				Data->Code = Deferred::Ready;
 				Execute(Data, Unique, Async);
 			}
-			void Set(const BasicPromise& Other)
+			void Set(const BasicPromise& Other) noexcept
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
@@ -3966,14 +4097,14 @@ namespace Vitex
 					Release(Copy);
 				});
 			}
-			void Wait()
+			void Wait() noexcept
 			{
 				if (!IsPending())
 					return;
 
 				Status* Copy;
 				{
-					std::unique_lock<std::mutex> Lock(Data->Update);
+					std::unique_lock<std::mutex> Unique(Data->Update);
 					if (Data->Code == Deferred::Ready)
 						return;
 
@@ -3984,7 +4115,7 @@ namespace Vitex
 					{
 						Ready.notify_all();
 					};
-					Ready.wait(Lock, [this]()
+					Ready.wait(Unique, [this]()
 					{
 						return !IsPending();
 					});
@@ -4065,16 +4196,16 @@ namespace Vitex
 			BasicPromise(bool Unused1, bool Unused2) noexcept : Data(nullptr)
 			{
 			}
-			Status* AddRef() const
+			Status* AddRef() const noexcept
 			{
 				if (Data != nullptr)
 					++Data->Count;
 				return Data;
 			}
-			T&& Load()
+			T&& Load() noexcept
 			{
 				if (!Data)
-					Data = VI_NEW(Status);
+					Data = Memory::New<Status>();
 
 				return std::move(Data->Unwrap());
 			}
@@ -4105,7 +4236,7 @@ namespace Vitex
 			static void Release(Status* State) noexcept
 			{
 				if (State != nullptr && !--State->Count)
-					VI_DELETE(Status, State);
+					Memory::Delete(State);
 			}
 
 		public:
@@ -4113,10 +4244,10 @@ namespace Vitex
 			{
 				BasicPromise Value;
 
-				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
+				explicit awaitable(const BasicPromise& NewValue) noexcept : Value(NewValue)
 				{
 				}
-				explicit awaitable(BasicPromise&& NewValue) : Value(std::move(NewValue))
+				explicit awaitable(BasicPromise&& NewValue) noexcept : Value(std::move(NewValue))
 				{
 				}
 				awaitable(const awaitable&) = default;
@@ -4130,7 +4261,7 @@ namespace Vitex
 					return Value.Get();
 				}
 #ifdef VI_CXX20
-				void await_suspend(std::coroutine_handle<> Handle)
+				void await_suspend(std::coroutine_handle<> Handle) noexcept
 				{
 					Value.When([Handle](T&&)
 					{
@@ -4146,11 +4277,11 @@ namespace Vitex
 #ifndef NDEBUG
 				std::chrono::microseconds Time;
 #endif
-				promise_type()
+				promise_type() noexcept
 				{
 #ifndef NDEBUG
 					Time = Schedule::GetClock();
-					VI_WATCH((void*)&Value, "coroutine20-frame");
+					VI_WATCH((void*)&Value, typeid(BasicPromise).name());
 #endif
 				}
 #ifdef VI_CXX20
@@ -4163,7 +4294,7 @@ namespace Vitex
 					return { };
 				}
 #endif
-				BasicPromise get_return_object()
+				BasicPromise get_return_object() noexcept
 				{
 #ifndef NDEBUG
 					int64_t Diff = (Schedule::GetClock() - Time).count();
@@ -4173,33 +4304,35 @@ namespace Vitex
 #endif
 					return Value;
 				}
-				void return_value(const BasicPromise& NewValue)
+				void return_value(const BasicPromise& NewValue) noexcept
 				{
 					Value.Set(NewValue);
 				}
-				void return_value(const T& NewValue)
+				void return_value(const T& NewValue) noexcept
 				{
 					Value.Set(NewValue);
 				}
-				void return_value(T&& NewValue)
+				void return_value(T&& NewValue) noexcept
 				{
 					Value.Set(std::move(NewValue));
 				}
-				void unhandled_exception()
+				void unhandled_exception() noexcept
 				{
 				}
+#if !defined(_MSC_VER) || defined(NDEBUG)
 				void* operator new(size_t Size) noexcept
 				{
-					return VI_MALLOC(promise_type, Size);
+					return Memory::Allocate<promise_type>(Size);
 				}
-				void operator delete(void* Ptr) noexcept
+				void operator delete(void* Address) noexcept
 				{
-					VI_FREE(Ptr);
+					Memory::Deallocate<void>(Address);
 				}
-				static BasicPromise get_return_object_on_allocation_failure()
+				static BasicPromise get_return_object_on_allocation_failure() noexcept
 				{
 					return BasicPromise::Null();
 				}
+#endif // E3394 Intellisense false positive
 			};
 		};
 
@@ -4227,7 +4360,7 @@ namespace Vitex
 			Status* Data;
 
 		public:
-			BasicPromise() noexcept : Data(VI_NEW(Status))
+			BasicPromise() noexcept : Data(Memory::New<Status>())
 			{
 			}
 			BasicPromise(const BasicPromise& Other) noexcept : Data(Other.Data)
@@ -4253,7 +4386,7 @@ namespace Vitex
 				Other.Data = nullptr;
 				return *this;
 			}
-			void Set()
+			void Set() noexcept
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				UMutex<std::mutex> Unique(Data->Update);
@@ -4261,7 +4394,7 @@ namespace Vitex
 				Data->Code = Deferred::Ready;
 				Execute(Data, Unique, Async);
 			}
-			void Set(const BasicPromise& Other)
+			void Set(const BasicPromise& Other) noexcept
 			{
 				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
 				Status* Copy = AddRef();
@@ -4289,7 +4422,7 @@ namespace Vitex
 					Release(Copy);
 				});
 			}
-			void Wait()
+			void Wait() noexcept
 			{
 				if (!IsPending())
 					return;
@@ -4414,7 +4547,7 @@ namespace Vitex
 			{
 				AddRef();
 			}
-			Status* AddRef() const
+			Status* AddRef() const noexcept
 			{
 				if (Data != nullptr)
 					++Data->Count;
@@ -4423,7 +4556,7 @@ namespace Vitex
 			void Load() noexcept
 			{
 				if (!Data)
-					Data = VI_NEW(Status);
+					Data = Memory::New<Status>();
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
@@ -4452,7 +4585,7 @@ namespace Vitex
 			static void Release(Status* State) noexcept
 			{
 				if (State != nullptr && !--State->Count)
-					VI_DELETE(Status, State);
+					Memory::Delete(State);
 			}
 
 		public:
@@ -4460,10 +4593,10 @@ namespace Vitex
 			{
 				BasicPromise Value;
 
-				explicit awaitable(const BasicPromise& NewValue) : Value(NewValue)
+				explicit awaitable(const BasicPromise& NewValue) noexcept : Value(NewValue)
 				{
 				}
-				explicit awaitable(BasicPromise&& NewValue) : Value(std::move(NewValue))
+				explicit awaitable(BasicPromise&& NewValue) noexcept : Value(std::move(NewValue))
 				{
 				}
 				awaitable(const awaitable&) = default;
@@ -4476,7 +4609,7 @@ namespace Vitex
 				{
 				}
 #ifdef VI_CXX20
-				void await_suspend(std::coroutine_handle<> Handle)
+				void await_suspend(std::coroutine_handle<> Handle) noexcept
 				{
 					Value.When([Handle]()
 					{
@@ -4492,11 +4625,11 @@ namespace Vitex
 #ifndef NDEBUG
 				std::chrono::microseconds Time;
 #endif
-				promise_type()
+				promise_type() noexcept
 				{
 #ifndef NDEBUG
 					Time = Schedule::GetClock();
-					VI_WATCH((void*)&Value, "coroutine20-frame");
+					VI_WATCH((void*)&Value, typeid(BasicPromise).name());
 #endif
 				}
 #ifdef VI_CXX20
@@ -4509,7 +4642,7 @@ namespace Vitex
 					return { };
 				}
 #endif
-				BasicPromise get_return_object()
+				BasicPromise get_return_object() noexcept
 				{
 #ifndef NDEBUG
 					int64_t Diff = (Schedule::GetClock() - Time).count();
@@ -4519,25 +4652,27 @@ namespace Vitex
 #endif
 					return Value;
 				}
-				void return_void()
+				void return_void() noexcept
 				{
 					Value.Set();
 				}
-				void unhandled_exception()
+				void unhandled_exception() noexcept
 				{
 				}
+#if !defined(_MSC_VER) || defined(NDEBUG)
 				void* operator new(size_t Size) noexcept
 				{
-					return VI_MALLOC(promise_type, Size);
+					return Memory::Allocate<promise_type>(Size);
 				}
-				void operator delete(void* Ptr) noexcept
+				void operator delete(void* Address) noexcept
 				{
-					VI_FREE(Ptr);
+					Memory::Deallocate<void>(Address);
 				}
-				static BasicPromise get_return_object_on_allocation_failure()
+				static BasicPromise get_return_object_on_allocation_failure() noexcept
 				{
 					return BasicPromise::Null();
 				}
+#endif // E3394 Intellisense false positive
 			};
 		};
 
@@ -4565,7 +4700,7 @@ namespace Vitex
 			State* Status;
 
 		public:
-			BasicGenerator(ExecutorCallback&& Callback) noexcept : Status(VI_NEW(State))
+			BasicGenerator(ExecutorCallback&& Callback) noexcept : Status(Memory::New<State>())
 			{
 				Status->Callback = std::move(Callback);
 			}
@@ -4581,7 +4716,7 @@ namespace Vitex
 			~BasicGenerator() noexcept
 			{
 				if (Status != nullptr && !--Status->Count)
-					VI_DELETE(State, Status);
+					Memory::Delete(Status);
 			}
 			BasicGenerator& operator= (const BasicGenerator& Other) noexcept
 			{
@@ -4693,6 +4828,9 @@ namespace Vitex
 		inline Promise<T> Cotask(std::function<T()>&& Callback, bool Recyclable = true) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
+			if (!Schedule::IsAvailable(Difficulty::Sync))
+				return Promise<T>(std::move(Callback()));
+
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable { Result.Set(std::move(Callback())); }, Recyclable);
 			return Result;
@@ -4701,6 +4839,12 @@ namespace Vitex
 		inline Promise<void> Cotask(std::function<void()>&& Callback, bool Recyclable) noexcept
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
+			if (!Schedule::IsAvailable(Difficulty::Sync))
+			{
+				Callback();
+				return Promise<void>::Null();
+			}
+
 			Promise<void> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 			{
@@ -4734,8 +4878,8 @@ namespace Vitex
 		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			auto* Callable = VI_NEW(std::function<Promise<T>()>, std::move(Callback));
-			auto Finalize = [Callable](T&& Temp) -> T&& { VI_DELETE(function, Callable); return std::move(Temp); };
+			auto* Callable = Memory::New<std::function<Promise<T>()>>(std::move(Callback));
+			auto Finalize = [Callable](T&& Temp) -> T&& { Memory::Delete(Callable); return std::move(Temp); };
 			if (!AlwaysEnqueue)
 				return (*Callable)().template Then<T>(Finalize);
 
@@ -4747,8 +4891,8 @@ namespace Vitex
 		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			auto* Callable = VI_NEW(std::function<Promise<void>()>, std::move(Callback));
-			auto Finalize = [Callable]() { VI_DELETE(function, Callable); };
+			auto* Callable = Memory::New<std::function<Promise<void>()>>(std::move(Callback));
+			auto Finalize = [Callable]() { Memory::Delete(Callable); };
 			if (!AlwaysEnqueue)
 				return (*Callable)().Then(Finalize);
 
@@ -4876,9 +5020,19 @@ namespace Vitex
 			return Other;
 		}
 #endif
-#ifdef VI_CXX17
+#ifdef VI_CXX20
+		inline const std::string_view& HglCast(const std::string_view& Value)
+		{
+			return Value;
+		}
+#else
+		inline String HglCast(const std::string_view& Value)
+		{
+			return String(Value);
+		}
+#endif
 		template <typename T>
-		inline ExpectsIO<T> FromStringRadix(const String& Other, int Base)
+		inline ExpectsIO<T> FromStringRadix(const std::string_view& Other, int Base)
 		{
 			static_assert(std::is_integral<T>::value, "base can be specified only for integral types");
 			T Value;
@@ -4888,7 +5042,7 @@ namespace Vitex
 			return Value;
 		}
 		template <typename T>
-		inline ExpectsIO<T> FromString(const String& Other)
+		inline ExpectsIO<T> FromString(const std::string_view& Other)
 		{
 			static_assert(std::is_integral<T>::value, "conversion can be done only for integral types");
 			T Value;
@@ -4897,182 +5051,12 @@ namespace Vitex
 				return std::make_error_condition(Result.ec);
 			return Value;
 		}
-#else
-		template <typename T>
-		inline ExpectsIO<T> FromStringRadix(const String& Other, int Base)
-		{
-			static_assert(false, "conversion can be done only to arithmetic types");
-			return std::make_error_condition(std::errc::not_supported);
-		}
 		template <>
-		inline ExpectsIO<int8_t> FromStringRadix<int8_t>(const String& Other, int Base)
+		inline ExpectsIO<float> FromString<float>(const std::string_view& Other)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
-			const char* Start = Other.c_str();
-			long Value = strtol(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (Value < (long)std::numeric_limits<int8_t>::min())
-				return std::make_error_condition(std::errc::result_out_of_range);
-			else if (Value > (long)std::numeric_limits<int8_t>::max())
-				return std::make_error_condition(std::errc::result_out_of_range);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (int8_t)Value;
-		}
-		template <>
-		inline ExpectsIO<int16_t> FromStringRadix<int16_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			long Value = strtol(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (Value < (long)std::numeric_limits<int16_t>::min())
-				return std::make_error_condition(std::errc::result_out_of_range);
-			else if (Value > (long)std::numeric_limits<int16_t>::max())
-				return std::make_error_condition(std::errc::result_out_of_range);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (int16_t)Value;
-		}
-		template <>
-		inline ExpectsIO<int32_t> FromStringRadix<int32_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			long Value = strtol(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (int32_t)Value;
-		}
-		template <>
-		inline ExpectsIO<int64_t> FromStringRadix<int64_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			long long Value = strtoll(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (int64_t)Value;
-		}
-		template <>
-		inline ExpectsIO<uint8_t> FromStringRadix<uint8_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			unsigned long Value = strtoul(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (Value > (unsigned long)std::numeric_limits<uint8_t>::max())
-				return std::make_error_condition(std::errc::result_out_of_range);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (uint8_t)Value;
-		}
-		template <>
-		inline ExpectsIO<uint16_t> FromStringRadix<uint16_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			unsigned long Value = strtoul(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (Value > (unsigned long)std::numeric_limits<uint16_t>::max())
-				return std::make_error_condition(std::errc::result_out_of_range);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (uint16_t)Value;
-		}
-		template <>
-		inline ExpectsIO<uint32_t> FromStringRadix<uint32_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			unsigned long Value = strtoul(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (uint32_t)Value;
-		}
-		template <>
-		inline ExpectsIO<uint64_t> FromStringRadix<uint64_t>(const String& Other, int Base)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
-			unsigned long long Value = strtoull(Start, &End, Base);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return (uint64_t)Value;
-		}
-		template <typename T>
-		inline ExpectsIO<T> FromString(const String& Other)
-		{
-			static_assert(false, "conversion can be done only to arithmetic types");
-			return std::make_error_condition(std::errc::not_supported);
-		}
-		template <>
-		inline ExpectsIO<int8_t> FromString<int8_t>(const String& Other)
-		{
-			return FromStringRadix<int8_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<int16_t> FromString<int16_t>(const String& Other)
-		{
-			return FromStringRadix<int16_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<int32_t> FromString<int32_t>(const String& Other)
-		{
-			return FromStringRadix<int32_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<int64_t> FromString<int64_t>(const String& Other)
-		{
-			return FromStringRadix<int64_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<uint8_t> FromString<uint8_t>(const String& Other)
-		{
-			return FromStringRadix<uint8_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<uint16_t> FromString<uint16_t>(const String& Other)
-		{
-			return FromStringRadix<uint16_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<uint32_t> FromString<uint32_t>(const String& Other)
-		{
-			return FromStringRadix<uint32_t>(Other, 10);
-		}
-		template <>
-		inline ExpectsIO<uint64_t> FromString<uint64_t>(const String& Other)
-		{
-			return FromStringRadix<uint64_t>(Other, 10);
-		}
-#endif
-		template <>
-		inline ExpectsIO<float> FromString<float>(const String& Other)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.c_str();
+			const char* Start = Other.data();
 			float Value = strtof(Start, &End);
 			if (Start == End)
 				return std::make_error_condition(std::errc::invalid_argument);
@@ -5081,11 +5065,11 @@ namespace Vitex
 			return Value;
 		}
 		template <>
-		inline ExpectsIO<double> FromString<double>(const String& Other)
+		inline ExpectsIO<double> FromString<double>(const std::string_view& Other)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
-			const char* Start = Other.c_str();
+			const char* Start = Other.data();
 			double Value = strtod(Start, &End);
 			if (Start == End)
 				return std::make_error_condition(std::errc::invalid_argument);
@@ -5094,11 +5078,11 @@ namespace Vitex
 			return Value;
 		}
 		template <>
-		inline ExpectsIO<long double> FromString<long double>(const String& Other)
+		inline ExpectsIO<long double> FromString<long double>(const std::string_view& Other)
 		{
 			OS::Error::Clear();
 			char* End = nullptr;
-			const char* Start = Other.c_str();
+			const char* Start = Other.data();
 			long double Value = strtold(Start, &End);
 			if (Start == End)
 				return std::make_error_condition(std::errc::invalid_argument);

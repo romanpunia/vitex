@@ -57,7 +57,7 @@ namespace
 		GLuint FrameBuffer = 0;
 		glGenFramebuffers(1, &FrameBuffer);
 		glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (unsigned int)Face, SrcName, 0);
+		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (uint32_t)Face, SrcName, 0);
 		glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, DestName, 0);
 		glNamedFramebufferDrawBuffer(FrameBuffer, GL_COLOR_ATTACHMENT1);
 		glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -254,13 +254,13 @@ namespace Vitex
 			{
 				return (void*)this;
 			}
-			Core::String OGLInputLayout::GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count)
+			Core::String OGLInputLayout::GetLayoutHash(OGLElementBuffer** Buffers, uint32_t Count)
 			{
 				Core::String Hash;
 				if (!Buffers || !Count)
 					return Hash;
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 					Hash += Core::ToString((uintptr_t)(void*)Buffers[i]);
 
 				return Hash;
@@ -342,7 +342,7 @@ namespace Vitex
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
-				Compute::Vertex* Vertices = VI_MALLOC(Compute::Vertex, sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
+				Compute::Vertex* Vertices = Core::Memory::Allocate<Compute::Vertex>(sizeof(Compute::Vertex) * (uint32_t)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -359,7 +359,7 @@ namespace Vitex
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
-				Compute::SkinVertex* Vertices = VI_MALLOC(Compute::SkinVertex, sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
+				Compute::SkinVertex* Vertices = Core::Memory::Allocate<Compute::SkinVertex>(sizeof(Compute::SkinVertex) * (uint32_t)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -590,7 +590,7 @@ namespace Vitex
 				return (void*)(intptr_t)Async;
 			}
 
-			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(nullptr), Window(I.Window), Context(nullptr)
+			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(""), Window(I.Window), Context(nullptr)
 			{
 				if (!Window)
 				{
@@ -702,7 +702,7 @@ namespace Vitex
 
 				if (NewState->State.IndependentBlendEnable)
 				{
-					for (unsigned int i = 0; i < 8; i++)
+					for (uint32_t i = 0; i < 8; i++)
 					{
 						auto& Base = NewState->State.RenderTarget[i];
 						if (OldState && memcmp(&OldState->State.RenderTarget[i], &Base, sizeof(RenderTargetBlendState)) == 0)
@@ -723,7 +723,7 @@ namespace Vitex
 					{
 						if (OldState->State.IndependentBlendEnable)
 						{
-							for (unsigned int i = 0; i < 8; i++)
+							for (uint32_t i = 0; i < 8; i++)
 								glDisablei(GL_BLEND, i);
 						}
 
@@ -859,7 +859,7 @@ namespace Vitex
 				REG_EXCHANGE(Layout, (OGLInputLayout*)State);
 				SetVertexBuffers(nullptr, 0);
 			}
-			ExpectsGraphics<void> OGLDevice::SetShader(Shader* Resource, unsigned int Type)
+			ExpectsGraphics<void> OGLDevice::SetShader(Shader* Resource, uint32_t Type)
 			{
 				OGLShader* IResource = (OGLShader*)Resource;
 				bool Update = false;
@@ -982,10 +982,10 @@ namespace Vitex
 					GLint BufferSize = 0;
 					glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &BufferSize);
 
-					char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
+					char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (BufferSize + 1));
 					glGetProgramInfoLog(Program, BufferSize, &BufferSize, Buffer);
 					Core::String ErrorText(Buffer, (size_t)BufferSize);
-					VI_FREE(Buffer);
+					Core::Memory::Deallocate(Buffer);
 
 					glUseProgramObjectARB(GL_NONE);
 					glDeleteProgram(Program);
@@ -1004,16 +1004,16 @@ namespace Vitex
 					return Core::Expectation::Met;
 				}
 			}
-			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
+			void OGLDevice::SetSamplerState(SamplerState* State, uint32_t Slot, uint32_t Count, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
 				OGLSamplerState* IResource = (OGLSamplerState*)State;
 				GLuint NewState = (GLuint)(IResource ? IResource->Resource : GL_NONE);
-				unsigned int Offset = Slot + Count;
+				uint32_t Offset = Slot + Count;
 
-				for (unsigned int i = Slot; i < Offset; i++)
+				for (uint32_t i = Slot; i < Offset; i++)
 				{
 					auto& Item = Register.Samplers[i];
 					if (Item != NewState)
@@ -1023,24 +1023,24 @@ namespace Vitex
 					}
 				}
 			}
-			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetBuffer(Shader* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
 				OGLShader* IResource = (OGLShader*)Resource;
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, IResource ? IResource->ConstantBuffer : GL_NONE);
 			}
-			void OGLDevice::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetBuffer(InstanceBuffer* Resource, uint32_t Slot, uint32_t Type)
 			{
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				SetStructureBuffer(IResource ? IResource->Elements : nullptr, Slot, Type);
 			}
-			void OGLDevice::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetConstantBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
-			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
@@ -1060,7 +1060,7 @@ namespace Vitex
 				else
 					Register.IndexFormat = GL_UNSIGNED_INT;
 			}
-			void OGLDevice::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage)
+			void OGLDevice::SetVertexBuffers(ElementBuffer** Resources, uint32_t Count, bool DynamicLinkage)
 			{
 				VI_ASSERT(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
 				VI_ASSERT(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
@@ -1068,7 +1068,7 @@ namespace Vitex
 				static OGLElementBuffer* IResources[UNITS_SIZE] = { nullptr };
 				bool HasBuffers = false;
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					IResources[i] = (OGLElementBuffer*)Resources[i];
 					Register.VertexBuffers[i] = IResources[i];
@@ -1110,7 +1110,7 @@ namespace Vitex
 					return;
 
 				VI_ASSERT(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %" PRIu64 " out of %" PRIu64, (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					OGLElementBuffer* IResource = IResources[i];
 					if (!IResource)
@@ -1122,7 +1122,7 @@ namespace Vitex
 						Attribute(IResource->Stride);
 				}
 			}
-			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetTexture2D(Texture2D* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(!Resource || !((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
@@ -1137,7 +1137,7 @@ namespace Vitex
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_2D, NewResource);
 			}
-			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetTexture3D(Texture3D* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -1151,7 +1151,7 @@ namespace Vitex
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_3D, NewResource);
 			}
-			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
+			void OGLDevice::SetTextureCube(TextureCube* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -1165,19 +1165,19 @@ namespace Vitex
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, NewResource);
 			}
-			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void OGLDevice::SetWriteable(ElementBuffer** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 			}
-			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void OGLDevice::SetWriteable(Texture2D** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					OGLTexture2D* IResource = (OGLTexture2D*)Resource[i];
 					VI_ASSERT(!IResource || !IResource->Backbuffer, "resource 2d #%i should not be back buffer texture", (int)i);
@@ -1189,13 +1189,13 @@ namespace Vitex
 						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
 				}
 			}
-			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void OGLDevice::SetWriteable(Texture3D** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					OGLTexture3D* IResource = (OGLTexture3D*)Resource[i];
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
@@ -1206,13 +1206,13 @@ namespace Vitex
 						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
 				}
 			}
-			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void OGLDevice::SetWriteable(TextureCube** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					OGLTextureCube* IResource = (OGLTextureCube*)Resource[i];
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
@@ -1249,7 +1249,7 @@ namespace Vitex
 				glDrawBuffers(1, &Target);
 				glViewport((GLuint)IResource->Viewarea.TopLeftX, (GLuint)IResource->Viewarea.TopLeftY, (GLuint)IResource->Viewarea.Width, (GLuint)IResource->Viewarea.Height);
 			}
-			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
+			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
@@ -1277,7 +1277,7 @@ namespace Vitex
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
-			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target)
+			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, uint32_t Target)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
@@ -1360,7 +1360,7 @@ namespace Vitex
 					GLenum Targets[8] = { GL_NONE };
 					GLuint Count = Resource->GetTargetCount();
 
-					for (unsigned int i = 0; i < Count; i++)
+					for (uint32_t i = 0; i < Count; i++)
 						Targets[i] = (Enabled[i] ? TargetBuffer->Format[i] : GL_NONE);
 
 					glBindFramebuffer(GL_FRAMEBUFFER, TargetBuffer->Buffer);
@@ -1375,18 +1375,18 @@ namespace Vitex
 
 				glViewport((GLuint)Viewarea.TopLeftX, (GLuint)Viewarea.TopLeftY, (GLuint)Viewarea.Width, (GLuint)Viewarea.Height);
 			}
-			void OGLDevice::SetTargetRect(unsigned int Width, unsigned int Height)
+			void OGLDevice::SetTargetRect(uint32_t Width, uint32_t Height)
 			{
 				VI_ASSERT(Width > 0 && Height > 0, "width and height should be greater than zero");
 				glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 				glViewport(0, 0, Width, Height);
 			}
-			void OGLDevice::SetViewports(unsigned int Count, Viewport* Value)
+			void OGLDevice::SetViewports(uint32_t Count, Viewport* Value)
 			{
 				VI_ASSERT(Count > 0 && Value != nullptr, "at least one viewport should be set");
 				glViewport((GLuint)Value->TopLeftX, (GLuint)Value->TopLeftY, (GLuint)Value->Width, (GLuint)Value->Height);
 			}
-			void OGLDevice::SetScissorRects(unsigned int Count, Compute::Rectangle* Value)
+			void OGLDevice::SetScissorRects(uint32_t Count, Compute::Rectangle* Value)
 			{
 				VI_ASSERT(Count > 0 && Value != nullptr, "at least one scissor rect should be set");
 				int64_t Height = Value->GetHeight();
@@ -1398,12 +1398,12 @@ namespace Vitex
 				Register.DrawTopology = GetPrimitiveTopologyDraw(_Topology);
 				Register.Primitive = _Topology;
 			}
-			void OGLDevice::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
+			void OGLDevice::FlushTexture(uint32_t Slot, uint32_t Count, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					auto& Texture = Register.Textures[i];
 					if (Texture == GL_NONE)
@@ -1471,7 +1471,7 @@ namespace Vitex
 				glClearColor(R, G, B, 0.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
-			void OGLDevice::Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
+			void OGLDevice::Clear(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
@@ -1508,7 +1508,7 @@ namespace Vitex
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
-			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
+			void OGLDevice::DrawIndexed(uint32_t Count, uint32_t IndexLocation, uint32_t BaseLocation)
 			{
 				glDrawElements(Register.DrawTopology, Count, Register.IndexFormat, OGL_OFFSET((size_t)IndexLocation));
 			}
@@ -1532,11 +1532,11 @@ namespace Vitex
 
 				glDrawElements(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
-			void OGLDevice::DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation)
+			void OGLDevice::DrawIndexedInstanced(uint32_t IndexCountPerInstance, uint32_t InstanceCount, uint32_t IndexLocation, uint32_t VertexLocation, uint32_t InstanceLocation)
 			{
 				glDrawElementsInstanced(Register.DrawTopology, IndexCountPerInstance, GL_UNSIGNED_INT, nullptr, InstanceCount);
 			}
-			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount)
+			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, uint32_t InstanceCount)
 			{
 				VI_ASSERT(Instances != nullptr, "instances should be set");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
@@ -1548,7 +1548,7 @@ namespace Vitex
 
 				glDrawElementsInstanced(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, (GLsizei)InstanceCount);
 			}
-			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
+			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, uint32_t InstanceCount)
 			{
 				VI_ASSERT(Instances != nullptr, "instances should be set");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
@@ -1560,19 +1560,19 @@ namespace Vitex
 
 				glDrawElementsInstanced(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, (GLsizei)InstanceCount);
 			}
-			void OGLDevice::Draw(unsigned int Count, unsigned int Location)
+			void OGLDevice::Draw(uint32_t Count, uint32_t Location)
 			{
 				glDrawArrays(Register.DrawTopology, (GLint)Location, (GLint)Count);
 			}
-			void OGLDevice::DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation)
+			void OGLDevice::DrawInstanced(uint32_t VertexCountPerInstance, uint32_t InstanceCount, uint32_t VertexLocation, uint32_t InstanceLocation)
 			{
 				glDrawArraysInstanced(Register.DrawTopology, (GLint)VertexLocation, (GLint)VertexCountPerInstance, (GLint)InstanceCount);
 			}
-			void OGLDevice::Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ)
+			void OGLDevice::Dispatch(uint32_t GroupX, uint32_t GroupY, uint32_t GroupZ)
 			{
 				glDispatchCompute(GroupX, GroupY, GroupZ);
 			}
-			void OGLDevice::GetViewports(unsigned int* Count, Viewport* Out)
+			void OGLDevice::GetViewports(uint32_t* Count, Viewport* Out)
 			{
 				GLint Viewport[4];
 				glGetIntegerv(GL_VIEWPORT, Viewport);
@@ -1587,7 +1587,7 @@ namespace Vitex
 				Out->Width = (float)Viewport[2];
 				Out->Height = (float)Viewport[3];
 			}
-			void OGLDevice::GetScissorRects(unsigned int* Count, Compute::Rectangle* Out)
+			void OGLDevice::GetScissorRects(uint32_t* Count, Compute::Rectangle* Out)
 			{
 				GLint Rect[4];
 				glGetIntegerv(GL_SCISSOR_BOX, Rect);
@@ -1773,7 +1773,7 @@ namespace Vitex
 				GLint Size;
 				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
 				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
-				Map->RowPitch = GetRowPitch(1, (unsigned int)Size);
+				Map->RowPitch = GetRowPitch(1, (uint32_t)Size);
 				Map->DepthPitch = GetDepthPitch(Map->RowPitch, 1);
 				if (!Map->Pointer)
 					return GetException("map element buffer");
@@ -1799,7 +1799,7 @@ namespace Vitex
 				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
 					return GraphicsException("resource cannot be mapped for writing");
 
-				Map->Pointer = VI_MALLOC(char, Width * Height * Size);
+				Map->Pointer = Core::Memory::Allocate<char>(Width * Height * Size);
 				Map->RowPitch = GetRowPitch(Width);
 				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height);
 
@@ -1833,7 +1833,7 @@ namespace Vitex
 				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
 					return GraphicsException("resource cannot be mapped for writing");
 
-				Map->Pointer = VI_MALLOC(char, Width * Height * Depth * Size);
+				Map->Pointer = Core::Memory::Allocate<char>(Width * Height * Depth * Size);
 				Map->RowPitch = GetRowPitch(Width);
 				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
 
@@ -1867,7 +1867,7 @@ namespace Vitex
 				if (Write && !((uint32_t)IResource->AccessFlags & (uint32_t)CPUAccess::Write))
 					return GraphicsException("resource cannot be mapped for writing");
 
-				Map->Pointer = VI_MALLOC(char, Width * Height * Depth * Size);
+				Map->Pointer = Core::Memory::Allocate<char>(Width * Height * Depth * Size);
 				Map->RowPitch = GetRowPitch(Width);
 				Map->DepthPitch = GetDepthPitch(Map->RowPitch, Height * Depth);
 
@@ -1896,7 +1896,7 @@ namespace Vitex
 					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
 				}
 
-				VI_FREE(Map->Pointer);
+				Core::Memory::Deallocate(Map->Pointer);
 				return Core::Expectation::Met;
 			}
 			ExpectsGraphics<void> OGLDevice::Unmap(Texture3D* Resource, MappedSubresource* Map)
@@ -1913,7 +1913,7 @@ namespace Vitex
 					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
 				}
 
-				VI_FREE(Map->Pointer);
+				Core::Memory::Deallocate(Map->Pointer);
 				return Core::Expectation::Met;
 			}
 			ExpectsGraphics<void> OGLDevice::Unmap(TextureCube* Resource, MappedSubresource* Map)
@@ -1930,7 +1930,7 @@ namespace Vitex
 					glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, BaseFormat, GL_UNSIGNED_BYTE, Map->Pointer);
 				}
 
-				VI_FREE(Map->Pointer);
+				Core::Memory::Deallocate(Map->Pointer);
 				return Core::Expectation::Met;
 			}
 			ExpectsGraphics<void> OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
@@ -2025,7 +2025,7 @@ namespace Vitex
 
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				ClearBuffer(IResource);
-				VI_CLEAR(IResource->Elements);
+				Core::Memory::Release(IResource->Elements);
 				IResource->ElementLimit = Size;
 				IResource->Array.clear();
 				IResource->Array.reserve(IResource->ElementLimit);
@@ -2035,8 +2035,8 @@ namespace Vitex
 				F.MiscFlags = ResourceMisc::Buffer_Structured;
 				F.Usage = ResourceUsage::Dynamic;
 				F.BindFlags = ResourceBind::Shader_Input;
-				F.ElementCount = (unsigned int)IResource->ElementLimit;
-				F.ElementWidth = (unsigned int)IResource->ElementWidth;
+				F.ElementCount = (uint32_t)IResource->ElementLimit;
+				F.ElementWidth = (uint32_t)IResource->ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
 
 				auto Buffer = CreateElementBuffer(F);
@@ -2066,8 +2066,8 @@ namespace Vitex
 				if (!*Result)
 				{
 					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
+					F.Width = (uint32_t)Width;
+					F.Height = (uint32_t)Height;
 					F.RowPitch = GetRowPitch(F.Width);
 					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
@@ -2087,7 +2087,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_2D, LastTexture);
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
+			ExpectsGraphics<void> OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, uint32_t Target, Texture2D** Result)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Result != nullptr, "result should be set");
@@ -2129,8 +2129,8 @@ namespace Vitex
 				if (!*Result)
 				{
 					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
+					F.Width = (uint32_t)Width;
+					F.Height = (uint32_t)Height;
 					F.RowPitch = GetRowPitch(F.Width);
 					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
@@ -2165,8 +2165,8 @@ namespace Vitex
 				if (!*Result)
 				{
 					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
+					F.Width = (uint32_t)Width;
+					F.Height = (uint32_t)Height;
 					F.RowPitch = GetRowPitch(F.Width);
 					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
@@ -2182,7 +2182,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
+			ExpectsGraphics<void> OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, uint32_t Cube, Compute::CubeFace Face, Texture2D** Result)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Result != nullptr, "result should be set");
@@ -2199,8 +2199,8 @@ namespace Vitex
 				if (!*Result)
 				{
 					Texture2D::Desc F;
-					F.Width = (unsigned int)Width;
-					F.Height = (unsigned int)Height;
+					F.Width = (uint32_t)Width;
+					F.Height = (uint32_t)Height;
 					F.RowPitch = GetRowPitch(F.Width);
 					F.DepthPitch = GetDepthPitch(F.RowPitch, F.Height);
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
@@ -2231,21 +2231,21 @@ namespace Vitex
 				if (!*Result)
 				{
 					Texture2D* Faces[6] = { nullptr };
-					for (unsigned int i = 0; i < 6; i++)
+					for (uint32_t i = 0; i < 6; i++)
 						CopyTexture2D(Resource, i, &Faces[i]);
 
 					auto NewTexture = CreateTextureCube(Faces);
 					if (!NewTexture)
 					{
-						for (unsigned int i = 0; i < 6; i++)
-							VI_RELEASE(Faces[i]);
+						for (uint32_t i = 0; i < 6; i++)
+							Core::Memory::Release(Faces[i]);
 						return NewTexture.Error();
 					}
 					else
 					{
 						*Result = (OGLTextureCube*)*NewTexture;
-						for (unsigned int i = 0; i < 6; i++)
-							VI_RELEASE(Faces[i]);
+						for (uint32_t i = 0; i < 6; i++)
+							Core::Memory::Release(Faces[i]);
 					}
 				}
 				else if (GLEW_VERSION_4_3)
@@ -2256,7 +2256,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
+			ExpectsGraphics<void> OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, uint32_t Cube, TextureCube** Result)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Result != nullptr, "result should be set");
@@ -2272,21 +2272,21 @@ namespace Vitex
 				if (!*Result)
 				{
 					Texture2D* Faces[6] = { nullptr };
-					for (unsigned int i = 0; i < 6; i++)
+					for (uint32_t i = 0; i < 6; i++)
 						CopyTexture2D(Resource, Cube, (Compute::CubeFace)i, &Faces[i]);
 
 					auto NewTexture = CreateTextureCube(Faces);
 					if (!NewTexture)
 					{
-						for (unsigned int i = 0; i < 6; i++)
-							VI_RELEASE(Faces[i]);
+						for (uint32_t i = 0; i < 6; i++)
+							Core::Memory::Release(Faces[i]);
 						return NewTexture.Error();
 					}
 					else
 					{
 						*Result = (OGLTextureCube*)*NewTexture;
-						for (unsigned int i = 0; i < 6; i++)
-							VI_RELEASE(Faces[i]);
+						for (uint32_t i = 0; i < 6; i++)
+							Core::Memory::Release(Faces[i]);
 					}
 				}
 				else if (GLEW_VERSION_4_3)
@@ -2297,7 +2297,7 @@ namespace Vitex
 				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> OGLDevice::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget)
+			ExpectsGraphics<void> OGLDevice::CopyTarget(Graphics::RenderTarget* From, uint32_t FromTarget, Graphics::RenderTarget* To, uint32_t ToTarget)
 			{
 				VI_ASSERT(From != nullptr && To != nullptr, "from and to should be set");
 				OGLTexture2D* Source2D = (OGLTexture2D*)From->GetTarget2D(FromTarget);
@@ -2384,7 +2384,7 @@ namespace Vitex
 				glGetIntegerv(GL_FRAMEBUFFER_BINDING, &LastFrameBuffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer);
 				glFramebufferTexture(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, IResource->Source, 0);
-				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (unsigned int)Face, Dest->Resource, 0);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (uint32_t)Face, Dest->Resource, 0);
 				glNamedFramebufferDrawBuffer(IResource->FrameBuffer, GL_COLOR_ATTACHMENT1);
 				glBlitFramebuffer(0, 0, Size, Size, 0, 0, Size, Size, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 				glBindFramebuffer(GL_FRAMEBUFFER, LastFrameBuffer);
@@ -2425,7 +2425,7 @@ namespace Vitex
 				glGenerateMipmap(GL_TEXTURE_2D);
 				return GenerateTexture(Texture);
 			}
-			ExpectsGraphics<void> OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
+			ExpectsGraphics<void> OGLDevice::ResizeBuffers(uint32_t Width, uint32_t Height)
 			{
 				RenderTarget2D::Desc F = RenderTarget2D::Desc();
 				F.Width = Width;
@@ -2437,7 +2437,7 @@ namespace Vitex
 				F.AccessFlags = CPUAccess::None;
 				F.BindFlags = ResourceBind::Render_Target | ResourceBind::Shader_Input;
 				F.RenderSurface = (void*)this;
-				VI_CLEAR(RenderTarget);
+				Core::Memory::Release(RenderTarget);
 
 				auto NewTarget = CreateRenderTarget2D(F);
 				if (!NewTarget)
@@ -2583,7 +2583,7 @@ namespace Vitex
 				if (!Name)
 					return GraphicsException("shader name is not defined");
 
-				OGLShader* Result = new OGLShader(I);
+				Core::UPtr<OGLShader> Result = new OGLShader(I);
 				Core::String ProgramName = std::move(*Name);
 				const char* Data = nullptr;
 				GLint Size = 0, State = GL_TRUE;
@@ -2599,10 +2599,7 @@ namespace Vitex
 
 						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Vertex, ShaderLang::GLSL);
 						if (!TranspileStatus)
-						{
-							VI_RELEASE(Result);
 							return TranspileStatus.Error();
-						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
@@ -2622,11 +2619,10 @@ namespace Vitex
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
 						Core::String ErrorText(Buffer, (size_t)Size);
-						VI_FREE(Buffer);
-						VI_RELEASE(Result);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -2642,10 +2638,7 @@ namespace Vitex
 
 						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Pixel, ShaderLang::GLSL);
 						if (!TranspileStatus)
-						{
-							VI_RELEASE(Result);
 							return TranspileStatus.Error();
-						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
@@ -2665,11 +2658,10 @@ namespace Vitex
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
 						Core::String ErrorText(Buffer, (size_t)Size);
-						VI_FREE(Buffer);
-						VI_RELEASE(Result);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -2685,10 +2677,7 @@ namespace Vitex
 
 						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Geometry, ShaderLang::GLSL);
 						if (!TranspileStatus)
-						{
-							VI_RELEASE(Result);
 							return TranspileStatus.Error();
-						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
@@ -2708,11 +2697,10 @@ namespace Vitex
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
 						Core::String ErrorText(Buffer, (size_t)Size);
-						VI_FREE(Buffer);
-						VI_RELEASE(Result);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -2728,10 +2716,7 @@ namespace Vitex
 
 						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Compute, ShaderLang::GLSL);
 						if (!TranspileStatus)
-						{
-							VI_RELEASE(Result);
 							return TranspileStatus.Error();
-						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
@@ -2751,11 +2736,10 @@ namespace Vitex
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
 						Core::String ErrorText(Buffer, (size_t)Size);
-						VI_FREE(Buffer);
-						VI_RELEASE(Result);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -2771,10 +2755,7 @@ namespace Vitex
 
 						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Hull, ShaderLang::GLSL);
 						if (!TranspileStatus)
-						{
-							VI_RELEASE(Result);
 							return TranspileStatus.Error();
-						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
@@ -2794,11 +2775,10 @@ namespace Vitex
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
 						Core::String ErrorText(Buffer, (size_t)Size);
-						VI_FREE(Buffer);
-						VI_RELEASE(Result);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -2814,10 +2794,7 @@ namespace Vitex
 
 						auto TranspileStatus = Transpile(&Bytecode, ShaderType::Domain, ShaderLang::GLSL);
 						if (!TranspileStatus)
-						{
-							VI_RELEASE(Result);
 							return TranspileStatus.Error();
-						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
@@ -2837,17 +2814,16 @@ namespace Vitex
 					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (Size + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
 						Core::String ErrorText(Buffer, (size_t)Size);
-						VI_FREE(Buffer);
-						VI_RELEASE(Result);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
 
 				Result->Compiled = true;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<ElementBuffer*> OGLDevice::CreateElementBuffer(const ElementBuffer::Desc& I)
 			{
@@ -2868,7 +2844,7 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Vertex_Buffer;
-				F.ElementCount = (unsigned int)I.Elements.size();
+				F.ElementCount = (uint32_t)I.Elements.size();
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::Vertex);
 
@@ -2880,14 +2856,14 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Index_Buffer;
-				F.ElementCount = (unsigned int)I.Indices.size();
+				F.ElementCount = (uint32_t)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
 
 				auto NewIndexBuffer = CreateElementBuffer(F);
 				if (!NewIndexBuffer)
 				{
-					VI_RELEASE(NewVertexBuffer);
+					Core::Memory::Release(*NewVertexBuffer);
 					return NewIndexBuffer.Error();
 				}
 
@@ -2911,7 +2887,7 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Vertex_Buffer;
-				F.ElementCount = (unsigned int)I.Elements.size();
+				F.ElementCount = (uint32_t)I.Elements.size();
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 
@@ -2923,14 +2899,14 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Index_Buffer;
-				F.ElementCount = (unsigned int)I.Indices.size();
+				F.ElementCount = (uint32_t)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
 
 				auto NewIndexBuffer = CreateElementBuffer(F);
 				if (!NewIndexBuffer)
 				{
-					VI_RELEASE(NewVertexBuffer);
+					Core::Memory::Release(*NewVertexBuffer);
 					return NewIndexBuffer.Error();
 				}
 
@@ -3092,7 +3068,7 @@ namespace Vitex
 			ExpectsGraphics<TextureCube*> OGLDevice::CreateTextureCube(Texture2D* Resource[6])
 			{
 				void* Resources[6];
-				for (unsigned int i = 0; i < 6; i++)
+				for (uint32_t i = 0; i < 6; i++)
 				{
 					VI_ASSERT(Resource[i] != nullptr, "face #%i should be set", (int)i);
 					VI_ASSERT(!((OGLTexture2D*)Resource[i])->Backbuffer, "resource 2d should not be back buffer texture");
@@ -3107,9 +3083,9 @@ namespace Vitex
 				VI_ASSERT(!((OGLTexture2D*)Resource)->Backbuffer, "resource 2d should not be back buffer texture");
 
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				unsigned int Width = IResource->Width / 4;
-				unsigned int Height = Width;
-				unsigned int MipLevels = GetMipLevel(Width, Height);
+				uint32_t Width = IResource->Width / 4;
+				uint32_t Height = Width;
+				uint32_t MipLevels = GetMipLevel(Width, Height);
 
 				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
 					return GraphicsException("create texture cube: width / height is invalid");
@@ -3140,7 +3116,7 @@ namespace Vitex
 				GLint SizeFormat = OGLDevice::GetSizedFormat(Result->FormatMode);
 				GLint BaseFormat = OGLDevice::GetBaseFormat(Result->FormatMode);
 				GLsizei Size = sizeof(GLubyte) * Width * Height;
-				GLubyte* Pixels = VI_MALLOC(GLubyte, Size);
+				GLubyte* Pixels = Core::Memory::Allocate<GLubyte>(Size);
 				Result->Format = SizeFormat;
 				Result->FormatMode = IResource->FormatMode;
 				Result->Width = IResource->Width;
@@ -3168,7 +3144,7 @@ namespace Vitex
 				glGetTextureSubImage(GL_TEXTURE_2D, 0, Width, Height, 0, Width, Height, 0, BaseFormat, GL_UNSIGNED_BYTE, Size, Pixels);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, IResource->MipLevels, SizeFormat, IResource->Width, IResource->Height, 0, BaseFormat, GL_UNSIGNED_BYTE, Pixels);
 
-				VI_FREE(Pixels);
+				Core::Memory::Deallocate(Pixels);
 				if (IResource->MipLevels != 0)
 					glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
@@ -3180,7 +3156,7 @@ namespace Vitex
 			{
 				VI_ASSERT(Basis[0] && Basis[1] && Basis[2] && Basis[3] && Basis[4] && Basis[5], "all 6 faces should be set");
 				OGLTexture2D* Resources[6];
-				for (unsigned int i = 0; i < 6; i++)
+				for (uint32_t i = 0; i < 6; i++)
 					Resources[i] = (OGLTexture2D*)Basis[i];
 
 				OGLTextureCube* Result = new OGLTextureCube();
@@ -3205,14 +3181,14 @@ namespace Vitex
 
 				GLint SizeFormat = OGLDevice::GetSizedFormat(Result->FormatMode);
 				GLint BaseFormat = OGLDevice::GetBaseFormat(Result->FormatMode);
-				GLubyte* Pixels = VI_MALLOC(GLubyte, sizeof(GLubyte) * Resources[0]->Width * Resources[0]->Height);
+				GLubyte* Pixels = Core::Memory::Allocate<GLubyte>(sizeof(GLubyte) * Resources[0]->Width * Resources[0]->Height);
 				Result->Format = SizeFormat;
 				Result->FormatMode = Resources[0]->FormatMode;
 				Result->Width = Resources[0]->Width;
 				Result->Height = Resources[0]->Height;
 				Result->MipLevels = Resources[0]->MipLevels;
 
-				for (unsigned int i = 0; i < 6; i++)
+				for (uint32_t i = 0; i < 6; i++)
 				{
 					OGLTexture2D* Ref = Resources[i];
 					glBindTexture(GL_TEXTURE_2D, Ref->Resource);
@@ -3221,7 +3197,7 @@ namespace Vitex
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, Ref->MipLevels, SizeFormat, Ref->Width, Ref->Height, 0, BaseFormat, GL_UNSIGNED_BYTE, Pixels);
 				}
 
-				VI_FREE(Pixels);
+				Core::Memory::Deallocate(Pixels);
 				if (Resources[0]->MipLevels != 0)
 					glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
@@ -3231,7 +3207,7 @@ namespace Vitex
 			}
 			ExpectsGraphics<DepthTarget2D*> OGLDevice::CreateDepthTarget2D(const DepthTarget2D::Desc& I)
 			{
-				OGLDepthTarget2D* Result = new OGLDepthTarget2D(I);
+				Core::UPtr<OGLDepthTarget2D> Result = new OGLDepthTarget2D(I);
 				glGenTextures(1, &Result->DepthTexture);
 				glBindTexture(GL_TEXTURE_2D, Result->DepthTexture);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -3247,10 +3223,7 @@ namespace Vitex
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
 					return NewTexture.Error();
-				}
 
 				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 				DepthStencil->FormatMode = I.FormatMode;
@@ -3277,12 +3250,11 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<DepthTargetCube*> OGLDevice::CreateDepthTargetCube(const DepthTargetCube::Desc& I)
 			{
-				OGLDepthTargetCube* Result = new OGLDepthTargetCube(I);
+				Core::UPtr<OGLDepthTargetCube> Result = new OGLDepthTargetCube(I);
 				bool NoStencil = (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float);
 				GLenum SizeFormat = GetSizedFormat(I.FormatMode);
 				GLenum ComponentFormat = (NoStencil ? GL_DEPTH_COMPONENT : GL_DEPTH_STENCIL);
@@ -3307,10 +3279,7 @@ namespace Vitex
 
 				auto NewTexture = CreateTextureCube();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
 					return NewTexture.Error();
-				}
 
 				OGLTextureCube* DepthStencil = (OGLTextureCube*)*NewTexture;
 				DepthStencil->FormatMode = I.FormatMode;
@@ -3337,12 +3306,11 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<RenderTarget2D*> OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
 			{
-				OGLRenderTarget2D* Result = new OGLRenderTarget2D(I);
+				Core::UPtr<OGLRenderTarget2D> Result = new OGLRenderTarget2D(I);
 				if (!I.RenderSurface)
 				{
 					GLenum Format = OGLDevice::GetSizedFormat(I.FormatMode);
@@ -3364,10 +3332,7 @@ namespace Vitex
 
 					auto NewTexture = CreateTexture2D();
 					if (!NewTexture)
-					{
-						VI_RELEASE(Result);
 						return NewTexture.Error();
-					}
 
 					OGLTexture2D* Frontbuffer = (OGLTexture2D*)*NewTexture;
 					Frontbuffer->FormatMode = I.FormatMode;
@@ -3393,10 +3358,7 @@ namespace Vitex
 
 					NewTexture = CreateTexture2D();
 					if (!NewTexture)
-					{
-						VI_RELEASE(Result);
 						return NewTexture.Error();
-					}
 
 					OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 					DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
@@ -3418,10 +3380,7 @@ namespace Vitex
 				{
 					auto NewTexture = CreateTexture2D();
 					if (!NewTexture)
-					{
-						VI_RELEASE(Result);
 						return NewTexture.Error();
-					}
 
 					OGLTexture2D* Backbuffer = (OGLTexture2D*)*NewTexture;
 					Backbuffer->FormatMode = I.FormatMode;
@@ -3441,15 +3400,15 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<MultiRenderTarget2D*> OGLDevice::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
 			{
-				OGLMultiRenderTarget2D* Result = new OGLMultiRenderTarget2D(I);
+				Core::UPtr<OGLMultiRenderTarget2D> Result = new OGLMultiRenderTarget2D(I);
 				glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer.Buffer);
 
-				for (unsigned int i = 0; i < (unsigned int)I.Target; i++)
+				for (uint32_t i = 0; i < (uint32_t)I.Target; i++)
 				{
 					GLenum Format = OGLDevice::GetSizedFormat(I.FormatMode[i]);
 					glGenTextures(1, &Result->FrameBuffer.Texture[i]);
@@ -3470,10 +3429,7 @@ namespace Vitex
 
 					auto NewTexture = CreateTexture2D();
 					if (!NewTexture)
-					{
-						VI_RELEASE(Result);
 						return NewTexture.Error();
-					}
 
 					OGLTexture2D* Frontbuffer = (OGLTexture2D*)*NewTexture;
 					Frontbuffer->FormatMode = I.FormatMode[i];
@@ -3503,10 +3459,7 @@ namespace Vitex
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
 					return NewTexture.Error();
-				}
 
 				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
@@ -3527,11 +3480,11 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<RenderTargetCube*> OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
 			{
-				OGLRenderTargetCube* Result = new OGLRenderTargetCube(I);
+				Core::UPtr<OGLRenderTargetCube> Result = new OGLRenderTargetCube(I);
 				GLint SizeFormat = OGLDevice::GetSizedFormat(I.FormatMode);
 				GLint BaseFormat = OGLDevice::GetBaseFormat(I.FormatMode);
 				glGenTextures(1, &Result->FrameBuffer.Texture[0]);
@@ -3560,10 +3513,7 @@ namespace Vitex
 
 				auto NewTexture = CreateTextureCube();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
 					return NewTexture.Error();
-				}
 
 				OGLTextureCube* Base = (OGLTextureCube*)*NewTexture;
 				Base->FormatMode = I.FormatMode;
@@ -3594,10 +3544,7 @@ namespace Vitex
 
 				auto NewSubtexture = CreateTexture2D();
 				if (!NewSubtexture)
-				{
-					VI_RELEASE(Result);
 					return NewSubtexture.Error();
-				}
 
 				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewSubtexture;
 				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
@@ -3621,15 +3568,15 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<MultiRenderTargetCube*> OGLDevice::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
 			{
-				OGLMultiRenderTargetCube* Result = new OGLMultiRenderTargetCube(I);
+				Core::UPtr<OGLMultiRenderTargetCube> Result = new OGLMultiRenderTargetCube(I);
 				glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer.Buffer);
 
-				for (unsigned int i = 0; i < (unsigned int)I.Target; i++)
+				for (uint32_t i = 0; i < (uint32_t)I.Target; i++)
 				{
 					GLint SizeFormat = OGLDevice::GetSizedFormat(I.FormatMode[i]);
 					GLint BaseFormat = OGLDevice::GetBaseFormat(I.FormatMode[i]);
@@ -3659,10 +3606,7 @@ namespace Vitex
 
 					auto NewTexture = CreateTextureCube();
 					if (!NewTexture)
-					{
-						VI_RELEASE(Result);
 						return NewTexture.Error();
-					}
 
 					OGLTextureCube* Frontbuffer = (OGLTextureCube*)*NewTexture;
 					Frontbuffer->FormatMode = I.FormatMode[i];
@@ -3697,10 +3641,7 @@ namespace Vitex
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
 					return NewTexture.Error();
-				}
 
 				OGLTexture2D* DepthStencil = (OGLTexture2D*)*NewTexture;
 				DepthStencil->FormatMode = Format::D24_Unorm_S8_Uint;
@@ -3721,7 +3662,7 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<Cubemap*> OGLDevice::CreateCubemap(const Cubemap::Desc& I)
 			{
@@ -3831,7 +3772,7 @@ namespace Vitex
 						break;
 				}
 			}
-			const char* OGLDevice::GetShaderVersion()
+			const std::string_view& OGLDevice::GetShaderVersion()
 			{
 				return ShaderVersion;
 			}
@@ -3892,7 +3833,7 @@ namespace Vitex
 							oColor = iColor;
 						});
 
-					Core::String Result = ShaderVersion;
+					Core::String Result = Core::String(ShaderVersion);
 					Result.append(VertexShaderCode);
 
 					const char* Subbuffer = Result.data();
@@ -3904,10 +3845,10 @@ namespace Vitex
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Immediate.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.VertexShader, BufferSize, &BufferSize, Buffer);
 						Core::String ErrorText(Buffer, (size_t)BufferSize);
-						VI_FREE(Buffer);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -3931,7 +3872,7 @@ namespace Vitex
 								oResult = oColor * Padding.w;
 						});
 
-					Core::String Result = ShaderVersion;
+					Core::String Result = Core::String(ShaderVersion);
 					Result.append(PixelShaderCode);
 
 					const char* Subbuffer = Result.data();
@@ -3943,10 +3884,10 @@ namespace Vitex
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Immediate.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.PixelShader, BufferSize, &BufferSize, Buffer);
 						Core::String ErrorText(Buffer, (size_t)BufferSize);
-						VI_FREE(Buffer);
+						Core::Memory::Deallocate(Buffer);
 						return GraphicsException(std::move(ErrorText));
 					}
 				}
@@ -3964,10 +3905,10 @@ namespace Vitex
 						GLint BufferSize = 0;
 						glGetProgramiv(Immediate.Program, GL_INFO_LOG_LENGTH, &BufferSize);
 
-						char* Buffer = VI_MALLOC(char, sizeof(char) * (BufferSize + 1));
+						char* Buffer = Core::Memory::Allocate<char>(sizeof(char) * (BufferSize + 1));
 						glGetProgramInfoLog(Immediate.Program, BufferSize, &BufferSize, Buffer);
 						Core::String ErrorText(Buffer, (size_t)BufferSize);
-						VI_FREE(Buffer);
+						Core::Memory::Deallocate(Buffer);
 
 						glDeleteProgram(Immediate.Program);
 						Immediate.Program = GL_NONE;
@@ -4017,11 +3958,11 @@ namespace Vitex
 				if ((GLboolean)Stat == GL_TRUE || !Size)
 					return "";
 
-				GLchar* Buffer = VI_MALLOC(GLchar, sizeof(GLchar) * Size);
+				GLchar* Buffer = Core::Memory::Allocate<GLchar>(sizeof(GLchar) * Size);
 				glGetShaderInfoLog(Handle, Size, NULL, Buffer);
 
 				Core::String Result((char*)Buffer, Size);
-				VI_FREE(Buffer);
+				Core::Memory::Deallocate(Buffer);
 
 				return Result;
 			}

@@ -84,8 +84,8 @@ namespace Vitex
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
 		typedef std::function<void(SocketAddress*)> SocketOpenedCallback;
 		typedef std::function<void(const Core::Option<std::error_condition>&)> SocketStatusCallback;
-		typedef std::function<bool(SocketPoll, const char*, size_t)> SocketReadCallback;
-		typedef std::function<bool(socket_t, char*)> SocketAcceptedCallback;
+		typedef std::function<bool(SocketPoll, const uint8_t*, size_t)> SocketReadCallback;
+		typedef std::function<bool(socket_t, const std::string_view&)> SocketAcceptedCallback;
 
 		struct VI_OUT RemoteHost
 		{
@@ -108,7 +108,7 @@ namespace Vitex
 			int Port;
 
 		public:
-			Location(const Core::String& From) noexcept;
+			Location(const std::string_view& From) noexcept;
 			Location(const Location&) = default;
 			Location(Location&&) noexcept = default;
 			Location& operator= (const Location&) = default;
@@ -293,7 +293,7 @@ namespace Vitex
 			};
 
 		public:
-			static Core::ExpectsIO<CertificateBlob> GenerateSelfSignedCertificate(uint32_t Days = 365 * 4, const Core::String& AddressesCommaSeparated = "127.0.0.1", const Core::String& DomainsCommaSeparated = Core::String()) noexcept;
+			static Core::ExpectsIO<CertificateBlob> GenerateSelfSignedCertificate(uint32_t Days = 365 * 4, const std::string_view& AddressesCommaSeparated = "127.0.0.1", const std::string_view& DomainsCommaSeparated = std::string_view()) noexcept;
 			static Core::ExpectsIO<Certificate> GetCertificateFromX509(void* CertificateX509) noexcept;
 			static int Poll(pollfd* Fd, int FdCount, int Timeout) noexcept;
 			static int Poll(PollFd* Fd, int FdCount, int Timeout) noexcept;
@@ -301,7 +301,7 @@ namespace Vitex
 			static Core::String GetAddress(addrinfo* Info) noexcept;
 			static Core::String GetAddress(sockaddr* Info) noexcept;
 			static std::error_condition GetLastError(ssl_st* Device, int ErrorCode) noexcept;
-			static int GetAddressFamily(const char* Address) noexcept;
+			static int GetAddressFamily(const std::string_view& Address) noexcept;
 			static bool IsInvalid(socket_t Fd) noexcept;
 			static int64_t Clock() noexcept;
 			static void DisplayTransportLog() noexcept;
@@ -318,7 +318,7 @@ namespace Vitex
 		public:
 			TransportLayer() noexcept;
 			virtual ~TransportLayer() noexcept override;
-			Core::ExpectsIO<ssl_ctx_st*> CreateServerContext(size_t VerifyDepth, SecureLayerOptions Options, const Core::String& CiphersList) noexcept;
+			Core::ExpectsIO<ssl_ctx_st*> CreateServerContext(size_t VerifyDepth, SecureLayerOptions Options, const std::string_view& CiphersList) noexcept;
 			Core::ExpectsIO<ssl_ctx_st*> CreateClientContext(size_t VerifyDepth) noexcept;
 			void FreeServerContext(ssl_ctx_st* Context) noexcept;
 			void FreeClientContext(ssl_ctx_st* Context) noexcept;
@@ -336,8 +336,8 @@ namespace Vitex
 		public:
 			DNS() noexcept;
 			virtual ~DNS() noexcept override;
-			Core::ExpectsSystem<Core::String> FromAddress(const Core::String& Host, const Core::String& Service);
-			Core::ExpectsSystem<SocketAddress*> FromService(const Core::String& Host, const Core::String& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
+			Core::ExpectsSystem<Core::String> FromAddress(const std::string_view& Host, const std::string_view& Service);
+			Core::ExpectsSystem<SocketAddress*> FromService(const std::string_view& Host, const std::string_view& Service, DNSType TestType, SocketProtocol Proto, SocketType Type);
 		};
 
 		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
@@ -346,7 +346,7 @@ namespace Vitex
 			Core::OrderedMap<std::chrono::microseconds, Socket*> Timeouts;
 			Core::Vector<EpollFd> Fds;
 			std::atomic<size_t> Activations;
-			std::recursive_mutex Exclusive;
+			std::mutex Exclusive;
 			EpollHandle Handle;
 			uint64_t DefaultTimeout;
 
@@ -363,21 +363,20 @@ namespace Vitex
 			bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
 			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel) noexcept;
 			bool ClearEvents(Socket* Value) noexcept;
-			bool IsAwaitingEvents(Socket* Value) noexcept;
-			bool IsAwaitingReadable(Socket* Value) noexcept;
-			bool IsAwaitingWriteable(Socket* Value) noexcept;
 			bool IsListening() noexcept;
 			size_t GetActivations() noexcept;
 
 		private:
+			void DispatchSockets(size_t Size, const std::chrono::microseconds& Time) noexcept;
+			void DispatchTimers(const std::chrono::microseconds& Time) noexcept;
 			bool DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept;
-			void AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
-			void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
-			void RemoveTimeout(Socket* Value) noexcept;
 			void TryDispatch() noexcept;
 			void TryEnqueue() noexcept;
 			void TryListen() noexcept;
 			void TryUnlisten() noexcept;
+			void AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
+			void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
+			void RemoveTimeout(Socket* Value) noexcept;
 		};
 
 		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
@@ -395,8 +394,8 @@ namespace Vitex
 			size_t GetSize();
 
 		private:
-			void ExpireConnectionName(const Core::String& Name, Socket* Target);
-			void ListenConnectionName(const Core::String& Name, Socket* Target);
+			void ExpireConnectionName(const std::string_view& Name, Socket* Target);
+			void ListenConnectionName(const std::string_view& Name, Socket* Target);
 			void UnlistenConnection(Socket* Target);
 			Core::String GetName(RemoteHost* Address);
 		};
@@ -416,11 +415,11 @@ namespace Vitex
 			Core::ExpectsIO<void> SetNotBefore(int64_t OffsetSeconds = 0);
 			Core::ExpectsIO<void> SetPublicKey(uint32_t Bits = 4096);
 			Core::ExpectsIO<void> SetIssuer(const X509Blob& Issuer);
-			Core::ExpectsIO<void> AddCustomExtension(bool Critical, const Core::String& Key, const Core::String& Value, const Core::String& Description = Core::String());
-			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, int NID, const Core::String& Value);
-			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, const Core::String& NameOfNID, const Core::String& Value);
-			Core::ExpectsIO<void> AddSubjectInfo(const Core::String& Key, const Core::String& Value);
-			Core::ExpectsIO<void> AddIssuerInfo(const Core::String& Key, const Core::String& Value);
+			Core::ExpectsIO<void> AddCustomExtension(bool Critical, const std::string_view& Key, const std::string_view& Value, const std::string_view& Description = std::string_view());
+			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, int NID, const std::string_view& Value);
+			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, const std::string_view& NameOfNID, const std::string_view& Value);
+			Core::ExpectsIO<void> AddSubjectInfo(const std::string_view& Key, const std::string_view& Value);
+			Core::ExpectsIO<void> AddIssuerInfo(const std::string_view& Key, const std::string_view& Value);
 			Core::ExpectsIO<void> Sign(Compute::Digest Algorithm);
 			Core::ExpectsIO<CertificateBlob> Build();
 			void* GetCertificateX509();
@@ -450,11 +449,18 @@ namespace Vitex
 			friend Multiplexer;
 
 		private:
-			struct
+			struct IEvents
 			{
+				std::mutex Mutex;
 				PollEventCallback ReadCallback = nullptr;
 				PollEventCallback WriteCallback = nullptr;
-				std::chrono::microseconds ExpiresAt = std::chrono::microseconds(0);
+				std::chrono::microseconds Expiration = std::chrono::microseconds(0);
+				uint64_t Timeout = 0;
+
+				IEvents() = default;
+				IEvents(IEvents&& Other) noexcept;
+				IEvents& operator=(IEvents&& Other) noexcept;
+				~IEvents() = default;
 			} Events;
 
 		private:
@@ -462,10 +468,8 @@ namespace Vitex
 			socket_t Fd;
 
 		public:
-			uint64_t Timeout;
 			size_t Income;
 			size_t Outcome;
-			void* UserData;
 
 		public:
 			Socket() noexcept;
@@ -475,27 +479,27 @@ namespace Vitex
 			~Socket() noexcept;
 			Socket& operator =(const Socket& Other) = delete;
 			Socket& operator =(Socket&& Other) noexcept;
-			Core::ExpectsIO<void> Accept(Socket* OutConnection, char* OutAddress);
-			Core::ExpectsIO<void> Accept(socket_t* OutFd, char* OutAddress);
+			Core::ExpectsIO<void> Accept(Socket* OutFd, Core::String* OutAddress);
+			Core::ExpectsIO<void> Accept(socket_t* OutFd, Core::String* OutAddress);
 			Core::ExpectsIO<void> AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
 			Core::ExpectsIO<void> Shutdown(bool Gracefully = false);
 			Core::ExpectsIO<void> Close();
 			Core::ExpectsIO<void> CloseAsync(SocketStatusCallback&& Callback);
 			Core::ExpectsIO<size_t> SendFile(FILE* Stream, size_t Offset, size_t Size);
 			Core::ExpectsIO<size_t> SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer = 0);
-			Core::ExpectsIO<size_t> Write(const char* Buffer, size_t Size);
-			Core::ExpectsIO<size_t> WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync = true, char* TempBuffer = nullptr, size_t TempOffset = 0);
-			Core::ExpectsIO<size_t> Read(char* Buffer, size_t Size);
-			Core::ExpectsIO<size_t> Read(char* Buffer, size_t Size, SocketReadCallback&& Callback);
+			Core::ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Size);
+			Core::ExpectsIO<size_t> WriteAsync(const uint8_t* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync = true, uint8_t* TempBuffer = nullptr, size_t TempOffset = 0);
+			Core::ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Size);
+			Core::ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Size, SocketReadCallback&& Callback);
 			Core::ExpectsIO<size_t> ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
-			Core::ExpectsIO<size_t> ReadUntil(const char* Match, SocketReadCallback&& Callback);
+			Core::ExpectsIO<size_t> ReadUntil(const std::string_view& Match, SocketReadCallback&& Callback);
 			Core::ExpectsIO<size_t> ReadUntilAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
-			Core::ExpectsIO<size_t> ReadUntilChunked(const char* Match, SocketReadCallback&& Callback);
+			Core::ExpectsIO<size_t> ReadUntilChunked(const std::string_view& Match, SocketReadCallback&& Callback);
 			Core::ExpectsIO<size_t> ReadUntilChunkedAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
 			Core::ExpectsIO<void> Connect(SocketAddress* Address, uint64_t Timeout);
 			Core::ExpectsIO<void> ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback);
 			Core::ExpectsIO<void> Open(SocketAddress* Address);
-			Core::ExpectsIO<void> Secure(ssl_ctx_st* Context, const char* Hostname);
+			Core::ExpectsIO<void> Secure(ssl_ctx_st* Context, const std::string_view& Hostname);
 			Core::ExpectsIO<void> Bind(SocketAddress* Address);
 			Core::ExpectsIO<void> Listen(int Backlog);
 			Core::ExpectsIO<void> ClearEvents(bool Gracefully);
@@ -517,23 +521,17 @@ namespace Vitex
 			Core::ExpectsIO<Core::String> GetRemoteAddress();
 			Core::ExpectsIO<int> GetPort();
 			Core::ExpectsIO<Certificate> GetCertificate();
-			socket_t GetFd();
-			ssl_st* GetDevice();
-			bool IsPendingForRead();
-			bool IsPendingForWrite();
-			bool IsPending();
-			bool IsValid();
-			bool IsSecure();
+			void SetIoTimeout(uint64_t TimeoutMs);
+			socket_t GetFd() const;
+			ssl_st* GetDevice() const;
+			bool IsAwaitingReadable();
+			bool IsAwaitingWriteable();
+			bool IsAwaitingEvents();
+			bool IsSecure() const;
+			bool IsValid() const;
 
 		private:
 			Core::ExpectsIO<void> TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying);
-
-		public:
-			template <typename T>
-			T* Context()
-			{
-				return (T*)UserData;
-			}
 		};
 
 		class VI_OUT SocketListener final : public Core::Reference<SocketListener>
@@ -545,7 +543,7 @@ namespace Vitex
 			Socket* Stream;
 
 		public:
-			SocketListener(const Core::String& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);
+			SocketListener(const std::string_view& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);
 			~SocketListener() noexcept;
 		};
 
@@ -566,8 +564,8 @@ namespace Vitex
 		public:
 			SocketRouter() = default;
 			virtual ~SocketRouter() noexcept;
-			RemoteHost& Listen(const Core::String& Hostname, int Port, bool Secure = false);
-			RemoteHost& Listen(const Core::String& Pattern, const Core::String& Hostname, int Port, bool Secure = false);
+			RemoteHost& Listen(const std::string_view& Hostname, int Port, bool Secure = false);
+			RemoteHost& Listen(const std::string_view& Pattern, const std::string_view& Hostname, int Port, bool Secure = false);
 		};
 
 		class VI_OUT SocketConnection : public Core::Reference<SocketConnection>
@@ -583,7 +581,7 @@ namespace Vitex
 			virtual ~SocketConnection() noexcept;
 			virtual void Reset(bool Fully);
 			virtual bool Abort();
-			virtual bool Abort(int, const char* ErrorMessage, ...);
+			virtual bool Abort(int, const char* Format, ...);
 			virtual bool Next();
 			virtual bool Next(int);
 			virtual bool Closable(SocketRouter* Router);
@@ -636,7 +634,7 @@ namespace Vitex
 
 		protected:
 			Core::ExpectsIO<void> Refuse(SocketConnection* Base);
-			Core::ExpectsIO<void> Accept(SocketListener* Host, socket_t Fd, const Core::String& Address);
+			Core::ExpectsIO<void> Accept(SocketListener* Host, socket_t Fd, const std::string_view& Address);
 			Core::ExpectsIO<void> HandshakeThenOpen(SocketConnection* Fd, SocketListener* Host);
 			Core::ExpectsIO<void> Continue(SocketConnection* Base);
 			Core::ExpectsIO<void> Finalize(SocketConnection* Base);

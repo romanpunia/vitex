@@ -250,25 +250,25 @@ namespace Vitex
 		{
 		public:
 			static ExpectsAudio<void> Initialize();
-			static ExpectsAudio<void> GenerateBuffers(int Count, unsigned int* Buffers);
-			static ExpectsAudio<void> SetFilter1I(unsigned int Filter, FilterEx Value, int F1);
-			static ExpectsAudio<void> SetFilter1F(unsigned int Filter, FilterEx Value, float F1);
-			static ExpectsAudio<void> SetEffect1I(unsigned int Effect, EffectEx Value, int F1);
-			static ExpectsAudio<void> SetEffect1F(unsigned int Effect, EffectEx Value, float F1);
-			static ExpectsAudio<void> SetEffectVF(unsigned int Effect, EffectEx Value, float* FS);
-			static ExpectsAudio<void> SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency);
-			static ExpectsAudio<void> SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3);
-			static ExpectsAudio<void> GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3);
-			static ExpectsAudio<void> SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS);
-			static ExpectsAudio<void> GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS);
-			static ExpectsAudio<void> SetSourceData1F(unsigned int Source, SoundEx Value, float F1);
-			static ExpectsAudio<void> GetSourceData1F(unsigned int Source, SoundEx Value, float* F1);
-			static ExpectsAudio<void> SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3);
-			static ExpectsAudio<void> GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3);
-			static ExpectsAudio<void> SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
-			static ExpectsAudio<void> GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
-			static ExpectsAudio<void> SetSourceData1I(unsigned int Source, SoundEx Value, int F1);
-			static ExpectsAudio<void> GetSourceData1I(unsigned int Source, SoundEx Value, int* F1);
+			static ExpectsAudio<void> GenerateBuffers(int Count, uint32_t* Buffers);
+			static ExpectsAudio<void> SetFilter1I(uint32_t Filter, FilterEx Value, int F1);
+			static ExpectsAudio<void> SetFilter1F(uint32_t Filter, FilterEx Value, float F1);
+			static ExpectsAudio<void> SetEffect1I(uint32_t Effect, EffectEx Value, int F1);
+			static ExpectsAudio<void> SetEffect1F(uint32_t Effect, EffectEx Value, float F1);
+			static ExpectsAudio<void> SetEffectVF(uint32_t Effect, EffectEx Value, float* FS);
+			static ExpectsAudio<void> SetBufferData(uint32_t Buffer, int Format, const void* Data, int Size, int Frequency);
+			static ExpectsAudio<void> SetSourceData3F(uint32_t Source, SoundEx Value, float F1, float F2, float F3);
+			static ExpectsAudio<void> GetSourceData3F(uint32_t Source, SoundEx Value, float* F1, float* F2, float* F3);
+			static ExpectsAudio<void> SetSourceDataVF(uint32_t Source, SoundEx Value, float* FS);
+			static ExpectsAudio<void> GetSourceDataVF(uint32_t Source, SoundEx Value, float* FS);
+			static ExpectsAudio<void> SetSourceData1F(uint32_t Source, SoundEx Value, float F1);
+			static ExpectsAudio<void> GetSourceData1F(uint32_t Source, SoundEx Value, float* F1);
+			static ExpectsAudio<void> SetSourceData3I(uint32_t Source, SoundEx Value, int F1, int F2, int F3);
+			static ExpectsAudio<void> GetSourceData3I(uint32_t Source, SoundEx Value, int* F1, int* F2, int* F3);
+			static ExpectsAudio<void> SetSourceDataVI(uint32_t Source, SoundEx Value, int* FS);
+			static ExpectsAudio<void> GetSourceDataVI(uint32_t Source, SoundEx Value, int* FS);
+			static ExpectsAudio<void> SetSourceData1I(uint32_t Source, SoundEx Value, int F1);
+			static ExpectsAudio<void> GetSourceData1I(uint32_t Source, SoundEx Value, int* F1);
 			static ExpectsAudio<void> SetListenerData3F(SoundEx Listener, float F1, float F2, float F3);
 			static ExpectsAudio<void> GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3);
 			static ExpectsAudio<void> SetListenerDataVF(SoundEx Listener, float* FS);
@@ -291,7 +291,7 @@ namespace Vitex
 
 		protected:
 			AudioSource* Source = nullptr;
-			unsigned int Filter = 0;
+			uint32_t Filter = 0;
 
 		public:
 			AudioFilter() noexcept;
@@ -319,8 +319,8 @@ namespace Vitex
 		protected:
 			AudioSource* Source = nullptr;
 			AudioFilter* Filter = nullptr;
-			unsigned int Effect = 0;
-			unsigned int Slot = 0;
+			uint32_t Effect = 0;
+			uint32_t Slot = 0;
 
 		public:
 			AudioEffect() noexcept;
@@ -347,7 +347,7 @@ namespace Vitex
 		class VI_OUT AudioClip final : public Core::Reference<AudioClip>
 		{
 		private:
-			unsigned int Buffer = 0;
+			uint32_t Buffer = 0;
 			int Format = 0;
 
 		public:
@@ -355,7 +355,7 @@ namespace Vitex
 			~AudioClip() noexcept;
 			float Length() const;
 			bool IsMono() const;
-			unsigned int GetBuffer() const;
+			uint32_t GetBuffer() const;
 			int GetFormat() const;
 		};
 
@@ -366,7 +366,7 @@ namespace Vitex
 		private:
 			Core::Vector<AudioEffect*> Effects;
 			AudioClip* Clip = nullptr;
-			unsigned int Instance = 0;
+			uint32_t Instance = 0;
 
 		public:
 			AudioSource() noexcept;
@@ -385,7 +385,7 @@ namespace Vitex
 			size_t GetEffectsCount() const;
 			AudioClip* GetClip() const;
 			AudioEffect* GetEffect(uint64_t Section) const;
-			unsigned int GetInstance() const;
+			uint32_t GetInstance() const;
 			const Core::Vector<AudioEffect*>& GetEffects() const;
 
 		public:

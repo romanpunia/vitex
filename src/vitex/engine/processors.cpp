@@ -43,7 +43,7 @@ namespace Vitex
 					Root.c1, Root.c2, Root.c3, Root.c4,
 					Root.d1, Root.d2, Root.d3, Root.d4).Transpose();
 			}
-			Core::String GetMeshName(const Core::String& Name, ModelInfo* Info)
+			Core::String GetMeshName(const std::string_view& Name, ModelInfo* Info)
 			{
 				if (Name.empty())
 				{
@@ -58,7 +58,7 @@ namespace Vitex
 					return Hash->substr(0, 8);
 				}
 
-				Core::String Result = Name;
+				Core::String Result = Core::String(Name);
 				for (auto&& Data : Info->Meshes)
 				{
 					if (Data.Name == Result)
@@ -67,12 +67,12 @@ namespace Vitex
 
 				return Result;
 			}
-			Core::String GetJointName(const Core::String& BaseName, ModelInfo* Info, MeshBlob* Blob)
+			Core::String GetJointName(const std::string_view& BaseName, ModelInfo* Info, MeshBlob* Blob)
 			{
 				if (!BaseName.empty())
-					return BaseName;
+					return Core::String(BaseName);
 
-				Core::String Name = BaseName + '?';
+				Core::String Name = Core::String(BaseName) + '?';
 				while (Info->JointOffsets.find(Name) != Info->JointOffsets.end())
 					Name += '?';
 
@@ -147,7 +147,7 @@ namespace Vitex
 						goto AddLinkingJoint;
 					}
 
-					for (unsigned int i = 0; i < Node->mNumChildren; i++)
+					for (uint32_t i = 0; i < Node->mNumChildren; i++)
 					{
 						auto& Next = Node->mChildren[i];
 						if (FillSceneSkeleton(Info, Next, Top))
@@ -172,7 +172,7 @@ namespace Vitex
 				Top->Index = It->second.Index;
 				Top->Name = Name;
 
-				for (unsigned int i = 0; i < Node->mNumChildren; i++)
+				for (uint32_t i = 0; i < Node->mNumChildren; i++)
 				{
 					auto& Next = Node->mChildren[i];
 					FillSceneSkeleton(Info, Next, Top);
@@ -183,7 +183,7 @@ namespace Vitex
 			void FillSceneGeometry(ModelInfo* Info, MeshBlob* Blob, aiMesh* Mesh)
 			{
 				Blob->Vertices.reserve((size_t)Mesh->mNumVertices);
-				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
+				for (uint32_t v = 0; v < Mesh->mNumVertices; v++)
 				{
 					auto& Vertex = Mesh->mVertices[v];
 					Compute::SkinVertex Next = { Vertex.x, Vertex.y, Vertex.z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 };
@@ -220,17 +220,17 @@ namespace Vitex
 					Blob->Vertices.push_back(Next);
 				}
 
-				for (unsigned int f = 0; f < Mesh->mNumFaces; f++)
+				for (uint32_t f = 0; f < Mesh->mNumFaces; f++)
 				{
 					auto* Face = &Mesh->mFaces[f];
 					Blob->Indices.reserve(Blob->Indices.size() + (size_t)Face->mNumIndices);
-					for (unsigned int i = 0; i < Face->mNumIndices; i++)
+					for (uint32_t i = 0; i < Face->mNumIndices; i++)
 						Blob->Indices.push_back(Face->mIndices[i]);
 				}
 			}
 			void FillSceneJoints(ModelInfo* Info, MeshBlob* Blob, aiMesh* Mesh)
 			{
-				for (unsigned int i = 0; i < Mesh->mNumBones; i++)
+				for (uint32_t i = 0; i < Mesh->mNumBones; i++)
 				{
 					auto& Bone = Mesh->mBones[i];
 					auto Name = GetJointName(Bone->mName.C_Str(), Info, Blob);
@@ -248,7 +248,7 @@ namespace Vitex
 					auto& Local = Blob->JointIndices[Global->second.Index];
 					Local = Blob->LocalIndex++;
 
-					for (unsigned int j = 0; j < Bone->mNumWeights; j++)
+					for (uint32_t j = 0; j < Bone->mNumWeights; j++)
 					{
 						auto& Weight = Bone->mWeights[j];
 						auto& Vertex = Blob->Vertices[Weight.mVertexId];
@@ -282,7 +282,7 @@ namespace Vitex
 				if (Node == Scene->mRootNode)
 					Info->Transform = FromAssimpMatrix(Scene->mRootNode->mTransformation).Inv();
 
-				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
+				for (uint32_t n = 0; n < Node->mNumMeshes; n++)
 				{
 					Info->Meshes.emplace_back();
 					MeshBlob& Blob = Info->Meshes.back();
@@ -295,7 +295,7 @@ namespace Vitex
 					UpdateSceneBounds(Info);
 				}
 
-				for (unsigned int n = 0; n < Node->mNumChildren; n++)
+				for (uint32_t n = 0; n < Node->mNumChildren; n++)
 				{
 					auto& Next = Node->mChildren[n];
 					FillSceneGeometries(Info, Scene, Next, ParentTransform);
@@ -335,21 +335,21 @@ namespace Vitex
 			void FillSceneChannel(aiNodeAnim* Channel, ModelChannel& Target)
 			{
 				Target.Positions.reserve((size_t)Channel->mNumPositionKeys);
-				for (unsigned int k = 0; k < Channel->mNumPositionKeys; k++)
+				for (uint32_t k = 0; k < Channel->mNumPositionKeys; k++)
 				{
 					aiVectorKey& Key = Channel->mPositionKeys[k];
 					Target.Positions[Key.mTime] = Compute::Vector3(Key.mValue.x, Key.mValue.y, Key.mValue.z);
 				}
 
 				Target.Scales.reserve((size_t)Channel->mNumScalingKeys);
-				for (unsigned int k = 0; k < Channel->mNumScalingKeys; k++)
+				for (uint32_t k = 0; k < Channel->mNumScalingKeys; k++)
 				{
 					aiVectorKey& Key = Channel->mScalingKeys[k];
 					Target.Scales[Key.mTime] = Compute::Vector3(Key.mValue.x, Key.mValue.y, Key.mValue.z);
 				}
 
 				Target.Rotations.reserve((size_t)Channel->mNumRotationKeys);
-				for (unsigned int k = 0; k < Channel->mNumRotationKeys; k++)
+				for (uint32_t k = 0; k < Channel->mNumRotationKeys; k++)
 				{
 					aiQuatKey& Key = Channel->mRotationKeys[k];
 					Target.Rotations[Key.mTime] = Compute::Quaternion(Key.mValue.x, Key.mValue.y, Key.mValue.z, Key.mValue.w);
@@ -476,10 +476,10 @@ namespace Vitex
 			}
 			void FillSceneJointIndices(const aiScene* Scene, aiNode* Node, Core::UnorderedMap<Core::String, MeshBone>& Indices, size_t& Index)
 			{
-				for (unsigned int n = 0; n < Node->mNumMeshes; n++)
+				for (uint32_t n = 0; n < Node->mNumMeshes; n++)
 				{
 					auto& Mesh = Scene->mMeshes[Node->mMeshes[n]];
-					for (unsigned int i = 0; i < Mesh->mNumBones; i++)
+					for (uint32_t i = 0; i < Mesh->mNumBones; i++)
 					{
 						auto& Bone = Mesh->mBones[i];
 						auto Joint = Indices.find(Bone->mName.C_Str());
@@ -488,7 +488,7 @@ namespace Vitex
 					}
 				}
 
-				for (unsigned int n = 0; n < Node->mNumChildren; n++)
+				for (uint32_t n = 0; n < Node->mNumChildren; n++)
 				{
 					auto& Next = Node->mChildren[n];
 					FillSceneJointIndices(Scene, Next, Indices, Index);
@@ -508,7 +508,7 @@ namespace Vitex
 						goto AddLinkingJoint;
 					}
 
-					for (unsigned int i = 0; i < Node->mNumChildren; i++)
+					for (uint32_t i = 0; i < Node->mNumChildren; i++)
 					{
 						auto& Next = Node->mChildren[i];
 						if (FillSceneJointDefaults(Next, Indices, Index, InSkeleton))
@@ -524,7 +524,7 @@ namespace Vitex
 				It->second.Default.Scale = Offset.Scale();
 				It->second.Default.Rotation = Offset.RotationQuaternion();
 
-				for (unsigned int i = 0; i < Node->mNumChildren; i++)
+				for (uint32_t i = 0; i < Node->mNumChildren; i++)
 				{
 					auto& Next = Node->mChildren[i];
 					FillSceneJointDefaults(Next, Indices, Index, true);
@@ -539,7 +539,7 @@ namespace Vitex
 				FillSceneJointDefaults(Scene->mRootNode, Indices, Index, false);
 
 				Info->reserve((size_t)Scene->mNumAnimations);
-				for (unsigned int i = 0; i < Scene->mNumAnimations; i++)
+				for (uint32_t i = 0; i < Scene->mNumAnimations; i++)
 				{
 					aiAnimation* Animation = Scene->mAnimations[i];
 					Info->emplace_back();
@@ -550,7 +550,7 @@ namespace Vitex
 					Clip.Rate = Compute::Mathf::Max(0.01f, (float)Animation->mTicksPerSecond);
 
 					Core::UnorderedMap<Core::String, Core::Vector<Compute::AnimatorKey>> Channels;
-					for (unsigned int j = 0; j < Animation->mNumChannels; j++)
+					for (uint32_t j = 0; j < Animation->mNumChannels; j++)
 					{
 						auto& Channel = Animation->mChannels[j];
 						auto& Frames = Channels[Channel->mNodeName.C_Str()];
@@ -616,14 +616,14 @@ namespace Vitex
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 
 				Core::Vector<char> Temp;
-				Stream->ReadAll([&Temp](char* Buffer, size_t Size)
+				Stream->ReadAll([&Temp](uint8_t* Buffer, size_t Size)
 				{
 					Temp.reserve(Temp.size() + Size);
 					for (size_t i = 0; i < Size; i++)
 						Temp.push_back(Buffer[i]);
 				});
 
-				char* Data = VI_MALLOC(char, sizeof(char) * Temp.size());
+				char* Data = Core::Memory::Allocate<char>(sizeof(char) * Temp.size());
 				memcpy(Data, Temp.data(), sizeof(char) * Temp.size());
 				return new AssetFile(Data, Temp.size());
 			}
@@ -642,101 +642,81 @@ namespace Vitex
 			ExpectsContent<void*> MaterialProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Data = Content->Load<Core::Schema>(Stream->VirtualName());
-				if (!Data)
-					return Data.Error();
+				auto DataStatus = Content->Load<Core::Schema>(Stream->VirtualName());
+				if (!DataStatus)
+					return DataStatus.Error();
 
 				Core::String Path;
-				Engine::Material* Object = new Engine::Material(nullptr);
+				Core::UPtr<Core::Schema> Data = *DataStatus;
+				Core::UPtr<Engine::Material> Object = new Engine::Material(nullptr);
 				if (Series::Unpack(Data->Get("diffuse-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetDiffuseMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("normal-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetNormalMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("metallic-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetMetallicMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("roughness-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetRoughnessMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("height-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetHeightMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("occlusion-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetOcclusionMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				if (Series::Unpack(Data->Get("emission-map"), &Path) && !Path.empty())
 				{
 					auto NewTexture = Content->Load<Graphics::Texture2D>(Path);
 					if (!NewTexture)
-					{
-						VI_RELEASE(Data);
 						return NewTexture.Error();
-					}
 
 					Object->SetEmissionMap(*NewTexture);
-					VI_RELEASE(NewTexture);
+					Core::Memory::Release(*NewTexture);
 				}
 
 				Core::String Name;
@@ -755,17 +735,13 @@ namespace Vitex
 				Series::Unpack(Data->Get("bias"), &Object->Surface.Bias);
 				Series::Unpack(Data->Get("name"), &Name);
 				Object->SetName(Name);
-				VI_RELEASE(Data);
 
-				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				auto* Existing = (Engine::Material*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 			}
 			ExpectsContent<void> MaterialProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
@@ -773,7 +749,7 @@ namespace Vitex
 				VI_ASSERT(Instance != nullptr, "instance should be set");
 
 				Engine::Material* Object = (Engine::Material*)Instance;
-				Core::Schema* Data = Core::Var::Set::Object();
+				Core::UPtr<Core::Schema> Data = Core::Var::Set::Object();
 				Data->Key = "material";
 
 				AssetCache* Asset = Content->FindCache<Graphics::Texture2D>(Object->GetDiffuseMap());
@@ -818,16 +794,14 @@ namespace Vitex
 				Series::Pack(Data->Set("height"), Object->Surface.Height);
 				Series::Pack(Data->Set("bias"), Object->Surface.Bias);
 				Series::Pack(Data->Set("name"), Object->GetName());
-
-				auto Status = Content->Save<Core::Schema>(Stream->VirtualName(), Data, Args);
-				VI_RELEASE(Data);
-				return Status;
+				return Content->Save<Core::Schema>(Stream->VirtualName(), *Data, Args);
 			}
 			void MaterialProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Engine::Material*)Asset->Resource);
+				auto* Value = (Engine::Material*)Asset->Resource;
 				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 
 			SceneGraphProcessor::SceneGraphProcessor(ContentManager* Manager) : Processor(Manager)
@@ -839,10 +813,11 @@ namespace Vitex
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(I.Shared.Device != nullptr, "graphics device should be set");
 
-				auto Blob = Content->Load<Core::Schema>(Stream->VirtualName());
-				if (!Blob)
-					return Blob.Error();
+				auto BlobStatus = Content->Load<Core::Schema>(Stream->VirtualName());
+				if (!BlobStatus)
+					return BlobStatus.Error();
 
+				Core::UPtr<Core::Schema> Blob = *BlobStatus;
 				Core::Schema* Metadata = Blob->Find("metadata");
 				if (Metadata != nullptr)
 				{
@@ -910,10 +885,7 @@ namespace Vitex
 							Object->AddMaterial(*Value);
 						}
 						else if (IntegrityCheck)
-						{
-							VI_RELEASE(Blob);
 							return Value.Error();
-						}
 					}
 				}
 
@@ -961,7 +933,7 @@ namespace Vitex
 						if (Parent != nullptr)
 						{
 							Compute::Transform* Root = nullptr;
-							Compute::Transform::Spacing* Space = VI_NEW(Compute::Transform::Spacing);
+							Compute::Transform::Spacing* Space = Core::Memory::New<Compute::Transform::Spacing>();
 							Series::Unpack(Parent->Find("position"), &Space->Position);
 							Series::Unpack(Parent->Find("rotation"), &Space->Rotation);
 							Series::Unpack(Parent->Find("scale"), &Space->Scale);
@@ -1007,7 +979,6 @@ namespace Vitex
 					}
 				}
 
-				VI_RELEASE(Blob);
 				Object->Snapshot = nullptr;
 				Object->Actualize();
 				return Object;
@@ -1017,8 +988,8 @@ namespace Vitex
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(Instance != nullptr, "instance should be set");
 
-				const char* Ext = Core::OS::Path::GetExtension(Stream->VirtualName().c_str());
-				if (!Ext)
+				auto Ext = Core::OS::Path::GetExtension(Stream->VirtualName());
+				if (Ext.empty())
 				{
 					auto Type = Args.find("type");
 					if (Type->second == Core::Var::String("XML"))
@@ -1038,7 +1009,7 @@ namespace Vitex
 				Object->MakeSnapshot(&Snapshot);
 				Object->Snapshot = &Snapshot;
 
-				Core::Schema* Blob = Core::Var::Set::Object();
+				Core::UPtr<Core::Schema> Blob = Core::Var::Set::Object();
 				Blob->Key = "scene";
 
 				auto& Conf = Object->GetConf();
@@ -1142,9 +1113,7 @@ namespace Vitex
 				}
 
 				Object->Snapshot = nullptr;
-				auto Status = Content->Save<Core::Schema>(Stream->VirtualName(), Blob, Args);
-				VI_RELEASE(Blob);
-				return Status;
+				return Content->Save<Core::Schema>(Stream->VirtualName(), *Blob, Args);
 			}
 
 			AudioClipProcessor::AudioClipProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1168,14 +1137,14 @@ namespace Vitex
 				else if (Core::Stringify::EndsWith(Stream->VirtualName(), ".ogg"))
 					return DeserializeOGG(Stream, Offset, Args);
 
-				return ContentException("deserialize audio unsupported: " + Core::String(Core::OS::Path::GetExtension(Stream->VirtualName().c_str())));
+				return ContentException("deserialize audio unsupported: " + Core::String(Core::OS::Path::GetExtension(Stream->VirtualName())));
 			}
 			ExpectsContent<void*> AudioClipProcessor::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 #ifdef VI_SDL2
 				Core::Vector<char> Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
 					for (size_t i = 0; i < Size; i++)
@@ -1211,20 +1180,17 @@ namespace Vitex
 						return ContentException("load wave audio: unsupported audio format");
 				}
 #endif
-				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
+				Core::UPtr<Audio::AudioClip> Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
 				SDL_FreeWAV(WavSamples);
 				SDL_RWclose(WavData);
 
-				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 #else
 				return ContentException("load wave audio: unsupported");
 #endif
@@ -1234,7 +1200,7 @@ namespace Vitex
 #ifdef VI_STB
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<char> Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
 					for (size_t i = 0; i < Size; i++)
@@ -1243,7 +1209,7 @@ namespace Vitex
 
 				short* Buffer;
 				int Channels, SampleRate;
-				int Samples = stb_vorbis_decode_memory((const unsigned char*)Data.data(), (int)Data.size(), &Channels, &SampleRate, &Buffer);
+				int Samples = stb_vorbis_decode_memory((const uint8_t*)Data.data(), (int)Data.size(), &Channels, &SampleRate, &Buffer);
 				if (Samples <= 0)
 					return ContentException("load ogg audio: invalid file");
 
@@ -1254,19 +1220,16 @@ namespace Vitex
 				else
 					Format = AL_FORMAT_MONO16;
 #endif
-				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
+				Core::UPtr<Audio::AudioClip> Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
-				VI_FREE(Buffer);
+				Core::Memory::Deallocate(Buffer);
 
-				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				auto* Existing = (Audio::AudioClip*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 #else
 				return ContentException("load ogg audio: unsupported");
 #endif
@@ -1274,7 +1237,8 @@ namespace Vitex
 			void AudioClipProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Audio::AudioClip*)Asset->Resource);
+				auto* Value = (Audio::AudioClip*)Asset->Resource;
+				Core::Memory::Release(Value);
 				Asset->Resource = nullptr;
 			}
 
@@ -1297,7 +1261,7 @@ namespace Vitex
 #ifdef VI_STB
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<char> Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
 					for (size_t i = 0; i < Size; i++)
@@ -1305,33 +1269,31 @@ namespace Vitex
 				});
 
 				int Width, Height, Channels;
-				unsigned char* Resource = stbi_load_from_memory((const unsigned char*)Data.data(), (int)Data.size(), &Width, &Height, &Channels, STBI_rgb_alpha);
+				uint8_t* Resource = stbi_load_from_memory((const uint8_t*)Data.data(), (int)Data.size(), &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
 					return ContentException("load texture 2d: invalid file");
 
 				auto* Device = Content->GetDevice();
 				Graphics::Texture2D::Desc I = Graphics::Texture2D::Desc();
 				I.Data = (void*)Resource;
-				I.Width = (unsigned int)Width;
-				I.Height = (unsigned int)Height;
+				I.Width = (uint32_t)Width;
+				I.Height = (uint32_t)Height;
 				I.RowPitch = Device->GetRowPitch(I.Width);
 				I.DepthPitch = Device->GetDepthPitch(I.RowPitch, I.Height);
 				I.MipLevels = Device->GetMipLevel(I.Width, I.Height);
 
-				auto Object = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Texture2D*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateTexture2D(I); });
+				auto ObjectStatus = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Texture2D*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateTexture2D(I); });
 				stbi_image_free(Resource);
-				if (!Object)
-					return ContentException(std::move(Object.Error().message()));
+				if (!ObjectStatus)
+					return ContentException(std::move(ObjectStatus.Error().message()));
 
+				Core::UPtr<Graphics::Texture2D> Object = *ObjectStatus;
 				auto* Existing = (Graphics::Texture2D*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return *Object;
+				return Object.Reset();
 #else
 				return ContentException("load texture 2d: unsupported");
 #endif
@@ -1339,8 +1301,9 @@ namespace Vitex
 			void Texture2DProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Graphics::Texture2D*)Asset->Resource);
+				auto* Value = (Graphics::Texture2D*)Asset->Resource;
 				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 
 			ShaderProcessor::ShaderProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1361,35 +1324,31 @@ namespace Vitex
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::String Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
-				{
-					Data.append(Buffer, Size);
-				});
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size) { Data.append((char*)Buffer, Size); });
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				I.Filename = Stream->VirtualName();
 				I.Data = Data;
 
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
-				auto Object = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Shader*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateShader(I); });
-				if (!Object)
-					return ContentException(std::move(Object.Error().message()));
+				auto ObjectStatus = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::Shader*>>(Device, [&I](Graphics::GraphicsDevice* Device) { return Device->CreateShader(I); });
+				if (!ObjectStatus)
+					return ContentException(std::move(ObjectStatus.Error().message()));
 
+				Core::UPtr<Graphics::Shader> Object = *ObjectStatus;
 				auto* Existing = (Graphics::Shader*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return *Object;
+				return Object.Reset();
 			}
 			void ShaderProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Graphics::Shader*)Asset->Resource);
+				auto* Value = (Graphics::Shader*)Asset->Resource;
 				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 
 			ModelProcessor::ModelProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1409,15 +1368,15 @@ namespace Vitex
 			ExpectsContent<void*> ModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				Model* Object = nullptr;
-				auto& Path = Stream->VirtualName();
+				Core::UPtr<Model> Object = new Model();
+				auto Path = Stream->VirtualName();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
-					auto Data = Content->Load<Core::Schema>(Path);
-					if (!Data)
-						return Data.Error();
+					auto DataStatus = Content->Load<Core::Schema>(Path);
+					if (!DataStatus)
+						return DataStatus.Error();
 
-					Object = new Model();
+					Core::UPtr<Core::Schema> Data = *DataStatus;
 					Series::Unpack(Data->Get("min"), &Object->Min);
 					Series::Unpack(Data->Get("max"), &Object->Max);
 
@@ -1432,33 +1391,20 @@ namespace Vitex
 							I.Usage = Options.Usage;
 
 							if (!Series::Unpack(Mesh->Get("indices"), &I.Indices))
-							{
-								VI_RELEASE(Data);
-								VI_RELEASE(Object);
 								return ContentException("import model: invalid indices");
-							}
 
 							if (!Series::Unpack(Mesh->Get("vertices"), &I.Elements))
-							{
-								VI_RELEASE(Data);
-								VI_RELEASE(Object);
 								return ContentException("import model: invalid vertices");
-							}
 
 							auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::MeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateMeshBuffer(I); });
 							if (!NewBuffer)
-							{
-								VI_RELEASE(Data);
-								VI_RELEASE(Object);
 								return ContentException(std::move(NewBuffer.Error().message()));
-							}
 
 							Object->Meshes.emplace_back(*NewBuffer);
 							Series::Unpack(Mesh->Get("name"), &NewBuffer->Name);
 							Series::Unpack(Mesh->Get("transform"), &NewBuffer->Transform);
 						}
 					}
-					VI_RELEASE(Data);
 				}
 				else
 				{
@@ -1466,11 +1412,9 @@ namespace Vitex
 					if (!Data)
 						return Data.Error();
 
-					Object = new Model();
 					Object->Meshes.reserve(Data->Meshes.size());
 					Object->Min = Data->Min;
 					Object->Max = Data->Max;
-
 					for (auto& Mesh : Data->Meshes)
 					{
 						Graphics::MeshBuffer::Desc I;
@@ -1481,10 +1425,7 @@ namespace Vitex
 						
 						auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::MeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateMeshBuffer(I); });
 						if (!NewBuffer)
-						{
-							VI_RELEASE(Object);
 							return ContentException(std::move(NewBuffer.Error().message()));
-						}
 
 						Object->Meshes.emplace_back(*NewBuffer);
 						NewBuffer->Name = Mesh.Name;
@@ -1492,15 +1433,12 @@ namespace Vitex
 					}
 				}
 
-				auto* Existing = (Model*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				auto* Existing = (Model*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 			}
 			ExpectsContent<Core::Schema*> ModelProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
@@ -1539,7 +1477,7 @@ namespace Vitex
 			{
 #ifdef VI_ASSIMP
 				Core::Vector<char> Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
 					for (size_t i = 0; i < Size; i++)
@@ -1547,7 +1485,7 @@ namespace Vitex
 				});
 
 				Assimp::Importer Importer;
-				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->VirtualName().c_str()));
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (uint32_t)Opts, Core::OS::Path::GetExtension(Stream->VirtualName()).data());
 				if (!Scene)
 					return ContentException(Core::Stringify::Text("import model: %s", Importer.GetErrorString()));
 
@@ -1562,8 +1500,9 @@ namespace Vitex
 			void ModelProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Model*)Asset->Resource);
+				auto* Value = (Model*)Asset->Resource;
 				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 			
 			SkinModelProcessor::SkinModelProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1583,15 +1522,15 @@ namespace Vitex
 			ExpectsContent<void*> SkinModelProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				SkinModel* Object = nullptr;
-				auto& Path = Stream->VirtualName();
+				Core::UPtr<SkinModel> Object = new SkinModel();
+				auto Path = Stream->VirtualName();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
-					auto Data = Content->Load<Core::Schema>(Path);
-					if (!Data)
-						return Data.Error();
+					auto DataStatus = Content->Load<Core::Schema>(Path);
+					if (!DataStatus)
+						return DataStatus.Error();
 
-					Object = new SkinModel();
+					Core::UPtr<Core::Schema> Data = *DataStatus;
 					Series::Unpack(Data->Get("inv-transform"), &Object->InvTransform);
 					Series::Unpack(Data->Get("min"), &Object->Min);
 					Series::Unpack(Data->Get("max"), &Object->Max);
@@ -1609,26 +1548,14 @@ namespace Vitex
 							I.Usage = Options.Usage;
 
 							if (!Series::Unpack(Mesh->Get("indices"), &I.Indices))
-							{
-								VI_RELEASE(Data);
-								VI_RELEASE(Object);
 								return ContentException("import model: invalid indices");
-							}
 
 							if (!Series::Unpack(Mesh->Get("vertices"), &I.Elements))
-							{
-								VI_RELEASE(Data);
-								VI_RELEASE(Object);
 								return ContentException("import model: invalid vertices");
-							}
 
 							auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::SkinMeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateSkinMeshBuffer(I); });
 							if (!NewBuffer)
-							{
-								VI_RELEASE(Data);
-								VI_RELEASE(Object);
 								return ContentException(std::move(NewBuffer.Error().message()));
-							}
 
 							Object->Meshes.emplace_back(*NewBuffer);
 							Series::Unpack(Mesh->Get("name"), &NewBuffer->Name);
@@ -1636,7 +1563,6 @@ namespace Vitex
 							Series::Unpack(Mesh->Get("joints"), &NewBuffer->Joints);
 						}
 					}
-					VI_RELEASE(Data);
 				}
 				else
 				{
@@ -1661,10 +1587,7 @@ namespace Vitex
 
 						auto NewBuffer = ProcessRendererJob<Graphics::ExpectsGraphics<Graphics::SkinMeshBuffer*>>(Content->GetDevice(), [&I](Graphics::GraphicsDevice* Device) { return Device->CreateSkinMeshBuffer(I); });
 						if (!NewBuffer)
-						{
-							VI_RELEASE(Object);
 							return ContentException(std::move(NewBuffer.Error().message()));
-						}
 
 						Object->Meshes.emplace_back(*NewBuffer);
 						NewBuffer->Name = Mesh.Name;
@@ -1673,21 +1596,19 @@ namespace Vitex
 					}
 				}
 
-				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				auto* Existing = (SkinModel*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 			}
 			void SkinModelProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((SkinModel*)Asset->Resource);
+				auto* Value = (SkinModel*)Asset->Resource;
 				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 
 			SkinAnimationProcessor::SkinAnimationProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1708,13 +1629,14 @@ namespace Vitex
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				Core::Vector<Compute::SkinAnimatorClip> Clips;
-				auto& Path = Stream->VirtualName();
+				auto Path = Stream->VirtualName();
 				if (Core::Stringify::EndsWith(Path, ".xml") || Core::Stringify::EndsWith(Path, ".json") || Core::Stringify::EndsWith(Path, ".jsonb") || Core::Stringify::EndsWith(Path, ".xml.gz") || Core::Stringify::EndsWith(Path, ".json.gz") || Core::Stringify::EndsWith(Path, ".jsonb.gz"))
 				{
-					auto Data = Content->Load<Core::Schema>(Path);
-					if (!Data)
-						return Data.Error();
+					auto DataStatus = Content->Load<Core::Schema>(Path);
+					if (!DataStatus)
+						return DataStatus.Error();
 
+					Core::UPtr<Core::Schema> Data = *DataStatus;
 					Clips.reserve(Data->Size());
 					for (auto& Item : Data->GetChilds())
 					{
@@ -1750,7 +1672,6 @@ namespace Vitex
 							}
 						}
 					}
-					VI_RELEASE(Data);
 				}
 				else
 				{
@@ -1764,16 +1685,13 @@ namespace Vitex
 				if (Clips.empty())
 					return ContentException("load animation: no clips");
 
-				auto* Object = new Engine::SkinAnimation(std::move(Clips));
-				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				Core::UPtr<Engine::SkinAnimation> Object = new Engine::SkinAnimation(std::move(Clips));
+				auto* Existing = (Engine::SkinAnimation*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 			}
 			ExpectsContent<Core::Schema*> SkinAnimationProcessor::Import(Core::Stream* Stream, uint64_t Opts)
 			{
@@ -1817,7 +1735,7 @@ namespace Vitex
 			{
 #ifdef VI_ASSIMP
 				Core::Vector<char> Data;
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size)
 				{
 					Data.reserve(Data.size() + Size);
 					for (size_t i = 0; i < Size; i++)
@@ -1825,7 +1743,7 @@ namespace Vitex
 				});
 
 				Assimp::Importer Importer;
-				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->VirtualName().c_str()));
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (uint32_t)Opts, Core::OS::Path::GetExtension(Stream->VirtualName()).data());
 				if (!Scene)
 					return ContentException(Core::Stringify::Text("import animation: %s", Importer.GetErrorString()));
 
@@ -1839,8 +1757,9 @@ namespace Vitex
 			void SkinAnimationProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_RELEASE((Engine::SkinAnimation*)Asset->Resource);
+				auto* Value = (Engine::SkinAnimation*)Asset->Resource;
 				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 
 			SchemaProcessor::SchemaProcessor(ContentManager* Manager) : Processor(Manager)
@@ -1849,22 +1768,19 @@ namespace Vitex
 			ExpectsContent<void*> SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size).Or(0) == Size : true; });
+				auto Object = Core::Schema::ConvertFromJSONB([Stream](uint8_t* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size).Or(0) == Size : true; });
 				if (Object)
 					return *Object;
 				
 				Core::String Data;
 				Stream->Seek(Core::FileSeek::Begin, Offset);
-				Stream->ReadAll([&Data](char* Buffer, size_t Size)
-				{
-					Data.append(Buffer, Size);
-				});
+				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size) { Data.append((char*)Buffer, Size); });
 
-				Object = Core::Schema::ConvertFromJSON(Data.data(), Data.size());
+				Object = Core::Schema::ConvertFromJSON(Data);
 				if (Object)
 					return *Object;
 
-				Object = Core::Schema::ConvertFromXML(Data.data(), Data.size());
+				Object = Core::Schema::ConvertFromXML(Data);
 				if (!Object)
 					return ContentException(std::move(Object.Error().message()));
 
@@ -1881,10 +1797,10 @@ namespace Vitex
 				if (Type->second == Core::Var::String("XML"))
 				{
 					Core::String Offset;
-					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
+					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const std::string_view& Buffer)
 					{
-						if (Buffer != nullptr && Length > 0)
-							Stream->Write(Buffer, Length);
+						if (!Buffer.empty())
+							Stream->Write((uint8_t*)Buffer.data(), Buffer.size());
 
 						switch (Pretty)
 						{
@@ -1895,13 +1811,13 @@ namespace Vitex
 								Offset.append(1, '\t');
 								break;
 							case Vitex::Core::VarForm::Write_Space:
-								Stream->Write(" ", 1);
+								Stream->Write((uint8_t*)" ", 1);
 								break;
 							case Vitex::Core::VarForm::Write_Line:
-								Stream->Write("\n", 1);
+								Stream->Write((uint8_t*)"\n", 1);
 								break;
 							case Vitex::Core::VarForm::Write_Tab:
-								Stream->Write(Offset.c_str(), Offset.size());
+								Stream->Write((uint8_t*)Offset.c_str(), Offset.size());
 								break;
 							default:
 								break;
@@ -1912,10 +1828,10 @@ namespace Vitex
 				else if (Type->second == Core::Var::String("JSON"))
 				{
 					Core::String Offset;
-					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
+					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const std::string_view& Buffer)
 					{
-						if (Buffer != nullptr && Length > 0)
-							Stream->Write(Buffer, Length);
+						if (!Buffer.empty())
+							Stream->Write((uint8_t*)Buffer.data(), Buffer.size());
 
 						switch (Pretty)
 						{
@@ -1926,13 +1842,13 @@ namespace Vitex
 								Offset.append(1, '\t');
 								break;
 							case Vitex::Core::VarForm::Write_Space:
-								Stream->Write(" ", 1);
+								Stream->Write((uint8_t*)" ", 1);
 								break;
 							case Vitex::Core::VarForm::Write_Line:
-								Stream->Write("\n", 1);
+								Stream->Write((uint8_t*)"\n", 1);
 								break;
 							case Vitex::Core::VarForm::Write_Tab:
-								Stream->Write(Offset.c_str(), Offset.size());
+								Stream->Write((uint8_t*)Offset.c_str(), Offset.size());
 								break;
 							default:
 								break;
@@ -1942,10 +1858,10 @@ namespace Vitex
 				}
 				else if (Type->second == Core::Var::String("JSONB"))
 				{
-					Core::Schema::ConvertToJSONB(Schema, [Stream](Core::VarForm, const char* Buffer, size_t Length)
+					Core::Schema::ConvertToJSONB(Schema, [Stream](Core::VarForm, const std::string_view& Buffer)
 					{
-						if (Buffer != nullptr && Length > 0)
-							Stream->Write(Buffer, Length);
+						if (!Buffer.empty())
+							Stream->Write((uint8_t*)Buffer.data(), Buffer.size());
 					});
 					return Core::Expectation::Met;
 				}
@@ -1959,16 +1875,17 @@ namespace Vitex
 			ExpectsContent<void*> ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Blob = Content->Load<Core::Schema>(Stream->VirtualName());
-				if (!Blob)
-					return Blob.Error();
+				auto BlobStatus = Content->Load<Core::Schema>(Stream->VirtualName());
+				if (!BlobStatus)
+					return BlobStatus.Error();
 
 				Core::String N = Network::Utils::GetLocalAddress();
-				Core::String D = Core::OS::Path::GetDirectory(Stream->VirtualName().c_str());
-				auto* Router = new Network::HTTP::MapRouter();
-				auto* Object = new Network::HTTP::Server();
+				Core::String D = Core::OS::Path::GetDirectory(Stream->VirtualName());
+				Core::UPtr<Network::HTTP::MapRouter> Router = new Network::HTTP::MapRouter();
+				Core::UPtr<Network::HTTP::Server> Object = new Network::HTTP::Server();
+				Core::UPtr<Core::Schema> Blob = *BlobStatus;
 				if (Callback)
-					Callback((void*)Object, *Blob);
+					Callback((void*)*Object, *Blob);
 
 				Core::Vector<Core::Schema*> Certificates = Blob->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
@@ -2005,14 +1922,9 @@ namespace Vitex
 					{
 						auto Data = Core::OS::File::ReadAsString(Cert->Blob.PrivateKey);
 						if (!Data)
-						{
-							VI_RELEASE(Blob);
-							VI_RELEASE(Router);
-							VI_RELEASE(Object);
 							return ContentException(Core::Stringify::Text("import invalid server private key: %s", Data.Error().message().c_str()));
-						}
-						else
-							Cert->Blob.PrivateKey = *Data;
+						
+						Cert->Blob.PrivateKey = *Data;
 					}
 
 					Core::Stringify::EvalEnvs(Cert->Blob.Certificate, N, D);
@@ -2020,14 +1932,9 @@ namespace Vitex
 					{
 						auto Data = Core::OS::File::ReadAsString(Cert->Blob.Certificate);
 						if (!Data)
-						{
-							VI_RELEASE(Blob);
-							VI_RELEASE(Router);
-							VI_RELEASE(Object);
 							return ContentException(Core::Stringify::Text("import invalid server certificate: %s", Data.Error().message().c_str()));
-						}
-						else
-							Cert->Blob.Certificate = *Data;
+						
+						Cert->Blob.Certificate = *Data;
 					}
 				}
 
@@ -2270,24 +2177,16 @@ namespace Vitex
 				}
 
 				auto Configure = Args.find("configure");
-				VI_RELEASE(Blob);
-
 				if (Configure != Args.end() && Configure->second.GetBoolean())
 				{
-					auto Status = Object->Configure(Router);
+					auto Status = Object->Configure(Router.Reset());
 					if (!Status)
-					{
-						VI_RELEASE(Object);
 						return ContentException(std::move(Status.Error().message()));
-					}
-
-					return (void*)Object;
 				}
 				else
-				{
-					Object->SetRouter(Router);
-					return (void*)Object;
-				}
+					Object->SetRouter(Router.Reset());
+
+				return Object.Reset();
 			}
 
 			HullShapeProcessor::HullShapeProcessor(ContentManager* Manager) : Processor(Manager)
@@ -2307,10 +2206,11 @@ namespace Vitex
 			ExpectsContent<void*> HullShapeProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Data = Content->Load<Core::Schema>(Stream->VirtualName());
-				if (!Data)
-					return Data.Error();
+				auto DataStatus = Content->Load<Core::Schema>(Stream->VirtualName());
+				if (!DataStatus)
+					return DataStatus.Error();
 
+				Core::UPtr<Core::Schema> Data = *DataStatus;
 				Core::Vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
 				Core::Vector<Compute::Vertex> Vertices;
 				Core::Vector<int> Indices;
@@ -2318,42 +2218,29 @@ namespace Vitex
 				for (auto&& Mesh : Meshes)
 				{
 					if (!Series::Unpack(Mesh->Find("indices"), &Indices))
-					{
-						VI_RELEASE(Data);
 						return ContentException("import shape: invalid indices");
-					}
 
 					if (!Series::Unpack(Mesh->Find("vertices"), &Vertices))
-					{
-						VI_RELEASE(Data);
 						return ContentException("import shape: invalid vertices");
-					}
 				}
 
-				Compute::HullShape* Object = new Compute::HullShape(std::move(Vertices), std::move(Indices));
-				VI_RELEASE(Data);
-
+				Core::UPtr<Compute::HullShape> Object = new Compute::HullShape(std::move(Vertices), std::move(Indices));
 				if (!Object->GetShape())
-				{
-					VI_RELEASE(Object);
 					return ContentException("import shape: invalid shape");
-				}
 
-				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->VirtualName(), Object);
+				auto* Existing = (Compute::HullShape*)Content->TryToCache(this, Stream->VirtualName(), *Object);
 				if (Existing != nullptr)
-				{
-					VI_RELEASE(Object);
 					Object = Existing;
-				}
 
 				Object->AddRef();
-				return Object;
+				return Object.Reset();
 			}
 			void HullShapeProcessor::Free(AssetCache* Asset)
 			{
 				VI_ASSERT(Asset != nullptr, "asset should be set");
-				VI_ASSERT(Asset->Resource != nullptr, "instance should be set");
-				VI_RELEASE((Compute::HullShape*)Asset->Resource);
+				auto* Value = (Compute::HullShape*)Asset->Resource;
+				Asset->Resource = nullptr;
+				Core::Memory::Release(Value);
 			}
 		}
 	}

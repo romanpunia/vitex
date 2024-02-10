@@ -1,6 +1,6 @@
 #ifndef VI_NETWORK_POSTGRESQL_H
 #define VI_NETWORK_POSTGRESQL_H
-#include "../core/network.h"
+#include "../network.h"
 
 struct pg_conn;
 struct pg_result;
@@ -29,7 +29,7 @@ namespace Vitex
 			class Connection;
 
 			typedef std::function<Core::Promise<bool>(const Core::Vector<Core::String>&)> OnReconnect;
-			typedef std::function<void(const Core::String&)> OnQueryLog;
+			typedef std::function<void(const std::string_view&)> OnQueryLog;
 			typedef std::function<void(const Notify&)> OnNotification;
 			typedef std::function<void(Cursor&)> OnResult;
 			typedef Connection* SessionId;
@@ -222,8 +222,8 @@ namespace Vitex
 
 			public:
 				Address();
-				void Override(const Core::String& Key, const Core::String& Value);
-				bool Set(AddressOp Key, const Core::String& Value);
+				void Override(const std::string_view& Key, const std::string_view& Value);
+				bool Set(AddressOp Key, const std::string_view& Value);
 				Core::String Get(AddressOp Key) const;
 				Core::String GetAddress() const;
 				const Core::UnorderedMap<Core::String, Core::String>& Get() const;
@@ -231,10 +231,10 @@ namespace Vitex
 				Core::Unique<const char*> CreateValues() const;
 
 			public:
-				static ExpectsDB<Address> FromURL(const Core::String& Location);
+				static ExpectsDB<Address> FromURL(const std::string_view& Location);
 
 			private:
-				static Core::String GetKeyName(AddressOp Key);
+				static std::string_view GetKeyName(AddressOp Key);
 			};
 
 			class VI_OUT Notify
@@ -304,18 +304,17 @@ namespace Vitex
 				size_t Index() const;
 				size_t Size() const;
 				Column GetColumn(size_t Index) const;
-				Column GetColumn(const char* Name) const;
-				Column GetColumnByName(const Core::String& Name) const;
+				Column GetColumn(const std::string_view& Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
 				bool Exists() const
 				{
 					return Base != nullptr;
 				}
-				Column operator [](const char* Name)
+				Column operator [](const std::string_view& Name)
 				{
 					return GetColumn(Name);
 				}
-				Column operator [](const char* Name) const
+				Column operator [](const std::string_view& Name) const
 				{
 					return GetColumn(Name);
 				}
@@ -373,7 +372,7 @@ namespace Vitex
 				Core::String GetStatusText() const;
 				Core::String GetErrorText() const;
 				Core::String GetErrorField(FieldCode Field) const;
-				int GetNameIndex(const Core::String& Name) const;
+				int GetNameIndex(const std::string_view& Name) const;
 				QueryExec GetStatus() const;
 				ObjectId GetValueId() const;
 				size_t AffectedRows() const;
@@ -422,17 +421,17 @@ namespace Vitex
 				~Cursor();
 				Cursor& operator =(const Cursor& Other) = delete;
 				Cursor& operator =(Cursor&& Other);
-				Column operator [](const char* Name)
+				Column operator [](const std::string_view& Name)
 				{
 					return First().Front().GetColumn(Name);
 				}
-				Column operator [](const char* Name) const
+				Column operator [](const std::string_view& Name) const
 				{
 					return First().Front().GetColumn(Name);
 				}
-				Column GetColumn(const Core::String& Name) const
+				Column GetColumn(const std::string_view& Name) const
 				{
-					return First().Front().GetColumn(Name.c_str());
+					return First().Front().GetColumn(Name);
 				}
 				bool Success() const;
 				bool Empty() const;
@@ -503,7 +502,7 @@ namespace Vitex
 				size_t Options;
 
 			public:
-				Request(const Core::String& Commands, Caching Status);
+				Request(const std::string_view& Commands, Caching Status);
 				void Finalize(Cursor& Subresult);
 				void Failure();
 				Cursor&& GetResult();
@@ -545,47 +544,46 @@ namespace Vitex
 				void SetCacheCleanup(uint64_t Interval);
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				void SetWhenReconnected(const OnReconnect& NewCallback);
-				uint64_t AddChannel(const Core::String& Name, const OnNotification& NewCallback);
-				bool RemoveChannel(const Core::String& Name, uint64_t Id);
+				uint64_t AddChannel(const std::string_view& Name, const OnNotification& NewCallback);
+				bool RemoveChannel(const std::string_view& Name, uint64_t Id);
 				ExpectsPromiseDB<SessionId> TxBegin(Isolation Type);
-				ExpectsPromiseDB<SessionId> TxStart(const Core::String& Command);
-				ExpectsPromiseDB<void> TxEnd(const Core::String& Command, SessionId Session);
+				ExpectsPromiseDB<SessionId> TxStart(const std::string_view& Command);
+				ExpectsPromiseDB<void> TxEnd(const std::string_view& Command, SessionId Session);
 				ExpectsPromiseDB<void> TxCommit(SessionId Session);
 				ExpectsPromiseDB<void> TxRollback(SessionId Session);
 				ExpectsPromiseDB<void> Connect(const Address& Location, size_t Connections = 1);
 				ExpectsPromiseDB<void> Disconnect();
 				ExpectsPromiseDB<void> Listen(const Core::Vector<Core::String>& Channels);
 				ExpectsPromiseDB<void> Unlisten(const Core::Vector<Core::String>& Channels);
-				ExpectsPromiseDB<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				ExpectsPromiseDB<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				ExpectsPromiseDB<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> Query(const std::string_view& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				Connection* GetConnection(QueryState State);
 				Connection* GetAnyConnection() const;
 				bool IsConnected() const;
 
 			private:
-				Core::String GetCacheOid(const Core::String& Payload, size_t QueryOpts);
-				bool GetCache(const Core::String& CacheOid, Cursor* Data);
-				void SetCache(const Core::String& CacheOid, Cursor* Data, size_t QueryOpts);
+				Core::String GetCacheOid(const std::string_view& Payload, size_t QueryOpts);
+				bool GetCache(const std::string_view& CacheOid, Cursor* Data);
+				void SetCache(const std::string_view& CacheOid, Cursor* Data, size_t QueryOpts);
 				void TryUnassign(Connection* Base, Request* Context);
-				bool ValidateTransaction(const Core::String& Command, Request* Next);
+				bool ValidateTransaction(const std::string_view& Command, Request* Next);
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base, Core::UMutex<std::mutex>& Unique);
 				bool Reprocess(Connection* Base);
 				bool Flush(Connection* Base, bool ListenForResults);
 				bool Dispatch(Connection* Base, bool Connected);
 				bool TryAssign(Connection* Base, Request* Context);
-				Connection* IsListens(const Core::String& Name);
+				Connection* IsListens(const std::string_view& Name);
 			};
 
 			class VI_OUT_TS Utils
 			{
 			public:
 				static ExpectsDB<Core::String> InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
-				static ExpectsDB<Core::String> InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
-				static Core::String GetCharArray(Connection* Base, const Core::String& Src) noexcept;
-				static Core::String GetByteArray(Connection* Base, const Core::String& Src) noexcept;
-				static Core::String GetByteArray(Connection* Base, const char* Src, size_t Size) noexcept;
+				static ExpectsDB<Core::String> InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default = "TRUE");
+				static Core::String GetCharArray(Connection* Base, const std::string_view& Src) noexcept;
+				static Core::String GetByteArray(Connection* Base, const std::string_view& Src) noexcept;
 				static Core::String GetSQL(Connection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;
 			};
 
@@ -618,17 +616,16 @@ namespace Vitex
 				Driver() noexcept;
 				virtual ~Driver() noexcept override;
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
-				void LogQuery(const Core::String& Command) noexcept;
-				void AddConstant(const Core::String& Name, const Core::String& Value) noexcept;
-				ExpectsDB<void> AddQuery(const Core::String& Name, const Core::String& Data);
-				ExpectsDB<void> AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size);
-				ExpectsDB<void> AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
-				bool RemoveConstant(const Core::String& Name) noexcept;
-				bool RemoveQuery(const Core::String& Name) noexcept;
+				void LogQuery(const std::string_view& Command) noexcept;
+				void AddConstant(const std::string_view& Name, const std::string_view& Value) noexcept;
+				ExpectsDB<void> AddQuery(const std::string_view& Name, const std::string_view& Data);
+				ExpectsDB<void> AddDirectory(const std::string_view& Directory, const std::string_view& Origin = "");
+				bool RemoveConstant(const std::string_view& Name) noexcept;
+				bool RemoveQuery(const std::string_view& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				ExpectsDB<Core::String> Emplace(Cluster* Base, const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
-				ExpectsDB<Core::String> GetQuery(Cluster* Base, const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> Emplace(Cluster* Base, const std::string_view& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> GetQuery(Cluster* Base, const std::string_view& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

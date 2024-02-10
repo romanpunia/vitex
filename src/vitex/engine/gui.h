@@ -1,6 +1,6 @@
 #ifndef VI_ENGINE_GUI_H
 #define VI_ENGINE_GUI_H
-#include "../core/engine.h"
+#include "../engine.h"
 
 namespace Rml
 {
@@ -63,7 +63,7 @@ namespace Vitex
 
 			class Context;
 
-			typedef std::function<Core::String(const Core::String&)> TranslationCallback;
+			typedef std::function<Core::String(const std::string_view&)> TranslationCallback;
 			typedef std::function<void(void*)> DestroyCallback;
 			typedef std::function<void(IEvent&)> EventCallback;
 			typedef std::function<void(IEvent&, const Core::VariantList&)> DataCallback;
@@ -237,16 +237,16 @@ namespace Vitex
 			public:
 				static void Convert(Rml::Variant* From, Core::Variant* To);
 				static void Revert(Core::Variant* From, Rml::Variant* To);
-				static Compute::Vector4 ToColor4(const Core::String& Value);
+				static Compute::Vector4 ToColor4(const std::string_view& Value);
 				static Core::String FromColor4(const Compute::Vector4& Base, bool HEX);
-				static Compute::Vector4 ToColor3(const Core::String& Value);
+				static Compute::Vector4 ToColor3(const std::string_view& Value);
 				static Core::String FromColor3(const Compute::Vector4& Base, bool HEX);
-				static int GetVectorType(const Core::String& Value);
-				static Compute::Vector4 ToVector4(const Core::String& Base);
+				static int GetVectorType(const std::string_view& Value);
+				static Compute::Vector4 ToVector4(const std::string_view& Base);
 				static Core::String FromVector4(const Compute::Vector4& Base);
-				static Compute::Vector3 ToVector3(const Core::String& Base);
+				static Compute::Vector3 ToVector3(const std::string_view& Base);
 				static Core::String FromVector3(const Compute::Vector3& Base);
-				static Compute::Vector2 ToVector2(const Core::String& Base);
+				static Compute::Vector2 ToVector2(const std::string_view& Base);
 				static Core::String FromVector2(const Compute::Vector2& Base);
 			};
 
@@ -275,14 +275,14 @@ namespace Vitex
 				bool IsInterruptible() const;
 				bool IsPropagating() const;
 				bool IsImmediatePropagating() const;
-				bool GetBoolean(const Core::String& Key) const;
-				int64_t GetInteger(const Core::String& Key) const;
-				double GetNumber(const Core::String& Key) const;
-				Core::String GetString(const Core::String& Key) const;
-				Compute::Vector2 GetVector2(const Core::String& Key) const;
-				Compute::Vector3 GetVector3(const Core::String& Key) const;
-				Compute::Vector4 GetVector4(const Core::String& Key) const;
-				void* GetPointer(const Core::String& Key) const;
+				bool GetBoolean(const std::string_view& Key) const;
+				int64_t GetInteger(const std::string_view& Key) const;
+				double GetNumber(const std::string_view& Key) const;
+				Core::String GetString(const std::string_view& Key) const;
+				Compute::Vector2 GetVector2(const std::string_view& Key) const;
+				Compute::Vector3 GetVector3(const std::string_view& Key) const;
+				Compute::Vector4 GetVector4(const std::string_view& Key) const;
+				void* GetPointer(const std::string_view& Key) const;
 				Rml::Event* GetEvent() const;
 				bool IsValid() const;
 			};
@@ -298,9 +298,9 @@ namespace Vitex
 				virtual ~IElement() = default;
 				virtual void Release();
 				IElement Clone() const;
-				void SetClass(const Core::String& ClassName, bool Activate);
-				bool IsClassSet(const Core::String& ClassName) const;
-				void SetClassNames(const Core::String& ClassNames);
+				void SetClass(const std::string_view& ClassName, bool Activate);
+				bool IsClassSet(const std::string_view& ClassName) const;
+				void SetClassNames(const std::string_view& ClassNames);
 				Core::String GetClassNames() const;
 				Core::String GetAddress(bool IncludePseudoClasses = false, bool IncludeParents = true) const;
 				void SetOffset(const Compute::Vector2& Offset, const IElement& OffsetParent, bool OffsetFixed = false);
@@ -314,10 +314,10 @@ namespace Vitex
 				bool IsPointWithinElement(const Compute::Vector2& Point);
 				bool IsVisible() const;
 				float GetZIndex() const;
-				bool SetProperty(const Core::String& Name, const Core::String& Value);
-				void RemoveProperty(const Core::String& Name);
-				Core::String GetProperty(const Core::String& Name);
-				Core::String GetLocalProperty(const Core::String& Name);
+				bool SetProperty(const std::string_view& Name, const std::string_view& Value);
+				void RemoveProperty(const std::string_view& Name);
+				Core::String GetProperty(const std::string_view& Name);
+				Core::String GetLocalProperty(const std::string_view& Name);
 				float ResolveNumericProperty(float Value, NumericUnit Unit, float BaseValue);
 				Compute::Vector2 GetContainingBlock();
 				Position GetPosition();
@@ -325,18 +325,18 @@ namespace Vitex
 				Display GetDisplay();
 				float GetLineHeight();
 				bool Project(Compute::Vector2& Point) const noexcept;
-				bool Animate(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations = 1, bool AlternateDirection = true, float Delay = 0.0f);
-				bool AddAnimationKey(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir);
-				void SetPseudoClass(const Core::String& PseudoClass, bool Activate);
-				bool IsPseudoClassSet(const Core::String& PseudoClass) const;
-				void SetAttribute(const Core::String& Name, const Core::String& Value);
-				Core::String GetAttribute(const Core::String& Name);
-				bool HasAttribute(const Core::String& Name) const;
-				void RemoveAttribute(const Core::String& Name);
+				bool Animate(const std::string_view& PropertyName, const std::string_view& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations = 1, bool AlternateDirection = true, float Delay = 0.0f);
+				bool AddAnimationKey(const std::string_view& PropertyName, const std::string_view& TargetValue, float Duration, TimingFunc Func, TimingDir Dir);
+				void SetPseudoClass(const std::string_view& PseudoClass, bool Activate);
+				bool IsPseudoClassSet(const std::string_view& PseudoClass) const;
+				void SetAttribute(const std::string_view& Name, const std::string_view& Value);
+				Core::String GetAttribute(const std::string_view& Name);
+				bool HasAttribute(const std::string_view& Name) const;
+				void RemoveAttribute(const std::string_view& Name);
 				IElement GetFocusLeafNode();
 				Core::String GetTagName() const;
 				Core::String GetId() const;
-				void SetId(const Core::String& Id);
+				void SetId(const std::string_view& Id);
 				float GetAbsoluteLeft();
 				float GetAbsoluteTop();
 				float GetClientLeft();
@@ -364,7 +364,7 @@ namespace Vitex
 				int GetNumChildren(bool IncludeNonDOMElements = false) const;
 				void GetInnerHTML(Core::String& Content) const;
 				Core::String GetInnerHTML() const;
-				void SetInnerHTML(const Core::String& HTML);
+				void SetInnerHTML(const std::string_view& HTML);
 				bool IsFocused();
 				bool IsHovered();
 				bool IsActive();
@@ -372,18 +372,18 @@ namespace Vitex
 				bool Focus();
 				void Blur();
 				void Click();
-				void AddEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase = false);
-				void RemoveEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase = false);
-				bool DispatchEvent(const Core::String& Type, const Core::VariantArgs& Args);
+				void AddEventListener(const std::string_view& Event, Listener* Source, bool InCapturePhase = false);
+				void RemoveEventListener(const std::string_view& Event, Listener* Source, bool InCapturePhase = false);
+				bool DispatchEvent(const std::string_view& Type, const Core::VariantArgs& Args);
 				void ScrollIntoView(bool AlignWithTop = true);
 				IElement AppendChild(const IElement& Element, bool DOMElement = true);
 				IElement InsertBefore(const IElement& Element, const IElement& AdjacentElement);
 				IElement ReplaceChild(const IElement& InsertedElement, const IElement& ReplacedElement);
 				IElement RemoveChild(const IElement& Element);
 				bool HasChildNodes() const;
-				IElement GetElementById(const Core::String& Id);
-				IElement QuerySelector(const Core::String& Selector);
-				Core::Vector<IElement> QuerySelectorAll(const Core::String& Selectors);
+				IElement GetElementById(const std::string_view& Id);
+				IElement QuerySelector(const std::string_view& Selector);
+				Core::Vector<IElement> QuerySelectorAll(const std::string_view& Selectors);
 				bool CastFormColor(Compute::Vector4* Ptr, bool Alpha);
 				bool CastFormString(Core::String* Ptr);
 				bool CastFormPointer(void** Ptr);
@@ -399,9 +399,9 @@ namespace Vitex
 				bool CastFormDouble(double* Ptr);
 				bool CastFormBoolean(bool* Ptr);
 				Core::String GetFormName() const;
-				void SetFormName(const Core::String& Name);
+				void SetFormName(const std::string_view& Name);
 				Core::String GetFormValue() const;
-				void SetFormValue(const Core::String& Value);
+				void SetFormValue(const std::string_view& Value);
 				bool IsFormDisabled() const;
 				void SetFormDisabled(bool Disable);
 				Rml::Element* GetElement() const;
@@ -409,7 +409,7 @@ namespace Vitex
 
 			public:
 				static Core::String FromPointer(void* Ptr);
-				static void* ToPointer(const Core::String& Value);
+				static void* ToPointer(const std::string_view& Value);
 			};
 
 			class VI_OUT IElementDocument : public IElement
@@ -418,7 +418,7 @@ namespace Vitex
 				IElementDocument();
 				IElementDocument(Rml::ElementDocument* Ref);
 				void Release() override;
-				void SetTitle(const Core::String& Title);
+				void SetTitle(const std::string_view& Title);
 				void PullToFront();
 				void PushToBack();
 				void Show(ModalFlag Modal = ModalFlag::None, FocusFlag Focus = FocusFlag::Auto);
@@ -426,7 +426,7 @@ namespace Vitex
 				void Close();
 				Core::String GetTitle() const;
 				Core::String GetSourceURL() const;
-				IElement CreateElement(const Core::String& Name);
+				IElement CreateElement(const std::string_view& Name);
 				bool IsModal() const;
 				Rml::ElementDocument* GetElementDocument() const;
 			};
@@ -435,7 +435,7 @@ namespace Vitex
 			{
 			public:
 				static Compute::Matrix4x4 ToMatrix(const void* Matrix) noexcept;
-				static Core::String EscapeHTML(const Core::String& Text) noexcept;
+				static Core::String EscapeHTML(const std::string_view& Text) noexcept;
 			};
 
 			class VI_OUT Subsystem final : public Core::Singleton<Subsystem>
@@ -469,11 +469,11 @@ namespace Vitex
 					}
 					void Release()
 					{
-						VI_CLEAR(VM);
-						VI_CLEAR(Activity);
-						VI_CLEAR(Constants);
-						VI_CLEAR(Content);
-						VI_CLEAR(Time);
+						Core::Memory::Release(VM);
+						Core::Memory::Release(Activity);
+						Core::Memory::Release(Constants);
+						Core::Memory::Release(Content);
+						Core::Memory::Release(Time);
 					}
 				} Shared;
 
@@ -490,7 +490,7 @@ namespace Vitex
 				Subsystem() noexcept;
 				virtual ~Subsystem() noexcept override;
 				void SetShared(Scripting::VirtualMachine* VM, Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept;
-				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback) noexcept;
+				void SetTranslator(const std::string_view& Name, const TranslationCallback& Callback) noexcept;
 				void CleanupShared();
 				RenderSubsystem* GetRenderInterface() noexcept;
 				FileSubsystem* GetFileInterface() noexcept;
@@ -523,27 +523,27 @@ namespace Vitex
 
 			public:
 				~DataModel() noexcept;
-				DataNode* SetProperty(const Core::String& Name, const Core::Variant& Value);
-				DataNode* SetProperty(const Core::String& Name, Core::Variant* Reference);
-				DataNode* SetArray(const Core::String& Name);
-				DataNode* SetString(const Core::String& Name, const Core::String& Value);
-				DataNode* SetInteger(const Core::String& Name, int64_t Value);
-				DataNode* SetFloat(const Core::String& Name, float Value);
-				DataNode* SetDouble(const Core::String& Name, double Value);
-				DataNode* SetBoolean(const Core::String& Name, bool Value);
-				DataNode* SetPointer(const Core::String& Name, void* Value);
-				DataNode* GetProperty(const Core::String& Name);
-				Core::String GetString(const Core::String& Name);
-				int64_t GetInteger(const Core::String& Name);
-				float GetFloat(const Core::String& Name);
-				double GetDouble(const Core::String& Name);
-				bool GetBoolean(const Core::String& Name);
-				void* GetPointer(const Core::String& Name);
-				bool SetCallback(const Core::String& Name, const DataCallback& Callback);
+				DataNode* SetProperty(const std::string_view& Name, const Core::Variant& Value);
+				DataNode* SetProperty(const std::string_view& Name, Core::Variant* Reference);
+				DataNode* SetArray(const std::string_view& Name);
+				DataNode* SetString(const std::string_view& Name, const std::string_view& Value);
+				DataNode* SetInteger(const std::string_view& Name, int64_t Value);
+				DataNode* SetFloat(const std::string_view& Name, float Value);
+				DataNode* SetDouble(const std::string_view& Name, double Value);
+				DataNode* SetBoolean(const std::string_view& Name, bool Value);
+				DataNode* SetPointer(const std::string_view& Name, void* Value);
+				DataNode* GetProperty(const std::string_view& Name);
+				Core::String GetString(const std::string_view& Name);
+				int64_t GetInteger(const std::string_view& Name);
+				float GetFloat(const std::string_view& Name);
+				double GetDouble(const std::string_view& Name);
+				bool GetBoolean(const std::string_view& Name);
+				void* GetPointer(const std::string_view& Name);
+				bool SetCallback(const std::string_view& Name, const DataCallback& Callback);
 				bool SetUnmountCallback(const ModelCallback& Callback);
-				bool HasChanged(const Core::String& VariableName) const;
+				bool HasChanged(const std::string_view& VariableName) const;
 				void SetDetachCallback(std::function<void()>&& Callback);
-				void Change(const Core::String& VariableName);
+				void Change(const std::string_view& VariableName);
 				void Detach();
 				bool IsValid() const;
 				Rml::DataModelConstructor* Get();
@@ -563,11 +563,9 @@ namespace Vitex
 				size_t Depth;
 				bool Safe;
 
-			private:
-				DataNode(DataModel* Model, const Core::String& TopName, const Core::Variant& Initial) noexcept;
-				DataNode(DataModel* Model, const Core::String& TopName, Core::Variant* Reference) noexcept;
-
 			public:
+				DataNode(DataModel* Model, const std::string_view& TopName, const Core::Variant& Initial) noexcept;
+				DataNode(DataModel* Model, const std::string_view& TopName, Core::Variant* Reference) noexcept;
 				DataNode(DataNode&& Other) noexcept;
 				DataNode(const DataNode& Other) noexcept;
 				~DataNode();
@@ -585,7 +583,7 @@ namespace Vitex
 				void Set(const Core::Variant& NewValue);
 				void Set(Core::Variant* NewReference);
 				void SetTop(void* SeqId, size_t Depth);
-				void SetString(const Core::String& Value);
+				void SetString(const std::string_view& Value);
 				void SetVector2(const Compute::Vector2& Value);
 				void SetVector3(const Compute::Vector3& Value);
 				void SetVector4(const Compute::Vector4& Value);
@@ -629,7 +627,7 @@ namespace Vitex
 
 			public:
 				Listener(const EventCallback& NewCallback);
-				Listener(const Core::String& FunctionName);
+				Listener(const std::string_view& FunctionName);
 				~Listener() noexcept;
 			};
 
@@ -677,16 +675,16 @@ namespace Vitex
 				int GetNumDocuments() const;
 				void SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio);
 				float GetDensityIndependentPixelRatio() const;
-				bool ReplaceHTML(const Core::String& Selector, const Core::String& HTML, int Index = 0);
-				ExpectsGuiException<IElementDocument> EvalHTML(const Core::String& HTML, int Index = 0);
-				ExpectsGuiException<IElementDocument> AddCSS(const Core::String& CSS, int Index = 0);
-				ExpectsGuiException<IElementDocument> LoadCSS(const Core::String& Path, int Index = 0);
-				ExpectsGuiException<IElementDocument> LoadDocument(const Core::String& Path, bool AllowPreprocessing = false);
-				ExpectsGuiException<IElementDocument> AddDocument(const Core::String& HTML);
-				ExpectsGuiException<IElementDocument> AddDocumentEmpty(const Core::String& InstancerName = "body");
-				IElementDocument GetDocument(const Core::String& Id);
+				bool ReplaceHTML(const std::string_view& Selector, const std::string_view& HTML, int Index = 0);
+				ExpectsGuiException<IElementDocument> EvalHTML(const std::string_view& HTML, int Index = 0);
+				ExpectsGuiException<IElementDocument> AddCSS(const std::string_view& CSS, int Index = 0);
+				ExpectsGuiException<IElementDocument> LoadCSS(const std::string_view& Path, int Index = 0);
+				ExpectsGuiException<IElementDocument> LoadDocument(const std::string_view& Path, bool AllowPreprocessing = false);
+				ExpectsGuiException<IElementDocument> AddDocument(const std::string_view& HTML);
+				ExpectsGuiException<IElementDocument> AddDocumentEmpty(const std::string_view& InstancerName = "body");
+				IElementDocument GetDocument(const std::string_view& Id);
 				IElementDocument GetDocument(int Index);
-				IElement GetElementById(const Core::String& Id, int Index = 0);
+				IElement GetElementById(const std::string_view& Id, int Index = 0);
 				IElement GetHoverElement();
 				IElement GetFocusElement();
 				IElement GetRootElement();
@@ -694,28 +692,28 @@ namespace Vitex
 				void PullDocumentToFront(const IElementDocument& Schema);
 				void PushDocumentToBack(const IElementDocument& Schema);
 				void UnfocusDocument(const IElementDocument& Schema);
-				void AddEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase = false);
-				void RemoveEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase = false);
+				void AddEventListener(const std::string_view& Event, Listener* Listener, bool InCapturePhase = false);
+				void RemoveEventListener(const std::string_view& Event, Listener* Listener, bool InCapturePhase = false);
 				bool IsMouseInteracting() const;
 				bool GetActiveClipRegion(Compute::Vector2& Origin, Compute::Vector2& Dimensions) const;
 				void SetActiveClipRegion(const Compute::Vector2& Origin, const Compute::Vector2& Dimensions);
-				bool RemoveDataModel(const Core::String& Name);
+				bool RemoveDataModel(const std::string_view& Name);
 				bool RemoveDataModels();
-				void SetDocumentsBaseTag(const Core::String& Tag);
+				void SetDocumentsBaseTag(const std::string_view& Tag);
 				void SetMountCallback(const ModelCallback& Callback);
 				Core::String GetDocumentsBaseTag();
 				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* GetFontFaces();
 				Compute::Vector2 GetDimensions() const;
-				DataModel* SetDataModel(const Core::String& Name);
-				DataModel* GetDataModel(const Core::String& Name);
+				DataModel* SetDataModel(const std::string_view& Name);
+				DataModel* GetDataModel(const std::string_view& Name);
 				Rml::Context* GetContext();
 
 			public:
-				static ExpectsGuiException<void> LoadFontFace(const Core::String& Path, bool UseAsFallback = false, FontWeight Weight = FontWeight::Auto);
-				static Core::String ResolveResourcePath(const IElement& Element, const Core::String& Path);
+				static ExpectsGuiException<void> LoadFontFace(const std::string_view& Path, bool UseAsFallback = false, FontWeight Weight = FontWeight::Auto);
+				static Core::String ResolveResourcePath(const IElement& Element, const std::string_view& Path);
 
 			private:
-				ExpectsGuiException<void> Preprocess(const Core::String& Path, Core::String& Buffer);
+				ExpectsGuiException<void> Preprocess(const std::string_view& Path, Core::String& Buffer);
 				void Decompose(Core::String& Buffer);
 				void ClearScope();
 

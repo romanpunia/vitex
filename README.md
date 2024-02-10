@@ -11,7 +11,7 @@
 </div>
 
 ## About 👻
-Vitex is a cross-platform C++14/17/20/23 framework to create any type of application from a unified interface. In it's core, Vitex is based on same concepts as Node.js but made to it's extreme. As in Node, Vitex has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
+Vitex is a cross-platform C++17/20/23 framework to create any type of application from a unified interface. In it's core, Vitex is based on same concepts as Node.js but made to it's extreme. As in Node, Vitex has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 
 ## Details
 Using concept of tasks and queues, in Vitex there are two rules for optimal performace and proper CPU loading:
@@ -47,37 +47,38 @@ There are several ways to build this project that are explained here:
 * [Precomposed docker builds](var/DOCKER.md)
 
 ### General configuration
-+ **VI_CXX** is the C++ standard (14, 17, 20, 23) which will be used, C++17 and higher will add parallel sort and other optimizations, C++20 and higher will replace stateful coroutines with coroutines TS, defaults to 20
++ **VI_CXX** is the C++ standard (17, 20, 23) which will be used, C++20 and higher will replace stateful coroutines with std coroutines, defaults to 20
 + **VI_LOGGING** is a logging level (errors, warnings, default, debug, verbose), defaults to "default"
-+ **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to true
-+ **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to true
-+ **VI_SHADERS** to embed shaders to **/src/vitex/graphics/shaders/bundle.hpp**, defaults to true
++ **VI_PESSIMISTIC** will enable assertion statements in release mode, defaults to OFF
++ **VI_BINDINGS** will enable full script bindings otherwise only essentials will be used to reduce lib size, defaults to ON
++ **VI_ALLOCATOR** will enable custom allocator for all used standard containers, making them incompatible with std::allocator based ones but adding opportunity to use pool allocator, defaults to ON
++ **VI_SHADERS** to embed shaders to **/src/vitex/graphics/shaders/bundle.hpp**, defaults to ON
 
 ### Dependency configuration
-+ **VI_ASSIMP** will enable Assimp library to load 3d models, defaults to true
-+ **VI_FREETYPE** will enable FreeType library to display text, defaults to true
-+ **VI_GLEW** will enable GLEW library to bind OpenGL procedures, defaults to true
-+ **VI_MONGOC** will enable MongoDB library to allow queries to this database, defaults to true
-+ **VI_POSTGRESQL** will enable PostgreSQL library to allow queries to this database, defaults to true
-+ **VI_SQLITE** will enable SQLite library to allow queries to this database, defaults to true
-+ **VI_OPENAL** will enable OpenAL library to playback audio, defaults to true
-+ **VI_OPENGL** will enable OpenGL library to display graphics, defaults to true
-+ **VI_OPENSSL** will enable OpenSSL library to activate TLS certs and crypto algorithms, defaults to true
-+ **VI_SDL2** will enable SDL2 library to allow window and input management, defaults to true
-+ **VI_ZLIB** will enable zlib library to activate compression algorithms, defaults to true
-+ **VI_SPIRV** will enable SPIRV Cross and glslang libraries to allow shader cross-compiling, defaults to true
-+ **VI_SIMD** will enable vectorclass built-in library to allow SIMD optimisations, defaults to false
-+ **VI_WEPOLL** will enable built-in Windows epoll implementation for socket multiplexer which avoids socket latencies and limits, defaults to true
-+ **VI_ANGELSCRIPT** will enable built-in AngelScript library to execute scripts, defaults to true
-+ **VI_JIT** will enable built-in JIT compiler for AngelScript, defaults to false
-+ **VI_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
-+ **VI_BULLET3** will enable built-in Bullet3 library to use physics interfaces, defaults to true
-+ **VI_RMLUI** will enable built-in RmlUi library to use gui interfaces, defaults to true
-+ **VI_BACKTRACE** will enable backward-cpp built-in library to display stacktraces otherwise if C++23 is supported then std::stacktrace, defaults to true
-+ **VI_STB** will enable built-in stb library to load audio and textures, defaults to true
-+ **VI_TINYFILEDIALOGS** will enable built-in tinyfiledialogs library to open system modal windows, defaults to true
-+ **VI_PUGIXML** will enable built-in pugixml library to parse XML-like files, defaults to true
-+ **VI_RAPIDJSON** will enable built-in rapidjson library to parse JSON files, defaults to true
++ **VI_ASSIMP** will enable Assimp library to load 3d models, defaults to ON
++ **VI_FREETYPE** will enable FreeType library to display text, defaults to ON
++ **VI_GLEW** will enable GLEW library to bind OpenGL procedures, defaults to ON
++ **VI_MONGOC** will enable MongoDB library to allow queries to this database, defaults to ON
++ **VI_POSTGRESQL** will enable PostgreSQL library to allow queries to this database, defaults to ON
++ **VI_SQLITE** will enable SQLite library to allow queries to this database, defaults to ON
++ **VI_OPENAL** will enable OpenAL library to playback audio, defaults to ON
++ **VI_OPENGL** will enable OpenGL library to display graphics, defaults to ON
++ **VI_OPENSSL** will enable OpenSSL library to activate TLS certs and crypto algorithms, defaults to ON
++ **VI_SDL2** will enable SDL2 library to allow window and input management, defaults to ON
++ **VI_ZLIB** will enable zlib library to activate compression algorithms, defaults to ON
++ **VI_SPIRV** will enable SPIRV Cross and glslang libraries to allow shader cross-compiling, defaults to ON
++ **VI_SIMD** will enable vectorclass built-in library to allow SIMD optimisations, defaults to OFF
++ **VI_WEPOLL** will enable built-in Windows epoll implementation for socket multiplexer which avoids socket latencies and limits, defaults to ON
++ **VI_ANGELSCRIPT** will enable built-in AngelScript library to execute scripts, defaults to ON
++ **VI_JIT** will enable built-in JIT compiler for AngelScript, defaults to OFF
++ **VI_FCTX** will enable internal fcontext implementation for coroutines, defaults to ON
++ **VI_BULLET3** will enable built-in Bullet3 library to use physics interfaces, defaults to ON
++ **VI_RMLUI** will enable built-in RmlUi library to use gui interfaces, defaults to ON
++ **VI_BACKTRACE** will enable backward-cpp built-in library to display stacktraces otherwise if C++23 is supported then std::stacktrace, defaults to ON
++ **VI_STB** will enable built-in stb library to load audio and textures, defaults to ON
++ **VI_TINYFILEDIALOGS** will enable built-in tinyfiledialogs library to open system modal windows, defaults to ON
++ **VI_PUGIXML** will enable built-in pugixml library to parse XML-like files, defaults to ON
++ **VI_RAPIDJSON** will enable built-in rapidjson library to parse JSON files, defaults to ON
 
 ## Dependencies
 * REQUIRED [concurrentqueue (submodule)](https://github.com/cameron314/concurrentqueue)

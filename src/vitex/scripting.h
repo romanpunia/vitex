@@ -390,7 +390,7 @@ namespace Vitex
 			static Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* Names;
 
 		public:
-			static uint64_t Set(uint64_t Id, const Core::String& Name);
+			static uint64_t Set(uint64_t Id, const std::string_view& Name);
 			static int GetTypeId(uint64_t Id);
 			static void Cleanup();
 		};
@@ -398,11 +398,11 @@ namespace Vitex
 		class VI_OUT_TS Parser
 		{
 		public:
-			static ExpectsVM<void> ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer);
-			static ExpectsVM<void> ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer);
+			static ExpectsVM<void> ReplaceInlinePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
+			static ExpectsVM<void> ReplaceDirectivePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
 
 		private:
-			static ExpectsVM<void> ReplacePreconditions(bool IsDirective, const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer);
+			static ExpectsVM<void> ReplacePreconditions(bool IsDirective, const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
 		};
 
 		class VI_OUT_TS FunctionFactory
@@ -411,7 +411,7 @@ namespace Vitex
 			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
 			static Core::Unique<asSFuncPtr> CreateMethodBase(const void* Base, size_t Size, int Type);
 			static Core::Unique<asSFuncPtr> CreateDummyBase();
-			static ExpectsVM<void> AtomicNotifyGC(const char* TypeName, void* Object);
+			static ExpectsVM<void> AtomicNotifyGC(const std::string_view& TypeName, void* Object);
 			static ExpectsVM<void> AtomicNotifyGCById(int TypeId, void* Object);
 			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
 			static void GCEnumCallback(asIScriptEngine* Engine, void* Reference);
@@ -512,8 +512,8 @@ namespace Vitex
 			int GetObjectTypeId() const;
 			size_t GetArgsCount() const;
 			int GetArgTypeId(size_t Argument, size_t* Flags = 0) const;
-			unsigned char GetArgByte(size_t Argument);
-			unsigned short GetArgWord(size_t Argument);
+			uint8_t GetArgByte(size_t Argument);
+			uint16_t GetArgWord(size_t Argument);
 			size_t GetArgDWord(size_t Argument);
 			uint64_t GetArgQWord(size_t Argument);
 			float GetArgFloat(size_t Argument);
@@ -522,8 +522,8 @@ namespace Vitex
 			void* GetArgObjectAddress(size_t Argument);
 			void* GetAddressOfArg(size_t Argument);
 			int GetReturnTypeId(size_t* Flags = 0) const;
-			ExpectsVM<void> SetReturnByte(unsigned char Value);
-			ExpectsVM<void> SetReturnWord(unsigned short Value);
+			ExpectsVM<void> SetReturnByte(uint8_t Value);
+			ExpectsVM<void> SetReturnWord(uint16_t Value);
 			ExpectsVM<void> SetReturnDWord(size_t Value);
 			ExpectsVM<void> SetReturnQWord(uint64_t Value);
 			ExpectsVM<void> SetReturnFloat(float Value);
@@ -600,7 +600,7 @@ namespace Vitex
 			static void GetConstructorListCall(asIScriptGeneric* Generic)
 			{
 				GenericContext Args(Generic);
-				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
+				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((uint8_t*)Args.GetArgAddress(0));
 			}
 			template <typename T>
 			static void GetDestructorCall(void* Memory)
@@ -619,7 +619,7 @@ namespace Vitex
 			static void GetManagedListCall(asIScriptGeneric* Generic)
 			{
 				GenericContext Args(Generic);
-				T* Result = new T((unsigned char*)Args.GetArgAddress(0));
+				T* Result = new T((uint8_t*)Args.GetArgAddress(0));
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
 				FunctionFactory::AtomicNotifyGCById(TypeCache::GetTypeId(TypeName), (void*)Result);
 			}
@@ -632,7 +632,7 @@ namespace Vitex
 			static void GetUnmanagedListCall(asIScriptGeneric* Generic)
 			{
 				GenericContext Args(Generic);
-				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
+				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((uint8_t*)Args.GetArgAddress(0));
 			}
 			template <typename T>
 			static size_t GetTypeTraits()
@@ -691,7 +691,7 @@ namespace Vitex
 
 		struct VI_OUT ByteCodeInfo
 		{
-			Core::Vector<unsigned char> Data;
+			Core::Vector<uint8_t> Data;
 			Core::String Name;
 			bool Valid = false;
 			bool Debug = true;
@@ -699,25 +699,25 @@ namespace Vitex
 
 		struct VI_OUT ByteCodeLabel
 		{
-			const char* Name;
+			std::string_view Name;
 			uint8_t Id;
 			uint8_t Args;
 		};
 
 		struct VI_OUT PropertyInfo
 		{
-			const char* Name;
-			const char* Namespace;
+			std::string_view Name;
+			std::string_view Namespace;
 			int TypeId;
 			bool IsConst;
-			const char* ConfigGroup;
+			std::string_view ConfigGroup;
 			void* Pointer;
 			size_t AccessMask;
 		};
 
 		struct VI_OUT FunctionInfo
 		{
-			const char* Name;
+			std::string_view Name;
 			size_t AccessMask;
 			int TypeId;
 			int Offset;
@@ -733,8 +733,8 @@ namespace Vitex
 
 		public:
 			MessageInfo(asSMessageInfo* Info) noexcept;
-			const char* GetSection() const;
-			const char* GetText() const;
+			std::string_view GetSection() const;
+			std::string_view GetText() const;
 			LogCategory GetType() const;
 			int GetRow() const;
 			int GetColumn() const;
@@ -752,13 +752,13 @@ namespace Vitex
 			TypeInfo(asITypeInfo* TypeInfo) noexcept;
 			void ForEachProperty(const PropertyCallback& Callback);
 			void ForEachMethod(const MethodCallback& Callback);
-			const char* GetGroup() const;
+			std::string_view GetGroup() const;
 			size_t GetAccessMask() const;
 			Module GetModule() const;
 			void AddRef() const;
 			void Release();
-			const char* GetName() const;
-			const char* GetNamespace() const;
+			std::string_view GetName() const;
+			std::string_view GetNamespace() const;
 			TypeInfo GetBaseType() const;
 			bool DerivesFrom(const TypeInfo& Type) const;
 			size_t Flags() const;
@@ -772,21 +772,21 @@ namespace Vitex
 			bool Implements(const TypeInfo& Type) const;
 			size_t GetFactoriesCount() const;
 			Function GetFactoryByIndex(size_t Index) const;
-			Function GetFactoryByDecl(const char* Decl) const;
+			Function GetFactoryByDecl(const std::string_view& Decl) const;
 			size_t GetMethodsCount() const;
 			Function GetMethodByIndex(size_t Index, bool GetVirtual = true) const;
-			Function GetMethodByName(const char* Name, bool GetVirtual = true) const;
-			Function GetMethodByDecl(const char* Decl, bool GetVirtual = true) const;
+			Function GetMethodByName(const std::string_view& Name, bool GetVirtual = true) const;
+			Function GetMethodByDecl(const std::string_view& Decl, bool GetVirtual = true) const;
 			size_t GetPropertiesCount() const;
 			ExpectsVM<void> GetProperty(size_t Index, FunctionInfo* Out) const;
-			const char* GetPropertyDeclaration(size_t Index, bool IncludeNamespace = false) const;
+			std::string_view GetPropertyDeclaration(size_t Index, bool IncludeNamespace = false) const;
 			size_t GetBehaviourCount() const;
 			Function GetBehaviourByIndex(size_t Index, Behaviours* OutBehaviour) const;
 			size_t GetChildFunctionDefCount() const;
 			TypeInfo GetChildFunctionDef(size_t Index) const;
 			TypeInfo GetParentType() const;
 			size_t GetEnumValueCount() const;
-			const char* GetEnumValueByIndex(size_t Index, int* OutValue) const;
+			std::string_view GetEnumValueByIndex(size_t Index, int* OutValue) const;
 			Function GetFunctionDefSignature() const;
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
@@ -854,16 +854,16 @@ namespace Vitex
 			int GetId() const;
 			FunctionType GetType() const;
 			uint32_t* GetByteCode(size_t* Size = nullptr) const;
-			const char* GetModuleName() const;
+			std::string_view GetModuleName() const;
 			Module GetModule() const;
-			const char* GetSectionName() const;
-			const char* GetGroup() const;
+			std::string_view GetSectionName() const;
+			std::string_view GetGroup() const;
 			size_t GetAccessMask() const;
 			TypeInfo GetObjectType() const;
-			const char* GetObjectName() const;
-			const char* GetName() const;
-			const char* GetNamespace() const;
-			const char* GetDecl(bool IncludeObjectName = true, bool IncludeNamespace = false, bool IncludeArgNames = false) const;
+			std::string_view GetObjectName() const;
+			std::string_view GetName() const;
+			std::string_view GetNamespace() const;
+			std::string_view GetDecl(bool IncludeObjectName = true, bool IncludeNamespace = false, bool IncludeArgNames = false) const;
 			bool IsReadOnly() const;
 			bool IsPrivate() const;
 			bool IsProtected() const;
@@ -873,7 +873,7 @@ namespace Vitex
 			bool IsExplicit() const;
 			bool IsProperty() const;
 			size_t GetArgsCount() const;
-			ExpectsVM<void> GetArg(size_t Index, int* TypeId, size_t* Flags = nullptr, const char** Name = nullptr, const char** DefaultArg = nullptr) const;
+			ExpectsVM<void> GetArg(size_t Index, int* TypeId, size_t* Flags = nullptr, std::string_view* Name = nullptr, std::string_view* DefaultArg = nullptr) const;
 			int GetReturnTypeId(size_t* Flags = nullptr) const;
 			int GetTypeId() const;
 			bool IsCompatibleWithTypeId(int TypeId) const;
@@ -881,8 +881,8 @@ namespace Vitex
 			TypeInfo GetDelegateObjectType() const;
 			Function GetDelegateFunction() const;
 			size_t GetPropertiesCount() const;
-			ExpectsVM<void> GetProperty(size_t Index, const char** Name, int* TypeId = nullptr) const;
-			const char* GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
+			ExpectsVM<void> GetProperty(size_t Index, std::string_view* Name, int* TypeId = nullptr) const;
+			std::string_view GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
 			int FindNextLineWithCode(int Line) const;
 			void* SetUserData(void* UserData, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
@@ -904,7 +904,7 @@ namespace Vitex
 			int GetTypeId();
 			int GetPropertyTypeId(size_t Id) const;
 			size_t GetPropertiesCount() const;
-			const char* GetPropertyName(size_t Id) const;
+			std::string_view GetPropertyName(size_t Id) const;
 			void* GetAddressOfProperty(size_t Id);
 			VirtualMachine* GetVM() const;
 			int CopyFrom(const ScriptObject& Other);
@@ -925,26 +925,26 @@ namespace Vitex
 			BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
 			BaseClass(const BaseClass&) = default;
 			BaseClass(BaseClass&&) = default;
-			ExpectsVM<void> SetFunctionDef(const char* Decl);
+			ExpectsVM<void> SetFunctionDef(const std::string_view& Decl);
 			ExpectsVM<void> SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
-			ExpectsVM<void> SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
-			ExpectsVM<void> SetPropertyAddress(const char* Decl, int Offset);
-			ExpectsVM<void> SetPropertyStaticAddress(const char* Decl, void* Value);
-			ExpectsVM<void> SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
-			ExpectsVM<void> SetMethodAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
-			ExpectsVM<void> SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
-			ExpectsVM<void> SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
-			ExpectsVM<void> SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
-			ExpectsVM<void> SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
+			ExpectsVM<void> SetBehaviourAddress(const std::string_view& Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
+			ExpectsVM<void> SetPropertyAddress(const std::string_view& Decl, int Offset);
+			ExpectsVM<void> SetPropertyStaticAddress(const std::string_view& Decl, void* Value);
+			ExpectsVM<void> SetOperatorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
+			ExpectsVM<void> SetMethodAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
+			ExpectsVM<void> SetMethodStaticAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
+			ExpectsVM<void> SetConstructorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
+			ExpectsVM<void> SetConstructorListAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
+			ExpectsVM<void> SetDestructorAddress(const std::string_view& Decl, asSFuncPtr* Value);
 			asITypeInfo* GetTypeInfo() const;
 			int GetTypeId() const;
 			virtual bool IsValid() const;
-			virtual const char* GetTypeName() const;
+			virtual std::string_view GetTypeName() const;
 			virtual Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 
 		private:
-			static Core::String GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
+			static Core::String GetOperator(Operators Op, const std::string_view& Out, const std::string_view& Args, bool Const, bool Right);
 
 		public:
 			ExpectsVM<void> SetTemplateCallback(bool(*Value)(asITypeInfo*, bool&))
@@ -987,18 +987,16 @@ namespace Vitex
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetProperty(const char* Decl, R T::* Value)
+			ExpectsVM<void> SetProperty(const std::string_view& Decl, R T::* Value)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyAddress(Decl, (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)));
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetPropertyArray(const char* Decl, R T::* Value, size_t ElementsCount)
+			ExpectsVM<void> SetPropertyArray(const std::string_view& Decl, R T::* Value, size_t ElementsCount)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				for (size_t i = 0; i < ElementsCount; i++)
 				{
-					Core::String ElementDecl = Decl + Core::ToString(i);
+					Core::String ElementDecl = Core::String(Decl) + Core::ToString(i);
 					auto Result = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
 					if (!Result)
 						return Result;
@@ -1006,95 +1004,77 @@ namespace Vitex
 				return Core::Expectation::Met;
 			}
 			template <typename T>
-			ExpectsVM<void> SetPropertyStatic(const char* Decl, T* Value)
+			ExpectsVM<void> SetPropertyStatic(const std::string_view& Decl, T* Value)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyStaticAddress(Decl, (void*)Value);
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetGetter(const char* Type, const char* Name, R(T::* Value)())
+			ExpectsVM<void> SetGetter(const std::string_view& Type, const std::string_view& Name, R(T::* Value)())
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
+			ExpectsVM<void> SetGetterEx(const std::string_view& Type, const std::string_view& Name, R(*Value)(T*))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetSetter(const char* Type, const char* Name, void(T::* Value)(R))
+			ExpectsVM<void> SetSetter(const std::string_view& Type, const std::string_view& Name, void(T::* Value)(R))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, void, R>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
+			ExpectsVM<void> SetSetterEx(const std::string_view& Type, const std::string_view& Name, void(*Value)(T*, R))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetArrayGetter(const char* Type, const char* Name, R(T::* Value)(unsigned int))
+			ExpectsVM<void> SetArrayGetter(const std::string_view& Type, const std::string_view& Name, R(T::* Value)(uint32_t))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
-				asSFuncPtr* Ptr = Bridge::Method<T, R, unsigned int>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::THISCALL);
+				asSFuncPtr* Ptr = Bridge::Method<T, R, uint32_t>(Value);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
+			ExpectsVM<void> SetArrayGetterEx(const std::string_view& Type, const std::string_view& Name, R(*Value)(T*, uint32_t))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", Type, Name).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetArraySetter(const char* Type, const char* Name, void(T::* Value)(unsigned int, R))
+			ExpectsVM<void> SetArraySetter(const std::string_view& Type, const std::string_view& Name, void(T::* Value)(uint32_t, R))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
-				asSFuncPtr* Ptr = Bridge::Method<T, void, unsigned int, R>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::THISCALL);
+				asSFuncPtr* Ptr = Bridge::Method<T, void, uint32_t, R>(Value);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R>
-			ExpectsVM<void> SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
+			ExpectsVM<void> SetArraySetterEx(const std::string_view& Type, const std::string_view& Name, void(*Value)(T*, uint32_t, R))
 			{
-				VI_ASSERT(Type != nullptr, "type should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", Name, Type).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R, typename... A>
-			ExpectsVM<void> SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
+			ExpectsVM<void> SetOperator(Operators Type, uint32_t Opts, const std::string_view& Out, const std::string_view& Args, R(T::* Value)(A...))
 			{
-				VI_ASSERT(Out != nullptr, "output should be set");
 				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
@@ -1103,9 +1083,8 @@ namespace Vitex
 				return Result;
 			}
 			template <typename R, typename... A>
-			ExpectsVM<void> SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
+			ExpectsVM<void> SetOperatorEx(Operators Type, uint32_t Opts, const std::string_view& Out, const std::string_view& Args, R(*Value)(A...))
 			{
-				VI_ASSERT(Out != nullptr, "output should be set");
 				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
 				asSFuncPtr* Ptr = Bridge::Function(Value);
@@ -1138,43 +1117,39 @@ namespace Vitex
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			ExpectsVM<void> SetMethod(const char* Decl, R(T::* Value)(Args...))
+			ExpectsVM<void> SetMethod(const std::string_view& Decl, R(T::* Value)(Args...))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
 				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			ExpectsVM<void> SetMethod(const char* Decl, R(T::* Value)(Args...) const)
+			ExpectsVM<void> SetMethod(const std::string_view& Decl, R(T::* Value)(Args...) const)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
 				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename R, typename... Args>
-			ExpectsVM<void> SetMethodEx(const char* Decl, R(*Value)(Args...))
+			ExpectsVM<void> SetMethodEx(const std::string_view& Decl, R(*Value)(Args...))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
 				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename R, typename... Args>
-			ExpectsVM<void> SetMethodStatic(const char* Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
+			ExpectsVM<void> SetMethodStatic(const std::string_view& Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
 				auto Result = SetMethodStaticAddress(Decl, Ptr, Type);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename To>
-			ExpectsVM<void> SetDynamicCast(const char* ToDecl, bool Implicit = false)
+			ExpectsVM<void> SetDynamicCast(const std::string_view& ToDecl, bool Implicit = false)
 			{
 				auto Type = Implicit ? Operators::ImplCast : Operators::Cast;
 				auto Result1 = SetOperatorEx(Type, 0, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
@@ -1204,89 +1179,79 @@ namespace Vitex
 
 		public:
 			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructorEx(const char* Decl, T* (*Value)(Args...))
+			ExpectsVM<void> SetConstructorEx(const std::string_view& Decl, T* (*Value)(Args...))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function<T * (*)(Args...)>(Value);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
-			ExpectsVM<void> SetConstructorEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectsVM<void> SetConstructorEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric<void(*)(asIScriptGeneric*)>(Value);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructor(const char* Decl)
+			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetUnmanagedCall<T, Args...>);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T, asIScriptGeneric*>
-			ExpectsVM<void> SetConstructor(const char* Decl)
+			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedCall<T, asIScriptGeneric*>);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetConstructorList(const char* Decl)
+			ExpectsVM<void> SetConstructorList(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedListCall<T>);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectsVM<void> SetConstructorListEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T, uint64_t TypeName, typename... Args>
-			ExpectsVM<void> SetGcConstructor(const char* Decl)
+			ExpectsVM<void> SetGcConstructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetManagedCall<T, TypeName, Args...>);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T, uint64_t TypeName, asIScriptGeneric*>
-			ExpectsVM<void> SetGcConstructor(const char* Decl)
+			ExpectsVM<void> SetGcConstructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedCall<T, TypeName, asIScriptGeneric*>);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T, uint64_t TypeName>
-			ExpectsVM<void> SetGcConstructorList(const char* Decl)
+			ExpectsVM<void> SetGcConstructorList(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedListCall<T, TypeName>);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetGcConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectsVM<void> SetGcConstructorListEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Functor);
@@ -1369,25 +1334,25 @@ namespace Vitex
 		struct VI_OUT TemplateClass : public RefClass
 		{
 		private:
-			const char* Name;
+			Core::String Name;
 
 		public:
-			TemplateClass(VirtualMachine* Engine, const char* NewName) noexcept : RefClass(Engine, nullptr, 0), Name(NewName)
+			TemplateClass(VirtualMachine* Engine, const std::string_view& NewName) noexcept : RefClass(Engine, nullptr, 0), Name(Core::String(NewName))
 			{
 			}
 			TemplateClass(const TemplateClass&) = default;
 			TemplateClass(TemplateClass&&) = default;
 			bool IsValid() const override
 			{
-				return VM && Name;
+				return VM && !Name.empty();
 			}
-			const char* GetTypeName() const override
+			std::string_view GetTypeName() const override
 			{
-				return Name ? Name : "";
+				return Name;
 			}
 			Core::String GetName() const override
 			{
-				return Name ? Name : "";
+				return Name;
 			}
 		};
 
@@ -1402,63 +1367,56 @@ namespace Vitex
 
 		public:
 			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructorEx(const char* Decl, void(*Value)(T, Args...))
+			ExpectsVM<void> SetConstructorEx(const std::string_view& Decl, void(*Value)(T, Args...))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Functor = Bridge::Function<void(*)(T, Args...)>(Value);
 				auto Result = SetBehaviourAddress(Decl, Behaviours::CONSTRUCT, Functor, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Functor);
 				return Result;
 			}
 			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructor(const char* Decl)
+			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetConstructorCall<T, Args...>);
 				auto Result = SetConstructorAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, asIScriptGeneric*>
-			ExpectsVM<void> SetConstructor(const char* Decl)
+			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorCall<T, asIScriptGeneric*>);
 				auto Result = SetConstructorAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetConstructorList(const char* Decl)
+			ExpectsVM<void> SetConstructorList(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorListCall<T>);
 				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectsVM<void> SetConstructorListEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric(Value);
 				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetDestructor(const char* Decl)
+			ExpectsVM<void> SetDestructor(const std::string_view& Decl)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetDestructorCall<T>);
 				auto Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T, typename... Args>
-			ExpectsVM<void> SetDestructorEx(const char* Decl, void(*Value)(T, Args...))
+			ExpectsVM<void> SetDestructorEx(const std::string_view& Decl, void(*Value)(T, Args...))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<void(*)(T, Args...)>(Value);
 				auto Result = SetDestructorAddress(Decl, Ptr);
 				FunctionFactory::ReleaseFunctor(&Ptr);
@@ -1477,11 +1435,11 @@ namespace Vitex
 			TypeInterface(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
 			TypeInterface(const TypeInterface&) = default;
 			TypeInterface(TypeInterface&&) = default;
-			ExpectsVM<void> SetMethod(const char* Decl);
+			ExpectsVM<void> SetMethod(const std::string_view& Decl);
 			asITypeInfo* GetTypeInfo() const;
 			int GetTypeId() const;
 			bool IsValid() const;
-			const char* GetTypeName() const;
+			std::string_view GetTypeName() const;
 			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 		};
@@ -1497,11 +1455,11 @@ namespace Vitex
 			Enumeration(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
 			Enumeration(const Enumeration&) = default;
 			Enumeration(Enumeration&&) = default;
-			ExpectsVM<void> SetValue(const char* Name, int Value);
+			ExpectsVM<void> SetValue(const std::string_view& Name, int Value);
 			asITypeInfo* GetTypeInfo() const;
 			int GetTypeId() const;
 			bool IsValid() const;
-			const char* GetTypeName() const;
+			std::string_view GetTypeName() const;
 			Core::String GetName() const;
 			VirtualMachine* GetVM() const;
 		};
@@ -1514,8 +1472,8 @@ namespace Vitex
 
 		public:
 			Module(asIScriptModule* Type) noexcept;
-			void SetName(const char* Name);
-			ExpectsVM<void> AddSection(const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
+			void SetName(const std::string_view& Name);
+			ExpectsVM<void> AddSection(const std::string_view& Name, const std::string_view& Code, int LineOffset = 0);
 			ExpectsVM<void> RemoveFunction(const Function& Function);
 			ExpectsVM<void> ResetProperties(asIScriptContext* Context = nullptr);
 			ExpectsVM<void> Build();
@@ -1524,22 +1482,22 @@ namespace Vitex
 			ExpectsVM<void> UnbindImportedFunction(size_t ImportIndex);
 			ExpectsVM<void> BindAllImportedFunctions();
 			ExpectsVM<void> UnbindAllImportedFunctions();
-			ExpectsVM<void> CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction);
-			ExpectsVM<void> CompileProperty(const char* SectionName, const char* Code, int LineOffset);
-			ExpectsVM<void> SetDefaultNamespace(const char* Namespace);
+			ExpectsVM<void> CompileFunction(const std::string_view& SectionName, const std::string_view& Code, int LineOffset, size_t CompileFlags, Function* OutFunction);
+			ExpectsVM<void> CompileProperty(const std::string_view& SectionName, const std::string_view& Code, int LineOffset);
+			ExpectsVM<void> SetDefaultNamespace(const std::string_view& Namespace);
 			ExpectsVM<void> RemoveProperty(size_t Index);
 			void Discard();
 			void* GetAddressOfProperty(size_t Index);
 			size_t SetAccessMask(size_t AccessMask);
 			size_t GetFunctionCount() const;
 			Function GetFunctionByIndex(size_t Index) const;
-			Function GetFunctionByDecl(const char* Decl) const;
-			Function GetFunctionByName(const char* Name) const;
-			int GetTypeIdByDecl(const char* Decl) const;
-			ExpectsVM<size_t> GetImportedFunctionIndexByDecl(const char* Decl) const;
+			Function GetFunctionByDecl(const std::string_view& Decl) const;
+			Function GetFunctionByName(const std::string_view& Name) const;
+			int GetTypeIdByDecl(const std::string_view& Decl) const;
+			ExpectsVM<size_t> GetImportedFunctionIndexByDecl(const std::string_view& Decl) const;
 			ExpectsVM<void> SaveByteCode(ByteCodeInfo* Info) const;
-			ExpectsVM<size_t> GetPropertyIndexByName(const char* Name) const;
-			ExpectsVM<size_t> GetPropertyIndexByDecl(const char* Decl) const;
+			ExpectsVM<size_t> GetPropertyIndexByName(const std::string_view& Name) const;
+			ExpectsVM<size_t> GetPropertyIndexByDecl(const std::string_view& Decl) const;
 			ExpectsVM<void> GetProperty(size_t Index, PropertyInfo* Out) const;
 			size_t GetAccessMask() const;
 			size_t GetObjectsCount() const;
@@ -1547,23 +1505,22 @@ namespace Vitex
 			size_t GetEnumsCount() const;
 			size_t GetImportedFunctionCount() const;
 			TypeInfo GetObjectByIndex(size_t Index) const;
-			TypeInfo GetTypeInfoByName(const char* Name) const;
-			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
+			TypeInfo GetTypeInfoByName(const std::string_view& Name) const;
+			TypeInfo GetTypeInfoByDecl(const std::string_view& Decl) const;
 			TypeInfo GetEnumByIndex(size_t Index) const;
-			const char* GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
-			const char* GetDefaultNamespace() const;
-			const char* GetImportedFunctionDecl(size_t ImportIndex) const;
-			const char* GetImportedFunctionModule(size_t ImportIndex) const;
-			const char* GetName() const;
+			std::string_view GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
+			std::string_view GetDefaultNamespace() const;
+			std::string_view GetImportedFunctionDecl(size_t ImportIndex) const;
+			std::string_view GetImportedFunctionModule(size_t ImportIndex) const;
+			std::string_view GetName() const;
 			bool IsValid() const;
 			asIScriptModule* GetModule() const;
 			VirtualMachine* GetVM() const;
 
 		public:
 			template <typename T>
-			ExpectsVM<void> SetTypeProperty(const char* Name, T* Value)
+			ExpectsVM<void> SetTypeProperty(const std::string_view& Name, T* Value)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto Index = GetPropertyIndexByName(Name);
 				if (!Index)
 					return Index.Error();
@@ -1576,9 +1533,8 @@ namespace Vitex
 				return Core::Expectation::Met;
 			}
 			template <typename T>
-			ExpectsVM<void> SetTypeProperty(const char* Name, const T& Value)
+			ExpectsVM<void> SetTypeProperty(const std::string_view& Name, const T& Value)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto Index = GetPropertyIndexByName(Name);
 				if (!Index)
 					return Index.Error();
@@ -1591,9 +1547,8 @@ namespace Vitex
 				return Core::Expectation::Met;
 			}
 			template <typename T>
-			ExpectsVM<void> SetRefProperty(const char* Name, T* Value)
+			ExpectsVM<void> SetRefProperty(const std::string_view& Name, T* Value)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto Index = GetPropertyIndexByName(Name);
 				if (!Index)
 					return Index.Error();
@@ -1602,7 +1557,7 @@ namespace Vitex
 				if (!Address)
 					return VirtualException(VirtualError::INVALID_OBJECT);
 
-				VI_RELEASE(*Address);
+				Core::Memory::Release(*Address);
 				*Address = (T*)Value;
 				if (*Address != nullptr)
 					(*Address)->AddRef();
@@ -1655,25 +1610,24 @@ namespace Vitex
 			~Compiler() noexcept;
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
-			void Define(const Core::String& Word);
-			void Undefine(const Core::String& Word);
+			void Define(const std::string_view& Word);
+			void Undefine(const std::string_view& Word);
 			Module UnlinkModule();
 			bool Clear();
-			bool IsDefined(const Core::String& Word) const;
+			bool IsDefined(const std::string_view& Word) const;
 			bool IsBuilt() const;
 			bool IsCached() const;
 			ExpectsVM<void> Prepare(ByteCodeInfo* Info);
-			ExpectsVM<void> Prepare(const Core::String& ModuleName, bool Scoped = false);
-			ExpectsVM<void> Prepare(const Core::String& ModuleName, const Core::String& Cache, bool Debug = true, bool Scoped = false);
+			ExpectsVM<void> Prepare(const std::string_view& ModuleName, bool Scoped = false);
+			ExpectsVM<void> Prepare(const std::string_view& ModuleName, const std::string_view& Cache, bool Debug = true, bool Scoped = false);
 			ExpectsVM<void> SaveByteCode(ByteCodeInfo* Info);
-			ExpectsVM<void> LoadFile(const Core::String& Path);
-			ExpectsVM<void> LoadCode(const Core::String& Name, const Core::String& Buffer);
-			ExpectsVM<void> LoadCode(const Core::String& Name, const char* Buffer, size_t Length);
+			ExpectsVM<void> LoadFile(const std::string_view& Path);
+			ExpectsVM<void> LoadCode(const std::string_view& Name, const std::string_view& Buffer);
 			ExpectsPromiseVM<void> LoadByteCode(ByteCodeInfo* Info);
 			ExpectsPromiseVM<void> Compile();
-			ExpectsPromiseVM<void> CompileFile(const char* Name, const char* ModuleName, const char* EntryName);
-			ExpectsPromiseVM<void> CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName);
-			ExpectsPromiseVM<Function> CompileFunction(const Core::String& Code, const char* Returns = nullptr, const char* Args = nullptr, Core::Option<size_t>&& FunctionId = Core::Optional::None);
+			ExpectsPromiseVM<void> CompileFile(const std::string_view& Name, const std::string_view& ModuleName, const std::string_view& EntryName);
+			ExpectsPromiseVM<void> CompileMemory(const std::string_view& Buffer, const std::string_view& ModuleName, const std::string_view& EntryName);
+			ExpectsPromiseVM<Function> CompileFunction(const std::string_view& Code, const std::string_view& Returns = "", const std::string_view& Args = "", Core::Option<size_t>&& FunctionId = Core::Optional::None);
 			Module GetModule() const;
 			VirtualMachine* GetVM() const;
 			Compute::Preprocessor* GetProcessor() const;
@@ -1688,7 +1642,7 @@ namespace Vitex
 			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object)> ToStringCallback;
 			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object, int TypeId)> ToStringTypeCallback;
 			typedef std::function<bool(ImmediateContext*, const Core::Vector<Core::String>&)> CommandCallback;
-			typedef std::function<void(const Core::String&)> OutputCallback;
+			typedef std::function<void(const std::string_view&)> OutputCallback;
 			typedef std::function<bool(Core::String&)> InputCallback;
 			typedef std::function<void(bool)> InterruptCallback;
 			typedef std::function<void()> ExitCallback;
@@ -1720,7 +1674,7 @@ namespace Vitex
 				bool Function;
 				int Line;
 
-				BreakPoint(const Core::String& N, int L, bool F) noexcept : Name(N), NeedsAdjusting(true), Function(F), Line(L)
+				BreakPoint(const std::string_view& N, int L, bool F) noexcept : Name(Core::String(N)), NeedsAdjusting(true), Function(F), Line(L)
 				{
 				}
 			};
@@ -1748,7 +1702,7 @@ namespace Vitex
 			std::recursive_mutex ThreadBarrier;
 			std::recursive_mutex Mutex;
 			ImmediateContext* LastContext;
-			unsigned int LastCommandAtStackLevel;
+			uint32_t LastCommandAtStackLevel;
 			std::atomic<int32_t> ForceSwitchThreads;
 			asIScriptFunction* LastFunction;
 			VirtualMachine* VM;
@@ -1763,22 +1717,22 @@ namespace Vitex
 		public:
 			DebuggerContext(DebugType Type = DebugType::Suspended) noexcept;
 			~DebuggerContext() noexcept;
-			ExpectsVM<void> ExecuteExpression(ImmediateContext* Context, const Core::String& Code, const Core::String& Args, ArgsCallback&& OnArgs);
+			ExpectsVM<void> ExecuteExpression(ImmediateContext* Context, const std::string_view& Code, const std::string_view& Args, ArgsCallback&& OnArgs);
 			void SetInterruptCallback(InterruptCallback&& Callback);
 			void SetOutputCallback(OutputCallback&& Callback);
 			void SetInputCallback(InputCallback&& Callback);
 			void SetExitCallback(ExitCallback&& Callback);
 			void AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback);
-			void AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback);
-			void ThrowInternalException(const char* Message);
+			void AddToStringCallback(const std::string_view& Type, const ToStringTypeCallback& Callback);
+			void ThrowInternalException(const std::string_view& Message);
 			void AllowInputAfterFailure();
 			void Input(ImmediateContext* Context);
-			void Output(const Core::String& Data);
+			void Output(const std::string_view& Data);
 			void LineCallback(asIScriptContext* Context);
 			void ExceptionCallback(asIScriptContext* Context);
 			void Trigger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
-			void AddFileBreakPoint(const Core::String& File, int LineNumber);
-			void AddFuncBreakPoint(const Core::String& Function);
+			void AddFileBreakPoint(const std::string_view& File, int LineNumber);
+			void AddFuncBreakPoint(const std::string_view& Function);
 			void ShowException(ImmediateContext* Context);
 			void ListBreakPoints();
 			void ListThreads();
@@ -1791,21 +1745,21 @@ namespace Vitex
 			void ListInterfaces(ImmediateContext* Context);
 			void ListStatistics(ImmediateContext* Context);
 			void PrintCallstack(ImmediateContext* Context);
-			void PrintValue(const Core::String& Expression, ImmediateContext* Context);
-			void PrintByteCode(const Core::String& FunctionDecl, ImmediateContext* Context);
+			void PrintValue(const std::string_view& Expression, ImmediateContext* Context);
+			void PrintByteCode(const std::string_view& FunctionDecl, ImmediateContext* Context);
 			void SetEngine(VirtualMachine* Engine);
-			bool InterpretCommand(const Core::String& Command, ImmediateContext* Context);
+			bool InterpretCommand(const std::string_view& Command, ImmediateContext* Context);
 			bool CheckBreakPoint(ImmediateContext* Context);
 			bool Interrupt();
 			bool IsError();
 			bool IsAttached();
 			DebugAction GetState();
-			Core::String ToString(int MaxDepth, void* Value, unsigned int TypeId);
-			Core::String ToString(Core::String& Indent, int MaxDepth, void* Value, unsigned int TypeId);
+			Core::String ToString(int MaxDepth, void* Value, uint32_t TypeId);
+			Core::String ToString(Core::String& Indent, int MaxDepth, void* Value, uint32_t TypeId);
 			VirtualMachine* GetEngine();
 
 		private:
-			void AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback);
+			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, const CommandCallback& Callback);
 			void AddDefaultCommands();
 			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
@@ -1849,6 +1803,7 @@ namespace Vitex
 			} Executor;
 
 		private:
+			Core::LinkedList<Core::String> Strings;
 			asIScriptContext* Context;
 			VirtualMachine* VM;
 			std::recursive_mutex Exchange;
@@ -1869,8 +1824,8 @@ namespace Vitex
 			ExpectsVM<void> PushState();
 			ExpectsVM<void> PopState();
 			ExpectsVM<void> SetObject(void* Object);
-			ExpectsVM<void> SetArg8(size_t Arg, unsigned char Value);
-			ExpectsVM<void> SetArg16(size_t Arg, unsigned short Value);
+			ExpectsVM<void> SetArg8(size_t Arg, uint8_t Value);
+			ExpectsVM<void> SetArg16(size_t Arg, uint16_t Value);
 			ExpectsVM<void> SetArg32(size_t Arg, int Value);
 			ExpectsVM<void> SetArg64(size_t Arg, int64_t Value);
 			ExpectsVM<void> SetArgFloat(size_t Arg, float Value);
@@ -1879,9 +1834,9 @@ namespace Vitex
 			ExpectsVM<void> SetArgObject(size_t Arg, void* Object);
 			ExpectsVM<void> SetArgAny(size_t Arg, void* Ptr, int TypeId);
 			ExpectsVM<void> GetReturnableByType(void* Return, asITypeInfo* ReturnTypeId);
-			ExpectsVM<void> GetReturnableByDecl(void* Return, const char* ReturnTypeDecl);
+			ExpectsVM<void> GetReturnableByDecl(void* Return, const std::string_view& ReturnTypeDecl);
 			ExpectsVM<void> GetReturnableById(void* Return, int ReturnTypeId);
-			ExpectsVM<void> SetException(const char* Info, bool AllowCatch = true);
+			ExpectsVM<void> SetException(const std::string_view& Info, bool AllowCatch = true);
 			ExpectsVM<void> SetExceptionCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
 			ExpectsVM<void> SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
 			ExpectsVM<void> StartDeserialization();
@@ -1894,13 +1849,15 @@ namespace Vitex
 			ExpectsVM<size_t> GetArgsOnStackCount(size_t StackLevel);
 			ExpectsVM<void> GetArgOnStack(size_t StackLevel, size_t Argument, int* TypeId, size_t* Flags, void** Address);
 			ExpectsVM<size_t> GetPropertiesCount(size_t StackLevel = 0);
-			ExpectsVM<void> GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
+			ExpectsVM<void> GetProperty(size_t Index, size_t StackLevel, std::string_view* Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
 			Function GetFunction(size_t StackLevel = 0);
 			void SetNotificationResolverCallback(const std::function<void(ImmediateContext*, void*)>& Callback);
 			void SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback);
 			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void AppendStopExecutionCallback(StopExecutionCallback&& Callback);
+			Core::String& ExtendStringLifetime(Core::String& Value);
+			void CleanupStrings();
 			void AddRefLocals();
 			void ReleaseLocals();
 			void Reset();
@@ -1913,8 +1870,8 @@ namespace Vitex
 			bool IsPending();
 			Execution GetState() const;
 			void* GetAddressOfArg(size_t Arg);
-			unsigned char GetReturnByte();
-			unsigned short GetReturnWord();
+			uint8_t GetReturnByte();
+			uint16_t GetReturnWord();
 			size_t GetReturnDWord();
 			uint64_t GetReturnQWord();
 			float GetReturnFloat();
@@ -1922,10 +1879,10 @@ namespace Vitex
 			void* GetReturnAddress();
 			void* GetReturnObjectAddress();
 			void* GetAddressOfReturnValue();
-			int GetExceptionLineNumber(int* Column = 0, const char** SectionName = 0);
-			int GetLineNumber(size_t StackLevel = 0, int* Column = 0, const char** SectionName = 0);
+			int GetExceptionLineNumber(int* Column = 0, std::string_view* SectionName = 0);
+			int GetLineNumber(size_t StackLevel = 0, int* Column = 0, std::string_view* SectionName = 0);
 			Function GetExceptionFunction();
-			const char* GetExceptionString();
+			std::string_view GetExceptionString();
 			bool WillExceptionBeCaught();
 			bool HasDeferredException();
 			bool RethrowDeferredException();
@@ -1933,8 +1890,8 @@ namespace Vitex
 			void ClearLineCallback();
 			size_t GetCallstackSize() const;
 			Core::Option<Core::String> GetExceptionStackTrace();
-			const char* GetPropertyName(size_t Index, size_t StackLevel = 0);
-			const char* GetPropertyDecl(size_t Index, size_t StackLevel = 0, bool IncludeNamespace = false);
+			std::string_view GetPropertyName(size_t Index, size_t StackLevel = 0);
+			std::string_view GetPropertyDecl(size_t Index, size_t StackLevel = 0, bool IncludeNamespace = false);
 			int GetPropertyTypeId(size_t Index, size_t StackLevel = 0);
 			void* GetAddressOfProperty(size_t Index, size_t StackLevel = 0, bool DontDereference = false, bool ReturnAddressOfUnitializedObjects = false);
 			bool IsPropertyInScope(size_t Index, size_t StackLevel = 0);
@@ -1969,8 +1926,8 @@ namespace Vitex
 		class VI_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
-			typedef std::function<ExpectsVM<void>(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Buffer)> GeneratorCallback;
-			typedef std::function<void(const Core::String&)> CompileCallback;
+			typedef std::function<ExpectsVM<void>(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Buffer)> GeneratorCallback;
+			typedef std::function<void(const std::string_view&)> CompileCallback;
 			typedef std::function<void()> WhenErrorCallback;
 
 		public:
@@ -2031,44 +1988,44 @@ namespace Vitex
 		public:
 			VirtualMachine() noexcept;
 			~VirtualMachine() noexcept;
-			ExpectsVM<void> WriteMessage(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
+			ExpectsVM<void> WriteMessage(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message);
 			ExpectsVM<void> GarbageCollect(GarbageCollector Flags, size_t NumIterations = 1);
 			ExpectsVM<void> PerformFullGarbageCollection();
 			ExpectsVM<void> NotifyOfNewObject(void* Object, const TypeInfo& Type);
 			ExpectsVM<void> GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, TypeInfo* Type = nullptr);
 			ExpectsVM<void> AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type);
 			ExpectsVM<void> RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
-			ExpectsVM<void> BeginGroup(const char* GroupName);
+			ExpectsVM<void> BeginGroup(const std::string_view& GroupName);
 			ExpectsVM<void> EndGroup();
-			ExpectsVM<void> RemoveGroup(const char* GroupName);
-			ExpectsVM<void> BeginNamespace(const char* Namespace);
-			ExpectsVM<void> BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask);
+			ExpectsVM<void> RemoveGroup(const std::string_view& GroupName);
+			ExpectsVM<void> BeginNamespace(const std::string_view& Namespace);
+			ExpectsVM<void> BeginNamespaceIsolated(const std::string_view& Namespace, size_t DefaultMask);
 			ExpectsVM<void> EndNamespace();
 			ExpectsVM<void> EndNamespaceIsolated();
-			ExpectsVM<void> AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
-			ExpectsVM<void> GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const;
-			ExpectsVM<void> SetFunctionDef(const char* Decl);
-			ExpectsVM<void> SetTypeDef(const char* Type, const char* Decl);
-			ExpectsVM<void> SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
-			ExpectsVM<void> SetPropertyAddress(const char* Decl, void* Value);
-			ExpectsVM<void> SetStringFactoryAddress(const char* Type, asIStringFactory* Factory);
+			ExpectsVM<void> AddScriptSection(asIScriptModule* Module, const std::string_view& Name, const std::string_view& Code, int LineOffset = 0);
+			ExpectsVM<void> GetTypeNameScope(std::string_view* TypeName, std::string_view* Namespace) const;
+			ExpectsVM<void> SetFunctionDef(const std::string_view& Decl);
+			ExpectsVM<void> SetTypeDef(const std::string_view& Type, const std::string_view& Decl);
+			ExpectsVM<void> SetFunctionAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
+			ExpectsVM<void> SetPropertyAddress(const std::string_view& Decl, void* Value);
+			ExpectsVM<void> SetStringFactoryAddress(const std::string_view& Type, asIStringFactory* Factory);
 			ExpectsVM<void> SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
-			ExpectsVM<void> Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
+			ExpectsVM<void> Log(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message);
 			ExpectsVM<void> SetProperty(Features Property, size_t Value);
 			ExpectsVM<void> GetPropertyByIndex(size_t Index, PropertyInfo* Info) const;
-			ExpectsVM<size_t> GetPropertyIndexByName(const char* Name) const;
-			ExpectsVM<size_t> GetPropertyIndexByDecl(const char* Decl) const;
+			ExpectsVM<size_t> GetPropertyIndexByName(const std::string_view& Name) const;
+			ExpectsVM<size_t> GetPropertyIndexByDecl(const std::string_view& Decl) const;
 			ExpectsVM<size_t> GetSizeOfPrimitiveType(int TypeId) const;
-			ExpectsVM<TypeClass> SetStructAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::VALUE);
-			ExpectsVM<TypeClass> SetPodAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)(ObjectBehaviours::VALUE | ObjectBehaviours::POD));
-			ExpectsVM<RefClass> SetClassAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
-			ExpectsVM<TemplateClass> SetTemplateClassAddress(const char* Decl, const char* Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
-			ExpectsVM<TypeInterface> SetInterface(const char* Name);
-			ExpectsVM<Enumeration> SetEnum(const char* Name);
-			bool SetByteCodeTranslator(unsigned int Options);
-			void SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback);
+			ExpectsVM<TypeClass> SetStructAddress(const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::VALUE);
+			ExpectsVM<TypeClass> SetPodAddress(const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)(ObjectBehaviours::VALUE | ObjectBehaviours::POD));
+			ExpectsVM<RefClass> SetClassAddress(const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
+			ExpectsVM<TemplateClass> SetTemplateClassAddress(const std::string_view& Decl, const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
+			ExpectsVM<TypeInterface> SetInterface(const std::string_view& Name);
+			ExpectsVM<Enumeration> SetEnum(const std::string_view& Name);
+			bool SetByteCodeTranslator(uint32_t Options);
+			void SetCodeGenerator(const std::string_view& Name, GeneratorCallback&& Callback);
 			void SetPreserveSourceCode(bool Enabled);
-			void SetTsImports(bool Enabled, const char* ImportSyntax = "import from");
+			void SetTsImports(bool Enabled, const std::string_view& ImportSyntax = "import from");
 			void SetCache(bool Enabled);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetDebugger(Core::Unique<DebuggerContext> Context);
@@ -2076,8 +2033,8 @@ namespace Vitex
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
-			void SetCompileCallback(const Core::String& Section, CompileCallback&& Callback);
-			void SetDefaultArrayType(const Core::String& Type);
+			void SetCompileCallback(const std::string_view& Section, CompileCallback&& Callback);
+			void SetDefaultArrayType(const std::string_view& Type);
 			void SetTypeInfoUserDataCleanupCallback(void(*Callback)(asITypeInfo*), size_t Type = 0);
 			void SetEngineUserDataCleanupCallback(void(*Callback)(asIScriptEngine*), size_t Type = 0);
 			void* SetUserData(void* Data, size_t Type = 0);
@@ -2086,18 +2043,18 @@ namespace Vitex
 			void ClearSections();
 			void AttachDebuggerToContext(asIScriptContext* Context);
 			void DetachDebuggerFromContext(asIScriptContext* Context);
-			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
+			void GetStatistics(uint32_t* CurrentSize, uint32_t* TotalDestroyed, uint32_t* TotalDetected, uint32_t* NewObjects, uint32_t* TotalNewDestroyed) const;
 			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
 			void GCEnumCallback(void* Reference);
 			void GCEnumCallback(asIScriptFunction* Reference);
 			void GCEnumCallback(FunctionDelegate* Reference);
 			bool TriggerDebugger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
-			Compute::ExpectsPreprocessor<void> GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer);
+			Compute::ExpectsPreprocessor<void> GenerateCode(Compute::Preprocessor* Processor, const std::string_view& Path, Core::String& InoutBuffer);
 			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
 			Core::Unique<Compiler> CreateCompiler();
-			Core::Unique<asIScriptModule> CreateScopedModule(const Core::String& Name);
-			Core::Unique<asIScriptModule> CreateModule(const Core::String& Name);
+			Core::Unique<asIScriptModule> CreateScopedModule(const std::string_view& Name);
+			Core::Unique<asIScriptModule> CreateModule(const std::string_view& Name);
 			Core::Unique<ImmediateContext> RequestContext();
 			void ReturnContext(ImmediateContext* Context);
 			bool GetByteCodeCache(ByteCodeInfo* Info);
@@ -2110,12 +2067,12 @@ namespace Vitex
 			void AddRefObject(void* Object, const TypeInfo& Type);
 			size_t BeginAccessMask(size_t DefaultMask);
 			size_t EndAccessMask();
-			const char* GetNamespace() const;
-			Module GetModule(const char* Name);
+			std::string_view GetNamespace() const;
+			Module GetModule(const std::string_view& Name);
 			void SetLibraryProperty(LibraryFeatures Property, size_t Value);
 			size_t GetLibraryProperty(LibraryFeatures Property);
 			size_t GetProperty(Features Property);
-			void SetModuleDirectory(const Core::String& Root);
+			void SetModuleDirectory(const std::string_view& Root);
 			size_t GetProperty(Features Property) const;
 			asIScriptEngine* GetEngine() const;
 			DebuggerContext* GetDebugger() const;
@@ -2124,25 +2081,25 @@ namespace Vitex
 			const Core::UnorderedMap<Core::String, Addon>& GetSystemAddons() const;
 			const Core::UnorderedMap<Core::String, CLibrary>& GetCLibraries() const;
 			const Compute::IncludeDesc& GetCompileIncludeOptions() const;
-			bool HasLibrary(const Core::String& Name, bool IsAddon = false);
-			bool HasSystemAddon(const Core::String& Name);
-			bool HasAddon(const Core::String& Name);
+			bool HasLibrary(const std::string_view& Name, bool IsAddon = false);
+			bool HasSystemAddon(const std::string_view& Name);
+			bool HasAddon(const std::string_view& Name);
 			bool IsNullable(int TypeId);
 			bool IsTranslatorSupported();
 			bool HasDebugger();
-			bool AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
-			ExpectsVM<void> ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output);
-			ExpectsVM<void> ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Name, const Core::String& Decl);
-			ExpectsVM<void> ImportCLibrary(const Core::String& Path, bool IAddon = false);
-			ExpectsVM<void> ImportAddon(const Core::String& Path);
-			ExpectsVM<void> ImportSystemAddon(const Core::String& Name);
-			Core::Option<Core::String> GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
-			Core::Option<Core::String> GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
-			Core::Option<Core::String> GetScriptSection(const Core::String& SectionName);
+			bool AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
+			ExpectsVM<void> ImportFile(const std::string_view& Path, bool IsRemote, Core::String& Output);
+			ExpectsVM<void> ImportCFunction(const Core::Vector<Core::String>& Sources, const std::string_view& Name, const std::string_view& Decl);
+			ExpectsVM<void> ImportCLibrary(const std::string_view& Path, bool IAddon = false);
+			ExpectsVM<void> ImportAddon(const std::string_view& Path);
+			ExpectsVM<void> ImportSystemAddon(const std::string_view& Name);
+			Core::Option<Core::String> GetSourceCodeAppendix(const std::string_view& Label, const std::string_view& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
+			Core::Option<Core::String> GetSourceCodeAppendixByPath(const std::string_view& Label, const std::string_view& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
+			Core::Option<Core::String> GetScriptSection(const std::string_view& SectionName);
 			size_t GetFunctionsCount() const;
 			Function GetFunctionById(int Id) const;
 			Function GetFunctionByIndex(size_t Index) const;
-			Function GetFunctionByDecl(const char* Decl) const;
+			Function GetFunctionByDecl(const std::string_view& Decl) const;
 			size_t GetPropertiesCount() const;
 			size_t GetObjectsCount() const;
 			TypeInfo GetObjectByIndex(size_t Index) const;
@@ -2152,23 +2109,23 @@ namespace Vitex
 			TypeInfo GetFunctionDefByIndex(size_t Index) const;
 			size_t GetModulesCount() const;
 			asIScriptModule* GetModuleById(int Id) const;
-			int GetTypeIdByDecl(const char* Decl) const;
-			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
+			int GetTypeIdByDecl(const std::string_view& Decl) const;
+			std::string_view GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
 			TypeInfo GetTypeInfoById(int TypeId) const;
-			TypeInfo GetTypeInfoByName(const char* Name);
-			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
+			TypeInfo GetTypeInfoByName(const std::string_view& Name);
+			TypeInfo GetTypeInfoByDecl(const std::string_view& Decl) const;
 
 		private:
 			Core::Unique<ImmediateContext> CreateContext();
-			ExpectsVM<void> InitializeAddon(const Core::String& Name, CLibrary& Library);
-			void UninitializeAddon(const Core::String& Name, CLibrary& Library);
+			ExpectsVM<void> InitializeAddon(const std::string_view& Name, CLibrary& Library);
+			void UninitializeAddon(const std::string_view& Name, CLibrary& Library);
 
 		public:
 			static void LineHandler(asIScriptContext* Context, void* Object);
 			static void ExceptionHandler(asIScriptContext* Context, void* Object);
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
 			static void CleanupThisThread();
-			static const char* GetErrorNameInfo(VirtualError Code);
+			static std::string_view GetErrorNameInfo(VirtualError Code);
 			static ByteCodeLabel GetByteCodeInfo(uint8_t Code);
 			static VirtualMachine* Get(asIScriptEngine* Engine);
 			static VirtualMachine* Get();
@@ -2176,7 +2133,7 @@ namespace Vitex
 			static void Cleanup();
 
 		private:
-			static Core::String GetLibraryName(const Core::String& Path);
+			static std::string_view GetLibraryName(const std::string_view& Path);
 			static asIScriptContext* RequestRawContext(asIScriptEngine* Engine, void* Data);
 			static void ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
 			static void MessageLogger(asSMessageInfo* Info, void* Object);
@@ -2185,33 +2142,29 @@ namespace Vitex
 
 		public:
 			template <typename T>
-			ExpectsVM<void> SetFunction(const char* Decl, T Value)
+			ExpectsVM<void> SetFunction(const std::string_view& Decl, T Value)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::Function<T>(Value);
 				auto Result = SetFunctionAddress(Decl, Ptr, FunctionCall::CDECLF);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <void(*)(asIScriptGeneric*)>
-			ExpectsVM<void> SetFunction(const char* Decl, void(*Value)(asIScriptGeneric*))
+			ExpectsVM<void> SetFunction(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				asSFuncPtr* Ptr = Bridge::FunctionGeneric<void (*)(asIScriptGeneric*)>(Value);
 				auto Result = SetFunctionAddress(Decl, Ptr, FunctionCall::GENERIC);
 				FunctionFactory::ReleaseFunctor(&Ptr);
 				return Result;
 			}
 			template <typename T>
-			ExpectsVM<void> SetProperty(const char* Decl, T* Value)
+			ExpectsVM<void> SetProperty(const std::string_view& Decl, T* Value)
 			{
-				VI_ASSERT(Decl != nullptr, "declaration should be set");
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
-			ExpectsVM<RefClass> SetClass(const char* Name, bool GC)
+			ExpectsVM<RefClass> SetClass(const std::string_view& Name, bool GC)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return RefClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
@@ -2246,9 +2199,8 @@ namespace Vitex
 				return Class;
 			}
 			template <typename T>
-			ExpectsVM<TemplateClass> SetTemplateClass(const char* Decl, const char* Name, bool GC)
+			ExpectsVM<TemplateClass> SetTemplateClass(const std::string_view& Decl, const std::string_view& Name, bool GC)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto RefType = GetTypeInfoByDecl(Decl);
 				if (RefType.IsValid())
 					return TemplateClass(this, Name);
@@ -2283,9 +2235,8 @@ namespace Vitex
 				return Class;
 			}
 			template <typename T>
-			ExpectsVM<TemplateClass> SetTemplateSpecializationClass(const char* Name, bool GC)
+			ExpectsVM<TemplateClass> SetTemplateSpecializationClass(const std::string_view& Name, bool GC)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto Class = SetTemplateClassAddress(Name, Name, sizeof(T), GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
 				if (!Class)
 					return Class;
@@ -2316,9 +2267,8 @@ namespace Vitex
 				return Class;
 			}
 			template <typename T>
-			ExpectsVM<TypeClass> SetStructTrivial(const char* Name)
+			ExpectsVM<TypeClass> SetStructTrivial(const std::string_view& Name)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
@@ -2338,9 +2288,8 @@ namespace Vitex
 				return Struct;
 			}
 			template <typename T>
-			ExpectsVM<TypeClass> SetStruct(const char* Name)
+			ExpectsVM<TypeClass> SetStruct(const std::string_view& Name)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
@@ -2348,9 +2297,8 @@ namespace Vitex
 				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
 			}
 			template <typename T>
-			ExpectsVM<TypeClass> SetPod(const char* Name)
+			ExpectsVM<TypeClass> SetPod(const std::string_view& Name)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());

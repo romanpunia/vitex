@@ -1,53 +1,88 @@
 {
-    "name": "vitex",
-    "description": "Cross-platform application development framework",
-    "version": "1.0.0",
-    "default-features": ["compression", "imports", "fonts", "windows", "shaders", "audio", "opengl", "openssl", "mongodb", "postgresql", "sqlite"],
-    "features": {
-        "compression": {
-            "description": "Support for zlib compression algorithms",
-            "dependencies": ["zlib"]
-        },
-        "imports": {
-            "description": "Support for mesh file imports using different well known formats",
-            "dependencies": ["assimp"]
-        },
-        "fonts": {
-            "description": "Support for common font format reading and rasterization",
-            "dependencies": ["freetype"]
-        },
-        "windows": {
-            "description": "Support for windows/activities, keyboard/mouse/joystick/gamepad/touch inputs and shared object imports",
-            "dependencies": ["sdl2"]
-        },
-        "shaders": {
-            "description": "Support for shader cross-compiling from HLSL to GLSL or other known formats",
-            "dependencies": ["spirv-cross", "glslang"]
-        },
-        "audio": {
-            "description": "Support for OpenAL 2D/3D audio playback using OpenAL-Soft implementation",
-            "dependencies": ["openal-soft"]
-        },
-        "opengl": {
-            "description": "Support for OpenGL core and extension bindings using GLEW",
-            "dependencies": ["glew"]
-        },
-        "openssl": {
-            "description": "Support for SSL/TLS secure connections, certificates, cryptographic algorithms including hashing, encryption and randomizer",
-            "dependencies": ["openssl"]
-        },
-        "mongodb": {
-            "description": "Support for MongoDB client operations",
-            "dependencies": ["mongo-c-driver"]
-        },
-        "postgresql": {
-            "description": "Support for PostgreSQL client operations",
-            "dependencies": ["libpq"]
-        },
-        "sqlite": {
-            "description": "Support for SQLite client operations",
-            "dependencies": ["sqlite3"]
-        }
+  "name": "vitex",
+  "description": "Cross-platform application development framework",
+  "version": "1.0.0",
+  "default-features": [
+    "compression",
+    "imports",
+    "fonts",
+    "windows",
+    "shaders",
+    "audio",
+    "opengl",
+    "openssl",
+    "mongodb",
+    "postgresql",
+    "sqlite"
+  ],
+  "features": {
+    "compression": {
+      "description": "Support for zlib compression algorithms",
+      "dependencies": [
+        "zlib"
+      ]
+    },
+    "imports": {
+      "description": "Support for mesh file imports using different well known formats",
+      "dependencies": [
+        "assimp"
+      ]
+    },
+    "fonts": {
+      "description": "Support for common font format reading and rasterization",
+      "dependencies": [
+        "freetype"
+      ]
+    },
+    "windows": {
+      "description": "Support for windows/activities, keyboard/mouse/joystick/gamepad/touch inputs and shared object imports",
+      "dependencies": [
+        "sdl2"
+      ]
+    },
+    "shaders": {
+      "description": "Support for shader cross-compiling from HLSL to GLSL or other known formats",
+      "dependencies": [
+        "spirv-cross",
+        "glslang"
+      ]
+    },
+    "audio": {
+      "description": "Support for OpenAL 2D/3D audio playback using OpenAL-Soft implementation",
+      "dependencies": [
+        "openal-soft"
+      ]
+    },
+    "opengl": {
+      "description": "Support for OpenGL core and extension bindings using GLEW",
+      "dependencies": [
+        "glew"
+      ]
+    },
+    "openssl": {
+      "description": "Support for SSL/TLS secure connections, certificates, cryptographic algorithms including hashing, encryption and randomizer",
+      "dependencies": [
+        "openssl"
+      ]
+    },
+    "mongodb": {
+      "description": "Support for MongoDB client operations",
+      "dependencies": [
+        "mongo-c-driver"
+      ]
+    },
+    "postgresql": {
+      "description": "Support for PostgreSQL client operations",
+      "dependencies": [
+        "libpq"
+      ]
+    },
+    "sqlite": {
+      "description": "Support for SQLite client operations",
+      "dependencies": [
+        "sqlite3"
+      ]
     }
+  },
+  "builtin-baseline": "e038ef04796ee67814f36af7c235ae50bbdf4303"
 }
-  

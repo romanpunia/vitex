@@ -1,7 +1,7 @@
 #ifndef VI_BINDINGS_H
 #define VI_BINDINGS_H
 #include "scripting.h"
-#include "../engine/gui.h"
+#include "engine/gui.h"
 #include <tuple>
 #define VI_TYPEREF(Name, TypeName) static const uint64_t Name = Vitex::Core::OS::File::GetIndex<sizeof(TypeName)>(TypeName); Vitex::Scripting::TypeCache::Set(Name, TypeName)
 #define VI_PROMISIFY(MemberFunction, TypeId) Vitex::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
@@ -121,7 +121,6 @@ namespace Vitex
 				static bool ImportBuffers(VirtualMachine* Engine);
 				static bool ImportRandom(VirtualMachine* VM);
 				static bool ImportPromise(VirtualMachine* VM);
-				static bool ImportFormat(VirtualMachine* Engine);
 				static bool ImportDecimal(VirtualMachine* Engine);
 				static bool ImportUInt128(VirtualMachine* Engine);
 				static bool ImportUInt256(VirtualMachine* Engine);
@@ -166,8 +165,8 @@ namespace Vitex
 			class VI_OUT_TS Imports
 			{
 			public:
-				static void BindSyntax(VirtualMachine* VM, bool Enabled, const char* Syntax);
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code, const char* Syntax);
+				static void BindSyntax(VirtualMachine* VM, bool Enabled, const std::string_view& Syntax);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, const std::string_view& Syntax);
 			};
 
 			class VI_OUT_TS Exception
@@ -182,9 +181,9 @@ namespace Vitex
 
 					Pointer();
 					Pointer(ImmediateContext* Context);
-					Pointer(const Core::String& Data);
-					Pointer(const Core::String& Type, const Core::String& Text);
-					void LoadExceptionData(const Core::String& Data);
+					Pointer(const std::string_view& Data);
+					Pointer(const std::string_view& Type, const std::string_view& Text);
+					void LoadExceptionData(const std::string_view& Data);
 					const Core::String& GetType() const;
 					const Core::String& GetText() const;
 					Core::String ToExceptionString() const;
@@ -202,7 +201,7 @@ namespace Vitex
 				static bool HasException();
 				static Pointer GetExceptionAt(ImmediateContext* Context);
 				static Pointer GetException();
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code);
 			};
 
 			class VI_OUT_TS ExpectsWrapper
@@ -210,6 +209,7 @@ namespace Vitex
 			public:
 				static Exception::Pointer TranslateThrow(const std::exception& Error);
 				static Exception::Pointer TranslateThrow(const std::error_code& Error);
+				static Exception::Pointer TranslateThrow(const std::string_view& Error);
 				static Exception::Pointer TranslateThrow(const std::error_condition& Error);
 				static Exception::Pointer TranslateThrow(const Core::BasicException& Error);
 				static Exception::Pointer TranslateThrow(const Core::String& Error);
@@ -390,10 +390,20 @@ namespace Vitex
 			class VI_OUT String
 			{
 			public:
-				static void Create(Core::String* Base);
-				static void CreateCopy(Core::String* Base, const Core::String& Other);
-				static void Destroy(Core::String* Base);
+				static std::string_view ImplCastStringView(Core::String& Base);
+				static void Create(Core::String& Base);
+				static void CreateCopy1(Core::String& Base, const Core::String& Other);
+				static void CreateCopy2(Core::String& Base, const std::string_view& Other);
+				static void Destroy(Core::String& Base);
 				static void PopBack(Core::String& Base);
+				static Core::String& Replace1(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start);
+				static Core::String& ReplacePart1(Core::String& Other, size_t Start, size_t End, const Core::String& To);
+				static bool StartsWith1(const Core::String& Other, const Core::String& Value, size_t Offset);
+				static bool EndsWith1(const Core::String& Other, const Core::String& Value);
+				static Core::String& Replace2(Core::String& Other, const std::string_view& From, const std::string_view& To, size_t Start);
+				static Core::String& ReplacePart2(Core::String& Other, size_t Start, size_t End, const std::string_view& To);
+				static bool StartsWith2(const Core::String& Other, const std::string_view& Value, size_t Offset);
+				static bool EndsWith2(const Core::String& Other, const std::string_view& Value);
 				static Core::String Substring1(Core::String& Base, size_t Offset);
 				static Core::String Substring2(Core::String& Base, size_t Offset, size_t Size);
 				static Core::String FromPointer(void* Pointer);
@@ -401,11 +411,44 @@ namespace Vitex
 				static char* Index(Core::String& Base, size_t Offset);
 				static char* Front(Core::String& Base);
 				static char* Back(Core::String& Base);
-				static Array* Split(Core::String& Base, const Core::String& Delimiter);
+				static Array* Split(Core::String& Base, const std::string_view& Delimiter);
 
 			public:
 				template <typename T>
 				static T FromString(const Core::String& Base)
+				{
+					auto Value = Core::FromString<T>(Base);
+					return Value ? *Value : (T)0;
+				}
+			};
+
+			class VI_OUT StringView
+			{
+			public:
+				static Core::String ImplCastString(std::string_view& Base);
+				static void Create(std::string_view& Base);
+				static void CreateCopy1(std::string_view& Base, const Core::String& Other);
+				static void CreateCopy2(std::string_view& Base, const std::string_view& Other);
+				static void Destroy(std::string_view& Base);
+				static bool StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset);
+				static bool EndsWith(const std::string_view& Other, const std::string_view& Value);
+				static int Compare(std::string_view& Base, const Core::String& Other);
+				static Core::String Append1(const std::string_view& Base, const std::string_view& Other);
+				static Core::String Append2(const std::string_view& Base, const Core::String& Other);
+				static Core::String Append3(const Core::String& Other, const std::string_view& Base);
+				static Core::String Append4(const std::string_view& Base, char Other);
+				static Core::String Append5(char Other, const std::string_view& Base);
+				static Core::String Substring1(std::string_view& Base, size_t Offset);
+				static Core::String Substring2(std::string_view& Base, size_t Offset, size_t Size);
+				static std::string_view FromBuffer(const char* Buffer, size_t MaxSize);
+				static char* Index(std::string_view& Base, size_t Offset);
+				static char* Front(std::string_view& Base);
+				static char* Back(std::string_view& Base);
+				static Array* Split(std::string_view& Base, const std::string_view& Delimiter);
+
+			public:
+				template <typename T>
+				static T FromString(const std::string_view& Base)
 				{
 					auto Value = Core::FromString<T>(Base);
 					return Value ? *Value : (T)0;
@@ -786,24 +829,24 @@ namespace Vitex
 				Dictionary(const Dictionary&) noexcept;
 				~Dictionary() noexcept;
 				Dictionary& operator= (const Dictionary& Other) noexcept;
-				void Set(const Core::String& Key, void* Value, int TypeId);
-				bool Get(const Core::String& Key, void* Value, int TypeId) const;
+				void Set(const std::string_view& Key, void* Value, int TypeId);
+				bool Get(const std::string_view& Key, void* Value, int TypeId) const;
 				bool GetIndex(size_t Index, Core::String* Key, void** Value, int* TypeId) const;
 				bool TryGetIndex(size_t Index, Core::String* Key, void* Value, int TypeId) const;
-				Storable* operator[](const Core::String& Key);
-				const Storable* operator[](const Core::String& Key) const;
+				Storable* operator[](const std::string_view& Key);
+				const Storable* operator[](const std::string_view& Key) const;
 				Storable* operator[](size_t);
 				const Storable* operator[](size_t) const;
-				int GetTypeId(const Core::String& Key) const;
-				bool Exists(const Core::String& Key) const;
+				int GetTypeId(const std::string_view& Key) const;
+				bool Exists(const std::string_view& Key) const;
 				bool Empty() const;
 				size_t Size() const;
-				bool Erase(const Core::String& Key);
+				bool Erase(const std::string_view& Key);
 				void Clear();
 				Array* GetKeys() const;
 				LocalIterator Begin() const;
 				LocalIterator End() const;
-				LocalIterator Find(const Core::String& Key) const;
+				LocalIterator Find(const std::string_view& Key) const;
 				void EnumReferences(asIScriptEngine* Engine);
 				void ReleaseReferences(asIScriptEngine* Engine);
 
@@ -908,7 +951,7 @@ namespace Vitex
 				static Promise* CreateFactoryType(asITypeInfo* Type);
 				static Promise* CreateFactoryVoid();
 				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const Core::String& Path, Core::String& Code);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code);
 				static bool IsContextPending(ImmediateContext* Context);
 				static bool IsContextBusy(ImmediateContext* Context);
 				static bool IsAlwaysAwait(VirtualMachine* VM);
@@ -1198,7 +1241,7 @@ namespace Vitex
 				void Deallocate();
 				bool SetInt8(size_t Offset, int8_t Value, size_t Size);
 				bool SetUint8(size_t Offset, uint8_t Value, size_t Size);
-				bool StoreBytes(size_t Offset, const Core::String& Value);
+				bool StoreBytes(size_t Offset, const std::string_view& Value);
 				bool StoreInt8(size_t Offset, int8_t Value);
 				bool StoreUint8(size_t Offset, uint8_t Value);
 				bool StoreInt16(size_t Offset, int16_t Value);
@@ -1237,27 +1280,6 @@ namespace Vitex
 				static CharBuffer* Create(char* Pointer);
 			};
 
-			class VI_OUT Format final : public Core::Reference<Format>
-			{
-			public:
-				Core::Vector<Core::String> Args;
-
-			public:
-				Format() noexcept;
-				Format(unsigned char* Buffer) noexcept;
-				~Format() = default;
-
-			public:
-				static Core::String JSON(void* Ref, int TypeId);
-				static Core::String Form(const Core::String& F, const Format& Form);
-				static void WriteLine(Core::Console* Base, const Core::String& F, Format* Form);
-				static void Write(Core::Console* Base, const Core::String& F, Format* Form);
-
-			private:
-				static void FormatBuffer(VirtualMachine* VM, Core::String& Result, Core::String& Offset, void* Ref, int TypeId);
-				static void FormatJSON(VirtualMachine* VM, Core::String& Result, void* Ref, int TypeId);
-			};
-
 			class VI_OUT ModelListener : public Core::Reference<ModelListener>
 			{
 			private:
@@ -1266,7 +1288,7 @@ namespace Vitex
 
 			public:
 				ModelListener(asIScriptFunction* NewCallback) noexcept;
-				ModelListener(const Core::String& FunctionName) noexcept;
+				ModelListener(const std::string_view& FunctionName) noexcept;
 				~ModelListener() noexcept;
 				FunctionDelegate& GetDelegate();
 
@@ -1288,7 +1310,6 @@ namespace Vitex
 				FunctionDelegate OnInitialize;
 				FunctionDelegate OnStartup;
 				FunctionDelegate OnShutdown;
-				FunctionDelegate OnGetGUI;
 
 			private:
 				size_t ProcessedEvents;
@@ -1309,7 +1330,6 @@ namespace Vitex
 				void SetOnInitialize(asIScriptFunction* Callback);
 				void SetOnStartup(asIScriptFunction* Callback);
 				void SetOnShutdown(asIScriptFunction* Callback);
-				void SetOnGetGUI(asIScriptFunction* Callback);
 				void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed) override;
 				void InputEvent(char* Buffer, size_t Length) override;
 				void WheelEvent(int X, int Y, bool Normal) override;
@@ -1321,7 +1341,6 @@ namespace Vitex
 				void Initialize() override;
 				Core::Promise<void> Startup() override;
 				Core::Promise<void> Shutdown() override;
-				Engine::GUI::Context* GetGUI() const override;
 				size_t GetProcessedEvents() const;
 				bool HasProcessedEvents() const;
 				bool RetrieveInitiatorObject(void* RefPointer, int RefTypeId) const;

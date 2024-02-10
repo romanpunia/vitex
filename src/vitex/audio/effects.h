@@ -1,6 +1,6 @@
 #ifndef VI_AUDIO_EFFECTS_H
 #define VI_AUDIO_EFFECTS_H
-#include "../core/audio.h"
+#include "../audio.h"
 
 namespace Vitex
 {

@@ -1,15 +1,15 @@
 #ifndef VITEX_H
 #define VITEX_H
-#include "core/core.h"
+#include "core.h"
 
 namespace Vitex
 {
 	enum
 	{
-		MAJOR_VERSION = 1,
-		MINOR_VERSION = 45,
-		PATCH_VERSION = 106,
-		BUILD_VERSION = 198,
+		MAJOR_VERSION = 2,
+		MINOR_VERSION = 47,
+		PATCH_VERSION = 108,
+		BUILD_VERSION = 201,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 1000 + BUILD_VERSION
 	};
 
@@ -40,8 +40,8 @@ namespace Vitex
 	private:
 		static Runtime* Instance;
 
-	private:
-		struct CryptoData
+	public:
+		struct CryptographyState
 		{
 			Core::Vector<std::shared_ptr<std::mutex>> Locks;
 			void* LegacyProvider = nullptr;
@@ -49,40 +49,40 @@ namespace Vitex
 		};
 
 	private:
-		CryptoData* Crypto;
+		CryptographyState* Crypto;
 		size_t Modes;
 
 	public:
 		Runtime(size_t Modules = (size_t)Preset::App, Core::GlobalAllocator* Allocator = nullptr) noexcept;
 		~Runtime() noexcept;
-		bool HasDirectX() const noexcept;
-		bool HasOpenGL() const noexcept;
-		bool HasOpenSSL() const noexcept;
-		bool HasGLEW() const noexcept;
-		bool HasZLib() const noexcept;
-		bool HasAssimp() const noexcept;
-		bool HasMongoDB() const noexcept;
-		bool HasPostgreSQL() const noexcept;
-		bool HasSQLite() const noexcept;
-		bool HasOpenAL() const noexcept;
-		bool HasSDL2() const noexcept;
-		bool HasSIMD() const noexcept;
-		bool HasJIT() const noexcept;
-		bool HasAngelScript() const noexcept;
-		bool HasBindings() const noexcept;
-		bool HasAllocator() const noexcept;
-		bool HasBacktrace() const noexcept;
-		bool HasFreeType() const noexcept;
-		bool HasSPIRV() const noexcept;
-        bool HasRmlUI() const noexcept;
-		bool HasBullet3() const noexcept;
-        bool HasFContext() const noexcept;
-		bool HasWindowsEpoll() const noexcept;
-		bool HasTinyFileDialogs() const noexcept;
-		bool HasSTB() const noexcept;
-		bool HasPugiXML() const noexcept;
-		bool HasRapidJSON() const noexcept;
-		bool HasShaders() const noexcept;
+		bool HasFtAllocator() const noexcept;
+		bool HasFtPessimistic() const noexcept;
+		bool HasFtBindings() const noexcept;
+		bool HasFtShaders() const noexcept;
+		bool HasSoOpenGL() const noexcept;
+		bool HasSoOpenAL() const noexcept;
+		bool HasSoOpenSSL() const noexcept;
+		bool HasSoSDL2() const noexcept;
+		bool HasSoGLEW() const noexcept;
+		bool HasSoSpirv() const noexcept;
+		bool HasSoZLib() const noexcept;
+		bool HasSoAssimp() const noexcept;
+		bool HasSoMongoc() const noexcept;
+		bool HasSoPostgreSQL() const noexcept;
+		bool HasSoSQLite() const noexcept;
+		bool HasSoFreeType() const noexcept;
+		bool HasMdAngelScript() const noexcept;
+		bool HasMdBacktrace() const noexcept;
+		bool HasMdRmlUI() const noexcept;
+		bool HasMdBullet3() const noexcept;
+		bool HasMdTinyFileDialogs() const noexcept;
+		bool HasMdWepoll() const noexcept;
+		bool HasMdStb() const noexcept;
+		bool HasMdPugiXml() const noexcept;
+		bool HasMdRapidJson() const noexcept;
+		bool HasMdSimd() const noexcept;
+		bool HasMdJit() const noexcept;
+		bool HasMdFContext() const noexcept;
 		int GetMajorVersion() const noexcept;
 		int GetMinorVersion() const noexcept;
 		int GetPatchVersion() const noexcept;
@@ -92,12 +92,31 @@ namespace Vitex
 		int GetArchitecture() const noexcept;
 		size_t GetModes() const noexcept;
 		Core::String GetDetails() const noexcept;
-		const char* GetBuild() const noexcept;
-		const char* GetCompiler() const noexcept;
-		const char* GetPlatform() const noexcept;
+		std::string_view GetBuild() const noexcept;
+		std::string_view GetCompiler() const noexcept;
+		std::string_view GetPlatform() const noexcept;
 
 	public:
-		static void CleanupInstances();
+		static bool InitializeAllocator(Core::GlobalAllocator** InoutAllocator) noexcept;
+		static bool InitializeNetwork() noexcept;
+		static bool InitializeProviders(CryptographyState* Crypto) noexcept;
+		static bool InitializeCryptography(CryptographyState** OutCrypto, bool InitProviders) noexcept;
+		static bool InitializePlatform() noexcept;
+		static bool InitializeGraphics() noexcept;
+		static bool InitializeLocale() noexcept;
+		static bool InitializeRandom() noexcept;
+		static bool InitializeAudio() noexcept;
+		static bool InitializeScripting() noexcept;
+		static void CleanupInstances() noexcept;
+		static void CleanupCryptography(CryptographyState** InCrypto) noexcept;
+		static void CleanupPlatform() noexcept;
+		static void CleanupNetwork() noexcept;
+		static void CleanupImporter() noexcept;
+		static void CleanupScripting() noexcept;
+		static void CleanupComposer() noexcept;
+		static void CleanupErrorHandling() noexcept;
+		static void CleanupMemory() noexcept;
+		static void CleanupAllocator(Core::GlobalAllocator** InAllocator) noexcept;
 		static Runtime* Get() noexcept;
 	};
 }

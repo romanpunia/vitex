@@ -12,7 +12,6 @@
 #define REG_EXCHANGE_T2(Name, Value1, Value2) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2) return; Register.Name = std::make_tuple(Value1, Value2); }
 #define REG_EXCHANGE_T3(Name, Value1, Value2, Value3) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2 && std::get<2>(Register.Name) == Value3) return; Register.Name = std::make_tuple(Value1, Value2, Value3); }
 #define REG_EXCHANGE_RS(Name, Value1, Value2, Value3) { auto& __vregrs = Register.Name[Value2]; if (__vregrs.first == Value1 && __vregrs.second == Value3) return; __vregrs = std::make_pair(Value1, Value3); }
-#define D3D_RELEASE(Value) { if (Value != nullptr) { Value->Release(); Value = nullptr; } }
 #define D3D_INLINE(Code) #Code
 
 namespace
@@ -80,28 +79,28 @@ namespace
 				return (DXGI_FORMAT)Format;
 		}
 	}
-	static Vitex::Graphics::GraphicsException GetException(HRESULT ResultCode, const char* ScopeText)
+	static Vitex::Graphics::GraphicsException GetException(HRESULT ResultCode, const std::string_view& ScopeText)
 	{
 		try
 		{
 			if (ResultCode != S_OK)
 			{
 				_com_error Error(ResultCode);
-				Vitex::Core::String Text = ScopeText;
+				auto Text = Vitex::Core::String(ScopeText);
 				Text += " causing ";
 				Text += Error.ErrorMessage();
 				return Vitex::Graphics::GraphicsException((int)ResultCode, std::move(Text));
 			}
 			else
 			{
-				Vitex::Core::String Text = ScopeText;
+				auto Text = Vitex::Core::String(ScopeText);
 				Text += " causing internal graphics error";
 				return Vitex::Graphics::GraphicsException((int)ResultCode, std::move(Text));
 			}
 		}
 		catch (...)
 		{
-			Vitex::Core::String Text = ScopeText;
+			auto Text = Vitex::Core::String(ScopeText);
 			Text += " causing internal graphics error";
 			return Vitex::Graphics::GraphicsException((int)ResultCode, std::move(Text));
 		}
@@ -153,16 +152,16 @@ namespace
 		{
 			case D3D11_MESSAGE_SEVERITY_ERROR:
 			case D3D11_MESSAGE_SEVERITY_CORRUPTION:
-				VI_ERR("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (size_t)Message->DescriptionByteLength, Message->pDescription);
+				VI_ERR("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (int)Message->DescriptionByteLength, Message->pDescription);
 				break;
 			case D3D11_MESSAGE_SEVERITY_WARNING:
-				VI_WARN("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (size_t)Message->DescriptionByteLength, Message->pDescription);
+				VI_WARN("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (int)Message->DescriptionByteLength, Message->pDescription);
 				break;
 			case D3D11_MESSAGE_SEVERITY_INFO:
-				VI_DEBUG("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (size_t)Message->DescriptionByteLength, Message->pDescription);
+				VI_DEBUG("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (int)Message->DescriptionByteLength, Message->pDescription);
 				break;
 			case D3D11_MESSAGE_SEVERITY_MESSAGE:
-				VI_TRACE("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (size_t)Message->DescriptionByteLength, Message->pDescription);
+				VI_TRACE("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (int)Message->DescriptionByteLength, Message->pDescription);
 				break;
 		}
 	}
@@ -179,7 +178,7 @@ namespace Vitex
 			}
 			D3D11DepthStencilState::~D3D11DepthStencilState()
 			{
-				D3D_RELEASE(Resource);
+				Core::Memory::Release(Resource);
 			}
 			void* D3D11DepthStencilState::GetResource() const
 			{
@@ -191,7 +190,7 @@ namespace Vitex
 			}
 			D3D11RasterizerState::~D3D11RasterizerState()
 			{
-				D3D_RELEASE(Resource);
+				Core::Memory::Release(Resource);
 			}
 			void* D3D11RasterizerState::GetResource() const
 			{
@@ -203,7 +202,7 @@ namespace Vitex
 			}
 			D3D11BlendState::~D3D11BlendState()
 			{
-				D3D_RELEASE(Resource);
+				Core::Memory::Release(Resource);
 			}
 			void* D3D11BlendState::GetResource() const
 			{
@@ -215,7 +214,7 @@ namespace Vitex
 			}
 			D3D11SamplerState::~D3D11SamplerState()
 			{
-				D3D_RELEASE(Resource);
+				Core::Memory::Release(Resource);
 			}
 			void* D3D11SamplerState::GetResource() const
 			{
@@ -247,15 +246,15 @@ namespace Vitex
 			}
 			D3D11Shader::~D3D11Shader()
 			{
-				D3D_RELEASE(ConstantBuffer);
-				D3D_RELEASE(VertexShader);
-				D3D_RELEASE(PixelShader);
-				D3D_RELEASE(GeometryShader);
-				D3D_RELEASE(DomainShader);
-				D3D_RELEASE(HullShader);
-				D3D_RELEASE(ComputeShader);
-				D3D_RELEASE(VertexLayout);
-				D3D_RELEASE(Signature);
+				Core::Memory::Release(ConstantBuffer);
+				Core::Memory::Release(VertexShader);
+				Core::Memory::Release(PixelShader);
+				Core::Memory::Release(GeometryShader);
+				Core::Memory::Release(DomainShader);
+				Core::Memory::Release(HullShader);
+				Core::Memory::Release(ComputeShader);
+				Core::Memory::Release(VertexLayout);
+				Core::Memory::Release(Signature);
 			}
 			bool D3D11Shader::IsValid() const
 			{
@@ -270,9 +269,9 @@ namespace Vitex
 			}
 			D3D11ElementBuffer::~D3D11ElementBuffer()
 			{
-				D3D_RELEASE(Resource);
-				D3D_RELEASE(Element);
-				D3D_RELEASE(Access);
+				Core::Memory::Release(Resource);
+				Core::Memory::Release(Element);
+				Core::Memory::Release(Access);
 			}
 			void* D3D11ElementBuffer::GetResource() const
 			{
@@ -289,7 +288,7 @@ namespace Vitex
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
-				Compute::Vertex* Vertices = VI_MALLOC(Compute::Vertex, sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
+				Compute::Vertex* Vertices = Core::Memory::Allocate<Compute::Vertex>(sizeof(Compute::Vertex) * (uint32_t)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -306,7 +305,7 @@ namespace Vitex
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
-				Compute::SkinVertex* Vertices = VI_MALLOC(Compute::SkinVertex, sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
+				Compute::SkinVertex* Vertices = Core::Memory::Allocate<Compute::SkinVertex>(sizeof(Compute::SkinVertex) * (uint32_t)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -321,7 +320,7 @@ namespace Vitex
 				if (Device != nullptr && Sync)
 					Device->ClearBuffer(this);
 
-				D3D_RELEASE(Resource);
+				Core::Memory::Release(Resource);
 			}
 
 			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Access(nullptr), Resource(nullptr), View(nullptr)
@@ -332,9 +331,9 @@ namespace Vitex
 			}
 			D3D11Texture2D::~D3D11Texture2D()
 			{
-				D3D_RELEASE(View);
-				D3D_RELEASE(Resource);
-				D3D_RELEASE(Access);
+				Core::Memory::Release(View);
+				Core::Memory::Release(Resource);
+				Core::Memory::Release(Access);
 			}
 			void* D3D11Texture2D::GetResource() const
 			{
@@ -346,9 +345,9 @@ namespace Vitex
 			}
 			D3D11Texture3D::~D3D11Texture3D()
 			{
-				D3D_RELEASE(View);
-				D3D_RELEASE(Resource);
-				D3D_RELEASE(Access);
+				Core::Memory::Release(View);
+				Core::Memory::Release(Resource);
+				Core::Memory::Release(Access);
 			}
 			void* D3D11Texture3D::GetResource()
 			{
@@ -363,9 +362,9 @@ namespace Vitex
 			}
 			D3D11TextureCube::~D3D11TextureCube()
 			{
-				D3D_RELEASE(View);
-				D3D_RELEASE(Resource);
-				D3D_RELEASE(Access);
+				Core::Memory::Release(View);
+				Core::Memory::Release(Resource);
+				Core::Memory::Release(Access);
 			}
 			void* D3D11TextureCube::GetResource() const
 			{
@@ -378,7 +377,7 @@ namespace Vitex
 			}
 			D3D11DepthTarget2D::~D3D11DepthTarget2D()
 			{
-				D3D_RELEASE(DepthStencilView);
+				Core::Memory::Release(DepthStencilView);
 			}
 			void* D3D11DepthTarget2D::GetResource() const
 			{
@@ -399,7 +398,7 @@ namespace Vitex
 			}
 			D3D11DepthTargetCube::~D3D11DepthTargetCube()
 			{
-				D3D_RELEASE(DepthStencilView);
+				Core::Memory::Release(DepthStencilView);
 			}
 			void* D3D11DepthTargetCube::GetResource() const
 			{
@@ -422,9 +421,9 @@ namespace Vitex
 			}
 			D3D11RenderTarget2D::~D3D11RenderTarget2D()
 			{
-				D3D_RELEASE(Texture);
-				D3D_RELEASE(DepthStencilView);
-				D3D_RELEASE(RenderTargetView);
+				Core::Memory::Release(Texture);
+				Core::Memory::Release(DepthStencilView);
+				Core::Memory::Release(RenderTargetView);
 			}
 			void* D3D11RenderTarget2D::GetTargetBuffer() const
 			{
@@ -446,7 +445,7 @@ namespace Vitex
 			D3D11MultiRenderTarget2D::D3D11MultiRenderTarget2D(const Desc& I) : MultiRenderTarget2D(I), DepthStencilView(nullptr)
 			{
 				ZeroMemory(&Information, sizeof(Information));
-				for (unsigned int i = 0; i < 8; i++)
+				for (uint32_t i = 0; i < 8; i++)
 				{
 					RenderTargetView[i] = nullptr;
 					Texture[i] = nullptr;
@@ -454,11 +453,11 @@ namespace Vitex
 			}
 			D3D11MultiRenderTarget2D::~D3D11MultiRenderTarget2D()
 			{
-				D3D_RELEASE(DepthStencilView);
-				for (unsigned int i = 0; i < 8; i++)
+				Core::Memory::Release(DepthStencilView);
+				for (uint32_t i = 0; i < 8; i++)
 				{
-					D3D_RELEASE(Texture[i]);
-					D3D_RELEASE(RenderTargetView[i]);
+					Core::Memory::Release(Texture[i]);
+					Core::Memory::Release(RenderTargetView[i]);
 				}
 			}
 			void* D3D11MultiRenderTarget2D::GetTargetBuffer() const
@@ -486,9 +485,9 @@ namespace Vitex
 			}
 			D3D11RenderTargetCube::~D3D11RenderTargetCube()
 			{
-				D3D_RELEASE(DepthStencilView);
-				D3D_RELEASE(RenderTargetView);
-				D3D_RELEASE(Texture);
+				Core::Memory::Release(DepthStencilView);
+				Core::Memory::Release(RenderTargetView);
+				Core::Memory::Release(Texture);
 			}
 			void* D3D11RenderTargetCube::GetTargetBuffer() const
 			{
@@ -509,7 +508,7 @@ namespace Vitex
 
 			D3D11MultiRenderTargetCube::D3D11MultiRenderTargetCube(const Desc& I) : MultiRenderTargetCube(I), DepthStencilView(nullptr)
 			{
-				for (unsigned int i = 0; i < 8; i++)
+				for (uint32_t i = 0; i < 8; i++)
 				{
 					RenderTargetView[i] = nullptr;
 					Texture[i] = nullptr;
@@ -518,13 +517,13 @@ namespace Vitex
 			}
 			D3D11MultiRenderTargetCube::~D3D11MultiRenderTargetCube()
 			{
-				VI_ASSERT((unsigned int)Target <= 8, "targets count should be less than 9");
-				for (unsigned int i = 0; i < (unsigned int)Target; i++)
+				VI_ASSERT((uint32_t)Target <= 8, "targets count should be less than 9");
+				for (uint32_t i = 0; i < (uint32_t)Target; i++)
 				{
-					D3D_RELEASE(RenderTargetView[i]);
-					D3D_RELEASE(Texture[i]);
+					Core::Memory::Release(RenderTargetView[i]);
+					Core::Memory::Release(Texture[i]);
 				}
-				D3D_RELEASE(DepthStencilView);
+				Core::Memory::Release(DepthStencilView);
 			}
 			void* D3D11MultiRenderTargetCube::GetTargetBuffer() const
 			{
@@ -570,12 +569,12 @@ namespace Vitex
 				Resource.TextureCube.MipLevels = I.MipLevels;
 
 				D3D11_BOX& Region = Options.Region;
-				Region = { 0, 0, 0, (unsigned int)I.Size, (unsigned int)I.Size, 1 };
+				Region = { 0, 0, 0, (uint32_t)I.Size, (uint32_t)I.Size, 1 };
 			}
 			D3D11Cubemap::~D3D11Cubemap()
 			{
-				D3D_RELEASE(Source);
-				D3D_RELEASE(Merger);
+				Core::Memory::Release(Source);
+				Core::Memory::Release(Merger);
 			}
 
 			D3D11Query::D3D11Query() : Query(), Async(nullptr)
@@ -583,7 +582,7 @@ namespace Vitex
 			}
 			D3D11Query::~D3D11Query()
 			{
-				VI_RELEASE(Async);
+				Core::Memory::Release(Async);
 			}
 			void* D3D11Query::GetResource() const
 			{
@@ -606,7 +605,7 @@ namespace Vitex
 						return;
 				}
 
-				unsigned int CreationFlags = I.CreationFlags | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
+				uint32_t CreationFlags = I.CreationFlags | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
 				if (I.Debug)
 					CreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 
@@ -654,13 +653,13 @@ namespace Vitex
 			D3D11Device::~D3D11Device()
 			{
 				ReleaseProxy();
-				D3D_RELEASE(Immediate.VertexShader);
-				D3D_RELEASE(Immediate.VertexLayout);
-				D3D_RELEASE(Immediate.ConstantBuffer);
-				D3D_RELEASE(Immediate.PixelShader);
-				D3D_RELEASE(Immediate.VertexBuffer);
-				D3D_RELEASE(ImmediateContext);
-				D3D_RELEASE(SwapChain);
+				Core::Memory::Release(Immediate.VertexShader);
+				Core::Memory::Release(Immediate.VertexLayout);
+				Core::Memory::Release(Immediate.ConstantBuffer);
+				Core::Memory::Release(Immediate.PixelShader);
+				Core::Memory::Release(Immediate.VertexBuffer);
+				Core::Memory::Release(ImmediateContext);
+				Core::Memory::Release(SwapChain);
 
 				if (Debug)
 				{
@@ -670,11 +669,11 @@ namespace Vitex
 					{
 						D3D11_RLDO_FLAGS Flags = (D3D11_RLDO_FLAGS)(D3D11_RLDO_DETAIL | 0x4); // D3D11_RLDO_IGNORE_INTERNAL
 						Debugger->ReportLiveDeviceObjects(Flags);
-						VI_RELEASE(Debugger);
+						Core::Memory::Release(Debugger);
 					}
 				}
 
-				D3D_RELEASE(Context);
+				Core::Memory::Release(Context);
 			}
 			void D3D11Device::SetAsCurrentDevice()
 			{
@@ -761,7 +760,7 @@ namespace Vitex
 			{
 				Register.Layout = (D3D11InputLayout*)Resource;
 			}
-			ExpectsGraphics<void> D3D11Device::SetShader(Shader* Resource, unsigned int Type)
+			ExpectsGraphics<void> D3D11Device::SetShader(Shader* Resource, uint32_t Type)
 			{
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
 				bool Flush = (!IResource), Update = false;
@@ -848,7 +847,7 @@ namespace Vitex
 
 				return Core::Expectation::Met;
 			}
-			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
+			void D3D11Device::SetSamplerState(SamplerState* State, uint32_t Slot, uint32_t Count, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
@@ -874,7 +873,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetSamplers(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetBuffer(Shader* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -897,7 +896,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetConstantBuffers(Slot, 1, &IBuffer);
 			}
-			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetBuffer(InstanceBuffer* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -922,7 +921,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetConstantBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -945,7 +944,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetConstantBuffers(Slot, 1, &IBuffer);
 			}
-			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -970,7 +969,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetTexture2D(Texture2D* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -995,7 +994,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetTexture3D(Texture3D* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -1020,7 +1019,7 @@ namespace Vitex
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetTextureCube(TextureCube* Resource, uint32_t Slot, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 
@@ -1051,33 +1050,33 @@ namespace Vitex
 				REG_EXCHANGE_T2(IndexBuffer, IResource, FormatMode);
 				ImmediateContext->IASetIndexBuffer(IResource ? IResource->Element : nullptr, (DXGI_FORMAT)FormatMode, 0);
 			}
-			void D3D11Device::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool)
+			void D3D11Device::SetVertexBuffers(ElementBuffer** Resources, uint32_t Count, bool)
 			{
 				VI_ASSERT(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
 				VI_ASSERT(Count <= UNITS_SIZE, "slot should be less than or equal to %i", (int)UNITS_SIZE);
 
 				static ID3D11Buffer* IBuffers[UNITS_SIZE] = { nullptr };
-				static unsigned int Strides[UNITS_SIZE] = { };
-				static unsigned int Offsets[UNITS_SIZE] = { };
+				static uint32_t Strides[UNITS_SIZE] = { };
+				static uint32_t Offsets[UNITS_SIZE] = { };
 
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resources[i];
 					IBuffers[i] = (IResource ? IResource->Element : nullptr);
-					Strides[i] = (unsigned int)(IResource ? IResource->Stride : 0);
+					Strides[i] = (uint32_t)(IResource ? IResource->Stride : 0);
 					REG_EXCHANGE_RS(VertexBuffers, IResource, i, i);
 				}
 
 				ImmediateContext->IASetVertexBuffers(0, Count, IBuffers, Strides, Offsets);
 			}
-			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void D3D11Device::SetWriteable(ElementBuffer** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < 8, "slot should be less than 8");
 				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 					Array[i] = (Resource[i] ? ((D3D11ElementBuffer*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
@@ -1086,14 +1085,14 @@ namespace Vitex
 				else
 					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void D3D11Device::SetWriteable(Texture2D** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < 8, "slot should be less than 8");
 				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 					Array[i] = (Resource[i] ? ((D3D11Texture2D*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
@@ -1102,14 +1101,14 @@ namespace Vitex
 				else
 					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void D3D11Device::SetWriteable(Texture3D** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < 8, "slot should be less than 8");
 				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 					Array[i] = (Resource[i] ? ((D3D11Texture3D*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
@@ -1118,14 +1117,14 @@ namespace Vitex
 				else
 					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable)
+			void D3D11Device::SetWriteable(TextureCube** Resource, uint32_t Slot, uint32_t Count, bool Computable)
 			{
 				VI_ASSERT(Slot < 8, "slot should be less than 8");
 				VI_ASSERT(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				VI_ASSERT(Resource != nullptr, "buffers ptr should be set");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 					Array[i] = (Resource[i] ? ((D3D11TextureCube*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
@@ -1162,7 +1161,7 @@ namespace Vitex
 				ImmediateContext->OMSetRenderTargets(0, nullptr, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &Viewport);
 			}
-			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
+			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B)
 			{
 				VI_ASSERT(Resource != nullptr, "render target should be set");
 				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
@@ -1177,7 +1176,7 @@ namespace Vitex
 				ImmediateContext->OMSetRenderTargets(1, &TargetBuffer[Target], DepthBuffer);
 				ImmediateContext->ClearRenderTargetView(TargetBuffer[Target], ClearColor);
 			}
-			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target)
+			void D3D11Device::SetTarget(Graphics::RenderTarget* Resource, uint32_t Target)
 			{
 				VI_ASSERT(Resource != nullptr, "render target should be set");
 				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
@@ -1237,7 +1236,7 @@ namespace Vitex
 				ImmediateContext->RSSetViewports(1, &Viewport);
 				ImmediateContext->OMSetRenderTargets(Count, Targets, DepthBuffer);
 			}
-			void D3D11Device::SetTargetRect(unsigned int Width, unsigned int Height)
+			void D3D11Device::SetTargetRect(uint32_t Width, uint32_t Height)
 			{
 				VI_ASSERT(Width > 0 && Height > 0, "width and height should be greater than zero");
 
@@ -1245,24 +1244,24 @@ namespace Vitex
 				ImmediateContext->RSSetViewports(1, &Viewport);
 				ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
 			}
-			void D3D11Device::SetViewports(unsigned int Count, Viewport* Value)
+			void D3D11Device::SetViewports(uint32_t Count, Viewport* Value)
 			{
 				VI_ASSERT(Value != nullptr, "value should be set");
 				VI_ASSERT(Count > 0, "count should be greater than zero");
 
 				D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 					memcpy(&Viewports[i], &Value[i], sizeof(Viewport));
 
 				ImmediateContext->RSSetViewports(Count, Viewports);
 			}
-			void D3D11Device::SetScissorRects(unsigned int Count, Compute::Rectangle* Value)
+			void D3D11Device::SetScissorRects(uint32_t Count, Compute::Rectangle* Value)
 			{
 				VI_ASSERT(Value != nullptr, "value should be set");
 				VI_ASSERT(Count > 0, "count should be greater than zero");
 
 				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-				for (unsigned int i = 0; i < Count; i++)
+				for (uint32_t i = 0; i < Count; i++)
 				{
 					Compute::Rectangle& From = Value[i];
 					D3D11_RECT& To = Rects[i];
@@ -1278,7 +1277,7 @@ namespace Vitex
 			{
 				ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Topology);
 			}
-			void D3D11Device::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
+			void D3D11Device::FlushTexture(uint32_t Slot, uint32_t Count, uint32_t Type)
 			{
 				VI_ASSERT(Slot < UNITS_SIZE, "slot should be less than %i", (int)UNITS_SIZE);
 				VI_ASSERT(Count <= UNITS_SIZE && Slot + Count <= UNITS_SIZE, "count should be less than or equal %i", (int)UNITS_SIZE);
@@ -1304,7 +1303,7 @@ namespace Vitex
 
 				size_t Offset = Slot + Count;
 				for (size_t i = Slot; i < Offset; i++)
-					Register.Resources[i] = std::make_pair<ID3D11ShaderResourceView*, unsigned int>(nullptr, 0);
+					Register.Resources[i] = std::make_pair<ID3D11ShaderResourceView*, uint32_t>(nullptr, 0);
 			}
 			void D3D11Device::FlushState()
 			{
@@ -1384,7 +1383,7 @@ namespace Vitex
 			{
 				Clear(RenderTarget, 0, R, G, B);
 			}
-			void D3D11Device::Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
+			void D3D11Device::Clear(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
@@ -1416,7 +1415,7 @@ namespace Vitex
 				ID3D11DepthStencilView* DepthBuffer = (ID3D11DepthStencilView*)Resource->GetDepthBuffer();
 				ImmediateContext->ClearDepthStencilView(DepthBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
-			void D3D11Device::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
+			void D3D11Device::DrawIndexed(uint32_t Count, uint32_t IndexLocation, uint32_t BaseLocation)
 			{
 				ImmediateContext->DrawIndexed(Count, IndexLocation, BaseLocation);
 			}
@@ -1425,7 +1424,7 @@ namespace Vitex
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
+				uint32_t Stride = (uint32_t)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1439,14 +1438,14 @@ namespace Vitex
 					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				}
 
-				ImmediateContext->DrawIndexed((unsigned int)IndexBuffer->GetElements(), 0, 0);
+				ImmediateContext->DrawIndexed((uint32_t)IndexBuffer->GetElements(), 0, 0);
 			}
 			void D3D11Device::DrawIndexed(SkinMeshBuffer* Resource)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
+				uint32_t Stride = (uint32_t)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1460,13 +1459,13 @@ namespace Vitex
 					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				}
 
-				ImmediateContext->DrawIndexed((unsigned int)IndexBuffer->GetElements(), 0, 0);
+				ImmediateContext->DrawIndexed((uint32_t)IndexBuffer->GetElements(), 0, 0);
 			}
-			void D3D11Device::DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation)
+			void D3D11Device::DrawIndexedInstanced(uint32_t IndexCountPerInstance, uint32_t InstanceCount, uint32_t IndexLocation, uint32_t VertexLocation, uint32_t InstanceLocation)
 			{
 				ImmediateContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, IndexLocation, VertexLocation, InstanceLocation);
 			}
-			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount)
+			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, uint32_t InstanceCount)
 			{
 				VI_ASSERT(Instances != nullptr, "instances should be set");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
@@ -1474,7 +1473,7 @@ namespace Vitex
 				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
+				uint32_t Stride = (uint32_t)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1488,11 +1487,11 @@ namespace Vitex
 					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				}
 
-				Stride = (unsigned int)InstanceBuffer->Stride;
+				Stride = (uint32_t)InstanceBuffer->Stride;
 				ImmediateContext->IASetVertexBuffers(1, 1, &InstanceBuffer->Element, &Stride, &Offset);
-				ImmediateContext->DrawIndexedInstanced((unsigned int)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
+				ImmediateContext->DrawIndexedInstanced((uint32_t)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
 			}
-			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
+			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, uint32_t InstanceCount)
 			{
 				VI_ASSERT(Instances != nullptr, "instances should be set");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
@@ -1500,7 +1499,7 @@ namespace Vitex
 				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
+				uint32_t Stride = (uint32_t)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1514,23 +1513,23 @@ namespace Vitex
 					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				}
 
-				Stride = (unsigned int)InstanceBuffer->Stride;
+				Stride = (uint32_t)InstanceBuffer->Stride;
 				ImmediateContext->IASetVertexBuffers(1, 1, &InstanceBuffer->Element, &Stride, &Offset);
-				ImmediateContext->DrawIndexedInstanced((unsigned int)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
+				ImmediateContext->DrawIndexedInstanced((uint32_t)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
 			}
-			void D3D11Device::Draw(unsigned int Count, unsigned int Location)
+			void D3D11Device::Draw(uint32_t Count, uint32_t Location)
 			{
 				ImmediateContext->Draw(Count, Location);
 			}
-			void D3D11Device::DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation)
+			void D3D11Device::DrawInstanced(uint32_t VertexCountPerInstance, uint32_t InstanceCount, uint32_t VertexLocation, uint32_t InstanceLocation)
 			{
 				ImmediateContext->DrawInstanced(VertexCountPerInstance, InstanceCount, VertexLocation, InstanceLocation);
 			}
-			void D3D11Device::Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ)
+			void D3D11Device::Dispatch(uint32_t GroupX, uint32_t GroupY, uint32_t GroupZ)
 			{
 				ImmediateContext->Dispatch(GroupX, GroupY, GroupZ);
 			}
-			void D3D11Device::GetViewports(unsigned int* Count, Viewport* Out)
+			void D3D11Device::GetViewports(uint32_t* Count, Viewport* Out)
 			{
 				D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				UINT ViewCount = (Count ? *Count : 1);
@@ -1542,7 +1541,7 @@ namespace Vitex
 				for (UINT i = 0; i < ViewCount; i++)
 					memcpy(&Out[i], &Viewports[i], sizeof(D3D11_VIEWPORT));
 			}
-			void D3D11Device::GetScissorRects(unsigned int* Count, Compute::Rectangle* Out)
+			void D3D11Device::GetScissorRects(uint32_t* Count, Compute::Rectangle* Out)
 			{
 				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				UINT RectCount = (Count ? *Count : 1);
@@ -1665,8 +1664,8 @@ namespace Vitex
 				if (Elements.size() > MaxElements && !CreateDirectBuffer(Elements.size()))
 					return false;
 
-				unsigned int Stride = sizeof(Vertex), Offset = 0;
-				unsigned int LastStride = 0, LastOffset = 0;
+				uint32_t Stride = sizeof(Vertex), Offset = 0;
+				uint32_t LastStride = 0, LastOffset = 0;
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
 				ImmediateContext->Map(Immediate.VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
 				memcpy(MappedResource.pData, Elements.data(), (size_t)Elements.size() * sizeof(Vertex));
@@ -1676,61 +1675,53 @@ namespace Vitex
 				ImmediateContext->IAGetPrimitiveTopology(&LastTopology);
 				ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Primitives);
 
-				ID3D11InputLayout* LastLayout;
-				ImmediateContext->IAGetInputLayout(&LastLayout);
+				Core::UPtr<ID3D11InputLayout> LastLayout;
+				ImmediateContext->IAGetInputLayout(LastLayout.Out());
 				ImmediateContext->IASetInputLayout(Immediate.VertexLayout);
 
-				ID3D11VertexShader* LastVertexShader;
-				ImmediateContext->VSGetShader(&LastVertexShader, nullptr, nullptr);
+				Core::UPtr<ID3D11VertexShader> LastVertexShader;
+				ImmediateContext->VSGetShader(LastVertexShader.Out(), nullptr, nullptr);
 				ImmediateContext->VSSetShader(Immediate.VertexShader, nullptr, 0);
 
-				ID3D11PixelShader* LastPixelShader;
-				ImmediateContext->PSGetShader(&LastPixelShader, nullptr, nullptr);
+				Core::UPtr<ID3D11PixelShader> LastPixelShader;
+				ImmediateContext->PSGetShader(LastPixelShader.Out(), nullptr, nullptr);
 				ImmediateContext->PSSetShader(Immediate.PixelShader, nullptr, 0);
 
-				ID3D11Buffer* LastVertexBuffer;
-				ImmediateContext->IAGetVertexBuffers(0, 1, &LastVertexBuffer, &LastStride, &LastOffset);
+				Core::UPtr<ID3D11Buffer> LastVertexBuffer;
+				ImmediateContext->IAGetVertexBuffers(0, 1, LastVertexBuffer.Out(), &LastStride, &LastOffset);
 				ImmediateContext->IASetVertexBuffers(0, 1, &Immediate.VertexBuffer, &Stride, &Offset);
 
-				ID3D11Buffer* LastBuffer1, * LastBuffer2;
-				ImmediateContext->VSGetConstantBuffers(0, 1, &LastBuffer1);
+				Core::UPtr<ID3D11Buffer> LastBuffer1, LastBuffer2;
+				ImmediateContext->VSGetConstantBuffers(0, 1, LastBuffer1.Out());
 				ImmediateContext->VSSetConstantBuffers(0, 1, &Immediate.ConstantBuffer);
-				ImmediateContext->PSGetConstantBuffers(0, 1, &LastBuffer2);
+				ImmediateContext->PSGetConstantBuffers(0, 1, LastBuffer2.Out());
 				ImmediateContext->PSSetConstantBuffers(0, 1, &Immediate.ConstantBuffer);
 
-				ID3D11SamplerState* LastSampler;
-				ImmediateContext->PSGetSamplers(1, 1, &LastSampler);
+				Core::UPtr<ID3D11SamplerState> LastSampler;
+				ImmediateContext->PSGetSamplers(1, 1, LastSampler.Out());
 				ImmediateContext->PSSetSamplers(1, 1, &Immediate.Sampler);
 
-				ID3D11ShaderResourceView* LastTexture, * NullTexture = nullptr;
-				ImmediateContext->PSGetShaderResources(1, 1, &LastTexture);
+				ID3D11ShaderResourceView* NullTexture = nullptr;
+				Core::UPtr<ID3D11ShaderResourceView> LastTexture;
+				ImmediateContext->PSGetShaderResources(1, 1, LastTexture.Out());
 				ImmediateContext->PSSetShaderResources(1, 1, ViewResource ? &((D3D11Texture2D*)ViewResource)->Resource : &NullTexture);
 
 				ImmediateContext->UpdateSubresource(Immediate.ConstantBuffer, 0, nullptr, &Direct, 0, 0);
-				ImmediateContext->Draw((unsigned int)Elements.size(), 0);
+				ImmediateContext->Draw((uint32_t)Elements.size(), 0);
 				ImmediateContext->IASetPrimitiveTopology(LastTopology);
-				ImmediateContext->IASetInputLayout(LastLayout);
-				ImmediateContext->VSSetShader(LastVertexShader, nullptr, 0);
-				ImmediateContext->VSSetConstantBuffers(0, 1, &LastBuffer1);
-				ImmediateContext->PSSetShader(LastPixelShader, nullptr, 0);
-				ImmediateContext->PSSetConstantBuffers(0, 1, &LastBuffer2);
-				ImmediateContext->PSSetSamplers(1, 1, &LastSampler);
-				ImmediateContext->PSSetShaderResources(1, 1, &LastTexture);
-				ImmediateContext->IASetVertexBuffers(0, 1, &LastVertexBuffer, &LastStride, &LastOffset);
-				D3D_RELEASE(LastLayout);
-				D3D_RELEASE(LastVertexShader);
-				D3D_RELEASE(LastPixelShader);
-				D3D_RELEASE(LastTexture);
-				D3D_RELEASE(LastSampler);
-				D3D_RELEASE(LastVertexBuffer);
-				D3D_RELEASE(LastBuffer1);
-				D3D_RELEASE(LastBuffer2);
-
+				ImmediateContext->IASetInputLayout(*LastLayout);
+				ImmediateContext->VSSetShader(*LastVertexShader, nullptr, 0);
+				ImmediateContext->VSSetConstantBuffers(0, 1, LastBuffer1.In());
+				ImmediateContext->PSSetShader(*LastPixelShader, nullptr, 0);
+				ImmediateContext->PSSetConstantBuffers(0, 1, LastBuffer2.In());
+				ImmediateContext->PSSetSamplers(1, 1, LastSampler.In());
+				ImmediateContext->PSSetShaderResources(1, 1, LastTexture.In());
+				ImmediateContext->IASetVertexBuffers(0, 1, LastVertexBuffer.In(), &LastStride, &LastOffset);
 				return true;
 			}
 			ExpectsGraphics<void> D3D11Device::Submit()
 			{
-				HRESULT ResultCode = SwapChain->Present((unsigned int)VSyncMode, PresentFlags);
+				HRESULT ResultCode = SwapChain->Present((uint32_t)VSyncMode, PresentFlags);
 				DispatchQueue();
 				if (Debug)
 				{
@@ -1738,7 +1729,7 @@ namespace Vitex
 					Context->QueryInterface(__uuidof(ID3D11InfoQueue), reinterpret_cast<void**>(&Debugger));
 					if (Debugger != nullptr)
 					{
-						D3D11_MESSAGE* Message = nullptr;
+						Core::UPtr<D3D11_MESSAGE> Message;
 						SIZE_T CurrentMessageSize = 0;
 						UINT64 Messages = Debugger->GetNumStoredMessages();
 						for (UINT64 i = 0; i < Messages; i++)
@@ -1749,16 +1740,14 @@ namespace Vitex
 
 							if (CurrentMessageSize < NextMessageSize)
 							{
-								VI_FREE(Message);
 								CurrentMessageSize = NextMessageSize;
-								Message = VI_MALLOC(D3D11_MESSAGE, (size_t)CurrentMessageSize);
+								Message = Core::Memory::Allocate<D3D11_MESSAGE>((size_t)CurrentMessageSize);
 							}
 							
-							if (Debugger->GetMessage(i, Message, &NextMessageSize) == S_OK)
-								DebugMessage(Message);
+							if (Debugger->GetMessage(i, *Message, &NextMessageSize) == S_OK)
+								DebugMessage(*Message);
 						}
 
-						VI_FREE(Message);
 						Debugger->ClearStoredMessages();
 						Debugger->Release();
 					}
@@ -1954,7 +1943,7 @@ namespace Vitex
 				VI_ASSERT(Size > 0, "size should be greater than zero");
 
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
-				D3D_RELEASE(IResource->ConstantBuffer);	
+				Core::Memory::Release(IResource->ConstantBuffer);	
 				HRESULT ResultCode = CreateConstantBuffer(&IResource->ConstantBuffer, Size);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "map shader buffer");
@@ -1968,8 +1957,8 @@ namespace Vitex
 
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
 				ClearBuffer(IResource);
-				VI_CLEAR(IResource->Elements);
-				D3D_RELEASE(IResource->Resource);
+				Core::Memory::Release(IResource->Elements);
+				Core::Memory::Release(IResource->Resource);
 				IResource->ElementLimit = Size;
 				IResource->Array.clear();
 				IResource->Array.reserve(IResource->ElementLimit);
@@ -1979,8 +1968,8 @@ namespace Vitex
 				F.MiscFlags = ResourceMisc::Buffer_Structured;
 				F.Usage = ResourceUsage::Dynamic;
 				F.BindFlags = ResourceBind::Shader_Input;
-				F.ElementCount = (unsigned int)IResource->ElementLimit;
-				F.ElementWidth = (unsigned int)IResource->ElementWidth;
+				F.ElementCount = (uint32_t)IResource->ElementLimit;
+				F.ElementWidth = (uint32_t)IResource->ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
 
 				auto Buffer = CreateElementBuffer(F);
@@ -1993,7 +1982,7 @@ namespace Vitex
 				ZeroMemory(&SRV, sizeof(SRV));
 				SRV.Format = DXGI_FORMAT_UNKNOWN;
 				SRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-				SRV.Buffer.ElementWidth = (unsigned int)IResource->ElementLimit;
+				SRV.Buffer.ElementWidth = (uint32_t)IResource->ElementLimit;
 
 				HRESULT ResultCode = Context->CreateShaderResourceView(((D3D11ElementBuffer*)IResource->Elements)->Element, &SRV, &IResource->Resource);
 				if (ResultCode != S_OK)
@@ -2029,7 +2018,7 @@ namespace Vitex
 				ImmediateContext->CopyResource(Texture->View, IResource->View);
 				return GenerateTexture(Texture);
 			}
-			ExpectsGraphics<void> D3D11Device::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
+			ExpectsGraphics<void> D3D11Device::CopyTexture2D(Graphics::RenderTarget* Resource, uint32_t Target, Texture2D** Result)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Result != nullptr, "result should be set");
@@ -2085,17 +2074,17 @@ namespace Vitex
 				}
 
 				*Result = Texture;
-				ImmediateContext->CopySubresourceRegion(Texture->View, (unsigned int)Face * Information.MipLevels, 0, 0, 0, IResource->Texture, 0, 0);
+				ImmediateContext->CopySubresourceRegion(Texture->View, (uint32_t)Face * Information.MipLevels, 0, 0, 0, IResource->Texture, 0, 0);
 				return GenerateTexture(Texture);
 			}
-			ExpectsGraphics<void> D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
+			ExpectsGraphics<void> D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, uint32_t Cube, Compute::CubeFace Face, Texture2D** Result)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
 				VI_ASSERT(IResource->Texture[Cube] != nullptr, "source should be set");
-				VI_ASSERT(Cube < (unsigned int)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
+				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Cube]->GetDesc(&Information);
@@ -2115,7 +2104,7 @@ namespace Vitex
 				}
 
 				*Result = Texture;
-				ImmediateContext->CopySubresourceRegion(Texture->View, (unsigned int)Face * Information.MipLevels, 0, 0, 0, IResource->Texture[Cube], 0, 0);
+				ImmediateContext->CopySubresourceRegion(Texture->View, (uint32_t)Face * Information.MipLevels, 0, 0, 0, IResource->Texture[Cube], 0, 0);
 				return GenerateTexture(Texture);
 			}
 			ExpectsGraphics<void> D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
@@ -2130,16 +2119,16 @@ namespace Vitex
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				void* Resources[6] = { nullptr };
-				for (unsigned int i = 0; i < 6; i++)
+				for (uint32_t i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
 					HRESULT ResultCode = Context->CreateTexture2D(&Information, nullptr, &Subresource);
 					if (ResultCode != S_OK)
 					{
-						for (unsigned int j = 0; j < 6; j++)
+						for (uint32_t j = 0; j < 6; j++)
 						{
 							ID3D11Texture2D* Src = (ID3D11Texture2D*)Resources[j];
-							D3D_RELEASE(Src);
+							Core::Memory::Release(Src);
 						}
 
 						return GetException(ResultCode, "create texture 2d for copy");
@@ -2154,38 +2143,38 @@ namespace Vitex
 				auto NewTexture = CreateTextureCubeInternal(Resources);
 				if (!NewTexture)
 				{
-					VI_CLEAR(*Result);
+					Core::Memory::Release(*Result);
 					return NewTexture.Error();
 				}
 
-				VI_RELEASE(*Result);
+				Core::Memory::Release(*Result);
 				*Result = *NewTexture;
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
+			ExpectsGraphics<void> D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, uint32_t Cube, TextureCube** Result)
 			{
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 				VI_ASSERT(Result != nullptr, "result should be set");
 
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
 				VI_ASSERT(IResource->Texture[Cube] != nullptr, "source should be set");
-				VI_ASSERT(Cube < (unsigned int)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
+				VI_ASSERT(Cube < (uint32_t)IResource->Target, "cube index should be less than %i", (int)IResource->Target);
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Cube]->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				void* Resources[6] = { nullptr };
-				for (unsigned int i = 0; i < 6; i++)
+				for (uint32_t i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
 					HRESULT ResultCode = Context->CreateTexture2D(&Information, nullptr, &Subresource);
 					if (ResultCode != S_OK)
 					{
-						for (unsigned int j = 0; j < 6; j++)
+						for (uint32_t j = 0; j < 6; j++)
 						{
 							ID3D11Texture2D* Src = (ID3D11Texture2D*)Resources[j];
-							D3D_RELEASE(Src);
+							Core::Memory::Release(Src);
 						}
 
 						return GetException(ResultCode, "create texture 2d for copy");
@@ -2198,17 +2187,14 @@ namespace Vitex
 				}
 
 				auto NewTexture = CreateTextureCubeInternal(Resources);
+				Core::Memory::Release(*Result);
 				if (!NewTexture)
-				{
-					VI_CLEAR(*Result);
 					return NewTexture.Error();
-				}
 
-				VI_RELEASE(*Result);
 				*Result = *NewTexture;
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> D3D11Device::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned ToTarget)
+			ExpectsGraphics<void> D3D11Device::CopyTarget(Graphics::RenderTarget* From, uint32_t FromTarget, Graphics::RenderTarget* To, uint32_t ToTarget)
 			{
 				VI_ASSERT(From != nullptr, "from should be set");
 				VI_ASSERT(To != nullptr, "to should be set");
@@ -2263,7 +2249,7 @@ namespace Vitex
 				else
 					ImmediateContext->CopyResource(Texture->View, BackBuffer);
 
-				D3D_RELEASE(BackBuffer);
+				Core::Memory::Release(BackBuffer);
 				return GenerateTexture(Texture);
 			}
 			ExpectsGraphics<void> D3D11Device::CubemapPush(Cubemap* Resource, TextureCube* Result)
@@ -2279,12 +2265,12 @@ namespace Vitex
 				if (Dest->View != nullptr && Dest->Resource != nullptr)
 					return Core::Expectation::Met;
 
-				D3D_RELEASE(Dest->View);
+				Core::Memory::Release(Dest->View);
 				HRESULT ResultCode = Context->CreateTexture2D(&IResource->Options.Texture, nullptr, &Dest->View);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create texture cube for cubemap");
 	
-				D3D_RELEASE(Dest->Resource);
+				Core::Memory::Release(Dest->Resource);
 				ResultCode = Context->CreateShaderResourceView(Dest->View, &IResource->Options.Resource, &Dest->Resource);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create texture resource for cubemap");
@@ -2301,7 +2287,7 @@ namespace Vitex
 
 				VI_ASSERT(IResource->Dest != nullptr, "result should be set");
 				ImmediateContext->CopyResource(IResource->Merger, IResource->Source);
-				ImmediateContext->CopySubresourceRegion(Dest->View, (unsigned int)Face * IResource->Meta.MipLevels, 0, 0, 0, IResource->Merger, 0, &IResource->Options.Region);
+				ImmediateContext->CopySubresourceRegion(Dest->View, (uint32_t)Face * IResource->Meta.MipLevels, 0, 0, 0, IResource->Merger, 0, &IResource->Options.Region);
 				return Core::Expectation::Met;
 			}
 			ExpectsGraphics<void> D3D11Device::CubemapPop(Cubemap* Resource)
@@ -2318,12 +2304,12 @@ namespace Vitex
 
 				return Core::Expectation::Met;
 			}
-			ExpectsGraphics<void> D3D11Device::ResizeBuffers(unsigned int Width, unsigned int Height)
+			ExpectsGraphics<void> D3D11Device::ResizeBuffers(uint32_t Width, uint32_t Height)
 			{
 				if (RenderTarget != nullptr)
 				{
 					ImmediateContext->OMSetRenderTargets(0, 0, 0);
-					VI_CLEAR(RenderTarget);
+					Core::Memory::Release(RenderTarget);
 
 					DXGI_SWAP_CHAIN_DESC Info;
 					HRESULT ResultCode = SwapChain->GetDesc(&Info);
@@ -2357,7 +2343,7 @@ namespace Vitex
 
 				RenderTarget = *NewTarget;
 				SetTarget(RenderTarget, 0);
-				D3D_RELEASE(BackBuffer);
+				Core::Memory::Release(BackBuffer);
 				return Core::Expectation::Met;
 			}
 			ExpectsGraphics<void> D3D11Device::GenerateTexture(Texture2D* Resource)
@@ -2390,7 +2376,7 @@ namespace Vitex
 				SRV.Texture3D.MostDetailedMip = 0;
 				SRV.Texture3D.MipLevels = Description.MipLevels;
 
-				D3D_RELEASE(IResource->Resource);
+				Core::Memory::Release(IResource->Resource);
 				HRESULT ResultCode = Context->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "generate texture");
@@ -2423,7 +2409,7 @@ namespace Vitex
 				SRV.TextureCube.MostDetailedMip = 0;
 				SRV.TextureCube.MipLevels = Description.MipLevels;
 
-				D3D_RELEASE(IResource->Resource);
+				Core::Memory::Release(IResource->Resource);
 				HRESULT ResultCode = Context->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "generate texture");
@@ -2477,16 +2463,13 @@ namespace Vitex
 				State.StencilReadMask = I.StencilReadMask;
 				State.StencilWriteMask = I.StencilWriteMask;
 
-				ID3D11DepthStencilState* DeviceState = nullptr;
-				HRESULT ResultCode = Context->CreateDepthStencilState(&State, &DeviceState);
+				Core::UPtr<ID3D11DepthStencilState> DeviceState;
+				HRESULT ResultCode = Context->CreateDepthStencilState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
-				{
-					D3D_RELEASE(DeviceState);
 					return GetException(ResultCode, "create depth stencil state");
-				}
 
 				D3D11DepthStencilState* Result = new D3D11DepthStencilState(I);
-				Result->Resource = DeviceState;
+				Result->Resource = DeviceState.Reset();
 				return Result;
 			}
 			ExpectsGraphics<BlendState*> D3D11Device::CreateBlendState(const BlendState::Desc& I)
@@ -2494,7 +2477,7 @@ namespace Vitex
 				D3D11_BLEND_DESC State;
 				State.AlphaToCoverageEnable = I.AlphaToCoverageEnable;
 				State.IndependentBlendEnable = I.IndependentBlendEnable;
-				for (unsigned int i = 0; i < 8; i++)
+				for (uint32_t i = 0; i < 8; i++)
 				{
 					State.RenderTarget[i].BlendEnable = I.RenderTarget[i].BlendEnable;
 					State.RenderTarget[i].BlendOp = (D3D11_BLEND_OP)I.RenderTarget[i].BlendOperationMode;
@@ -2506,16 +2489,13 @@ namespace Vitex
 					State.RenderTarget[i].SrcBlendAlpha = (D3D11_BLEND)I.RenderTarget[i].SrcBlendAlpha;
 				}
 
-				ID3D11BlendState* DeviceState = nullptr;
-				HRESULT ResultCode = Context->CreateBlendState(&State, &DeviceState);
+				Core::UPtr<ID3D11BlendState> DeviceState;
+				HRESULT ResultCode = Context->CreateBlendState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
-				{
-					D3D_RELEASE(DeviceState);
 					return GetException(ResultCode, "create blend state");
-				}
 
 				D3D11BlendState* Result = new D3D11BlendState(I);
-				Result->Resource = DeviceState;
+				Result->Resource = DeviceState.Reset();
 				return Result;
 			}
 			ExpectsGraphics<RasterizerState*> D3D11Device::CreateRasterizerState(const RasterizerState::Desc& I)
@@ -2532,16 +2512,13 @@ namespace Vitex
 				State.ScissorEnable = I.ScissorEnable;
 				State.SlopeScaledDepthBias = I.SlopeScaledDepthBias;
 
-				ID3D11RasterizerState* DeviceState = nullptr;
-				HRESULT ResultCode = Context->CreateRasterizerState(&State, &DeviceState);
+				Core::UPtr<ID3D11RasterizerState> DeviceState;
+				HRESULT ResultCode = Context->CreateRasterizerState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
-				{
-					D3D_RELEASE(DeviceState);
 					return GetException(ResultCode, "create rasterizer state");
-				}
 
 				D3D11RasterizerState* Result = new D3D11RasterizerState(I);
-				Result->Resource = DeviceState;
+				Result->Resource = DeviceState.Reset();
 				return Result;
 			}
 			ExpectsGraphics<SamplerState*> D3D11Device::CreateSamplerState(const SamplerState::Desc& I)
@@ -2561,16 +2538,13 @@ namespace Vitex
 				State.BorderColor[2] = I.BorderColor[2];
 				State.BorderColor[3] = I.BorderColor[3];
 
-				ID3D11SamplerState* DeviceState = nullptr;
-				HRESULT ResultCode = Context->CreateSamplerState(&State, &DeviceState);
+				Core::UPtr<ID3D11SamplerState> DeviceState;
+				HRESULT ResultCode = Context->CreateSamplerState(&State, DeviceState.Out());
 				if (ResultCode != S_OK)
-				{
-					D3D_RELEASE(DeviceState);
 					return GetException(ResultCode, "create sampler state");
-				}
 
 				D3D11SamplerState* Result = new D3D11SamplerState(I);
-				Result->Resource = DeviceState;
+				Result->Resource = DeviceState.Reset();
 				return Result;
 			}
 			ExpectsGraphics<InputLayout*> D3D11Device::CreateInputLayout(const InputLayout::Desc& I)
@@ -2588,7 +2562,7 @@ namespace Vitex
 				if (!Name)
 					return GraphicsException("shader name is not defined");
 
-				D3D11Shader* Result = new D3D11Shader(I);
+				Core::UPtr<D3D11Shader> Result = new D3D11Shader(I);
 				Core::String ProgramName = std::move(*Name);
 				ID3DBlob* ShaderBlob = nullptr;
 				ID3DBlob* ErrorBlob = nullptr;
@@ -2602,13 +2576,12 @@ namespace Vitex
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[d3d11] compile %s vertex shader source", Stage.c_str());
-						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
-						if (ResultCode != S_OK || GetCompileState(ErrorBlob))
+						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile().data(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
+						if (ResultCode != S_OK || !GetCompileState(ErrorBlob).empty())
 						{
-							Core::String Message = GetCompileState(ErrorBlob);
-							D3D_RELEASE(ErrorBlob);
-							VI_RELEASE(Result);
-							return GetException(ResultCode, Message.c_str());
+							auto Message = GetCompileState(ErrorBlob);
+							Core::Memory::Release(ErrorBlob);
+							return GetException(ResultCode, Message);
 						}
 
 						Data = (void*)Result->Signature->GetBufferPointer();
@@ -2620,10 +2593,7 @@ namespace Vitex
 						Data = (void*)Bytecode.c_str(); Size = Bytecode.size();
 						HRESULT ResultCode = D3DCreateBlob(Size, &Result->Signature);
 						if (ResultCode != S_OK)
-						{
-							VI_RELEASE(Result);
 							return GetException(ResultCode, "compile vertex shader");
-						}
 
 						void* Buffer = Result->Signature->GetBufferPointer();
 						memcpy(Buffer, Data, Size);
@@ -2632,10 +2602,7 @@ namespace Vitex
 					VI_DEBUG("[d3d11] load %s vertex shader bytecode", Stage.c_str());
 					HRESULT ResultCode = Context->CreateVertexShader(Data, Size, nullptr, &Result->VertexShader);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "compile vertex shader");
-					}
 				}
 
 				Core::String PixelEntry = GetShaderMain(ShaderType::Pixel);
@@ -2645,13 +2612,12 @@ namespace Vitex
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[d3d11] compile %s pixel shader source", Stage.c_str());
-						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
-						if (ResultCode != S_OK || GetCompileState(ErrorBlob))
+						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile().data(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
+						if (ResultCode != S_OK || !GetCompileState(ErrorBlob).empty())
 						{
-							Core::String Message = GetCompileState(ErrorBlob);
-							D3D_RELEASE(ErrorBlob);
-							VI_RELEASE(Result);
-							return GetException(ResultCode, Message.c_str());
+							auto Message = GetCompileState(ErrorBlob);
+							Core::Memory::Release(ErrorBlob);
+							return GetException(ResultCode, Message);
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
@@ -2666,12 +2632,9 @@ namespace Vitex
 
 					VI_DEBUG("[d3d11] load %s pixel shader bytecode", Stage.c_str());
 					HRESULT ResultCode = Context->CreatePixelShader(Data, Size, nullptr, &Result->PixelShader);
-					D3D_RELEASE(ShaderBlob);
+					Core::Memory::Release(ShaderBlob);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "compile pixel shader");
-					}
 				}
 
 				Core::String GeometryEntry = GetShaderMain(ShaderType::Geometry);
@@ -2681,13 +2644,12 @@ namespace Vitex
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[d3d11] compile %s geometry shader source", Stage.c_str());
-						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-						if (ResultCode != S_OK || GetCompileState(ErrorBlob))
+						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile().data(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (ResultCode != S_OK || !GetCompileState(ErrorBlob).empty())
 						{
-							Core::String Message = GetCompileState(ErrorBlob);
-							D3D_RELEASE(ErrorBlob);
-							VI_RELEASE(Result);
-							return GetException(ResultCode, Message.c_str());
+							auto Message = GetCompileState(ErrorBlob);
+							Core::Memory::Release(ErrorBlob);
+							return GetException(ResultCode, Message);
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
@@ -2702,12 +2664,9 @@ namespace Vitex
 
 					VI_DEBUG("[d3d11] load %s geometry shader bytecode", Stage.c_str());
 					HRESULT ResultCode = Context->CreateGeometryShader(Data, Size, nullptr, &Result->GeometryShader);
-					D3D_RELEASE(ShaderBlob);
+					Core::Memory::Release(ShaderBlob);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "compile geometry shader");
-					}
 				}
 
 				Core::String ComputeEntry = GetShaderMain(ShaderType::Compute);
@@ -2717,13 +2676,12 @@ namespace Vitex
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[d3d11] compile %s compute shader source", Stage.c_str());
-						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-						if (ResultCode != S_OK || GetCompileState(ErrorBlob))
+						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile().data(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (ResultCode != S_OK || !GetCompileState(ErrorBlob).empty())
 						{
-							Core::String Message = GetCompileState(ErrorBlob);
-							D3D_RELEASE(ErrorBlob);
-							VI_RELEASE(Result);
-							return GetException(ResultCode, Message.c_str());
+							auto Message = GetCompileState(ErrorBlob);
+							Core::Memory::Release(ErrorBlob);
+							return GetException(ResultCode, Message);
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
@@ -2738,12 +2696,9 @@ namespace Vitex
 
 					VI_DEBUG("[d3d11] load %s compute shader bytecode", Stage.c_str());
 					HRESULT ResultCode = Context->CreateComputeShader(Data, Size, nullptr, &Result->ComputeShader);
-					D3D_RELEASE(ShaderBlob);
+					Core::Memory::Release(ShaderBlob);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "compile compute shader");
-					}
 				}
 
 				Core::String HullEntry = GetShaderMain(ShaderType::Hull);
@@ -2753,13 +2708,12 @@ namespace Vitex
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[d3d11] compile %s hull shader source", Stage.c_str());
-						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-						if (ResultCode != S_OK || GetCompileState(ErrorBlob))
+						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile().data(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (ResultCode != S_OK || !GetCompileState(ErrorBlob).empty())
 						{
-							Core::String Message = GetCompileState(ErrorBlob);
-							D3D_RELEASE(ErrorBlob);
-							VI_RELEASE(Result);
-							return GetException(ResultCode, Message.c_str());
+							auto Message = GetCompileState(ErrorBlob);
+							Core::Memory::Release(ErrorBlob);
+							return GetException(ResultCode, Message);
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
@@ -2774,12 +2728,9 @@ namespace Vitex
 
 					VI_DEBUG("[d3d11] load %s hull shader bytecode", Stage.c_str());
 					HRESULT ResultCode = Context->CreateHullShader(Data, Size, nullptr, &Result->HullShader);
-					D3D_RELEASE(ShaderBlob);
+					Core::Memory::Release(ShaderBlob);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "compile hull shader");
-					}
 				}
 
 				Core::String DomainEntry = GetShaderMain(ShaderType::Domain);
@@ -2789,13 +2740,12 @@ namespace Vitex
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
 						VI_DEBUG("[d3d11] compile %s domain shader source", Stage.c_str());
-						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-						if (ResultCode != S_OK || GetCompileState(ErrorBlob))
+						HRESULT ResultCode = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile().data(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (ResultCode != S_OK || !GetCompileState(ErrorBlob).empty())
 						{
-							Core::String Message = GetCompileState(ErrorBlob);
-							D3D_RELEASE(ErrorBlob);
-							VI_RELEASE(Result);
-							return GetException(ResultCode, Message.c_str());
+							auto Message = GetCompileState(ErrorBlob);
+							Core::Memory::Release(ErrorBlob);
+							return GetException(ResultCode, Message);
 						}
 
 						Data = (void*)ShaderBlob->GetBufferPointer();
@@ -2810,29 +2760,26 @@ namespace Vitex
 
 					VI_DEBUG("[d3d11] load %s domain shader bytecode", Stage.c_str());
 					HRESULT ResultCode = Context->CreateDomainShader(Data, Size, nullptr, &Result->DomainShader);
-					D3D_RELEASE(ShaderBlob);
+					Core::Memory::Release(ShaderBlob);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "compile domain shader");
-					}
 				}
 
 				Result->Compiled = true;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<ElementBuffer*> D3D11Device::CreateElementBuffer(const ElementBuffer::Desc& I)
 			{
 				D3D11_BUFFER_DESC BufferDesc;
 				ZeroMemory(&BufferDesc, sizeof(BufferDesc));
 				BufferDesc.Usage = (D3D11_USAGE)I.Usage;
-				BufferDesc.ByteWidth = (unsigned int)I.ElementCount * I.ElementWidth;
-				BufferDesc.BindFlags = (unsigned int)I.BindFlags;
-				BufferDesc.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				BufferDesc.MiscFlags = (unsigned int)I.MiscFlags;
+				BufferDesc.ByteWidth = (uint32_t)I.ElementCount * I.ElementWidth;
+				BufferDesc.BindFlags = (uint32_t)I.BindFlags;
+				BufferDesc.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				BufferDesc.MiscFlags = (uint32_t)I.MiscFlags;
 				BufferDesc.StructureByteStride = I.StructureByteStride;
 
-				D3D11ElementBuffer* Result = new D3D11ElementBuffer(I);
+				Core::UPtr<D3D11ElementBuffer> Result = new D3D11ElementBuffer(I);
 				HRESULT ResultCode;
 				if (I.Elements != nullptr)
 				{
@@ -2846,10 +2793,7 @@ namespace Vitex
 					ResultCode = Context->CreateBuffer(&BufferDesc, nullptr, &Result->Element);
 
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create element buffer");
-				}
 
 				if (I.Writable)
 				{
@@ -2863,14 +2807,11 @@ namespace Vitex
 
 					ResultCode = Context->CreateUnorderedAccessView(Result->Element, &AccessDesc, &Result->Access);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "create element buffer");
-					}
 				}
 
 				if (!((size_t)I.MiscFlags & (size_t)ResourceMisc::Buffer_Structured))
-					return Result;
+					return Result.Reset();
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
 				ZeroMemory(&SRV, sizeof(SRV));
@@ -2880,12 +2821,9 @@ namespace Vitex
 
 				ResultCode = Context->CreateShaderResourceView(Result->Element, &SRV, &Result->Resource);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create element buffer");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<MeshBuffer*> D3D11Device::CreateMeshBuffer(const MeshBuffer::Desc& I)
 			{
@@ -2893,7 +2831,7 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Vertex_Buffer;
-				F.ElementCount = (unsigned int)I.Elements.size();
+				F.ElementCount = (uint32_t)I.Elements.size();
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::Vertex);
 				
@@ -2905,14 +2843,14 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Index_Buffer;
-				F.ElementCount = (unsigned int)I.Indices.size();
+				F.ElementCount = (uint32_t)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
 
 				auto NewIndexBuffer = CreateElementBuffer(F);
 				if (!NewIndexBuffer)
 				{
-					VI_RELEASE(NewVertexBuffer);
+					Core::Memory::Release(*NewVertexBuffer);
 					return NewIndexBuffer.Error();
 				}
 
@@ -2936,7 +2874,7 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Vertex_Buffer;
-				F.ElementCount = (unsigned int)I.Elements.size();
+				F.ElementCount = (uint32_t)I.Elements.size();
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 
@@ -2948,14 +2886,14 @@ namespace Vitex
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind::Index_Buffer;
-				F.ElementCount = (unsigned int)I.Indices.size();
+				F.ElementCount = (uint32_t)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
 
 				auto NewIndexBuffer = CreateElementBuffer(F);
 				if (!NewIndexBuffer)
 				{
-					VI_RELEASE(NewVertexBuffer);
+					Core::Memory::Release(*NewVertexBuffer);
 					return NewIndexBuffer.Error();
 				}
 
@@ -2988,7 +2926,7 @@ namespace Vitex
 				if (!NewElements)
 					return NewElements.Error();
 
-				D3D11InstanceBuffer* Result = new D3D11InstanceBuffer(I);
+				Core::UPtr<D3D11InstanceBuffer> Result = new D3D11InstanceBuffer(I);
 				Result->Elements = *NewElements;
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
@@ -2999,12 +2937,9 @@ namespace Vitex
 
 				HRESULT ResultCode = Context->CreateShaderResourceView(((D3D11ElementBuffer*)Result->Elements)->Element, &SRV, &Result->Resource);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create instance buffer");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<Texture2D*> D3D11Device::CreateTexture2D()
 			{
@@ -3022,9 +2957,9 @@ namespace Vitex
 				Description.SampleDesc.Count = 1;
 				Description.SampleDesc.Quality = 0;
 				Description.Usage = (D3D11_USAGE)I.Usage;
-				Description.BindFlags = (unsigned int)I.BindFlags;
-				Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				Description.MiscFlags = (unsigned int)I.MiscFlags;
+				Description.BindFlags = (uint32_t)I.BindFlags;
+				Description.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				Description.MiscFlags = (uint32_t)I.MiscFlags;
 
 				if (I.Data != nullptr && I.MipLevels > 0)
 				{
@@ -3040,20 +2975,14 @@ namespace Vitex
 				Data.SysMemPitch = I.RowPitch;
 				Data.SysMemSlicePitch = I.DepthPitch;
 
-				D3D11Texture2D* Result = new D3D11Texture2D();
+				Core::UPtr<D3D11Texture2D> Result = new D3D11Texture2D();
 				HRESULT ResultCode = Context->CreateTexture2D(&Description, I.Data && I.MipLevels <= 0 ? &Data : nullptr, &Result->View);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture 2d");
-				}
 
-				auto GenerateStatus = GenerateTexture(Result);
+				auto GenerateStatus = GenerateTexture(*Result);
 				if (!GenerateStatus)
-				{
-					VI_RELEASE(Result);
 					return GenerateStatus.Error();
-				}
 
 				if (I.Data != nullptr && I.MipLevels > 0)
 				{
@@ -3062,7 +2991,7 @@ namespace Vitex
 				}
 
 				if (!I.Writable)
-					return Result;
+					return Result.Reset();
 
 				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
@@ -3072,12 +3001,9 @@ namespace Vitex
 
 				ResultCode = Context->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture 2d");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<Texture3D*> D3D11Device::CreateTexture3D()
 			{
@@ -3093,9 +3019,9 @@ namespace Vitex
 				Description.MipLevels = I.MipLevels;
 				Description.Format = (DXGI_FORMAT)I.FormatMode;
 				Description.Usage = (D3D11_USAGE)I.Usage;
-				Description.BindFlags = (unsigned int)I.BindFlags;
-				Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				Description.MiscFlags = (unsigned int)I.MiscFlags;
+				Description.BindFlags = (uint32_t)I.BindFlags;
+				Description.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				Description.MiscFlags = (uint32_t)I.MiscFlags;
 
 				if (I.MipLevels > 0)
 				{
@@ -3106,23 +3032,17 @@ namespace Vitex
 				if (I.Writable)
 					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
-				D3D11Texture3D* Result = new D3D11Texture3D();
+				Core::UPtr<D3D11Texture3D> Result = new D3D11Texture3D();
 				HRESULT ResultCode = Context->CreateTexture3D(&Description, nullptr, &Result->View);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture 3d");
-				}
 
-				auto GenerateStatus = GenerateTexture(Result);
+				auto GenerateStatus = GenerateTexture(*Result);
 				if (!GenerateStatus)
-				{
-					VI_RELEASE(Result);
 					return GenerateStatus.Error();
-				}
 
 				if (!I.Writable)
-					return Result;
+					return Result.Reset();
 
 				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
@@ -3134,12 +3054,9 @@ namespace Vitex
 
 				ResultCode = Context->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture 3d");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<TextureCube*> D3D11Device::CreateTextureCube()
 			{
@@ -3157,9 +3074,9 @@ namespace Vitex
 				Description.SampleDesc.Count = 1;
 				Description.SampleDesc.Quality = 0;
 				Description.Usage = (D3D11_USAGE)I.Usage;
-				Description.BindFlags = (unsigned int)I.BindFlags;
-				Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | (unsigned int)I.MiscFlags;
+				Description.BindFlags = (uint32_t)I.BindFlags;
+				Description.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | (uint32_t)I.MiscFlags;
 
 				if (I.MipLevels > 0)
 				{
@@ -3170,13 +3087,10 @@ namespace Vitex
 				if (I.Writable)
 					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
-				D3D11TextureCube* Result = new D3D11TextureCube();
+				Core::UPtr<D3D11TextureCube> Result = new D3D11TextureCube();
 				HRESULT ResultCode = Context->CreateTexture2D(&Description, 0, &Result->View);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture cube");
-				}
 
 				D3D11_BOX Region;
 				Region.left = 0;
@@ -3186,15 +3100,12 @@ namespace Vitex
 				Region.front = 0;
 				Region.back = 1;
 
-				auto GenerateStatus = GenerateTexture(Result);
+				auto GenerateStatus = GenerateTexture(*Result);
 				if (!GenerateStatus)
-				{
-					VI_RELEASE(Result);
 					return GenerateStatus.Error();
-				}
 
 				if (!I.Writable)
-					return Result;
+					return Result.Reset();
 
 				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
@@ -3206,18 +3117,15 @@ namespace Vitex
 
 				ResultCode = Context->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture cube");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<TextureCube*> D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource[6])
 			{
 				VI_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], "all 6 faces should be set");
 				void* Resources[6];
-				for (unsigned int i = 0; i < 6; i++)
+				for (uint32_t i = 0; i < 6; i++)
 					Resources[i] = (void*)((D3D11Texture2D*)Resource[i])->View;
 
 				return CreateTextureCubeInternal(Resources);
@@ -3236,10 +3144,10 @@ namespace Vitex
 				Description.CPUAccessFlags = 0;
 				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-				unsigned int Width = Description.Width;
+				uint32_t Width = Description.Width;
 				Description.Width = Description.Width / 4;
 
-				unsigned int Height = Description.Height;
+				uint32_t Height = Description.Height;
 				Description.Height = Description.Width;
 
 				D3D11_BOX Region;
@@ -3250,13 +3158,10 @@ namespace Vitex
 				if (Width % 4 != 0 || Height % 3 != 0)
 					return GraphicsException("create texture cube: width / height is invalid");
 
-				D3D11TextureCube* Result = new D3D11TextureCube();
+				Core::UPtr<D3D11TextureCube> Result = new D3D11TextureCube();
 				HRESULT ResultCode = Context->CreateTexture2D(&Description, 0, &Result->View);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture cube");
-				}
 
 				Region.left = Description.Width * 2 - 1;
 				Region.top = Description.Height - 1;
@@ -3291,17 +3196,14 @@ namespace Vitex
 				Region.bottom = Region.top + Description.Height;
 				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 5, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
-				auto GenerateStatus = GenerateTexture(Result);
+				auto GenerateStatus = GenerateTexture(*Result);
 				if (!GenerateStatus)
-				{
-					VI_RELEASE(Result);
 					return GenerateStatus.Error();
-				}
 
 				if (Description.MipLevels > 0)
 					ImmediateContext->GenerateMips(Result->Resource);
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<TextureCube*> D3D11Device::CreateTextureCubeInternal(void* Resource[6])
 			{
@@ -3316,13 +3218,10 @@ namespace Vitex
 				Description.CPUAccessFlags = 0;
 				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-				D3D11TextureCube* Result = new D3D11TextureCube();
+				Core::UPtr<D3D11TextureCube> Result = new D3D11TextureCube();
 				HRESULT ResultCode = Context->CreateTexture2D(&Description, 0, &Result->View);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create texture cube internal");
-				}
 
 				D3D11_BOX Region;
 				Region.left = 0;
@@ -3332,17 +3231,14 @@ namespace Vitex
 				Region.front = 0;
 				Region.back = 1;
 
-				for (unsigned int j = 0; j < 6; j++)
+				for (uint32_t j = 0; j < 6; j++)
 					ImmediateContext->CopySubresourceRegion(Result->View, j, 0, 0, 0, (ID3D11Texture2D*)Resource[j], 0, &Region);
 
-				auto GenerateStatus = GenerateTexture(Result);
+				auto GenerateStatus = GenerateTexture(*Result);
 				if (!GenerateStatus)
-				{
-					VI_RELEASE(Result);
 					return GenerateStatus.Error();
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<DepthTarget2D*> D3D11Device::CreateDepthTarget2D(const DepthTarget2D::Desc& I)
 			{
@@ -3357,11 +3253,11 @@ namespace Vitex
 				DepthBuffer.SampleDesc.Quality = 0;
 				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
 				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				DepthBuffer.CPUAccessFlags = (unsigned int)I.AccessFlags;
+				DepthBuffer.CPUAccessFlags = (uint32_t)I.AccessFlags;
 				DepthBuffer.MiscFlags = 0;
 				
-				ID3D11Texture2D* DepthTexture = nullptr;
-				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture);
+				ID3D11Texture2D* DepthTextureAddress = nullptr;
+				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTextureAddress);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create depth target 2d");
 
@@ -3371,32 +3267,22 @@ namespace Vitex
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 				DSV.Texture2D.MipSlice = 0;
 
-				D3D11DepthTarget2D* Result = new D3D11DepthTarget2D(I);
-				ResultCode = Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView);
+				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<D3D11DepthTarget2D> Result = new D3D11DepthTarget2D(I);
+				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create depth target 2d");
-				}
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return NewTexture.Error();
-				}
 
 				Result->Resource = *NewTexture;
-				((D3D11Texture2D*)Result->Resource)->View = DepthTexture;
+				((D3D11Texture2D*)Result->Resource)->View = DepthTexture.Reset();
 
 				auto NewResource = CreateTexture2D(Result->Resource, GetDepthFormat(I.FormatMode));
 				if (!NewResource)
-				{
-					VI_RELEASE(Result);
 					return NewResource.Error();
-				}
 
 				Result->Viewarea.Width = (FLOAT)I.Width;
 				Result->Viewarea.Height = (FLOAT)I.Height;
@@ -3404,7 +3290,7 @@ namespace Vitex
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
 				Result->Viewarea.TopLeftY = 0.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<DepthTargetCube*> D3D11Device::CreateDepthTargetCube(const DepthTargetCube::Desc& I)
 			{
@@ -3419,11 +3305,11 @@ namespace Vitex
 				DepthBuffer.SampleDesc.Quality = 0;
 				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
 				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				DepthBuffer.CPUAccessFlags = (unsigned int)I.AccessFlags;
+				DepthBuffer.CPUAccessFlags = (uint32_t)I.AccessFlags;
 				DepthBuffer.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-				ID3D11Texture2D* DepthTexture = nullptr;
-				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture);
+				ID3D11Texture2D* DepthTextureAddress = nullptr;
+				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTextureAddress);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create depth target 2d");
 
@@ -3435,32 +3321,22 @@ namespace Vitex
 				DSV.Texture2DArray.ArraySize = 6;
 				DSV.Texture2DArray.MipSlice = 0;
 
-				D3D11DepthTargetCube* Result = new D3D11DepthTargetCube(I);
-				ResultCode = Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView);
+				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<D3D11DepthTargetCube> Result = new D3D11DepthTargetCube(I);
+				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create depth target cube");
-				}
 
 				auto NewTexture = CreateTextureCube();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return NewTexture.Error();
-				}
 
 				Result->Resource = *NewTexture;
-				((D3D11TextureCube*)Result->Resource)->View = DepthTexture;
+				((D3D11TextureCube*)Result->Resource)->View = DepthTexture.Reset();
 
 				auto NewResource = CreateTextureCube(Result->Resource, GetDepthFormat(I.FormatMode));
 				if (!NewResource)
-				{
-					VI_RELEASE(Result);
 					return NewResource.Error();
-				}
 
 				Result->Viewarea.Width = (FLOAT)I.Size;
 				Result->Viewarea.Height = (FLOAT)I.Size;
@@ -3468,7 +3344,7 @@ namespace Vitex
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
 				Result->Viewarea.TopLeftY = 0.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<RenderTarget2D*> D3D11Device::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
 			{
@@ -3483,11 +3359,11 @@ namespace Vitex
 				DepthBuffer.SampleDesc.Quality = 0;
 				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
 				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				DepthBuffer.CPUAccessFlags = (unsigned int)I.AccessFlags;
+				DepthBuffer.CPUAccessFlags = (uint32_t)I.AccessFlags;
 				DepthBuffer.MiscFlags = 0;
 
-				ID3D11Texture2D* DepthTexture = nullptr;
-				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture);
+				ID3D11Texture2D* DepthTextureAddress = nullptr;
+				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTextureAddress);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create render target 2d");
 
@@ -3497,32 +3373,22 @@ namespace Vitex
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 				DSV.Texture2D.MipSlice = 0;
 
-				D3D11RenderTarget2D* Result = new D3D11RenderTarget2D(I);
-				ResultCode = Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView);
+				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<D3D11RenderTarget2D> Result = new D3D11RenderTarget2D(I);
+				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create render target 2d");
-				}
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return NewTexture.Error();
-				}
 
 				Result->DepthStencil = *NewTexture;
-				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture.Reset();
 
 				auto NewResource = CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 				if (!NewResource)
-				{
-					VI_RELEASE(Result);
 					return NewResource.Error();
-				}
 
 				if (I.RenderSurface == nullptr)
 				{
@@ -3536,23 +3402,17 @@ namespace Vitex
 					Description.SampleDesc.Count = 1;
 					Description.SampleDesc.Quality = 0;
 					Description.Usage = (D3D11_USAGE)I.Usage;
-					Description.BindFlags = (unsigned int)I.BindFlags;
-					Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
-					Description.MiscFlags = (unsigned int)I.MiscFlags;
+					Description.BindFlags = (uint32_t)I.BindFlags;
+					Description.CPUAccessFlags = (uint32_t)I.AccessFlags;
+					Description.MiscFlags = (uint32_t)I.MiscFlags;
 
 					ResultCode = Context->CreateTexture2D(&Description, nullptr, &Result->Texture);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "create render target 2d");
-					}
 
 					auto NewSubtexture = CreateTexture2D();
 					if (!NewSubtexture)
-					{
-						VI_RELEASE(Result);
 						return NewSubtexture.Error();
-					}
 
 					Result->Resource = *NewSubtexture;
 					((D3D11Texture2D*)Result->Resource)->View = Result->Texture;
@@ -3560,10 +3420,7 @@ namespace Vitex
 
 					auto GenerateStatus = GenerateTexture(Result->Resource);
 					if (!GenerateStatus)
-					{
-						VI_RELEASE(Result);
 						return GenerateStatus.Error();
-					}
 				}
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
@@ -3574,10 +3431,7 @@ namespace Vitex
 
 				ResultCode = Context->CreateRenderTargetView(I.RenderSurface ? (ID3D11Texture2D*)I.RenderSurface : Result->Texture, &RTV, &Result->RenderTargetView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create render target 2d");
-				}
 
 				Result->Viewarea.Width = (float)I.Width;
 				Result->Viewarea.Height = (float)I.Height;
@@ -3587,21 +3441,15 @@ namespace Vitex
 				Result->Viewarea.TopLeftY = 0.0f;
 
 				if (!I.RenderSurface)
-					return Result;
+					return Result.Reset();
 
 				ResultCode = SwapChain->GetBuffer(0, __uuidof(Result->Texture), reinterpret_cast<void**>(&Result->Texture));
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create render target 2d");
-				}
 
 				auto NewTarget = CreateTexture2D();
 				if (!NewTarget)
-				{
-					VI_RELEASE(Result);
 					return NewTarget.Error();
-				}
 
 				D3D11Texture2D* Target = (D3D11Texture2D*)*NewTarget;
 				Target->View = Result->Texture;
@@ -3617,7 +3465,7 @@ namespace Vitex
 				Target->MipLevels = Description.MipLevels;
 				Target->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
 				Target->Binding = (ResourceBind)Description.BindFlags;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<MultiRenderTarget2D*> D3D11Device::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
 			{
@@ -3632,11 +3480,11 @@ namespace Vitex
 				DepthBuffer.SampleDesc.Quality = 0;
 				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
 				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				DepthBuffer.CPUAccessFlags = (unsigned int)I.AccessFlags;
+				DepthBuffer.CPUAccessFlags = (uint32_t)I.AccessFlags;
 				DepthBuffer.MiscFlags = 0;
 
-				ID3D11Texture2D* DepthTexture = nullptr;
-				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture);
+				ID3D11Texture2D* DepthTextureAddress = nullptr;
+				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTextureAddress);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create multi render target 2d");
 
@@ -3646,34 +3494,24 @@ namespace Vitex
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 				DSV.Texture2D.MipSlice = 0;
 
-				D3D11MultiRenderTarget2D* Result = new D3D11MultiRenderTarget2D(I);
-				ResultCode = Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView);
+				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<D3D11MultiRenderTarget2D> Result = new D3D11MultiRenderTarget2D(I);
+				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create multi render target 2d");
-				}
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create multi render target 2d");
-				}
 
 				Result->DepthStencil = *NewTexture;
-				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture.Reset();
 
 				auto NewResource = CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 				if (!NewResource)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create multi render target 2d");
-				}
 
-				unsigned int MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
+				uint32_t MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
 				ZeroMemory(&Result->Information, sizeof(Result->Information));
 				Result->Information.Width = I.Width;
 				Result->Information.Height = I.Height;
@@ -3682,40 +3520,31 @@ namespace Vitex
 				Result->Information.SampleDesc.Count = 1;
 				Result->Information.SampleDesc.Quality = 0;
 				Result->Information.Usage = (D3D11_USAGE)I.Usage;
-				Result->Information.BindFlags = (unsigned int)I.BindFlags;
-				Result->Information.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				Result->Information.MiscFlags = (unsigned int)I.MiscFlags;
+				Result->Information.BindFlags = (uint32_t)I.BindFlags;
+				Result->Information.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				Result->Information.MiscFlags = (uint32_t)I.MiscFlags;
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
 				RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 				RTV.Texture2DArray.MipSlice = 0;
 				RTV.Texture2DArray.ArraySize = 1;
 
-				for (unsigned int i = 0; i < (unsigned int)Result->Target; i++)
+				for (uint32_t i = 0; i < (uint32_t)Result->Target; i++)
 				{
 					DXGI_FORMAT Format = GetNonDepthFormat(I.FormatMode[i]);
 					Result->Information.Format = Format;
 					ResultCode = Context->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "create multi render target 2d surface");
-					}
 
 					RTV.Format = Format;
 					ResultCode = Context->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "create multi render target 2d surface");
-					}
 
 					auto NewSubtexture = CreateTexture2D();
 					if (!NewSubtexture)
-					{
-						VI_RELEASE(Result);
 						return NewSubtexture.Error();
-					}
 
 					Result->Resource[i] = *NewSubtexture;
 					((D3D11Texture2D*)Result->Resource[i])->View = Result->Texture[i];
@@ -3723,10 +3552,7 @@ namespace Vitex
 
 					auto GenerateStatus = GenerateTexture(Result->Resource[i]);
 					if (!GenerateStatus)
-					{
-						VI_RELEASE(Result);
 						return GenerateStatus.Error();
-					}
 				}
 
 				Result->Viewarea.Width = (float)I.Width;
@@ -3735,7 +3561,7 @@ namespace Vitex
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
 				Result->Viewarea.TopLeftY = 0.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<RenderTargetCube*> D3D11Device::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
 			{
@@ -3750,11 +3576,11 @@ namespace Vitex
 				DepthBuffer.SampleDesc.Quality = 0;
 				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
 				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				DepthBuffer.CPUAccessFlags = (unsigned int)I.AccessFlags;
+				DepthBuffer.CPUAccessFlags = (uint32_t)I.AccessFlags;
 				DepthBuffer.MiscFlags = 0;
 
-				ID3D11Texture2D* DepthTexture = nullptr;
-				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture);
+				ID3D11Texture2D* DepthTextureAddress = nullptr;
+				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTextureAddress);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create render target cube");
 
@@ -3766,34 +3592,24 @@ namespace Vitex
 				DSV.Texture2DArray.ArraySize = 6;
 				DSV.Texture2DArray.MipSlice = 0;
 
-				D3D11RenderTargetCube* Result = new D3D11RenderTargetCube(I);
-				ResultCode = Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView);
+				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<D3D11RenderTargetCube> Result = new D3D11RenderTargetCube(I);
+				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create render target cube");
-				}
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return NewTexture.Error();
-				}
 
 				Result->DepthStencil = *NewTexture;
-				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture.Reset();
 
 				auto NewResource = CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 				if (!NewResource)
-				{
-					VI_RELEASE(Result);
 					return NewResource.Error();
-				}
 
-				unsigned int MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
+				uint32_t MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
 				D3D11_TEXTURE2D_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));
 				Description.Width = I.Size;
@@ -3804,16 +3620,13 @@ namespace Vitex
 				Description.SampleDesc.Quality = 0;
 				Description.Format = GetNonDepthFormat(I.FormatMode);
 				Description.Usage = (D3D11_USAGE)I.Usage;
-				Description.BindFlags = (unsigned int)I.BindFlags;
-				Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				Description.MiscFlags = (unsigned int)I.MiscFlags;
+				Description.BindFlags = (uint32_t)I.BindFlags;
+				Description.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				Description.MiscFlags = (uint32_t)I.MiscFlags;
 
 				ResultCode = Context->CreateTexture2D(&Description, nullptr, &Result->Texture);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create render target cube");
-				}
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
 				ZeroMemory(&RTV, sizeof(RTV));
@@ -3825,17 +3638,11 @@ namespace Vitex
 
 				ResultCode = Context->CreateRenderTargetView(Result->Texture, &RTV, &Result->RenderTargetView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create render target cube");
-				}
 
 				auto NewSubtexture = CreateTextureCube();
 				if (!NewSubtexture)
-				{
-					VI_RELEASE(Result);
 					return NewSubtexture.Error();
-				}
 
 				Result->Resource = *NewSubtexture;
 				((D3D11TextureCube*)Result->Resource)->View = Result->Texture;
@@ -3843,10 +3650,7 @@ namespace Vitex
 
 				auto GenerateStatus = GenerateTexture(Result->Resource);
 				if (!GenerateStatus)
-				{
-					VI_RELEASE(Result);
 					return GenerateStatus.Error();
-				}
 
 				Result->Viewarea.Width = (float)I.Size;
 				Result->Viewarea.Height = (float)I.Size;
@@ -3854,7 +3658,7 @@ namespace Vitex
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
 				Result->Viewarea.TopLeftY = 0.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<MultiRenderTargetCube*> D3D11Device::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
 			{
@@ -3869,11 +3673,11 @@ namespace Vitex
 				DepthBuffer.SampleDesc.Quality = 0;
 				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
 				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				DepthBuffer.CPUAccessFlags = (unsigned int)I.AccessFlags;
+				DepthBuffer.CPUAccessFlags = (uint32_t)I.AccessFlags;
 				DepthBuffer.MiscFlags = 0;
 
-				ID3D11Texture2D* DepthTexture = nullptr;
-				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture);
+				ID3D11Texture2D* DepthTextureAddress = nullptr;
+				HRESULT ResultCode = Context->CreateTexture2D(&DepthBuffer, nullptr, &DepthTextureAddress);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create multi render target cube");
 
@@ -3885,34 +3689,24 @@ namespace Vitex
 				DSV.Texture2DArray.ArraySize = 6;
 				DSV.Texture2DArray.MipSlice = 0;
 
-				D3D11MultiRenderTargetCube* Result = new D3D11MultiRenderTargetCube(I);
-				ResultCode = Context->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView);
+				Core::UPtr<ID3D11Texture2D> DepthTexture = DepthTextureAddress;
+				Core::UPtr<D3D11MultiRenderTargetCube> Result = new D3D11MultiRenderTargetCube(I);
+				ResultCode = Context->CreateDepthStencilView(*DepthTexture, &DSV, &Result->DepthStencilView);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return GetException(ResultCode, "create multi render target cube");
-				}
 
 				auto NewTexture = CreateTexture2D();
 				if (!NewTexture)
-				{
-					VI_RELEASE(Result);
-					D3D_RELEASE(DepthTexture);
 					return NewTexture.Error();
-				}
 
 				Result->DepthStencil = *NewTexture;
-				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture.Reset();
 
 				auto NewResource = CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 				if (!NewResource)
-				{
-					VI_RELEASE(Result);
 					return NewResource.Error();
-				}
 
-				unsigned int MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
+				uint32_t MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
 				D3D11_TEXTURE2D_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));
 				Description.Width = I.Size;
@@ -3921,9 +3715,9 @@ namespace Vitex
 				Description.SampleDesc.Count = 1;
 				Description.SampleDesc.Quality = 0;
 				Description.Usage = (D3D11_USAGE)I.Usage;
-				Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
-				Description.MiscFlags = (unsigned int)I.MiscFlags;
-				Description.BindFlags = (unsigned int)I.BindFlags;
+				Description.CPUAccessFlags = (uint32_t)I.AccessFlags;
+				Description.MiscFlags = (uint32_t)I.MiscFlags;
+				Description.BindFlags = (uint32_t)I.BindFlags;
 				Description.MipLevels = MipLevels;
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
@@ -3933,31 +3727,22 @@ namespace Vitex
 				RTV.Texture2DArray.ArraySize = 6;
 				RTV.Texture2DArray.MipSlice = 0;
 
-				for (unsigned int i = 0; i < (unsigned int)Result->Target; i++)
+				for (uint32_t i = 0; i < (uint32_t)Result->Target; i++)
 				{
 					DXGI_FORMAT Format = GetNonDepthFormat(I.FormatMode[i]);
 					Description.Format = Format;
 					ResultCode = Context->CreateTexture2D(&Description, nullptr, &Result->Texture[i]);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "create multi render target cube surface");
-					}
 
 					RTV.Format = Format;
 					ResultCode = Context->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]);
 					if (ResultCode != S_OK)
-					{
-						VI_RELEASE(Result);
 						return GetException(ResultCode, "create multi render target cube surface");
-					}
 
 					auto NewSubtexture = CreateTextureCube();
 					if (!NewSubtexture)
-					{
-						VI_RELEASE(Result);
 						return NewSubtexture.Error();
-					}
 
 					Result->Resource[i] = *NewSubtexture;
 					((D3D11TextureCube*)Result->Resource[i])->View = Result->Texture[i];
@@ -3965,10 +3750,7 @@ namespace Vitex
 
 					auto GenerateStatus = GenerateTexture(Result->Resource[i]);
 					if (!GenerateStatus)
-					{
-						VI_RELEASE(Result);
 						return GenerateStatus.Error();
-					}
 				}
 
 				Result->Viewarea.Width = (float)I.Size;
@@ -3977,11 +3759,11 @@ namespace Vitex
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
 				Result->Viewarea.TopLeftY = 0.0f;
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<Cubemap*> D3D11Device::CreateCubemap(const Cubemap::Desc& I)
 			{
-				D3D11Cubemap* Result = new D3D11Cubemap(I);
+				Core::UPtr<D3D11Cubemap> Result = new D3D11Cubemap(I);
 				D3D11_TEXTURE2D_DESC Texture;
 				Result->Source->GetDesc(&Texture);
 				Texture.ArraySize = 1;
@@ -3991,12 +3773,9 @@ namespace Vitex
 
 				HRESULT ResultCode = Context->CreateTexture2D(&Texture, nullptr, &Result->Merger);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create cubemap");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			ExpectsGraphics<Query*> D3D11Device::CreateQuery(const Query::Desc& I)
 			{
@@ -4004,15 +3783,12 @@ namespace Vitex
 				Desc.Query = (I.Predicate ? D3D11_QUERY_OCCLUSION_PREDICATE : D3D11_QUERY_OCCLUSION);
 				Desc.MiscFlags = (I.AutoPass ? D3D11_QUERY_MISC_PREDICATEHINT : 0);
 
-				D3D11Query* Result = new D3D11Query();
+				Core::UPtr<D3D11Query> Result = new D3D11Query();
 				HRESULT ResultCode = Context->CreateQuery(&Desc, &Result->Async);
 				if (ResultCode != S_OK)
-				{
-					VI_RELEASE(Result);
 					return GetException(ResultCode, "create query");
-				}
 
-				return Result;
+				return Result.Reset();
 			}
 			PrimitiveTopology D3D11Device::GetPrimitiveTopology() const
 			{
@@ -4057,12 +3833,12 @@ namespace Vitex
 			ExpectsGraphics<void> D3D11Device::CreateDirectBuffer(size_t Size)
 			{
 				MaxElements = Size + 1;
-				D3D_RELEASE(Immediate.VertexBuffer);
+				Core::Memory::Release(Immediate.VertexBuffer);
 
 				D3D11_BUFFER_DESC BufferDesc;
 				ZeroMemory(&BufferDesc, sizeof(BufferDesc));
 				BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-				BufferDesc.ByteWidth = (unsigned int)MaxElements * sizeof(Vertex);
+				BufferDesc.ByteWidth = (uint32_t)MaxElements * sizeof(Vertex);
 				BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 				BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 				
@@ -4111,18 +3887,18 @@ namespace Vitex
 						};);
 
 					ID3DBlob* Blob = nullptr, *Error = nullptr;
-					ResultCode = D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "vs_main", GetVSProfile(), 0, 0, &Blob, &Error);
-					if (ResultCode != S_OK || GetCompileState(Error))
+					ResultCode = D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "vs_main", GetVSProfile().data(), 0, 0, &Blob, &Error);
+					if (ResultCode != S_OK || !GetCompileState(Error).empty())
 					{
-						Core::String Message = GetCompileState(Error);
-						D3D_RELEASE(Error);
-						return GetException(ResultCode, Message.c_str());
+						auto Message = GetCompileState(Error);
+						Core::Memory::Release(Error);
+						return GetException(ResultCode, Message);
 					}
 
 					ResultCode = Context->CreateVertexShader((DWORD*)Blob->GetBufferPointer(), Blob->GetBufferSize(), nullptr, &Immediate.VertexShader);
 					if (ResultCode != S_OK)
 					{
-						D3D_RELEASE(Blob);
+						Core::Memory::Release(Blob);
 						return GetException(ResultCode, "compile direct vertex shader");
 					}
 
@@ -4133,7 +3909,7 @@ namespace Vitex
 						{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }
 					};
 					ResultCode = Context->CreateInputLayout(LayoutDesc, 3, Blob->GetBufferPointer(), Blob->GetBufferSize(), &Immediate.VertexLayout);
-					D3D_RELEASE(Blob);
+					Core::Memory::Release(Blob);
 					if (ResultCode != S_OK)
 						return GetException(ResultCode, "create direct input layout");
 				}
@@ -4166,16 +3942,16 @@ namespace Vitex
 						};);
 
 					ID3DBlob* Blob = nullptr, * Error = nullptr;
-					ResultCode = D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "ps_main", GetPSProfile(), 0, 0, &Blob, &Error);
-					if (ResultCode != S_OK || GetCompileState(Error))
+					ResultCode = D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "ps_main", GetPSProfile().data(), 0, 0, &Blob, &Error);
+					if (ResultCode != S_OK || !GetCompileState(Error).empty())
 					{
-						Core::String Message = GetCompileState(Error);
-						D3D_RELEASE(Error);
-						return GetException(ResultCode, Message.c_str());
+						auto Message = GetCompileState(Error);
+						Core::Memory::Release(Error);
+						return GetException(ResultCode, Message);
 					}
 
 					ResultCode = Context->CreatePixelShader((DWORD*)Blob->GetBufferPointer(), Blob->GetBufferSize(), nullptr, &Immediate.PixelShader);
-					D3D_RELEASE(Blob);
+					Core::Memory::Release(Blob);
 					if (ResultCode != S_OK)
 						return GetException(ResultCode, "compile direct pixel shader");
 				}
@@ -4248,7 +4024,7 @@ namespace Vitex
 				else
 					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
 
-				D3D_RELEASE(IResource->Resource);
+				Core::Memory::Release(IResource->Resource);
 				HRESULT ResultCode = Context->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create texture 2d internal");
@@ -4314,7 +4090,7 @@ namespace Vitex
 				else
 					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
 
-				D3D_RELEASE(IResource->Resource);
+				Core::Memory::Release(IResource->Resource);
 				HRESULT ResultCode = Context->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "create texture 2d internal");
@@ -4425,7 +4201,7 @@ namespace Vitex
 					Result.push_back(std::move(At));
 				}
 
-				HRESULT ResultCode = Context->CreateInputLayout(Result.data(), (unsigned int)Result.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout);
+				HRESULT ResultCode = Context->CreateInputLayout(Result.data(), (uint32_t)Result.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout);
 				if (ResultCode != S_OK)
 					return GetException(ResultCode, "generate input layout");
 
@@ -4438,42 +4214,43 @@ namespace Vitex
 				D3D11_BUFFER_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));
 				Description.Usage = D3D11_USAGE_DEFAULT;
-				Description.ByteWidth = (unsigned int)Size;
+				Description.ByteWidth = (uint32_t)Size;
 				Description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 				Description.CPUAccessFlags = 0;
 
 				return Context->CreateBuffer(&Description, nullptr, IBuffer);
 			}
-			char* D3D11Device::GetCompileState(ID3DBlob* Error)
+			std::string_view D3D11Device::GetCompileState(ID3DBlob* Error)
 			{
 				if (!Error)
-					return nullptr;
+					return "";
 
-				return (char*)Error->GetBufferPointer();
+				char* Ptr = (char*)Error->GetBufferPointer();
+				return Ptr ? Ptr : "";
 			}
-			char* D3D11Device::GetVSProfile()
+			const std::string_view& D3D11Device::GetVSProfile()
 			{
-				return (char*)Models.Vertex;
+				return Models.Vertex;
 			}
-			char* D3D11Device::GetPSProfile()
+			const std::string_view& D3D11Device::GetPSProfile()
 			{
-				return (char*)Models.Pixel;
+				return Models.Pixel;
 			}
-			char* D3D11Device::GetGSProfile()
+			const std::string_view& D3D11Device::GetGSProfile()
 			{
-				return (char*)Models.Geometry;
+				return Models.Geometry;
 			}
-			char* D3D11Device::GetHSProfile()
+			const std::string_view& D3D11Device::GetHSProfile()
 			{
-				return (char*)Models.Hull;
+				return Models.Hull;
 			}
-			char* D3D11Device::GetCSProfile()
+			const std::string_view& D3D11Device::GetCSProfile()
 			{
-				return (char*)Models.Compute;
+				return Models.Compute;
 			}
-			char* D3D11Device::GetDSProfile()
+			const std::string_view& D3D11Device::GetDSProfile()
 			{
-				return (char*)Models.Domain;
+				return Models.Domain;
 			}
 		}
 	}

@@ -10,7 +10,7 @@ file(GLOB_RECURSE SOURCE
     ${PROJECT_SOURCE_DIR}/src/vitex/*.cxx)
 
 # Append shaders into the sources list
-set(VI_SHADERS true CACHE BOOL "Enable built-in shaders")
+set(VI_SHADERS ON CACHE BOOL "Enable built-in shaders")
 set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/vitex/graphics/shaders/bundle")
 if (VI_SHADERS)
 	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/vitex/graphics/shaders")
@@ -44,18 +44,18 @@ else()
 endif()
 
 # Append source files of dependencies
-set(VI_BULLET3 ON CACHE BOOL "Enable Bullet3 built-in library")
-set(VI_RMLUI ON CACHE BOOL "Enable RmlUi built-in library")
-set(VI_SIMD OFF CACHE BOOL "Enable SIMD instructions (release mode perf. gain)")
+set(VI_ANGELSCRIPT ON CACHE BOOL "Enable AngelScript built-in library")
 set(VI_BACKTRACE ON CACHE BOOL "Enable backward-cpp built-in library (requires execinfo lib)")
-set(VI_JIT OFF CACHE BOOL "Enable JIT compiler for AngelScript")
+set(VI_RMLUI ON CACHE BOOL "Enable RmlUi built-in library")
+set(VI_FREETYPE ON CACHE BOOL "Enable FreeType library")
+set(VI_BULLET3 ON CACHE BOOL "Enable Bullet3 built-in library")
 set(VI_TINYFILEDIALOGS ON CACHE BOOL "Enable tinyfiledialogs built-in library")
+set(VI_WEPOLL ON CACHE BOOL "Enable efficient epoll implementation for Windows")
 set(VI_STB ON CACHE BOOL "Enable stb built-in library")
 set(VI_PUGIXML ON CACHE BOOL "Enable pugixml built-in library")
 set(VI_RAPIDJSON ON CACHE BOOL "Enable rapidjson built-in library")
-set(VI_ANGELSCRIPT ON CACHE BOOL "Enable AngelScript built-in library")
-set(VI_WEPOLL ON CACHE BOOL "Enable efficient epoll implementation for Windows")
-set(VI_FREETYPE ON CACHE BOOL "Enable FreeType library")
+set(VI_SIMD OFF CACHE BOOL "Enable SIMD instructions (release mode perf. gain)")
+set(VI_JIT OFF CACHE BOOL "Enable JIT compiler for AngelScript")
 if (VI_BULLET3)
 	file(GLOB_RECURSE SOURCE_BULLET3
         ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletCollision/*.h*

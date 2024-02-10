@@ -36,13 +36,13 @@ namespace Vitex
 			{
 				if (!IExpandInstancer)
 				{
-					IExpandInstancer = VI_NEW(Rml::ElementInstancerGeneric<ExpandElement>);
+					IExpandInstancer = Core::Memory::New<Rml::ElementInstancerGeneric<ExpandElement>>();
 					Rml::Factory::RegisterElementInstancer("expand", IExpandInstancer);
 				}
 			}
 			void Subsystem::ReleaseElements() noexcept
 			{
-				VI_DELETE(ElementInstancerGeneric, IExpandInstancer);
+				Core::Memory::Delete(IExpandInstancer);
 				IExpandInstancer = nullptr;
 			}
 		}

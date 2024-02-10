@@ -1,6 +1,6 @@
 #include "audio.h"
-#include "../audio/effects.h"
-#include "../audio/filters.h"
+#include "audio/effects.h"
+#include "audio/filters.h"
 #ifdef VI_OPENAL
 #ifdef VI_AL_AT_OPENAL
 #include <OpenAL/al.h>
@@ -66,7 +66,7 @@ namespace Vitex
 			if (AlErrorCode != AL_NO_ERROR)
 			{
 				auto* Text = alGetString(AlErrorCode);
-				Message += "AL:" + Core::ToString(AlErrorCode) + "driver";
+				Message += "AL:" + Core::ToString(AlErrorCode);
 				if (Text != nullptr)
 				{
 					Message += " on ";
@@ -153,7 +153,7 @@ namespace Vitex
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GenerateBuffers(int Count, unsigned int* Buffers)
+		ExpectsAudio<void> AudioContext::GenerateBuffers(int Count, uint32_t* Buffers)
 		{
 			VI_TRACE("[audio] generate %i buffers", Count);
 #ifdef VI_OPENAL
@@ -161,126 +161,126 @@ namespace Vitex
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetFilter1I(unsigned int Filter, FilterEx Value, int F1)
+		ExpectsAudio<void> AudioContext::SetFilter1I(uint32_t Filter, FilterEx Value, int F1)
 		{
 #if defined(VI_OPENAL) && defined(HAS_EFX)
 			alFilteri(Filter, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetFilter1F(unsigned int Filter, FilterEx Value, float F1)
+		ExpectsAudio<void> AudioContext::SetFilter1F(uint32_t Filter, FilterEx Value, float F1)
 		{
 #if defined(VI_OPENAL) && defined(HAS_EFX)
 			alFilterf(Filter, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetEffect1I(unsigned int Filter, EffectEx Value, int F1)
+		ExpectsAudio<void> AudioContext::SetEffect1I(uint32_t Filter, EffectEx Value, int F1)
 		{
 #if defined(VI_OPENAL) && defined(HAS_EFX)
 			alEffecti(Filter, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetEffect1F(unsigned int Filter, EffectEx Value, float F1)
+		ExpectsAudio<void> AudioContext::SetEffect1F(uint32_t Filter, EffectEx Value, float F1)
 		{
 #if defined(VI_OPENAL) && defined(HAS_EFX)
 			alEffectf(Filter, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetEffectVF(unsigned int Filter, EffectEx Value, float* FS)
+		ExpectsAudio<void> AudioContext::SetEffectVF(uint32_t Filter, EffectEx Value, float* FS)
 		{
 #if defined(VI_OPENAL) && defined(HAS_EFX)
 			alEffectfv(Filter, (uint32_t)Value, FS);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency)
+		ExpectsAudio<void> AudioContext::SetBufferData(uint32_t Buffer, int Format, const void* Data, int Size, int Frequency)
 		{
 #ifdef VI_OPENAL
 			alBufferData(Buffer, Format, Data, Size, Frequency);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3)
+		ExpectsAudio<void> AudioContext::SetSourceData3F(uint32_t Source, SoundEx Value, float F1, float F2, float F3)
 		{
 #ifdef VI_OPENAL
 			alSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3)
+		ExpectsAudio<void> AudioContext::GetSourceData3F(uint32_t Source, SoundEx Value, float* F1, float* F2, float* F3)
 		{
 #ifdef VI_OPENAL
 			alGetSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
+		ExpectsAudio<void> AudioContext::SetSourceDataVF(uint32_t Source, SoundEx Value, float* FS)
 		{
 #ifdef VI_OPENAL
 			alSourcefv(Source, (uint32_t)Value, FS);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
+		ExpectsAudio<void> AudioContext::GetSourceDataVF(uint32_t Source, SoundEx Value, float* FS)
 		{
 #ifdef VI_OPENAL
 			alGetSourcefv(Source, (uint32_t)Value, FS);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetSourceData1F(unsigned int Source, SoundEx Value, float F1)
+		ExpectsAudio<void> AudioContext::SetSourceData1F(uint32_t Source, SoundEx Value, float F1)
 		{
 #ifdef VI_OPENAL
 			alSourcef(Source, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GetSourceData1F(unsigned int Source, SoundEx Value, float* F1)
+		ExpectsAudio<void> AudioContext::GetSourceData1F(uint32_t Source, SoundEx Value, float* F1)
 		{
 #ifdef VI_OPENAL
 			alGetSourcef(Source, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3)
+		ExpectsAudio<void> AudioContext::SetSourceData3I(uint32_t Source, SoundEx Value, int F1, int F2, int F3)
 		{
 #ifdef VI_OPENAL
 			alSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3)
+		ExpectsAudio<void> AudioContext::GetSourceData3I(uint32_t Source, SoundEx Value, int* F1, int* F2, int* F3)
 		{
 #ifdef VI_OPENAL
 			alGetSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
+		ExpectsAudio<void> AudioContext::SetSourceDataVI(uint32_t Source, SoundEx Value, int* FS)
 		{
 #ifdef VI_OPENAL
 			alSourceiv(Source, (uint32_t)Value, FS);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
+		ExpectsAudio<void> AudioContext::GetSourceDataVI(uint32_t Source, SoundEx Value, int* FS)
 		{
 #ifdef VI_OPENAL
 			alGetSourceiv(Source, (uint32_t)Value, FS);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::SetSourceData1I(unsigned int Source, SoundEx Value, int F1)
+		ExpectsAudio<void> AudioContext::SetSourceData1I(uint32_t Source, SoundEx Value, int F1)
 		{
 #ifdef VI_OPENAL
 			alSourcei(Source, (uint32_t)Value, F1);
 #endif
 			ReturnErrorIf;
 		}
-		ExpectsAudio<void> AudioContext::GetSourceData1I(unsigned int Source, SoundEx Value, int* F1)
+		ExpectsAudio<void> AudioContext::GetSourceData1I(uint32_t Source, SoundEx Value, int* F1)
 		{
 #ifdef VI_OPENAL
 			alGetSourcei(Source, (uint32_t)Value, F1);
@@ -433,7 +433,7 @@ namespace Vitex
 			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
 #endif
-			VI_RELEASE(Filter);
+			Core::Memory::Release(Filter);
 		}
 		ExpectsAudio<void> AudioEffect::Initialize(const std::function<bool()>& Callback)
 		{
@@ -461,7 +461,7 @@ namespace Vitex
 		}
 		ExpectsAudio<void> AudioEffect::SetFilter(AudioFilter** NewFilter)
 		{
-			VI_CLEAR(Filter);
+			Core::Memory::Release(Filter);
 			if (!NewFilter || !*NewFilter)
 				return Core::Expectation::Met;
 
@@ -534,7 +534,7 @@ namespace Vitex
 #endif
 			return false;
 		}
-		unsigned int AudioClip::GetBuffer() const
+		uint32_t AudioClip::GetBuffer() const
 		{
 			return Buffer;
 		}
@@ -572,7 +572,7 @@ namespace Vitex
 		AudioSource::~AudioSource() noexcept
 		{
 			RemoveEffects();
-			VI_RELEASE(Clip);
+			Core::Memory::Release(Clip);
 #ifdef VI_OPENAL
 			VI_TRACE("[audio] delete %i source", (int)Instance);
 			alSourceStop(Instance);
@@ -591,7 +591,7 @@ namespace Vitex
 		{
 			VI_ASSERT(EffectId < Effects.size(), "index outside of range");
 			auto It = Effects.begin() + EffectId;
-			VI_RELEASE(*It);
+			Core::Memory::Release(*It);
 			Effects.erase(It);
 
 			for (size_t i = EffectId; i < Effects.size(); i++)
@@ -616,7 +616,7 @@ namespace Vitex
 		ExpectsAudio<void> AudioSource::RemoveEffects()
 		{
 			for (auto* Effect : Effects)
-				VI_RELEASE(Effect);
+				Core::Memory::Release(Effect);
 
 			Effects.clear();
 			ReturnErrorIf;
@@ -627,7 +627,7 @@ namespace Vitex
 			VI_TRACE("[audio] apply clip %i on %i source", NewClip ? (int)NewClip->GetBuffer() : 0, (int)Instance);
 			alSourceStop(Instance);
 
-			VI_RELEASE(Clip);
+			Core::Memory::Release(Clip);
 			Clip = NewClip;
 			if (Clip != nullptr)
 			{
@@ -752,7 +752,7 @@ namespace Vitex
 
 			return nullptr;
 		}
-		unsigned int AudioSource::GetInstance() const
+		uint32_t AudioSource::GetInstance() const
 		{
 			return Instance;
 		}

@@ -94,10 +94,10 @@ typedef socklen_t socket_size_t;
 #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN || defined(VI_ENDIAN_LITTLE) || defined(__ARMEL__) || defined(__THUMBEL__) || defined(__AARCH64EL__) || defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) || defined(_WIN32) || defined(__i386__) || defined(__x86_64__) || defined(_X86_) || defined(_IA64_)
 #define VI_ENDIAN_LITTLE
 #endif
-#if VI_CXX >= 17
 #if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
 #define VI_CXX17 1
-#endif
+#else
+#error "C++14 or older is now not supported"
 #endif
 #if VI_CXX >= 20
 #if __cplusplus >= 202002L || _MSVC_LANG >= 202002L || defined(_HAS_CXX20)
@@ -109,21 +109,23 @@ typedef socklen_t socket_size_t;
 #define VI_CXX23 1
 #endif
 #endif
-#if defined(VI_CXX17) && defined(VI_MICROSOFT)
+#ifdef VI_MICROSOFT
 #include <execution>
 #define VI_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
 #else
 #define VI_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
 #endif
 #ifdef NDEBUG
+#ifdef VI_PESSIMISTIC
+#define VI_ASSERT(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Assert(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
+#else
 #define VI_ASSERT(Condition, Format, ...) ((void)0)
+#endif
 #define VI_MEASURE(Threshold) ((void)0)
 #define VI_MEASURE_LOOP() ((void)0)
 #define VI_WATCH(Ptr, Label) ((void)0)
 #define VI_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define VI_UNWATCH(Ptr) ((void)0)
-#define VI_MALLOC(Type, Size) (Type*)Vitex::Core::Memory::Malloc(Size)
-#define VI_NEW(Type, ...) new((void*)VI_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #ifndef VI_CXX20
 #define VI_AWAIT(Value) Vitex::Core::Coawait(Value)
 #endif
@@ -133,11 +135,9 @@ typedef socklen_t socket_size_t;
 #define VI_MEASURE_PREPARE(X) VI_MEASURE_START(X)
 #define VI_MEASURE(Threshold) auto VI_MEASURE_PREPARE(__LINE__) = Vitex::Core::ErrorHandling::Measure(__FILE__, __func__, __LINE__, (uint64_t)(Threshold))
 #define VI_MEASURE_LOOP() Vitex::Core::ErrorHandling::MeasureLoop()
-#define VI_WATCH(Ptr, Label) Vitex::Core::Memory::Watch(Ptr, Vitex::Core::MemoryContext(__FILE__, __func__, Label, __LINE__))
-#define VI_WATCH_AT(Ptr, Function, Label) Vitex::Core::Memory::Watch(Ptr, Vitex::Core::MemoryContext(__FILE__, Function, Label, __LINE__))
+#define VI_WATCH(Ptr, Label) Vitex::Core::Memory::Watch(Ptr, Vitex::Core::MemoryLocation(__FILE__, __func__, Label, __LINE__))
+#define VI_WATCH_AT(Ptr, Function, Label) Vitex::Core::Memory::Watch(Ptr, Vitex::Core::MemoryLocation(__FILE__, Function, Label, __LINE__))
 #define VI_UNWATCH(Ptr) Vitex::Core::Memory::Unwatch(Ptr)
-#define VI_MALLOC(Type, Size) (Type*)Vitex::Core::Memory::MallocContext(Size, Vitex::Core::MemoryContext(__FILE__, __func__, typeid(Type).name(), __LINE__))
-#define VI_NEW(Type, ...) new((void*)VI_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #ifndef VI_CXX20
 #define VI_AWAIT(Value) Vitex::Core::Coawait(Value, __func__, #Value)
 #endif
@@ -168,10 +168,6 @@ typedef socklen_t socket_size_t;
 #define VI_ERR(Format, ...) ((void)0)
 #endif
 #define VI_PANIC(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Panic(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
-#define VI_DELETE(Destructor, Var) { if (Var) { (Var)->~Destructor(); VI_FREE((void*)Var); } }
-#define VI_FREE(Ptr) Vitex::Core::Memory::Free(Ptr)
-#define VI_RELEASE(Ptr) { if (Ptr) (Ptr)->Release(); }
-#define VI_CLEAR(Ptr) { if (Ptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define VI_HASH(Name) Vitex::Core::OS::File::GetHash(Name)
 #define VI_STRINGIFY(Text) #Text
 #define VI_COMPONENT_ROOT(Name) virtual const char* GetName() { return Name; } virtual uint64_t GetId() { static uint64_t V = VI_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = VI_HASH(Name); return V; }

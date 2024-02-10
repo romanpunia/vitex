@@ -1,13 +1,13 @@
 #include "scripting.h"
 #include "bindings.h"
-#include "../vitex.h"
-#include <iostream>
+#include "vitex.h"
+#include <sstream>
 #define ADDON_ANY "any"
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #include <as_texts.h>
 #ifdef VI_JIT
-#include "../internal/asc/compiler.h"
+#include "internal/asc/compiler.h"
 #endif
 #define COMPILER_BLOCKED_WAIT_US 100
 #define THREAD_BLOCKED_WAIT_MS 50
@@ -193,7 +193,7 @@ namespace Vitex
 {
 	namespace Scripting
 	{
-		static Core::Vector<Core::String> ExtractLinesOfCode(const Core::String& Code, int Line, int Max)
+		static Core::Vector<Core::String> ExtractLinesOfCode(const std::string_view& Code, int Line, int Max)
 		{
 			Core::Vector<Core::String> Total;
 			size_t Start = 0, Size = Code.size();
@@ -214,21 +214,21 @@ namespace Vitex
 				++Lines;
 				if (Lines >= Line - LeftSide && LeftSide > 0)
 				{
-					Core::String Copy = Code.substr(Start, Offset - Start);
+					Core::String Copy = Core::String(Code.substr(Start, Offset - Start));
 					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
 					Total.push_back(std::move(Copy));
 					--LeftSide; --Max;
 				}
 				else if (Lines == Line)
 				{
-					Core::String Copy = Code.substr(Start, Offset - Start);
+					Core::String Copy = Core::String(Code.substr(Start, Offset - Start));
 					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
 					Total.insert(Total.begin(), std::move(Copy));
 					--Max;
 				}
 				else if (Lines >= Line + (RightSide - BaseRightSide) && RightSide > 0)
 				{
-					Core::String Copy = Code.substr(Start, Offset - Start);
+					Core::String Copy = Core::String(Code.substr(Start, Offset - Start));
 					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
 					Total.push_back(std::move(Copy));
 					--RightSide; --Max;
@@ -248,11 +248,15 @@ namespace Vitex
 			Total.clear();
 			return Total;
 		}
-		static Core::String CharTrimEnd(const char* Value)
+		static Core::String CharTrimEnd(const std::string_view& Value)
 		{
-			Core::String Copy = Value;
+			Core::String Copy = Core::String(Value);
 			Core::Stringify::TrimEnd(Copy);
-			return Value;
+			return Copy;
+		}
+		static const char* OrEmpty(const char* Value)
+		{
+			return Value ? Value : "";
 		}
 
 		VirtualException::VirtualException(VirtualError NewErrorCode) : ErrorCode(NewErrorCode)
@@ -282,13 +286,13 @@ namespace Vitex
 			return ErrorCode;
 		}
 
-		uint64_t TypeCache::Set(uint64_t Id, const Core::String& Name)
+		uint64_t TypeCache::Set(uint64_t Id, const std::string_view& Name)
 		{
 			VI_ASSERT(Id > 0 && !Name.empty(), "id should be greater than zero and name should not be empty");
 
 			using Map = Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>;
 			if (!Names)
-				Names = VI_NEW(Map);
+				Names = Core::Memory::New<Map>();
 
 			Names->Map[Id] = std::make_pair(Name, (int)-1);
 			return Id;
@@ -310,20 +314,19 @@ namespace Vitex
 		}
 		void TypeCache::Cleanup()
 		{
-			VI_DELETE(Mapping, Names);
-			Names = nullptr;
+			Core::Memory::Delete(Names);
 		}
 		Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* TypeCache::Names = nullptr;
 
-		ExpectsVM<void> Parser::ReplaceInlinePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer)
+		ExpectsVM<void> Parser::ReplaceInlinePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
 		{
-			return ReplacePreconditions(false, Keyword + ' ', Data, Replacer);
+			return ReplacePreconditions(false, Core::String(Keyword) + ' ', Data, Replacer);
 		}
-		ExpectsVM<void> Parser::ReplaceDirectivePreconditions(const Core::String& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer)
+		ExpectsVM<void> Parser::ReplaceDirectivePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
 		{
 			return ReplacePreconditions(true, Keyword, Data, Replacer);
 		}
-		ExpectsVM<void> Parser::ReplacePreconditions(bool IsDirective, const Core::String& Match, Core::String& Code, const std::function<ExpectsVM<Core::String>(const Core::String& Expression)>& Replacer)
+		ExpectsVM<void> Parser::ReplacePreconditions(bool IsDirective, const std::string_view& Match, Core::String& Code, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
 		{
 			VI_ASSERT(!Match.empty(), "keyword should not be empty");
 			VI_ASSERT(Replacer != nullptr, "replacer callback should not be empty");
@@ -367,7 +370,7 @@ namespace Vitex
 
 					continue;
 				}
-				else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match.c_str(), MatchSize) != 0)
+				else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match.data(), MatchSize) != 0)
 				{
 					++Offset;
 					continue;
@@ -492,9 +495,8 @@ namespace Vitex
 			return Core::Expectation::Met;
 		}
 
-		ExpectsVM<void> FunctionFactory::AtomicNotifyGC(const char* TypeName, void* Object)
+		ExpectsVM<void> FunctionFactory::AtomicNotifyGC(const std::string_view& TypeName, void* Object)
 		{
-			VI_ASSERT(TypeName != nullptr, "typename should be set");
 			VI_ASSERT(Object != nullptr, "object should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptContext* Context = asGetActiveContext();
@@ -529,7 +531,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Base != nullptr, "function pointer should be set");
 #ifdef VI_ANGELSCRIPT
-			asSFuncPtr* Ptr = VI_NEW(asSFuncPtr, Type);
+			asSFuncPtr* Ptr = Core::Memory::New<asSFuncPtr>(Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
 			return Ptr;
 #else
@@ -540,7 +542,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Base != nullptr, "function pointer should be set");
 #ifdef VI_ANGELSCRIPT
-			asSFuncPtr* Ptr = VI_NEW(asSFuncPtr, Type);
+			asSFuncPtr* Ptr = Core::Memory::New<asSFuncPtr>(Type);
 			Ptr->CopyMethodPtr(Base, Size);
 			return Ptr;
 #else
@@ -550,7 +552,7 @@ namespace Vitex
 		asSFuncPtr* FunctionFactory::CreateDummyBase()
 		{
 #ifdef VI_ANGELSCRIPT
-			return VI_NEW(asSFuncPtr, 0);
+			return Core::Memory::New<asSFuncPtr>(0);
 #else
 			return nullptr;
 #endif
@@ -560,8 +562,7 @@ namespace Vitex
 			if (!Ptr || !*Ptr)
 				return;
 #ifdef VI_ANGELSCRIPT
-			VI_DELETE(asSFuncPtr, *Ptr);
-			*Ptr = nullptr;
+			Core::Memory::Delete(*Ptr);
 #endif
 		}
 		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, void* Reference)
@@ -591,20 +592,20 @@ namespace Vitex
 		MessageInfo::MessageInfo(asSMessageInfo* Msg) noexcept : Info(Msg)
 		{
 		}
-		const char* MessageInfo::GetSection() const
+		std::string_view MessageInfo::GetSection() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->section;
+			return OrEmpty(Info->section);
 #else
 			return "";
 #endif
 		}
-		const char* MessageInfo::GetText() const
+		std::string_view MessageInfo::GetText() const
 		{
 			VI_ASSERT(IsValid(), "message should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->message;
+			return OrEmpty(Info->message);
 #else
 			return "";
 #endif
@@ -679,11 +680,11 @@ namespace Vitex
 			}
 #endif
 		}
-		const char* TypeInfo::GetGroup() const
+		std::string_view TypeInfo::GetGroup() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetConfigGroup();
+			return OrEmpty(Info->GetConfigGroup());
 #else
 			return "";
 #endif
@@ -718,23 +719,23 @@ namespace Vitex
 			if (!IsValid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			VI_CLEAR(Info);
+			Core::Memory::Release(Info);
 #endif
 		}
-		const char* TypeInfo::GetName() const
+		std::string_view TypeInfo::GetName() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetName();
+			return OrEmpty(Info->GetName());
 #else
 			return "";
 #endif
 		}
-		const char* TypeInfo::GetNamespace() const
+		std::string_view TypeInfo::GetNamespace() const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetNamespace();
+			return OrEmpty(Info->GetNamespace());
 #else
 			return "";
 #endif
@@ -856,11 +857,12 @@ namespace Vitex
 			return Function(nullptr);
 #endif
 		}
-		Function TypeInfo::GetFactoryByDecl(const char* Decl) const
+		Function TypeInfo::GetFactoryByDecl(const std::string_view& Decl) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetFactoryByDecl(Decl);
+			return Info->GetFactoryByDecl(Decl.data());
 #else
 			return Function(nullptr);
 #endif
@@ -883,20 +885,22 @@ namespace Vitex
 			return Function(nullptr);
 #endif
 		}
-		Function TypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
+		Function TypeInfo::GetMethodByName(const std::string_view& Name, bool GetVirtual) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetMethodByName(Name, GetVirtual);
+			return Info->GetMethodByName(Name.data(), GetVirtual);
 #else
 			return Function(nullptr);
 #endif
 		}
-		Function TypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
+		Function TypeInfo::GetMethodByDecl(const std::string_view& Decl, bool GetVirtual) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetMethodByDecl(Decl, GetVirtual);
+			return Info->GetMethodByDecl(Decl.data(), GetVirtual);
 #else
 			return Function(nullptr);
 #endif
@@ -936,11 +940,11 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		const char* TypeInfo::GetPropertyDeclaration(size_t Index, bool IncludeNamespace) const
+		std::string_view TypeInfo::GetPropertyDeclaration(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetPropertyDeclaration((asUINT)Index, IncludeNamespace);
+			return OrEmpty(Info->GetPropertyDeclaration((asUINT)Index, IncludeNamespace));
 #else
 			return "";
 #endif
@@ -1004,11 +1008,11 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		const char* TypeInfo::GetEnumValueByIndex(size_t Index, int* OutValue) const
+		std::string_view TypeInfo::GetEnumValueByIndex(size_t Index, int* OutValue) const
 		{
 			VI_ASSERT(IsValid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetEnumValueByIndex((asUINT)Index, OutValue);
+			return OrEmpty(Info->GetEnumValueByIndex((asUINT)Index, OutValue));
 #else
 			return "";
 #endif
@@ -1111,7 +1115,7 @@ namespace Vitex
 			if (!IsValid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			VI_CLEAR(Ptr);
+			Core::Memory::Release(Ptr);
 #endif
 		}
 		int Function::GetId() const
@@ -1145,11 +1149,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		const char* Function::GetModuleName() const
+		std::string_view Function::GetModuleName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetModuleName();
+			return OrEmpty(Ptr->GetModuleName());
 #else
 			return "";
 #endif
@@ -1163,20 +1167,20 @@ namespace Vitex
 			return Module(nullptr);
 #endif
 		}
-		const char* Function::GetSectionName() const
+		std::string_view Function::GetSectionName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetScriptSectionName();
+			return OrEmpty(Ptr->GetScriptSectionName());
 #else
 			return "";
 #endif
 		}
-		const char* Function::GetGroup() const
+		std::string_view Function::GetGroup() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetConfigGroup();
+			return OrEmpty(Ptr->GetConfigGroup());
 #else
 			return "";
 #endif
@@ -1199,38 +1203,38 @@ namespace Vitex
 			return TypeInfo(nullptr);
 #endif
 		}
-		const char* Function::GetObjectName() const
+		std::string_view Function::GetObjectName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetObjectName();
+			return OrEmpty(Ptr->GetObjectName());
 #else
 			return "";
 #endif
 		}
-		const char* Function::GetName() const
+		std::string_view Function::GetName() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetName();
+			return OrEmpty(Ptr->GetName());
 #else
 			return "";
 #endif
 		}
-		const char* Function::GetNamespace() const
+		std::string_view Function::GetNamespace() const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetNamespace();
+			return OrEmpty(Ptr->GetNamespace());
 #else
 			return "";
 #endif
 		}
-		const char* Function::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
+		std::string_view Function::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames);
+			return OrEmpty(Ptr->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames));
 #else
 			return "";
 #endif
@@ -1316,14 +1320,20 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		ExpectsVM<void> Function::GetArg(size_t Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
+		ExpectsVM<void> Function::GetArg(size_t Index, int* TypeId, size_t* Flags, std::string_view* Name, std::string_view* DefaultArg) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
-			int R = Ptr->GetParam((asUINT)Index, TypeId, &asFlags, Name, DefaultArg);
+			const char* asName = "";
+			const char* asDefaultArg = "";
+			int R = Ptr->GetParam((asUINT)Index, TypeId, &asFlags, &asName, &asDefaultArg);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
+			if (Name != nullptr)
+				*Name = asName;
+			if (DefaultArg != nullptr)
+				*DefaultArg = asDefaultArg;
 			return FunctionFactory::ToReturn(R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -1397,20 +1407,24 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		ExpectsVM<void> Function::GetProperty(size_t Index, const char** Name, int* TypeId) const
+		ExpectsVM<void> Function::GetProperty(size_t Index, std::string_view* Name, int* TypeId) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Ptr->GetVar((asUINT)Index, Name, TypeId));
+			const char* asName = "";
+			auto Result = Ptr->GetVar((asUINT)Index, &asName, TypeId);
+			if (Name != nullptr)
+				*Name = asName;
+			return FunctionFactory::ToReturn(Result);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		const char* Function::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
+		std::string_view Function::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetVarDecl((asUINT)Index, IncludeNamespace);
+			return OrEmpty(Ptr->GetVarDecl((asUINT)Index, IncludeNamespace));
 #else
 			return "";
 #endif
@@ -1482,7 +1496,7 @@ namespace Vitex
 			if (!IsValid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			VI_CLEAR(Object);
+			Core::Memory::Release(Object);
 #endif
 		}
 		TypeInfo ScriptObject::GetObjectType()
@@ -1521,11 +1535,11 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		const char* ScriptObject::GetPropertyName(size_t Id) const
+		std::string_view ScriptObject::GetPropertyName(size_t Id) const
 		{
 			VI_ASSERT(IsValid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->GetPropertyName((asUINT)Id);
+			return OrEmpty(Object->GetPropertyName((asUINT)Id));
 #else
 			return "";
 #endif
@@ -1842,16 +1856,16 @@ namespace Vitex
 		BaseClass::BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
 		{
 		}
-		ExpectsVM<void> BaseClass::SetFunctionDef(const char* Decl)
+		ExpectsVM<void> BaseClass::SetFunctionDef(const std::string_view& Decl)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)strlen(Decl));
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)Decl.size());
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
+			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -1859,54 +1873,58 @@ namespace Vitex
 		ExpectsVM<void> BaseClass::SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 
-			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", GetTypeName(), GetTypeName());
+			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", GetTypeName().data(), GetTypeName().data());
 			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl.c_str(), *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName().data(), Decl.c_str(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> BaseClass::SetBehaviourAddress(const std::string_view& Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), (asEBehaviours)Behave, Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetPropertyAddress(const char* Decl, int Offset)
+		ExpectsVM<void> BaseClass::SetPropertyAddress(const std::string_view& Decl, int Offset)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)strlen(Decl), Offset);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)Decl.size(), Offset);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName(), Decl, Offset));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName().data(), Decl.data(), Offset));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetPropertyStaticAddress(const char* Decl, void* Value)
+		ExpectsVM<void> BaseClass::SetPropertyStaticAddress(const std::string_view& Decl, void* Value)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)Decl.size(), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
@@ -1914,8 +1932,8 @@ namespace Vitex
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Type->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName() : Core::String(Scope).append("::").append(GetName()).c_str());
-			int R = Engine->RegisterGlobalProperty(Decl, Value);
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName().data() : Core::String(Scope).append("::").append(GetName()).c_str());
+			int R = Engine->RegisterGlobalProperty(Decl.data(), Value);
 			Engine->SetDefaultNamespace(Namespace);
 
 			return FunctionFactory::ToReturn(R);
@@ -1923,40 +1941,42 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> BaseClass::SetOperatorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			return SetMethodAddress(Decl, Value, Type);
 		}
-		ExpectsVM<void> BaseClass::SetMethodAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> BaseClass::SetMethodAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName(), Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName().data(), Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> BaseClass::SetMethodStaticAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 #ifdef VI_ANGELSCRIPT
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = this->Type->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName() : Core::String(Scope).append("::").append(GetName()).c_str());
-			int R = Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName().data() : Core::String(Scope).append("::").append(GetName()).c_str());
+			int R = Engine->RegisterGlobalFunction(Decl.data(), *Value, (asECallConvTypes)Type);
 			Engine->SetDefaultNamespace(Namespace);
 
 			return FunctionFactory::ToReturn(R);
@@ -1964,47 +1984,50 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> BaseClass::SetConstructorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_CONSTRUCT, Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> BaseClass::SetConstructorListAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_LIST_CONSTRUCT, Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
+		ExpectsVM<void> BaseClass::SetDestructorAddress(const std::string_view& Decl, asSFuncPtr* Value)
 		{
 			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)Decl.size(), (void*)Value);
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST));
+			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_DESTRUCT, Decl.data(), *Value, asCALL_CDECL_OBJFIRST));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -2021,175 +2044,177 @@ namespace Vitex
 		{
 			return VM != nullptr && TypeId >= 0 && Type != nullptr;
 		}
-		const char* BaseClass::GetTypeName() const
+		std::string_view BaseClass::GetTypeName() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Type ? Type->GetName() : "";
+			return OrEmpty(Type->GetName());
 #else
 			return "";
 #endif
 		}
 		Core::String BaseClass::GetName() const
 		{
-			return GetTypeName();
+			return Core::String(GetTypeName());
 		}
 		VirtualMachine* BaseClass::GetVM() const
 		{
 			return VM;
 		}
-		Core::String BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
+		Core::String BaseClass::GetOperator(Operators Op, const std::string_view& Out, const std::string_view& Args, bool Const, bool Right)
 		{
+			VI_ASSERT(Core::Stringify::IsCString(Out), "out should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Args), "args should be set");
 			switch (Op)
 			{
 				case Operators::Neg:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opNeg()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opNeg()%s", Out.data(), Const ? " const" : "");
 				case Operators::Com:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opCom()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opCom()%s", Out.data(), Const ? " const" : "");
 				case Operators::PreInc:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opPreInc()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPreInc()%s", Out.data(), Const ? " const" : "");
 				case Operators::PreDec:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opPreDec()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPreDec()%s", Out.data(), Const ? " const" : "");
 				case Operators::PostInc:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opPostInc()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPostInc()%s", Out.data(), Const ? " const" : "");
 				case Operators::PostDec:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opPostDec()%s", Out, Const ? " const" : "");
+					return Core::Stringify::Text("%s opPostDec()%s", Out.data(), Const ? " const" : "");
 				case Operators::Equals:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opEquals(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Cmp:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opCmp(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Assign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::AddAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAddAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::SubAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opSubAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::MulAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opMulAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::DivAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opDivAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::ModAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opModAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::PowAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opPowAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::AndAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAndAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::OrAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opOrAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::XOrAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opXorAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::ShlAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShlAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::ShrAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShrAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::UshrAssign:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opUshrAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Add:
-					return Core::Stringify::Text("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAdd%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Sub:
-					return Core::Stringify::Text("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opSub%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Mul:
-					return Core::Stringify::Text("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opMul%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Div:
-					return Core::Stringify::Text("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opDiv%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Mod:
-					return Core::Stringify::Text("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opMod%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Pow:
-					return Core::Stringify::Text("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opPow%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::And:
-					return Core::Stringify::Text("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opAnd%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Or:
-					return Core::Stringify::Text("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opOr%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::XOr:
-					return Core::Stringify::Text("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opXor%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Shl:
-					return Core::Stringify::Text("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShl%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Shr:
-					return Core::Stringify::Text("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opShr%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Ushr:
-					return Core::Stringify::Text("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opUshr%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Index:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opIndex(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Call:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opCall(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::Cast:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opCast(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				case Operators::ImplCast:
 					if (Right)
 						return "";
 
-					return Core::Stringify::Text("%s opImplCast(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Stringify::Text("%s opImplCast(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
 				default:
 					return "";
 			}
@@ -2198,16 +2223,17 @@ namespace Vitex
 		TypeInterface::TypeInterface(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
 		{
 		}
-		ExpectsVM<void> TypeInterface::SetMethod(const char* Decl)
+		ExpectsVM<void> TypeInterface::SetMethod(const std::string_view& Decl)
 		{
 			VI_ASSERT(IsValid(), "interface should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)strlen(Decl));
+			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)Decl.size());
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName(), Decl));
+			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName().data(), Decl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -2224,17 +2250,17 @@ namespace Vitex
 		{
 			return VM != nullptr && TypeId >= 0 && Type != nullptr;
 		}
-		const char* TypeInterface::GetTypeName() const
+		std::string_view TypeInterface::GetTypeName() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Type ? Type->GetName() : "";
+			return OrEmpty(Type->GetName());
 #else
 			return "";
 #endif
 		}
 		Core::String TypeInterface::GetName() const
 		{
-			return GetTypeName();
+			return Core::String(GetTypeName());
 		}
 		VirtualMachine* TypeInterface::GetVM() const
 		{
@@ -2244,16 +2270,17 @@ namespace Vitex
 		Enumeration::Enumeration(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
 		{
 		}
-		ExpectsVM<void> Enumeration::SetValue(const char* Name, int Value)
+		ExpectsVM<void> Enumeration::SetValue(const std::string_view& Name, int Value)
 		{
 			VI_ASSERT(IsValid(), "enum should be valid");
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
 
 			asIScriptEngine* Engine = VM->GetEngine();
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)strlen(Name), Value);
+			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)Name.size(), Value);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName(), Name, Value));
+			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName().data(), Name.data(), Value));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -2270,17 +2297,17 @@ namespace Vitex
 		{
 			return VM != nullptr && TypeId >= 0 && Type != nullptr;
 		}
-		const char* Enumeration::GetTypeName() const
+		std::string_view Enumeration::GetTypeName() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Type ? Type->GetName() : "";
+			return OrEmpty(Type->GetName());
 #else
 			return "";
 #endif
 		}
 		Core::String Enumeration::GetName() const
 		{
-			return GetTypeName();
+			return Core::String(GetTypeName());
 		}
 		VirtualMachine* Enumeration::GetVM() const
 		{
@@ -2293,20 +2320,18 @@ namespace Vitex
 			VM = (Mod ? VirtualMachine::Get(Mod->GetEngine()) : nullptr);
 #endif
 		}
-		void Module::SetName(const char* Name)
+		void Module::SetName(const std::string_view& Name)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			Mod->SetName(Name);
+			Mod->SetName(Name.data());
 #endif
 		}
-		ExpectsVM<void> Module::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
+		ExpectsVM<void> Module::AddSection(const std::string_view& Name, const std::string_view& Code, int LineOffset)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Name != nullptr, "name should be set");
-			VI_ASSERT(Code != nullptr, "code should be set");
-			return VM->AddScriptSection(Mod, Name, Code, CodeLength, LineOffset);
+			return VM->AddScriptSection(Mod, Name, Code, LineOffset);
 		}
 		ExpectsVM<void> Module::RemoveFunction(const Function& Function)
 		{
@@ -2344,9 +2369,9 @@ namespace Vitex
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = VI_NEW(CByteCodeStream, Info->Data);
+			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>(Info->Data);
 			int R = Mod->LoadByteCode(Stream, &Info->Debug);
-			VI_DELETE(CByteCodeStream, Stream);
+			Core::Memory::Delete(Stream);
 			return FunctionFactory::ToReturn(R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2388,14 +2413,14 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Module::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction)
+		ExpectsVM<void> Module::CompileFunction(const std::string_view& SectionName, const std::string_view& Code, int LineOffset, size_t CompileFlags, Function* OutFunction)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(SectionName != nullptr, "section name should be set");
-			VI_ASSERT(Code != nullptr, "code should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Code), "code should be set");
+			VI_ASSERT(Core::Stringify::IsCString(SectionName), "section name should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptFunction* OutFunc = nullptr;
-			int R = Mod->CompileFunction(SectionName, Code, LineOffset, (asDWORD)CompileFlags, &OutFunc);
+			int R = Mod->CompileFunction(SectionName.data(), Code.data(), LineOffset, (asDWORD)CompileFlags, &OutFunc);
 			if (OutFunction != nullptr)
 				*OutFunction = Function(OutFunc);
 			return FunctionFactory::ToReturn(R);
@@ -2403,20 +2428,23 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Module::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
+		ExpectsVM<void> Module::CompileProperty(const std::string_view& SectionName, const std::string_view& Code, int LineOffset)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Code), "code should be set");
+			VI_ASSERT(Core::Stringify::IsCString(SectionName), "section name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->CompileGlobalVar(SectionName, Code, LineOffset));
+			return FunctionFactory::ToReturn(Mod->CompileGlobalVar(SectionName.data(), Code.data(), LineOffset));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Module::SetDefaultNamespace(const char* Namespace)
+		ExpectsVM<void> Module::SetDefaultNamespace(const std::string_view& Namespace)
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Namespace), "namespace should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->SetDefaultNamespace(Namespace));
+			return FunctionFactory::ToReturn(Mod->SetDefaultNamespace(Namespace.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -2474,38 +2502,42 @@ namespace Vitex
 			return Function(nullptr);
 #endif
 		}
-		Function Module::GetFunctionByDecl(const char* Decl) const
+		Function Module::GetFunctionByDecl(const std::string_view& Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetFunctionByDecl(Decl);
+			return Mod->GetFunctionByDecl(Decl.data());
 #else
 			return Function(nullptr);
 #endif
 		}
-		Function Module::GetFunctionByName(const char* Name) const
+		Function Module::GetFunctionByName(const std::string_view& Name) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetFunctionByName(Name);
+			return Mod->GetFunctionByName(Name.data());
 #else
 			return Function(nullptr);
 #endif
 		}
-		int Module::GetTypeIdByDecl(const char* Decl) const
+		int Module::GetTypeIdByDecl(const std::string_view& Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetTypeIdByDecl(Decl);
+			return Mod->GetTypeIdByDecl(Decl.data());
 #else
 			return -1;
 #endif
 		}
-		ExpectsVM<size_t> Module::GetImportedFunctionIndexByDecl(const char* Decl) const
+		ExpectsVM<size_t> Module::GetImportedFunctionIndexByDecl(const std::string_view& Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->GetImportedFunctionIndexByDecl(Decl);
+			int R = Mod->GetImportedFunctionIndexByDecl(Decl.data());
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2516,32 +2548,32 @@ namespace Vitex
 			VI_ASSERT(IsValid(), "module should be valid");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = VI_NEW(CByteCodeStream);
+			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>();
 			int R = Mod->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
-			VI_DELETE(CByteCodeStream, Stream);
+			Core::Memory::Delete(Stream);
 			return FunctionFactory::ToReturn(R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<size_t> Module::GetPropertyIndexByName(const char* Name) const
+		ExpectsVM<size_t> Module::GetPropertyIndexByName(const std::string_view& Name) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->GetGlobalVarIndexByName(Name);
+			int R = Mod->GetGlobalVarIndexByName(Name.data());
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<size_t> Module::GetPropertyIndexByDecl(const char* Decl) const
+		ExpectsVM<size_t> Module::GetPropertyIndexByDecl(const std::string_view& Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->GetGlobalVarIndexByDecl(Decl);
+			int R = Mod->GetGlobalVarIndexByDecl(Decl.data());
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -2551,19 +2583,19 @@ namespace Vitex
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			const char* Name = nullptr;
-			const char* Namespace = nullptr;
+			const char* Name = "";
+			const char* Namespace = "";
 			bool IsConst = false;
 			int TypeId = 0;
 			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &Namespace, &TypeId, &IsConst);
 
 			if (Info != nullptr)
 			{
-				Info->Name = Name;
-				Info->Namespace = Namespace;
+				Info->Name = OrEmpty(Name);
+				Info->Namespace = OrEmpty(Namespace);
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
-				Info->ConfigGroup = nullptr;
+				Info->ConfigGroup = "";
 				Info->Pointer = Mod->GetAddressOfGlobalVar((asUINT)Index);
 				Info->AccessMask = GetAccessMask();
 			}
@@ -2629,19 +2661,19 @@ namespace Vitex
 			return TypeInfo(nullptr);
 #endif
 		}
-		TypeInfo Module::GetTypeInfoByName(const char* Name) const
+		TypeInfo Module::GetTypeInfoByName(const std::string_view& Name) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* TypeName = Name;
-			const char* Namespace = nullptr;
-			size_t NamespaceSize = 0;
+			std::string_view TypeName = Name;
+			std::string_view Namespace = "";
+			if (!VM->GetTypeNameScope(&TypeName, &Namespace))
+				return Mod->GetTypeInfoByName(Name.data());
 
-			if (!VM->GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize))
-				return Mod->GetTypeInfoByName(Name);
-
-			VM->BeginNamespace(Core::String(Namespace, NamespaceSize).c_str());
-			asITypeInfo* Info = Mod->GetTypeInfoByName(TypeName);
+			VI_ASSERT(Core::Stringify::IsCString(TypeName), "typename should be set");
+			VM->BeginNamespace(Core::String(Namespace));
+			asITypeInfo* Info = Mod->GetTypeInfoByName(TypeName.data());
 			VM->EndNamespace();
 
 			return Info;
@@ -2649,11 +2681,12 @@ namespace Vitex
 			return TypeInfo(nullptr);
 #endif
 		}
-		TypeInfo Module::GetTypeInfoByDecl(const char* Decl) const
+		TypeInfo Module::GetTypeInfoByDecl(const std::string_view& Decl) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetTypeInfoByDecl(Decl);
+			return Mod->GetTypeInfoByDecl(Decl.data());
 #else
 			return TypeInfo(nullptr);
 #endif
@@ -2667,47 +2700,47 @@ namespace Vitex
 			return TypeInfo(nullptr);
 #endif
 		}
-		const char* Module::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
+		std::string_view Module::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace);
+			return OrEmpty(Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace));
 #else
 			return "";
 #endif
 		}
-		const char* Module::GetDefaultNamespace() const
+		std::string_view Module::GetDefaultNamespace() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetDefaultNamespace();
+			return OrEmpty(Mod->GetDefaultNamespace());
 #else
 			return "";
 #endif
 		}
-		const char* Module::GetImportedFunctionDecl(size_t ImportIndex) const
+		std::string_view Module::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex);
+			return OrEmpty(Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex));
 #else
 			return "";
 #endif
 		}
-		const char* Module::GetImportedFunctionModule(size_t ImportIndex) const
+		std::string_view Module::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex);
+			return OrEmpty(Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex));
 #else
 			return "";
 #endif
 		}
-		const char* Module::GetName() const
+		std::string_view Module::GetName() const
 		{
 			VI_ASSERT(IsValid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetName();
+			return OrEmpty(Mod->GetName());
 #else
 			return "";
 #endif
@@ -2845,8 +2878,8 @@ namespace Vitex
 
 			DelegateObject = nullptr;
 			DelegateType = nullptr;
-			VI_CLEAR(Callback);
-			VI_CLEAR(Context);
+			Core::Memory::Release(Callback);
+			Core::Memory::Release(Context);
 #endif
 		}
 		bool FunctionDelegate::IsValid() const
@@ -2902,9 +2935,9 @@ namespace Vitex
 				if (Output.empty())
 					return Compute::IncludeType::Virtual;
 
-				return VM->AddScriptSection(Scope, File.Module.c_str(), Output.c_str(), Output.size()) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
+				return VM->AddScriptSection(Scope, File.Module, Output) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 			{
 				VI_ASSERT(VM != nullptr, "engine should be set");
 				if (Pragma)
@@ -3092,7 +3125,7 @@ namespace Vitex
 			if (Scope != nullptr)
 				Scope->Discard();
 #endif
-			VI_RELEASE(Processor);
+			Core::Memory::Release(Processor);
 		}
 		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
 		{
@@ -3102,11 +3135,11 @@ namespace Vitex
 		{
 			Pragma = Callback;
 		}
-		void Compiler::Define(const Core::String& Word)
+		void Compiler::Define(const std::string_view& Word)
 		{
 			Processor->Define(Word);
 		}
-		void Compiler::Undefine(const Core::String& Word)
+		void Compiler::Undefine(const std::string_view& Word)
 		{
 			Processor->Undefine(Word);
 		}
@@ -3130,9 +3163,9 @@ namespace Vitex
 			Built = false;
 			return true;
 		}
-		bool Compiler::IsDefined(const Core::String& Word) const
+		bool Compiler::IsDefined(const std::string_view& Word) const
 		{
-			return Processor->IsDefined(Word.c_str());
+			return Processor->IsDefined(Word);
 		}
 		bool Compiler::IsBuilt() const
 		{
@@ -3158,11 +3191,11 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Compiler::Prepare(const Core::String& ModuleName, bool Scoped)
+		ExpectsVM<void> Compiler::Prepare(const std::string_view& ModuleName, bool Scoped)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(!ModuleName.empty(), "module name should not be empty");
-			VI_DEBUG("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
+			VI_DEBUG("[vm] prepare %.*s on 0x%" PRIXPTR, (int)ModuleName.size(), ModuleName.data(), (uintptr_t)this);
 #ifdef VI_ANGELSCRIPT
 			Built = false;
 			VCache.Valid = false;
@@ -3186,7 +3219,7 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Compiler::Prepare(const Core::String& ModuleName, const Core::String& Name, bool Debug, bool Scoped)
+		ExpectsVM<void> Compiler::Prepare(const std::string_view& ModuleName, const std::string_view& Name, bool Debug, bool Scoped)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
@@ -3214,10 +3247,10 @@ namespace Vitex
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 			VI_ASSERT(Built, "module should be built");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = VI_NEW(CByteCodeStream);
+			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>();
 			int R = Scope->SaveByteCode(Stream, !Info->Debug);
 			Info->Data = Stream->GetCode();
-			VI_DELETE(CByteCodeStream, Stream);
+			Core::Memory::Delete(Stream);
 			if (R >= 0)
 				VI_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 			return FunctionFactory::ToReturn(R);
@@ -3225,7 +3258,7 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Compiler::LoadFile(const Core::String& Path)
+		ExpectsVM<void> Compiler::LoadFile(const std::string_view& Path)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
@@ -3233,23 +3266,23 @@ namespace Vitex
 			if (VCache.Valid)
 				return Core::Expectation::Met;
 
-			auto Source = Core::OS::Path::Resolve(Path.c_str());
+			auto Source = Core::OS::Path::Resolve(Path);
 			if (!Source)
-				return VirtualException("path not found: " + Path);
+				return VirtualException("path not found: " + Core::String(Path));
 
 			if (!Core::OS::File::IsExists(Source->c_str()))
-				return VirtualException("file not found: " + Path);
+				return VirtualException("file not found: " + Core::String(Path));
 
 			auto Buffer = Core::OS::File::ReadAsString(*Source);
 			if (!Buffer)
-				return VirtualException("open file error: " + Path);
+				return VirtualException("open file error: " + Core::String(Path));
 
 			Core::String Code = *Buffer;
 			auto Status = VM->GenerateCode(Processor, *Source, Code);
 			if (!Status)
 				return VirtualException(std::move(Status.Error().message()));
 
-			auto Result = VM->AddScriptSection(Scope, Source->c_str(), Code.c_str(), Code.size());
+			auto Result = VM->AddScriptSection(Scope, *Source, Code);
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 			return Result;
@@ -3257,10 +3290,11 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> Compiler::LoadCode(const Core::String& Name, const Core::String& Data)
+		ExpectsVM<void> Compiler::LoadCode(const std::string_view& Name, const std::string_view& Data)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
 			if (VCache.Valid)
 				return Core::Expectation::Met;
@@ -3270,28 +3304,7 @@ namespace Vitex
 			if (!Status)
 				return VirtualException(std::move(Status.Error().message()));
 
-			auto Result = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
-			if (Result)
-				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
-			return Result;
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> Compiler::LoadCode(const Core::String& Name, const char* Data, size_t Size)
-		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
-#ifdef VI_ANGELSCRIPT
-			if (VCache.Valid)
-				return Core::Expectation::Met;
-
-			Core::String Buffer(Data, Size);
-			auto Status = VM->GenerateCode(Processor, Name, Buffer);
-			if (!Status)
-				return VirtualException(std::move(Status.Error().message()));
-
-			auto Result = VM->AddScriptSection(Scope, Name.c_str(), Buffer.c_str(), Buffer.size());
+			auto Result = VM->AddScriptSection(Scope, Name, Buffer);
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 			return Result;
@@ -3305,13 +3318,13 @@ namespace Vitex
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = VI_NEW(CByteCodeStream, Info->Data);
+			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>(Info->Data);
 			return Core::Cotask<ExpectsVM<void>>([this, Stream, Info]()
 			{
 				int R = 0;
 				while ((R = Scope->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
-				VI_DELETE(CByteCodeStream, Stream);
+				Core::Memory::Delete(Stream);
 				if (R >= 0)
 					VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 				return FunctionFactory::ToReturn(R);
@@ -3360,12 +3373,9 @@ namespace Vitex
 			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
-		ExpectsPromiseVM<void> Compiler::CompileFile(const char* Name, const char* ModuleName, const char* EntryName)
+		ExpectsPromiseVM<void> Compiler::CompileFile(const std::string_view& Name, const std::string_view& ModuleName, const std::string_view& EntryName)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Name != nullptr, "name should be set");
-			VI_ASSERT(ModuleName != nullptr, "module name should be set");
-			VI_ASSERT(EntryName != nullptr, "entry name should be set");
 #ifdef VI_ANGELSCRIPT
 			auto Status = Prepare(ModuleName, Name);
 			if (!Status)
@@ -3380,12 +3390,10 @@ namespace Vitex
 			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
-		ExpectsPromiseVM<void> Compiler::CompileMemory(const Core::String& Buffer, const char* ModuleName, const char* EntryName)
+		ExpectsPromiseVM<void> Compiler::CompileMemory(const std::string_view& Buffer, const std::string_view& ModuleName, const std::string_view& EntryName)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
-			VI_ASSERT(ModuleName != nullptr, "module name should be set");
-			VI_ASSERT(EntryName != nullptr, "entry name should be set");
 #ifdef VI_ANGELSCRIPT
 			Core::String Name = "anonymous:" + Core::ToString(Counter++);
 			auto Status = Prepare(ModuleName, "anonymous");
@@ -3401,30 +3409,30 @@ namespace Vitex
 			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
-		ExpectsPromiseVM<Function> Compiler::CompileFunction(const Core::String& Buffer, const char* Returns, const char* Args, Core::Option<size_t>&& FunctionId)
+		ExpectsPromiseVM<Function> Compiler::CompileFunction(const std::string_view& Buffer, const std::string_view& Returns, const std::string_view& Args, Core::Option<size_t>&& FunctionId)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Built, "module should be built");
 #ifdef VI_ANGELSCRIPT
-			Core::String Code = Buffer;
+			Core::String Code = Core::String(Buffer);
 			Core::String Name = " __vfunc" + Core::ToString(FunctionId ? *FunctionId : (Counter + 1));
 			auto Status = VM->GenerateCode(Processor, Name, Code);
 			if (!Status)
 				return ExpectsPromiseVM<Function>(VirtualException(std::move(Status.Error().message())));
 
 			Core::String Eval;
-			Eval.append(Returns ? Returns : "void");
+			Eval.append(Returns.empty() ? "void" : Returns);
 			Eval.append(Name);
 			Eval.append("(");
-			Eval.append(Args ? Args : "");
+			Eval.append(Args);
 			Eval.append("){");
 
 			if (!FunctionId)
 				++Counter;
 
-			if (Returns != nullptr && strncmp(Returns, "void", 4) != 0)
+			if (!Returns.empty() && Returns != "void")
 			{
 				size_t Offset = Buffer.size();
 				while (Offset > 0)
@@ -3449,12 +3457,12 @@ namespace Vitex
 				if (Offset > 0)
 					Eval.append(Buffer.substr(0, Offset));
 
-				size_t Size = strlen(Returns);
+				size_t Size = Returns.size();
 				Eval.append("return ");
 				if (Returns[Size - 1] == '@')
 				{
 					Eval.append("@");
-					Eval.append(Returns, Size - 1);
+					Eval.append(Returns.data(), Size - 1);
 				}
 				else
 					Eval.append(Returns);
@@ -3516,7 +3524,7 @@ namespace Vitex
 		{
 #ifdef VI_ANGELSCRIPT
 			if (VM != nullptr)
-				VI_RELEASE(VM->GetEngine());
+				Core::Memory::Release(VM->GetEngine());
 #endif
 		}
 		void DebuggerContext::AddDefaultCommands()
@@ -3588,9 +3596,9 @@ namespace Vitex
 						return false;
 					}
 
-					const char* File = 0;
+					std::string_view File = "";
 					Context->GetLineNumber(0, 0, &File);
-					if (!File)
+					if (File.empty())
 						goto BreakFailure;
 
 					AddFileBreakPoint(File, *Numeric);
@@ -3804,27 +3812,36 @@ namespace Vitex
 				Core::String& Source = *(Core::String*)Object;
 				Core::StringStream Stream;
 				Stream << "\"" << Source << "\"";
+				Stream << " (string, " << Source.size() << " chars)";
+				return Stream.str();
+			});
+			AddToStringCallback("string_view", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+			{
+				std::string_view& Source = *(std::string_view*)Object;
+				Core::StringStream Stream;
+				Stream << "\"" << Source << "\"";
+				Stream << " (string_view, " << Source.size() << " chars)";
 				return Stream.str();
 			});
 			AddToStringCallback("decimal", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Core::Decimal& Source = *(Core::Decimal*)Object;
-				return Source.ToString();
+				return Source.ToString() + " (decimal)";
 			});
 			AddToStringCallback("uint128", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Compute::UInt128& Source = *(Compute::UInt128*)Object;
-				return Source.ToString();
+				return Source.ToString() + " (uint128)";
 			});
 			AddToStringCallback("uint256", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Compute::UInt256& Source = *(Compute::UInt256*)Object;
-				return Source.ToString();
+				return Source.ToString() + " (uint256)";
 			});
 			AddToStringCallback("variant", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Core::Variant& Source = *(Core::Variant*)Object;
-				return "\"" + Source.Serialize() + "\"";
+				return "\"" + Source.Serialize() + "\" (variant)";
 			});
 			AddToStringCallback("any", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
@@ -3911,10 +3928,10 @@ namespace Vitex
 				if (Source->Value.IsObject())
 					Stream << "0x" << (void*)Source << "(schema)\n";
 
-				Core::Schema::ConvertToJSON(Source, [&Indent, &Stream](Core::VarForm Type, const char* Buffer, size_t Size)
+				Core::Schema::ConvertToJSON(Source, [&Indent, &Stream](Core::VarForm Type, const std::string_view& Buffer)
 				{
-					if (Buffer != nullptr && Size > 0)
-						Stream << Core::String(Buffer, Size);
+					if (!Buffer.empty())
+						Stream << Buffer;
 
 					switch (Type)
 					{
@@ -3977,9 +3994,9 @@ namespace Vitex
 			});
 #endif
 		}
-		void DebuggerContext::AddCommand(const Core::String& Name, const Core::String& Description, ArgsType Type, const CommandCallback& Callback)
+		void DebuggerContext::AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, const CommandCallback& Callback)
 		{
-			Descriptions[Name] = Description;
+			Descriptions[Core::String(Name)] = Description;
 			for (auto& Command : Core::Stringify::Split(Name, ','))
 			{
 				Core::Stringify::Trim(Command);
@@ -4009,7 +4026,7 @@ namespace Vitex
 		{
 			FastToStringCallbacks[Type.GetTypeInfo()] = std::move(Callback);
 		}
-		void DebuggerContext::AddToStringCallback(const Core::String& Type, const ToStringTypeCallback& Callback)
+		void DebuggerContext::AddToStringCallback(const std::string_view& Type, const ToStringTypeCallback& Callback)
 		{
 			for (auto& Item : Core::Stringify::Split(Type, ','))
 			{
@@ -4133,9 +4150,9 @@ namespace Vitex
 			if (TimeoutMs > 0)
 				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
 		}
-		void DebuggerContext::ThrowInternalException(const char* Message)
+		void DebuggerContext::ThrowInternalException(const std::string_view& Message)
 		{
-			if (!Message)
+			if (Message.empty())
 				return;
 
 			auto Exception = Bindings::Exception::Pointer(Core::String(Message));
@@ -4181,7 +4198,7 @@ namespace Vitex
 			for (auto& Thread : Threads)
 				Thread.Context->Abort();
 		}
-		void DebuggerContext::PrintValue(const Core::String& Expression, ImmediateContext* Context)
+		void DebuggerContext::PrintValue(const std::string_view& Expression, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Context->GetFunction().IsValid(), "context current function should be set");
@@ -4214,7 +4231,7 @@ namespace Vitex
 				Name.erase(0, Namespace.size() + 2);
 				return Namespace;
 			};
-			auto ParseExpression = [](const Core::String& Expression) -> Core::Vector<Core::String>
+			auto ParseExpression = [](const std::string_view& Expression) -> Core::Vector<Core::String>
 			{
 				Core::Vector<Core::String> Stack;
 				size_t Start = 0, End = 0;
@@ -4236,7 +4253,7 @@ namespace Vitex
 					}
 					else if (V == '.')
 					{
-						Stack.push_back(Expression.substr(Start, End - Start));
+						Stack.push_back(Core::String(Expression.substr(Start, End - Start)));
 						Start = ++End;
 					}
 					else
@@ -4244,7 +4261,7 @@ namespace Vitex
 				}
 
 				if (Start < End)
-					Stack.push_back(Expression.substr(Start, End - Start));
+					Stack.push_back(Core::String(Expression.substr(Start, End - Start)));
 
 				return Stack;
 			};
@@ -4621,9 +4638,10 @@ namespace Vitex
 			}
 #endif
 		}
-		void DebuggerContext::PrintByteCode(const Core::String& FunctionDecl, ImmediateContext* Context)
+		void DebuggerContext::PrintByteCode(const std::string_view& FunctionDecl, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(Core::Stringify::IsCString(FunctionDecl), "fndecl should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptContext* Base = Context->GetContext();
 			VI_ASSERT(Base != nullptr, "context should be set");
@@ -4636,9 +4654,9 @@ namespace Vitex
 			if (!Module)
 				return Output("  module was not found\n");
 
-			Function = Module->GetFunctionByName(FunctionDecl.c_str());
+			Function = Module->GetFunctionByName(FunctionDecl.data());
 			if (!Function)
-				Function = Module->GetFunctionByDecl(FunctionDecl.c_str());
+				Function = Module->GetFunctionByDecl(FunctionDecl.data());
 
 			if (!Function)
 				return Output("  function was not found\n");
@@ -4691,10 +4709,10 @@ namespace Vitex
 					Stream << "  " << Line << "\n";
 			}
 
-			const char* File = nullptr;
+			std::string_view File = "";
 			int ColumnNumber = 0;
 			int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &File);
-			if (File != nullptr && LineNumber > 0)
+			if (!File.empty() && LineNumber > 0)
 			{
 				auto Code = VM->GetSourceCodeAppendixByPath("exception origin", File, LineNumber, ColumnNumber, 5);
 				if (Code)
@@ -5004,10 +5022,9 @@ namespace Vitex
 		void DebuggerContext::ListSourceCode(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-			const char* File = nullptr;
+			std::string_view File = "";
 			Context->GetLineNumber(0, 0, &File);
-
-			if (!File)
+			if (File.empty())
 				return Output("source code is not available");
 			
 			auto Code = VM->GetScriptSection(File);
@@ -5070,11 +5087,10 @@ namespace Vitex
 			Stream << Core::ErrorHandling::GetStackTrace(1) << "\n";
 			Output(Stream.str());
 		}
-		void DebuggerContext::AddFuncBreakPoint(const Core::String& Function)
+		void DebuggerContext::AddFuncBreakPoint(const std::string_view& Function)
 		{
-			size_t B = Function.find_first_not_of(" \t");
-			size_t E = Function.find_last_not_of(" \t");
-			Core::String Actual = Function.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
+			size_t B = Function.find_first_not_of(" \t"), E = Function.find_last_not_of(" \t");
+			Core::String Actual = Core::String(Function.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos));
 
 			Core::StringStream Stream;
 			Stream << "  adding deferred break point for function '" << Actual << "'" << std::endl;
@@ -5083,7 +5099,7 @@ namespace Vitex
 			BreakPoint Point(Actual, 0, true);
 			BreakPoints.push_back(Point);
 		}
-		void DebuggerContext::AddFileBreakPoint(const Core::String& File, int LineNumber)
+		void DebuggerContext::AddFileBreakPoint(const std::string_view& File, int LineNumber)
 		{
 			size_t R = File.find_last_of("\\/");
 			Core::String Actual;
@@ -5104,7 +5120,7 @@ namespace Vitex
 			BreakPoint Point(Actual, LineNumber, false);
 			BreakPoints.push_back(Point);
 		}
-		void DebuggerContext::Output(const Core::String& Data)
+		void DebuggerContext::Output(const std::string_view& Data)
 		{
 			if (OnOutput)
 				OnOutput(Data);
@@ -5117,7 +5133,7 @@ namespace Vitex
 			if (Engine != nullptr && Engine != VM)
 			{
 				if (VM != nullptr)
-					VI_RELEASE(VM->GetEngine());
+					Core::Memory::Release(VM->GetEngine());
 
 				VM = Engine;
 				VM->GetEngine()->AddRef();
@@ -5200,7 +5216,7 @@ namespace Vitex
 			Action = DebugAction::Interrupt;
 			return true;
 		}
-		bool DebuggerContext::InterpretCommand(const Core::String& Command, ImmediateContext* Context)
+		bool DebuggerContext::InterpretCommand(const std::string_view& Command, ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 
@@ -5228,13 +5244,13 @@ namespace Vitex
 						while (Offset < Data.size())
 						{
 							char V = Data[Offset];
-							if (std::isspace(Core::Stringify::Literal(V)))
+							if (Core::Stringify::IsWhitespace(V))
 							{
 								size_t Start = Offset;
-								while (++Start < Data.size() && std::isspace(Core::Stringify::Literal(Data[Start])));
+								while (++Start < Data.size() && Core::Stringify::IsWhitespace(Data[Start]));
 
 								size_t End = Start;
-								while (++End < Data.size() && !std::isspace(Core::Stringify::Literal(Data[End])) && Data[End] != '\"' && Data[End] != '\'');
+								while (++End < Data.size() && !Core::Stringify::IsWhitespace(Data[End]) && Data[End] != '\"' && Data[End] != '\'');
 
 								auto Value = Data.substr(Start, End - Start);
 								Core::Stringify::Trim(Value);
@@ -5453,13 +5469,13 @@ namespace Vitex
 				}
 			}
 		}
-		ExpectsVM<void> DebuggerContext::ExecuteExpression(ImmediateContext* Context, const Core::String& Code, const Core::String& Args, ArgsCallback&& OnArgs)
+		ExpectsVM<void> DebuggerContext::ExecuteExpression(ImmediateContext* Context, const std::string_view& Code, const std::string_view& Args, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			Core::String Indent = "  ";
-			Core::String Eval = "any@ __vfdbgfunc(" + Args + "){return any(" + (Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
+			Core::String Eval = "any@ __vfdbgfunc(" + Core::String(Args) + "){return any(" + Core::String(Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
 			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
 			asIScriptFunction* Function = nullptr;
 			Bindings::Any* Data = nullptr;
@@ -5473,6 +5489,7 @@ namespace Vitex
 			if (Result < 0)
 			{
 				VM->AttachDebuggerToContext(Context->GetContext());
+				Core::Memory::Release(Function);
 				return VirtualException((VirtualError)Result);
 			}
 
@@ -5484,7 +5501,7 @@ namespace Vitex
 				Context->PopState();
 				Context->EnableSuspends();
 				VM->AttachDebuggerToContext(Context->GetContext());
-				VI_RELEASE(Function);
+				Core::Memory::Release(Function);
 				return Status1;
 			}
 
@@ -5501,8 +5518,7 @@ namespace Vitex
 			Context->PopState();
 			Context->EnableSuspends();
 			VM->AttachDebuggerToContext(Context->GetContext());
-			VI_RELEASE(Function);
-
+			Core::Memory::Release(Function);
 			if (!Status2)
 				return Status2.Error();
 
@@ -5540,6 +5556,7 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			Context->SetUserData(this, ContextUD);
 			VM = VirtualMachine::Get(Base->GetEngine());
+			SetLineCallback(nullptr);
 #endif
 		}
 		ImmediateContext::~ImmediateContext() noexcept
@@ -5643,6 +5660,8 @@ namespace Vitex
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			int R = Context->Execute();
+			CleanupStrings();
+
 			if (Callbacks.StopExecutions.empty())
 				return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
 
@@ -5650,7 +5669,6 @@ namespace Vitex
 			Core::Vector<StopExecutionCallback> Queue;
 			Queue.swap(Callbacks.StopExecutions);
 			Unique.Negate();
-
 			for (auto& Callback : Queue)
 				Callback();
 
@@ -5923,12 +5941,12 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetReturnableByDecl(void* Return, const char* ReturnTypeDecl)
+		ExpectsVM<void> ImmediateContext::GetReturnableByDecl(void* Return, const std::string_view& ReturnTypeDecl)
 		{
-			VI_ASSERT(ReturnTypeDecl != nullptr, "return type declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(ReturnTypeDecl), "rtdecl should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM->GetEngine();
-			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl));
+			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -5943,13 +5961,13 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetException(const char* Info, bool AllowCatch)
+		ExpectsVM<void> ImmediateContext::SetException(const std::string_view& Info, bool AllowCatch)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Info != nullptr && Info[0] != '\0', "exception should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Info), "info should be set");
 #ifdef VI_ANGELSCRIPT
 			if (!IsSuspended() && !Executor.DeferredExceptions)
-				return FunctionFactory::ToReturn(Context->SetException(Info, AllowCatch));
+				return FunctionFactory::ToReturn(Context->SetException(Info.data(), AllowCatch));
 
 			Executor.DeferredException.Info = Info;
 			Executor.DeferredException.AllowCatch = AllowCatch;
@@ -6078,13 +6096,17 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetProperty(size_t Index, size_t StackLevel, const char** Name, int* TypeId, Modifiers* TypeModifiers, bool* IsVarOnHeap, int* StackOffset)
+		ExpectsVM<void> ImmediateContext::GetProperty(size_t Index, size_t StackLevel, std::string_view* Name, int* TypeId, Modifiers* TypeModifiers, bool* IsVarOnHeap, int* StackOffset)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
+			const char* asName = "";
 			asETypeModifiers TypeModifiers1 = asTM_NONE;
-			int R = Context->GetVar((asUINT)Index, (asUINT)StackLevel, Name, TypeId, &TypeModifiers1, IsVarOnHeap, StackOffset);
-			if (TypeModifiers != nullptr) *TypeModifiers = (Modifiers)TypeModifiers1;
+			int R = Context->GetVar((asUINT)Index, (asUINT)StackLevel, &asName, TypeId, &TypeModifiers1, IsVarOnHeap, StackOffset);
+			if (TypeModifiers != nullptr)
+				*TypeModifiers = (Modifiers)TypeModifiers1;
+			if (Name != nullptr)
+				*Name = asName;
 			return FunctionFactory::ToReturn(R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -6099,11 +6121,15 @@ namespace Vitex
 			return Function(nullptr);
 #endif
 		}
-		int ImmediateContext::GetLineNumber(size_t StackLevel, int* Column, const char** SectionName)
+		int ImmediateContext::GetLineNumber(size_t StackLevel, int* Column, std::string_view* SectionName)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetLineNumber((asUINT)StackLevel, Column, SectionName);
+			const char* asSectionName = "";
+			int R = Context->GetLineNumber((asUINT)StackLevel, Column, &asSectionName);
+			if (SectionName != nullptr)
+				*SectionName = asSectionName;
+			return R;
 #else
 			return 0;
 #endif
@@ -6138,7 +6164,20 @@ namespace Vitex
 			Context->Unprepare();
 			Callbacks = Events();
 			Executor = Frame();
+			CleanupStrings();
 #endif
+		}
+		Core::String& ImmediateContext::ExtendStringLifetime(Core::String& Value)
+		{
+			if (Context->GetState() != asEXECUTION_ACTIVE)
+				return Value;
+
+			return Strings.emplace_back(Value);
+		}
+		void ImmediateContext::CleanupStrings()
+		{
+			while (!Strings.empty())
+				Strings.pop_front();
 		}
 		void ImmediateContext::AddRefLocals()
 		{
@@ -6325,11 +6364,15 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		int ImmediateContext::GetExceptionLineNumber(int* Column, const char** SectionName)
+		int ImmediateContext::GetExceptionLineNumber(int* Column, std::string_view* SectionName)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetExceptionLineNumber(Column, SectionName);
+			const char* asSectionName = "";
+			int R = Context->GetExceptionLineNumber(Column, &asSectionName);
+			if (SectionName != nullptr)
+				*SectionName = asSectionName;
+			return R;
 #else
 			return 0;
 #endif
@@ -6343,11 +6386,11 @@ namespace Vitex
 			return Function(nullptr);
 #endif
 		}
-		const char* ImmediateContext::GetExceptionString()
+		std::string_view ImmediateContext::GetExceptionString()
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetExceptionString();
+			return OrEmpty(Context->GetExceptionString());
 #else
 			return "";
 #endif
@@ -6401,22 +6444,22 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		const char* ImmediateContext::GetPropertyName(size_t Index, size_t StackLevel)
+		std::string_view ImmediateContext::GetPropertyName(size_t Index, size_t StackLevel)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* Name = nullptr;
+			const char* Name = "";
 			Context->GetVar((asUINT)Index, (asUINT)StackLevel, &Name);
-			return Name;
+			return OrEmpty(Name);
 #else
 			return "";
 #endif
 		}
-		const char* ImmediateContext::GetPropertyDecl(size_t Index, size_t StackLevel, bool IncludeNamespace)
+		std::string_view ImmediateContext::GetPropertyDecl(size_t Index, size_t StackLevel, bool IncludeNamespace)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetVarDeclaration((asUINT)Index, (asUINT)StackLevel, IncludeNamespace);
+			return OrEmpty(Context->GetVarDeclaration((asUINT)Index, (asUINT)StackLevel, IncludeNamespace));
 #else
 			return "";
 #endif
@@ -6612,12 +6655,12 @@ namespace Vitex
 			}
 
 			for (auto& Context : Threads)
-				VI_RELEASE(Context);
+				Core::Memory::Release(Context);
 #ifdef VI_ANGELSCRIPT
 			for (auto& Context : Stacks)
-				VI_RELEASE(Context);
+				Core::Memory::Release(Context);
 #endif
-			VI_CLEAR(Debugger);
+			Core::Memory::Release(Debugger);
 			CleanupThisThread();
 #ifdef VI_ANGELSCRIPT
 			if (Engine != nullptr)
@@ -6629,123 +6672,123 @@ namespace Vitex
 			SetByteCodeTranslator((unsigned int)TranslationOptions::Disabled);
 			ClearCache();
 		}
-		ExpectsVM<TypeInterface> VirtualMachine::SetInterface(const char* Name)
+		ExpectsVM<TypeInterface> VirtualMachine::SetInterface(const std::string_view& Name)
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register interface %i bytes", (int)strlen(Name));
+			VI_TRACE("[vm] register interface %i bytes", (int)Name.size());
 #ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterInterface(Name);
+			int TypeId = Engine->RegisterInterface(Name.data());
 			return FunctionFactory::ToReturn<TypeInterface>(TypeId, TypeInterface(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<TypeClass> VirtualMachine::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
+		ExpectsVM<TypeClass> VirtualMachine::SetStructAddress(const std::string_view& Name, size_t Size, uint64_t Flags)
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)Flags, (int)strlen(Name), (int)Size);
+			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)Flags, (int)Name.size(), (int)Size);
 #ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
+			int TypeId = Engine->RegisterObjectType(Name.data(), (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<TypeClass>(TypeId, TypeClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<TypeClass> VirtualMachine::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
+		ExpectsVM<TypeClass> VirtualMachine::SetPodAddress(const std::string_view& Name, size_t Size, uint64_t Flags)
 		{
 			return SetStructAddress(Name, Size, Flags);
 		}
-		ExpectsVM<RefClass> VirtualMachine::SetClassAddress(const char* Name, size_t Size, uint64_t Flags)
+		ExpectsVM<RefClass> VirtualMachine::SetClassAddress(const std::string_view& Name, size_t Size, uint64_t Flags)
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Name));
+			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)Name.size());
 #ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags);
+			int TypeId = Engine->RegisterObjectType(Name.data(), (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<TemplateClass> VirtualMachine::SetTemplateClassAddress(const char* Decl, const char* Name, size_t Size, uint64_t Flags)
+		ExpectsVM<TemplateClass> VirtualMachine::SetTemplateClassAddress(const std::string_view& Decl, const std::string_view& Name, size_t Size, uint64_t Flags)
 		{
-			VI_ASSERT(Decl != nullptr, "decl should be set");
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)strlen(Decl));
+			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)Decl.size());
 #ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterObjectType(Decl, (asUINT)Size, (asDWORD)Flags);
+			int TypeId = Engine->RegisterObjectType(Decl.data(), (asUINT)Size, (asDWORD)Flags);
 			return FunctionFactory::ToReturn<TemplateClass>(TypeId, TemplateClass(this, Name));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<Enumeration> VirtualMachine::SetEnum(const char* Name)
+		ExpectsVM<Enumeration> VirtualMachine::SetEnum(const std::string_view& Name)
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register enum %i bytes", (int)strlen(Name));
+			VI_TRACE("[vm] register enum %i bytes", (int)Name.size());
 #ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterEnum(Name);
+			int TypeId = Engine->RegisterEnum(Name.data());
 			return FunctionFactory::ToReturn<Enumeration>(TypeId, Enumeration(this, Engine->GetTypeInfoById(TypeId), TypeId));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetFunctionDef(const char* Decl)
+		ExpectsVM<void> VirtualMachine::SetFunctionDef(const std::string_view& Decl)
 		{
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
+			VI_TRACE("[vm] register funcdef %i bytes", (int)Decl.size());
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl));
+			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetTypeDef(const char* Type, const char* Decl)
+		ExpectsVM<void> VirtualMachine::SetTypeDef(const std::string_view& Type, const std::string_view& Decl)
 		{
-			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Type), "type should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcdef %i bytes", (int)strlen(Decl));
+			VI_TRACE("[vm] register funcdef %i bytes", (int)Decl.size());
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterTypedef(Type, Decl));
+			return FunctionFactory::ToReturn(Engine->RegisterTypedef(Type.data(), Decl.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		ExpectsVM<void> VirtualMachine::SetFunctionAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)Type, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)Type, (int)Decl.size(), (void*)Value);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type));
+			return FunctionFactory::ToReturn(Engine->RegisterGlobalFunction(Decl.data(), *Value, (asECallConvTypes)Type));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetPropertyAddress(const char* Decl, void* Value)
+		ExpectsVM<void> VirtualMachine::SetPropertyAddress(const std::string_view& Decl, void* Value)
 		{
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			VI_ASSERT(Value != nullptr, "value should be set");
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)strlen(Decl), (void*)Value);
+			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)Decl.size(), (void*)Value);
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterGlobalProperty(Decl, Value));
+			return FunctionFactory::ToReturn(Engine->RegisterGlobalProperty(Decl.data(), Value));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetStringFactoryAddress(const char* Type, asIStringFactory* Factory)
+		ExpectsVM<void> VirtualMachine::SetStringFactoryAddress(const std::string_view& Type, asIStringFactory* Factory)
 		{
-			VI_ASSERT(Type != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Type), "typename should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterStringFactory(Type, Factory));
+			return FunctionFactory::ToReturn(Engine->RegisterStringFactory(Type.data(), Factory));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -6753,8 +6796,8 @@ namespace Vitex
 		ExpectsVM<void> VirtualMachine::GetPropertyByIndex(size_t Index, PropertyInfo* Info) const
 		{
 #ifdef VI_ANGELSCRIPT
-			const char* Name = nullptr, * Namespace = nullptr;
-			const char* ConfigGroup = nullptr;
+			const char* Name = "", * Namespace = "";
+			const char* ConfigGroup = "";
 			void* Pointer = nullptr;
 			bool IsConst = false;
 			asDWORD AccessMask = 0;
@@ -6762,11 +6805,11 @@ namespace Vitex
 			int Result = Engine->GetGlobalPropertyByIndex((asUINT)Index, &Name, &Namespace, &TypeId, &IsConst, &ConfigGroup, &Pointer, &AccessMask);
 			if (Info != nullptr)
 			{
-				Info->Name = Name;
-				Info->Namespace = Namespace;
+				Info->Name = OrEmpty(Name);
+				Info->Namespace = OrEmpty(Namespace);
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
-				Info->ConfigGroup = ConfigGroup;
+				Info->ConfigGroup = OrEmpty(ConfigGroup);
 				Info->Pointer = Pointer;
 				Info->AccessMask = AccessMask;
 			}
@@ -6775,21 +6818,21 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByName(const char* Name) const
+		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByName(const std::string_view& Name) const
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GetGlobalPropertyIndexByName(Name);
+			int R = Engine->GetGlobalPropertyIndexByName(Name.data());
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByDecl(const char* Decl) const
+		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByDecl(const std::string_view& Decl) const
 		{
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GetGlobalPropertyIndexByDecl(Decl);
+			int R = Engine->GetGlobalPropertyIndexByDecl(Decl.data());
 			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -6806,10 +6849,12 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
+		ExpectsVM<void> VirtualMachine::Log(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message)
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message));
+			VI_ASSERT(Core::Stringify::IsCString(Section), "section should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Message), "message should be set");
+			return FunctionFactory::ToReturn(Engine->WriteMessage(Section.data(), Row, Column, (asEMsgType)Type, Message.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -6830,10 +6875,12 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::WriteMessage(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
+		ExpectsVM<void> VirtualMachine::WriteMessage(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message)
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message));
+			VI_ASSERT(Core::Stringify::IsCString(Section), "section should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Message), "message should be set");
+			return FunctionFactory::ToReturn(Engine->WriteMessage(Section.data(), Row, Column, (asEMsgType)Type, Message.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -6882,27 +6929,26 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::AddScriptSection(asIScriptModule* Module, const char* Name, const char* Code, size_t CodeLength, int LineOffset)
+		ExpectsVM<void> VirtualMachine::AddScriptSection(asIScriptModule* Module, const std::string_view& Name, const std::string_view& Code, int LineOffset)
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
-			VI_ASSERT(Code != nullptr, "code should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Code), "code should be set");
 			VI_ASSERT(Module != nullptr, "module should be set");
-			VI_ASSERT(CodeLength > 0, "code should not be empty");
 #ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Sections[Name] = Core::String(Code, CodeLength);
+			Sections[Core::String(Name)] = Core::String(Code);
 			Unique.Negate();
 
-			return FunctionFactory::ToReturn(Module->AddScriptSection(Name, Code, CodeLength, LineOffset));
+			return FunctionFactory::ToReturn(Module->AddScriptSection(Name.data(), Code.data(), Code.size(), LineOffset));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
+		ExpectsVM<void> VirtualMachine::GetTypeNameScope(std::string_view* TypeName, std::string_view* Namespace) const
 		{
-			VI_ASSERT(TypeName != nullptr && *TypeName != nullptr, "typename should be set");
+			VI_ASSERT(TypeName != nullptr && Core::Stringify::IsCString(*TypeName), "typename should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* Value = *TypeName;
+			const char* Value = TypeName->data();
 			size_t Size = strlen(Value);
 			size_t Index = Size - 1;
 
@@ -6913,27 +6959,23 @@ namespace Vitex
 			{
 				if (Namespace != nullptr)
 					*Namespace = "";
-				if (NamespaceSize != nullptr)
-					*NamespaceSize = 0;
 				return VirtualException(VirtualError::ALREADY_REGISTERED);
 			}
 
 			if (Namespace != nullptr)
-				*Namespace = Value;
-			if (NamespaceSize != nullptr)
-				*NamespaceSize = Index - 1;
+				*Namespace = std::string_view(Value, Index - 1);
 
-			*TypeName = Value + Index + 1;
+			*TypeName = std::string_view(Value + Index + 1);
 			return Core::Expectation::Met;
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::BeginGroup(const char* GroupName)
+		ExpectsVM<void> VirtualMachine::BeginGroup(const std::string_view& GroupName)
 		{
-			VI_ASSERT(GroupName != nullptr, "group name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GroupName), "group name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->BeginConfigGroup(GroupName));
+			return FunctionFactory::ToReturn(Engine->BeginConfigGroup(GroupName.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
@@ -6946,18 +6988,18 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::RemoveGroup(const char* GroupName)
+		ExpectsVM<void> VirtualMachine::RemoveGroup(const std::string_view& GroupName)
 		{
-			VI_ASSERT(GroupName != nullptr, "group name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(GroupName), "group name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RemoveConfigGroup(GroupName));
+			return FunctionFactory::ToReturn(Engine->RemoveConfigGroup(GroupName.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::BeginNamespace(const char* Namespace)
+		ExpectsVM<void> VirtualMachine::BeginNamespace(const std::string_view& Namespace)
 		{
-			VI_ASSERT(Namespace != nullptr, "namespace name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Namespace), "namespace should be set");
 #ifdef VI_ANGELSCRIPT
 			const char* Prev = Engine->GetDefaultNamespace();
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
@@ -6967,14 +7009,13 @@ namespace Vitex
 				DefaultNamespace.clear();
 
 			Unique.Negate();
-			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(Namespace));
+			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(Namespace.data()));
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
+		ExpectsVM<void> VirtualMachine::BeginNamespaceIsolated(const std::string_view& Namespace, size_t DefaultMask)
 		{
-			VI_ASSERT(Namespace != nullptr, "namespace name should be set");
 			BeginAccessMask(DefaultMask);
 			return BeginNamespace(Namespace);
 		}
@@ -7035,11 +7076,11 @@ namespace Vitex
 			return Function(nullptr);
 #endif
 		}
-		Function VirtualMachine::GetFunctionByDecl(const char* Decl) const
+		Function VirtualMachine::GetFunctionByDecl(const std::string_view& Decl) const
 		{
 #ifdef VI_ANGELSCRIPT
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
-			return Engine->GetGlobalFunctionByDecl(Decl);
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			return Engine->GetGlobalFunctionByDecl(Decl.data());
 #else
 			return Function(nullptr);
 #endif
@@ -7116,27 +7157,27 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		int VirtualMachine::GetTypeIdByDecl(const char* Decl) const
+		int VirtualMachine::GetTypeIdByDecl(const std::string_view& Decl) const
 		{
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetTypeIdByDecl(Decl);
+			return Engine->GetTypeIdByDecl(Decl.data());
 #else
 			return -1;
 #endif
 		}
-		const char* VirtualMachine::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
+		std::string_view VirtualMachine::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetTypeDeclaration(TypeId, IncludeNamespace);
+			return OrEmpty(Engine->GetTypeDeclaration(TypeId, IncludeNamespace));
 #else
 			return "";
 #endif
 		}
-		Core::Option<Core::String> VirtualMachine::GetScriptSection(const Core::String& Section)
+		Core::Option<Core::String> VirtualMachine::GetScriptSection(const std::string_view& Section)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Sections.find(Section);
+			auto It = Sections.find(Core::HglCast(Section));
 			if (It == Sections.end())
 				return Core::Optional::None;
 
@@ -7150,19 +7191,17 @@ namespace Vitex
 			return TypeInfo(nullptr);
 #endif
 		}
-		TypeInfo VirtualMachine::GetTypeInfoByName(const char* Name)
+		TypeInfo VirtualMachine::GetTypeInfoByName(const std::string_view& Name)
 		{
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* TypeName = Name;
-			const char* Namespace = nullptr;
-			size_t NamespaceSize = 0;
+			std::string_view TypeName = Name;
+			std::string_view Namespace = "";
+			if (!GetTypeNameScope(&TypeName, &Namespace))
+				return Engine->GetTypeInfoByName(Name.data());
 
-			if (!GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize))
-				return Engine->GetTypeInfoByName(Name);
-
-			BeginNamespace(Core::String(Namespace, NamespaceSize).c_str());
-			asITypeInfo* Info = Engine->GetTypeInfoByName(TypeName);
+			BeginNamespace(Core::String(Namespace));
+			asITypeInfo* Info = Engine->GetTypeInfoByName(TypeName.data());
 			EndNamespace();
 
 			return Info;
@@ -7170,11 +7209,11 @@ namespace Vitex
 			return TypeInfo(nullptr);
 #endif
 		}
-		TypeInfo VirtualMachine::GetTypeInfoByDecl(const char* Decl) const
+		TypeInfo VirtualMachine::GetTypeInfoByDecl(const std::string_view& Decl) const
 		{
-			VI_ASSERT(Decl != nullptr, "declaration should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetTypeInfoByDecl(Decl);
+			return Engine->GetTypeInfoByDecl(Decl.data());
 #else
 			return TypeInfo(nullptr);
 #endif
@@ -7185,9 +7224,9 @@ namespace Vitex
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			asCJITCompiler* Context = (asCJITCompiler*)Translator;
 			bool TranslatorActive = (Options != (unsigned int)TranslationOptions::Disabled);
-			VI_DELETE(asCJITCompiler, Context);
+			Core::Memory::Delete(Context);
 
-			Context = TranslatorActive ? VI_NEW(asCJITCompiler, Options) : nullptr;
+			Context = TranslatorActive ? Core::Memory::New<asCJITCompiler>(Options) : nullptr;
 			Translator = (asIScriptTranslator*)Context;
 			if (!Engine)
 				return true;
@@ -7204,19 +7243,27 @@ namespace Vitex
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			LibrarySettings[Property] = Value;
 		}
-		void VirtualMachine::SetCodeGenerator(const Core::String& Name, GeneratorCallback&& Callback)
+		void VirtualMachine::SetCodeGenerator(const std::string_view& Name, GeneratorCallback&& Callback)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			if (Callback != nullptr)
-				Generators[Name] = std::move(Callback);
+			auto It = Generators.find(Core::HglCast(Name));
+			if (It != Generators.end())
+			{
+				if (Callback != nullptr)
+					It->second = std::move(Callback);
+				else
+					Generators.erase(It);
+			}
+			else if (Callback != nullptr)
+				Generators[Core::String(Name)] = std::move(Callback);
 			else
-				Generators.erase(Name);
+				Generators.erase(Core::String(Name));
 		}
 		void VirtualMachine::SetPreserveSourceCode(bool Enabled)
 		{
 			SaveSources = Enabled;
 		}
-		void VirtualMachine::SetTsImports(bool Enabled, const char* ImportSyntax)
+		void VirtualMachine::SetTsImports(bool Enabled, const std::string_view& ImportSyntax)
 		{
 			Bindings::Imports::BindSyntax(this, Enabled, ImportSyntax);
 		}
@@ -7231,7 +7278,7 @@ namespace Vitex
 		void VirtualMachine::SetDebugger(DebuggerContext* Context)
 		{
 			Core::UMutex<std::recursive_mutex> Unique1(Sync.General);
-			VI_RELEASE(Debugger);
+			Core::Memory::Release(Debugger);
 			Debugger = Context;
 			if (Debugger != nullptr)
 				Debugger->SetEngine(this);
@@ -7245,11 +7292,12 @@ namespace Vitex
 					DetachDebuggerFromContext(Next);
 			}
 		}
-		void VirtualMachine::SetDefaultArrayType(const Core::String& Type)
+		void VirtualMachine::SetDefaultArrayType(const std::string_view& Type)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Type), "type should be set");
 #ifdef VI_ANGELSCRIPT
-			Engine->RegisterDefaultArrayType(Type.c_str());
+			Engine->RegisterDefaultArrayType(Type.data());
 #endif
 		}
 		void VirtualMachine::SetTypeInfoUserDataCleanupCallback(void(*Callback)(asITypeInfo*), size_t Type)
@@ -7288,7 +7336,7 @@ namespace Vitex
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			for (auto Data : Datas)
-				VI_RELEASE(Data.second);
+				Core::Memory::Release(Data.second);
 
 			Opcodes.clear();
 			Datas.clear();
@@ -7323,13 +7371,21 @@ namespace Vitex
 			Processor->SetIncludeOptions(Include);
 			Processor->SetFeatures(Proc);
 		}
-		void VirtualMachine::SetCompileCallback(const Core::String& Section, CompileCallback&& Callback)
+		void VirtualMachine::SetCompileCallback(const std::string_view& Section, CompileCallback&& Callback)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			if (Callback != nullptr)
-				Callbacks[Section] = std::move(Callback);
+			auto It = Callbacks.find(Core::HglCast(Section));
+			if (It != Callbacks.end())
+			{
+				if (Callback != nullptr)
+					It->second = std::move(Callback);
+				else
+					Callbacks.erase(It);
+			}
+			else if (Callback != nullptr)
+				Callbacks[Core::String(Section)] = std::move(Callback);
 			else
-				Callbacks.erase(Section);
+				Callbacks.erase(Core::String(Section));
 		}
 		void VirtualMachine::AttachDebuggerToContext(asIScriptContext* Context)
 		{
@@ -7390,32 +7446,33 @@ namespace Vitex
 		{
 			return new Compiler(this);
 		}
-		asIScriptModule* VirtualMachine::CreateScopedModule(const Core::String& Name)
+		asIScriptModule* VirtualMachine::CreateScopedModule(const std::string_view& Name)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(!Name.empty(), "name should not be empty");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			if (!Engine->GetModule(Name.c_str()))
-				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
+			if (!Engine->GetModule(Name.data()))
+				return Engine->GetModule(Name.data(), asGM_ALWAYS_CREATE);
 
 			Core::String Result;
 			while (Result.size() < 1024)
 			{
-				Result = Name + Core::ToString(Scope++);
+				Result.assign(Name);
+				Result.append(Core::ToString(Scope++));
 				if (!Engine->GetModule(Result.c_str()))
 					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
 			}
 #endif
 			return nullptr;
 		}
-		asIScriptModule* VirtualMachine::CreateModule(const Core::String& Name)
+		asIScriptModule* VirtualMachine::CreateModule(const std::string_view& Name)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(!Name.empty(), "name should not be empty");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
+			return Engine->GetModule(Name.data(), asGM_ALWAYS_CREATE);
 #else
 			return nullptr;
 #endif
@@ -7527,18 +7584,19 @@ namespace Vitex
 			return false;
 #endif
 		}
-		Compute::ExpectsPreprocessor<void> VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const Core::String& Path, Core::String& InoutBuffer)
+		Compute::ExpectsPreprocessor<void> VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const std::string_view& Path, Core::String& InoutBuffer)
 		{
 			VI_ASSERT(Processor != nullptr, "preprocessor should be set");
 			if (InoutBuffer.empty())
 				return Core::Expectation::Met;
 
-			VI_TRACE("[vm] preprocessor source code generation at %s (%" PRIu64 " bytes)", Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
+			std::string_view TargetPath = Path.empty() ? "<anonymous>" : Path;
+			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes)", (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size());
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 				for (auto& Item : Generators)
 				{
-					VI_TRACE("[vm] generate source code for %s generator at %s (%" PRIu64 " bytes)", Item.first.c_str(), Path.empty() ? "<anonymous>" : Path.c_str(), (uint64_t)InoutBuffer.size());
+					VI_TRACE("[vm] generate source code for %s generator at %.*s (%" PRIu64 " bytes)", Item.first.c_str(), (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size());
 					auto Status = Item.second(Processor, Path, InoutBuffer);
 					if (!Status)
 						return Compute::PreprocessorException(Compute::PreprocessorError::ExtensionError, 0, Status.Error().message());
@@ -7761,20 +7819,20 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		const char* VirtualMachine::GetNamespace() const
+		std::string_view VirtualMachine::GetNamespace() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetDefaultNamespace();
+			return OrEmpty(Engine->GetDefaultNamespace());
 #else
 			return "";
 #endif
 		}
-		Module VirtualMachine::GetModule(const char* Name)
+		Module VirtualMachine::GetModule(const std::string_view& Name)
 		{
 			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(Name != nullptr, "name should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			return Module(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
+			return Module(Engine->GetModule(Name.data(), asGM_CREATE_IF_NOT_EXISTS));
 #else
 			return Module(nullptr);
 #endif
@@ -7793,7 +7851,7 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		void VirtualMachine::SetModuleDirectory(const Core::String& Value)
+		void VirtualMachine::SetModuleDirectory(const std::string_view& Value)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Include.Root = Value;
@@ -7835,25 +7893,25 @@ namespace Vitex
 		{
 			return Include;
 		}
-		bool VirtualMachine::HasLibrary(const Core::String& Name, bool IsAddon)
+		bool VirtualMachine::HasLibrary(const std::string_view& Name, bool IsAddon)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = CLibraries.find(Name);
+			auto It = CLibraries.find(Core::HglCast(Name));
 			if (It == CLibraries.end())
 				return false;
 
 			return It->second.IsAddon == IsAddon;
 		}
-		bool VirtualMachine::HasSystemAddon(const Core::String& Name)
+		bool VirtualMachine::HasSystemAddon(const std::string_view& Name)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Name);
+			auto It = Addons.find(Core::HglCast(Name));
 			if (It == Addons.end())
 				return false;
 
 			return It->second.Exposed;
 		}
-		bool VirtualMachine::HasAddon(const Core::String& Name)
+		bool VirtualMachine::HasAddon(const std::string_view& Name)
 		{
 			return HasLibrary(Name, true);
 		}
@@ -7873,11 +7931,11 @@ namespace Vitex
 		{
 			return Debugger != nullptr;
 		}
-		bool VirtualMachine::AddSystemAddon(const Core::String& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
+		bool VirtualMachine::AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Name);
+			auto It = Addons.find(Core::HglCast(Name));
 			if (It != Addons.end())
 			{
 				if (Callback || !Dependencies.empty())
@@ -7894,23 +7952,23 @@ namespace Vitex
 				Addon Result;
 				Result.Dependencies = Dependencies;
 				Result.Callback = Callback;
-				Addons.insert({ Name, std::move(Result) });
+				Addons.insert({ Core::String(Name), std::move(Result) });
 			}
 
 			if (Name == "*")
 				return true;
 
 			auto& Lists = Addons["*"];
-			Lists.Dependencies.push_back(Name);
+			Lists.Dependencies.push_back(Core::String(Name));
 			Lists.Exposed = false;
 			return true;
 		}
-		ExpectsVM<void> VirtualMachine::ImportFile(const Core::String& Path, bool IsRemote, Core::String& Output)
+		ExpectsVM<void> VirtualMachine::ImportFile(const std::string_view& Path, bool IsRemote, Core::String& Output)
 		{
 			if (!IsRemote)
 			{
-				if (!Core::OS::File::IsExists(Path.c_str()))
-					return VirtualException("file not found: " + Path);
+				if (!Core::OS::File::IsExists(Path))
+					return VirtualException("file not found: " + Core::String(Path));
 
 				if (!Core::Stringify::EndsWith(Path, ".as"))
 					return ImportAddon(Path);
@@ -7920,14 +7978,14 @@ namespace Vitex
 			{
 				auto Data = Core::OS::File::ReadAsString(Path);
 				if (!Data)
-					return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Path);
+					return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Core::String(Path));
 
 				Output.assign(*Data);
 				return Core::Expectation::Met;
 			}
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Files.find(Path);
+			auto It = Files.find(Core::HglCast(Path));
 			if (It != Files.end())
 			{
 				Output.assign(It->second);
@@ -7937,39 +7995,41 @@ namespace Vitex
 			Unique.Negate();
 			auto Data = Core::OS::File::ReadAsString(Path);
 			if (!Data)
-				return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Path);
+				return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Core::String(Path));
 
 			Output.assign(*Data);
 			Unique.Negate();
 			Files.insert(std::make_pair(Path, Output));
 			return Core::Expectation::Met;
 		}
-		ExpectsVM<void> VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const Core::String& Func, const Core::String& Decl)
+		ExpectsVM<void> VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const std::string_view& Func, const std::string_view& Decl)
 		{
+			VI_ASSERT(Core::Stringify::IsCString(Func), "func should be set");
+			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
 			if (!Engine || Decl.empty() || Func.empty())
 				return VirtualException("import cfunction: invalid argument");
 
 			auto LoadFunction = [this, &Func, &Decl](CLibrary& Context) -> ExpectsVM<void>
 			{
-				auto Handle = Context.Functions.find(Func);
+				auto Handle = Context.Functions.find(Core::HglCast(Func));
 				if (Handle != Context.Functions.end())
 					return Core::Expectation::Met;
 
 				auto FunctionHandle = Core::OS::Symbol::LoadFunction(Context.Handle, Func);
 				if (!FunctionHandle)
-					return VirtualException(Core::Copy<Core::String>(FunctionHandle.Error().message()) + ": " + Func);
+					return VirtualException(Core::Copy<Core::String>(FunctionHandle.Error().message()) + ": " + Core::String(Func));
 
 				FunctionPtr Function = (FunctionPtr)*FunctionHandle;
 				if (!Function)
-					return VirtualException("cfunction not found: " + Func);
+					return VirtualException("cfunction not found: " + Core::String(Func));
 #ifdef VI_ANGELSCRIPT
 				VI_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)Decl.size(), (void*)Function);
-				int Result = Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL);
+				int Result = Engine->RegisterGlobalFunction(Decl.data(), asFUNCTION(Function), asCALL_CDECL);
 				if (Result < 0)
-					return VirtualException((VirtualError)Result, "register cfunction error: " + Func);
+					return VirtualException((VirtualError)Result, "register cfunction error: " + Core::String(Func));
 
-				Context.Functions.insert({ Func, { Decl, (void*)Function } });
-				VI_DEBUG("[vm] load function %s", Func.c_str());
+				Context.Functions.insert({ Core::String(Func), { Core::String(Decl), (void*)Function } });
+				VI_DEBUG("[vm] load function %.*s", (int)Func.size(), Func.data());
 				return Core::Expectation::Met;
 #else
 				return VirtualException("cfunction not found: not supported");
@@ -7995,23 +8055,23 @@ namespace Vitex
 					return Status;
 			}
 
-			return VirtualException("cfunction not found: " + Func);
+			return VirtualException("cfunction not found: " + Core::String(Func));
 		}
-		ExpectsVM<void> VirtualMachine::ImportCLibrary(const Core::String& Path, bool IsAddon)
+		ExpectsVM<void> VirtualMachine::ImportCLibrary(const std::string_view& Path, bool IsAddon)
 		{
-			Core::String Name = GetLibraryName(Path);
+			auto Name = GetLibraryName(Path);
 			if (!Engine)
 				return VirtualException("import clibrary: invalid argument");
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto Core = CLibraries.find(Name);
+			auto Core = CLibraries.find(Core::HglCast(Name));
 			if (Core != CLibraries.end())
 				return Core::Expectation::Met;
 
 			Unique.Negate();
 			auto Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
-				return VirtualException(Core::Copy<Core::String>(Handle.Error().message()) + ": " + Path);
+				return VirtualException(Core::Copy<Core::String>(Handle.Error().message()) + ": " + Core::String(Path));
 
 			CLibrary Library;
 			Library.Handle = *Handle;
@@ -8029,23 +8089,23 @@ namespace Vitex
 			}
 
 			Unique.Negate();
-			CLibraries.insert({ Name, std::move(Library) });
-			VI_DEBUG("[vm] load library %s", Path.c_str());
+			CLibraries.insert({ Core::String(Name), std::move(Library) });
+			VI_DEBUG("[vm] load library %.*s", (int)Path.size(), Path.data());
 			return Core::Expectation::Met;
 		}
-		ExpectsVM<void> VirtualMachine::ImportSystemAddon(const Core::String& Name)
+		ExpectsVM<void> VirtualMachine::ImportSystemAddon(const std::string_view& Name)
 		{
 			if (!Core::OS::Control::Has(Core::AccessOption::Addons))
 				return VirtualException("import system addon: denied");
 
-			Core::String Target = Name;
+			Core::String Target = Core::String(Name);
 			if (Core::Stringify::EndsWith(Target, ".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			auto It = Addons.find(Target);
 			if (It == Addons.end())
-				return VirtualException("system addon not found: " + Name);
+				return VirtualException("system addon not found: " + Core::String(Name));
 
 			if (It->second.Exposed)
 				return Core::Expectation::Met;
@@ -8064,32 +8124,32 @@ namespace Vitex
 			if (Base.Callback)
 				Base.Callback(this);
 
-			VI_DEBUG("[vm] load system addon %s", Name.c_str());
+			VI_DEBUG("[vm] load system addon %.*s", (int)Name.size(), Name.data());
 			return Core::Expectation::Met;
 		}
-		ExpectsVM<void> VirtualMachine::ImportAddon(const Core::String& Name)
+		ExpectsVM<void> VirtualMachine::ImportAddon(const std::string_view& Name)
 		{
-			return ImportCLibrary(Name.c_str(), true);
+			return ImportCLibrary(Name, true);
 		}
-		ExpectsVM<void> VirtualMachine::InitializeAddon(const Core::String& Path, CLibrary& Library)
+		ExpectsVM<void> VirtualMachine::InitializeAddon(const std::string_view& Path, CLibrary& Library)
 		{
 			auto ViInitializeHandle = Core::OS::Symbol::LoadFunction(Library.Handle, "ViInitialize");
 			if (!ViInitializeHandle)
-				return VirtualException("import user addon: no initialization routine (path = " + Path + ")");
+				return VirtualException("import user addon: no initialization routine (path = " + Core::String(Path) + ")");
 
 			auto ViInitialize = (int(*)(VirtualMachine*))*ViInitializeHandle;
 			if (!ViInitialize)
-				return VirtualException("import user addon: no initialization routine (path = " + Path + ")");
+				return VirtualException("import user addon: no initialization routine (path = " + Core::String(Path) + ")");
 
 			int Code = ViInitialize(this);
 			if (Code != 0)
-				return VirtualException("import user addon: initialization failed (path = " + Path + ", exit = " + Core::ToString(Code) + ")");
+				return VirtualException("import user addon: initialization failed (path = " + Core::String(Path) + ", exit = " + Core::ToString(Code) + ")");
 
-			VI_DEBUG("[vm] addon library %s initializated", Path.c_str());
+			VI_DEBUG("[vm] addon library %.*s initializated", (int)Path.size(), Path.data());
 			Library.Functions.insert({ "ViInitialize", { Core::String(), (void*)ViInitialize } });
 			return Core::Expectation::Met;
 		}
-		void VirtualMachine::UninitializeAddon(const Core::String& Name, CLibrary& Library)
+		void VirtualMachine::UninitializeAddon(const std::string_view& Name, CLibrary& Library)
 		{
 			auto ViUninitializeHandle = Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
 			if (!ViUninitializeHandle)
@@ -8102,12 +8162,11 @@ namespace Vitex
 				ViUninitialize(this);
 			}
 		}
-		Core::Option<Core::String> VirtualMachine::GetSourceCodeAppendix(const char* Label, const Core::String& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
+		Core::Option<Core::String> VirtualMachine::GetSourceCodeAppendix(const std::string_view& Label, const std::string_view& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
 		{
 			if (MaxLines % 2 == 0)
 				++MaxLines;
 
-			VI_ASSERT(Label != nullptr, "label should be set");
 			Core::Vector<Core::String> Lines = ExtractLinesOfCode(Code, (int)LineNumber, (int)MaxLines);
 			if (Lines.empty())
 				return Core::Optional::None;
@@ -8136,7 +8195,7 @@ namespace Vitex
 
 			return Stream.str();
 		}
-		Core::Option<Core::String> VirtualMachine::GetSourceCodeAppendixByPath(const char* Label, const Core::String& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
+		Core::Option<Core::String> VirtualMachine::GetSourceCodeAppendixByPath(const std::string_view& Label, const std::string_view& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
 		{
 			auto Code = GetScriptSection(Path);
 			if (!Code)
@@ -8190,7 +8249,7 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Core::String VirtualMachine::GetLibraryName(const Core::String& Path)
+		std::string_view VirtualMachine::GetLibraryName(const std::string_view& Path)
 		{
 			if (Path.empty())
 				return Path;
@@ -8257,8 +8316,9 @@ namespace Vitex
 		{
 			ImmediateContext* Base = ImmediateContext::Get(Context);
 			VI_ASSERT(Base != nullptr, "context should be set");
-			VI_ASSERT(Base->Callbacks.Line, "context should be set");
-			Base->Callbacks.Line(Base);
+			if (Base->Callbacks.Line)
+				Base->Callbacks.Line(Base);
+			Base->CleanupStrings();
 		}
 		void VirtualMachine::ExceptionHandler(asIScriptContext* Context, void*)
 		{
@@ -8302,7 +8362,7 @@ namespace Vitex
 			asThreadCleanup();
 #endif
 		}
-		const char* VirtualMachine::GetErrorNameInfo(VirtualError Code)
+		std::string_view VirtualMachine::GetErrorNameInfo(VirtualError Code)
 		{
 			switch (Code)
 			{
@@ -8427,13 +8487,12 @@ namespace Vitex
 			Engine->AddSystemAddon("thread", { "any", "string" }, Bindings::Registry::ImportThread);
 			Engine->AddSystemAddon("buffers", { "string" }, Bindings::Registry::ImportBuffers);
 			Engine->AddSystemAddon("promise", { "exception" }, Bindings::Registry::ImportPromise);
-			Engine->AddSystemAddon("format", { "string" }, Bindings::Registry::ImportFormat);
 			Engine->AddSystemAddon("decimal", { "string" }, Bindings::Registry::ImportDecimal);
 			Engine->AddSystemAddon("uint128", { "decimal" }, Bindings::Registry::ImportUInt128);
 			Engine->AddSystemAddon("uint256", { "uint128" }, Bindings::Registry::ImportUInt256);
 			Engine->AddSystemAddon("variant", { "string", "decimal" }, Bindings::Registry::ImportVariant);
 			Engine->AddSystemAddon("timestamp", { "string" }, Bindings::Registry::ImportTimestamp);
-			Engine->AddSystemAddon("console", { "format" }, Bindings::Registry::ImportConsole);
+			Engine->AddSystemAddon("console", { "string" }, Bindings::Registry::ImportConsole);
 			Engine->AddSystemAddon("schema", { "array", "string", "dictionary", "variant" }, Bindings::Registry::ImportSchema);
 			Engine->AddSystemAddon("schedule", { "ctypes" }, Bindings::Registry::ImportSchedule);
 			Engine->AddSystemAddon("clock", { }, Bindings::Registry::ImportClockTimer);

@@ -4,12 +4,12 @@
 #include <iostream>
 #include <functional>
 #include <limits>
-#define VI_VS (unsigned int)Vitex::Graphics::ShaderType::Vertex
-#define VI_PS (unsigned int)Vitex::Graphics::ShaderType::Pixel
-#define VI_GS (unsigned int)Vitex::Graphics::ShaderType::Geometry
-#define VI_CS (unsigned int)Vitex::Graphics::ShaderType::Compute
-#define VI_HS (unsigned int)Vitex::Graphics::ShaderType::Hull
-#define VI_DS (unsigned int)Vitex::Graphics::ShaderType::Domain
+#define VI_VS (uint32_t)Vitex::Graphics::ShaderType::Vertex
+#define VI_PS (uint32_t)Vitex::Graphics::ShaderType::Pixel
+#define VI_GS (uint32_t)Vitex::Graphics::ShaderType::Geometry
+#define VI_CS (uint32_t)Vitex::Graphics::ShaderType::Compute
+#define VI_HS (uint32_t)Vitex::Graphics::ShaderType::Hull
+#define VI_DS (uint32_t)Vitex::Graphics::ShaderType::Domain
 
 struct SDL_SysWMinfo;
 struct SDL_Cursor;
@@ -785,8 +785,8 @@ namespace Vitex
 		typedef std::function<void(int, int, float, float, float, float, float, bool)> TouchStateCallback;
 		typedef std::function<void(int, int, int, float, float, float, bool)> GestureStateCallback;
 		typedef std::function<void(int, int, float, float, float, float)> MultiGestureStateCallback;
-		typedef std::function<void(const Core::String&)> DropFileCallback;
-		typedef std::function<void(const Core::String&)> DropTextCallback;
+		typedef std::function<void(const std::string_view&)> DropFileCallback;
+		typedef std::function<void(const std::string_view&)> DropTextCallback;
 		typedef std::function<void(GraphicsDevice*)> RenderThreadCallback;
 
 		struct VI_OUT Alert
@@ -811,8 +811,8 @@ namespace Vitex
 
 		public:
 			Alert(Activity* From) noexcept;
-			void Setup(AlertType Type, const Core::String& Title, const Core::String& Text);
-			void Button(AlertConfirm Confirm, const Core::String& Text, int Id);
+			void Setup(AlertType Type, const std::string_view& Title, const std::string_view& Text);
+			void Button(AlertConfirm Confirm, const std::string_view& Text, int Id);
 			void Result(const std::function<void(int)>& Callback);
 
 		private:
@@ -851,8 +851,8 @@ namespace Vitex
 		struct VI_OUT MappedSubresource
 		{
 			void* Pointer = nullptr;
-			unsigned int RowPitch = 0;
-			unsigned int DepthPitch = 0;
+			uint32_t RowPitch = 0;
+			uint32_t DepthPitch = 0;
 		};
 
 		struct VI_OUT Viewport
@@ -873,7 +873,7 @@ namespace Vitex
 			Blend SrcBlendAlpha;
 			Blend DestBlendAlpha;
 			BlendOperation BlendOperationAlpha;
-			unsigned char RenderTargetWriteMask;
+			uint8_t RenderTargetWriteMask;
 			bool BlendEnable;
 		};
 
@@ -942,8 +942,8 @@ namespace Vitex
 				Comparison BackFaceStencilFunction;
 				DepthWrite DepthWriteMask;
 				Comparison DepthFunction;
-				unsigned char StencilReadMask;
-				unsigned char StencilWriteMask;
+				uint8_t StencilReadMask;
+				uint8_t StencilWriteMask;
 				bool DepthEnable;
 				bool StencilEnable;
 			};
@@ -1022,7 +1022,7 @@ namespace Vitex
 				TextureAddress AddressW;
 				PixelFilter Filter;
 				float MipLODBias;
-				unsigned int MaxAnisotropy;
+				uint32_t MaxAnisotropy;
 				float BorderColor[4];
 				float MinLOD;
 				float MaxLOD;
@@ -1046,11 +1046,11 @@ namespace Vitex
 			struct Attribute
 			{
 				Core::String SemanticName;
-				unsigned int SemanticIndex;
+				uint32_t SemanticIndex;
 				AttributeType Format;
-				unsigned int Components;
-				unsigned int AlignedByteOffset;
-				unsigned int Slot = 0;
+				uint32_t Components;
+				uint32_t AlignedByteOffset;
+				uint32_t Slot = 0;
 				bool PerVertex = true;
 			};
 
@@ -1100,9 +1100,9 @@ namespace Vitex
 			struct Desc
 			{
 				void* Elements = nullptr;
-				unsigned int StructureByteStride = 0;
-				unsigned int ElementWidth = 0;
-				unsigned int ElementCount = 0;
+				uint32_t StructureByteStride = 0;
+				uint32_t ElementWidth = 0;
+				uint32_t ElementCount = 0;
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Vertex_Buffer;
@@ -1189,8 +1189,8 @@ namespace Vitex
 			struct Desc
 			{
 				GraphicsDevice* Device = nullptr;
-				unsigned int ElementWidth = sizeof(Compute::ElementVertex);
-				unsigned int ElementLimit = 100;
+				uint32_t ElementWidth = sizeof(Compute::ElementVertex);
+				uint32_t ElementLimit = 100;
 			};
 
 		protected:
@@ -1223,10 +1223,10 @@ namespace Vitex
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::None;
 				void* Data = nullptr;
-				unsigned int RowPitch = 0;
-				unsigned int DepthPitch = 0;
-				unsigned int Width = WINDOW_SIZE;
-				unsigned int Height = WINDOW_SIZE;
+				uint32_t RowPitch = 0;
+				uint32_t DepthPitch = 0;
+				uint32_t Width = WINDOW_SIZE;
+				uint32_t Height = WINDOW_SIZE;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1236,8 +1236,8 @@ namespace Vitex
 			Format FormatMode;
 			ResourceUsage Usage;
 			ResourceBind Binding;
-			unsigned int Width, Height;
-			unsigned int MipLevels;
+			uint32_t Width, Height;
+			uint32_t MipLevels;
 
 		protected:
 			Texture2D() noexcept;
@@ -1250,9 +1250,9 @@ namespace Vitex
 			Format GetFormatMode() const;
 			ResourceUsage GetUsage() const;
 			ResourceBind GetBinding() const;
-			unsigned int GetWidth() const;
-			unsigned int GetHeight() const;
-			unsigned int GetMipLevels() const;
+			uint32_t GetWidth() const;
+			uint32_t GetHeight() const;
+			uint32_t GetMipLevels() const;
 		};
 
 		class VI_OUT Texture3D : public Core::Reference<Texture3D>
@@ -1265,9 +1265,9 @@ namespace Vitex
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::None;
-				unsigned int Width = WINDOW_SIZE;
-				unsigned int Height = WINDOW_SIZE;
-				unsigned int Depth = 1;
+				uint32_t Width = WINDOW_SIZE;
+				uint32_t Height = WINDOW_SIZE;
+				uint32_t Depth = 1;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1277,9 +1277,9 @@ namespace Vitex
 			Format FormatMode;
 			ResourceUsage Usage;
 			ResourceBind Binding;
-			unsigned int Width, Height;
-			unsigned int MipLevels;
-			unsigned int Depth;
+			uint32_t Width, Height;
+			uint32_t MipLevels;
+			uint32_t Depth;
 
 		protected:
 			Texture3D();
@@ -1291,10 +1291,10 @@ namespace Vitex
 			Format GetFormatMode() const;
 			ResourceUsage GetUsage() const;
 			ResourceBind GetBinding() const;
-			unsigned int GetWidth() const;
-			unsigned int GetHeight() const;
-			unsigned int GetDepth() const;
-			unsigned int GetMipLevels() const;
+			uint32_t GetWidth() const;
+			uint32_t GetHeight() const;
+			uint32_t GetDepth() const;
+			uint32_t GetMipLevels() const;
 		};
 
 		class VI_OUT TextureCube : public Core::Reference<TextureCube>
@@ -1307,8 +1307,8 @@ namespace Vitex
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = ResourceBind::Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc::Texture_Cube;
-				unsigned int Width = WINDOW_SIZE;
-				unsigned int Height = WINDOW_SIZE;
+				uint32_t Width = WINDOW_SIZE;
+				uint32_t Height = WINDOW_SIZE;
 				int MipLevels = 1;
 				bool Writable = false;
 			};
@@ -1318,8 +1318,8 @@ namespace Vitex
 			Format FormatMode;
 			ResourceUsage Usage;
 			ResourceBind Binding;
-			unsigned int Width, Height;
-			unsigned int MipLevels;
+			uint32_t Width, Height;
+			uint32_t MipLevels;
 
 		protected:
 			TextureCube() noexcept;
@@ -1332,9 +1332,9 @@ namespace Vitex
 			Format GetFormatMode() const;
 			ResourceUsage GetUsage() const;
 			ResourceBind GetBinding() const;
-			unsigned int GetWidth() const;
-			unsigned int GetHeight() const;
-			unsigned int GetMipLevels() const;
+			uint32_t GetWidth() const;
+			uint32_t GetHeight() const;
+			uint32_t GetMipLevels() const;
 		};
 
 		class VI_OUT DepthTarget2D : public Core::Reference<DepthTarget2D>
@@ -1345,8 +1345,8 @@ namespace Vitex
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				Format FormatMode = Format::D24_Unorm_S8_Uint;
-				unsigned int Width = WINDOW_SIZE;
-				unsigned int Height = WINDOW_SIZE;
+				uint32_t Width = WINDOW_SIZE;
+				uint32_t Height = WINDOW_SIZE;
 			};
 
 		protected:
@@ -1373,7 +1373,7 @@ namespace Vitex
 				CPUAccess AccessFlags = CPUAccess::None;
 				ResourceUsage Usage = ResourceUsage::Default;
 				Format FormatMode = Format::D24_Unorm_S8_Uint;
-				unsigned int Size = 512;
+				uint32_t Size = 512;
 			};
 
 		protected:
@@ -1408,8 +1408,8 @@ namespace Vitex
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
 			virtual uint32_t GetTargetCount() const = 0;
-			virtual Texture2D* GetTarget2D(unsigned int Index) = 0;
-			virtual TextureCube* GetTargetCube(unsigned int Index) = 0;
+			virtual Texture2D* GetTarget2D(uint32_t Index) = 0;
+			virtual TextureCube* GetTargetCube(uint32_t Index) = 0;
 			Texture2D* GetDepthStencil();
 			const Graphics::Viewport& GetViewport() const;
 		};
@@ -1425,9 +1425,9 @@ namespace Vitex
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc::None;
 				void* RenderSurface = nullptr;
-				unsigned int Width = WINDOW_SIZE;
-				unsigned int Height = WINDOW_SIZE;
-				unsigned int MipLevels = 1;
+				uint32_t Width = WINDOW_SIZE;
+				uint32_t Height = WINDOW_SIZE;
+				uint32_t MipLevels = 1;
 				bool DepthStencil = true;
 			};
 
@@ -1444,8 +1444,8 @@ namespace Vitex
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
 			uint32_t GetTargetCount() const;
-			Texture2D* GetTarget2D(unsigned int Index);
-			TextureCube* GetTargetCube(unsigned int Index);
+			Texture2D* GetTarget2D(uint32_t Index);
+			TextureCube* GetTargetCube(uint32_t Index);
 			Texture2D* GetTarget();
 		};
 
@@ -1460,9 +1460,9 @@ namespace Vitex
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc::None;
-				unsigned int Width = WINDOW_SIZE;
-				unsigned int Height = WINDOW_SIZE;
-				unsigned int MipLevels = 1;
+				uint32_t Width = WINDOW_SIZE;
+				uint32_t Height = WINDOW_SIZE;
+				uint32_t MipLevels = 1;
 				bool DepthStencil = true;
 			};
 
@@ -1480,9 +1480,9 @@ namespace Vitex
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
 			uint32_t GetTargetCount() const;
-			Texture2D* GetTarget2D(unsigned int Index);
-			TextureCube* GetTargetCube(unsigned int Index);
-			Texture2D* GetTarget(unsigned int Index);
+			Texture2D* GetTarget2D(uint32_t Index);
+			TextureCube* GetTargetCube(uint32_t Index);
+			Texture2D* GetTarget(uint32_t Index);
 		};
 
 		class VI_OUT RenderTargetCube : public RenderTarget
@@ -1495,8 +1495,8 @@ namespace Vitex
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc::Generate_Mips | ResourceMisc::Texture_Cube);
-				unsigned int Size = 512;
-				unsigned int MipLevels = 1;
+				uint32_t Size = 512;
+				uint32_t MipLevels = 1;
 				bool DepthStencil = true;
 			};
 
@@ -1513,8 +1513,8 @@ namespace Vitex
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
 			uint32_t GetTargetCount() const;
-			Texture2D* GetTarget2D(unsigned int Index);
-			TextureCube* GetTargetCube(unsigned int Index);
+			Texture2D* GetTarget2D(uint32_t Index);
+			TextureCube* GetTargetCube(uint32_t Index);
 			TextureCube* GetTarget();
 		};
 
@@ -1529,8 +1529,8 @@ namespace Vitex
 				ResourceUsage Usage = ResourceUsage::Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
 				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc::Generate_Mips | ResourceMisc::Texture_Cube);
-				unsigned int MipLevels = 1;
-				unsigned int Size = 512;
+				uint32_t MipLevels = 1;
+				uint32_t Size = 512;
 				bool DepthStencil = true;
 			};
 
@@ -1548,9 +1548,9 @@ namespace Vitex
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
 			uint32_t GetTargetCount() const;
-			Texture2D* GetTarget2D(unsigned int Index);
-			TextureCube* GetTargetCube(unsigned int Index);
-			TextureCube* GetTarget(unsigned int Index);
+			Texture2D* GetTarget2D(uint32_t Index);
+			TextureCube* GetTargetCube(uint32_t Index);
+			TextureCube* GetTarget(uint32_t Index);
 		};
 
 		class VI_OUT Cubemap : public Core::Reference<Cubemap>
@@ -1559,9 +1559,9 @@ namespace Vitex
 			struct Desc
 			{
 				RenderTarget* Source = nullptr;
-				unsigned int Target = 0;
-				unsigned int MipLevels = 0;
-				unsigned int Size = 512;
+				uint32_t Target = 0;
+				uint32_t MipLevels = 0;
+				uint32_t Size = 512;
 			};
 
 		protected:
@@ -1621,11 +1621,11 @@ namespace Vitex
 				bool ShaderCache = true;
 				bool Debug = false;
 				bool BlitRendering = false;
-				unsigned int PresentationFlags = 0;
-				unsigned int CompilationFlags = (unsigned int)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
-				unsigned int CreationFlags = 0;
-				unsigned int BufferWidth = WINDOW_SIZE;
-				unsigned int BufferHeight = WINDOW_SIZE;
+				uint32_t PresentationFlags = 0;
+				uint32_t CompilationFlags = (uint32_t)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
+				uint32_t CreationFlags = 0;
+				uint32_t BufferWidth = WINDOW_SIZE;
+				uint32_t BufferHeight = WINDOW_SIZE;
 				Activity* Window = nullptr;
 			};
 
@@ -1649,8 +1649,8 @@ namespace Vitex
 			Texture2D* ViewResource = nullptr;
 			RenderTarget2D* RenderTarget = nullptr;
 			Activity* VirtualWindow = nullptr;
-			unsigned int PresentFlags = 0;
-			unsigned int CompileFlags = 0;
+			uint32_t PresentFlags = 0;
+			uint32_t CompileFlags = 0;
 			VSync VSyncMode = VSync::Frequency_X1;
 			Core::Vector<Vertex> Elements;
 			Core::String Caches;
@@ -1673,35 +1673,35 @@ namespace Vitex
 			virtual void SetRasterizerState(RasterizerState* State) = 0;
 			virtual void SetDepthStencilState(DepthStencilState* State) = 0;
 			virtual void SetInputLayout(InputLayout* State) = 0;
-			virtual ExpectsGraphics<void> SetShader(Shader* Resource, unsigned int Type) = 0;
-			virtual void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
-			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetConstantBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual ExpectsGraphics<void> SetShader(Shader* Resource, uint32_t Type) = 0;
+			virtual void SetSamplerState(SamplerState* State, uint32_t Slot, uint32_t Count, uint32_t Type) = 0;
+			virtual void SetBuffer(Shader* Resource, uint32_t Slot, uint32_t Type) = 0;
+			virtual void SetBuffer(InstanceBuffer* Resource, uint32_t Slot, uint32_t Type) = 0;
+			virtual void SetConstantBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type) = 0;
+			virtual void SetStructureBuffer(ElementBuffer* Resource, uint32_t Slot, uint32_t Type) = 0;
+			virtual void SetTexture2D(Texture2D* Resource, uint32_t Slot, uint32_t Type) = 0;
+			virtual void SetTexture3D(Texture3D* Resource, uint32_t Slot, uint32_t Type) = 0;
+			virtual void SetTextureCube(TextureCube* Resource, uint32_t Slot, uint32_t Type) = 0;
 			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) = 0;
-			virtual void SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage = false) = 0;
-			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
-			virtual void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
-			virtual void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
-			virtual void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
+			virtual void SetVertexBuffers(ElementBuffer** Resources, uint32_t Count, bool DynamicLinkage = false) = 0;
+			virtual void SetWriteable(ElementBuffer** Resource, uint32_t Slot, uint32_t Count, bool Computable) = 0;
+			virtual void SetWriteable(Texture2D** Resource, uint32_t Slot, uint32_t Count, bool Computable) = 0;
+			virtual void SetWriteable(Texture3D** Resource, uint32_t Slot, uint32_t Count, bool Computable) = 0;
+			virtual void SetWriteable(TextureCube** Resource, uint32_t Slot, uint32_t Count, bool Computable) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
 			virtual void SetTarget(DepthTarget2D* Resource) = 0;
 			virtual void SetTarget(DepthTargetCube* Resource) = 0;
-			virtual void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target) = 0;
+			virtual void SetTarget(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B) = 0;
+			virtual void SetTarget(Graphics::RenderTarget* Resource, uint32_t Target) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource) = 0;
 			virtual void SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8]) = 0;
-			virtual void SetTargetRect(unsigned int Width, unsigned int Height) = 0;
-			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
-			virtual void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) = 0;
+			virtual void SetTargetRect(uint32_t Width, uint32_t Height) = 0;
+			virtual void SetViewports(uint32_t Count, Viewport* Viewports) = 0;
+			virtual void SetScissorRects(uint32_t Count, Compute::Rectangle* Value) = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
-			virtual void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
+			virtual void FlushTexture(uint32_t Slot, uint32_t Count, uint32_t Type) = 0;
 			virtual void FlushState() = 0;
 			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
 			virtual void ClearWritable(Texture2D* Resource) = 0;
@@ -1711,22 +1711,22 @@ namespace Vitex
 			virtual void ClearWritable(TextureCube* Resource) = 0;
 			virtual void ClearWritable(TextureCube* Resource, float R, float G, float B) = 0;
 			virtual void Clear(float R, float G, float B) = 0;
-			virtual void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void Clear(Graphics::RenderTarget* Resource, uint32_t Target, float R, float G, float B) = 0;
 			virtual void ClearDepth() = 0;
 			virtual void ClearDepth(DepthTarget2D* Resource) = 0;
 			virtual void ClearDepth(DepthTargetCube* Resource) = 0;
 			virtual void ClearDepth(Graphics::RenderTarget* Resource) = 0;
-			virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
+			virtual void DrawIndexed(uint32_t Count, uint32_t IndexLocation, uint32_t BaseLocation) = 0;
 			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
 			virtual void DrawIndexed(SkinMeshBuffer* Resource) = 0;
-			virtual void DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation) = 0;
-			virtual void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount) = 0;
-			virtual void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount) = 0;
-			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
-			virtual void DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation) = 0;
-			virtual void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) = 0;
-			virtual void GetViewports(unsigned int* Count, Viewport* Out) = 0;
-			virtual void GetScissorRects(unsigned int* Count, Compute::Rectangle* Out) = 0;
+			virtual void DrawIndexedInstanced(uint32_t IndexCountPerInstance, uint32_t InstanceCount, uint32_t IndexLocation, uint32_t VertexLocation, uint32_t InstanceLocation) = 0;
+			virtual void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, uint32_t InstanceCount) = 0;
+			virtual void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, uint32_t InstanceCount) = 0;
+			virtual void Draw(uint32_t Count, uint32_t Location) = 0;
+			virtual void DrawInstanced(uint32_t VertexCountPerInstance, uint32_t InstanceCount, uint32_t VertexLocation, uint32_t InstanceLocation) = 0;
+			virtual void Dispatch(uint32_t GroupX, uint32_t GroupY, uint32_t GroupZ) = 0;
+			virtual void GetViewports(uint32_t* Count, Viewport* Out) = 0;
+			virtual void GetScissorRects(uint32_t* Count, Compute::Rectangle* Out) = 0;
 			virtual void QueryBegin(Query* Resource) = 0;
 			virtual void QueryEnd(Query* Resource) = 0;
 			virtual void GenerateMips(Texture2D* Resource) = 0;
@@ -1761,17 +1761,17 @@ namespace Vitex
 			virtual ExpectsGraphics<void> UpdateBufferSize(Shader* Resource, size_t Size) = 0;
 			virtual ExpectsGraphics<void> UpdateBufferSize(InstanceBuffer* Resource, size_t Size) = 0;
 			virtual ExpectsGraphics<void> CopyTexture2D(Texture2D* Resource, Core::Unique<Texture2D>* Result) = 0;
-			virtual ExpectsGraphics<void> CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTexture2D(Graphics::RenderTarget* Resource, uint32_t Target, Core::Unique<Texture2D>* Result) = 0;
 			virtual ExpectsGraphics<void> CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
-			virtual ExpectsGraphics<void> CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTexture2D(MultiRenderTargetCube* Resource, uint32_t Cube, Compute::CubeFace Face, Core::Unique<Texture2D>* Result) = 0;
 			virtual ExpectsGraphics<void> CopyTextureCube(RenderTargetCube* Resource, Core::Unique<TextureCube>* Result) = 0;
-			virtual ExpectsGraphics<void> CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, Core::Unique<TextureCube>* Result) = 0;
-			virtual ExpectsGraphics<void> CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget) = 0;
+			virtual ExpectsGraphics<void> CopyTextureCube(MultiRenderTargetCube* Resource, uint32_t Cube, Core::Unique<TextureCube>* Result) = 0;
+			virtual ExpectsGraphics<void> CopyTarget(Graphics::RenderTarget* From, uint32_t FromTarget, Graphics::RenderTarget* To, uint32_t ToTarget) = 0;
 			virtual ExpectsGraphics<void> CopyBackBuffer(Core::Unique<Texture2D>* Result) = 0;
 			virtual ExpectsGraphics<void> CubemapPush(Cubemap* Resource, TextureCube* Result) = 0;
 			virtual ExpectsGraphics<void> CubemapFace(Cubemap* Resource, Compute::CubeFace Face) = 0;
 			virtual ExpectsGraphics<void> CubemapPop(Cubemap* Resource) = 0;
-			virtual ExpectsGraphics<void> ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+			virtual ExpectsGraphics<void> ResizeBuffers(uint32_t Width, uint32_t Height) = 0;
 			virtual ExpectsGraphics<void> GenerateTexture(Texture2D* Resource) = 0;
 			virtual ExpectsGraphics<void> GenerateTexture(Texture3D* Resource) = 0;
 			virtual ExpectsGraphics<void> GenerateTexture(TextureCube* Resource) = 0;
@@ -1817,10 +1817,10 @@ namespace Vitex
 			void Enqueue(RenderThreadCallback&& Callback);
 			Compute::ExpectsPreprocessor<void> Preprocess(Shader::Desc& Subresult);
 			ExpectsGraphics<void> Transpile(Core::String* HLSL, ShaderType Stage, ShaderLang To);
-			ExpectsGraphics<void> GetSectionInfo(const Core::String& Name, Section** Result);
-			ExpectsGraphics<void> GetSectionData(const Core::String& Name, Shader::Desc* Result);
-			bool AddSection(const Core::String& Name, const Core::String& Code);
-			bool RemoveSection(const Core::String& Name);
+			ExpectsGraphics<void> GetSectionInfo(const std::string_view& Name, Section** Result);
+			ExpectsGraphics<void> GetSectionData(const std::string_view& Name, Shader::Desc* Result);
+			bool AddSection(const std::string_view& Name, const std::string_view& Code);
+			bool RemoveSection(const std::string_view& Name);
 			bool IsLeftHanded() const;
 			Core::String GetShaderMain(ShaderType Type) const;
 			const Core::UnorderedMap<Core::String, DepthStencilState*>& GetDepthStencilStates() const;
@@ -1829,28 +1829,28 @@ namespace Vitex
 			const Core::UnorderedMap<Core::String, SamplerState*>& GetSamplerStates() const;
 			const Core::UnorderedMap<Core::String, InputLayout*>& GetInputLayouts() const;
 			ExpectsVideo<Core::Unique<Surface>> CreateSurface(Texture2D* Base);
-			DepthStencilState* GetDepthStencilState(const Core::String& Name);
-			BlendState* GetBlendState(const Core::String& Name);
-			RasterizerState* GetRasterizerState(const Core::String& Name);
-			SamplerState* GetSamplerState(const Core::String& Name);
-			InputLayout* GetInputLayout(const Core::String& Name);
+			DepthStencilState* GetDepthStencilState(const std::string_view& Name);
+			BlendState* GetBlendState(const std::string_view& Name);
+			RasterizerState* GetRasterizerState(const std::string_view& Name);
+			SamplerState* GetSamplerState(const std::string_view& Name);
+			InputLayout* GetInputLayout(const std::string_view& Name);
 			ShaderModel GetShaderModel() const;
 			RenderTarget2D* GetRenderTarget();
 			RenderBackend GetBackend() const;
-			unsigned int GetFormatSize(Format Mode) const;
-			unsigned int GetPresentFlags() const;
-			unsigned int GetCompileFlags() const;
-			unsigned int GetRowPitch(unsigned int Width, unsigned int ElementSize = sizeof(unsigned char) * 4) const;
-			unsigned int GetDepthPitch(unsigned int RowPitch, unsigned int Height) const;
-			unsigned int GetMipLevel(unsigned int Width, unsigned int Height) const;
+			uint32_t GetFormatSize(Format Mode) const;
+			uint32_t GetPresentFlags() const;
+			uint32_t GetCompileFlags() const;
+			uint32_t GetRowPitch(uint32_t Width, uint32_t ElementSize = sizeof(uint8_t) * 4) const;
+			uint32_t GetDepthPitch(uint32_t RowPitch, uint32_t Height) const;
+			uint32_t GetMipLevel(uint32_t Width, uint32_t Height) const;
 			VSync GetVSyncMode() const;
 			bool IsDebug() const;
 
 		protected:
 			virtual ExpectsGraphics<TextureCube*> CreateTextureCubeInternal(void* Resource[6]) = 0;
 			Core::Option<Core::String> GetProgramName(const Shader::Desc& Desc);
-			bool GetProgramCache(const Core::String& Name, Core::String* Data);
-			bool SetProgramCache(const Core::String& Name, const Core::String& Data);
+			bool GetProgramCache(const std::string_view& Name, Core::String* Data);
+			bool SetProgramCache(const std::string_view& Name, const std::string_view& Data);
 			void CreateStates();
 			void CreateSections();
 			void ReleaseProxy();
@@ -1858,7 +1858,7 @@ namespace Vitex
 
 		public:
 			static GraphicsDevice* Create(Desc& I);
-			static ExpectsGraphics<void> CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const Core::String&, const ExpectsGraphics<Shader*>&)>& Callback);
+			static ExpectsGraphics<void> CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const std::string_view&, const ExpectsGraphics<Shader*>&)>& Callback);
 		};
 
 		class VI_OUT Activity final : public Core::Reference<Activity>
@@ -1934,7 +1934,7 @@ namespace Vitex
 		public:
 			Activity(const Desc& I) noexcept;
 			virtual ~Activity() noexcept;
-			void SetClipboardText(const Core::String& Text);
+			void SetClipboardText(const std::string_view& Text);
 			void SetCursorPosition(const Compute::Vector2& Position);
 			void SetCursorPosition(float X, float Y);
 			void SetGlobalCursorPosition(const Compute::Vector2& Position);
@@ -1946,7 +1946,7 @@ namespace Vitex
 			void SetFullscreen(bool Enabled);
 			void SetBorderless(bool Enabled);
 			void SetIcon(Surface* Icon);
-			void SetTitle(const char* Value);
+			void SetTitle(const std::string_view& Value);
 			void SetScreenKeyboard(bool Enabled);
 			void BuildLayer(RenderBackend Backend);
 			void Wakeup();
@@ -2075,8 +2075,8 @@ namespace Vitex
 		public:
 			static uint32_t GetDisplayCount();
 			static bool GetDisplayInfo(uint32_t DisplayIndex, DisplayInfo* Info);
-			static const char* GetKeyCodeAsLiteral(KeyCode Code);
-			static const char* GetKeyModAsLiteral(KeyMod Code);
+			static std::string_view GetKeyCodeAsLiteral(KeyCode Code);
+			static std::string_view GetKeyModAsLiteral(KeyMod Code);
 			static Core::String GetKeyCodeAsString(KeyCode Code);
 			static Core::String GetKeyModAsString(KeyMod Code);
 		};

@@ -21,7 +21,7 @@ namespace Vitex
 		typedef Core::Vector<LinearDepthMap*> CascadedDepthMap;
 		typedef std::function<void(Core::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
-		typedef std::function<void(const Core::String&, Core::VariantArgs&)> MessageCallback;
+		typedef std::function<void(const std::string_view&, Core::VariantArgs&)> MessageCallback;
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 
@@ -208,9 +208,9 @@ namespace Vitex
 			Core::String Name;
 			Core::VariantArgs Args;
 
-			Event(const Core::String& NewName) noexcept;
-			Event(const Core::String& NewName, const Core::VariantArgs& NewArgs) noexcept;
-			Event(const Core::String& NewName, Core::VariantArgs&& NewArgs) noexcept;
+			Event(const std::string_view& NewName) noexcept;
+			Event(const std::string_view& NewName, const Core::VariantArgs& NewArgs) noexcept;
+			Event(const std::string_view& NewName, Core::VariantArgs&& NewArgs) noexcept;
 			Event(const Event& Other) noexcept;
 			Event(Event&& Other) noexcept;
 			Event& operator= (const Event& Other) noexcept;
@@ -407,7 +407,7 @@ namespace Vitex
 		{
 		public:
 			VI_OUT ContentException();
-			VI_OUT ContentException(const Core::String& Message);
+			VI_OUT ContentException(const std::string_view& Message);
 			VI_OUT const char* type() const noexcept override;
 		};
 
@@ -421,15 +421,12 @@ namespace Vitex
 		{
 		public:
 			static void Pack(Core::Schema* V, bool Value);
-			static void Pack(Core::Schema* V, int Value);
-			static void Pack(Core::Schema* V, unsigned int Value);
-			static void Pack(Core::Schema* V, unsigned long Value);
+			static void Pack(Core::Schema* V, int32_t Value);
+			static void Pack(Core::Schema* V, int64_t Value);
+			static void Pack(Core::Schema* V, uint32_t Value);
+			static void Pack(Core::Schema* V, uint64_t Value);
 			static void Pack(Core::Schema* V, float Value);
 			static void Pack(Core::Schema* V, double Value);
-			static void Pack(Core::Schema* V, int64_t Value);
-			static void Pack(Core::Schema* V, long double Value);
-			static void Pack(Core::Schema* V, unsigned long long Value);
-			static void Pack(Core::Schema* V, const char* Value);
 			static void Pack(Core::Schema* V, const Compute::Vector2& Value);
 			static void Pack(Core::Schema* V, const Compute::Vector3& Value);
 			static void Pack(Core::Schema* V, const Compute::Vector4& Value);
@@ -446,15 +443,14 @@ namespace Vitex
 			static void Pack(Core::Schema* V, const Compute::Vertex& Value);
 			static void Pack(Core::Schema* V, const Compute::SkinVertex& Value);
 			static void Pack(Core::Schema* V, const Ticker& Value);
-			static void Pack(Core::Schema* V, const Core::String& Value);
+			static void Pack(Core::Schema* V, const std::string_view& Value);
 			static void Pack(Core::Schema* V, const Core::Vector<bool>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<int>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<unsigned int>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<int32_t>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<int64_t>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<uint32_t>& Value);
+			static void Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value);
 			static void Pack(Core::Schema* V, const Core::Vector<float>& Value);
 			static void Pack(Core::Schema* V, const Core::Vector<double>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<int64_t>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<long double>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value);
 			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vector2>& Value);
 			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vector3>& Value);
 			static void Pack(Core::Schema* V, const Core::Vector<Compute::Vector4>& Value);
@@ -471,14 +467,12 @@ namespace Vitex
 			static void Pack(Core::Schema* V, const Core::Vector<Core::String>& Value);
 			static void Pack(Core::Schema* V, const Core::UnorderedMap<size_t, size_t>& Value);
 			static bool Unpack(Core::Schema* V, bool* O);
-			static bool Unpack(Core::Schema* V, int* O);
-			static bool Unpack(Core::Schema* V, unsigned int* O);
-			static bool Unpack(Core::Schema* V, unsigned long* O);
+			static bool Unpack(Core::Schema* V, int32_t* O);
+			static bool Unpack(Core::Schema* V, int64_t* O);
+			static bool Unpack(Core::Schema* V, uint32_t* O);
+			static bool Unpack(Core::Schema* V, uint64_t* O);
 			static bool Unpack(Core::Schema* V, float* O);
 			static bool Unpack(Core::Schema* V, double* O);
-			static bool Unpack(Core::Schema* V, int64_t* O);
-			static bool Unpack(Core::Schema* V, long double* O);
-			static bool Unpack(Core::Schema* V, unsigned long long* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector2* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector3* O);
 			static bool Unpack(Core::Schema* V, Compute::Vector4* O);
@@ -497,13 +491,12 @@ namespace Vitex
 			static bool Unpack(Core::Schema* V, Ticker* O);
 			static bool Unpack(Core::Schema* V, Core::String* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<bool>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<int>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<unsigned int>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<int32_t>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<int64_t>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<uint32_t>* O);
+			static bool Unpack(Core::Schema* V, Core::Vector<uint64_t>* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<float>* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<double>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<int64_t>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<long double>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<uint64_t>* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vector2>* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vector3>* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<Compute::Vector4>* O);
@@ -519,6 +512,9 @@ namespace Vitex
 			static bool Unpack(Core::Schema* V, Core::Vector<Ticker>* O);
 			static bool Unpack(Core::Schema* V, Core::Vector<Core::String>* O);
 			static bool Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O);
+
+		public:
+
 		};
 
 		class VI_OUT_TS Parallel
@@ -621,7 +617,7 @@ namespace Vitex
 			Model() noexcept;
 			~Model() noexcept;
 			void Cleanup();
-			Graphics::MeshBuffer* FindMesh(const Core::String& Name);
+			Graphics::MeshBuffer* FindMesh(const std::string_view& Name);
 		};
 
 		class VI_OUT SkinModel final : public Core::Reference<SkinModel>
@@ -637,11 +633,11 @@ namespace Vitex
 		public:
 			SkinModel() noexcept;
 			~SkinModel() noexcept;
-			bool FindJoint(const Core::String& Name, Compute::Joint* Output);
+			bool FindJoint(const std::string_view& Name, Compute::Joint* Output);
 			bool FindJoint(size_t Index, Compute::Joint* Output);
 			void Synchronize(PoseBuffer* Map);
 			void Cleanup();
-			Graphics::SkinMeshBuffer* FindMesh(const Core::String& Name);
+			Graphics::SkinMeshBuffer* FindMesh(const std::string_view& Name);
 
 		private:
 			void Synchronize(PoseBuffer* Map, Compute::Joint& Next, const Compute::Matrix4x4& ParentOffset);
@@ -684,7 +680,7 @@ namespace Vitex
 			Material(SceneGraph* NewScene = nullptr) noexcept;
 			Material(const Material& Other) noexcept;
 			~Material() noexcept;
-			void SetName(const Core::String& Value);
+			void SetName(const std::string_view& Value);
 			const Core::String& GetName() const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
 			Graphics::Texture2D* GetDiffuseMap() const;
@@ -743,7 +739,7 @@ namespace Vitex
 			virtual void Synchronize(Core::Timer* Time);
 			virtual void Animate(Core::Timer* Time);
 			virtual void Update(Core::Timer* Time);
-			virtual void Message(const Core::String& Name, Core::VariantArgs& Args);
+			virtual void Message(const std::string_view& Name, Core::VariantArgs& Args);
 			virtual void Movement();
 			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const;
 			virtual float GetVisibility(const Viewer& View, float Distance) const;
@@ -790,7 +786,7 @@ namespace Vitex
 			bool Active;
 
 		public:
-			void SetName(const Core::String& Value);
+			void SetName(const std::string_view& Value);
 			void SetRoot(Entity* Parent);
 			void UpdateBounds();
 			void RemoveComponent(uint64_t Id);
@@ -869,7 +865,7 @@ namespace Vitex
 		public:
 			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash) noexcept;
 			virtual ~Drawable() noexcept;
-			virtual void Message(const Core::String& Name, Core::VariantArgs& Args) override;
+			virtual void Message(const std::string_view& Name, Core::VariantArgs& Args) override;
 			virtual void Movement() override;
 			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
 			void ClearMaterials();
@@ -1030,9 +1026,9 @@ namespace Vitex
 			void MoveRenderer(uint64_t Id, size_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();
-			void FreeShader(const Core::String& Name, Graphics::Shader* Shader);
+			void FreeShader(const std::string_view& Name, Graphics::Shader* Shader);
 			void FreeShader(Graphics::Shader* Shader);
-			void FreeBuffers(const Core::String& Name, Graphics::ElementBuffer** Buffers);
+			void FreeBuffers(const std::string_view& Name, Graphics::ElementBuffer** Buffers);
 			void FreeBuffers(Graphics::ElementBuffer** Buffers);
 			void UpdateConstantBuffer(RenderBufferType Buffer);
 			void ClearMaterials();
@@ -1042,8 +1038,8 @@ namespace Vitex
 			bool TryGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
 			Graphics::ExpectsGraphics<Graphics::Shader*> CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::ExpectsGraphics<Graphics::Shader*> CompileShader(const Core::String& SectionName, size_t BufferSize = 0);
-			Graphics::ExpectsGraphics<void> CompileBuffers(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
+			Graphics::ExpectsGraphics<Graphics::Shader*> CompileShader(const std::string_view& SectionName, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<void> CompileBuffers(Graphics::ElementBuffer** Result, const std::string_view& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Core::Unique<Renderer> In);
 			Renderer* GetRenderer(uint64_t Id);
 			bool GetOffset(uint64_t Id, size_t& Offset) const;
@@ -1264,12 +1260,12 @@ namespace Vitex
 		public:
 			ShaderCache(Graphics::GraphicsDevice* Device) noexcept;
 			~ShaderCache() noexcept;
-			Graphics::ExpectsGraphics<Graphics::Shader*> Compile(const Core::String& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* Get(const Core::String& Name);
+			Graphics::ExpectsGraphics<Graphics::Shader*> Compile(const std::string_view& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::Shader* Get(const std::string_view& Name);
 			Core::String Find(Graphics::Shader* Shader);
 			const Core::UnorderedMap<Core::String, SCache>& GetCaches() const;
-			bool Has(const Core::String& Name);
-			bool Free(const Core::String& Name, Graphics::Shader* Shader = nullptr);
+			bool Has(const std::string_view& Name);
+			bool Free(const std::string_view& Name, Graphics::Shader* Shader = nullptr);
 			void ClearCache();
 		};
 
@@ -1297,10 +1293,10 @@ namespace Vitex
 		public:
 			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
 			~PrimitiveCache() noexcept;
-			Graphics::ExpectsGraphics<void> Compile(Graphics::ElementBuffer** Result, const Core::String& Name, size_t ElementSize, size_t ElementsCount);
-			bool Get(Graphics::ElementBuffer** Result, const Core::String& Name);
-			bool Has(const Core::String& Name);
-			bool Free(const Core::String& Name, Graphics::ElementBuffer** Buffers);
+			Graphics::ExpectsGraphics<void> Compile(Graphics::ElementBuffer** Result, const std::string_view& Name, size_t ElementSize, size_t ElementsCount);
+			bool Get(Graphics::ElementBuffer** Result, const std::string_view& Name);
+			bool Has(const std::string_view& Name);
+			bool Free(const std::string_view& Name, Graphics::ElementBuffer** Buffers);
 			Core::String Find(Graphics::ElementBuffer** Buffer);
 			Model* GetBoxModel();
 			SkinModel* GetSkinBoxModel();
@@ -1336,34 +1332,34 @@ namespace Vitex
 			void ClearArchives();
 			void ClearStreams();
 			void ClearProcessors();
-			void ClearPath(const Core::String& Path);
-			void SetEnvironment(const Core::String& Path);
+			void ClearPath(const std::string_view& Path);
+			void SetEnvironment(const std::string_view& Path);
 			void SetDevice(Graphics::GraphicsDevice* NewDevice);
-			ExpectsContent<void> ImportArchive(const Core::String& Path, bool ValidateChecksum);
-			ExpectsContent<void> ExportArchive(const Core::String& Path, const Core::String& PhysicalDirectory, const Core::String& VirtualDirectory = Core::String());
-			ExpectsContent<Core::Unique<void>> Load(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
-			ExpectsContent<void> Save(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
-			ExpectsPromiseContent<Core::Unique<void>> LoadAsync(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
-			ExpectsPromiseContent<void> SaveAsync(Processor* Processor, const Core::String& Path, void* Object, const Core::VariantArgs& Keys);
+			ExpectsContent<void> ImportArchive(const std::string_view& Path, bool ValidateChecksum);
+			ExpectsContent<void> ExportArchive(const std::string_view& Path, const std::string_view& PhysicalDirectory, const std::string_view& VirtualDirectory = std::string_view());
+			ExpectsContent<Core::Unique<void>> Load(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
+			ExpectsContent<void> Save(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
+			ExpectsPromiseContent<Core::Unique<void>> LoadAsync(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
+			ExpectsPromiseContent<void> SaveAsync(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
 			Processor* AddProcessor(Processor* Value, uint64_t Id);
 			Processor* GetProcessor(uint64_t Id);
-			AssetCache* FindCache(Processor* Target, const Core::String& Path);
+			AssetCache* FindCache(Processor* Target, const std::string_view& Path);
 			AssetCache* FindCache(Processor* Target, void* Resource);
 			const Core::UnorderedMap<uint64_t, Processor*>& GetProcessors() const;
 			bool RemoveProcessor(uint64_t Id);
-			void* TryToCache(Processor* Root, const Core::String& Path, void* Resource);
+			void* TryToCache(Processor* Root, const std::string_view& Path, void* Resource);
 			bool IsBusy();
 			Graphics::GraphicsDevice* GetDevice() const;
 			const Core::String& GetEnvironment() const;
 
 		private:
-			ExpectsContent<void*> LoadFromArchive(Processor* Processor, const Core::String& Path, const Core::VariantArgs& Keys);
+			ExpectsContent<void*> LoadFromArchive(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
 			void Enqueue();
 			void Dequeue();
 
 		public:
 			template <typename T>
-			ExpectsContent<Core::Unique<T>> Load(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsContent<Core::Unique<T>> Load(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				auto Result = Load(GetProcessor<T>(), Path, Keys);
 				if (!Result)
@@ -1372,12 +1368,13 @@ namespace Vitex
 				return (T*)*Result;
 			}
 			template <typename T>
-			ExpectsPromiseContent<Core::Unique<T>> LoadAsync(const Core::String& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsPromiseContent<Core::Unique<T>> LoadAsync(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
-				return Core::Cotask<ExpectsContent<T*>>([this, Path, Keys]()
+				Core::String TargetPath = Core::String(Path);
+				return Core::Cotask<ExpectsContent<T*>>([this, TargetPath, Keys]()
 				{
-					auto Result = Load(GetProcessor<T>(), Path, Keys);
+					auto Result = Load(GetProcessor<T>(), TargetPath, Keys);
 					Dequeue();
 					if (!Result)
 						return Result.Error();
@@ -1386,12 +1383,12 @@ namespace Vitex
 				});
 			}
 			template <typename T>
-			ExpectsContent<void> Save(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsContent<void> Save(const std::string_view& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return Save(GetProcessor<T>(), Path, Object, Keys);
 			}
 			template <typename T>
-			ExpectsPromiseContent<void> SaveAsync(const Core::String& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsPromiseContent<void> SaveAsync(const std::string_view& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys);
 			}
@@ -1411,7 +1408,7 @@ namespace Vitex
 				return GetProcessor(typeid(T).hash_code());
 			}
 			template <typename T>
-			AssetCache* FindCache(const Core::String& Path)
+			AssetCache* FindCache(const std::string_view& Path)
 			{
 				return FindCache(GetProcessor<T>(), Path);
 			}
@@ -1431,19 +1428,19 @@ namespace Vitex
 			std::mutex Exclusive;
 
 		public:
-			AppData(ContentManager* Manager, const Core::String& Path) noexcept;
+			AppData(ContentManager* Manager, const std::string_view& Path) noexcept;
 			~AppData() noexcept;
-			void Migrate(const Core::String& Path);
-			void SetKey(const Core::String& Name, Core::Unique<Core::Schema> Value);
-			void SetText(const Core::String& Name, const Core::String& Value);
-			Core::Unique<Core::Schema> GetKey(const Core::String& Name);
-			Core::String GetText(const Core::String& Name);
-			bool Has(const Core::String& Name);
+			void Migrate(const std::string_view& Path);
+			void SetKey(const std::string_view& Name, Core::Unique<Core::Schema> Value);
+			void SetText(const std::string_view& Name, const std::string_view& Value);
+			Core::Unique<Core::Schema> GetKey(const std::string_view& Name);
+			Core::String GetText(const std::string_view& Name);
+			bool Has(const std::string_view& Name);
 			Core::Schema* GetSnapshot() const;
 
 		private:
-			bool ReadAppData(const Core::String& Path);
-			bool WriteAppData(const Core::String& Path);
+			bool ReadAppData(const std::string_view& Path);
+			bool WriteAppData(const std::string_view& Path);
 		};
 
 		class VI_OUT SceneGraph final : public Core::Reference<SceneGraph>
@@ -1569,7 +1566,7 @@ namespace Vitex
 			void DeleteEntity(Core::Unique<Entity> Entity);
 			void SetCamera(Entity* Camera);
 			void RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback);
-			void ScriptHook(const Core::String& Name = "main");
+			void ScriptHook(const std::string_view& Name = "main");
 			void SetActive(bool Enabled);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
@@ -1577,10 +1574,10 @@ namespace Vitex
 			void SwapRT(TargetType Type, Graphics::RenderTarget2D* New);
 			void ClearMRT(TargetType Type, bool Color, bool Depth);
 			void ClearRT(TargetType Type, bool Color, bool Depth);
-			void Mutate(Entity* Parent, Entity* Child, const char* Type);
-			void Mutate(Entity* Target, const char* Type);
-			void Mutate(Component* Target, const char* Type);
-			void Mutate(Material* Target, const char* Type);
+			void Mutate(Entity* Parent, Entity* Child, const std::string_view& Type);
+			void Mutate(Entity* Target, const std::string_view& Type);
+			void Mutate(Component* Target, const std::string_view& Type);
+			void Mutate(Material* Target, const std::string_view& Type);
 			void MakeSnapshot(IdxSnapshot* Result);
 			void Transaction(Core::TaskCallback&& Callback);
 			void Watch(TaskType Type, Core::Promise<void>&& Awaitable);
@@ -1592,13 +1589,13 @@ namespace Vitex
 			void ReserveComponents(uint64_t Section, size_t Size);
 			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size) const;
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
-			bool PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, bool Propagate);
-			bool PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Component* Target);
-			bool PushEvent(const Core::String& EventName, Core::VariantArgs&& Args, Entity* Target);
-			MessageCallback* SetListener(const Core::String& Event, MessageCallback&& Callback);
-			bool ClearListener(const Core::String& Event, MessageCallback* Id);
+			bool PushEvent(const std::string_view& EventName, Core::VariantArgs&& Args, bool Propagate);
+			bool PushEvent(const std::string_view& EventName, Core::VariantArgs&& Args, Component* Target);
+			bool PushEvent(const std::string_view& EventName, Core::VariantArgs&& Args, Entity* Target);
+			MessageCallback* SetListener(const std::string_view& Event, MessageCallback&& Callback);
+			bool ClearListener(const std::string_view& Event, MessageCallback* Id);
 			bool AddMaterial(Core::Unique<Material> Base);
-			void LoadResource(uint64_t Id, Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<void*>&&)>& Callback);
+			void LoadResource(uint64_t Id, Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<void*>&&)>& Callback);
 			Core::String FindResourceId(uint64_t Id, void* Resource);
 			Material* GetInvalidMaterial();
 			Material* AddMaterial();
@@ -1610,7 +1607,7 @@ namespace Vitex
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer() const;
-			Material* GetMaterial(const Core::String& Material);
+			Material* GetMaterial(const std::string_view& Material);
 			Material* GetMaterial(size_t Material);
 			SparseIndex& GetStorage(uint64_t Section);
 			Core::Pool<Component*>& GetComponents(uint64_t Section);
@@ -1620,7 +1617,7 @@ namespace Vitex
 			Graphics::Format GetFormatMRT(unsigned int Target) const;
 			Core::Vector<Entity*> CloneEntityAsArray(Entity* Value);
 			Core::Vector<Entity*> QueryByParent(Entity* Parent) const;
-			Core::Vector<Entity*> QueryByName(const Core::String& Name) const;
+			Core::Vector<Entity*> QueryByName(const std::string_view& Name) const;
 			Core::Vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius);
 			Core::Vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max);
 			Core::Vector<Component*> QueryByMatch(uint64_t Section, std::function<bool(const Compute::Bounding&)>&& MatchCallback);
@@ -1630,7 +1627,7 @@ namespace Vitex
 			Core::Vector<CascadedDepthMap*>& GetLinesMapping();
 			Core::Vector<VoxelMapping>& GetVoxelsMapping();
 			const Core::UnorderedMap<uint64_t, SparseIndex*>& GetRegistry() const;
-			Core::String AsResourcePath(const Core::String& Path);
+			Core::String AsResourcePath(const std::string_view& Path);
 			Entity* AddEntity();
 			Entity* CloneEntity(Entity* Value);
 			bool AddEntity(Core::Unique<Entity> Entity);
@@ -1720,12 +1717,12 @@ namespace Vitex
 				RayTest(T::GetTypeId(), Origin, std::move(Callback));
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const Core::String& Path, const std::function<void(ExpectsContent<T*>&&)>& Callback)
+			void LoadResource(Component* Context, const std::string_view& Path, const std::function<void(ExpectsContent<T*>&&)>& Callback)
 			{
 				LoadResource<T>(Context, Path, Core::VariantArgs(), Callback);
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const Core::String& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<T*>&&)>& Callback)
+			void LoadResource(Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<T*>&&)>& Callback)
 			{
 				VI_ASSERT(Callback != nullptr, "callback should be set");
 				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback](ExpectsContent<void*> Object)
@@ -1792,7 +1789,8 @@ namespace Vitex
 			} Cache;
 
 		private:
-			Core::Timer* LoopClock = nullptr;
+			Core::Timer* InternalClock = nullptr;
+			GUI::Context* InternalUI = nullptr;
 			ApplicationState State = ApplicationState::Terminated;
 			int ExitCode = 0;
 
@@ -1821,7 +1819,8 @@ namespace Vitex
 			virtual void Initialize();
 			virtual Core::Promise<void> Startup();
 			virtual Core::Promise<void> Shutdown();
-			virtual GUI::Context* GetGUI() const;
+			GUI::Context* TryGetUI() const;
+			GUI::Context* FetchUI();
 			ApplicationState GetState() const;
 			int Start();
 			void Restart();
@@ -1838,10 +1837,8 @@ namespace Vitex
 			template <typename T, typename ...A>
 			static int StartApp(A... Args)
 			{
-				Application* App = (Application*)new T(Args...);
+				Core::UPtr<T> App = new T(Args...);
 				int ExitCode = App->Start();
-				VI_RELEASE(App);
-
 				VI_ASSERT(ExitCode != EXIT_RESTART, "application cannot be restarted");
 				return ExitCode;
 			}
@@ -1849,10 +1846,8 @@ namespace Vitex
 			static int StartAppWithRestart(A... Args)
 			{
 			RestartApp:
-				Application* App = (Application*)new T(Args...);
+				Core::UPtr<T> App = new T(Args...);
 				int ExitCode = App->Start();
-				VI_RELEASE(App);
-
 				if (ExitCode == EXIT_RESTART)
 					goto RestartApp;
 
@@ -1991,7 +1986,7 @@ namespace Vitex
 					Desc.Elements = (void*)Group->Instances.data();
 					Desc.ElementWidth = sizeof(Instance);
 
-					VI_RELEASE(Group->DataBuffer);
+					Core::Memory::Release(Group->DataBuffer);
 					Group->DataBuffer = Device->CreateElementBuffer(Desc).Or(nullptr);
 					if (!Group->DataBuffer)
 						Group->Instances.clear();
@@ -2000,7 +1995,7 @@ namespace Vitex
 			BatchGroup* FetchGroup()
 			{
 				if (Cache->empty())
-					return VI_NEW(BatchGroup);
+					return Core::Memory::New<BatchGroup>();
 
 				BatchGroup* Result = Cache->front();
 				Cache->pop();
@@ -2073,8 +2068,8 @@ namespace Vitex
 				while (!Caching.Groups.empty())
 				{
 					auto* Next = Caching.Groups.front();
-					VI_RELEASE(Next->DataBuffer);
-					VI_DELETE(BatchingGroup, Next);
+					Core::Memory::Release(Next->DataBuffer);
+					Core::Memory::Delete(Next);
 					Caching.Groups.pop();
 				}
 			}
@@ -2350,13 +2345,12 @@ namespace Vitex
 			virtual ~GeometryRenderer() noexcept override
 			{
 				for (auto& Item : Active)
-					VI_RELEASE(Item.second);
+					Core::Memory::Release(Item.second);
 				
 				while (!Inactive.empty())
 				{
-					auto* Item = Inactive.front();
+					Core::Memory::Release(Inactive.front());
 					Inactive.pop();
-					VI_RELEASE(Item);
 				}
 			}
 			virtual void BatchGeometry(T* Base, Batching& Batch, size_t Chunk)
@@ -2737,9 +2731,9 @@ namespace Vitex
 			void SampleClamp();
 			void SampleMirror();
 			void GenerateMips();
-			Graphics::Shader* GetEffect(const Core::String& Name);
+			Graphics::Shader* GetEffect(const std::string_view& Name);
 			Graphics::ExpectsGraphics<Graphics::Shader*> CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::ExpectsGraphics<Graphics::Shader*> CompileEffect(const Core::String& SectionName, size_t BufferSize = 0);
+			Graphics::ExpectsGraphics<Graphics::Shader*> CompileEffect(const std::string_view& SectionName, size_t BufferSize = 0);
 
 		public:
 			VI_COMPONENT("effect_renderer");

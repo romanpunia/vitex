@@ -1,5 +1,5 @@
 #include "gui.h"
-#include "../core/network.h"
+#include "../network.h"
 #ifdef VI_RMLUI
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Stream.h>
@@ -27,8 +27,8 @@ namespace Vitex
 				}
 				~GeometryBuffer()
 				{
-					VI_RELEASE(VertexBuffer);
-					VI_RELEASE(IndexBuffer);
+					Core::Memory::Release(VertexBuffer);
+					Core::Memory::Release(IndexBuffer);
 				}
 			};
 
@@ -104,7 +104,7 @@ namespace Vitex
 				Rml::CompiledGeometryHandle CompileGeometry(Rml::Vertex* Vertices, int VerticesCount, int* Indices, int IndicesCount, Rml::TextureHandle Handle) override
 				{
 					VI_ASSERT(Device != nullptr, "graphics device should be set");
-					GeometryBuffer* Result = VI_NEW(GeometryBuffer);
+					GeometryBuffer* Result = Core::Memory::New<GeometryBuffer>();
 					Result->Texture = (Graphics::Texture2D*)Handle;
 
 					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -149,7 +149,7 @@ namespace Vitex
 				void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
 				{
 					GeometryBuffer* Resource = (GeometryBuffer*)Handle;
-					VI_DELETE(GeometryBuffer, Resource);
+					Core::Memory::Delete(Resource);
 				}
 				void EnableScissorRegion(bool Enable) override
 				{
@@ -254,7 +254,7 @@ namespace Vitex
 				void ReleaseTexture(Rml::TextureHandle Handle) override
 				{
 					Graphics::Texture2D* Resource = (Graphics::Texture2D*)Handle;
-					VI_RELEASE(Resource);
+					Core::Memory::Release(Resource);
 				}
 				void SetTransform(const Rml::Matrix4f* NewTransform) override
 				{
@@ -303,11 +303,11 @@ namespace Vitex
 				void Detach()
 				{
 					Subsystem::Get()->ReleaseDecorators();
-					VI_CLEAR(VertexBuffer);
-					VI_CLEAR(Shader);
-					VI_CLEAR(Constants);
-					VI_CLEAR(Content);
-					VI_CLEAR(Device);
+					Core::Memory::Release(VertexBuffer);
+					Core::Memory::Release(Shader);
+					Core::Memory::Release(Constants);
+					Core::Memory::Release(Content);
+					Core::Memory::Release(Device);
 				}
 				void ResizeBuffers(int Width, int Height)
 				{
@@ -357,13 +357,13 @@ namespace Vitex
 				void Close(Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					VI_RELEASE(Stream);
+					Core::Memory::Release(Stream);
 				}
 				size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					VI_ASSERT(Stream != nullptr, "stream should be set");
-					return Stream->Read((char*)Buffer, Size).Or(0);
+					return Stream->Read((uint8_t*)Buffer, Size).Or(0);
 				}
 				bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
@@ -379,52 +379,20 @@ namespace Vitex
 				}
 			};
 
-			class LoadingSubsystem final : public Rml::Plugin
-			{
-			public:
-				Core::SingleQueue<Core::String> Queue;
-
-			public:
-				LoadingSubsystem() = default;
-				virtual ~LoadingSubsystem() = default;
-				void OnDocumentOpen(Rml::Context*, const Rml::String& Path) override
-				{
-					Queue.push(Path);
-				}
-				void OnDocumentLoad(Rml::ElementDocument* document) override
-				{
-					if (!Queue.empty())
-						Queue.pop();
-				}
-				Core::String* GetLoadingPath()
-				{
-					if (Queue.empty())
-						return nullptr;
-
-					auto& Current = Queue.front();
-					return &Current;
-				}
-			};
-
 			class MainSubsystem final : public Rml::SystemInterface
 			{
 			private:
 				Core::UnorderedMap<Core::String, TranslationCallback> Translators;
 				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>> Fonts;
-				LoadingSubsystem* Loader;
 				Graphics::Activity* Activity;
 				Core::Timer* Time;
 
 			public:
 				MainSubsystem() : Rml::SystemInterface(), Activity(nullptr), Time(nullptr)
 				{
-					Loader = VI_NEW(LoadingSubsystem);
-					Rml::RegisterPlugin(Loader);
 				}
 				~MainSubsystem()
 				{
-					Rml::UnregisterPlugin(Loader);
-					VI_DELETE(LoadingSubsystem, Loader);
 					Detach();
 				}
 				void SetMouseCursor(const Rml::String& CursorName) override
@@ -518,16 +486,16 @@ namespace Vitex
 					switch (Type)
 					{
 						case Rml::Log::LT_ERROR:
-							VI_ERR("[gui] %.*s", Message.size(), Message.c_str());
+							VI_ERR("[gui] %.*s", (int)Message.size(), Message.c_str());
 							break;
 						case Rml::Log::LT_WARNING:
-							VI_WARN("[gui] %.*s", Message.size(), Message.c_str());
+							VI_WARN("[gui] %.*s", (int)Message.size(), Message.c_str());
 							break;
 						case Rml::Log::LT_INFO:
-							VI_DEBUG("[gui] %.*s", Message.size(), Message.c_str());
+							VI_DEBUG("[gui] %.*s", (int)Message.size(), Message.c_str());
 							break;
 						case Rml::Log::LT_ASSERT:
-							VI_TRACE("[gui] %.*s", Message.size(), Message.c_str());
+							VI_TRACE("[gui] %.*s", (int)Message.size(), Message.c_str());
 							break;
 						default:
 							break;
@@ -569,20 +537,20 @@ namespace Vitex
 				}
 				void Detach()
 				{
-					VI_CLEAR(Activity);
-					VI_CLEAR(Time);
+					Core::Memory::Release(Activity);
+					Core::Memory::Release(Time);
 				}
-				void SetTranslator(const Core::String& Name, const TranslationCallback& Callback)
+				void SetTranslator(const std::string_view& Name, const TranslationCallback& Callback)
 				{
-					auto It = Translators.find(Name);
+					auto It = Translators.find(Core::HglCast(Name));
 					if (It == Translators.end())
-						Translators.insert(std::make_pair(Name, Callback));
+						Translators.insert(std::make_pair(Core::String(Name), Callback));
 					else
 						It->second = Callback;
 				}
-				bool AddFontFace(const Core::String& Path, bool UseAsFallback, FontWeight Weight)
+				bool AddFontFace(const std::string_view& Path, bool UseAsFallback, FontWeight Weight)
 				{
-					auto It = Fonts.find(Path);
+					auto It = Fonts.find(Core::HglCast(Path));
 					if (It != Fonts.end())
 					{
 						for (auto& Info : It->second)
@@ -592,7 +560,8 @@ namespace Vitex
 						}
 					}
 
-					if (!Rml::LoadFontFace(Path, UseAsFallback, (Rml::Style::FontWeight)Weight))
+					Core::String TargetPath = Core::String(Path);
+					if (!Rml::LoadFontFace(TargetPath, UseAsFallback, (Rml::Style::FontWeight)Weight))
 						return false;
 
 					FontInfo Info;
@@ -601,28 +570,24 @@ namespace Vitex
 					if (It != Fonts.end())
 						It->second.push_back(Info);
 					else
-						Fonts[Path].push_back(Info);
+						Fonts[TargetPath].push_back(Info);
 					return true;
-				}
-				Core::String* GetLoadingDocumentPath()
-				{
-					return Loader->GetLoadingPath();
 				}
 				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* GetFontFaces()
 				{
 					return &Fonts;
 				}
-				Core::String GetFixedPath(const Core::String& Location, Core::String& Proto)
+				Core::String GetFixedPath(const std::string_view& Location, Core::String& Proto)
 				{
 					if (!Core::Stringify::Find(Location, "://").Found)
 					{
 						Proto = "file";
-						return Location;
+						return Core::String(Location);
 					}
 
-					Rml::URL Base(Location);
-					Proto = Base.GetProtocol();
-					return Base.GetPathedFileName();
+					Rml::URL Target = Rml::URL(Core::String(Location));
+					Proto = Target.GetProtocol();
+					return Target.GetPathedFileName();
 				}
 			};
 
@@ -632,7 +597,7 @@ namespace Vitex
 				GUI::Context* Basis;
 
 			public:
-				ScopedContext(const Rml::String& Name) : Rml::Context(Name), Basis(nullptr)
+				ScopedContext(const std::string_view& Name) : Rml::Context(Rml::String(Name)), Basis(nullptr)
 				{
 				}
 			};
@@ -642,23 +607,23 @@ namespace Vitex
 			public:
 				Rml::ContextPtr InstanceContext(const Rml::String& Name) override
 				{
-					return Rml::ContextPtr(VI_NEW(ScopedContext, Name));
+					return Rml::ContextPtr(Core::Memory::New<ScopedContext>(Name));
 				}
 				void ReleaseContext(Rml::Context* Context) override
 				{
 					ScopedContext* Item = (ScopedContext*)Context;
-					VI_DELETE(ScopedContext, Item);
+					Core::Memory::Delete(Item);
 				}
 				void Release() override
 				{
-					VI_DELETE(ContextInstancer, this);
+					Core::Memory::Delete(this);
 				}
 			};
 
 			class DocumentSubsystem final : public Rml::ElementDocument
 			{
 			public:
-				DocumentSubsystem(const Rml::String& Tag) : Rml::ElementDocument(Tag)
+				DocumentSubsystem(const std::string_view& Tag) : Rml::ElementDocument(Rml::String(Tag))
 				{
 				}
 				void LoadInlineScript(const Rml::String& Content, const Rml::String& Path, int Line) override
@@ -691,7 +656,7 @@ namespace Vitex
 								Context->SetArgObject(0, Scope->Basis);
 						}, [Scope](Scripting::ImmediateContext*)
 						{
-							VI_RELEASE(Scope->Basis);
+							Scope->Basis->Release();
 						});
 					});
 				}
@@ -728,7 +693,7 @@ namespace Vitex
 								Context->SetArgObject(0, Scope->Basis);
 						}, [Scope](Scripting::ImmediateContext*)
 						{
-							VI_RELEASE(Scope->Basis);
+							Scope->Basis->Release();
 						});
 					});
 				}
@@ -739,11 +704,11 @@ namespace Vitex
 			public:
 				Rml::ElementPtr InstanceElement(Rml::Element*, const Rml::String& Tag, const Rml::XMLAttributes&) override
 				{
-					return Rml::ElementPtr(VI_NEW(DocumentSubsystem, Tag));
+					return Rml::ElementPtr(Core::Memory::New<DocumentSubsystem>(Tag));
 				}
 				void ReleaseElement(Rml::Element* Element) override
 				{
-					VI_DELETE(Element, Element);
+					Core::Memory::Delete(Element);
 				}
 			};
 
@@ -755,13 +720,13 @@ namespace Vitex
 				IEvent EventContext;
 
 			public:
-				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Memory(Code)
+				ListenerSubsystem(const std::string_view& Code, Rml::Element* Element) : Memory(Code)
 				{
 				}
 				~ListenerSubsystem() = default;
 				void OnDetach(Rml::Element* Element) override
 				{
-					VI_DELETE(ListenerSubsystem, this);
+					Core::Memory::Delete(this);
 				}
 				void ProcessEvent(Rml::Event& Event) override
 				{
@@ -784,7 +749,7 @@ namespace Vitex
 						Context->SetArgObject(0, &EventContext);
 					}, [this, Scope, Ptr](Scripting::ImmediateContext*)
 					{
-						VI_RELEASE(Scope->Basis);
+						Scope->Basis->Release();
 						EventContext = IEvent();
 						delete Ptr;
 					});
@@ -818,7 +783,7 @@ namespace Vitex
 			public:
 				Rml::EventListener* InstanceEventListener(const Rml::String& Value, Rml::Element* Element) override
 				{
-					return VI_NEW(ListenerSubsystem, Value, Element);
+					return Core::Memory::New<ListenerSubsystem>(Value, Element);
 				}
 			};
 
@@ -841,7 +806,7 @@ namespace Vitex
 				void OnDetach(Rml::Element*) override
 				{
 					if (!--RefCount)
-						VI_DELETE(EventSubsystem, this);
+						Core::Memory::Delete(this);
 				}
 				void ProcessEvent(Rml::Event& Event) override
 				{
@@ -963,8 +928,9 @@ namespace Vitex
 				}
 #endif
 			}
-			Compute::Vector4 IVariant::ToColor4(const Core::String& Value)
+			Compute::Vector4 IVariant::ToColor4(const std::string_view& Value)
 			{
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
 				if (Value.empty())
 					return 0.0f;
 
@@ -994,7 +960,7 @@ namespace Vitex
 					else
 					{
 						unsigned int R = 0, G = 0, B = 0, A = 255;
-						if (sscanf(Value.c_str(), "#%02x%02x%02x%02x", &R, &G, &B, &A) == 4)
+						if (sscanf(Value.data(), "#%02x%02x%02x%02x", &R, &G, &B, &A) == 4)
 						{
 							Result.X = R / 255.0f;
 							Result.Y = G / 255.0f;
@@ -1006,7 +972,7 @@ namespace Vitex
 				else
 				{
 					unsigned int R = 0, G = 0, B = 0, A = 255;
-					if (sscanf(Value.c_str(), "%u %u %u %u", &R, &G, &B, &A) == 4)
+					if (sscanf(Value.data(), "%u %u %u %u", &R, &G, &B, &A) == 4)
 					{
 						Result.X = R / 255.0f;
 						Result.Y = G / 255.0f;
@@ -1028,8 +994,9 @@ namespace Vitex
 					(unsigned int)(Base.Z * 255.0f),
 					(unsigned int)(Base.W * 255.0f));
 			}
-			Compute::Vector4 IVariant::ToColor3(const Core::String& Value)
+			Compute::Vector4 IVariant::ToColor3(const std::string_view& Value)
 			{
+				VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
 				if (Value.empty())
 					return 0.0f;
 
@@ -1052,7 +1019,7 @@ namespace Vitex
 						Fills = sscanf(Buffer, "%02x%02x%02x", &R, &G, &B);
 					}
 					else
-						Fills = sscanf(Value.c_str(), "#%02x%02x%02x", &R, &G, &B);
+						Fills = sscanf(Value.data(), "#%02x%02x%02x", &R, &G, &B);
 
 					if (Fills == 3)
 					{
@@ -1064,7 +1031,7 @@ namespace Vitex
 				else
 				{
 					unsigned int R = 0, G = 0, B = 0;
-					if (sscanf(Value.c_str(), "%u %u %u", &R, &G, &B) == 3)
+					if (sscanf(Value.data(), "%u %u %u", &R, &G, &B) == 3)
 					{
 						Result.X = R / 255.0f;
 						Result.Y = G / 255.0f;
@@ -1084,7 +1051,7 @@ namespace Vitex
 					(unsigned int)(Base.Y * 255.0f),
 					(unsigned int)(Base.Z * 255.0f));
 			}
-			int IVariant::GetVectorType(const Core::String& Value)
+			int IVariant::GetVectorType(const std::string_view& Value)
 			{
 				if (Value.size() < 2 || Value[0] != 'v')
 					return -1;
@@ -1100,10 +1067,11 @@ namespace Vitex
 
 				return -1;
 			}
-			Compute::Vector4 IVariant::ToVector4(const Core::String& Base)
+			Compute::Vector4 IVariant::ToVector4(const std::string_view& Base)
 			{
+				VI_ASSERT(Core::Stringify::IsCString(Base), "value should be set");
 				Compute::Vector4 Result;
-				if (sscanf(Base.c_str(), "v4 %f %f %f %f", &Result.X, &Result.Y, &Result.Z, &Result.W) != 4)
+				if (sscanf(Base.data(), "v4 %f %f %f %f", &Result.X, &Result.Y, &Result.Z, &Result.W) != 4)
 					return Result;
 
 				return Result;
@@ -1112,10 +1080,11 @@ namespace Vitex
 			{
 				return Core::Stringify::Text("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W);
 			}
-			Compute::Vector3 IVariant::ToVector3(const Core::String& Base)
+			Compute::Vector3 IVariant::ToVector3(const std::string_view& Base)
 			{
+				VI_ASSERT(Core::Stringify::IsCString(Base), "value should be set");
 				Compute::Vector3 Result;
-				if (sscanf(Base.c_str(), "v3 %f %f %f", &Result.X, &Result.Y, &Result.Z) != 3)
+				if (sscanf(Base.data(), "v3 %f %f %f", &Result.X, &Result.Y, &Result.Z) != 3)
 					return Result;
 
 				return Result;
@@ -1124,10 +1093,11 @@ namespace Vitex
 			{
 				return Core::Stringify::Text("v3 %f %f %f", Base.X, Base.Y, Base.Z);
 			}
-			Compute::Vector2 IVariant::ToVector2(const Core::String& Base)
+			Compute::Vector2 IVariant::ToVector2(const std::string_view& Base)
 			{
+				VI_ASSERT(Core::Stringify::IsCString(Base), "value should be set");
 				Compute::Vector2 Result;
-				if (sscanf(Base.c_str(), "v2 %f %f", &Result.X, &Result.Y) != 2)
+				if (sscanf(Base.data(), "v2 %f %f", &Result.X, &Result.Y) != 2)
 					return Result;
 
 				return Result;
@@ -1262,77 +1232,77 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool IEvent::GetBoolean(const Core::String& Key) const
+			bool IEvent::GetBoolean(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				return Base->GetParameter<bool>(Key, false);
+				return Base->GetParameter<bool>(Core::String(Key), false);
 #else
 				return false;
 #endif
 			}
-			int64_t IEvent::GetInteger(const Core::String& Key) const
+			int64_t IEvent::GetInteger(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				return Base->GetParameter<int64_t>(Key, 0);
+				return Base->GetParameter<int64_t>(Core::String(Key), 0);
 #else
 				return 0;
 #endif
 			}
-			double IEvent::GetNumber(const Core::String& Key) const
+			double IEvent::GetNumber(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				return Base->GetParameter<double>(Key, 0.0);
+				return Base->GetParameter<double>(Core::String(Key), 0.0);
 #else
 				return 0.0;
 #endif
 			}
-			Core::String IEvent::GetString(const Core::String& Key) const
+			Core::String IEvent::GetString(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				return Base->GetParameter<Rml::String>(Key, "");
+				return Base->GetParameter<Rml::String>(Core::String(Key), "");
 #else
 				return Core::String();
 #endif
 			}
-			Compute::Vector2 IEvent::GetVector2(const Core::String& Key) const
+			Compute::Vector2 IEvent::GetVector2(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				Rml::Vector2f Result = Base->GetParameter<Rml::Vector2f>(Key, Rml::Vector2f());
+				Rml::Vector2f Result = Base->GetParameter<Rml::Vector2f>(Core::String(Key), Rml::Vector2f());
 				return Compute::Vector2(Result.x, Result.y);
 #else
 				return Compute::Vector2();
 #endif
 			}
-			Compute::Vector3 IEvent::GetVector3(const Core::String& Key) const
+			Compute::Vector3 IEvent::GetVector3(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				Rml::Vector3f Result = Base->GetParameter<Rml::Vector3f>(Key, Rml::Vector3f());
+				Rml::Vector3f Result = Base->GetParameter<Rml::Vector3f>(Core::String(Key), Rml::Vector3f());
 				return Compute::Vector3(Result.x, Result.y, Result.z);
 #else
 				return Compute::Vector3();
 #endif
 			}
-			Compute::Vector4 IEvent::GetVector4(const Core::String& Key) const
+			Compute::Vector4 IEvent::GetVector4(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				Rml::Vector4f Result = Base->GetParameter<Rml::Vector4f>(Key, Rml::Vector4f());
+				Rml::Vector4f Result = Base->GetParameter<Rml::Vector4f>(Core::String(Key), Rml::Vector4f());
 				return Compute::Vector4(Result.x, Result.y, Result.z, Result.w);
 #else
 				return Compute::Vector4();
 #endif
 			}
-			void* IEvent::GetPointer(const Core::String& Key) const
+			void* IEvent::GetPointer(const std::string_view& Key) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "event should be valid");
-				return Base->GetParameter<void*>(Key, nullptr);
+				return Base->GetParameter<void*>(Core::String(Key), nullptr);
 #else
 				return nullptr;
 #endif
@@ -1355,7 +1325,7 @@ namespace Vitex
 			void IElement::Release()
 			{
 #ifdef VI_RMLUI
-				VI_DELETE(Element, Base);
+				Core::Memory::Delete(Base);
 				Base = nullptr;
 #endif
 			}
@@ -1372,27 +1342,27 @@ namespace Vitex
 				return IElement();
 #endif
 			}
-			void IElement::SetClass(const Core::String& ClassName, bool Activate)
+			void IElement::SetClass(const std::string_view& ClassName, bool Activate)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetClass(ClassName, Activate);
+				Base->SetClass(Core::String(ClassName), Activate);
 #endif
 			}
-			bool IElement::IsClassSet(const Core::String& ClassName) const
+			bool IElement::IsClassSet(const std::string_view& ClassName) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->IsClassSet(ClassName);
+				return Base->IsClassSet(Core::String(ClassName));
 #else
 				return false;
 #endif
 			}
-			void IElement::SetClassNames(const Core::String& ClassNames)
+			void IElement::SetClassNames(const std::string_view& ClassNames)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetClassNames(ClassNames);
+				Base->SetClassNames(Core::String(ClassNames));
 #endif
 			}
 			Core::String IElement::GetClassNames() const
@@ -1522,28 +1492,28 @@ namespace Vitex
 #endif
 
 			}
-			bool IElement::SetProperty(const Core::String& Name, const Core::String& Value)
+			bool IElement::SetProperty(const std::string_view& Name, const std::string_view& Value)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->SetProperty(Name, Value);
+				return Base->SetProperty(Core::String(Name), Core::String(Value));
 #else
 				return false;
 #endif
 
 			}
-			void IElement::RemoveProperty(const Core::String& Name)
+			void IElement::RemoveProperty(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->RemoveProperty(Name);
+				Base->RemoveProperty(Core::String(Name));
 #endif
 			}
-			Core::String IElement::GetProperty(const Core::String& Name)
+			Core::String IElement::GetProperty(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				const Rml::Property* Result = Base->GetProperty(Name);
+				const Rml::Property* Result = Base->GetProperty(Core::String(Name));
 				if (!Result)
 					return "";
 
@@ -1552,11 +1522,11 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			Core::String IElement::GetLocalProperty(const Core::String& Name)
+			Core::String IElement::GetLocalProperty(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				const Rml::Property* Result = Base->GetLocalProperty(Name);
+				const Rml::Property* Result = Base->GetLocalProperty(Core::String(Name));
 				if (!Result)
 					return "";
 
@@ -1633,70 +1603,70 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool IElement::Animate(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
+			bool IElement::Animate(const std::string_view& PropertyName, const std::string_view& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->Animate(PropertyName, Rml::Property(TargetValue, Rml::Unit::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
+				return Base->Animate(Core::String(PropertyName), Rml::Property(Core::String(TargetValue), Rml::Unit::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
 #else
 				return false;
 #endif
 			}
-			bool IElement::AddAnimationKey(const Core::String& PropertyName, const Core::String& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
+			bool IElement::AddAnimationKey(const std::string_view& PropertyName, const std::string_view& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->AddAnimationKey(PropertyName, Rml::Property(TargetValue, Rml::Unit::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
+				return Base->AddAnimationKey(Core::String(PropertyName), Rml::Property(Core::String(TargetValue), Rml::Unit::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
 #else
 				return false;
 #endif
 			}
-			void IElement::SetPseudoClass(const Core::String& PseudoClass, bool Activate)
+			void IElement::SetPseudoClass(const std::string_view& PseudoClass, bool Activate)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetPseudoClass(PseudoClass, Activate);
+				Base->SetPseudoClass(Core::String(PseudoClass), Activate);
 #endif
 			}
-			bool IElement::IsPseudoClassSet(const Core::String& PseudoClass) const
+			bool IElement::IsPseudoClassSet(const std::string_view& PseudoClass) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->IsPseudoClassSet(PseudoClass);
+				return Base->IsPseudoClassSet(Core::String(PseudoClass));
 #else
 				return false;
 #endif
 			}
-			void IElement::SetAttribute(const Core::String& Name, const Core::String& Value)
+			void IElement::SetAttribute(const std::string_view& Name, const std::string_view& Value)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetAttribute(Name, Value);
+				Base->SetAttribute(Core::String(Name), Core::String(Value));
 #endif
 			}
-			Core::String IElement::GetAttribute(const Core::String& Name)
+			Core::String IElement::GetAttribute(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->GetAttribute<Core::String>(Name, "");
+				return Base->GetAttribute<Core::String>(Core::String(Name), "");
 #else
 				return Core::String();
 #endif
 			}
-			bool IElement::HasAttribute(const Core::String& Name) const
+			bool IElement::HasAttribute(const std::string_view& Name) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->HasAttribute(Name);
+				return Base->HasAttribute(Core::String(Name));
 #else
 				return false;
 #endif
 			}
-			void IElement::RemoveAttribute(const Core::String& Name)
+			void IElement::RemoveAttribute(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->RemoveAttribute(Name);
+				Base->RemoveAttribute(Core::String(Name));
 #endif
 			}
 			IElement IElement::GetFocusLeafNode()
@@ -1726,11 +1696,11 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			void IElement::SetId(const Core::String& Id)
+			void IElement::SetId(const std::string_view& Id)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetId(Id);
+				Base->SetId(Core::String(Id));
 #endif
 			}
 			float IElement::GetAbsoluteLeft()
@@ -1970,11 +1940,11 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			void IElement::SetInnerHTML(const Core::String& HTML)
+			void IElement::SetInnerHTML(const std::string_view& HTML)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Base->SetInnerRML(HTML);
+				Base->SetInnerRML(Core::String(HTML));
 #endif
 			}
 			bool IElement::IsFocused()
@@ -2036,25 +2006,23 @@ namespace Vitex
 				Base->Click();
 #endif
 			}
-			void IElement::AddEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase)
+			void IElement::AddEventListener(const std::string_view& Event, Listener* Source, bool InCapturePhase)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
 				VI_ASSERT(Source != nullptr && Source->Base != nullptr, "listener should be set");
-
-				Base->AddEventListener(Event, Source->Base, InCapturePhase);
+				Base->AddEventListener(Core::String(Event), Source->Base, InCapturePhase);
 #endif
 			}
-			void IElement::RemoveEventListener(const Core::String& Event, Listener* Source, bool InCapturePhase)
+			void IElement::RemoveEventListener(const std::string_view& Event, Listener* Source, bool InCapturePhase)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
 				VI_ASSERT(Source != nullptr && Source->Base != nullptr, "listener should be set");
-
-				Base->RemoveEventListener(Event, Source->Base, InCapturePhase);
+				Base->RemoveEventListener(Core::String(Event), Source->Base, InCapturePhase);
 #endif
 			}
-			bool IElement::DispatchEvent(const Core::String& Type, const Core::VariantArgs& Args)
+			bool IElement::DispatchEvent(const std::string_view& Type, const Core::VariantArgs& Args)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
@@ -2065,7 +2033,7 @@ namespace Vitex
 					IVariant::Revert((Core::Variant*)&Item.second, &Prop);
 				}
 
-				return Base->DispatchEvent(Type, Props);
+				return Base->DispatchEvent(Core::String(Type), Props);
 #else
 				return false;
 #endif
@@ -2130,30 +2098,30 @@ namespace Vitex
 				return false;
 #endif
 			}
-			IElement IElement::GetElementById(const Core::String& Id)
+			IElement IElement::GetElementById(const std::string_view& Id)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->GetElementById(Id);
+				return Base->GetElementById(Core::String(Id));
 #else
 				return IElement();
 #endif
 			}
-			IElement IElement::QuerySelector(const Core::String& Selector)
+			IElement IElement::QuerySelector(const std::string_view& Selector)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				return Base->QuerySelector(Selector);
+				return Base->QuerySelector(Core::String(Selector));
 #else
 				return IElement();
 #endif
 			}
-			Core::Vector<IElement> IElement::QuerySelectorAll(const Core::String& Selectors)
+			Core::Vector<IElement> IElement::QuerySelectorAll(const std::string_view& Selectors)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementList Elements;
-				Base->QuerySelectorAll(Elements, Selectors);
+				Base->QuerySelectorAll(Elements, Core::String(Selectors));
 
 				Core::Vector<IElement> Result;
 				Result.reserve(Elements.size());
@@ -2641,12 +2609,12 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			void IElement::SetFormName(const Core::String& Name)
+			void IElement::SetFormName(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Form->SetName(Name);
+				Form->SetName(Core::String(Name));
 #endif
 			}
 			Core::String IElement::GetFormValue() const
@@ -2659,12 +2627,12 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			void IElement::SetFormValue(const Core::String& Value)
+			void IElement::SetFormValue(const std::string_view& Value)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				Form->SetValue(Value);
+				Form->SetValue(Core::String(Value));
 #endif
 			}
 			bool IElement::IsFormDisabled() const
@@ -2700,7 +2668,7 @@ namespace Vitex
 
 				return Core::ToString((intptr_t)(void*)Ptr);
 			}
-			void* IElement::ToPointer(const Core::String& Value)
+			void* IElement::ToPointer(const std::string_view& Value)
 			{
 				if (Value.empty())
 					return nullptr;
@@ -2721,15 +2689,15 @@ namespace Vitex
 			{
 #ifdef VI_RMLUI
 				Rml::ElementDocument* Item = (Rml::ElementDocument*)Base;
-				VI_DELETE(ElementDocument, Item);
+				Core::Memory::Delete(Item);
 				Base = nullptr;
 #endif
 			}
-			void IElementDocument::SetTitle(const Core::String& Title)
+			void IElementDocument::SetTitle(const std::string_view& Title)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				((Rml::ElementDocument*)Base)->SetTitle(Title);
+				((Rml::ElementDocument*)Base)->SetTitle(Core::String(Title));
 #endif
 			}
 			void IElementDocument::PullToFront()
@@ -2785,11 +2753,11 @@ namespace Vitex
 				return Core::String();
 #endif
 			}
-			IElement IElementDocument::CreateElement(const Core::String& Name)
+			IElement IElementDocument::CreateElement(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "element should be valid");
-				Rml::ElementPtr Ptr = ((Rml::ElementDocument*)Base)->CreateElement(Name);
+				Rml::ElementPtr Ptr = ((Rml::ElementDocument*)Base)->CreateElement(Core::String(Name));
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
 
@@ -2847,9 +2815,9 @@ namespace Vitex
 				return Compute::Matrix4x4();
 #endif
 			}
-			Core::String Utils::EscapeHTML(const Core::String& Text) noexcept
+			Core::String Utils::EscapeHTML(const std::string_view& Text) noexcept
 			{
-				Core::String Copy = Text;
+				Core::String Copy = Core::String(Text);
 				Core::Stringify::Replace(Copy, "\r\n", "&nbsp;");
 				Core::Stringify::Replace(Copy, "\n", "&nbsp;");
 				Core::Stringify::Replace(Copy, "<", "&lt;");
@@ -2860,26 +2828,26 @@ namespace Vitex
 			Subsystem::Subsystem() noexcept : ContextFactory(nullptr), DocumentFactory(nullptr), ListenerFactory(nullptr), RenderInterface(nullptr), FileInterface(nullptr), SystemInterface(nullptr), Id(0)
 			{
 #ifdef VI_RMLUI
-				RenderInterface = VI_NEW(RenderSubsystem);
+				RenderInterface = Core::Memory::New<RenderSubsystem>();
 				Rml::SetRenderInterface(RenderInterface);
 
-				FileInterface = VI_NEW(FileSubsystem);
+				FileInterface = Core::Memory::New<FileSubsystem>();
 				Rml::SetFileInterface(FileInterface);
 
-				SystemInterface = VI_NEW(MainSubsystem);
+				SystemInterface = Core::Memory::New<MainSubsystem>();
 				Rml::SetSystemInterface(SystemInterface);
 
-				bool Result = Rml::Initialise();
+				Rml::Initialise();
+				{
+					ContextFactory = Core::Memory::New<ContextInstancer>();
+					Rml::Factory::RegisterContextInstancer(ContextFactory);
 
-				ContextFactory = VI_NEW(ContextInstancer);
-				Rml::Factory::RegisterContextInstancer(ContextFactory);
+					ListenerFactory = Core::Memory::New<ListenerInstancer>();
+					Rml::Factory::RegisterEventListenerInstancer(ListenerFactory);
 
-				ListenerFactory = VI_NEW(ListenerInstancer);
-				Rml::Factory::RegisterEventListenerInstancer(ListenerFactory);
-
-				DocumentFactory = VI_NEW(DocumentInstancer);
-				Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
-
+					DocumentFactory = Core::Memory::New<DocumentInstancer>();
+					Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
+				}
 				CreateElements();
 #endif
 			}
@@ -2887,22 +2855,22 @@ namespace Vitex
 			{
 #ifdef VI_RMLUI
 				Rml::Shutdown();
-				VI_DELETE(MainSubsystem, SystemInterface);
+				Core::Memory::Delete(SystemInterface);
 				SystemInterface = nullptr;
 
-				VI_DELETE(FileSubsystem, FileInterface);
+				Core::Memory::Delete(FileInterface);
 				FileInterface = nullptr;
 
-				VI_DELETE(RenderSubsystem, RenderInterface);
+				Core::Memory::Delete(RenderInterface);
 				RenderInterface = nullptr;
 
-				VI_DELETE(DocumentInstancer, DocumentFactory);
+				Core::Memory::Delete(DocumentFactory);
 				DocumentFactory = nullptr;
 
-				VI_DELETE(ListenerInstancer, ListenerFactory);
+				Core::Memory::Delete(ListenerFactory);
 				ListenerFactory = nullptr;
 
-				VI_DELETE(ContextInstancer, ContextFactory);
+				Core::Memory::Delete(ContextFactory);
 				ContextFactory = nullptr;
 
 				ReleaseElements();
@@ -2927,11 +2895,11 @@ namespace Vitex
 					SystemInterface->Attach(Activity, Time);
 #endif
 			}
-			void Subsystem::SetTranslator(const Core::String& Name, const TranslationCallback& Callback) noexcept
+			void Subsystem::SetTranslator(const std::string_view& Name, const TranslationCallback& Callback) noexcept
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
-				SystemInterface->SetTranslator(Name, Callback);
+				SystemInterface->SetTranslator(Core::String(Name), Callback);
 #endif
 			}
 			void Subsystem::CleanupShared()
@@ -2998,7 +2966,7 @@ namespace Vitex
 			{
 #ifdef VI_RMLUI
 				if (Ref != nullptr)
-					Base = VI_NEW(Rml::DataModelConstructor, *Ref);
+					Base = Core::Memory::New<Rml::DataModelConstructor>(*Ref);
 #endif
 			}
 			DataModel::~DataModel() noexcept
@@ -3006,9 +2974,9 @@ namespace Vitex
 #ifdef VI_RMLUI
 				Detach();
 				for (auto Item : Props)
-					VI_DELETE(DataNode, Item.second);
+					Core::Memory::Delete(Item.second);
 
-				VI_DELETE(DataModelConstructor, Base);
+				Core::Memory::Delete(Base);
 #endif
 			}
 			void DataModel::SetDetachCallback(std::function<void()>&& Callback)
@@ -3016,7 +2984,7 @@ namespace Vitex
 				if (Callback)
 					Callbacks.emplace_back(std::move(Callback));
 			}
-			DataNode* DataModel::SetProperty(const Core::String& Name, const Core::Variant& Value)
+			DataNode* DataModel::SetProperty(const std::string_view& Name, const Core::Variant& Value)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "data node should be valid");
@@ -3027,28 +2995,28 @@ namespace Vitex
 					return Result;
 				}
 
-				Result = VI_NEW(DataNode, this, Name, Value);
+				Core::String Copy = Core::String(Name);
+				Result = Core::Memory::New<DataNode>(this, Name, Value);
 				if (!Value.IsObject())
 				{
-					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
+					if (Base->BindFunc(Copy, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
 					{
-						Props[Name] = Result;
+						Props[Copy] = Result;
 						return Result;
 					}
 				}
-				else if (Base->Bind(Name, Result))
+				else if (Base->Bind(Copy, Result))
 				{
-					Props[Name] = Result;
+					Props[Copy] = Result;
 					return Result;
 				}
-
-				VI_DELETE(DataNode, Result);
+				Core::Memory::Delete(Result);
 				return nullptr;
 #else
 				return nullptr;
 #endif
 			}
-			DataNode* DataModel::SetProperty(const Core::String& Name, Core::Variant* Value)
+			DataNode* DataModel::SetProperty(const std::string_view& Name, Core::Variant* Value)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "data node should be valid");
@@ -3061,56 +3029,57 @@ namespace Vitex
 					return Sub;
 				}
 
-				DataNode* Result = VI_NEW(DataNode, this, Name, Value);
-				if (Base->Bind(Name, Result))
+				Core::String Copy = Core::String(Name);
+				DataNode* Result = Core::Memory::New<DataNode>(this, Name, Value);
+				if (Base->Bind(Copy, Result))
 				{
-					Props[Name] = Result;
+					Props[Copy] = Result;
 					return Result;
 				}
 
-				VI_DELETE(DataNode, Result);
+				Core::Memory::Delete(Result);
 				return nullptr;
 #else
 				return nullptr;
 #endif
 			}
-			DataNode* DataModel::SetArray(const Core::String& Name)
+			DataNode* DataModel::SetArray(const std::string_view& Name)
 			{
 				return SetProperty(Name, Core::Var::Array());
 			}
-			DataNode* DataModel::SetString(const Core::String& Name, const Core::String& Value)
+			DataNode* DataModel::SetString(const std::string_view& Name, const std::string_view& Value)
 			{
 				return SetProperty(Name, Core::Var::String(Value));
 			}
-			DataNode* DataModel::SetInteger(const Core::String& Name, int64_t Value)
+			DataNode* DataModel::SetInteger(const std::string_view& Name, int64_t Value)
 			{
 				return SetProperty(Name, Core::Var::Integer(Value));
 			}
-			DataNode* DataModel::SetFloat(const Core::String& Name, float Value)
+			DataNode* DataModel::SetFloat(const std::string_view& Name, float Value)
 			{
 				return SetProperty(Name, Core::Var::Number(Value));
 			}
-			DataNode* DataModel::SetDouble(const Core::String& Name, double Value)
+			DataNode* DataModel::SetDouble(const std::string_view& Name, double Value)
 			{
 				return SetProperty(Name, Core::Var::Number(Value));
 			}
-			DataNode* DataModel::SetBoolean(const Core::String& Name, bool Value)
+			DataNode* DataModel::SetBoolean(const std::string_view& Name, bool Value)
 			{
 				return SetProperty(Name, Core::Var::Boolean(Value));
 			}
-			DataNode* DataModel::SetPointer(const Core::String& Name, void* Value)
+			DataNode* DataModel::SetPointer(const std::string_view& Name, void* Value)
 			{
 				return SetProperty(Name, Core::Var::Pointer(Value));
 			}
-			DataNode* DataModel::GetProperty(const Core::String& Name)
+			DataNode* DataModel::GetProperty(const std::string_view& Name)
 			{
-				auto It = Props.find(Name);
+				auto It = Props.find(Core::HglCast(Name));
 				if (It != Props.end())
 					return It->second;
 
 				return nullptr;
 			}
-			Core::String DataModel::GetString(const Core::String& Name)
+			Core::String DataModel::GetString(const std::string_view& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3118,7 +3087,7 @@ namespace Vitex
 
 				return Result->Ref->GetBlob();
 			}
-			int64_t DataModel::GetInteger(const Core::String& Name)
+			int64_t DataModel::GetInteger(const std::string_view& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3126,7 +3095,7 @@ namespace Vitex
 
 				return Result->Ref->GetInteger();
 			}
-			float DataModel::GetFloat(const Core::String& Name)
+			float DataModel::GetFloat(const std::string_view& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3134,7 +3103,7 @@ namespace Vitex
 
 				return (float)Result->Ref->GetNumber();
 			}
-			double DataModel::GetDouble(const Core::String& Name)
+			double DataModel::GetDouble(const std::string_view& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3142,7 +3111,7 @@ namespace Vitex
 
 				return Result->Ref->GetNumber();
 			}
-			bool DataModel::GetBoolean(const Core::String& Name)
+			bool DataModel::GetBoolean(const std::string_view& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3150,7 +3119,7 @@ namespace Vitex
 
 				return Result->Ref->GetBoolean();
 			}
-			void* DataModel::GetPointer(const Core::String& Name)
+			void* DataModel::GetPointer(const std::string_view& Name)
 			{
 				DataNode* Result = GetProperty(Name);
 				if (!Result)
@@ -3158,13 +3127,13 @@ namespace Vitex
 
 				return Result->Ref->GetPointer();
 			}
-			bool DataModel::SetCallback(const Core::String& Name, const DataCallback& Callback)
+			bool DataModel::SetCallback(const std::string_view& Name, const DataCallback& Callback)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "data node should be valid");
 				VI_ASSERT(Callback, "callback should not be empty");
 
-				return Base->BindEventCallback(Name, [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
+				return Base->BindEventCallback(Core::String(Name), [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
 				{
 					Core::VariantList Args;
 					Args.resize(Props.size());
@@ -3185,18 +3154,18 @@ namespace Vitex
 				OnUnmount = Callback;
 				return true;
 			}
-			void DataModel::Change(const Core::String& VariableName)
+			void DataModel::Change(const std::string_view& VariableName)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "data node should be valid");
-				Base->GetModelHandle().DirtyVariable(VariableName);
+				Base->GetModelHandle().DirtyVariable(Core::String(VariableName));
 #endif
 			}
-			bool DataModel::HasChanged(const Core::String& VariableName) const
+			bool DataModel::HasChanged(const std::string_view& VariableName) const
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "data node should be valid");
-				return Base->GetModelHandle().IsVariableDirty(VariableName);
+				return Base->GetModelHandle().IsVariableDirty(Core::String(VariableName));
 #else
 				return false;
 #endif
@@ -3216,17 +3185,17 @@ namespace Vitex
 				return Base;
 			}
 
-			DataNode::DataNode(DataModel* Model, const Core::String& TopName, const Core::Variant& Initial) noexcept : Name(TopName), Handle(Model), Order(nullptr), Depth(0), Safe(true)
+			DataNode::DataNode(DataModel* Model, const std::string_view& TopName, const Core::Variant& Initial) noexcept : Name(TopName), Handle(Model), Order(nullptr), Depth(0), Safe(true)
 			{
-				Ref = VI_NEW(Core::Variant, Initial);
+				Ref = Core::Memory::New<Core::Variant>(Initial);
 			}
-			DataNode::DataNode(DataModel* Model, const Core::String& TopName, Core::Variant* Reference) noexcept : Name(TopName), Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
+			DataNode::DataNode(DataModel* Model, const std::string_view& TopName, Core::Variant* Reference) noexcept : Name(TopName), Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
 			{
 			}
 			DataNode::DataNode(const DataNode& Other) noexcept : Childs(Other.Childs), Name(Other.Name), Handle(Other.Handle), Order(Other.Order), Depth(0), Safe(Other.Safe)
 			{
 				if (Safe)
-					Ref = VI_NEW(Core::Variant, *Other.Ref);
+					Ref = Core::Memory::New<Core::Variant>(*Other.Ref);
 				else
 					Ref = Other.Ref;
 			}
@@ -3237,7 +3206,7 @@ namespace Vitex
 			DataNode::~DataNode()
 			{
 				if (Safe)
-					VI_DELETE(Variant, Ref);
+					Core::Memory::Delete(Ref);
 			}
 			DataNode& DataNode::Insert(size_t Where, const Core::VariantList& Initial, std::pair<void*, size_t>* Top)
 			{
@@ -3405,7 +3374,7 @@ namespace Vitex
 					return;
 
 				if (Safe)
-					VI_DELETE(Variant, Ref);
+					Core::Memory::Delete(Ref);
 
 				Ref = NewReference;
 				Safe = false;
@@ -3428,7 +3397,7 @@ namespace Vitex
 				if (Handle != nullptr && !Name.empty())
 					Handle->Change(Name);
 			}
-			void DataNode::SetString(const Core::String& Value)
+			void DataNode::SetString(const std::string_view& Value)
 			{
 				Set(Core::Var::String(Value));
 			}
@@ -3554,7 +3523,7 @@ namespace Vitex
 				Safe = Other.Safe;
 
 				if (Safe)
-					Ref = VI_NEW(Core::Variant, *Other.Ref);
+					Ref = Core::Memory::New<Core::Variant>(*Other.Ref);
 				else
 					Ref = Other.Ref;
 
@@ -3582,13 +3551,13 @@ namespace Vitex
 			Listener::Listener(const EventCallback& NewCallback)
 			{
 #ifdef VI_RMLUI
-				Base = VI_NEW(EventSubsystem, NewCallback);
+				Base = Core::Memory::New<EventSubsystem>(NewCallback);
 #endif
 			}
-			Listener::Listener(const Core::String& FunctionName)
+			Listener::Listener(const std::string_view& FunctionName)
 			{
 #ifdef VI_RMLUI
-				Base = VI_NEW(ListenerSubsystem, FunctionName, nullptr);
+				Base = Core::Memory::New<ListenerSubsystem>(FunctionName, nullptr);
 #endif
 			}
 			Listener::~Listener() noexcept
@@ -3620,8 +3589,8 @@ namespace Vitex
 #ifdef VI_RMLUI
 				RemoveDataModels();
 				Rml::RemoveContext(Base->GetName());
-				VI_RELEASE(Compiler);
-				VI_RELEASE(System);
+				Core::Memory::Release(Compiler);
+				Core::Memory::Release(System);
 #endif
 			}
 			void Context::EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
@@ -3824,43 +3793,44 @@ namespace Vitex
 				return 0.0f;
 #endif
 			}
-			bool Context::ReplaceHTML(const Core::String& Selector, const Core::String& HTML, int Index)
+			bool Context::ReplaceHTML(const std::string_view& Selector, const std::string_view& HTML, int Index)
 			{
 #ifdef VI_RMLUI
 				auto* Current = Base->GetDocument(Index);
 				if (!Current)
 					return false;
 
-				auto TargetPtr = Current->QuerySelector(Selector);
+				auto TargetPtr = Current->QuerySelector(Core::String(Selector));
 				if (!TargetPtr)
 					return false;
 
-				TargetPtr->SetInnerRML(HTML);
+				TargetPtr->SetInnerRML(Core::String(HTML));
 				return true;
 #else
 				return false;
 #endif
 			}
-			ExpectsGuiException<void> Context::LoadFontFace(const Core::String& Path, bool UseAsFallback, FontWeight Weight)
+			ExpectsGuiException<void> Context::LoadFontFace(const std::string_view& Path, bool UseAsFallback, FontWeight Weight)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
-				if (!Subsystem::Get()->GetSystemInterface()->AddFontFace(Path, UseAsFallback, Weight))
-					return GuiException("initialize font face error: " + Path);
+				Core::String TargetPath = Core::String(Path);
+				if (!Subsystem::Get()->GetSystemInterface()->AddFontFace(TargetPath, UseAsFallback, Weight))
+					return GuiException("initialize font face error: " + TargetPath);
 
 				return Core::Expectation::Met;
 #else
 				return GuiException("unsupported");
 #endif
 			}
-			ExpectsGuiException<IElementDocument> Context::EvalHTML(const Core::String& HTML, int Index)
+			ExpectsGuiException<IElementDocument> Context::EvalHTML(const std::string_view& HTML, int Index)
 			{
 #ifdef VI_RMLUI
 				++Busy;
 				auto* Current = Base->GetDocument(Index);
 				if (!Current)
 				{
-					Current = Base->LoadDocumentFromMemory("<html><body>" + HTML + "</body></html>");
+					Current = Base->LoadDocumentFromMemory("<html><body>" + Core::String(HTML) + "</body></html>");
 					if (!Current)
 					{
 						--Busy;
@@ -3868,7 +3838,7 @@ namespace Vitex
 					}
 				}
 				else
-					Current->SetInnerRML(HTML);
+					Current->SetInnerRML(Core::String(HTML));
 
 				--Busy;
 				return IElementDocument(Current);
@@ -3876,7 +3846,7 @@ namespace Vitex
 				return GuiException("unsupported");
 #endif
 			}
-			ExpectsGuiException<IElementDocument> Context::AddCSS(const Core::String& CSS, int Index)
+			ExpectsGuiException<IElementDocument> Context::AddCSS(const std::string_view& CSS, int Index)
 			{
 #ifdef VI_RMLUI
 				++Busy;
@@ -3890,18 +3860,18 @@ namespace Vitex
 						if (!StylePtr)
 						{
 							auto Style = Current->CreateElement("style");
-							Style->SetInnerRML(CSS);
+							Style->SetInnerRML(Core::String(CSS));
 							HeadPtr->AppendChild(std::move(Style));
 						}
 						else
-							StylePtr->SetInnerRML(CSS);
+							StylePtr->SetInnerRML(Core::String(CSS));
 					}
 					else
 					{
 						auto Head = Current->CreateElement("head");
 						{
 							auto Style = Current->CreateElement("style");
-							Style->SetInnerRML(CSS);
+							Style->SetInnerRML(Core::String(CSS));
 							Head->AppendChild(std::move(Style));
 						}
 						Current->AppendChild(std::move(Head));
@@ -3909,7 +3879,7 @@ namespace Vitex
 				}
 				else
 				{
-					Current = Base->LoadDocumentFromMemory("<html><head><style>" + CSS + "</style></head></html>");
+					Current = Base->LoadDocumentFromMemory("<html><head><style>" + Core::String(CSS) + "</style></head></html>");
 					if (!Current)
 					{
 						--Busy;
@@ -3923,7 +3893,7 @@ namespace Vitex
 				return GuiException("unsupported");
 #endif
 			}
-			ExpectsGuiException<IElementDocument> Context::LoadCSS(const Core::String& Path, int Index)
+			ExpectsGuiException<IElementDocument> Context::LoadCSS(const std::string_view& Path, int Index)
 			{
 #ifdef VI_RMLUI
 				++Busy;
@@ -3939,12 +3909,12 @@ namespace Vitex
 
 					auto Link = Current->CreateElement("link");
 					Link->SetAttribute("type", "text/css");
-					Link->SetAttribute("href", Path);
+					Link->SetAttribute("href", Core::String(Path));
 					HeadPtr = Current->AppendChild(std::move(Link));
 				}
 				else
 				{
-					Current = Base->LoadDocumentFromMemory("<html><head><link type=\"text/css\" href=\"" + Path + "\" /></head></html>");
+					Current = Base->LoadDocumentFromMemory("<html><head><link type=\"text/css\" href=\"" + Core::String(Path) + "\" /></head></html>");
 					if (!Current)
 					{
 						--Busy;
@@ -3958,7 +3928,7 @@ namespace Vitex
 				return GuiException("unsupported");
 #endif
 			}
-			ExpectsGuiException<IElementDocument> Context::LoadDocument(const Core::String& Path, bool AllowIncludes)
+			ExpectsGuiException<IElementDocument> Context::LoadDocument(const std::string_view& Path, bool AllowIncludes)
 			{
 #ifdef VI_RMLUI
 				++Busy;
@@ -3966,7 +3936,7 @@ namespace Vitex
 					OnMount(this);
 
 				ContentManager* Content = (Subsystem::Get()->GetRenderInterface() ? Subsystem::Get()->GetRenderInterface()->GetContent() : nullptr);
-				auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), true) : Core::OS::Path::Resolve(Path.c_str()));
+				auto Subpath = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment(), true) : Core::OS::Path::Resolve(Path));
 				auto TargetPath = Subpath ? *Subpath : Path;
 				auto File = Core::OS::File::ReadAsString(TargetPath);
 				if (!File)
@@ -3999,10 +3969,10 @@ namespace Vitex
 				return GuiException("unsupported");
 #endif
 			}
-			ExpectsGuiException<IElementDocument> Context::AddDocumentEmpty(const Core::String& InstancerName)
+			ExpectsGuiException<IElementDocument> Context::AddDocumentEmpty(const std::string_view& InstancerName)
 			{
 #ifdef VI_RMLUI
-				auto* Result = Base->CreateDocument(InstancerName);
+				auto* Result = Base->CreateDocument(Core::String(InstancerName));
 				if (!Result)
 					return GuiException("add document: invalid argument");
 
@@ -4011,10 +3981,10 @@ namespace Vitex
 				return GuiException("unsupported");
 #endif
 			}
-			ExpectsGuiException<IElementDocument> Context::AddDocument(const Core::String& HTML)
+			ExpectsGuiException<IElementDocument> Context::AddDocument(const std::string_view& HTML)
 			{
 #ifdef VI_RMLUI
-				auto* Result = Base->LoadDocumentFromMemory(HTML);
+				auto* Result = Base->LoadDocumentFromMemory(Core::String(HTML));
 				if (!Result)
 					return GuiException("add document: invalid argument");
 
@@ -4023,10 +3993,10 @@ namespace Vitex
 				return GuiException("unsupported");
 #endif
 			}
-			IElementDocument Context::GetDocument(const Core::String& Id)
+			IElementDocument Context::GetDocument(const std::string_view& Id)
 			{
 #ifdef VI_RMLUI
-				return Base->GetDocument(Id);
+				return Base->GetDocument(Core::String(Id));
 #else
 				return IElementDocument();
 #endif
@@ -4047,7 +4017,7 @@ namespace Vitex
 				return 0;
 #endif
 			}
-			IElement Context::GetElementById(const Core::String& Id, int DocIndex)
+			IElement Context::GetElementById(const std::string_view& Id, int DocIndex)
 			{
 #ifdef VI_RMLUI
 				Rml::ElementDocument* Root = Base->GetDocument(DocIndex);
@@ -4057,20 +4027,22 @@ namespace Vitex
 				auto Map = Elements.find(DocIndex);
 				if (Map == Elements.end())
 				{
-					Rml::Element* Element = Root->GetElementById(Id);
+					Core::String Copy = Core::String(Id);
+					Rml::Element* Element = Root->GetElementById(Copy);
 					if (!Element)
 						return nullptr;
 
-					Elements[DocIndex].insert(std::make_pair(Id, Element));
+					Elements[DocIndex].insert(std::make_pair(Copy, Element));
 					return Element;
 				}
 
-				auto It = Map->second.find(Id);
+				auto It = Map->second.find(Core::HglCast(Id));
 				if (It != Map->second.end())
 					return It->second;
 
-				Rml::Element* Element = Root->GetElementById(Id);
-				Map->second.insert(std::make_pair(Id, Element));
+				Core::String Copy = Core::String(Id);
+				Rml::Element* Element = Root->GetElementById(Copy);
+				Map->second.insert(std::make_pair(Copy, Element));
 
 				return Element;
 #else
@@ -4127,18 +4099,18 @@ namespace Vitex
 				Base->UnfocusDocument(Schema.GetElementDocument());
 #endif
 			}
-			void Context::AddEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase)
+			void Context::AddEventListener(const std::string_view& Event, Listener* Listener, bool InCapturePhase)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
-				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
+				Base->AddEventListener(Core::String(Event), Listener->Base, InCapturePhase);
 #endif
 			}
-			void Context::RemoveEventListener(const Core::String& Event, Listener* Listener, bool InCapturePhase)
+			void Context::RemoveEventListener(const std::string_view& Event, Listener* Listener, bool InCapturePhase)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
-				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
+				Base->RemoveEventListener(Core::String(Event), Listener->Base, InCapturePhase);
 #endif
 			}
 			bool Context::IsMouseInteracting() const
@@ -4190,10 +4162,11 @@ namespace Vitex
 				return Base->SetActiveClipRegion(Rml::Vector2i((int)Origin.X, (int)Origin.Y), Rml::Vector2i((int)Dimensions.X, (int)Dimensions.Y));
 #endif
 			}
-			DataModel* Context::SetDataModel(const Core::String& Name)
+			DataModel* Context::SetDataModel(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
-				Rml::DataModelConstructor Result = Base->CreateDataModel(Name);
+				Core::String Copy = Core::String(Name);
+				Rml::DataModelConstructor Result = Base->CreateDataModel(Copy);
 				if (!Result)
 					return nullptr;
 
@@ -4209,33 +4182,34 @@ namespace Vitex
 					Type.RegisterMember("size", &DataNode::GetValueSize);
 				}
 
-				Models[Name] = Handle;
+				Models[Copy] = Handle;
 				return Handle;
 #else
 				return nullptr;
 #endif
 			}
-			DataModel* Context::GetDataModel(const Core::String& Name)
+			DataModel* Context::GetDataModel(const std::string_view& Name)
 			{
-				auto It = Models.find(Name);
+				auto It = Models.find(Core::HglCast(Name));
 				if (It != Models.end())
 					return It->second;
 
 				return nullptr;
 			}
-			bool Context::RemoveDataModel(const Core::String& Name)
+			bool Context::RemoveDataModel(const std::string_view& Name)
 			{
 #ifdef VI_RMLUI
-				if (!Base->RemoveDataModel(Name))
+				Core::String Copy = Core::String(Name);
+				if (!Base->RemoveDataModel(Copy))
 					return false;
 
-				auto It = Models.find(Name);
+				auto It = Models.find(Copy);
 				if (It != Models.end())
 				{
 					if (It->second->OnUnmount)
 						It->second->OnUnmount(this);
 
-					VI_RELEASE(It->second);
+					Core::Memory::Release(It->second);
 					Models.erase(It);
 				}
 
@@ -4253,7 +4227,7 @@ namespace Vitex
 				for (auto Item : Models)
 				{
 					Base->RemoveDataModel(Item.first);
-					VI_RELEASE(Item.second);
+					Core::Memory::Release(Item.second);
 				}
 
 				Models.clear();
@@ -4262,17 +4236,17 @@ namespace Vitex
 				return false;
 #endif
 			}
-			void Context::SetDocumentsBaseTag(const Core::String& Tag)
+			void Context::SetDocumentsBaseTag(const std::string_view& Tag)
 			{
 #ifdef VI_RMLUI
-				Base->SetDocumentsBaseTag(Tag);
+				Base->SetDocumentsBaseTag(Core::String(Tag));
 #endif
 			}
 			void Context::SetMountCallback(const ModelCallback& Callback)
 			{
 				OnMount = Callback;
 			}
-			ExpectsGuiException<void> Context::Preprocess(const Core::String& Path, Core::String& Buffer)
+			ExpectsGuiException<void> Context::Preprocess(const std::string_view& Path, Core::String& Buffer)
 			{
 				Compute::Preprocessor::Desc Features;
 				Features.Conditions = false;
@@ -4287,7 +4261,7 @@ namespace Vitex
 				if (Directory)
 					Desc.Root = *Directory;
 
-				Compute::Preprocessor* Processor = new Compute::Preprocessor();
+				Core::UPtr<Compute::Preprocessor> Processor = new Compute::Preprocessor();
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
 				{
 					if (File.Module.empty() || (!File.IsFile && !File.IsAbstract))
@@ -4304,7 +4278,7 @@ namespace Vitex
 					this->Decompose(Output);
 					return Compute::IncludeType::Preprocess;
 				});
-				Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+				Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 				{
 					if (Name != "fontface")
 						return Core::Expectation::Met;
@@ -4360,7 +4334,6 @@ namespace Vitex
 				Processor->SetFeatures(Features);
 
 				auto Status = Processor->Process(Path, Buffer);
-				VI_RELEASE(Processor);
 				if (!Status)
 					return GuiException(std::move(Status.Error().message()));
 
@@ -4418,30 +4391,21 @@ namespace Vitex
 				Compiler->Clear();
 				Compiler->Prepare("__scope__", true);
 			}
-			Core::String Context::ResolveResourcePath(const IElement& Element, const Core::String& Path)
+			Core::String Context::ResolveResourcePath(const IElement& Element, const std::string_view& Path)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(Subsystem::Get()->GetSystemInterface() != nullptr, "system interface should be set");
 				auto RootElement = Element.GetOwnerDocument();
-				Core::String TargetPath = Path;
+				Core::String SourcePath = Core::String(Path);
 				if (!RootElement.IsValid())
-				{
-					auto* RootPath = Subsystem::Get()->GetSystemInterface()->GetLoadingDocumentPath();
-					if (RootPath != nullptr)
-					{
-						Rml::String TargetPath;
-						Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(*RootPath, '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
-						return TargetPath;
-					}
-				}
-				else
-				{
-					Rml::String TargetPath;
-					Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(RootElement.GetSourceURL(), '|', ':'), Rml::StringUtilities::Replace(Path, '|', ':'));
-					return TargetPath;
-				}
+					return SourcePath;
+
+				Rml::String TargetPath;
+				Rml::GetSystemInterface()->JoinPath(TargetPath, Rml::StringUtilities::Replace(RootElement.GetSourceURL(), '|', ':'), Rml::StringUtilities::Replace(SourcePath, '|', ':'));
+				return TargetPath;
+#else
+				return Core::String(Path);
 #endif
-				return Path;
 			}
 			Core::String Context::GetDocumentsBaseTag()
 			{

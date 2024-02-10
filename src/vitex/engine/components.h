@@ -1,6 +1,6 @@
 #ifndef VI_ENGINE_COMPONENTS_H
 #define VI_ENGINE_COMPONENTS_H
-#include "../core/engine.h"
+#include "../engine.h"
 
 namespace Vitex
 {
@@ -32,7 +32,7 @@ namespace Vitex
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Compute::HullShape* Shape, float Anticipation = 0.0f);
-				void Load(const Core::String& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
+				void Load(const std::string_view& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation = 0.0f);
 				void LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation = 0.0f);
 				void LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation = 0.0f);
@@ -71,7 +71,7 @@ namespace Vitex
 				void Deactivate() override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(btCollisionShape* Shape, float Mass, float Anticipation = 0.0f);
-				void Load(const Core::String& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
+				void Load(const std::string_view& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
@@ -149,9 +149,9 @@ namespace Vitex
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Engine::Model> Drawable);
-				void SetMaterialFor(const Core::String& Name, Material* Value);
+				void SetMaterialFor(const std::string_view& Name, Material* Value);
 				Engine::Model* GetDrawable();
-				Material* GetMaterialFor(const Core::String& Name);
+				Material* GetMaterialFor(const std::string_view& Name);
 
 			public:
 				VI_COMPONENT("model_component");
@@ -176,9 +176,9 @@ namespace Vitex
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Engine::SkinModel> Drawable);
-				void SetMaterialFor(const Core::String& Name, Material* Value);
+				void SetMaterialFor(const std::string_view& Name, Material* Value);
 				Engine::SkinModel* GetDrawable();
-				Material* GetMaterialFor(const Core::String& Name);
+				Material* GetMaterialFor(const std::string_view& Name);
 
 			public:
 				VI_COMPONENT("skin_component");
@@ -250,7 +250,7 @@ namespace Vitex
 				bool IsExists(int64_t Clip, int64_t Frame);
 				const Compute::SkinAnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
 				const Core::Vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
-				int64_t GetClipByName(const Core::String& Name) const;
+				int64_t GetClipByName(const std::string_view& Name) const;
 				size_t GetClipsCount() const;
 				Skin* GetSkin() const;
 				SkinAnimation* GetAnimation() const;
@@ -282,7 +282,7 @@ namespace Vitex
 				void Serialize(Core::Schema* Node) override;
 				void Animate(Core::Timer* Time) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				void LoadAnimation(const Core::String& Path, const std::function<void(bool)>& Callback = nullptr);
+				void LoadAnimation(const std::string_view& Path, const std::function<void(bool)>& Callback = nullptr);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
@@ -459,7 +459,7 @@ namespace Vitex
 				PointLight(Entity* Ref);
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
-				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
+				void Message(const std::string_view& Name, Core::VariantArgs& Args) override;
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				float GetVisibility(const Viewer& View, float Distance) const override;
 				Core::Unique<Component> Copy(Entity * New) const override;
@@ -499,7 +499,7 @@ namespace Vitex
 				SpotLight(Entity* Ref);
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
-				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
+				void Message(const std::string_view& Name, Core::VariantArgs& Args) override;
 				void Synchronize(Core::Timer * Time) override;
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				float GetVisibility(const Viewer& View, float Distance) const override;
@@ -550,7 +550,7 @@ namespace Vitex
 				LineLight(Entity* Ref);
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
-				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
+				void Message(const std::string_view& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity * New) const override;
 				void GenerateOrigin();
 
@@ -632,7 +632,7 @@ namespace Vitex
 				Illuminator(Entity* Ref);
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
-				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
+				void Message(const std::string_view& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 
 			public:
@@ -735,20 +735,20 @@ namespace Vitex
 				void Activate(Component* New) override;
 				void Deactivate() override;
 				void Update(Core::Timer* Time) override;
-				void Message(const Core::String& Name, Core::VariantArgs& Args) override;
+				void Message(const std::string_view& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				Scripting::ExpectsPromiseVM<Scripting::Execution> Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs);
+				Scripting::ExpectsPromiseVM<Scripting::Execution> Call(const std::string_view& Name, size_t Args, Scripting::ArgsCallback&& OnArgs);
 				Scripting::ExpectsPromiseVM<Scripting::Execution> Call(asIScriptFunction* Entry, Scripting::ArgsCallback&& OnArgs);
-				Scripting::ExpectsPromiseVM<Scripting::Execution> CallEntry(const Core::String& Name);
+				Scripting::ExpectsPromiseVM<Scripting::Execution> CallEntry(const std::string_view& Name);
 				Scripting::ExpectsPromiseVM<void> LoadSource();
-				Scripting::ExpectsPromiseVM<void> LoadSource(SourceType Type, const Core::String& Source);
+				Scripting::ExpectsPromiseVM<void> LoadSource(SourceType Type, const std::string_view& Source);
 				Scripting::ExpectsVM<size_t> GetPropertiesCount();
 				Scripting::ExpectsVM<size_t> GetFunctionsCount();
 				void SetInvocation(InvokeType Type);
 				void UnloadSource();
-				bool GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result);
+				bool GetPropertyByName(const std::string_view& Name, Scripting::PropertyInfo* Result);
 				bool GetPropertyByIndex(size_t Index, Scripting::PropertyInfo* Result);
-				Scripting::Function GetFunctionByName(const Core::String& Name, size_t Args);
+				Scripting::Function GetFunctionByName(const std::string_view& Name, size_t Args);
 				Scripting::Function GetFunctionByIndex(size_t Index, size_t Args);
 				Scripting::Compiler* GetCompiler();
 				SourceType GetSourceType();
@@ -758,11 +758,9 @@ namespace Vitex
 
 			public:
 				template <typename T>
-				Scripting::ExpectsVM<void> SetTypePropertyByName(const char* Name, const T& Value)
+				Scripting::ExpectsVM<void> SetTypePropertyByName(const std::string_view& Name, const T& Value)
 				{
-					VI_ASSERT(Name != nullptr, "name should be set");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
-
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
 						return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
@@ -779,11 +777,9 @@ namespace Vitex
 					return Core::Expectation::Met;
 				}
 				template <typename T>
-				Scripting::ExpectsVM<void> SetRefPropertyByName(const char* Name, T* Value)
+				Scripting::ExpectsVM<void> SetRefPropertyByName(const std::string_view& Name, T* Value)
 				{
-					VI_ASSERT(Name != nullptr, "name should be set");
 					VI_ASSERT(Compiler != nullptr, "compiler should be set");
-
 					Scripting::Module Base = Compiler->GetModule();
 					if (!Base.IsValid())
 						return Scripting::VirtualException(Scripting::VirtualError::NO_MODULE);
@@ -796,7 +792,7 @@ namespace Vitex
 					if (!Address)
 						return Scripting::VirtualException(Scripting::VirtualError::INVALID_OBJECT);
 
-					VI_RELEASE(*Address);
+					Core::Memory::Release(*Address);
 					*Address = Value;
 					if (*Address != nullptr)
 						(*Address)->AddRef();
@@ -833,7 +829,7 @@ namespace Vitex
 					if (!Address)
 						return Scripting::VirtualException(Scripting::VirtualError::INVALID_OBJECT);
 
-					VI_RELEASE(*Address);
+					Core::Memory::Release(*Address);
 					*Address = Value;
 					if (*Address != nullptr)
 						(*Address)->AddRef();

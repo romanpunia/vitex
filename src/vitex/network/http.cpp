@@ -1,5 +1,5 @@
 #include "http.h"
-#include "../core/bindings.h"
+#include "../bindings.h"
 #ifdef VI_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
@@ -53,7 +53,7 @@ namespace Vitex
 	{
 		namespace HTTP
 		{
-			static bool PathTrailingCheck(const Core::String& Path)
+			static bool PathTrailingCheck(const std::string_view& Path)
 			{
 #ifdef VI_MICROSOFT
 				return !Path.empty() && (Path.back() == '/' || Path.back() == '\\');
@@ -65,19 +65,19 @@ namespace Vitex
 			{
 				return Target && Target->Root && Target->Route && Target->Route->Router;
 			}
-			static void TextAppend(Core::Vector<char>& Array, const Core::String& Src)
+			static void TextAppend(Core::Vector<char>& Array, const std::string_view& Src)
 			{
 				Array.insert(Array.end(), Src.begin(), Src.end());
 			}
-			static void TextAppend(Core::Vector<char>& Array, const char* Buffer, size_t Size)
+			static void TextAppend(Core::Vector<char>& Array, const uint8_t* Buffer, size_t Size)
 			{
 				Array.insert(Array.end(), Buffer, Buffer + Size);
 			}
-			static void TextAssign(Core::Vector<char>& Array, const Core::String& Src)
+			static void TextAssign(Core::Vector<char>& Array, const std::string_view& Src)
 			{
 				Array.assign(Src.begin(), Src.end());
 			}
-			static void TextAssign(Core::Vector<char>& Array, const char* Buffer, size_t Size)
+			static void TextAssign(Core::Vector<char>& Array, const uint8_t* Buffer, size_t Size)
 			{
 				Array.assign(Buffer, Buffer + Size);
 			}
@@ -85,20 +85,20 @@ namespace Vitex
 			{
 				return Core::String(Array.data() + Offset, Size);
 			}
-			static const char* HeaderText(const HeaderMapping& Headers, const Core::String& Key)
+			static std::string_view HeaderText(const KimvUnorderedMap& Headers, const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
+				auto It = Headers.find(Core::HglCast(Key));
 				if (It == Headers.end())
-					return nullptr;
+					return "";
 
 				if (It->second.empty())
-					return nullptr;
+					return "";
 
-				return It->second.back().c_str();
+				return It->second.back();
 			}
 
-			MimeStatic::MimeStatic(const char* Ext, const char* T) : Extension(Ext), Type(T)
+			MimeStatic::MimeStatic(const std::string_view& Ext, const std::string_view& T) : Extension(Ext), Type(T)
 			{
 			}
 
@@ -111,7 +111,7 @@ namespace Vitex
 				SetExpires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Tunneling((uint32_t)Tunnel::Healthy), Active(true), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame(Socket* NewStream, void* NewUserData) : State((uint32_t)WebSocketState::Open), Tunneling((uint32_t)Tunnel::Healthy), Active(true), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec()), UserData(NewUserData)
 			{
 			}
 			WebSocketFrame::~WebSocketFrame() noexcept
@@ -119,48 +119,47 @@ namespace Vitex
 				while (!Messages.empty())
 				{
 					auto& Next = Messages.front();
-					VI_FREE(Next.Buffer);
+					Core::Memory::Deallocate(Next.Buffer);
 					Messages.pop();
 				}
 
-				VI_RELEASE(Codec);
+				Core::Memory::Release(Codec);
 				if (Lifetime.Destroy)
 					Lifetime.Destroy(this);
 			}
-			Core::ExpectsSystem<size_t> WebSocketFrame::Send(const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Core::ExpectsSystem<size_t> WebSocketFrame::Send(const std::string_view& Buffer, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
-				return Send(0, Buffer, Size, Opcode, Callback);
+				return Send(0, Buffer, Opcode, Callback);
 			}
-			Core::ExpectsSystem<size_t> WebSocketFrame::Send(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Core::ExpectsSystem<size_t> WebSocketFrame::Send(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				Core::UMutex<std::mutex> Unique(Section);
-				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
+				if (Enqueue(Mask, Buffer, Opcode, Callback))
 					return (size_t)0;
 
 				Busy = true;
 				Unique.Negate();
 
-				unsigned char Header[14];
+				uint8_t Header[14];
 				size_t HeaderLength = 1;
 				Header[0] = 0x80 + ((size_t)Opcode & 0xF);
 
-				if (Size < 126)
+				if (Buffer.size() < 126)
 				{
-					Header[1] = (unsigned char)Size;
+					Header[1] = (uint8_t)Buffer.size();
 					HeaderLength = 2;
 				}
-				else if (Size <= 65535)
+				else if (Buffer.size() <= 65535)
 				{
-					uint16_t Length = htons((uint16_t)Size);
+					uint16_t Length = htons((uint16_t)Buffer.size());
 					Header[1] = 126;
 					HeaderLength = 4;
 					memcpy(Header + 2, &Length, 2);
 				}
 				else
 				{
-					uint32_t Length1 = htonl((uint64_t)Size >> 32);
-					uint32_t Length2 = htonl((uint64_t)Size & 0xFFFFFFFF);
+					uint32_t Length1 = htonl((uint64_t)Buffer.size() >> 32);
+					uint32_t Length2 = htonl((uint64_t)Buffer.size() & 0xFFFFFFFF);
 					Header[1] = 127;
 					HeaderLength = 10;
 					memcpy(Header + 2, &Length1, 4);
@@ -174,13 +173,14 @@ namespace Vitex
 					HeaderLength += 4;
 				}
 
-				auto Status = Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](SocketPoll Event)
+				Core::String Copy = Core::String(Buffer);
+				auto Status = Stream->WriteAsync(Header, HeaderLength, [this, Copy = std::move(Copy), Callback](SocketPoll Event) mutable
 				{
 					if (Packet::IsDone(Event))
 					{
-						if (Size > 0)
+						if (!Copy.empty())
 						{
-							Stream->WriteAsync(Buffer, Size, [this, Callback](SocketPoll Event)
+							Stream->WriteAsync((uint8_t*)Copy.data(), Copy.size(), [this, Callback](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
@@ -264,7 +264,7 @@ namespace Vitex
 				}
 
 				Finalize();
-				auto Status = Send("", 0, WebSocketOp::Close, Callback);
+				auto Status = Send("", WebSocketOp::Close, Callback);
 				if (!Status)
 					return Status.Error();
 
@@ -280,8 +280,8 @@ namespace Vitex
 				Messages.pop();
 				Unique.Negate();
 
-				Send(Next.Mask, Next.Buffer, Next.Size, Next.Opcode, Next.Callback);
-				VI_FREE(Next.Buffer);
+				Send(Next.Mask, std::string_view(Next.Buffer, Next.Size), Next.Opcode, Next.Callback);
+				Core::Memory::Deallocate(Next.Buffer);
 			}
 			void WebSocketFrame::Finalize()
 			{
@@ -347,10 +347,10 @@ namespace Vitex
 				}
 				else if (State == (uint32_t)WebSocketState::Process)
 				{
-					char Buffer[Core::BLOB_SIZE];
+					uint8_t Buffer[Core::BLOB_SIZE];
 					while (true)
 					{
-						auto Status = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const char* Buffer, size_t Recv)
+						auto Status = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 						{
 							if (Packet::IsData(Event))
 								Codec->ParseFrame(Buffer, Recv);
@@ -379,15 +379,11 @@ namespace Vitex
 					State = (uint32_t)WebSocketState::Process;
 					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
 					{
-						if (Opcode == WebSocketOp::Binary)
-							VI_DEBUG("[websocket] sock %i frame binary: %s", (int)Stream->GetFd(), Compute::Codec::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
-						else
-							VI_DEBUG("[websocket] sock %i frame text: %.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
-
+						VI_DEBUG("[websocket] sock %i frame data: %.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
 						if (Receive)
 						{
 							Unique.Negate();
-							if (!Receive(this, Opcode, Codec->Data.data(), Codec->Data.size()))
+							if (!Receive(this, Opcode, std::string_view(Codec->Data.data(), Codec->Data.size())))
 								Next();
 						}
 					}
@@ -395,20 +391,20 @@ namespace Vitex
 					{
 						VI_DEBUG("[websocket] sock %i frame ping", (int)Stream->GetFd());
 						Unique.Negate();
-						if (!Receive || !Receive(this, Opcode, "", 0))
-							Send("", 0, WebSocketOp::Pong, [this](WebSocketFrame*) { Next(); });
+						if (!Receive || !Receive(this, Opcode, ""))
+							Send("", WebSocketOp::Pong, [this](WebSocketFrame*) { Next(); });
 					}
 					else if (Opcode == WebSocketOp::Close)
 					{
 						VI_DEBUG("[websocket] sock %i frame close", (int)Stream->GetFd());
 						Unique.Negate();
-						if (!Receive || !Receive(this, Opcode, "", 0))
+						if (!Receive || !Receive(this, Opcode, ""))
 							SendClose(std::bind(&WebSocketFrame::Next, std::placeholders::_1));
 					}
 					else if (Receive)
 					{
 						Unique.Negate();
-						if (!Receive(this, Opcode, "", 0))
+						if (!Receive(this, Opcode, ""))
 							Next();
 					}
 					else
@@ -444,7 +440,7 @@ namespace Vitex
 			}
 			bool WebSocketFrame::IsWriteable()
 			{
-				return !Busy && !Stream->IsPendingForWrite();
+				return !Busy && !Stream->IsAwaitingWriteable();
 			}
 			Socket* WebSocketFrame::GetStream()
 			{
@@ -452,34 +448,37 @@ namespace Vitex
 			}
 			Connection* WebSocketFrame::GetConnection()
 			{
-				return Stream ? (Connection*)Stream->UserData : nullptr;
+				return (Connection*)UserData;
 			}
-			bool WebSocketFrame::Enqueue(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Client* WebSocketFrame::GetClient()
+			{
+				return (Client*)UserData;
+			}
+			bool WebSocketFrame::Enqueue(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				if (IsWriteable())
 					return false;
 
 				Message Next;
 				Next.Mask = Mask;
-				Next.Buffer = (Size > 0 ? VI_MALLOC(char, sizeof(char) * Size) : nullptr);
-				Next.Size = Size;
+				Next.Buffer = (Buffer.empty() ? nullptr : Core::Memory::Allocate<char>(sizeof(char) * Buffer.size()));
+				Next.Size = Buffer.size();
 				Next.Opcode = Opcode;
 				Next.Callback = Callback;
-
 				if (Next.Buffer != nullptr)
-					memcpy(Next.Buffer, Buffer, sizeof(char) * Size);
+					memcpy(Next.Buffer, Buffer.data(), sizeof(char) * Buffer.size());
 
 				Messages.emplace(std::move(Next));
 				return true;
 			}
 
-			RouterGroup::RouterGroup(const Core::String& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
+			RouterGroup::RouterGroup(const std::string_view& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
 			{
 			}
 			RouterGroup::~RouterGroup() noexcept
 			{
 				for (auto* Entry : Routes)
-					VI_RELEASE(Entry);
+					Core::Memory::Release(Entry);
 				Routes.clear();
 			}
 
@@ -501,10 +500,10 @@ namespace Vitex
 					Callbacks.OnDestroy(this);
 
 				for (auto& Item : Groups)
-					VI_RELEASE(Item);
+					Core::Memory::Release(Item);
 
 				Groups.clear();
-				VI_CLEAR(Base);
+				Core::Memory::Release(Base);
 			}
 			void MapRouter::Sort()
 			{
@@ -539,7 +538,7 @@ namespace Vitex
 					VI_SORT(Group->Routes.begin(), Group->Routes.end(), Comparator);
 				}
 			}
-			RouterGroup* MapRouter::Group(const Core::String& Match, RouteMode Mode)
+			RouterGroup* MapRouter::Group(const std::string_view& Match, RouteMode Mode)
 			{
 				for (auto& Group : Groups)
 				{
@@ -552,7 +551,7 @@ namespace Vitex
 
 				return Result;
 			}
-			RouterEntry* MapRouter::Route(const Core::String& Match, RouteMode Mode, const Core::String& Pattern, bool InheritProps)
+			RouterEntry* MapRouter::Route(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, bool InheritProps)
 			{
 				if (Pattern.empty() || Pattern == "/")
 					return Base;
@@ -606,7 +605,7 @@ namespace Vitex
 
 				return Route(Pattern, Source, From);
 			}
-			RouterEntry* MapRouter::Route(const Core::String& Pattern, RouterGroup* Group, RouterEntry* From)
+			RouterEntry* MapRouter::Route(const std::string_view& Pattern, RouterGroup* Group, RouterEntry* From)
 			{
 				VI_ASSERT(Group != nullptr, "group should be set");
 				if (From != nullptr)
@@ -630,7 +629,7 @@ namespace Vitex
 					auto It = std::find(Group->Routes.begin(), Group->Routes.end(), Source);
 					if (It != Group->Routes.end())
 					{
-						VI_RELEASE(*It);
+						Core::Memory::Release(*It);
 						Group->Routes.erase(It);
 						return true;
 					}
@@ -638,11 +637,11 @@ namespace Vitex
 
 				return false;
 			}
-			bool MapRouter::Get(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Get(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Get("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Get(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Get(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -651,11 +650,11 @@ namespace Vitex
 				Value->Callbacks.Get = Callback;
 				return true;
 			}
-			bool MapRouter::Post(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Post(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Post("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Post(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Post(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -664,11 +663,11 @@ namespace Vitex
 				Value->Callbacks.Post = Callback;
 				return true;
 			}
-			bool MapRouter::Put(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Put(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Put("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Put(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Put(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -677,11 +676,11 @@ namespace Vitex
 				Value->Callbacks.Put = Callback;
 				return true;
 			}
-			bool MapRouter::Patch(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Patch(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Patch("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Patch(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Patch(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -690,11 +689,11 @@ namespace Vitex
 				Value->Callbacks.Patch = Callback;
 				return true;
 			}
-			bool MapRouter::Delete(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Delete(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Delete("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Delete(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Delete(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -703,11 +702,11 @@ namespace Vitex
 				Value->Callbacks.Delete = Callback;
 				return true;
 			}
-			bool MapRouter::Options(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Options(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Options("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Options(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Options(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -716,11 +715,11 @@ namespace Vitex
 				Value->Callbacks.Options = Callback;
 				return true;
 			}
-			bool MapRouter::Access(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Access(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return Access("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Access(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Access(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -729,11 +728,11 @@ namespace Vitex
 				Value->Callbacks.Access = Callback;
 				return true;
 			}
-			bool MapRouter::Headers(const char* Pattern, const HeaderCallback& Callback)
+			bool MapRouter::Headers(const std::string_view& Pattern, const HeaderCallback& Callback)
 			{
 				return Headers("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Headers(const Core::String& Match, RouteMode Mode, const char* Pattern, const HeaderCallback& Callback)
+			bool MapRouter::Headers(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const HeaderCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -742,11 +741,11 @@ namespace Vitex
 				Value->Callbacks.Headers = Callback;
 				return true;
 			}
-			bool MapRouter::Authorize(const char* Pattern, const AuthorizeCallback& Callback)
+			bool MapRouter::Authorize(const std::string_view& Pattern, const AuthorizeCallback& Callback)
 			{
 				return Authorize("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::Authorize(const Core::String& Match, RouteMode Mode, const char* Pattern, const AuthorizeCallback& Callback)
+			bool MapRouter::Authorize(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const AuthorizeCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -755,11 +754,11 @@ namespace Vitex
 				Value->Callbacks.Authorize = Callback;
 				return true;
 			}
-			bool MapRouter::WebSocketInitiate(const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::WebSocketInitiate(const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				return WebSocketInitiate("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::WebSocketInitiate(const Core::String& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			bool MapRouter::WebSocketInitiate(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -768,11 +767,11 @@ namespace Vitex
 				Value->Callbacks.WebSocket.Initiate = Callback;
 				return true;
 			}
-			bool MapRouter::WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketConnect(const std::string_view& Pattern, const WebSocketCallback& Callback)
 			{
 				return WebSocketConnect("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::WebSocketConnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketConnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -781,11 +780,11 @@ namespace Vitex
 				Value->Callbacks.WebSocket.Connect = Callback;
 				return true;
 			}
-			bool MapRouter::WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketDisconnect(const std::string_view& Pattern, const WebSocketCallback& Callback)
 			{
 				return WebSocketDisconnect("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::WebSocketDisconnect(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketDisconnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -794,11 +793,11 @@ namespace Vitex
 				Value->Callbacks.WebSocket.Disconnect = Callback;
 				return true;
 			}
-			bool MapRouter::WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback)
+			bool MapRouter::WebSocketReceive(const std::string_view& Pattern, const WebSocketReadCallback& Callback)
 			{
 				return WebSocketReceive("", RouteMode::Start, Pattern, Callback);
 			}
-			bool MapRouter::WebSocketReceive(const Core::String& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
+			bool MapRouter::WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketReadCallback& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
@@ -808,22 +807,37 @@ namespace Vitex
 				return true;
 			}
 
-			void Resource::PutHeader(const Core::String& Label, const Core::String& Value)
+			Core::String& Resource::PutHeader(const std::string_view& Label, const std::string_view& Value)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Headers[Label].push_back(Value);
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->push_back(Core::String(Value));
+				return Range->back();
 			}
-			void Resource::SetHeader(const Core::String& Label, const Core::String& Value)
+			Core::String& Resource::SetHeader(const std::string_view& Label, const std::string_view& Value)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto& Range = Headers[Label];
-				Range.clear();
-				Range.push_back(Value);
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->clear();
+				Range->push_back(Core::String(Value));
+				return Range->back();
 			}
-			Core::String Resource::ComposeHeader(const Core::String& Label) const
+			Core::String Resource::ComposeHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Label);
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -836,35 +850,36 @@ namespace Vitex
 
 				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
-			RangePayload* Resource::GetHeaderRanges(const Core::String& Label)
+			Core::Vector<Core::String>* Resource::GetHeaderRanges(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				return (RangePayload*)&Headers[Label];
+				auto It = Headers.find(Core::HglCast(Label));
+				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
-			const Core::String* Resource::GetHeaderBlob(const Core::String& Label) const
+			Core::String* Resource::GetHeaderBlob(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Label);
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
 				if (It->second.empty())
 					return nullptr;
 
-				const Core::String& Result = It->second.back();
+				auto& Result = It->second.back();
 				return &Result;
 			}
-			const char* Resource::GetHeader(const Core::String& Label) const
+			std::string_view Resource::GetHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Label);
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
-					return nullptr;
+					return "";
 
 				if (It->second.empty())
-					return nullptr;
+					return "";
 
-				return It->second.back().c_str();
+				return It->second.back();
 			}
 			const Core::String& Resource::GetInMemoryContents() const
 			{
@@ -878,32 +893,16 @@ namespace Vitex
 				strcpy(Method, "GET");
 				strcpy(Version, "HTTP/1.1");
 			}
-			void RequestFrame::SetMethod(const char* Value)
+			void RequestFrame::SetMethod(const std::string_view& Value)
 			{
-				VI_ASSERT(Value != nullptr, "value should be set");
 				memset(Method, 0, sizeof(Method));
-				memcpy((void*)Method, (void*)Value, std::min<size_t>(strlen(Value), sizeof(Method)));
+				memcpy((void*)Method, (void*)Value.data(), std::min<size_t>(Value.size(), sizeof(Method)));
 			}
-			void RequestFrame::SetVersion(unsigned int Major, unsigned int Minor)
+			void RequestFrame::SetVersion(uint32_t Major, uint32_t Minor)
 			{
 				Core::String Value = "HTTP/" + Core::ToString(Major) + '.' + Core::ToString(Minor);
 				memset(Version, 0, sizeof(Version));
 				memcpy((void*)Version, (void*)Value.c_str(), std::min<size_t>(Value.size(), sizeof(Version)));
-			}
-			Core::String& RequestFrame::PutHeader(const Core::String& Key, const Core::String& Value)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
-				Range.push_back(Value);
-				return Range.back();
-			}
-			Core::String& RequestFrame::SetHeader(const Core::String& Key, const Core::String& Value)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
-				Range.clear();
-				Range.push_back(Value);
-				return Range.back();
 			}
 			void RequestFrame::Cleanup()
 			{
@@ -919,10 +918,37 @@ namespace Vitex
 				Location.clear();
 				Referrer.clear();
 			}
-			Core::String RequestFrame::ComposeHeader(const Core::String& Label) const
+			Core::String& RequestFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Label);
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->push_back(Core::String(Value));
+				return Range->back();
+			}
+			Core::String& RequestFrame::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->clear();
+				Range->push_back(Core::String(Value));
+				return Range->back();
+			}
+			Core::String RequestFrame::ComposeHeader(const std::string_view& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -935,65 +961,67 @@ namespace Vitex
 
 				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
-			RangePayload* RequestFrame::GetCookieRanges(const Core::String& Key)
+			Core::Vector<Core::String>* RequestFrame::GetHeaderRanges(const std::string_view& Label)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				return (RangePayload*)&Cookies[Key];
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
-			const Core::String* RequestFrame::GetCookieBlob(const Core::String& Key) const
+			Core::String* RequestFrame::GetHeaderBlob(const std::string_view& Label)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Key);
-				if (It == Cookies.end())
-					return nullptr;
-
-				if (It->second.empty())
-					return nullptr;
-
-				const Core::String& Result = It->second.back();
-				return &Result;
-			}
-			const char* RequestFrame::GetCookie(const Core::String& Key) const
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Key);
-				if (It == Cookies.end())
-					return nullptr;
-
-				if (It->second.empty())
-					return nullptr;
-
-				return It->second.back().c_str();
-			}
-			RangePayload* RequestFrame::GetHeaderRanges(const Core::String& Key)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				return (RangePayload*)&Headers[Key];
-			}
-			const Core::String* RequestFrame::GetHeaderBlob(const Core::String& Key) const
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
 				if (It->second.empty())
 					return nullptr;
 
-				const Core::String& Result = It->second.back();
+				auto& Result = It->second.back();
 				return &Result;
 			}
-			const char* RequestFrame::GetHeader(const Core::String& Key) const
+			std::string_view RequestFrame::GetHeader(const std::string_view& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It == Headers.end())
+					return "";
+
+				if (It->second.empty())
+					return "";
+
+				return It->second.back();
+			}
+			Core::Vector<Core::String>* RequestFrame::GetCookieRanges(const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
-				if (It == Headers.end())
+				auto It = Cookies.find(Core::HglCast(Key));
+				return It != Cookies.end() ? &It->second : &Cookies[Core::String(Key)];
+			}
+			Core::String* RequestFrame::GetCookieBlob(const std::string_view& Key)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Cookies.find(Core::HglCast(Key));
+				if (It == Cookies.end())
 					return nullptr;
 
 				if (It->second.empty())
 					return nullptr;
 
-				return It->second.back().c_str();
+				auto& Result = It->second.back();
+				return &Result;
+			}
+			std::string_view RequestFrame::GetCookie(const std::string_view& Key) const
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Cookies.find(Core::HglCast(Key));
+				if (It == Cookies.end())
+					return "";
+
+				if (It->second.empty())
+					return "";
+
+				return It->second.back();
 			}
 			Core::Vector<std::pair<size_t, size_t>> RequestFrame::GetRanges() const
 			{
@@ -1014,20 +1042,20 @@ namespace Vitex
 						const char* Left = Item.c_str() + Result.Start - 1;
 						size_t LeftSize = (size_t)(isdigit(*Left) > 0);
 						if (LeftSize > 0)
-					{
-						while (isdigit(*(Left - 1)) && LeftSize <= Result.Start - 1)
 						{
-							--Left;
-							++LeftSize;
-						}
+							while (isdigit(*(Left - 1)) && LeftSize <= Result.Start - 1)
+							{
+								--Left;
+								++LeftSize;
+							}
 
-						if (LeftSize > 0)
-						{
-							auto From = Core::FromString<size_t>(Core::String(Left, LeftSize));
-							if (From)
-								ContentStart = *From;
+							if (LeftSize > 0)
+							{
+								auto From = Core::FromString<size_t>(Core::String(Left, LeftSize));
+								if (From)
+									ContentStart = *From;
+							}
 						}
-					}
 					}
 
 					if (Result.End < Item.size())
@@ -1081,26 +1109,11 @@ namespace Vitex
 			ResponseFrame::ResponseFrame() : StatusCode(-1), Error(false)
 			{
 			}
-			Core::String& ResponseFrame::PutHeader(const Core::String& Key, const Core::String& Value)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
-				Range.push_back(Value);
-				return Range.back();
-			}
-			Core::String& ResponseFrame::SetHeader(const Core::String& Key, const Core::String& Value)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
-				Range.clear();
-				Range.push_back(Value);
-				return Range.back();
-			}
 			void ResponseFrame::SetCookie(const Cookie& Value)
 			{
 				for (auto& Cookie : Cookies)
 				{
-					if (Core::Stringify::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
+					if (Core::Stringify::CaseEquals(Cookie.Name.c_str(), Value.Name.c_str()))
 					{
 						Cookie = Value;
 						return;
@@ -1113,7 +1126,7 @@ namespace Vitex
 			{
 				for (auto& Cookie : Cookies)
 				{
-					if (Core::Stringify::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
+					if (Core::Stringify::CaseEquals(Cookie.Name.c_str(), Value.Name.c_str()))
 					{
 						Cookie = std::move(Value);
 						return;
@@ -1130,10 +1143,37 @@ namespace Vitex
 				Headers.clear();
 				Content.Cleanup();
 			}
-			Core::String ResponseFrame::ComposeHeader(const Core::String& Label) const
+			Core::String& ResponseFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Label);
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->push_back(Core::String(Value));
+				return Range->back();
+			}
+			Core::String& ResponseFrame::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->clear();
+				Range->push_back(Core::String(Value));
+				return Range->back();
+			}
+			Core::String ResponseFrame::ComposeHeader(const std::string_view& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -1146,47 +1186,47 @@ namespace Vitex
 
 				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
-			Cookie* ResponseFrame::GetCookie(const char* Key)
+			Core::Vector<Core::String>* ResponseFrame::GetHeaderRanges(const std::string_view& Label)
 			{
-				VI_ASSERT(Key != nullptr, "key should be set");
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
+			}
+			Core::String* ResponseFrame::GetHeaderBlob(const std::string_view& Label)
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				auto& Result = It->second.back();
+				return &Result;
+			}
+			std::string_view ResponseFrame::GetHeader(const std::string_view& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It == Headers.end())
+					return "";
+
+				if (It->second.empty())
+					return "";
+
+				return It->second.back();
+			}
+			Cookie* ResponseFrame::GetCookie(const std::string_view& Key)
+			{
 				for (size_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
-					if (!Core::Stringify::CaseCompare(Result->Name.c_str(), Key))
+					if (Core::Stringify::CaseEquals(Result->Name.c_str(), Key))
 						return Result;
 				}
 
 				return nullptr;
-			}
-			RangePayload* ResponseFrame::GetHeaderRanges(const Core::String& Key)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				return (RangePayload*)&Headers[Key];
-			}
-			const Core::String* ResponseFrame::GetHeaderBlob(const Core::String& Key) const
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
-				if (It == Headers.end())
-					return nullptr;
-
-				if (It->second.empty())
-					return nullptr;
-
-				const Core::String& Result = It->second.back();
-				return &Result;
-			}
-			const char* ResponseFrame::GetHeader(const Core::String& Key) const
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
-				if (It == Headers.end())
-					return nullptr;
-
-				if (It->second.empty())
-					return nullptr;
-
-				return It->second.back().c_str();
 			}
 			bool ResponseFrame::IsUndefined() const
 			{
@@ -1200,40 +1240,32 @@ namespace Vitex
 			ContentFrame::ContentFrame() : Length(0), Offset(0), Prefetch(0), Exceeds(false), Limited(false)
 			{
 			}
-			void ContentFrame::Append(const Core::String& Text)
+			void ContentFrame::Append(const std::string_view& Text)
 			{
 				TextAppend(Data, Text);
 			}
-			void ContentFrame::Append(const char* Buffer, size_t Size)
-			{
-				TextAppend(Data, Buffer, Size);
-			}
-			void ContentFrame::Assign(const Core::String& Text)
+			void ContentFrame::Assign(const std::string_view& Text)
 			{
 				TextAssign(Data, Text);
 			}
-			void ContentFrame::Assign(const char* Buffer, size_t Size)
+			void ContentFrame::Prepare(const KimvUnorderedMap& Headers, const uint8_t* Buffer, size_t Size)
 			{
-				TextAssign(Data, Buffer, Size);
-			}
-			void ContentFrame::Prepare(const HeaderMapping& Headers, const char* Buffer, size_t Size)
-			{
-				const char* ContentLength = HeaderText(Headers, "Content-Length");
-				Limited = (ContentLength != nullptr);
+				auto ContentLength = HeaderText(Headers, "Content-Length");
+				Limited = !ContentLength.empty();
 				if (Limited)
-					Length = strtoull(ContentLength, nullptr, 10);
+					Length = strtoull(ContentLength.data(), nullptr, 10);
 
 				Offset = Prefetch = Buffer ? Size : 0;
 				if (Offset > 0)
-					TextAssign(Data, Buffer, Size);
+					TextAssign(Data, std::string_view((char*)Buffer, Size));
 				else
 					Data.clear();
 
 				if (Limited)
 					return;
 
-				const char* TransferEncoding = HeaderText(Headers, "Transfer-Encoding");
-				if (!TransferEncoding || Core::Stringify::CaseCompare(TransferEncoding, "chunked") != 0)
+				auto TransferEncoding = HeaderText(Headers, "Transfer-Encoding");
+				if (!Core::Stringify::CaseEquals(TransferEncoding, "chunked"))
 					Limited = true;
 			}
 			void ContentFrame::Finalize()
@@ -1297,31 +1329,43 @@ namespace Vitex
 			FetchFrame::FetchFrame() : Timeout(10000), VerifyPeers(9), MaxSize(PAYLOAD_SIZE)
 			{
 			}
-			Core::String& FetchFrame::PutHeader(const Core::String& Key, const Core::String& Value)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
-				Range.push_back(Value);
-				return Range.back();
-			}
-			Core::String& FetchFrame::SetHeader(const Core::String& Key, const Core::String& Value)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
-				Range.clear();
-				Range.push_back(Value);
-				return Range.back();
-			}
 			void FetchFrame::Cleanup()
 			{
 				Content.Cleanup();
 				Headers.clear();
 				Cookies.clear();
 			}
-			Core::String FetchFrame::ComposeHeader(const Core::String& Label) const
+			Core::String& FetchFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Label);
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->push_back(Core::String(Value));
+				return Range->back();
+			}
+			Core::String& FetchFrame::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				Core::Vector<Core::String>* Range;
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It != Headers.end())
+					Range = &It->second;
+				else
+					Range = &Headers[Core::String(Label)];
+
+				Range->clear();
+				Range->push_back(Core::String(Value));
+				return Range->back();
+			}
+			Core::String FetchFrame::ComposeHeader(const std::string_view& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -1334,65 +1378,67 @@ namespace Vitex
 
 				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
-			RangePayload* FetchFrame::GetCookieRanges(const Core::String& Key)
+			Core::Vector<Core::String>* FetchFrame::GetHeaderRanges(const std::string_view& Label)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				return (RangePayload*)&Cookies[Key];
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
-			const Core::String* FetchFrame::GetCookieBlob(const Core::String& Key) const
+			Core::String* FetchFrame::GetHeaderBlob(const std::string_view& Label)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Key);
-				if (It == Cookies.end())
-					return nullptr;
-
-				if (It->second.empty())
-					return nullptr;
-
-				const Core::String& Result = It->second.back();
-				return &Result;
-			}
-			const char* FetchFrame::GetCookie(const Core::String& Key) const
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Key);
-				if (It == Cookies.end())
-					return nullptr;
-
-				if (It->second.empty())
-					return nullptr;
-
-				return It->second.back().c_str();
-			}
-			RangePayload* FetchFrame::GetHeaderRanges(const Core::String& Key)
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				return (RangePayload*)&Headers[Key];
-			}
-			const Core::String* FetchFrame::GetHeaderBlob(const Core::String& Key) const
-			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
 				if (It->second.empty())
 					return nullptr;
 
-				const Core::String& Result = It->second.back();
+				auto& Result = It->second.back();
 				return &Result;
 			}
-			const char* FetchFrame::GetHeader(const Core::String& Key) const
+			std::string_view FetchFrame::GetHeader(const std::string_view& Label) const
+			{
+				VI_ASSERT(!Label.empty(), "label should not be empty");
+				auto It = Headers.find(Core::HglCast(Label));
+				if (It == Headers.end())
+					return "";
+
+				if (It->second.empty())
+					return "";
+
+				return It->second.back();
+			}
+			Core::Vector<Core::String>* FetchFrame::GetCookieRanges(const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Key);
-				if (It == Headers.end())
+				auto It = Cookies.find(Core::HglCast(Key));
+				return It != Cookies.end() ? &It->second : &Cookies[Core::String(Key)];
+			}
+			Core::String* FetchFrame::GetCookieBlob(const std::string_view& Key)
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Cookies.find(Core::HglCast(Key));
+				if (It == Cookies.end())
 					return nullptr;
 
 				if (It->second.empty())
 					return nullptr;
 
-				return It->second.back().c_str();
+				auto& Result = It->second.back();
+				return &Result;
+			}
+			std::string_view FetchFrame::GetCookie(const std::string_view& Key) const
+			{
+				VI_ASSERT(!Key.empty(), "key should not be empty");
+				auto It = Cookies.find(Core::HglCast(Key));
+				if (It == Cookies.end())
+					return "";
+
+				if (It->second.empty())
+					return "";
+
+				return It->second.back();
 			}
 			Core::Vector<std::pair<size_t, size_t>> FetchFrame::GetRanges() const
 			{
@@ -1477,28 +1523,13 @@ namespace Vitex
 				return std::make_pair(Range->first, Range->second - Range->first);
 			}
 
-			Connection::Connection(Server* Source) noexcept : Root(Source)
+			Connection::Connection(Server* Source) noexcept : Resolver(new HTTP::Parser()), Root(Source)
 			{
-				Parsers.Request = new HTTP::Parser();
-				Parsers.Request->OnMethodValue = Parsing::ParseMethodValue;
-				Parsers.Request->OnPathValue = Parsing::ParsePathValue;
-				Parsers.Request->OnQueryValue = Parsing::ParseQueryValue;
-				Parsers.Request->OnVersion = Parsing::ParseVersion;
-				Parsers.Request->OnHeaderField = Parsing::ParseHeaderField;
-				Parsers.Request->OnHeaderValue = Parsing::ParseHeaderValue;
-
-				Parsers.Multipart = new HTTP::Parser();
-				Parsers.Multipart->OnContentData = Parsing::ParseMultipartContentData;
-				Parsers.Multipart->OnHeaderField = Parsing::ParseMultipartHeaderField;
-				Parsers.Multipart->OnHeaderValue = Parsing::ParseMultipartHeaderValue;
-				Parsers.Multipart->OnResourceBegin = Parsing::ParseMultipartResourceBegin;
-				Parsers.Multipart->OnResourceEnd = Parsing::ParseMultipartResourceEnd;
 			}
 			Connection::~Connection() noexcept
 			{
-				VI_CLEAR(Parsers.Request);
-				VI_CLEAR(Parsers.Multipart);
-				VI_CLEAR(WebSocket);
+				Core::Memory::Release(Resolver);
+				Core::Memory::Release(WebSocket);
 			}
 			void Connection::Reset(bool Fully)
 			{
@@ -1512,53 +1543,53 @@ namespace Vitex
 				Response.Cleanup();
 				SocketConnection::Reset(Fully);
 			}
-			bool Connection::ComposeResponse(bool ApplyErrorResponse, HeadersCallback&& Callback)
+			bool Connection::ComposeResponse(bool ApplyErrorResponse, bool ApplyBodyInlining, HeadersCallback&& Callback)
 			{
 				VI_ASSERT(ConnectionValid(this), "connection should be valid");
 				VI_ASSERT(Callback != nullptr, "callback should be set");
 			Retry:
 				auto* Content = HrmCache::Get()->Pop();
-				const char* StatusText = Utils::StatusMessage(Response.StatusCode);
+				auto StatusText = Utils::StatusMessage(Response.StatusCode);
 				Content->append(Request.Version).append(" ");
 				Content->append(Core::ToString(Response.StatusCode)).append(" ");
 				Content->append(StatusText).append("\r\n");
 
-				const char* ContentType = nullptr;
+				std::string_view ContentType;
 				if (ApplyErrorResponse)
 				{
 					char Buffer[Core::BLOB_SIZE];
-					int Size = snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Info.Message.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Info.Message.empty() ? StatusText : Info.Message.c_str());
+					int Size = snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText.data(), Info.Message.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Info.Message.empty() ? StatusText.data() : Info.Message.c_str());
 					if (Size >= 0)
 					{
-						Response.Content.Assign(Buffer, (size_t)Size);
+						Response.Content.Assign(std::string_view(Buffer, (size_t)Size));
 						Response.SetHeader("Content-Length", Core::ToString(Size));
 						ContentType = Response.GetHeader("Content-Type");
-						if (!ContentType)
+						if (ContentType.empty())
 							ContentType = Response.SetHeader("Content-Type", "text/html; charset=" + Route->CharSet).c_str();
 					}
 				}
 
-				if (!Response.GetHeader("Date"))
+				if (Response.GetHeader("Date").empty())
 				{
 					char Buffer[64];
 					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
 					Content->append("Date: ").append(Buffer).append("\r\n");
 				}
 
-				if (!Response.GetHeader("Connection"))
+				if (Response.GetHeader("Connection").empty())
 					Content->append(Utils::ConnectionResolve(this));
 
-				if (!Response.GetHeader("Accept-Ranges"))
+				if (Response.GetHeader("Accept-Ranges").empty())
 					Content->append("Accept-Ranges: bytes\r\n", 22);
 
 				Core::Option<Core::String> Boundary = Core::Optional::None;
-				if (!ContentType)
+				if (ContentType.empty())
 				{
 					ContentType = Response.GetHeader("Content-Type");
-					if (!ContentType)
+					if (ContentType.empty())
 					{
 						ContentType = Utils::ContentType(Request.Path, &Route->MimeTypes);
-						if (Request.GetHeader("Range") != nullptr)
+						if (!Request.GetHeader("Range").empty())
 						{
 							Boundary = Parsing::ParseMultipartDataBoundary();
 							Content->append("Content-Type: multipart/byteranges; boundary=").append(*Boundary).append("; charset=").append(Route->CharSet).append("\r\n");
@@ -1574,14 +1605,14 @@ namespace Vitex
 					bool Deflate = false, Gzip = false;
 					if (Resources::ResourceCompressed(this, Response.Content.Data.size()))
 					{
-						const char* AcceptEncoding = Request.GetHeader("Accept-Encoding");
-						if (AcceptEncoding != nullptr)
+						auto AcceptEncoding = Request.GetHeader("Accept-Encoding");
+						if (!AcceptEncoding.empty())
 						{
-							Deflate = strstr(AcceptEncoding, "deflate") != nullptr;
-							Gzip = strstr(AcceptEncoding, "gzip") != nullptr;
+							Deflate = AcceptEncoding.find("deflate") != std::string::npos;
+							Gzip = AcceptEncoding.find("gzip") != std::string::npos;
 						}
 
-						if (AcceptEncoding != nullptr && (Deflate || Gzip))
+						if (!AcceptEncoding.empty() && (Deflate || Gzip))
 						{
 							z_stream fStream;
 							fStream.zalloc = Z_NULL;
@@ -1600,8 +1631,8 @@ namespace Vitex
 
 								if (Compress && Flush)
 								{
-									Response.Content.Assign(Buffer.c_str(), (size_t)fStream.total_out);
-									if (!Response.GetHeader("Content-Encoding"))
+									Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)fStream.total_out));
+									if (Response.GetHeader("Content-Encoding").empty())
 									{
 										if (Gzip)
 											Content->append("Content-Encoding: gzip\r\n", 24);
@@ -1613,7 +1644,7 @@ namespace Vitex
 						}
 					}
 #endif
-					if (Response.StatusCode != 413 && Request.GetHeader("Range") != nullptr)
+					if (Response.StatusCode != 413 && !Request.GetHeader("Range").empty())
 					{
 						Core::Vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
 						if (Ranges.size() > 1)
@@ -1637,7 +1668,7 @@ namespace Vitex
 									Data.append(*Boundary);
 								Data.append("\r\n", 2);
 
-								if (ContentType != nullptr)
+								if (!ContentType.empty())
 								{
 									Data.append("Content-Type: ", 14);
 									Data.append(ContentType);
@@ -1664,7 +1695,7 @@ namespace Vitex
 							auto Range = Ranges.begin();
 							bool IsFullLength = (Range->first == -1 && Range->second == -1);
 							std::pair<size_t, size_t> Offset = Request.GetRange(Range, Response.Content.Data.size());
-							if (!Response.GetHeader("Content-Range"))
+							if (Response.GetHeader("Content-Range").empty())
 								Content->append("Content-Range: ").append(Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size())).append("\r\n");
 							if (!Offset.second)
 								Response.Content.Data.clear();
@@ -1673,13 +1704,13 @@ namespace Vitex
 						}
 					}
 
-					if (!Response.GetHeader("Content-Length"))
+					if (Response.GetHeader("Content-Length").empty())
 						Content->append("Content-Length: ").append(Core::ToString(Response.Content.Data.size())).append("\r\n");
 				}
-				else if (!Response.GetHeader("Content-Length"))
+				else if (Response.GetHeader("Content-Length").empty())
 					Content->append("Content-Length: 0\r\n", 19);
 
-				if (Request.User.Type == Auth::Denied && !Response.GetHeader("WWW-Authenticate"))
+				if (Request.User.Type == Auth::Denied && Response.GetHeader("WWW-Authenticate").empty())
 					Content->append("WWW-Authenticate: " + Route->Auth.Type + " realm=\"" + Route->Auth.Realm + "\"\r\n");
 
 				Paths::ConstructHeadFull(&Request, &Response, false, *Content);
@@ -1687,16 +1718,23 @@ namespace Vitex
 					Route->Callbacks.Headers(this, *Content);
 
 				Content->append("\r\n", 2);
-				auto Status = Stream->WriteAsync(Content->c_str(), Content->size(), [this, Content, Callback = std::move(Callback)](SocketPoll Event) mutable
+				if (ApplyBodyInlining)
+					Content->append(Response.Content.Data.begin(), Response.Content.Data.end());
+
+				auto Status = Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [this, Content, Callback = std::move(Callback)](SocketPoll Event) mutable
 				{
 					HrmCache::Get()->Push(Content);
 					Callback(this, Event);
 				}, false);
 				return Status || Status.Error() == std::errc::operation_would_block;
 			}
-			bool Connection::ComposeErrorRequested()
+			bool Connection::ErrorResponseRequested()
 			{
 				return Response.StatusCode >= 400 && !Response.Error && Response.Content.Data.empty();
+			}
+			bool Connection::BodyInliningRequested()
+			{
+				return !Response.Content.Data.empty() && Response.Content.Data.size() <= INLINING_SIZE;
 			}
 			bool Connection::WaitingForWebSocket()
 			{
@@ -1706,7 +1744,7 @@ namespace Vitex
 					return true;
 				}
 
-				VI_CLEAR(WebSocket);
+				Core::Memory::Release(WebSocket);
 				return false;
 			}
 			bool Connection::SendHeaders(int StatusCode, bool SpecifyTransferEncoding, HeadersCallback&& Callback)
@@ -1715,37 +1753,37 @@ namespace Vitex
 				if (Response.StatusCode <= 0 || Stream->Outcome > 0 || !Response.Content.Data.empty())
 					return false;
 
-				if (SpecifyTransferEncoding && !Response.GetHeader("Transfer-Encoding"))
+				if (SpecifyTransferEncoding && Response.GetHeader("Transfer-Encoding").empty())
 					Response.SetHeader("Transfer-Encoding", "chunked");
 
-				ComposeResponse(ComposeErrorRequested(), std::move(Callback));
+				ComposeResponse(ErrorResponseRequested(), false, std::move(Callback));
 				return true;
 			}
-			bool Connection::SendChunk(const Core::String& Chunk, HeadersCallback&& Callback)
+			bool Connection::SendChunk(const std::string_view& Chunk, HeadersCallback&& Callback)
 			{
 				if (Response.StatusCode <= 0 || !Stream->Outcome || !Response.Content.Data.empty())
 					return false;
 
-				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				bool IsTransferEncodingChunked = (TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"));
+				auto TransferEncoding = Response.GetHeader("Transfer-Encoding");
+				bool IsTransferEncodingChunked = Core::Stringify::CaseEquals(TransferEncoding, "chunked");
 				if (IsTransferEncodingChunked)
 				{
 					if (!Chunk.empty())
 					{
-						Core::String Content = Core::Stringify::Text("%X\r\n", (unsigned int)Chunk.size());
+						Core::String Content = Core::Stringify::Text("%X\r\n", (uint32_t)Chunk.size());
 						Content.append(Chunk);
 						Content.append("\r\n");
-						Stream->WriteAsync(Content.c_str(), Content.size(), std::bind(Callback, this, std::placeholders::_1));
+						Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), std::bind(Callback, this, std::placeholders::_1));
 					}
 					else
-						Stream->WriteAsync("0\r\n\r\n", 5, std::bind(Callback, this, std::placeholders::_1), false);
+						Stream->WriteAsync((uint8_t*)"0\r\n\r\n", 5, std::bind(Callback, this, std::placeholders::_1), false);
 				}
 				else
 				{
 					if (Chunk.empty())
 						return false;
 
-					Stream->WriteAsync(Chunk.c_str(), Chunk.size(), std::bind(Callback, this, std::placeholders::_1));
+					Stream->WriteAsync((uint8_t*)Chunk.data(), Chunk.size(), std::bind(Callback, this, std::placeholders::_1));
 				}
 
 				return true;
@@ -1756,79 +1794,75 @@ namespace Vitex
 				if (!Request.Content.Resources.empty())
 				{
 					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, "");
 					return false;
 				}
 				else if (Request.Content.IsFinalized())
 				{
 					if (!Eat && Callback && !Request.Content.Data.empty())
-						Callback(this, SocketPoll::Next, Request.Content.Data.data(), (int)Request.Content.Data.size());
+						Callback(this, SocketPoll::Next, std::string_view(Request.Content.Data.data(), Request.Content.Data.size()));
 					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, "");
 					return true;
 				}
 				else if (Request.Content.Exceeds)
 				{
 					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, "");
 					return false;
 				}
 				else if (!Stream->IsValid())
 				{
 					if (Callback)
-						Callback(this, SocketPoll::Reset, nullptr, 0);
+						Callback(this, SocketPoll::Reset, "");
 					return false;
 				}
 
-				const char* ContentType = Request.GetHeader("Content-Type");
-				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
+				auto ContentType = Request.GetHeader("Content-Type");
+				if (ContentType == std::string_view("multipart/form-data", 19))
 				{
 					Request.Content.Exceeds = true;
 					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, "");
 					return false;
 				}
 
-				bool IsParserPrepared = false;
-				const char* TransferEncoding = Request.GetHeader("Transfer-Encoding");
-				bool IsTransferEncodingChunked = (!Request.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"));
+				auto TransferEncoding = Request.GetHeader("Transfer-Encoding");
+				bool IsTransferEncodingChunked = (!Request.Content.Limited && Core::Stringify::CaseEquals(TransferEncoding, "chunked"));
 				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
+				if (IsTransferEncodingChunked)
+					Resolver->PrepareForChunkedParsing();
+
 				if (Request.Content.Prefetch > 0)
 				{
 					Request.Content.Prefetch = 0;
 					if (IsTransferEncodingChunked)
 					{
 						size_t DecodedSize = Request.Content.Data.size();
-						Parsers.Request->Chunked = Parser::ChunkedData();
-						IsParserPrepared = true;
-
-						int64_t Subresult = Parsers.Request->ParseDecodeChunked((char*)Request.Content.Data.data(), &DecodedSize);
+						int64_t Subresult = Resolver->ParseDecodeChunked((uint8_t*)Request.Content.Data.data(), &DecodedSize);
 						Request.Content.Data.resize(DecodedSize);
 						if (!Eat && Callback && !Request.Content.Data.empty())
-							Callback(this, SocketPoll::Next, Request.Content.Data.data(), Request.Content.Data.size());
+							Callback(this, SocketPoll::Next, std::string_view(Request.Content.Data.data(), Request.Content.Data.size()));
 
 						if (Subresult == -1 || Subresult == 0)
 						{
 							Request.Content.Finalize();
 							if (Callback)
-								Callback(this, SocketPoll::FinishSync, nullptr, 0);
+								Callback(this, SocketPoll::FinishSync, "");
 							return Subresult == 0;
 						}
 					}
 					else if (!Eat && Callback)
-						Callback(this, SocketPoll::Next, Request.Content.Data.data(), Request.Content.Data.size());
+						Callback(this, SocketPoll::Next, std::string_view(Request.Content.Data.data(), Request.Content.Data.size()));
 				}
 
 				if (IsTransferEncodingChunked)
 				{
-					if (!IsParserPrepared)
-						Parsers.Request->Chunked = Parser::ChunkedData();
-
-					return !!Stream->ReadAsync(Root->Router->MaxNetBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(Root->Router->MaxNetBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
-							int64_t Result = Parsers.Request->ParseDecodeChunked((char*)Buffer, &Recv);
+							int64_t Result = Resolver->ParseDecodeChunked((uint8_t*)Buffer, &Recv);
 							if (Result == -1)
 								return false;
 
@@ -1836,17 +1870,17 @@ namespace Vitex
 							if (Eat)
 								return Result == -2;
 							else if (Callback)
-								Callback(this, SocketPoll::Next, Buffer, Recv);
+								Callback(this, SocketPoll::Next, std::string_view((char*)Buffer, Recv));
 
 							if (Request.Content.Data.size() < Root->Router->MaxNetBuffer)
-								Request.Content.Append(Buffer, Recv);
+								Request.Content.Append(std::string_view((char*)Buffer, Recv));
 							return Result == -2;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
 							Request.Content.Finalize();
 							if (Callback)
-								Callback(this, Event, nullptr, 0);
+								Callback(this, Event, "");
 						}
 
 						return true;
@@ -1856,18 +1890,18 @@ namespace Vitex
 				{
 					Request.Content.Exceeds = true;
 					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, "");
 					return true;
 				}
 				else if (Request.Content.Limited && !ContentLength)
 				{
 					Request.Content.Finalize();
 					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, "");
 					return true;
 				}
 
-				return !!Stream->ReadAsync(Request.Content.Limited ? ContentLength : Root->Router->MaxHeapBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
+				return !!Stream->ReadAsync(Request.Content.Limited ? ContentLength : Root->Router->MaxHeapBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1876,16 +1910,16 @@ namespace Vitex
 							return true;
 
 						if (Callback)
-							Callback(this, SocketPoll::Next, Buffer, Recv);
+							Callback(this, SocketPoll::Next, std::string_view((char*)Buffer, Recv));
 
 						if (Request.Content.Data.size() < Root->Router->MaxHeapBuffer)
-							Request.Content.Append(Buffer, Recv);
+							Request.Content.Append(std::string_view((char*)Buffer, Recv));
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
 						Request.Content.Finalize();
 						if (Callback)
-							Callback(this, Event, nullptr, 0);
+							Callback(this, Event, "");
 					}
 
 					return true;
@@ -1921,12 +1955,12 @@ namespace Vitex
 					return false;
 				}
 
-				const char* ContentType = Request.GetHeader("Content-Type");
-				const char* BoundaryName = (ContentType ? strstr(ContentType, "boundary=") : nullptr);
+				auto ContentType = Request.GetHeader("Content-Type");
+				const char* BoundaryName = (ContentType.empty() ? nullptr : strstr(ContentType.data(), "boundary="));
 				Request.Content.Exceeds = true;
 
 				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
-				if (ContentType != nullptr && BoundaryName != nullptr)
+				if (!ContentType.empty() && BoundaryName != nullptr)
 				{
 					if (Route->Router->TemporaryDirectory.empty())
 						Eat = true;
@@ -1934,39 +1968,37 @@ namespace Vitex
 					Core::String Boundary("--");
 					Boundary.append(BoundaryName + 9);
 
-					Parsers.Multipart->PrepareForNextParsing(this, true);
-					Parsers.Multipart->Frame.Callback = std::move(Callback);
-					Parsers.Multipart->Frame.Ignore = Eat;
+					Resolver->PrepareForMultipartParsing(&Response.Content, &Route->Router->TemporaryDirectory, Route->Router->MaxUploadableResources, Eat, std::move(Callback));
 					if (Request.Content.Prefetch > 0)
 					{
 						Request.Content.Prefetch = 0;
-						if (Parsers.Multipart->MultipartParse(Boundary.c_str(), Request.Content.Data.data(), Request.Content.Data.size()) == -1 || Parsers.Multipart->Frame.Close || !ContentLength)
+						if (Resolver->MultipartParse(Boundary.c_str(), (uint8_t*)Request.Content.Data.data(), Request.Content.Data.size()) == -1 || Resolver->Multipart.Finish || !ContentLength)
 						{
 							Request.Content.Finalize();
-							if (Parsers.Multipart->Frame.Callback)
-								Parsers.Multipart->Frame.Callback(nullptr);
+							if (Resolver->Multipart.Callback)
+								Resolver->Multipart.Callback(nullptr);
 							return false;
 						}
 					}
 
-					return !!Stream->ReadAsync(ContentLength, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(ContentLength, [this, Boundary](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
 							Request.Content.Offset += Recv;
-							if (Parsers.Multipart->MultipartParse(Boundary.c_str(), Buffer, Recv) != -1 && !Parsers.Multipart->Frame.Close)
+							if (Resolver->MultipartParse(Boundary.c_str(), Buffer, Recv) != -1 && !Resolver->Multipart.Finish)
 								return true;
 
-							if (Parsers.Multipart->Frame.Callback)
-								Parsers.Multipart->Frame.Callback(nullptr);
+							if (Resolver->Multipart.Callback)
+								Resolver->Multipart.Callback(nullptr);
 
 							return false;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
 							Request.Content.Finalize();
-							if (Parsers.Multipart->Frame.Callback)
-								Parsers.Multipart->Frame.Callback(nullptr);
+							if (Resolver->Multipart.Callback)
+								Resolver->Multipart.Callback(nullptr);
 						}
 
 						return true;
@@ -1981,7 +2013,7 @@ namespace Vitex
 				
 				if (Eat)
 				{
-					return !!Stream->ReadAsync(ContentLength, [this, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
+					return !!Stream->ReadAsync(ContentLength, [this, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
@@ -1997,7 +2029,7 @@ namespace Vitex
 
 				HTTP::Resource Subresource;
 				Subresource.Length = Request.Content.Length;
-				Subresource.Type = (ContentType ? ContentType : "application/octet-stream");
+				Subresource.Type = (ContentType.empty() ? "application/octet-stream" : ContentType);
 
 				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Compute::Crypto::RandomBytes(16));
 				Subresource.Path = *Core::OS::Directory::GetWorking() + *Hash;
@@ -2012,7 +2044,7 @@ namespace Vitex
 				}
 
 				Request.Content.Prefetch = 0;
-				return !!Stream->ReadAsync(ContentLength, [this, File, Subresource, Callback = std::move(Callback)](SocketPoll Event, const char* Buffer, size_t Recv)
+				return !!Stream->ReadAsync(ContentLength, [this, File, Subresource, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -2049,7 +2081,7 @@ namespace Vitex
 			bool Connection::Skip(SuccessCallback&& Callback)
 			{
 				VI_ASSERT(Callback != nullptr, "callback should be set");
-				Fetch([Callback = std::move(Callback)](HTTP::Connection* Base, SocketPoll Event, const char*, size_t) mutable
+				Fetch([Callback = std::move(Callback)](HTTP::Connection* Base, SocketPoll Event, const std::string_view&) mutable
 				{
 					if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 						return true;
@@ -2077,7 +2109,7 @@ namespace Vitex
 				if (Response.StatusCode <= 0 || Stream->Outcome > 0)
 					return !!Root->Continue(this);
 
-				bool ApplyErrorResponse = ComposeErrorRequested();
+				bool ApplyErrorResponse = ErrorResponseRequested();
 				if (ApplyErrorResponse)
 				{
 					Response.Error = true;
@@ -2092,11 +2124,12 @@ namespace Vitex
 					}
 				}
 
-				return ComposeResponse(ApplyErrorResponse, [](Connection* Base, SocketPoll Event)
+				bool ResponseBodyInlined = BodyInliningRequested();
+				return ComposeResponse(ApplyErrorResponse, ResponseBodyInlined, [ResponseBodyInlined](Connection* Base, SocketPoll Event)
 				{
 					auto& Content = Base->Response.Content.Data;
-					if (Packet::IsDone(Event) && !Content.empty() && memcmp(Base->Request.Method, "HEAD", 4) != 0)
-						Base->Stream->WriteAsync(Content.data(), Content.size(), [Base](SocketPoll) { Base->Root->Continue(Base); }, false);
+					if (Packet::IsDone(Event) && !ResponseBodyInlined && !Content.empty() && memcmp(Base->Request.Method, "HEAD", 4) != 0)
+						Base->Stream->WriteAsync((uint8_t*)Content.data(), Content.size(), [Base](SocketPoll) { Base->Root->Continue(Base); }, false);
 					else
 						Base->Root->Continue(Base);
 				});
@@ -2112,7 +2145,7 @@ namespace Vitex
 			}
 			Query::~Query() noexcept
 			{
-				VI_RELEASE(Object);
+				Core::Memory::Release(Object);
 			}
 			void Query::Clear()
 			{
@@ -2124,13 +2157,13 @@ namespace Vitex
 				if (!Output)
 					return;
 
-				VI_RELEASE(*Output);
+				Core::Memory::Release(*Output);
 				*Output = Object;
 				Object = nullptr;
 			}
 			void Query::NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
 			{
-				Core::String Body = Compute::Codec::URLDecode(Name.Value, Name.Length);
+				Core::String Body = Compute::Codec::URLDecode(std::string_view(Name.Value, Name.Length));
 				size_t Offset = 0, Length = Body.size();
 				char* Data = (char*)Body.c_str();
 
@@ -2185,23 +2218,23 @@ namespace Vitex
 				}
 
 				if (Parameter != nullptr)
-					Parameter->Value.Deserialize(Compute::Codec::URLDecode(Value.Value, Value.Length));
+					Parameter->Value.Deserialize(Compute::Codec::URLDecode(std::string_view(Value.Value, Value.Length)));
 			}
-			void Query::Decode(const char* Type, const Core::String& Body)
+			void Query::Decode(const std::string_view& Type, const std::string_view& Body)
 			{
-				if (!Type || Body.empty())
+				if (Type.empty() || Body.empty())
 					return;
 
-				if (!Core::Stringify::CaseCompare(Type, "application/x-www-form-urlencoded"))
+				if (Core::Stringify::CaseEquals(Type, "application/x-www-form-urlencoded"))
 					DecodeAXWFD(Body);
-				else if (!Core::Stringify::CaseCompare(Type, "application/json"))
+				else if (Core::Stringify::CaseEquals(Type, "application/json"))
 					DecodeAJSON(Body);
 			}
-			void Query::DecodeAXWFD(const Core::String& Body)
+			void Query::DecodeAXWFD(const std::string_view& Body)
 			{
 				Core::Vector<QueryToken> Tokens;
 				size_t Offset = 0, Length = Body.size();
-				char* Data = (char*)Body.c_str();
+				char* Data = (char*)Body.data();
 
 				for (size_t i = 0; i < Length; i++)
 				{
@@ -2229,23 +2262,20 @@ namespace Vitex
 					i++;
 				}
 			}
-			void Query::DecodeAJSON(const Core::String& Body)
+			void Query::DecodeAJSON(const std::string_view& Body)
 			{
-				VI_CLEAR(Object);
-				auto Result = Core::Schema::ConvertFromJSON(Body.c_str(), Body.size());
+				Core::Memory::Release(Object);
+				auto Result = Core::Schema::ConvertFromJSON(Body);
 				if (Result)
 					Object = *Result;
 			}
-			Core::String Query::Encode(const char* Type) const
+			Core::String Query::Encode(const std::string_view& Type) const
 			{
-				if (Type != nullptr)
-				{
-					if (!Core::Stringify::CaseCompare(Type, "application/x-www-form-urlencoded"))
-						return EncodeAXWFD();
+				if (Core::Stringify::CaseEquals(Type, "application/x-www-form-urlencoded"))
+					return EncodeAXWFD();
 
-					if (!Core::Stringify::CaseCompare(Type, "application/json"))
-						return EncodeAJSON();
-				}
+				if (Core::Stringify::CaseEquals(Type, "application/json"))
+					return EncodeAJSON();
 
 				return "";
 			}
@@ -2264,23 +2294,18 @@ namespace Vitex
 			Core::String Query::EncodeAJSON() const
 			{
 				Core::String Stream;
-				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
-				{
-					if (Buffer != nullptr && Length > 0)
-						Stream.append(Buffer, Length);
-				});
-
+				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const std::string_view& Buffer) { Stream.append(Buffer); });
 				return Stream;
 			}
-			Core::Schema* Query::Get(const char* Name) const
+			Core::Schema* Query::Get(const std::string_view& Name) const
 			{
 				return (Core::Schema*)Object->Get(Name);
 			}
-			Core::Schema* Query::Set(const char* Name)
+			Core::Schema* Query::Set(const std::string_view& Name)
 			{
-				return (Core::Schema*)Object->Set(Name, Core::Var::String("", 0));
+				return (Core::Schema*)Object->Set(Name, Core::Var::String(""));
 			}
-			Core::Schema* Query::Set(const char* Name, const char* Value)
+			Core::Schema* Query::Set(const std::string_view& Name, const std::string_view& Value)
 			{
 				return (Core::Schema*)Object->Set(Name, Core::Var::String(Value));
 			}
@@ -2314,7 +2339,7 @@ namespace Vitex
 					Object->Value = Core::Var::Array();
 				}
 
-				New->Value = Core::Var::String("", 0);
+				New->Value = Core::Var::String("");
 				Object->Push(New);
 
 				return New;
@@ -2394,7 +2419,7 @@ namespace Vitex
 					Base->Value = Core::Var::Array();
 				}
 
-				return Base->Set(Key, Core::Var::String("", 0));
+				return Base->Set(Key, Core::Var::String(""));
 			}
 
 			Session::Session()
@@ -2403,7 +2428,7 @@ namespace Vitex
 			}
 			Session::~Session() noexcept
 			{
-				VI_RELEASE(Query);
+				Core::Memory::Release(Query);
 			}
 			Core::ExpectsSystem<void> Session::Write(Connection* Base)
 			{
@@ -2416,10 +2441,10 @@ namespace Vitex
 
 				SessionExpires = time(nullptr) + Router->Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, *Stream);
-				Query->ConvertToJSONB(Query, [&Stream](Core::VarForm, const char* Buffer, size_t Size)
+				Query->ConvertToJSONB(Query, [&Stream](Core::VarForm, const std::string_view& Buffer)
 				{
-					if (Buffer != nullptr && Size > 0)
-						fwrite(Buffer, Size, 1, *Stream);
+					if (!Buffer.empty())
+						fwrite(Buffer.data(), Buffer.size(), 1, *Stream);
 				});
 				Core::OS::File::Close(*Stream);
 				return Core::Expectation::Met;
@@ -2446,8 +2471,8 @@ namespace Vitex
 					return Core::SystemException("session read error: expired", std::make_error_condition(std::errc::timed_out));
 				}
 
-				VI_RELEASE(Query);
-				auto Result = Core::Schema::ConvertFromJSONB([&Stream](char* Buffer, size_t Size) { return fread(Buffer, sizeof(char), Size, *Stream) == Size; });
+				Core::Memory::Release(Query);
+				auto Result = Core::Schema::ConvertFromJSONB([&Stream](uint8_t* Buffer, size_t Size) { return fread(Buffer, sizeof(uint8_t), Size, *Stream) == Size; });
 				Core::OS::File::Close(*Stream);
 				if (!Result)
 					return Core::SystemException(Result.Error().message(), std::make_error_condition(std::errc::bad_message));
@@ -2466,8 +2491,8 @@ namespace Vitex
 					return SessionId;
 
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				const char* Value = Base->Request.GetCookie(Base->Route->Router->Session.Cookie.Name.c_str());
-				if (!Value)
+				auto Value = Base->Request.GetCookie(Base->Route->Router->Session.Cookie.Name.c_str());
+				if (Value.empty())
 					return GenerateSessionId(Base);
 
 				return SessionId.assign(Value);
@@ -2499,10 +2524,10 @@ namespace Vitex
 
 				return SessionId;
 			}
-			Core::ExpectsSystem<void> Session::InvalidateCache(const Core::String& Path)
+			Core::ExpectsSystem<void> Session::InvalidateCache(const std::string_view& Path)
 			{
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				auto Status = Core::OS::Directory::Scan(Path, &Entries);
+				auto Status = Core::OS::Directory::Scan(Path, Entries);
 				if (!Status)
 					return Core::SystemException("session invalidation scan error", std::move(Status.Error()));
 
@@ -2512,8 +2537,11 @@ namespace Vitex
 					if (Item.second.IsDirectory)
 						continue;
 
-					Core::String Filename = (Split ? Path + '/' : Path) + Item.first;
-					Status = Core::OS::File::Remove(Filename.c_str());
+					Core::String Filename = Core::String(Path);
+					if (Split)
+						Filename.append(1, VI_SPLITTER);
+					Filename.append(Item.first);
+					Status = Core::OS::File::Remove(Filename);
 					if (!Status)
 						return Core::SystemException("session invalidation remove error: " + Item.first, std::move(Status.Error()));
 				}
@@ -2526,40 +2554,55 @@ namespace Vitex
 			}
 			Parser::~Parser() noexcept
 			{
-				VI_FREE(Multipart.Boundary);
+				Core::Memory::Deallocate(Multipart.Boundary);
 			}
-			void Parser::PrepareForNextParsing(Connection* Base, bool ForMultipart)
+			void Parser::PrepareForRequestParsing(RequestFrame* Request)
 			{
-				if (Base != nullptr)
-					PrepareForNextParsing(Base->Route, &Base->Request, &Base->Response, ForMultipart);
-				else
-					PrepareForNextParsing(nullptr, nullptr, nullptr, ForMultipart);
+				Message.Header.clear();
+				Message.Version = Request->Version;
+				Message.Method = Request->Method;
+				Message.StatusCode = nullptr;
+				Message.Location = &Request->Location;
+				Message.Query = &Request->Query;
+				Message.Cookies = &Request->Cookies;
+				Message.Headers = &Request->Headers;
+				Message.Content = &Request->Content;
 			}
-			void Parser::PrepareForNextParsing(RouterEntry* Route, RequestFrame* Request, ResponseFrame* Response, bool ForMultipart)
+			void Parser::PrepareForResponseParsing(ResponseFrame* Response)
 			{
-				VI_FREE(Multipart.Boundary);
-				Multipart = MultipartData();
-				Chunked = ChunkedData();
-				Frame = FrameInfo();
-				Frame.Request = Request;
-				Frame.Response = ForMultipart ? Response : nullptr;
-				Frame.Route = ForMultipart ? Route : nullptr;
+				Message.Header.clear();
+				Message.Version = nullptr;
+				Message.Method = nullptr;
+				Message.StatusCode = &Response->StatusCode;
+				Message.Location = nullptr;
+				Message.Query = nullptr;
+				Message.Cookies = nullptr;
+				Message.Headers = &Response->Headers;
+				Message.Content = &Response->Content;
 			}
-			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, size_t Length)
+			void Parser::PrepareForChunkedParsing()
+			{
+				Chunked = ChunkedState();
+			}
+			void Parser::PrepareForMultipartParsing(ContentFrame* Content, Core::String* TemporaryDirectory, size_t MaxResources, bool Skip, ResourceCallback&& Callback)
+			{
+				Core::Memory::Deallocate(Multipart.Boundary);
+				Multipart = MultipartState();
+				Message.Content = Content;
+			}
+			int64_t Parser::MultipartParse(const std::string_view& Boundary, const uint8_t* Buffer, size_t Length)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(Boundary != nullptr, "boundary should be set");
-
 				if (!Multipart.Boundary || !Multipart.LookBehind)
 				{
-					VI_FREE(Multipart.Boundary);
-					Multipart.Length = strlen(Boundary);
-					Multipart.Boundary = VI_MALLOC(char, sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
-					memcpy(Multipart.Boundary, Boundary, sizeof(char) * (size_t)Multipart.Length);
+					Core::Memory::Deallocate(Multipart.Boundary);
+					Multipart.Length = Boundary.size();
+					Multipart.Boundary = Core::Memory::Allocate<uint8_t>(sizeof(uint8_t) * (size_t)(Multipart.Length * 2 + 9));
+					memcpy(Multipart.Boundary, Boundary.data(), sizeof(uint8_t) * (size_t)Multipart.Length);
 					Multipart.Boundary[Multipart.Length] = '\0';
 					Multipart.LookBehind = (Multipart.Boundary + Multipart.Length + 1);
+					Multipart.State = MultipartStatus::Start;
 					Multipart.Index = 0;
-					Multipart.State = MultipartState_Start;
 				}
 
 				char Value, Lower;
@@ -2574,10 +2617,10 @@ namespace Vitex
 
 					switch (Multipart.State)
 					{
-						case MultipartState_Start:
+						case MultipartStatus::Start:
 							Multipart.Index = 0;
-							Multipart.State = MultipartState_Start_Boundary;
-						case MultipartState_Start_Boundary:
+							Multipart.State = MultipartStatus::Start_Boundary;
+						case MultipartStatus::Start_Boundary:
 							if (Multipart.Index == Multipart.Length)
 							{
 								if (Value != CR)
@@ -2592,10 +2635,10 @@ namespace Vitex
 									return i;
 
 								Multipart.Index = 0;
-								if (OnResourceBegin && !OnResourceBegin(this))
+								if (!Parsing::ParseMultipartResourceBegin(this))
 									return i;
 
-								Multipart.State = MultipartState_Header_Field_Start;
+								Multipart.State = MultipartStatus::Header_Field_Start;
 								break;
 							}
 
@@ -2604,22 +2647,22 @@ namespace Vitex
 
 							Multipart.Index++;
 							break;
-						case MultipartState_Header_Field_Start:
+						case MultipartStatus::Header_Field_Start:
 							Mark = i;
-							Multipart.State = MultipartState_Header_Field;
-						case MultipartState_Header_Field:
+							Multipart.State = MultipartStatus::Header_Field;
+						case MultipartStatus::Header_Field:
 							if (Value == CR)
 							{
-								Multipart.State = MultipartState_Header_Field_Waiting;
+								Multipart.State = MultipartStatus::Header_Field_Waiting;
 								break;
 							}
 
 							if (Value == ':')
 							{
-								if (OnHeaderField && !OnHeaderField(this, Buffer + Mark, i - Mark))
+								if (!Parsing::ParseMultipartHeaderField(this, Buffer + Mark, i - Mark))
 									return i;
 
-								Multipart.State = MultipartState_Header_Value_Start;
+								Multipart.State = MultipartStatus::Header_Value_Start;
 								break;
 							}
 
@@ -2627,83 +2670,83 @@ namespace Vitex
 							if ((Value != '-') && (Lower < 'a' || Lower > 'z'))
 								return i;
 
-							if (Last && OnHeaderField && !OnHeaderField(this, Buffer + Mark, (i - Mark) + 1))
+							if (Last && !Parsing::ParseMultipartHeaderField(this, Buffer + Mark, (i - Mark) + 1))
 								return i;
 
 							break;
-						case MultipartState_Header_Field_Waiting:
+						case MultipartStatus::Header_Field_Waiting:
 							if (Value != LF)
 								return i;
 
-							Multipart.State = MultipartState_Resource_Start;
+							Multipart.State = MultipartStatus::Resource_Start;
 							break;
-						case MultipartState_Header_Value_Start:
+						case MultipartStatus::Header_Value_Start:
 							if (Value == ' ')
 								break;
 
 							Mark = i;
-							Multipart.State = MultipartState_Header_Value;
-						case MultipartState_Header_Value:
+							Multipart.State = MultipartStatus::Header_Value;
+						case MultipartStatus::Header_Value:
 							if (Value == CR)
 							{
-								if (OnHeaderValue && !OnHeaderValue(this, Buffer + Mark, i - Mark))
+								if (!Parsing::ParseMultipartHeaderValue(this, Buffer + Mark, i - Mark))
 									return i;
 
-								Multipart.State = MultipartState_Header_Value_Waiting;
+								Multipart.State = MultipartStatus::Header_Value_Waiting;
 								break;
 							}
 
-							if (Last && OnHeaderValue && !OnHeaderValue(this, Buffer + Mark, (i - Mark) + 1))
+							if (Last && !Parsing::ParseMultipartHeaderValue(this, Buffer + Mark, (i - Mark) + 1))
 								return i;
 
 							break;
-						case MultipartState_Header_Value_Waiting:
+						case MultipartStatus::Header_Value_Waiting:
 							if (Value != LF)
 								return i;
 
-							Multipart.State = MultipartState_Header_Field_Start;
+							Multipart.State = MultipartStatus::Header_Field_Start;
 							break;
-						case MultipartState_Resource_Start:
+						case MultipartStatus::Resource_Start:
 							Mark = i;
-							Multipart.State = MultipartState_Resource;
-						case MultipartState_Resource:
+							Multipart.State = MultipartStatus::Resource;
+						case MultipartStatus::Resource:
 							if (Value == CR)
 							{
-								if (OnContentData && !OnContentData(this, Buffer + Mark, i - Mark))
+								if (!Parsing::ParseMultipartContentData(this, Buffer + Mark, i - Mark))
 									return i;
 
 								Mark = i;
-								Multipart.State = MultipartState_Resource_Boundary_Waiting;
+								Multipart.State = MultipartStatus::Resource_Boundary_Waiting;
 								Multipart.LookBehind[0] = CR;
 								break;
 							}
 
-							if (Last && OnContentData && !OnContentData(this, Buffer + Mark, (i - Mark) + 1))
+							if (Last && !Parsing::ParseMultipartContentData(this, Buffer + Mark, (i - Mark) + 1))
 								return i;
 
 							break;
-						case MultipartState_Resource_Boundary_Waiting:
+						case MultipartStatus::Resource_Boundary_Waiting:
 							if (Value == LF)
 							{
-								Multipart.State = MultipartState_Resource_Boundary;
+								Multipart.State = MultipartStatus::Resource_Boundary;
 								Multipart.LookBehind[1] = LF;
 								Multipart.Index = 0;
 								break;
 							}
 
-							if (OnContentData && !OnContentData(this, Multipart.LookBehind, 1))
+							if (!Parsing::ParseMultipartContentData(this, Multipart.LookBehind, 1))
 								return i;
 
-							Multipart.State = MultipartState_Resource;
+							Multipart.State = MultipartStatus::Resource;
 							Mark = i--;
 							break;
-						case MultipartState_Resource_Boundary:
+						case MultipartStatus::Resource_Boundary:
 							if (Multipart.Boundary[Multipart.Index] != Value)
 							{
-								if (OnContentData && !OnContentData(this, Multipart.LookBehind, 2 + (size_t)Multipart.Index))
+								if (!Parsing::ParseMultipartContentData(this, Multipart.LookBehind, 2 + (size_t)Multipart.Index))
 									return i;
 
-								Multipart.State = MultipartState_Resource;
+								Multipart.State = MultipartStatus::Resource;
 								Mark = i--;
 								break;
 							}
@@ -2711,46 +2754,46 @@ namespace Vitex
 							Multipart.LookBehind[2 + Multipart.Index] = Value;
 							if ((++Multipart.Index) == Multipart.Length)
 							{
-								if (OnResourceEnd && !OnResourceEnd(this))
+								if (!Parsing::ParseMultipartResourceEnd(this))
 									return i;
 
-								Multipart.State = MultipartState_Resource_Waiting;
+								Multipart.State = MultipartStatus::Resource_Waiting;
 							}
 							break;
-						case MultipartState_Resource_Waiting:
+						case MultipartStatus::Resource_Waiting:
 							if (Value == '-')
 							{
-								Multipart.State = MultipartState_Resource_Hyphen;
+								Multipart.State = MultipartStatus::Resource_Hyphen;
 								break;
 							}
 
 							if (Value == CR)
 							{
-								Multipart.State = MultipartState_Resource_End;
+								Multipart.State = MultipartStatus::Resource_End;
 								break;
 							}
 
 							return i;
-						case MultipartState_Resource_Hyphen:
+						case MultipartStatus::Resource_Hyphen:
 							if (Value == '-')
 							{
-								Multipart.State = MultipartState_End;
+								Multipart.State = MultipartStatus::End;
 								break;
 							}
 
 							return i;
-						case MultipartState_Resource_End:
+						case MultipartStatus::Resource_End:
 							if (Value == LF)
 							{
-								Multipart.State = MultipartState_Header_Field_Start;
-								if (OnResourceBegin && !OnResourceBegin(this))
+								Multipart.State = MultipartStatus::Header_Field_Start;
+								if (!Parsing::ParseMultipartResourceBegin(this))
 									return i;
 
 								break;
 							}
 
 							return i;
-						case MultipartState_End:
+						case MultipartStatus::End:
 							break;
 						default:
 							return -1;
@@ -2761,11 +2804,11 @@ namespace Vitex
 
 				return Length;
 			}
-			int64_t Parser::ParseRequest(const char* BufferStart, size_t Length, size_t Offset)
+			int64_t Parser::ParseRequest(const uint8_t* BufferStart, size_t Length, size_t Offset)
 			{
 				VI_ASSERT(BufferStart != nullptr, "buffer start should be set");
-				const char* Buffer = BufferStart;
-				const char* BufferEnd = BufferStart + Length;
+				const uint8_t* Buffer = BufferStart;
+				const uint8_t* BufferEnd = BufferStart + Length;
 				int Result;
 				
 				if (IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
@@ -2776,11 +2819,11 @@ namespace Vitex
 
 				return (int64_t)(Buffer - BufferStart);
 			}
-			int64_t Parser::ParseResponse(const char* BufferStart, size_t Length, size_t Offset)
+			int64_t Parser::ParseResponse(const uint8_t* BufferStart, size_t Length, size_t Offset)
 			{
 				VI_ASSERT(BufferStart != nullptr, "buffer start should be set");
-				const char* Buffer = BufferStart;
-				const char* BufferEnd = Buffer + Length;
+				const uint8_t* Buffer = BufferStart;
+				const uint8_t* BufferEnd = Buffer + Length;
 				int Result;
 
 				if (IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
@@ -2791,7 +2834,7 @@ namespace Vitex
 
 				return (int64_t)(Buffer - BufferStart);
 			}
-			int64_t Parser::ParseDecodeChunked(char* Buffer, size_t* Length)
+			int64_t Parser::ParseDecodeChunked(uint8_t* Buffer, size_t* Length)
 			{
 				VI_ASSERT(Buffer != nullptr && Length != nullptr, "buffer should be set");
 				size_t Dest = 0, Src = 0, Size = *Length;
@@ -2801,7 +2844,7 @@ namespace Vitex
 				{
 					switch (Chunked.State)
 					{
-						case ChunkedState_Size:
+						case ChunkedStatus::Size:
 							for (;; ++Src)
 							{
 								if (Src == Size)
@@ -2838,8 +2881,8 @@ namespace Vitex
 							}
 
 							Chunked.HexCount = 0;
-							Chunked.State = ChunkedState_Ext;
-						case ChunkedState_Ext:
+							Chunked.State = ChunkedStatus::Ext;
+						case ChunkedStatus::Ext:
 							for (;; ++Src)
 							{
 								if (Src == Size)
@@ -2853,15 +2896,15 @@ namespace Vitex
 							{
 								if (Chunked.ConsumeTrailer)
 								{
-									Chunked.State = ChunkedState_Head;
+									Chunked.State = ChunkedStatus::Head;
 									break;
 								}
 								else
 									goto Complete;
 							}
 
-							Chunked.State = ChunkedState_Data;
-						case ChunkedState_Data:
+							Chunked.State = ChunkedStatus::Data;
+						case ChunkedStatus::Data:
 						{
 							size_t avail = Size - Src;
 							if (avail < Chunked.Length)
@@ -2881,9 +2924,9 @@ namespace Vitex
 							Src += Chunked.Length;
 							Dest += Chunked.Length;
 							Chunked.Length = 0;
-							Chunked.State = ChunkedState_End;
+							Chunked.State = ChunkedStatus::End;
 						}
-						case ChunkedState_End:
+						case ChunkedStatus::End:
 							for (;; ++Src)
 							{
 								if (Src == Size)
@@ -2900,9 +2943,9 @@ namespace Vitex
 							}
 
 							++Src;
-							Chunked.State = ChunkedState_Size;
+							Chunked.State = ChunkedStatus::Size;
 							break;
-						case ChunkedState_Head:
+						case ChunkedStatus::Head:
 							for (;; ++Src)
 							{
 								if (Src == Size)
@@ -2915,8 +2958,8 @@ namespace Vitex
 							if (Buffer[Src++] == '\012')
 								goto Complete;
 
-							Chunked.State = ChunkedState_Middle;
-						case ChunkedState_Middle:
+							Chunked.State = ChunkedStatus::Middle;
+						case ChunkedStatus::Middle:
 							for (;; ++Src)
 							{
 								if (Src == Size)
@@ -2927,7 +2970,7 @@ namespace Vitex
 							}
 
 							++Src;
-							Chunked.State = ChunkedState_Head;
+							Chunked.State = ChunkedStatus::Head;
 							break;
 						default:
 							return -1;
@@ -2944,7 +2987,7 @@ namespace Vitex
 				*Length = Dest;
 				return Result;
 			}
-			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, size_t* TokenLength, int* Out)
+			const uint8_t* Parser::Tokenize(const uint8_t* Buffer, const uint8_t* BufferEnd, const uint8_t** Token, size_t* TokenLength, int* Out)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
@@ -2952,19 +2995,19 @@ namespace Vitex
 				VI_ASSERT(TokenLength != nullptr, "token length should be set");
 				VI_ASSERT(Out != nullptr, "output should be set");
 
-				const char* TokenStart = Buffer;
+				const uint8_t* TokenStart = Buffer;
 				while (BufferEnd - Buffer >= 8)
 				{
 					for (int i = 0; i < 8; i++)
 					{
-						if (!((unsigned char)(*Buffer) - 040u < 0137u))
+						if (!((uint8_t)(*Buffer) - 040u < 0137u))
 							goto NonPrintable;
 						++Buffer;
 					}
 
 					continue;
 				NonPrintable:
-					if (((unsigned char)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
+					if (((uint8_t)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
 						goto FoundControl;
 					++Buffer;
 				}
@@ -2977,9 +3020,9 @@ namespace Vitex
 						return nullptr;
 					}
 
-					if (!((unsigned char)(*Buffer) - 040u < 0137u))
+					if (!((uint8_t)(*Buffer) - 040u < 0137u))
 					{
-						if (((unsigned char)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
+						if (((uint8_t)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
 							goto FoundControl;
 					}
 				}
@@ -3016,7 +3059,7 @@ namespace Vitex
 				*Token = TokenStart;
 				return Buffer;
 			}
-			const char* Parser::IsCompleted(const char* Buffer, const char* BufferEnd, size_t Offset, int* Out)
+			const uint8_t* Parser::IsCompleted(const uint8_t* Buffer, const uint8_t* BufferEnd, size_t Offset, int* Out)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
@@ -3066,7 +3109,7 @@ namespace Vitex
 
 				return nullptr;
 			}
-			const char* Parser::ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out)
+			const uint8_t* Parser::ProcessVersion(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
@@ -3078,7 +3121,7 @@ namespace Vitex
 					return nullptr;
 				}
 
-				const char* Version = Buffer;
+				const uint8_t* Version = Buffer;
 				if (*(Buffer++) != 'H')
 				{
 					*Out = -1;
@@ -3128,7 +3171,7 @@ namespace Vitex
 				}
 
 				Buffer++;
-				if (OnVersion && !OnVersion(this, Version, Buffer - Version))
+				if (!Parsing::ParseVersion(this, Version, Buffer - Version))
 				{
 					*Out = -1;
 					return nullptr;
@@ -3136,7 +3179,7 @@ namespace Vitex
 
 				return Buffer;
 			}
-			const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
+			const uint8_t* Parser::ProcessHeaders(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
@@ -3151,6 +3194,11 @@ namespace Vitex
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+				if (Message.Headers != nullptr)
+					Message.Headers->clear();
+				if (Message.Cookies != nullptr)
+					Message.Cookies->clear();
 
 				while (true)
 				{
@@ -3185,13 +3233,13 @@ namespace Vitex
 
 					if (!(*Buffer == ' ' || *Buffer == '\t'))
 					{
-						const char* Name = Buffer;
+						const uint8_t* Name = Buffer;
 						while (true)
 						{
 							if (*Buffer == ':')
 								break;
 
-							if (!Mapping[(unsigned char)*Buffer])
+							if (!Mapping[(uint8_t)*Buffer])
 							{
 								*Out = -1;
 								return nullptr;
@@ -3212,7 +3260,7 @@ namespace Vitex
 							return nullptr;
 						}
 
-						if (OnHeaderField && !OnHeaderField(this, Name, (size_t)Length))
+						if (!Parsing::ParseHeaderField(this, Name, (size_t)Length))
 						{
 							*Out = -1;
 							return nullptr;
@@ -3223,7 +3271,7 @@ namespace Vitex
 						{
 							if (Buffer == BufferEnd)
 							{
-								if (OnHeaderValue && !OnHeaderValue(this, "", 0))
+								if (!Parsing::ParseHeaderValue(this, (uint8_t*)"", 0))
 								{
 									*Out = -1;
 									return nullptr;
@@ -3237,30 +3285,28 @@ namespace Vitex
 								break;
 						}
 					}
-					else if (OnHeaderField && !OnHeaderField(this, "", 0))
+					else if (!Parsing::ParseHeaderField(this, (uint8_t*)"", 0))
 					{
 						*Out = -1;
 						return nullptr;
 					}
 
-					const char* Value; size_t ValueLength;
+					const uint8_t* Value; size_t ValueLength;
 					if ((Buffer = Tokenize(Buffer, BufferEnd, &Value, &ValueLength, Out)) == nullptr)
 					{
-						if (OnHeaderValue)
-							OnHeaderValue(this, "", 0);
-
+						Parsing::ParseHeaderValue(this, (uint8_t*)"", 0);
 						return nullptr;
 					}
 
-					const char* ValueEnd = Value + ValueLength;
+					const uint8_t* ValueEnd = Value + ValueLength;
 					for (; ValueEnd != Value; --ValueEnd)
 					{
-						const char c = *(ValueEnd - 1);
+						const uint8_t c = *(ValueEnd - 1);
 						if (!(c == ' ' || c == '\t'))
 							break;
 					}
 
-					if (OnHeaderValue && !OnHeaderValue(this, Value, ValueEnd - Value))
+					if (!Parsing::ParseHeaderValue(this, Value, ValueEnd - Value))
 					{
 						*Out = -1;
 						return nullptr;
@@ -3269,7 +3315,7 @@ namespace Vitex
 
 				return Buffer;
 			}
-			const char* Parser::ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out)
+			const uint8_t* Parser::ProcessRequest(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
@@ -3299,7 +3345,7 @@ namespace Vitex
 				else if (*Buffer == '\012')
 					++Buffer;
 
-				const char* TokenStart = Buffer;
+				const uint8_t* TokenStart = Buffer;
 				if (Buffer == BufferEnd)
 				{
 					*Out = -2;
@@ -3311,9 +3357,9 @@ namespace Vitex
 					if (*Buffer == ' ')
 						break;
 
-					if (!((unsigned char)(*Buffer) - 040u < 0137u))
+					if (!((uint8_t)(*Buffer) - 040u < 0137u))
 					{
-						if ((unsigned char)*Buffer < '\040' || *Buffer == '\177')
+						if ((uint8_t)*Buffer < '\040' || *Buffer == '\177')
 						{
 							*Out = -1;
 							return nullptr;
@@ -3331,7 +3377,7 @@ namespace Vitex
 				if (Buffer - TokenStart == 0)
 					return nullptr;
 
-				if (OnMethodValue && !OnMethodValue(this, TokenStart, Buffer - TokenStart))
+				if (!Parsing::ParseMethodValue(this, TokenStart, Buffer - TokenStart))
 				{
 					*Out = -1;
 					return nullptr;
@@ -3354,9 +3400,9 @@ namespace Vitex
 					if (*Buffer == ' ')
 						break;
 
-					if (!((unsigned char)(*Buffer) - 040u < 0137u))
+					if (!((uint8_t)(*Buffer) - 040u < 0137u))
 					{
-						if ((unsigned char)*Buffer < '\040' || *Buffer == '\177')
+						if ((uint8_t)*Buffer < '\040' || *Buffer == '\177')
 						{
 							*Out = -1;
 							return nullptr;
@@ -3374,7 +3420,7 @@ namespace Vitex
 				if (Buffer - TokenStart == 0)
 					return nullptr;
 
-				char* Path = (char*)TokenStart;
+				uint8_t* Path = (uint8_t*)TokenStart;
 				int64_t PL = Buffer - TokenStart, QL = 0;
 				while (QL < PL && Path[QL] != '?')
 					QL++;
@@ -3383,14 +3429,14 @@ namespace Vitex
 				{
 					QL = PL - QL - 1;
 					PL -= QL + 1;
-					if (OnQueryValue && !OnQueryValue(this, Path + PL + 1, (size_t)QL))
+					if (!Parsing::ParseQueryValue(this, Path + PL + 1, (size_t)QL))
 					{
 						*Out = -1;
 						return nullptr;
 					}
 				}
 
-				if (OnPathValue && !OnPathValue(this, Path, (size_t)PL))
+				if (!Parsing::ParsePathValue(this, Path, (size_t)PL))
 				{
 					*Out = -1;
 					return nullptr;
@@ -3428,7 +3474,7 @@ namespace Vitex
 
 				return ProcessHeaders(Buffer, BufferEnd, Out);
 			}
-			const char* Parser::ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out)
+			const uint8_t* Parser::ProcessResponse(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
 			{
 				VI_ASSERT(Buffer != nullptr, "buffer should be set");
 				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
@@ -3478,13 +3524,13 @@ namespace Vitex
 
 				*(&Result) = (*Buffer++ - '0');
 				Status += Result;
-				if (OnStatusCode && !OnStatusCode(this, Status))
+				if (!Parsing::ParseStatusCode(this, Status))
 				{
 					*Out = -1;
 					return nullptr;
 				}
 
-				const char* Message; size_t MessageLength;
+				const uint8_t* Message; size_t MessageLength;
 				if ((Buffer = Tokenize(Buffer, BufferEnd, &Message, &MessageLength, Out)) == nullptr)
 					return nullptr;
 
@@ -3502,7 +3548,7 @@ namespace Vitex
 					++Message;
 					--MessageLength;
 				} while (*Message == ' ');
-				if (OnStatusMessage && !OnStatusMessage(this, Message, MessageLength))
+				if (!Parsing::ParseStatusMessage(this, Message, MessageLength))
 				{
 					*Out = -1;
 					return nullptr;
@@ -3514,7 +3560,7 @@ namespace Vitex
 			WebCodec::WebCodec() : State(Bytecode::Begin), Fragment(0)
 			{
 			}
-			bool WebCodec::ParseFrame(const char* Buffer, size_t Size)
+			bool WebCodec::ParseFrame(const uint8_t* Buffer, size_t Size)
 			{
 				if (!Buffer || !Size)
 					return !Queue.empty();
@@ -3723,7 +3769,7 @@ namespace Vitex
 							}
 
 							Core::Vector<char> Message;
-							TextAssign(Message, Data, Length);
+							TextAssign(Message, (uint8_t*)Data, Length);
 							Queue.emplace(std::make_pair(Opcode, std::move(Message)));
 							Opcode = WebSocketOp::Continue;
 
@@ -3776,7 +3822,7 @@ namespace Vitex
 				while (!Queue.empty())
 				{
 					auto* Item = Queue.front();
-					VI_DELETE(basic_string, Item);
+					Core::Memory::Delete(Item);
 					Queue.pop();
 				}
 			}
@@ -3789,7 +3835,7 @@ namespace Vitex
 					size_t Bytes = Item->capacity();
 					Size -= std::min<size_t>(Size, Bytes);
 					Freed += Bytes;
-					VI_DELETE(basic_string, Item);
+					Core::Memory::Delete(Item);
 					Queue.pop();
 				}
 				if (Freed > 0)
@@ -3818,7 +3864,7 @@ namespace Vitex
 			{
 				Core::UMutex<std::mutex> Unique(Mutex);
 				if (Queue.empty())
-					return VI_NEW(Core::String);
+					return Core::Memory::New<Core::String>();
 
 				auto* Item = Queue.front();
 				Size -= std::min<size_t>(Size, Item->capacity());
@@ -3833,8 +3879,8 @@ namespace Vitex
 				if (Router->KeepAliveMaxCount < 0)
 					return "Connection: Close\r\n";
 
-				const char* Connection = Base->Request.GetHeader("Connection");
-				if ((Connection != nullptr && Core::Stringify::CaseCompare(Connection, "keep-alive") != 0) || (!Connection && strcmp(Base->Request.Version, "1.1") != 0))
+				auto Connection = Base->Request.GetHeader("Connection");
+				if ((!Connection.empty() && !Core::Stringify::CaseEquals(Connection, "keep-alive")) || (Connection.empty() && strcmp(Base->Request.Version, "1.1") != 0))
 				{
 					Base->Info.Reuses = 1;
 					return "Connection: Close\r\n";
@@ -3848,7 +3894,7 @@ namespace Vitex
 
 				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Router->SocketTimeout / 1000) + ", max=" + Core::ToString(Router->KeepAliveMaxCount) + "\r\n";
 			}
-			const char* Utils::ContentType(const Core::String& Path, Core::Vector<MimeType>* Types)
+			std::string_view Utils::ContentType(const std::string_view& Path, Core::Vector<MimeType>* Types)
 			{
 				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
 
@@ -3859,37 +3905,38 @@ namespace Vitex
 				if (!PathLength)
 					return "application/octet-stream";
 
-				const char* Ext = &Path.c_str()[PathLength - 1];
+				const char* Ptr = Path.data();
+				const char* Ext = &Ptr[PathLength - 1];
 				int End = ((int)(sizeof(MimeTypes) / sizeof(MimeTypes[0])));
 				int Start = 0, Result, Index;
 
 				while (End - Start > 1)
 				{
 					Index = (Start + End) >> 1;
-					if ((Result = Core::Stringify::CaseCompare(Ext, MimeTypes[Index].Extension)) == 0)
+					Result = Core::Stringify::CaseCompare(Ext, MimeTypes[Index].Extension);
+					if (Result == 0)
 						return MimeTypes[Index].Type;
-
-					if (Result < 0)
+					else if (Result < 0)
 						End = Index;
 					else
 						Start = Index;
 				}
 
-				if (!Core::Stringify::CaseCompare(Ext, MimeTypes[Start].Extension))
+				if (Core::Stringify::CaseEquals(Ext, MimeTypes[Start].Extension))
 					return MimeTypes[Start].Type;
 
 				if (Types != nullptr && !Types->empty())
 				{
 					for (auto& Item : *Types)
 					{
-						if (!Core::Stringify::CaseCompare(Ext, Item.Extension.c_str()))
+						if (Core::Stringify::CaseEquals(Ext, Item.Extension.c_str()))
 							return Item.Type.c_str();
 					}
 				}
 
 				return "application/octet-stream";
 			}
-			const char* Utils::StatusMessage(int StatusCode)
+			std::string_view Utils::StatusMessage(int StatusCode)
 			{
 				switch (StatusCode)
 				{
@@ -4041,7 +4088,7 @@ namespace Vitex
 						break;
 				}
 
-				return "Stateless";
+				return "Unknown";
 			}
 
 			void Paths::ConstructPath(Connection* Base)
@@ -4153,7 +4200,7 @@ namespace Vitex
 				VI_ASSERT(Request != nullptr, "connection should be set");
 				VI_ASSERT(Response != nullptr, "response should be set");
 
-				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
+				KimvUnorderedMap& Headers = (IsRequest ? Request->Headers : Response->Headers);
 				for (auto& Item : Headers)
 				{
 					for (auto& Payload : Item.second)
@@ -4335,30 +4382,30 @@ namespace Vitex
 				return Field;
 			}
 
-			bool Parsing::ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length)
+			bool Parsing::ParseMultipartHeaderField(Parser* Parser, const uint8_t* Name, size_t Length)
 			{
 				return ParseHeaderField(Parser, Name, Length);
 			}
-			bool Parsing::ParseMultipartHeaderValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseMultipartHeaderValue(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
 
-				if (!Length || Parser->Frame.Ignore)
+				if (!Length || Parser->Multipart.Skip)
 					return true;
 
-				if (Parser->Frame.Header.empty())
+				if (Parser->Multipart.Header.empty())
 					return true;
 
-				Core::String Value(Data, Length);
-				if (Parser->Frame.Header == "Content-Disposition")
+				std::string_view Value = std::string_view((char*)Data, Length);
+				if (Parser->Multipart.Header == "Content-Disposition")
 				{
 					Core::TextSettle Start = Core::Stringify::Find(Value, "name=\"");
 					if (Start.Found)
 					{
 						Core::TextSettle End = Core::Stringify::Find(Value, '\"', Start.End);
 						if (End.Found)
-							Parser->Frame.Source.Key = Value.substr(Start.End, End.End - Start.End - 1);
+							Parser->Multipart.Data.Key = Value.substr(Start.End, End.End - Start.End - 1);
 					}
 
 					Start = Core::Stringify::Find(Value, "filename=\"");
@@ -4368,131 +4415,125 @@ namespace Vitex
 						if (End.Found)
 						{
 							auto Name = Value.substr(Start.End, End.End - Start.End - 1);
-							Parser->Frame.Source.Name = Core::OS::Path::GetFilename(Name.c_str());
+							Parser->Multipart.Data.Name = Core::OS::Path::GetFilename(Name);
 						}
 					}
 				}
-				else if (Parser->Frame.Header == "Content-Type")
-					Parser->Frame.Source.Type = Value;
+				else if (Parser->Multipart.Header == "Content-Type")
+					Parser->Multipart.Data.Type = Value;
 
-				Parser->Frame.Source.SetHeader(Parser->Frame.Header.c_str(), Value);
-				Parser->Frame.Header.clear();
-
+				Parser->Multipart.Data.SetHeader(Parser->Multipart.Header.c_str(), Value);
+				Parser->Multipart.Header.clear();
 				return true;
 			}
-			bool Parsing::ParseMultipartContentData(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseMultipartContentData(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
-
 				if (!Length)
 					return true;
 
-				if (Parser->Frame.Ignore || !Parser->Frame.Stream)
+				if (Parser->Multipart.Skip || !Parser->Multipart.Stream)
 					return false;
 
-				if (fwrite(Data, 1, (size_t)Length, Parser->Frame.Stream) != (size_t)Length)
+				if (fwrite(Data, 1, (size_t)Length, Parser->Multipart.Stream) != (size_t)Length)
 					return false;
 
-				Parser->Frame.Source.Length += Length;
+				Parser->Multipart.Data.Length += Length;
 				return true;
 			}
 			bool Parsing::ParseMultipartResourceBegin(Parser* Parser)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Frame.Ignore || !Parser->Frame.Request)
+				if (Parser->Multipart.Skip || !Parser->Multipart.Content)
 					return true;
 
-				if (Parser->Frame.Stream != nullptr)
+				if (Parser->Multipart.Stream != nullptr)
 				{
-					Core::OS::File::Close(Parser->Frame.Stream);
-					Parser->Frame.Stream = nullptr;
+					Core::OS::File::Close(Parser->Multipart.Stream);
+					Parser->Multipart.Stream = nullptr;
 					return false;
 				}
 
-				if (Parser->Frame.Route && Parser->Frame.Request->Content.Resources.size() >= Parser->Frame.Route->Router->MaxUploadableResources)
+				if (Parser->Multipart.Content->Resources.size() >= Parser->Multipart.MaxResources)
 				{
-					Parser->Frame.Close = true;
+					Parser->Multipart.Finish = true;
 					return false;
 				}
 
-				Parser->Frame.Header.clear();
-				Parser->Frame.Source.Headers.clear();
-				Parser->Frame.Source.Name.clear();
-				Parser->Frame.Source.Type = "application/octet-stream";
-				Parser->Frame.Source.IsInMemory = false;
-				Parser->Frame.Source.Length = 0;
+				Parser->Multipart.Header.clear();
+				Parser->Multipart.Data.Headers.clear();
+				Parser->Multipart.Data.Name.clear();
+				Parser->Multipart.Data.Type = "application/octet-stream";
+				Parser->Multipart.Data.IsInMemory = false;
+				Parser->Multipart.Data.Length = 0;
 
-				if (Parser->Frame.Route)
+				if (Parser->Multipart.TemporaryDirectory != nullptr)
 				{
-					Parser->Frame.Source.Path = Parser->Frame.Route->Router->TemporaryDirectory;
-					if (Parser->Frame.Source.Path.back() != '/' && Parser->Frame.Source.Path.back() != '\\')
-						Parser->Frame.Source.Path.append(1, '/');
+					Parser->Multipart.Data.Path = *Parser->Multipart.TemporaryDirectory;
+					if (Parser->Multipart.Data.Path.back() != '/' && Parser->Multipart.Data.Path.back() != '\\')
+						Parser->Multipart.Data.Path.append(1, VI_SPLITTER);
 
 					auto Random = Compute::Crypto::RandomBytes(16);
 					if (Random)
 					{
 						auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Random);
 						if (Hash)
-							Parser->Frame.Source.Path.append(*Hash);
+							Parser->Multipart.Data.Path.append(*Hash);
 					}
 				}
 
-				auto File = Core::OS::File::Open(Parser->Frame.Source.Path.c_str(), "wb");
+				auto File = Core::OS::File::Open(Parser->Multipart.Data.Path.c_str(), "wb");
 				if (!File)
 					return false;
 
-				Parser->Frame.Stream = *File;
+				Parser->Multipart.Stream = *File;
 				return true;
 			}
 			bool Parsing::ParseMultipartResourceEnd(Parser* Parser)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Frame.Ignore || !Parser->Frame.Stream || !Parser->Frame.Request)
+				if (Parser->Multipart.Skip || !Parser->Multipart.Stream || !Parser->Multipart.Content)
 					return true;
 
-				Core::OS::File::Close(Parser->Frame.Stream);
-				Parser->Frame.Stream = nullptr;
-				Parser->Frame.Request->Content.Resources.push_back(Parser->Frame.Source);
+				Core::OS::File::Close(Parser->Multipart.Stream);
+				Parser->Multipart.Stream = nullptr;
+				Parser->Multipart.Content->Resources.push_back(Parser->Multipart.Data);
 
-				if (Parser->Frame.Callback)
-					Parser->Frame.Callback(&Parser->Frame.Request->Content.Resources.back());
+				if (Parser->Multipart.Callback)
+					Parser->Multipart.Callback(&Parser->Multipart.Content->Resources.back());
 
 				return true;
 			}
-			bool Parsing::ParseHeaderField(Parser* Parser, const char* Name, size_t Length)
+			bool Parsing::ParseHeaderField(Parser* Parser, const uint8_t* Name, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Name != nullptr, "name should be set");
-
-				if (!Length || Parser->Frame.Ignore)
-					return true;
-
-				Parser->Frame.Header.assign(Name, Length);
+				if (Length > 0)
+					Parser->Message.Header.assign((char*)Name, Length);
 				return true;
 			}
-			bool Parsing::ParseHeaderValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseHeaderValue(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
-
-				if (!Length || Parser->Frame.Ignore || Parser->Frame.Header.empty())
+				if (!Length || Parser->Message.Header.empty())
 					return true;
 
-				if (Core::Stringify::CaseCompare(Parser->Frame.Header.c_str(), "cookie") == 0)
+				if (Core::Stringify::CaseEquals(Parser->Message.Header.c_str(), "cookie"))
 				{
-					if (!Parser->Frame.Request)
+					if (!Parser->Message.Cookies)
 						goto Success;
 
 					Core::Vector<std::pair<Core::String, Core::String>> Cookies;
-					const char* Offset = Data;
+					const uint8_t* Offset = Data;
 
 					for (size_t i = 0; i < Length; i++)
 					{
 						if (Data[i] != '=')
 							continue;
 
-						Core::String Name(Offset, (size_t)((Data + i) - Offset));
+						Core::String Name((char*)Offset, (size_t)((Data + i) - Offset));
 						size_t Set = i;
 
 						while (i + 1 < Length && Data[i] != ';')
@@ -4501,127 +4542,121 @@ namespace Vitex
 						if (Data[i] == ';')
 							i--;
 
-						Cookies.emplace_back(std::make_pair(std::move(Name), Core::String(Data + Set + 1, i - Set)));
+						Cookies.emplace_back(std::make_pair(std::move(Name), Core::String((char*)Data + Set + 1, i - Set)));
 						Offset = Data + (i + 3);
 					}
 
 					for (auto&& Item : Cookies)
 					{
-						auto& Cookie = Parser->Frame.Request->Cookies[Item.first];
+						auto& Cookie = (*Parser->Message.Cookies)[Item.first];
 						Cookie.emplace_back(std::move(Item.second));
 					}
 				}
-				else if (Parser->Frame.Request != nullptr || Parser->Frame.Response != nullptr)
+				else if (Parser->Message.Headers != nullptr)
 				{
-					Core::Vector<Core::String> Keys;
-					if (Core::Stringify::CaseCompare(Parser->Frame.Header.c_str(), "user-agent") != 0)
+					auto& Source = (*Parser->Message.Headers)[Parser->Message.Header]; bool AppendField = true;
+					if (!Core::Stringify::CaseEquals(Parser->Message.Header.c_str(), "user-agent"))
 					{
-						Keys = Core::Stringify::Split(Core::String(Data, Length), ',');
-						for (auto& Item : Keys)
-							Core::Stringify::Trim(Item);
+						if (Parser->Message.Header.find(',') != std::string::npos)
+						{
+							AppendField = false;
+							Core::Stringify::PmSplit(Source, std::string_view((char*)Data, Length), ',');
+							for (auto& Item : Source)
+								Core::Stringify::Trim(Item);
+						}
 					}
-					else
-						Keys.emplace_back(Data, Length);
-
-					if (Parser->Frame.Request)
-					{
-						auto& Source = Parser->Frame.Request->Headers[Parser->Frame.Header];
-						for (auto& Item : Keys)
-							Source.push_back(Item);
-					}
-
-					if (Parser->Frame.Response)
-					{
-						auto& Source = Parser->Frame.Response->Headers[Parser->Frame.Header];
-						for (auto& Item : Keys)
-							Source.push_back(Item);
-					}
+					
+					if (AppendField)
+						Source.emplace_back(Core::String((char*)Data, Length));
 				}
 
 			Success:
-				Parser->Frame.Header.clear();
+				Parser->Message.Header.clear();
 				return true;
 			}
-			bool Parsing::ParseVersion(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseVersion(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
-
-				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
+				if (!Length || !Parser->Message.Version)
 					return true;
 
-				memset(Parser->Frame.Request->Version, 0, sizeof(Parser->Frame.Request->Version));
-				memcpy((void*)Parser->Frame.Request->Version, (void*)Data, std::min<size_t>(Length, sizeof(Parser->Frame.Request->Version)));
+				memset(Parser->Message.Version, 0, LABEL_SIZE);
+				memcpy((void*)Parser->Message.Version, (void*)Data, std::min<size_t>(Length, LABEL_SIZE));
 				return true;
 			}
 			bool Parsing::ParseStatusCode(Parser* Parser, size_t Value)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Frame.Ignore || !Parser->Frame.Response)
-					return true;
-
-				Parser->Frame.Response->StatusCode = (int)Value;
+				if (Parser->Message.StatusCode != nullptr)
+					*Parser->Message.StatusCode = (int)Value;
 				return true;
 			}
-			bool Parsing::ParseMethodValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseStatusMessage(Parser* Parser, const uint8_t* Name, size_t Length)
+			{
+				VI_ASSERT(Parser != nullptr, "parser should be set");
+				return true;
+			}
+			bool Parsing::ParseMethodValue(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
-
-				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
+				if (!Length || !Parser->Message.Method)
 					return true;
 
-				memset(Parser->Frame.Request->Method, 0, sizeof(Parser->Frame.Request->Method));
-				memcpy((void*)Parser->Frame.Request->Method, (void*)Data, std::min<size_t>(Length, sizeof(Parser->Frame.Request->Method)));
+				memset(Parser->Message.Method, 0, LABEL_SIZE);
+				memcpy((void*)Parser->Message.Method, (void*)Data, std::min<size_t>(Length, LABEL_SIZE));
 				return true;
 			}
-			bool Parsing::ParsePathValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParsePathValue(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
-
-				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
+				if (!Length || !Parser->Message.Location)
 					return true;
 
-				Parser->Frame.Request->Location.assign(Data, Length);
+				Parser->Message.Location->assign((char*)Data, Length);
 				return true;
 			}
-			bool Parsing::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseQueryValue(Parser* Parser, const uint8_t* Data, size_t Length)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
 				VI_ASSERT(Data != nullptr, "data should be set");
-
-				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Request)
+				if (!Length || !Parser->Message.Query)
 					return true;
 
-				Parser->Frame.Request->Query.assign(Data, Length);
+				Parser->Message.Query->assign((char*)Data, Length);
 				return true;
 			}
-			int Parsing::ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2)
+			int Parsing::ParseContentRange(const std::string_view& ContentRange, int64_t* Range1, int64_t* Range2)
 			{
-				VI_ASSERT(ContentRange != nullptr, "content range should be set");
+				VI_ASSERT(Core::Stringify::IsCString(ContentRange), "content range should be set");
 				VI_ASSERT(Range1 != nullptr, "range 1 should be set");
 				VI_ASSERT(Range2 != nullptr, "range 2 should be set");
-
-				return sscanf(ContentRange, "bytes=%" PRId64 "-%" PRId64, Range1, Range2);
+				return sscanf(ContentRange.data(), "bytes=%" PRId64 "-%" PRId64, Range1, Range2);
 			}
 			Core::String Parsing::ParseMultipartDataBoundary()
 			{
 				static const char Data[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
 				std::random_device SeedGenerator;
 				std::mt19937 Engine(SeedGenerator());
 				Core::String Result = "--sha1-digest-multipart-data-";
-
 				for (int i = 0; i < 16; i++)
 					Result += Data[Engine() % (sizeof(Data) - 1)];
 
 				return Result;
 			}
 
-			Core::String Permissions::Authorize(const Core::String& Username, const Core::String& Password, const Core::String& Type)
+			Core::String Permissions::Authorize(const std::string_view& Username, const std::string_view& Password, const std::string_view& Type)
 			{
-				return Type + ' ' + Compute::Codec::Base64Encode(Username + ':' + Password);
+				Core::String Body = Core::String(Username);
+				Body.append(1, ':');
+				Body.append(Password);
+
+				Core::String Result = Core::String(Type);
+				Result.append(1, ' ');
+				Result.append(Compute::Codec::Base64Encode(Body));
+				return Result;
 			}
 			bool Permissions::Authorize(Connection* Base)
 			{
@@ -4647,8 +4682,8 @@ namespace Vitex
 					return false;
 				}
 
-				const char* Authorization = Base->Request.GetHeader("Authorization");
-				if (!Authorization)
+				auto Authorization = Base->Request.GetHeader("Authorization");
+				if (Authorization.empty())
 				{
 					Base->Request.User.Type = Auth::Denied;
 					Base->Abort(401, "Provide authorization header to continue.");
@@ -4659,7 +4694,7 @@ namespace Vitex
 				while (Authorization[Index] != ' ' && Authorization[Index] != '\0')
 					Index++;
 
-				Core::String Type(Authorization, Index);
+				Core::String Type(Authorization.data(), Index);
 				if (Type != Route->Auth.Type)
 				{
 					Base->Request.User.Type = Auth::Denied;
@@ -4667,7 +4702,7 @@ namespace Vitex
 					return false;
 				}
 
-				Base->Request.User.Token = Authorization + Index + 1;
+				Base->Request.User.Token = Authorization.substr(Index + 1);
 				if (Route->Callbacks.Authorize(Base, &Base->Request.User))
 				{
 					Base->Request.User.Type = Auth::Granted;
@@ -4692,18 +4727,12 @@ namespace Vitex
 			bool Permissions::WebSocketUpgradeAllowed(Connection* Base)
 			{
 				VI_ASSERT(Base != nullptr, "connection should be set");
-				const char* Upgrade = Base->Request.GetHeader("Upgrade");
-				if (!Upgrade)
+				auto Upgrade = Base->Request.GetHeader("Upgrade");
+				if (Upgrade.empty() || !Core::Stringify::CaseEquals(Upgrade, "websocket"))
 					return false;
 
-				if (Core::Stringify::CaseCompare(Upgrade, "websocket") != 0)
-					return false;
-
-				const char* Connection = Base->Request.GetHeader("Connection");
-				if (!Connection)
-					return false;
-
-				if (Core::Stringify::CaseCompare(Connection, "upgrade") != 0)
+				auto Connection = Base->Request.GetHeader("Connection");
+				if (Connection.empty() || !Core::Stringify::CaseEquals(Connection, "upgrade"))
 					return false;
 
 				return true;
@@ -4774,21 +4803,21 @@ namespace Vitex
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Resource != nullptr, "resource should be set");
 
-				const char* CacheControl = Base->Request.GetHeader("Cache-Control");
-				if (CacheControl != nullptr && (!Core::Stringify::CaseCompare("no-cache", CacheControl) || !Core::Stringify::CaseCompare("max-age=0", CacheControl)))
+				auto CacheControl = Base->Request.GetHeader("Cache-Control");
+				if (!CacheControl.empty() && (Core::Stringify::CaseEquals(CacheControl, "no-cache") || Core::Stringify::CaseEquals(CacheControl, "max-age=0")))
 					return true;
 
-				const char* IfNoneMatch = Base->Request.GetHeader("If-None-Match");
-				if (IfNoneMatch != nullptr)
+				auto IfNoneMatch = Base->Request.GetHeader("If-None-Match");
+				if (!IfNoneMatch.empty())
 				{
 					char ETag[64];
 					Core::OS::Net::GetETag(ETag, sizeof(ETag), Resource);
-					if (!Core::Stringify::CaseCompare(ETag, IfNoneMatch))
+					if (Core::Stringify::CaseEquals(ETag, IfNoneMatch))
 						return false;
 				}
 
-				const char* IfModifiedSince = Base->Request.GetHeader("If-Modified-Since");
-				return !(IfModifiedSince != nullptr && Resource->LastModified <= Core::DateTime::ParseWebDate(IfModifiedSince));
+				auto IfModifiedSince = Base->Request.GetHeader("If-Modified-Since");
+				return !(!IfModifiedSince.empty() && Resource->LastModified <= Core::DateTime::ParseWebDate(IfModifiedSince.data()));
 
 			}
 			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
@@ -4821,31 +4850,31 @@ namespace Vitex
 				if (!Base->Route->AllowWebSocket)
 					return Base->Abort(404, "Websocket protocol is not allowed on this server.");
 
-				const auto* WebSocketKey = Base->Request.GetHeaderBlob("Sec-WebSocket-Key");
+				auto* WebSocketKey = Base->Request.GetHeaderBlob("Sec-WebSocket-Key");
 				if (WebSocketKey != nullptr)
-					return Logical::ProcessWebSocket(Base, WebSocketKey->c_str(), WebSocketKey->size());
+					return Logical::ProcessWebSocket(Base, (uint8_t*)WebSocketKey->c_str(), WebSocketKey->size());
 
-				const char* WebSocketKey1 = Base->Request.GetHeader("Sec-WebSocket-Key1");
-				if (!WebSocketKey1)
+				auto WebSocketKey1 = Base->Request.GetHeader("Sec-WebSocket-Key1");
+				if (WebSocketKey1.empty())
 					return Base->Abort(400, "Malformed websocket request. Provide first key.");
 
-				const char* WebSocketKey2 = Base->Request.GetHeader("Sec-WebSocket-Key2");
-				if (!WebSocketKey2)
+				auto WebSocketKey2 = Base->Request.GetHeader("Sec-WebSocket-Key2");
+				if (WebSocketKey2.empty())
 					return Base->Abort(400, "Malformed websocket request. Provide second key.");
 
 				const size_t LegacyKeySize = 8;
-				auto ResolveConnection = [Base, LegacyKeySize](SocketPoll Event, const char* Buffer, size_t Recv)
+				auto ResolveConnection = [Base, LegacyKeySize](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
-						Base->Request.Content.Append(Buffer, Recv);
+						Base->Request.Content.Append(std::string_view((char*)Buffer, Recv));
 					else if (Packet::IsDone(Event))
-						Logical::ProcessWebSocket(Base, Base->Request.Content.Data.data(), LegacyKeySize);
+						Logical::ProcessWebSocket(Base, (uint8_t*)Base->Request.Content.Data.data(), LegacyKeySize);
 					else if (Packet::IsError(Event))
 						Base->Abort();
 					return true;
 				};
 				if (Base->Request.Content.Prefetch >= LegacyKeySize)
-					return ResolveConnection(SocketPoll::FinishSync, nullptr, 0);
+					return ResolveConnection(SocketPoll::FinishSync, (uint8_t*)"", 0);
 
 				return !!Base->Stream->ReadAsync(LegacyKeySize - Base->Request.Content.Prefetch, ResolveConnection);
 			}
@@ -4909,7 +4938,7 @@ namespace Vitex
 				if (!Base->Resource.IsDirectory)
 					return Base->Abort(403, "Directory overwrite denied.");
 
-				const char* Range = Base->Request.GetHeader("Range");
+				auto Range = Base->Request.GetHeader("Range");
 				int64_t Range1 = 0, Range2 = 0;
 
 				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "wb");
@@ -4917,7 +4946,7 @@ namespace Vitex
 					return Base->Abort(422, "Resource stream cannot be opened.");
 
 				FILE* Stream = *File;
-				if (Range != nullptr && HTTP::Parsing::ParseContentRange(Range, &Range1, &Range2))
+				if (!Range.empty() && HTTP::Parsing::ParseContentRange(Range, &Range1, &Range2))
 				{
 					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 206;
@@ -4928,11 +4957,11 @@ namespace Vitex
 				else
 					Base->Response.StatusCode = 204;
 
-				return Base->Fetch([=](Connection* Base, SocketPoll Event, const char* Buffer, size_t Size)
+				return Base->Fetch([=](Connection* Base, SocketPoll Event, const std::string_view& Buffer)
 				{
 					if (Packet::IsData(Event))
 					{
-						fwrite(Buffer, sizeof(char) * (size_t)Size, 1, Stream);
+						fwrite(Buffer.data(), sizeof(char) * Buffer.size(), 1, Stream);
 						return true;
 					}
 					else if (Packet::IsDone(Event))
@@ -4951,7 +4980,7 @@ namespace Vitex
 							Base->Route->Callbacks.Headers(Base, *Content);
 
 						Content->append("\r\n", 2);
-						return !Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+						return !Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 						{
 							HrmCache::Get()->Push(Content);
 							if (Packet::IsDone(Event))
@@ -4995,7 +5024,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5032,7 +5061,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5056,7 +5085,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5071,7 +5100,7 @@ namespace Vitex
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_MEASURE(Core::Timings::FileSystem);
 				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
+				if (!Core::OS::Directory::Scan(Base->Request.Path, Entries))
 					return Base->Abort(500, "System denied to directory listing.");
 
 				char Date[64];
@@ -5088,8 +5117,8 @@ namespace Vitex
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
-				const char* Message = Base->Response.GetHeader("X-Error");
-				if (Message != nullptr)
+				auto Message = Base->Response.GetHeader("X-Error");
+				if (!Message.empty())
 					Content->append("X-Error: ").append(Message).append("\r\n");
 
 				size_t Size = Base->Request.Location.size() - 1;
@@ -5153,14 +5182,14 @@ namespace Vitex
 				bool Deflate = false, Gzip = false;
 				if (Resources::ResourceCompressed(Base, Base->Response.Content.Data.size()))
 				{
-					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
-					if (AcceptEncoding != nullptr)
+					auto AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
+					if (!AcceptEncoding.empty())
 					{
-						Deflate = strstr(AcceptEncoding, "deflate") != nullptr;
-						Gzip = strstr(AcceptEncoding, "gzip") != nullptr;
+						Deflate = AcceptEncoding.find("deflate") != std::string::npos;
+						Gzip = AcceptEncoding.find("gzip") != std::string::npos;
 					}
 
-					if (AcceptEncoding != nullptr && (Deflate || Gzip))
+					if (!AcceptEncoding.empty() && (Deflate || Gzip))
 					{
 						z_stream Stream;
 						Stream.zalloc = Z_NULL;
@@ -5179,8 +5208,8 @@ namespace Vitex
 
 							if (Compress && Flush)
 							{
-								Base->Response.Content.Assign(Buffer.c_str(), (size_t)Stream.total_out);
-								if (!Base->Response.GetHeader("Content-Encoding"))
+								Base->Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)Stream.total_out));
+								if (Base->Response.GetHeader("Content-Encoding").empty())
 								{
 									if (Gzip)
 										Content->append("Content-Encoding: gzip\r\n", 24);
@@ -5193,7 +5222,7 @@ namespace Vitex
 				}
 #endif
 				Content->append("Content-Length: ").append(Core::ToString(Base->Response.Content.Data.size())).append("\r\n\r\n");
-				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5201,7 +5230,7 @@ namespace Vitex
 						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
 							return (void)Base->Next(200);
 
-						Base->Stream->WriteAsync(Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
+						Base->Stream->WriteAsync((uint8_t*)Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Next(200);
@@ -5216,14 +5245,14 @@ namespace Vitex
 			bool Logical::ProcessResource(Connection* Base)
 			{
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				const char* ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
-				const char* Range = Base->Request.GetHeader("Range");
-				const char* StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
+				auto ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
+				auto Range = Base->Request.GetHeader("Range");
+				auto StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t Range1 = 0, Range2 = 0, Count = 0;
 				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
 				char ContentRange[128] = { };
-				if (Range != nullptr && (Count = Parsing::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
+				if (!Range.empty() && (Count = Parsing::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
 				{
 					if (Count == 2)
 						ContentLength = (int64_t)(((Range2 > ContentLength) ? ContentLength : Range2) - Range1 + 1);
@@ -5236,12 +5265,11 @@ namespace Vitex
 #ifdef VI_ZLIB
 				if (Resources::ResourceCompressed(Base, (size_t)ContentLength))
 				{
-					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
-					if (AcceptEncoding != nullptr)
+					auto AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
+					if (!AcceptEncoding.empty())
 					{
-						bool Deflate = strstr(AcceptEncoding, "deflate") != nullptr;
-						bool Gzip = strstr(AcceptEncoding, "gzip") != nullptr;
-
+						bool Deflate = AcceptEncoding.find("deflate") != std::string::npos;
+						bool Gzip = AcceptEncoding.find("gzip") != std::string::npos;
 						if (Deflate || Gzip)
 							return ProcessResourceCompress(Base, Deflate, Gzip, ContentRange, (size_t)Range1);
 					}
@@ -5263,16 +5291,16 @@ namespace Vitex
 				Content->append("Date: ").append(Date).append("\r\n");
 				Content->append(Utils::ConnectionResolve(Base));
 
-				const char* Origin = Base->Request.GetHeader("Origin");
-				if (Origin != nullptr)
+				auto Origin = Base->Request.GetHeader("Origin");
+				if (!Origin.empty())
 					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
-				const char* Message = Base->Response.GetHeader("X-Error");
-				if (Message != nullptr)
+				auto Message = Base->Response.GetHeader("X-Error");
+				if (!Message.empty())
 					Content->append("X-Error: ").append(Message).append("\r\n");
 
 				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
@@ -5283,7 +5311,7 @@ namespace Vitex
 
 				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base, ContentLength, Range1](SocketPoll Event)
+					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base, ContentLength, Range1](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5294,7 +5322,7 @@ namespace Vitex
 				}
 				else
 				{
-					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5304,13 +5332,12 @@ namespace Vitex
 					}, false);
 				}
 			}
-			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range)
+			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const std::string_view& ContentRange, size_t Range)
 			{
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(ContentRange != nullptr, "content tange should be set");
 				VI_ASSERT(Deflate || Gzip, "uncompressable resource");
-				const char* ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
-				const char* StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
+				auto ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
+				auto StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
 				char Date[64];
@@ -5329,16 +5356,16 @@ namespace Vitex
 				Content->append("Date: ").append(Date).append("\r\n");
 				Content->append(Utils::ConnectionResolve(Base));
 
-				const char* Origin = Base->Request.GetHeader("Origin");
-				if (Origin != nullptr)
+				auto Origin = Base->Request.GetHeader("Origin");
+				if (!Origin.empty())
 					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
-				const char* Message = Base->Response.GetHeader("X-Error");
-				if (Message != nullptr)
+				auto Message = Base->Response.GetHeader("X-Error");
+				if (!Message.empty())
 					Content->append("X-Error: ").append(Message).append("\r\n");
 
 				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
@@ -5350,7 +5377,7 @@ namespace Vitex
 
 				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base, Range, ContentLength, Gzip](SocketPoll Event)
+					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base, Range, ContentLength, Gzip](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5361,7 +5388,7 @@ namespace Vitex
 				}
 				else
 				{
-					return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5395,7 +5422,7 @@ namespace Vitex
 				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
 				Content->append("Etag: ").append(ETag).append("\r\n");
 				Content->append(Utils::ConnectionResolve(Base)).append("\r\n");
-				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5417,7 +5444,7 @@ namespace Vitex
 
 					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
-						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteAsync((uint8_t*)Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Next();
@@ -5470,7 +5497,7 @@ namespace Vitex
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_MEASURE(Core::Timings::FileSystem);
             Retry:
-                char Buffer[Core::BLOB_SIZE];
+                uint8_t Buffer[Core::BLOB_SIZE];
 				if (!ContentLength || Base->Root->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5535,10 +5562,10 @@ namespace Vitex
 							bool Flush = (deflateEnd(&ZStream) == Z_OK);
 
 							if (Compress && Flush)
-								Base->Response.Content.Assign(Buffer.c_str(), (size_t)ZStream.total_out);
+								Base->Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)ZStream.total_out));
 						}
 #endif
-						return !!Base->Stream->WriteAsync(Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteAsync((uint8_t*)Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Next();
@@ -5559,7 +5586,7 @@ namespace Vitex
 					return Base->Abort(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
 				}
 #ifdef VI_ZLIB
-				z_stream* ZStream = VI_MALLOC(z_stream, sizeof(z_stream));
+				z_stream* ZStream = Core::Memory::Allocate<z_stream>(sizeof(z_stream));
 				ZStream->zalloc = Z_NULL;
 				ZStream->zfree = Z_NULL;
 				ZStream->opaque = Z_NULL;
@@ -5567,7 +5594,7 @@ namespace Vitex
 				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
 					Core::OS::File::Close(Stream);
-					VI_FREE(ZStream);
+					Core::Memory::Deallocate(ZStream);
 					return Base->Abort();
 				}
 
@@ -5584,10 +5611,10 @@ namespace Vitex
 				VI_ASSERT(CStream != nullptr, "cstream should be set");
 				VI_MEASURE(Core::Timings::FileSystem);
 #ifdef VI_ZLIB
-#define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); VI_FREE(ZStream); }
+#define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); Core::Memory::Deallocate(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
             Retry:
-                char Buffer[Core::BLOB_SIZE + GZ_HEADER_SIZE], Deflate[Core::BLOB_SIZE];
+                uint8_t Buffer[Core::BLOB_SIZE + GZ_HEADER_SIZE], Deflate[Core::BLOB_SIZE];
 				if (!ContentLength || Base->Root->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5595,7 +5622,7 @@ namespace Vitex
 					if (Base->Root->State != ServerState::Working)
 						return Base->Abort();
 
-					return !!Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](SocketPoll Event)
+					return !!Base->Stream->WriteAsync((uint8_t*)"0\r\n\r\n", 5, [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Next();
@@ -5616,7 +5643,7 @@ namespace Vitex
 				deflate(ZStream, Z_SYNC_FLUSH);
 				Read = (int)sizeof(Deflate) - (int)ZStream->avail_out;
 
-				int Next = snprintf(Buffer, sizeof(Buffer), "%X\r\n", (unsigned int)Read);
+				int Next = snprintf((char*)Buffer, sizeof(Buffer), "%X\r\n", (uint32_t)Read);
 				memcpy(Buffer + Next, Deflate, Read);
 				Read += Next;
 
@@ -5662,18 +5689,21 @@ namespace Vitex
 				return false;
 #undef FREE_STREAMING
 #else
-				return Base->Finish();
+				return Base->Next();
 #endif
 			}
-			bool Logical::ProcessWebSocket(Connection* Base, const char* Key, size_t KeySize)
+			bool Logical::ProcessWebSocket(Connection* Base, const uint8_t* Key, size_t KeySize)
 			{
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				VI_ASSERT(Key != nullptr, "key should be set");
-				const char* Version = Base->Request.GetHeader("Sec-WebSocket-Version");
-				if (!Version || strcmp(Version, "13") != 0)
+				auto Version = Base->Request.GetHeader("Sec-WebSocket-Version");
+				if (Version.empty() || Version != "13")
 					return Base->Abort(426, "Protocol upgrade required. Version \"%s\" is not allowed", Version);
 
-				char Buffer[100];
+				char Buffer[128];
+				if (KeySize + sizeof(HTTP_WEBSOCKET_KEY) >= sizeof(Buffer))
+					return Base->Abort(426, "Protocol upgrade required. Supplied key is invalid", Version);
+
 				snprintf(Buffer, sizeof(Buffer), "%.*s%s", (int)KeySize, Key, HTTP_WEBSOCKET_KEY);
 				Base->Request.Content.Data.clear();
 
@@ -5688,15 +5718,15 @@ namespace Vitex
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
 					"Sec-WebSocket-Accept: ");
-				Content->append(Compute::Codec::Base64Encode((const unsigned char*)Encoded20, 20));
+				Content->append(Compute::Codec::Base64Encode(std::string_view(Encoded20, 20)));
 				Content->append("\r\n");
 
-				const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
-				if (Protocol != nullptr)
+				auto Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
+				if (!Protocol.empty())
 				{
-					const char* Offset = strchr(Protocol, ',');
+					const char* Offset = strchr(Protocol.data(), ',');
 					if (Offset != nullptr)
-						Content->append("Sec-WebSocket-Protocol: ").append(Protocol, (size_t)(Offset - Protocol)).append("\r\n");
+						Content->append("Sec-WebSocket-Protocol: ").append(Protocol, (size_t)(Offset - Protocol.data())).append("\r\n");
 					else
 						Content->append("Sec-WebSocket-Protocol: ").append(Protocol).append("\r\n");
 				}
@@ -5705,12 +5735,12 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync(Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
 					{
-						Base->WebSocket = new WebSocketFrame(Base->Stream);
+						Base->WebSocket = new WebSocketFrame(Base->Stream, Base);
 						Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
 						Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
 						Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
@@ -5726,7 +5756,7 @@ namespace Vitex
 								Base->Abort();
 						};
 
-						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
+						Base->Stream->SetIoTimeout(Base->Route->WebSocketTimeout);
 						if (!Base->Route->Callbacks.WebSocket.Initiate || !Base->Route->Callbacks.WebSocket.Initiate(Base))
 							Base->WebSocket->Next();
 					}
@@ -5737,13 +5767,14 @@ namespace Vitex
 
 			Server::Server() : SocketServer()
 			{
+				HrmCache::LinkInstance();
 			}
 			Core::ExpectsSystem<void> Server::Update()
 			{
 				auto* Target = (MapRouter*)Router;
 				if (!Target->Session.Directory.empty())
 				{
-					auto Directory = Core::OS::Path::Resolve(Target->Session.Directory.c_str());
+					auto Directory = Core::OS::Path::Resolve(Target->Session.Directory);
 					if (Directory)
 						Target->Session.Directory = *Directory;
 
@@ -5754,7 +5785,7 @@ namespace Vitex
 
 				if (!Target->TemporaryDirectory.empty())
 				{
-					auto Directory = Core::OS::Path::Resolve(Target->TemporaryDirectory.c_str());
+					auto Directory = Core::OS::Path::Resolve(Target->TemporaryDirectory);
 					if (Directory)
 						Target->TemporaryDirectory = *Directory;
 
@@ -5830,20 +5861,20 @@ namespace Vitex
 				auto* Conf = (MapRouter*)Router;
 				auto* Base = (Connection*)Source;
 
-				Base->Parsers.Request->PrepareForNextParsing(Base, false);
-				Base->Stream->ReadUntilChunkedAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Size)
+				Base->Resolver->PrepareForRequestParsing(&Base->Request);
+				Base->Stream->ReadUntilChunkedAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const uint8_t* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
 						size_t LastLength = Base->Request.Content.Data.size();
-						Base->Request.Content.Append(Buffer, Size);
+						Base->Request.Content.Append(std::string_view((char*)Buffer, Size));
 						if (Base->Request.Content.Data.size() > Conf->MaxHeapBuffer)
 						{
 							Base->Abort(431, "Request containts too much data in headers");
 							return false;
 						}
 
-						int64_t Offset = Base->Parsers.Request->ParseRequest(Base->Request.Content.Data.data(), Base->Request.Content.Data.size(), LastLength);
+						int64_t Offset = Base->Resolver->ParseRequest((uint8_t*)Base->Request.Content.Data.data(), Base->Request.Content.Data.size(), LastLength);
 						if (Offset >= 0 || Offset == -2)
 							return true;
 
@@ -5871,9 +5902,9 @@ namespace Vitex
 
 						if (!Route->ProxyIpAddress.empty())
 						{
-							const char* Address = Base->Request.GetHeader(Route->ProxyIpAddress.c_str());
-							if (Address != nullptr)
-								strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
+							auto Address = Base->Request.GetHeader(Route->ProxyIpAddress.c_str());
+							if (!Address.empty())
+								strncpy(Base->RemoteAddress, Address.data(), sizeof(Base->RemoteAddress));
 						}
 
 						Paths::ConstructPath(Base);
@@ -5991,20 +6022,13 @@ namespace Vitex
 
 			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), Resolver(new HTTP::Parser()), WebSocket(nullptr), Future(Core::ExpectsPromiseSystem<void>::Null())
 			{
-				Resolver->OnMethodValue = Parsing::ParseMethodValue;
-				Resolver->OnPathValue = Parsing::ParsePathValue;
-				Resolver->OnQueryValue = Parsing::ParseQueryValue;
-				Resolver->OnVersion = Parsing::ParseVersion;
-				Resolver->OnStatusCode = Parsing::ParseStatusCode;
-				Resolver->OnHeaderField = Parsing::ParseHeaderField;
-				Resolver->OnHeaderValue = Parsing::ParseHeaderValue;
-				Resolver->Frame.Response = &Response;
 				Response.Content.Finalize();
+				HrmCache::LinkInstance();
 			}
 			Client::~Client()
 			{
-				VI_CLEAR(Resolver);
-				VI_CLEAR(WebSocket);
+				Core::Memory::Release(Resolver);
+				Core::Memory::Release(WebSocket);
 			}
 			Core::ExpectsPromiseSystem<void> Client::Skip()
 			{
@@ -6020,8 +6044,8 @@ namespace Vitex
 				else if (!HasStream())
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				const char* ContentType = Response.GetHeader("Content-Type");
-				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
+				auto ContentType = Response.GetHeader("Content-Type");
+				if (ContentType == std::string_view("multipart/form-data", 19))
 				{
 					Response.Content.Exceeds = true;
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: requires file saving", std::make_error_condition(std::errc::value_too_large)));
@@ -6033,9 +6057,11 @@ namespace Vitex
 				if (!Response.Content.Data.empty() && LeftoverSize > 0 && LeftoverSize <= Response.Content.Data.size())
 					Response.Content.Data.erase(Response.Content.Data.begin(), Response.Content.Data.begin() + LeftoverSize);
 
-				bool IsParserPrepared = false;
-				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				bool IsTransferEncodingChunked = (!Response.Content.Limited && TransferEncoding && !Core::Stringify::CaseCompare(TransferEncoding, "chunked"));
+				auto TransferEncoding = Response.GetHeader("Transfer-Encoding");
+				bool IsTransferEncodingChunked = (!Response.Content.Limited && Core::Stringify::CaseEquals(TransferEncoding, "chunked"));
+				if (IsTransferEncodingChunked)
+					Resolver->PrepareForChunkedParsing();
+
 				if (Response.Content.Prefetch > 0)
 				{
 					LeftoverSize = std::min(MaxSize, Response.Content.Prefetch);
@@ -6044,10 +6070,7 @@ namespace Vitex
 					if (IsTransferEncodingChunked)
 					{
 						size_t DecodedSize = LeftoverSize;
-						Resolver->Chunked = Parser::ChunkedData();
-						IsParserPrepared = true;
-
-						int64_t Subresult = Resolver->ParseDecodeChunked((char*)Response.Content.Data.data(), &DecodedSize);
+						int64_t Subresult = Resolver->ParseDecodeChunked((uint8_t*)Response.Content.Data.data(), &DecodedSize);
 						if (Subresult >= 0 || Subresult == -2)
 						{
 							LeftoverSize -= DecodedSize;
@@ -6072,22 +6095,20 @@ namespace Vitex
 				{
 					if (!MaxSize)
 						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
-					else if (!IsParserPrepared)
-						Resolver->Chunked = Parser::ChunkedData();
 
 					int64_t Subresult = -1;
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, Subresult, MaxSize, Eat](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+					Net.Stream->ReadAsync(MaxSize, [this, Result, Subresult, MaxSize, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
-							Subresult = Resolver->ParseDecodeChunked((char*)Buffer, &Recv);
+							Subresult = Resolver->ParseDecodeChunked((uint8_t*)Buffer, &Recv);
 							if (Subresult == -1)
 								return false;
 
 							Response.Content.Offset += Recv;
 							if (!Eat)
-								Response.Content.Append(Buffer, Recv);
+								Response.Content.Append(std::string_view((char*)Buffer, Recv));
 							return Subresult == -2;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -6115,13 +6136,13 @@ namespace Vitex
 						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+					Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
 							Response.Content.Offset += Recv;
 							if (!Eat)
-								Response.Content.Append(Buffer, Recv);
+								Response.Content.Append(std::string_view((char*)Buffer, Recv));
 							return true;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -6151,13 +6172,13 @@ namespace Vitex
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
 				Core::ExpectsPromiseSystem<void> Result;
-				Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+				Net.Stream->ReadAsync(MaxSize, [this, Result, MaxSize, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
 						Response.Content.Offset += Recv;
 						if (!Eat)
-							Response.Content.Append(Buffer, Recv);
+							Response.Content.Append(std::string_view((char*)Buffer, Recv));
 						return true;
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
@@ -6205,7 +6226,7 @@ namespace Vitex
 					if (Response.StatusCode != 101)
 						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
 
-					if (!Response.GetHeader("Sec-WebSocket-Accept"))
+					if (Response.GetHeader("Sec-WebSocket-Accept").empty())
 						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
 
 					Future = Core::ExpectsPromiseSystem<void>();
@@ -6215,7 +6236,7 @@ namespace Vitex
 			}
 			Core::ExpectsPromiseSystem<void> Client::Send(HTTP::RequestFrame&& Target)
 			{
-				VI_ASSERT(!WebSocket || Target.GetHeader("Sec-WebSocket-Key") != nullptr, "cannot send http request over websocket");
+				VI_ASSERT(!WebSocket || !Target.GetHeader("Sec-WebSocket-Key").empty(), "cannot send http request over websocket");
 				if (!HasStream())
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
@@ -6234,7 +6255,7 @@ namespace Vitex
 					Result.Set(std::move(Status));
 				};
 
-				if (!Request.GetHeader("Host"))
+				if (Request.GetHeader("Host").empty())
 				{
 					if (Net.Context != nullptr)
 					{
@@ -6252,16 +6273,16 @@ namespace Vitex
 					}
 				}
 
-				if (!Request.GetHeader("Accept"))
+				if (Request.GetHeader("Accept").empty())
 					Request.SetHeader("Accept", "*/*");
 
-				if (!Request.GetHeader("Content-Length"))
+				if (Request.GetHeader("Content-Length").empty())
 				{
 					Request.Content.Length = Request.Content.Data.size();
 					Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()));
 				}
 
-				if (!Request.GetHeader("Connection"))
+				if (Request.GetHeader("Connection").empty())
 					Request.SetHeader("Connection", "Keep-Alive");
 
 				auto* Content = HrmCache::Get()->Pop();
@@ -6286,10 +6307,10 @@ namespace Vitex
 				{
 					if (!Request.Content.Data.empty())
 					{
-						if (!Request.GetHeader("Content-Type"))
+						if (Request.GetHeader("Content-Type").empty())
 							Request.SetHeader("Content-Type", "application/octet-stream");
 
-						if (!Request.GetHeader("Content-Length"))
+						if (Request.GetHeader("Content-Length").empty())
 							Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()).c_str());
 					}
 					else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
@@ -6298,21 +6319,21 @@ namespace Vitex
 					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
 					Content->append("\r\n");
 
-					Net.Stream->WriteAsync(Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
+					Net.Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
 						{
 							if (!Request.Content.Data.empty())
 							{
-								Net.Stream->WriteAsync(Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
+								Net.Stream->WriteAsync((uint8_t*)Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
-										Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+										Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 										{
 											if (Packet::IsData(Event))
-												Response.Content.Append(Buffer, Recv);
+												Response.Content.Append(std::string_view((char*)Buffer, Recv));
 											else if (Packet::IsDone(Event))
 												Receive(Buffer, Recv);
 											else if (Packet::IsErrorOrSkip(Event))
@@ -6327,10 +6348,10 @@ namespace Vitex
 							}
 							else
 							{
-								Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+								Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 								{
 									if (Packet::IsData(Event))
-										Response.Content.Append(Buffer, Recv);
+										Response.Content.Append(std::string_view((char*)Buffer, Recv));
 									else if (Packet::IsDone(Event))
 										Receive(Buffer, Recv);
 									else if (Packet::IsErrorOrSkip(Event))
@@ -6421,7 +6442,7 @@ namespace Vitex
 					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
 					Content->append("\r\n");
 
-					Net.Stream->WriteAsync(Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
+					Net.Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -6450,7 +6471,7 @@ namespace Vitex
 					if (!Status)
 						return Status.Error();
 
-					auto Data = Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
+					auto Data = Core::Schema::ConvertFromJSON(std::string_view(Response.Content.Data.data(), Response.Content.Data.size()));
 					if (!Data)
 						return Core::SystemException(Data.Error().message(), std::make_error_condition(std::errc::bad_message));
 
@@ -6464,7 +6485,7 @@ namespace Vitex
 					if (!Status)
 						return Status.Error();
 
-					auto Data = Core::Schema::ConvertFromXML(Response.Content.Data.data(), Response.Content.Data.size());
+					auto Data = Core::Schema::ConvertFromXML(std::string_view(Response.Content.Data.data(), Response.Content.Data.size()));
 					if (!Data)
 						return Core::SystemException(Data.Error().message(), std::make_error_condition(std::errc::bad_message));
 
@@ -6488,14 +6509,14 @@ namespace Vitex
 			{
 				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
 				VI_ASSERT(WebSocket->IsFinished(), "websocket connection should be finished");
-				VI_CLEAR(WebSocket);
+				Core::Memory::Release(WebSocket);
 			}
 			WebSocketFrame* Client::GetWebSocket()
 			{
 				if (WebSocket != nullptr)
 					return WebSocket;
 
-				WebSocket = new WebSocketFrame(Net.Stream);
+				WebSocket = new WebSocketFrame(Net.Stream, this);
 				WebSocket->Lifetime.Dead = [](WebSocketFrame*)
 				{
 					return false;
@@ -6557,7 +6578,7 @@ namespace Vitex
 					return Callback(Core::Expectation::Met);
 				}
 
-				char Buffer[Core::BLOB_SIZE];
+				uint8_t Buffer[Core::BLOB_SIZE];
 				while (ContentLength > 0)
 				{
 					size_t Read = sizeof(Buffer);
@@ -6588,7 +6609,7 @@ namespace Vitex
 				}
 
 			Retry:
-				char Buffer[Core::BLOB_SIZE];
+				uint8_t Buffer[Core::BLOB_SIZE];
 				size_t Read = sizeof(Buffer);
 				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
 				{
@@ -6621,7 +6642,7 @@ namespace Vitex
 				if (FileId < Boundaries.size())
 				{
 					BoundaryBlock* Boundary = &Boundaries[FileId];
-					Net.Stream->WriteAsync(Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
+					Net.Stream->WriteAsync((uint8_t*)Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -6632,7 +6653,7 @@ namespace Vitex
 								{
 									if (Status)
 									{
-										Net.Stream->WriteAsync(Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
+										Net.Stream->WriteAsync((uint8_t*)Boundary->Finish.c_str(), Boundary->Finish.size(), [this, Boundary, FileId](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 												Upload(FileId + 1);
@@ -6653,10 +6674,10 @@ namespace Vitex
 				}
 				else
 				{
-					Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
+					Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
-							Response.Content.Append(Buffer, Recv);
+							Response.Content.Append(std::string_view((char*)Buffer, Recv));
 						else if (Packet::IsDone(Event))
 							Receive(Buffer, Recv);
 						else if (Packet::IsErrorOrSkip(Event))
@@ -6672,19 +6693,19 @@ namespace Vitex
 				if (Connection == Response.Headers.end())
 					return DisableReusability();
 
-				if (Connection->second.size() != 1 || Core::Stringify::CaseCompare(Connection->second.front().c_str(), "keep-alive") != 0)
+				if (Connection->second.size() != 1 || !Core::Stringify::CaseEquals(Connection->second.front(), "keep-alive"))
 					return DisableReusability();
 
 				return EnableReusability();
 			}
-			void Client::Receive(const char* LeftoverBuffer, size_t LeftoverSize)
+			void Client::Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize)
 			{
 				auto Address = Net.Stream->GetRemoteAddress();
 				if (Address)
 					strncpy(RemoteAddress, Address->c_str(), std::min(Address->size(), sizeof(RemoteAddress)));
 
-				Resolver->PrepareForNextParsing(nullptr, nullptr, &Response, true);
-				if (Resolver->ParseResponse(Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
+				Resolver->PrepareForResponseParsing(&Response);
+				if (Resolver->ParseResponse((uint8_t*)Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
 				{
 					Response.Content.Prepare(Response.Headers, LeftoverBuffer, LeftoverSize);
 					ManageKeepAlive();
@@ -6694,7 +6715,7 @@ namespace Vitex
 					Report(Core::SystemException(Core::Stringify::Text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, Response.Content.Data.size()), Response.Content.Data.data()), std::make_error_condition(std::errc::bad_message)));
 			}
 
-			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const Core::String& Location, const Core::String& Method, const FetchFrame& Options)
+			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const std::string_view& Location, const std::string_view& Method, const FetchFrame& Options)
 			{
 				Network::Location Origin(Location);
 				if (Origin.Protocol != "http" && Origin.Protocol != "https")
@@ -6710,7 +6731,7 @@ namespace Vitex
 				Request.Headers = Options.Headers;
 				Request.Content = Options.Content;
 				Request.Location.assign(Origin.Path);
-				Request.SetMethod(Method.c_str());
+				Request.SetMethod(Method);
 				if (!Origin.Username.empty() || !Origin.Password.empty())
 					Request.SetHeader("Authorization", Permissions::Authorize(Origin.Username, Origin.Password));
 
@@ -6731,14 +6752,14 @@ namespace Vitex
 				{
 					if (!Status)
 					{
-						VI_RELEASE(Client);
+						Client->Release();
 						return Core::ExpectsPromiseSystem<ResponseFrame>(Status.Error());
 					}
 
 					auto Response = std::move(*Client->GetResponse());
 					return Client->Disconnect().Then<Core::ExpectsSystem<ResponseFrame>>([Client, Response = std::move(Response)](Core::ExpectsSystem<void>&&) mutable -> Core::ExpectsSystem<ResponseFrame>
 					{
-						VI_RELEASE(Client);
+						Client->Release();
 						return std::move(Response);
 					});
 				});

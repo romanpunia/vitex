@@ -1,7 +1,8 @@
 #include "graphics.h"
-#include "../graphics/d3d11.h"
-#include "../graphics/ogl.h"
-#include "../graphics/shaders/bundle.hpp"
+#include "graphics/d3d11.h"
+#include "graphics/ogl.h"
+#include "graphics/shaders/bundle.hpp"
+#include <sstream>
 #ifdef VI_SPIRV
 #include <spirv_cross/spirv_glsl.hpp>
 #ifdef VI_MICROSOFT
@@ -13,7 +14,7 @@
 #include <SPIRV/GlslangToSpv.h>
 #endif
 #ifdef VI_SDL2
-#include "../internal/sdl2-cross.hpp"
+#include "internal/sdl2-cross.hpp"
 #endif
 
 namespace
@@ -160,7 +161,7 @@ namespace Vitex
 		Alert::Alert(Activity* From) noexcept : View(AlertType::None), Base(From), Waiting(false)
 		{
 		}
-		void Alert::Setup(AlertType Type, const Core::String& Title, const Core::String& Text)
+		void Alert::Setup(AlertType Type, const std::string_view& Title, const std::string_view& Text)
 		{
 			VI_ASSERT(Type != AlertType::None, "alert type should not be none");
 			View = Type;
@@ -168,7 +169,7 @@ namespace Vitex
 			Data = Text;
 			Buttons.clear();
 		}
-		void Alert::Button(AlertConfirm Confirm, const Core::String& Text, int Id)
+		void Alert::Button(AlertConfirm Confirm, const std::string_view& Text, int Id)
 		{
 			VI_ASSERT(View != AlertType::None, "alert type should not be none");
 			VI_ASSERT(Buttons.size() < 16, "there must be less than 16 buttons in alert");
@@ -437,8 +438,8 @@ namespace Vitex
 		}
 		MeshBuffer::~MeshBuffer() noexcept
 		{
-			VI_CLEAR(VertexBuffer);
-			VI_CLEAR(IndexBuffer);
+			Core::Memory::Release(VertexBuffer);
+			Core::Memory::Release(IndexBuffer);
 		}
 		ElementBuffer* MeshBuffer::GetVertexBuffer() const
 		{
@@ -454,8 +455,8 @@ namespace Vitex
 		}
 		SkinMeshBuffer::~SkinMeshBuffer() noexcept
 		{
-			VI_CLEAR(VertexBuffer);
-			VI_CLEAR(IndexBuffer);
+			Core::Memory::Release(VertexBuffer);
+			Core::Memory::Release(IndexBuffer);
 		}
 		ElementBuffer* SkinMeshBuffer::GetVertexBuffer() const
 		{
@@ -478,7 +479,7 @@ namespace Vitex
 		}
 		InstanceBuffer::~InstanceBuffer() noexcept
 		{
-			VI_CLEAR(Elements);
+			Core::Memory::Release(Elements);
 		}
 		Core::Vector<Compute::ElementVertex>& InstanceBuffer::GetArray()
 		{
@@ -533,15 +534,15 @@ namespace Vitex
 		{
 			return Binding;
 		}
-		unsigned int Texture2D::GetWidth() const
+		uint32_t Texture2D::GetWidth() const
 		{
 			return Width;
 		}
-		unsigned int Texture2D::GetHeight() const
+		uint32_t Texture2D::GetHeight() const
 		{
 			return Height;
 		}
-		unsigned int Texture2D::GetMipLevels() const
+		uint32_t Texture2D::GetMipLevels() const
 		{
 			return MipLevels;
 		}
@@ -573,19 +574,19 @@ namespace Vitex
 		{
 			return Binding;
 		}
-		unsigned int Texture3D::GetWidth() const
+		uint32_t Texture3D::GetWidth() const
 		{
 			return Width;
 		}
-		unsigned int Texture3D::GetHeight() const
+		uint32_t Texture3D::GetHeight() const
 		{
 			return Height;
 		}
-		unsigned int Texture3D::GetDepth() const
+		uint32_t Texture3D::GetDepth() const
 		{
 			return Depth;
 		}
-		unsigned int Texture3D::GetMipLevels() const
+		uint32_t Texture3D::GetMipLevels() const
 		{
 			return MipLevels;
 		}
@@ -626,15 +627,15 @@ namespace Vitex
 		{
 			return Binding;
 		}
-		unsigned int TextureCube::GetWidth() const
+		uint32_t TextureCube::GetWidth() const
 		{
 			return Width;
 		}
-		unsigned int TextureCube::GetHeight() const
+		uint32_t TextureCube::GetHeight() const
 		{
 			return Height;
 		}
-		unsigned int TextureCube::GetMipLevels() const
+		uint32_t TextureCube::GetMipLevels() const
 		{
 			return MipLevels;
 		}
@@ -644,7 +645,7 @@ namespace Vitex
 		}
 		DepthTarget2D::~DepthTarget2D() noexcept
 		{
-			VI_RELEASE(Resource);
+			Core::Memory::Release(Resource);
 		}
 		Texture2D* DepthTarget2D::GetTarget()
 		{
@@ -660,7 +661,7 @@ namespace Vitex
 		}
 		DepthTargetCube::~DepthTargetCube() noexcept
 		{
-			VI_RELEASE(Resource);
+			Core::Memory::Release(Resource);
 		}
 		TextureCube* DepthTargetCube::GetTarget()
 		{
@@ -676,7 +677,7 @@ namespace Vitex
 		}
 		RenderTarget::~RenderTarget() noexcept
 		{
-			VI_RELEASE(DepthStencil);
+			Core::Memory::Release(DepthStencil);
 		}
 		Texture2D* RenderTarget::GetDepthStencil()
 		{
@@ -692,17 +693,17 @@ namespace Vitex
 		}
 		RenderTarget2D::~RenderTarget2D() noexcept
 		{
-			VI_RELEASE(Resource);
+			Core::Memory::Release(Resource);
 		}
 		uint32_t RenderTarget2D::GetTargetCount() const
 		{
 			return 1;
 		}
-		Texture2D* RenderTarget2D::GetTarget2D(unsigned int Index)
+		Texture2D* RenderTarget2D::GetTarget2D(uint32_t Index)
 		{
 			return GetTarget();
 		}
-		TextureCube* RenderTarget2D::GetTargetCube(unsigned int Index)
+		TextureCube* RenderTarget2D::GetTargetCube(uint32_t Index)
 		{
 			return nullptr;
 		}
@@ -723,21 +724,21 @@ namespace Vitex
 		{
 			VI_ASSERT((uint32_t)Target <= 8, "target should be less than 9");
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
-				VI_RELEASE(Resource[i]);
+				Core::Memory::Release(Resource[i]);
 		}
 		uint32_t MultiRenderTarget2D::GetTargetCount() const
 		{
 			return (uint32_t)Target;
 		}
-		Texture2D* MultiRenderTarget2D::GetTarget2D(unsigned int Index)
+		Texture2D* MultiRenderTarget2D::GetTarget2D(uint32_t Index)
 		{
 			return GetTarget(Index);
 		}
-		TextureCube* MultiRenderTarget2D::GetTargetCube(unsigned int Index)
+		TextureCube* MultiRenderTarget2D::GetTargetCube(uint32_t Index)
 		{
 			return nullptr;
 		}
-		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Slot)
+		Texture2D* MultiRenderTarget2D::GetTarget(uint32_t Slot)
 		{
 			VI_ASSERT(Slot < (uint32_t)Target, "slot should be less than targets count");
 			return Resource[Slot];
@@ -748,17 +749,17 @@ namespace Vitex
 		}
 		RenderTargetCube::~RenderTargetCube() noexcept
 		{
-			VI_RELEASE(Resource);
+			Core::Memory::Release(Resource);
 		}
 		uint32_t RenderTargetCube::GetTargetCount() const
 		{
 			return 1;
 		}
-		Texture2D* RenderTargetCube::GetTarget2D(unsigned int Index)
+		Texture2D* RenderTargetCube::GetTarget2D(uint32_t Index)
 		{
 			return nullptr;
 		}
-		TextureCube* RenderTargetCube::GetTargetCube(unsigned int Index)
+		TextureCube* RenderTargetCube::GetTargetCube(uint32_t Index)
 		{
 			return GetTarget();
 		}
@@ -779,21 +780,21 @@ namespace Vitex
 		{
 			VI_ASSERT((uint32_t)Target <= 8, "target should be less than 9");
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
-				VI_RELEASE(Resource[i]);
+				Core::Memory::Release(Resource[i]);
 		}
 		uint32_t MultiRenderTargetCube::GetTargetCount() const
 		{
 			return (uint32_t)Target;
 		}
-		Texture2D* MultiRenderTargetCube::GetTarget2D(unsigned int Index)
+		Texture2D* MultiRenderTargetCube::GetTarget2D(uint32_t Index)
 		{
 			return nullptr;
 		}
-		TextureCube* MultiRenderTargetCube::GetTargetCube(unsigned int Index)
+		TextureCube* MultiRenderTargetCube::GetTargetCube(uint32_t Index)
 		{
 			return GetTarget(Index);
 		}
-		TextureCube* MultiRenderTargetCube::GetTarget(unsigned int Slot)
+		TextureCube* MultiRenderTargetCube::GetTarget(uint32_t Slot)
 		{
 			VI_ASSERT(Slot < (uint32_t)Target, "slot should be less than targets count");
 			return Resource[Slot];
@@ -839,9 +840,9 @@ namespace Vitex
 		{
 			ReleaseProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
-				VI_DELETE(Section, It->second);
+				Core::Memory::Delete(It->second);
 
-			VI_CLEAR(VirtualWindow);
+			Core::Memory::Release(VirtualWindow);
 			Sections.clear();
 		}
 		void GraphicsDevice::SetVertexBuffer(ElementBuffer* Resource)
@@ -967,10 +968,10 @@ namespace Vitex
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
-			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
+			Blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)ColorWriteEnable::All;
 			BlendStates["bo_wrgba_one"] = *CreateBlendState(Blend);
 
-			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
+			Blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
 			BlendStates["bo_wrgbo_one"] = *CreateBlendState(Blend);
 
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
@@ -983,14 +984,14 @@ namespace Vitex
 			Blend.RenderTarget[0].SrcBlendAlpha = Blend::One;
 			Blend.RenderTarget[0].DestBlendAlpha = Blend::One;
 			Blend.RenderTarget[0].BlendOperationAlpha = BlendOperation::Add;
-			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
+			Blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)ColorWriteEnable::All;
 			BlendStates["bw_wrgba_one"] = *CreateBlendState(Blend);
 
-			Blend.RenderTarget[0].RenderTargetWriteMask = (unsigned char)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
+			Blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)(ColorWriteEnable::Red | ColorWriteEnable::Green | ColorWriteEnable::Blue);
 			BlendStates["bw_wrgbo_one"] = *CreateBlendState(Blend);
 
 			Blend.IndependentBlendEnable = true;
-			for (unsigned int i = 0; i < 8; i++)
+			for (uint32_t i = 0; i < 8; i++)
 			{
 				Blend.RenderTarget[i].BlendEnable = (i != 1 && i != 2);
 				Blend.RenderTarget[i].SrcBlend = Blend::One;
@@ -999,7 +1000,7 @@ namespace Vitex
 				Blend.RenderTarget[i].SrcBlendAlpha = Blend::One;
 				Blend.RenderTarget[i].DestBlendAlpha = Blend::One;
 				Blend.RenderTarget[i].BlendOperationAlpha = BlendOperation::Add;
-				Blend.RenderTarget[i].RenderTargetWriteMask = (unsigned char)ColorWriteEnable::All;
+				Blend.RenderTarget[i].RenderTargetWriteMask = (uint8_t)ColorWriteEnable::All;
 			}
 			BlendStates["bw_wrgba_gbuffer"] = *CreateBlendState(Blend);
 
@@ -1114,7 +1115,7 @@ namespace Vitex
 			{
 				{ "POSITION", 0, AttributeType::Float, 2, 0 },
 				{ "COLOR", 0, AttributeType::Ubyte, 4, 2 * sizeof(float) },
-				{ "TEXCOORD", 0, AttributeType::Float, 2, 2 * sizeof(float) + 4 * sizeof(unsigned char) }
+				{ "TEXCOORD", 0, AttributeType::Float, 2, 2 * sizeof(float) + 4 * sizeof(uint8_t) }
 			};
 			InputLayouts["vx_ui"] = *CreateInputLayout(Layout);
 
@@ -1125,7 +1126,7 @@ namespace Vitex
 		void GraphicsDevice::CreateSections()
 		{
 #ifdef HAS_SHADER_BUNDLE
-			shader_bundle::foreach(this, [](void* Context, const char* Name, const unsigned char* Buffer, unsigned Size)
+			shader_bundle::foreach(this, [](void* Context, const char* Name, const uint8_t* Buffer, unsigned Size)
 			{
 				GraphicsDevice* Base = (GraphicsDevice*)Context;
 				if (Base != nullptr && Base->GetBackend() != RenderBackend::None)
@@ -1136,29 +1137,29 @@ namespace Vitex
 		void GraphicsDevice::ReleaseProxy()
 		{
 			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
-				VI_RELEASE(It->second);
+				Core::Memory::Release(It->second);
 			DepthStencilStates.clear();
 
 			for (auto It = RasterizerStates.begin(); It != RasterizerStates.end(); It++)
-				VI_RELEASE(It->second);
+				Core::Memory::Release(It->second);
 			RasterizerStates.clear();
 
 			for (auto It = BlendStates.begin(); It != BlendStates.end(); It++)
-				VI_RELEASE(It->second);
+				Core::Memory::Release(It->second);
 			BlendStates.clear();
 
 			for (auto It = SamplerStates.begin(); It != SamplerStates.end(); It++)
-				VI_RELEASE(It->second);
+				Core::Memory::Release(It->second);
 			SamplerStates.clear();
 
 			for (auto It = InputLayouts.begin(); It != InputLayouts.end(); It++)
-				VI_RELEASE(It->second);
+				Core::Memory::Release(It->second);
 			InputLayouts.clear();
-			VI_CLEAR(RenderTarget);
+			Core::Memory::Release(RenderTarget);
 		}
-		bool GraphicsDevice::AddSection(const Core::String& Name, const Core::String& Code)
+		bool GraphicsDevice::AddSection(const std::string_view& Name, const std::string_view& Code)
 		{
-			Core::String Language(Core::OS::Path::GetExtension(Name.c_str()));
+			Core::String Language(Core::OS::Path::GetExtension(Name));
 			if (Language.empty())
 				return false;
 
@@ -1167,22 +1168,21 @@ namespace Vitex
 			Core::Stringify::ToLower(Language);
 			RemoveSection(Name);
 
-			Section* Include = VI_NEW(Section);
+			Section* Include = Core::Memory::New<Section>();
 			Include->Code = Code;
 			Include->Name = Name;
-			Sections[Name] = Include;
+			Sections[Core::String(Name)] = Include;
 
 			return true;
 		}
-		bool GraphicsDevice::RemoveSection(const Core::String& Name)
+		bool GraphicsDevice::RemoveSection(const std::string_view& Name)
 		{
-			auto It = Sections.find(Name);
+			auto It = Sections.find(Core::HglCast(Name));
 			if (It == Sections.end())
 				return false;
 
-			VI_DELETE(Section, It->second);
+			Core::Memory::Delete(It->second);
 			Sections.erase(It);
-
 			return true;
 		}
 		Compute::ExpectsPreprocessor<void> GraphicsDevice::Preprocess(Shader::Desc& Subresult)
@@ -1255,7 +1255,7 @@ namespace Vitex
 				Processor->Define(Word);
 
 			auto Result = Processor->Process(Subresult.Filename, Subresult.Data);
-			VI_RELEASE(Processor);
+			Core::Memory::Release(Processor);
 			if (!InternalStatus)
 				return Compute::PreprocessorException(Compute::PreprocessorError::IncludeNotFound, 0, InternalStatus.Error().message());
 
@@ -1415,14 +1415,14 @@ namespace Vitex
 			return GraphicsException("shader transpiler is not supported");
 #endif
 		}
-		ExpectsGraphics<void> GraphicsDevice::GetSectionInfo(const Core::String& Name, Section** Result)
+		ExpectsGraphics<void> GraphicsDevice::GetSectionInfo(const std::string_view& Name, Section** Result)
 		{
 			if (Name.empty() || Sections.empty())
 				return GraphicsException("shader section name is empty");
 
-			auto Resolve = [this, &Result](const Core::String& Src)
+			auto Resolve = [this, &Result](const std::string_view& Src)
 			{
-				auto It = Sections.find(Src);
+				auto It = Sections.find(Core::HglCast(Src));
 				if (It == Sections.end())
 					return false;
 
@@ -1433,17 +1433,17 @@ namespace Vitex
 			};
 
 			if (Resolve(Name) ||
-				Resolve(Name + ".hlsl") ||
-				Resolve(Name + ".glsl") ||
-				Resolve(Name + ".msl") ||
-				Resolve(Name + ".spv"))
+				Resolve(Core::String(Name) + ".hlsl") ||
+				Resolve(Core::String(Name) + ".glsl") ||
+				Resolve(Core::String(Name) + ".msl") ||
+				Resolve(Core::String(Name) + ".spv"))
 				return Core::Expectation::Met;
 			if (Result != nullptr)
 				*Result = nullptr;
 
-			return GraphicsException("shader section not found: " + Name);
+			return GraphicsException("shader section not found: " + Core::String(Name));
 		}
-		ExpectsGraphics<void> GraphicsDevice::GetSectionData(const Core::String& Name, Shader::Desc* Result)
+		ExpectsGraphics<void> GraphicsDevice::GetSectionData(const std::string_view& Name, Shader::Desc* Result)
 		{
 			if (Name.empty() || !Result)
 				return GraphicsException("shader section name is empty");
@@ -1461,7 +1461,7 @@ namespace Vitex
 		{
 			return Debug;
 		}
-		bool GraphicsDevice::GetProgramCache(const Core::String& Name, Core::String* Data)
+		bool GraphicsDevice::GetProgramCache(const std::string_view& Name, Core::String* Data)
 		{
 			VI_ASSERT(Data != nullptr, "data should be set");
 			Data->clear();
@@ -1469,77 +1469,67 @@ namespace Vitex
 			if (!ShaderCache || Caches.empty())
 				return false;
 
-			Core::String Path = Caches + Name;
+			Core::String Path = Caches + Core::String(Name);
 			if (Path.empty())
 				return false;
 
 			if (!Core::OS::File::IsExists(Path.c_str()))
 				return false;
 
-			Core::GzStream* Stream = new Core::GzStream();
+			Core::UPtr<Core::GzStream> Stream = new Core::GzStream();
 			if (!Stream->Open(Path.c_str(), Core::FileMode::Binary_Read_Only))
-			{
-				VI_RELEASE(Stream);
 				return false;
-			}
 
-			char Buffer[Core::BLOB_SIZE]; size_t Size = 0;
+			uint8_t Buffer[Core::BLOB_SIZE]; size_t Size = 0;
 			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer)).Or(0)) > 0)
-				Data->append(Core::String(Buffer, Size));
+				Data->append(std::string_view((char*)Buffer, Size));
 
-			VI_DEBUG("[graphics] load %s program cache", Name.c_str());
-			VI_RELEASE(Stream);
-
+			VI_DEBUG("[graphics] load %.*s program cache", (int)Name.size(), Name.data());
 			return !Data->empty();
 		}
-		bool GraphicsDevice::SetProgramCache(const Core::String& Name, const Core::String& Data)
+		bool GraphicsDevice::SetProgramCache(const std::string_view& Name, const std::string_view& Data)
 		{
 			if (!ShaderCache || Caches.empty())
 				return true;
 
-			Core::String Path = Caches + Name;
+			Core::String Path = Caches + Core::String(Name);
 			if (Path.empty())
 				return false;
 
-			Core::GzStream* Stream = new Core::GzStream();
+			Core::UPtr<Core::GzStream> Stream = new Core::GzStream();
 			if (!Stream->Open(Path.c_str(), Core::FileMode::Binary_Write_Only))
-			{
-				VI_RELEASE(Stream);
 				return false;
-			}
 
 			size_t Size = Data.size();
-			bool Result = (Stream->Write(Data.c_str(), Size).Or(0) == Size);
-			VI_DEBUG("[graphics] save %s program cache", Name.c_str());
-			VI_RELEASE(Stream);
-
+			bool Result = (Stream->Write((uint8_t*)Data.data(), Size).Or(0) == Size);
+			VI_DEBUG("[graphics] save %.*s program cache", (int)Name.size(), Name.data());
 			return Result;
 		}
 		bool GraphicsDevice::IsLeftHanded() const
 		{
 			return Backend == RenderBackend::D3D11;
 		}
-		unsigned int GraphicsDevice::GetRowPitch(unsigned int Width, unsigned int ElementSize) const
+		uint32_t GraphicsDevice::GetRowPitch(uint32_t Width, uint32_t ElementSize) const
 		{
 			return Width * ElementSize;
 		}
-		unsigned int GraphicsDevice::GetDepthPitch(unsigned int RowPitch, unsigned int Height) const
+		uint32_t GraphicsDevice::GetDepthPitch(uint32_t RowPitch, uint32_t Height) const
 		{
 			return RowPitch * Height;
 		}
-		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height) const
+		uint32_t GraphicsDevice::GetMipLevel(uint32_t Width, uint32_t Height) const
 		{
-			unsigned int MipLevels = 1;
+			uint32_t MipLevels = 1;
 			while (Width > 1 && Height > 1)
 			{
-				Width = (unsigned int)Compute::Mathf::Max((float)Width / 2.0f, 1.0f);
-				Height = (unsigned int)Compute::Mathf::Max((float)Height / 2.0f, 1.0f);
+				Width = (uint32_t)Compute::Mathf::Max((float)Width / 2.0f, 1.0f);
+				Height = (uint32_t)Compute::Mathf::Max((float)Height / 2.0f, 1.0f);
 				MipLevels++;
 			}
 
 			return MipLevels;
 		}
-		unsigned int GraphicsDevice::GetFormatSize(Format Mode) const
+		uint32_t GraphicsDevice::GetFormatSize(Format Mode) const
 		{
 			switch (Mode)
 			{
@@ -1603,11 +1593,11 @@ namespace Vitex
 					return 0;
 			}
 		}
-		unsigned int GraphicsDevice::GetPresentFlags() const
+		uint32_t GraphicsDevice::GetPresentFlags() const
 		{
 			return PresentFlags;
 		}
-		unsigned int GraphicsDevice::GetCompileFlags() const
+		uint32_t GraphicsDevice::GetCompileFlags() const
 		{
 			return CompileFlags;
 		}
@@ -1738,21 +1728,16 @@ namespace Vitex
 			if (!Copy)
 				return VideoException(std::move(Copy.Error()));
 
-			Texture2D* CopyTexture = *Copy;
-			auto CopyStatus = CopyTexture2D(Base, &CopyTexture);
+			Texture2D* CopyTextureAddress = *Copy;
+			Core::UPtr<Texture2D> CopyTexture = CopyTextureAddress;
+			auto CopyStatus = CopyTexture2D(Base, &CopyTextureAddress);
 			if (!CopyStatus)
-			{
-				VI_RELEASE(CopyTexture);
 				return VideoException(std::move(CopyStatus.Error()));
-			}
 
 			MappedSubresource Data;
-			auto MapStatus = Map(CopyTexture, ResourceMap::Read, &Data);
+			auto MapStatus = Map(CopyTextureAddress, ResourceMap::Read, &Data);
 			if (!MapStatus)
-			{
-				VI_RELEASE(CopyTexture);
 				return VideoException(std::move(MapStatus.Error()));
-			}
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 			const Uint32 R = 0xff000000;
 			const Uint32 G = 0x00ff0000;
@@ -1773,8 +1758,7 @@ namespace Vitex
 				SDL_UnlockSurface(Handle);
 			}
 
-			Unmap(CopyTexture, &Data);
-			VI_RELEASE(CopyTexture);
+			Unmap(CopyTextureAddress, &Data);
 			if (!Handle)
 				return VideoException();
 
@@ -1783,41 +1767,41 @@ namespace Vitex
 			return VideoException();
 #endif
 		}
-		DepthStencilState* GraphicsDevice::GetDepthStencilState(const Core::String& Name)
+		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string_view& Name)
 		{
-			auto It = DepthStencilStates.find(Name);
+			auto It = DepthStencilStates.find(Core::HglCast(Name));
 			if (It != DepthStencilStates.end())
 				return It->second;
 
 			return nullptr;
 		}
-		BlendState* GraphicsDevice::GetBlendState(const Core::String& Name)
+		BlendState* GraphicsDevice::GetBlendState(const std::string_view& Name)
 		{
-			auto It = BlendStates.find(Name);
+			auto It = BlendStates.find(Core::HglCast(Name));
 			if (It != BlendStates.end())
 				return It->second;
 
 			return nullptr;
 		}
-		RasterizerState* GraphicsDevice::GetRasterizerState(const Core::String& Name)
+		RasterizerState* GraphicsDevice::GetRasterizerState(const std::string_view& Name)
 		{
-			auto It = RasterizerStates.find(Name);
+			auto It = RasterizerStates.find(Core::HglCast(Name));
 			if (It != RasterizerStates.end())
 				return It->second;
 
 			return nullptr;
 		}
-		SamplerState* GraphicsDevice::GetSamplerState(const Core::String& Name)
+		SamplerState* GraphicsDevice::GetSamplerState(const std::string_view& Name)
 		{
-			auto It = SamplerStates.find(Name);
+			auto It = SamplerStates.find(Core::HglCast(Name));
 			if (It != SamplerStates.end())
 				return It->second;
 
 			return nullptr;
 		}
-		InputLayout* GraphicsDevice::GetInputLayout(const Core::String& Name)
+		InputLayout* GraphicsDevice::GetInputLayout(const std::string_view& Name)
 		{
-			auto It = InputLayouts.find(Name);
+			auto It = InputLayouts.find(Core::HglCast(Name));
 			if (It != InputLayouts.end())
 				return It->second;
 
@@ -1849,7 +1833,7 @@ namespace Vitex
 			VI_PANIC(false, "renderer backend is not present or is invalid");
 			return nullptr;
 		}
-		ExpectsGraphics<void> GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const Core::String&, const ExpectsGraphics<Shader*>&)>& Callback)
+		ExpectsGraphics<void> GraphicsDevice::CompileBuiltinShaders(const Core::Vector<GraphicsDevice*>& Devices, const std::function<bool(GraphicsDevice*, const std::string_view&, const ExpectsGraphics<Shader*>&)>& Callback)
 		{
 			for (auto* Device : Devices)
 			{
@@ -1869,7 +1853,7 @@ namespace Vitex
 					else if (!Result)
 						return Result.Error();
 					if (!Callback)
-						VI_RELEASE(Result);
+						Core::Memory::Release(*Result);
 				}
 			}
 			return Core::Expectation::Met;
@@ -1954,11 +1938,12 @@ namespace Vitex
 #endif
 #endif
 		}
-		void Activity::SetClipboardText(const Core::String& Text)
+		void Activity::SetClipboardText(const std::string_view& Text)
 		{
 #ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
-			SDL_SetClipboardText(Text.c_str());
+			VI_ASSERT(Core::Stringify::IsCString(Text), "text should be set");
+			SDL_SetClipboardText(Text.data());
 #endif
 		}
 		void Activity::SetCursorPosition(const Compute::Vector2& Position)
@@ -2181,12 +2166,12 @@ namespace Vitex
 			SDL_SetWindowSize(Handle, W, H);
 #endif
 		}
-		void Activity::SetTitle(const char* Value)
+		void Activity::SetTitle(const std::string_view& Value)
 		{
 #ifdef VI_SDL2
 			VI_ASSERT(Handle != nullptr, "activity should be initialized");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			SDL_SetWindowTitle(Handle, Value);
+			VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+			SDL_SetWindowTitle(Handle, Value.data());
 #endif
 		}
 		void Activity::SetIcon(Surface* Icon)
@@ -3301,7 +3286,7 @@ namespace Vitex
 			return false;
 #endif
 		}
-		const char* Video::GetKeyCodeAsLiteral(KeyCode Code)
+		std::string_view Video::GetKeyCodeAsLiteral(KeyCode Code)
 		{
 			const char* Name;
 			switch (Code)
@@ -3998,13 +3983,13 @@ namespace Vitex
 					Name = "Cursor X2";
 					break;
 				default:
-					Name = nullptr;
+					Name = "";
 					break;
 			}
 
 			return Name;
 		}
-		const char* Video::GetKeyModAsLiteral(KeyMod Code)
+		std::string_view Video::GetKeyModAsLiteral(KeyMod Code)
 		{
 			const char* Name;
 			switch (Code)
@@ -4055,7 +4040,7 @@ namespace Vitex
 					Name = "Gui";
 					break;
 				default:
-					Name = nullptr;
+					Name = "";
 					break;
 			}
 
@@ -4063,11 +4048,11 @@ namespace Vitex
 		}
 		Core::String Video::GetKeyCodeAsString(KeyCode Code)
 		{
-			return GetKeyCodeAsLiteral(Code);
+			return Core::String(GetKeyCodeAsLiteral(Code));
 		}
 		Core::String Video::GetKeyModAsString(KeyMod Code)
 		{
-			return GetKeyModAsLiteral(Code);
+			return Core::String(GetKeyModAsLiteral(Code));
 		}
 	}
 }

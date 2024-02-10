@@ -1,6 +1,6 @@
 #include "components.h"
 #include "renderers.h"
-#include "../core/bindings.h"
+#include "../bindings.h"
 #include "../audio/effects.h"
 #include <cstddef>
 
@@ -157,7 +157,7 @@ namespace Vitex
 						{
 							if (Instance != nullptr)
 								DeserializeBody(Node);
-							VI_RELEASE(Node);
+							Node->Release();
 						});
 					}
 					else if (Series::Unpack(Shaping->Find("type"), &Type))
@@ -250,18 +250,18 @@ namespace Vitex
 				I.Mass = Mass;
 				I.Shape = Shape;
 
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->GetTransform());
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
 
 				GetEntity()->GetTransform()->MakeDirty();
 			}
-			void RigidBody::Load(const Core::String& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
+			void RigidBody::Load(const std::string_view& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
 			{
 				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback](ExpectsContent<Compute::HullShape*> NewHull)
 				{
-					VI_RELEASE(Hull);
+					Core::Memory::Release(Hull);
 					Hull = NewHull.Or(nullptr);
 					if (Hull != nullptr)
 						Load(Hull->GetShape(), Mass, Anticipation);
@@ -274,8 +274,8 @@ namespace Vitex
 			}
 			void RigidBody::Clear()
 			{
-				VI_CLEAR(Instance);
-				VI_CLEAR(Hull);
+				Core::Memory::Release(Instance);
+				Core::Memory::Release(Hull);
 			}
 			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
@@ -467,7 +467,7 @@ namespace Vitex
 						{
 							if (Instance != nullptr)
 								DeserializeBody(Node);
-							VI_RELEASE(Node);
+							Node->Release();
 						});
 					}
 				}
@@ -649,7 +649,7 @@ namespace Vitex
 				SceneGraph* Scene = Parent->GetScene();
 				VI_ASSERT(Scene != nullptr, "scene should be set");
 				VI_ASSERT(Shape != nullptr, "collision shape should be set");
-				VI_RELEASE(Hull);
+				Core::Memory::Release(Hull);
 				Hull = Shape;
 
 				Compute::SoftBody::Desc I;
@@ -657,7 +657,7 @@ namespace Vitex
 				I.Shape.Convex.Hull = Hull;
 				I.Shape.Convex.Enabled = true;
 
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
@@ -668,7 +668,7 @@ namespace Vitex
 				Instance->SetActivity(true);
 				GetEntity()->GetTransform()->MakeDirty();
 			}
-			void SoftBody::Load(const Core::String& Path, float Anticipation, const std::function<void()>& Callback)
+			void SoftBody::Load(const std::string_view& Path, float Anticipation, const std::function<void()>& Callback)
 			{
 				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback](ExpectsContent<Compute::HullShape*> NewHull)
 				{
@@ -691,7 +691,7 @@ namespace Vitex
 				I.Shape.Ellipsoid = Shape;
 				I.Shape.Ellipsoid.Enabled = true;
 
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
@@ -711,7 +711,7 @@ namespace Vitex
 				I.Shape.Patch = Shape;
 				I.Shape.Patch.Enabled = true;
 
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
@@ -731,7 +731,7 @@ namespace Vitex
 				I.Shape.Rope = Shape;
 				I.Shape.Rope.Enabled = true;
 
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 
@@ -767,15 +767,15 @@ namespace Vitex
 					return;
 
 				Compute::SoftBody::Desc I = Instance->GetInitialState();
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 				VI_PANIC(!Instance, "invalid simulator configuration to create soft bodies");
 			}
 			void SoftBody::Clear()
 			{
-				VI_CLEAR(Instance);
-				VI_CLEAR(Hull);
+				Core::Memory::Release(Instance);
+				Core::Memory::Release(Hull);
 			}
 			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
@@ -812,7 +812,7 @@ namespace Vitex
 
 				Compute::Vector3 Center = Instance->GetCenterPosition();
 				Instance->GetBoundingBox(&Min, &Max);
-				
+
 				Compute::Vector3 Scale = (Max - Min) * 0.5f;
 				Min = Center - Scale;
 				Max = Center + Scale;
@@ -851,7 +851,7 @@ namespace Vitex
 			}
 			SliderConstraint::~SliderConstraint()
 			{
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 			}
 			void SliderConstraint::Deserialize(Core::Schema* Node)
 			{
@@ -1074,13 +1074,13 @@ namespace Vitex
 
 				if (I.TargetA && I.TargetB)
 				{
-					VI_RELEASE(Instance);
+					Core::Memory::Release(Instance);
 					Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
 				}
 			}
 			void SliderConstraint::Clear()
 			{
-				VI_CLEAR(Instance);
+				Core::Memory::Release(Instance);
 				Connection = nullptr;
 			}
 			Component* SliderConstraint::Copy(Entity* New) const
@@ -1220,7 +1220,7 @@ namespace Vitex
 			}
 			Model::~Model()
 			{
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 			}
 			void Model::Deserialize(Core::Schema* Node)
 			{
@@ -1245,9 +1245,9 @@ namespace Vitex
 				SetMaterial(Invalid);
 				Scene->LoadResource<Engine::Model>(this, Path, [this, Node, Scene, Invalid](ExpectsContent<Engine::Model*> NewInstance)
 				{
-					VI_RELEASE(Invalid);
-					VI_RELEASE(Instance);
+					Core::Memory::Release(Instance);
 					Instance = NewInstance.Or(nullptr);
+					Invalid->Release();
 					ClearMaterials();
 
 					if (Instance != nullptr)
@@ -1263,7 +1263,7 @@ namespace Vitex
 							}
 						}
 					}
-					VI_RELEASE(Node);
+					Node->Release();
 				});
 			}
 			void Model::Serialize(Core::Schema* Node)
@@ -1290,7 +1290,7 @@ namespace Vitex
 			}
 			void Model::SetDrawable(Engine::Model* Drawable)
 			{
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Drawable;
 				ClearMaterials();
 
@@ -1301,7 +1301,7 @@ namespace Vitex
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
 			}
-			void Model::SetMaterialFor(const Core::String& Name, Material* Value)
+			void Model::SetMaterialFor(const std::string_view& Name, Material* Value)
 			{
 				if (!Instance)
 					return;
@@ -1340,7 +1340,7 @@ namespace Vitex
 			{
 				return Instance;
 			}
-			Material* Model::GetMaterialFor(const Core::String& Name)
+			Material* Model::GetMaterialFor(const std::string_view& Name)
 			{
 				if (!Instance)
 					return nullptr;
@@ -1357,12 +1357,11 @@ namespace Vitex
 			}
 			Skin::~Skin()
 			{
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 			}
 			void Skin::Deserialize(Core::Schema* Node)
 			{
 				VI_ASSERT(Node != nullptr, "schema should be set");
-
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
 				Series::Unpack(Node->Find("static"), &Static);
@@ -1382,9 +1381,9 @@ namespace Vitex
 				SetMaterial(Invalid);
 				Scene->LoadResource<Engine::SkinModel>(this, Path, [this, Node, Scene, Invalid](ExpectsContent<Engine::SkinModel*> NewInstance)
 				{
-					VI_RELEASE(Invalid);
-					VI_RELEASE(Instance);
+					Core::Memory::Release(Instance);
 					Instance = NewInstance.Or(nullptr);
+					Invalid->Release();
 					ClearMaterials();
 
 					if (Instance != nullptr)
@@ -1401,7 +1400,7 @@ namespace Vitex
 							}
 						}
 					}
-					VI_RELEASE(Node);
+					Node->Release();
 				});
 			}
 			void Skin::Serialize(Core::Schema* Node)
@@ -1433,7 +1432,7 @@ namespace Vitex
 			}
 			void Skin::SetDrawable(Engine::SkinModel* Drawable)
 			{
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 				Instance = Drawable;
 				ClearMaterials();
 
@@ -1445,7 +1444,7 @@ namespace Vitex
 				for (auto* Item : Instance->Meshes)
 					Materials[(void*)Item] = nullptr;
 			}
-			void Skin::SetMaterialFor(const Core::String& Name, Material* Value)
+			void Skin::SetMaterialFor(const std::string_view& Name, Material* Value)
 			{
 				if (!Instance)
 					return;
@@ -1484,7 +1483,7 @@ namespace Vitex
 			{
 				return Instance;
 			}
-			Material* Skin::GetMaterialFor(const Core::String& Name)
+			Material* Skin::GetMaterialFor(const std::string_view& Name)
 			{
 				if (!Instance)
 					return nullptr;
@@ -1501,7 +1500,7 @@ namespace Vitex
 			}
 			Emitter::~Emitter()
 			{
-				VI_RELEASE(Instance);
+				Core::Memory::Release(Instance);
 			}
 			void Emitter::Deserialize(Core::Schema* Node)
 			{
@@ -1579,7 +1578,7 @@ namespace Vitex
 				Target->Materials = Materials;
 				Target->Min = Min;
 				Target->Max = Max;
-				
+
 				auto& Dest = Target->Instance->GetArray();
 				Dest = Instance->GetArray();
 
@@ -1637,7 +1636,7 @@ namespace Vitex
 			}
 			SkinAnimator::~SkinAnimator() noexcept
 			{
-				VI_CLEAR(Animation);
+				Core::Memory::Release(Animation);
 			}
 			void SkinAnimator::Deserialize(Core::Schema* Node)
 			{
@@ -1747,7 +1746,7 @@ namespace Vitex
 			}
 			void SkinAnimator::SetAnimation(SkinAnimation* New)
 			{
-				VI_RELEASE(Animation);
+				Core::Memory::Release(Animation);
 				Animation = New;
 				if (Animation != nullptr)
 					Animation->AddRef();
@@ -1879,7 +1878,7 @@ namespace Vitex
 
 				return Target;
 			}
-			int64_t SkinAnimator::GetClipByName(const Core::String& Name) const
+			int64_t SkinAnimator::GetClipByName(const std::string_view& Name) const
 			{
 				if (!Animation)
 					return -1;
@@ -2000,7 +1999,7 @@ namespace Vitex
 					State.Time = 0.0f;
 				}
 			}
-			void KeyAnimator::LoadAnimation(const Core::String& Path, const std::function<void(bool)>& Callback)
+			void KeyAnimator::LoadAnimation(const std::string_view& Path, const std::function<void(bool)>& Callback)
 			{
 				auto* Scene = Parent->GetScene();
 				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](ExpectsContent<Core::Schema*> Result)
@@ -2012,11 +2011,11 @@ namespace Vitex
 							Reference = Scene->AsResourcePath(Path);
 						else
 							Reference.clear();
+						Core::Memory::Release(*Result);
 					}
 					else
 						Reference.clear();
 
-					VI_RELEASE(Result);
 					if (Callback)
 						Callback(!Reference.empty());
 				});
@@ -2387,7 +2386,7 @@ namespace Vitex
 
 				return Target;
 			}
-	
+
 			Fly::Fly(Entity* Ref) : Component(Ref, ActorSet::Update)
 			{
 			}
@@ -2447,10 +2446,10 @@ namespace Vitex
 			{
 				if (Activity->IsKeyDown(Fast))
 					return Moving.Axis * Moving.Faster;
-				
+
 				if (Activity->IsKeyDown(Slow))
 					return Moving.Axis * Moving.Slower;
-				
+
 				return Moving.Axis * Moving.Normal;
 			}
 
@@ -2460,7 +2459,7 @@ namespace Vitex
 			}
 			AudioSource::~AudioSource()
 			{
-				VI_RELEASE(Source);
+				Core::Memory::Release(Source);
 			}
 			void AudioSource::Deserialize(Core::Schema* Node)
 			{
@@ -2515,7 +2514,7 @@ namespace Vitex
 
 					ApplyPlayingPosition();
 					Synchronize(nullptr);
-					VI_RELEASE(Node);
+					Node->Release();
 				});
 			}
 			void AudioSource::Serialize(Core::Schema* Node)
@@ -2674,7 +2673,7 @@ namespace Vitex
 				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
-			void PointLight::Message(const Core::String& Name, Core::VariantArgs& Args)
+			void PointLight::Message(const std::string_view& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
@@ -2752,7 +2751,7 @@ namespace Vitex
 				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
-			void SpotLight::Message(const Core::String& Name, Core::VariantArgs& Args)
+			void SpotLight::Message(const std::string_view& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
@@ -2866,7 +2865,7 @@ namespace Vitex
 				Series::Pack(Node->Set("outer-radius"), Sky.OuterRadius);
 				Series::Pack(Node->Set("sky-intensity"), Sky.Intensity);
 			}
-			void LineLight::Message(const Core::String& Name, Core::VariantArgs& Args)
+			void LineLight::Message(const std::string_view& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
@@ -2920,14 +2919,14 @@ namespace Vitex
 			}
 			SurfaceLight::~SurfaceLight()
 			{
-				VI_RELEASE(DiffuseMapX[0]);
-				VI_RELEASE(DiffuseMapX[1]);
-				VI_RELEASE(DiffuseMapY[0]);
-				VI_RELEASE(DiffuseMapY[1]);
-				VI_RELEASE(DiffuseMapZ[0]);
-				VI_RELEASE(DiffuseMapZ[1]);
-				VI_RELEASE(DiffuseMap);
-				VI_RELEASE(Probe);
+				Core::Memory::Release(DiffuseMapX[0]);
+				Core::Memory::Release(DiffuseMapX[1]);
+				Core::Memory::Release(DiffuseMapY[0]);
+				Core::Memory::Release(DiffuseMapY[1]);
+				Core::Memory::Release(DiffuseMapZ[0]);
+				Core::Memory::Release(DiffuseMapZ[1]);
+				Core::Memory::Release(DiffuseMap);
+				Core::Memory::Release(Probe);
 			}
 			void SurfaceLight::Deserialize(Core::Schema* Node)
 			{
@@ -2940,7 +2939,7 @@ namespace Vitex
 					{
 						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
-							VI_CLEAR(DiffuseMapX[0]);
+							Core::Memory::Release(DiffuseMapX[0]);
 							if (NewTexture && *NewTexture != nullptr)
 							{
 								DiffuseMapX[0] = *NewTexture;
@@ -2953,7 +2952,7 @@ namespace Vitex
 					{
 						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
-							VI_CLEAR(DiffuseMapX[1]);
+							Core::Memory::Release(DiffuseMapX[1]);
 							if (NewTexture && *NewTexture != nullptr)
 							{
 								DiffuseMapX[1] = *NewTexture;
@@ -2966,7 +2965,7 @@ namespace Vitex
 					{
 						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
-							VI_CLEAR(DiffuseMapY[0]);
+							Core::Memory::Release(DiffuseMapY[0]);
 							if (NewTexture && *NewTexture != nullptr)
 							{
 								DiffuseMapY[0] = *NewTexture;
@@ -2979,7 +2978,7 @@ namespace Vitex
 					{
 						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
-							VI_CLEAR(DiffuseMapY[1]);
+							Core::Memory::Release(DiffuseMapY[1]);
 							if (NewTexture && *NewTexture != nullptr)
 							{
 								DiffuseMapY[1] = *NewTexture;
@@ -2992,7 +2991,7 @@ namespace Vitex
 					{
 						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
-							VI_CLEAR(DiffuseMapZ[0]);
+							Core::Memory::Release(DiffuseMapZ[0]);
 							if (NewTexture && *NewTexture != nullptr)
 							{
 								DiffuseMapZ[0] = *NewTexture;
@@ -3005,7 +3004,7 @@ namespace Vitex
 					{
 						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 						{
-							VI_CLEAR(DiffuseMapZ[1]);
+							Core::Memory::Release(DiffuseMapZ[1]);
 							if (NewTexture && *NewTexture != nullptr)
 							{
 								DiffuseMapZ[1] = *NewTexture;
@@ -3018,7 +3017,7 @@ namespace Vitex
 				{
 					Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](ExpectsContent<Graphics::Texture2D*>&& NewTexture)
 					{
-						VI_CLEAR(DiffuseMap);
+						Core::Memory::Release(DiffuseMap);
 						if (NewTexture && *NewTexture != nullptr)
 						{
 							DiffuseMap = *NewTexture;
@@ -3120,54 +3119,35 @@ namespace Vitex
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* Map)
 			{
 				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
-				if (!Map)
-				{
-					VI_CLEAR(DiffuseMapX[0]);
-					VI_CLEAR(DiffuseMapX[1]);
-					VI_CLEAR(DiffuseMapY[0]);
-					VI_CLEAR(DiffuseMapY[1]);
-					VI_CLEAR(DiffuseMapZ[0]);
-					VI_CLEAR(DiffuseMapZ[1]);
-					VI_CLEAR(DiffuseMap);
-					return false;
-				}
+				Core::Memory::Release(DiffuseMapX[0]);
+				Core::Memory::Release(DiffuseMapX[1]);
+				Core::Memory::Release(DiffuseMapY[0]);
+				Core::Memory::Release(DiffuseMapY[1]);
+				Core::Memory::Release(DiffuseMapZ[0]);
+				Core::Memory::Release(DiffuseMapZ[1]);
+				Core::Memory::Release(DiffuseMap);
 
-				VI_CLEAR(DiffuseMapX[0]);
-				VI_CLEAR(DiffuseMapX[1]);
-				VI_CLEAR(DiffuseMapY[0]);
-				VI_CLEAR(DiffuseMapY[1]);
-				VI_CLEAR(DiffuseMapZ[0]);
-				VI_CLEAR(DiffuseMapZ[1]);
-				VI_RELEASE(DiffuseMap);
 				DiffuseMap = Map;
-				Map->AddRef();
+				if (!DiffuseMap)
+					return false;
 
-				VI_RELEASE(Probe);
+				DiffuseMap->AddRef();
+				Core::Memory::Release(Probe);
 				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap).Or(nullptr);
 				return Probe != nullptr;
 			}
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* const MapX[2], Graphics::Texture2D* const MapY[2], Graphics::Texture2D* const MapZ[2])
 			{
 				VI_ASSERT(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
+				Core::Memory::Release(DiffuseMapX[0]);
+				Core::Memory::Release(DiffuseMapX[1]);
+				Core::Memory::Release(DiffuseMapY[0]);
+				Core::Memory::Release(DiffuseMapY[1]);
+				Core::Memory::Release(DiffuseMapZ[0]);
+				Core::Memory::Release(DiffuseMapZ[1]);
+				Core::Memory::Release(DiffuseMap);
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
-				{
-					VI_CLEAR(DiffuseMapX[0]);
-					VI_CLEAR(DiffuseMapX[1]);
-					VI_CLEAR(DiffuseMapY[0]);
-					VI_CLEAR(DiffuseMapY[1]);
-					VI_CLEAR(DiffuseMapZ[0]);
-					VI_CLEAR(DiffuseMapZ[1]);
-					VI_CLEAR(DiffuseMap);
 					return false;
-				}
-
-				VI_RELEASE(DiffuseMapX[0]);
-				VI_RELEASE(DiffuseMapX[1]);
-				VI_RELEASE(DiffuseMapY[0]);
-				VI_RELEASE(DiffuseMapY[1]);
-				VI_RELEASE(DiffuseMapZ[0]);
-				VI_RELEASE(DiffuseMapZ[1]);
-				VI_CLEAR(DiffuseMap);
 
 				Graphics::Texture2D* Resources[6];
 				Resources[0] = DiffuseMapX[0] = MapX[0]; MapX[0]->AddRef();
@@ -3177,7 +3157,7 @@ namespace Vitex
 				Resources[4] = DiffuseMapZ[0] = MapZ[0]; MapZ[0]->AddRef();
 				Resources[5] = DiffuseMapZ[1] = MapZ[1]; MapZ[1]->AddRef();
 
-				VI_RELEASE(Probe);
+				Core::Memory::Release(Probe);
 				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources).Or(nullptr);
 				return Probe != nullptr;
 			}
@@ -3274,7 +3254,7 @@ namespace Vitex
 				Series::Pack(Node->Set("specular"), Specular);
 				Series::Pack(Node->Set("bleeding"), Bleeding);
 			}
-			void Illuminator::Message(const Core::String& Name, Core::VariantArgs& Args)
+			void Illuminator::Message(const std::string_view& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 				{
@@ -3302,7 +3282,7 @@ namespace Vitex
 			}
 			Camera::~Camera()
 			{
-				VI_RELEASE(Renderer);
+				Core::Memory::Release(Renderer);
 			}
 			void Camera::Activate(Component* New)
 			{
@@ -3532,7 +3512,7 @@ namespace Vitex
 			}
 			Scriptable::~Scriptable()
 			{
-				VI_RELEASE(Compiler);
+				Core::Memory::Release(Compiler);
 			}
 			void Scriptable::Deserialize(Core::Schema* Node)
 			{
@@ -3617,7 +3597,7 @@ namespace Vitex
 					Context->SetArgObject(1, Time);
 				});
 			}
-			void Scriptable::Message(const Core::String& Name, Core::VariantArgs& Args)
+			void Scriptable::Message(const std::string_view& Name, Core::VariantArgs& Args)
 			{
 				Call(Entry.Message, [this, Name, Args](Scripting::ImmediateContext* Context)
 				{
@@ -3742,21 +3722,21 @@ namespace Vitex
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
-									SetTypePropertyByName(Var->Key.c_str(), (unsigned char)Result);
+									SetTypePropertyByName(Var->Key.c_str(), (uint8_t)Result);
 								break;
 							}
 							case Scripting::TypeId::UINT16:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
-									SetTypePropertyByName(Var->Key.c_str(), (unsigned short)Result);
+									SetTypePropertyByName(Var->Key.c_str(), (uint16_t)Result);
 								break;
 							}
 							case Scripting::TypeId::UINT32:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
-									SetTypePropertyByName(Var->Key.c_str(), (unsigned int)Result);
+									SetTypePropertyByName(Var->Key.c_str(), (uint32_t)Result);
 								break;
 							}
 							case Scripting::TypeId::UINT64:
@@ -3811,7 +3791,7 @@ namespace Vitex
 					for (size_t i = 0; i < Count; i++)
 					{
 						Scripting::PropertyInfo Result;
-						if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
+						if (!GetPropertyByIndex(i, &Result) || Result.Name.empty() || !Result.Pointer)
 							continue;
 
 						Core::Schema* Var = Core::Var::Set::Object();
@@ -3823,28 +3803,28 @@ namespace Vitex
 								Series::Pack(Var->Set("data"), *(bool*)Result.Pointer);
 								break;
 							case Scripting::TypeId::INT8:
-								Series::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(char*)Result.Pointer);
 								break;
 							case Scripting::TypeId::INT16:
-								Series::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(short*)Result.Pointer);
 								break;
 							case Scripting::TypeId::INT32:
-								Series::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(int*)Result.Pointer);
 								break;
 							case Scripting::TypeId::INT64:
 								Series::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
 								break;
 							case Scripting::TypeId::UINT8:
-								Series::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(uint8_t*)Result.Pointer);
 								break;
 							case Scripting::TypeId::UINT16:
-								Series::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(uint16_t*)Result.Pointer);
 								break;
 							case Scripting::TypeId::UINT32:
-								Series::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(uint32_t*)Result.Pointer);
 								break;
 							case Scripting::TypeId::UINT64:
-								Series::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
+								Series::Pack(Var->Set("data"), (int64_t)*(uint64_t*)Result.Pointer);
 								break;
 							case Scripting::TypeId::FLOAT:
 								Series::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
@@ -3855,10 +3835,10 @@ namespace Vitex
 							default:
 							{
 								Scripting::TypeInfo Type = GetCompiler()->GetVM()->GetTypeInfoById(Result.TypeId);
-								if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
+								if (Type.IsValid() && Type.GetName() == "string")
 									Series::Pack(Var->Set("data"), *(Core::String*)Result.Pointer);
 								else
-									VI_CLEAR(Var);
+									Core::Memory::Release(Var);
 								break;
 							}
 						}
@@ -3878,7 +3858,7 @@ namespace Vitex
 					Context->SetArgObject(1, Node);
 				});
 			}
-			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::Call(const Core::String& Name, size_t Args, Scripting::ArgsCallback&& OnArgs)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::Call(const std::string_view& Name, size_t Args, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return Scripting::ExpectsPromiseVM<Scripting::Execution>(Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION));
@@ -3901,7 +3881,7 @@ namespace Vitex
 					return Result;
 				});
 			}
-			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::CallEntry(const Core::String& Name)
+			Scripting::ExpectsPromiseVM<Scripting::Execution> Scriptable::CallEntry(const std::string_view& Name)
 			{
 				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Scripting::ImmediateContext* Context)
 				{
@@ -3916,7 +3896,7 @@ namespace Vitex
 			{
 				return LoadSource(Source, Resource);
 			}
-			Scripting::ExpectsPromiseVM<void> Scriptable::LoadSource(SourceType Type, const Core::String& Data)
+			Scripting::ExpectsPromiseVM<void> Scriptable::LoadSource(SourceType Type, const std::string_view& Data)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (!Compiler)
@@ -3926,7 +3906,7 @@ namespace Vitex
 						return Scripting::ExpectsPromiseVM<void>(Scripting::VirtualException(Scripting::VirtualError::INVALID_CONFIGURATION));
 
 					Compiler = VM->CreateCompiler();
-					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const Core::String& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 					{
 						if (Name == "name" && Args.size() == 1)
 							Module = Args[0];
@@ -4010,20 +3990,20 @@ namespace Vitex
 			}
 			void Scriptable::Unprotect()
 			{
-				VI_RELEASE(GetEntity());
-				VI_RELEASE(this);
+				GetEntity()->Release();
+				Release();
 			}
 			Scripting::Compiler* Scriptable::GetCompiler()
 			{
 				return Compiler;
 			}
-			Scripting::Function Scriptable::GetFunctionByName(const Core::String& Name, size_t Args)
+			Scripting::Function Scriptable::GetFunctionByName(const std::string_view& Name, size_t Args)
 			{
 				VI_ASSERT(!Name.empty(), "name should not be empty");
 				if (!Compiler)
 					return nullptr;
 
-				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
+				auto Result = Compiler->GetModule().GetFunctionByName(Name);
 				if (Result.IsValid() && Result.GetArgsCount() != Args)
 					return nullptr;
 
@@ -4041,9 +4021,8 @@ namespace Vitex
 
 				return Result;
 			}
-			bool Scriptable::GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result)
+			bool Scriptable::GetPropertyByName(const std::string_view& Name, Scripting::PropertyInfo* Result)
 			{
-				VI_ASSERT(Name != nullptr, "name should be set");
 				if (!Compiler)
 					return false;
 

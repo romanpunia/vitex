@@ -1,6 +1,6 @@
 #ifndef VI_ENGINE_RENDERERS_H
 #define VI_ENGINE_RENDERERS_H
-#include "../core/engine.h"
+#include "../engine.h"
 #include "components.h"
 #include "gui.h"
 
@@ -423,7 +423,7 @@ namespace Vitex
 				void RenderAmbient();
 
 			public:
-				static void SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot);
+				static void SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, uint32_t Slot);
 
 			public:
 				VI_COMPONENT("lighting_renderer");
@@ -808,13 +808,12 @@ namespace Vitex
 			class VI_OUT UserInterface final : public Renderer
 			{
 			private:
-				GUI::Context * Context;
 				Graphics::Activity* Activity;
+				GUI::Context* Context;
 
 			public:
 				UserInterface(RenderSystem* Lab);
-				UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity);
-				~UserInterface() override;
+				UserInterface(RenderSystem* Lab, GUI::Context* NewContext, Graphics::Activity* NewActivity);
 				size_t RenderPass(Core::Timer* Time) override;
 				GUI::Context* GetContext();
 

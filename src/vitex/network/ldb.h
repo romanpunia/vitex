@@ -1,6 +1,6 @@
 #ifndef VI_NETWORK_SQLITE_H
 #define VI_NETWORK_SQLITE_H
-#include "../core/network.h"
+#include "../network.h"
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -24,7 +24,7 @@ namespace Vitex
 			class Driver;
 
 			typedef std::function<Core::Variant(const Core::VariantList&)> OnFunctionResult;
-			typedef std::function<void(const Core::String&)> OnQueryLog;
+			typedef std::function<void(const std::string_view&)> OnQueryLog;
 			typedef std::function<void(Cursor&)> OnResult;
 			typedef sqlite3 TConnection;
 			typedef sqlite3_stmt TStatement;
@@ -146,18 +146,17 @@ namespace Vitex
 				size_t Index() const;
 				size_t Size() const;
 				Column GetColumn(size_t Index) const;
-				Column GetColumn(const char* Name) const;
-				Column GetColumnByName(const Core::String& Name) const;
+				Column GetColumn(const std::string_view& Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
 				bool Exists() const
 				{
 					return Base != nullptr;
 				}
-				Column operator [](const char* Name)
+				Column operator [](const std::string_view& Name)
 				{
 					return GetColumn(Name);
 				}
-				Column operator [](const char* Name) const
+				Column operator [](const std::string_view& Name) const
 				{
 					return GetColumn(Name);
 				}
@@ -225,7 +224,7 @@ namespace Vitex
 				const Core::Vector<Core::String>& GetColumns() const;
 				Core::String GetStatusText() const;
 				int GetStatusCode() const;
-				size_t GetColumnIndex(const char* Name) const;
+				size_t GetColumnIndex(const std::string_view& Name) const;
 				size_t AffectedRows() const;
 				size_t LastInsertedRowId() const;
 				size_t Size() const;
@@ -271,17 +270,17 @@ namespace Vitex
 				~Cursor();
 				Cursor& operator =(const Cursor& Other) = delete;
 				Cursor& operator =(Cursor&& Other);
-				Column operator [](const char* Name)
+				Column operator [](const std::string_view& Name)
 				{
 					return First().Front().GetColumn(Name);
 				}
-				Column operator [](const char* Name) const
+				Column operator [](const std::string_view& Name) const
 				{
 					return First().Front().GetColumn(Name);
 				}
-				Column GetColumn(const Core::String& Name) const
+				Column GetColumn(const std::string_view& Name) const
 				{
-					return First().Front().GetColumn(Name.c_str());
+					return First().Front().GetColumn(Name);
 				}
 				bool Success() const;
 				bool Empty() const;
@@ -344,24 +343,24 @@ namespace Vitex
 				void SetHardHeapLimit(uint64_t Memory);
 				void SetSharedCache(bool Enabled);
 				void SetExtensions(bool Enabled);
-				void SetFunction(const Core::String& Name, uint8_t Args, OnFunctionResult&& Context);
-				void SetAggregateFunction(const Core::String& Name, uint8_t Args, Core::Unique<Aggregate> Context);
-				void SetWindowFunction(const Core::String& Name, uint8_t Args, Core::Unique<Window> Context);
-				void OverloadFunction(const Core::String& Name, uint8_t Args);
-				Core::Vector<Checkpoint> WalCheckpoint(CheckpointMode Mode, const Core::String& Database = Core::String());
+				void SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context);
+				void SetAggregateFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Aggregate> Context);
+				void SetWindowFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Window> Context);
+				void OverloadFunction(const std::string_view& Name, uint8_t Args);
+				Core::Vector<Checkpoint> WalCheckpoint(CheckpointMode Mode, const std::string_view& Database = std::string_view());
 				size_t FreeMemoryUsed(size_t Bytes);
 				size_t GetMemoryUsed() const;
 				ExpectsPromiseDB<SessionId> TxBegin(Isolation Type);
-				ExpectsPromiseDB<SessionId> TxStart(const Core::String& Command);
-				ExpectsPromiseDB<void> TxEnd(const Core::String& Command, SessionId Session);
+				ExpectsPromiseDB<SessionId> TxStart(const std::string_view& Command);
+				ExpectsPromiseDB<void> TxEnd(const std::string_view& Command, SessionId Session);
 				ExpectsPromiseDB<void> TxCommit(SessionId Session);
 				ExpectsPromiseDB<void> TxRollback(SessionId Session);
-				ExpectsPromiseDB<void> Connect(const Core::String& Location, size_t Connections);
+				ExpectsPromiseDB<void> Connect(const std::string_view& Location, size_t Connections);
 				ExpectsPromiseDB<void> Disconnect();
 				ExpectsPromiseDB<void> Flush();
-				ExpectsPromiseDB<Cursor> EmplaceQuery(const Core::String& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				ExpectsPromiseDB<Cursor> TemplateQuery(const Core::String& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
-				ExpectsPromiseDB<Cursor> Query(const Core::String& Command, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsPromiseDB<Cursor> Query(const std::string_view& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				TConnection* GetIdleConnection();
 				TConnection* GetBusyConnection();
 				TConnection* GetAnyConnection();
@@ -381,10 +380,9 @@ namespace Vitex
 			{
 			public:
 				static ExpectsDB<Core::String> InlineArray(Core::Unique<Core::Schema> Array);
-				static ExpectsDB<Core::String> InlineQuery(Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const Core::String& Default = "TRUE");
-				static Core::String GetCharArray(const Core::String& Src) noexcept;
-				static Core::String GetByteArray(const Core::String& Src) noexcept;
-				static Core::String GetByteArray(const char* Src, size_t Size) noexcept;
+				static ExpectsDB<Core::String> InlineQuery(Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default = "TRUE");
+				static Core::String GetCharArray(const std::string_view& Src) noexcept;
+				static Core::String GetByteArray(const std::string_view& Src) noexcept;
 				static Core::String GetSQL(Core::Schema* Source, bool Escape, bool Negate) noexcept;
 				static Core::Schema* GetSchemaFromValue(const Core::Variant& Value) noexcept;
 				static Core::VariantList ContextArgs(TValue** Values, size_t ValuesCount) noexcept;
@@ -420,17 +418,16 @@ namespace Vitex
 				Driver() noexcept;
 				virtual ~Driver() noexcept override;
 				void SetQueryLog(const OnQueryLog& Callback) noexcept;
-				void LogQuery(const Core::String& Command) noexcept;
-				void AddConstant(const Core::String& Name, const Core::String& Value);
-				ExpectsDB<void> AddQuery(const Core::String& Name, const Core::String& Data);
-				ExpectsDB<void> AddQueryFromBuffer(const Core::String& Name, const char* Buffer, size_t Size);
-				ExpectsDB<void> AddDirectory(const Core::String& Directory, const Core::String& Origin = "");
-				bool RemoveConstant(const Core::String& Name) noexcept;
-				bool RemoveQuery(const Core::String& Name) noexcept;
+				void LogQuery(const std::string_view& Command) noexcept;
+				void AddConstant(const std::string_view& Name, const std::string_view& Value);
+				ExpectsDB<void> AddQuery(const std::string_view& Name, const std::string_view& Data);
+				ExpectsDB<void> AddDirectory(const std::string_view& Directory, const std::string_view& Origin = "");
+				bool RemoveConstant(const std::string_view& Name) noexcept;
+				bool RemoveQuery(const std::string_view& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				ExpectsDB<Core::String> Emplace(const Core::String& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
-				ExpectsDB<Core::String> GetQuery(const Core::String& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> Emplace(const std::string_view& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> GetQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

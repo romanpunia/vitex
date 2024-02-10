@@ -1,6 +1,6 @@
 #ifndef VI_ENGINE_PROCESSORS_H
 #define VI_ENGINE_PROCESSORS_H
-#include "../core/engine.h"
+#include "../engine.h"
 
 namespace Vitex
 {

@@ -1,8 +1,3 @@
-# Check if compiler supports at least C++ 14
-if (NOT "${CMAKE_CXX_COMPILE_FEATURES}" MATCHES "cxx_std_14")
-    message(FATAL_ERROR "Compiler must have at least C++ 14 standard support")
-endif()
-
 # Setup required compiler flags and include system libs
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wno-unused-private-field")

@@ -6169,10 +6169,14 @@ namespace Vitex
 		}
 		Core::String& ImmediateContext::ExtendStringLifetime(Core::String& Value)
 		{
+#ifdef VI_ANGELSCRIPT
 			if (Context->GetState() != asEXECUTION_ACTIVE)
 				return Value;
 
 			return Strings.emplace_back(Value);
+#else
+			return Value;
+#endif
 		}
 		void ImmediateContext::CleanupStrings()
 		{

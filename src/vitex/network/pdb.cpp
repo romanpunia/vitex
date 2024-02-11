@@ -107,7 +107,10 @@ namespace Vitex
 
 				Core::String Buffer(Message);
 				for (auto& Item : Core::Stringify::Split(Buffer, '\n'))
+				{
 					VI_DEBUG("[pq] %s", Item.c_str());
+					(void)Item;
+				}
 			}
 			static void PQlogNoticeOf(TConnection* Connection)
 			{
@@ -120,7 +123,10 @@ namespace Vitex
 				Core::String Buffer(Message);
 				Buffer.erase(Buffer.size() - 1);
 				for (auto& Item : Core::Stringify::Split(Buffer, '\n'))
+				{
 					VI_DEBUG("[pq] %s", Item.c_str());
+					(void)Item;
+				}
 #endif
 			}
 			static Core::Schema* ToSchema(const char* Data, int Size, uint32_t Id);

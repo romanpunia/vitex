@@ -38,6 +38,7 @@ namespace Vitex
 					return DatabaseException(Error.code, Error.message);
 
 				VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
+				(void)Time;
 				return Core::Expectation::Met;
 			}
 			template <typename R, typename T, typename... Args>
@@ -56,6 +57,7 @@ namespace Vitex
 					return DatabaseException(Error.code, Error.message);
 
 				VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Base, (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000));
+				(void)Time;
 				return Cursor(Result);
 			}
 #endif

@@ -4281,7 +4281,7 @@ namespace Vitex
 					return Compute::IncludeType::Preprocess;
 				});
 #ifdef VI_RMLUI
-				Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+				Processor->SetPragmaCallback([](Compute::Preprocessor* Processor, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
 				{
 					if (Name != "fontface")
 						return Core::Expectation::Met;

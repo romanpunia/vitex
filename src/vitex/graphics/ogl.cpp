@@ -1820,7 +1820,6 @@ namespace Vitex
 				VI_ASSERT(Map != nullptr, "map should be set");
 
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				GLint BaseFormat = OGLDevice::GetBaseFormat(IResource->FormatMode);
 				GLuint Width = IResource->GetWidth(), Height = IResource->GetHeight(), Depth = IResource->GetDepth();
 				GLuint Size = GetFormatSize(IResource->FormatMode);
 
@@ -4625,6 +4624,9 @@ namespace Vitex
 						VI_TRACE("[opengl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 				}
+
+				(void)_Source;
+				(void)_Type;
 			}
 		}
 	}

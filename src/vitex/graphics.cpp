@@ -1912,8 +1912,6 @@ namespace Vitex
 			if (!Library)
 				return false;
 
-			const DWORD DWMWA_MICA_EFFECT_DEPRECATED = 1029;
-			const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_DEPRECATED = 19;
 			typedef HRESULT(*DwmSetWindowAttributePtr1)(HWND, DWORD, LPCVOID, DWORD);
 			DwmSetWindowAttributePtr1 DWM_SetWindowAttribute = (DwmSetWindowAttributePtr1)GetProcAddress(Library, "DwmSetWindowAttribute");
 			if (!DWM_SetWindowAttribute)
@@ -1927,12 +1925,16 @@ namespace Vitex
 
 			BOOL DarkMode = IsLightTheme ? 0 : 1;
 			if (DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode)) != S_OK)
+			{
+				const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_DEPRECATED = 19;
 				DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE_DEPRECATED, &DarkMode, sizeof(DarkMode));
+			}
 #if 0
 			DWM_SYSTEMBACKDROP_TYPE BackdropType = DWMSBT_MAINWINDOW;
 			if (DWM_SetWindowAttribute(WindowHandle, DWMWA_SYSTEMBACKDROP_TYPE, &BackdropType, sizeof(BackdropType)) != S_OK)
 			{
 				BOOL MicaEffect = true;
+				const DWORD DWMWA_MICA_EFFECT_DEPRECATED = 1029;
 				DWM_SetWindowAttribute(WindowHandle, DWMWA_MICA_EFFECT_DEPRECATED, &MicaEffect, sizeof(MicaEffect));
 			}
 #endif

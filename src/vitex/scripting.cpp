@@ -3945,7 +3945,7 @@ namespace Vitex
 				return Stream.str();
 			});
 #ifdef VI_BINDINGS
-			AddToStringCallback("thread", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
+			AddToStringCallback("thread", [](Core::String& Indent, int Depth, void* Object, int TypeId)
 			{
 				Bindings::Thread* Source = (Bindings::Thread*)Object;
 				Core::StringStream Stream;
@@ -4302,7 +4302,6 @@ namespace Vitex
 			if (Stack.empty() || !SparsifyStack(Stack))
 				return Output("  no tokens found in the expression");
 
-			void* TopPointer = nullptr;
 			int TopTypeId = asTYPEID_VOID;
 			asIScriptFunction* ThisFunction = nullptr;
 			void* ThisPointer = nullptr;
@@ -4398,7 +4397,7 @@ namespace Vitex
 						}
 						else
 							Core::Stringify::Replace(Args, "& ", "&in ");
-						ExecuteExpression(Context, Last + Name, Args, [ThisPointer, ThisTypeId](ImmediateContext* Context)
+						ExecuteExpression(Context, Last + Name, Args, [ThisPointer](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, ThisPointer);
 						});
@@ -4476,7 +4475,7 @@ namespace Vitex
 						}
 						else
 							Core::Stringify::Replace(Args, "& ", "&in ");
-						ExecuteExpression(Context, Core::Stringify::Text("%s.%s(%s)", Callable.c_str(), Call.c_str(), Method->c_str()), Args, [ThisPointer, ThisTypeId](ImmediateContext* Context)
+						ExecuteExpression(Context, Core::Stringify::Text("%s.%s(%s)", Callable.c_str(), Call.c_str(), Method->c_str()), Args, [ThisPointer](ImmediateContext* Context)
 						{
 							Context->SetArgObject(0, ThisPointer);
 						});
@@ -4603,10 +4602,7 @@ namespace Vitex
 				Last = Name;
 				Stack.erase(Stack.begin());
 				if (Top % 2 == 0)
-				{
-					TopPointer = ThisPointer;
 					TopTypeId = ThisTypeId;
-				}
 				++Top;
 			}
 
@@ -7712,7 +7708,7 @@ namespace Vitex
 				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
 				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()");
 			};
-			auto AddFuncdef = [this, &Namespaces](asITypeInfo* FType, asUINT Index)
+			auto AddFuncdef = [&Namespaces](asITypeInfo* FType, asUINT Index)
 			{
 				if (FType->GetParentType() != nullptr)
 					return;

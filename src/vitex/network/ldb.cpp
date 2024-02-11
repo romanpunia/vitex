@@ -807,6 +807,7 @@ namespace Vitex
 
 					VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Connection, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count());
 					ReleaseConnection(Connection, Opts);
+					(void)Time;
 					Coreturn Result;
 				});
 #else

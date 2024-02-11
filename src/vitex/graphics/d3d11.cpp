@@ -164,6 +164,8 @@ namespace
 				VI_TRACE("[d3d11] %s (%d): %.*s", _Source, (int)Message->ID, (int)Message->DescriptionByteLength, Message->pDescription);
 				break;
 		}
+
+		(void)_Source;
 	}
 }
 

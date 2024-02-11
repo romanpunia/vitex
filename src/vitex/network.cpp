@@ -2520,6 +2520,8 @@ namespace Vitex
 			Outcome += Written;
 			return Written;
 #else
+			(void)Seek;
+			(void)Length;
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 			}

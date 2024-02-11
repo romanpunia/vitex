@@ -367,17 +367,14 @@ namespace Vitex
 			}
 			void StringView::Create(std::string_view& Base)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
 				new(&Base) std::string_view();
 			}
 			void StringView::CreateCopy1(std::string_view& Base, const Core::String& Other)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
 				new(&Base) std::string_view(Other);
 			}
 			void StringView::CreateCopy2(std::string_view& Base, const std::string_view& Other)
 			{
-				VI_ASSERT(Base != nullptr, "base should be set");
 				new(&Base) std::string_view(Other);
 			}
 			void StringView::Destroy(std::string_view& Base)
@@ -11084,7 +11081,6 @@ namespace Vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				asIScriptEngine* Engine = VM->GetEngine();
 				auto VMutex = VM->SetClass<Mutex>("mutex", false);
 				VMutex->SetConstructorEx("mutex@ f()", &Mutex::Factory);
 				VMutex->SetMethod("bool try_lock()", &Mutex::TryLock);

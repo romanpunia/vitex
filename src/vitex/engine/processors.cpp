@@ -277,7 +277,6 @@ namespace Vitex
 			}
 			void FillSceneGeometries(ModelInfo* Info, const aiScene* Scene, aiNode* Node, const aiMatrix4x4& ParentTransform)
 			{
-				aiMatrix4x4 Transform = ParentTransform * Node->mTransformation;
 				Info->Meshes.reserve(Info->Meshes.size() + (size_t)Node->mNumMeshes);
 				if (Node == Scene->mRootNode)
 					Info->Transform = FromAssimpMatrix(Scene->mRootNode->mTransformation).Inv();

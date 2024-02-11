@@ -229,23 +229,23 @@ namespace Vitex
 			std::string_view String::ImplCastStringView(Core::String& Base)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return std::string_view(Context ? Context->ExtendStringLifetime(Base) : Base);
+				return std::string_view(Context ? Context->CopyString(Base) : Base);
 			}
-			void String::Create(Core::String& Base)
+			void String::Create(Core::String* Base)
 			{
-				new(&Base) Core::String();
+				new(Base) Core::String();
 			}
-			void String::CreateCopy1(Core::String& Base, const Core::String& Other)
+			void String::CreateCopy1(Core::String* Base, const Core::String& Other)
 			{
-				new(&Base) Core::String(Other);
+				new(Base) Core::String(Other);
 			}
-			void String::CreateCopy2(Core::String& Base, const std::string_view& Other)
+			void String::CreateCopy2(Core::String* Base, const std::string_view& Other)
 			{
-				new(&Base) Core::String(Other);
+				new(Base) Core::String(Other);
 			}
-			void String::Destroy(Core::String& Base)
+			void String::Destroy(Core::String* Base)
 			{
-				Base.~basic_string();
+				Base->~basic_string();
 			}
 			void String::PopBack(Core::String& Base)
 			{
@@ -365,21 +365,26 @@ namespace Vitex
 			{
 				return Core::String(Base);
 			}
-			void StringView::Create(std::string_view& Base)
+			void StringView::Create(std::string_view* Base)
 			{
-				new(&Base) std::string_view();
+				new(Base) std::string_view();
 			}
-			void StringView::CreateCopy1(std::string_view& Base, const Core::String& Other)
+			void StringView::CreateCopy(std::string_view* Base, Core::String& Other)
 			{
-				new(&Base) std::string_view(Other);
+				ImmediateContext* Context = ImmediateContext::Get();
+				new(Base) std::string_view(Context ? Context->CopyString(Other) : Other);
 			}
-			void StringView::CreateCopy2(std::string_view& Base, const std::string_view& Other)
+			void StringView::Assign(std::string_view* Base, Core::String& Other)
 			{
-				new(&Base) std::string_view(Other);
+				ImmediateContext* Context = ImmediateContext::Get();
+				*Base = (Context ? Context->CopyString(Other) : Other);
 			}
-			void StringView::Destroy(std::string_view& Base)
+			void StringView::Destroy(std::string_view* Base)
 			{
-				Base.~basic_string_view();
+				ImmediateContext* Context = ImmediateContext::Get();
+				if (Context != nullptr)
+					Context->InvalidateString(*Base);
+				Base->~basic_string_view();
 			}
 			bool StringView::StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset)
 			{
@@ -11001,11 +11006,9 @@ namespace Vitex
 				VM->EndNamespace();
 
 				VStringView->SetConstructorEx("void f()", &StringView::Create);
-				VStringView->SetConstructorEx("void f(const string&in)", &StringView::CreateCopy1);
-				VStringView->SetConstructorEx("void f(const string_view&in)", &StringView::CreateCopy2);
+				VStringView->SetConstructorEx("void f(const string&in)", &StringView::CreateCopy);
 				VStringView->SetDestructorEx("void f()", &StringView::Destroy);
-				VStringView->SetMethod<std::string_view, std::string_view&, const std::string_view&>("string& opAssign(const string&in)", &std::string_view::operator=);
-				VStringView->SetMethod<std::string_view, std::string_view&, const std::string_view&>("string& opAssign(const string_view&in)", &std::string_view::operator=);
+				VStringView->SetMethodEx("string_view& opAssign(const string&in)", &StringView::Assign);
 				VStringView->SetMethodEx<Core::String, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &StringView::Append1);
 				VStringView->SetMethodEx<Core::String, const std::string_view&, const Core::String&>("string opAdd(const string&in) const", &StringView::Append2);
 				VStringView->SetMethodEx<Core::String, const Core::String&, const std::string_view&>("string opAdd_r(const string&in) const", &StringView::Append3);

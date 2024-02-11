@@ -391,10 +391,10 @@ namespace Vitex
 			{
 			public:
 				static std::string_view ImplCastStringView(Core::String& Base);
-				static void Create(Core::String& Base);
-				static void CreateCopy1(Core::String& Base, const Core::String& Other);
-				static void CreateCopy2(Core::String& Base, const std::string_view& Other);
-				static void Destroy(Core::String& Base);
+				static void Create(Core::String* Base);
+				static void CreateCopy1(Core::String* Base, const Core::String& Other);
+				static void CreateCopy2(Core::String* Base, const std::string_view& Other);
+				static void Destroy(Core::String* Base);
 				static void PopBack(Core::String& Base);
 				static Core::String& Replace1(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start);
 				static Core::String& ReplacePart1(Core::String& Other, size_t Start, size_t End, const Core::String& To);
@@ -426,10 +426,10 @@ namespace Vitex
 			{
 			public:
 				static Core::String ImplCastString(std::string_view& Base);
-				static void Create(std::string_view& Base);
-				static void CreateCopy1(std::string_view& Base, const Core::String& Other);
-				static void CreateCopy2(std::string_view& Base, const std::string_view& Other);
-				static void Destroy(std::string_view& Base);
+				static void Create(std::string_view* Base);
+				static void CreateCopy(std::string_view* Base, Core::String& Other);
+				static void Assign(std::string_view* Base, Core::String& Other);
+				static void Destroy(std::string_view* Base);
 				static bool StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset);
 				static bool EndsWith(const std::string_view& Other, const std::string_view& Value);
 				static int Compare1(std::string_view& Base, const Core::String& Other);

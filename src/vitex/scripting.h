@@ -1864,8 +1864,9 @@ namespace Vitex
 			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void AppendStopExecutionCallback(StopExecutionCallback&& Callback);
-			Core::String& ExtendStringLifetime(Core::String& Value);
-			void CleanupStrings();
+			Core::String& CopyString(Core::String& Value);
+			void InvalidateString(const std::string_view& Value);
+			void InvalidateStrings();
 			void AddRefLocals();
 			void ReleaseLocals();
 			void Reset();

@@ -5535,7 +5535,6 @@ namespace Vitex
 #ifdef VI_ANGELSCRIPT
 			Context->SetUserData(this, ContextUD);
 			VM = VirtualMachine::Get(Base->GetEngine());
-			SetLineCallback(nullptr);
 #endif
 		}
 		ImmediateContext::~ImmediateContext() noexcept
@@ -5639,8 +5638,6 @@ namespace Vitex
 			VI_ASSERT(Context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			int R = Context->Execute();
-			CleanupStrings();
-
 			if (Callbacks.StopExecutions.empty())
 				return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
 
@@ -6143,24 +6140,30 @@ namespace Vitex
 			Context->Unprepare();
 			Callbacks = Events();
 			Executor = Frame();
-			CleanupStrings();
+			InvalidateStrings();
 #endif
 		}
-		Core::String& ImmediateContext::ExtendStringLifetime(Core::String& Value)
+		Core::String& ImmediateContext::CopyString(Core::String& Value)
 		{
-#ifdef VI_ANGELSCRIPT
-			if (Context->GetState() != asEXECUTION_ACTIVE)
-				return Value;
-
-			return Strings.emplace_back(Value);
-#else
-			return Value;
-#endif
+			auto& Copy = Strings.emplace_front(Value);
+			return Copy;
 		}
-		void ImmediateContext::CleanupStrings()
+		void ImmediateContext::InvalidateString(const std::string_view& Value)
 		{
-			while (!Strings.empty())
-				Strings.pop_front();
+			auto It = Strings.begin();
+			while (It != Strings.end())
+			{
+				if (It->data() == Value.data())
+				{
+					Strings.erase(It);
+					break;
+				}
+				++It;
+			}
+		}
+		void ImmediateContext::InvalidateStrings()
+		{
+			Strings.clear();
 		}
 		void ImmediateContext::AddRefLocals()
 		{
@@ -8302,9 +8305,8 @@ namespace Vitex
 		{
 			ImmediateContext* Base = ImmediateContext::Get(Context);
 			VI_ASSERT(Base != nullptr, "context should be set");
-			if (Base->Callbacks.Line)
-				Base->Callbacks.Line(Base);
-			Base->CleanupStrings();
+			VI_ASSERT(Base->Callbacks.Line != nullptr, "callback should be set");
+			Base->Callbacks.Line(Base);
 		}
 		void VirtualMachine::ExceptionHandler(asIScriptContext* Context, void*)
 		{

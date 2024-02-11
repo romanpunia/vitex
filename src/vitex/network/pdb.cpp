@@ -2,6 +2,12 @@
 #ifdef VI_POSTGRESQL
 #include <libpq-fe.h>
 #endif
+#ifdef VI_OPENSSL
+extern "C"
+{
+#include <openssl/opensslv.h>
+}
+#endif
 
 namespace Vitex
 {
@@ -1635,7 +1641,11 @@ namespace Vitex
 				VI_ASSERT(Connections > 0, "connections count should be at least 1");
 				if (!Core::OS::Control::Has(Core::AccessOption::Net))
 					return ExpectsPromiseDB<void>(DatabaseException("connect failed: permission denied"));
-
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
+				int Version = PQlibVersion();
+				if (Version < 162000)
+					return ExpectsPromiseDB<void>(DatabaseException(Core::Stringify::Text("connect failed: libpq <= %.2f will cause a segfault starting with openssl 3.2", (double)Version / 10000.0)));
+#endif
 				Core::UMutex<std::mutex> Unique(Update);
 				Source = Location;
 				if (!Pool.empty())

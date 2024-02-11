@@ -1991,10 +1991,6 @@ namespace Vitex
 			{
 				return ToUInt64();
 			}
-			explicit operator String() const
-			{
-				return ToString();
-			}
 
 		private:
 			void InitializeFromText(const std::string_view& Text) noexcept;

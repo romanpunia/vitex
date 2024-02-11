@@ -12128,7 +12128,7 @@ namespace Vitex
 		}
 		Schema* Schema::GetAttribute(const std::string_view& Name) const
 		{
-			return Get(String(':' + Name));
+			return Get(':' + String(Name));
 		}
 		Variant Schema::FetchVar(const std::string_view& fKey, bool Deep) const
 		{
@@ -12156,7 +12156,7 @@ namespace Vitex
 		}
 		Variant Schema::GetAttributeVar(const std::string_view& Key) const
 		{
-			return GetVar(String(':' + Key));
+			return GetVar(':' + String(Key));
 		}
 		Schema* Schema::Get(size_t Index) const
 		{
@@ -12266,11 +12266,11 @@ namespace Vitex
 		}
 		Schema* Schema::SetAttribute(const std::string_view& Name, const Variant& fValue)
 		{
-			return Set(String(':' + Name), fValue);
+			return Set(':' + String(Name), fValue);
 		}
 		Schema* Schema::SetAttribute(const std::string_view& Name, Variant&& fValue)
 		{
-			return Set(String(':' + Name), std::move(fValue));
+			return Set(':' + String(Name), std::move(fValue));
 		}
 		Schema* Schema::Push(const Variant& Base)
 		{
@@ -12368,7 +12368,7 @@ namespace Vitex
 		}
 		bool Schema::HasAttribute(const std::string_view& Name) const
 		{
-			return Fetch(String(':' + Name)) != nullptr;
+			return Fetch(':' + String(Name)) != nullptr;
 		}
 		bool Schema::Empty() const
 		{

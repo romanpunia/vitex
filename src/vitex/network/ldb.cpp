@@ -331,7 +331,11 @@ namespace Vitex
 			}
 			bool Response::Error() const
 			{
+#ifdef VI_SQLITE
 				return !StatusMessage.empty() && StatusCode != SQLITE_OK;
+#else
+				return !StatusMessage.empty() && StatusCode != 0;
+#endif
 			}
 
 			Cursor::Cursor() : Cursor(nullptr)

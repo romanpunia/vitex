@@ -1352,7 +1352,7 @@ namespace Vitex
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator!=(const T& Right) const
 			{
-				return (Upper | (Lower != (uint64_t)Right));
+				return (Upper || (Lower != (uint64_t)Right));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator>(const T& Right) const
@@ -1367,12 +1367,12 @@ namespace Vitex
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator>=(const T& Right) const
 			{
-				return ((*this > Right) | (*this == Right));
+				return ((*this > Right) || (*this == Right));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator<=(const T& Right) const
 			{
-				return ((*this < Right) | (*this == Right));
+				return ((*this < Right) || (*this == Right));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			UInt128 operator+(const T& Right) const
@@ -1472,7 +1472,7 @@ namespace Vitex
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			friend bool operator!=(const T& Left, const UInt128& Right)
 			{
-				return (Right.High() | ((uint64_t)Left != Right.Low()));
+				return (Right.High() || ((uint64_t)Left != Right.Low()));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			friend bool operator>(const T& Left, const UInt128& Right)
@@ -1825,12 +1825,12 @@ namespace Vitex
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator!=(const T& Right) const
 			{
-				return ((bool)Upper | (Lower != UInt128(Right)));
+				return ((bool)Upper || (Lower != UInt128(Right)));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator>(const T& Right) const
 			{
-				return ((bool)Upper | (Lower > UInt128(Right)));
+				return ((bool)Upper || (Lower > UInt128(Right)));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator<(const T& Right) const
@@ -1840,12 +1840,12 @@ namespace Vitex
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator>=(const T& Right) const
 			{
-				return ((*this > Right) | (*this == Right));
+				return ((*this > Right) || (*this == Right));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			bool operator<=(const T& Right) const
 			{
-				return ((*this < Right) | (*this == Right));
+				return ((*this < Right) || (*this == Right));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			UInt256 operator+(const T& Right) const
@@ -1946,7 +1946,7 @@ namespace Vitex
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			friend bool operator!=(const T& Left, const UInt256& Right)
 			{
-				return (Right.High() | ((uint64_t)Left != Right.Low()));
+				return (Right.High() || ((uint64_t)Left != Right.Low()));
 			}
 			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
 			friend bool operator>(const T& Left, const UInt256& Right)

@@ -4212,7 +4212,7 @@ namespace Vitex
 		}
 		UInt128::operator bool() const
 		{
-			return (bool)(Upper | Lower);
+			return (bool)(Upper || Lower);
 		}
 		UInt128::operator uint8_t() const
 		{
@@ -4308,7 +4308,7 @@ namespace Vitex
 		}
 		bool UInt128::operator!() const
 		{
-			return !(bool)(Upper | Lower);
+			return !(bool)(Upper || Lower);
 		}
 		bool UInt128::operator&&(const UInt128& Right) const
 		{
@@ -4324,7 +4324,7 @@ namespace Vitex
 		}
 		bool UInt128::operator!=(const UInt128& Right) const
 		{
-			return ((Upper != Right.Upper) | (Lower != Right.Lower));
+			return ((Upper != Right.Upper) || (Lower != Right.Lower));
 		}
 		bool UInt128::operator>(const UInt128& Right) const
 		{
@@ -4654,7 +4654,7 @@ namespace Vitex
 		}
 		UInt256::operator bool() const
 		{
-			return (bool)(Upper | Lower);
+			return (bool)(Upper || Lower);
 		}
 		UInt256::operator uint8_t() const
 		{

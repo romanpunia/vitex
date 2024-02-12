@@ -366,12 +366,16 @@ namespace Vitex
 							++StaticAddresses;
 					}
 
-					if (StaticAddresses == Blocks.size() + Watchers.size())
-						return false;
-
 					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
 					if (!LogActive)
 						ErrorHandling::SetFlag(LogOption::Active, true);
+
+					if (StaticAddresses == Blocks.size() + Watchers.size())
+					{
+						VI_DEBUG("[mem] memory tracing OK: no memory leaked");
+						ErrorHandling::SetFlag(LogOption::Active, LogActive);
+						return false;
+					}
 
 					size_t TotalMemory = 0;
 					for (auto& Item : Blocks)

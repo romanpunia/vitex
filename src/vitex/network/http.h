@@ -705,9 +705,7 @@ namespace Vitex
 				{
 					Resource Data;
 					ResourceCallback Callback;
-					Core::String Header;
 					Core::String* TemporaryDirectory = nullptr;
-					ContentFrame* Content = nullptr;
 					FILE* Stream = nullptr;
 					uint8_t* LookBehind = nullptr;
 					uint8_t* Boundary = nullptr;

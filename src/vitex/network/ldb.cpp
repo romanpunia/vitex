@@ -331,7 +331,7 @@ namespace Vitex
 			}
 			bool Response::Error() const
 			{
-				return !StatusMessage.empty() || StatusCode != 0;
+				return !StatusMessage.empty() && StatusCode != SQLITE_OK;
 			}
 
 			Cursor::Cursor() : Cursor(nullptr)
@@ -959,8 +959,9 @@ namespace Vitex
 				sqlite3_finalize(Target);
 				return Core::Expectation::Met;
 			StopExecution:
-				Context.StatusCode = Code;
-				Context.StatusMessage = sqlite3_errmsg(Connection);
+				int Error = sqlite3_errcode(Connection);
+				Context.StatusCode = Error == SQLITE_OK ? Code : Error;
+				Context.StatusMessage = Error == SQLITE_OK ? sqlite3_errstr(Code) : sqlite3_errmsg(Connection);
 				if (Target != nullptr)
 					sqlite3_finalize(Target);
 				return DatabaseException(Core::String(Context.StatusMessage));

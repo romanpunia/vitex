@@ -2580,6 +2580,11 @@ namespace Vitex
 			{
 				Core::Memory::Deallocate(Multipart.Boundary);
 				Multipart = MultipartState();
+				Multipart.Skip = Skip;
+				Multipart.MaxResources = MaxResources;
+				Multipart.TemporaryDirectory = TemporaryDirectory;
+				Multipart.Callback = std::move(Callback);
+				Message.Header.clear();
 				Message.Content = Content;
 			}
 			int64_t Parser::MultipartParse(const std::string_view& Boundary, const uint8_t* Buffer, size_t Length)
@@ -4386,11 +4391,11 @@ namespace Vitex
 				if (!Length || Parser->Multipart.Skip)
 					return true;
 
-				if (Parser->Multipart.Header.empty())
+				if (Parser->Message.Header.empty())
 					return true;
 
 				std::string_view Value = std::string_view((char*)Data, Length);
-				if (Parser->Multipart.Header == "Content-Disposition")
+				if (Parser->Message.Header == "Content-Disposition")
 				{
 					Core::TextSettle Start = Core::Stringify::Find(Value, "name=\"");
 					if (Start.Found)
@@ -4411,11 +4416,11 @@ namespace Vitex
 						}
 					}
 				}
-				else if (Parser->Multipart.Header == "Content-Type")
+				else if (Parser->Message.Header == "Content-Type")
 					Parser->Multipart.Data.Type = Value;
 
-				Parser->Multipart.Data.SetHeader(Parser->Multipart.Header.c_str(), Value);
-				Parser->Multipart.Header.clear();
+				Parser->Multipart.Data.SetHeader(Parser->Message.Header.c_str(), Value);
+				Parser->Message.Header.clear();
 				return true;
 			}
 			bool Parsing::ParseMultipartContentData(Parser* Parser, const uint8_t* Data, size_t Length)
@@ -4437,7 +4442,7 @@ namespace Vitex
 			bool Parsing::ParseMultipartResourceBegin(Parser* Parser)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Multipart.Skip || !Parser->Multipart.Content)
+				if (Parser->Multipart.Skip || !Parser->Message.Content)
 					return true;
 
 				if (Parser->Multipart.Stream != nullptr)
@@ -4447,13 +4452,13 @@ namespace Vitex
 					return false;
 				}
 
-				if (Parser->Multipart.Content->Resources.size() >= Parser->Multipart.MaxResources)
+				if (Parser->Message.Content->Resources.size() >= Parser->Multipart.MaxResources)
 				{
 					Parser->Multipart.Finish = true;
 					return false;
 				}
 
-				Parser->Multipart.Header.clear();
+				Parser->Message.Header.clear();
 				Parser->Multipart.Data.Headers.clear();
 				Parser->Multipart.Data.Name.clear();
 				Parser->Multipart.Data.Type = "application/octet-stream";
@@ -4485,15 +4490,15 @@ namespace Vitex
 			bool Parsing::ParseMultipartResourceEnd(Parser* Parser)
 			{
 				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Multipart.Skip || !Parser->Multipart.Stream || !Parser->Multipart.Content)
+				if (Parser->Multipart.Skip || !Parser->Multipart.Stream || !Parser->Message.Content)
 					return true;
 
 				Core::OS::File::Close(Parser->Multipart.Stream);
 				Parser->Multipart.Stream = nullptr;
-				Parser->Multipart.Content->Resources.push_back(Parser->Multipart.Data);
+				Parser->Message.Content->Resources.push_back(Parser->Multipart.Data);
 
 				if (Parser->Multipart.Callback)
-					Parser->Multipart.Callback(&Parser->Multipart.Content->Resources.back());
+					Parser->Multipart.Callback(&Parser->Message.Content->Resources.back());
 
 				return true;
 			}
@@ -6594,13 +6599,13 @@ namespace Vitex
 			}
 			void Client::UploadFileChunkAsync(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 			{
+			Retry:
 				if (!ContentLength)
 				{
 					Core::OS::File::Close(FileStream);
 					return Callback(Core::Expectation::Met);
 				}
 
-			Retry:
 				uint8_t Buffer[Core::BLOB_SIZE];
 				size_t Read = sizeof(Buffer);
 				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)

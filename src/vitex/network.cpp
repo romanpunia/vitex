@@ -1877,12 +1877,13 @@ namespace Vitex
 		}
 		void Uplinks::ListenConnectionName(const std::string_view& Name, Socket* Target)
 		{
-			Multiplexer::Get()->WhenReadable(Target, [this, Name, Target](SocketPoll Event)
+			Core::String Copy = Core::String(Name);
+			Multiplexer::Get()->WhenReadable(Target, [this, Copy, Target](SocketPoll Event)
 			{
 				if (Packet::IsError(Event))
-					ExpireConnectionName(Name, Target);
+					ExpireConnectionName(Copy, Target);
 				else if (!Packet::IsSkip(Event))
-					ListenConnectionName(Name, Target);
+					ListenConnectionName(Copy, Target);
 			});
 		}
 		void Uplinks::UnlistenConnection(Socket* Target)

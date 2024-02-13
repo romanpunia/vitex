@@ -26,7 +26,7 @@
 #include <sys/syscall.h>
 #endif
 #ifdef VI_SDL2
-#include "internal/sdl2-cross.hpp"
+#include "internal/sdl2.hpp"
 #endif
 #ifdef VI_POSTGRESQL
 #include <libpq-fe.h>
@@ -492,6 +492,14 @@ namespace Vitex
 	{
 		return HasSoSpirv();
 	}
+	bool Runtime::HasFtFContext() const noexcept
+	{
+#ifdef VI_FCONTEXT
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Runtime::HasSoOpenGL() const noexcept
 	{
 #ifdef VI_OPENGL
@@ -596,9 +604,9 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdBacktrace() const noexcept
+	bool Runtime::HasMdBackwardCpp() const noexcept
 	{
-#ifdef VI_BACKTRACE
+#ifdef VI_BACKWARDCPP
 		return true;
 #else
 		return false;
@@ -660,25 +668,9 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdSimd() const noexcept
+	bool Runtime::HasMdVectorclass() const noexcept
 	{
-#ifdef VI_SIMD
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasMdJit() const noexcept
-	{
-#ifdef VI_JIT
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasMdFContext() const noexcept
-	{
-#ifdef VI_FCTX
+#ifdef VI_VECTORCLASS
 		return true;
 #else
 		return false;
@@ -745,8 +737,8 @@ namespace Vitex
 			Features.push_back("so:freetype");
 		if (HasMdAngelScript())
 			Features.push_back("md:angelscript");
-		if (HasMdBacktrace())
-			Features.push_back("md:backward-cxx");
+		if (HasMdBackwardCpp())
+			Features.push_back("md:backward-cpp");
 		if (HasMdRmlUI())
 			Features.push_back("md:rmlui");
 		if (HasMdBullet3())
@@ -761,12 +753,10 @@ namespace Vitex
 			Features.push_back("md:pugixml");
 		if (HasMdRapidJson())
 			Features.push_back("md:rapidjson");
-		if (HasMdFContext())
-			Features.push_back("md:fcontext");
-		if (HasMdSimd())
-			Features.push_back("md:simd");
-		if (HasMdJit())
-			Features.push_back("md:jit");
+		if (HasMdVectorclass())
+			Features.push_back("md:vectorclass");
+		if (HasFtFContext())
+			Features.push_back("ft:fcontext");
 		if (HasFtAllocator())
 			Features.push_back("ft:allocator");
 		if (HasFtPessimistic())

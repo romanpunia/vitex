@@ -15,7 +15,7 @@
 #ifdef _WIN64
 #define VI_64 1
 #endif
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 #define VI_COCALL
 #define VI_CODATA void* Context
 #else
@@ -38,7 +38,7 @@ typedef void* epoll_handle;
 #if __x86_64__ || __ppc64__
 #define VI_64 1
 #endif
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 #define VI_COCALL
 #define VI_CODATA void* Context
 #else
@@ -76,7 +76,7 @@ typedef socklen_t socket_size_t;
 #if __x86_64__ || __ppc64__
 #define VI_64 1
 #endif
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 #define VI_COCALL
 #define VI_CODATA void* Context
 #else

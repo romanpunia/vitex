@@ -30,10 +30,10 @@
 #endif
 #ifdef VI_CXX23
 #include <stacktrace>
-#elif defined(VI_BACKTRACE)
+#elif defined(VI_BACKWARDCPP)
 #include <backward.hpp>
 #endif
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 #include "internal/fcontext/fcontext.h"
 #endif
 #ifdef VI_MICROSOFT
@@ -60,7 +60,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#ifndef VI_FCTX
+#ifndef VI_FCONTEXT
 #include <ucontext.h>
 #endif
 #endif
@@ -901,7 +901,7 @@ namespace Vitex
 
 		struct Cocontext
 		{
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 			fcontext_t Context = nullptr;
 			char* Stack = nullptr;
 #elif VI_MICROSOFT
@@ -913,7 +913,7 @@ namespace Vitex
 #endif
 			Cocontext()
 			{
-#ifndef VI_FCTX
+#ifndef VI_FCONTEXT
 #ifdef VI_MICROSOFT
 				Context = ConvertThreadToFiber(nullptr);
 				Main = true;
@@ -922,7 +922,7 @@ namespace Vitex
 			}
 			Cocontext(Costate* State)
 			{
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 				Stack = Memory::Allocate<char>(sizeof(char) * State->Size);
 				Context = make_fcontext(Stack + State->Size, State->Size, [](transfer_t Transfer)
 				{
@@ -945,7 +945,7 @@ namespace Vitex
 			}
 			~Cocontext()
 			{
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 				Memory::Deallocate(Stack);
 #elif VI_MICROSOFT
 				if (Main)
@@ -1400,7 +1400,7 @@ namespace Vitex
 					Target.Function = "[optimized]";
 				Frames.emplace_back(std::move(Target));
 			}
-#elif defined(VI_BACKTRACE)
+#elif defined(VI_BACKWARDCPP)
 			static bool IsPreloaded = false;
 			if (!IsPreloaded)
 			{
@@ -10947,7 +10947,7 @@ namespace Vitex
 
 			Cocontext* Fiber = Routine->Slave;
 			Current = Routine;
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 			Fiber->Context = jump_fcontext(Fiber->Context, (void*)this).fctx;
 #elif VI_MICROSOFT
 			SwitchToFiber(Fiber->Context);
@@ -11065,7 +11065,7 @@ namespace Vitex
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
 				return false;
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 			Current = nullptr;
 			jump_fcontext(Master->Context, (void*)this);
 #elif VI_MICROSOFT
@@ -11139,7 +11139,7 @@ namespace Vitex
 		}
 		void VI_COCALL Costate::ExecutionEntry(VI_CODATA)
 		{
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 			transfer_t* Transfer = (transfer_t*)Context;
 			Costate* State = (Costate*)Transfer->data;
 			State->Master->Context = Transfer->fctx;
@@ -11161,7 +11161,7 @@ namespace Vitex
 			}
 
 			State->Current = nullptr;
-#ifdef VI_FCTX
+#ifdef VI_FCONTEXT
 			jump_fcontext(State->Master->Context, Context);
 #elif VI_MICROSOFT
 			SwitchToFiber(State->Master->Context);

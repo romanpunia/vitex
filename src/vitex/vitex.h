@@ -7,9 +7,9 @@ namespace Vitex
 	enum
 	{
 		MAJOR_VERSION = 2,
-		MINOR_VERSION = 0,
-		PATCH_VERSION = 2,
-		BUILD_VERSION = 5,
+		MINOR_VERSION = 1,
+		PATCH_VERSION = 0,
+		BUILD_VERSION = 0,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 1000 + BUILD_VERSION
 	};
 
@@ -59,6 +59,7 @@ namespace Vitex
 		bool HasFtPessimistic() const noexcept;
 		bool HasFtBindings() const noexcept;
 		bool HasFtShaders() const noexcept;
+		bool HasFtFContext() const noexcept;
 		bool HasSoOpenGL() const noexcept;
 		bool HasSoOpenAL() const noexcept;
 		bool HasSoOpenSSL() const noexcept;
@@ -72,7 +73,7 @@ namespace Vitex
 		bool HasSoSQLite() const noexcept;
 		bool HasSoFreeType() const noexcept;
 		bool HasMdAngelScript() const noexcept;
-		bool HasMdBacktrace() const noexcept;
+		bool HasMdBackwardCpp() const noexcept;
 		bool HasMdRmlUI() const noexcept;
 		bool HasMdBullet3() const noexcept;
 		bool HasMdTinyFileDialogs() const noexcept;
@@ -80,9 +81,7 @@ namespace Vitex
 		bool HasMdStb() const noexcept;
 		bool HasMdPugiXml() const noexcept;
 		bool HasMdRapidJson() const noexcept;
-		bool HasMdSimd() const noexcept;
-		bool HasMdJit() const noexcept;
-		bool HasMdFContext() const noexcept;
+		bool HasMdVectorclass() const noexcept;
 		int GetMajorVersion() const noexcept;
 		int GetMinorVersion() const noexcept;
 		int GetPatchVersion() const noexcept;

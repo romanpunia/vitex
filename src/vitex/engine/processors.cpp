@@ -10,7 +10,7 @@
 #endif
 #endif
 #ifdef VI_SDL2
-#include "../internal/sdl2-cross.hpp"
+#include "../internal/sdl2.hpp"
 #endif
 #ifdef VI_ASSIMP
 #include <assimp/Importer.hpp>

@@ -12,8 +12,8 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #endif
-#ifdef VI_SIMD
-#include "internal/simd-cross.hpp"
+#ifdef VI_VECTORCLASS
+#include "internal/vectorclass.hpp"
 #endif
 #ifdef VI_ZLIB
 extern "C"
@@ -208,8 +208,8 @@ namespace Vitex
 		}
 		float Vector2::Length() const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			return std::sqrt(horizontal_add(square(_r1)));
 #else
 			return std::sqrt(X * X + Y * Y);
@@ -217,8 +217,8 @@ namespace Vitex
 		}
 		float Vector2::Sum() const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			return horizontal_add(_r1);
 #else
 			return X + Y;
@@ -226,8 +226,8 @@ namespace Vitex
 		}
 		float Vector2::Dot(const Vector2& B) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, B);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, B);
 			return horizontal_add(_r1 * _r2);
 #else
 			return X * B.X + Y * B.Y;
@@ -235,8 +235,8 @@ namespace Vitex
 		}
 		float Vector2::Distance(const Vector2& Point) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, Point);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, Point);
 			return Geometric::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y;
@@ -249,8 +249,8 @@ namespace Vitex
 		}
 		float Vector2::LookAt(const Vector2& At) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, At); _r1 = _r2 - _r1;
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, At); _r1 = _r2 - _r1;
 			return atan2f(_r1.extract(0), _r1.extract(1));
 #else
 			return atan2f(At.X - X, At.Y - Y);
@@ -258,8 +258,8 @@ namespace Vitex
 		}
 		float Vector2::Cross(const Vector2& B) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, B); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, B); _r1 = _r1 * _r2;
 			return _r1.extract(0) - _r1.extract(1);
 #else
 			return X * B.Y - Y * B.X;
@@ -267,11 +267,11 @@ namespace Vitex
 		}
 		Vector2 Vector2::Transform(const Matrix4x4& Matrix) const
 		{
-#ifdef VI_SIMD
-			LOD_VAL(_r1, X);
-			LOD_VAL(_r2, Y);
-			LOD_VAR(_r3, Matrix.Row);
-			LOD_VAR(_r4, Matrix.Row + 4);
+#ifdef VI_VECTORCLASS
+			LOAD_VAL(_r1, X);
+			LOAD_VAL(_r2, Y);
+			LOAD_VAR(_r3, Matrix.Row);
+			LOAD_VAR(_r4, Matrix.Row + 4);
 
 			_r1 = _r1 * _r3 + _r2 * _r4;
 			return Vector2(_r1.extract(0), _r1.extract(1));
@@ -299,8 +299,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Normalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			_r1 = _r1 * Geometric::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -310,8 +310,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::sNormalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector2();
@@ -328,8 +328,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Lerp(const Vector2& B, float DeltaTime) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, B);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, B);
 			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -356,8 +356,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Abs() const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); _r1 = abs(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); _r1 = abs(_r1);
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
 			return Vector2(X < 0 ? -X : X, Y < 0 ? -Y : Y);
@@ -385,8 +385,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Mul(float xy) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); _r1 = _r1 * xy;
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); _r1 = _r1 * xy;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
 			return Vector2(X * xy, Y * xy);
@@ -394,8 +394,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Mul(float x, float y) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_AV2(_r2, x, y); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_AV2(_r2, x, y); _r1 = _r1 * _r2;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
 			return Vector2(X * x, Y * y);
@@ -407,8 +407,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Div(const Vector2& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, Value); _r1 = _r1 / _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, Value); _r1 = _r1 / _r2;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
 			return Vector2(X / Value.X, Y / Value.Y);
@@ -416,8 +416,8 @@ namespace Vitex
 		}
 		Vector2 Vector2::Add(const Vector2& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, Value); _r1 = _r1 + _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, Value); _r1 = _r1 + _r2;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
 			return Vector2(X + Value.X, Y + Value.Y);
@@ -444,8 +444,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator *=(const Vector2& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -456,8 +456,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator *=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			_r1 = _r1 * V;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -468,8 +468,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator /=(const Vector2& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -480,8 +480,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator /=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			_r1 = _r1 / V;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -492,8 +492,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator +=(const Vector2& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -504,8 +504,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator +=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			_r1 = _r1 + V;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -516,8 +516,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator -=(const Vector2& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1); LOD_V2(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1); LOAD_V2(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -528,8 +528,8 @@ namespace Vitex
 		}
 		Vector2& Vector2::operator -=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV2(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV2(_r1);
 			_r1 = _r1 - V;
 			_r1.store_partial(2, (float*)this);
 #else
@@ -656,8 +656,8 @@ namespace Vitex
 		}
 		float Vector3::Length() const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1);
 			return sqrt(horizontal_add(square(_r1)));
 #else
 			return std::sqrt(X * X + Y * Y + Z * Z);
@@ -665,8 +665,8 @@ namespace Vitex
 		}
 		float Vector3::Sum() const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1);
 			return horizontal_add(_r1);
 #else
 			return X + Y + Z;
@@ -674,8 +674,8 @@ namespace Vitex
 		}
 		float Vector3::Dot(const Vector3& B) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, B);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, B);
 			return horizontal_add(_r1 * _r2);
 #else
 			return X * B.X + Y * B.Y + Z * B.Z;
@@ -683,8 +683,8 @@ namespace Vitex
 		}
 		float Vector3::Distance(const Vector3& Point) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, Point);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, Point);
 			return Geometric::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z;
@@ -693,11 +693,11 @@ namespace Vitex
 		}
 		float Vector3::Hypotenuse() const
 		{
-#ifdef VI_SIMD
-			LOD_AV2(_r1, X, Z);
+#ifdef VI_VECTORCLASS
+			LOAD_AV2(_r1, X, Z);
 			float R = Geometric::FastSqrt(horizontal_add(square(_r1)));
 
-			LOD_AV2(_r2, R, Y);
+			LOAD_AV2(_r2, R, Y);
 			return Geometric::FastSqrt(horizontal_add(square(_r2)));
 #else
 			float R = Geometric::FastSqrt(X * X + Z * Z);
@@ -711,11 +711,11 @@ namespace Vitex
 		}
 		Vector3 Vector3::Cross(const Vector3& B) const
 		{
-#ifdef VI_SIMD
-			LOD_AV3(_r1, Y, Z, X);
-			LOD_AV3(_r2, Z, X, Y);
-			LOD_AV3(_r3, B.Z, B.X, B.Y);
-			LOD_AV3(_r4, B.Y, B.Z, B.X);
+#ifdef VI_VECTORCLASS
+			LOAD_AV3(_r1, Y, Z, X);
+			LOAD_AV3(_r2, Z, X, Y);
+			LOAD_AV3(_r3, B.Z, B.X, B.Y);
+			LOAD_AV3(_r4, B.Y, B.Z, B.X);
 
 			_r1 = _r1 * _r3 - _r2 * _r4;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
@@ -725,13 +725,13 @@ namespace Vitex
 		}
 		Vector3 Vector3::Transform(const Matrix4x4& Matrix) const
 		{
-#ifdef VI_SIMD
-			LOD_VAL(_r1, X);
-			LOD_VAL(_r2, Y);
-			LOD_VAL(_r3, Z);
-			LOD_VAR(_r4, Matrix.Row);
-			LOD_VAR(_r5, Matrix.Row + 4);
-			LOD_VAR(_r6, Matrix.Row + 8);
+#ifdef VI_VECTORCLASS
+			LOAD_VAL(_r1, X);
+			LOAD_VAL(_r2, Y);
+			LOAD_VAL(_r3, Z);
+			LOAD_VAR(_r4, Matrix.Row);
+			LOAD_VAR(_r5, Matrix.Row + 4);
+			LOAD_VAR(_r6, Matrix.Row + 8);
 
 			_r1 = _r1 * _r4 + _r2 * _r5 + _r3 * _r6;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
@@ -773,8 +773,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Normalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1);
 			_r1 = _r1 * Geometric::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -784,8 +784,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::sNormalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1);
 			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector3();
@@ -802,8 +802,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Lerp(const Vector3& B, float DeltaTime) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, B);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, B);
 			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -832,8 +832,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Abs() const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); _r1 = abs(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); _r1 = abs(_r1);
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			return Vector3(X < 0 ? -X : X, Y < 0 ? -Y : Y, Z < 0 ? -Z : Z);
@@ -865,8 +865,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Mul(float xyz) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); _r1 = _r1 * xyz;
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); _r1 = _r1 * xyz;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			return Vector3(X * xyz, Y * xyz, Z * xyz);
@@ -874,8 +874,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Mul(const Vector2& XY, float z) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_AV3(_r2, XY.X, XY.Y, z); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_AV3(_r2, XY.X, XY.Y, z); _r1 = _r1 * _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			return Vector3(X * XY.X, Y * XY.Y, Z * z);
@@ -883,8 +883,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Mul(const Vector3& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, Value); _r1 = _r1 * _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			return Vector3(X * Value.X, Y * Value.Y, Z * Value.Z);
@@ -892,8 +892,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Div(const Vector3& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 / _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, Value); _r1 = _r1 / _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			return Vector3(X / Value.X, Y / Value.Y, Z / Value.Z);
@@ -901,8 +901,8 @@ namespace Vitex
 		}
 		Vector3 Vector3::Add(const Vector3& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 + _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, Value); _r1 = _r1 + _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			return Vector3(X + Value.X, Y + Value.Y, Z + Value.Z);
@@ -945,8 +945,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator *=(const Vector3& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -958,8 +958,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator *=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -971,8 +971,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator /=(const Vector3& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -984,8 +984,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator /=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -997,8 +997,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator +=(const Vector3& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -1010,8 +1010,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator +=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -1023,8 +1023,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator -=(const Vector3& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_V3(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -1036,8 +1036,8 @@ namespace Vitex
 		}
 		Vector3& Vector3::operator -=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV3(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV3(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store_partial(3, (float*)this);
 #else
@@ -1173,8 +1173,8 @@ namespace Vitex
 		}
 		float Vector4::Length() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			return std::sqrt(horizontal_add(square(_r1)));
 #else
 			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
@@ -1182,8 +1182,8 @@ namespace Vitex
 		}
 		float Vector4::Sum() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			return horizontal_add(_r1);
 #else
 			return X + Y + Z + W;
@@ -1191,8 +1191,8 @@ namespace Vitex
 		}
 		float Vector4::Dot(const Vector4& B) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, B);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, B);
 			return horizontal_add(_r1 * _r2);
 #else
 			return X * B.X + Y * B.Y + Z * B.Z + W * B.W;
@@ -1200,8 +1200,8 @@ namespace Vitex
 		}
 		float Vector4::Distance(const Vector4& Point) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, Point);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, Point);
 			return Geometric::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z, W1 = W - Point.W;
@@ -1210,11 +1210,11 @@ namespace Vitex
 		}
 		Vector4 Vector4::Cross(const Vector4& B) const
 		{
-#ifdef VI_SIMD
-			LOD_AV3(_r1, Y, Z, X);
-			LOD_AV3(_r2, Z, X, Y);
-			LOD_AV3(_r3, B.Z, B.X, B.Y);
-			LOD_AV3(_r4, B.Y, B.Z, B.X);
+#ifdef VI_VECTORCLASS
+			LOAD_AV3(_r1, Y, Z, X);
+			LOAD_AV3(_r2, Z, X, Y);
+			LOAD_AV3(_r3, B.Z, B.X, B.Y);
+			LOAD_AV3(_r4, B.Y, B.Z, B.X);
 
 			_r1 = _r1 * _r3 - _r2 * _r4;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
@@ -1224,15 +1224,15 @@ namespace Vitex
 		}
 		Vector4 Vector4::Transform(const Matrix4x4& Matrix) const
 		{
-#ifdef VI_SIMD
-			LOD_VAL(_r1, X);
-			LOD_VAL(_r2, Y);
-			LOD_VAL(_r3, Z);
-			LOD_VAL(_r4, W);
-			LOD_VAR(_r5, Matrix.Row);
-			LOD_VAR(_r6, Matrix.Row + 4);
-			LOD_VAR(_r7, Matrix.Row + 8);
-			LOD_VAR(_r8, Matrix.Row + 12);
+#ifdef VI_VECTORCLASS
+			LOAD_VAL(_r1, X);
+			LOAD_VAL(_r2, Y);
+			LOAD_VAL(_r3, Z);
+			LOAD_VAL(_r4, W);
+			LOAD_VAR(_r5, Matrix.Row);
+			LOAD_VAR(_r6, Matrix.Row + 4);
+			LOAD_VAR(_r7, Matrix.Row + 8);
+			LOAD_VAR(_r8, Matrix.Row + 12);
 
 			_r1 = _r1 * _r5 + _r2 * _r6 + _r3 * _r7 + _r4 * _r8;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
@@ -1266,8 +1266,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Normalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			_r1 = _r1 * Geometric::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1277,8 +1277,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::sNormalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector4();
@@ -1295,8 +1295,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Lerp(const Vector4& B, float DeltaTime) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, B);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, B);
 			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -1328,8 +1328,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Abs() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); _r1 = abs(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); _r1 = abs(_r1);
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X < 0 ? -X : X, Y < 0 ? -Y : Y, Z < 0 ? -Z : Z, W < 0 ? -W : W);
@@ -1377,8 +1377,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Mul(float xyzw) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); _r1 = _r1 * xyzw;
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); _r1 = _r1 * xyzw;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X * xyzw, Y * xyzw, Z * xyzw, W * xyzw);
@@ -1386,8 +1386,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Mul(const Vector2& XY, float z, float w) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_AV4(_r2, XY.X, XY.Y, z, w); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_AV4(_r2, XY.X, XY.Y, z, w); _r1 = _r1 * _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X * XY.X, Y * XY.Y, Z * z, W * w);
@@ -1395,8 +1395,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Mul(const Vector3& XYZ, float w) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_AV4(_r2, XYZ.X, XYZ.Y, XYZ.Z, w); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_AV4(_r2, XYZ.X, XYZ.Y, XYZ.Z, w); _r1 = _r1 * _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X * XYZ.X, Y * XYZ.Y, Z * XYZ.Z, W * w);
@@ -1404,8 +1404,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Mul(const Vector4& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 * _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, Value); _r1 = _r1 * _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X * Value.X, Y * Value.Y, Z * Value.Z, W * Value.W);
@@ -1413,8 +1413,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Div(const Vector4& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 / _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, Value); _r1 = _r1 / _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X / Value.X, Y / Value.Y, Z / Value.Z, W / Value.W);
@@ -1422,8 +1422,8 @@ namespace Vitex
 		}
 		Vector4 Vector4::Add(const Vector4& Value) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 + _r2;
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, Value); _r1 = _r1 + _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			return Vector4(X + Value.X, Y + Value.Y, Z + Value.Z, W + Value.W);
@@ -1464,8 +1464,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator *=(const Vector4& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store((float*)this);
 #else
@@ -1478,8 +1478,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator *=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store((float*)this);
 #else
@@ -1492,8 +1492,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator /=(const Vector4& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store((float*)this);
 #else
@@ -1506,8 +1506,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator /=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store((float*)this);
 #else
@@ -1520,8 +1520,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator +=(const Vector4& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store((float*)this);
 #else
@@ -1534,8 +1534,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator +=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store((float*)this);
 #else
@@ -1548,8 +1548,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator -=(const Vector4& V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_V4(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_V4(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store((float*)this);
 #else
@@ -1562,8 +1562,8 @@ namespace Vitex
 		}
 		Vector4& Vector4::operator -=(float V)
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1); LOD_VAL(_r2, V);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1); LOAD_VAL(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store((float*)this);
 #else
@@ -1812,16 +1812,16 @@ namespace Vitex
 			const Vector3& Min = Bounds.Lower;
 			const Vector3& Max = Bounds.Upper;
 			float Distance = -Bounds.Radius;
-#ifdef VI_SIMD
-			LOD_AV4(_rc, Mid.X, Mid.Y, Mid.Z, 1.0f);
-			LOD_AV4(_m1, Min.X, Min.Y, Min.Z, 1.0f);
-			LOD_AV4(_m2, Max.X, Min.Y, Min.Z, 1.0f);
-			LOD_AV4(_m3, Min.X, Max.Y, Min.Z, 1.0f);
-			LOD_AV4(_m4, Max.X, Max.Y, Min.Z, 1.0f);
-			LOD_AV4(_m5, Min.X, Min.Y, Max.Z, 1.0f);
-			LOD_AV4(_m6, Max.X, Min.Y, Max.Z, 1.0f);
-			LOD_AV4(_m7, Min.X, Max.Y, Max.Z, 1.0f);
-			LOD_AV4(_m8, Max.X, Max.Y, Max.Z, 1.0f);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_rc, Mid.X, Mid.Y, Mid.Z, 1.0f);
+			LOAD_AV4(_m1, Min.X, Min.Y, Min.Z, 1.0f);
+			LOAD_AV4(_m2, Max.X, Min.Y, Min.Z, 1.0f);
+			LOAD_AV4(_m3, Min.X, Max.Y, Min.Z, 1.0f);
+			LOAD_AV4(_m4, Max.X, Max.Y, Min.Z, 1.0f);
+			LOAD_AV4(_m5, Min.X, Min.Y, Max.Z, 1.0f);
+			LOAD_AV4(_m6, Max.X, Min.Y, Max.Z, 1.0f);
+			LOAD_AV4(_m7, Min.X, Max.Y, Max.Z, 1.0f);
+			LOAD_AV4(_m8, Max.X, Max.Y, Max.Z, 1.0f);
 #else
 			Vector4 RC(Mid.X, Mid.Y, Mid.Z, 1.0f);
 			Vector4 M1(Min.X, Min.Y, Min.Z, 1.0f);
@@ -1835,8 +1835,8 @@ namespace Vitex
 #endif
 			for (size_t i = 0; i < 6; i++)
 			{
-#ifdef VI_SIMD
-				LOD_V4(_rp, Planes[i]);
+#ifdef VI_VECTORCLASS
+				LOAD_V4(_rp, Planes[i]);
 				if (horizontal_add(_rc * _rp) < Distance)
 					return false;
 
@@ -2251,15 +2251,15 @@ namespace Vitex
 			float A0212 = Row[4] * Row[10] - Row[6] * Row[8];
 			float A0113 = Row[4] * Row[13] - Row[5] * Row[12];
 			float A0112 = Row[4] * Row[9] - Row[5] * Row[8];
-#ifdef VI_SIMD
-			LOD_AV4(_r1, Row[5], Row[4], Row[4], Row[4]);
-			LOD_AV4(_r2, A2323, A2323, A1323, A1223);
-			LOD_AV4(_r3, Row[6], Row[6], Row[5], Row[5]);
-			LOD_AV4(_r4, A1323, A0323, A0323, A0223);
-			LOD_AV4(_r5, Row[7], Row[7], Row[7], Row[6]);
-			LOD_AV4(_r6, A1223, A0223, A0123, A0123);
-			LOD_AV4(_r7, Row[0], -Row[1], Row[2], -Row[3]);
-			LOD_AV4(_r8, 1.0f, -1.0f, 1.0f, -1.0f);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, Row[5], Row[4], Row[4], Row[4]);
+			LOAD_AV4(_r2, A2323, A2323, A1323, A1223);
+			LOAD_AV4(_r3, Row[6], Row[6], Row[5], Row[5]);
+			LOAD_AV4(_r4, A1323, A0323, A0323, A0223);
+			LOAD_AV4(_r5, Row[7], Row[7], Row[7], Row[6]);
+			LOAD_AV4(_r6, A1223, A0223, A0123, A0123);
+			LOAD_AV4(_r7, Row[0], -Row[1], Row[2], -Row[3]);
+			LOAD_AV4(_r8, 1.0f, -1.0f, 1.0f, -1.0f);
 			_r7 *= _r1 * _r2 - _r3 * _r4 + _r5 * _r6;
 			float F = horizontal_add(_r7);
 			F = 1.0f / (F != 0.0f ? F : 1.0f);
@@ -2315,8 +2315,8 @@ namespace Vitex
 		}
 		Matrix4x4 Matrix4x4::Transpose() const
 		{
-#ifdef VI_SIMD
-			LOD_FV16(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV16(_r1);
 			_r1 = permute16f<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(_r1);
 
 			Matrix4x4 Result(true);
@@ -2396,12 +2396,12 @@ namespace Vitex
 		Matrix4x4 Matrix4x4::Mul(const Matrix4x4& V) const
 		{
 			Matrix4x4 Result;
-#ifdef VI_SIMD
-			LOD_VAR(_r1, V.Row + 0);
-			LOD_VAR(_r2, V.Row + 4);
-			LOD_VAR(_r3, V.Row + 8);
-			LOD_VAR(_r4, V.Row + 12);
-			LOD_VAL(_r5, 0.0f);
+#ifdef VI_VECTORCLASS
+			LOAD_VAR(_r1, V.Row + 0);
+			LOAD_VAR(_r2, V.Row + 4);
+			LOAD_VAR(_r3, V.Row + 8);
+			LOAD_VAR(_r4, V.Row + 12);
+			LOAD_VAL(_r5, 0.0f);
 
 			_r5 += _r1 * Row[0];
 			_r5 += _r2 * Row[1];
@@ -2449,13 +2449,13 @@ namespace Vitex
 		Matrix4x4 Matrix4x4::Mul(const Vector4& V) const
 		{
 			Matrix4x4 Result;
-#ifdef VI_SIMD
-			LOD_V4(_r1, V);
-			LOD_VAR(_r2, Row + 0);
-			LOD_VAR(_r3, Row + 4);
-			LOD_VAR(_r4, Row + 8);
-			LOD_VAR(_r5, Row + 12);
-			LOD_VAL(_r6, 0.0f);
+#ifdef VI_VECTORCLASS
+			LOAD_V4(_r1, V);
+			LOAD_VAR(_r2, Row + 0);
+			LOAD_VAR(_r3, Row + 4);
+			LOAD_VAR(_r4, Row + 8);
+			LOAD_VAR(_r5, Row + 12);
+			LOAD_VAL(_r6, 0.0f);
 
 			_r6 = horizontal_add(_r1 * _r2);
 			_r6.store(Result.Row + 0);
@@ -2482,9 +2482,9 @@ namespace Vitex
 		}
 		Vector2 Matrix4x4::XY() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
-			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
+			LOAD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
 			return Vector2(horizontal_add(_r1), horizontal_add(_r2));
 #else
 			return Vector2(
@@ -2494,10 +2494,10 @@ namespace Vitex
 		}
 		Vector3 Matrix4x4::XYZ() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
-			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
-			LOD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
+			LOAD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
+			LOAD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
 			return Vector3(horizontal_add(_r1), horizontal_add(_r2), horizontal_add(_r3));
 #else
 			return Vector3(
@@ -2508,11 +2508,11 @@ namespace Vitex
 		}
 		Vector4 Matrix4x4::XYZW() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
-			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
-			LOD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
-			LOD_AV4(_r4, Row[3], Row[7], Row[11], Row[15]);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
+			LOAD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
+			LOAD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
+			LOAD_AV4(_r4, Row[3], Row[7], Row[11], Row[15]);
 			return Vector4(horizontal_add(_r1), horizontal_add(_r2), horizontal_add(_r3), horizontal_add(_r4));
 #else
 			return Vector4(
@@ -2774,8 +2774,8 @@ namespace Vitex
 		}
 		void Quaternion::SetAxis(const Vector3& Axis, float Angle)
 		{
-#ifdef VI_SIMD
-			LOD_V3(_r1, Axis);
+#ifdef VI_VECTORCLASS
+			LOAD_V3(_r1, Axis);
 			_r1 *= std::sin(Angle / 2);
 			_r1.insert(3, std::cos(Angle / 2));
 			_r1.store((float*)this);
@@ -2789,19 +2789,19 @@ namespace Vitex
 		}
 		void Quaternion::SetEuler(const Vector3& V)
 		{
-#ifdef VI_SIMD
+#ifdef VI_VECTORCLASS
 			float _sx[4], _cx[4];
-			LOD_V3(_r1, V);
-			LOD_VAL(_r2, 0.0f);
+			LOAD_V3(_r1, V);
+			LOAD_VAL(_r2, 0.0f);
 			_r1 *= 0.5f;
 			_r2 = cos(_r1);
 			_r1 = sin(_r1);
 			_r1.store(_sx);
 			_r2.store(_cx);
 
-			LOD_AV4(_r3, _sx[0], _cx[0], _sx[0], _cx[0]);
-			LOD_AV4(_r4, _cx[1], _sx[1], _sx[1], _cx[1]);
-			LOD_AV4(_r5, 1.0f, -1.0f, 1.0f, -1.0f);
+			LOAD_AV4(_r3, _sx[0], _cx[0], _sx[0], _cx[0]);
+			LOAD_AV4(_r4, _cx[1], _sx[1], _sx[1], _cx[1]);
+			LOAD_AV4(_r5, 1.0f, -1.0f, 1.0f, -1.0f);
 			_r3 *= _r4;
 			_r1 = _r3 * _cx[2];
 			_r2 = _r3 * _sx[2];
@@ -2903,8 +2903,8 @@ namespace Vitex
 		}
 		Quaternion Quaternion::Normalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			_r1 /= Geometric::FastSqrt(horizontal_add(square(_r1)));
 
 			Quaternion Result;
@@ -2917,8 +2917,8 @@ namespace Vitex
 		}
 		Quaternion Quaternion::sNormalize() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Quaternion();
@@ -2941,8 +2941,8 @@ namespace Vitex
 		}
 		Quaternion Quaternion::Mul(float R) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			_r1 *= R;
 
 			Quaternion Result;
@@ -2954,15 +2954,15 @@ namespace Vitex
 		}
 		Quaternion Quaternion::Mul(const Quaternion& R) const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, W, -X, -Y, -Z);
-			LOD_AV4(_r2, X, W, Y, -Z);
-			LOD_AV4(_r3, Y, W, Z, -X);
-			LOD_AV4(_r4, Z, W, X, -Y);
-			LOD_AV4(_r5, R.W, R.X, R.Y, R.Z);
-			LOD_AV4(_r6, R.W, R.X, R.Z, R.Y);
-			LOD_AV4(_r7, R.W, R.Y, R.X, R.Z);
-			LOD_AV4(_r8, R.W, R.Z, R.Y, R.X);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, W, -X, -Y, -Z);
+			LOAD_AV4(_r2, X, W, Y, -Z);
+			LOAD_AV4(_r3, Y, W, Z, -X);
+			LOAD_AV4(_r4, Z, W, X, -Y);
+			LOAD_AV4(_r5, R.W, R.X, R.Y, R.Z);
+			LOAD_AV4(_r6, R.W, R.X, R.Z, R.Y);
+			LOAD_AV4(_r7, R.W, R.Y, R.X, R.Z);
+			LOAD_AV4(_r8, R.W, R.Z, R.Y, R.X);
 			float W1 = horizontal_add(_r1 * _r5);
 			float X1 = horizontal_add(_r2 * _r6);
 			float Y1 = horizontal_add(_r3 * _r7);
@@ -2987,9 +2987,9 @@ namespace Vitex
 		}
 		Quaternion Quaternion::Sub(const Quaternion& R) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
-			LOD_V4(_r2, R);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
+			LOAD_V4(_r2, R);
 			_r1 -= _r2;
 
 			Quaternion Result;
@@ -3001,9 +3001,9 @@ namespace Vitex
 		}
 		Quaternion Quaternion::Add(const Quaternion& R) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
-			LOD_V4(_r2, R);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
+			LOAD_V4(_r2, R);
 			_r1 += _r2;
 
 			Quaternion Result;
@@ -3057,10 +3057,10 @@ namespace Vitex
 		}
 		Vector3 Quaternion::Forward() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, X, -W, Y, W);
-			LOD_AV4(_r2, Z, Y, Z, X);
-			LOD_AV2(_r3, X, Y);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, X, -W, Y, W);
+			LOAD_AV4(_r2, Z, Y, Z, X);
+			LOAD_AV2(_r3, X, Y);
 			_r1 *= _r2;
 			_r2 = permute4f<-1, -1, 2, 3>(_r1);
 			_r1 = permute4f<0, 1, -1, -1>(_r1);
@@ -3079,10 +3079,10 @@ namespace Vitex
 		}
 		Vector3 Quaternion::Up() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, X, W, Y, -W);
-			LOD_AV4(_r2, Y, Z, Z, X);
-			LOD_AV2(_r3, X, Z);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, X, W, Y, -W);
+			LOAD_AV4(_r2, Y, Z, Z, X);
+			LOAD_AV2(_r3, X, Z);
 			_r1 *= _r2;
 			_r2 = permute4f<-1, -1, 2, 3>(_r1);
 			_r1 = permute4f<0, 1, -1, -1>(_r1);
@@ -3101,10 +3101,10 @@ namespace Vitex
 		}
 		Vector3 Quaternion::Right() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, X, -W, X, W);
-			LOD_AV4(_r2, Y, Z, Z, Y);
-			LOD_AV2(_r3, Y, Z);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, X, -W, X, W);
+			LOAD_AV4(_r2, Y, Z, Z, Y);
+			LOAD_AV2(_r3, Y, Z);
 			_r1 *= _r2;
 			_r2 = permute4f<-1, -1, 2, 3>(_r1);
 			_r1 = permute4f<0, 1, -1, -1>(_r1);
@@ -3135,12 +3135,12 @@ namespace Vitex
 		}
 		Vector3 Quaternion::GetEuler() const
 		{
-#ifdef VI_SIMD
-			LOD_AV4(_r1, W, Y, W, -Z);
-			LOD_AV4(_r2, X, Z, Y, X);
-			LOD_FV3(_r3);
-			LOD_AV2(_r4, W, Z);
-			LOD_AV2(_r5, X, Y);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, W, Y, W, -Z);
+			LOAD_AV4(_r2, X, Z, Y, X);
+			LOAD_FV3(_r3);
+			LOAD_AV2(_r4, W, Z);
+			LOAD_AV2(_r5, X, Y);
 			float XYZW[4];
 			_r1 *= _r2;
 			_r4 *= _r5;
@@ -3183,9 +3183,9 @@ namespace Vitex
 		}
 		float Quaternion::Dot(const Quaternion& R) const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
-			LOD_V4(_r2, R);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
+			LOAD_V4(_r2, R);
 			_r1 *= _r2;
 			return horizontal_add(_r1);
 #else
@@ -3194,8 +3194,8 @@ namespace Vitex
 		}
 		float Quaternion::Length() const
 		{
-#ifdef VI_SIMD
-			LOD_FV4(_r1);
+#ifdef VI_VECTORCLASS
+			LOAD_FV4(_r1);
 			return std::sqrt(horizontal_add(square(_r1)));
 #else
 			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
@@ -9789,10 +9789,10 @@ namespace Vitex
 		bool Geometric::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
 			Radius = -Radius;
-#ifdef VI_SIMD
-			LOD_AV4(_r1, WVP.Row[3], WVP.Row[7], WVP.Row[11], WVP.Row[15]);
-			LOD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
-			LOD_VAL(_r3, _r1 + _r2);
+#ifdef VI_VECTORCLASS
+			LOAD_AV4(_r1, WVP.Row[3], WVP.Row[7], WVP.Row[11], WVP.Row[15]);
+			LOAD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
+			LOAD_VAL(_r3, _r1 + _r2);
 			float F = _r3.extract(3); _r3.cutoff(3);
 			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
@@ -13310,8 +13310,8 @@ namespace Vitex
 #ifdef VI_BULLET3
 			VI_ASSERT(Instance != nullptr, "softbody should be initialized");
 			VI_ASSERT(Transform != nullptr, "transform should be set");
-#ifdef VI_SIMD
-			LOD_VAL(_r1, 0.0f); LOD_VAL(_r2, 0.0f);
+#ifdef VI_VECTORCLASS
+			LOAD_VAL(_r1, 0.0f); LOAD_VAL(_r2, 0.0f);
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
 			{
 				auto& Node = Instance->m_nodes[i];

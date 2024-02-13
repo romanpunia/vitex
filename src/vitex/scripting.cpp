@@ -6,9 +6,6 @@
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #include <as_texts.h>
-#ifdef VI_JIT
-#include "internal/asc/compiler.h"
-#endif
 #define COMPILER_BLOCKED_WAIT_US 100
 #define THREAD_BLOCKED_WAIT_MS 50
 
@@ -6606,7 +6603,7 @@ namespace Vitex
 		}
 		int ImmediateContext::ContextUD = 151;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(nullptr), Translator(nullptr), SaveSources(false), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(nullptr), SaveSources(false), Cached(true)
 		{
 			auto Directory = Core::OS::Directory::GetWorking();
 			if (Directory)
@@ -6655,7 +6652,6 @@ namespace Vitex
 				Engine = nullptr;
 			}
 #endif
-			SetByteCodeTranslator((unsigned int)TranslationOptions::Disabled);
 			ClearCache();
 		}
 		ExpectsVM<TypeInterface> VirtualMachine::SetInterface(const std::string_view& Name)
@@ -7202,26 +7198,6 @@ namespace Vitex
 			return Engine->GetTypeInfoByDecl(Decl.data());
 #else
 			return TypeInfo(nullptr);
-#endif
-		}
-		bool VirtualMachine::SetByteCodeTranslator(unsigned int Options)
-		{
-#ifdef ANGELSCRIPT_JIT
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			asCJITCompiler* Context = (asCJITCompiler*)Translator;
-			bool TranslatorActive = (Options != (unsigned int)TranslationOptions::Disabled);
-			Core::Memory::Delete(Context);
-
-			Context = TranslatorActive ? Core::Memory::New<asCJITCompiler>(Options) : nullptr;
-			Translator = (asIScriptTranslator*)Context;
-			if (!Engine)
-				return true;
-
-			Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, (asPWORD)TranslatorActive);
-			Engine->SetJITCompiler(Context);
-			return true;
-#else
-			return false;
 #endif
 		}
 		void VirtualMachine::SetLibraryProperty(LibraryFeatures Property, size_t Value)
@@ -7905,14 +7881,6 @@ namespace Vitex
 		bool VirtualMachine::IsNullable(int TypeId)
 		{
 			return TypeId == 0;
-		}
-		bool VirtualMachine::IsTranslatorSupported()
-		{
-#ifdef VI_JIT
-			return true;
-#else
-			return false;
-#endif
 		}
 		bool VirtualMachine::HasDebugger()
 		{

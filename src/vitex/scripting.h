@@ -8,7 +8,6 @@
 class asIScriptEngine;
 class asIScriptContext;
 class asIScriptModule;
-class asIScriptTranslator;
 class asIScriptFunction;
 class asIScriptGeneric;
 class asIScriptObject;
@@ -41,19 +40,6 @@ namespace Vitex
 			Suspended,
 			Attach,
 			Detach
-		};
-
-		enum class TranslationOptions
-		{
-			No_Suspend = 0x01,
-			Syscall_FPU_No_Reset = 0x02,
-			Syscall_No_Errors = 0x04,
-			Alloc_Simple = 0x08,
-			No_Switches = 0x10,
-			No_Script_Calls = 0x20,
-			Fast_Ref_Counter = 0x40,
-			Optimal = Alloc_Simple | Fast_Ref_Counter,
-			Disabled = -1
 		};
 
 		enum class LogCategory
@@ -1990,7 +1976,6 @@ namespace Vitex
 			uint64_t Scope;
 			DebuggerContext* Debugger;
 			asIScriptEngine* Engine;
-			asIScriptTranslator* Translator;
 			bool SaveSources;
 			bool Cached;
 
@@ -2031,7 +2016,6 @@ namespace Vitex
 			ExpectsVM<TemplateClass> SetTemplateClassAddress(const std::string_view& Decl, const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
 			ExpectsVM<TypeInterface> SetInterface(const std::string_view& Name);
 			ExpectsVM<Enumeration> SetEnum(const std::string_view& Name);
-			bool SetByteCodeTranslator(uint32_t Options);
 			void SetCodeGenerator(const std::string_view& Name, GeneratorCallback&& Callback);
 			void SetPreserveSourceCode(bool Enabled);
 			void SetTsImports(bool Enabled, const std::string_view& ImportSyntax = "import from");
@@ -2094,7 +2078,6 @@ namespace Vitex
 			bool HasSystemAddon(const std::string_view& Name);
 			bool HasAddon(const std::string_view& Name);
 			bool IsNullable(int TypeId);
-			bool IsTranslatorSupported();
 			bool HasDebugger();
 			bool AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
 			ExpectsVM<void> ImportFile(const std::string_view& Path, bool IsRemote, Core::String& Output);

@@ -2693,8 +2693,8 @@ namespace Vitex
 			Preprocessor() noexcept;
 			~Preprocessor() noexcept = default;
 			void SetIncludeOptions(const IncludeDesc& NewDesc);
-			void SetIncludeCallback(const ProcIncludeCallback& Callback);
-			void SetPragmaCallback(const ProcPragmaCallback& Callback);
+			void SetIncludeCallback(ProcIncludeCallback&& Callback);
+			void SetPragmaCallback(ProcPragmaCallback&& Callback);
 			void SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback);
 			void SetFeatures(const Desc& Value);
 			void AddDefaultDefinitions();

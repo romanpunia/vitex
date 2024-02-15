@@ -1715,12 +1715,12 @@ namespace Vitex
 			delete Context;
 			Context = nullptr;
 		}
-		void ErrorHandling::SetCallback(const std::function<void(Details&)>& _Callback) noexcept
+		void ErrorHandling::SetCallback(std::function<void(Details&)>&& Callback) noexcept
 		{
 			if (!Context)
 				Context = new State();
 
-			Context->Callback = _Callback;
+			Context->Callback = std::move(Callback);
 		}
 		void ErrorHandling::SetFlag(LogOption Option, bool Active) noexcept
 		{
@@ -1895,9 +1895,6 @@ namespace Vitex
 		}
 		ErrorHandling::State* ErrorHandling::Context = nullptr;
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coexecution::Active), Callback(Procedure), Slave(Memory::New<Cocontext>(Base)), Master(Base), UserData(nullptr)
-		{
-		}
 		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coexecution::Active), Callback(std::move(Procedure)), Slave(Memory::New<Cocontext>(Base)), Master(Base), UserData(nullptr)
 		{
 		}
@@ -3628,9 +3625,6 @@ namespace Vitex
 			return sizeof(Tag::String) - 1;
 		}
 
-		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept : Expires(NewTimeout), Callback(NewCallback), Id(NewId), Alive(NewAlive)
-		{
-		}
 		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Id(NewId), Alive(NewAlive)
 		{
 		}
@@ -10884,24 +10878,6 @@ namespace Vitex
 
 			Memory::Delete(Master);
 		}
-		Coroutine* Costate::Pop(const TaskCallback& Procedure)
-		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-
-			Coroutine* Routine = nullptr;
-			if (!Cached.empty())
-			{
-				Routine = *Cached.begin();
-				Routine->Callback = Procedure;
-				Routine->State = Coexecution::Active;
-				Cached.erase(Cached.begin());
-			}
-			else
-				Routine = Memory::New<Coroutine>(this, Procedure);
-
-			Used.emplace(Routine);
-			return Routine;
-		}
 		Coroutine* Costate::Pop(TaskCallback&& Procedure)
 		{
 			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
@@ -11013,12 +10989,6 @@ namespace Vitex
 
 			Routine->State = Coexecution::Suspended;
 			Suspend();
-		}
-		void Costate::Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend)
-		{
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			Routine->Return = AfterSuspend;
-			Deactivate(Routine);
 		}
 		void Costate::Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend)
 		{
@@ -11214,25 +11184,6 @@ namespace Vitex
 				Id = ++Generation;
 			return Id;
 		}
-		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
-		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
-				return INVALID_TASK_ID;
-#ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
-#endif
-			VI_MEASURE(Timings::Atomic);
-			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
-			auto Expires = GetClock() + Duration;
-			auto Id = GetTaskId();
-
-			UMutex<std::mutex> Unique(Timeouts->Update);
-			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true)));
-			Timeouts->Resync = true;
-			Timeouts->Notify.notify_all();
-			return Id;
-		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
@@ -11248,25 +11199,6 @@ namespace Vitex
 
 			UMutex<std::mutex> Unique(Timeouts->Update);
 			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
-			Timeouts->Resync = true;
-			Timeouts->Notify.notify_all();
-			return Id;
-		}
-		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
-		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
-				return INVALID_TASK_ID;
-#ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
-#endif
-			VI_MEASURE(Timings::Atomic);
-			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
-			auto Expires = GetClock() + Duration;
-			auto Id = GetTaskId();
-
-			UMutex<std::mutex> Unique(Timeouts->Update);
-			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false)));
 			Timeouts->Resync = true;
 			Timeouts->Notify.notify_all();
 			return Id;
@@ -11290,19 +11222,6 @@ namespace Vitex
 			Timeouts->Notify.notify_all();
 			return Id;
 		}
-		bool Schedule::SetTask(const TaskCallback& Callback, bool Recyclable)
-		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
-				return false;
-#ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueTask, 1, GetThread());
-#endif
-			VI_MEASURE(Timings::Atomic);
-			if (!Recyclable || !FastBypassEnqueue(Difficulty::Sync, Callback))
-				Sync->Queue.enqueue(Callback);
-			return true;
-		}
 		bool Schedule::SetTask(TaskCallback&& Callback, bool Recyclable)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
@@ -11316,25 +11235,6 @@ namespace Vitex
 				Sync->Queue.enqueue(std::move(Callback));
 			return true;
 		}
-		bool Schedule::SetCoroutine(const TaskCallback& Callback, bool Recyclable)
-		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
-				return false;
-#ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueCoroutine, 1, GetThread());
-#endif
-			VI_MEASURE(Timings::Atomic);
-			if (Recyclable && FastBypassEnqueue(Difficulty::Async, Callback))
-				return true;
-
-			Async->Queue.enqueue(Callback);
-			UMutex<std::mutex> Unique(Async->Update);
-			for (auto* Thread : Threads[(size_t)Difficulty::Async])
-				Thread->Notify.notify_all();
-
-			return true;
-		}
 		bool Schedule::SetCoroutine(TaskCallback&& Callback, bool Recyclable)
 		{
 			VI_ASSERT(Callback, "callback should not be empty");
@@ -11344,7 +11244,7 @@ namespace Vitex
 			ReportThread(ThreadTask::EnqueueCoroutine, 1, GetThread());
 #endif
 			VI_MEASURE(Timings::Atomic);
-			if (Recyclable && FastBypassEnqueue(Difficulty::Async, Callback))
+			if (Recyclable && FastBypassEnqueue(Difficulty::Async, std::move(Callback)))
 				return true;
 
 			Async->Queue.enqueue(std::move(Callback));
@@ -11354,10 +11254,10 @@ namespace Vitex
 
 			return true;
 		}
-		bool Schedule::SetDebugCallback(const ThreadDebugCallback& Callback)
+		bool Schedule::SetDebugCallback(ThreadDebugCallback&& Callback)
 		{
 #ifndef NDEBUG
-			Debug = Callback;
+			Debug = std::move(Callback);
 			return true;
 #else
 			return false;
@@ -11892,18 +11792,6 @@ namespace Vitex
 				return false;
 
 			Debug(ThreadMessage(Thread, State, Tasks));
-			return true;
-		}
-		bool Schedule::FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback)
-		{
-			if (!HasParallelThreads(Type))
-				return false;
-
-			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
-				return false;
-
-			Thread->Queue.push(Callback);
 			return true;
 		}
 		bool Schedule::FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback)

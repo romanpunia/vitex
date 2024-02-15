@@ -74,13 +74,13 @@ namespace Vitex
 				Core::ExpectsSystem<void> OnResolveHost(RemoteHost* Address) override;
 				Core::ExpectsSystem<void> OnConnect() override;
 				Core::ExpectsSystem<void> OnDisconnect() override;
-				bool Authorize(const ReplyCallback& Callback);
+				bool Authorize(ReplyCallback&& Callback);
 				bool PrepareAndSend();
 				bool SendAttachment();
 				bool ProcessAttachment();
-				bool ReadResponses(int Code, const ReplyCallback& Callback);
-				bool ReadResponse(int Code, const ReplyCallback& Callback);
-				bool SendRequest(int Code, const std::string_view& Content, const ReplyCallback& Callback);
+				bool ReadResponses(int Code, ReplyCallback&& Callback);
+				bool ReadResponse(int Code, ReplyCallback&& Callback);
+				bool SendRequest(int Code, const std::string_view& Content, ReplyCallback&& Callback);
 				bool CanRequest(const std::string_view& Keyword);
 				uint8_t* Unicode(const std::string_view& Value);
 			};

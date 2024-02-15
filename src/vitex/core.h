@@ -974,7 +974,7 @@ namespace Vitex
 			static void Message(LogLevel Level, int Line, const char* Source, const char* Format, ...) noexcept;
 			static void Pause() noexcept;
 			static void Cleanup() noexcept;
-			static void SetCallback(const std::function<void(Details&)>& Callback) noexcept;
+			static void SetCallback(std::function<void(Details&)>&& Callback) noexcept;
 			static void SetFlag(LogOption Option, bool Active) noexcept;
 			static bool HasFlag(LogOption Option) noexcept;
 			static bool HasCallback() noexcept;
@@ -1916,7 +1916,6 @@ namespace Vitex
 			void* UserData;
 
 		public:
-			Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept;
 			Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept;
 			~Coroutine() noexcept;
 		};
@@ -2118,7 +2117,6 @@ namespace Vitex
 			TaskId Id;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept;
 			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept;
 			Timeout(const Timeout& Other) noexcept;
 			Timeout(Timeout&& Other) noexcept;
@@ -3397,14 +3395,12 @@ namespace Vitex
 			Costate(Costate&&) = delete;
 			Costate& operator= (const Costate&) = delete;
 			Costate& operator= (Costate&&) = delete;
-			Coroutine* Pop(const TaskCallback& Procedure);
 			Coroutine* Pop(TaskCallback&& Procedure);
 			Coexecution Resume(Coroutine* Routine);
 			void Reuse(Coroutine* Routine);
 			void Push(Coroutine* Routine);
 			void Activate(Coroutine* Routine);
 			void Deactivate(Coroutine* Routine);
-			void Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend);
 			void Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend);
 			void Clear();
 			bool Dispatch();
@@ -3610,15 +3606,11 @@ namespace Vitex
 		public:
 			Schedule() noexcept;
 			virtual ~Schedule() noexcept override;
-			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback);
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
-			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
 			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
-			bool SetTask(const TaskCallback& Callback, bool Recyclable = true);
 			bool SetTask(TaskCallback&& Callback, bool Recyclable = true);
-			bool SetCoroutine(const TaskCallback& Callback, bool Recyclable = true);
 			bool SetCoroutine(TaskCallback&& Callback, bool Recyclable = true);
-			bool SetDebugCallback(const ThreadDebugCallback& Callback);
+			bool SetDebugCallback(ThreadDebugCallback&& Callback);
 			bool ClearTimeout(TaskId WorkId);
 			bool TriggerTimers();
 			bool Trigger(Difficulty Type);
@@ -3644,7 +3636,6 @@ namespace Vitex
 		private:
 			const ThreadData* InitializeThread(ThreadData* Source, bool Update) const;
 			void InitializeSpawnTrigger();
-			bool FastBypassEnqueue(Difficulty Type, const TaskCallback& Callback);
 			bool FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback);
 			bool ReportThread(ThreadTask State, size_t Tasks, const ThreadData* Thread);
 			bool TriggerThread(Difficulty Type, ThreadData* Thread);

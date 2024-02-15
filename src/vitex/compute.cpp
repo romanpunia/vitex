@@ -10355,13 +10355,13 @@ namespace Vitex
 		{
 			FileDesc = NewDesc;
 		}
-		void Preprocessor::SetIncludeCallback(const ProcIncludeCallback& Callback)
+		void Preprocessor::SetIncludeCallback(ProcIncludeCallback&& Callback)
 		{
-			Include = Callback;
+			Include = std::move(Callback);
 		}
-		void Preprocessor::SetPragmaCallback(const ProcPragmaCallback& Callback)
+		void Preprocessor::SetPragmaCallback(ProcPragmaCallback&& Callback)
 		{
-			Pragma = Callback;
+			Pragma = std::move(Callback);
 		}
 		void Preprocessor::SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback)
 		{

@@ -1595,19 +1595,19 @@ namespace Vitex
 			return true;
 		}
 
-		Core::Promise<void> Parallel::Enqueue(const Core::TaskCallback& Callback)
+		Core::Promise<void> Parallel::Enqueue(Core::TaskCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			return Core::Cotask<void>(Core::TaskCallback(Callback));
+			return Core::Cotask<void>(std::move(Callback));
 		}
-		Core::Vector<Core::Promise<void>> Parallel::EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks)
+		Core::Vector<Core::Promise<void>> Parallel::EnqueueAll(Core::Vector<Core::TaskCallback>&& Callbacks)
 		{
 			VI_ASSERT(!Callbacks.empty(), "callbacks should not be empty");
 			Core::Vector<Core::Promise<void>> Result;
 			Result.reserve(Callbacks.size());
 
 			for (auto& Callback : Callbacks)
-				Result.emplace_back(Enqueue(Callback));
+				Result.emplace_back(Enqueue(std::move(Callback)));
 
 			return Result;
 		}
@@ -4522,19 +4522,19 @@ namespace Vitex
 			Events.push(std::move(Next));
 			return true;
 		}
-		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<void*>&&)>& Callback)
+		void SceneGraph::LoadResource(uint64_t Id, Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, std::function<void(ExpectsContent<void*>&&)>&& Callback)
 		{
 			VI_ASSERT(Conf.Shared.Content != nullptr, "content manager should be set");
 			VI_ASSERT(Context != nullptr, "component calling this function should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			LoadComponent(Context);
-			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback](ExpectsContent<void*>&& Result)
+			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback = std::move(Callback)](ExpectsContent<void*>&& Result)
 			{
 				if (!UnloadComponent(Context))
 					return;
 
-				Transaction([Context, Callback, Result = std::move(Result)]() mutable
+				Transaction([Context, Callback = std::move(Callback), Result = std::move(Result)]() mutable
 				{
 					Result.Report("scene resource loading error");
 					Callback(std::move(Result));

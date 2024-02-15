@@ -257,9 +257,9 @@ namespace Vitex
 
 				GetEntity()->GetTransform()->MakeDirty();
 			}
-			void RigidBody::Load(const std::string_view& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
+			void RigidBody::Load(const std::string_view& Path, float Mass, float Anticipation, std::function<void()>&& Callback)
 			{
-				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback](ExpectsContent<Compute::HullShape*> NewHull)
+				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback = std::move(Callback)](ExpectsContent<Compute::HullShape*> NewHull)
 				{
 					Core::Memory::Release(Hull);
 					Hull = NewHull.Or(nullptr);
@@ -668,9 +668,9 @@ namespace Vitex
 				Instance->SetActivity(true);
 				GetEntity()->GetTransform()->MakeDirty();
 			}
-			void SoftBody::Load(const std::string_view& Path, float Anticipation, const std::function<void()>& Callback)
+			void SoftBody::Load(const std::string_view& Path, float Anticipation, std::function<void()>&& Callback)
 			{
-				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback](ExpectsContent<Compute::HullShape*> NewHull)
+				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback = std::move(Callback)](ExpectsContent<Compute::HullShape*> NewHull)
 				{
 					if (NewHull && *NewHull != nullptr)
 						Load(*NewHull, Anticipation);
@@ -1999,11 +1999,11 @@ namespace Vitex
 					State.Time = 0.0f;
 				}
 			}
-			void KeyAnimator::LoadAnimation(const std::string_view& Path, const std::function<void(bool)>& Callback)
+			void KeyAnimator::LoadAnimation(const std::string_view& Path, std::function<void(bool)>&& Callback)
 			{
 				auto* Scene = Parent->GetScene();
 				auto Copy = Core::String(Path);
-				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Copy, Callback](ExpectsContent<Core::Schema*> Result)
+				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Copy, Callback = std::move(Callback)](ExpectsContent<Core::Schema*> Result)
 				{
 					ClearAnimation();
 					if (Result && *Result != nullptr)

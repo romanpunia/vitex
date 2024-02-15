@@ -490,7 +490,7 @@ namespace Vitex
 				Subsystem() noexcept;
 				virtual ~Subsystem() noexcept override;
 				void SetShared(Scripting::VirtualMachine* VM, Graphics::Activity* Activity, RenderConstants* Constants, ContentManager* Content, Core::Timer* Time) noexcept;
-				void SetTranslator(const std::string_view& Name, const TranslationCallback& Callback) noexcept;
+				void SetTranslator(const std::string_view& Name, TranslationCallback&& Callback) noexcept;
 				void CleanupShared();
 				RenderSubsystem* GetRenderInterface() noexcept;
 				FileSubsystem* GetFileInterface() noexcept;
@@ -539,8 +539,8 @@ namespace Vitex
 				double GetDouble(const std::string_view& Name);
 				bool GetBoolean(const std::string_view& Name);
 				void* GetPointer(const std::string_view& Name);
-				bool SetCallback(const std::string_view& Name, const DataCallback& Callback);
-				bool SetUnmountCallback(const ModelCallback& Callback);
+				bool SetCallback(const std::string_view& Name, DataCallback&& Callback);
+				bool SetUnmountCallback(ModelCallback&& Callback);
 				bool HasChanged(const std::string_view& VariableName) const;
 				void SetDetachCallback(std::function<void()>&& Callback);
 				void Change(const std::string_view& VariableName);
@@ -626,7 +626,7 @@ namespace Vitex
 				Rml::EventListener* Base;
 
 			public:
-				Listener(const EventCallback& NewCallback);
+				Listener(EventCallback&& NewCallback);
 				Listener(const std::string_view& FunctionName);
 				~Listener() noexcept;
 			};
@@ -700,7 +700,7 @@ namespace Vitex
 				bool RemoveDataModel(const std::string_view& Name);
 				bool RemoveDataModels();
 				void SetDocumentsBaseTag(const std::string_view& Tag);
-				void SetMountCallback(const ModelCallback& Callback);
+				void SetMountCallback(ModelCallback&& Callback);
 				Core::String GetDocumentsBaseTag();
 				Core::UnorderedMap<Core::String, Core::Vector<FontInfo>>* GetFontFaces();
 				Compute::Vector2 GetDimensions() const;

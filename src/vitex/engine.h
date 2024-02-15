@@ -520,8 +520,8 @@ namespace Vitex
 		class VI_OUT_TS Parallel
 		{
 		public:
-			static Core::Promise<void> Enqueue(const Core::TaskCallback& Callback);
-			static Core::Vector<Core::Promise<void>> EnqueueAll(const Core::Vector<Core::TaskCallback>& Callbacks);
+			static Core::Promise<void> Enqueue(Core::TaskCallback&& Callback);
+			static Core::Vector<Core::Promise<void>> EnqueueAll(Core::Vector<Core::TaskCallback>&& Callbacks);
 			static void Wait(Core::Promise<void>&& Value);
 			static void WailAll(Core::Vector<Core::Promise<void>>&& Values);
 			static size_t GetThreadIndex();
@@ -1595,7 +1595,7 @@ namespace Vitex
 			MessageCallback* SetListener(const std::string_view& Event, MessageCallback&& Callback);
 			bool ClearListener(const std::string_view& Event, MessageCallback* Id);
 			bool AddMaterial(Core::Unique<Material> Base);
-			void LoadResource(uint64_t Id, Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<void*>&&)>& Callback);
+			void LoadResource(uint64_t Id, Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, std::function<void(ExpectsContent<void*>&&)>&& Callback);
 			Core::String FindResourceId(uint64_t Id, void* Resource);
 			Material* GetInvalidMaterial();
 			Material* AddMaterial();
@@ -1717,15 +1717,15 @@ namespace Vitex
 				RayTest(T::GetTypeId(), Origin, std::move(Callback));
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const std::string_view& Path, const std::function<void(ExpectsContent<T*>&&)>& Callback)
+			void LoadResource(Component* Context, const std::string_view& Path, std::function<void(ExpectsContent<T*>&&)>&& Callback)
 			{
-				LoadResource<T>(Context, Path, Core::VariantArgs(), Callback);
+				LoadResource<T>(Context, Path, Core::VariantArgs(), std::move(Callback));
 			}
 			template <typename T>
-			void LoadResource(Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, const std::function<void(ExpectsContent<T*>&&)>& Callback)
+			void LoadResource(Component* Context, const std::string_view& Path, const Core::VariantArgs& Keys, std::function<void(ExpectsContent<T*>&&)>&& Callback)
 			{
 				VI_ASSERT(Callback != nullptr, "callback should be set");
-				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback](ExpectsContent<void*> Object)
+				LoadResource((uint64_t)typeid(T).hash_code(), Context, Path, Keys, [Callback = std::move(Callback)](ExpectsContent<void*> Object)
 				{
 					if (Object)
 						Callback((T*)*Object);

@@ -540,13 +540,13 @@ namespace Vitex
 					Core::Memory::Release(Activity);
 					Core::Memory::Release(Time);
 				}
-				void SetTranslator(const std::string_view& Name, const TranslationCallback& Callback)
+				void SetTranslator(const std::string_view& Name, TranslationCallback&& Callback)
 				{
 					auto It = Translators.find(Core::HglCast(Name));
 					if (It == Translators.end())
-						Translators.insert(std::make_pair(Core::String(Name), Callback));
+						Translators.insert(std::make_pair(Core::String(Name), std::move(Callback)));
 					else
-						It->second = Callback;
+						It->second = std::move(Callback);
 				}
 				bool AddFontFace(const std::string_view& Path, bool UseAsFallback, FontWeight Weight)
 				{
@@ -796,7 +796,7 @@ namespace Vitex
 				std::atomic<int> RefCount;
 
 			public:
-				EventSubsystem(const EventCallback& Callback) : Rml::EventListener(), Listener(Callback), RefCount(1)
+				EventSubsystem(EventCallback&& Callback) : Rml::EventListener(), Listener(std::move(Callback)), RefCount(1)
 				{
 				}
 				void OnAttach(Rml::Element*) override
@@ -2895,11 +2895,11 @@ namespace Vitex
 					SystemInterface->Attach(Activity, Time);
 #endif
 			}
-			void Subsystem::SetTranslator(const std::string_view& Name, const TranslationCallback& Callback) noexcept
+			void Subsystem::SetTranslator(const std::string_view& Name, TranslationCallback&& Callback) noexcept
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(SystemInterface != nullptr, "system interface should be valid");
-				SystemInterface->SetTranslator(Core::String(Name), Callback);
+				SystemInterface->SetTranslator(Core::String(Name), std::move(Callback));
 #endif
 			}
 			void Subsystem::CleanupShared()
@@ -3127,13 +3127,12 @@ namespace Vitex
 
 				return Result->Ref->GetPointer();
 			}
-			bool DataModel::SetCallback(const std::string_view& Name, const DataCallback& Callback)
+			bool DataModel::SetCallback(const std::string_view& Name, DataCallback&& Callback)
 			{
 #ifdef VI_RMLUI
 				VI_ASSERT(IsValid(), "data node should be valid");
 				VI_ASSERT(Callback, "callback should not be empty");
-
-				return Base->BindEventCallback(Core::String(Name), [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
+				return Base->BindEventCallback(Core::String(Name), [Callback = std::move(Callback)](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
 				{
 					Core::VariantList Args;
 					Args.resize(Props.size());
@@ -3149,9 +3148,9 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool DataModel::SetUnmountCallback(const ModelCallback& Callback)
+			bool DataModel::SetUnmountCallback(ModelCallback&& Callback)
 			{
-				OnUnmount = Callback;
+				OnUnmount = std::move(Callback);
 				return true;
 			}
 			void DataModel::Change(const std::string_view& VariableName)
@@ -3548,10 +3547,10 @@ namespace Vitex
 				return *this;
 			}
 
-			Listener::Listener(const EventCallback& NewCallback)
+			Listener::Listener(EventCallback&& NewCallback)
 			{
 #ifdef VI_RMLUI
-				Base = Core::Memory::New<EventSubsystem>(NewCallback);
+				Base = Core::Memory::New<EventSubsystem>(std::move(NewCallback));
 #endif
 			}
 			Listener::Listener(const std::string_view& FunctionName)
@@ -4242,9 +4241,9 @@ namespace Vitex
 				Base->SetDocumentsBaseTag(Core::String(Tag));
 #endif
 			}
-			void Context::SetMountCallback(const ModelCallback& Callback)
+			void Context::SetMountCallback(ModelCallback&& Callback)
 			{
-				OnMount = Callback;
+				OnMount = std::move(Callback);
 			}
 			ExpectsGuiException<void> Context::Preprocess(const std::string_view& Path, Core::String& Buffer)
 			{

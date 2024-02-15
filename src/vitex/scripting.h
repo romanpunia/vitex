@@ -1602,8 +1602,8 @@ namespace Vitex
 		public:
 			Compiler(VirtualMachine* Engine) noexcept;
 			~Compiler() noexcept;
-			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
-			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
+			void SetIncludeCallback(Compute::ProcIncludeCallback&& Callback);
+			void SetPragmaCallback(Compute::ProcPragmaCallback&& Callback);
 			void Define(const std::string_view& Word);
 			void Undefine(const std::string_view& Word);
 			Module UnlinkModule();
@@ -1717,7 +1717,7 @@ namespace Vitex
 			void SetInputCallback(InputCallback&& Callback);
 			void SetExitCallback(ExitCallback&& Callback);
 			void AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback);
-			void AddToStringCallback(const std::string_view& Type, const ToStringTypeCallback& Callback);
+			void AddToStringCallback(const std::string_view& Type, ToStringTypeCallback&& Callback);
 			void ThrowInternalException(const std::string_view& Message);
 			void AllowInputAfterFailure();
 			void Input(ImmediateContext* Context);
@@ -1753,7 +1753,7 @@ namespace Vitex
 			VirtualMachine* GetEngine();
 
 		private:
-			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, const CommandCallback& Callback);
+			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback);
 			void AddDefaultCommands();
 			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
@@ -1845,10 +1845,10 @@ namespace Vitex
 			ExpectsVM<size_t> GetPropertiesCount(size_t StackLevel = 0);
 			ExpectsVM<void> GetProperty(size_t Index, size_t StackLevel, std::string_view* Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
 			Function GetFunction(size_t StackLevel = 0);
-			void SetNotificationResolverCallback(const std::function<void(ImmediateContext*, void*)>& Callback);
-			void SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback);
-			void SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
-			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void SetNotificationResolverCallback(std::function<void(ImmediateContext*, void*)>&& Callback);
+			void SetCallbackResolverCallback(std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>&& Callback);
+			void SetLineCallback(std::function<void(ImmediateContext*)>&& Callback);
+			void SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback);
 			void AppendStopExecutionCallback(StopExecutionCallback&& Callback);
 			Core::String& CopyString(Core::String& Value);
 			void InvalidateString(const std::string_view& Value);
@@ -2020,9 +2020,9 @@ namespace Vitex
 			void SetPreserveSourceCode(bool Enabled);
 			void SetTsImports(bool Enabled, const std::string_view& ImportSyntax = "import from");
 			void SetCache(bool Enabled);
-			void SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
+			void SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback);
 			void SetDebugger(Core::Unique<DebuggerContext> Context);
-			void SetCompilerErrorCallback(const WhenErrorCallback& Callback);
+			void SetCompilerErrorCallback(WhenErrorCallback&& Callback);
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
@@ -2079,7 +2079,7 @@ namespace Vitex
 			bool HasAddon(const std::string_view& Name);
 			bool IsNullable(int TypeId);
 			bool HasDebugger();
-			bool AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback);
+			bool AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, AddonCallback&& Callback);
 			ExpectsVM<void> ImportFile(const std::string_view& Path, bool IsRemote, Core::String& Output);
 			ExpectsVM<void> ImportCFunction(const Core::Vector<Core::String>& Sources, const std::string_view& Name, const std::string_view& Decl);
 			ExpectsVM<void> ImportCLibrary(const std::string_view& Path, bool IAddon = false);

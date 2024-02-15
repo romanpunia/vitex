@@ -3112,13 +3112,13 @@ namespace Vitex
 #endif
 			Core::Memory::Release(Processor);
 		}
-		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
+		void Compiler::SetIncludeCallback(Compute::ProcIncludeCallback&& Callback)
 		{
-			Include = Callback;
+			Include = std::move(Callback);
 		}
-		void Compiler::SetPragmaCallback(const Compute::ProcPragmaCallback& Callback)
+		void Compiler::SetPragmaCallback(Compute::ProcPragmaCallback&& Callback)
 		{
-			Pragma = Callback;
+			Pragma = std::move(Callback);
 		}
 		void Compiler::Define(const std::string_view& Word)
 		{
@@ -3979,14 +3979,14 @@ namespace Vitex
 			});
 #endif
 		}
-		void DebuggerContext::AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, const CommandCallback& Callback)
+		void DebuggerContext::AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback)
 		{
 			Descriptions[Core::String(Name)] = Description;
 			for (auto& Command : Core::Stringify::Split(Name, ','))
 			{
 				Core::Stringify::Trim(Command);
 				auto& Data = Commands[Command];
-				Data.Callback = Callback;
+				Data.Callback = std::move(Callback);
 				Data.Description = Description;
 				Data.Arguments = Type;
 			}
@@ -4011,12 +4011,12 @@ namespace Vitex
 		{
 			FastToStringCallbacks[Type.GetTypeInfo()] = std::move(Callback);
 		}
-		void DebuggerContext::AddToStringCallback(const std::string_view& Type, const ToStringTypeCallback& Callback)
+		void DebuggerContext::AddToStringCallback(const std::string_view& Type, ToStringTypeCallback&& Callback)
 		{
 			for (auto& Item : Core::Stringify::Split(Type, ','))
 			{
 				Core::Stringify::Trim(Item);
-				SlowToStringCallbacks[Item] = Callback;
+				SlowToStringCallbacks[Item] = std::move(Callback);
 			}
 		}
 		void DebuggerContext::LineCallback(asIScriptContext* Base)
@@ -6107,21 +6107,21 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		void ImmediateContext::SetNotificationResolverCallback(const std::function<void(ImmediateContext*, void*)>& Callback)
+		void ImmediateContext::SetNotificationResolverCallback(std::function<void(ImmediateContext*, void*)>&& Callback)
 		{
-			Callbacks.NotificationResolver = Callback;
+			Callbacks.NotificationResolver = std::move(Callback);
 		}
-		void ImmediateContext::SetCallbackResolverCallback(const std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>& Callback)
+		void ImmediateContext::SetCallbackResolverCallback(std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>&& Callback)
 		{
-			Callbacks.CallbackResolver = Callback;
+			Callbacks.CallbackResolver = std::move(Callback);
 		}
-		void ImmediateContext::SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback)
+		void ImmediateContext::SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback)
 		{
-			Callbacks.Exception = Callback;
+			Callbacks.Exception = std::move(Callback);
 		}
-		void ImmediateContext::SetLineCallback(const std::function<void(ImmediateContext*)>& Callback)
+		void ImmediateContext::SetLineCallback(std::function<void(ImmediateContext*)>&& Callback)
 		{
-			Callbacks.Line = Callback;
+			Callbacks.Line = std::move(Callback);
 			SetLineCallback(&VirtualMachine::LineHandler, this);
 		}
 		void ImmediateContext::AppendStopExecutionCallback(StopExecutionCallback&& Callback)
@@ -7233,9 +7233,9 @@ namespace Vitex
 		{
 			Cached = Enabled;
 		}
-		void VirtualMachine::SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback)
+		void VirtualMachine::SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback)
 		{
-			GlobalException = Callback;
+			GlobalException = std::move(Callback);
 		}
 		void VirtualMachine::SetDebugger(DebuggerContext* Context)
 		{
@@ -7312,9 +7312,9 @@ namespace Vitex
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
 			Sections.clear();
 		}
-		void VirtualMachine::SetCompilerErrorCallback(const WhenErrorCallback& Callback)
+		void VirtualMachine::SetCompilerErrorCallback(WhenErrorCallback&& Callback)
 		{
-			WhenError = Callback;
+			WhenError = std::move(Callback);
 		}
 		void VirtualMachine::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
@@ -7886,7 +7886,7 @@ namespace Vitex
 		{
 			return Debugger != nullptr;
 		}
-		bool VirtualMachine::AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, const AddonCallback& Callback)
+		bool VirtualMachine::AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, AddonCallback&& Callback)
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
@@ -7896,7 +7896,7 @@ namespace Vitex
 				if (Callback || !Dependencies.empty())
 				{
 					It->second.Dependencies = Dependencies;
-					It->second.Callback = Callback;
+					It->second.Callback = std::move(Callback);
 					It->second.Exposed = false;
 				}
 				else
@@ -7906,7 +7906,7 @@ namespace Vitex
 			{
 				Addon Result;
 				Result.Dependencies = Dependencies;
-				Result.Callback = Callback;
+				Result.Callback = std::move(Callback);
 				Addons.insert({ Core::String(Name), std::move(Result) });
 			}
 

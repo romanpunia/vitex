@@ -122,9 +122,9 @@ namespace Vitex
 				});
 				return Core::Expectation::Met;
 			}
-			bool Client::ReadResponses(int Code, const ReplyCallback& Callback)
+			bool Client::ReadResponses(int Code, ReplyCallback&& Callback)
 			{
-				return ReadResponse(Code, [this, Callback, Code]()
+				return ReadResponse(Code, [this, Callback = std::move(Callback), Code]() mutable
 				{
 					if (--Pending <= 0)
 					{
@@ -133,13 +133,13 @@ namespace Vitex
 							Callback();
 					}
 					else
-						ReadResponses(Code, Callback);
+						ReadResponses(Code, std::move(Callback));
 				});
 			}
-			bool Client::ReadResponse(int Code, const ReplyCallback& Callback)
+			bool Client::ReadResponse(int Code, ReplyCallback&& Callback)
 			{
 				Command.clear();
-				return Net.Stream->ReadUntilAsync("\r\n", [this, Callback, Code](SocketPoll Event, const uint8_t* Data, size_t Recv)
+				return Net.Stream->ReadUntilAsync("\r\n", [this, Callback = std::move(Callback), Code](SocketPoll Event, const uint8_t* Data, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -155,7 +155,7 @@ namespace Vitex
 						}
 
 						if (Command[3] != ' ')
-							return ReadResponse(Code, Callback);
+							return ReadResponse(Code, std::move(Callback));
 
 						int ReplyCode = (Command[0] - '0') * 100 + (Command[1] - '0') * 10 + Command[2] - '0';
 						if (ReplyCode != Code)
@@ -176,12 +176,12 @@ namespace Vitex
 					return true;
 				}) || true;
 			}
-			bool Client::SendRequest(int Code, const std::string_view& Content, const ReplyCallback& Callback)
+			bool Client::SendRequest(int Code, const std::string_view& Content, ReplyCallback&& Callback)
 			{
-				return Net.Stream->WriteAsync((uint8_t*)Content.data(), Content.size(), [this, Callback, Code](SocketPoll Event)
+				return Net.Stream->WriteAsync((uint8_t*)Content.data(), Content.size(), [this, Callback = std::move(Callback), Code](SocketPoll Event) mutable
 				{
 					if (Packet::IsDone(Event))
-						ReadResponse(Code, Callback);
+						ReadResponse(Code, std::move(Callback));
 					else if (Packet::IsErrorOrSkip(Event))
 						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
@@ -218,7 +218,7 @@ namespace Vitex
 				}
 				return false;
 			}
-			bool Client::Authorize(const ReplyCallback& Callback)
+			bool Client::Authorize(ReplyCallback&& Callback)
 			{
 				if (!Callback || Authorized)
 				{
@@ -242,13 +242,13 @@ namespace Vitex
 
 				if (CanRequest("LOGIN"))
 				{
-					return SendRequest(334, "AUTH LOGIN\r\n", [this, Callback]()
+					return SendRequest(334, "AUTH LOGIN\r\n", [this, Callback = std::move(Callback)]()
 					{
 						Core::String Hash = Compute::Codec::Base64Encode(Request.Login);
-						SendRequest(334, Hash.append("\r\n"), [this, Callback]()
+						SendRequest(334, Hash.append("\r\n"), [this, Callback = std::move(Callback)]()
 						{
 							Core::String Hash = Compute::Codec::Base64Encode(Request.Password);
-							SendRequest(235, Hash.append("\r\n"), [this, Callback]()
+							SendRequest(235, Hash.append("\r\n"), [this, Callback = std::move(Callback)]()
 							{
 								Authorized = true;
 								Callback();
@@ -267,7 +267,7 @@ namespace Vitex
 							Escape[i] = 0;
 					}
 
-					return SendRequest(235, Core::Stringify::Text("AUTH PLAIN %s\r\n", Compute::Codec::Base64Encode(Hash).c_str()), [this, Callback]()
+					return SendRequest(235, Core::Stringify::Text("AUTH PLAIN %s\r\n", Compute::Codec::Base64Encode(Hash).c_str()), [this, Callback = std::move(Callback)]()
 					{
 						Authorized = true;
 						Callback();
@@ -275,7 +275,7 @@ namespace Vitex
 				}
 				else if (CanRequest("CRAM-MD5"))
 				{
-					return SendRequest(334, "AUTH CRAM-MD5\r\n", [this, Callback]()
+					return SendRequest(334, "AUTH CRAM-MD5\r\n", [this, Callback = std::move(Callback)]()
 					{
 						Core::String EncodedChallenge = Command.c_str() + 4;
 						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
@@ -332,7 +332,7 @@ namespace Vitex
 						EncodedChallenge = Compute::Codec::Base64Encode(DecodedChallenge);
 
 						Core::Memory::Deallocate((void*)UserBase);
-						SendRequest(235, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback]()
+						SendRequest(235, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback = std::move(Callback)]()
 						{
 							Authorized = true;
 							Callback();
@@ -341,7 +341,7 @@ namespace Vitex
 				}
 				else if (CanRequest("DIGEST-MD5"))
 				{
-					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
+					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback = std::move(Callback)]()
 					{
 						Core::String EncodedChallenge = Command.c_str() + 4;
 						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
@@ -458,9 +458,9 @@ namespace Vitex
 							",qop=auth", Nonce.c_str(), NC, CNonce, Location.c_str(), DecodedChallenge.c_str());
 
 						EncodedChallenge = Compute::Codec::Base64Encode(Content);
-						SendRequest(334, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback]()
+						SendRequest(334, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback = std::move(Callback)]()
 						{
-							SendRequest(235, "\r\n", [this, Callback]()
+							SendRequest(235, "\r\n", [this, Callback = std::move(Callback)]()
 							{
 								Authorized = true;
 								Callback();

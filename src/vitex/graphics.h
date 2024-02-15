@@ -813,7 +813,7 @@ namespace Vitex
 			Alert(Activity* From) noexcept;
 			void Setup(AlertType Type, const std::string_view& Title, const std::string_view& Text);
 			void Button(AlertConfirm Confirm, const std::string_view& Text, int Id);
-			void Result(const std::function<void(int)>& Callback);
+			void Result(std::function<void(int)>&& Callback);
 
 		private:
 			void Dispatch();

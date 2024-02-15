@@ -119,14 +119,14 @@ namespace Vitex
 				if (Lifetime.Destroy)
 					Lifetime.Destroy(this);
 			}
-			Core::ExpectsSystem<size_t> WebSocketFrame::Send(const std::string_view& Buffer, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Core::ExpectsSystem<size_t> WebSocketFrame::Send(const std::string_view& Buffer, WebSocketOp Opcode, WebSocketCallback&& Callback)
 			{
-				return Send(0, Buffer, Opcode, Callback);
+				return Send(0, Buffer, Opcode, std::move(Callback));
 			}
-			Core::ExpectsSystem<size_t> WebSocketFrame::Send(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			Core::ExpectsSystem<size_t> WebSocketFrame::Send(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, WebSocketCallback&& Callback)
 			{
 				Core::UMutex<std::mutex> Unique(Section);
-				if (Enqueue(Mask, Buffer, Opcode, Callback))
+				if (Enqueue(Mask, Buffer, Opcode, std::move(Callback)))
 					return (size_t)0;
 
 				Busy = true;
@@ -166,13 +166,13 @@ namespace Vitex
 				}
 
 				Core::String Copy = Core::String(Buffer);
-				auto Status = Stream->WriteAsync(Header, HeaderLength, [this, Copy = std::move(Copy), Callback](SocketPoll Event) mutable
+				auto Status = Stream->WriteAsync(Header, HeaderLength, [this, Copy = std::move(Copy), Callback = std::move(Callback)](SocketPoll Event) mutable
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (!Copy.empty())
 						{
-							Stream->WriteAsync((uint8_t*)Copy.data(), Copy.size(), [this, Callback](SocketPoll Event)
+							Stream->WriteAsync((uint8_t*)Copy.data(), Copy.size(), [this, Callback = std::move(Callback)](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
@@ -232,7 +232,7 @@ namespace Vitex
 
 				return Core::SystemException("ws send error", std::move(Status.Error()));
 			}
-			Core::ExpectsSystem<void> WebSocketFrame::SendClose(const WebSocketCallback& Callback)
+			Core::ExpectsSystem<void> WebSocketFrame::SendClose(WebSocketCallback&& Callback)
 			{
 				if (Deadly)
 				{
@@ -256,7 +256,7 @@ namespace Vitex
 				}
 
 				Finalize();
-				auto Status = Send("", WebSocketOp::Close, Callback);
+				auto Status = Send("", WebSocketOp::Close, std::move(Callback));
 				if (!Status)
 					return Status.Error();
 
@@ -272,7 +272,7 @@ namespace Vitex
 				Messages.pop();
 				Unique.Negate();
 
-				Send(Next.Mask, std::string_view(Next.Buffer, Next.Size), Next.Opcode, Next.Callback);
+				Send(Next.Mask, std::string_view(Next.Buffer, Next.Size), Next.Opcode, std::move(Next.Callback));
 				Core::Memory::Deallocate(Next.Buffer);
 			}
 			void WebSocketFrame::Finalize()
@@ -446,7 +446,7 @@ namespace Vitex
 			{
 				return (Client*)UserData;
 			}
-			bool WebSocketFrame::Enqueue(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			bool WebSocketFrame::Enqueue(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, WebSocketCallback&& Callback)
 			{
 				if (IsWriteable())
 					return false;
@@ -629,173 +629,173 @@ namespace Vitex
 
 				return false;
 			}
-			bool MapRouter::Get(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Get(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Get("", RouteMode::Start, Pattern, Callback);
+				return Get("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Get(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Get(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Get = Callback;
+				Value->Callbacks.Get = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Post(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Post(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Post("", RouteMode::Start, Pattern, Callback);
+				return Post("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Post(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Post(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Post = Callback;
+				Value->Callbacks.Post = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Put(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Put(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Put("", RouteMode::Start, Pattern, Callback);
+				return Put("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Put(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Put(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Put = Callback;
+				Value->Callbacks.Put = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Patch(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Patch(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Patch("", RouteMode::Start, Pattern, Callback);
+				return Patch("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Patch(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Patch(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Patch = Callback;
+				Value->Callbacks.Patch = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Delete(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Delete(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Delete("", RouteMode::Start, Pattern, Callback);
+				return Delete("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Delete(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Delete(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Delete = Callback;
+				Value->Callbacks.Delete = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Options(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Options(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Options("", RouteMode::Start, Pattern, Callback);
+				return Options("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Options(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Options(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Options = Callback;
+				Value->Callbacks.Options = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Access(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Access(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return Access("", RouteMode::Start, Pattern, Callback);
+				return Access("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Access(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::Access(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Access = Callback;
+				Value->Callbacks.Access = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Headers(const std::string_view& Pattern, const HeaderCallback& Callback)
+			bool MapRouter::Headers(const std::string_view& Pattern, HeaderCallback&& Callback)
 			{
-				return Headers("", RouteMode::Start, Pattern, Callback);
+				return Headers("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Headers(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const HeaderCallback& Callback)
+			bool MapRouter::Headers(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, HeaderCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Headers = Callback;
+				Value->Callbacks.Headers = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::Authorize(const std::string_view& Pattern, const AuthorizeCallback& Callback)
+			bool MapRouter::Authorize(const std::string_view& Pattern, AuthorizeCallback&& Callback)
 			{
-				return Authorize("", RouteMode::Start, Pattern, Callback);
+				return Authorize("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::Authorize(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const AuthorizeCallback& Callback)
+			bool MapRouter::Authorize(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, AuthorizeCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.Authorize = Callback;
+				Value->Callbacks.Authorize = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::WebSocketInitiate(const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::WebSocketInitiate(const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
-				return WebSocketInitiate("", RouteMode::Start, Pattern, Callback);
+				return WebSocketInitiate("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::WebSocketInitiate(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const SuccessCallback& Callback)
+			bool MapRouter::WebSocketInitiate(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.WebSocket.Initiate = Callback;
+				Value->Callbacks.WebSocket.Initiate = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::WebSocketConnect(const std::string_view& Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketConnect(const std::string_view& Pattern, WebSocketCallback&& Callback)
 			{
-				return WebSocketConnect("", RouteMode::Start, Pattern, Callback);
+				return WebSocketConnect("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::WebSocketConnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketConnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.WebSocket.Connect = Callback;
+				Value->Callbacks.WebSocket.Connect = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::WebSocketDisconnect(const std::string_view& Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketDisconnect(const std::string_view& Pattern, WebSocketCallback&& Callback)
 			{
-				return WebSocketDisconnect("", RouteMode::Start, Pattern, Callback);
+				return WebSocketDisconnect("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::WebSocketDisconnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketCallback& Callback)
+			bool MapRouter::WebSocketDisconnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.WebSocket.Disconnect = Callback;
+				Value->Callbacks.WebSocket.Disconnect = std::move(Callback);
 				return true;
 			}
-			bool MapRouter::WebSocketReceive(const std::string_view& Pattern, const WebSocketReadCallback& Callback)
+			bool MapRouter::WebSocketReceive(const std::string_view& Pattern, WebSocketReadCallback&& Callback)
 			{
-				return WebSocketReceive("", RouteMode::Start, Pattern, Callback);
+				return WebSocketReceive("", RouteMode::Start, Pattern, std::move(Callback));
 			}
-			bool MapRouter::WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, const WebSocketReadCallback& Callback)
+			bool MapRouter::WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketReadCallback&& Callback)
 			{
 				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
 				if (!Value)
 					return false;
 
-				Value->Callbacks.WebSocket.Receive = Callback;
+				Value->Callbacks.WebSocket.Receive = std::move(Callback);
 				return true;
 			}
 

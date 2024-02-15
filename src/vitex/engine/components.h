@@ -32,7 +32,7 @@ namespace Vitex
 				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Compute::HullShape* Shape, float Anticipation = 0.0f);
-				void Load(const std::string_view& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
+				void Load(const std::string_view& Path, float Anticipation = 0.0f, std::function<void()>&& Callback = nullptr);
 				void LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation = 0.0f);
 				void LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation = 0.0f);
 				void LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation = 0.0f);
@@ -71,7 +71,7 @@ namespace Vitex
 				void Deactivate() override;
 				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(btCollisionShape* Shape, float Mass, float Anticipation = 0.0f);
-				void Load(const std::string_view& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
+				void Load(const std::string_view& Path, float Mass, float Anticipation = 0.0f, std::function<void()>&& Callback = nullptr);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
@@ -282,7 +282,7 @@ namespace Vitex
 				void Serialize(Core::Schema* Node) override;
 				void Animate(Core::Timer* Time) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				void LoadAnimation(const std::string_view& Path, const std::function<void(bool)>& Callback = nullptr);
+				void LoadAnimation(const std::string_view& Path, std::function<void(bool)>&& Callback = nullptr);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();

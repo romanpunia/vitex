@@ -191,10 +191,10 @@ namespace Vitex
 
 			Buttons.push_back(Button);
 		}
-		void Alert::Result(const std::function<void(int)>& Callback)
+		void Alert::Result(std::function<void(int)>&& Callback)
 		{
 			VI_ASSERT(View != AlertType::None, "alert type should not be none");
-			Done = Callback;
+			Done = std::move(Callback);
 			Waiting = true;
 		}
 		void Alert::Dispatch()

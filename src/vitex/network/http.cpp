@@ -2036,7 +2036,7 @@ namespace Vitex
 				}
 
 				Request.Content.Prefetch = 0;
-				return !!Stream->ReadAsync(ContentLength, [this, File, Subresource, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				return !!Stream->ReadAsync(ContentLength, [this, File, Subresource = std::move(Subresource), Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -4954,7 +4954,7 @@ namespace Vitex
 				else
 					Base->Response.StatusCode = 204;
 
-				return Base->Fetch([=](Connection* Base, SocketPoll Event, const std::string_view& Buffer)
+				return Base->Fetch([Stream](Connection* Base, SocketPoll Event, const std::string_view& Buffer)
 				{
 					if (Packet::IsData(Event))
 					{

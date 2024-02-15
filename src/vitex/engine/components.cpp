@@ -2002,13 +2002,14 @@ namespace Vitex
 			void KeyAnimator::LoadAnimation(const std::string_view& Path, const std::function<void(bool)>& Callback)
 			{
 				auto* Scene = Parent->GetScene();
-				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](ExpectsContent<Core::Schema*> Result)
+				auto Copy = Core::String(Path);
+				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Copy, Callback](ExpectsContent<Core::Schema*> Result)
 				{
 					ClearAnimation();
 					if (Result && *Result != nullptr)
 					{
 						if (Series::Unpack(*Result, &Clips))
-							Reference = Scene->AsResourcePath(Path);
+							Reference = Scene->AsResourcePath(Copy);
 						else
 							Reference.clear();
 						Core::Memory::Release(*Result);

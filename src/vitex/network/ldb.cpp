@@ -670,7 +670,10 @@ namespace Vitex
 					return ExpectsPromiseDB<void>(DatabaseException("connect failed: permission denied"));
 
 				if (IsConnected())
-					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location, Connections](ExpectsDB<void>&&) { return this->Connect(Location, Connections); });
+				{
+					auto Copy = Core::String(Location);
+					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Copy = std::move(Copy), Connections](ExpectsDB<void>&&) { return this->Connect(Copy, Connections); });
+				}
 
 				Core::UMutex<std::mutex> Unique(Update);
 				Source = Location;

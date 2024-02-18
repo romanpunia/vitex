@@ -3587,7 +3587,7 @@ namespace Vitex
 
 						auto It = Constants.find(Item.first);
 						if (It == Constants.end())
-							return DatabaseException(0, "query expects " + Item.first + " constrant: " + Core::String(Name));
+							return DatabaseException(0, "query expects @" + Item.first + " constant: " + Core::String(Name));
 
 						Core::Stringify::ReplacePart(Base, Item.second.Start, Item.second.End, It->second);
 						size_t NewSize = It->second.size();
@@ -3820,7 +3820,7 @@ namespace Vitex
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
-						return DatabaseException(0, "query expects " + Word.Key + " constrant: " + Core::String(Name));
+						return DatabaseException(0, "query expects @" + Word.Key + " constant: " + Core::String(Name));
 
 					Core::String Value = Utils::GetJSON(It->second, Word.Escape);
 					if (Value.empty())

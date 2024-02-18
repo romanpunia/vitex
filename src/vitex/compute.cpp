@@ -9539,7 +9539,7 @@ namespace Vitex
 			static const char HexUpperCase[17] = "0123456789ABCDEF";
 
 			Core::String Output;
-			Output.reserve(Value * 2);
+			Output.reserve(Value.size() * 2);
 
 			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
 			for (size_t i = 0; i < Value.size(); i++)
@@ -9580,13 +9580,12 @@ namespace Vitex
 
 			Core::String Output;
 			Output.reserve(Value.size() / 2);
-			if (Value.size() - Offset < 2)
-				return Output;
 
 			char Hex[3] = { 0, 0, 0 };
 			for (size_t i = Offset; i < Value.size(); i += 2)
 			{
-				memcpy(Hex, Value.data() + i, sizeof(char) * 2);
+				size_t Size = std::min<size_t>(2, Value.size() - i);
+				memcpy(Hex, Value.data() + i, sizeof(char) * Size);
 				Output.push_back((char)(int)strtol(Hex, nullptr, 16));
 			}
 

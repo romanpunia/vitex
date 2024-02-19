@@ -9587,6 +9587,7 @@ namespace Vitex
 				size_t Size = std::min<size_t>(2, Value.size() - i);
 				memcpy(Hex, Value.data() + i, sizeof(char) * Size);
 				Output.push_back((char)(int)strtol(Hex, nullptr, 16));
+				Hex[1] = 0;
 			}
 
 			return Output;

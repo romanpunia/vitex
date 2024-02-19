@@ -836,6 +836,19 @@ namespace Vitex
 			int32_t Y = 0;
 		};
 
+		struct VI_OUT EventConsumers
+		{
+			friend Activity;
+
+		private:
+			Core::UnorderedMap<uint32_t, Activity*> Consumers;
+
+		public:
+			void Push(Activity* Value);
+			void Pop(Activity* Value);
+			Activity* Find(uint32_t Id) const;
+		};
+
 		struct VI_OUT KeyMap
 		{
 			KeyCode Key;
@@ -1920,6 +1933,7 @@ namespace Vitex
 			} Mapping;
 
 		private:
+			EventConsumers EventSource;
 			SDL_Cursor* Cursors[(size_t)DisplayCursor::Count];
 			SDL_Window* Handle;
 			SDL_Surface* Favicon;
@@ -1948,7 +1962,7 @@ namespace Vitex
 			void SetIcon(Surface* Icon);
 			void SetTitle(const std::string_view& Value);
 			void SetScreenKeyboard(bool Enabled);
-			void BuildLayer(RenderBackend Backend);
+			void ApplyConfiguration(RenderBackend Backend);
 			void Wakeup();
 			void Hide();
 			void Show();
@@ -1959,8 +1973,7 @@ namespace Vitex
 			void Resize(int Width, int Height);
 			void Load(SDL_SysWMinfo* Base);
 			bool CaptureKeyMap(KeyMap* Value);
-			bool Dispatch();
-			bool DispatchBlocking(uint64_t TimeoutMs);
+			bool Dispatch(uint64_t TimeoutMs = 0);
 			bool IsFullscreen() const;
 			bool IsAnyKeyDown() const;
 			bool IsKeyDown(const KeyMap& Key) const;
@@ -1972,6 +1985,7 @@ namespace Vitex
 			uint32_t GetY() const;
 			uint32_t GetWidth() const;
 			uint32_t GetHeight() const;
+			uint32_t GetId() const;
 			float GetAspectRatio() const;
 			KeyMod GetKeyModState() const;
 			Graphics::Viewport GetViewport() const;
@@ -1986,6 +2000,9 @@ namespace Vitex
 			SDL_Window* GetHandle() const;
 			Core::String GetError() const;
 			Desc& GetOptions();
+
+		public:
+			static bool MultiDispatch(const EventConsumers& Sources, uint64_t TimeoutMs = 0);
 
 		private:
 			bool ApplySystemTheme();

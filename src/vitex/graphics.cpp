@@ -220,7 +220,7 @@ namespace Vitex
 			AlertData.numbuttons = (int)Buttons.size();
 			AlertData.buttons = Views;
 			AlertData.window = Base->GetHandle();
-			
+
 			int Id = 0;
 			View = AlertType::None;
 			Waiting = false;
@@ -229,6 +229,24 @@ namespace Vitex
 			if (Done)
 				Done(Rd >= 0 ? Id : -1);
 #endif
+		}
+
+		void EventConsumers::Push(Activity* Value)
+		{
+			VI_ASSERT(Value != nullptr, "activity should be set");
+			Consumers[Value->GetId()] = Value;
+		}
+		void EventConsumers::Pop(Activity* Value)
+		{
+			VI_ASSERT(Value != nullptr, "activity should be set");
+			auto It = Consumers.find(Value->GetId());
+			if (It != Consumers.end())
+				Consumers.erase(It);
+		}
+		Activity* EventConsumers::Find(uint32_t Id) const
+		{
+			auto It = Consumers.find(Id);
+			return It != Consumers.end() ? It->second : nullptr;
 		}
 
 		KeyMap::KeyMap() noexcept : Key(KeyCode::None), Mod(KeyMod::None), Normal(false)
@@ -1202,8 +1220,8 @@ namespace Vitex
 				case Vitex::Graphics::RenderBackend::OGL:
 					Subresult.Defines.push_back("TARGET_OGL");
 					break;
-                default:
-                    break;
+				default:
+					break;
 			}
 
 			Compute::IncludeDesc Desc = Compute::IncludeDesc();
@@ -1316,9 +1334,9 @@ namespace Vitex
 			Transpiler.setEntryPoint(Entry.c_str());
 
 			EShMessages Flags = (EShMessages)(EShMsgSpvRules | EShMsgReadHlsl | EShMsgHlslOffsets | EShMsgHlslLegalization | EShMsgKeepUncalled | EShMsgSuppressWarnings);
-            PrepareDriverLimits();
-            
-            if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
+			PrepareDriverLimits();
+
+			if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
 			{
 				Core::String Message = Transpiler.getInfoLog();
 				glslang::FinalizeProcess();
@@ -1660,8 +1678,8 @@ namespace Vitex
 				case Vitex::Graphics::RenderBackend::OGL:
 					Postfix = ".glsl";
 					break;
-                default:
-                    break;
+				default:
+					break;
 			}
 
 			return *Hash + Postfix;
@@ -1882,7 +1900,7 @@ namespace Vitex
 			memset(Keys[0], 0, sizeof(Keys[0]));
 			memset(Keys[1], 0, sizeof(Keys[1]));
 			if (!I.GPUAsRenderer)
-				BuildLayer(RenderBackend::None);
+				ApplyConfiguration(RenderBackend::None);
 		}
 		Activity::~Activity() noexcept
 		{
@@ -2051,11 +2069,12 @@ namespace Vitex
 				SDL_StopTextInput();
 #endif
 		}
-		void Activity::BuildLayer(RenderBackend Backend)
+		void Activity::ApplyConfiguration(RenderBackend Backend)
 		{
 #ifdef VI_SDL2
 			if (Handle != nullptr)
 			{
+				EventSource.Pop(this);
 				SDL_DestroyWindow(Handle);
 				Handle = nullptr;
 			}
@@ -2107,7 +2126,10 @@ namespace Vitex
 
 			Handle = SDL_CreateWindow(Options.Title.c_str(), Options.X, Options.Y, Options.Width, Options.Height, Flags);
 			if (Handle != nullptr)
+			{
+				EventSource.Push(this);
 				ApplySystemTheme();
+			}
 #endif
 		}
 		void Activity::Wakeup()
@@ -2201,429 +2223,466 @@ namespace Vitex
 			SDL_GetWindowWMInfo(Handle, Base);
 #endif
 		}
-		bool Activity::Dispatch()
+		bool Activity::Dispatch(uint64_t TimeoutMs)
 		{
-			return DispatchBlocking(0);
+			return MultiDispatch(EventSource, TimeoutMs);
 		}
-		bool Activity::DispatchBlocking(uint64_t TimeoutMs)
+		bool Activity::MultiDispatch(const EventConsumers& Sources, uint64_t TimeoutMs)
 		{
-			VI_ASSERT(Handle != nullptr, "activity should be initialized");
 			VI_MEASURE(Core::Timings::Mixed);
-
-			memcpy((void*)Keys[1], (void*)Keys[0], sizeof(Keys[0]));
 #ifdef VI_SDL2
-			int Id = SDL_GetWindowID(Handle);
-			Command = (int)SDL_GetModState();
-			GetInputState();
-			Message.Dispatch();
+			if (Sources.Consumers.empty())
+				return false;
+
+			for (auto& Item : Sources.Consumers)
+			{
+				auto* Target = Item.second;
+				VI_ASSERT(Target->Handle != nullptr, "activity should be initialized");
+				memcpy((void*)Target->Keys[1], (void*)Target->Keys[0], sizeof(Target->Keys[0]));
+				Target->Command = (int)SDL_GetModState();
+				Target->GetInputState();
+				Target->Message.Dispatch();
+			}
 
 			SDL_Event Event;
-			int HasEvents = 0;
-			if (TimeoutMs > 0)
-				HasEvents = SDL_WaitEventTimeout(&Event, (int)TimeoutMs);
-			else
-				HasEvents = SDL_PollEvent(&Event);
-
+			size_t IncomingEvents = 0;
+			int HasEvents = TimeoutMs > 0 ? SDL_WaitEventTimeout(&Event, (int)TimeoutMs) : SDL_PollEvent(&Event);
 			while (HasEvents)
 			{
+				bool IsCommonEvent = true;
 				switch (Event.type)
 				{
-					case SDL_WINDOWEVENT:
-						switch (Event.window.event)
-						{
-							case SDL_WINDOWEVENT_SHOWN:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Show, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_HIDDEN:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Hide, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_EXPOSED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Expose, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_MOVED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Move, Event.window.data1, Event.window.data2);
-								break;
-							case SDL_WINDOWEVENT_RESIZED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Resize, Event.window.data1, Event.window.data2);
-								break;
-							case SDL_WINDOWEVENT_SIZE_CHANGED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Size_Change, Event.window.data1, Event.window.data2);
-								break;
-							case SDL_WINDOWEVENT_MINIMIZED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Minimize, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_MAXIMIZED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Maximize, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_RESTORED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Restore, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_ENTER:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Enter, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_LEAVE:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Leave, 0, 0);
-								break;
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-							case SDL_WINDOWEVENT_TAKE_FOCUS:
-#endif
-							case SDL_WINDOWEVENT_FOCUS_GAINED:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Focus, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_FOCUS_LOST:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Blur, 0, 0);
-								break;
-							case SDL_WINDOWEVENT_CLOSE:
-								if (Callbacks.WindowStateChange && Id == Event.window.windowID)
-									Callbacks.WindowStateChange(WindowState::Close, 0, 0);
-								break;
-						}
-						break;
 					case SDL_QUIT:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Close_Window);
+						for (auto& Item : Sources.Consumers)
+						{
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Close_Window);
+						}
 						break;
 					case SDL_APP_TERMINATING:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Terminating);
+						for (auto& Item : Sources.Consumers)
+						{
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Terminating);
+						}
 						break;
 					case SDL_APP_LOWMEMORY:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Low_Memory);
+						for (auto& Item : Sources.Consumers)
+						{
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Low_Memory);
+						}
 						break;
 					case SDL_APP_WILLENTERBACKGROUND:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Enter_Background_Start);
+						for (auto& Item : Sources.Consumers)
+						{
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Enter_Background_Start);
+						}
 						break;
 					case SDL_APP_DIDENTERBACKGROUND:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Enter_Background_End);
+						for (auto& Item : Sources.Consumers)
+						{
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Enter_Background_End);
+						}
 						break;
 					case SDL_APP_WILLENTERFOREGROUND:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Enter_Foreground_Start);
+						for (auto& Item : Sources.Consumers)
+						{
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Enter_Foreground_Start);
+						}
 						break;
 					case SDL_APP_DIDENTERFOREGROUND:
-						if (Callbacks.AppStateChange)
-							Callbacks.AppStateChange(AppState::Enter_Foreground_End);
-						break;
-					case SDL_KEYDOWN:
-						if (Callbacks.KeyState && Id == Event.window.windowID)
-							Callbacks.KeyState((KeyCode)Event.key.keysym.scancode, (KeyMod)Event.key.keysym.mod, (int)Event.key.keysym.sym, (int)(Event.key.repeat != 0), true);
-
-						if (Mapping.Enabled && !Mapping.Mapped)
+						for (auto& Item : Sources.Consumers)
 						{
-							Mapping.Key.Key = (KeyCode)Event.key.keysym.scancode;
-							Mapping.Mapped = true;
-							Mapping.Captured = false;
+							if (Item.second->Callbacks.AppStateChange)
+								Item.second->Callbacks.AppStateChange(AppState::Enter_Foreground_End);
 						}
 						break;
-					case SDL_KEYUP:
-						if (Callbacks.KeyState && Id == Event.window.windowID)
-							Callbacks.KeyState((KeyCode)Event.key.keysym.scancode, (KeyMod)Event.key.keysym.mod, (int)Event.key.keysym.sym, (int)(Event.key.repeat != 0), false);
-
-						if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == (KeyCode)Event.key.keysym.scancode)
-						{
-							Mapping.Key.Mod = (KeyMod)SDL_GetModState();
-							Mapping.Captured = true;
-						}
-						break;
-					case SDL_TEXTINPUT:
-						if (Callbacks.Input && Id == Event.window.windowID)
-							Callbacks.Input((char*)Event.text.text, (int)strlen(Event.text.text));
-						break;
-					case SDL_TEXTEDITING:
-						if (Callbacks.InputEdit && Id == Event.window.windowID)
-							Callbacks.InputEdit((char*)Event.edit.text, (int)Event.edit.start, (int)Event.edit.length);
-						break;
-					case SDL_MOUSEMOTION:
-						if (Id == Event.window.windowID)
-						{
-							CX = Event.motion.x;
-							CY = Event.motion.y;
-							if (Callbacks.CursorMove)
-								Callbacks.CursorMove(CX, CY, (int)Event.motion.xrel, (int)Event.motion.yrel);
-						}
-						break;
-					case SDL_MOUSEBUTTONDOWN:
-						switch (Event.button.button)
-						{
-							case SDL_BUTTON_LEFT:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorLeft, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorLeft, (int)Event.button.clicks, true);
-
-								if (Mapping.Enabled && !Mapping.Mapped)
-								{
-									Mapping.Key.Key = KeyCode::CursorLeft;
-									Mapping.Mapped = true;
-									Mapping.Captured = false;
-								}
-								break;
-							case SDL_BUTTON_MIDDLE:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorMiddle, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorMiddle, (int)Event.button.clicks, true);
-
-								if (Mapping.Enabled && !Mapping.Mapped)
-								{
-									Mapping.Key.Key = KeyCode::CursorMiddle;
-									Mapping.Mapped = true;
-									Mapping.Captured = false;
-								}
-								break;
-							case SDL_BUTTON_RIGHT:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorRight, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorRight, (int)Event.button.clicks, true);
-
-								if (Mapping.Enabled && !Mapping.Mapped)
-								{
-									Mapping.Key.Key = KeyCode::CursorRight;
-									Mapping.Mapped = true;
-									Mapping.Captured = false;
-								}
-								break;
-							case SDL_BUTTON_X1:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX1, (int)Event.button.clicks, true);
-
-								if (Mapping.Enabled && !Mapping.Mapped)
-								{
-									Mapping.Key.Key = KeyCode::CursorX1;
-									Mapping.Mapped = true;
-									Mapping.Captured = false;
-								}
-								break;
-							case SDL_BUTTON_X2:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX2, (int)Event.button.clicks, true);
-
-								if (Mapping.Enabled && !Mapping.Mapped)
-								{
-									Mapping.Key.Key = KeyCode::CursorX2;
-									Mapping.Mapped = true;
-									Mapping.Captured = false;
-								}
-								break;
-						}
-						break;
-					case SDL_MOUSEBUTTONUP:
-						switch (Event.button.button)
-						{
-							case SDL_BUTTON_LEFT:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorLeft, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorLeft, (int)Event.button.clicks, false);
-
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorLeft)
-								{
-									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
-									Mapping.Captured = true;
-								}
-								break;
-							case SDL_BUTTON_MIDDLE:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorMiddle, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorMiddle, (int)Event.button.clicks, false);
-
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorMiddle)
-								{
-									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
-									Mapping.Captured = true;
-								}
-								break;
-							case SDL_BUTTON_RIGHT:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorRight, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorRight, (int)Event.button.clicks, false);
-
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorRight)
-								{
-									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
-									Mapping.Captured = true;
-								}
-								break;
-							case SDL_BUTTON_X1:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX1, (int)Event.button.clicks, false);
-
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorX1)
-								{
-									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
-									Mapping.Captured = true;
-								}
-								break;
-							case SDL_BUTTON_X2:
-								if (Callbacks.KeyState && Id == Event.window.windowID)
-									Callbacks.KeyState(KeyCode::CursorX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX2, (int)Event.button.clicks, false);
-
-								if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode::CursorX2)
-								{
-									Mapping.Key.Mod = (KeyMod)SDL_GetModState();
-									Mapping.Captured = true;
-								}
-								break;
-						}
-						break;
-					case SDL_MOUSEWHEEL:
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-						if (Callbacks.CursorWheelState && Id == Event.window.windowID)
-							Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, Event.wheel.direction == SDL_MOUSEWHEEL_NORMAL);
-#else
-						if (Callbacks.CursorWheelState && Id == Event.window.windowID)
-							Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 1);
-#endif
-						break;
-					case SDL_JOYAXISMOTION:
-						if (Callbacks.JoyStickAxisMove && Id == Event.window.windowID)
-							Callbacks.JoyStickAxisMove((int)Event.jaxis.which, (int)Event.jaxis.axis, (int)Event.jaxis.value);
-						break;
-					case SDL_JOYBALLMOTION:
-						if (Callbacks.JoyStickBallMove && Id == Event.window.windowID)
-							Callbacks.JoyStickBallMove((int)Event.jball.which, (int)Event.jball.ball, (int)Event.jball.xrel, (int)Event.jball.yrel);
-						break;
-					case SDL_JOYHATMOTION:
-						if (Callbacks.JoyStickHatMove && Id == Event.window.windowID)
-						{
-							switch (Event.jhat.value)
-							{
-								case SDL_HAT_CENTERED:
-									Callbacks.JoyStickHatMove(JoyStickHat::Center, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_UP:
-									Callbacks.JoyStickHatMove(JoyStickHat::Up, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_DOWN:
-									Callbacks.JoyStickHatMove(JoyStickHat::Down, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_LEFT:
-									Callbacks.JoyStickHatMove(JoyStickHat::Left, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_LEFTUP:
-									Callbacks.JoyStickHatMove(JoyStickHat::Left_Up, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_LEFTDOWN:
-									Callbacks.JoyStickHatMove(JoyStickHat::Left_Down, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_RIGHT:
-									Callbacks.JoyStickHatMove(JoyStickHat::Right, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_RIGHTUP:
-									Callbacks.JoyStickHatMove(JoyStickHat::Right_Up, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-								case SDL_HAT_RIGHTDOWN:
-									Callbacks.JoyStickHatMove(JoyStickHat::Right_Down, (int)Event.jhat.which, (int)Event.jhat.hat);
-									break;
-							}
-						}
-						break;
-					case SDL_JOYBUTTONDOWN:
-						if (Callbacks.JoyStickKeyState && Id == Event.window.windowID)
-							Callbacks.JoyStickKeyState((int)Event.jbutton.which, (int)Event.jbutton.button, true);
-						break;
-					case SDL_JOYBUTTONUP:
-						if (Callbacks.JoyStickKeyState && Id == Event.window.windowID)
-							Callbacks.JoyStickKeyState((int)Event.jbutton.which, (int)Event.jbutton.button, false);
-						break;
-					case SDL_JOYDEVICEADDED:
-						if (Callbacks.JoyStickState && Id == Event.window.windowID)
-							Callbacks.JoyStickState((int)Event.jdevice.which, true);
-						break;
-					case SDL_JOYDEVICEREMOVED:
-						if (Callbacks.JoyStickState && Id == Event.window.windowID)
-							Callbacks.JoyStickState((int)Event.jdevice.which, false);
-						break;
-					case SDL_CONTROLLERAXISMOTION:
-						if (Callbacks.ControllerAxisMove && Id == Event.window.windowID)
-							Callbacks.ControllerAxisMove((int)Event.caxis.which, (int)Event.caxis.axis, (int)Event.caxis.value);
-						break;
-					case SDL_CONTROLLERBUTTONDOWN:
-						if (Callbacks.ControllerKeyState && Id == Event.window.windowID)
-							Callbacks.ControllerKeyState((int)Event.cbutton.which, (int)Event.cbutton.button, true);
-						break;
-					case SDL_CONTROLLERBUTTONUP:
-						if (Callbacks.ControllerKeyState && Id == Event.window.windowID)
-							Callbacks.ControllerKeyState((int)Event.cbutton.which, (int)Event.cbutton.button, false);
-						break;
-					case SDL_CONTROLLERDEVICEADDED:
-						if (Callbacks.ControllerState && Id == Event.window.windowID)
-							Callbacks.ControllerState((int)Event.cdevice.which, 1);
-						break;
-					case SDL_CONTROLLERDEVICEREMOVED:
-						if (Callbacks.ControllerState && Id == Event.window.windowID)
-							Callbacks.ControllerState((int)Event.cdevice.which, -1);
-						break;
-					case SDL_CONTROLLERDEVICEREMAPPED:
-						if (Callbacks.ControllerState && Id == Event.window.windowID)
-							Callbacks.ControllerState((int)Event.cdevice.which, 0);
-						break;
-					case SDL_FINGERMOTION:
-						if (Callbacks.TouchMove && Id == Event.window.windowID)
-							Callbacks.TouchMove((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure);
-						break;
-					case SDL_FINGERDOWN:
-						if (Callbacks.TouchState && Id == Event.window.windowID)
-							Callbacks.TouchState((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure, true);
-						break;
-					case SDL_FINGERUP:
-						if (Callbacks.TouchState && Id == Event.window.windowID)
-							Callbacks.TouchState((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure, false);
-						break;
-					case SDL_DOLLARGESTURE:
-						if (Callbacks.GestureState && Id == Event.window.windowID)
-							Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, false);
-						break;
-					case SDL_DOLLARRECORD:
-						if (Callbacks.GestureState && Id == Event.window.windowID)
-							Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, true);
-						break;
-					case SDL_MULTIGESTURE:
-						if (Callbacks.MultiGestureState && Id == Event.window.windowID)
-							Callbacks.MultiGestureState((int)Event.mgesture.touchId, (int)Event.mgesture.numFingers, Event.mgesture.x, Event.mgesture.y, Event.mgesture.dDist, Event.mgesture.dTheta);
-						break;
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-					case SDL_DROPFILE:
-						if (Id != Event.window.windowID)
-							break;
-
-						if (Callbacks.DropFile)
-							Callbacks.DropFile(Event.drop.file);
-
-						SDL_free(Event.drop.file);
-						break;
-					case SDL_DROPTEXT:
-						if (Id != Event.window.windowID)
-							break;
-
-						if (Callbacks.DropText)
-							Callbacks.DropText(Event.drop.file);
-
-						SDL_free(Event.drop.file);
-						break;
-#endif
 					default:
+						IsCommonEvent = false;
 						break;
 				}
 
+				auto* Target = IsCommonEvent ? nullptr : Sources.Find(Event.window.windowID);
+				if (Target != nullptr)
+				{
+					switch (Event.type)
+					{
+						case SDL_WINDOWEVENT:
+							switch (Event.window.event)
+							{
+								case SDL_WINDOWEVENT_SHOWN:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Show, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_HIDDEN:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Hide, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_EXPOSED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Expose, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_MOVED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Move, Event.window.data1, Event.window.data2);
+									break;
+								case SDL_WINDOWEVENT_RESIZED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Resize, Event.window.data1, Event.window.data2);
+									break;
+								case SDL_WINDOWEVENT_SIZE_CHANGED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Size_Change, Event.window.data1, Event.window.data2);
+									break;
+								case SDL_WINDOWEVENT_MINIMIZED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Minimize, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_MAXIMIZED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Maximize, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_RESTORED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Restore, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_ENTER:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Enter, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_LEAVE:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Leave, 0, 0);
+									break;
+#if SDL_VERSION_ATLEAST(2, 0, 5)
+								case SDL_WINDOWEVENT_TAKE_FOCUS:
+#endif
+								case SDL_WINDOWEVENT_FOCUS_GAINED:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Focus, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_FOCUS_LOST:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Blur, 0, 0);
+									break;
+								case SDL_WINDOWEVENT_CLOSE:
+									if (Target->Callbacks.WindowStateChange)
+										Target->Callbacks.WindowStateChange(WindowState::Close, 0, 0);
+									break;
+							}
+							break;
+						case SDL_KEYDOWN:
+							if (Target->Callbacks.KeyState)
+								Target->Callbacks.KeyState((KeyCode)Event.key.keysym.scancode, (KeyMod)Event.key.keysym.mod, (int)Event.key.keysym.sym, (int)(Event.key.repeat != 0), true);
+
+							if (Target->Mapping.Enabled && !Target->Mapping.Mapped)
+							{
+								Target->Mapping.Key.Key = (KeyCode)Event.key.keysym.scancode;
+								Target->Mapping.Mapped = true;
+								Target->Mapping.Captured = false;
+							}
+							break;
+						case SDL_KEYUP:
+							if (Target->Callbacks.KeyState)
+								Target->Callbacks.KeyState((KeyCode)Event.key.keysym.scancode, (KeyMod)Event.key.keysym.mod, (int)Event.key.keysym.sym, (int)(Event.key.repeat != 0), false);
+
+							if (Target->Mapping.Enabled && Target->Mapping.Mapped && Target->Mapping.Key.Key == (KeyCode)Event.key.keysym.scancode)
+							{
+								Target->Mapping.Key.Mod = (KeyMod)SDL_GetModState();
+								Target->Mapping.Captured = true;
+							}
+							break;
+						case SDL_TEXTINPUT:
+							if (Target->Callbacks.Input)
+								Target->Callbacks.Input((char*)Event.text.text, (int)strlen(Event.text.text));
+							break;
+						case SDL_TEXTEDITING:
+							if (Target->Callbacks.InputEdit)
+								Target->Callbacks.InputEdit((char*)Event.edit.text, (int)Event.edit.start, (int)Event.edit.length);
+							break;
+						case SDL_MOUSEMOTION:
+							Target->CX = Event.motion.x;
+							Target->CY = Event.motion.y;
+							if (Target->Callbacks.CursorMove)
+								Target->Callbacks.CursorMove(Target->CX, Target->CY, (int)Event.motion.xrel, (int)Event.motion.yrel);
+							break;
+						case SDL_MOUSEBUTTONDOWN:
+							switch (Event.button.button)
+							{
+								case SDL_BUTTON_LEFT:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorLeft, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorLeft, (int)Event.button.clicks, true);
+
+									if (Target->Mapping.Enabled && !Target->Mapping.Mapped)
+									{
+										Target->Mapping.Key.Key = KeyCode::CursorLeft;
+										Target->Mapping.Mapped = true;
+										Target->Mapping.Captured = false;
+									}
+									break;
+								case SDL_BUTTON_MIDDLE:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorMiddle, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorMiddle, (int)Event.button.clicks, true);
+
+									if (Target->Mapping.Enabled && !Target->Mapping.Mapped)
+									{
+										Target->Mapping.Key.Key = KeyCode::CursorMiddle;
+										Target->Mapping.Mapped = true;
+										Target->Mapping.Captured = false;
+									}
+									break;
+								case SDL_BUTTON_RIGHT:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorRight, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorRight, (int)Event.button.clicks, true);
+
+									if (Target->Mapping.Enabled && !Target->Mapping.Mapped)
+									{
+										Target->Mapping.Key.Key = KeyCode::CursorRight;
+										Target->Mapping.Mapped = true;
+										Target->Mapping.Captured = false;
+									}
+									break;
+								case SDL_BUTTON_X1:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX1, (int)Event.button.clicks, true);
+
+									if (Target->Mapping.Enabled && !Target->Mapping.Mapped)
+									{
+										Target->Mapping.Key.Key = KeyCode::CursorX1;
+										Target->Mapping.Mapped = true;
+										Target->Mapping.Captured = false;
+									}
+									break;
+								case SDL_BUTTON_X2:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX2, (int)Event.button.clicks, true);
+
+									if (Target->Mapping.Enabled && !Target->Mapping.Mapped)
+									{
+										Target->Mapping.Key.Key = KeyCode::CursorX2;
+										Target->Mapping.Mapped = true;
+										Target->Mapping.Captured = false;
+									}
+									break;
+							}
+							break;
+						case SDL_MOUSEBUTTONUP:
+							switch (Event.button.button)
+							{
+								case SDL_BUTTON_LEFT:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorLeft, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorLeft, (int)Event.button.clicks, false);
+
+									if (Target->Mapping.Enabled && Target->Mapping.Mapped && Target->Mapping.Key.Key == KeyCode::CursorLeft)
+									{
+										Target->Mapping.Key.Mod = (KeyMod)SDL_GetModState();
+										Target->Mapping.Captured = true;
+									}
+									break;
+								case SDL_BUTTON_MIDDLE:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorMiddle, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorMiddle, (int)Event.button.clicks, false);
+
+									if (Target->Mapping.Enabled && Target->Mapping.Mapped && Target->Mapping.Key.Key == KeyCode::CursorMiddle)
+									{
+										Target->Mapping.Key.Mod = (KeyMod)SDL_GetModState();
+										Target->Mapping.Captured = true;
+									}
+									break;
+								case SDL_BUTTON_RIGHT:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorRight, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorRight, (int)Event.button.clicks, false);
+
+									if (Target->Mapping.Enabled && Target->Mapping.Mapped && Target->Mapping.Key.Key == KeyCode::CursorRight)
+									{
+										Target->Mapping.Key.Mod = (KeyMod)SDL_GetModState();
+										Target->Mapping.Captured = true;
+									}
+									break;
+								case SDL_BUTTON_X1:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorX1, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX1, (int)Event.button.clicks, false);
+
+									if (Target->Mapping.Enabled && Target->Mapping.Mapped && Target->Mapping.Key.Key == KeyCode::CursorX1)
+									{
+										Target->Mapping.Key.Mod = (KeyMod)SDL_GetModState();
+										Target->Mapping.Captured = true;
+									}
+									break;
+								case SDL_BUTTON_X2:
+									if (Target->Callbacks.KeyState)
+										Target->Callbacks.KeyState(KeyCode::CursorX2, (KeyMod)SDL_GetModState(), (int)KeyCode::CursorX2, (int)Event.button.clicks, false);
+
+									if (Target->Mapping.Enabled && Target->Mapping.Mapped && Target->Mapping.Key.Key == KeyCode::CursorX2)
+									{
+										Target->Mapping.Key.Mod = (KeyMod)SDL_GetModState();
+										Target->Mapping.Captured = true;
+									}
+									break;
+							}
+							break;
+						case SDL_MOUSEWHEEL:
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+							if (Target->Callbacks.CursorWheelState)
+								Target->Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, Event.wheel.direction == SDL_MOUSEWHEEL_NORMAL);
+#else
+							if (Target->Callbacks.CursorWheelState)
+								Target->Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 1);
+#endif
+							break;
+						case SDL_JOYAXISMOTION:
+							if (Target->Callbacks.JoyStickAxisMove)
+								Target->Callbacks.JoyStickAxisMove((int)Event.jaxis.which, (int)Event.jaxis.axis, (int)Event.jaxis.value);
+							break;
+						case SDL_JOYBALLMOTION:
+							if (Target->Callbacks.JoyStickBallMove)
+								Target->Callbacks.JoyStickBallMove((int)Event.jball.which, (int)Event.jball.ball, (int)Event.jball.xrel, (int)Event.jball.yrel);
+							break;
+						case SDL_JOYHATMOTION:
+							if (Target->Callbacks.JoyStickHatMove)
+							{
+								switch (Event.jhat.value)
+								{
+									case SDL_HAT_CENTERED:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Center, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_UP:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Up, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_DOWN:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Down, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_LEFT:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Left, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_LEFTUP:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Left_Up, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_LEFTDOWN:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Left_Down, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_RIGHT:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Right, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_RIGHTUP:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Right_Up, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+									case SDL_HAT_RIGHTDOWN:
+										Target->Callbacks.JoyStickHatMove(JoyStickHat::Right_Down, (int)Event.jhat.which, (int)Event.jhat.hat);
+										break;
+								}
+							}
+							break;
+						case SDL_JOYBUTTONDOWN:
+							if (Target->Callbacks.JoyStickKeyState)
+								Target->Callbacks.JoyStickKeyState((int)Event.jbutton.which, (int)Event.jbutton.button, true);
+							break;
+						case SDL_JOYBUTTONUP:
+							if (Target->Callbacks.JoyStickKeyState)
+								Target->Callbacks.JoyStickKeyState((int)Event.jbutton.which, (int)Event.jbutton.button, false);
+							break;
+						case SDL_JOYDEVICEADDED:
+							if (Target->Callbacks.JoyStickState)
+								Target->Callbacks.JoyStickState((int)Event.jdevice.which, true);
+							break;
+						case SDL_JOYDEVICEREMOVED:
+							if (Target->Callbacks.JoyStickState)
+								Target->Callbacks.JoyStickState((int)Event.jdevice.which, false);
+							break;
+						case SDL_CONTROLLERAXISMOTION:
+							if (Target->Callbacks.ControllerAxisMove)
+								Target->Callbacks.ControllerAxisMove((int)Event.caxis.which, (int)Event.caxis.axis, (int)Event.caxis.value);
+							break;
+						case SDL_CONTROLLERBUTTONDOWN:
+							if (Target->Callbacks.ControllerKeyState)
+								Target->Callbacks.ControllerKeyState((int)Event.cbutton.which, (int)Event.cbutton.button, true);
+							break;
+						case SDL_CONTROLLERBUTTONUP:
+							if (Target->Callbacks.ControllerKeyState)
+								Target->Callbacks.ControllerKeyState((int)Event.cbutton.which, (int)Event.cbutton.button, false);
+							break;
+						case SDL_CONTROLLERDEVICEADDED:
+							if (Target->Callbacks.ControllerState)
+								Target->Callbacks.ControllerState((int)Event.cdevice.which, 1);
+							break;
+						case SDL_CONTROLLERDEVICEREMOVED:
+							if (Target->Callbacks.ControllerState)
+								Target->Callbacks.ControllerState((int)Event.cdevice.which, -1);
+							break;
+						case SDL_CONTROLLERDEVICEREMAPPED:
+							if (Target->Callbacks.ControllerState)
+								Target->Callbacks.ControllerState((int)Event.cdevice.which, 0);
+							break;
+						case SDL_FINGERMOTION:
+							if (Target->Callbacks.TouchMove)
+								Target->Callbacks.TouchMove((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure);
+							break;
+						case SDL_FINGERDOWN:
+							if (Target->Callbacks.TouchState)
+								Target->Callbacks.TouchState((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure, true);
+							break;
+						case SDL_FINGERUP:
+							if (Target->Callbacks.TouchState)
+								Target->Callbacks.TouchState((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure, false);
+							break;
+						case SDL_DOLLARGESTURE:
+							if (Target->Callbacks.GestureState)
+								Target->Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, false);
+							break;
+						case SDL_DOLLARRECORD:
+							if (Target->Callbacks.GestureState)
+								Target->Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, true);
+							break;
+						case SDL_MULTIGESTURE:
+							if (Target->Callbacks.MultiGestureState)
+								Target->Callbacks.MultiGestureState((int)Event.mgesture.touchId, (int)Event.mgesture.numFingers, Event.mgesture.x, Event.mgesture.y, Event.mgesture.dDist, Event.mgesture.dTheta);
+							break;
+#if SDL_VERSION_ATLEAST(2, 0, 5)
+						case SDL_DROPFILE:
+							if (Target->Callbacks.DropFile)
+								Target->Callbacks.DropFile(Event.drop.file);
+
+							SDL_free(Event.drop.file);
+							break;
+						case SDL_DROPTEXT:
+							if (Target->Callbacks.DropText)
+								Target->Callbacks.DropText(Event.drop.file);
+
+							SDL_free(Event.drop.file);
+							break;
+#endif
+						default:
+							break;
+					}
+				}
+
 				HasEvents = SDL_PollEvent(&Event);
+				++IncomingEvents;
 			}
 
-			if (TimeoutMs > 0 || Options.RenderEvenIfInactive)
-				return true;
+			if (TimeoutMs > 0)
+				return IncomingEvents > 0;
 
-			Uint32 Flags = SDL_GetWindowFlags(Handle);
-			if (Flags & SDL_WINDOW_MAXIMIZED || Flags & SDL_WINDOW_INPUT_FOCUS || Flags & SDL_WINDOW_MOUSE_FOCUS)
-				return true;
+			uint32_t Timeout = Sources.Consumers.begin()->second->Options.InactiveSleepMs;
+			for (auto& Item : Sources.Consumers)
+			{
+				auto* Target = Item.second;
+				if (Target->Options.RenderEvenIfInactive)
+					return true;
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(Options.InactiveSleepMs));
+				Uint32 Flags = SDL_GetWindowFlags(Target->Handle);
+				if (Flags & SDL_WINDOW_MAXIMIZED || Flags & SDL_WINDOW_INPUT_FOCUS || Flags & SDL_WINDOW_MOUSE_FOCUS)
+					return true;
+
+				if (Timeout > Target->Options.InactiveSleepMs)
+					Timeout = Target->Options.InactiveSleepMs;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
 			return false;
 #else
 			return false;
@@ -2774,6 +2833,15 @@ namespace Vitex
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
 			return H;
+#else
+			return 0;
+#endif
+		}
+		uint32_t Activity::GetId() const
+		{
+#ifdef VI_SDL2
+			VI_ASSERT(Handle != nullptr, "activity should be initialized");
+			return (uint32_t)SDL_GetWindowID(Handle);
 #else
 			return 0;
 #endif

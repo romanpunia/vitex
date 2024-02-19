@@ -602,7 +602,7 @@ namespace Vitex
 
 				if (!Window->GetHandle())
 				{
-					Window->BuildLayer(Backend);
+					Window->ApplyConfiguration(Backend);
 					if (!Window->GetHandle())
 						return;
 				}

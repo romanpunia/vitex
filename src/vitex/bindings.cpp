@@ -14625,6 +14625,12 @@ namespace Vitex
 				VAlert->SetMethod("void button(alert_confirm, const string_view&in, int32)", &Graphics::Alert::Button);
 				VAlert->SetMethodEx("void result(alert_sync@)", &AlertResult);
 
+				auto VEventConsumers = VM->SetStructTrivial<Graphics::EventConsumers>("activity_event_consumers");
+				VEventConsumers->SetConstructor<Graphics::EventConsumers>("void f()");
+				VEventConsumers->SetMethod("void push(activity@+)", &Graphics::EventConsumers::Push);
+				VEventConsumers->SetMethod("void pop(activity@+)", &Graphics::EventConsumers::Pop);
+				VEventConsumers->SetMethod("activity@+ find(uint32) const", &Graphics::EventConsumers::Find);
+
 				auto VSurface = VM->SetClass<Graphics::Surface>("activity_surface", false);
 				VSurface->SetConstructor<Graphics::Surface>("activity_surface@ f()");
 				VSurface->SetConstructor<Graphics::Surface, SDL_Surface*>("activity_surface@ f(uptr@)");
@@ -14637,7 +14643,7 @@ namespace Vitex
 				VSurface->SetMethod("uptr@ get_pixels()", &Graphics::Surface::GetPixels);
 				VSurface->SetMethod("uptr@ get_resource()", &Graphics::Surface::GetResource);
 
-				auto VActivityDesc = VM->SetPod<Graphics::Activity::Desc>("activity_desc");
+				auto VActivityDesc = VM->SetStructTrivial<Graphics::Activity::Desc>("activity_desc");
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("string title", &Graphics::Activity::Desc::Title);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 inactive_sleep_ms", &Graphics::Activity::Desc::InactiveSleepMs);
 				VActivityDesc->SetProperty<Graphics::Activity::Desc>("uint32 width", &Graphics::Activity::Desc::Width);
@@ -14716,7 +14722,7 @@ namespace Vitex
 				VActivity->SetMethod("void set_icon(activity_surface@+)", &Graphics::Activity::SetIcon);
 				VActivity->SetMethod("void set_title(const string_view&in)", &Graphics::Activity::SetTitle);
 				VActivity->SetMethod("void set_screen_keyboard(bool)", &Graphics::Activity::SetScreenKeyboard);
-				VActivity->SetMethod("void build_layer(render_backend)", &Graphics::Activity::BuildLayer);
+				VActivity->SetMethod("void apply_configuration(render_backend)", &Graphics::Activity::ApplyConfiguration);
 				VActivity->SetMethod("void hide()", &Graphics::Activity::Hide);
 				VActivity->SetMethod("void show()", &Graphics::Activity::Show);
 				VActivity->SetMethod("void maximize()", &Graphics::Activity::Maximize);
@@ -14725,8 +14731,7 @@ namespace Vitex
 				VActivity->SetMethod("void move(int, int)", &Graphics::Activity::Move);
 				VActivity->SetMethod("void resize(int, int)", &Graphics::Activity::Resize);
 				VActivity->SetMethod("bool capture_key_map(key_map &out)", &Graphics::Activity::CaptureKeyMap);
-				VActivity->SetMethod("bool dispatch()", &Graphics::Activity::Dispatch);
-				VActivity->SetMethod("bool dispatch_blocking(uint64)", &Graphics::Activity::DispatchBlocking);
+				VActivity->SetMethod("bool dispatch(uint64 = 0)", &Graphics::Activity::Dispatch);
 				VActivity->SetMethod("bool is_fullscreen() const", &Graphics::Activity::IsFullscreen);
 				VActivity->SetMethod("bool is_any_key_down() const", &Graphics::Activity::IsAnyKeyDown);
 				VActivity->SetMethod("bool is_key_down(const key_map &in) const", &Graphics::Activity::IsKeyDown);
@@ -14738,6 +14743,7 @@ namespace Vitex
 				VActivity->SetMethod("uint32 get_y() const", &Graphics::Activity::GetY);
 				VActivity->SetMethod("uint32 get_width() const", &Graphics::Activity::GetWidth);
 				VActivity->SetMethod("uint32 get_height() const", &Graphics::Activity::GetHeight);
+				VActivity->SetMethod("uint32 get_id() const", &Graphics::Activity::GetId);
 				VActivity->SetMethod("float get_aspect_ratio() const", &Graphics::Activity::GetAspectRatio);
 				VActivity->SetMethod("key_mod get_key_mod_state() const", &Graphics::Activity::GetKeyModState);
 				VActivity->SetMethod("viewport get_viewport() const", &Graphics::Activity::GetViewport);
@@ -14751,6 +14757,7 @@ namespace Vitex
 				VActivity->SetMethod("string get_clipboard_text() const", &Graphics::Activity::GetClipboardText);
 				VActivity->SetMethod("string get_error() const", &Graphics::Activity::GetError);
 				VActivity->SetMethod("activity_desc& get_options()", &Graphics::Activity::GetOptions);
+				VActivity->SetMethodStatic("bool multi_dispatch(const activity_event_consumers&in, uint64 = 0)", &Graphics::Activity::MultiDispatch);
 
 				VM->BeginNamespace("video");
 				VM->SetFunction("uint32 get_display_count()", &Graphics::Video::GetDisplayCount);

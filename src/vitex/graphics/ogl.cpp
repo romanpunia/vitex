@@ -603,7 +603,7 @@ namespace Vitex
 				VI_PANIC(Video::GLEW::SetSwapParameters(R, G, B, A, I.Debug), "OGL configuration failed");
 				if (!Window->GetHandle())
 				{
-					Window->BuildLayer(Backend);
+					Window->ApplyConfiguration(Backend);
 					VI_PANIC(Window->GetHandle(), "activity creation failed %s", Window->GetError().c_str());
 				}
 				

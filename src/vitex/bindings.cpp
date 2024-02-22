@@ -5481,9 +5481,13 @@ namespace Vitex
 				Base->SetAudience(Array::Decompose<Core::String>(Data));
 			}
 
-			Core::String CryptoSign(Compute::Digest Type, const std::string_view& Data, const Compute::PrivateKey& Key)
+			Core::String CryptoSign(Compute::Digest Type, Compute::SignAlg KeyType, const std::string_view& Data, const Compute::PrivateKey& Key)
 			{
-				return ExpectsWrapper::Unwrap(Compute::Crypto::Sign(Type, Data, Key), Core::String());
+				return ExpectsWrapper::Unwrap(Compute::Crypto::Sign(Type, KeyType, Data, Key), Core::String());
+			}
+			bool CryptoVerify(Compute::Digest Type, Compute::SignAlg KeyType, const std::string_view& Data, const std::string_view& Signature, const Compute::PrivateKey& Key)
+			{
+				return ExpectsWrapper::UnwrapVoid(Compute::Crypto::Verify(Type, KeyType, Data, Signature, Key));
 			}
 			Core::String CryptoHMAC(Compute::Digest Type, const std::string_view& Data, const Compute::PrivateKey& Key)
 			{
@@ -11916,10 +11920,10 @@ namespace Vitex
 				auto VInlineArgs = VM->SetStructTrivial<Core::InlineArgs>("inline_args");
 				VInlineArgs->SetProperty<Core::InlineArgs>("string path", &Core::InlineArgs::Path);
 				VInlineArgs->SetConstructor<Core::InlineArgs>("void f()");
-				VInlineArgs->SetMethod("bool is_enabled(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::IsEnabled);
-				VInlineArgs->SetMethod("bool is_disabled(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::IsDisabled);
-				VInlineArgs->SetMethod("bool has(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::Has);
-				VInlineArgs->SetMethod("string& get(const string_view&in, const string_view&in = \"\") const", &Core::InlineArgs::Get);
+				VInlineArgs->SetMethod("bool is_enabled(const string_view&in, const string_view&in = string_view()) const", &Core::InlineArgs::IsEnabled);
+				VInlineArgs->SetMethod("bool is_disabled(const string_view&in, const string_view&in = string_view()) const", &Core::InlineArgs::IsDisabled);
+				VInlineArgs->SetMethod("bool has(const string_view&in, const string_view&in = string_view()) const", &Core::InlineArgs::Has);
+				VInlineArgs->SetMethod("string& get(const string_view&in, const string_view&in = string_view()) const", &Core::InlineArgs::Get);
 				VInlineArgs->SetMethod("string& get_if(const string_view&in, const string_view&in, const string_view&in) const", &Core::InlineArgs::GetIf);
 				VInlineArgs->SetMethodEx("dictionary@ get_args() const", &InlineArgsGetArgs);
 				VInlineArgs->SetMethodEx("array<string>@ get_params() const", &InlineArgsGetParams);
@@ -12945,6 +12949,42 @@ namespace Vitex
 				VM->SetFunction("uptr@ sm3()", &Compute::Digests::SM3);
 				VM->EndNamespace();
 
+				VM->BeginNamespace("signers");
+				VM->SetFunction("int32 pk_rsa()", &Compute::Signers::PkRSA);
+				VM->SetFunction("int32 pk_dsa()", &Compute::Signers::PkDSA);
+				VM->SetFunction("int32 pk_dh()", &Compute::Signers::PkDH);
+				VM->SetFunction("int32 pk_ec()", &Compute::Signers::PkEC);
+				VM->SetFunction("int32 pkt_sign()", &Compute::Signers::PktSIGN);
+				VM->SetFunction("int32 pkt_enc()", &Compute::Signers::PktENC);
+				VM->SetFunction("int32 pkt_exch()", &Compute::Signers::PktEXCH);
+				VM->SetFunction("int32 pks_rsa()", &Compute::Signers::PksRSA);
+				VM->SetFunction("int32 pks_dsa()", &Compute::Signers::PksDSA);
+				VM->SetFunction("int32 pks_ec()", &Compute::Signers::PksEC);
+				VM->SetFunction("int32 rsa()", &Compute::Signers::RSA);
+				VM->SetFunction("int32 rsa2()", &Compute::Signers::RSA2);
+				VM->SetFunction("int32 rsa_pss()", &Compute::Signers::RSA_PSS);
+				VM->SetFunction("int32 dsa()", &Compute::Signers::DSA);
+				VM->SetFunction("int32 dsa1()", &Compute::Signers::DSA1);
+				VM->SetFunction("int32 dsa2()", &Compute::Signers::DSA2);
+				VM->SetFunction("int32 dsa3()", &Compute::Signers::DSA3);
+				VM->SetFunction("int32 dsa4()", &Compute::Signers::DSA4);
+				VM->SetFunction("int32 dh()", &Compute::Signers::DH);
+				VM->SetFunction("int32 dhx()", &Compute::Signers::DHX);
+				VM->SetFunction("int32 ec()", &Compute::Signers::EC);
+				VM->SetFunction("int32 sm2()", &Compute::Signers::SM2);
+				VM->SetFunction("int32 hmac()", &Compute::Signers::HMAC);
+				VM->SetFunction("int32 cmac()", &Compute::Signers::CMAC);
+				VM->SetFunction("int32 scrypt()", &Compute::Signers::SCRYPT);
+				VM->SetFunction("int32 tls1_prf()", &Compute::Signers::TLS1_PRF);
+				VM->SetFunction("int32 hkdf()", &Compute::Signers::HKDF);
+				VM->SetFunction("int32 poly1305()", &Compute::Signers::POLY1305);
+				VM->SetFunction("int32 siphash()", &Compute::Signers::SIPHASH);
+				VM->SetFunction("int32 x25519()", &Compute::Signers::X25519);
+				VM->SetFunction("int32 ed25519()", &Compute::Signers::ED25519);
+				VM->SetFunction("int32 x448()", &Compute::Signers::X448);
+				VM->SetFunction("int32 ed448()", &Compute::Signers::ED448);
+				VM->EndNamespace();
+
 				VM->BeginNamespace("crypto");
 				VM->SetFunctionDef("string block_transform_sync(const string_view&in)");
 				VM->SetFunction("uint8 random_uc()", &Compute::Crypto::RandomUC);
@@ -12953,6 +12993,8 @@ namespace Vitex
 				VM->SetFunction("uint64 crc32(const string_view&in)", &Compute::Crypto::CRC32);
 				VM->SetFunction("void display_crypto_log()", &Compute::Crypto::DisplayCryptoLog);
 				VM->SetFunction("string random_bytes(usize)", &VI_SEXPECTIFY(Compute::Crypto::RandomBytes));
+				VM->SetFunction("string generate_private_key(int32, usize = 2048, const string_view&in = string_view())", &VI_SEXPECTIFY(Compute::Crypto::GeneratePrivateKey));
+				VM->SetFunction("string generate_public_key(int32, const private_key&in)", &VI_SEXPECTIFY(Compute::Crypto::GeneratePublicKey));
 				VM->SetFunction("string checksum_hex(base_stream@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumHex));
 				VM->SetFunction("string checksum_raw(base_stream@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::ChecksumRaw));
 				VM->SetFunction("string hash_hex(uptr@, const string_view&in)", &VI_SEXPECTIFY(Compute::Crypto::HashHex));
@@ -12962,7 +13004,8 @@ namespace Vitex
 				VM->SetFunction("web_token@ jwt_decode(const string_view&in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::JWTDecode));
 				VM->SetFunction("string doc_encrypt(schema@+, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocEncrypt));
 				VM->SetFunction("schema@ doc_decrypt(const string_view&in, const private_key &in, const private_key &in)", &VI_SEXPECTIFY(Compute::Crypto::DocDecrypt));
-				VM->SetFunction("string sign(uptr@, const string_view&in, const private_key &in)", &CryptoSign);
+				VM->SetFunction("string sign(uptr@, int32, const string_view&in, const private_key &in)", &CryptoSign);
+				VM->SetFunction("bool verify(uptr@, int32, const string_view&in, const string_view&in, const private_key &in)", &CryptoVerify);
 				VM->SetFunction("string hmac(uptr@, const string_view&in, const private_key &in)", &CryptoHMAC);
 				VM->SetFunction("string encrypt(uptr@, const string_view&in, const private_key &in, const private_key &in, int = -1)", &CryptoEncrypt);
 				VM->SetFunction("string decrypt(uptr@, const string_view&in, const private_key &in, const private_key &in, int = -1)", &CryptoDecrypt);
@@ -12987,7 +13030,7 @@ namespace Vitex
 				VCompression->SetValue("default_compression", (int)Compute::Compression::Default);
 
 				VM->BeginNamespace("codec");
-				VM->SetFunction("string move(const string_view&in, int)", &Compute::Codec::Move);
+				VM->SetFunction("string rotate(const string_view&in, uint64, int8)", &Compute::Codec::Rotate);
 				VM->SetFunction("string bep45_encode(const string_view&in)", &Compute::Codec::Bep45Encode);
 				VM->SetFunction("string bep45_decode(const string_view&in)", &Compute::Codec::Bep45Decode);
 				VM->SetFunction("string base32_encode(const string_view&in)", &Compute::Codec::Base32Encode);
@@ -16638,7 +16681,7 @@ namespace Vitex
 				VCluster->SetMethod("void set_shared_cache(bool)", &Network::LDB::Cluster::SetSharedCache);
 				VCluster->SetMethod("void set_extensions(bool)", &Network::LDB::Cluster::SetExtensions);
 				VCluster->SetMethod("void overload_function(const string_view&in, uint8)", &Network::LDB::Cluster::OverloadFunction);
-				VCluster->SetMethodEx("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string_view&in = \"\")", &LDBClusterWalCheckpoint);
+				VCluster->SetMethodEx("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string_view&in = string_view())", &LDBClusterWalCheckpoint);
 				VCluster->SetMethod("usize free_memory_used(usize)", &Network::LDB::Cluster::FreeMemoryUsed);
 				VCluster->SetMethod("usize get_memory_used()", &Network::LDB::Cluster::GetMemoryUsed);
 				VCluster->SetMethod("uptr@ get_idle_connection()", &Network::LDB::Cluster::GetIdleConnection);
@@ -16667,7 +16710,7 @@ namespace Vitex
 				VDriver->SetMethod("void log_query(const string_view&in)", &Network::LDB::Driver::LogQuery);
 				VDriver->SetMethod("void add_constant(const string_view&in, const string_view&in)", &Network::LDB::Driver::AddConstant);
 				VDriver->SetMethodEx("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddQuery));
-				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddDirectory));
+				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(Network::LDB::Driver::AddDirectory));
 				VDriver->SetMethod("bool remove_constant(const string_view&in)", &Network::LDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string_view&in)", &Network::LDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::LDB::Driver::LoadCacheDump);
@@ -16986,7 +17029,7 @@ namespace Vitex
 				VDriver->SetMethod("void log_query(const string_view&in)", &Network::PDB::Driver::LogQuery);
 				VDriver->SetMethod("void add_constant(const string_view&in, const string_view&in)", &Network::PDB::Driver::AddConstant);
 				VDriver->SetMethodEx("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddQuery));
-				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddDirectory));
+				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(Network::PDB::Driver::AddDirectory));
 				VDriver->SetMethod("bool remove_constant(const string_view&in)", &Network::PDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string_view&in)", &Network::PDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::PDB::Driver::LoadCacheDump);
@@ -17294,7 +17337,7 @@ namespace Vitex
 				VDriver->SetConstructor<Network::MDB::Driver>("driver@ f()");
 				VDriver->SetMethod("void add_constant(const string_view&in, const string_view&in)", &Network::MDB::Driver::AddConstant);
 				VDriver->SetMethodEx("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddQuery));
-				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddDirectory));
+				VDriver->SetMethodEx("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(Network::MDB::Driver::AddDirectory));
 				VDriver->SetMethod("bool remove_constant(const string_view&in)", &Network::MDB::Driver::RemoveConstant);
 				VDriver->SetMethod("bool remove_query(const string_view&in)", &Network::MDB::Driver::RemoveQuery);
 				VDriver->SetMethod("bool load_cache_dump(schema@+)", &Network::MDB::Driver::LoadCacheDump);
@@ -17930,7 +17973,7 @@ namespace Vitex
 				VContentManager->SetMethod<Engine::ContentManager, Engine::Processor*, uint64_t>("base_processor@+ get_processor(uint64)", &Engine::ContentManager::GetProcessor);
 				VContentManager->SetMethod<Engine::ContentManager, bool, uint64_t>("bool remove_processor(uint64)", &Engine::ContentManager::RemoveProcessor);
 				VContentManager->SetMethodEx("bool import_archive(const string_view&in, bool)", &VI_EXPECTIFY_VOID(Engine::ContentManager::ImportArchive));
-				VContentManager->SetMethodEx("bool export_archive(const string_view&in, const string_view&in, const string_view&in = \"\")", &VI_EXPECTIFY_VOID(Engine::ContentManager::ExportArchive));
+				VContentManager->SetMethodEx("bool export_archive(const string_view&in, const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(Engine::ContentManager::ExportArchive));
 				VContentManager->SetMethod("uptr@ try_to_cache(base_processor@+, const string_view&in, uptr@)", &Engine::ContentManager::TryToCache);
 				VContentManager->SetMethod("bool is_busy() const", &Engine::ContentManager::IsBusy);
 				VContentManager->SetMethod("graphics_device@+ get_device() const", &Engine::ContentManager::GetDevice);

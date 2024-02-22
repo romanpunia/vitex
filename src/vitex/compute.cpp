@@ -34,6 +34,9 @@ extern "C"
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 #include <openssl/err.h>
+#include <openssl/ec.h>
+#include <openssl/dsa.h>
+#include <openssl/rsa.h>
 }
 #endif
 #define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
@@ -8302,6 +8305,271 @@ namespace Vitex
 #endif
 		}
 
+		SignAlg Signers::PkRSA()
+		{
+#ifdef EVP_PK_RSA
+			return (SignAlg)EVP_PK_RSA;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PkDSA()
+		{
+#ifdef EVP_PK_DSA
+			return (SignAlg)EVP_PK_DSA;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PkDH()
+		{
+#ifdef EVP_PK_DH
+			return (SignAlg)EVP_PK_DH;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PkEC()
+		{
+#ifdef EVP_PK_EC
+			return (SignAlg)EVP_PK_EC;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PktSIGN()
+		{
+#ifdef EVP_PKT_SIGN
+			return (SignAlg)EVP_PKT_SIGN;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PktENC()
+		{
+#ifdef EVP_PKT_ENC
+			return (SignAlg)EVP_PKT_ENC;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PktEXCH()
+		{
+#ifdef EVP_PKT_EXCH
+			return (SignAlg)EVP_PKT_EXCH;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PksRSA()
+		{
+#ifdef EVP_PKS_RSA
+			return (SignAlg)EVP_PKS_RSA;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PksDSA()
+		{
+#ifdef EVP_PKS_DSA
+			return (SignAlg)EVP_PKS_DSA;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::PksEC()
+		{
+#ifdef EVP_PKS_EC
+			return (SignAlg)EVP_PKS_EC;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::RSA()
+		{
+#ifdef EVP_PKEY_RSA
+			return (SignAlg)EVP_PKEY_RSA;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::RSA2()
+		{
+#ifdef EVP_PKEY_RSA2
+			return (SignAlg)EVP_PKEY_RSA2;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::RSA_PSS()
+		{
+#ifdef EVP_PKEY_RSA_PSS
+			return (SignAlg)EVP_PKEY_RSA_PSS;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DSA()
+		{
+#ifdef EVP_PKEY_DSA
+			return (SignAlg)EVP_PKEY_DSA;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DSA1()
+		{
+#ifdef EVP_PKEY_DSA1
+			return (SignAlg)EVP_PKEY_DSA1;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DSA2()
+		{
+#ifdef EVP_PKEY_DSA2
+			return (SignAlg)EVP_PKEY_DSA2;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DSA3()
+		{
+#ifdef EVP_PKEY_DSA3
+			return (SignAlg)EVP_PKEY_DSA3;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DSA4()
+		{
+#ifdef EVP_PKEY_DSA4
+			return (SignAlg)EVP_PKEY_DSA4;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DH()
+		{
+#ifdef EVP_PKEY_DH
+			return (SignAlg)EVP_PKEY_DH;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::DHX()
+		{
+#ifdef EVP_PKEY_DHX
+			return (SignAlg)EVP_PKEY_DHX;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::EC()
+		{
+#ifdef EVP_PKEY_EC
+			return (SignAlg)EVP_PKEY_EC;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::SM2()
+		{
+#ifdef EVP_PKEY_SM2
+			return (SignAlg)EVP_PKEY_SM2;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::HMAC()
+		{
+#ifdef EVP_PKEY_HMAC
+			return (SignAlg)EVP_PKEY_HMAC;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::CMAC()
+		{
+#ifdef EVP_PKEY_CMAC
+			return (SignAlg)EVP_PKEY_CMAC;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::SCRYPT()
+		{
+#ifdef EVP_PKEY_SCRYPT
+			return (SignAlg)EVP_PKEY_SCRYPT;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::TLS1_PRF()
+		{
+#ifdef EVP_PKEY_TLS1_PRF
+			return (SignAlg)EVP_PKEY_TLS1_PRF;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::HKDF()
+		{
+#ifdef EVP_PKEY_HKDF
+			return (SignAlg)EVP_PKEY_HKDF;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::POLY1305()
+		{
+#ifdef EVP_PKEY_POLY1305
+			return (SignAlg)EVP_PKEY_POLY1305;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::SIPHASH()
+		{
+#ifdef EVP_PKEY_SIPHASH
+			return (SignAlg)EVP_PKEY_SIPHASH;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::X25519()
+		{
+#ifdef EVP_PKEY_X25519
+			return (SignAlg)EVP_PKEY_X25519;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::ED25519()
+		{
+#ifdef EVP_PKEY_ED25519
+			return (SignAlg)EVP_PKEY_ED25519;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::X448()
+		{
+#ifdef EVP_PKEY_X448
+			return (SignAlg)EVP_PKEY_X448;
+#else
+			return -1;
+#endif
+		}
+		SignAlg Signers::ED448()
+		{
+#ifdef EVP_PKEY_ED448
+			return (SignAlg)EVP_PKEY_ED448;
+#else
+			return -1;
+#endif
+		}
+
 		Digest Crypto::GetDigestByName(const std::string_view& Name)
 		{
 			VI_ASSERT(Core::Stringify::IsCString(Name), "digest name should not be empty");
@@ -8318,6 +8586,22 @@ namespace Vitex
 			return (Cipher)EVP_get_cipherbyname(Name.data());
 #else
 			return nullptr;
+#endif
+		}
+		SignAlg Crypto::GetSignerByName(const std::string_view& Name)
+		{
+#ifdef EVP_MD_name
+			auto* Method = EVP_PKEY_asn1_find_str(nullptr, Name.data(), (int)Name.size());
+			if (!Method)
+				return -1;
+
+			int KeyType = -1;
+			if (EVP_PKEY_asn1_get0_info(&KeyType, nullptr, nullptr, nullptr, nullptr, Method) != 1)
+				return -1;
+
+			return (SignAlg)KeyType;
+#else
+			return -1;
 #endif
 		}
 		std::string_view Crypto::GetDigestName(Digest Type)
@@ -8340,6 +8624,18 @@ namespace Vitex
 			return "";
 #endif
 		}
+		std::string_view Crypto::GetSignerName(SignAlg Type)
+		{
+#ifdef VI_OPENSSL
+			if (Type == EVP_PKEY_NONE)
+				return "";
+
+			const char* Name = OBJ_nid2sn(Type);
+			return Name ? Name : "";
+#else
+			return "";
+#endif
+		}
 		ExpectsCrypto<void> Crypto::FillRandomBytes(uint8_t* Buffer, size_t Length)
 		{
 #ifdef VI_OPENSSL
@@ -8352,14 +8648,132 @@ namespace Vitex
 		ExpectsCrypto<Core::String> Crypto::RandomBytes(size_t Length)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate random %" PRIu64 " bytes", (uint64_t)Length);
-			uint8_t* Buffer = Core::Memory::Allocate<uint8_t>(sizeof(uint8_t) * Length);
-			if (RAND_bytes(Buffer, (int)Length) != 1)
+			Core::String Buffer(Length, '\0');
+			auto Status = FillRandomBytes((uint8_t*)Buffer.data(), Buffer.size());
+			if (!Status)
+				return Status.Error();
+
+			return Buffer;
+#else
+			return CryptoException();
+#endif
+		}
+		ExpectsCrypto<Core::String> Crypto::GeneratePrivateKey(SignAlg Type, size_t Bits, const std::string_view& Curve)
+		{
+#ifdef VI_OPENSSL
+			VI_ASSERT(Curve.empty() || Core::Stringify::IsCString(Curve), "curve should not be empty");
+			VI_TRACE("[crypto] generate %s private key up to %i bits", GetSignerName(Type).data(), (int)Bits);
+			EVP_PKEY_CTX* Context = EVP_PKEY_CTX_new_id((int)Type, NULL);
+			if (!Context)
 				return CryptoException();
 
-			Core::String Output((const char*)Buffer, Length);
-			Core::Memory::Deallocate(Buffer);
-			return Output;
+			if (EVP_PKEY_keygen_init(Context) != 1)
+			{
+				EVP_PKEY_CTX_free(Context);
+				return CryptoException();
+			}
+
+			bool Success = true;
+			switch (Type)
+			{
+				case EVP_PKEY_RSA:
+				case EVP_PKEY_RSA2:
+				case EVP_PKEY_RSA_PSS:
+					Success = (EVP_PKEY_CTX_set_rsa_keygen_bits(Context, (int)Bits) == 1);
+					break;
+				case EVP_PKEY_EC:
+				case EVP_PKEY_SM2:
+				case EVP_PKEY_SCRYPT:
+				case EVP_PKEY_TLS1_PRF:
+				case EVP_PKEY_HKDF:
+				case EVP_PKEY_POLY1305:
+				case EVP_PKEY_SIPHASH:
+				case EVP_PKEY_X25519:
+				case EVP_PKEY_ED25519:
+				case EVP_PKEY_X448:
+				case EVP_PKEY_ED448:
+					Success = (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(Context, Curve.empty() ? NID_X9_62_prime256v1 : OBJ_sn2nid(Curve.data())) == 1);
+					break;
+				case EVP_PKEY_DSA:
+				case EVP_PKEY_DSA1:
+				case EVP_PKEY_DSA2:
+				case EVP_PKEY_DSA3:
+				case EVP_PKEY_DSA4:
+					Success = (EVP_PKEY_CTX_set_dsa_paramgen_bits(Context, (int)Bits) == 1);
+					break;
+				case EVP_PKEY_DH:
+				case EVP_PKEY_DHX:
+					Success = (EVP_PKEY_CTX_set_dh_paramgen_prime_len(Context, (int)Bits) == 1);
+					if (Success)
+						Success = (EVP_PKEY_CTX_set_dh_nid(Context, Curve.empty() ? NID_ffdhe2048 : OBJ_sn2nid(Curve.data())) == 1);
+					break;
+				case EVP_PKEY_HMAC:
+				case EVP_PKEY_CMAC:
+					Success = false;
+					break;
+				default:
+					break;
+			}
+
+			EVP_PKEY* Key = nullptr;
+			if (!Success || EVP_PKEY_keygen(Context, &Key) != 1)
+			{
+				EVP_PKEY_CTX_free(Context);
+				return CryptoException();
+			}
+
+			size_t Length;
+			if (EVP_PKEY_get_raw_private_key(Key, nullptr, &Length) != 1)
+			{
+				EVP_PKEY_free(Key);
+				EVP_PKEY_CTX_free(Context);
+				return CryptoException();
+			}
+
+			Core::String SecretKey;
+			SecretKey.resize(Length);
+
+			if (EVP_PKEY_get_raw_private_key(Key, (uint8_t*)SecretKey.data(), &Length) != 1)
+			{
+				EVP_PKEY_free(Key);
+				EVP_PKEY_CTX_free(Context);
+				return CryptoException();
+			}
+
+			EVP_PKEY_free(Key);
+			EVP_PKEY_CTX_free(Context);
+			return SecretKey;
+#else
+			return CryptoException();
+#endif
+		}
+		ExpectsCrypto<Core::String> Crypto::GeneratePublicKey(SignAlg Type, const PrivateKey& SecretKey)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] generate %s public key from %i bytes", GetSignerName(Type).data(), (int)SecretKey.Size());
+			auto LocalKey = SecretKey.Expose<Core::CHUNK_SIZE>();
+			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)Type, nullptr, (uint8_t*)LocalKey.Key, LocalKey.Size);
+			if (!Key)
+				return CryptoException();
+
+			size_t Length;
+			if (EVP_PKEY_get_raw_public_key(Key, nullptr, &Length) != 1)
+			{
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			Core::String PublicKey;
+			PublicKey.resize(Length);
+
+			if (EVP_PKEY_get_raw_public_key(Key, (uint8_t*)PublicKey.data(), &Length) != 1)
+			{
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			EVP_PKEY_free(Key);
+			return PublicKey;
 #else
 			return CryptoException();
 #endif
@@ -8377,7 +8791,7 @@ namespace Vitex
 			VI_ASSERT(Type != nullptr, "type should be set");
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s stream-hash fd %i", GetDigestName(Type), (int)Stream->GetReadableFd());
+			VI_TRACE("[crypto] %s stream-hash fd %i", GetDigestName(Type).data(), (int)Stream->GetReadableFd());
 
 			EVP_MD* Method = (EVP_MD*)Type;
 			EVP_MD_CTX* Context = EVP_MD_CTX_create();
@@ -8418,7 +8832,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
 			if (Value.empty())
 				return Core::String(Value);
 
@@ -8444,11 +8858,90 @@ namespace Vitex
 			return CryptoException();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, const std::string_view& Value, const PrivateKey& Key)
+		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, SignAlg KeyType, const std::string_view& Value, const PrivateKey& SecretKey)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] %s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
+			if (Value.empty())
+				return Core::String();
+
+			auto LocalKey = SecretKey.Expose<Core::CHUNK_SIZE>();
+			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)KeyType, nullptr, (uint8_t*)LocalKey.Key, LocalKey.Size);
+			if (!Key)
+				return CryptoException();
+
+			EVP_MD_CTX* Context = EVP_MD_CTX_create();
+			if (EVP_DigestSignInit(Context, nullptr, (EVP_MD*)Type, nullptr, Key) != 1)
+			{
+				EVP_MD_CTX_free(Context);
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			size_t Length;
+			if (EVP_DigestSign(Context, nullptr, &Length, (uint8_t*)Value.data(), Value.size()) != 1)
+			{
+				EVP_MD_CTX_free(Context);
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			Core::String Signature;
+			Signature.resize(Length);
+
+			if (EVP_DigestSign(Context, (uint8_t*)Signature.data(), &Length, (uint8_t*)Value.data(), Value.size()) != 1)
+			{
+				EVP_MD_CTX_free(Context);
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			EVP_MD_CTX_free(Context);
+			EVP_PKEY_free(Key);
+			return Signature;
+#else
+			return CryptoException();
+#endif
+		}
+		ExpectsCrypto<void> Crypto::Verify(Digest Type, SignAlg KeyType, const std::string_view& Value, const std::string_view& Signature, const PrivateKey& PublicKey)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] %s verify %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)(Value.size() + Signature.size()));
+			if (Value.empty())
+				return CryptoException(-1, "verify:empty");
+
+			auto LocalKey = PublicKey.Expose<Core::CHUNK_SIZE>();
+			EVP_PKEY* Key = EVP_PKEY_new_raw_public_key((int)KeyType, nullptr, (uint8_t*)LocalKey.Key, LocalKey.Size);
+			if (!Key)
+				return CryptoException();
+
+			EVP_MD_CTX* Context = EVP_MD_CTX_create();
+			if (EVP_DigestVerifyInit(Context, nullptr, (EVP_MD*)Type, nullptr, Key) != 1)
+			{
+				EVP_MD_CTX_free(Context);
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			if (EVP_DigestVerify(Context, (uint8_t*)Signature.data(), Signature.size(), (uint8_t*)Value.data(), Value.size()) != 1)
+			{
+				EVP_MD_CTX_free(Context);
+				EVP_PKEY_free(Key);
+				return CryptoException();
+			}
+
+			EVP_MD_CTX_free(Context);
+			EVP_PKEY_free(Key);
+			return Core::Expectation::Met;
+#else
+			return CryptoException();
+#endif
+		}
+		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key)
 		{
 			VI_ASSERT(Type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
 			if (Value.empty())
 				return Core::String();
 
@@ -8463,7 +8956,7 @@ namespace Vitex
 
 			return Core::String((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 				return CryptoException();
@@ -8493,7 +8986,7 @@ namespace Vitex
 
 			return Output;
 #else
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
 			HMAC_CTX Context;
 			HMAC_CTX_init(&Context);
 
@@ -8522,27 +9015,6 @@ namespace Vitex
 
 			return Output;
 #endif
-#else
-			return CryptoException();
-#endif
-		}
-		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key)
-		{
-			VI_ASSERT(Type != nullptr, "type should be set");
-#ifdef VI_OPENSSL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type), (uint64_t)Value.size());
-			if (Value.empty())
-				return Core::String();
-
-			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
-			uint8_t Result[EVP_MAX_MD_SIZE];
-			uint32_t Size = sizeof(Result);
-
-			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const uint8_t*)Value.data(), Value.size(), Result, &Size))
-				return CryptoException();
-
-			Core::String Output((const char*)Result, Size);
-			return Output;
 #else
 			return CryptoException();
 #endif
@@ -8728,23 +9200,23 @@ namespace Vitex
 		{
 			Core::Vector<Core::String> Source = Core::Stringify::Split(Value, '.');
 			if (Source.size() != 3)
-				return CryptoException(-2, "jwt:format_error");
+				return CryptoException(-1, "jwt:format_error");
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Codec::Base64URLDecode(Source[0]);
 			Core::UPtr<Core::Schema> Header = Core::Schema::ConvertFromJSON(Source[0]).Or(nullptr);
 			if (!Header)
-				return CryptoException(-3, "jwt:header_parser_error");
+				return CryptoException(-1, "jwt:header_parser_error");
 
 			Source[1] = Codec::Base64URLDecode(Source[1]);
 			Core::UPtr<Core::Schema> Payload = Core::Schema::ConvertFromJSON(Source[1]).Or(nullptr);
 			if (!Payload)
-				return CryptoException(-4, "jwt:payload_parser_error");
+				return CryptoException(-1, "jwt:payload_parser_error");
 
 			Source[0] = Header->GetVar("alg").GetBlob();
 			auto Signature = JWTSign(Source[0], Value.substr(0, Offset), Key);
 			if (!Signature || Codec::Base64URLEncode(*Signature) != Source[2])
-				return CryptoException(-5, "jwt:signature_error");
+				return CryptoException(-1, "jwt:signature_error");
 
 			WebToken* Result = new WebToken();
 			Result->Signature = Codec::Base64URLDecode(Source[2]);
@@ -8769,7 +9241,7 @@ namespace Vitex
 		{
 			VI_ASSERT(!Value.empty(), "value should not be empty");
 			if (Value.empty())
-				return CryptoException(-6, "doc:payload_empty");
+				return CryptoException(-1, "doc:payload_empty");
 
 			auto Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
 			if (!Source)
@@ -8777,7 +9249,7 @@ namespace Vitex
 
 			auto Result = Core::Schema::ConvertFromJSON(*Source);
 			if (!Result)
-				return CryptoException(-7, "doc:payload_parser_error");
+				return CryptoException(-1, "doc:payload_parser_error");
 
 			return *Result;
 		}
@@ -9134,18 +9606,37 @@ namespace Vitex
 #endif
 		}
 
-		Core::String Codec::Move(const std::string_view& Text, int Offset)
+		void Codec::RotateBuffer(uint8_t* Buffer, size_t BufferSize, uint64_t Hash, int8_t Direction)
 		{
-			Core::String Result;
-			Result.reserve(Text.size());
-			for (size_t i = 0; i < Text.size(); i++)
-			{
-				if (Text[i] != 0)
-					Result += char(Text[i] + Offset);
-				else
-					Result += " ";
-			}
+			Core::String Partition;
+			Core::KeyHasher<Core::String> Hasher;
+			Partition.reserve(BufferSize);
 
+			constexpr uint8_t Limit = std::numeric_limits<uint8_t>::max() - 1;
+			if (Direction < 0)
+			{
+				Core::Vector<uint8_t> RotatedBuffer(Buffer, Buffer + BufferSize);
+				for (size_t i = 0; i < BufferSize; i++)
+				{
+					Partition.assign((char*)RotatedBuffer.data(), i + 1).back() = (char)(++Hash % Limit);
+					uint8_t Rotation = (uint8_t)(Hasher(Partition) % Limit);
+					Buffer[i] -= Rotation;
+				}
+			}
+			else
+			{
+				for (size_t i = 0; i < BufferSize; i++)
+				{
+					Partition.assign((char*)Buffer, i + 1).back() = (char)(++Hash % Limit);
+					uint8_t Rotation = (uint8_t)(Hasher(Partition) % Limit);
+					Buffer[i] += Rotation;
+				}
+			}
+		}
+		Core::String Codec::Rotate(const std::string_view& Value, uint64_t Hash, int8_t Direction)
+		{
+			Core::String Result = Core::String(Value);
+			RotateBuffer((uint8_t*)Result.data(), Result.size(), Hash, Direction);
 			return Result;
 		}
 		Core::String Codec::Encode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool Padding)

@@ -233,6 +233,7 @@ namespace Vitex
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 		typedef void* Cipher;
 		typedef void* Digest;
+		typedef int32_t SignAlg;
 
 		struct VI_OUT IncludeDesc
 		{
@@ -2440,6 +2441,44 @@ namespace Vitex
 			static Digest SM3();
 		};
 
+		class VI_OUT_TS Signers
+		{
+		public:
+			static SignAlg PkRSA();
+			static SignAlg PkDSA();
+			static SignAlg PkDH();
+			static SignAlg PkEC();
+			static SignAlg PktSIGN();
+			static SignAlg PktENC();
+			static SignAlg PktEXCH();
+			static SignAlg PksRSA();
+			static SignAlg PksDSA();
+			static SignAlg PksEC();
+			static SignAlg RSA();
+			static SignAlg RSA2();
+			static SignAlg RSA_PSS();
+			static SignAlg DSA();
+			static SignAlg DSA1();
+			static SignAlg DSA2();
+			static SignAlg DSA3();
+			static SignAlg DSA4();
+			static SignAlg DH();
+			static SignAlg DHX();
+			static SignAlg EC();
+			static SignAlg SM2();
+			static SignAlg HMAC();
+			static SignAlg CMAC();
+			static SignAlg SCRYPT();
+			static SignAlg TLS1_PRF();
+			static SignAlg HKDF();
+			static SignAlg POLY1305();
+			static SignAlg SIPHASH();
+			static SignAlg X25519();
+			static SignAlg ED25519();
+			static SignAlg X448();
+			static SignAlg ED448();
+		};
+
 		class VI_OUT_TS Crypto
 		{
 		public:
@@ -2448,15 +2487,20 @@ namespace Vitex
 		public:
 			static Digest GetDigestByName(const std::string_view& Name);
 			static Cipher GetCipherByName(const std::string_view& Name);
+			static SignAlg GetSignerByName(const std::string_view& Name);
 			static std::string_view GetDigestName(Digest Type);
 			static std::string_view GetCipherName(Cipher Type);
+			static std::string_view GetSignerName(SignAlg Type);
 			static ExpectsCrypto<void> FillRandomBytes(uint8_t* Buffer, size_t Length);
 			static ExpectsCrypto<Core::String> RandomBytes(size_t Length);
+			static ExpectsCrypto<Core::String> GeneratePrivateKey(SignAlg Type, size_t TargetBits = 2048, const std::string_view& Curve = std::string_view());
+			static ExpectsCrypto<Core::String> GeneratePublicKey(SignAlg Type, const PrivateKey& SecretKey);
 			static ExpectsCrypto<Core::String> ChecksumHex(Digest Type, Core::Stream* Stream);
 			static ExpectsCrypto<Core::String> ChecksumRaw(Digest Type, Core::Stream* Stream);
 			static ExpectsCrypto<Core::String> HashHex(Digest Type, const std::string_view& Value);
 			static ExpectsCrypto<Core::String> HashRaw(Digest Type, const std::string_view& Value);
-			static ExpectsCrypto<Core::String> Sign(Digest Type, const std::string_view& Value, const PrivateKey& Key);
+			static ExpectsCrypto<Core::String> Sign(Digest Type, SignAlg KeyType, const std::string_view& Value, const PrivateKey& SecretKey);
+			static ExpectsCrypto<void> Verify(Digest Type, SignAlg KeyType, const std::string_view& Value, const std::string_view& Signature, const PrivateKey& PublicKey);
 			static ExpectsCrypto<Core::String> HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key);
 			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
 			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
@@ -2481,7 +2525,8 @@ namespace Vitex
 		class VI_OUT_TS Codec
 		{
 		public:
-			static Core::String Move(const std::string_view& Text, int Offset);
+			static void RotateBuffer(uint8_t* Buffer, size_t BufferSize, uint64_t Hash, int8_t Direction);
+			static Core::String Rotate(const std::string_view& Value, uint64_t Hash, int8_t Direction);
 			static Core::String Encode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool Padding);
 			static Core::String Decode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool(*IsAlphabetic)(uint8_t));
 			static Core::String Bep45Encode(const std::string_view& Value);

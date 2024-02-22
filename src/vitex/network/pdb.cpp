@@ -363,7 +363,7 @@ namespace Vitex
 #ifdef VI_SQLITE
 				VI_ASSERT(Connection != nullptr, "base should be set");
 				char* NewMessage = PQerrorMessage(Connection);
-				if (!NewMessage || Message[0] == '\0')
+				if (!NewMessage || NewMessage[0] == '\0')
 					return;
 
 				Core::String Buffer(NewMessage);

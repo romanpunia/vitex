@@ -3755,15 +3755,15 @@ namespace Vitex
 				SocketListener* Host = new SocketListener(It.first, It.second.Address, It.second.IsSecure);
 				auto Status = Host->Stream->Open(Host->Address);
 				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("open %s listener error", GetAddressIdentification(Host->Address)), std::move(Status.Error()));
+					return Core::SystemException(Core::Stringify::Text("open %s listener error", GetAddressIdentification(Host->Address).c_str()), std::move(Status.Error()));
 
 				Status = Host->Stream->Bind(Host->Address);
 				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("bind %s listener error", GetAddressIdentification(Host->Address)), std::move(Status.Error()));
+					return Core::SystemException(Core::Stringify::Text("bind %s listener error", GetAddressIdentification(Host->Address).c_str()), std::move(Status.Error()));
 
 				Status = Host->Stream->Listen((int)Router->BacklogQueue);
 				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("listen %s listener error", GetAddressIdentification(Host->Address)), std::move(Status.Error()));
+					return Core::SystemException(Core::Stringify::Text("listen %s listener error", GetAddressIdentification(Host->Address).c_str()), std::move(Status.Error()));
 
 				Host->Stream->SetCloseOnExec();
 				Host->Stream->SetBlocking(false);

@@ -9547,7 +9547,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] remove file %s", Path);
+			VI_DEBUG("[io] remove file %.*s", (int)Path.size(), Path.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
@@ -10805,7 +10805,7 @@ namespace Vitex
 
 		void OS::Control::Set(AccessOption Option, bool Enabled)
 		{
-			VI_DEBUG("[os] control %s set %s", Control::ToString(Option), Enabled ? "ON" : "OFF");
+			VI_DEBUG("[os] control %s set %s", Control::ToString(Option).data(), Enabled ? "ON" : "OFF");
 			uint64_t PrevOptions = Options.load();
 			if (Enabled)
 				PrevOptions |= (uint64_t)Option;

@@ -2,8 +2,6 @@
 #ifdef VI_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
-#define ERRNO WSAGetLastError()
-#define ERRWOULDBLOCK WSAEWOULDBLOCK
 #else
 #include <arpa/inet.h>
 #include <cstring>
@@ -67,20 +65,6 @@ namespace Vitex
 
 				return Result;
 			}
-			Core::ExpectsSystem<void> Client::OnResolveHost(RemoteHost* Address)
-			{
-				VI_ASSERT(Address != nullptr, "address should be set");
-				if (Address->Port == 0)
-				{
-					servent* Entry = getservbyname("mail", 0);
-					if (Entry != nullptr)
-						Address->Port = Entry->s_port;
-					else
-						Address->Port = htons(25);
-				}
-
-				return Core::Expectation::Met;
-			}
 			Core::ExpectsSystem<void> Client::OnConnect()
 			{
 				Authorized = false;
@@ -88,7 +72,7 @@ namespace Vitex
 				{
 					SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
 					{
-						if (this->State.Hostname.Secure)
+						if (this->IsSecure())
 						{
 							if (!CanRequest("STARTTLS"))
 								return Report(Core::SystemException("connect tls: server has no support", std::make_error_condition(std::errc::protocol_not_supported)));
@@ -139,7 +123,7 @@ namespace Vitex
 			bool Client::ReadResponse(int Code, ReplyCallback&& Callback)
 			{
 				Command.clear();
-				return Net.Stream->ReadUntilAsync("\r\n", [this, Callback = std::move(Callback), Code](SocketPoll Event, const uint8_t* Data, size_t Recv) mutable
+				return Net.Stream->ReadUntilQueued("\r\n", [this, Callback = std::move(Callback), Code](SocketPoll Event, const uint8_t* Data, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -178,7 +162,7 @@ namespace Vitex
 			}
 			bool Client::SendRequest(int Code, const std::string_view& Content, ReplyCallback&& Callback)
 			{
-				return Net.Stream->WriteAsync((uint8_t*)Content.data(), Content.size(), [this, Callback = std::move(Callback), Code](SocketPoll Event) mutable
+				return Net.Stream->WriteQueued((uint8_t*)Content.data(), Content.size(), [this, Callback = std::move(Callback), Code](SocketPoll Event) mutable
 				{
 					if (Packet::IsDone(Event))
 						ReadResponse(Code, std::move(Callback));
@@ -513,7 +497,7 @@ namespace Vitex
 				for (auto& Item : Request.BCCRecipients)
 					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				Net.Stream->WriteAsync((uint8_t*)Content.data(), Content.size(), [this](SocketPoll Event)
+				Net.Stream->WriteQueued((uint8_t*)Content.data(), Content.size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -631,7 +615,7 @@ namespace Vitex
 									Core::Stringify::Append(Content, "Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
 
 								Content.append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-								Net.Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
+								Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
@@ -642,7 +626,7 @@ namespace Vitex
 										if (Request.Messages.empty())
 											Content.assign(" \r\n");
 
-										Net.Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
+										Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 												SendAttachment();
@@ -671,7 +655,7 @@ namespace Vitex
 						Core::Stringify::Append(Content, "\r\n--%s--\r\n", Boundary.c_str());
 
 					Content.append("\r\n.\r\n");
-					return !Net.Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
+					return !Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -699,7 +683,7 @@ namespace Vitex
 				Core::Stringify::Append(Content, "Content-Transfer-Encoding: base64\r\n");
 				Core::Stringify::Append(Content, "Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
 
-				return Net.Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), [this, Name](SocketPoll Event)
+				return Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this, Name](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -736,7 +720,7 @@ namespace Vitex
 					Core::OS::File::Close(AttachmentFile);
 
 				bool SendNext = (!It.Length);
-				return Net.Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)
+				return Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{

@@ -1878,8 +1878,8 @@ namespace Vitex
 				if (!BlobStatus)
 					return BlobStatus.Error();
 
-				Core::String N = Network::Utils::GetLocalAddress();
-				Core::String D = Core::OS::Path::GetDirectory(Stream->VirtualName());
+				auto NetAddresses = Network::Utils::GetHostIpAddresses();
+				Core::String BaseDirectory = Core::OS::Path::GetDirectory(Stream->VirtualName());
 				Core::UPtr<Network::HTTP::MapRouter> Router = new Network::HTTP::MapRouter();
 				Core::UPtr<Network::HTTP::Server> Object = new Network::HTTP::Server();
 				Core::UPtr<Core::Schema> Blob = *BlobStatus;
@@ -1891,7 +1891,7 @@ namespace Vitex
 				{
 					Core::String Name;
 					if (Series::Unpack(It, &Name))
-						Core::Stringify::EvalEnvs(Name, N, D);
+						Core::Stringify::EvalEnvs(Name, BaseDirectory, NetAddresses);
 					else
 						Name = "*";
 
@@ -1916,7 +1916,7 @@ namespace Vitex
 							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_3);
 					}
 
-					Core::Stringify::EvalEnvs(Cert->Blob.PrivateKey, N, D);
+					Core::Stringify::EvalEnvs(Cert->Blob.PrivateKey, BaseDirectory, NetAddresses);
 					if (!Cert->Blob.PrivateKey.empty())
 					{
 						auto Data = Core::OS::File::ReadAsString(Cert->Blob.PrivateKey);
@@ -1926,7 +1926,7 @@ namespace Vitex
 						Cert->Blob.PrivateKey = *Data;
 					}
 
-					Core::Stringify::EvalEnvs(Cert->Blob.Certificate, N, D);
+					Core::Stringify::EvalEnvs(Cert->Blob.Certificate, BaseDirectory, NetAddresses);
 					if (!Cert->Blob.Certificate.empty())
 					{
 						auto Data = Core::OS::File::ReadAsString(Cert->Blob.Certificate);
@@ -1940,20 +1940,19 @@ namespace Vitex
 				Core::Vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
 				for (auto&& It : Listeners)
 				{
-					Core::String Name;
-					if (!Series::Unpack(It, &Name))
-						Name = "*";
+					Core::String Pattern, Hostname, Service;
+					uint32_t Port = 0; bool Secure = false;
+					Series::Unpack(It, &Pattern);
+					Series::Unpack(It->Find("hostname"), &Hostname);
+					Series::Unpack(It->Find("service"), &Service);
+					Series::Unpack(It->Find("port"), &Port);
+					Series::Unpack(It->Find("secure"), &Secure);
+					Core::Stringify::EvalEnvs(Pattern, BaseDirectory, NetAddresses);
+					Core::Stringify::EvalEnvs(Hostname, BaseDirectory, NetAddresses);
 
-					Core::Stringify::EvalEnvs(Name, N, D);
-					Network::RemoteHost* Host = &Router->Listeners[Name];
-					Series::Unpack(It->Find("hostname"), &Host->Hostname);
-					Series::Unpack(It->Find("port"), &Host->Port);
-					Series::Unpack(It->Find("secure"), &Host->Secure);
-					Core::Stringify::EvalEnvs(Host->Hostname, N, D);
-					if (Host->Hostname.empty())
-						Host->Hostname = "0.0.0.0";
-					if (Host->Port <= 0)
-						Host->Port = 80;
+					auto Status = Router->Listen(Pattern.empty() ? "*" : Pattern, Hostname.empty() ? "0.0.0.0" : Hostname, Service.empty() ? (Port > 0 ? Core::ToString(Port) : "80") : Service, Secure);
+					if (!Status)
+						return ContentException(Core::Stringify::Text("bind %s:%i listener from %s: %s", Hostname.c_str(), (int32_t)Port, Pattern.c_str(), Status.Error().message().c_str()));
 				}
 
 				Core::Schema* Network = Blob->Find("network");
@@ -1978,8 +1977,8 @@ namespace Vitex
 					Series::Unpack(Network->Fetch("session.cookie.http-only"), &Router->Session.Cookie.HttpOnly);
 					Series::Unpack(Network->Fetch("session.directory"), &Router->Session.Directory);
 					Series::Unpack(Network->Fetch("session.expires"), &Router->Session.Expires);
-					Core::Stringify::EvalEnvs(Router->Session.Directory, N, D);
-					Core::Stringify::EvalEnvs(Router->TemporaryDirectory, N, D);
+					Core::Stringify::EvalEnvs(Router->Session.Directory, BaseDirectory, NetAddresses);
+					Core::Stringify::EvalEnvs(Router->TemporaryDirectory, BaseDirectory, NetAddresses);
 
 					Core::UnorderedMap<Core::String, Network::HTTP::RouterEntry*> Aliases;
 					Core::Vector<Core::Schema*> Groups = Network->FindCollection("group", true);
@@ -2065,7 +2064,7 @@ namespace Vitex
 							Series::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
 							Series::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
 							if (Series::Unpack(Base->Find("files-directory"), &Route->FilesDirectory))
-								Core::Stringify::EvalEnvs(Route->FilesDirectory, N, D);
+								Core::Stringify::EvalEnvs(Route->FilesDirectory, BaseDirectory, NetAddresses);
 
 							Core::Vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
 							Core::Vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
@@ -2119,7 +2118,7 @@ namespace Vitex
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::Stringify::EvalEnvs(Pattern, N, D);
+										Core::Stringify::EvalEnvs(Pattern, BaseDirectory, NetAddresses);
 
 									Route->IndexFiles.push_back(Pattern);
 								}
@@ -2131,7 +2130,7 @@ namespace Vitex
 								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
-										Core::Stringify::EvalEnvs(Pattern, N, D);
+										Core::Stringify::EvalEnvs(Pattern, BaseDirectory, NetAddresses);
 
 									Route->TryFiles.push_back(Pattern);
 								}
@@ -2142,7 +2141,7 @@ namespace Vitex
 								Network::HTTP::ErrorFile Source;
 								Series::Unpack(File->Find("status"), &Source.StatusCode);
 								if (Series::Unpack(File->Find("file"), &Source.Pattern))
-									Core::Stringify::EvalEnvs(Source.Pattern, N, D);
+									Core::Stringify::EvalEnvs(Source.Pattern, BaseDirectory, NetAddresses);
 								Route->ErrorFiles.push_back(Source);
 							}
 

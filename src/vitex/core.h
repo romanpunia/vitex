@@ -2244,7 +2244,7 @@ namespace Vitex
 			static String& Erase(String& Other, size_t Position);
 			static String& Erase(String& Other, size_t Position, size_t Count);
 			static String& EraseOffsets(String& Other, size_t Start, size_t End);
-			static ExpectsSystem<void> EvalEnvs(String& Other, const std::string_view& Net, const std::string_view& Dir);
+			static ExpectsSystem<void> EvalEnvs(String& Other, const std::string_view& Directory, const Vector<String>& Tokens, const std::string_view& Token = ":net");
 			static Vector<std::pair<String, TextSettle>> FindInBetween(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
 			static Vector<std::pair<String, TextSettle>> FindInBetweenInCode(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset = 0U);
 			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
@@ -3648,8 +3648,8 @@ namespace Vitex
 			TaskId GetTaskId();
 
 		public:
-			static std::chrono::microseconds GetClock();
 			static bool IsAvailable(Difficulty Type = Difficulty::Count);
+			static std::chrono::microseconds GetClock();
 		};
 
 		template <>
@@ -3919,7 +3919,7 @@ namespace Vitex
 		{
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{
-				if (Async && Schedule::IsAvailable(Difficulty::Sync))
+				if (Async && Schedule::IsAvailable())
 					Schedule::Get()->SetTask(std::move(Callback));
 				else
 					Callback();
@@ -4782,7 +4782,7 @@ namespace Vitex
 					return false;
 
 				Status->Output = BasicPromise<void, Executor>();
-				Schedule::Get()->SetTask([this]()
+				auto Generate = [this]()
 				{
 					ExecutorCallback Callback = std::move(Status->Callback);
 					Callback(*this).When([this]()
@@ -4791,7 +4791,11 @@ namespace Vitex
 						if (Status->Output.IsPending())
 							Status->Output.Set();
 					});
-				});
+				};
+				if (Schedule::IsAvailable())
+					Schedule::Get()->SetTask(Generate);
+				else
+					Generate();
 				return true;
 			}
 		};
@@ -4840,13 +4844,21 @@ namespace Vitex
 			}, Recyclable);
 			return Result;
 		}
-		inline TaskId Codefer(TaskCallback&& Callback) noexcept
+		inline void Codefer(TaskCallback&& Callback, bool AlwaysExecute = true) noexcept
 		{
-			return Schedule::Get()->SetTask(std::move(Callback), true);
+			VI_ASSERT(Callback, "callback should be set");
+			if (Schedule::IsAvailable())
+				Schedule::Get()->SetTask(std::move(Callback), true);
+			else if (AlwaysExecute)
+				Callback();
 		}
-		inline TaskId Cospawn(TaskCallback&& Callback) noexcept
+		inline void Cospawn(TaskCallback&& Callback, bool AlwaysExecute = true) noexcept
 		{
-			return Schedule::Get()->SetTask(std::move(Callback), false);
+			VI_ASSERT(Callback, "callback should be set");
+			if (Schedule::IsAvailable())
+				Schedule::Get()->SetTask(std::move(Callback), false);
+			else if (AlwaysExecute)
+				Callback();
 		}
 #ifdef VI_CXX20
 		template <typename T, typename Executor = ParallelExecutor>

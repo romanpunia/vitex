@@ -90,9 +90,8 @@ namespace Vitex
 		{
 			PromiseNoCallbacks = 0,
 			PromiseNoConstructor = 1,
-			PromiseAlwaysAwait = 2,
-			OsExposeControl = 4,
-			CTypesNoPointerCast = 5
+			OsExposeControl = 2,
+			CTypesNoPointerCast = 3
 		};
 
 		enum class Modifiers
@@ -1775,7 +1774,7 @@ namespace Vitex
 			struct Events
 			{
 				Core::Vector<StopExecutionCallback> StopExecutions;
-				std::function<void(ImmediateContext*, void*)> NotificationResolver;
+				std::function<void(ImmediateContext*)> NotificationResolver;
 				std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)> CallbackResolver;
 				std::function<void(ImmediateContext*)> Exception;
 				std::function<void(ImmediateContext*)> Line;
@@ -1793,7 +1792,6 @@ namespace Vitex
 				Core::String Stacktrace;
 				size_t DenySuspends = 0;
 				size_t DeferredExceptions = 0;
-				size_t LocalReferences = 0;
 			} Executor;
 
 		private:
@@ -1805,12 +1803,12 @@ namespace Vitex
 		public:
 			~ImmediateContext() noexcept;
 			ExpectsPromiseVM<Execution> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
-			ExpectsVM<Execution> ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs);
+			ExpectsVM<Execution> ExecuteInlineCall(const Function& Function, ArgsCallback&& OnArgs);
 			ExpectsVM<Execution> ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
 			ExpectsVM<Execution> ExecuteNext();
 			ExpectsVM<Execution> Resume();
 			ExpectsPromiseVM<Execution> ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
-			ExpectsVM<Execution> ResolveNotification(void* Promise);
+			ExpectsVM<Execution> ResolveNotification();
 			ExpectsVM<void> Prepare(const Function& Function);
 			ExpectsVM<void> Unprepare();
 			ExpectsVM<void> Abort();
@@ -1845,7 +1843,7 @@ namespace Vitex
 			ExpectsVM<size_t> GetPropertiesCount(size_t StackLevel = 0);
 			ExpectsVM<void> GetProperty(size_t Index, size_t StackLevel, std::string_view* Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
 			Function GetFunction(size_t StackLevel = 0);
-			void SetNotificationResolverCallback(std::function<void(ImmediateContext*, void*)>&& Callback);
+			void SetNotificationResolverCallback(std::function<void(ImmediateContext*)>&& Callback);
 			void SetCallbackResolverCallback(std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>&& Callback);
 			void SetLineCallback(std::function<void(ImmediateContext*)>&& Callback);
 			void SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback);
@@ -1853,8 +1851,6 @@ namespace Vitex
 			Core::String& CopyString(Core::String& Value);
 			void InvalidateString(const std::string_view& Value);
 			void InvalidateStrings();
-			void AddRefLocals();
-			void ReleaseLocals();
 			void Reset();
 			void DisableSuspends();
 			void EnableSuspends();
@@ -1973,6 +1969,7 @@ namespace Vitex
 			Compute::IncludeDesc Include;
 			std::function<void(ImmediateContext*)> GlobalException;
 			WhenErrorCallback WhenError;
+			std::atomic<int64_t> LastMajorGC;
 			uint64_t Scope;
 			DebuggerContext* Debugger;
 			asIScriptEngine* Engine;
@@ -1984,6 +1981,7 @@ namespace Vitex
 			~VirtualMachine() noexcept;
 			ExpectsVM<void> WriteMessage(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message);
 			ExpectsVM<void> GarbageCollect(GarbageCollector Flags, size_t NumIterations = 1);
+			ExpectsVM<void> PerformPeriodicGarbageCollection(uint64_t IntervalMs);
 			ExpectsVM<void> PerformFullGarbageCollection();
 			ExpectsVM<void> NotifyOfNewObject(void* Object, const TypeInfo& Type);
 			ExpectsVM<void> GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, TypeInfo* Type = nullptr);
@@ -2308,9 +2306,8 @@ namespace Vitex
 				ArgsCallback OnArgs;
 				ArgsCallback OnReturn;
 				ImmediateContext* Context;
-				void* Promise;
 
-				Callable(ImmediateContext* NewContext, void* Promise) noexcept;
+				Callable(ImmediateContext* NewContext) noexcept;
 				Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept;
 				Callable(const Callable& Other) noexcept;
 				Callable(Callable&& Other) noexcept;
@@ -2337,15 +2334,16 @@ namespace Vitex
 			void Abort();
 			void When(ArgsCallback&& Callback);
 			void Listen(ImmediateContext* Context);
-			void Enqueue(ImmediateContext* Context, void* Promise);
+			void Unlisten(ImmediateContext* Context);
+			void Enqueue(ImmediateContext* Context);
 			void Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
 			bool Poll(ImmediateContext* Context, uint64_t TimeoutMs);
 			bool PollExtended(ImmediateContext* Context, uint64_t TimeoutMs);
-			size_t Dequeue(VirtualMachine* VM);
+			size_t Dequeue(VirtualMachine* VM, size_t MaxExecutions = 0);
 			bool IsAborted();
 
 		private:
-			void OnNotification(ImmediateContext* Context, void* Promise);
+			void OnNotification(ImmediateContext* Context);
 			void OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
 			void AbortIf(ExpectsVM<Execution>&& Status);
 

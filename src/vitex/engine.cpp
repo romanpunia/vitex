@@ -4529,7 +4529,7 @@ namespace Vitex
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 
 			LoadComponent(Context);
-			Conf.Shared.Content->LoadAsync(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback = std::move(Callback)](ExpectsContent<void*>&& Result)
+			Conf.Shared.Content->LoadDeferred(Conf.Shared.Content->GetProcessor(Id), Path, Keys).When([this, Context, Callback = std::move(Callback)](ExpectsContent<void*>&& Result)
 			{
 				if (!UnloadComponent(Context))
 					return;
@@ -5887,7 +5887,7 @@ namespace Vitex
 			VI_TRACE("[content] save forward %.*s: %s", (int)Path.size(), Path.data(), Result ? "OK" : Result.Error().what());
 			return Result;
 		}
-		ExpectsPromiseContent<void*> ContentManager::LoadAsync(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys)
+		ExpectsPromiseContent<void*> ContentManager::LoadDeferred(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys)
 		{
 			Enqueue();
 			Core::String TargetPath = Core::String(Path);
@@ -5898,7 +5898,7 @@ namespace Vitex
 				return Result;
 			});
 		}
-		ExpectsPromiseContent<void> ContentManager::SaveAsync(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys)
+		ExpectsPromiseContent<void> ContentManager::SaveDeferred(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys)
 		{
 			Enqueue();
 			Core::String TargetPath = Core::String(Path);

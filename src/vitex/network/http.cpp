@@ -166,13 +166,13 @@ namespace Vitex
 				}
 
 				Core::String Copy = Core::String(Buffer);
-				auto Status = Stream->WriteAsync(Header, HeaderLength, [this, Copy = std::move(Copy), Callback = std::move(Callback)](SocketPoll Event) mutable
+				auto Status = Stream->WriteQueued(Header, HeaderLength, [this, Copy = std::move(Copy), Callback = std::move(Callback)](SocketPoll Event) mutable
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (!Copy.empty())
 						{
-							Stream->WriteAsync((uint8_t*)Copy.data(), Copy.size(), [this, Callback = std::move(Callback)](SocketPoll Event)
+							Stream->WriteQueued((uint8_t*)Copy.data(), Copy.size(), [this, Callback = std::move(Callback)](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
@@ -342,17 +342,14 @@ namespace Vitex
 					uint8_t Buffer[Core::BLOB_SIZE];
 					while (true)
 					{
-						auto Status = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+						auto Size = Stream->Read(Buffer, sizeof(Buffer));
+						if (Size)
 						{
-							if (Packet::IsData(Event))
-								Codec->ParseFrame(Buffer, Recv);
-
-							return true;
-						});
-						if (Status)
+							Codec->ParseFrame(Buffer, *Size);
 							continue;
+						}
 
-						if (Status.Error() == std::errc::operation_would_block)
+						if (Size.Error() == std::errc::operation_would_block)
 						{
 							State = (uint32_t)WebSocketState::Receive;
 							break;
@@ -1713,7 +1710,7 @@ namespace Vitex
 				if (ApplyBodyInlining)
 					Content->append(Response.Content.Data.begin(), Response.Content.Data.end());
 
-				auto Status = Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [this, Content, Callback = std::move(Callback)](SocketPoll Event) mutable
+				auto Status = Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [this, Content, Callback = std::move(Callback)](SocketPoll Event) mutable
 				{
 					HrmCache::Get()->Push(Content);
 					Callback(this, Event);
@@ -1765,17 +1762,17 @@ namespace Vitex
 						Core::String Content = Core::Stringify::Text("%X\r\n", (uint32_t)Chunk.size());
 						Content.append(Chunk);
 						Content.append("\r\n");
-						Stream->WriteAsync((uint8_t*)Content.c_str(), Content.size(), std::bind(Callback, this, std::placeholders::_1));
+						Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), std::bind(Callback, this, std::placeholders::_1));
 					}
 					else
-						Stream->WriteAsync((uint8_t*)"0\r\n\r\n", 5, std::bind(Callback, this, std::placeholders::_1), false);
+						Stream->WriteQueued((uint8_t*)"0\r\n\r\n", 5, std::bind(Callback, this, std::placeholders::_1), false);
 				}
 				else
 				{
 					if (Chunk.empty())
 						return false;
 
-					Stream->WriteAsync((uint8_t*)Chunk.data(), Chunk.size(), std::bind(Callback, this, std::placeholders::_1));
+					Stream->WriteQueued((uint8_t*)Chunk.data(), Chunk.size(), std::bind(Callback, this, std::placeholders::_1));
 				}
 
 				return true;
@@ -1850,7 +1847,7 @@ namespace Vitex
 
 				if (IsTransferEncodingChunked)
 				{
-					return !!Stream->ReadAsync(Root->Router->MaxNetBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					return !!Stream->ReadQueued(Root->Router->MaxNetBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1893,7 +1890,7 @@ namespace Vitex
 					return true;
 				}
 
-				return !!Stream->ReadAsync(Request.Content.Limited ? ContentLength : Root->Router->MaxHeapBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				return !!Stream->ReadQueued(Request.Content.Limited ? ContentLength : Root->Router->MaxHeapBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1973,7 +1970,7 @@ namespace Vitex
 						}
 					}
 
-					return !!Stream->ReadAsync(ContentLength, [this, Boundary](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					return !!Stream->ReadQueued(ContentLength, [this, Boundary](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -2005,7 +2002,7 @@ namespace Vitex
 				
 				if (Eat)
 				{
-					return !!Stream->ReadAsync(ContentLength, [this, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					return !!Stream->ReadQueued(ContentLength, [this, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
@@ -2036,7 +2033,7 @@ namespace Vitex
 				}
 
 				Request.Content.Prefetch = 0;
-				return !!Stream->ReadAsync(ContentLength, [this, File, Subresource = std::move(Subresource), Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				return !!Stream->ReadQueued(ContentLength, [this, File, Subresource = std::move(Subresource), Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -2121,7 +2118,7 @@ namespace Vitex
 				{
 					auto& Content = Base->Response.Content.Data;
 					if (Packet::IsDone(Event) && !ResponseBodyInlined && !Content.empty() && memcmp(Base->Request.Method, "HEAD", 4) != 0)
-						Base->Stream->WriteAsync((uint8_t*)Content.data(), Content.size(), [Base](SocketPoll) { Base->Root->Continue(Base); }, false);
+						Base->Stream->WriteQueued((uint8_t*)Content.data(), Content.size(), [Base](SocketPoll) { Base->Root->Continue(Base); }, false);
 					else
 						Base->Root->Continue(Base);
 				});
@@ -2130,6 +2127,21 @@ namespace Vitex
 			{
 				Response.StatusCode = StatusCode;
 				return Next();
+			}
+			Core::ExpectsIO<Core::String> Connection::GetPeerIpAddress() const
+			{
+				if (!Route->ProxyIpAddress.empty())
+				{
+					auto ProxyAddress = Request.GetHeader(Route->ProxyIpAddress.c_str());
+					if (!ProxyAddress.empty())
+						return Core::String(ProxyAddress);
+				}
+
+				auto Address = Stream->GetPeerAddress();
+				if (!Address)
+					return Address.Error();
+
+				return Address->GetIpAddress();
 			}
 
 			Query::Query() : Object(Core::Var::Set::Object())
@@ -4285,12 +4297,19 @@ namespace Vitex
 					Core::String& Location = Base->Request.Location;
 					if (!Group->Match.empty())
 					{
-						if (Group->Mode == RouteMode::Start)
+						if (Group->Mode == RouteMode::Exact)
+						{
+							if (Location != Group->Match)
+								continue;
+
+							Location.clear();
+						}
+						else if (Group->Mode == RouteMode::Start)
 						{
 							if (!Core::Stringify::StartsWith(Location, Group->Match))
 								continue;
 
-							Location = Location.substr(Group->Match.size(), Location.size());
+							Location.erase(Location.begin(), Location.begin() + Group->Match.size());
 						}
 						else if (Group->Mode == RouteMode::Match)
 						{
@@ -4302,11 +4321,13 @@ namespace Vitex
 							if (!Core::Stringify::EndsWith(Location, Group->Match))
 								continue;
 
-							Core::Stringify::Clip(Location, Location.size() - Group->Match.size());
+							Location.erase(Location.end() - Group->Match.size(), Location.end());
 						}
 
 						if (Location.empty())
 							Location.append(1, '/');
+						else if (Location.front() != '/')
+							Location.insert(Location.begin(), '/');
 
 						for (auto* Next : Group->Routes)
 						{
@@ -4873,7 +4894,7 @@ namespace Vitex
 				if (Base->Request.Content.Prefetch >= LegacyKeySize)
 					return ResolveConnection(SocketPoll::FinishSync, (uint8_t*)"", 0);
 
-				return !!Base->Stream->ReadAsync(LegacyKeySize - Base->Request.Content.Prefetch, ResolveConnection);
+				return !!Base->Stream->ReadQueued(LegacyKeySize - Base->Request.Content.Prefetch, ResolveConnection);
 			}
 			bool Routing::RouteGet(Connection* Base)
 			{
@@ -4896,7 +4917,10 @@ namespace Vitex
 				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 				{
 					if (Base->Route->AllowDirectoryListing)
-						return Core::Cospawn([Base]() { Logical::ProcessDirectory(Base); });
+					{
+						Core::Cospawn([Base]() { Logical::ProcessDirectory(Base); });
+						return true;
+					}
 
 					return Base->Abort(403, "Directory listing denied.");
 				}
@@ -4977,7 +5001,7 @@ namespace Vitex
 							Base->Route->Callbacks.Headers(Base, *Content);
 
 						Content->append("\r\n", 2);
-						return !Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+						return !Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 						{
 							HrmCache::Get()->Push(Content);
 							if (Packet::IsDone(Event))
@@ -5021,7 +5045,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5058,7 +5082,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5082,7 +5106,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5219,7 +5243,7 @@ namespace Vitex
 				}
 #endif
 				Content->append("Content-Length: ").append(Core::ToString(Base->Response.Content.Data.size())).append("\r\n\r\n");
-				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5227,7 +5251,7 @@ namespace Vitex
 						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
 							return (void)Base->Next(200);
 
-						Base->Stream->WriteAsync((uint8_t*)Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
+						Base->Stream->WriteQueued((uint8_t*)Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Next(200);
@@ -5308,7 +5332,7 @@ namespace Vitex
 
 				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base, ContentLength, Range1](SocketPoll Event)
+					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base, ContentLength, Range1](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5319,7 +5343,7 @@ namespace Vitex
 				}
 				else
 				{
-					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5374,7 +5398,7 @@ namespace Vitex
 
 				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base, Range, ContentLength, Gzip](SocketPoll Event)
+					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base, Range, ContentLength, Gzip](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5385,7 +5409,7 @@ namespace Vitex
 				}
 				else
 				{
-					return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -5419,7 +5443,7 @@ namespace Vitex
 				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
 				Content->append("Etag: ").append(ETag).append("\r\n");
 				Content->append(Utils::ConnectionResolve(Base)).append("\r\n");
-				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5441,7 +5465,7 @@ namespace Vitex
 
 					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
-						return !!Base->Stream->WriteAsync((uint8_t*)Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteQueued((uint8_t*)Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Next();
@@ -5458,7 +5482,7 @@ namespace Vitex
 				FILE* Stream = *File;
                 if (Base->Route->AllowSendFile)
                 {
-                    auto Result = Base->Stream->SendFileAsync(Stream, Range, ContentLength, [Base, Stream, ContentLength, Range](SocketPoll Event)
+                    auto Result = Base->Stream->WriteFileQueued(Stream, Range, ContentLength, [Base, Stream, ContentLength, Range](SocketPoll Event)
                     {
                         if (Packet::IsDone(Event))
                         {
@@ -5510,7 +5534,7 @@ namespace Vitex
 					goto Cleanup;
                 
 				ContentLength -= Read;
-                auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Stream, ContentLength](SocketPoll Event)
+                auto Written = Base->Stream->WriteQueued(Buffer, Read, [Base, Stream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
@@ -5562,7 +5586,7 @@ namespace Vitex
 								Base->Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)ZStream.total_out));
 						}
 #endif
-						return !!Base->Stream->WriteAsync((uint8_t*)Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
+						return !!Base->Stream->WriteQueued((uint8_t*)Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Next();
@@ -5619,7 +5643,7 @@ namespace Vitex
 					if (Base->Root->State != ServerState::Working)
 						return Base->Abort();
 
-					return !!Base->Stream->WriteAsync((uint8_t*)"0\r\n\r\n", 5, [Base](SocketPoll Event)
+					return !!Base->Stream->WriteQueued((uint8_t*)"0\r\n\r\n", 5, [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Next();
@@ -5655,7 +5679,7 @@ namespace Vitex
 					Read += sizeof(char) * 2;
 				}
 
-				auto Written = Base->Stream->WriteAsync(Buffer, Read, [Base, Stream, ZStream, ContentLength](SocketPoll Event)
+				auto Written = Base->Stream->WriteQueued(Buffer, Read, [Base, Stream, ZStream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
@@ -5732,7 +5756,7 @@ namespace Vitex
 					Base->Route->Callbacks.Headers(Base, *Content);
 
 				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);
 					if (Packet::IsDone(Event))
@@ -5859,7 +5883,7 @@ namespace Vitex
 				auto* Base = (Connection*)Source;
 
 				Base->Resolver->PrepareForRequestParsing(&Base->Request);
-				Base->Stream->ReadUntilChunkedAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const uint8_t* Buffer, size_t Size)
+				Base->Stream->ReadUntilChunkedQueued("\r\n\r\n", [Base, Conf](SocketPoll Event, const uint8_t* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -5895,13 +5919,6 @@ namespace Vitex
 
 							Base->Request.Location = Route->Redirect;
 							goto Redirect;
-						}
-
-						if (!Route->ProxyIpAddress.empty())
-						{
-							auto Address = Base->Request.GetHeader(Route->ProxyIpAddress.c_str());
-							if (!Address.empty())
-								strncpy(Base->RemoteAddress, Address.data(), sizeof(Base->RemoteAddress));
 						}
 
 						Paths::ConstructPath(Base);
@@ -6095,7 +6112,7 @@ namespace Vitex
 
 					int64_t Subresult = -1;
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, Subresult, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+					Net.Stream->ReadQueued(MaxSize, [this, Result, Subresult, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6133,7 +6150,7 @@ namespace Vitex
 						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 
 					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadAsync(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+					Net.Stream->ReadQueued(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6169,7 +6186,7 @@ namespace Vitex
 					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
 				Core::ExpectsPromiseSystem<void> Result;
-				Net.Stream->ReadAsync(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+				Net.Stream->ReadQueued(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -6254,19 +6271,14 @@ namespace Vitex
 
 				if (Request.GetHeader("Host").empty())
 				{
-					if (Net.Context != nullptr)
+					auto Hostname = State.Address.GetHostname();
+					if (Hostname)
 					{
-						if (State.Hostname.Port == 443)
-							Request.SetHeader("Host", State.Hostname.Hostname.c_str());
+						auto Port = State.Address.GetIpPort();
+						if (Port && *Port != (Net.Context ? 443 : 80))
+							Request.SetHeader("Host", (*Hostname + ':' + Core::ToString(*Port)));
 						else
-							Request.SetHeader("Host", (State.Hostname.Hostname + ':' + Core::ToString(State.Hostname.Port)));
-					}
-					else
-					{
-						if (State.Hostname.Port == 80)
-							Request.SetHeader("Host", State.Hostname.Hostname);
-						else
-							Request.SetHeader("Host", (State.Hostname.Hostname + ':' + Core::ToString(State.Hostname.Port)));
+							Request.SetHeader("Host", *Hostname);
 					}
 				}
 
@@ -6316,18 +6328,18 @@ namespace Vitex
 					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
 					Content->append("\r\n");
 
-					Net.Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
+					Net.Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
 						{
 							if (!Request.Content.Data.empty())
 							{
-								Net.Stream->WriteAsync((uint8_t*)Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
+								Net.Stream->WriteQueued((uint8_t*)Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
-										Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+										Net.Stream->ReadUntilChunkedQueued("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 										{
 											if (Packet::IsData(Event))
 												Response.Content.Append(std::string_view((char*)Buffer, Recv));
@@ -6345,7 +6357,7 @@ namespace Vitex
 							}
 							else
 							{
-								Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+								Net.Stream->ReadUntilChunkedQueued("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 								{
 									if (Packet::IsData(Event))
 										Response.Content.Append(std::string_view((char*)Buffer, Recv));
@@ -6439,7 +6451,7 @@ namespace Vitex
 					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
 					Content->append("\r\n");
 
-					Net.Stream->WriteAsync((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
+					Net.Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
 					{
 						HrmCache::Get()->Push(Content);
 						if (Packet::IsDone(Event))
@@ -6546,7 +6558,7 @@ namespace Vitex
 					return Callback(Core::SystemException("upload file error", std::move(File.Error())));
 
 				FILE* FileStream = *File;
-                auto Result = Net.Stream->SendFileAsync(FileStream, 0, Boundary->File->Length, [FileStream, Callback](SocketPoll Event)
+                auto Result = Net.Stream->WriteFileQueued(FileStream, 0, Boundary->File->Length, [FileStream, Callback](SocketPoll Event)
                 {
                     if (Packet::IsDone(Event))
                     {
@@ -6563,7 +6575,7 @@ namespace Vitex
 					return Callback(Core::Expectation::Met);
 
 				if (Config.IsAsync)
-					return UploadFileChunkAsync(FileStream, Boundary->File->Length, std::move(Callback));
+					return UploadFileChunkQueued(FileStream, Boundary->File->Length, std::move(Callback));
 
 				return UploadFileChunk(FileStream, Boundary->File->Length, std::move(Callback));
 			}
@@ -6597,7 +6609,7 @@ namespace Vitex
 					}
 				}
 			}
-			void Client::UploadFileChunkAsync(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
+			void Client::UploadFileChunkQueued(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 			{
 			Retry:
 				if (!ContentLength)
@@ -6615,13 +6627,13 @@ namespace Vitex
 				}
 
 				ContentLength -= Read;
-				auto Written = Net.Stream->WriteAsync(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
+				auto Written = Net.Stream->WriteQueued(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
 				{
 					if (Packet::IsDoneAsync(Event))
 					{
 						Core::Cospawn([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
 						{
-							UploadFileChunkAsync(FileStream, ContentLength, std::move(Callback));
+							UploadFileChunkQueued(FileStream, ContentLength, std::move(Callback));
 						});
 					}
 					else if (Packet::IsErrorOrSkip(Event))
@@ -6639,7 +6651,7 @@ namespace Vitex
 				if (FileId < Boundaries.size())
 				{
 					BoundaryBlock* Boundary = &Boundaries[FileId];
-					Net.Stream->WriteAsync((uint8_t*)Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
+					Net.Stream->WriteQueued((uint8_t*)Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -6650,7 +6662,7 @@ namespace Vitex
 								{
 									if (Status)
 									{
-										Net.Stream->WriteAsync((uint8_t*)Boundary->Finish.c_str(), Boundary->Finish.size(), [this, FileId](SocketPoll Event)
+										Net.Stream->WriteQueued((uint8_t*)Boundary->Finish.c_str(), Boundary->Finish.size(), [this, FileId](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 												Upload(FileId + 1);
@@ -6671,7 +6683,7 @@ namespace Vitex
 				}
 				else
 				{
-					Net.Stream->ReadUntilChunkedAsync("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					Net.Stream->ReadUntilChunkedQueued("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 							Response.Content.Append(std::string_view((char*)Buffer, Recv));
@@ -6697,10 +6709,6 @@ namespace Vitex
 			}
 			void Client::Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize)
 			{
-				auto Address = Net.Stream->GetRemoteAddress();
-				if (Address)
-					strncpy(RemoteAddress, Address->c_str(), std::min(Address->size(), sizeof(RemoteAddress)));
-
 				Resolver->PrepareForResponseParsing(&Response);
 				if (Resolver->ParseResponse((uint8_t*)Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
 				{
@@ -6718,11 +6726,6 @@ namespace Vitex
 				if (Origin.Protocol != "http" && Origin.Protocol != "https")
 					return Core::ExpectsPromiseSystem<ResponseFrame>(Core::SystemException("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported)));
 
-				Network::RemoteHost Address;
-				Address.Hostname = Origin.Hostname;
-				Address.Secure = (Origin.Protocol == "https");
-				Address.Port = (Origin.Port < 0 ? (Address.Secure ? 443 : 80) : Origin.Port);
-
 				HTTP::RequestFrame Request;
 				Request.Cookies = Options.Cookies;
 				Request.Headers = Options.Headers;
@@ -6738,26 +6741,37 @@ namespace Vitex
 					Request.Query.pop_back();
 
 				size_t MaxSize = Options.MaxSize;
-				HTTP::Client* Client = new HTTP::Client(Options.Timeout);
-				return Client->Connect(&Address, true, Options.VerifyPeers).Then<Core::ExpectsPromiseSystem<void>>([Client, MaxSize, Request = std::move(Request)](Core::ExpectsSystem<void>&& Status) mutable -> Core::ExpectsPromiseSystem<void>
+				uint64_t Timeout = Options.Timeout;
+				bool Secure = Origin.Protocol == "https";
+				Core::String Hostname = Origin.Hostname;
+				Core::String Port = Origin.Port > 0 ? Core::ToString(Origin.Port) : Core::String(Secure ? "443" : "80");
+				int32_t VerifyPeers = (Secure ? (Options.VerifyPeers >= 0 ? Options.VerifyPeers : PEER_NOT_VERIFIED) : PEER_NOT_SECURE);
+				return DNS::Get()->LookupDeferred(Hostname, Port, DNSType::Connect, SocketProtocol::TCP, SocketType::Stream).Then<Core::ExpectsPromiseSystem<ResponseFrame>>([MaxSize, Timeout, VerifyPeers, Request = std::move(Request), Origin = std::move(Origin)](Core::ExpectsSystem<SocketAddress>&& Address) mutable -> Core::ExpectsPromiseSystem<ResponseFrame>
 				{
-					if (!Status)
-						return Core::ExpectsPromiseSystem<void>(Status);
+					if (!Address)
+						return Core::ExpectsPromiseSystem<ResponseFrame>(Address.Error());
 
-					return Client->SendFetch(std::move(Request), MaxSize);
-				}).Then<Core::ExpectsPromiseSystem<ResponseFrame>>([Client](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<ResponseFrame>
-				{
-					if (!Status)
+					HTTP::Client* Client = new HTTP::Client(Timeout);
+					return Client->Connect(*Address, true, VerifyPeers).Then<Core::ExpectsPromiseSystem<void>>([Client, MaxSize, Request = std::move(Request)](Core::ExpectsSystem<void>&& Status) mutable -> Core::ExpectsPromiseSystem<void>
 					{
-						Client->Release();
-						return Core::ExpectsPromiseSystem<ResponseFrame>(Status.Error());
-					}
+						if (!Status)
+							return Core::ExpectsPromiseSystem<void>(Status);
 
-					auto Response = std::move(*Client->GetResponse());
-					return Client->Disconnect().Then<Core::ExpectsSystem<ResponseFrame>>([Client, Response = std::move(Response)](Core::ExpectsSystem<void>&&) mutable -> Core::ExpectsSystem<ResponseFrame>
+						return Client->SendFetch(std::move(Request), MaxSize);
+					}).Then<Core::ExpectsPromiseSystem<ResponseFrame>>([Client](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<ResponseFrame>
 					{
-						Client->Release();
-						return std::move(Response);
+						if (!Status)
+						{
+							Client->Release();
+							return Core::ExpectsPromiseSystem<ResponseFrame>(Status.Error());
+						}
+
+						auto Response = std::move(*Client->GetResponse());
+						return Client->Disconnect().Then<Core::ExpectsSystem<ResponseFrame>>([Client, Response = std::move(Response)](Core::ExpectsSystem<void>&&) mutable -> Core::ExpectsSystem<ResponseFrame>
+						{
+							Client->Release();
+							return std::move(Response);
+						});
 					});
 				});
 			}

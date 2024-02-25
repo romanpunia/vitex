@@ -51,6 +51,7 @@ namespace Vitex
 
 			enum class RouteMode
 			{
+				Exact,
 				Start,
 				Match,
 				End
@@ -578,6 +579,7 @@ namespace Vitex
 				bool Fetch(ContentCallback&& Callback = nullptr, bool Eat = false);
 				bool Store(ResourceCallback&& Callback = nullptr, bool Eat = false);
 				bool Skip(SuccessCallback&& Callback);
+				Core::ExpectsIO<Core::String> GetPeerIpAddress() const;
 
 			private:
 				bool ComposeResponse(bool ApplyErrorResponse, bool ApplyBodyInline, HeadersCallback&& Callback);
@@ -937,9 +939,6 @@ namespace Vitex
 				Core::Vector<BoundaryBlock> Boundaries;
 				Core::ExpectsPromiseSystem<void> Future;
 
-            public:
-                char RemoteAddress[48] = { };
-                
 			public:
 				Client(int64_t ReadTimeout);
 				~Client() override;
@@ -960,7 +959,7 @@ namespace Vitex
 				Core::ExpectsSystem<void> OnDisconnect() override;
 				void UploadFile(BoundaryBlock* Boundary, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-				void UploadFileChunkAsync(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+				void UploadFileChunkQueued(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 				void Upload(size_t FileId);
 				void ManageKeepAlive();
 				void Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize);

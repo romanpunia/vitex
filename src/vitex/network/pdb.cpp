@@ -1643,7 +1643,7 @@ namespace Vitex
 					return ExpectsPromiseDB<void>(DatabaseException("connect failed: permission denied"));
 #if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
 				int Version = PQlibVersion();
-				if (Version < 162000)
+				if (Version < 160002)
 					return ExpectsPromiseDB<void>(DatabaseException(Core::Stringify::Text("connect failed: libpq <= %.2f will cause a segfault starting with openssl 3.2", (double)Version / 10000.0)));
 #endif
 				Core::UMutex<std::mutex> Unique(Update);
@@ -2212,7 +2212,8 @@ namespace Vitex
 				if (!Connected)
 				{
 					Source->State = QueryState::Lost;
-					return Core::Codefer([this, Source]() { Reestablish(Source); }) != Core::INVALID_TASK_ID;
+					Core::Codefer([this, Source]() { Reestablish(Source); });
+					return true;
 				}
 
 			Retry:

@@ -5538,8 +5538,6 @@ namespace Vitex
 		{
 			if (Executor.Future.IsPending())
 				Executor.Future.Set(VirtualException(VirtualError::CONTEXT_NOT_PREPARED));
-			while (Executor.LocalReferences > 0)
-				ReleaseLocals();
 #ifdef VI_ANGELSCRIPT
 			VM->GetEngine()->ReturnContext(Context);
 #endif
@@ -5568,7 +5566,7 @@ namespace Vitex
 			return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::ExecuteCallSync(const Function& Function, ArgsCallback&& OnArgs)
+		ExpectsVM<Execution> ImmediateContext::ExecuteInlineCall(const Function& Function, ArgsCallback&& OnArgs)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Function.IsValid(), "function should be set");
@@ -5704,26 +5702,21 @@ namespace Vitex
 			return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::ResolveNotification(void* Promise)
+		ExpectsVM<Execution> ImmediateContext::ResolveNotification()
 		{
 #ifdef VI_ANGELSCRIPT
 			if (Callbacks.NotificationResolver)
 			{
-				Callbacks.NotificationResolver(this, Promise);
+				Callbacks.NotificationResolver(this);
 				return Execution::Active;
 			}
 
 			ImmediateContext* Context = this;
-			Bindings::Promise* Base = (Bindings::Promise*)Promise;
-			if (Core::Codefer([Context, Base]()
+			Core::Codefer([Context]()
 			{
 				if (Context->IsSuspended())
 					Context->Resume();
-				if (Base != nullptr)
-					Base->Release();
-			}) == Core::INVALID_TASK_ID)
-				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
-
+			});
 			return Execution::Active;
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -6107,7 +6100,7 @@ namespace Vitex
 			return 0;
 #endif
 		}
-		void ImmediateContext::SetNotificationResolverCallback(std::function<void(ImmediateContext*, void*)>&& Callback)
+		void ImmediateContext::SetNotificationResolverCallback(std::function<void(ImmediateContext*)>&& Callback)
 		{
 			Callbacks.NotificationResolver = std::move(Callback);
 		}
@@ -6161,47 +6154,6 @@ namespace Vitex
 		void ImmediateContext::InvalidateStrings()
 		{
 			Strings.clear();
-		}
-		void ImmediateContext::AddRefLocals()
-		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
-			asIScriptFunction* Function = Context->GetFunction();
-			++Executor.LocalReferences;
-
-			if (!Function)
-				return;
-
-			asIScriptEngine* Engine = Context->GetEngine();
-			asUINT VarsCount = Function->GetVarCount();
-			for (asUINT n = 0; n < VarsCount; n++)
-			{
-				int TypeId;
-				if (Context->IsVarInScope(n) && Context->GetVar(n, 0, 0, &TypeId) >= 0 && ((TypeId & asTYPEID_OBJHANDLE) || (TypeId & asTYPEID_SCRIPTOBJECT)))
-					Engine->AddRefScriptObject(*(void**)Context->GetAddressOfVar(n), Engine->GetTypeInfoById(TypeId));
-			}
-#endif
-		}
-		void ImmediateContext::ReleaseLocals()
-		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Executor.LocalReferences > 0, "locals are not referenced");
-#ifdef VI_ANGELSCRIPT
-			asIScriptFunction* Function = Context->GetFunction();
-			--Executor.LocalReferences;
-
-			if (!Function)
-				return;
-
-			asIScriptEngine* Engine = Context->GetEngine();
-			asUINT VarsCount = Function->GetVarCount();
-			for (asUINT n = 0; n < VarsCount; n++)
-			{
-				int TypeId;
-				if (Context->IsVarInScope(n) && Context->GetVar(n, 0, 0, &TypeId) >= 0 && ((TypeId & asTYPEID_OBJHANDLE) || (TypeId & asTYPEID_SCRIPTOBJECT)))
-					Engine->ReleaseScriptObject(*(void**)Context->GetAddressOfVar(n), Engine->GetTypeInfoById(TypeId));
-			}
-#endif
 		}
 		void ImmediateContext::DisableSuspends()
 		{
@@ -6603,7 +6555,7 @@ namespace Vitex
 		}
 		int ImmediateContext::ContextUD = 151;
 
-		VirtualMachine::VirtualMachine() noexcept : Scope(0), Debugger(nullptr), Engine(nullptr), SaveSources(false), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : LastMajorGC(0), Scope(0), Debugger(nullptr), Engine(nullptr), SaveSources(false), Cached(true)
 		{
 			auto Directory = Core::OS::Directory::GetWorking();
 			if (Directory)
@@ -6875,14 +6827,24 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
+		ExpectsVM<void> VirtualMachine::PerformPeriodicGarbageCollection(uint64_t IntervalMs)
+		{
+			int64_t Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			if (LastMajorGC + IntervalMs > Time)
+				return Core::Expectation::Met;
+
+			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
+			int64_t PrevTime = LastMajorGC.load() + IntervalMs;
+			if (PrevTime > Time)
+				return Core::Expectation::Met;
+
+			LastMajorGC = Time;
+			return PerformFullGarbageCollection();
+		}
 		ExpectsVM<void> VirtualMachine::PerformFullGarbageCollection()
 		{
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GarbageCollect(asGC_DETECT_GARBAGE | asGC_FULL_CYCLE, 16);
-			if (R < 0)
-				return FunctionFactory::ToReturn(R);
-
-			R = Engine->GarbageCollect(asGC_FULL_CYCLE, 16);
+			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DESTROY_GARBAGE | asGC_DETECT_GARBAGE, 1);
 			return FunctionFactory::ToReturn(R);
 #else
 			return VirtualException(VirtualError::NOT_SUPPORTED);
@@ -8479,6 +8441,7 @@ namespace Vitex
 			Engine->AddSystemAddon("ui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);
 			Engine->AddSystemAddon("ui-model", { "ui-control", }, Bindings::Registry::ImportUiModel);
 			Engine->AddSystemAddon("ui-context", { "ui-model" }, Bindings::Registry::ImportUiContext);
+			Engine->AddSystemAddon("vm", { }, Bindings::Registry::ImportVM);
 			Engine->AddSystemAddon("engine", { "schema", "schedule", "key-frames", "fs", "graphics", "audio", "physics", "clock", "ui-context" }, Bindings::Registry::ImportEngine);
 			Engine->AddSystemAddon("components", { "engine" }, Bindings::Registry::ImportComponents);
 			Engine->AddSystemAddon("renderers", { "engine" }, Bindings::Registry::ImportRenderers);
@@ -8493,19 +8456,18 @@ namespace Vitex
 		}
 		int VirtualMachine::ManagerUD = 553;
 
-		EventLoop::Callable::Callable(ImmediateContext* NewContext, void* NewPromise) noexcept : Context(NewContext), Promise(NewPromise)
+		EventLoop::Callable::Callable(ImmediateContext* NewContext) noexcept : Context(NewContext)
 		{
 		}
-		EventLoop::Callable::Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept : Delegate(std::move(NewDelegate)), OnArgs(std::move(NewOnArgs)), OnReturn(std::move(NewOnReturn)), Context(NewContext), Promise(nullptr)
+		EventLoop::Callable::Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept : Delegate(std::move(NewDelegate)), OnArgs(std::move(NewOnArgs)), OnReturn(std::move(NewOnReturn)), Context(NewContext)
 		{
 		}
-		EventLoop::Callable::Callable(const Callable& Other) noexcept : Delegate(Other.Delegate), OnArgs(Other.OnArgs), OnReturn(Other.OnReturn), Context(Other.Context), Promise(Other.Promise)
+		EventLoop::Callable::Callable(const Callable& Other) noexcept : Delegate(Other.Delegate), OnArgs(Other.OnArgs), OnReturn(Other.OnReturn), Context(Other.Context)
 		{
 		}
-		EventLoop::Callable::Callable(Callable&& Other) noexcept : Delegate(std::move(Other.Delegate)), OnArgs(std::move(Other.OnArgs)), OnReturn(std::move(Other.OnReturn)), Context(Other.Context), Promise(Other.Promise)
+		EventLoop::Callable::Callable(Callable&& Other) noexcept : Delegate(std::move(Other.Delegate)), OnArgs(std::move(Other.OnArgs)), OnReturn(std::move(Other.OnReturn)), Context(Other.Context)
 		{
 			Other.Context = nullptr;
-			Other.Promise = nullptr;
 		}
 		EventLoop::Callable& EventLoop::Callable::operator= (const Callable& Other) noexcept
 		{
@@ -8516,7 +8478,6 @@ namespace Vitex
 			OnArgs = Other.OnArgs;
 			OnReturn = Other.OnReturn;
 			Context = Other.Context;
-			Promise = Other.Promise;
 			return *this;
 		}
 		EventLoop::Callable& EventLoop::Callable::operator= (Callable&& Other) noexcept
@@ -8528,9 +8489,7 @@ namespace Vitex
 			OnArgs = std::move(Other.OnArgs);
 			OnReturn = std::move(Other.OnReturn);
 			Context = Other.Context;
-			Promise = Other.Promise;
 			Other.Context = nullptr;
-			Other.Promise = nullptr;
 			return *this;
 		}
 		bool EventLoop::Callable::IsNotification() const
@@ -8546,26 +8505,30 @@ namespace Vitex
 		EventLoop::EventLoop() noexcept : Aborts(false), Wake(false)
 		{
 		}
-		void EventLoop::OnNotification(ImmediateContext* Context, void* Promise)
+		void EventLoop::OnNotification(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-			if (OnEnqueue)
-				OnEnqueue(Context);
-
 			Core::UMutex<std::mutex> Unique(Mutex);
-			Queue.push(Callable(Context, Promise));
+			Queue.push(Callable(Context));
 			Waitable.notify_one();
+
+			auto Ready = std::move(OnEnqueue);
+			Unique.Negate();
+			if (Ready)
+				Ready(Context);
 		}
 		void EventLoop::OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
-			if (OnEnqueue)
-				OnEnqueue(Context);
-
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Queue.push(Callable(Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
 			Waitable.notify_one();
+
+			auto Ready = std::move(OnEnqueue);
+			Unique.Negate();
+			if (Ready)
+				Ready(Context);
 		}
 		void EventLoop::Wakeup()
 		{
@@ -8590,34 +8553,47 @@ namespace Vitex
 		void EventLoop::Listen(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-			Context->SetNotificationResolverCallback(std::bind(&EventLoop::OnNotification, this, std::placeholders::_1, std::placeholders::_2));
+			Context->SetNotificationResolverCallback(std::bind(&EventLoop::OnNotification, this, std::placeholders::_1));
 			Context->SetCallbackResolverCallback(std::bind(&EventLoop::OnCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
 		}
-		void EventLoop::Enqueue(ImmediateContext* Context, void* Promise)
+		void EventLoop::Unlisten(ImmediateContext* Context)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
-			if (OnEnqueue)
-				OnEnqueue(Context);
-
+			Context->SetNotificationResolverCallback(nullptr);
+			Context->SetCallbackResolverCallback(nullptr);
+		}
+		void EventLoop::Enqueue(ImmediateContext* Context)
+		{
+			VI_ASSERT(Context != nullptr, "context should be set");
 			Core::UMutex<std::mutex> Unique(Mutex);
-			Queue.push(Callable(Context, Promise));
+			Queue.push(Callable(Context));
 			Waitable.notify_one();
+
+			auto Ready = std::move(OnEnqueue);
+			Unique.Negate();
+			if (Ready)
+				Ready(Context);
 		}
 		void EventLoop::Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
 		{
 			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
-			if (OnEnqueue)
-				OnEnqueue(Delegate.Context);
-
+			ImmediateContext* Context = Delegate.Context;
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Queue.push(Callable(Delegate.Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
 			Waitable.notify_one();
+
+			auto Ready = std::move(OnEnqueue);
+			Unique.Negate();
+			if (Ready)
+				Ready(Context);
 		}
 		bool EventLoop::Poll(ImmediateContext* Context, uint64_t TimeoutMs)
 		{
 			VI_ASSERT(Context != nullptr, "context should be set");
 			if (!Bindings::Promise::IsContextBusy(Context) && Queue.empty())
 				return false;
+			else if (!TimeoutMs)
+				return true;
 
 			std::unique_lock<std::mutex> Unique(Mutex);
 			Waitable.wait_for(Unique, std::chrono::milliseconds(TimeoutMs), [this]() { return !Queue.empty() || Wake; });
@@ -8633,13 +8609,15 @@ namespace Vitex
 				if (!Queue->GetPolicy().Parallel || !Queue->IsActive())
 					return false;
 			}
+			else if (!TimeoutMs)
+				return true;
 
 			std::unique_lock<std::mutex> Unique(Mutex);
 			Waitable.wait_for(Unique, std::chrono::milliseconds(TimeoutMs), [this]() { return !Queue.empty() || Wake; });
 			Wake = false;
 			return true;
 		}
-		size_t EventLoop::Dequeue(VirtualMachine* VM)
+		size_t EventLoop::Dequeue(VirtualMachine* VM, size_t MaxExecutions)
 		{
 			VI_ASSERT(VM != nullptr, "virtual machine should be set");
 			Core::UMutex<std::mutex> Unique(Mutex);
@@ -8687,14 +8665,13 @@ namespace Vitex
 				}
 				else if (Next.IsNotification())
 				{
-					Bindings::Promise* Base = (Bindings::Promise*)Next.Promise;
 					if (InitiatorContext->IsSuspended())
 						AbortIf(InitiatorContext->Resume());
-					if (Base != nullptr)
-						Base->Release();
 					++Executions;
 				}
 				Unique.Negate();
+				if (MaxExecutions > 0 && Executions >= MaxExecutions)
+					break;
 			}
 
 			if (Executions > 0)

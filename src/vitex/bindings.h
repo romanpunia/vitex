@@ -153,6 +153,7 @@ namespace Vitex
 				static bool ImportSQLite(VirtualMachine* Engine);
 				static bool ImportPostgreSQL(VirtualMachine* Engine);
 				static bool ImportMongoDB(VirtualMachine* Engine);
+				static bool ImportVM(VirtualMachine* Engine);
 				static bool ImportEngine(VirtualMachine* Engine);
 				static bool ImportComponents(VirtualMachine* Engine);
 				static bool ImportRenderers(VirtualMachine* Engine);
@@ -963,35 +964,26 @@ namespace Vitex
 				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code);
 				static bool IsContextPending(ImmediateContext* Context);
 				static bool IsContextBusy(ImmediateContext* Context);
-				static bool IsAlwaysAwait(VirtualMachine* VM);
 
 			public:
 				template <typename T>
-				static void WatchAndYieldIf(Promise* Future, int TypeId, Core::Promise<T>&& Awaitable)
+				static void DispatchAwaitable(Promise* Future, int TypeId, Core::Promise<T>&& Awaitable)
 				{
-					if (Awaitable.IsPending())
+					Future->AddRef();
+					Future->Context->AppendStopExecutionCallback([Future, TypeId, Awaitable]()
 					{
-						if (IsAlwaysAwait(Future->Engine))
-							Future->YieldIf();
-						Future->Context->AppendStopExecutionCallback([Future, TypeId, Awaitable]()
+						Awaitable.When([Future, TypeId](T&& Result)
 						{
-							Awaitable.When([Future, TypeId](T&& Result)
-							{
-								Future->Store((void*)&Result, TypeId);
-							});
+							Future->Store((void*)&Result, TypeId);
+							Future->Release();
 						});
-					}
-					else
-					{
-						T&& Value = Awaitable.Get();
-						Future->Store((void*)&Value, TypeId);
-					}
+					});
 				}
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
 				{
 					Promise* Future = Promise::CreateFactoryVoid();
-					return Promise::WatchAndYieldIf<T>(Future, (int)Id, std::move(Value));
+					return Promise::DispatchAwaitable<T>(Future, (int)Id, std::move(Value));
 				}
 				template <typename T>
 				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, const char* TypeName)
@@ -1000,7 +992,7 @@ namespace Vitex
 					VI_ASSERT(Engine != nullptr, "engine should be set");
 					Promise* Future = Promise::CreateFactoryVoid();
 					int TypeId = Engine->GetTypeIdByDecl(TypeName);
-					return Promise::WatchAndYieldIf<T>(TypeId, TypeId, std::move(Value));
+					return Promise::DispatchAwaitable<T>(TypeId, TypeId, std::move(Value));
 				}
 
 			public:
@@ -1020,24 +1012,9 @@ namespace Vitex
 						if (!Future)
 							return Future;
 
-						if (IsAlwaysAwait(Future->Engine))
-						{
-							Future->YieldIf();
-							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, Base](auto&&... Data)
-							{
-								((Base->*F)(Data...)).When([Future](R&& Result)
-								{
-									Future->Store((void*)&Result, (int)TypeID);
-								});
-							}, std::forward<Args>(Data)...));
-						}
-						else
-						{
-							Future->Context->EnableDeferredExceptions();
-							Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
-							Future->Context->DisableDeferredExceptions();
-						}
-
+						Future->Context->EnableDeferredExceptions();
+						Promise::DispatchAwaitable<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
+						Future->Context->DisableDeferredExceptions();
 						return Future;
 					}
 					template <uint64_t TypeRef>
@@ -1048,24 +1025,9 @@ namespace Vitex
 							return Future;
 
 						int TypeId = TypeCache::GetTypeId(TypeRef);
-						if (IsAlwaysAwait(Future->Engine))
-						{
-							Future->YieldIf();
-							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId, Base](auto&&... Data)
-							{
-								((Base->*F)(Data...)).When([Future, TypeId](R&& Result)
-								{
-									Future->Store((void*)&Result, TypeId);
-								});
-							}, std::forward<Args>(Data)...));
-						}
-						else
-						{
-							Future->Context->EnableDeferredExceptions();
-							Promise::WatchAndYieldIf<R>(Future, TypeId, ((Base->*F)(Data...)));
-							Future->Context->DisableDeferredExceptions();
-						}
-
+						Future->Context->EnableDeferredExceptions();
+						Promise::DispatchAwaitable<R>(Future, TypeId, ((Base->*F)(Data...)));
+						Future->Context->DisableDeferredExceptions();
 						return Future;
 					}
 				};
@@ -1080,24 +1042,9 @@ namespace Vitex
 						if (!Future)
 							return Future;
 
-						if (IsAlwaysAwait(Future->Engine))
-						{
-							Future->YieldIf();
-							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future](auto&&... Data)
-							{
-								((*F)(Data...)).When([Future](R&& Result)
-								{
-									Future->Store((void*)&Result, (int)TypeID);
-								});
-							}, std::forward<Args>(Data)...));
-						}
-						else
-						{
-							Future->Context->EnableDeferredExceptions();
-							Promise::WatchAndYieldIf<R>(Future, (int)TypeID, ((*F)(Data...)));
-							Future->Context->DisableDeferredExceptions();
-						}
-
+						Future->Context->EnableDeferredExceptions();
+						Promise::DispatchAwaitable<R>(Future, (int)TypeID, ((*F)(Data...)));
+						Future->Context->DisableDeferredExceptions();
 						return Future;
 					}
 					template <uint64_t TypeRef>
@@ -1108,24 +1055,9 @@ namespace Vitex
 							return Future;
 
 						int TypeId = TypeCache::GetTypeId(TypeRef);
-						if (IsAlwaysAwait(Future->Engine))
-						{
-							Future->YieldIf();
-							Future->Context->AppendStopExecutionCallback(Utils::CaptureCall([Future, TypeId](auto&&... Data)
-							{
-								((*F)(Data...)).When([Future, TypeId](R&& Result)
-								{
-									Future->Store((void*)&Result, TypeId);
-								});
-							}, std::forward<Args>(Data)...));
-						}
-						else
-						{
-							Future->Context->EnableDeferredExceptions();
-							Promise::WatchAndYieldIf<R>(Future, TypeId, ((*F)(Data...)));
-							Future->Context->DisableDeferredExceptions();
-						}
-
+						Future->Context->EnableDeferredExceptions();
+						Promise::DispatchAwaitable<R>(Future, TypeId, ((*F)(Data...)));
+						Future->Context->DisableDeferredExceptions();
 						return Future;
 					}
 				};

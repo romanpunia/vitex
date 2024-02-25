@@ -49,7 +49,6 @@ namespace Vitex
 				bool Authenticate = true;
 				bool NoNotification = false;
 				bool AllowHTML = false;
-				char RemoteAddress[48] = { };
 			};
 
 			class VI_OUT Client final : public SocketClient
@@ -71,7 +70,6 @@ namespace Vitex
 				RequestFrame* GetRequest();
 
 			private:
-				Core::ExpectsSystem<void> OnResolveHost(RemoteHost* Address) override;
 				Core::ExpectsSystem<void> OnConnect() override;
 				Core::ExpectsSystem<void> OnDisconnect() override;
 				bool Authorize(ReplyCallback&& Callback);

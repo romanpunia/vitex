@@ -82,7 +82,7 @@ namespace Vitex
 
 			socket_t Socket = (socket_t)accept(Fd, Address, AddressLength);
 			if (Socket == INVALID_SOCKET)
-				return Core::OS::Error::GetConditionOr();
+				return Utils::GetLastError(nullptr, -1);
 
 			return Socket;
 		}
@@ -103,6 +103,44 @@ namespace Vitex
 				return Core::OS::Error::GetConditionOr();
 #endif
 			return Core::Expectation::Met;
+		}
+		static Core::String GetAddressIdentification(const SocketAddress& Address)
+		{
+			Core::String Result;
+			auto Hostname = Address.GetHostname();
+			if (Hostname)
+				Result.append(*Hostname);
+			
+			auto Port = Address.GetIpPort();
+			if (Port)
+				Result.append(1, ':').append(Core::ToString(*Port));
+
+			return Result;
+		}
+		static Core::String GetIpAddressIdentification(const SocketAddress& Address)
+		{
+			Core::String Result;
+			auto Hostname = Address.GetIpAddress();
+			if (Hostname)
+				Result.append(*Hostname);
+
+			auto Port = Address.GetIpPort();
+			if (Port)
+				Result.append(1, ':').append(Core::ToString(*Port));
+
+			return Result;
+		}
+		static bool HasIpAddress(const std::string_view& Hostname)
+		{
+			size_t Index = 0;
+			while (Index < Hostname.size())
+			{
+				char V = Hostname[Index++];
+				if (!Core::Stringify::IsNumeric(V) && V != '.')
+					return false;
+			}
+
+			return true;
 		}
 		static addrinfo* TryConnectDNS(const Core::UnorderedMap<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
@@ -153,13 +191,6 @@ namespace Vitex
 			}
 
 			return nullptr;
-		}
-		static void* GetAddressStorage(struct sockaddr* Info)
-		{
-			if (Info->sa_family == AF_INET)
-				return &(((struct sockaddr_in*)Info)->sin_addr);
-
-			return &(((struct sockaddr_in6*)Info)->sin6_addr);
 		}
 #ifdef VI_OPENSSL
 		static std::pair<Core::String, time_t> ASN1_GetTime(ASN1_TIME* Time)
@@ -366,7 +397,7 @@ namespace Vitex
 			}
 		};
 #endif
-		Location::Location(const std::string_view& From) noexcept : Body(From), Port(-1)
+		Location::Location(const std::string_view& From) noexcept : Body(From), Port(0)
 		{
 			VI_ASSERT(!Body.empty(), "location should not be empty");
 			Core::Stringify::Replace(Body, '\\', '/');
@@ -416,13 +447,14 @@ namespace Vitex
 						Username = Compute::Codec::URLDecode(LoginPassword);
 				}
 
-				const char* PortBegin = strchr(HostBegin, ':');
+				const char* IpV6End = strchr(HostBegin, ']');
+				const char* PortBegin = strchr(IpV6End ? IpV6End : HostBegin, ':');
 				if (PortBegin != nullptr && (PathBegin == nullptr || PortBegin < PathBegin))
 				{
-					if (1 != sscanf(PortBegin, ":%d", &Port))
+					if (1 != sscanf(PortBegin, ":%" SCNd16, &Port))
 						goto FinalizeURL;
 
-					Hostname = Core::String(HostBegin, PortBegin);
+					Hostname = Core::String(HostBegin + (IpV6End ? 1 : 0), IpV6End ? IpV6End : PortBegin);
 					if (!PathBegin)
 						goto FinalizeURL;
 				}
@@ -434,7 +466,7 @@ namespace Vitex
 						goto FinalizeURL;
 					}
 
-					Hostname = Core::String(HostBegin, PathBegin);
+					Hostname = Core::String(HostBegin + (IpV6End ? 1 : 0), IpV6End ? IpV6End : PathBegin);
 				}
 			}
 			else
@@ -495,7 +527,7 @@ namespace Vitex
 			else
 				Path.assign("/");
 
-			if (Port != -1)
+			if (Port > 0)
 				return;
 
 			if (Protocol == "http" || Protocol == "ws")
@@ -520,8 +552,13 @@ namespace Vitex
 				Port = 25;
 			else if (Protocol == "telnet")
 				Port = 23;
-			else
-				Port = 0;
+
+			if (Port > 0 || Protocol == "file")
+				return;
+
+			servent* Entry = getservbyname(Protocol.c_str(), nullptr);
+			if (Entry != nullptr)
+				Port = Entry->s_port;
 		}
 
 		X509Blob::X509Blob(void* NewPointer) noexcept : Pointer(NewPointer)
@@ -577,6 +614,157 @@ namespace Vitex
 				Data[Item.first] = Core::Stringify::Split(Item.second, '\n');
 
 			return Data;
+		}
+
+		SocketAddress::SocketAddress() noexcept : AddressSize(0)
+		{
+			Info.Port = 0;
+			Info.Flags = 0;
+			Info.Family = AF_INET;
+			Info.Type = SOCK_STREAM;
+			Info.Protocol = IPPROTO_IP;
+			memset(AddressBuffer, 0, sizeof(AddressBuffer));
+		}
+		SocketAddress::SocketAddress(const std::string_view& Hostname, uint16_t Port, addrinfo* AddressInfo) noexcept
+		{
+			VI_ASSERT(AddressInfo != nullptr, "address info should be set");
+			if (!Hostname.empty())
+				Info.Hostname = Core::String(Hostname);
+			else if (AddressInfo->ai_canonname != nullptr)
+				Info.Hostname = AddressInfo->ai_canonname;
+			Info.Port = Port;
+			Info.Flags = AddressInfo->ai_flags;
+			Info.Family = AddressInfo->ai_family;
+			Info.Type = AddressInfo->ai_socktype;
+			Info.Protocol = AddressInfo->ai_protocol;
+			AddressSize = std::min<size_t>(sizeof(AddressBuffer), AddressInfo->ai_addrlen);
+			memcpy(AddressBuffer, AddressInfo->ai_addr, AddressSize);
+			
+			size_t Leftovers = sizeof(AddressBuffer) - AddressSize;
+			if (Leftovers > 0)
+				memset(AddressBuffer + AddressSize, 0, Leftovers);
+		}
+		SocketAddress::SocketAddress(const std::string_view& Hostname, uint16_t Port, sockaddr* Address, size_t NewAddressSize) noexcept : SocketAddress()
+		{
+			VI_ASSERT(Address != nullptr, "address should be set");
+			if (!Hostname.empty())
+				Info.Hostname = Core::String(Hostname);
+			Info.Port = Port;
+			Info.Family = (int32_t)Address->sa_family;
+			AddressSize = std::min<size_t>(sizeof(AddressBuffer), NewAddressSize);
+			memcpy(AddressBuffer, Address, AddressSize);
+		}
+		const sockaddr* SocketAddress::GetAddress() const noexcept
+		{
+			return (sockaddr*)AddressBuffer;
+		}
+		size_t SocketAddress::GetAddressSize() const noexcept
+		{
+			return AddressSize;
+		}
+		int32_t SocketAddress::GetFlags() const noexcept
+		{
+			return Info.Flags;
+		}
+		int32_t SocketAddress::GetFamily() const noexcept
+		{
+			return Info.Family;
+		}
+		int32_t SocketAddress::GetType() const noexcept
+		{
+			return Info.Type;
+		}
+		int32_t SocketAddress::GetProtocol() const noexcept
+		{
+			return Info.Protocol;
+		}
+		size_t SocketAddress::GetHashCode() const noexcept
+		{
+			char Buffer[sizeof(Info) + sizeof(AddressBuffer) - sizeof(Core::String)];
+			memcpy(Buffer, (char*)&Info + sizeof(Core::String), sizeof(Info) - sizeof(Core::String));
+			memcpy(Buffer, AddressBuffer, sizeof(AddressBuffer));
+
+			Core::KeyHasher<Core::String> Hash;
+			return Hash(std::string_view((char*)&Buffer, sizeof(Buffer)));
+		}
+		DNSType SocketAddress::GetResolverType() const noexcept
+		{
+			return (Info.Flags & AI_PASSIVE ? DNSType::Listen : DNSType::Connect);
+		}
+		SocketProtocol SocketAddress::GetProtocolType() const noexcept
+		{
+			switch (Info.Protocol)
+			{
+				case IPPROTO_IP:
+					return SocketProtocol::IP;
+				case IPPROTO_ICMP:
+					return SocketProtocol::ICMP;
+				case IPPROTO_UDP:
+					return SocketProtocol::UDP;
+				case IPPROTO_RAW:
+					return SocketProtocol::RAW;
+				case IPPROTO_TCP:
+				default:
+					return SocketProtocol::TCP;
+			}
+		}
+		SocketType SocketAddress::GetSocketType() const noexcept
+		{
+			switch (Info.Type)
+			{
+				case SOCK_DGRAM :
+					return SocketType::Datagram;
+				case SOCK_RAW:
+					return SocketType::Raw;
+				case SOCK_RDM:
+					return SocketType::Reliably_Delivered_Message;
+				case SOCK_SEQPACKET:
+					return SocketType::Sequence_Packet_Stream;
+				case SOCK_STREAM:
+				default:
+					return SocketType::Stream;
+			}
+		}
+		bool SocketAddress::IsValid() const noexcept
+		{
+			return AddressSize >= sizeof(sockaddr);
+		}
+		Core::ExpectsIO<Core::String> SocketAddress::GetHostname() const noexcept
+		{
+			if (!Info.Hostname.empty())
+			{
+				size_t Offset = Info.Hostname.rfind(':');
+				if (!Offset || Offset == std::string::npos)
+					return Info.Hostname;
+
+				auto SourceName = Info.Hostname.substr(0, Offset);
+				if (!SourceName.empty())
+					return SourceName;
+			}
+
+			return GetIpAddress();
+		}
+		Core::ExpectsIO<Core::String> SocketAddress::GetIpAddress() const noexcept
+		{
+			char Buffer[NI_MAXHOST];
+			if (getnameinfo(GetAddress(), GetAddressSize(), Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
+				return Core::OS::Error::GetConditionOr(std::errc::host_unreachable);
+
+			return Core::String(Buffer, strnlen(Buffer, sizeof(Buffer)));
+		}
+		Core::ExpectsIO<uint16_t> SocketAddress::GetIpPort() const noexcept
+		{
+			if (Info.Port > 0)
+				return Info.Port;
+
+			const sockaddr* Address = GetAddress();
+			if (Address->sa_family == AF_INET)
+				return (uint16_t)ntohs(reinterpret_cast<struct sockaddr_in*>(&Address)->sin_port);
+
+			if (Address->sa_family == AF_INET6)
+				return (uint16_t)ntohs(reinterpret_cast<struct sockaddr_in6*>(&Address)->sin6_port);
+
+			return std::make_error_condition(std::errc::address_family_not_supported);
 		}
 
 		DataFrame& DataFrame::operator= (const DataFrame& Other)
@@ -943,6 +1131,35 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
+		Core::Vector<Core::String> Utils::GetHostIpAddresses() noexcept
+		{
+			Core::Vector<Core::String> IpAddresses;
+			IpAddresses.push_back("127.0.0.1");
+
+			char Hostname[Core::CHUNK_SIZE];
+			if (gethostname(Hostname, sizeof(Hostname)) == SOCKET_ERROR)
+				return IpAddresses;
+
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(struct addrinfo));
+			Hints.ai_family = AF_UNSPEC;
+			Hints.ai_protocol = IPPROTO_TCP;
+			Hints.ai_socktype = SOCK_STREAM;
+
+			struct addrinfo* Addresses = nullptr;
+			if (getaddrinfo(Hostname, nullptr, &Hints, &Addresses) != 0)
+				return IpAddresses;
+
+			for (auto It = Addresses; It != nullptr; It = It->ai_next)
+			{
+				char IpAddress[INET6_ADDRSTRLEN];
+				if (inet_ntop(It->ai_family, It->ai_addr, IpAddress, sizeof(IpAddress)))
+					IpAddresses.push_back(Core::String(IpAddress, strnlen(IpAddress, sizeof(IpAddress))));
+			}
+			
+			freeaddrinfo(Addresses);
+			return IpAddresses;
+		}
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
 		{
 			VI_ASSERT(Fd != nullptr, "poll should be set");
@@ -1020,54 +1237,6 @@ namespace Vitex
 
 			return Size;
 		}
-		Core::String Utils::GetLocalAddress() noexcept
-		{
-			char Buffer[Core::CHUNK_SIZE];
-			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
-				return "127.0.0.1";
-
-			struct addrinfo Hints = { };
-			Hints.ai_family = AF_INET;
-			Hints.ai_socktype = SOCK_STREAM;
-
-			struct sockaddr_in Address = { };
-			struct addrinfo* Results = nullptr;
-
-			bool Success = (getaddrinfo(Buffer, nullptr, &Hints, &Results) == 0);
-			if (Success)
-			{
-				if (Results != nullptr)
-					memcpy(&Address, Results->ai_addr, sizeof(Address));
-			}
-
-			if (Results != nullptr)
-				freeaddrinfo(Results);
-
-			if (!Success)
-				return "127.0.0.1";
-
-			char Result[INET_ADDRSTRLEN];
-			if (!inet_ntop(AF_INET, &(Address.sin_addr), Result, INET_ADDRSTRLEN))
-				return "127.0.0.1";
-
-			return Result;
-		}
-		Core::String Utils::GetAddress(addrinfo* Info) noexcept
-		{
-			VI_ASSERT(Info != nullptr, "address info should be set");
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
-			VI_TRACE("[net] inet ntop addrinfo 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
-			return Buffer;
-		}
-		Core::String Utils::GetAddress(sockaddr* Info) noexcept
-		{
-			VI_ASSERT(Info != nullptr, "socket address should be set");
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
-			VI_TRACE("[net] inet ntop sockaddr 0x%" PRIXPTR ": %s", (void*)Info, Buffer);
-			return Buffer;
-		}
 		std::error_condition Utils::GetLastError(ssl_st* Device, int ErrorCode) noexcept
 		{
 #ifdef VI_OPENSSL
@@ -1124,26 +1293,6 @@ namespace Vitex
 		bool Utils::IsInvalid(socket_t Fd) noexcept
 		{
 			return Fd == INVALID_SOCKET;
-		}
-		int Utils::GetAddressFamily(const std::string_view& Address) noexcept
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Address), "address should be set");
-			VI_TRACE("[net] fetch addr family %s", Address);
-
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(Hints));
-			Hints.ai_family = AF_UNSPEC;
-			Hints.ai_socktype = SOCK_STREAM;
-			Hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
-
-			struct addrinfo* Result;
-			if (getaddrinfo(Address.data(), 0, &Hints, &Result) != 0)
-				return AF_UNSPEC;
-
-			int Family = Result->ai_family;
-			freeaddrinfo(Result);
-
-			return Family;
 		}
 		int64_t Utils::Clock() noexcept
 		{
@@ -1363,132 +1512,144 @@ namespace Vitex
 		DNS::~DNS() noexcept
 		{
 			VI_TRACE("[dns] cleanup cache");
-			for (auto& Item : Names)
-				Core::Memory::Release(Item.second.second);
 			Names.clear();
 		}
-		Core::ExpectsSystem<Core::String> DNS::FromAddress(const std::string_view& Host, const std::string_view& Service)
+		Core::ExpectsSystem<Core::String> DNS::ReverseLookup(const std::string_view& Hostname, const std::string_view& Service)
 		{
-			VI_ASSERT(!Host.empty() && Core::Stringify::IsCString(Host), "host should be set");
-			VI_ASSERT(!Service.empty() && Core::Stringify::IsCString(Service), "port should be greater than zero");
-			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
-
-			struct sockaddr_storage Storage;
-			auto Port = Core::FromString<int>(Service);
-			int Family = Utils::GetAddressFamily(Host);
-			int Result = -1;
-
-			if (Family == AF_INET)
-			{
-				auto* Base = reinterpret_cast<struct sockaddr_in*>(&Storage);
-				Result = inet_pton(Family, Host.data(), &Base->sin_addr.s_addr);
-				Base->sin_family = Family;
-				Base->sin_port = Port ? htons(*Port) : 0;
-			}
-			else if (Family == AF_INET6)
-			{
-				auto* Base = reinterpret_cast<struct sockaddr_in6*>(&Storage);
-				Result = inet_pton(Family, Host.data(), &Base->sin6_addr);
-				Base->sin6_family = Family;
-				Base->sin6_port = Port ? htons(*Port) : 0;
-			}
-
-			if (Result == -1)
-				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%i address: invalid address", Host.data(), Service.data()));
-
-			char Hostname[NI_MAXHOST], ServiceName[NI_MAXSERV];
-			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Hostname, NI_MAXHOST, ServiceName, NI_MAXSERV, NI_NUMERICSERV) != 0)
-				return Core::SystemException(Core::Stringify::Text("dns reverse resolve %s:%i address: invalid address", Host.data(), Service.data()));
-
-			VI_DEBUG("[net] dns reverse resolved for identity %s:%i (host %s:%s is used)", Host.data(), Service.data(), Hostname, ServiceName);
-			return Core::String(Hostname, strnlen(Hostname, sizeof(Hostname) - 1));
-		}
-		Core::ExpectsSystem<SocketAddress*> DNS::FromService(const std::string_view& Host, const std::string_view& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
-		{
-			VI_ASSERT(!Host.empty() && Core::Stringify::IsCString(Host), "host should be set");
-			VI_ASSERT(!Service.empty() && Core::Stringify::IsCString(Service), "port should be greater than zero");
+			VI_ASSERT(Hostname.empty() || Core::Stringify::IsCString(Hostname), "host should be set");
+			VI_ASSERT(Service.empty() || Core::Stringify::IsCString(Service), "service should be set");
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
 
 			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(struct addrinfo));
+			memset(&Hints, 0, sizeof(Hints));
 			Hints.ai_family = AF_UNSPEC;
 
-			std::string_view IdentityProtocol;
+			if (HasIpAddress(Hostname))
+				Hints.ai_flags |= AI_NUMERICHOST;
+			if (Core::Stringify::HasInteger(Service))
+				Hints.ai_flags |= AI_NUMERICSERV;
+
+			struct addrinfo* Address = nullptr;
+			if (getaddrinfo(Hostname.empty() ? nullptr : Hostname.data(), Service.empty() ? nullptr : Service.data(), &Hints, &Address) != 0)
+				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address: invalid address", Hostname.data(), Service.data()));
+
+			SocketAddress Target = SocketAddress(Hostname, Core::FromString<uint16_t>(Service).Or(0), Address);
+			freeaddrinfo(Address);
+			return ReverseAddressLookup(Target);
+		}
+		Core::ExpectsPromiseSystem<Core::String> DNS::ReverseLookupDeferred(const std::string_view& SourceHostname, const std::string_view& SourceService)
+		{
+			Core::String Hostname = Core::String(SourceHostname), Service = Core::String(SourceService);
+			return Core::Cotask<Core::ExpectsSystem<Core::String>>([this, Hostname = std::move(Hostname), Service = std::move(Service)]() mutable
+			{
+				return ReverseLookup(Hostname, Service);
+			});
+		}
+		Core::ExpectsSystem<Core::String> DNS::ReverseAddressLookup(const SocketAddress& Address)
+		{
+			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
+			char ReverseHostname[NI_MAXHOST], ReverseService[NI_MAXSERV];
+			if (getnameinfo(Address.GetAddress(), Address.GetAddressSize(), ReverseHostname, NI_MAXHOST, ReverseService, NI_MAXSERV, NI_NUMERICSERV) != 0)
+				return Core::SystemException(Core::Stringify::Text("dns reverse resolve %s address: invalid address", GetAddressIdentification(Address).c_str()));
+
+			VI_DEBUG("[net] dns reverse resolved for entity %s (host %s:%s is used)", GetAddressIdentification(Address).c_str(), ReverseHostname, ReverseService);
+			return Core::String(ReverseHostname, strnlen(ReverseHostname, sizeof(ReverseHostname)));
+		}
+		Core::ExpectsPromiseSystem<Core::String> DNS::ReverseAddressLookupDeferred(const SocketAddress& Address)
+		{
+			return Core::Cotask<Core::ExpectsSystem<Core::String>>([this, Address]() mutable
+			{
+				return ReverseAddressLookup(Address);
+			});
+		}
+		Core::ExpectsSystem<SocketAddress> DNS::Lookup(const std::string_view& Hostname, const std::string_view& Service, DNSType Resolver, SocketProtocol Proto, SocketType Type)
+		{
+			VI_ASSERT(!Hostname.empty() && Core::Stringify::IsCString(Hostname), "host should be set");
+			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
+
+			int64_t Time = time(nullptr);
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(struct addrinfo));
+			Hints.ai_family = AF_UNSPEC;
 			switch (Proto)
 			{
 				case SocketProtocol::IP:
 					Hints.ai_protocol = IPPROTO_IP;
-					IdentityProtocol = "ip";
 					break;
 				case SocketProtocol::ICMP:
 					Hints.ai_protocol = IPPROTO_ICMP;
-					IdentityProtocol = "icmp";
-					break;
-				case SocketProtocol::TCP:
-					Hints.ai_protocol = IPPROTO_TCP;
-					IdentityProtocol = "tcp";
 					break;
 				case SocketProtocol::UDP:
 					Hints.ai_protocol = IPPROTO_UDP;
-					IdentityProtocol = "udp";
 					break;
 				case SocketProtocol::RAW:
 					Hints.ai_protocol = IPPROTO_RAW;
-					IdentityProtocol = "raw";
 					break;
+				case SocketProtocol::TCP:
 				default:
-					IdentityProtocol = "none";
+					Hints.ai_protocol = IPPROTO_TCP;
 					break;
 			}
-
-			std::string_view IdentityType;
 			switch (Type)
 			{
 				case SocketType::Datagram:
 					Hints.ai_socktype = SOCK_DGRAM;
-					IdentityType = "dgram";
 					break;
 				case SocketType::Raw:
 					Hints.ai_socktype = SOCK_RAW;
-					IdentityType = "raw";
 					break;
 				case SocketType::Reliably_Delivered_Message:
 					Hints.ai_socktype = SOCK_RDM;
-					IdentityType = "rdm";
 					break;
 				case SocketType::Sequence_Packet_Stream:
 					Hints.ai_socktype = SOCK_SEQPACKET;
-					IdentityType = "seqpacket";
 					break;
 				case SocketType::Stream:
 				default:
 					Hints.ai_socktype = SOCK_STREAM;
-					IdentityType = "stream";
 					break;
 			}
+			switch (Resolver)
+			{
+				case DNSType::Connect:
+					Hints.ai_flags = AI_CANONNAME;
+					break;
+				case DNSType::Listen:
+					Hints.ai_flags = AI_CANONNAME | AI_PASSIVE;
+					break;
+				default:
+					break;
+			}
+			if (HasIpAddress(Hostname))
+				Hints.ai_flags |= AI_NUMERICHOST;
+			if (Core::Stringify::HasInteger(Service))
+				Hints.ai_flags |= AI_NUMERICSERV;
 
-			int64_t Time = time(nullptr);
-			Core::String Identity;
-			Identity.reserve(IdentityProtocol.size() + IdentityType.size() + Host.size() + Service.size() + 8);
-			Identity.append(IdentityProtocol);
-			Identity.append(1, '_');
-			Identity.append(IdentityType);
-			Identity.append(1, '@');
-			Identity.append(Host);
-			Identity.append(1, ':');
-			Identity.append(Service);
+			char Buffer[Core::CHUNK_SIZE];
+			size_t HeaderSize = sizeof(uint16_t) * 7;
+			size_t MaxServiceSize = sizeof(Buffer) - HeaderSize;
+			size_t ServiceSize = std::min<size_t>(Service.size(), MaxServiceSize);
+			size_t HostnameSize = std::min<size_t>(Hostname.size(), MaxServiceSize - ServiceSize);
+			memcpy(Buffer + sizeof(uint32_t) * 0, &Resolver, sizeof(uint32_t));
+			memcpy(Buffer + sizeof(uint32_t) * 1, &Proto, sizeof(uint32_t));
+			memcpy(Buffer + sizeof(uint32_t) * 2, &Type, sizeof(uint32_t));
+			memcpy(Buffer + sizeof(uint32_t) * 3, Service.data(), ServiceSize);
+			memcpy(Buffer + sizeof(uint32_t) * 3 + ServiceSize, Hostname.data(), HostnameSize);
+
+			Core::KeyHasher<Core::String> Hasher;
+			size_t Hash = Hasher(std::string_view(Buffer, HeaderSize + ServiceSize + HostnameSize));
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Names.find(Identity);
+				auto It = Names.find(Hash);
 				if (It != Names.end() && It->second.first > Time)
 					return It->second.second;
 			}
 
 			struct addrinfo* Addresses = nullptr;
-			if (getaddrinfo(Host.data(), Service.data(), &Hints, &Addresses) != 0)
-				return Core::SystemException(Core::Stringify::Text("dns resolve %s address: invalid address", Identity.c_str()));
+			if (getaddrinfo(Hostname.empty() ? nullptr : Hostname.data(), Service.empty() ? nullptr : Service.data(), &Hints, &Addresses) != 0)
+				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address: invalid address", Hostname.data(), Service.data()));
 
-			struct addrinfo* Good = nullptr;
+			struct addrinfo* TargetAddress = nullptr;
 			Core::UnorderedMap<socket_t, addrinfo*> Hosts;
 			for (auto It = Addresses; It != nullptr; It = It->ai_next)
 			{
@@ -1500,27 +1661,27 @@ namespace Vitex
 						closesocket(Host.first);
 						VI_DEBUG("[net] close dns fd %i", (int)Host.first);
 					}
-					return Core::SystemException(Core::Stringify::Text("dns resolve %s address", Identity.c_str()), std::move(Connectable.Error()));
+					return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address", Hostname.data(), Service.data()), std::move(Connectable.Error()));
 				}
 				else if (!Connectable)
 					continue;
 
 				socket_t Connection = *Connectable;
 				VI_DEBUG("[net] open dns fd %i", (int)Connection);
-				if (DNS == DNSType::Connect)
+				if (Resolver == DNSType::Connect)
 				{
 					Hosts[Connection] = It;
 					continue;
 				}
 
-				Good = It;
+				TargetAddress = It;
 				closesocket(Connection);
 				VI_DEBUG("[net] close dns fd %i", (int)Connection);
 				break;
 			}
 
-			if (DNS == DNSType::Connect)
-				Good = TryConnectDNS(Hosts, CONNECT_TIMEOUT);
+			if (Resolver == DNSType::Connect)
+				TargetAddress = TryConnectDNS(Hosts, CONNECT_TIMEOUT);
 
 			for (auto& Host : Hosts)
 			{
@@ -1528,27 +1689,35 @@ namespace Vitex
 				VI_DEBUG("[net] close dns fd %i", (int)Host.first);
 			}
 
-			if (!Good)
+			if (!TargetAddress)
 			{
 				freeaddrinfo(Addresses);
-				return Core::SystemException(Core::Stringify::Text("dns resolve %s address: invalid address", Identity.c_str()), std::make_error_condition(std::errc::host_unreachable));
+				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address: invalid address", Hostname.data(), Service.data()), std::make_error_condition(std::errc::host_unreachable));
 			}
 
-			SocketAddress* Result = new SocketAddress(Addresses, Good);
-			VI_DEBUG("[net] dns resolved for identity %s (address %s is used)", Identity.c_str(), Utils::GetAddress(Good).c_str());
+			SocketAddress Result = SocketAddress(Hostname, Core::FromString<uint16_t>(Service).Or(0), TargetAddress);
+			VI_DEBUG("[net] dns resolved for entity %s:%s (address %s is used)", Hostname.data(), Service.data(), GetIpAddressIdentification(Result).c_str());
+			freeaddrinfo(Addresses);
 
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Names.find(Identity);
+			auto It = Names.find(Hash);
 			if (It != Names.end())
 			{
-				Core::Memory::Release(Result);
 				It->second.first = Time + DNS_TIMEOUT;
 				Result = It->second.second;
 			}
 			else
-				Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
+				Names[Hash] = std::make_pair(Time + DNS_TIMEOUT, Result);
 
 			return Result;
+		}
+		Core::ExpectsPromiseSystem<SocketAddress> DNS::LookupDeferred(const std::string_view& SourceHostname, const std::string_view& SourceService, DNSType Resolver, SocketProtocol Proto, SocketType Type)
+		{
+			Core::String Hostname = Core::String(SourceHostname), Service = Core::String(SourceService);
+			return Core::Cotask<Core::ExpectsSystem<SocketAddress>>([this, Hostname = std::move(Hostname), Service = std::move(Service), Resolver, Proto, Type]() mutable
+			{
+				return Lookup(Hostname, Service, Resolver, Proto, Type);
+			});
 		}
 
 		Multiplexer::Multiplexer() noexcept : Multiplexer(100, 256)
@@ -1580,17 +1749,28 @@ namespace Vitex
 		void Multiplexer::Shutdown() noexcept
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-			Core::UMutex<std::mutex> Unique(Exclusive);
 			DispatchTimers(Core::Schedule::GetClock());
 
-			VI_DEBUG("[net] shutdown multiplexer on fds (timeouts = %i)", (int)Timeouts.size());
-			for (auto& Item : Timeouts)
+			VI_DEBUG("[net] shutdown multiplexer on fds (timeouts = %i)", (int)Timers.size());
+			Core::OrderedMap<std::chrono::microseconds, Socket*> DirtyTimers;
+			Core::UnorderedSet<Socket*> DirtyTrackers;
+			Core::UMutex<std::mutex> Unique(Exclusive);
+			DirtyTimers.swap(Timers);
+			DirtyTrackers.swap(Trackers);
+
+			for (auto& Item : DirtyTrackers)
+			{
+				VI_DEBUG("[net] sock reset on fd %i", (int)Item->Fd);
+				Item->Events.Expiration = std::chrono::microseconds(0);
+				CancelEvents(Item, SocketPoll::Reset);
+			}
+
+			for (auto& Item : DirtyTimers)
 			{
 				VI_DEBUG("[net] sock timeout on fd %i", (int)Item.second->Fd);
 				Item.second->Events.Expiration = std::chrono::microseconds(0);
 				CancelEvents(Item.second, SocketPoll::Timeout);
 			}
-			Timeouts.clear();
 		}
 		int Multiplexer::Dispatch(uint64_t EventTimeout) noexcept
 		{
@@ -1611,20 +1791,20 @@ namespace Vitex
 		void Multiplexer::DispatchTimers(const std::chrono::microseconds& Time) noexcept
 		{
 			VI_MEASURE(Core::Timings::FileSystem);
-			if (Timeouts.empty())
+			if (Timers.empty())
 				return;
 
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			while (!Timeouts.empty())
+			while (!Timers.empty())
 			{
-				auto It = Timeouts.begin();
+				auto It = Timers.begin();
 				if (It->first > Time)
 					break;
 
 				VI_DEBUG("[net] sock timeout on fd %i", (int)It->second->Fd);
 				It->second->Events.Expiration = std::chrono::microseconds(0);
 				CancelEvents(It->second, SocketPoll::Timeout);
-				Timeouts.erase(It);
+				Timers.erase(It);
 			}
 		}
 		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept
@@ -1774,17 +1954,22 @@ namespace Vitex
 		}
 		void Multiplexer::AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
 		{
-			if (!Value->Events.Timeout)
-				return;
+			if (Value->Events.Timeout > 0)
+			{
+				VI_TRACE("[net] sock set timeout on fd %i (time = %i)", (int)Value->Fd, (int)Value->Events.Timeout);
+				auto Expiration = Time + std::chrono::milliseconds(Value->Events.Timeout);
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				while (Timers.find(Expiration) != Timers.end())
+					++Expiration;
 
-			VI_TRACE("[net] sock set timeout on fd %i (time = %i)", (int)Value->Fd, (int)Value->Events.Timeout);
-			auto Expiration = Time + std::chrono::milliseconds(Value->Events.Timeout);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			while (Timeouts.find(Expiration) != Timeouts.end())
-				++Expiration;
-
-			Timeouts[Expiration] = Value;
-			Value->Events.Expiration = Expiration;
+				Timers[Expiration] = Value;
+				Value->Events.Expiration = Expiration;
+			}
+			else
+			{
+				Value->Events.Expiration = std::chrono::microseconds(-1);
+				Trackers.insert(Value);
+			}
 		}
 		void Multiplexer::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
 		{
@@ -1793,27 +1978,36 @@ namespace Vitex
 		}
 		void Multiplexer::RemoveTimeout(Socket* Value) noexcept
 		{
-			if (Value->Events.Expiration <= std::chrono::microseconds(0))
-				return;
-
 			VI_TRACE("[net] sock cancel timeout on fd %i", (int)Value->Fd);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Timeouts.find(Value->Events.Expiration);
-			VI_ASSERT(It != Timeouts.end(), "socket timeout update de-sync happend");
-			Value->Events.Expiration = std::chrono::microseconds(0);
-			if (It != Timeouts.end())
-				Timeouts.erase(It);
+			if (Value->Events.Expiration > std::chrono::microseconds(0))
+			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				auto It = Timers.find(Value->Events.Expiration);
+				VI_ASSERT(It != Timers.end(), "socket timeout update de-sync happend");
+				Value->Events.Expiration = std::chrono::microseconds(0);
+				if (It != Timers.end())
+					Timers.erase(It);
+			}
+			else if (Value->Events.Expiration < std::chrono::microseconds(0))
+			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
+				Value->Events.Expiration = std::chrono::microseconds(0);
+				Trackers.erase(Value);
+			}
 		}
 		void Multiplexer::TryDispatch() noexcept
 		{
 			auto* Queue = Core::Schedule::Get();
-			Dispatch(Queue->HasParallelThreads(Core::Difficulty::Sync) ? DefaultTimeout : 10);
+			Dispatch(Queue->HasParallelThreads(Core::Difficulty::Sync) ? DefaultTimeout : 5);
 			TryEnqueue();
 		}
 		void Multiplexer::TryEnqueue() noexcept
 		{
-			if (Activations > 0)
-				Core::Codefer(std::bind(&Multiplexer::TryDispatch, this));
+			if (!Activations)
+				return;
+
+			auto* Queue = Core::Schedule::Get();
+			Queue->SetTask(std::bind(&Multiplexer::TryDispatch, this));
 		}
 		void Multiplexer::TryListen() noexcept
 		{
@@ -1852,17 +2046,16 @@ namespace Vitex
 			Connections.clear();
 			Multiplexer::Get()->Deactivate();
 		}
-		void Uplinks::ExpireConnection(RemoteHost* Address, Socket* Target)
+		void Uplinks::ExpireConnection(const SocketAddress& Address, Socket* Target)
 		{
-			VI_ASSERT(Address != nullptr, "address should be set");
-			ExpireConnectionName(GetName(Address), Target);
+			ExpireConnectionHashCode(Address.GetHashCode(), Target);
 		}
-		void Uplinks::ExpireConnectionName(const std::string_view& Name, Socket* Stream)
+		void Uplinks::ExpireConnectionHashCode(size_t HashCode, Socket* Stream)
 		{
 			VI_ASSERT(Stream != nullptr, "socket should be set");
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(Core::HglCast(Name));
+				auto Targets = Connections.find(HashCode);
 				if (Targets == Connections.end())
 					return;
 
@@ -1872,50 +2065,47 @@ namespace Vitex
 
 				Targets->second.erase(It);
 			}
-			VI_DEBUG("[uplink] expire fd %i of %.*s", (int)Stream->GetFd(), (int)Name.size(), Name.data());
-			Stream->CloseAsync([Stream](const Core::Option<std::error_condition>&) { Stream->Release(); });
+			VI_DEBUG("[uplink] expire fd %i of %" PRIu64, (int)Stream->GetFd(), (uint64_t)HashCode);
+			Stream->CloseQueued([Stream](const Core::Option<std::error_condition>&) { Stream->Release(); });
 		}
-		void Uplinks::ListenConnectionName(const std::string_view& Name, Socket* Target)
+		void Uplinks::ListenConnectionHashCode(size_t HashCode, Socket* Target)
 		{
-			Core::String Copy = Core::String(Name);
-			Multiplexer::Get()->WhenReadable(Target, [this, Copy, Target](SocketPoll Event)
+			Multiplexer::Get()->WhenReadable(Target, [this, HashCode, Target](SocketPoll Event)
 			{
 				if (Packet::IsError(Event))
-					ExpireConnectionName(Copy, Target);
+					ExpireConnectionHashCode(HashCode, Target);
 				else if (!Packet::IsSkip(Event))
-					ListenConnectionName(Copy, Target);
+					ListenConnectionHashCode(HashCode, Target);
 			});
 		}
 		void Uplinks::UnlistenConnection(Socket* Target)
 		{
 			Target->ClearEvents(false);
 		}
-		bool Uplinks::PushConnection(RemoteHost* Address, Socket* Stream)
+		bool Uplinks::PushConnection(const SocketAddress& Address, Socket* Stream)
 		{
 			VI_ASSERT(Stream != nullptr, "socket should be set");
-			VI_ASSERT(Address != nullptr, "address should be set");
 			if (!Stream->IsValid())
 				return false;
 
-			Core::String Name = GetName(Address);
+			size_t HashCode = Address.GetHashCode();
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Connections[Name].insert(Stream);
+				Connections[HashCode].insert(Stream);
 			}
 			Stream->SetIoTimeout(0);
 			Stream->SetBlocking(false);
-			ListenConnectionName(Name, Stream);
-			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+			ListenConnectionHashCode(HashCode, Stream);
+			VI_DEBUG("[uplink] store fd %i of %s (%" PRIu64 ")", (int)Stream->GetFd(), GetAddressIdentification(Address).c_str(), (uint64_t)HashCode);
 			return true;
 		}
-		Socket* Uplinks::PopConnection(RemoteHost* Address)
+		Socket* Uplinks::PopConnection(const SocketAddress& Address)
 		{
-			VI_ASSERT(Address != nullptr, "address should be set");
-			Core::String Name = GetName(Address);
+			size_t HashCode = Address.GetHashCode();
 			Socket* Stream = nullptr;
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(Name);
+				auto Targets = Connections.find(HashCode);
 				if (Targets == Connections.end() || Targets->second.empty())
 					return nullptr;
 
@@ -1924,7 +2114,7 @@ namespace Vitex
 				Targets->second.erase(It);
 			}
 			UnlistenConnection(Stream);
-			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+			VI_DEBUG("[uplink] reuse fd %i of %s (%" PRIu64 ")", (int)Stream->GetFd(), GetAddressIdentification(Address).c_str(), (uint64_t)HashCode);
 			return Stream;
 		}
 		size_t Uplinks::GetSize()
@@ -1934,10 +2124,6 @@ namespace Vitex
 			for (auto& Targets : Connections)
 				Size += Targets.second.size();
 			return Size;
-		}
-		Core::String Uplinks::GetName(RemoteHost* Address)
-		{
-			return Address->Hostname + ':' + Core::ToString(Address->Port) + (Address->Secure ? "@secure" : "@default");
 		}
 
 		CertificateBuilder::CertificateBuilder() noexcept
@@ -2194,34 +2380,6 @@ namespace Vitex
 			return PrivateKey;
 		}
 
-		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) noexcept : Names(NewNames), Usable(NewUsable)
-		{
-		}
-		SocketAddress::~SocketAddress() noexcept
-		{
-			if (Names != nullptr)
-				freeaddrinfo(Names);
-		}
-		bool SocketAddress::IsUsable() const
-		{
-			return Usable != nullptr;
-		}
-		addrinfo* SocketAddress::Get() const
-		{
-			return Usable;
-		}
-		addrinfo* SocketAddress::GetAlternatives() const
-		{
-			return Names;
-		}
-		Core::String SocketAddress::GetAddress() const
-		{
-			if (!Usable)
-				return Core::String();
-
-			return Utils::GetAddress(Usable);
-		}
-
 		Socket::IEvents::IEvents(IEvents&& Other) noexcept : ReadCallback(Other.ReadCallback), WriteCallback(Other.WriteCallback), Expiration(Other.Expiration), Timeout(Other.Timeout)
 		{
 			Other.Expiration = std::chrono::milliseconds(0);
@@ -2275,62 +2433,80 @@ namespace Vitex
 			Other.Fd = INVALID_SOCKET;
 			return *this;
 		}
-		Core::ExpectsIO<void> Socket::Accept(Socket* OutFd, Core::String* OutAddress)
+		Core::ExpectsIO<void> Socket::Accept(SocketAccept* Incoming)
 		{
-			VI_ASSERT(OutFd != nullptr, "socket should be set");
-			return Accept(&OutFd->Fd, OutAddress);
-		}
-		Core::ExpectsIO<void> Socket::Accept(socket_t* OutFd, Core::String* OutAddress)
-		{
-			VI_ASSERT(OutFd != nullptr, "socket should be set");
-
-			sockaddr Address;
-			socket_size_t Length = sizeof(sockaddr);
-			auto NewFd = ExecuteAccept(Fd, &Address, &Length);
+			VI_ASSERT(Incoming != nullptr, "incoming socket should be set");
+			char Address[ADDRESS_SIZE];
+			socket_size_t Length = sizeof(Address);
+			auto NewFd = ExecuteAccept(Fd, (sockaddr*)&Address, &Length);
 			if (!NewFd)
 			{
 				VI_TRACE("[net] fd %i: not acceptable", (int)Fd);
 				return NewFd.Error();
 			}
-			else
-				*OutFd = *NewFd;
 
-			VI_DEBUG("[net] accept fd %i on %i fd", (int)*OutFd, (int)Fd);
-			if (!OutAddress)
-				return Core::Expectation::Met;
-
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Address.sa_family, GetAddressStorage(&Address), Buffer, sizeof(Buffer));
-
-			size_t Size = strnlen(Buffer, sizeof(Buffer));
-			OutAddress->resize(Size);
-			memcpy(OutAddress->data(), Buffer, Size);
+			VI_DEBUG("[net] accept fd %i on %i fd", (int)*NewFd, (int)Fd);
+			Incoming->Address = SocketAddress(std::string_view(), 0, (sockaddr*)&Address, Length);
+			Incoming->Fd = *NewFd;
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
+		Core::ExpectsIO<void> Socket::AcceptQueued(SocketAcceptedCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (!Multiplexer::Get()->WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
+			if (!Multiplexer::Get()->WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
-				socket_t OutFd = INVALID_SOCKET;
+				SocketAccept Incoming;
 				if (!Packet::IsDone(Event))
 				{
-					Callback(OutFd, std::string_view());
+					Incoming.Fd = INVALID_SOCKET;
+					Callback(Incoming);
 					return;
 				}
 
-				Core::String OutAddress;
-				while (Accept(&OutFd, WithAddress ? &OutAddress : nullptr))
+				while (Accept(&Incoming))
 				{
-					if (!Callback(OutFd, OutAddress))
+					if (!Callback(Incoming))
 						break;
 				}
-
-				AcceptAsync(WithAddress, std::move(Callback));
+				AcceptQueued(std::move(Callback));
 			}))
 				return Core::OS::Error::GetConditionOr();
 
 			return Core::Expectation::Met;
+		}
+		Core::ExpectsPromiseIO<SocketAccept> Socket::AcceptDeferred()
+		{
+			SocketAccept Incoming;
+			auto Status = Accept(&Incoming);
+			if (Status)
+				return Core::ExpectsPromiseIO<SocketAccept>(std::move(Incoming));
+			else if (Status.Error() != std::errc::operation_would_block)
+				return Core::ExpectsPromiseIO<SocketAccept>(std::move(Status.Error()));
+
+			Core::ExpectsPromiseIO<SocketAccept> Future;
+			if (!Multiplexer::Get()->WhenReadable(this, [this, Future](SocketPoll Event) mutable
+			{
+				if (!Future.IsPending())
+					return;
+
+				if (Packet::IsDone(Event))
+				{
+					SocketAccept Incoming;
+					auto Status = Accept(&Incoming);
+					if (Status)
+						Future.Set(std::move(Incoming));
+					else
+						Future.Set(std::move(Status.Error()));
+				}
+				else
+					Future.Set(std::make_error_condition(std::errc::connection_aborted));
+			}))
+			{
+				if (Future.IsPending())
+					Future.Set(Core::OS::Error::GetConditionOr());
+			}
+
+			return Future;
 		}
 		Core::ExpectsIO<void> Socket::Shutdown(bool Gracefully)
 		{
@@ -2342,13 +2518,13 @@ namespace Vitex
 				Device = nullptr;
 			}
 #endif
+			ClearEvents(Gracefully);
 			if (Fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
 			uint8_t Buffer;
 			SetBlocking(false);
 			while (Read(&Buffer, 1));
-			ClearEvents(Gracefully);
 
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
@@ -2369,14 +2545,13 @@ namespace Vitex
 				Device = nullptr;
 			}
 #endif
+			ClearEvents(false);
 			if (Fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			ClearEvents(false);
-			SetBlocking(false);
-
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
+			SetBlocking(false);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
 			shutdown(Fd, SD_SEND);
 
@@ -2402,13 +2577,12 @@ namespace Vitex
 				Utils::Poll(&Handle, 1, 1);
 			}
 
-			ClearEvents(false);
 			closesocket(Fd);
 			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> Socket::CloseAsync(SocketStatusCallback&& Callback)
+		Core::ExpectsIO<void> Socket::CloseQueued(SocketStatusCallback&& Callback)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 #ifdef VI_OPENSSL
@@ -2419,24 +2593,35 @@ namespace Vitex
 				Device = nullptr;
 			}
 #endif
+			ClearEvents(false);
 			if (Fd == INVALID_SOCKET)
 			{
 				Callback(std::make_error_condition(std::errc::bad_file_descriptor));
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			ClearEvents(false);
-			SetBlocking(false);
-
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
+			SetBlocking(false);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
 			shutdown(Fd, SD_SEND);
 
 			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)Fd, Error);
-			return TryCloseAsync(std::move(Callback), Core::Schedule::GetClock(), true);
+			return TryCloseQueued(std::move(Callback), Core::Schedule::GetClock(), true);
 		}
-		Core::ExpectsIO<void> Socket::TryCloseAsync(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying)
+		Core::ExpectsPromiseIO<void> Socket::CloseDeferred()
+		{
+			Core::ExpectsPromiseIO<void> Future;
+			CloseQueued([Future](const Core::Option<std::error_condition>& Error) mutable
+			{
+				if (Error)
+					Future.Set(*Error);
+				else
+					Future.Set(Core::Expectation::Met);
+			});
+			return Future;
+		}
+		Core::ExpectsIO<void> Socket::TryCloseQueued(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying)
 		{
 			Events.Timeout = CLOSE_TIMEOUT;
 			while (KeepTrying && Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
@@ -2453,7 +2638,7 @@ namespace Vitex
 					Multiplexer::Get()->WhenReadable(this, [this, Time, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsSkip(Event))
-							TryCloseAsync(std::move(Callback), Time, Packet::IsDone(Event));
+							TryCloseQueued(std::move(Callback), Time, Packet::IsDone(Event));
 						else
 							Callback(Core::Optional::None);
 					});
@@ -2468,7 +2653,6 @@ namespace Vitex
 				}
 			}
 
-			ClearEvents(false);
 			closesocket(Fd);
 			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
@@ -2476,7 +2660,7 @@ namespace Vitex
 			Callback(Core::Optional::None);
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<size_t> Socket::SendFile(FILE* Stream, size_t Offset, size_t Size)
+		Core::ExpectsIO<size_t> Socket::WriteFile(FILE* Stream, size_t Offset, size_t Size)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			VI_ASSERT(Offset >= 0, "offset should be set and positive");
@@ -2526,7 +2710,7 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 			}
-		Core::ExpectsIO<size_t> Socket::SendFileAsync(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer)
+		Core::ExpectsIO<size_t> Socket::WriteFileQueued(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -2541,7 +2725,7 @@ namespace Vitex
 			size_t Written = 0;
 			while (Size > 0)
 			{
-				auto Status = SendFile(Stream, Offset, Size);
+				auto Status = WriteFile(Stream, Offset, Size);
 				if (!Status)
 				{
 					if (Status.Error() == std::errc::operation_would_block)
@@ -2549,7 +2733,7 @@ namespace Vitex
 						Multiplexer::Get()->WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 						{
 							if (Packet::IsDone(Event))
-								SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
+								WriteFileQueued(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
 							else
 								Callback(Event);
 						});
@@ -2570,6 +2754,18 @@ namespace Vitex
 
 			Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync);
 			return Written;
+		}
+		Core::ExpectsPromiseIO<size_t> Socket::WriteFileDeferred(FILE* Stream, size_t Offset, size_t Size)
+		{
+			Core::ExpectsPromiseIO<size_t> Future;
+			WriteFileQueued(Stream, Offset, Size, [Future, Size](SocketPoll Event) mutable
+			{
+				if (Packet::IsDone(Event))
+					Future.Set(Size);
+				else
+					Future.Set(Packet::ToCondition(Event));
+			});
+			return Future;
 		}
 		Core::ExpectsIO<size_t> Socket::Write(const uint8_t* Buffer, size_t Size)
 		{
@@ -2600,7 +2796,7 @@ namespace Vitex
 			Outcome += Written;
 			return Written;
 		}
-		Core::ExpectsIO<size_t> Socket::WriteAsync(const uint8_t* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync, uint8_t* TempBuffer, size_t TempOffset)
+		Core::ExpectsIO<size_t> Socket::WriteQueued(const uint8_t* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync, uint8_t* TempBuffer, size_t TempOffset)
 		{
 			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -2642,7 +2838,7 @@ namespace Vitex
 								Callback(Event);
 							}
 							else
-								WriteAsync(TempBuffer, Size, std::move(Callback), CopyBufferWhenAsync, TempBuffer, TempOffset);
+								WriteQueued(TempBuffer, Size, std::move(Callback), CopyBufferWhenAsync, TempBuffer, TempOffset);
 						});
 					}
 					else
@@ -2668,6 +2864,18 @@ namespace Vitex
 
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
 			return Written;
+		}
+		Core::ExpectsPromiseIO<size_t> Socket::WriteDeferred(const uint8_t* Buffer, size_t Size)
+		{
+			Core::ExpectsPromiseIO<size_t> Future;
+			WriteQueued(Buffer, Size, [Future, Size](SocketPoll Event) mutable
+			{
+				if (Packet::IsDone(Event))
+					Future.Set(Size);
+				else
+					Future.Set(Packet::ToCondition(Event));
+			});
+			return Future;
 		}
 		Core::ExpectsIO<size_t> Socket::Read(uint8_t* Buffer, size_t Size)
 		{
@@ -2699,43 +2907,7 @@ namespace Vitex
 			Income += Received;
 			return Received;
 		}
-		Core::ExpectsIO<size_t> Socket::Read(uint8_t* Buffer, size_t Size, SocketReadCallback&& Callback)
-		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
-			{
-				Callback(SocketPoll::Reset, nullptr, 0);
-				return std::make_error_condition(std::errc::bad_file_descriptor);
-			}
-
-			size_t Offset = 0;
-			while (Size > 0)
-			{
-				auto Status = Read(Buffer + Offset, Size);
-				if (!Status)
-				{
-					if (Status.Error() == std::errc::operation_would_block)
-						Callback(SocketPoll::Timeout, nullptr, 0);
-					else
-						Callback(SocketPoll::Reset, nullptr, 0);
-
-					return Status;
-				}
-
-				size_t Received = *Status;
-				if (!Callback(SocketPoll::Next, Buffer + Offset, Received))
-					break;
-
-				Size -= Received;
-				Offset += Received;
-			}
-
-			Callback(SocketPoll::FinishSync, nullptr, 0);
-			return Offset;
-		}
-		Core::ExpectsIO<size_t> Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer)
+		Core::ExpectsIO<size_t> Socket::ReadQueued(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer)
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_MEASURE(Core::Timings::Networking);
@@ -2758,7 +2930,7 @@ namespace Vitex
 						Multiplexer::Get()->WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
 						{
 							if (Packet::IsDone(Event))
-								ReadAsync(Size, std::move(Callback), ++TempBuffer);
+								ReadQueued(Size, std::move(Callback), ++TempBuffer);
 							else
 								Callback(Event, nullptr, 0);
 						});
@@ -2779,6 +2951,31 @@ namespace Vitex
 
 			Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 			return Offset;
+		}
+		Core::ExpectsPromiseIO<Core::String> Socket::ReadDeferred(size_t Size)
+		{
+			Core::String* Merge = Core::Memory::New<Core::String>();
+			Merge->reserve(Size);
+
+			Core::ExpectsPromiseIO<Core::String> Future;
+			ReadQueued(Size, [Future, Merge](SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+			{
+				if (Packet::IsDone(Event))
+				{
+					Future.Set(std::move(*Merge));
+					Core::Memory::Delete(Merge);
+				}
+				else if (!Packet::IsData(Event))
+				{
+					Future.Set(Packet::ToCondition(Event));
+					Core::Memory::Delete(Merge);
+				}
+				else if (Buffer != nullptr && Size > 0)
+					Merge->append((char*)Buffer, Size);
+
+				return true;
+			});
+			return Future;
 		}
 		Core::ExpectsIO<size_t> Socket::ReadUntil(const std::string_view& Match, SocketReadCallback&& Callback)
 		{
@@ -2833,7 +3030,7 @@ namespace Vitex
 
 			return Receiving;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntilAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
+		Core::ExpectsIO<size_t> Socket::ReadUntilQueued(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
 		{
 			VI_ASSERT(!Match.empty(), "match should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -2867,7 +3064,7 @@ namespace Vitex
 						Multiplexer::Get()->WhenReadable(this, [this, TempIndex, Match = std::move(Match), Callback = std::move(Callback)](SocketPoll Event) mutable
 						{
 							if (Packet::IsDone(Event))
-								ReadUntilAsync(std::move(Match), std::move(Callback), TempIndex, true);
+								ReadUntilQueued(std::move(Match), std::move(Callback), TempIndex, true);
 							else
 								Callback(Event, nullptr, 0);
 						});
@@ -2896,6 +3093,36 @@ namespace Vitex
 			}
 
 			return Receiving;
+		}
+		Core::ExpectsPromiseIO<Core::String> Socket::ReadUntilDeferred(Core::String&& Match, size_t MaxSize)
+		{
+			Core::String* Merge = Core::Memory::New<Core::String>();
+			Merge->reserve(MaxSize);
+
+			Core::ExpectsPromiseIO<Core::String> Future;
+			ReadUntilQueued(std::move(Match), [Future, Merge, MaxSize](SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+			{
+				if (Packet::IsDone(Event))
+				{
+					Future.Set(std::move(*Merge));
+					Core::Memory::Delete(Merge);
+				}
+				else if (!Packet::IsData(Event))
+				{
+					Future.Set(Packet::ToCondition(Event));
+					Core::Memory::Delete(Merge);
+				}
+				else if (Buffer != nullptr && Size > 0)
+				{
+					Size = std::min<size_t>(MaxSize, Size);
+					Merge->append((char*)Buffer, Size);
+					MaxSize -= Size;
+					return MaxSize > 0;
+				}
+
+				return true;
+			});
+			return Future;
 		}
 		Core::ExpectsIO<size_t> Socket::ReadUntilChunked(const std::string_view& Match, SocketReadCallback&& Callback)
 		{
@@ -2955,7 +3182,7 @@ namespace Vitex
 
 			return Receiving;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntilChunkedAsync(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
+		Core::ExpectsIO<size_t> Socket::ReadUntilChunkedQueued(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
 		{
 			VI_ASSERT(!Match.empty(), "match should be set");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
@@ -2989,7 +3216,7 @@ namespace Vitex
 						Multiplexer::Get()->WhenReadable(this, [this, TempIndex, Match = std::move(Match), Callback = std::move(Callback)](SocketPoll Event) mutable
 						{
 							if (Packet::IsDone(Event))
-								ReadUntilChunkedAsync(std::move(Match), std::move(Callback), TempIndex, true);
+								ReadUntilChunkedQueued(std::move(Match), std::move(Callback), TempIndex, true);
 							else
 								Callback(Event, nullptr, 0);
 						});
@@ -3027,20 +3254,47 @@ namespace Vitex
 
 			return Receiving;
 		}
-		Core::ExpectsIO<void> Socket::Connect(SocketAddress* Address, uint64_t Timeout)
+		Core::ExpectsPromiseIO<Core::String> Socket::ReadUntilChunkedDeferred(Core::String&& Match, size_t MaxSize)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
+			Core::String* Merge = Core::Memory::New<Core::String>();
+			Merge->reserve(MaxSize);
+
+			Core::ExpectsPromiseIO<Core::String> Future;
+			ReadUntilChunkedQueued(std::move(Match), [Future, Merge, MaxSize](SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+			{
+				if (Packet::IsDone(Event))
+				{
+					Future.Set(std::move(*Merge));
+					Core::Memory::Delete(Merge);
+				}
+				else if (!Packet::IsData(Event))
+				{
+					Future.Set(Packet::ToCondition(Event));
+					Core::Memory::Delete(Merge);
+				}
+				else if (Buffer != nullptr && Size > 0)
+				{
+					Size = std::min<size_t>(MaxSize, Size);
+					Merge->append((char*)Buffer, Size);
+					MaxSize -= Size;
+					return MaxSize > 0;
+				}
+
+				return true;
+			});
+			return Future;
+		}
+		Core::ExpectsIO<void> Socket::Connect(const SocketAddress& Address, uint64_t Timeout)
+		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] connect fd %i", (int)Fd);
-			addrinfo* Source = Address->Get();
-			if (connect(Fd, Source->ai_addr, (int)Source->ai_addrlen) != 0)
+			if (connect(Fd, Address.GetAddress(), (int)Address.GetAddressSize()) != 0)
 				return Core::OS::Error::GetConditionOr();
 
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> Socket::ConnectAsync(SocketAddress* Address, SocketStatusCallback&& Callback)
+		Core::ExpectsIO<void> Socket::ConnectQueued(const SocketAddress& Address, SocketStatusCallback&& Callback)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			VI_MEASURE(Core::Timings::Networking);
 			if (Fd == INVALID_SOCKET)
@@ -3050,8 +3304,7 @@ namespace Vitex
 			}
 
 			VI_DEBUG("[net] connect fd %i", (int)Fd);
-			addrinfo* Source = Address->Get();
-			int Status = connect(Fd, Source->ai_addr, (int)Source->ai_addrlen);
+			int Status = connect(Fd, Address.GetAddress(), (int)Address.GetAddressSize());
 			if (Status == 0)
 			{
 				Callback(Core::Optional::None);
@@ -3075,16 +3328,26 @@ namespace Vitex
 			});
 			return std::make_error_condition(std::errc::operation_would_block);
 		}
-		Core::ExpectsIO<void> Socket::Open(SocketAddress* Address)
+		Core::ExpectsPromiseIO<void> Socket::ConnectDeferred(const SocketAddress& Address)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
+			Core::ExpectsPromiseIO<void> Future;
+			ConnectQueued(Address, [Future](const Core::Option<std::error_condition>& Error) mutable
+			{
+				if (Error)
+					Future.Set(*Error);
+				else
+					Future.Set(Core::Expectation::Met);
+			});
+			return Future;
+		}
+		Core::ExpectsIO<void> Socket::Open(const SocketAddress& Address)
+		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] assign fd");
 			if (!Core::OS::Control::Has(Core::AccessOption::Net))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			addrinfo* Source = Address->Get();
-			auto Openable = ExecuteSocket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
+			auto Openable = ExecuteSocket(Address.GetFamily(), Address.GetType(), Address.GetProtocol());
 			if (!Openable)
 				return Openable.Error();
 
@@ -3096,8 +3359,8 @@ namespace Vitex
 		{
 #ifdef VI_OPENSSL
 			VI_MEASURE(Core::Timings::Networking);
-			VI_ASSERT(Core::Stringify::IsCString(Hostname), "hostname should be set");
-			VI_TRACE("[net] fd %i create ssl device on %s", (int)Fd, Hostname);
+			VI_ASSERT(Hostname.empty() || Core::Stringify::IsCString(Hostname), "hostname should be set");
+			VI_TRACE("[net] fd %i create ssl device on %.*s", (int)Fd, (int)Hostname.size(), Hostname.data());
 			if (Device != nullptr)
 				SSL_free(Device);
 
@@ -3114,14 +3377,12 @@ namespace Vitex
 #endif
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsIO<void> Socket::Bind(SocketAddress* Address)
+		Core::ExpectsIO<void> Socket::Bind(const SocketAddress& Address)
 		{
-			VI_ASSERT(Address && Address->IsUsable(), "address should be set and usable");
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] bind fd %i", (int)Fd);
 
-			addrinfo* Source = Address->Get();
-			if (bind(Fd, Source->ai_addr, (int)Source->ai_addrlen) != 0)
+			if (bind(Fd, Address.GetAddress(), (int)Address.GetAddressSize()) != 0)
 				return Core::OS::Error::GetConditionOr();
 
 			return Core::Expectation::Met;
@@ -3264,35 +3525,23 @@ namespace Vitex
 		{
 			return GetAny(Level, Option, (char*)Value, nullptr);
 		}
-		Core::ExpectsIO<Core::String> Socket::GetRemoteAddress()
+		Core::ExpectsIO<SocketAddress> Socket::GetPeerAddress()
 		{
 			struct sockaddr_storage Address;
-			socklen_t Size = sizeof(Address);
-
-			if (getpeername(Fd, (struct sockaddr*)&Address, &Size) == -1)
+			socklen_t Length = sizeof(Address);
+			if (getpeername(Fd, (sockaddr*)&Address, &Length) == -1)
 				return Core::OS::Error::GetConditionOr();
 
-			char Buffer[NI_MAXHOST];
-			if (getnameinfo((struct sockaddr*)&Address, Size, Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
-				return Core::OS::Error::GetConditionOr();
-
-			VI_TRACE("[net] fd %i remote address: %s", (int)Fd, Buffer);
-			return Core::String(Buffer, strnlen(Buffer, sizeof(Buffer) - 1));
+			return SocketAddress(std::string_view(), 0, (sockaddr*)&Address, Length);
 		}
-		Core::ExpectsIO<int> Socket::GetPort()
+		Core::ExpectsIO<SocketAddress> Socket::GetThisAddress()
 		{
 			struct sockaddr_storage Address;
-			socket_size_t Size = sizeof(Address);
-			if (getsockname(Fd, reinterpret_cast<struct sockaddr*>(&Address), &Size) == -1)
+			socket_size_t Length = sizeof(Address);
+			if (getsockname(Fd, reinterpret_cast<struct sockaddr*>(&Address), &Length) == -1)
 				return Core::OS::Error::GetConditionOr();
 
-			if (Address.ss_family == AF_INET)
-				return ntohs(reinterpret_cast<struct sockaddr_in*>(&Address)->sin_port);
-
-			if (Address.ss_family == AF_INET6)
-				return ntohs(reinterpret_cast<struct sockaddr_in6*>(&Address)->sin6_port);
-
-			return std::make_error_condition(std::errc::bad_address);
+			return SocketAddress(std::string_view(), 0, (sockaddr*)&Address, Length);
 		}
 		Core::ExpectsIO<Certificate> Socket::GetCertificate()
 		{
@@ -3344,7 +3593,7 @@ namespace Vitex
 			return Device != nullptr;
 		}
 
-		SocketListener::SocketListener(const std::string_view& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Stream(new Socket())
+		SocketListener::SocketListener(const std::string_view& NewName, const SocketAddress& NewAddress, bool Secure) : Name(NewName), Address(NewAddress), Stream(new Socket()), IsSecure(Secure)
 		{
 		}
 		SocketListener::~SocketListener() noexcept
@@ -3363,17 +3612,20 @@ namespace Vitex
 			Certificates.clear();
 #endif
 		}
-		RemoteHost& SocketRouter::Listen(const std::string_view& Hostname, int Port, bool Secure)
+		Core::ExpectsSystem<RouterListener*> SocketRouter::Listen(const std::string_view& Hostname, const std::string_view& Service, bool Secure)
 		{
-			return Listen("*", Hostname, Port, Secure);
+			return Listen("*", Hostname, Service, Secure);
 		}
-		RemoteHost& SocketRouter::Listen(const std::string_view& Pattern, const std::string_view& Hostname, int Port, bool Secure)
+		Core::ExpectsSystem<RouterListener*> SocketRouter::Listen(const std::string_view& Pattern, const std::string_view& Hostname, const std::string_view& Service, bool Secure)
 		{
-			RemoteHost& Listener = Listeners[Core::String(Pattern.empty() ? "*" : Pattern)];
-			Listener.Hostname = Hostname;
-			Listener.Port = Port;
-			Listener.Secure = Secure;
-			return Listener;
+			auto Address = DNS::Get()->Lookup(Hostname, Service, DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
+			if (!Address)
+				return Address.Error();
+
+			RouterListener& Info = Listeners[Core::String(Pattern.empty() ? "*" : Pattern)];
+			Info.Address = std::move(*Address);
+			Info.IsSecure = Secure;
+			return &Info;
 		}
 
 		SocketConnection::~SocketConnection() noexcept
@@ -3486,41 +3738,24 @@ namespace Vitex
 				return Core::SystemException("configure server: invalid listeners", std::make_error_condition(std::errc::invalid_argument));
 			}
 
-			DNS* Service = DNS::Get();
 			for (auto&& It : Router->Listeners)
 			{
-				if (It.second.Hostname.empty())
-					continue;
-
-				auto Source = Service->FromService(It.second.Hostname, Core::ToString(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
-				if (!Source)
-					return Core::SystemException(Core::Stringify::Text("resolve %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Source.Error().error()));
-
-				SocketListener* Value = new SocketListener(It.first, It.second, *Source);
-				auto Status = Value->Stream->Open(*Source);
+				SocketListener* Host = new SocketListener(It.first, It.second.Address, It.second.IsSecure);
+				auto Status = Host->Stream->Open(Host->Address);
 				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("open %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
+					return Core::SystemException(Core::Stringify::Text("open %s listener error", GetAddressIdentification(Host->Address)), std::move(Status.Error()));
 
-				Status = Value->Stream->Bind(*Source);
+				Status = Host->Stream->Bind(Host->Address);
 				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("bind %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
+					return Core::SystemException(Core::Stringify::Text("bind %s listener error", GetAddressIdentification(Host->Address)), std::move(Status.Error()));
 
-				Status = Value->Stream->Listen((int)Router->BacklogQueue);
+				Status = Host->Stream->Listen((int)Router->BacklogQueue);
 				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("listen %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Status.Error()));
+					return Core::SystemException(Core::Stringify::Text("listen %s listener error", GetAddressIdentification(Host->Address)), std::move(Status.Error()));
 
-				Value->Stream->SetCloseOnExec();
-				Value->Stream->SetBlocking(false);
-				Listeners.push_back(Value);
-
-				if (It.second.Port <= 0)
-				{
-					auto Port = Value->Stream->GetPort();
-					if (!Port)
-						return Core::SystemException(Core::Stringify::Text("fetch port of %s:%i listener error", It.second.Hostname.c_str(), (int)It.second.Port), std::move(Port.Error()));
-					else
-						It.second.Port = *Port;
-				}
+				Host->Stream->SetCloseOnExec();
+				Host->Stream->SetBlocking(false);
+				Listeners.push_back(Host);
 			}
 #ifdef VI_OPENSSL
 			for (auto&& It : Router->Certificates)
@@ -3654,16 +3889,18 @@ namespace Vitex
 			VI_DEBUG("[net] listen server on %i listeners", (int)Listeners.size());
 			for (auto&& Source : Listeners)
 			{
-				Source->Stream->AcceptAsync(true, [this, Source](socket_t Fd, const std::string_view& RemoteAddress)
+				Source->Stream->AcceptQueued([this, Source](SocketAccept& Incoming)
 				{
-					if (Fd == INVALID_SOCKET || State != ServerState::Working)
+					if (State != ServerState::Working)
 					{
-						closesocket(Fd);
+						if (Incoming.Fd != INVALID_SOCKET)
+							closesocket(Incoming.Fd);
 						return false;
 					}
+					else if (Incoming.Fd == INVALID_SOCKET)
+						return false;
 
-					Core::String IpAddress = Core::String(RemoteAddress);
-					Core::Cospawn([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable { Accept(Source, Fd, IpAddress); });
+					Core::Cospawn([this, Source, Incoming]() mutable { Accept(Source, std::move(Incoming)); });
 					return true;
 				});
 			}
@@ -3672,20 +3909,20 @@ namespace Vitex
 		}
 		Core::ExpectsIO<void> SocketServer::Refuse(SocketConnection* Base)
 		{
-			return Base->Stream->CloseAsync([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
+			return Base->Stream->CloseQueued([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 		}
-		Core::ExpectsIO<void> SocketServer::Accept(SocketListener* Host, socket_t Fd, const std::string_view& Address)
+		Core::ExpectsIO<void> SocketServer::Accept(SocketListener* Host, SocketAccept&& Incoming)
 		{
 			auto* Base = Pop(Host);
 			if (!Base)
 			{
-				closesocket(Fd);
+				closesocket(Incoming.Fd);
 				return std::make_error_condition(State == ServerState::Working ? std::errc::not_enough_memory : std::errc::connection_aborted);
 			}
 
-			strncpy(Base->RemoteAddress, Address.data(), std::min(Address.size(), sizeof(Base->RemoteAddress)));
+			Base->Address = std::move(Incoming.Address);
 			Base->Stream->SetIoTimeout(Router->SocketTimeout);
-			Base->Stream->MigrateTo(Fd, false);
+			Base->Stream->MigrateTo(Incoming.Fd, false);
 			Base->Stream->SetCloseOnExec();
 			Base->Stream->SetNoDelay(Router->EnableNoDelay);
 			Base->Stream->SetKeepAlive(true);
@@ -3700,7 +3937,7 @@ namespace Vitex
 				return std::make_error_condition(std::errc::too_many_files_open);
 			}
 
-			if (!Host->Hostname.Secure)
+			if (!Host->IsSecure)
 			{
 				OnRequestOpen(Base);
 				return Core::Expectation::Met;
@@ -3809,7 +4046,7 @@ namespace Vitex
 			Base->Stream->Income = Base->Stream->Outcome = 0;
 			Base->Stream->SetIoTimeout(Router->SocketTimeout);
 			if (Base->Info.Abort || !Base->Info.Reuses)
-				return Base->Stream->CloseAsync([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
+				return Base->Stream->CloseQueued([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
 			else if (Base->Stream->IsValid())
 				Core::Codefer(std::bind(&SocketServer::OnRequestOpen, this, Base));
 			else
@@ -3961,13 +4198,6 @@ namespace Vitex
 			if (Config.IsAsync)
 				Multiplexer::Get()->Deactivate();
 		}
-		Core::ExpectsSystem<void> SocketClient::OnResolveHost(RemoteHost* Address)
-		{
-			if (!Address)
-				return Core::SystemException("resolve host address: unreachable", std::make_error_condition(std::errc::host_unreachable));
-
-			return Core::Expectation::Met;
-		}
 		Core::ExpectsSystem<void> SocketClient::OnConnect()
 		{
 			Report(Core::Expectation::Met);
@@ -3982,47 +4212,33 @@ namespace Vitex
 			Report(Core::Expectation::Met);
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsPromiseSystem<void> SocketClient::Connect(RemoteHost* Source, bool Async, uint32_t VerifyPeers)
+		Core::ExpectsPromiseSystem<void> SocketClient::Connect(const SocketAddress& Address, bool Async, int32_t VerifyPeers)
 		{
-			VI_ASSERT(Source != nullptr && !Source->Hostname.empty(), "address should be set");
-			if (!Async && Config.IsAsync)
+			bool AsyncPolicyUpdated = Async != Config.IsAsync;
+			if (AsyncPolicyUpdated && !Async)
 				Multiplexer::Get()->Deactivate();
 
-			bool IsReusing = TryReuseStream(Source, Async);
+			bool IsReusing = TryReuseStream(Address);
 			Config.VerifyPeers = VerifyPeers;
 			Config.IsAsync = Async;
-			State.Hostname = *Source;
-			if (IsReusing)
-			{
-				if (Config.IsAsync)
-					Multiplexer::Get()->Activate();
-				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
-			}
+			State.Address = Address;
+			if (AsyncPolicyUpdated && Async)
+				Multiplexer::Get()->Activate();
 
-			auto ResolveStatus = OnResolveHost(Source);
-			if (!ResolveStatus)
-			{
-				Report(ResolveStatus.Error());
-				return ResolveStatus;
-			}
+			if (IsReusing)
+				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+
+			auto Status = Net.Stream->Open(State.Address);
+			if (!Status)
+				return Core::ExpectsPromiseSystem<void>(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::move(Status.Error())));
 
 			Core::ExpectsPromiseSystem<void> Future;
 			State.Done = [Future](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); };
-			if (!Async)
-			{
-				TryConnect(DNS::Get()->FromService(State.Hostname.Hostname, Core::ToString(State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
-				return Future;
-			}
 
 			auto* Context = this;
-			Multiplexer::Get()->Activate();
-			Core::Cotask<Core::ExpectsSystem<SocketAddress*>>([Context]()
-			{
-				return DNS::Get()->FromService(Context->State.Hostname.Hostname, Core::ToString(Context->State.Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
-			}).When([Context](Core::ExpectsSystem<SocketAddress*>&& Host)
-			{
-				Context->TryConnect(std::move(Host));
-			});
+			Net.Stream->SetBlocking(!Config.IsAsync);
+			Net.Stream->SetCloseOnExec();
+			Net.Stream->ConnectQueued(State.Address, std::bind(&SocketClient::DispatchConnection, this, std::placeholders::_1));
 			return Future;
 		}
 		Core::ExpectsPromiseSystem<void> SocketClient::Disconnect()
@@ -4031,7 +4247,7 @@ namespace Vitex
 				return Core::ExpectsPromiseSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
-			if (Timeout.Cache && Cache != nullptr && Cache->PushConnection(&State.Hostname, Net.Stream))
+			if (Timeout.Cache && Cache != nullptr && Cache->PushConnection(State.Address, Net.Stream))
 			{
 				Net.Stream = nullptr;
 				Timeout.Cache = false;
@@ -4054,7 +4270,8 @@ namespace Vitex
 			if (Net.Stream->GetDevice() || !Net.Context)
 				return Callback(Core::SystemException("ssl handshake error: invalid operation", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-			auto Status = Net.Stream->Secure(Net.Context, State.Hostname.Hostname);
+			auto Hostname = State.Address.GetHostname();
+			auto Status = Net.Stream->Secure(Net.Context, Hostname ? std::string_view(*Hostname) : std::string_view());
 			if (!Status)
 				return Callback(Core::SystemException("ssl handshake establish error", std::move(Status.Error())));
 
@@ -4113,29 +4330,12 @@ namespace Vitex
 			Callback(Core::SystemException("ssl connect error: unsupported", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
-		void SocketClient::TryConnect(Core::ExpectsSystem<SocketAddress*>&& Host)
-		{
-			if (!Host)
-				return Report(std::move(Host.Error()));
-
-			auto Status = Net.Stream->Open(*Host);
-			if (!Status)
-				return Report(Core::SystemException(Core::Stringify::Text("connect to %s:%i error", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port), std::move(Status.Error())));
-
-			auto* Context = this;
-			Net.Stream->SetBlocking(!Config.IsAsync);
-			Net.Stream->SetCloseOnExec();
-			Net.Stream->ConnectAsync(*Host, [Context](const Core::Option<std::error_condition>& ErrorCode)
-			{
-				Context->DispatchConnection(ErrorCode);
-			});
-		}
 		void SocketClient::DispatchConnection(const Core::Option<std::error_condition>& ErrorCode)
 		{
 			if (ErrorCode)
-				return Report(Core::SystemException(Core::Stringify::Text("connect to %s:%i error", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port), std::error_condition(*ErrorCode)));
+				return Report(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::error_condition(*ErrorCode)));
 #ifdef VI_OPENSSL
-			if (!State.Hostname.Secure)
+			if (Config.VerifyPeers < 0)
 				return DispatchSimpleHandshake();
 
 			if (!Net.Context || (Config.VerifyPeers > 0 && SSL_CTX_get_verify_depth(Net.Context) <= 0))
@@ -4147,9 +4347,9 @@ namespace Vitex
 					Net.Context = nullptr;
 				}
 
-				auto NewContext = Transporter->CreateClientContext(Config.VerifyPeers);
+				auto NewContext = Transporter->CreateClientContext((size_t)Config.VerifyPeers);
 				if (!NewContext)
-					return Report(Core::SystemException(Core::Stringify::Text("ssl connect to %s:%i error: initialization failed", State.Hostname.Hostname.c_str(), (int)State.Hostname.Port), std::move(NewContext.Error())));
+					return Report(Core::SystemException(Core::Stringify::Text("ssl connect to %s error: initialization failed", GetAddressIdentification(State.Address).c_str()), std::move(NewContext.Error())));
 				else
 					Net.Context = *NewContext;
 			}
@@ -4177,10 +4377,10 @@ namespace Vitex
 		{
 			OnConnect();
 		}
-		bool SocketClient::TryReuseStream(RemoteHost* NewAddress, bool Async)
+		bool SocketClient::TryReuseStream(const SocketAddress& Address)
 		{
 			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
-			Socket* ReusingStream = Cache ? Cache->PopConnection(NewAddress) : nullptr;
+			Socket* ReusingStream = Cache ? Cache->PopConnection(Address) : nullptr;
 			if (ReusingStream != nullptr)
 			{
 				if (HasStream())
@@ -4206,7 +4406,7 @@ namespace Vitex
 		{
 			if (!Status && HasStream())
 			{
-				Net.Stream->CloseAsync([this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
+				Net.Stream->CloseQueued([this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
 				{
 					SocketClientCallback Callback(std::move(State.Done));
 					if (Callback)
@@ -4220,9 +4420,21 @@ namespace Vitex
 					Callback(this, std::move(Status));
 			}
 		}
+		const SocketAddress& SocketClient::GetPeerAddress() const
+		{
+			return State.Address;
+		}
 		bool SocketClient::HasStream() const
 		{
 			return Net.Stream != nullptr && Net.Stream->IsValid();
+		}
+		bool SocketClient::IsSecure() const
+		{
+			return Config.VerifyPeers >= 0;
+		}
+		bool SocketClient::IsVerified() const
+		{
+			return Config.VerifyPeers > 0;
 		}
 		Socket* SocketClient::GetStream()
 		{

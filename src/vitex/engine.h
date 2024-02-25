@@ -1060,7 +1060,7 @@ namespace Vitex
 
 		private:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
-			void DispatchQuerySync(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
+			void QueryDispatch(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
 			{
 				Indexing.Stack.clear();
 				if (!Index.Empty())
@@ -1084,7 +1084,7 @@ namespace Vitex
 				}
 			}
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
-			void DispatchQueryAsync(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
+			void ParallelQueryDispatch(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
 			{
 				Indexing.Stack.clear();
 				Indexing.Queue.clear();
@@ -1120,7 +1120,7 @@ namespace Vitex
 
 		public:
 			template <typename MatchFunction>
-			void QueryBasicSync(uint64_t Id, MatchFunction&& Callback)
+			void QueryGroup(uint64_t Id, MatchFunction&& Callback)
 			{
 				auto& Storage = GetStorageWrapper(Id);
 				switch (View.Culling)
@@ -1128,13 +1128,13 @@ namespace Vitex
 					case RenderCulling::Linear:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
-						DispatchQuerySync<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						QueryDispatch<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
-						DispatchQuerySync<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						QueryDispatch<Component, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					default:
@@ -1143,7 +1143,7 @@ namespace Vitex
 				}
 			}
 			template <typename InitFunction, typename MatchFunction>
-			void QueryBasicAsync(uint64_t Id, InitFunction&& InitCallback, MatchFunction&& ElementCallback)
+			void ParallelQueryGroup(uint64_t Id, InitFunction&& InitCallback, MatchFunction&& ElementCallback)
 			{
 				auto& Storage = GetStorageWrapper(Id);
 				switch (View.Culling)
@@ -1152,14 +1152,14 @@ namespace Vitex
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
 						InitCallback(Parallel::GetThreads());
-						DispatchQueryAsync<Component, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						ParallelQueryDispatch<Component, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
 						InitCallback(Parallel::GetThreads());
-						DispatchQueryAsync<Component, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						ParallelQueryDispatch<Component, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
 						break;
 					}
 					default:
@@ -1169,7 +1169,7 @@ namespace Vitex
 				}
 			}
 			template <typename T, typename MatchFunction>
-			void QuerySync(MatchFunction&& Callback)
+			void Query(MatchFunction&& Callback)
 			{
 				auto& Storage = GetStorageWrapper(T::GetTypeId());
 				switch (View.Culling)
@@ -1177,13 +1177,13 @@ namespace Vitex
 					case RenderCulling::Linear:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
-						DispatchQuerySync<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						QueryDispatch<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
-						DispatchQuerySync<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						QueryDispatch<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					default:
@@ -1192,7 +1192,7 @@ namespace Vitex
 				}
 			}
 			template <typename T, typename InitFunction, typename MatchFunction>
-			void QueryAsync(InitFunction&& InitCallback, MatchFunction&& ElementCallback)
+			void ParallelQuery(InitFunction&& InitCallback, MatchFunction&& ElementCallback)
 			{
 				auto& Storage = GetStorageWrapper(T::GetTypeId());
 				switch (View.Culling)
@@ -1201,14 +1201,14 @@ namespace Vitex
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
 						InitCallback(Parallel::GetThreads());
-						DispatchQueryAsync<T, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						ParallelQueryDispatch<T, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
 						InitCallback(Parallel::GetThreads());
-						DispatchQueryAsync<T, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
+						ParallelQueryDispatch<T, decltype(Overlaps), decltype(ElementCallback)>(Storage.Index, Overlaps, ElementCallback);
 						break;
 					}
 					default:
@@ -1339,8 +1339,8 @@ namespace Vitex
 			ExpectsContent<void> ExportArchive(const std::string_view& Path, const std::string_view& PhysicalDirectory, const std::string_view& VirtualDirectory = std::string_view());
 			ExpectsContent<Core::Unique<void>> Load(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
 			ExpectsContent<void> Save(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
-			ExpectsPromiseContent<Core::Unique<void>> LoadAsync(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
-			ExpectsPromiseContent<void> SaveAsync(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
+			ExpectsPromiseContent<Core::Unique<void>> LoadDeferred(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
+			ExpectsPromiseContent<void> SaveDeferred(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
 			Processor* AddProcessor(Processor* Value, uint64_t Id);
 			Processor* GetProcessor(uint64_t Id);
 			AssetCache* FindCache(Processor* Target, const std::string_view& Path);
@@ -1368,7 +1368,7 @@ namespace Vitex
 				return ExpectsContent<T*>((T*)*Result);
 			}
 			template <typename T>
-			ExpectsPromiseContent<Core::Unique<T>> LoadAsync(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsPromiseContent<Core::Unique<T>> LoadDeferred(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
 				Core::String TargetPath = Core::String(Path);
@@ -1388,9 +1388,9 @@ namespace Vitex
 				return Save(GetProcessor<T>(), Path, Object, Keys);
 			}
 			template <typename T>
-			ExpectsPromiseContent<void> SaveAsync(const std::string_view& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			ExpectsPromiseContent<void> SaveDeferred(const std::string_view& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys);
+				return SaveDeferred(GetProcessor<T>(), Path, (void*)Object, Keys);
 			}
 			template <typename T>
 			bool RemoveProcessor()
@@ -2143,7 +2143,7 @@ namespace Vitex
 					Top[i].clear();
 				Culling.clear();
 
-				System->QueryAsync<T>([this](size_t Threads)
+				System->ParallelQuery<T>([this](size_t Threads)
 				{
 					Prepare(Threads);
 				}, [this, &System](size_t Chunk, Component* Item)
@@ -2206,7 +2206,7 @@ namespace Vitex
 				}
 
 				Subframe.clear();
-				System->QueryAsync<T>([this](size_t Threads)
+				System->ParallelQuery<T>([this](size_t Threads)
 				{
 					Prepare(Threads);
 				}, [this, &System](size_t Chunk, Component* Item)
@@ -2237,7 +2237,7 @@ namespace Vitex
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				System->QueryAsync<T>([this](size_t Threads)
+				System->ParallelQuery<T>([this](size_t Threads)
 				{
 					Prepare(Threads);
 				}, [this, &System](size_t Chunk, Component* Item)
@@ -2282,7 +2282,7 @@ namespace Vitex
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
-				System->QueryAsync<T>([this](size_t Threads)
+				System->ParallelQuery<T>([this](size_t Threads)
 				{
 					Prepare(Threads);
 				}, [this, &System](size_t Chunk, Component* Item)

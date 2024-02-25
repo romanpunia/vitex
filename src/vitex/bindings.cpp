@@ -38,6 +38,7 @@
 #define EXCEPTION_ACCESSINVALID EXCEPTIONCAT_TYPE, "accessing non-existing value"
 #define EXCEPTION_INVALIDINITIATOR EXCEPTIONCAT_TYPE, "type must be a handle or null"
 #define EXCEPTION_PROMISEREADY EXCEPTIONCAT_ASYNC, "trying to settle the promise that is already fulfilled"
+#define EXCEPTION_PROMISENOTREADY EXCEPTIONCAT_ASYNC, "trying to settle the promise that is not fulfilled"
 #define EXCEPTION_MUTEXNOTOWNED EXCEPTIONCAT_SYNC, "trying to unlock the mutex that is not owned by this thread"
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
@@ -62,7 +63,6 @@
 #define TYPENAME_REGEXMATCH "regex_match"
 #define TYPENAME_REGEXSOURCE "regex_source"
 #define TYPENAME_INPUTLAYOUTATTRIBUTE "input_layout_attribute"
-#define TYPENAME_REMOTEHOST "remote_host"
 #define TYPENAME_SOCKETCERTIFICATE "socket_certificate"
 #define TYPENAME_AUDIOCLIP "audio_clip"
 #define TYPENAME_ELEMENTBUFFER "element_buffer"
@@ -2821,6 +2821,7 @@ namespace Vitex
 				Context->AddRef();
 				Engine = Context->GetVM();
 				Engine->NotifyOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
+				//printf(":::: promise create 0x%p\n", (void*)this);
 			}
 			Promise::~Promise() noexcept
 			{
@@ -2839,12 +2840,12 @@ namespace Vitex
 					auto Type = VirtualMachine::Get(OtherEngine)->GetTypeInfoById(Value.TypeId);
 					FunctionFactory::GCEnumCallback(OtherEngine, Type.GetTypeInfo());
 				}
-
-				FunctionFactory::GCEnumCallback(OtherEngine, Context);
 				FunctionFactory::GCEnumCallback(OtherEngine, &Delegate);
+				FunctionFactory::GCEnumCallback(OtherEngine, Context);
 			}
 			void Promise::ReleaseReferences(asIScriptEngine*)
 			{
+				//printf(":::: promise destroy 0x%p\n", (void*)this);
 				if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
 					auto Type = Engine->GetTypeInfoById(Value.TypeId);
@@ -2852,7 +2853,6 @@ namespace Vitex
 					Type.Release();
 					Value.Clean();
 				}
-
 				if (Delegate.IsValid())
 					Delegate.Release();
 				Core::Memory::Release(Context);
@@ -2884,6 +2884,7 @@ namespace Vitex
 				if (Value.TypeId != PromiseNULL)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
 
+				//printf(":::: promise resolve 0x%p (%s)\n", (void*)this, RefTypeId > 0 ? Engine->GetTypeInfoById(RefTypeId).GetName().data() : "void");
 				if ((RefTypeId & (size_t)TypeId::MASK_OBJECT))
 				{
 					auto Type = Engine->GetTypeInfoById(RefTypeId);
@@ -2923,22 +2924,16 @@ namespace Vitex
 
 				if (Delegate.IsValid())
 				{
-					AddRef();
 					Promise* Target = this;
 					Context->ResolveCallback(std::move(Delegate), [Target](ImmediateContext* Context)
 					{
 						if (Target->GetTypeId() != (size_t)TypeId::VOIDF)
 							Context->SetArgAddress(0, Target->Retrieve());
-					}, [Target](ImmediateContext*)
-					{
-						Target->Release();
-					});
+					}, nullptr);
 				}
 
 				if (WantsResume)
-					Context->ResolveNotification(this);
-				else if (SuspendOwned)
-					Release();
+					Context->ResolveNotification();
 			}
 			void Promise::Store(void* RefPointer, const char* TypeName)
 			{
@@ -3030,10 +3025,7 @@ namespace Vitex
 			{
 				Core::UMutex<std::mutex> Unique(Update);
 				if (Value.TypeId == PromiseNULL && Context != nullptr && Context->Suspend())
-				{
 					Context->SetUserData(this, PromiseUD);
-					AddRef();
-				}
 
 				return this;
 			}
@@ -3118,12 +3110,15 @@ namespace Vitex
 			{
 				return IsContextPending(Context) || Context->GetState() == Execution::Active;
 			}
-			bool Promise::IsAlwaysAwait(VirtualMachine* VM)
-			{
-				return (VM->GetLibraryProperty(LibraryFeatures::PromiseAlwaysAwait) > 0);
-			}
 			int Promise::PromiseNULL = -1;
 			int Promise::PromiseUD = 559;
+
+			Core::Promise<bool> test_timeout()
+			{
+				Core::Promise<bool> Future;
+				Core::Schedule::Get()->SetTimeout(1, [Future]() mutable { Future.Set(true); });
+				return Future;
+			}
 
 			Core::Decimal DecimalNegate(Core::Decimal& Base)
 			{
@@ -4017,7 +4012,7 @@ namespace Vitex
 			bool Thread::Resume()
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Mutex);
-				Loop->Enqueue(Function.Context, nullptr);
+				Loop->Enqueue(Function.Context);
 				VI_DEBUG("[vm] resume thread at %s", Core::OS::Process::GetThreadId(Procedure.get_id()).c_str());
 				return true;
 			}
@@ -4887,9 +4882,31 @@ namespace Vitex
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
-					return Core::INVALID_TASK_ID;
+					return false;
 
 				return Base->SetTask([Delegate]() mutable { Delegate(nullptr); });
+			}
+			bool ScheduleSpawn(Core::Schedule* Base, asIScriptFunction* Callback)
+			{
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (!VM)
+					return false;
+
+				ImmediateContext* Context = VM->RequestContext();
+				if (!Context)
+					return false;
+
+				FunctionDelegate Delegate(Callback, Context);
+				if (!Delegate.IsValid())
+					return false;
+
+				return Base->SetTask([Delegate, Context]() mutable
+				{
+					Delegate(nullptr, [Context](ImmediateContext*)
+					{
+						Context->GetVM()->ReturnContext(Context);
+					});
+				});
 			}
 
 			Dictionary* InlineArgsGetArgs(Core::InlineArgs& Base)
@@ -6659,6 +6676,19 @@ namespace Vitex
 				Base->Meshes = Array::Decompose<Graphics::SkinMeshBuffer*>(Data);
 			}
 
+			Core::String SocketAddressGetHostname(Network::SocketAddress& Base)
+			{
+				return ExpectsWrapper::Unwrap(Base.GetHostname(), Core::String());
+			}
+			Core::String SocketAddressGetIpAddress(Network::SocketAddress& Base)
+			{
+				return ExpectsWrapper::Unwrap(Base.GetIpAddress(), Core::String());
+			}
+			uint16_t SocketAddressGetIpPort(Network::SocketAddress& Base)
+			{
+				return ExpectsWrapper::Unwrap(Base.GetIpPort(), uint16_t());
+			}
+
 			Dictionary* LocationGetQuery(Network::Location& Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
@@ -6671,335 +6701,90 @@ namespace Vitex
 				return Dictionary::Compose<Core::String>(Type.GetTypeId(), Base.Extensions);
 			}
 
-			Core::Promise<bool> SocketConnectFwd(Network::Socket* Base, Network::SocketAddress* Address)
+			Core::Promise<Network::SocketAccept> SocketAcceptDeferred(Network::Socket* Base)
 			{
-				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
-				Base->ConnectAsync(Address, [Base, Result, Context](const Core::Option<std::error_condition>& Condition) mutable
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->AcceptDeferred().Then<Network::SocketAccept>([Context, Base](Core::ExpectsIO<Network::SocketAccept>&& Incoming)
 				{
-					if (Condition)
-						Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("connect error", std::error_condition(*Condition))), Context));
-					else
-						Result.Set(true);
 					Base->Release();
+					return ExpectsWrapper::Unwrap(std::move(Incoming), Network::SocketAccept(), Context);
 				});
-				return Result;
 			}
-			Core::Promise<bool> SocketCloseFwd(Network::Socket* Base)
+			Core::Promise<bool> SocketConnectDeferred(Network::Socket* Base, const Network::SocketAddress& Address)
 			{
-				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
-				Base->CloseAsync([Base, Result, Context](const Core::Option<std::error_condition>& Condition) mutable
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->ConnectDeferred(Address).Then<bool>([Context, Base](Core::ExpectsIO<void>&& Status)
 				{
-					if (Condition)
-						Result.Set(ExpectsWrapper::UnwrapVoid(Core::ExpectsSystem<void>(Core::SystemException("close error", std::error_condition(*Condition))), Context));
-					else
-						Result.Set(true);
 					Base->Release();
+					return ExpectsWrapper::UnwrapVoid(std::move(Status), Context);
 				});
-				return Result;
 			}
-			Core::Promise<bool> SocketWriteFwd(Network::Socket* Base, const std::string_view& Data)
+			Core::Promise<bool> SocketCloseDeferred(Network::Socket* Base)
 			{
-				Core::Promise<bool> Result; ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
-				Base->WriteAsync((uint8_t*)Data.data(), Data.size(), [Base, Result, Context](Network::SocketPoll Event) mutable
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->CloseDeferred().Then<bool>([Context, Base](Core::ExpectsIO<void>&& Status)
 				{
-					Result.Set(ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context));
 					Base->Release();
+					return ExpectsWrapper::UnwrapVoid(std::move(Status), Context);
 				});
-				return Result;
 			}
-			Core::Promise<Core::String> SocketReadFwd(Network::Socket* Base, size_t Size)
+			Core::Promise<bool> SocketWriteFileDeferred(Network::Socket* Base, Core::FileStream* Stream, size_t Offset, size_t Size)
 			{
-				Core::String* Data = Core::Memory::New<Core::String>();
-				Data->reserve(Size);
-				Base->AddRef();
-
-				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
-				Base->ReadAsync(Size, [Base, Result, Context, Data](Network::SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->WriteFileDeferred(Stream ? (FILE*)Stream->GetReadable() : nullptr, Offset, Size).Then<bool>([Context, Base](Core::ExpectsIO<size_t>&& Status)
 				{
-					if (!Network::Packet::IsData(Event))
-					{
-						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
-						Result.Set(std::move(*Data));
-						Core::Memory::Delete(Data);
-						Base->Release();
-					}
-					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
-						Data->append((char*)Buffer, Size);
-					return Result.IsPending();
-				});
-				return Result;
-			}
-			Core::Promise<Core::String> SocketReadUntilFwd(Network::Socket* Base, size_t MaxSize, const std::string_view& Match)
-			{
-				Core::String* Data = Core::Memory::New<Core::String>();
-				Data->reserve(MaxSize);
-				Base->AddRef();
-
-				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
-				Base->ReadUntilAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
-				{
-					if (!Network::Packet::IsData(Event))
-					{
-						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
-					Resolve:
-						Result.Set(std::move(*Data));
-						Core::Memory::Delete(Data);
-						Base->Release();
-					}
-					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
-					{
-						Data->append((char*)Buffer, Size);
-						if (Data->size() >= MaxSize)
-							goto Resolve;
-					}
-					return Result.IsPending();
-				});
-				return Result;
-			}
-			Core::Promise<Core::String> SocketReadUntilChunkedFwd(Network::Socket* Base, size_t MaxSize, const std::string_view& Match)
-			{
-				Core::String* Data = Core::Memory::New<Core::String>();
-				Data->reserve(MaxSize);
-				Base->AddRef();
-
-				Core::Promise<Core::String> Result; ImmediateContext* Context = ImmediateContext::Get();
-				Base->ReadUntilChunkedAsync(Core::String(Match), [Base, Result, Context, Data, MaxSize](Network::SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
-				{
-					if (!Network::Packet::IsData(Event))
-					{
-						ExpectsWrapper::UnwrapVoid(FromSocketPoll(Event), Context);
-					Resolve:
-						Result.Set(std::move(*Data));
-						Core::Memory::Delete(Data);
-						Base->Release();
-					}
-					else if (Buffer != nullptr && Size > 0 && Data != nullptr)
-					{
-						Data->append((char*)Buffer, Size);
-						if (Data->size() >= MaxSize)
-							goto Resolve;
-					}
-					return Result.IsPending();
-				});
-				return Result;
-			}
-			bool SocketAcceptAsync(Network::Socket* Base, bool WithAddress, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
-
-				Base->AddRef();
-				return ExpectsWrapper::UnwrapVoid(Base->AcceptAsync(WithAddress, [Base, Delegate](socket_t Fd, const std::string_view& Address) mutable
-				{
-					if (Network::Utils::IsInvalid(Fd))
-					{
-						Base->Release();
-						return false;
-					}
-
-					Core::String IpAddress = Core::String(Address);
-					Delegate([Fd, IpAddress](ImmediateContext* Context)
-					{
-#ifdef VI_64
-						Context->SetArg64(0, (int64_t)Fd);
-#else
-						Context->SetArg32(0, (int32_t)Fd);
-#endif
-						Context->SetArgObject(1, (void*)&IpAddress);
-					});
-					return true;
-				}));
-			}
-			bool SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return false;
-
-				Base->AddRef();
-				return ExpectsWrapper::UnwrapVoid(Base->ConnectAsync(Address, [Base, Delegate](const Core::Option<std::error_condition>& ErrorCode) mutable
-				{
-					Delegate([&ErrorCode](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, ErrorCode ? ErrorCode->value() : 0);
-					}, [Base](ImmediateContext*)
-					{
-						Base->Release();
-					});
-					return true;
-				}));
-			}
-			bool SocketCloseAsync(Network::Socket* Base, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument));
-
-				Base->AddRef();
-				return ExpectsWrapper::UnwrapVoid(Base->CloseAsync([Base, Delegate](const Core::Option<std::error_condition>&) mutable
-				{
-					Delegate(nullptr, [Base](ImmediateContext*)
-					{
-						Base->Release();
-					});
-					return true;
-				}));
-			}
-			size_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, size_t Offset, size_t Size, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
-
-				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->SendFileAsync(Stream, Offset, Size, [Base, Delegate](Network::SocketPoll Poll) mutable
-				{
-					Delegate([Poll](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-					}, [Base](ImmediateContext*)
-					{
-						Base->Release();
-					});
-				}), (size_t)0);
-			}
-			size_t SocketWriteAsync(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
-
-				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->WriteAsync((uint8_t*)Data.data(), Data.size(), [Base, Delegate](Network::SocketPoll Poll) mutable
-				{
-					Delegate([Poll](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-					}, [Base](ImmediateContext*)
-					{
-						Base->Release();
-					});
-				}), (size_t)0);
-			}
-			size_t SocketReadAsync(Network::Socket* Base, size_t Size, asIScriptFunction* Callback)
-			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
-
-				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadAsync(Size, [Base, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size) mutable
-				{
-					std::string_view Source = std::string_view((char*)Data, Size); bool Result = false;
-					Delegate([Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-
 					Base->Release();
-					return Result;
-				}), (size_t)0);
+					return ExpectsWrapper::UnwrapVoid(std::move(Status), Context);
+				});
 			}
-			size_t SocketReadUntilAsync(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
+			Core::Promise<bool> SocketWriteDeferred(Network::Socket* Base, const std::string_view& Data)
 			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
-
-				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size) mutable
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->WriteDeferred((uint8_t*)Data.data(), Data.size()).Then<bool>([Context, Base](Core::ExpectsIO<size_t>&& Status)
 				{
-					std::string_view Source = std::string_view((char*)Data, Size); bool Result = false;
-					Delegate([Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-
 					Base->Release();
-					return Result;
-				}), (size_t)0);
+					return ExpectsWrapper::UnwrapVoid(std::move(Status), Context);
+				});
 			}
-			size_t SocketReadUntilChunkedAsync(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
+			Core::Promise<Core::String> SocketReadDeferred(Network::Socket* Base, size_t Size)
 			{
-				FunctionDelegate Delegate(Callback);
-				if (!Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
-
-				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->ReadUntilChunkedAsync(Core::String(Data), [Base, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size) mutable
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->ReadDeferred(Size).Then<Core::String>([Context, Base](Core::ExpectsIO<Core::String>&& Data)
 				{
-					std::string_view Source = std::string_view((char*)Data, Size); bool Result = false;
-					Delegate([Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context) mutable
-					{
-						Result = (bool)Context->GetReturnByte();
-					}).Wait();
-
 					Base->Release();
-					return Result;
-				}), (size_t)0);
+					return ExpectsWrapper::Unwrap(std::move(Data), Core::String(), Context);
+				});
 			}
-			bool SocketAccept1(Network::Socket* Base, Network::Socket* Fd, Core::String& Address)
+			Core::Promise<Core::String> SocketReadUntilDeferred(Network::Socket* Base, const std::string_view& Match, size_t MaxSize)
 			{
-				return ExpectsWrapper::UnwrapVoid(Base->Accept(Fd, &Address));
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->ReadUntilDeferred(Core::String(Match), MaxSize).Then<Core::String>([Context, Base](Core::ExpectsIO<Core::String>&& Data)
+				{
+					Base->Release();
+					return ExpectsWrapper::Unwrap(std::move(Data), Core::String(), Context);
+				});
 			}
-			bool SocketAccept2(Network::Socket* Base, socket_t& Fd, Core::String& Address)
+			Core::Promise<Core::String> SocketReadUntilChunkedDeferred(Network::Socket* Base, const std::string_view& Match, size_t MaxSize)
 			{
-				return ExpectsWrapper::UnwrapVoid(Base->Accept(&Fd, &Address));
+				ImmediateContext* Context = ImmediateContext::Get(); Base->AddRef();
+				return Base->ReadUntilChunkedDeferred(Core::String(Match), MaxSize).Then<Core::String>([Context, Base](Core::ExpectsIO<Core::String>&& Data)
+				{
+					Base->Release();
+					return ExpectsWrapper::Unwrap(std::move(Data), Core::String(), Context);
+				});
 			}
-			bool SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const std::string_view& Value)
+			size_t SocketWriteFile(Network::Socket* Base, Core::FileStream* Stream, size_t Offset, size_t Size)
 			{
-				return ExpectsWrapper::UnwrapVoid(Base->Secure(Context, Value));
-			}
-			size_t SocketSendFile(Network::Socket* Base, Core::FileStream* Stream, size_t Offset, size_t Size)
-			{
-				return ExpectsWrapper::Unwrap(Base->SendFile((FILE*)Stream->GetReadable(), Offset, Size), (size_t)0);
+				return ExpectsWrapper::Unwrap(Base->WriteFile((FILE*)Stream->GetReadable(), Offset, Size), (size_t)0);
 			}
 			size_t SocketWrite(Network::Socket* Base, const std::string_view& Data)
 			{
 				return ExpectsWrapper::Unwrap(Base->Write((uint8_t*)Data.data(), (int)Data.size()), (size_t)0);
 			}
-			size_t SocketRead1(Network::Socket* Base, Core::String& Data, size_t Size)
+			size_t SocketRead(Network::Socket* Base, Core::String& Data, size_t Size)
 			{
 				Data.resize(Size);
 				return ExpectsWrapper::Unwrap(Base->Read((uint8_t*)Data.data(), Size), (size_t)0);
-			}
-			size_t SocketRead2(Network::Socket* Base, Core::String& Data, size_t Size, asIScriptFunction* Callback)
-			{
-				ImmediateContext* Context = ImmediateContext::Get();
-				FunctionDelegate Delegate(Callback);
-				if (!Context || !Delegate.IsValid())
-					return ExpectsWrapper::UnwrapVoid<void, std::error_condition>(std::make_error_condition(std::errc::invalid_argument)) ? 0 : 0;
-
-				Base->AddRef();
-				return ExpectsWrapper::Unwrap(Base->Read((uint8_t*)Data.data(), Data.size(), [Base, Context, Delegate](Network::SocketPoll Poll, const uint8_t* Data, size_t Size)
-				{
-					bool Result = false;
-					std::string_view Source = std::string_view((char*)Data, Size);
-					Context->ExecuteSubcall(Delegate.Callable(), [Poll, Source](ImmediateContext* Context)
-					{
-						Context->SetArg32(0, (int)Poll);
-						Context->SetArgObject(1, (void*)&Source);
-					}, [&Result](ImmediateContext* Context)
-					{
-						Result = (bool)Context->GetReturnByte();
-					});
-
-					Base->Release();
-					return Result;
-				}), (size_t)0);
 			}
 			size_t SocketReadUntil(Network::Socket* Base, const std::string_view& Data, asIScriptFunction* Callback)
 			{
@@ -7050,6 +6835,31 @@ namespace Vitex
 					Base->Release();
 					return Result;
 				}), (size_t)0);
+			}
+			
+			Core::Promise<Core::String> DNSReverseLookupDeferred(Network::DNS* Base, const std::string_view& Hostname, const std::string_view& Service)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->ReverseLookupDeferred(Hostname, Service).Then<Core::String>([Context](Core::ExpectsSystem<Core::String>&& Address)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Address), Core::String(), Context);
+				});
+			}
+			Core::Promise<Core::String> DNSReverseAddressLookupDeferred(Network::DNS* Base, const Network::SocketAddress& Address)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->ReverseAddressLookupDeferred(Address).Then<Core::String>([Context](Core::ExpectsSystem<Core::String>&& Address)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Address), Core::String(), Context);
+				});
+			}
+			Core::Promise<Network::SocketAddress> DNSLookupDeferred(Network::DNS* Base, const std::string_view& Hostname, const std::string_view& Service, Network::DNSType Mode, Network::SocketProtocol Protocol, Network::SocketType Type)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Base->LookupDeferred(Hostname, Service, Mode, Protocol, Type).Then<Network::SocketAddress>([Context](Core::ExpectsSystem<Network::SocketAddress>&& Address)
+				{
+					return ExpectsWrapper::Unwrap(std::move(Address), Network::SocketAddress(), Context);
+				});
 			}
 
 			Network::EpollFd& EpollFdCopy(Network::EpollFd& Base, Network::EpollFd& Other)
@@ -7106,15 +6916,23 @@ namespace Vitex
 				});
 			}
 
+			void SocketRouterListen1(Network::SocketRouter* Base, const std::string_view& Hostname, const std::string_view& Service, bool Secure)
+			{
+				ExpectsWrapper::Unwrap(Base->Listen(Hostname, Service, Secure), (Network::RouterListener*)nullptr);
+			}
+			void SocketRouterListen2(Network::SocketRouter* Base, const std::string_view& Pattern, const std::string_view& Hostname, const std::string_view& Service, bool Secure)
+			{
+				ExpectsWrapper::Unwrap(Base->Listen(Pattern, Hostname, Service, Secure), (Network::RouterListener*)nullptr);
+			}
 			void SocketRouterSetListeners(Network::SocketRouter* Base, Dictionary* Data)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
-				Base->Listeners = Dictionary::Decompose<Network::RemoteHost>(Type.GetTypeId(), Data);
+				Base->Listeners = Dictionary::Decompose<Network::RouterListener>(Type.GetTypeId(), Data);
 			}
 			Dictionary* SocketRouterGetListeners(Network::SocketRouter* Base)
 			{
 				TypeInfo Type = VirtualMachine::Get()->GetTypeInfoByDecl(TYPENAME_DICTIONARY "@");
-				return Dictionary::Compose<Network::RemoteHost>(Type.GetTypeId(), Base->Listeners);
+				return Dictionary::Compose<Network::RouterListener>(Type.GetTypeId(), Base->Listeners);
 			}
 			void SocketRouterSetCertificates(Network::SocketRouter* Base, Dictionary* Data)
 			{
@@ -7148,10 +6966,10 @@ namespace Vitex
 				return ExpectsWrapper::UnwrapVoid(Server->Unlisten(Gracefully));
 			}
 
-			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, Network::RemoteHost* Host, bool Async, uint32_t VerifyPeers)
+			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, const Network::SocketAddress& Address, bool Async, int32_t VerifyPeers)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Client->Connect(Host, Async, VerifyPeers).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
+				return Client->Connect(Address, Async, VerifyPeers).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -7165,10 +6983,6 @@ namespace Vitex
 				});
 			}
 
-			Core::String SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
-			{
-				return Base->RemoteAddress;
-			}
 			bool SocketConnectionAbort(Network::SocketConnection* Base, int Code, const std::string_view& Message)
 			{
 				return Base->Abort(Code, "%.*s", (int)Message.size(), Message.data());
@@ -7262,6 +7076,14 @@ namespace Vitex
 					return nullptr;
 
 				return Base.Data[Index];
+			}
+
+			void VMCollectGarbage(uint64_t IntervalMs)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				VirtualMachine* VM = VirtualMachine::Get();
+				if (VM != nullptr)
+					VM->PerformPeriodicGarbageCollection(IntervalMs);
 			}
 
 			template <typename T>
@@ -7494,14 +7316,14 @@ namespace Vitex
 			{
 				return Base->GetRenderers().size();
 			}
-			void RenderSystemQuerySync(Engine::RenderSystem* Base, uint64_t Id, asIScriptFunction* Callback)
+			void RenderSystemQueryGroup(Engine::RenderSystem* Base, uint64_t Id, asIScriptFunction* Callback)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
 				FunctionDelegate Delegate(Callback);
 				if (!Context || !Delegate.IsValid())
 					return;
 
-				Base->QueryBasicSync(Id, [Context, Delegate](Engine::Component* Item)
+				Base->QueryGroup(Id, [Context, Delegate](Engine::Component* Item)
 				{
 					Context->ExecuteSubcall(Delegate.Callable(), [Item](ImmediateContext* Context)
 					{
@@ -7597,13 +7419,13 @@ namespace Vitex
 			{
 				return ExpectsWrapper::UnwrapVoid(Base->Save(Source, Path, Object, ToVariantKeys(Args)));
 			}
-			void ContentManagerLoadAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, Core::Schema* Args, asIScriptFunction* Callback)
+			void ContentManagerLoadDeferred2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return;
 
-				Base->LoadAsync(Source, Path, ToVariantKeys(Args)).When([Delegate](Engine::ExpectsContent<void*>&& Object) mutable
+				Base->LoadDeferred(Source, Path, ToVariantKeys(Args)).When([Delegate](Engine::ExpectsContent<void*>&& Object) mutable
 				{
 					void* Address = Object.Or(nullptr);
 					Delegate([Address](ImmediateContext* Context)
@@ -7612,17 +7434,17 @@ namespace Vitex
 					});
 				});
 			}
-			void ContentManagerLoadAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, asIScriptFunction* Callback)
+			void ContentManagerLoadDeferred1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, asIScriptFunction* Callback)
 			{
-				ContentManagerLoadAsync2(Base, Source, Path, nullptr, Callback);
+				ContentManagerLoadDeferred2(Base, Source, Path, nullptr, Callback);
 			}
-			void ContentManagerSaveAsync2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
+			void ContentManagerSaveDeferred2(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, Core::Schema* Args, asIScriptFunction* Callback)
 			{
 				FunctionDelegate Delegate(Callback);
 				if (!Delegate.IsValid())
 					return;
 
-				Base->SaveAsync(Source, Path, Object, ToVariantKeys(Args)).When([Delegate](Engine::ExpectsContent<void>&& Status) mutable
+				Base->SaveDeferred(Source, Path, Object, ToVariantKeys(Args)).When([Delegate](Engine::ExpectsContent<void>&& Status) mutable
 				{
 					bool Success = !!Status;
 					Delegate([Success](ImmediateContext* Context)
@@ -7631,9 +7453,9 @@ namespace Vitex
 					});
 				});
 			}
-			void ContentManagerSaveAsync1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, asIScriptFunction* Callback)
+			void ContentManagerSaveDeferred1(Engine::ContentManager* Base, Engine::Processor* Source, const std::string_view& Path, void* Object, asIScriptFunction* Callback)
 			{
-				ContentManagerSaveAsync2(Base, Source, Path, Object, nullptr, Callback);
+				ContentManagerSaveDeferred2(Base, Source, Path, Object, nullptr, Callback);
 			}
 			bool ContentManagerFindCache1(Engine::ContentManager* Base, Engine::Processor* Source, Engine::AssetCache& Output, const std::string_view& Path)
 			{
@@ -9028,6 +8850,10 @@ namespace Vitex
 				}, Eat);
 				return Result;
 			}
+			Core::String ConnectionGetPeerIpAddress(Network::HTTP::Connection* Base)
+			{
+				return ExpectsWrapper::Unwrap(Base->GetPeerIpAddress(), Core::String());
+			}
 			Network::HTTP::WebSocketFrame* ConnectionGetWebSocket(Network::HTTP::Connection* Base)
 			{
 				return Base->WebSocket;
@@ -9073,10 +8899,6 @@ namespace Vitex
 				return Base->Query;
 			}
 
-			Core::String ClientGetRemoteAddress(Network::HTTP::Client* Base)
-			{
-				return Base->RemoteAddress;
-			}
 			Core::Promise<bool> ClientSkip(Network::HTTP::Client* Base)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
@@ -9234,10 +9056,6 @@ namespace Vitex
 			{
 				auto It = Base->Headers.find(Core::HglCast(Name));
 				return It == Base->Headers.end() ? Core::String() : It->second;
-			}
-			Core::String SMTPRequestGetRemoteAddress(Network::SMTP::RequestFrame* Base)
-			{
-				return Base->RemoteAddress;
 			}
 
 			Core::Promise<bool> SMTPClientSend(Network::SMTP::Client* Base, const Network::SMTP::RequestFrame& Frame)
@@ -11104,8 +10922,8 @@ namespace Vitex
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				auto VThread = VM->SetClass<Thread>("thread", true);
-				VThread->SetFunctionDef("void thread_async(thread@+)");
-				VThread->SetConstructorEx("thread@ f(thread_async@)", &Thread::Create);
+				VThread->SetFunctionDef("void thread_parallel(thread@+)");
+				VThread->SetConstructorEx("thread@ f(thread_parallel@)", &Thread::Create);
 				VThread->SetEnumRefs(&Thread::EnumReferences);
 				VThread->SetReleaseRefs(&Thread::ReleaseReferences);
 				VThread->SetMethod("bool is_active()", &Thread::IsActive);
@@ -11233,6 +11051,7 @@ namespace Vitex
 				}
 
 				VM->SetCodeGenerator("await-syntax", &Promise::GeneratorCallback);
+				VM->SetFunction("promise<bool>@ test_timeout()", &VI_SPROMISIFY(test_timeout, TypeId::BOOL));
 				return true;
 			}
 			bool Registry::ImportDecimal(VirtualMachine* VM)
@@ -12095,9 +11914,11 @@ namespace Vitex
 
 				auto VSchedule = VM->SetClass<Core::Schedule>("schedule", false);
 				VSchedule->SetFunctionDef("void task_async()");
+				VSchedule->SetFunctionDef("void task_parallel()");
 				VSchedule->SetMethodEx("task_id set_interval(uint64, task_async@)", &ScheduleSetInterval);
 				VSchedule->SetMethodEx("task_id set_timeout(uint64, task_async@)", &ScheduleSetTimeout);
 				VSchedule->SetMethodEx("bool set_immediate(task_async@)", &ScheduleSetImmediate);
+				VSchedule->SetMethodEx("bool spawn(task_parallel@)", &ScheduleSpawn);
 				VSchedule->SetMethod("bool clear_timeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule->SetMethod("bool trigger_timers()", &Core::Schedule::TriggerTimers);
 				VSchedule->SetMethod("bool trigger(difficulty)", &Core::Schedule::Trigger);
@@ -15746,6 +15567,8 @@ namespace Vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
+				VI_TYPEREF(SocketAddress, "socket_address");
+				VI_TYPEREF(SocketAccept, "socket_accept");
 				VI_TYPEREF(SocketListener, "socket_listener");
 				VI_TYPEREF(SocketConnection, "socket_connection");
 				VI_TYPEREF(SocketServer, "socket_server");
@@ -15791,11 +15614,32 @@ namespace Vitex
 				VDNSType->SetValue("connect", (int)Network::DNSType::Connect);
 				VDNSType->SetValue("listen", (int)Network::DNSType::Listen);
 
-				auto VRemoteHost = VM->SetStructTrivial<Network::RemoteHost>("remote_host");
-				VRemoteHost->SetProperty<Network::RemoteHost>("string hostname", &Network::RemoteHost::Hostname);
-				VRemoteHost->SetProperty<Network::RemoteHost>("int32 port", &Network::RemoteHost::Port);
-				VRemoteHost->SetProperty<Network::RemoteHost>("bool secure", &Network::RemoteHost::Secure);
-				VRemoteHost->SetConstructor<Network::RemoteHost>("void f()");
+				auto VSocketAddress = VM->SetStructTrivial<Network::SocketAddress>("socket_address");
+				VSocketAddress->SetConstructor<Network::SocketAddress>("void f()");
+				VSocketAddress->SetMethod("uptr@ get_address_ptr() const", &Network::SocketAddress::GetAddress);
+				VSocketAddress->SetMethod("usize get_address_ptr_size() const", &Network::SocketAddress::GetAddressSize);
+				VSocketAddress->SetMethod("int32 get_flags() const", &Network::SocketAddress::GetFlags);
+				VSocketAddress->SetMethod("int32 get_family() const", &Network::SocketAddress::GetFamily);
+				VSocketAddress->SetMethod("int32 get_type() const", &Network::SocketAddress::GetType);
+				VSocketAddress->SetMethod("int32 get_protocol() const", &Network::SocketAddress::GetProtocol);
+				VSocketAddress->SetMethod("usize get_hash_code() const", &Network::SocketAddress::GetHashCode);
+				VSocketAddress->SetMethod("dns_type get_resolver_type() const", &Network::SocketAddress::GetResolverType);
+				VSocketAddress->SetMethod("socket_protocol get_protocol_type() const", &Network::SocketAddress::GetProtocolType);
+				VSocketAddress->SetMethod("socket_type get_socket_type() const", &Network::SocketAddress::GetSocketType);
+				VSocketAddress->SetMethod("bool is_valid() const", &Network::SocketAddress::IsValid);
+				VSocketAddress->SetMethodEx("string get_hostname() const", &SocketAddressGetHostname);
+				VSocketAddress->SetMethodEx("string get_ip_address() const", &SocketAddressGetIpAddress);
+				VSocketAddress->SetMethodEx("uint16 get_ip_port() const", &SocketAddressGetIpPort);
+
+				auto VSocketAccept = VM->SetStructTrivial<Network::SocketAccept>("socket_accept");
+				VSocketAccept->SetProperty<Network::SocketAccept>("socket_address address", &Network::SocketAccept::Address);
+				VSocketAccept->SetProperty<Network::SocketAccept>("usize fd", &Network::SocketAccept::Fd);
+				VSocketAccept->SetConstructor<Network::SocketAccept>("void f()");
+
+				auto VRouterListener = VM->SetStructTrivial<Network::RouterListener>("router_listener");
+				VRouterListener->SetProperty<Network::RouterListener>("socket_address address", &Network::RouterListener::Address);
+				VRouterListener->SetProperty<Network::RouterListener>("bool is_secure", &Network::RouterListener::IsSecure);
+				VRouterListener->SetConstructor<Network::RouterListener>("void f()");
 
 				auto VLocation = VM->SetStructTrivial<Network::Location>("url_location");
 				VLocation->SetProperty<Network::Location>("string protocol", &Network::Location::Protocol);
@@ -15865,14 +15709,8 @@ namespace Vitex
 				VEpollHandle->SetOperatorMoveCopy<Network::EpollHandle>();
 				VEpollHandle->SetDestructor<Network::EpollHandle>("void f()");
 
-				auto VSocketAddress = VM->SetClass<Network::SocketAddress>("socket_address", false);
-				VSocketAddress->SetConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
-				VSocketAddress->SetMethod("bool is_usable() const", &Network::SocketAddress::IsUsable);
-				VSocketAddress->SetMethod("uptr@ get() const", &Network::SocketAddress::Get);
-				VSocketAddress->SetMethod("uptr@ get_alternatives() const", &Network::SocketAddress::GetAlternatives);
-				VSocketAddress->SetMethod("string get_address() const", &Network::SocketAddress::GetAddress);
-
-				VSocket->SetFunctionDef("void socket_accept_async(usize, const string&in)");
+				auto VStream = VM->SetClass<Core::FileStream>("file_stream", false);
+				VSocket->SetFunctionDef("void socket_accept_async(socket_accept&in)");
 				VSocket->SetFunctionDef("void socket_status_async(int)");
 				VSocket->SetFunctionDef("void socket_send_async(socket_poll)");
 				VSocket->SetFunctionDef("bool socket_recv_async(socket_poll, const string_view&in)");
@@ -15888,31 +15726,24 @@ namespace Vitex
 				VSocket->SetMethod("bool is_valid() const", &Network::Socket::IsValid);
 				VSocket->SetMethod("bool is_secure() const", &Network::Socket::IsSecure);
 				VSocket->SetMethod("void set_io_timeout(uint64)", &Network::Socket::SetIoTimeout);
-				VSocket->SetMethodEx("promise<bool>@ connect(socket_address@+)", &VI_SPROMISIFY(SocketConnectFwd, TypeId::BOOL));
-				VSocket->SetMethodEx("promise<bool>@ close()", &VI_SPROMISIFY(SocketCloseFwd, TypeId::BOOL));
-				VSocket->SetMethodEx("promise<bool>@ write(const string_view&in)", &VI_SPROMISIFY(SocketWriteFwd, TypeId::BOOL));
-				VSocket->SetMethodEx("promise<string>@ read(usize)", &VI_SPROMISIFY_REF(SocketReadFwd, String));
-				VSocket->SetMethodEx("promise<string>@ read_until(usize, const string_view&in)", &VI_SPROMISIFY_REF(SocketReadUntilFwd, String));
-				VSocket->SetMethodEx("promise<string>@ read_until_chunked(usize, const string_view&in)", &VI_SPROMISIFY_REF(SocketReadUntilChunkedFwd, String));
-				VSocket->SetMethodEx("bool accept_async(bool, socket_accept_async@)", &SocketAcceptAsync);
-				VSocket->SetMethodEx("bool connect_async(socket_address@+, socket_status_async@)", &SocketConnectAsync);
-				VSocket->SetMethodEx("bool close_async(socket_status_async@)", &SocketCloseAsync);
-				VSocket->SetMethodEx("usize send_file_async(uptr@, usize, usize, socket_send_async@)", &SocketSendFileAsync);
-				VSocket->SetMethodEx("usize write_async(const string_view&in, socket_send_async@)", &SocketWriteAsync);
-				VSocket->SetMethodEx("usize read_async(usize, socket_recv_async@)", &SocketReadAsync);
-				VSocket->SetMethodEx("usize read_until_async(const string_view&in, socket_recv_async@)", &SocketReadUntilAsync);
-				VSocket->SetMethodEx("usize read_until_chunked_async(const string_view&in, socket_recv_async@)", &SocketReadUntilChunkedAsync);
-				VSocket->SetMethodEx("bool accept(socket@+, string &out)", &SocketAccept1);
-				VSocket->SetMethodEx("bool accept(usize &out, string &out)", &SocketAccept2);
-				VSocket->SetMethodEx("bool secure(uptr@, const string_view&in)", &SocketSecure);
-				VSocket->SetMethodEx("usize send_file(uptr@, usize, usize)", &SocketSendFile);
-				VSocket->SetMethodEx("usize write_sync(const string_view&in)", &SocketWrite);
-				VSocket->SetMethodEx("usize read_sync(string &out, usize)", &SocketRead1);
-				VSocket->SetMethodEx("usize read_sync(string &out, usize, socket_recv_async@)", &SocketRead2);
-				VSocket->SetMethodEx("usize read_until_sync(const string_view&in, socket_recv_async@)", &SocketReadUntil);
-				VSocket->SetMethodEx("usize read_until_chunked_sync(const string_view&in, socket_recv_async@)", &SocketReadUntilChunked);
-				VSocket->SetMethodEx("string get_remote_address() const", &VI_EXPECTIFY(Network::Socket::GetRemoteAddress));
-				VSocket->SetMethodEx("int get_port() const", &VI_EXPECTIFY(Network::Socket::GetPort));
+				VSocket->SetMethodEx("promise<socket_accept>@ accept_deferred()", &VI_SPROMISIFY_REF(SocketAcceptDeferred, SocketAccept));
+				VSocket->SetMethodEx("promise<bool>@ connect_deferred(const socket_address&in)", &VI_SPROMISIFY(SocketConnectDeferred, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<bool>@ close_deferred()", &VI_SPROMISIFY(SocketCloseDeferred, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<bool>@ write_file_deferred(file_stream@+, usize, usize)", &VI_SPROMISIFY(SocketWriteFileDeferred, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<bool>@ write_deferred(const string_view&in)", &VI_SPROMISIFY(SocketWriteDeferred, TypeId::BOOL));
+				VSocket->SetMethodEx("promise<string>@ read_deferred(usize)", &VI_SPROMISIFY_REF(SocketReadDeferred, String));
+				VSocket->SetMethodEx("promise<string>@ read_until_deferred(const string_view&in, usize)", &VI_SPROMISIFY_REF(SocketReadUntilDeferred, String));
+				VSocket->SetMethodEx("promise<string>@ read_until_chunked_deferred(const string_view&in, usize)", &VI_SPROMISIFY_REF(SocketReadUntilChunkedDeferred, String));
+				VSocket->SetMethodEx("bool accept(socket_accept&out)", &VI_EXPECTIFY_VOID(Network::Socket::Accept));
+				VSocket->SetMethodEx("bool connect(const socket_address&in, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
+				VSocket->SetMethodEx("bool close()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
+				VSocket->SetMethodEx("usize write_file(file_stream@+, usize, usize)", &SocketWriteFile);
+				VSocket->SetMethodEx("usize write(const string_view&in)", &SocketWrite);
+				VSocket->SetMethodEx("usize read(string &out, usize)", &SocketRead);
+				VSocket->SetMethodEx("usize read_until(const string_view&in, socket_recv_async@)", &SocketReadUntil);
+				VSocket->SetMethodEx("usize read_until_chunked(const string_view&in, socket_recv_async@)", &SocketReadUntilChunked);
+				VSocket->SetMethodEx("socket_address get_peer_address() const", &VI_EXPECTIFY(Network::Socket::GetPeerAddress));
+				VSocket->SetMethodEx("socket_address get_this_address() const", &VI_EXPECTIFY(Network::Socket::GetThisAddress));
 				VSocket->SetMethodEx("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetAnyFlag));
 				VSocket->SetMethodEx("bool get_socket_flag(int, int &out) const", &VI_EXPECTIFY_VOID(Network::Socket::GetSocketFlag));
 				VSocket->SetMethodEx("bool set_close_on_exec()", VI_EXPECTIFY_VOID(Network::Socket::SetCloseOnExec));
@@ -15923,11 +15754,10 @@ namespace Vitex
 				VSocket->SetMethodEx("bool set_no_delay(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetNoDelay));
 				VSocket->SetMethodEx("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(Network::Socket::SetKeepAlive));
 				VSocket->SetMethodEx("bool set_timeout(int)", VI_EXPECTIFY_VOID(Network::Socket::SetTimeout));
-				VSocket->SetMethodEx("bool connect_sync(socket_address@+, uint64)", &VI_EXPECTIFY_VOID(Network::Socket::Connect));
 				VSocket->SetMethodEx("bool shutdown(bool = false)", &VI_EXPECTIFY_VOID(Network::Socket::Shutdown));
-				VSocket->SetMethodEx("bool close_sync()", &VI_EXPECTIFY_VOID(Network::Socket::Close));
-				VSocket->SetMethodEx("bool open(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
-				VSocket->SetMethodEx("bool bind(socket_address@+)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
+				VSocket->SetMethodEx("bool open(const socket_address&in)", &VI_EXPECTIFY_VOID(Network::Socket::Open));
+				VSocket->SetMethodEx("bool secure(uptr@, const string_view&in)", &VI_EXPECTIFY_VOID(Network::Socket::Secure));
+				VSocket->SetMethodEx("bool bind(const socket_address&in)", &VI_EXPECTIFY_VOID(Network::Socket::Bind));
 				VSocket->SetMethodEx("bool listen(int)", &VI_EXPECTIFY_VOID(Network::Socket::Listen));
 				VSocket->SetMethodEx("bool clear_events(bool)", &VI_EXPECTIFY_VOID(Network::Socket::ClearEvents));
 				VSocket->SetMethodEx("bool migrate_to(usize, bool = true)", &VI_EXPECTIFY_VOID(Network::Socket::MigrateTo));
@@ -15941,13 +15771,16 @@ namespace Vitex
 				VM->SetFunction("bool is_timeout(socket_poll)", &Network::Packet::IsTimeout);
 				VM->SetFunction("bool is_error(socket_poll)", &Network::Packet::IsError);
 				VM->SetFunction("bool is_error_or_skip(socket_poll)", &Network::Packet::IsErrorOrSkip);
-				VM->SetFunction("bool will_continue(socket_poll)", &Network::Packet::WillContinue);
 				VM->EndNamespace();
 
 				auto VDNS = VM->SetClass<Network::DNS>("dns", false);
 				VDNS->SetConstructor<Network::DNS>("dns@ f()");
-				VDNS->SetMethodEx("string from_address(const string_view&in, const string_view&in)", &VI_EXPECTIFY(Network::DNS::FromAddress));
-				VDNS->SetMethodEx("socket_address@+ from_service(const string_view&in, const string_view&in, dns_type, socket_protocol, socket_type)", &VI_EXPECTIFY(Network::DNS::FromService));
+				VDNS->SetMethodEx("string reverse_lookup(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY(Network::DNS::ReverseLookup));
+				VDNS->SetMethodEx("promise<string>@ reverse_lookup_deferred(const string_view&in, const string_view&in = string_view())", &VI_SPROMISIFY_REF(DNSReverseLookupDeferred, String));
+				VDNS->SetMethodEx("string reverse_address_lookup(const socket_address&in)", &VI_EXPECTIFY(Network::DNS::ReverseAddressLookup));
+				VDNS->SetMethodEx("promise<string>@ reverse_address_lookup_deferred(const socket_address&in)", &VI_SPROMISIFY_REF(DNSReverseAddressLookupDeferred, String));
+				VDNS->SetMethodEx("socket_address lookup(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_EXPECTIFY(Network::DNS::Lookup));
+				VDNS->SetMethodEx("promise<socket_address>@ lookup_deferred(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_SPROMISIFY_REF(DNSLookupDeferred, SocketAddress));
 				VDNS->SetMethodStatic("dns@+ get()", &Network::DNS::Get);
 
 				auto VMultiplexer = VM->SetClass<Network::Multiplexer>("multiplexer", false);
@@ -15969,18 +15802,17 @@ namespace Vitex
 
 				auto VUplinks = VM->SetClass<Network::Uplinks>("uplinks", false);
 				VUplinks->SetConstructor<Network::Uplinks>("uplinks@ f()");
-				VUplinks->SetMethod("void expire_connection(remote_host&in, socket@+)", &Network::Uplinks::ExpireConnection);
-				VUplinks->SetMethod("bool push_connection(remote_host&in, socket@+)", &Network::Uplinks::PushConnection);
-				VUplinks->SetMethod("bool pop_connection(remote_host&in)", &Network::Uplinks::PopConnection);
+				VUplinks->SetMethod("void expire_connection(const socket_address&in, socket@+)", &Network::Uplinks::ExpireConnection);
+				VUplinks->SetMethod("bool push_connection(const socket_address&in, socket@+)", &Network::Uplinks::PushConnection);
+				VUplinks->SetMethod("bool pop_connection(const socket_address&in)", &Network::Uplinks::PopConnection);
 				VUplinks->SetMethod("usize size() const", &Network::Uplinks::GetSize);
 				VUplinks->SetMethodStatic("uplinks@+ get()", &Network::Uplinks::Get);
 
 				auto VSocketListener = VM->SetClass<Network::SocketListener>("socket_listener", true);
 				VSocketListener->SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
-				VSocketListener->SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
-				VSocketListener->SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
+				VSocketListener->SetProperty<Network::SocketListener>("socket_address source", &Network::SocketListener::Address);
 				VSocketListener->SetProperty<Network::SocketListener>("socket@ stream", &Network::SocketListener::Stream);
-				VSocketListener->SetGcConstructor<Network::SocketListener, SocketListener, const std::string_view&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string_view&in, const remote_host &in, socket_address@+)");
+				VSocketListener->SetGcConstructor<Network::SocketListener, SocketListener, const std::string_view&, const Network::SocketAddress&, bool>("socket_listener@ f(const string_view&in, const socket_address&in, bool)");
 				VSocketListener->SetEnumRefsEx<Network::SocketListener>([](Network::SocketListener* Base, asIScriptEngine* VM)
 				{
 					FunctionFactory::GCEnumCallback(VM, Base->Stream);
@@ -16000,8 +15832,8 @@ namespace Vitex
 				VSocketRouter->SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
 				VSocketRouter->SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
 				VSocketRouter->SetConstructor<Network::SocketRouter>("socket_router@ f()");
-				VSocketRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
-				VSocketRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter->SetMethodEx("void listen(const string_view&in, const string_view&in, bool = false)", &SocketRouterListen1);
+				VSocketRouter->SetMethodEx("void listen(const string_view&in, const string_view&in, const string_view&in, bool = false)", &SocketRouterListen2);
 				VSocketRouter->SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
 				VSocketRouter->SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
 				VSocketRouter->SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
@@ -16010,9 +15842,9 @@ namespace Vitex
 				auto VSocketConnection = VM->SetClass<Network::SocketConnection>("socket_connection", true);
 				VSocketConnection->SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
 				VSocketConnection->SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
+				VSocketConnection->SetProperty<Network::SocketConnection>("socket_address address", &Network::SocketConnection::Address);
 				VSocketConnection->SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
 				VSocketConnection->SetGcConstructor<Network::SocketConnection, SocketConnection>("socket_connection@ f()");
-				VSocketConnection->SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
 				VSocketConnection->SetMethod("void reset(bool)", &Network::SocketConnection::Reset);
 				VSocketConnection->SetMethod<Network::SocketConnection, bool>("bool next()", &Network::SocketConnection::Next);
 				VSocketConnection->SetMethod<Network::SocketConnection, bool, int>("bool next(int32)", &Network::SocketConnection::Next);
@@ -16054,8 +15886,12 @@ namespace Vitex
 
 				auto VSocketClient = VM->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient->SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
-				VSocketClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VSocketClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
 				VSocketClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
+				VSocketClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
+				VSocketClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
+				VSocketClient->SetMethod("bool is_verified() const", &Network::SocketClient::IsVerified);
+				VSocketClient->SetMethod("const socket_address& get_peer_address() const", &Network::SocketClient::GetPeerAddress);
 				VSocketClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 
 				return true;
@@ -16338,8 +16174,8 @@ namespace Vitex
 				VMapRouter->SetProperty<Network::HTTP::MapRouter>("string temporary_directory", &Network::HTTP::MapRouter::TemporaryDirectory);
 				VMapRouter->SetProperty<Network::HTTP::MapRouter>("usize max_uploadable_resources", &Network::HTTP::MapRouter::MaxUploadableResources);
 				VMapRouter->SetGcConstructor<Network::HTTP::MapRouter, MapRouter>("map_router@ f()");
-				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
-				VMapRouter->SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string_view&, const std::string_view&, int, bool>("remote_host& listen(const string_view&in, const string_view&in, int, bool = false)", &Network::SocketRouter::Listen);
+				VMapRouter->SetMethodEx("void listen(const string_view&in, const string_view&in, bool = false)", &SocketRouterListen1);
+				VMapRouter->SetMethodEx("void listen(const string_view&in, const string_view&in, const string_view&in, bool = false)", &SocketRouterListen2);
 				VMapRouter->SetMethodEx("void set_listeners(dictionary@ data)", &SocketRouterSetListeners);
 				VMapRouter->SetMethodEx("dictionary@ get_listeners() const", &SocketRouterGetListeners);
 				VMapRouter->SetMethodEx("void set_certificates(dictionary@ data)", &SocketRouterSetCertificates);
@@ -16402,8 +16238,8 @@ namespace Vitex
 				VConnection->SetProperty<Network::HTTP::Connection>("response_frame response", &Network::HTTP::Connection::Response);
 				VConnection->SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
 				VConnection->SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
+				VConnection->SetProperty<Network::SocketConnection>("socket_address address", &Network::SocketConnection::Address);
 				VConnection->SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
-				VConnection->SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
 				VConnection->SetMethod<Network::HTTP::Connection, bool>("bool next()", &Network::HTTP::Connection::Next);
 				VConnection->SetMethod<Network::HTTP::Connection, bool, int>("bool next(int32)", &Network::HTTP::Connection::Next);
 				VConnection->SetMethod<Network::SocketConnection, bool>("bool abort()", &Network::SocketConnection::Abort);
@@ -16414,6 +16250,7 @@ namespace Vitex
 				VConnection->SetMethodEx("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(ConnectionStore, ArrayResourceInfo));
 				VConnection->SetMethodEx("promise<string>@ fetch(bool = false) const", &VI_SPROMISIFY_REF(ConnectionFetch, String));
 				VConnection->SetMethodEx("promise<bool>@ skip() const", &VI_SPROMISIFY(ConnectionSkip, TypeId::BOOL));
+				VConnection->SetMethodEx("string get_peer_ip_address() const", &ConnectionGetPeerIpAddress);
 				VConnection->SetMethodEx("websocket_frame@+ get_websocket() const", &ConnectionGetWebSocket);
 				VConnection->SetMethodEx("route_entry@+ get_route() const", &ConnectionGetRoute);
 				VConnection->SetMethodEx("server@+ get_root() const", &ConnectionGetServer);
@@ -16465,7 +16302,6 @@ namespace Vitex
 				auto VClient = VM->SetClass<Network::HTTP::Client>("client", false);
 				VClient->SetConstructor<Network::HTTP::Client, int64_t>("client@ f(int64)");
 				VClient->SetMethod("bool downgrade()", &Network::HTTP::Client::Downgrade);
-				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientJSON, Schema));
 				VClient->SetMethodEx("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(ClientXML, Schema));
 				VClient->SetMethodEx("promise<bool>@ skip()", &VI_SPROMISIFY(ClientSkip, TypeId::BOOL));
@@ -16473,8 +16309,12 @@ namespace Vitex
 				VClient->SetMethodEx("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(ClientUpgrade, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send_fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientSendFetch, TypeId::BOOL));
-				VClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
+				VClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
+				VClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
+				VClient->SetMethod("bool is_verified() const", &Network::SocketClient::IsVerified);
+				VClient->SetMethod("const socket_address& get_peer_address() const", &Network::SocketClient::GetPeerAddress);
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
 				VClient->SetMethod("request_frame& get_request() property", &Network::HTTP::Client::GetRequest);
@@ -16544,14 +16384,16 @@ namespace Vitex
 				VRequestFrame->SetMethodEx("array<attachment>@ get_attachments() const", &SMTPRequestGetAttachments);
 				VRequestFrame->SetMethodEx("void set_messages(array<string>@+)", &SMTPRequestSetMessages);
 				VRequestFrame->SetMethodEx("array<string>@ get_messages() const", &SMTPRequestGetMessages);
-				VRequestFrame->SetMethodEx("string get_remote_address() const", &SMTPRequestGetRemoteAddress);
 
 				auto VClient = VM->SetClass<Network::SMTP::Client>("client", false);
 				VClient->SetConstructor<Network::SMTP::Client, const std::string_view&, int64_t>("client@ f(const string_view&in, int64)");
-				VClient->SetMethodEx("string get_remote_address() const", &ClientGetRemoteAddress);
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::BOOL));
-				VClient->SetMethodEx("promise<bool>@ connect(remote_host &in, bool = true, uint32 = 100)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
+				VClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
+				VClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
+				VClient->SetMethod("bool is_verified() const", &Network::SocketClient::IsVerified);
+				VClient->SetMethod("const socket_address& get_peer_address() const", &Network::SocketClient::GetPeerAddress);
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);
 				VClient->SetDynamicCast<Network::SMTP::Client, Network::SocketClient>("socket_client@+", true);
@@ -17354,6 +17196,20 @@ namespace Vitex
 				return false;
 #endif
 			}
+			bool Registry::ImportVM(VirtualMachine* VM)
+			{
+#ifdef VI_BINDINGS
+				VI_ASSERT(VM != nullptr, "manager should be set");
+				VM->BeginNamespace("this_vm");
+				VM->SetFunction("void collect_garbage(uint64)", &VMCollectGarbage);
+				VM->EndNamespace();
+
+				return true;
+#else
+				VI_ASSERT(false, "<vm> is not loaded");
+				return false;
+#endif
+			}
 			bool Registry::ImportEngine(VirtualMachine* VM)
 			{
 #ifdef VI_BINDINGS
@@ -17879,7 +17735,7 @@ namespace Vitex
 				VRenderSystem->SetMethod("shader@+ get_basic_effect()", &Engine::RenderSystem::GetBasicEffect);
 				VRenderSystem->SetMethod("scene_graph@+ get_scene()", &Engine::RenderSystem::GetScene);
 				VRenderSystem->SetMethod("base_component@+ get_component()", &Engine::RenderSystem::GetComponent);
-				VRenderSystem->SetMethodEx("void query_sync(uint64, overlapping_result_sync@)", &RenderSystemQuerySync);
+				VRenderSystem->SetMethodEx("void query_group(uint64, overlapping_result_sync@)", &RenderSystemQueryGroup);
 				VRenderSystem->SetEnumRefsEx<Engine::RenderSystem>([](Engine::RenderSystem* Base, asIScriptEngine* VM)
 				{
 					for (auto* Item : Base->GetRenderers())
@@ -17961,10 +17817,10 @@ namespace Vitex
 				VContentManager->SetMethod("void set_device(graphics_device@+)", &Engine::ContentManager::SetDevice);
 				VContentManager->SetMethodEx("uptr@ load(base_processor@+, const string_view&in, schema@+ = null)", &ContentManagerLoad);
 				VContentManager->SetMethodEx("bool save(base_processor@+, const string_view&in, uptr@, schema@+ = null)", &ContentManagerSave);
-				VContentManager->SetMethodEx("void load_async(base_processor@+, const string_view&in, load_result_async@)", &ContentManagerLoadAsync1);
-				VContentManager->SetMethodEx("void load_async(base_processor@+, const string_view&in, schema@+, load_result_async@)", &ContentManagerLoadAsync2);
-				VContentManager->SetMethodEx("void save_async(base_processor@+, const string_view&in, uptr@, save_result_async@)", &ContentManagerSaveAsync1);
-				VContentManager->SetMethodEx("void save_async(base_processor@+, const string_view&in, uptr@, schema@+, save_result_async@)", &ContentManagerSaveAsync2);
+				VContentManager->SetMethodEx("void load_deferred(base_processor@+, const string_view&in, load_result_async@)", &ContentManagerLoadDeferred1);
+				VContentManager->SetMethodEx("void load_deferred(base_processor@+, const string_view&in, schema@+, load_result_async@)", &ContentManagerLoadDeferred2);
+				VContentManager->SetMethodEx("void save_deferred(base_processor@+, const string_view&in, uptr@, save_result_async@)", &ContentManagerSaveDeferred1);
+				VContentManager->SetMethodEx("void save_deferred(base_processor@+, const string_view&in, uptr@, schema@+, save_result_async@)", &ContentManagerSaveDeferred2);
 				VContentManager->SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, const string_view&in)", &ContentManagerFindCache1);
 				VContentManager->SetMethodEx("bool find_cache_info(base_processor@+, asset_cache &out, uptr@)", &ContentManagerFindCache2);
 				VContentManager->SetMethod<Engine::ContentManager, Engine::AssetCache*, Engine::Processor*, const std::string_view&>("uptr@ find_cache(base_processor@+, const string_view&in)", &Engine::ContentManager::FindCache);

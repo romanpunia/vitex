@@ -1643,7 +1643,7 @@ namespace Vitex
 		}
 		void ErrorHandling::Enqueue(Details&& Data) noexcept
 		{
-			if (HasFlag(LogOption::Async) && Schedule::IsAvailable(Difficulty::Sync))
+			if (HasFlag(LogOption::Async))
 				Codefer([Data = std::move(Data)]() mutable { Dispatch(Data); });
 			else
 				Dispatch(Data);
@@ -4996,14 +4996,14 @@ namespace Vitex
 		{
 			return Erase(Other, Start, End - Start);
 		}
-		ExpectsSystem<void> Stringify::EvalEnvs(String& Other, const std::string_view& Net, const std::string_view& Dir)
+		ExpectsSystem<void> Stringify::EvalEnvs(String& Other, const std::string_view& Directory, const Vector<String>& Tokens, const std::string_view& Token)
 		{
 			if (Other.empty())
 				return Core::Expectation::Met;
 
 			if (StartsOf(Other, "./\\"))
 			{
-				ExpectsIO<String> Result = OS::Path::Resolve(Other.c_str(), Dir, true);
+				ExpectsIO<String> Result = OS::Path::Resolve(Other.c_str(), Directory, true);
 				if (Result)
 					Other.assign(*Result);
 			}
@@ -5014,8 +5014,26 @@ namespace Vitex
 					return SystemException("invalid env name: " + Other.substr(1), std::move(Env.Error()));
 				Other.assign(*Env);
 			}
-			else
-				Replace(Other, "[subnet]", Net);
+			else if (!Tokens.empty())
+			{
+				size_t Start = std::string::npos, Offset = 0;
+				while ((Start = Other.find(Token, Offset)) != std::string::npos)
+				{
+					Start += Token.size(); size_t End = Start;
+					while (End < Other.size() && IsNumeric(Other[End]))
+						++End;
+
+					auto Index = FromString<uint8_t>(std::string_view(Other.data() + Start, End - Start));
+					if (Index && *Index < Tokens.size())
+					{
+						auto& Target = Tokens[*Index];
+						Other.replace(Other.begin() + Start, Other.begin() + End, Target);
+						Offset = Start + Target.size();
+					}
+					else
+						Offset = Start;
+				}
+			}
 
 			return Core::Expectation::Met;
 		}
@@ -8012,23 +8030,25 @@ namespace Vitex
 			if (Origin.Protocol != "http" && Origin.Protocol != "https")
 				return std::make_error_condition(std::errc::address_family_not_supported);
 
-			Network::RemoteHost Address;
-			Address.Hostname = Origin.Hostname;
-			Address.Secure = (Origin.Protocol == "https");
-			Address.Port = (Origin.Port < 0 ? (Address.Secure ? 443 : 80) : Origin.Port);
-			if (Address.Secure && !OS::Control::Has(AccessOption::Https))
+			bool Secure = (Origin.Protocol == "https");
+			if (Secure && !OS::Control::Has(AccessOption::Https))
 				return std::make_error_condition(std::errc::permission_denied);
-			else if (!Address.Secure && !OS::Control::Has(AccessOption::Http))
+			else if (!Secure && !OS::Control::Has(AccessOption::Http))
 				return std::make_error_condition(std::errc::permission_denied);
 
+			auto* DNS = Network::DNS::Get();
+			auto Address = DNS->Lookup(Origin.Hostname, Origin.Port > 0 ? ToString(Origin.Port) : (Secure ? "443" : "80"), Network::DNSType::Connect);
+			if (!Address)
+				return Address.Error().error();
+
 			Core::UPtr<Network::HTTP::Client> Client = new Network::HTTP::Client(30000);
-			auto Status = Client->Connect(&Address, false).Get();
+			auto Status = Client->Connect(*Address, false, Secure ? Network::PEER_VERITY_DEFAULT : Network::PEER_NOT_SECURE).Get();
 			if (!Status)
 				return Status.Error().error();
 
 			Network::HTTP::RequestFrame Request;
 			Request.Location.assign(Origin.Path);
-			VI_DEBUG("[ws] open ro %s", File);
+			VI_DEBUG("[ws] open ro %.*s", (int)File.size(), File.data());
 
 			for (auto& Item : Origin.Query)
 				Request.Query += Item.first + "=" + Item.second + "&";
@@ -11631,6 +11651,11 @@ namespace Vitex
 						});
 						Async->Resync = false;
 					} while (ThreadActive(Thread));
+					while (!Thread->Queue.empty())
+					{
+						Async->Queue.enqueue(std::move(Thread->Queue.front()));
+						Thread->Queue.pop();
+					}
 					break;
 				}
 				case Difficulty::Sync:
@@ -11663,6 +11688,11 @@ namespace Vitex
 						VI_MEASURE(Timings::Intensive);
 						Event();
 					} while (ThreadActive(Thread));
+					while (!Thread->Queue.empty())
+					{
+						Sync->Queue.enqueue(std::move(Thread->Queue.front()));
+						Thread->Queue.pop();
+					}
 					break;
 				}
 				default:
@@ -11882,7 +11912,7 @@ namespace Vitex
 				return false;
 
 			auto* Instance = Get();
-			if (!Instance->Active)
+			if (!Instance->Active || !Instance->Enqueue)
 				return false;
 
 			return Type == Difficulty::Count || Instance->HasParallelThreads(Type);

@@ -6830,11 +6830,11 @@ namespace Vitex
 		ExpectsVM<void> VirtualMachine::PerformPeriodicGarbageCollection(uint64_t IntervalMs)
 		{
 			int64_t Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			if (LastMajorGC + IntervalMs > Time)
+			if (LastMajorGC + (int64_t)IntervalMs > Time)
 				return Core::Expectation::Met;
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			int64_t PrevTime = LastMajorGC.load() + IntervalMs;
+			int64_t PrevTime = LastMajorGC.load() + (int64_t)IntervalMs;
 			if (PrevTime > Time)
 				return Core::Expectation::Met;
 

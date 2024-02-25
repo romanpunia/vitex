@@ -5019,11 +5019,11 @@ namespace Vitex
 				size_t Start = std::string::npos, Offset = 0;
 				while ((Start = Other.find(Token, Offset)) != std::string::npos)
 				{
-					Start += Token.size(); size_t End = Start;
+					size_t Subset = Start + Token.size(); size_t End = Subset;
 					while (End < Other.size() && IsNumeric(Other[End]))
 						++End;
 
-					auto Index = FromString<uint8_t>(std::string_view(Other.data() + Start, End - Start));
+					auto Index = FromString<uint8_t>(std::string_view(Other.data() + Subset, End - Subset));
 					if (Index && *Index < Tokens.size())
 					{
 						auto& Target = Tokens[*Index];
@@ -5031,7 +5031,7 @@ namespace Vitex
 						Offset = Start + Target.size();
 					}
 					else
-						Offset = Start;
+						Offset = End;
 				}
 			}
 

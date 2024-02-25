@@ -1,9 +1,9 @@
 #include "network.h"
 #ifdef VI_MICROSOFT
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include <winsock2.h>
-#include <windows.h>
-#include <ws2tcpip.h>
+#include <WinSock2.h>
+#include <Windows.h>
+#include <Ws2tcpip.h>
 #include <io.h>
 #ifdef VI_WEPOLL
 #include <wepoll.h>
@@ -747,7 +747,7 @@ namespace Vitex
 		Core::ExpectsIO<Core::String> SocketAddress::GetIpAddress() const noexcept
 		{
 			char Buffer[NI_MAXHOST];
-			if (getnameinfo(GetAddress(), GetAddressSize(), Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
+			if (getnameinfo(GetAddress(), (socklen_t)GetAddressSize(), Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
 				return Core::OS::Error::GetConditionOr(std::errc::host_unreachable);
 
 			return Core::String(Buffer, strnlen(Buffer, sizeof(Buffer)));
@@ -1137,27 +1137,39 @@ namespace Vitex
 			IpAddresses.push_back("127.0.0.1");
 
 			char Hostname[Core::CHUNK_SIZE];
+			struct addrinfo* Addresses = nullptr;
 			if (gethostname(Hostname, sizeof(Hostname)) == SOCKET_ERROR)
 				return IpAddresses;
 
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(struct addrinfo));
-			Hints.ai_family = AF_UNSPEC;
+			Hints.ai_family = AF_INET;
 			Hints.ai_protocol = IPPROTO_TCP;
 			Hints.ai_socktype = SOCK_STREAM;
 
-			struct addrinfo* Addresses = nullptr;
-			if (getaddrinfo(Hostname, nullptr, &Hints, &Addresses) != 0)
-				return IpAddresses;
-
-			for (auto It = Addresses; It != nullptr; It = It->ai_next)
+			if (getaddrinfo(Hostname, nullptr, &Hints, &Addresses) == 0)
 			{
-				char IpAddress[INET6_ADDRSTRLEN];
-				if (inet_ntop(It->ai_family, It->ai_addr, IpAddress, sizeof(IpAddress)))
-					IpAddresses.push_back(Core::String(IpAddress, strnlen(IpAddress, sizeof(IpAddress))));
+				for (auto It = Addresses; It != nullptr; It = It->ai_next)
+				{
+					char IpAddress[INET_ADDRSTRLEN];
+					if (inet_ntop(It->ai_family, &(((struct sockaddr_in*)It->ai_addr)->sin_addr), IpAddress, sizeof(IpAddress)))
+						IpAddresses.push_back(Core::String(IpAddress, strnlen(IpAddress, sizeof(IpAddress))));
+				}
+				freeaddrinfo(Addresses);
 			}
-			
-			freeaddrinfo(Addresses);
+
+			Hints.ai_family = AF_INET6;
+			if (getaddrinfo(Hostname, nullptr, &Hints, &Addresses) == 0)
+			{
+				for (auto It = Addresses; It != nullptr; It = It->ai_next)
+				{
+					char IpAddress[INET6_ADDRSTRLEN];
+					if (inet_ntop(It->ai_family, &(((struct sockaddr_in6*)It->ai_addr)->sin6_addr), IpAddress, sizeof(IpAddress)))
+						IpAddresses.push_back(Core::String(IpAddress, strnlen(IpAddress, sizeof(IpAddress))));
+				}
+				freeaddrinfo(Addresses);
+			}
+
 			return IpAddresses;
 		}
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
@@ -1549,7 +1561,7 @@ namespace Vitex
 		{
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
 			char ReverseHostname[NI_MAXHOST], ReverseService[NI_MAXSERV];
-			if (getnameinfo(Address.GetAddress(), Address.GetAddressSize(), ReverseHostname, NI_MAXHOST, ReverseService, NI_MAXSERV, NI_NUMERICSERV) != 0)
+			if (getnameinfo(Address.GetAddress(), (socklen_t)Address.GetAddressSize(), ReverseHostname, NI_MAXHOST, ReverseService, NI_MAXSERV, NI_NUMERICSERV) != 0)
 				return Core::SystemException(Core::Stringify::Text("dns reverse resolve %s address: invalid address", GetAddressIdentification(Address).c_str()));
 
 			VI_DEBUG("[net] dns reverse resolved for entity %s (host %s:%s is used)", GetAddressIdentification(Address).c_str(), ReverseHostname, ReverseService);

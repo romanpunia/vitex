@@ -2821,7 +2821,6 @@ namespace Vitex
 				Context->AddRef();
 				Engine = Context->GetVM();
 				Engine->NotifyOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_PROMISE));
-				//printf(":::: promise create 0x%p\n", (void*)this);
 			}
 			Promise::~Promise() noexcept
 			{
@@ -2845,7 +2844,6 @@ namespace Vitex
 			}
 			void Promise::ReleaseReferences(asIScriptEngine*)
 			{
-				//printf(":::: promise destroy 0x%p\n", (void*)this);
 				if (Value.TypeId & (size_t)TypeId::MASK_OBJECT)
 				{
 					auto Type = Engine->GetTypeInfoById(Value.TypeId);
@@ -2867,11 +2865,25 @@ namespace Vitex
 			}
 			void Promise::When(asIScriptFunction* NewCallback)
 			{
+				Core::UMutex<std::mutex> Unique(Update);
 				Delegate = FunctionDelegate(NewCallback);
+				if (Delegate.IsValid() && !IsPending())
+				{
+					auto DelegateReturn = std::move(Delegate);
+					Unique.Negate();
+					Context->ResolveCallback(std::move(DelegateReturn), [this](ImmediateContext* Context) { Context->SetArgObject(0, this); }, nullptr);
+				}
 			}
 			void Promise::When(std::function<void(Promise*)>&& NewCallback)
 			{
+				Core::UMutex<std::mutex> Unique(Update);
 				Bounce = std::move(NewCallback);
+				if (Bounce && !IsPending())
+				{
+					auto NativeReturn = std::move(Bounce);
+					Unique.Negate();
+					NativeReturn(this);
+				}
 			}
 			void Promise::Store(void* RefPointer, int RefTypeId)
 			{
@@ -2884,7 +2896,6 @@ namespace Vitex
 				if (Value.TypeId != PromiseNULL)
 					return Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISEREADY));
 
-				//printf(":::: promise resolve 0x%p (%s)\n", (void*)this, RefTypeId > 0 ? Engine->GetTypeInfoById(RefTypeId).GetName().data() : "void");
 				if ((RefTypeId & (size_t)TypeId::MASK_OBJECT))
 				{
 					auto Type = Engine->GetTypeInfoById(RefTypeId);
@@ -2914,23 +2925,15 @@ namespace Vitex
 					Context->SetUserData(nullptr, PromiseUD);
 
 				bool WantsResume = (Context->IsSuspended() && SuspendOwned);
+				auto NativeReturn = std::move(Bounce);
+				auto DelegateReturn = std::move(Delegate);
 				Unique.Negate();
 
-				if (Bounce)
-				{
-					std::function<void(Promise*)> Return = std::move(Bounce);
-					Return(this);
-				}
+				if (NativeReturn)
+					NativeReturn(this);
 
-				if (Delegate.IsValid())
-				{
-					Promise* Target = this;
-					Context->ResolveCallback(std::move(Delegate), [Target](ImmediateContext* Context)
-					{
-						if (Target->GetTypeId() != (size_t)TypeId::VOIDF)
-							Context->SetArgAddress(0, Target->Retrieve());
-					}, nullptr);
-				}
+				if (DelegateReturn.IsValid())
+					Context->ResolveCallback(std::move(DelegateReturn), [this](ImmediateContext* Context) { Context->SetArgObject(0, this); }, nullptr);
 
 				if (WantsResume)
 					Context->ResolveNotification();
@@ -2998,9 +3001,13 @@ namespace Vitex
 			}
 			void Promise::RetrieveVoid()
 			{
+				Core::UMutex<std::mutex> Unique(Update);
 				ImmediateContext* Context = ImmediateContext::Get();
-				if (Context != nullptr)
-					Context->RethrowDeferredException();
+				if (Context != nullptr && !Context->RethrowDeferredException())
+				{
+					if (Value.TypeId == PromiseNULL)
+						Bindings::Exception::Throw(Bindings::Exception::Pointer(EXCEPTION_PROMISENOTREADY));
+				}
 			}
 			void* Promise::Retrieve()
 			{
@@ -3112,13 +3119,6 @@ namespace Vitex
 			}
 			int Promise::PromiseNULL = -1;
 			int Promise::PromiseUD = 559;
-
-			Core::Promise<bool> test_timeout()
-			{
-				Core::Promise<bool> Future;
-				Core::Schedule::Get()->SetTimeout(1, [Future]() mutable { Future.Set(true); });
-				return Future;
-			}
 
 			Core::Decimal DecimalNegate(Core::Decimal& Base)
 			{
@@ -11044,14 +11044,13 @@ namespace Vitex
 				bool HasCallbacks = (!VM->GetLibraryProperty(LibraryFeatures::PromiseNoCallbacks));
 				if (HasCallbacks)
 				{
-					VPromise->SetFunctionDef("void promise<T>::when_async(T&in)");
+					VPromise->SetFunctionDef("void promise<T>::when_async(promise<T>@+)");
 					VPromise->SetMethod<Promise, void, asIScriptFunction*>("void when(when_async@)", &Promise::When);
-					VPromiseVoid->SetFunctionDef("void promise_v::when_async()");
+					VPromiseVoid->SetFunctionDef("void promise_v::when_async(promise_v@+)");
 					VPromiseVoid->SetMethod<Promise, void, asIScriptFunction*>("void when(when_async@)", &Promise::When);
 				}
 
 				VM->SetCodeGenerator("await-syntax", &Promise::GeneratorCallback);
-				VM->SetFunction("promise<bool>@ test_timeout()", &VI_SPROMISIFY(test_timeout, TypeId::BOOL));
 				return true;
 			}
 			bool Registry::ImportDecimal(VirtualMachine* VM)

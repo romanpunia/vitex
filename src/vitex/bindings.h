@@ -170,6 +170,49 @@ namespace Vitex
 				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, const std::string_view& Syntax);
 			};
 
+			class VI_OUT_TS Tags
+			{
+			public:
+				enum class TagType
+				{
+					Unknown,
+					Type,
+					Function,
+					PropertyFunction,
+					Variable,
+					NotType
+				};
+
+				struct TagDirective
+				{
+					Core::UnorderedMap<Core::String, Core::String> Args;
+					Core::String Name;
+				};
+
+				struct TagDeclaration
+				{
+					std::string_view Class;
+					std::string_view Name;
+					Core::String Declaration;
+					Core::String Namespace;
+					Core::Vector<TagDirective> Directives;
+					TagType Type = TagType::Unknown;
+				};
+
+			public:
+				typedef Core::Vector<TagDeclaration> TagInfo;
+				typedef std::function<void(VirtualMachine*, TagInfo&&)> TagCallback;
+
+			public:
+				static void BindSyntax(VirtualMachine* VM, bool Enabled, const TagCallback& Callback);
+				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, VirtualMachine* VM, const TagCallback& Callback);
+
+			private:
+				static size_t ExtractField(VirtualMachine* VM, Core::String& Code, size_t Offset, TagDeclaration& Tag);
+				static void ExtractDeclaration(VirtualMachine* VM, Core::String& Code, size_t Offset, TagDeclaration& Tag);
+				static void AppendDirective(TagDeclaration& Tag, Core::String& Directive);
+			};
+
 			class VI_OUT_TS Exception
 			{
 			public:

@@ -2223,11 +2223,11 @@ namespace Vitex
 			SDL_GetWindowWMInfo(Handle, Base);
 #endif
 		}
-		bool Activity::Dispatch(uint64_t TimeoutMs)
+		bool Activity::Dispatch(uint64_t TimeoutMs, bool DispatchAll)
 		{
-			return MultiDispatch(EventSource, TimeoutMs);
+			return MultiDispatch(EventSource, TimeoutMs, DispatchAll);
 		}
-		bool Activity::MultiDispatch(const EventConsumers& Sources, uint64_t TimeoutMs)
+		bool Activity::MultiDispatch(const EventConsumers& Sources, uint64_t TimeoutMs, bool DispatchAll)
 		{
 			VI_MEASURE(Core::Timings::Mixed);
 #ifdef VI_SDL2
@@ -2660,11 +2660,11 @@ namespace Vitex
 					}
 				}
 
-				HasEvents = SDL_PollEvent(&Event);
+				HasEvents = DispatchAll ? SDL_PollEvent(&Event) : 0;
 				++IncomingEvents;
 			}
 
-			if (TimeoutMs > 0)
+			if (TimeoutMs > 0 || !DispatchAll)
 				return IncomingEvents > 0;
 
 			uint32_t Timeout = Sources.Consumers.begin()->second->Options.InactiveSleepMs;

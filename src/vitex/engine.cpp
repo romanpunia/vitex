@@ -6201,7 +6201,7 @@ namespace Vitex
 				{
 					while (State == ApplicationState::Active)
 					{
-						bool RenderFrame = Activity->Dispatch();
+						bool RenderFrame = Activity->Dispatch(0, Control.BlockingDispatch);
 						InternalClock->Begin();
 						Dispatch(InternalClock);
 
@@ -6231,7 +6231,7 @@ namespace Vitex
 				{
 					while (State == ApplicationState::Active)
 					{
-						bool RenderFrame = Activity->Dispatch();
+						bool RenderFrame = Activity->Dispatch(0, Control.BlockingDispatch);
 						Queue->Dispatch();
 
 						InternalClock->Begin();

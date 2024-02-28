@@ -1973,7 +1973,7 @@ namespace Vitex
 			void Resize(int Width, int Height);
 			void Load(SDL_SysWMinfo* Base);
 			bool CaptureKeyMap(KeyMap* Value);
-			bool Dispatch(uint64_t TimeoutMs = 0);
+			bool Dispatch(uint64_t TimeoutMs = 0, bool DispatchAll = true);
 			bool IsFullscreen() const;
 			bool IsAnyKeyDown() const;
 			bool IsKeyDown(const KeyMap& Key) const;
@@ -2002,7 +2002,7 @@ namespace Vitex
 			Desc& GetOptions();
 
 		public:
-			static bool MultiDispatch(const EventConsumers& Sources, uint64_t TimeoutMs = 0);
+			static bool MultiDispatch(const EventConsumers& Sources, uint64_t TimeoutMs = 0, bool DispatchAll = true);
 
 		private:
 			bool ApplySystemTheme();

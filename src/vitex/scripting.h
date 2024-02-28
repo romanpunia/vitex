@@ -685,8 +685,15 @@ namespace Vitex
 		struct VI_OUT ByteCodeLabel
 		{
 			std::string_view Name;
-			uint8_t Id;
-			uint8_t Args;
+			size_t OffsetOfArg0;
+			size_t OffsetOfArg1;
+			size_t OffsetOfArg2;
+			int32_t OffsetOfStack;
+			uint8_t Code;
+			uint8_t Size;
+			uint8_t SizeOfArg0;
+			uint8_t SizeOfArg1;
+			uint8_t SizeOfArg2;
 		};
 
 		struct VI_OUT PropertyInfo
@@ -1750,6 +1757,9 @@ namespace Vitex
 			Core::String ToString(int MaxDepth, void* Value, uint32_t TypeId);
 			Core::String ToString(Core::String& Indent, int MaxDepth, void* Value, uint32_t TypeId);
 			VirtualMachine* GetEngine();
+
+		public:
+			static size_t ByteCodeLabelToText(VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, Core::StringStream& Stream);
 
 		private:
 			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback);

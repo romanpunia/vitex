@@ -37,9 +37,9 @@
 #define EXCEPTION_NULLPOINTER EXCEPTIONCAT_TYPE, "trying to access a null pointer instance"
 #define EXCEPTION_ACCESSINVALID EXCEPTIONCAT_TYPE, "accessing non-existing value"
 #define EXCEPTION_INVALIDINITIATOR EXCEPTIONCAT_TYPE, "type must be a handle or null"
-#define EXCEPTION_PROMISEREADY EXCEPTIONCAT_ASYNC, "trying to settle the promise that is already fulfilled"
-#define EXCEPTION_PROMISENOTREADY EXCEPTIONCAT_ASYNC, "trying to settle the promise that is not fulfilled"
-#define EXCEPTION_MUTEXNOTOWNED EXCEPTIONCAT_SYNC, "trying to unlock the mutex that is not owned by this thread"
+#define EXCEPTION_PROMISEREADY EXCEPTIONCAT_ASYNC, "trying to settle a promise that is already fulfilled"
+#define EXCEPTION_PROMISENOTREADY EXCEPTIONCAT_ASYNC, "trying to unwrap a promise that is not fulfilled"
+#define EXCEPTION_MUTEXNOTOWNED EXCEPTIONCAT_SYNC, "trying to unlock a mutex that is not owned by this thread"
 #define TYPENAME_ARRAY "array"
 #define TYPENAME_STRING "string"
 #define TYPENAME_DICTIONARY "dictionary"
@@ -594,7 +594,7 @@ namespace Vitex
 					{
 						auto Result = Base->ResolveFile(Path, Core::Stringify::Trim(Include.first));
 						if (!Result)
-							return VirtualException(VirtualError::NO_MODULE, "importing file not found: \"" + Include.first + "\"");
+							return VirtualException(VirtualError::INVALID_DECLARATION, std::move(Result.Error().message()));
 						Output += *Result;
 					}
 
@@ -604,6 +604,376 @@ namespace Vitex
 					Output.append(Diff, '\n');
 					return Output;
 				});
+			}
+
+			void Tags::BindSyntax(VirtualMachine* VM, bool Enabled, const TagCallback& Callback)
+			{
+				VI_ASSERT(VM != nullptr, "vm should be set");
+				if (Enabled)
+					VM->SetCodeGenerator("tags-syntax", std::bind(&Bindings::Tags::GeneratorCallback, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, VM, Callback));
+				else
+					VM->SetCodeGenerator("tags-syntax", nullptr);
+			}
+			ExpectsVM<void> Tags::GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, VirtualMachine* VM, const TagCallback& Callback)
+			{
+#ifdef VI_ANGELSCRIPT
+				if (!Callback)
+					return Core::Expectation::Met;
+
+				asIScriptEngine* Engine = VM->GetEngine();
+				Core::Vector<TagDeclaration> Declarations;
+				TagDeclaration Tag;
+				size_t Offset = 0;
+
+				while (Offset < Code.size())
+				{
+					asUINT Length = 0;
+					asETokenClass Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+					if (Type == asTC_COMMENT || Type == asTC_WHITESPACE)
+					{
+						Offset += Length;
+						continue;
+					}
+
+					std::string_view Token = std::string_view(&Code[Offset], Length);
+					if (Token == "shared" || Token == "abstract" || Token == "mixin" || Token == "external")
+					{
+						Offset += Length;
+						continue;
+					}
+
+					if (Tag.Class.empty() && (Token == "class" || Token == "interface"))
+					{
+						do
+						{
+							Offset += Length;
+							if (Offset >= Code.size())
+							{
+								Type = asTC_UNKNOWN;
+								break;
+							}
+							Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+						} while (Type == asTC_COMMENT || Type == asTC_WHITESPACE);
+
+						if (Type == asTC_IDENTIFIER)
+						{
+							Tag.Class = std::string_view(Code).substr(Offset, Length);
+							while (Offset < Code.length())
+							{
+								Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+								if (Code[Offset] == '{')
+								{
+									Offset += Length;
+									break;
+								}
+								else if (Code[Offset] == ';')
+								{
+									Tag.Class = std::string_view();
+									Offset += Length;
+									break;
+								}
+								Offset += Length;
+							}
+						}
+
+						continue;
+					}
+
+					if (!Tag.Class.empty() && Token == "}")
+					{
+						Tag.Class = std::string_view();
+						Offset += Length;
+						continue;
+					}
+
+					if (Token == "namespace")
+					{
+						do
+						{
+							Offset += Length;
+							Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+						} while (Type == asTC_COMMENT || Type == asTC_WHITESPACE);
+
+						if (!Tag.Namespace.empty())
+							Tag.Namespace += "::";
+
+						Tag.Namespace += Code.substr(Offset, Length);
+						while (Offset < Code.length())
+						{
+							Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+							if (Code[Offset] == '{')
+							{
+								Offset += Length;
+								break;
+							}
+							Offset += Length;
+						}
+						continue;
+					}
+
+					if (!Tag.Namespace.empty() && Token == "}")
+					{
+						size_t Index = Tag.Namespace.rfind("::");
+						if (Index != std::string::npos)
+							Tag.Namespace.erase(Index);
+						else
+							Tag.Namespace.clear();
+						Offset += Length;
+						continue;
+					}
+
+					if (Token == "[")
+					{
+						Offset = ExtractField(VM, Code, Offset, Tag);
+						ExtractDeclaration(VM, Code, Offset, Tag);
+					}
+
+					Length = 0;
+					while (Offset < Code.length() && Code[Offset] != ';' && Code[Offset] != '{')
+					{
+						Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+						Offset += Length;
+					}
+
+					if (Offset < Code.length() && Code[Offset] == '{')
+					{
+						int Level = 1; ++Offset;
+						while (Level > 0 && Offset < Code.size())
+						{
+							if (Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length) == asTC_KEYWORD)
+							{
+								if (Code[Offset] == '{')
+									Level++;
+								else if (Code[Offset] == '}')
+									Level--;
+							}
+							Offset += Length;
+						}
+					}
+					else
+						++Offset;
+
+					if (Tag.Type == TagType::Unknown)
+						continue;
+
+					auto& Result = Declarations.emplace_back();
+					Result.Class = Tag.Class;
+					Result.Name = Tag.Name;
+					Result.Declaration = std::move(Tag.Declaration);
+					Result.Namespace = Tag.Namespace;
+					Result.Directives = std::move(Tag.Directives);
+					Result.Type = Tag.Type;
+
+					Core::Stringify::Trim(Result.Declaration);
+					Tag.Name = std::string_view();
+					Tag.Type = TagType::Unknown;
+				}
+
+				Callback(VM, std::move(Declarations));
+				return Core::Expectation::Met;
+#else
+				return VirtualException(VirtualError::NOT_SUPPORTED, "tag generator requires engine support");
+#endif
+			}
+			size_t Tags::ExtractField(VirtualMachine* VM, Core::String& Code, size_t Offset, TagDeclaration& Tag)
+			{
+#ifdef VI_ANGELSCRIPT
+				asIScriptEngine* Engine = VM->GetEngine();
+				for (;;)
+				{
+					Core::String Declaration;
+					Code[Offset++] = ' ';
+
+					int Level = 1; asUINT Length = 0;
+					while (Level > 0 && Offset < Code.size())
+					{
+						asETokenClass Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+						if (Type == asTC_KEYWORD)
+						{
+							if (Code[Offset] == '[')
+								Level++;
+							else if (Code[Offset] == ']')
+								Level--;
+						}
+						
+						if (Level > 0)
+							Declaration.append(&Code[Offset], Length);
+
+						if (Type != asTC_WHITESPACE)
+						{
+							char* Buffer = &Code[Offset];
+							for (asUINT i = 0; i < Length; i++)
+							{
+								if (!Core::Stringify::IsWhitespace(Buffer[i]))
+									Buffer[i] = ' ';
+							}
+						}
+						Offset += Length;
+					}
+					AppendDirective(Tag, Core::Stringify::Trim(Declaration));
+
+					asETokenClass Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+					while (Type == asTC_COMMENT || Type == asTC_WHITESPACE)
+					{
+						Offset += Length;
+						Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+					}
+
+					if (Code[Offset] != '[')
+						break;
+				}
+#endif
+				return Offset;
+			}
+			void Tags::ExtractDeclaration(VirtualMachine* VM, Core::String& Code, size_t Offset, TagDeclaration& Tag)
+			{
+#ifdef VI_ANGELSCRIPT
+				asIScriptEngine* Engine = VM->GetEngine();
+				std::string_view Token;
+				asUINT Length = 0;
+				asETokenClass Type = asTC_WHITESPACE;
+
+				do
+				{
+					Offset += Length;
+					Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+					Token = std::string_view(&Code[Offset], Length);
+				} while (Type == asTC_WHITESPACE || Type == asTC_COMMENT || Token == "private" || Token == "protected" || Token == "shared" || Token == "external" || Token == "final" || Token == "abstract");
+
+				if (Type != asTC_KEYWORD && Type != asTC_IDENTIFIER)
+					return;
+
+				Token = std::string_view(&Code[Offset], Length);
+				if (Token != "interface" && Token != "class" && Token != "enum")
+				{
+					int NestedParenthesis = 0;
+					bool HasParenthesis = false;
+					Tag.Declaration.append(&Code[Offset], Length);
+					Offset += Length;
+					for (; Offset < Code.size();)
+					{
+						Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+						Token = std::string_view(&Code[Offset], Length);
+						if (Type == asTC_KEYWORD)
+						{
+							if (Token == "{" && NestedParenthesis == 0)
+							{
+								if (!HasParenthesis)
+								{
+									Tag.Declaration = Tag.Name;
+									Tag.Type = TagType::PropertyFunction;
+								}
+								else
+									Tag.Type = TagType::Function;
+								return;
+							}
+							if ((Token == "=" && !HasParenthesis) || Token == ";")
+							{
+								if (!HasParenthesis)
+								{
+									Tag.Declaration = Tag.Name;
+									Tag.Type = TagType::Variable;
+								}
+								else
+									Tag.Type = TagType::NotType;
+								return;
+							}
+							else if (Token == "(")
+							{
+								NestedParenthesis++;
+								HasParenthesis = true;
+							}
+							else if (Token == ")")
+								NestedParenthesis--;
+						}
+						else if (Tag.Name.empty() && Type == asTC_IDENTIFIER)
+							Tag.Name = Token;
+
+						if (!HasParenthesis || NestedParenthesis > 0 || Type != asTC_IDENTIFIER || (Token != "final" && Token != "override"))
+							Tag.Declaration += Token;
+						Offset += Length;
+					}
+				}
+				else
+				{
+					do
+					{
+						Offset += Length;
+						Type = Engine->ParseToken(&Code[Offset], Code.size() - Offset, &Length);
+					} while (Type == asTC_WHITESPACE || Type == asTC_COMMENT);
+
+					if (Type == asTC_IDENTIFIER)
+					{
+						Tag.Type = TagType::Type;
+						Tag.Declaration = std::string_view(&Code[Offset], Length);
+						Offset += Length;
+						return;
+					}
+				}
+#endif
+			}
+			void Tags::AppendDirective(TagDeclaration& Tag, Core::String& Directive)
+			{
+				TagDirective Result;
+				size_t Where = Directive.find('(');
+				if (Where == Core::String::npos || Directive.back() != ')')
+				{
+					Result.Name = std::move(Directive);
+					Tag.Directives.emplace_back(std::move(Result));
+					return;
+				}
+
+				Core::Vector<Core::String> Args;
+				std::string_view Data = std::string_view(Directive).substr(Where + 1, Directive.size() - Where - 2);
+				Result.Name = Directive.substr(0, Where);
+				Where = 0;
+
+				size_t Last = 0;
+				while (Where < Data.size())
+				{
+					char V = Data[Where];
+					if (V == '\"' || V == '\'')
+					{
+						while (Where < Data.size() && Data[++Where] != V);
+						if (Where + 1 >= Data.size())
+						{
+							++Where;
+							goto AddValue;
+						}
+					}
+					else if (V == ',' || Where + 1 >= Data.size())
+					{
+					AddValue:
+						Core::String Subvalue = Core::String(Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last));
+						Core::Stringify::Trim(Subvalue);
+						if (Subvalue.size() >= 2 && Subvalue.front() == Subvalue.back() && (Subvalue.front() == '\"' || Subvalue.front() == '\''))
+							Subvalue.erase(Subvalue.size() - 1, 1).erase(0, 1);
+						Args.push_back(std::move(Subvalue));
+						Last = Where + 1;
+					}
+					++Where;
+				}
+
+				for (auto& KeyValue : Args)
+				{
+					size_t KeySize = 0;
+					char V = KeyValue.empty() ? 0 : KeyValue.front();
+					if (V == '\"' || V == '\'')
+						while (KeySize < KeyValue.size() && KeyValue[++KeySize] != V);
+
+					KeySize = KeyValue.find('=', KeySize);
+					if (KeySize != std::string::npos)
+					{
+						Core::String Key = KeyValue.substr(0, KeySize - 1);
+						Core::String Value = KeyValue.substr(KeySize + 1);
+						Core::Stringify::Trim(Key);
+						Core::Stringify::Trim(Value);
+						Result.Args[Key] = std::move(Value);
+					}
+					else
+						Result.Args[Core::ToString(Result.Args.size())] = std::move(KeyValue);
+				}
+				Tag.Directives.emplace_back(std::move(Result));
 			}
 
 			Exception::Pointer::Pointer() : Context(nullptr)
@@ -14594,7 +14964,7 @@ namespace Vitex
 				VActivity->SetMethod("void move(int, int)", &Graphics::Activity::Move);
 				VActivity->SetMethod("void resize(int, int)", &Graphics::Activity::Resize);
 				VActivity->SetMethod("bool capture_key_map(key_map &out)", &Graphics::Activity::CaptureKeyMap);
-				VActivity->SetMethod("bool dispatch(uint64 = 0)", &Graphics::Activity::Dispatch);
+				VActivity->SetMethod("bool dispatch(uint64 = 0, bool = true)", &Graphics::Activity::Dispatch);
 				VActivity->SetMethod("bool is_fullscreen() const", &Graphics::Activity::IsFullscreen);
 				VActivity->SetMethod("bool is_any_key_down() const", &Graphics::Activity::IsAnyKeyDown);
 				VActivity->SetMethod("bool is_key_down(const key_map &in) const", &Graphics::Activity::IsKeyDown);
@@ -14620,7 +14990,7 @@ namespace Vitex
 				VActivity->SetMethod("string get_clipboard_text() const", &Graphics::Activity::GetClipboardText);
 				VActivity->SetMethod("string get_error() const", &Graphics::Activity::GetError);
 				VActivity->SetMethod("activity_desc& get_options()", &Graphics::Activity::GetOptions);
-				VActivity->SetMethodStatic("bool multi_dispatch(const activity_event_consumers&in, uint64 = 0)", &Graphics::Activity::MultiDispatch);
+				VActivity->SetMethodStatic("bool multi_dispatch(const activity_event_consumers&in, uint64 = 0, bool = true)", &Graphics::Activity::MultiDispatch);
 
 				VM->BeginNamespace("video");
 				VM->SetFunction("uint32 get_display_count()", &Graphics::Video::GetDisplayCount);
@@ -18037,6 +18407,7 @@ namespace Vitex
 				VApplicationDesc->SetProperty<Application::Desc>("usize polling_events", &Application::Desc::PollingEvents);
 				VApplicationDesc->SetProperty<Application::Desc>("usize threads", &Application::Desc::Threads);
 				VApplicationDesc->SetProperty<Application::Desc>("usize usage", &Application::Desc::Usage);
+				VApplicationDesc->SetProperty<Application::Desc>("bool blocking_dispatch", &Application::Desc::BlockingDispatch);
 				VApplicationDesc->SetProperty<Application::Desc>("bool daemon", &Application::Desc::Daemon);
 				VApplicationDesc->SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
 				VApplicationDesc->SetConstructor<Application::Desc>("void f()");

@@ -387,6 +387,7 @@ namespace Vitex
 				int32_t Brackets = 0;
 				int32_t Braces = 0;
 				int32_t Quotes = 0;
+				int32_t Parameters = 0;
 				size_t End = Start;
 				while (End < Code.size())
 				{
@@ -447,7 +448,7 @@ namespace Vitex
 					}
 					else if (Brackets == 0 && Braces == 0 && Indexers == 0)
 					{
-						if (!isalnum(V) && V != '.' && V != ' ' && V != '_')
+						if (!Core::Stringify::IsAlphanum(V) && !Core::Stringify::IsWhitespace(V) && V != '.' && V != '_' && V != '<' && V != '>')
 						{
 							if (V != ':' || End + 1 >= Code.size() || Code[End + 1] != ':')
 								break;
@@ -2914,8 +2915,9 @@ namespace Vitex
 				if (Output.empty())
 					return Compute::IncludeType::Virtual;
 
-				if (!VM->GenerateCode(Processor, File.Module, Output))
-					return Compute::IncludeType::Error;
+				auto Status = VM->GenerateCode(Processor, File.Module, Output);
+				if (!Status)
+					return Status.Error();
 
 				if (Output.empty())
 					return Compute::IncludeType::Virtual;
@@ -4636,33 +4638,48 @@ namespace Vitex
 
 			Function = Module->GetFunctionByName(FunctionDecl.data());
 			if (!Function)
+			{
 				Function = Module->GetFunctionByDecl(FunctionDecl.data());
+				if (!Function)
+				{
+					auto Keys = Core::Stringify::Split(FunctionDecl, "::");
+					if (Keys.size() >= 2)
+					{
+						size_t Length = Keys.size() - 1;
+						Core::String TypeName = Keys.front();
+						for (size_t i = 1; i < Length; i++)
+						{
+							TypeName += "::";
+							TypeName += Keys[i];
+						}
+
+						auto* Type = Module->GetTypeInfoByName(TypeName.c_str());
+						if (Type != nullptr)
+						{
+							Function = Type->GetMethodByName(Keys.back().c_str());
+							if (!Function)
+								Function = Type->GetMethodByDecl(Keys.back().c_str());
+						}
+					}
+				}
+			}
 
 			if (!Function)
 				return Output("  function was not found\n");
 
 			Core::StringStream Stream;
-			Stream << "  function <" << Function->GetName() << "> bytecode instructions:";
+			Stream << "  function <" << Function->GetName() << "> disassembly:\n";
 
-			asUINT Size = 0, Calls = 0, Args = 0;
+			asUINT Offset = 0, Size = 0, Instructions = 0;
 			asDWORD* ByteCode = Function->GetByteCode(&Size);
-			for (asUINT i = 0; i < Size; i++)
+			while (Offset < Size)
 			{
-				asDWORD Value = ByteCode[i];
-				if (Value <= std::numeric_limits<uint8_t>::max())
-				{
-					ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
-					Stream << "\n    0x" << (void*)(uintptr_t)(i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
-					++Calls;
-				}
-				else
-				{
-					Stream << " " << Value;
-					++Args;
-				}
+				Stream << "  ";
+				Offset = ByteCodeLabelToText(VM, ByteCode, Offset, false, Stream);
+				++Instructions;
 			}
 
-			Stream << "\n  " << Size << " instructions, " << Calls << " operations, " << Args << " values\n";
+			Stream << "  " << Instructions << " instructions (" << Size << " bytes)\n";
 			Output(Stream.str());
 #endif
 		}
@@ -4864,69 +4881,31 @@ namespace Vitex
 
 			if (HasBaseCallState && CurrentFunction != nullptr)
 			{
-				asUINT Size = 0; size_t PreviewSize = 33;
+				asUINT Size = 0; size_t PreviewSize = 40;
 				asDWORD* ByteCode = CurrentFunction->GetByteCode(&Size);
 				Stream << "    [cf] current function: " << CurrentFunction->GetDeclaration(true, true, true) << "\n";
 				if (ByteCode != nullptr && ProgramPointer < Size)
 				{
-					asUINT Left = std::min<asUINT>((asUINT)PreviewSize, (asUINT)ProgramPointer);
-					Stream << "  stack frame #" << Level << " instructions:";
-					bool HadInstruction = false;
-
-					if (Left > 0)
+					asUINT PreviewProgramPointerBegin = ProgramPointer - std::min<asUINT>((asUINT)PreviewSize, (asUINT)ProgramPointer);
+					asUINT PreviewProgramPointerEnd = ProgramPointer + std::min<asUINT>((asUINT)PreviewSize, (asUINT)Size - (asUINT)ProgramPointer);
+					Stream << "  stack frame #" << Level << " disassembly:\n";
+					if (PreviewProgramPointerBegin < ProgramPointer)
+						Stream << "    ... " << ProgramPointer - PreviewProgramPointerBegin << " bytes of assembly data skipped\n";
+					
+					while (PreviewProgramPointerBegin < PreviewProgramPointerEnd)
 					{
-						Stream << "\n    ... " << ProgramPointer - Left << " instructions passed";
-						for (asUINT i = 1; i < Left; i++)
-						{
-							asDWORD Value = ByteCode[ProgramPointer - i];
-							if (Value <= std::numeric_limits<uint8_t>::max())
-							{
-								ByteCodeLabel LeftLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
-								Stream << "\n    0x" << (void*)(uintptr_t)(ProgramPointer - i) << ": " << LeftLabel.Name << " [bc:" << (int)LeftLabel.Id << ";ac:" << (int)LeftLabel.Args << "]";
-								HadInstruction = true;
-							}
-							else if (!HadInstruction)
-							{
-								Stream << "\n    ... " << Value;
-								HadInstruction = true;
-							}
-							else
-								Stream << " " << Value;
-						}
+						Stream << "  ";
+						PreviewProgramPointerBegin = ByteCodeLabelToText(VM, ByteCode, PreviewProgramPointerBegin, PreviewProgramPointerBegin == ProgramPointer, Stream);
 					}
 
-					asUINT Right = std::min<asUINT>((asUINT)PreviewSize, (asUINT)Size - (asUINT)ProgramPointer);
-					ByteCodeLabel MainLabel = VirtualMachine::GetByteCodeInfo((uint8_t)ByteCode[ProgramPointer]);
-					Stream << "\n  > 0x" << (void*)(uintptr_t)(ProgramPointer) << ": " << MainLabel.Name << " [bc:" << (int)MainLabel.Id << ";ac:" << (int)MainLabel.Args << "]";
-					HadInstruction = true;
-
-					if (Right > 0)
-					{
-						for (asUINT i = 1; i < Right; i++)
-						{
-							asDWORD Value = ByteCode[ProgramPointer + i];
-							if (Value <= std::numeric_limits<uint8_t>::max())
-							{
-								ByteCodeLabel RightLabel = VirtualMachine::GetByteCodeInfo((uint8_t)Value);
-								Stream << "\n    0x" << (void*)(uintptr_t)(ProgramPointer + i) << ": " << RightLabel.Name << " [bc:" << (int)RightLabel.Id << ";ac:" << (int)RightLabel.Args << "]";
-								HadInstruction = true;
-							}
-							else if (!HadInstruction)
-							{
-								Stream << "\n    ... " << Value;
-								HadInstruction = true;
-							}
-							else
-								Stream << " " << Value;
-						}
-						Stream << "\n    ... " << Size - ProgramPointer << " more instructions\n";
-					}
+					if (ProgramPointer < PreviewProgramPointerEnd)
+						Stream << "    ... " << PreviewProgramPointerEnd - ProgramPointer << " more bytes of assembly data\n";
 				}
 				else
-					Stream << "  stack frame #" << Level << " instructions:\n    ... instructions data are empty\n";
+					Stream << "  stack frame #" << Level << " disassembly:\n    ... assembly data is empty\n";
 			}
 			else
-				Stream << "  stack frame #" << Level << " instructions:\n    ... instructions data are empty\n";
+				Stream << "  stack frame #" << Level << " disassembly:\n    ... assembly data is empty\n";
 
 			Output(Stream.str());
 #endif
@@ -5274,6 +5253,79 @@ namespace Vitex
 		DebuggerContext::DebugAction DebuggerContext::GetState()
 		{
 			return Action;
+		}
+		size_t DebuggerContext::ByteCodeLabelToText(VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, Core::StringStream& Stream)
+		{
+#ifdef VI_ANGELSCRIPT
+			asIScriptEngine* Engine = VM ? VM->GetEngine() : nullptr;
+			asDWORD* ByteCode = ((asDWORD*)Program) + ProgramPointer;
+			asBYTE* BaseCode = (asBYTE*)ByteCode;
+			ByteCodeLabel Label = VirtualMachine::GetByteCodeInfo((uint8_t)*BaseCode);
+			auto PrintArgument = [&Stream](asBYTE* Offset, uint8_t Size, bool Last)
+			{
+				switch (Size)
+				{
+					case sizeof(asBYTE):
+						Stream << " %spl:" << *(asBYTE*)Offset;
+						if (!Last)
+							Stream << ",";
+						break;
+					case sizeof(asWORD):
+						Stream << " %sp:" << *(asWORD*)Offset;
+						if (!Last)
+							Stream << ",";
+						break;
+					case sizeof(asDWORD):
+						Stream << " %esp:" << *(asDWORD*)Offset;
+						if (!Last)
+							Stream << ",";
+						break;
+					case sizeof(asQWORD):
+						Stream << " %rdx:" << *(asQWORD*)Offset;
+						if (!Last)
+							Stream << ",";
+						break;
+					default:
+						break;
+				}
+			};
+
+			Stream << (Selection ? "> 0x" : "  0x") << (void*)(uintptr_t)ProgramPointer << ": " << Label.Name;
+			if (!VM)
+				goto DefaultPrint;
+
+			switch (*BaseCode)
+			{
+				case asBC_CALL:
+				case asBC_CALLSYS:
+				case asBC_CALLBND:
+				case asBC_CALLINTF:
+				case asBC_Thiscall1:
+				{
+					auto* Function = Engine->GetFunctionById(asBC_INTARG(ByteCode));
+					if (!Function)
+						goto DefaultPrint;
+
+					auto* Declaration = Function->GetDeclaration();
+					if (!Declaration)
+						goto DefaultPrint;
+
+					Stream << " %edi:[" << Declaration << "]";
+					break;
+				}
+				default:
+				DefaultPrint:
+					PrintArgument(BaseCode + Label.OffsetOfArg0, Label.SizeOfArg0, !Label.SizeOfArg1);
+					PrintArgument(BaseCode + Label.OffsetOfArg1, Label.SizeOfArg1, !Label.SizeOfArg2);
+					PrintArgument(BaseCode + Label.OffsetOfArg2, Label.SizeOfArg2, true);
+					break;
+			}
+
+			Stream << "\n";
+			return ProgramPointer + Label.Size;
+#else
+			return ProgramPointer + 1;
+#endif
 		}
 		Core::String DebuggerContext::ToString(int Depth, void* Value, unsigned int TypeId)
 		{
@@ -7514,6 +7566,10 @@ namespace Vitex
 			if (InoutBuffer.empty())
 				return Core::Expectation::Met;
 
+			auto Status = Processor->Process(Path, InoutBuffer);
+			if (!Status)
+				return Status;
+
 			std::string_view TargetPath = Path.empty() ? "<anonymous>" : Path;
 			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes)", (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size());
 			{
@@ -7528,7 +7584,7 @@ namespace Vitex
 			}
 
 			(void)TargetPath;
-			return Processor->Process(Path, InoutBuffer);
+			return Status;
 		}
 		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
 		{
@@ -8353,8 +8409,81 @@ namespace Vitex
 			auto& Source = asBCInfo[Code];
 			ByteCodeLabel Label;
 			Label.Name = Source.name;
-			Label.Id = Code;
-			Label.Args = asBCTypeSize[Source.type];
+			Label.Code = (uint8_t)Source.bc;
+			Label.Size = asBCTypeSize[Source.type];
+			Label.OffsetOfStack = Source.stackInc;
+			Label.SizeOfArg0 = 0;
+			Label.SizeOfArg1 = 0;
+			Label.SizeOfArg2 = 0;
+
+			switch (Source.type)
+			{
+				case asBCTYPE_W_ARG:
+				case asBCTYPE_wW_ARG:
+				case asBCTYPE_rW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					break;
+				case asBCTYPE_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asDWORD);
+					break;
+				case asBCTYPE_wW_DW_ARG:
+				case asBCTYPE_rW_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asDWORD);
+					break;
+				case asBCTYPE_QW_ARG:
+					Label.SizeOfArg0 = sizeof(asQWORD);
+					break;
+				case asBCTYPE_DW_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asDWORD);
+					Label.SizeOfArg1 = sizeof(asDWORD);
+					break;
+				case asBCTYPE_wW_rW_rW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asWORD);
+					Label.SizeOfArg2 = sizeof(asWORD);
+					break;
+				case asBCTYPE_wW_QW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asQWORD);
+					break;
+				case asBCTYPE_wW_rW_ARG:
+				case asBCTYPE_rW_rW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg0 = sizeof(asWORD);
+					break;
+				case asBCTYPE_wW_rW_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asWORD);
+					Label.SizeOfArg2 = sizeof(asDWORD);
+					break;
+				case asBCTYPE_QW_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asQWORD);
+					Label.SizeOfArg1 = sizeof(asWORD);
+					break;
+				case asBCTYPE_rW_QW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asQWORD);
+					break;
+				case asBCTYPE_W_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					break;
+				case asBCTYPE_rW_W_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asWORD);
+					break;
+				case asBCTYPE_rW_DW_DW_ARG:
+					Label.SizeOfArg0 = sizeof(asWORD);
+					Label.SizeOfArg1 = sizeof(asDWORD);
+					Label.SizeOfArg2 = sizeof(asDWORD);
+					break;
+				default:
+					break;
+			}
+
+			Label.OffsetOfArg0 = 1;
+			Label.OffsetOfArg1 = Label.OffsetOfArg0 + Label.SizeOfArg0;
+			Label.OffsetOfArg2 = Label.OffsetOfArg1 + Label.SizeOfArg1;
 			return Label;
 #else
 			return ByteCodeLabel();
@@ -8534,7 +8663,7 @@ namespace Vitex
 		{
 			Core::UMutex<std::mutex> Unique(Mutex);
 			Wake = true;
-			Waitable.notify_one();
+			Waitable.notify_all();
 		}
 		void EventLoop::Restore()
 		{

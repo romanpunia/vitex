@@ -1777,6 +1777,7 @@ namespace Vitex
 					(size_t)ApplicationSet::ScriptSet |
 					(size_t)ApplicationSet::ContentSet |
 					(size_t)ApplicationSet::NetworkSet;
+				bool BlockingDispatch = true;
 				bool Daemon = false;
 				bool Cursor = true;
 			};

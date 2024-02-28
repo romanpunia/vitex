@@ -4675,7 +4675,7 @@ namespace Vitex
 			while (Offset < Size)
 			{
 				Stream << "  ";
-				Offset = ByteCodeLabelToText(VM, ByteCode, Offset, false, Stream);
+				Offset = (asUINT)ByteCodeLabelToText(VM, ByteCode, Offset, false, Stream);
 				++Instructions;
 			}
 
@@ -4895,7 +4895,7 @@ namespace Vitex
 					while (PreviewProgramPointerBegin < PreviewProgramPointerEnd)
 					{
 						Stream << "  ";
-						PreviewProgramPointerBegin = ByteCodeLabelToText(VM, ByteCode, PreviewProgramPointerBegin, PreviewProgramPointerBegin == ProgramPointer, Stream);
+						PreviewProgramPointerBegin = (asUINT)ByteCodeLabelToText(VM, ByteCode, PreviewProgramPointerBegin, PreviewProgramPointerBegin == ProgramPointer, Stream);
 					}
 
 					if (ProgramPointer < PreviewProgramPointerEnd)

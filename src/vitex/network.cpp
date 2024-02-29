@@ -2877,7 +2877,7 @@ namespace Vitex
 			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
 			return Written;
 		}
-		Core::ExpectsPromiseIO<size_t> Socket::WriteDeferred(const uint8_t* Buffer, size_t Size)
+		Core::ExpectsPromiseIO<size_t> Socket::WriteDeferred(const uint8_t* Buffer, size_t Size, bool CopyBufferWhenAsync)
 		{
 			Core::ExpectsPromiseIO<size_t> Future;
 			WriteQueued(Buffer, Size, [Future, Size](SocketPoll Event) mutable
@@ -2886,7 +2886,7 @@ namespace Vitex
 					Future.Set(Size);
 				else
 					Future.Set(Packet::ToCondition(Event));
-			});
+			}, CopyBufferWhenAsync);
 			return Future;
 		}
 		Core::ExpectsIO<size_t> Socket::Read(uint8_t* Buffer, size_t Size)

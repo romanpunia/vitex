@@ -526,7 +526,7 @@ namespace Vitex
 			Core::ExpectsPromiseIO<size_t> WriteFileDeferred(FILE* Stream, size_t Offset, size_t Size);
 			Core::ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Size);
 			Core::ExpectsIO<size_t> WriteQueued(const uint8_t* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync = true, uint8_t* TempBuffer = nullptr, size_t TempOffset = 0);
-			Core::ExpectsPromiseIO<size_t> WriteDeferred(const uint8_t* Buffer, size_t Size);
+			Core::ExpectsPromiseIO<size_t> WriteDeferred(const uint8_t* Buffer, size_t Size, bool CopyBufferWhenAsync = true);
 			Core::ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Size);
 			Core::ExpectsIO<size_t> ReadQueued(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
 			Core::ExpectsPromiseIO<Core::String> ReadDeferred(size_t Size);

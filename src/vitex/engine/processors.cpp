@@ -598,7 +598,7 @@ namespace Vitex
 					Future.Set(Callback(Device));
 				};
 
-				auto* App = Application::Get();
+				auto* App = Application::HasInstance() ? Application::Get() : nullptr;
 				if (!App || App->GetState() != ApplicationState::Active || Device != App->Renderer)
 					Device->Lockup(std::move(Job));
 				else
@@ -808,7 +808,7 @@ namespace Vitex
 			}
 			ExpectsContent<void*> SceneGraphProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
-				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
+				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::HasInstance() ? Application::Get() : nullptr);
 				VI_ASSERT(Stream != nullptr, "stream should be set");
 				VI_ASSERT(I.Shared.Device != nullptr, "graphics device should be set");
 

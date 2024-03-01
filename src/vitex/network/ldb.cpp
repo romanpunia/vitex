@@ -1306,11 +1306,9 @@ namespace Vitex
 #ifdef VI_SQLITE
 				sqlite3_initialize();
 #endif
-				Network::Multiplexer::Get()->Activate();
 			}
 			Driver::~Driver() noexcept
 			{
-				Network::Multiplexer::Get()->Deactivate();
 #ifdef VI_SQLITE
 				sqlite3_shutdown();
 #endif

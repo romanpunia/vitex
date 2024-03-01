@@ -2056,7 +2056,8 @@ namespace Vitex
 				}
 			}
 			Connections.clear();
-			Multiplexer::Get()->Deactivate();
+			if (Network::Multiplexer::HasInstance())
+				Multiplexer::Get()->Deactivate();
 		}
 		void Uplinks::ExpireConnection(const SocketAddress& Address, Socket* Target)
 		{
@@ -3707,7 +3708,8 @@ namespace Vitex
 		SocketServer::~SocketServer() noexcept
 		{
 			Unlisten(false);
-			Multiplexer::Get()->Deactivate();
+			if (Network::Multiplexer::HasInstance())
+				Multiplexer::Get()->Deactivate();
 		}
 		void SocketServer::SetRouter(SocketRouter* New)
 		{
@@ -3836,7 +3838,7 @@ namespace Vitex
 				{
 					auto* Base = Queue.front();
 					Base->Info.Abort = true;
-					if (!Core::Schedule::Get()->IsActive())
+					if (!Core::Schedule::IsAvailable())
 						Base->Stream->SetBlocking(true);
 					if (Gracefully)
 						Base->Stream->ClearEvents(true);
@@ -3862,13 +3864,13 @@ namespace Vitex
 				FreeAll();
 				std::this_thread::sleep_for(std::chrono::microseconds(SERVER_BLOCKED_WAIT_US));
 				VI_MEASURE_LOOP();
-			} while (Core::Schedule::Get()->IsActive() && (!Inactive.empty() || !Active.empty()));
+			} while (Core::Schedule::IsAvailable() && (!Inactive.empty() || !Active.empty()));
 
 			auto UnlistenStatus = OnUnlisten();
 			if (!UnlistenStatus)
 				return UnlistenStatus;
 
-			if (!Core::Schedule::Get()->IsActive())
+			if (!Core::Schedule::IsAvailable())
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 				if (!Active.empty())
@@ -4207,7 +4209,7 @@ namespace Vitex
 				Net.Context = nullptr;
 			}
 #endif
-			if (Config.IsAsync)
+			if (Config.IsAsync && Multiplexer::HasInstance())
 				Multiplexer::Get()->Deactivate();
 		}
 		Core::ExpectsSystem<void> SocketClient::OnConnect()
@@ -4227,7 +4229,7 @@ namespace Vitex
 		Core::ExpectsPromiseSystem<void> SocketClient::Connect(const SocketAddress& Address, bool Async, int32_t VerifyPeers)
 		{
 			bool AsyncPolicyUpdated = Async != Config.IsAsync;
-			if (AsyncPolicyUpdated && !Async)
+			if (AsyncPolicyUpdated && !Async && Multiplexer::HasInstance())
 				Multiplexer::Get()->Deactivate();
 
 			bool IsReusing = TryReuseStream(Address);

@@ -1534,7 +1534,8 @@ namespace Vitex
 					Item->Failure();
 					Core::Memory::Release(Item);
 				}
-				Multiplexer::Get()->Deactivate();
+				if (Network::Multiplexer::HasInstance())
+					Multiplexer::Get()->Deactivate();
 			}
 			void Cluster::ClearCache()
 			{

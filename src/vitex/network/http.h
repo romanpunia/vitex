@@ -905,7 +905,7 @@ namespace Vitex
 
 			public:
 				Server();
-				~Server() override = default;
+				~Server() override;
 				Core::ExpectsSystem<void> Update();
 
 			private:

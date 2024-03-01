@@ -5790,6 +5790,10 @@ namespace Vitex
 			{
 				HrmCache::LinkInstance();
 			}
+			Server::~Server()
+			{
+				Unlisten(false);
+			}
 			Core::ExpectsSystem<void> Server::Update()
 			{
 				auto* Target = (MapRouter*)Router;

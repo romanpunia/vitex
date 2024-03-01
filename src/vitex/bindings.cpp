@@ -3474,8 +3474,11 @@ namespace Vitex
 				Core::Stringify::Replace(Code, "promise<void>", "promise_v");
 				return Parser::ReplaceInlinePreconditions("co_await", Code, [](const std::string_view& Expression) -> ExpectsVM<Core::String>
 				{
-					Core::String Result = Core::String(Expression);
-					Result.append(".yield().unwrap()");
+					const char Generator[] = ").yield().unwrap()";
+					Core::String Result = "(";
+					Result.reserve(sizeof(Generator) + Expression.size());
+					Result.append(Expression);
+					Result.append(Generator, sizeof(Generator) - 1);
 					return Result;
 				});
 			}

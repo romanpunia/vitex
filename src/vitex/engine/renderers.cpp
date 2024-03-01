@@ -2514,7 +2514,7 @@ namespace Vitex
 				RenderResult(nullptr, &Distortion);
 			}
 
-			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->FetchUI() : nullptr, Application::Get() ? Application::Get()->Activity : nullptr)
+			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::HasInstance() ? Application::Get()->FetchUI() : nullptr, Application::HasInstance() ? Application::Get()->Activity : nullptr)
 			{
 			}
 			UserInterface::UserInterface(RenderSystem* Lab, GUI::Context* NewContext, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity), Context(NewContext)

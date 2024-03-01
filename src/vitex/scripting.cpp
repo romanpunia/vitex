@@ -382,12 +382,7 @@ namespace Vitex
 					++Start;
 				}
 
-				bool IsClosed = false;
-				int32_t Indexers = 0;
 				int32_t Brackets = 0;
-				int32_t Braces = 0;
-				int32_t Quotes = 0;
-				int32_t Parameters = 0;
 				size_t End = Start;
 				while (End < Code.size())
 				{
@@ -395,84 +390,29 @@ namespace Vitex
 					if (V == ')')
 					{
 						if (--Brackets < 0)
-						{
-							if (Indexers <= 0 && Braces <= 0 && Quotes <= 0)
-								break;
-
-							return VirtualException(Core::Stringify::Text("unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
-						}
-					}
-					else if (V == '}')
-					{
-						if (--Braces < 0)
-						{
-							if (Indexers <= 0 && Brackets <= 0 && Quotes <= 0)
-								break;
-
-							return VirtualException(Core::Stringify::Text("unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
-						}
-					}
-					else if (V == ']')
-					{
-						if (--Indexers < 0)
-						{
-							if (Brackets <= 0 && Braces <= 0 && Quotes <= 0)
-								break;
-
-							return VirtualException(Core::Stringify::Text("unexpected symbol '%c', offset %" PRIu64 ":\n%.*s <<<", V, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
-						}
+							break;
 					}
 					else if (V == '"' || V == '\'')
 					{
-						++End; ++Quotes;
-						while (End < Code.size())
-						{
-							if (Code[End++] == V && Core::Stringify::IsNotPrecededByEscape(Code, End - 1))
-							{
-								--Quotes;
-								break;
-							}
-						}
+						++End;
+						while (End < Code.size() && (Code[End++] != V || !Core::Stringify::IsNotPrecededByEscape(Code, End - 1)));
 						--End;
+					}
+					else if (V == ';')
+					{
+						if (IsDirective)
+							++End;
+						break;
 					}
 					else if (V == '(')
 						++Brackets;
-					else if (V == '{')
-						++Braces;
-					else if (V == '[')
-						++Indexers;
-					else if (V == ';')
-					{
-						IsClosed = true;
-						break;
-					}
-					else if (Brackets == 0 && Braces == 0 && Indexers == 0)
-					{
-						if (!Core::Stringify::IsAlphanum(V) && !Core::Stringify::IsWhitespace(V) && V != '.' && V != '_' && V != '<' && V != '>')
-						{
-							if (V != ':' || End + 1 >= Code.size() || Code[End + 1] != ':')
-								break;
-							else
-								++End;
-						}
-					}
 					End++;
 				}
 
-				if (Brackets + Braces + Indexers + Quotes > 0)
-				{
-					const char* Type = "termination character";
-					if (Brackets > 0)
-						Type = "')' symbol";
-					else if (Braces > 0)
-						Type = "'}' symbol";
-					else if (Indexers > 0)
-						Type = "']' symbol";
-					else if (Quotes > 0)
-						Type = "closing quote symbol";
-					return VirtualException(Core::Stringify::Text("unexpected end of file, expected %s, offset %" PRIu64 ":\n%.*s <<<", Type, (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
-				}
-				else if (End == Start)
+				if (Brackets > 0)
+					return VirtualException(Core::Stringify::Text("unexpected end of file, expected closing ')' symbol, offset %" PRIu64 ":\n%.*s <<<", (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
+				
+				if (End == Start)
 				{
 					Offset = End;
 					continue;
@@ -481,9 +421,6 @@ namespace Vitex
 				auto Expression = Replacer(Code.substr(Start, End - Start));
 				if (!Expression)
 					return Expression.Error();
-
-				if (IsDirective && IsClosed)
-					++End;
 
 				Core::Stringify::ReplacePart(Code, Offset, End, *Expression);
 				if (Expression->find(Match) == std::string::npos)
@@ -8734,8 +8671,7 @@ namespace Vitex
 			VI_ASSERT(Context != nullptr, "context should be set");
 			if (!Bindings::Promise::IsContextBusy(Context) && Queue.empty())
 			{
-				auto* Queue = Core::Schedule::Get();
-				if (!Queue->GetPolicy().Parallel || !Queue->IsActive())
+				if (!Core::Schedule::IsAvailable() || !Core::Schedule::Get()->GetPolicy().Parallel)
 					return false;
 			}
 			else if (!TimeoutMs)

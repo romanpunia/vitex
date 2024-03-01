@@ -376,8 +376,7 @@ namespace Vitex
 				size_t Start = Offset + MatchSize;
 				while (Start < Code.size())
 				{
-					char& V = Code[Start];
-					if (!isspace(V))
+					if (!Core::Stringify::IsWhitespace(Code[Start]))
 						break;
 					++Start;
 				}
@@ -386,7 +385,7 @@ namespace Vitex
 				size_t End = Start;
 				while (End < Code.size())
 				{
-					char& V = Code[End];
+					char V = Code[End];
 					if (V == ')')
 					{
 						if (--Brackets < 0)

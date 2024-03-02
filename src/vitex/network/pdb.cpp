@@ -1425,7 +1425,7 @@ namespace Vitex
 				return Base[ResponseIndex].GetArray(Index);
 			}
 
-			Connection::Connection(TConnection* NewBase, socket_t Fd) : Base(NewBase), Stream(new Socket(Fd)), Current(nullptr), State(QueryState::Idle), Session(false)
+			Connection::Connection(TConnection* NewBase, socket_t Fd) : Base(NewBase), Stream(new Socket(Fd)), Current(nullptr), Status(QueryState::Idle)
 			{
 			}
 			Connection::~Connection() noexcept
@@ -1446,7 +1446,7 @@ namespace Vitex
 			}
 			QueryState Connection::GetState() const
 			{
-				return State;
+				return Status;
 			}
 			TransactionState Connection::GetTxState() const
 			{
@@ -1470,25 +1470,50 @@ namespace Vitex
 				return TransactionState::None;
 #endif
 			}
-			bool Connection::InSession() const
+			bool Connection::InTransaction() const
 			{
-				return Session;
+#ifdef VI_POSTGRESQL
+				return PQtransactionStatus(Base) == PQTRANS_INTRANS;
+#else
+				return false;
+#endif
 			}
 			bool Connection::Busy() const
 			{
-				return Current != nullptr;
+				return Current != nullptr || Status == QueryState::Busy || Status == QueryState::BusyInTransaction;
+			}
+			void Connection::MakeBusy(Request* Data)
+			{
+				Status = InTransaction() ? QueryState::BusyInTransaction : QueryState::Busy;
+				Current = Data;
+			}
+			Request* Connection::MakeIdle()
+			{
+				Request* Copy = Current;
+				Status = InTransaction() ? QueryState::IdleInTransaction : QueryState::Idle;
+				Current = nullptr;
+				return Copy;
+			}
+			Request* Connection::MakeLost()
+			{
+				Request* Copy = Current;
+				Status = QueryState::Lost;
+				Current = nullptr;
+				return Copy;
 			}
 
 			Request::Request(const std::string_view& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
 			{
 				Command.emplace_back('\0');
 			}
-			void Request::Finalize(Cursor& Subresult)
+			void Request::ReportCursor()
 			{
 				if (Callback)
-					Callback(Subresult);
+					Callback(Result);
+				if (Future.IsPending())
+					Future.Set(std::move(Result));
 			}
-			void Request::Failure()
+			void Request::ReportFailure()
 			{
 				if (Future.IsPending())
 					Future.Set(Cursor());
@@ -1520,7 +1545,7 @@ namespace Vitex
 			}
 			Cluster::~Cluster() noexcept
 			{
-				Core::UMutex<std::mutex> Unique(Update);
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 #ifdef VI_POSTGRESQL
 				for (auto& Item : Pool)
 				{
@@ -1531,7 +1556,7 @@ namespace Vitex
 #endif
 				for (auto* Item : Requests)
 				{
-					Item->Failure();
+					Item->ReportFailure();
 					Core::Memory::Release(Item);
 				}
 				if (Network::Multiplexer::HasInstance())
@@ -1566,7 +1591,7 @@ namespace Vitex
 			}
 			void Cluster::SetWhenReconnected(const OnReconnect& NewCallback)
 			{
-				Core::UMutex<std::mutex> Unique(Update);
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 				Reconnected = NewCallback;
 			}
 			uint64_t Cluster::AddChannel(const std::string_view& Name, const OnNotification& NewCallback)
@@ -1574,13 +1599,13 @@ namespace Vitex
 				VI_ASSERT(NewCallback != nullptr, "callback should be set");
 
 				uint64_t Id = Channel++;
-				Core::UMutex<std::mutex> Unique(Update);
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 				Listeners[Core::String(Name)][Id] = NewCallback;
 				return Id;
 			}
 			bool Cluster::RemoveChannel(const std::string_view& Name, uint64_t Id)
 			{
-				Core::UMutex<std::mutex> Unique(Update);
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 				auto& Base = Listeners[Core::String(Name)];
 				auto It = Base.find(Id);
 				if (It == Base.end())
@@ -1606,7 +1631,7 @@ namespace Vitex
 			}
 			ExpectsPromiseDB<SessionId> Cluster::TxStart(const std::string_view& Command)
 			{
-				return Query(Command, (size_t)QueryOp::TransactionStart).Then<ExpectsDB<SessionId>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<SessionId>
+				return Query(Command).Then<ExpectsDB<SessionId>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<SessionId>
 				{
 					if (!Result)
 						return Result.Error();
@@ -1618,7 +1643,7 @@ namespace Vitex
 			}
 			ExpectsPromiseDB<void> Cluster::TxEnd(const std::string_view& Command, SessionId Session)
 			{
-				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<ExpectsDB<void>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<void>
+				return Query(Command, 0, Session).Then<ExpectsDB<void>>([](ExpectsDB<Cursor>&& Result) -> ExpectsDB<void>
 				{
 					if (!Result)
 						return Result.Error();
@@ -1647,21 +1672,17 @@ namespace Vitex
 				if (Version < 160002)
 					return ExpectsPromiseDB<void>(DatabaseException(Core::Stringify::Text("connect failed: libpq <= %.2f will cause a segfault starting with openssl 3.2", (double)Version / 10000.0)));
 #endif
-				Core::UMutex<std::mutex> Unique(Update);
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 				Source = Location;
 				if (!Pool.empty())
-				{
-					Unique.Negate();
 					return Disconnect().Then<ExpectsPromiseDB<void>>([this, Location, Connections](ExpectsDB<void>&&) { return this->Connect(Location, Connections); });
-				}
 
-				Unique.Negate();
 				return Core::Cotask<ExpectsDB<void>>([this, Connections]() -> ExpectsDB<void>
 				{
 					VI_MEASURE(Core::Timings::Intensive);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
-					Core::UMutex<std::mutex> Unique(Update);
+					Core::UMutex<std::recursive_mutex> Unique(Update);
 					Core::UnorderedMap<socket_t, TConnection*> Queue;
 					Core::Vector<Network::Utils::PollFd> Sockets;
 					TConnection* Error = nullptr;
@@ -1778,7 +1799,7 @@ namespace Vitex
 
 				return Core::Cotask<ExpectsDB<void>>([this]() -> ExpectsDB<void>
 				{
-					Core::UMutex<std::mutex> Unique(Update);
+					Core::UMutex<std::recursive_mutex> Unique(Update);
 					for (auto& Item : Pool)
 					{
 						Item.first->ClearEvents(false);
@@ -1798,7 +1819,7 @@ namespace Vitex
 				VI_ASSERT(!Channels.empty(), "channels should not be empty");
 				Core::Vector<Core::String> Actual;
 				{
-					Core::UMutex<std::mutex> Unique(Update);
+					Core::UMutex<std::recursive_mutex> Unique(Update);
 					Actual.reserve(Channels.size());
 					for (auto& Item : Channels)
 					{
@@ -1823,7 +1844,7 @@ namespace Vitex
 					if (!Base || !Result->Success())
 						return DatabaseException("listen error");
 
-					Core::UMutex<std::mutex> Unique(Update);
+					Core::UMutex<std::recursive_mutex> Unique(Update);
 					for (auto& Item : Actual)
 						Base->Listens.insert(Item);
 					return Core::Expectation::Met;
@@ -1834,7 +1855,7 @@ namespace Vitex
 				VI_ASSERT(!Channels.empty(), "channels should not be empty");
 				Core::UnorderedMap<Connection*, Core::String> Commands;
 				{
-					Core::UMutex<std::mutex> Unique(Update);
+					Core::UMutex<std::recursive_mutex> Unique(Update);
 					for (auto& Item : Channels)
 					{
 						Connection* Next = IsListens(Item);
@@ -1854,7 +1875,7 @@ namespace Vitex
 					size_t Count = 0;
 					for (auto& Next : Commands)
 					{
-						auto Status = VI_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first));
+						auto Status = VI_AWAIT(Query(Next.second, 0, Next.first));
 						Count += Status && Status->Success() ? 1 : 0;
 					}
 					if (!Count)
@@ -1896,6 +1917,10 @@ namespace Vitex
 						return ExpectsPromiseDB<Cursor>(std::move(Result));
 					}
 				}
+				else if (!IsManaging(Session))
+					return ExpectsPromiseDB<Cursor>(DatabaseException("supplied transaction id does not exist"));
+				else
+					Driver::Get()->LogQuery(Command);
 
 				Request* Next = new Request(Command, MayCache ? Caching::Miss : Caching::Never);
 				Next->Session = Session;
@@ -1903,40 +1928,31 @@ namespace Vitex
 				if (!Reference.empty())
 					Next->Callback = [this, Reference, Opts](Cursor& Data) { SetCache(Reference, &Data, Opts); };
 
-				ExpectsPromiseDB<Cursor> Future = Next->Future;
-				bool IsInQueue = true;
+				auto Future = Next->Future;
+				Core::UMutex<std::recursive_mutex> Unique(Update);
+				Requests.push_back(Next);
+				for (auto& Item : Pool)
 				{
-					Core::UMutex<std::mutex> Unique(Update);
-					Requests.push_back(Next);
-					for (auto& Item : Pool)
-					{
-						if (Consume(Item.second, Unique))
-						{
-							IsInQueue = false;
-							break;
-						}
-					}
+					if (Consume(Item.second))
+						return Future;
 				}
-				Driver::Get()->LogQuery(Command);
-				(void)IsInQueue;
-#ifndef NDEBUG
-				if (!IsInQueue || Next->Session == 0)
-					return Future;
 
-				if (!ValidateTransaction(Command, Next))
+				auto Time = Core::Schedule::GetClock();
+				auto Timeout = std::chrono::milliseconds((uint64_t)Core::Timings::Hangup);
+				for (auto& Item : Pool)
 				{
-					Future.Set(Cursor());
-					Core::Memory::Release(Next);
+					if (Item.second->Busy() && Item.second->Current != nullptr && Time - Item.second->Current->Time > Timeout)
+						VI_WARN("[pq] stuck%s on 0x%" PRIXPTR " while executing query:\n  %s", Item.second->InTransaction() ? " in transaction" : "", (uintptr_t)Item.second, Item.second->Current->Command.data());
 				}
-#endif
+
 				return Future;
 			}
 			Connection* Cluster::GetConnection(QueryState State)
 			{
-				Core::UMutex<std::mutex> Unique(Update);
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 				for (auto& Item : Pool)
 				{
-					if (Item.second->State == State)
+					if (Item.second->Status == State)
 						return Item.second;
 				}
 
@@ -1949,8 +1965,23 @@ namespace Vitex
 
 				return nullptr;
 			}
+			bool Cluster::IsManaging(SessionId Session)
+			{
+				if (!Session)
+					return true;
+
+				Core::UMutex<std::recursive_mutex> Unique(Update);
+				for (auto& Item : Pool)
+				{
+					if (Item.second == Session)
+						return true;
+				}
+
+				return false;
+			}
 			Connection* Cluster::IsListens(const std::string_view& Name)
 			{
+				Core::UMutex<std::recursive_mutex> Unique(Update);
 				auto Copy = Core::HglCast(Name);
 				for (auto& Item : Pool)
 				{
@@ -2034,56 +2065,25 @@ namespace Vitex
 				else
 					Cache.Objects[Core::String(CacheOid)] = std::make_pair(Timeout, Data->Copy());
 			}
-			void Cluster::TryUnassign(Connection* Base, Request* Context)
-			{
-				if (!(Context->Options & (size_t)QueryOp::TransactionEnd))
-					return;
-
-				VI_DEBUG("[pq] release transaction on 0x%" PRIXPTR, (uintptr_t)Base);
-				Base->Session = false;
-			}
-			bool Cluster::ValidateTransaction(const std::string_view& Command, Request* Next)
-			{
-				Core::String Tx = Core::String(Command);
-				Core::Stringify::Trim(Tx);
-				Core::Stringify::ToUpper(Tx);
-
-				if (Tx != "COMMIT" && Tx != "ROLLBACK")
-					return true;
-				{
-					Core::UMutex<std::mutex> Unique(Update);
-					for (auto& Item : Pool)
-					{
-						if (Item.second->Session && Item.second == Next->Session)
-							return true;
-					}
-
-					auto It = std::find(Requests.begin(), Requests.end(), Next);
-					if (It != Requests.end())
-						Requests.erase(It);
-				}
-				VI_ASSERT(false, "transaction %" PRIu64 " does not exist", (void*)Next->Session);
-				return false;
-			}
 			bool Cluster::Reestablish(Connection* Target)
 			{
 #ifdef VI_POSTGRESQL
 				const char** Keys = Source.CreateKeys();
 				const char** Values = Source.CreateValues();
-
-				Core::UMutex<std::mutex> Unique(Update);
-				if (Target->Current != nullptr)
+				Core::UMutex<std::recursive_mutex> Unique(Update);
+				auto* BrokenRequest = Target->MakeLost();
+				if (BrokenRequest != nullptr)
 				{
-					Request* Current = Target->Current;
-					Target->Current = nullptr;
-					Unique.Negate();
-					Current->Failure();
-					Unique.Negate();
 					VI_DEBUG("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)Target->Base);
-					Core::Memory::Release(Current);
+					Core::Codefer([BrokenRequest]()
+					{
+						Core::UPtr<Request> Item = BrokenRequest;
+						Item->ReportFailure();
+					});
 				}
 
 				Target->Stream->ClearEvents(false);
+				PQlogNoticeOf(Target->Base);
 				PQfinish(Target->Base);
 
 				VI_DEBUG("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
@@ -2107,11 +2107,11 @@ namespace Vitex
 				Target->Listens.clear();
 
 				VI_DEBUG("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
-				Target->State = QueryState::Idle;
+				Target->MakeIdle();
 				Target->Stream->MigrateTo((socket_t)PQsocket(Target->Base));
 				PQsetnonblocking(Target->Base, 1);
 				PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
-				Consume(Target, Unique);
+				Consume(Target);
 				Unique.Negate();
 
 				bool Success = Reprocess(Target);
@@ -2136,42 +2136,48 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Cluster::Consume(Connection* Base, Core::UMutex<std::mutex>& Unique)
+			bool Cluster::Consume(Connection* Base)
 			{
 #ifdef VI_POSTGRESQL
-				if (Base->State != QueryState::Idle || Requests.empty())
+				Core::UMutex<std::recursive_mutex> Unique(Update);
+				if (Base->Busy())
 					return false;
 
 				for (auto It = Requests.begin(); It != Requests.end(); ++It)
 				{
 					Request* Context = *It;
-					if (TryAssign(Base, Context))
+					if (Context->Session != nullptr)
 					{
-						Context->Result.Executor = Base;
-						Base->Current = Context;
-						Requests.erase(It);
-						break;
+						if (Context->Session != Base)
+							continue;
 					}
+					else if (Base->InTransaction())
+						continue;
+
+					Context->Result.Executor = Base;
+					Base->MakeBusy(Context);
+					Requests.erase(It);
+					break;
 				}
 
-				if (!Base->Current)
+				if (!Base->Busy())
 					return false;
 
 				VI_MEASURE(Core::Timings::Intensive);
-				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->Session ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
-
+				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->InTransaction() ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
 					Flush(Base, false);
 					return true;
 				}
 
-				Core::UPtr<Request> Item = Base->Current;
-				Base->Current = nullptr;
+				auto* BrokenRequest = Base->MakeIdle();
 				PQlogNoticeOf(Base->Base);
-				Unique.Negate();
-				Item->Failure();
-				Unique.Negate();
+				Core::Codefer([BrokenRequest]()
+				{
+					Core::UPtr<Request> Item = BrokenRequest;
+					Item->ReportFailure();
+				});
 				return true;
 #else
 				return false;
@@ -2181,129 +2187,90 @@ namespace Vitex
 			{
 				return Multiplexer::Get()->WhenReadable(Source->Stream, [this, Source](SocketPoll Event)
 				{
-					if (!Packet::IsSkip(Event))
-						Dispatch(Source, !Packet::IsError(Event));
+					if (Packet::IsError(Event))
+						Reestablish(Source);
+					else if (!Packet::IsSkip(Event))
+						Dispatch(Source);
 				});
 			}
-			bool Cluster::Flush(Connection* Base, bool ListenForResults)
+			bool Cluster::Flush(Connection* Source, bool ListenForResults)
 			{
 #ifdef VI_POSTGRESQL
-				Base->State = QueryState::Busy;
-				if (PQflush(Base->Base) == 1)
+				if (PQflush(Source->Base) == 1)
 				{
-					auto* Stream = Multiplexer::Get();
-					Stream->CancelEvents(Base->Stream);
-					return Stream->WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					Source->Stream->ClearEvents(false);
+					return Multiplexer::Get()->WhenWriteable(Source->Stream, [this, Source](SocketPoll Event)
 					{
 						if (!Packet::IsSkip(Event))
-							Flush(Base, true);
+							Flush(Source, true);
 					});
 				}
 #endif
 				if (ListenForResults)
-					return Reprocess(Base);
+					return Reprocess(Source);
 
 				return true;
 			}
-			bool Cluster::Dispatch(Connection* Source, bool Connected)
+			bool Cluster::Dispatch(Connection* Source)
 			{
 #ifdef VI_POSTGRESQL
 				VI_MEASURE(Core::Timings::Intensive);
-				Core::UMutex<std::mutex> Unique(Update);
-				if (!Connected)
-				{
-					Source->State = QueryState::Lost;
-					Core::Codefer([this, Source]() { Reestablish(Source); });
-					return true;
-				}
-
+				Consume(Source);
 			Retry:
-				Consume(Source, Unique);
 				if (PQconsumeInput(Source->Base) != 1)
+					return Reestablish(Source);
+				else if (PQisBusy(Source->Base) != 0)
+					return Reprocess(Source);
+
+				Core::UMutex<std::recursive_mutex> Unique(Update);
+				PGnotify* Notification = nullptr;
+				while ((Notification = PQnotifies(Source->Base)) != nullptr)
 				{
-					PQlogNoticeOf(Source->Base);
-					Source->State = QueryState::Lost;
-					goto Finalize;
+					if (Notification != nullptr && Notification->relname != nullptr)
+					{
+						auto It = Listeners.find(Notification->relname);
+						if (It != Listeners.end() && !It->second.empty())
+						{
+							Notify Event(Notification);
+							for (auto& Item : It->second)
+							{
+								OnNotification Callback = Item.second;
+								Core::Codefer([Event, Callback = std::move(Callback)]() { Callback(Event); });
+							}
+						}
+						VI_DEBUG("[pq] notification on channel @%s: %s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
+						PQfreeNotify(Notification);
+					}
 				}
 
-				if (PQisBusy(Source->Base) == 0)
+				Response Chunk(PQgetResult(Source->Base));
+				if (Chunk.Exists())
 				{
-					PGnotify* Notification = nullptr;
-					while ((Notification = PQnotifies(Source->Base)) != nullptr)
-					{
-						if (Notification != nullptr && Notification->relname != nullptr)
-						{
-							auto It = Listeners.find(Notification->relname);
-							if (It != Listeners.end() && !It->second.empty())
-							{
-								Notify Event(Notification);
-								for (auto& Item : It->second)
-								{
-									OnNotification Callback = Item.second;
-									Core::Codefer([Event, Callback = std::move(Callback)]() { Callback(Event); });
-								}
-							}
-							VI_DEBUG("[pq] notification on channel @%s: %s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
-							PQfreeNotify(Notification);
-						}
-					}
-
-					Response Frame(PQgetResult(Source->Base));
 					if (Source->Current != nullptr)
-					{
-						if (!Frame.Exists())
-						{
-							ExpectsPromiseDB<Cursor> Future = Source->Current->Future;
-							Cursor Results(std::move(Source->Current->Result));
-							Core::UPtr<Request> Item = Source->Current;
-							Source->State = QueryState::Idle;
-							Source->Current = nullptr;
-							PQlogNoticeOf(Source->Base);
-
-							if (!Results.Error())
-							{
-								VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Source, Item->GetTiming());
-								TryUnassign(Source, *Item);
-							}
-
-							Unique.Negate();
-							Item->Finalize(Results);
-							Future.Set(std::move(Results));
-							Unique.Negate();
-						}
-						else
-							Source->Current->Result.Base.emplace_back(std::move(Frame));
-					}
-					else
-						Source->State = (Frame.Exists() ? QueryState::Busy : QueryState::Idle);
-
-					if (Source->State == QueryState::Busy || Consume(Source, Unique))
-						goto Retry;
+						Source->Current->Result.Base.emplace_back(std::move(Chunk));
+					goto Retry;
 				}
 
-			Finalize:
+				PQlogNoticeOf(Source->Base);
+				if (Source->Current != nullptr && !Source->Current->Result.Error())
+					VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Source, Source->Current->GetTiming());
+
+				auto* ReadyRequest = Source->MakeIdle();
+				if (ReadyRequest != nullptr)
+				{
+					Core::Codefer([ReadyRequest]()
+					{
+						Core::UPtr<Request> Item = ReadyRequest;
+						Item->ReportCursor();
+					});
+				}
+				if (Consume(Source))
+					goto Retry;
+
 				return Reprocess(Source);
 #else
 				return false;
 #endif
-			}
-			bool Cluster::TryAssign(Connection* Base, Request* Context)
-			{
-				if (Base->Session || (Context->Session != nullptr && (Context->Options & (size_t)QueryOp::TransactionAlways)))
-					return Base == Context->Session;
-
-				if (!Context->Session && !(Context->Options & (size_t)QueryOp::TransactionStart))
-					return true;
-
-				for (auto& Item : Pool)
-				{
-					if (Item.second == Context->Session)
-						return false;
-				}
-
-				VI_DEBUG("[pq] acquire transaction on 0x%" PRIXPTR, (uintptr_t)Base);
-				Base->Session = true;
-				return true;
 			}
 
 			ExpectsDB<Core::String> Utils::InlineArray(Cluster* Client, Core::Schema* Array)

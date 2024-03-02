@@ -1763,10 +1763,10 @@ namespace Vitex
 			VI_MEASURE(Core::Timings::FileSystem);
 			DispatchTimers(Core::Schedule::GetClock());
 
-			VI_DEBUG("[net] shutdown multiplexer on fds (timeouts = %i)", (int)Timers.size());
 			Core::OrderedMap<std::chrono::microseconds, Socket*> DirtyTimers;
 			Core::UnorderedSet<Socket*> DirtyTrackers;
 			Core::UMutex<std::mutex> Unique(Exclusive);
+			VI_DEBUG("[net] shutdown multiplexer on fds (sockets = %i)", (int)(Timers.size() + Trackers.size()));
 			DirtyTimers.swap(Timers);
 			DirtyTrackers.swap(Trackers);
 
@@ -1979,6 +1979,7 @@ namespace Vitex
 			}
 			else
 			{
+				Core::UMutex<std::mutex> Unique(Exclusive);
 				Value->Events.Expiration = std::chrono::microseconds(-1);
 				Trackers.insert(Value);
 			}

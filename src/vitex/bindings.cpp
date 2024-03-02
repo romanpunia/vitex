@@ -16968,9 +16968,6 @@ namespace Vitex
 				auto VQueryOp = VM->SetEnum("query_op");
 				VQueryOp->SetValue("delete_args", (int)Network::PDB::QueryOp::DeleteArgs);
 				VQueryOp->SetValue("reuse_args", (int)Network::PDB::QueryOp::ReuseArgs);
-				VQueryOp->SetValue("transaction_always", (int)Network::PDB::QueryOp::TransactionAlways);
-				VQueryOp->SetValue("transaction_start", (int)Network::PDB::QueryOp::TransactionStart);
-				VQueryOp->SetValue("transaction_end", (int)Network::PDB::QueryOp::TransactionEnd);
 				VQueryOp->SetValue("cache_short", (int)Network::PDB::QueryOp::CacheShort);
 				VQueryOp->SetValue("cache_mid", (int)Network::PDB::QueryOp::CacheMid);
 				VQueryOp->SetValue("cache_long", (int)Network::PDB::QueryOp::CacheLong);

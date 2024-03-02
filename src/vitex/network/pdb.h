@@ -51,12 +51,9 @@ namespace Vitex
 			{
 				DeleteArgs = 0,
 				ReuseArgs = (1 << 0),
-				TransactionAlways = (1 << 1),
-				TransactionStart = (1 << 2),
-				TransactionEnd = (1 << 3),
-				CacheShort = (1 << 4),
-				CacheMid = (1 << 5),
-				CacheLong = (1 << 6)
+				CacheShort = (1 << 1),
+				CacheMid = (1 << 2),
+				CacheLong = (1 << 3)
 			};
 
 			enum class AddressOp
@@ -193,7 +190,9 @@ namespace Vitex
 			{
 				Lost,
 				Idle,
-				Busy
+				IdleInTransaction,
+				Busy,
+				BusyInTransaction
 			};
 
 			inline size_t operator |(QueryOp A, QueryOp B)
@@ -473,8 +472,7 @@ namespace Vitex
 				TConnection* Base;
 				Socket* Stream;
 				Request* Current;
-				QueryState State;
-				bool Session;
+				QueryState Status;
 
 			public:
 				Connection(TConnection* NewBase, socket_t Fd);
@@ -484,8 +482,13 @@ namespace Vitex
 				Request* GetCurrent() const;
 				QueryState GetState() const;
 				TransactionState GetTxState() const;
-				bool InSession() const;
+				bool InTransaction() const;
 				bool Busy() const;
+
+			private:
+				void MakeBusy(Request* Data);
+				Request* MakeIdle();
+				Request* MakeLost();
 			};
 
 			class VI_OUT Request final : public Core::Reference<Request>
@@ -503,8 +506,8 @@ namespace Vitex
 
 			public:
 				Request(const std::string_view& Commands, Caching Status);
-				void Finalize(Cursor& Subresult);
-				void Failure();
+				void ReportCursor();
+				void ReportFailure();
 				Cursor&& GetResult();
 				const Core::Vector<char>& GetCommand() const;
 				SessionId GetSession() const;
@@ -533,7 +536,7 @@ namespace Vitex
 				Core::UnorderedMap<Socket*, Connection*> Pool;
 				Core::Vector<Request*> Requests;
 				std::atomic<uint64_t> Channel;
-				std::mutex Update;
+				std::recursive_mutex Update;
 				OnReconnect Reconnected;
 				Address Source;
 
@@ -566,14 +569,12 @@ namespace Vitex
 				Core::String GetCacheOid(const std::string_view& Payload, size_t QueryOpts);
 				bool GetCache(const std::string_view& CacheOid, Cursor* Data);
 				void SetCache(const std::string_view& CacheOid, Cursor* Data, size_t QueryOpts);
-				void TryUnassign(Connection* Base, Request* Context);
-				bool ValidateTransaction(const std::string_view& Command, Request* Next);
 				bool Reestablish(Connection* Base);
-				bool Consume(Connection* Base, Core::UMutex<std::mutex>& Unique);
+				bool Consume(Connection* Base);
 				bool Reprocess(Connection* Base);
 				bool Flush(Connection* Base, bool ListenForResults);
-				bool Dispatch(Connection* Base, bool Connected);
-				bool TryAssign(Connection* Base, Request* Context);
+				bool Dispatch(Connection* Base);
+				bool IsManaging(SessionId Session);
 				Connection* IsListens(const std::string_view& Name);
 			};
 

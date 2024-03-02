@@ -17093,7 +17093,9 @@ namespace Vitex
 				auto VQueryState = VM->SetEnum("query_state");
 				VQueryState->SetValue("lost", (int)Network::PDB::QueryState::Lost);
 				VQueryState->SetValue("idle", (int)Network::PDB::QueryState::Idle);
+				VQueryState->SetValue("idle_in_transaction", (int)Network::PDB::QueryState::IdleInTransaction);
 				VQueryState->SetValue("busy", (int)Network::PDB::QueryState::Busy);
+				VQueryState->SetValue("busy_in_transaction", (int)Network::PDB::QueryState::BusyInTransaction);
 
 				auto VAddress = VM->SetStructTrivial<Network::PDB::Address>("host_address");
 				VAddress->SetConstructor<Network::PDB::Address>("void f()");
@@ -17200,7 +17202,7 @@ namespace Vitex
 				VConnection->SetMethod("request@+ get_current() const", &Network::PDB::Connection::GetCurrent);
 				VConnection->SetMethod("query_state get_state() const", &Network::PDB::Connection::GetState);
 				VConnection->SetMethod("transaction_state get_tx_state() const", &Network::PDB::Connection::GetTxState);
-				VConnection->SetMethod("bool in_session() const", &Network::PDB::Connection::InSession);
+				VConnection->SetMethod("bool in_transaction() const", &Network::PDB::Connection::InTransaction);
 				VConnection->SetMethod("bool busy() const", &Network::PDB::Connection::Busy);
 
 				VRequest->SetMethod("cursor& get_result()", &Network::PDB::Request::GetResult);

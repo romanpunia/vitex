@@ -360,7 +360,7 @@ namespace Vitex
 #endif
 			DatabaseException::DatabaseException(TConnection* Connection)
 			{
-#ifdef VI_SQLITE
+#ifdef VI_POSTGRESQL
 				VI_ASSERT(Connection != nullptr, "base should be set");
 				char* NewMessage = PQerrorMessage(Connection);
 				if (!NewMessage || NewMessage[0] == '\0')

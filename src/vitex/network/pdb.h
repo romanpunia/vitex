@@ -502,16 +502,18 @@ namespace Vitex
 				SessionId Session;
 				OnResult Callback;
 				Cursor Result;
+				uint64_t Id;
 				size_t Options;
 
 			public:
-				Request(const std::string_view& Commands, Caching Status);
+				Request(const std::string_view& Commands, SessionId NewSession, Caching Status, uint64_t Rid, size_t NewOptions);
 				void ReportCursor();
 				void ReportFailure();
 				Cursor&& GetResult();
 				const Core::Vector<char>& GetCommand() const;
 				SessionId GetSession() const;
 				uint64_t GetTiming() const;
+				uint64_t GetId() const;
 				bool Pending() const;
 			};
 
@@ -536,6 +538,7 @@ namespace Vitex
 				Core::UnorderedMap<Socket*, Connection*> Pool;
 				Core::Vector<Request*> Requests;
 				std::atomic<uint64_t> Channel;
+				std::atomic<uint64_t> Counter;
 				std::recursive_mutex Update;
 				OnReconnect Reconnected;
 				Address Source;

@@ -1473,7 +1473,7 @@ namespace Vitex
 			bool Connection::InTransaction() const
 			{
 #ifdef VI_POSTGRESQL
-				return PQtransactionStatus(Base) == PQTRANS_INTRANS;
+				return PQtransactionStatus(Base) != PQTRANS_IDLE;
 #else
 				return false;
 #endif
@@ -1502,7 +1502,7 @@ namespace Vitex
 				return Copy;
 			}
 
-			Request::Request(const std::string_view& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(0), Result(nullptr, Status), Options(0)
+			Request::Request(const std::string_view& Commands, SessionId NewSession, Caching Status, uint64_t Rid, size_t NewOptions) : Command(Commands.begin(), Commands.end()), Time(Core::Schedule::GetClock()), Session(NewSession), Result(nullptr, Status), Id(Rid), Options(NewOptions)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1533,6 +1533,10 @@ namespace Vitex
 			uint64_t Request::GetTiming() const
 			{
 				return (uint64_t)((Core::Schedule::GetClock() - Time).count() / 1000);
+			}
+			uint64_t Request::GetId() const
+			{
+				return Id;
 			}
 			bool Request::Pending() const
 			{
@@ -1922,9 +1926,7 @@ namespace Vitex
 				else
 					Driver::Get()->LogQuery(Command);
 
-				Request* Next = new Request(Command, MayCache ? Caching::Miss : Caching::Never);
-				Next->Session = Session;
-				Next->Options = Opts;
+				Request* Next = new Request(Command, Session, MayCache ? Caching::Miss : Caching::Never, ++Counter, Opts);
 				if (!Reference.empty())
 					Next->Callback = [this, Reference, Opts](Cursor& Data) { SetCache(Reference, &Data, Opts); };
 
@@ -1942,7 +1944,7 @@ namespace Vitex
 				for (auto& Item : Pool)
 				{
 					if (Item.second->Busy() && Item.second->Current != nullptr && Time - Item.second->Current->Time > Timeout)
-						VI_WARN("[pq] stuck%s on 0x%" PRIXPTR " while executing query:\n  %s", Item.second->InTransaction() ? " in transaction" : "", (uintptr_t)Item.second, Item.second->Current->Command.data());
+						VI_WARN("[pq] stuck%s on 0x%" PRIXPTR " while executing query (rid: %" PRIu64 "):\n  %s", Item.second->InTransaction() ? " in transaction" : "", (uintptr_t)Item.second, Item.second->Current->Id, Item.second->Current->Command.data());
 				}
 
 				return Future;
@@ -2164,7 +2166,7 @@ namespace Vitex
 					return false;
 
 				VI_MEASURE(Core::Timings::Intensive);
-				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Base, Base->InTransaction() ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
+				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s (rid: %" PRIu64 "): %.64s%s", (uintptr_t)Base, Base->InTransaction() ? " (transaction)" : "", Base->Current->Id, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
 					Flush(Base, false);
@@ -2253,7 +2255,7 @@ namespace Vitex
 
 				PQlogNoticeOf(Source->Base);
 				if (Source->Current != nullptr && !Source->Current->Result.Error())
-					VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Source, Source->Current->GetTiming());
+					VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms, rid: %" PRIu64 ")", (uintptr_t)Source, Source->Current->GetTiming(), Source->Current->Id);
 
 				auto* ReadyRequest = Source->MakeIdle();
 				if (ReadyRequest != nullptr)

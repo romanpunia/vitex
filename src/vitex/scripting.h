@@ -1963,6 +1963,7 @@ namespace Vitex
 			static int ManagerUD;
 
 		private:
+			Core::UnorderedMap<LibraryFeatures, size_t> LibrarySettings;
 			Core::UnorderedMap<Core::String, Core::String> Files;
 			Core::UnorderedMap<Core::String, Core::String> Sections;
 			Core::UnorderedMap<Core::String, Core::Schema*> Datas;
@@ -1971,7 +1972,7 @@ namespace Vitex
 			Core::UnorderedMap<Core::String, Addon> Addons;
 			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
 			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
-			Core::UnorderedMap<LibraryFeatures, size_t> LibrarySettings;
+			Core::UnorderedSet<Core::String> AppliedGenerators;
 			Core::Vector<ImmediateContext*> Threads;
 			Core::Vector<asIScriptContext*> Stacks;
 			Core::String DefaultNamespace;
@@ -1984,7 +1985,7 @@ namespace Vitex
 			DebuggerContext* Debugger;
 			asIScriptEngine* Engine;
 			bool SaveSources;
-			bool Cached;
+			bool SaveCache;
 
 		public:
 			VirtualMachine() noexcept;
@@ -2267,13 +2268,13 @@ namespace Vitex
 				return Class;
 			}
 			template <typename T>
-			ExpectsVM<TypeClass> SetStructTrivial(const std::string_view& Name)
+			ExpectsVM<TypeClass> SetStructTrivial(const std::string_view& Name, size_t Traits = 0)
 			{
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
 
-				auto Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
+				auto Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>() | Traits);
 				if (!Struct)
 					return Struct;
 
@@ -2288,22 +2289,22 @@ namespace Vitex
 				return Struct;
 			}
 			template <typename T>
-			ExpectsVM<TypeClass> SetStruct(const std::string_view& Name)
+			ExpectsVM<TypeClass> SetStruct(const std::string_view& Name, size_t Traits = 0)
 			{
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
 
-				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
+				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>() | Traits);
 			}
 			template <typename T>
-			ExpectsVM<TypeClass> SetPod(const std::string_view& Name)
+			ExpectsVM<TypeClass> SetPod(const std::string_view& Name, size_t Traits = 0)
 			{
 				auto RefType = GetTypeInfoByName(Name);
 				if (RefType.IsValid())
 					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
 
-				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());
+				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>() | Traits);
 			}
 		};
 

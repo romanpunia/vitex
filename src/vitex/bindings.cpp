@@ -11094,7 +11094,7 @@ namespace Vitex
 			bool Registry::ImportString(VirtualMachine* VM)
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
-				auto VStringView = VM->SetStructAddress("string_view", sizeof(std::string_view), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<std::string_view>());
+				auto VStringView = VM->SetStructAddress("string_view", sizeof(std::string_view), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<std::string_view>() | (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
 				auto VString = VM->SetStructAddress("string", sizeof(Core::String), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<Core::String>());
 #ifdef VI_ANGELSCRIPT
 				VM->SetStringFactoryAddress("string", StringFactory::Get());
@@ -11491,7 +11491,7 @@ namespace Vitex
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				auto VUInt128 = VM->SetStructTrivial<Compute::UInt128>("uint128");
+				auto VUInt128 = VM->SetStructTrivial<Compute::UInt128>("uint128", (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
 				VUInt128->SetConstructor<Compute::UInt128>("void f()");
 				VUInt128->SetConstructor<Compute::UInt128, int16_t>("void f(int16)");
 				VUInt128->SetConstructor<Compute::UInt128, uint16_t>("void f(uint16)");
@@ -11538,7 +11538,7 @@ namespace Vitex
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
-				auto VUInt256 = VM->SetStructTrivial<Compute::UInt256>("uint256");
+				auto VUInt256 = VM->SetStructTrivial<Compute::UInt256>("uint256", (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
 				VUInt256->SetConstructor<Compute::UInt256>("void f()");
 				VUInt256->SetConstructor<Compute::UInt256, int16_t>("void f(int16)");
 				VUInt256->SetConstructor<Compute::UInt256, uint16_t>("void f(uint16)");
@@ -11546,8 +11546,8 @@ namespace Vitex
 				VUInt256->SetConstructor<Compute::UInt256, uint32_t>("void f(uint32)");
 				VUInt256->SetConstructor<Compute::UInt256, int64_t>("void f(int64)");
 				VUInt256->SetConstructor<Compute::UInt256, uint64_t>("void f(uint64)");
-				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&>("void f(uint128)");
-				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&, const Compute::UInt128&>("void f(uint128, uint128)");
+				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&>("void f(const uint128&in)");
+				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt128&, const Compute::UInt128&>("void f(const uint128&in, const uint128&in)");
 				VUInt256->SetConstructor<Compute::UInt256, const std::string_view&>("void f(const string_view&in)");
 				VUInt256->SetConstructor<Compute::UInt256, const Compute::UInt256&>("void f(const uint256 &in)");
 				VUInt256->SetMethodEx("int8 to_int8() const", &UInt256ToInt8);
@@ -12137,7 +12137,7 @@ namespace Vitex
 				VCache->SetValue("data", (int)Core::OS::CPU::Cache::Data);
 				VCache->SetValue("trace", (int)Core::OS::CPU::Cache::Trace);
 
-				auto VQuantityInfo = VM->SetPod<Core::OS::CPU::QuantityInfo>("quantity_info");
+				auto VQuantityInfo = VM->SetPod<Core::OS::CPU::QuantityInfo>("quantity_info", (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
 				VQuantityInfo->SetProperty("uint32 logical", &Core::OS::CPU::QuantityInfo::Logical);
 				VQuantityInfo->SetProperty("uint32 physical", &Core::OS::CPU::QuantityInfo::Physical);
 				VQuantityInfo->SetProperty("uint32 packages", &Core::OS::CPU::QuantityInfo::Packages);
@@ -16810,7 +16810,7 @@ namespace Vitex
 				VCheckpoint->SetProperty<Network::LDB::Checkpoint>("int32 status", &Network::LDB::Checkpoint::Status);
 				VCheckpoint->SetConstructor<Network::LDB::Checkpoint>("void f()");
 
-				auto VRow = VM->SetStructTrivial<Network::LDB::Row>("row");
+				auto VRow = VM->SetStructTrivial<Network::LDB::Row>("row", (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
 				auto VColumn = VM->SetStructTrivial<Network::LDB::Column>("column");
 				VColumn->SetConstructor<Network::LDB::Column, const Network::LDB::Column&>("void f(const column&in)");
 				VColumn->SetMethod("string get_name() const", &Network::LDB::Column::GetName);
@@ -17112,7 +17112,7 @@ namespace Vitex
 				VNotify->SetMethod("string get_data() const", &Network::PDB::Notify::GetData);
 				VNotify->SetMethod("int32 get_pid() const", &Network::PDB::Notify::GetPid);
 
-				auto VRow = VM->SetStructTrivial<Network::PDB::Row>("row");
+				auto VRow = VM->SetStructTrivial<Network::PDB::Row>("row", (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
 				auto VColumn = VM->SetStructTrivial<Network::PDB::Column>("column");
 				VColumn->SetConstructor<Network::PDB::Column, const Network::PDB::Column&>("void f(const column&in)");
 				VColumn->SetMethod("string get_name() const", &Network::PDB::Column::GetName);

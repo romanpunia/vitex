@@ -6543,7 +6543,7 @@ namespace Vitex
 		}
 		int ImmediateContext::ContextUD = 151;
 
-		VirtualMachine::VirtualMachine() noexcept : LastMajorGC(0), Scope(0), Debugger(nullptr), Engine(nullptr), SaveSources(false), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : LastMajorGC(0), Scope(0), Debugger(nullptr), Engine(nullptr), SaveSources(false), SaveCache(true)
 		{
 			auto Directory = Core::OS::Directory::GetWorking();
 			if (Directory)
@@ -7181,7 +7181,7 @@ namespace Vitex
 		}
 		void VirtualMachine::SetCache(bool Enabled)
 		{
-			Cached = Enabled;
+			SaveCache = Enabled;
 		}
 		void VirtualMachine::SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback)
 		{
@@ -7320,7 +7320,7 @@ namespace Vitex
 		bool VirtualMachine::GetByteCodeCache(ByteCodeInfo* Info)
 		{
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
-			if (!Cached)
+			if (!SaveCache)
 				return false;
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
@@ -7337,7 +7337,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 			Info->Valid = true;
-			if (!Cached)
+			if (!SaveCache)
 				return;
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
@@ -7507,15 +7507,25 @@ namespace Vitex
 				return Status;
 
 			std::string_view TargetPath = Path.empty() ? "<anonymous>" : Path;
-			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes)", (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size());
+			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size(), (uint64_t)Generators.size());
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Sync.General);
+				AppliedGenerators.clear();
+			Retry:
+				size_t CurrentGenerators = Generators.size();
 				for (auto& Item : Generators)
 				{
+					if (AppliedGenerators.find(Item.first) != AppliedGenerators.end())
+						continue;
+
 					VI_TRACE("[vm] generate source code for %s generator at %.*s (%" PRIu64 " bytes)", Item.first.c_str(), (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size());
 					auto Status = Item.second(Processor, Path, InoutBuffer);
 					if (!Status)
 						return Compute::PreprocessorException(Compute::PreprocessorError::ExtensionError, 0, Status.Error().message());
+
+					AppliedGenerators.insert(Item.first);
+					if (Generators.size() != CurrentGenerators)
+						goto Retry;
 				}
 			}
 
@@ -7883,7 +7893,7 @@ namespace Vitex
 					return ImportAddon(Path);
 			}
 
-			if (!Cached)
+			if (!SaveCache)
 			{
 				auto Data = Core::OS::File::ReadAsString(Path);
 				if (!Data)
@@ -8440,20 +8450,20 @@ namespace Vitex
 				if (It != Engine->Callbacks.end())
 				{
 					if (Info->type == asMSGTYPE_WARNING)
-						return It->second(Core::Stringify::Text("WARN at line %i: %s%s", Info->row, Info->message, SourceCode ? SourceCode->c_str() : ""));
+						return It->second(Core::Stringify::Text("WARN %i: %s%s", Info->row, Info->message, SourceCode ? SourceCode->c_str() : ""));
 					else if (Info->type == asMSGTYPE_INFORMATION)
 						return It->second(Core::Stringify::Text("INFO %s", Info->message));
 
-					return It->second(Core::Stringify::Text("ERR at line %i: %s%s", Info->row, Info->message, SourceCode ? SourceCode->c_str() : ""));
+					return It->second(Core::Stringify::Text("ERR %i: %s%s", Info->row, Info->message, SourceCode ? SourceCode->c_str() : ""));
 				}
 			}
 
 			if (Info->type == asMSGTYPE_WARNING)
-				VI_WARN("[asc] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
+				VI_WARN("[asc] %s:%i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
 			else if (Info->type == asMSGTYPE_INFORMATION)
 				VI_INFO("[asc] %s", Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
-				VI_ERR("[asc] %s at line %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
+				VI_ERR("[asc] %s: %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
 #endif
 		}
 		void VirtualMachine::RegisterAddons(VirtualMachine* Engine)

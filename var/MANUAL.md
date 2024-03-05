@@ -9,7 +9,7 @@ cmake . -DCMAKE_BUILD_TYPE=Release # -DVI_CXX=17
 ```
 Build project files while being inside of repository
 ```bash
-    cmake --build . --config Release
+cmake --build . --config Release
 ```
 
 ## Build: Including specific submodules

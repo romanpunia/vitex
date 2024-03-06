@@ -347,9 +347,9 @@ namespace Vitex
 		class VI_OUT_TS TransportLayer final : public Core::Singleton<TransportLayer>
 		{
 		private:
+			std::mutex Exclusive;
 			Core::UnorderedSet<ssl_ctx_st*> Servers;
 			Core::UnorderedSet<ssl_ctx_st*> Clients;
-			std::mutex Exclusive;
 			bool IsInstalled;
 
 		public:
@@ -367,8 +367,8 @@ namespace Vitex
 		class VI_OUT_TS DNS final : public Core::Singleton<DNS>
 		{
 		private:
-			Core::UnorderedMap<size_t, std::pair<int64_t, SocketAddress>> Names;
 			std::mutex Exclusive;
+			Core::UnorderedMap<size_t, std::pair<int64_t, SocketAddress>> Names;
 
 		public:
 			DNS() noexcept;
@@ -384,12 +384,12 @@ namespace Vitex
 		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
 		{
 		private:
-			Core::OrderedMap<std::chrono::microseconds, Socket*> Timers;
+			std::mutex Exclusive;
 			Core::UnorderedSet<Socket*> Trackers;
 			Core::Vector<EpollFd> Fds;
-			std::atomic<size_t> Activations;
-			std::mutex Exclusive;
+			Core::OrderedMap<std::chrono::microseconds, Socket*> Timers;
 			EpollHandle Handle;
+			std::atomic<size_t> Activations;
 			uint64_t DefaultTimeout;
 
 		public:
@@ -409,9 +409,8 @@ namespace Vitex
 			size_t GetActivations() noexcept;
 
 		private:
-			void DispatchSockets(size_t Size, const std::chrono::microseconds& Time) noexcept;
 			void DispatchTimers(const std::chrono::microseconds& Time) noexcept;
-			bool DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept;
+			bool DispatchEvents(const EpollFd& Fd, const std::chrono::microseconds& Time) noexcept;
 			void TryDispatch() noexcept;
 			void TryEnqueue() noexcept;
 			void TryListen() noexcept;
@@ -431,8 +430,8 @@ namespace Vitex
 			};
 
 		private:
-			Core::UnorderedMap<size_t, AddressPool> Connections;
 			std::mutex Exclusive;
+			Core::UnorderedMap<size_t, AddressPool> Connections;
 
 		public:
 			Uplinks() noexcept;
@@ -608,10 +607,10 @@ namespace Vitex
 		class VI_OUT SocketConnection : public Core::Reference<SocketConnection>
 		{
 		public:
-			Socket* Stream = nullptr;
-			SocketListener* Host = nullptr;
 			SocketAddress Address;
 			DataFrame Info;
+			Socket* Stream = nullptr;
+			SocketListener* Host = nullptr;
 
 		public:
 			SocketConnection() = default;
@@ -629,14 +628,14 @@ namespace Vitex
 			friend SocketConnection;
 
 		protected:
+			std::recursive_mutex Exclusive;
 			Core::UnorderedSet<SocketConnection*> Active;
 			Core::UnorderedSet<SocketConnection*> Inactive;
 			Core::Vector<SocketListener*> Listeners;
 			SocketRouter* Router;
-			std::atomic<ServerState> State;
-			std::recursive_mutex Exclusive;
 			uint64_t ShutdownTimeout;
 			size_t Backlog;
+			std::atomic<ServerState> State;
 			
 		public:
 			SocketServer() noexcept;

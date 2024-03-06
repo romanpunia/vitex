@@ -214,7 +214,7 @@ namespace Vitex
 			ASN1_TIME_to_tm(Time, &Date);
 
 			time_t TimeStamp = mktime(&Date);
-			return std::make_pair(Core::DateTime::FetchWebDateGMT(TimeStamp), TimeStamp);
+			return std::make_pair(Core::DateTime::SerializeGlobal(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(TimeStamp)), Core::DateTime::FormatWebTime()), TimeStamp);
 		}
 #endif
 #ifdef NET_POLL
@@ -1832,16 +1832,15 @@ namespace Vitex
 			int Count = Handle.Wait(Fds.data(), Fds.size(), EventTimeout);
 			auto Time = Core::Schedule::GetClock();
 			if (Count > 0)
-				DispatchSockets((size_t)Count, Time);
+			{
+				VI_MEASURE(Core::Timings::FileSystem);
+				size_t Size = (size_t)Count;
+				for (size_t i = 0; i < Size; i++)
+					DispatchEvents(Fds[i], Time);
+			}
 
 			DispatchTimers(Time);
 			return Count;
-		}
-		void Multiplexer::DispatchSockets(size_t Size, const std::chrono::microseconds& Time) noexcept
-		{
-			VI_MEASURE(Core::Timings::FileSystem);
-			for (size_t i = 0; i < Size; i++)
-				DispatchEvents(Fds.at(i), Time);
 		}
 		void Multiplexer::DispatchTimers(const std::chrono::microseconds& Time) noexcept
 		{
@@ -1862,7 +1861,7 @@ namespace Vitex
 				Timers.erase(It);
 			}
 		}
-		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept
+		bool Multiplexer::DispatchEvents(const EpollFd& Fd, const std::chrono::microseconds& Time) noexcept
 		{
 			VI_ASSERT(Fd.Base != nullptr, "no socket is connected to epoll fd");
 			VI_TRACE("[net] sock event:%s%s%s on fd %i", Fd.Closeable ? "c" : "", Fd.Readable ? "r" : "", Fd.Writeable ? "w" : "", (int)Fd.Base->Fd);
@@ -1890,7 +1889,6 @@ namespace Vitex
 			{
 				Handle.Remove(Fd.Base);
 				RemoveTimeout(Fd.Base);
-				Fd.Base->Release();
 			}
 
 			if (Fd.Readable && Fd.Writeable)
@@ -1931,10 +1929,7 @@ namespace Vitex
 			Value->Events.ReadCallback.swap(WhenReady);
 			bool Listening = (WhenReady ? Handle.Update(Value, true, StillListeningWrite) : Handle.Add(Value, true, StillListeningWrite));
 			if (!WasListeningRead && !StillListeningWrite)
-			{
 				AddTimeout(Value, Core::Schedule::GetClock());
-				Value->AddRef();
-			}
 
 			Unique.Negate();
 			if (WhenReady)
@@ -1951,10 +1946,7 @@ namespace Vitex
 			Value->Events.WriteCallback.swap(WhenReady);
 			bool Listening = (WhenReady ? Handle.Update(Value, StillListeningRead, true) : Handle.Add(Value, StillListeningRead, true));
 			if (!WasListeningWrite && !StillListeningRead)
-			{
 				AddTimeout(Value, Core::Schedule::GetClock());
-				Value->AddRef();
-			}
 
 			Unique.Negate();
 			if (WhenReady)
@@ -1970,13 +1962,10 @@ namespace Vitex
 			auto WriteCallback = std::move(Value->Events.WriteCallback);
 			bool WasListening = ReadCallback || WriteCallback;
 			bool NotListening = WasListening && Value->IsValid() ? Handle.Remove(Value) : true;
-			Unique.Negate();
 			if (WasListening)
-			{
 				RemoveTimeout(Value);
-				Value->Release();
-			}
 
+			Unique.Negate();
 			if (Packet::IsDone(Event) || !WasListening)
 				return NotListening;
 

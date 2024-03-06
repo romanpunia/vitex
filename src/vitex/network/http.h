@@ -251,15 +251,15 @@ namespace Vitex
 
 			struct VI_OUT RequestFrame
 			{
+				ContentFrame Content;
 				KimvUnorderedMap Cookies;
 				KimvUnorderedMap Headers;
-				ContentFrame Content;
+				Compute::RegexResult Match;
+				Credentials User;
 				Core::String Query;
 				Core::String Path;
 				Core::String Location;
 				Core::String Referrer;
-				Compute::RegexResult Match;
-				Credentials User;
 				char Method[LABEL_SIZE];
 				char Version[LABEL_SIZE];
 
@@ -286,8 +286,8 @@ namespace Vitex
 
 			struct VI_OUT ResponseFrame
 			{
-				KimvUnorderedMap Headers;
 				ContentFrame Content;
+				KimvUnorderedMap Headers;
 				Core::Vector<Cookie> Cookies;
 				int StatusCode;
 				bool Error;
@@ -313,12 +313,12 @@ namespace Vitex
 
 			struct VI_OUT FetchFrame
 			{
+				ContentFrame Content;
 				KimvUnorderedMap Cookies;
 				KimvUnorderedMap Headers;
-				ContentFrame Content;
 				uint64_t Timeout;
-				uint32_t VerifyPeers;
 				size_t MaxSize;
+				uint32_t VerifyPeers;
 
 				FetchFrame();
 				FetchFrame(const FetchFrame&) = default;
@@ -370,15 +370,15 @@ namespace Vitex
 				} Lifetime;
 
 			private:
+				std::mutex Section;
 				Core::SingleQueue<Message> Messages;
+				Socket* Stream;
+				WebCodec* Codec;
 				std::atomic<uint32_t> State;
 				std::atomic<uint32_t> Tunneling;
 				std::atomic<bool> Active;
 				std::atomic<bool> Deadly;
 				std::atomic<bool> Busy;
-				std::mutex Section;
-				Socket* Stream;
-				WebCodec* Codec;
 
 			public:
 				WebSocketCallback Connect;
@@ -411,8 +411,8 @@ namespace Vitex
 			class VI_OUT RouterGroup final : public Core::Reference<RouterGroup>
 			{
 			public:
-				Core::Vector<RouterEntry*> Routes;
 				Core::String Match;
+				Core::Vector<RouterEntry*> Routes;
 				RouteMode Mode;
 
 			public:
@@ -448,42 +448,42 @@ namespace Vitex
 
 				struct EntryAuth
 				{
-					Core::Vector<Core::String> Methods;
 					Core::String Type;
 					Core::String Realm;
+					Core::Vector<Core::String> Methods;
 				} Auth;
 
 				struct EntryCompression
 				{
 					Core::Vector<Compute::RegexSource> Files;
 					CompressionTune Tune = CompressionTune::Default;
+					size_t MinLength = 16384;
 					int QualityLevel = 8;
 					int MemoryLevel = 8;
-					size_t MinLength = 16384;
 					bool Enabled = false;
 				} Compression;
 
 			public:
-				Core::Vector<Compute::RegexSource> HiddenFiles;
-				Core::Vector<ErrorFile> ErrorFiles;
-				Core::Vector<MimeType> MimeTypes;
-				Core::Vector<Core::String> IndexFiles;
-				Core::Vector<Core::String> TryFiles;
-				Core::Vector<Core::String> DisallowedMethods;
+				Compute::RegexSource Location;
 				Core::String FilesDirectory;
 				Core::String CharSet = "utf-8";
 				Core::String ProxyIpAddress;
 				Core::String AccessControlAllowOrigin;
 				Core::String Redirect;
 				Core::String Alias;
+				Core::Vector<Compute::RegexSource> HiddenFiles;
+				Core::Vector<ErrorFile> ErrorFiles;
+				Core::Vector<MimeType> MimeTypes;
+				Core::Vector<Core::String> IndexFiles;
+				Core::Vector<Core::String> TryFiles;
+				Core::Vector<Core::String> DisallowedMethods;
+				MapRouter* Router = nullptr;
 				size_t WebSocketTimeout = 30000;
 				size_t StaticFileMaxAge = 604800;
 				size_t Level = 0;
 				bool AllowDirectoryListing = false;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = true;
-				Compute::RegexSource Location;
-				MapRouter* Router = nullptr;
 
 			private:
 				static RouterEntry* From(const RouterEntry& Other, const Compute::RegexSource& Source);
@@ -516,8 +516,8 @@ namespace Vitex
 				} Callbacks;
 
 			public:
-				Core::Vector<RouterGroup*> Groups;
 				Core::String TemporaryDirectory = "./temp";
+				Core::Vector<RouterGroup*> Groups;
 				size_t MaxUploadableResources = 10;
 				RouterEntry* Base = nullptr;
 
@@ -560,13 +560,13 @@ namespace Vitex
 			class VI_OUT Connection final : public SocketConnection
 			{
 			public:
+				RequestFrame Request;
+				ResponseFrame Response;
 				Core::FileEntry Resource;
 				Parser* Resolver = nullptr;
 				WebSocketFrame* WebSocket = nullptr;
 				RouterEntry* Route = nullptr;
 				Server* Root = nullptr;
-				RequestFrame Request;
-				ResponseFrame Response;
 
 			public:
 				Connection(Server* Source) noexcept;
@@ -628,8 +628,8 @@ namespace Vitex
 			class VI_OUT Session final : public Core::Reference<Session>
 			{
 			public:
-				Core::Schema* Query = nullptr;
 				Core::String SessionId;
+				Core::Schema* Query = nullptr;
 				int64_t SessionExpires = 0;
 
 			public:
@@ -768,11 +768,11 @@ namespace Vitex
 				};
 
 			private:
-				Core::Vector<char> Payload;
-				WebSocketOp Opcode;
 				MessageQueue Queue;
-				Bytecode State;
+				Core::Vector<char> Payload;
 				uint64_t Remains;
+				WebSocketOp Opcode;
+				Bytecode State;
 				uint8_t Mask[4];
 				uint8_t Fragment;
 				uint8_t Final;
@@ -792,8 +792,8 @@ namespace Vitex
 			class VI_OUT_TS HrmCache final : public Core::Singleton<HrmCache>
 			{
 			private:
-				Core::SingleQueue<Core::String*> Queue;
 				std::mutex Mutex;
+				Core::SingleQueue<Core::String*> Queue;
 				size_t Capacity;
 				size_t Size;
 
@@ -813,7 +813,7 @@ namespace Vitex
 			class VI_OUT_TS Utils
 			{
 			public:
-				static Core::String ConnectionResolve(Connection* Base);
+				static void UpdateKeepAliveHeaders(Connection* Base, Core::String& Content);
 				static std::string_view StatusMessage(int StatusCode);
 				static std::string_view ContentType(const std::string_view& Path, Core::Vector<MimeType>* MimeTypes);
 			};

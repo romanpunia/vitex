@@ -114,7 +114,7 @@ namespace
 
 			asAcquireSharedLock();
 			std::string_view Source(Buffer, Length);
-			auto It = Cache.find(Vitex::Core::HglCast(Source));
+			auto It = Cache.find(Vitex::Core::KeyLookupCast(Source));
 			if (It != Cache.end())
 			{
 				It->second++;
@@ -2883,7 +2883,7 @@ namespace Vitex
 			}
 			Storable* Dictionary::operator[](const std::string_view& Key)
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It != Data.end())
 					return &It->second;
 
@@ -2891,7 +2891,7 @@ namespace Vitex
 			}
 			const Storable* Dictionary::operator[](const std::string_view& Key) const
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It != Data.end())
 					return &It->second;
 
@@ -2926,7 +2926,7 @@ namespace Vitex
 			}
 			void Dictionary::Set(const std::string_view& Key, void* Value, int TypeId)
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It == Data.end())
 					It = Data.insert(InternalMap::value_type(Key, Storable())).first;
 
@@ -2934,7 +2934,7 @@ namespace Vitex
 			}
 			bool Dictionary::Get(const std::string_view& Key, void* Value, int TypeId) const
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It != Data.end())
 					return It->second.Get(Engine, Value, TypeId);
 
@@ -2983,7 +2983,7 @@ namespace Vitex
 			}
 			int Dictionary::GetTypeId(const std::string_view& Key) const
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It != Data.end())
 					return It->second.Value.TypeId;
 
@@ -2991,7 +2991,7 @@ namespace Vitex
 			}
 			bool Dictionary::Exists(const std::string_view& Key) const
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It != Data.end())
 					return true;
 
@@ -3010,7 +3010,7 @@ namespace Vitex
 			}
 			bool Dictionary::Erase(const std::string_view& Key)
 			{
-				auto It = Data.find(Core::HglCast(Key));
+				auto It = Data.find(Core::KeyLookupCast(Key));
 				if (It != Data.end())
 				{
 					It->second.ReleaseReferences(Engine->GetEngine());
@@ -3048,7 +3048,7 @@ namespace Vitex
 			}
 			Dictionary::LocalIterator Dictionary::Find(const std::string_view& Key) const
 			{
-				return LocalIterator(*this, Data.find(Core::HglCast(Key)));
+				return LocalIterator(*this, Data.find(Core::KeyLookupCast(Key)));
 			}
 			Dictionary* Dictionary::Create(VirtualMachine* Engine)
 			{
@@ -4229,15 +4229,6 @@ namespace Vitex
 
 				Core::VarType Type = Base->Value.GetType();
 				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
-			}
-
-			Core::String DateTimeFormat(Core::DateTime& Base, const std::string_view& Format)
-			{
-				return Base.Format(Core::String(Format).c_str());
-			}
-			Core::String DateTimeDate(Core::DateTime& Base, const std::string_view& Format)
-			{
-				return Base.Date(Core::String(Format).c_str());
 			}
 #ifdef VI_BINDINGS
 			Core::ExpectsSystem<void> FromSocketPoll(Network::SocketPoll Poll)
@@ -9427,7 +9418,7 @@ namespace Vitex
 			}
 			Core::String SMTPRequestGetHeader(Network::SMTP::RequestFrame* Base, const std::string_view& Name)
 			{
-				auto It = Base->Headers.find(Core::HglCast(Name));
+				auto It = Base->Headers.find(Core::KeyLookupCast(Name));
 				return It == Base->Headers.end() ? Core::String() : It->second;
 			}
 
@@ -11646,55 +11637,45 @@ namespace Vitex
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				auto VDateTime = VM->SetStructTrivial<Core::DateTime>("timestamp");
 				VDateTime->SetConstructor<Core::DateTime>("void f()");
-				VDateTime->SetConstructor<Core::DateTime, uint64_t>("void f(uint64)");
-				VDateTime->SetConstructor<Core::DateTime, const Core::DateTime&>("void f(const timestamp &in)");
-				VDateTime->SetMethodEx("string format(const string_view&in)", &DateTimeFormat);
-				VDateTime->SetMethodEx("string date(const string_view&in)", &DateTimeDate);
-				VDateTime->SetMethod("string to_iso8601()", &Core::DateTime::Iso8601);
-				VDateTime->SetMethod("timestamp now()", &Core::DateTime::Now);
-				VDateTime->SetMethod("timestamp from_nanoseconds(uint64)", &Core::DateTime::FromNanoseconds);
-				VDateTime->SetMethod("timestamp from_microseconds(uint64)", &Core::DateTime::FromMicroseconds);
-				VDateTime->SetMethod("timestamp from_milliseconds(uint64)", &Core::DateTime::FromMilliseconds);
-				VDateTime->SetMethod("timestamp from_seconds(uint64)", &Core::DateTime::FromSeconds);
-				VDateTime->SetMethod("timestamp from_minutes(uint64)", &Core::DateTime::FromMinutes);
-				VDateTime->SetMethod("timestamp from_hours(uint64)", &Core::DateTime::FromHours);
-				VDateTime->SetMethod("timestamp from_days(uint64)", &Core::DateTime::FromDays);
-				VDateTime->SetMethod("timestamp from_weeks(uint64)", &Core::DateTime::FromWeeks);
-				VDateTime->SetMethod("timestamp from_months(uint64)", &Core::DateTime::FromMonths);
-				VDateTime->SetMethod("timestamp from_years(uint64)", &Core::DateTime::FromYears);
-				VDateTime->SetMethod("timestamp& set_date_seconds(uint64, bool = true)", &Core::DateTime::SetDateSeconds);
-				VDateTime->SetMethod("timestamp& set_date_minutes(uint64, bool = true)", &Core::DateTime::SetDateMinutes);
-				VDateTime->SetMethod("timestamp& set_date_hours(uint64, bool = true)", &Core::DateTime::SetDateHours);
-				VDateTime->SetMethod("timestamp& set_date_day(uint64, bool = true)", &Core::DateTime::SetDateDay);
-				VDateTime->SetMethod("timestamp& set_date_week(uint64, bool = true)", &Core::DateTime::SetDateWeek);
-				VDateTime->SetMethod("timestamp& set_date_month(uint64, bool = true)", &Core::DateTime::SetDateMonth);
-				VDateTime->SetMethod("timestamp& set_date_year(uint64, bool = true)", &Core::DateTime::SetDateYear);
-				VDateTime->SetMethod("uint64 date_second()", &Core::DateTime::DateSecond);
-				VDateTime->SetMethod("uint64 date_minute()", &Core::DateTime::DateMinute);
-				VDateTime->SetMethod("uint64 date_hour()", &Core::DateTime::DateHour);
-				VDateTime->SetMethod("uint64 date_day()", &Core::DateTime::DateDay);
-				VDateTime->SetMethod("uint64 date_week()", &Core::DateTime::DateWeek);
-				VDateTime->SetMethod("uint64 date_month()", &Core::DateTime::DateMonth);
-				VDateTime->SetMethod("uint64 date_year()", &Core::DateTime::DateYear);
-				VDateTime->SetMethod("uint64 nanoseconds()", &Core::DateTime::Nanoseconds);
-				VDateTime->SetMethod("uint64 microseconds()", &Core::DateTime::Microseconds);
-				VDateTime->SetMethod("uint64 milliseconds()", &Core::DateTime::Milliseconds);
-				VDateTime->SetMethod("uint64 seconds()", &Core::DateTime::Seconds);
-				VDateTime->SetMethod("uint64 minutes()", &Core::DateTime::Minutes);
-				VDateTime->SetMethod("uint64 hours()", &Core::DateTime::Hours);
-				VDateTime->SetMethod("uint64 days()", &Core::DateTime::Days);
-				VDateTime->SetMethod("uint64 weeks()", &Core::DateTime::Weeks);
-				VDateTime->SetMethod("uint64 months()", &Core::DateTime::Months);
-				VDateTime->SetMethod("uint64 years()", &Core::DateTime::Years);
+				VDateTime->SetConstructor<Core::DateTime, const Core::DateTime&>("void f(const timestamp&in)");
+				VDateTime->SetMethod("timestamp& apply_offset(bool = false)", &Core::DateTime::ApplyOffset);
+				VDateTime->SetMethod("timestamp& apply_timepoint(bool = false)", &Core::DateTime::ApplyTimepoint);
+				VDateTime->SetMethod("timestamp& use_global_time()", &Core::DateTime::UseGlobalTime);
+				VDateTime->SetMethod("timestamp& use_local_time()", &Core::DateTime::UseLocalTime);
+				VDateTime->SetMethod("timestamp& set_second(uint8)", &Core::DateTime::SetSecond);
+				VDateTime->SetMethod("timestamp& set_minute(uint8)", &Core::DateTime::SetMinute);
+				VDateTime->SetMethod("timestamp& set_hour(uint8)", &Core::DateTime::SetHour);
+				VDateTime->SetMethod("timestamp& set_day(uint8)", &Core::DateTime::SetDay);
+				VDateTime->SetMethod("timestamp& set_week(uint8)", &Core::DateTime::SetWeek);
+				VDateTime->SetMethod("timestamp& set_month(uint8)", &Core::DateTime::SetMonth);
+				VDateTime->SetMethod("timestamp& set_year(uint32)", &Core::DateTime::SetYear);
+				VDateTime->SetMethod("string serialize(const string_view&in)", &Core::DateTime::Serialize);
+				VDateTime->SetMethod("uint8 second() const", &Core::DateTime::Second);
+				VDateTime->SetMethod("uint8 minute() const", &Core::DateTime::Minute);
+				VDateTime->SetMethod("uint8 hour() const", &Core::DateTime::Hour);
+				VDateTime->SetMethod("uint8 day() const", &Core::DateTime::Day);
+				VDateTime->SetMethod("uint8 week() const", &Core::DateTime::Week);
+				VDateTime->SetMethod("uint8 month() const", &Core::DateTime::Month);
+				VDateTime->SetMethod("uint32 year() const", &Core::DateTime::Year);
+				VDateTime->SetMethod("int64 nanoseconds() const", &Core::DateTime::Nanoseconds);
+				VDateTime->SetMethod("int64 microseconds() const", &Core::DateTime::Microseconds);
+				VDateTime->SetMethod("int64 milliseconds() const", &Core::DateTime::Milliseconds);
+				VDateTime->SetMethod("int64 seconds() const", &Core::DateTime::Seconds);
 				VDateTime->SetOperatorEx(Operators::AddAssign, (uint32_t)Position::Left, "timestamp&", "const timestamp &in", &DateTimeAddEq);
 				VDateTime->SetOperatorEx(Operators::SubAssign, (uint32_t)Position::Left, "timestamp&", "const timestamp &in", &DateTimeSubEq);
 				VDateTime->SetOperatorEx(Operators::Equals, (uint32_t)Position::Const, "bool", "const timestamp &in", &DateTimeEq);
 				VDateTime->SetOperatorEx(Operators::Cmp, (uint32_t)Position::Const, "int", "const timestamp &in", &DateTimeCmp);
 				VDateTime->SetOperatorEx(Operators::Add, (uint32_t)Position::Const, "timestamp", "const timestamp &in", &DateTimeAdd);
 				VDateTime->SetOperatorEx(Operators::Sub, (uint32_t)Position::Const, "timestamp", "const timestamp &in", &DateTimeSub);
-				VDateTime->SetMethodStatic<Core::String, int64_t>("string get_gmt(int64)", &Core::DateTime::FetchWebDateGMT);
-				VDateTime->SetMethodStatic<Core::String, int64_t>("string get_time(int64)", &Core::DateTime::FetchWebDateTime);
-
+				VDateTime->SetMethodStatic("timestamp from_nanoseconds(int64)", &Core::DateTime::FromNanoseconds);
+				VDateTime->SetMethodStatic("timestamp from_microseconds(int64)", &Core::DateTime::FromMicroseconds);
+				VDateTime->SetMethodStatic("timestamp from_milliseconds(int64)", &Core::DateTime::FromMilliseconds);
+				VDateTime->SetMethodStatic("timestamp from_seconds(int64)", &Core::DateTime::FromSeconds);
+				VDateTime->SetMethodStatic("timestamp from_serialized(const string_view&in, const string_view&in)", &Core::DateTime::FromSerialized);
+				VDateTime->SetMethodStatic("string_view format_iso8601_time()", &Core::DateTime::FormatIso8601Time);
+				VDateTime->SetMethodStatic("string_view format_web_time()", &Core::DateTime::FormatWebTime);
+				VDateTime->SetMethodStatic("string_view format_web_local_time()", &Core::DateTime::FormatWebLocalTime);
+				VDateTime->SetMethodStatic("string_view format_compact_time()", &Core::DateTime::FormatCompactTime);
 				return true;
 			}
 			bool Registry::ImportConsole(VirtualMachine* VM)

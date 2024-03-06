@@ -3682,7 +3682,7 @@ namespace Vitex
 			bool Driver::RemoveConstant(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Constants.find(Core::HglCast(Name));
+				auto It = Constants.find(Core::KeyLookupCast(Name));
 				if (It == Constants.end())
 					return false;
 
@@ -3692,7 +3692,7 @@ namespace Vitex
 			bool Driver::RemoveQuery(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Core::HglCast(Name));
+				auto It = Queries.find(Core::KeyLookupCast(Name));
 				if (It == Queries.end())
 					return false;
 
@@ -3772,7 +3772,7 @@ namespace Vitex
 			ExpectsDB<Document> Driver::GetQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Core::HglCast(Name));
+				auto It = Queries.find(Core::KeyLookupCast(Name));
 				if (It == Queries.end())
 				{
 					if (Once && Map != nullptr)

@@ -169,6 +169,67 @@ namespace
 #endif
 namespace
 {
+	bool GlobalTime(const time_t* timep, struct tm* tm)
+	{
+		const time_t ts = *timep;
+		time_t t = ts / 86400;
+		uint32_t hms = ts % 86400;
+		if ((int)hms < 0)
+		{
+			--t;
+			hms += 86400;
+		}
+
+		time_t c;
+		tm->tm_sec = hms % 60;
+		hms /= 60;
+		tm->tm_min = hms % 60;
+		tm->tm_hour = hms / 60;
+		if (sizeof(time_t) > sizeof(uint32_t))
+		{
+			time_t f = (t + 4) % 7;
+			if (f < 0)
+				f += 7;
+
+			tm->tm_wday = (int)f;
+			c = (t << 2) + 102032;
+			f = c / 146097;
+			if (c % 146097 < 0)
+				--f;
+			--f;
+			t += f;
+			f >>= 2;
+			t -= f;
+			f = (t << 2) + 102035;
+			c = f / 1461;
+			if (f % 1461 < 0)
+				--c;
+		}
+		else
+		{
+			tm->tm_wday = (t + 24861) % 7;
+			c = ((t << 2) + 102035) / 1461;
+		}
+
+		uint32_t yday = (uint32_t)(t - 365 * c - (c >> 2) + 25568);
+		uint32_t a = yday * 5 + 8;
+		tm->tm_mon = a / 153;
+		a %= 153;
+		tm->tm_mday = 1 + a / 5;
+		if (tm->tm_mon >= 12)
+		{
+			tm->tm_mon -= 12;
+			++c;
+			yday -= 366;
+		}
+		else if (!((c & 3) == 0 && (sizeof(time_t) <= 4 || c % 100 != 0 || (c + 300) % 400 == 0)))
+			--yday;
+
+		tm->tm_year = (int)c;
+		tm->tm_yday = yday;
+		tm->tm_isdst = 0;
+		return true;
+	}
 	bool IsPathExists(const std::string_view& Path)
 	{
 		struct stat Buffer;
@@ -325,7 +386,7 @@ namespace Vitex
 					if (It != Blocks.end())
 					{
 						char Date[64];
-						DateTime::FetchDateTime(Date, sizeof(Date), It->second.Time);
+						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(It->second.Time)), DateTime::FormatCompactTime());
 						ErrorHandling::Message(LogLevel::Debug, It->second.Location.Line, It->second.Location.Source, "[mem] %saddress at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							It->second.Static ? "static " : "",
 							It->first, Date, It->second.TypeName.c_str(),
@@ -339,7 +400,7 @@ namespace Vitex
 					if (It != Watchers.end())
 					{
 						char Date[64];
-						DateTime::FetchDateTime(Date, sizeof(Date), It->second.Time);
+						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(It->second.Time)), DateTime::FormatCompactTime());
 						ErrorHandling::Message(LogLevel::Debug, It->second.Location.Line, It->second.Location.Source, "[mem-watch] %saddress at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							It->second.Static ? "static " : "",
 							It->first, Date, It->second.TypeName.c_str(),
@@ -391,7 +452,7 @@ namespace Vitex
 							continue;
 
 						char Date[64];
-						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
+						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Item.second.Time)), DateTime::FormatCompactTime());
 						ErrorHandling::Message(LogLevel::Debug, Item.second.Location.Line, Item.second.Location.Source, "[mem] address at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							Item.first,
 							Date,
@@ -406,7 +467,7 @@ namespace Vitex
 							continue;
 
 						char Date[64];
-						DateTime::FetchDateTime(Date, sizeof(Date), Item.second.Time);
+						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Item.second.Time)), DateTime::FormatCompactTime());
 						ErrorHandling::Message(LogLevel::Debug, Item.second.Location.Line, Item.second.Location.Source, "[mem-watch] address at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
 							Item.first,
 							Date,
@@ -1533,7 +1594,7 @@ namespace Vitex
 					ErrorHandling::GetStackTrace(1).c_str());
 			}
 			if (HasFlag(LogOption::Dated))
-				DateTime::FetchDateTime(Data.Message.Date, sizeof(Data.Message.Date), time(nullptr));
+				DateTime::SerializeLocal(Data.Message.Date, sizeof(Data.Message.Date), DateTime::Now(), DateTime::FormatCompactTime());
 
 			if (Format != nullptr)
 			{
@@ -1573,7 +1634,7 @@ namespace Vitex
 				Condition ? Condition : "?",
 				ErrorHandling::GetStackTrace(1).c_str());
 			if (HasFlag(LogOption::Dated))
-				DateTime::FetchDateTime(Data.Message.Date, sizeof(Data.Message.Date), time(nullptr));
+				DateTime::SerializeLocal(Data.Message.Date, sizeof(Data.Message.Date), DateTime::Now(), DateTime::FormatCompactTime());
 
 			if (Format != nullptr)
 			{
@@ -1611,7 +1672,7 @@ namespace Vitex
 			Data.Type.Level = Level;
 			Data.Type.Fatal = false;
 			if (HasFlag(LogOption::Dated))
-				DateTime::FetchDateTime(Data.Message.Date, sizeof(Data.Message.Date), time(nullptr));
+				DateTime::SerializeLocal(Data.Message.Date, sizeof(Data.Message.Date), DateTime::Now(), DateTime::FormatCompactTime());
 
 			char Buffer[512] = { '\0' };
 			if (Level == LogLevel::Error && HasFlag(LogOption::ReportSysErrors))
@@ -3651,300 +3712,122 @@ namespace Vitex
 			return *this;
 		}
 
-		DateTime::DateTime() noexcept : Time(std::chrono::system_clock::now().time_since_epoch()), DateRebuild(false)
+		DateTime::DateTime() noexcept : DateTime(std::chrono::system_clock::now().time_since_epoch())
 		{
-#ifdef VI_MICROSOFT
-			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
-#else
-			memset(&DateValue, 0, sizeof(DateValue));
-#endif
-			time_t Now = (time_t)Seconds();
-			LocalTime(&Now, &DateValue);
-			DateRebuild = true;
 		}
-		DateTime::DateTime(uint64_t Seconds) noexcept : Time(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Seconds))), DateRebuild(false)
+		DateTime::DateTime(const struct tm& Duration) noexcept : Offset({ }), Timepoint(Duration), Synchronized(false), Globalized(false)
 		{
-#ifdef VI_MICROSOFT
-			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
-#else
-			memset(&DateValue, 0, sizeof(DateValue));
-#endif
-			time_t Now = Seconds;
-			LocalTime(&Now, &DateValue);
-			DateRebuild = true;
+			ApplyTimepoint();
 		}
-		DateTime::DateTime(const DateTime& Value) noexcept : Time(Value.Time), DateRebuild(Value.DateRebuild)
+		DateTime::DateTime(std::chrono::system_clock::duration&& Duration) noexcept : Offset(std::move(Duration)), Timepoint({ }), Synchronized(false), Globalized(false)
 		{
-			memcpy(&DateValue, &Value.DateValue, sizeof(DateValue));
+			ApplyOffset();
 		}
-		void DateTime::Rebuild()
+		DateTime& DateTime::operator +=(const DateTime& Right)
 		{
-			if (!DateRebuild)
-				return;
-
-			Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&DateValue)));
-			DateRebuild = false;
+			Offset += Right.Offset;
+			return ApplyOffset(true);
 		}
-		DateTime& DateTime::operator= (const DateTime& Other) noexcept
+		DateTime& DateTime::operator -=(const DateTime& Right)
 		{
-			Time = Other.Time;
-			DateRebuild = false;
-#ifdef VI_MICROSOFT
-			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
-#else
-			memset(&DateValue, 0, sizeof(DateValue));
-#endif
-			return *this;
-		}
-		void DateTime::operator +=(const DateTime& Right)
-		{
-			Time += Right.Time;
-		}
-		void DateTime::operator -=(const DateTime& Right)
-		{
-			Time -= Right.Time;
+			Offset -= Right.Offset;
+			return ApplyOffset(true);
 		}
 		bool DateTime::operator >=(const DateTime& Right)
 		{
-			return Time >= Right.Time;
+			return Offset >= Right.Offset;
 		}
 		bool DateTime::operator <=(const DateTime& Right)
 		{
-			return Time <= Right.Time;
+			return Offset <= Right.Offset;
 		}
 		bool DateTime::operator >(const DateTime& Right)
 		{
-			return Time > Right.Time;
+			return Offset > Right.Offset;
 		}
 		bool DateTime::operator <(const DateTime& Right)
 		{
-			return Time < Right.Time;
+			return Offset < Right.Offset;
 		}
 		bool DateTime::operator ==(const DateTime& Right)
 		{
-			return Time == Right.Time;
-		}
-		String DateTime::Format(const char* Format)
-		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			if (DateRebuild)
-				Rebuild();
-
-			char Buffer[CHUNK_SIZE];
-			strftime(Buffer, sizeof(Buffer), Format, &DateValue);
-			return Buffer;
-		}
-		String DateTime::Date(const char* Format)
-		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
-			if (DateRebuild)
-				Rebuild();
-
-			struct tm T;
-			String Result = Format;
-			if (!LocalTime(&Offset, &T))
-				return Result;
-
-			T.tm_mon++;
-			T.tm_year += 1900;
-			Stringify::Replace(Result, "{s}", T.tm_sec < 10 ? Stringify::Text("0%i", T.tm_sec) : Core::ToString(T.tm_sec));
-			Stringify::Replace(Result, "{m}", T.tm_min < 10 ? Stringify::Text("0%i", T.tm_min) : Core::ToString(T.tm_min));
-			Stringify::Replace(Result, "{h}", Core::ToString(T.tm_hour));
-			Stringify::Replace(Result, "{D}", Core::ToString(T.tm_yday));
-			Stringify::Replace(Result, "{MD}", T.tm_mday < 10 ? Stringify::Text("0%i", T.tm_mday) : Core::ToString(T.tm_mday));
-			Stringify::Replace(Result, "{WD}", Core::ToString(T.tm_wday + 1));
-			Stringify::Replace(Result, "{M}", T.tm_mon < 10 ? Stringify::Text("0%i", T.tm_mon) : Core::ToString(T.tm_mon));
-			Stringify::Replace(Result, "{Y}", Core::ToString(T.tm_year));
-			return Result;
-		}
-		String DateTime::Iso8601()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			char Buffer[64];
-			strftime(Buffer, sizeof(Buffer), "%FT%TZ", &DateValue);
-			return Buffer;
-		}
-		DateTime DateTime::Now()
-		{
-			DateTime New;
-			New.Time = std::chrono::system_clock::now().time_since_epoch();
-
-			return New;
-		}
-		DateTime DateTime::FromNanoseconds(uint64_t Value)
-		{
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::nanoseconds(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromMicroseconds(uint64_t Value)
-		{
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::microseconds(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromMilliseconds(uint64_t Value)
-		{
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::milliseconds(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromSeconds(uint64_t Value)
-		{
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromMinutes(uint64_t Value)
-		{
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::minutes(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromHours(uint64_t Value)
-		{
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::hours(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromDays(uint64_t Value)
-		{
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Days(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromWeeks(uint64_t Value)
-		{
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-			using _Weeks = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<7>, _Days::period>>;
-
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Weeks(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromMonths(uint64_t Value)
-		{
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
-			using _Months = std::chrono::duration<uint64_t, std::ratio_divide<_Years::period, std::ratio<12>>>;
-
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Months(Value));
-
-			return New;
-		}
-		DateTime DateTime::FromYears(uint64_t Value)
-		{
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
-
-			DateTime New;
-			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Years(Value));
-
-			return New;
+			return Offset == Right.Offset;
 		}
 		DateTime DateTime::operator +(const DateTime& Right) const
 		{
-			DateTime New;
-			New.Time = Time + Right.Time;
-
-			return New;
+			DateTime New = *this;
+			New.Offset = Offset + Right.Offset;
+			return New.ApplyOffset(true);
 		}
 		DateTime DateTime::operator -(const DateTime& Right) const
 		{
-			DateTime New;
-			New.Time = Time - Right.Time;
-
-			return New;
+			DateTime New = *this;
+			New.Offset = Offset - Right.Offset;
+			return New.ApplyOffset(true);
 		}
-		DateTime& DateTime::SetDateSeconds(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::ApplyOffset(bool Always)
 		{
-			if (!DateRebuild)
+			if (!Synchronized || Always)
 			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
+				time_t Time = std::chrono::duration_cast<std::chrono::seconds>(Offset).count();
+				if (Globalized)
+					GlobalTime(&Time, &Timepoint);
+				else
+					LocalTime(&Time, &Timepoint);
+				Synchronized = true;
 			}
-
+			return *this;
+		}
+		DateTime& DateTime::ApplyTimepoint(bool Always)
+		{
+			if (!Synchronized || Always)
+			{
+				Offset = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&Timepoint)));
+				Synchronized = true;
+			}
+			return *this;
+		}
+		DateTime& DateTime::UseGlobalTime()
+		{
+			Globalized = true;
+			return *this;
+		}
+		DateTime& DateTime::UseLocalTime()
+		{
+			Globalized = false;
+			return *this;
+		}
+		DateTime& DateTime::SetSecond(uint8_t Value)
+		{
 			if (Value > 60)
 				Value = 60;
 
-			DateValue.tm_sec = (int)Value;
-			return *this;
+			Timepoint.tm_sec = (int)Value;
+			return ApplyTimepoint(true);
 		}
-		DateTime& DateTime::SetDateMinutes(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::SetMinute(uint8_t Value)
 		{
-			if (!DateRebuild)
-			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
-			}
-
 			if (Value > 60)
 				Value = 60;
 			else if (Value < 1)
 				Value = 1;
 
-			DateValue.tm_min = (int)Value - 1;
-			return *this;
+			Timepoint.tm_min = (int)Value - 1;
+			return ApplyTimepoint(true);
 		}
-		DateTime& DateTime::SetDateHours(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::SetHour(uint8_t Value)
 		{
-			if (!DateRebuild)
-			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
-			}
-
 			if (Value > 24)
 				Value = 24;
 			else if (Value < 1)
 				Value = 1;
 
-			DateValue.tm_hour = (int)Value - 1;
-			return *this;
+			Timepoint.tm_hour = (int)Value - 1;
+			return ApplyTimepoint(true);
 		}
-		DateTime& DateTime::SetDateDay(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::SetDay(uint8_t Value)
 		{
-			if (!DateRebuild)
-			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
-			}
-
-			uint64_t Month = DateMonth(), Days = 31;
+			uint8_t Month = this->Month(), Days = 31;
 			if (Month == 1 || Month == 3 || Month == 5 || Month == 7 || Month == 8 || Month == 10 || Month == 12)
 				Days = 31;
 			else if (Month != 2)
@@ -3957,389 +3840,209 @@ namespace Vitex
 			else if (Value < 1)
 				Value = 1;
 
-			if (DateValue.tm_mday > (int)Value)
-				DateValue.tm_yday = DateValue.tm_yday - DateValue.tm_mday + (int)Value;
+			if (Timepoint.tm_mday > (int)Value)
+				Timepoint.tm_yday = Timepoint.tm_yday - Timepoint.tm_mday + (int)Value;
 			else
-				DateValue.tm_yday = DateValue.tm_yday - (int)Value + DateValue.tm_mday;
+				Timepoint.tm_yday = Timepoint.tm_yday - (int)Value + Timepoint.tm_mday;
 
 			if (Value <= 7)
-				DateValue.tm_wday = (int)Value - 1;
+				Timepoint.tm_wday = (int)Value - 1;
 			else if (Value <= 14)
-				DateValue.tm_wday = (int)Value - 8;
+				Timepoint.tm_wday = (int)Value - 8;
 			else if (Value <= 21)
-				DateValue.tm_wday = (int)Value - 15;
+				Timepoint.tm_wday = (int)Value - 15;
 			else
-				DateValue.tm_wday = (int)Value - 22;
+				Timepoint.tm_wday = (int)Value - 22;
 
-			DateValue.tm_mday = (int)Value;
-			return *this;
+			Timepoint.tm_mday = (int)Value;
+			return ApplyTimepoint(true);
 		}
-		DateTime& DateTime::SetDateWeek(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::SetWeek(uint8_t Value)
 		{
-			if (!DateRebuild)
-			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
-			}
-
 			if (Value > 7)
 				Value = 7;
 			else if (Value < 1)
 				Value = 1;
 
-			DateValue.tm_wday = (int)Value - 1;
-			return *this;
+			Timepoint.tm_wday = (int)Value - 1;
+			return ApplyTimepoint(true);
 		}
-		DateTime& DateTime::SetDateMonth(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::SetMonth(uint8_t Value)
 		{
-			if (!DateRebuild)
-			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
-			}
-
 			if (Value < 1)
 				Value = 1;
 			else if (Value > 12)
 				Value = 12;
 
-			DateValue.tm_mon = (int)Value - 1;
-			return *this;
+			Timepoint.tm_mon = (int)Value - 1;
+			return ApplyTimepoint(true);
 		}
-		DateTime& DateTime::SetDateYear(uint64_t Value, bool NoFlush)
+		DateTime& DateTime::SetYear(uint32_t Value)
 		{
-			if (!DateRebuild)
-			{
-				if (!NoFlush)
-				{
-					time_t TimeNow;
-					time(&TimeNow);
-					LocalTime(&TimeNow, &DateValue);
-				}
-				DateRebuild = true;
-			}
-
 			if (Value < 1900)
 				Value = 1900;
 
-			DateValue.tm_year = (int)Value - 1900;
-			return *this;
+			Timepoint.tm_year = (int)Value - 1900;
+			return ApplyTimepoint(true);
 		}
-		uint64_t DateTime::DateSecond()
+		String DateTime::Serialize(const std::string_view& Format) const
 		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_sec;
-		}
-		uint64_t DateTime::DateMinute()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_min;
-		}
-		uint64_t DateTime::DateHour()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_hour;
-		}
-		uint64_t DateTime::DateDay()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_mday;
-		}
-		uint64_t DateTime::DateWeek()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_wday + 1;
-		}
-		uint64_t DateTime::DateMonth()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_mon + 1;
-		}
-		uint64_t DateTime::DateYear()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return DateValue.tm_year + 1900;
-		}
-		uint64_t DateTime::Nanoseconds()
-		{
-			return std::chrono::duration_cast<std::chrono::nanoseconds>(Time).count();
-		}
-		uint64_t DateTime::Microseconds()
-		{
-			return std::chrono::duration_cast<std::chrono::microseconds>(Time).count();
-		}
-		uint64_t DateTime::Milliseconds()
-		{
-			return std::chrono::duration_cast<std::chrono::milliseconds>(Time).count();
-		}
-		uint64_t DateTime::Seconds()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return std::chrono::duration_cast<std::chrono::seconds>(Time).count();
-		}
-		uint64_t DateTime::Minutes()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return (uint64_t)std::chrono::duration_cast<std::chrono::minutes>(Time).count();
-		}
-		uint64_t DateTime::Hours()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			return (uint64_t)std::chrono::duration_cast<std::chrono::hours>(Time).count();
-		}
-		uint64_t DateTime::Days()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
-			return std::chrono::duration_cast<_Days>(Time).count();
-		}
-		uint64_t DateTime::Weeks()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
-			using _Weeks = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<7>, _Days::period>>;
-
-			return std::chrono::duration_cast<_Weeks>(Time).count();
-		}
-		uint64_t DateTime::Months()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
-			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
-
-			using _Months = std::chrono::duration<uint64_t, std::ratio_divide<_Years::period, std::ratio<12>>>;
-
-			return std::chrono::duration_cast<_Months>(Time).count();
-		}
-		uint64_t DateTime::Years()
-		{
-			if (DateRebuild)
-				Rebuild();
-
-			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
-			using _Years = std::chrono::duration<int, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
-
-			return std::chrono::duration_cast<_Years>(Time).count();
-		}
-		String DateTime::FetchWebDateGMT(int64_t TimeStamp)
-		{
-			auto Time = (time_t)TimeStamp;
-			struct tm Date { };
-#ifdef VI_MICROSOFT
-			if (gmtime_s(&Date, &Time) != 0)
-#elif defined(VI_LINUX)
-			if (gmtime_r(&Time, &Date) == nullptr)
-#endif
-				return "Thu, 01 Jan 1970 00:00:00 GMT";
-
-			char Buffer[64];
-			strftime(Buffer, sizeof(Buffer), "%a, %d %b %Y %H:%M:%S GMT", &Date);
+			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
+			char Buffer[CHUNK_SIZE];
+			strftime(Buffer, sizeof(Buffer), Format.data(), &Timepoint);
 			return Buffer;
 		}
-		String DateTime::FetchWebDateTime(int64_t TimeStamp)
+		uint8_t DateTime::Second() const
 		{
-			auto Time = (time_t)TimeStamp;
-			struct tm Date { };
-			if (!LocalTime(&Time, &Date))
-				return "Thu, 01 Jan 1970 00:00:00";
-
-			char Buffer[64];
-			strftime(Buffer, sizeof(Buffer), "%a, %d %b %Y %H:%M:%S GMT", &Date);
-			return Buffer;
+			return Timepoint.tm_sec;
 		}
-		bool DateTime::FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time)
+		uint8_t DateTime::Minute() const
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
-			auto TimeStamp = (time_t)Time;
-			struct tm Date { };
-#if defined(_WIN32_CE)
-			static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-			FILETIME FileTime;
-			*(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
-
-			SYSTEMTIME SystemTime;
-			FileTimeToSystemTime(&FileTime, &SystemTime);
-
-			Date.tm_year = SystemTime.wYear - 1900;
-			Date.tm_mon = SystemTime.wMonth - 1;
-			Date.tm_wday = SystemTime.wDayOfWeek;
-			Date.tm_mday = SystemTime.wDay;
-			Date.tm_hour = SystemTime.wHour;
-			Date.tm_min = SystemTime.wMinute;
-			Date.tm_sec = SystemTime.wSecond;
-			Date.tm_isdst = false;
-
-			int Day = Date.tm_mday;
-			for (int i = 0; i < Date.tm_mon; i++)
-				Day += DaysPerMonth[i];
-
-			if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
-				Day++;
-
-			Date.tm_yday = Day;
-			strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
-#elif defined(VI_MICROSOFT)
-			if (gmtime_s(&Date, &TimeStamp) != 0)
-				strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", Length);
-			else
-				strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
-#else
-			if (gmtime_r(&TimeStamp, &Date) == nullptr)
-				strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", Length);
-			else
-				strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
-#endif
-			return true;
+			return Timepoint.tm_min;
 		}
-		bool DateTime::FetchWebDateTime(char* Buffer, size_t Length, int64_t Time)
+		uint8_t DateTime::Hour() const
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
-			time_t TimeStamp = (time_t)Time;
-			struct tm Date { };
-#if defined(_WIN32_WCE)
-			static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-			FILETIME FileTime, LocalFileTime;
-			*(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
-			FileTimeToLocalFileTime(&FileTime, &LocalFileTime);
-
-			SYSTEMTIME SystemTime;
-			FileTimeToSystemTime(&LocalFileTime, &SystemTime);
-
-			TIME_ZONE_INFORMATION TimeZone;
-			Date.tm_year = st.wYear - 1900;
-			Date.tm_mon = st.wMonth - 1;
-			Date.tm_wday = st.wDayOfWeek;
-			Date.tm_mday = st.wDay;
-			Date.tm_hour = st.wHour;
-			Date.tm_min = st.wMinute;
-			Date.tm_sec = st.wSecond;
-			Date.tm_isdst = (GetTimeZoneInformation(&TimeZone) == TIME_ZONE_ID_DAYLIGHT) ? 1 : 0;
-
-			int Day = Date.tm_mday;
-			for (int i = 0; i < Date.tm_mon; i++)
-				Day += DaysPerMonth[i];
-
-			if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
-				Day++;
-
-			Date.tm_yday = doy;
-			strftime(Buffer, Length, "%d-%b-%Y %H:%M:%S", &Date);
-#elif defined(_WIN32)
-			if (!LocalTime(&TimeStamp, &Date))
-				strncpy(Buffer, "01-Jan-1970 00:00:00", Length);
-			else
-				strftime(Buffer, Length, "%d-%b-%Y %H:%M:%S", &Date);
-#else
-			if (!LocalTime(&TimeStamp, &Date))
-				strncpy(Buffer, "01-Jan-1970 00:00:00", Length);
-			else
-				strftime(Buffer, Length, "%d-%b-%Y %H:%M:%S", &Date);
-#endif
-			return true;
+			return Timepoint.tm_hour;
 		}
-		void DateTime::FetchDateTime(char* Date, size_t Size, int64_t TargetTime)
+		uint8_t DateTime::Day() const
 		{
-			VI_ASSERT(Date != nullptr, "date should be set");
-			tm Data{ }; time_t Time = (time_t)TargetTime;
-			if (!LocalTime(&Time, &Data))
-				strncpy(Date, "1970-01-01 00:00:00", Size);
-			else
-				strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &Data);
+			return Timepoint.tm_mday;
 		}
-		int64_t DateTime::ParseWebDate(const char* Date)
+		uint8_t DateTime::Week() const
 		{
-			static const char* MonthNames[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-			VI_ASSERT(Date != nullptr, "date should be set");
-
-			char Name[32] = { };
-			int Second, Minute, Hour, Day, Year;
-			if (sscanf(Date, "%d/%3s/%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%*3s, %d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%d-%3s-%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6)
-				return 0;
-
-			if (Year <= 1970)
-				return 0;
-
-			for (uint64_t i = 0; i < 12; i++)
-			{
-				if (strcmp(Name, MonthNames[i]) != 0)
-					continue;
-
-				struct tm Time { };
-				Time.tm_year = Year - 1900;
-				Time.tm_mon = (int)i;
-				Time.tm_mday = Day;
-				Time.tm_hour = Hour;
-				Time.tm_min = Minute;
-				Time.tm_sec = Second;
-#ifdef VI_MICROSOFT
-				return _mkgmtime(&Time);
-#else
-				return mktime(&Time);
-#endif
-			}
-
-			return 0;
+			return Timepoint.tm_wday + 1;
 		}
-		int64_t DateTime::ParseFormatDate(const char* Date, const char* Format)
+		uint8_t DateTime::Month() const
 		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_ASSERT(Date != nullptr, "date should be set");
-
-			std::istringstream Stream(Date);
+			return Timepoint.tm_mon + 1;
+		}
+		uint32_t DateTime::Year() const
+		{
+			return Timepoint.tm_year + 1900;
+		}
+		int64_t DateTime::Nanoseconds() const
+		{
+			return std::chrono::duration_cast<std::chrono::nanoseconds>(Offset).count();
+		}
+		int64_t DateTime::Microseconds() const
+		{
+			return std::chrono::duration_cast<std::chrono::microseconds>(Offset).count();
+		}
+		int64_t DateTime::Milliseconds() const
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(Offset).count();
+		}
+		int64_t DateTime::Seconds() const
+		{
+			return std::chrono::duration_cast<std::chrono::seconds>(Offset).count();
+		}
+		const struct tm& DateTime::CurrentTimepoint() const
+		{
+			return Timepoint;
+		}
+		const std::chrono::system_clock::duration& DateTime::CurrentOffset() const
+		{
+			return Offset;
+		}
+		std::chrono::system_clock::duration DateTime::Now()
+		{
+			return std::chrono::system_clock::now().time_since_epoch();
+		}
+		DateTime DateTime::FromNanoseconds(int64_t Value)
+		{
+			return DateTime(std::chrono::nanoseconds(Value));
+		}
+		DateTime DateTime::FromMicroseconds(int64_t Value)
+		{
+			return DateTime(std::chrono::microseconds(Value));
+		}
+		DateTime DateTime::FromMilliseconds(int64_t Value)
+		{
+			return DateTime(std::chrono::milliseconds(Value));
+		}
+		DateTime DateTime::FromSeconds(int64_t Value)
+		{
+			return DateTime(std::chrono::seconds(Value));
+		}
+		DateTime DateTime::FromSerialized(const std::string_view& Text, const std::string_view& Format)
+		{
+			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
+			std::istringstream Stream = std::istringstream(std::string(Text));
 			Stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
 
-			tm Time;
-			memset(&Time, 0, sizeof(Time));
-			Stream >> std::get_time(&Time, Format);
-			if (Stream.fail())
-				return 0;
-#ifdef VI_MICROSOFT
-			return _mkgmtime(&Time);
-#else
-			return mktime(&Time);
-#endif
+			tm Date { };
+			Stream >> std::get_time(&Date, Format.data());
+			return Stream.fail() ? DateTime(std::chrono::seconds(0)) : DateTime(Date);
+		}
+		String DateTime::SerializeGlobal(const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		{
+			char Buffer[CHUNK_SIZE];
+			return String(SerializeGlobal(Buffer, sizeof(Buffer), Time, Format));
+		}
+		String DateTime::SerializeLocal(const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		{
+			char Buffer[CHUNK_SIZE];
+			return String(SerializeLocal(Buffer, sizeof(Buffer), Time, Format));
+		}
+		std::string_view DateTime::SerializeGlobal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		{
+			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
+			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
+			time_t Offset = (time_t)std::chrono::duration_cast<std::chrono::seconds>(Time).count();
+			struct tm Date { };
+			if (GlobalTime(&Offset, &Date))
+				return std::string_view(Buffer, strftime(Buffer, Length, Format.data(), &Date));
+
+			memset(Buffer, 0, Length);
+			return std::string_view(Buffer, 0);
+		}
+		std::string_view DateTime::SerializeLocal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		{
+			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
+			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
+			time_t Offset = (time_t)std::chrono::duration_cast<std::chrono::seconds>(Time).count();
+			struct tm Date { };
+			if (LocalTime(&Offset, &Date))
+				return std::string_view(Buffer, strftime(Buffer, Length, Format.data(), &Date));
+
+			memset(Buffer, 0, Length);
+			return std::string_view(Buffer, 0);
+		}
+		std::string_view DateTime::FormatIso8601Time()
+		{
+			return "%FT%TZ";
+		}
+		std::string_view DateTime::FormatWebTime()
+		{
+			return "%a, %d %b %Y %H:%M:%S GMT";
+		}
+		std::string_view DateTime::FormatWebLocalTime()
+		{
+			return "%a, %d %b %Y %H:%M:%S %Z";
+		}
+		std::string_view DateTime::FormatCompactTime()
+		{
+			return "%Y-%m-%d %H:%M:%S";
+		}
+		int64_t DateTime::SecondsFromSerialized(const std::string_view& Text, const std::string_view& Format)
+		{
+			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
+			std::istringstream Stream = std::istringstream(std::string(Text));
+			Stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
+
+			tm Date { };
+			Stream >> std::get_time(&Date, Format.data());
+			return Stream.fail() ? 0 : mktime(&Date);
+		}
+		bool DateTime::MakeGlobalTime(time_t Time, struct tm* Timepoint)
+		{
+			VI_ASSERT(Timepoint != nullptr, "time should be set");
+			return GlobalTime(&Time, Timepoint);
+		}
+		bool DateTime::MakeLocalTime(time_t Time, struct tm* Timepoint)
+		{
+			VI_ASSERT(Timepoint != nullptr, "time should be set");
+			return LocalTime(&Time, Timepoint);
 		}
 
 		String& Stringify::EscapePrint(String& Other)
@@ -8646,7 +8349,7 @@ namespace Vitex
 		}
 		bool InlineArgs::IsEnabled(const std::string_view& Option, const std::string_view& Shortcut) const
 		{
-			auto It = Args.find(HglCast(Option));
+			auto It = Args.find(KeyLookupCast(Option));
 			if (It == Args.end() || !IsTrue(It->second))
 				return Shortcut.empty() ? false : IsEnabled(Shortcut);
 
@@ -8654,7 +8357,7 @@ namespace Vitex
 		}
 		bool InlineArgs::IsDisabled(const std::string_view& Option, const std::string_view& Shortcut) const
 		{
-			auto It = Args.find(HglCast(Option));
+			auto It = Args.find(KeyLookupCast(Option));
 			if (It == Args.end())
 				return Shortcut.empty() ? true : IsDisabled(Shortcut);
 
@@ -8662,20 +8365,20 @@ namespace Vitex
 		}
 		bool InlineArgs::Has(const std::string_view& Option, const std::string_view& Shortcut) const
 		{
-			if (Args.find(HglCast(Option)) != Args.end())
+			if (Args.find(KeyLookupCast(Option)) != Args.end())
 				return true;
 
-			return Shortcut.empty() ? false : Args.find(HglCast(Shortcut)) != Args.end();
+			return Shortcut.empty() ? false : Args.find(KeyLookupCast(Shortcut)) != Args.end();
 		}
 		String& InlineArgs::Get(const std::string_view& Option, const std::string_view& Shortcut)
 		{
-			auto It = Args.find(HglCast(Option));
+			auto It = Args.find(KeyLookupCast(Option));
 			if (It != Args.end())
 				return It->second;
 			else if (Shortcut.empty())
 				return Args[String(Option)];
 
-			It = Args.find(HglCast(Shortcut));
+			It = Args.find(KeyLookupCast(Shortcut));
 			if (It != Args.end())
 				return It->second;
 			
@@ -8683,13 +8386,13 @@ namespace Vitex
 		}
 		String& InlineArgs::GetIf(const std::string_view& Option, const std::string_view& Shortcut, const std::string_view& WhenEmpty)
 		{
-			auto It = Args.find(HglCast(Option));
+			auto It = Args.find(KeyLookupCast(Option));
 			if (It != Args.end())
 				return It->second;
 
 			if (!Shortcut.empty())
 			{
-				It = Args.find(HglCast(Shortcut));
+				It = Args.find(KeyLookupCast(Shortcut));
 				if (It != Args.end())
 					return It->second;
 			}

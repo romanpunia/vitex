@@ -408,7 +408,7 @@ namespace Vitex
 			}
 			Core::String Address::Get(AddressOp Key) const
 			{
-				auto It = Params.find(Core::HglCast(GetKeyName(Key)));
+				auto It = Params.find(Core::KeyLookupCast(GetKeyName(Key)));
 				if (It == Params.end())
 					return "";
 
@@ -1984,7 +1984,7 @@ namespace Vitex
 			Connection* Cluster::IsListens(const std::string_view& Name)
 			{
 				Core::UMutex<std::recursive_mutex> Unique(Update);
-				auto Copy = Core::HglCast(Name);
+				auto Copy = Core::KeyLookupCast(Name);
 				for (auto& Item : Pool)
 				{
 					if (Item.second->Listens.count(Copy) > 0)
@@ -2016,7 +2016,7 @@ namespace Vitex
 				VI_ASSERT(Data != nullptr, "cursor should be set");
 
 				Core::UMutex<std::mutex> Unique(Cache.Context);
-				auto It = Cache.Objects.find(Core::HglCast(CacheOid));
+				auto It = Cache.Objects.find(Core::KeyLookupCast(CacheOid));
 				if (It == Cache.Objects.end())
 					return false;
 
@@ -2058,7 +2058,7 @@ namespace Vitex
 					}
 				}
 
-				auto It = Cache.Objects.find(Core::HglCast(CacheOid));
+				auto It = Cache.Objects.find(Core::KeyLookupCast(CacheOid));
 				if (It != Cache.Objects.end())
 				{
 					It->second.second = Data->Copy();
@@ -2642,7 +2642,7 @@ namespace Vitex
 			bool Driver::RemoveConstant(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Constants.find(Core::HglCast(Name));
+				auto It = Constants.find(Core::KeyLookupCast(Name));
 				if (It == Constants.end())
 					return false;
 
@@ -2652,7 +2652,7 @@ namespace Vitex
 			bool Driver::RemoveQuery(const std::string_view& Name) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Core::HglCast(Name));
+				auto It = Queries.find(Core::KeyLookupCast(Name));
 				if (It == Queries.end())
 					return false;
 
@@ -2788,7 +2788,7 @@ namespace Vitex
 			ExpectsDB<Core::String> Driver::GetQuery(Cluster* Base, const std::string_view& Name, Core::SchemaArgs* Map, bool Once) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Queries.find(Core::HglCast(Name));
+				auto It = Queries.find(Core::KeyLookupCast(Name));
 				if (It == Queries.end())
 				{
 					if (Once && Map != nullptr)

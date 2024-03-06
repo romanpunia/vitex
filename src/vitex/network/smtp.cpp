@@ -507,8 +507,10 @@ namespace Vitex
 							Pending = (int32_t)Request.Attachments.size();
 							SendRequest(354, "DATA\r\n", [this]()
 							{
-								Core::String Content;
-								Core::Stringify::Append(Content, "Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
+								char Date[64];
+								Core::String Content = "Date: ";
+								Content.append(Core::DateTime::SerializeGlobal(Date, sizeof(Date), Core::DateTime::Now(), Core::DateTime::FormatWebTime()));
+								Content.append("\r\nFrom: ");
 
 								if (!Request.SenderName.empty())
 									Content.append(Request.SenderName.c_str());

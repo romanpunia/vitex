@@ -10856,7 +10856,7 @@ namespace Vitex
 		}
 		void Preprocessor::SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback)
 		{
-			auto It = Directives.find(Core::HglCast(Name));
+			auto It = Directives.find(Core::KeyLookupCast(Name));
 			if (It != Directives.end())
 			{
 				if (Callback)
@@ -10881,7 +10881,7 @@ namespace Vitex
 			});
 			DefineDynamic("__DATE__", [](Preprocessor*, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
-				return EscapeText(Core::DateTime().Format("%b %d %Y"));
+				return EscapeText(Core::DateTime::SerializeLocal(Core::DateTime::Now(), "%b %d %Y"));
 			});
 			DefineDynamic("__FILE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
 			{
@@ -10980,7 +10980,7 @@ namespace Vitex
 		void Preprocessor::Undefine(const std::string_view& Name)
 		{
 			VI_TRACE("[proc] undefine %.*s on 0x%" PRIXPTR, (int)Name.size(), Name.data(), (void*)this);
-			auto It = Defines.find(Core::HglCast(Name));
+			auto It = Defines.find(Core::KeyLookupCast(Name));
 			if (It != Defines.end())
 				Defines.erase(It);
 		}
@@ -10993,13 +10993,13 @@ namespace Vitex
 		}
 		bool Preprocessor::IsDefined(const std::string_view& Name) const
 		{
-			bool Exists = Defines.count(Core::HglCast(Name)) > 0;
+			bool Exists = Defines.count(Core::KeyLookupCast(Name)) > 0;
 			VI_TRACE("[proc] ifdef %.*s on 0x%: %s" PRIXPTR, (int)Name.size(), Name.data(), (void*)this, Exists ? "yes" : "no");
 			return Exists;
 		}
 		bool Preprocessor::IsDefined(const std::string_view& Name, const std::string_view& Value) const
 		{
-			auto It = Defines.find(Core::HglCast(Name));
+			auto It = Defines.find(Core::KeyLookupCast(Name));
 			if (It != Defines.end())
 				return It->second.Expansion == Value;
 
@@ -11054,7 +11054,7 @@ namespace Vitex
 		}
 		bool Preprocessor::HasResult(const std::string_view& Path)
 		{
-			return Path != ThisFile.Path && Sets.count(Core::HglCast(Path)) > 0;
+			return Path != ThisFile.Path && Sets.count(Core::KeyLookupCast(Path)) > 0;
 		}
 		bool Preprocessor::SaveResult()
 		{

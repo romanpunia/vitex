@@ -542,7 +542,7 @@ namespace Vitex
 				}
 				void SetTranslator(const std::string_view& Name, TranslationCallback&& Callback)
 				{
-					auto It = Translators.find(Core::HglCast(Name));
+					auto It = Translators.find(Core::KeyLookupCast(Name));
 					if (It == Translators.end())
 						Translators.insert(std::make_pair(Core::String(Name), std::move(Callback)));
 					else
@@ -550,7 +550,7 @@ namespace Vitex
 				}
 				bool AddFontFace(const std::string_view& Path, bool UseAsFallback, FontWeight Weight)
 				{
-					auto It = Fonts.find(Core::HglCast(Path));
+					auto It = Fonts.find(Core::KeyLookupCast(Path));
 					if (It != Fonts.end())
 					{
 						for (auto& Info : It->second)
@@ -3073,7 +3073,7 @@ namespace Vitex
 			}
 			DataNode* DataModel::GetProperty(const std::string_view& Name)
 			{
-				auto It = Props.find(Core::HglCast(Name));
+				auto It = Props.find(Core::KeyLookupCast(Name));
 				if (It != Props.end())
 					return It->second;
 
@@ -4035,7 +4035,7 @@ namespace Vitex
 					return Element;
 				}
 
-				auto It = Map->second.find(Core::HglCast(Id));
+				auto It = Map->second.find(Core::KeyLookupCast(Id));
 				if (It != Map->second.end())
 					return It->second;
 
@@ -4189,7 +4189,7 @@ namespace Vitex
 			}
 			DataModel* Context::GetDataModel(const std::string_view& Name)
 			{
-				auto It = Models.find(Core::HglCast(Name));
+				auto It = Models.find(Core::KeyLookupCast(Name));
 				if (It != Models.end())
 					return It->second;
 

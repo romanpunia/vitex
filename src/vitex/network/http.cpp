@@ -80,7 +80,7 @@ namespace Vitex
 			static std::string_view HeaderText(const KimvUnorderedMap& Headers, const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Core::HglCast(Key));
+				auto It = Headers.find(Core::KeyLookupCast(Key));
 				if (It == Headers.end())
 					return "";
 
@@ -89,6 +89,62 @@ namespace Vitex
 
 				return It->second.back();
 			}
+			static std::string_view HeaderDate(char Buffer[64], time_t Time)
+			{
+				static const char* Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+				static const char* Days[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+				struct tm Date { };
+				if (!Core::DateTime::MakeGlobalTime(Time, &Date))
+				{
+					*Buffer = '\0';
+					return std::string_view(Buffer, 0);
+				}
+
+				char Number[32]; size_t Size = 0;
+				auto AppendText = [&Buffer, &Size](const char* Text, size_t TextSize) { memcpy(Buffer + Size, Text, TextSize); Size += TextSize; };
+				auto AppendView = [&Buffer, &Size](const std::string_view& Text) { memcpy(Buffer + Size, Text.data(), Text.size()); Size += Text.size(); };
+				auto AppendChar = [&Buffer, &Size](char Text) { memcpy(Buffer + Size++, &Text, 1); };
+				AppendText(Days[Date.tm_wday], 3);
+				AppendText(", ", 2);
+				if (Date.tm_mday < 10)
+				{
+					AppendChar('0');
+					AppendChar('0' + Date.tm_mday);
+				}
+				else
+					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_mday));
+				AppendChar(' ');
+				AppendText(Months[Date.tm_mon], 3);
+				AppendChar(' ');
+				AppendView(Core::ToStringView(Number, sizeof(Number), (uint32_t)(Date.tm_year + 1900)));
+				AppendChar(' ');
+				if (Date.tm_hour < 10)
+				{
+					AppendChar('0');
+					AppendChar('0' + Date.tm_hour);
+				}
+				else
+					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_hour));
+				AppendChar(':');
+				if (Date.tm_min < 10)
+				{
+					AppendChar('0');
+					AppendChar('0' + Date.tm_min);
+				}
+				else
+					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_min));
+				AppendChar(':');
+				if (Date.tm_sec < 10)
+				{
+					AppendChar('0');
+					AppendChar('0' + Date.tm_sec);
+				}
+				else
+					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_sec));
+				AppendText(" GMT\0", 5);
+				return std::string_view(Buffer, Size - 1);
+			}
 
 			MimeStatic::MimeStatic(const std::string_view& Ext, const std::string_view& T) : Extension(Ext), Type(T)
 			{
@@ -96,7 +152,8 @@ namespace Vitex
 
 			void Cookie::SetExpires(int64_t Time)
 			{
-				Expires = Core::DateTime::FetchWebDateGMT(Time);
+				char Date[64];
+				Expires = HeaderDate(Date, Time);
 			}
 			void Cookie::SetExpired()
 			{
@@ -800,7 +857,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -813,7 +870,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -826,7 +883,7 @@ namespace Vitex
 			Core::String Resource::ComposeHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -842,13 +899,13 @@ namespace Vitex
 			Core::Vector<Core::String>* Resource::GetHeaderRanges(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
 			Core::String* Resource::GetHeaderBlob(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
@@ -861,7 +918,7 @@ namespace Vitex
 			std::string_view Resource::GetHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return "";
 
@@ -911,7 +968,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -924,7 +981,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -937,7 +994,7 @@ namespace Vitex
 			Core::String RequestFrame::ComposeHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -953,13 +1010,13 @@ namespace Vitex
 			Core::Vector<Core::String>* RequestFrame::GetHeaderRanges(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
 			Core::String* RequestFrame::GetHeaderBlob(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
@@ -972,7 +1029,7 @@ namespace Vitex
 			std::string_view RequestFrame::GetHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return "";
 
@@ -984,13 +1041,13 @@ namespace Vitex
 			Core::Vector<Core::String>* RequestFrame::GetCookieRanges(const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::HglCast(Key));
+				auto It = Cookies.find(Core::KeyLookupCast(Key));
 				return It != Cookies.end() ? &It->second : &Cookies[Core::String(Key)];
 			}
 			Core::String* RequestFrame::GetCookieBlob(const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::HglCast(Key));
+				auto It = Cookies.find(Core::KeyLookupCast(Key));
 				if (It == Cookies.end())
 					return nullptr;
 
@@ -1003,7 +1060,7 @@ namespace Vitex
 			std::string_view RequestFrame::GetCookie(const std::string_view& Key) const
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::HglCast(Key));
+				auto It = Cookies.find(Core::KeyLookupCast(Key));
 				if (It == Cookies.end())
 					return "";
 
@@ -1136,7 +1193,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -1149,7 +1206,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -1162,7 +1219,7 @@ namespace Vitex
 			Core::String ResponseFrame::ComposeHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -1178,13 +1235,13 @@ namespace Vitex
 			Core::Vector<Core::String>* ResponseFrame::GetHeaderRanges(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
 			Core::String* ResponseFrame::GetHeaderBlob(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
@@ -1197,7 +1254,7 @@ namespace Vitex
 			std::string_view ResponseFrame::GetHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return "";
 
@@ -1328,7 +1385,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -1341,7 +1398,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It != Headers.end())
 					Range = &It->second;
 				else
@@ -1354,7 +1411,7 @@ namespace Vitex
 			Core::String FetchFrame::ComposeHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return Core::String();
 
@@ -1370,13 +1427,13 @@ namespace Vitex
 			Core::Vector<Core::String>* FetchFrame::GetHeaderRanges(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
 			}
 			Core::String* FetchFrame::GetHeaderBlob(const std::string_view& Label)
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return nullptr;
 
@@ -1389,7 +1446,7 @@ namespace Vitex
 			std::string_view FetchFrame::GetHeader(const std::string_view& Label) const
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::HglCast(Label));
+				auto It = Headers.find(Core::KeyLookupCast(Label));
 				if (It == Headers.end())
 					return "";
 
@@ -1401,13 +1458,13 @@ namespace Vitex
 			Core::Vector<Core::String>* FetchFrame::GetCookieRanges(const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::HglCast(Key));
+				auto It = Cookies.find(Core::KeyLookupCast(Key));
 				return It != Cookies.end() ? &It->second : &Cookies[Core::String(Key)];
 			}
 			Core::String* FetchFrame::GetCookieBlob(const std::string_view& Key)
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::HglCast(Key));
+				auto It = Cookies.find(Core::KeyLookupCast(Key));
 				if (It == Cookies.end())
 					return nullptr;
 
@@ -1420,7 +1477,7 @@ namespace Vitex
 			std::string_view FetchFrame::GetCookie(const std::string_view& Key) const
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::HglCast(Key));
+				auto It = Cookies.find(Core::KeyLookupCast(Key));
 				if (It == Cookies.end())
 					return "";
 
@@ -1560,13 +1617,14 @@ namespace Vitex
 
 				if (Response.GetHeader("Date").empty())
 				{
-					char Buffer[64];
-					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
-					Content->append("Date: ").append(Buffer).append("\r\n");
+					char Date[64];
+					Content->append("Date: ");
+					Content->append(HeaderDate(Date, Info.Start / 1000));
+					Content->append("\r\n");
 				}
 
 				if (Response.GetHeader("Connection").empty())
-					Content->append(Utils::ConnectionResolve(this));
+					Utils::UpdateKeepAliveHeaders(this, *Content);
 
 				if (Response.GetHeader("Accept-Ranges").empty())
 					Content->append("Accept-Ranges: bytes\r\n", 22);
@@ -3881,27 +3939,54 @@ namespace Vitex
 				return Item;
 			}
 
-			Core::String Utils::ConnectionResolve(Connection* Base)
+			void Utils::UpdateKeepAliveHeaders(Connection* Base, Core::String& Content)
 			{
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				auto* Router = Base->Root->Router;
 				if (Router->KeepAliveMaxCount < 0)
-					return "Connection: Close\r\n";
+				{
+					Content.append("Connection: Close\r\n");
+					return;
+				}
 
 				auto Connection = Base->Request.GetHeader("Connection");
 				if ((!Connection.empty() && !Core::Stringify::CaseEquals(Connection, "keep-alive")) || (Connection.empty() && strcmp(Base->Request.Version, "1.1") != 0))
 				{
 					Base->Info.Reuses = 1;
-					return "Connection: Close\r\n";
+					Content.append("Connection: Close\r\n");
+					return;
 				}
 
 				if (Router->KeepAliveMaxCount == 0)
-					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Router->SocketTimeout / 1000) + "\r\n";
+				{
+					Content.append("Connection: Keep-Alive\r\n");
+					if (Router->SocketTimeout > 0)
+					{
+						char Timeout[32];
+						Content.append("Keep-Alive: timeout=");
+						Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->SocketTimeout / 1000));
+						Content.append("\r\n");
+					}
+					return;
+				}
 
 				if (Base->Info.Reuses <= 1)
-					return "Connection: Close\r\n";
+				{
+					Content.append("Connection: Close\r\n");
+					return;
+				}
 
-				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + Core::ToString(Router->SocketTimeout / 1000) + ", max=" + Core::ToString(Router->KeepAliveMaxCount) + "\r\n";
+				char Timeout[32];
+				Content.append("Connection: Keep-Alive\r\nKeep-Alive: ");
+				if (Router->SocketTimeout > 0)
+				{
+					Content.append("timeout=");
+					Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->SocketTimeout / 1000));
+					Content.append(", ");
+				}
+				Content.append("max=");
+				Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->KeepAliveMaxCount));
+				Content.append("\r\n");
 			}
 			std::string_view Utils::ContentType(const std::string_view& Path, Core::Vector<MimeType>* Types)
 			{
@@ -4585,7 +4670,7 @@ namespace Vitex
 					}
 					
 					if (AppendField)
-						Source.emplace_back(Core::String((char*)Data, Length));
+						Source.emplace_back((char*)Data, Length);
 				}
 
 			Success:
@@ -4835,7 +4920,10 @@ namespace Vitex
 				}
 
 				auto IfModifiedSince = Base->Request.GetHeader("If-Modified-Since");
-				return !(!IfModifiedSince.empty() && Resource->LastModified <= Core::DateTime::ParseWebDate(IfModifiedSince.data()));
+				if (IfModifiedSince.empty())
+					return false;
+
+				return Resource->LastModified > Core::DateTime::SecondsFromSerialized(IfModifiedSince, Core::DateTime::FormatWebTime());
 
 			}
 			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
@@ -4988,15 +5076,15 @@ namespace Vitex
 					else if (Packet::IsDone(Event))
 					{
 						char Date[64];
-						Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
 						auto* Content = HrmCache::Get()->Pop();
 						Content->append(Base->Request.Version);
-						Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-						Content->append(Utils::ConnectionResolve(Base));
+						Content->append(" 204 No Content\r\nDate: ");
+						Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+						Content->append("\r\n");
 						Content->append("Content-Location: ").append(Base->Request.Location).append("\r\n");
-
 						Core::OS::File::Close(Stream);
+
+						Utils::UpdateKeepAliveHeaders(Base, *Content);
 						if (Base->Route->Callbacks.Headers)
 							Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5034,13 +5122,14 @@ namespace Vitex
 					return Base->Abort(404, "Requested resource cannot be directory.");
 
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version);
-				Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base));
+				Content->append(" 204 No Content\r\nDate: ");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
 				Content->append("Content-Location: ").append(Base->Request.Location).append("\r\n");
+
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5072,12 +5161,13 @@ namespace Vitex
 					return Base->Abort(403, "Operation denied by system.");
 
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version);
-				Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base));
+				Content->append(" 204 No Content\r\nDate: ");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
+
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5095,13 +5185,14 @@ namespace Vitex
 			{
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version);
-				Content->append(" 204 No Content\r\nDate: ").append(Date).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base));
+				Content->append(" 204 No Content\r\nDate: ");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
 				Content->append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
+
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route && Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5125,16 +5216,16 @@ namespace Vitex
 					return Base->Abort(500, "System denied to directory listing.");
 
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version);
-				Content->append(" 200 OK\r\nDate: ").append(Date).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base));
+				Content->append(" 200 OK\r\nDate: ");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
 				Content->append("Content-Type: text/html; charset=").append(Base->Route->CharSet);
 				Content->append("\r\nAccept-Ranges: bytes\r\n");
 
 				Paths::ConstructHeadCache(Base, *Content);
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5174,29 +5265,37 @@ namespace Vitex
 					if (Resources::ResourceHidden(Base, &Item.first))
 						continue;
 
-					char dSize[64];
+					char FileSize[64];
 					if (!Item.second.IsDirectory)
 					{
 						if (Item.second.Size < 1024)
-							snprintf(dSize, sizeof(dSize), "%d bytes", (int)Item.second.Size);
+							snprintf(FileSize, sizeof(FileSize), "%d bytes", (int)Item.second.Size);
 						else if (Item.second.Size < 0x100000)
-							snprintf(dSize, sizeof(dSize), "%.1f kb", ((double)Item.second.Size) / 1024.0);
+							snprintf(FileSize, sizeof(FileSize), "%.1f kb", ((double)Item.second.Size) / 1024.0);
 						else if (Item.second.Size < 0x40000000)
-							snprintf(dSize, sizeof(Size), "%.1f mb", ((double)Item.second.Size) / 1048576.0);
+							snprintf(FileSize, sizeof(Size), "%.1f mb", ((double)Item.second.Size) / 1048576.0);
 						else
-							snprintf(dSize, sizeof(dSize), "%.1f gb", ((double)Item.second.Size) / 1073741824.0);
+							snprintf(FileSize, sizeof(FileSize), "%.1f gb", ((double)Item.second.Size) / 1073741824.0);
 					}
 					else
-						strncpy(dSize, "[DIRECTORY]", sizeof(dSize));
+						strncpy(FileSize, "[DIRECTORY]", sizeof(FileSize));
 
-					char dDate[64];
-					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.second.LastModified);
+					char LastModified[64];
+					std::string_view FileDate = HeaderDate(LastModified, Item.second.LastModified);
 					Core::String Location = Compute::Codec::URLEncode(Item.first);
 					Core::String Link = (Base->Request.Location + ((*(Base->Request.Location.c_str() + 1) != '\0' && Base->Request.Location[Base->Request.Location.size() - 1] != '/') ? "/" : "") + Location);
 					if (Item.second.IsDirectory && !Core::Stringify::EndsOf(Link, "/\\"))
 						Link.append(1, '/');
 
-					Base->Response.Content.Append("<tr><td><a href=\"" + Link + "\">" + Item.first + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
+					Base->Response.Content.Append("<tr><td><a href=\"");
+					Base->Response.Content.Append(Link);
+					Base->Response.Content.Append("\">");
+					Base->Response.Content.Append(Item.first);
+					Base->Response.Content.Append("</a></td><td>&nbsp;");
+					Base->Response.Content.Append(FileDate);
+					Base->Response.Content.Append("</td><td>&nbsp;&nbsp;");
+					Base->Response.Content.Append(FileSize);
+					Base->Response.Content.Append("</td></tr>\n");
 				}
 				Base->Response.Content.Append("</table></pre></body></html>");
 #ifdef VI_ZLIB
@@ -5297,26 +5396,20 @@ namespace Vitex
 				}
 #endif
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
-				char LastModified[64];
-				Core::DateTime::FetchWebDateGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
-
-				char ETag[64];
-				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version).append(" ");
 				Content->append(Core::ToString(Base->Response.StatusCode)).append(" ");
 				Content->append(StatusMessage).append("\r\n");
-				Content->append("Date: ").append(Date).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base));
+				Content->append("Date: ");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
 
 				auto Origin = Base->Request.GetHeader("Origin");
 				if (!Origin.empty())
 					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, *Content);
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5324,8 +5417,12 @@ namespace Vitex
 				if (!Message.empty())
 					Content->append("X-Error: ").append(Message).append("\r\n");
 
-				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
-				Content->append("Etag: ").append(ETag).append("\r\n");
+				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ");
+				Content->append(HeaderDate(Date, Base->Resource.LastModified));
+				Content->append("\r\n");
+
+				Core::OS::Net::GetETag(Date, sizeof(Date), &Base->Resource);
+				Content->append("Etag: ").append(Date, strnlen(Date, sizeof(Date))).append("\r\n");
 				Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
 				Content->append("Content-Length: ").append(Core::ToString(ContentLength)).append("\r\n");
 				Content->append(ContentRange).append("\r\n");
@@ -5362,26 +5459,20 @@ namespace Vitex
 				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
-				char LastModified[64];
-				Core::DateTime::FetchWebDateGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
-
-				char ETag[64];
-				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version).append(" ");
 				Content->append(Core::ToString(Base->Response.StatusCode)).append(" ");
 				Content->append(StatusMessage).append("\r\n");
-				Content->append("Date: ").append(Date).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base));
+				Content->append("Date: ");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
 
 				auto Origin = Base->Request.GetHeader("Origin");
 				if (!Origin.empty())
 					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
 
 				Paths::ConstructHeadCache(Base, *Content);
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
@@ -5389,8 +5480,12 @@ namespace Vitex
 				if (!Message.empty())
 					Content->append("X-Error: ").append(Message).append("\r\n");
 
-				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
-				Content->append("Etag: ").append(ETag).append("\r\n");
+				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ");
+				Content->append(HeaderDate(Date,Base->Resource.LastModified));
+				Content->append("\r\n");
+
+				Core::OS::Net::GetETag(Date, sizeof(Date), &Base->Resource);
+				Content->append("Etag: ").append(Date, strnlen(Date, sizeof(Date))).append("\r\n");
 				Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
 				Content->append("Content-Encoding: ").append(Gzip ? "gzip" : "deflate").append("\r\n");
 				Content->append("Transfer-Encoding: chunked\r\n");
@@ -5423,26 +5518,23 @@ namespace Vitex
 			{
 				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
 				char Date[64];
-				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
-				char LastModified[64];
-				Core::DateTime::FetchWebDateGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
-
-				char ETag[64];
-				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
-
 				auto* Content = HrmCache::Get()->Pop();
 				Content->append(Base->Request.Version);
 				Content->append(" 304 Not Modified\r\nDate: ");
-				Content->append(Date).append("\r\n");
+				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
+				Content->append("\r\n");
 
 				Paths::ConstructHeadCache(Base, *Content);
+				Utils::UpdateKeepAliveHeaders(Base, *Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, *Content);
 
-				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ").append(LastModified).append("\r\n");
-				Content->append("Etag: ").append(ETag).append("\r\n");
-				Content->append(Utils::ConnectionResolve(Base)).append("\r\n");
+				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ");
+				Content->append(HeaderDate(Date, Base->Resource.LastModified));
+				Content->append("\r\n");
+
+				Core::OS::Net::GetETag(Date, sizeof(Date), &Base->Resource);
+				Content->append("Etag: ").append(Date, strnlen(Date, sizeof(Date))).append("\r\n\r\n");
 				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
 				{
 					HrmCache::Get()->Push(Content);

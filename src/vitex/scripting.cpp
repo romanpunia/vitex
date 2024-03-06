@@ -7109,7 +7109,7 @@ namespace Vitex
 		Core::Option<Core::String> VirtualMachine::GetScriptSection(const std::string_view& Section)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Sections.find(Core::HglCast(Section));
+			auto It = Sections.find(Core::KeyLookupCast(Section));
 			if (It == Sections.end())
 				return Core::Optional::None;
 
@@ -7158,7 +7158,7 @@ namespace Vitex
 		void VirtualMachine::SetCodeGenerator(const std::string_view& Name, GeneratorCallback&& Callback)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Generators.find(Core::HglCast(Name));
+			auto It = Generators.find(Core::KeyLookupCast(Name));
 			if (It != Generators.end())
 			{
 				if (Callback != nullptr)
@@ -7286,7 +7286,7 @@ namespace Vitex
 		void VirtualMachine::SetCompileCallback(const std::string_view& Section, CompileCallback&& Callback)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Callbacks.find(Core::HglCast(Section));
+			auto It = Callbacks.find(Core::KeyLookupCast(Section));
 			if (It != Callbacks.end())
 			{
 				if (Callback != nullptr)
@@ -7823,7 +7823,7 @@ namespace Vitex
 		bool VirtualMachine::HasLibrary(const std::string_view& Name, bool IsAddon)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = CLibraries.find(Core::HglCast(Name));
+			auto It = CLibraries.find(Core::KeyLookupCast(Name));
 			if (It == CLibraries.end())
 				return false;
 
@@ -7832,7 +7832,7 @@ namespace Vitex
 		bool VirtualMachine::HasSystemAddon(const std::string_view& Name)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Core::HglCast(Name));
+			auto It = Addons.find(Core::KeyLookupCast(Name));
 			if (It == Addons.end())
 				return false;
 
@@ -7854,7 +7854,7 @@ namespace Vitex
 		{
 			VI_ASSERT(!Name.empty(), "name should not be empty");
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Core::HglCast(Name));
+			auto It = Addons.find(Core::KeyLookupCast(Name));
 			if (It != Addons.end())
 			{
 				if (Callback || !Dependencies.empty())
@@ -7904,7 +7904,7 @@ namespace Vitex
 			}
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Files.find(Core::HglCast(Path));
+			auto It = Files.find(Core::KeyLookupCast(Path));
 			if (It != Files.end())
 			{
 				Output.assign(It->second);
@@ -7930,7 +7930,7 @@ namespace Vitex
 
 			auto LoadFunction = [this, &Func, &Decl](CLibrary& Context) -> ExpectsVM<void>
 			{
-				auto Handle = Context.Functions.find(Core::HglCast(Func));
+				auto Handle = Context.Functions.find(Core::KeyLookupCast(Func));
 				if (Handle != Context.Functions.end())
 					return Core::Expectation::Met;
 
@@ -7985,7 +7985,7 @@ namespace Vitex
 				return VirtualException("import clibrary: invalid argument");
 
 			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto Core = CLibraries.find(Core::HglCast(Name));
+			auto Core = CLibraries.find(Core::KeyLookupCast(Name));
 			if (Core != CLibraries.end())
 				return Core::Expectation::Met;
 

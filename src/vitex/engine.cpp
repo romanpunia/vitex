@@ -2937,7 +2937,7 @@ namespace Vitex
 		Graphics::Shader* ShaderCache::Get(const std::string_view& Name)
 		{
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Cache.find(Core::HglCast(Name));
+			auto It = Cache.find(Core::KeyLookupCast(Name));
 			if (It != Cache.end())
 			{
 				It->second.Count++;
@@ -2965,13 +2965,13 @@ namespace Vitex
 		bool ShaderCache::Has(const std::string_view& Name)
 		{
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Cache.find(Core::HglCast(Name));
+			auto It = Cache.find(Core::KeyLookupCast(Name));
 			return It != Cache.end();
 		}
 		bool ShaderCache::Free(const std::string_view& Name, Graphics::Shader* Shader)
 		{
 			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Cache.find(Core::HglCast(Name));
+			auto It = Cache.find(Core::KeyLookupCast(Name));
 			if (It == Cache.end())
 				return false;
 
@@ -3047,7 +3047,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Results != nullptr, "results should be set");
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto It = Cache.find(Core::HglCast(Name));
+			auto It = Cache.find(Core::KeyLookupCast(Name));
 			if (It == Cache.end())
 				return false;
 
@@ -3059,13 +3059,13 @@ namespace Vitex
 		bool PrimitiveCache::Has(const std::string_view& Name)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto It = Cache.find(Core::HglCast(Name));
+			auto It = Cache.find(Core::KeyLookupCast(Name));
 			return It != Cache.end();
 		}
 		bool PrimitiveCache::Free(const std::string_view& Name, Graphics::ElementBuffer** Buffers)
 		{
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto It = Cache.find(Core::HglCast(Name));
+			auto It = Cache.find(Core::KeyLookupCast(Name));
 			if (It == Cache.end())
 				return false;
 
@@ -5509,7 +5509,7 @@ namespace Vitex
 					Assets.erase(It);
 			}
 
-			auto It = Assets.find(Core::HglCast(Path));
+			auto It = Assets.find(Core::KeyLookupCast(Path));
 			if (It != Assets.end())
 				Assets.erase(It);
 		}
@@ -6781,7 +6781,7 @@ namespace Vitex
 		}
 		Graphics::Shader* EffectRenderer::GetEffect(const std::string_view& Name)
 		{
-			auto It = Effects.find(Core::HglCast(Name));
+			auto It = Effects.find(Core::KeyLookupCast(Name));
 			if (It != Effects.end())
 				return It->second;
 

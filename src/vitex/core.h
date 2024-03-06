@@ -2137,74 +2137,78 @@ namespace Vitex
 		struct VI_OUT DateTime
 		{
 		private:
-			std::chrono::system_clock::duration Time;
-			struct tm DateValue;
-			bool DateRebuild;
+			std::chrono::system_clock::duration Offset;
+			struct tm Timepoint;
+			bool Synchronized;
+			bool Globalized;
 
 		public:
 			DateTime() noexcept;
-			DateTime(uint64_t Seconds) noexcept;
-			DateTime(const DateTime& Value) noexcept;
-			DateTime& operator= (const DateTime& Other) noexcept;
-			void operator +=(const DateTime& Right);
-			void operator -=(const DateTime& Right);
+			DateTime(const struct tm& Duration) noexcept;
+			DateTime(std::chrono::system_clock::duration&& Duration) noexcept;
+			DateTime(const DateTime&) = default;
+			DateTime(DateTime&&) noexcept = default;
+			DateTime& operator= (const DateTime&) = default;
+			DateTime& operator= (DateTime&&) noexcept = default;
+			DateTime& operator +=(const DateTime& Right);
+			DateTime& operator -=(const DateTime& Right);
 			bool operator >=(const DateTime& Right);
 			bool operator <=(const DateTime& Right);
 			bool operator >(const DateTime& Right);
 			bool operator <(const DateTime& Right);
 			bool operator ==(const DateTime& Right);
-			String Format(const char* Format);
-			String Date(const char* Format);
-			String Iso8601();
-			DateTime Now();
-			DateTime FromNanoseconds(uint64_t Value);
-			DateTime FromMicroseconds(uint64_t Value);
-			DateTime FromMilliseconds(uint64_t Value);
-			DateTime FromSeconds(uint64_t Value);
-			DateTime FromMinutes(uint64_t Value);
-			DateTime FromHours(uint64_t Value);
-			DateTime FromDays(uint64_t Value);
-			DateTime FromWeeks(uint64_t Value);
-			DateTime FromMonths(uint64_t Value);
-			DateTime FromYears(uint64_t Value);
 			DateTime operator +(const DateTime& Right) const;
 			DateTime operator -(const DateTime& Right) const;
-			DateTime& SetDateSeconds(uint64_t Value, bool NoFlush = true);
-			DateTime& SetDateMinutes(uint64_t Value, bool NoFlush = true);
-			DateTime& SetDateHours(uint64_t Value, bool NoFlush = true);
-			DateTime& SetDateDay(uint64_t Value, bool NoFlush = true);
-			DateTime& SetDateWeek(uint64_t Value, bool NoFlush = true);
-			DateTime& SetDateMonth(uint64_t Value, bool NoFlush = true);
-			DateTime& SetDateYear(uint64_t Value, bool NoFlush = true);
-			uint64_t DateSecond();
-			uint64_t DateMinute();
-			uint64_t DateHour();
-			uint64_t DateDay();
-			uint64_t DateWeek();
-			uint64_t DateMonth();
-			uint64_t DateYear();
-			uint64_t Nanoseconds();
-			uint64_t Microseconds();
-			uint64_t Milliseconds();
-			uint64_t Seconds();
-			uint64_t Minutes();
-			uint64_t Hours();
-			uint64_t Days();
-			uint64_t Weeks();
-			uint64_t Months();
-			uint64_t Years();
-
-		private:
-			void Rebuild();
+			DateTime& ApplyOffset(bool Always = false);
+			DateTime& ApplyTimepoint(bool Always = false);
+			DateTime& UseGlobalTime();
+			DateTime& UseLocalTime();
+			DateTime& SetSecond(uint8_t Value);
+			DateTime& SetMinute(uint8_t Value);
+			DateTime& SetHour(uint8_t Value);
+			DateTime& SetDay(uint8_t Value);
+			DateTime& SetWeek(uint8_t Value);
+			DateTime& SetMonth(uint8_t Value);
+			DateTime& SetYear(uint32_t Value);
+			String Serialize(const std::string_view& Format) const;
+			uint8_t Second() const;
+			uint8_t Minute() const;
+			uint8_t Hour() const;
+			uint8_t Day() const;
+			uint8_t Week() const;
+			uint8_t Month() const;
+			uint32_t Year() const;
+			int64_t Nanoseconds() const;
+			int64_t Microseconds() const;
+			int64_t Milliseconds() const;
+			int64_t Seconds() const;
+			const struct tm& CurrentTimepoint() const;
+			const std::chrono::system_clock::duration& CurrentOffset() const;
 
 		public:
-			static String FetchWebDateGMT(int64_t TimeStamp);
-			static String FetchWebDateTime(int64_t TimeStamp);
-			static bool FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time);
-			static bool FetchWebDateTime(char* Buffer, size_t Length, int64_t Time);
-			static void FetchDateTime(char* Buffer, size_t Length, int64_t Time);
-			static int64_t ParseWebDate(const char* Date);
-			static int64_t ParseFormatDate(const char* Date, const char* Format);
+			template <typename Rep, typename Period>
+			DateTime(const std::chrono::duration<Rep, Period>& Duration) noexcept : DateTime(std::chrono::duration_cast<std::chrono::system_clock::duration>(Duration))
+			{
+			}
+
+		public:
+			static std::chrono::system_clock::duration Now();
+			static DateTime FromNanoseconds(int64_t Value);
+			static DateTime FromMicroseconds(int64_t Value);
+			static DateTime FromMilliseconds(int64_t Value);
+			static DateTime FromSeconds(int64_t Value);
+			static DateTime FromSerialized(const std::string_view& Text, const std::string_view& Format);
+			static String SerializeGlobal(const std::chrono::system_clock::duration& Time, const std::string_view& Format);
+			static String SerializeLocal(const std::chrono::system_clock::duration& Time, const std::string_view& Format);
+			static std::string_view SerializeGlobal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Duration, const std::string_view& Format);
+			static std::string_view SerializeLocal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Duration, const std::string_view& Format);
+			static std::string_view FormatIso8601Time();
+			static std::string_view FormatWebTime();
+			static std::string_view FormatWebLocalTime();
+			static std::string_view FormatCompactTime();
+			static int64_t SecondsFromSerialized(const std::string_view& Text, const std::string_view& Format);
+			static bool MakeGlobalTime(time_t Time, struct tm* Timepoint);
+			static bool MakeLocalTime(time_t Time, struct tm* Timepoint);
 		};
 
 		struct VI_OUT Stringify
@@ -5020,80 +5024,55 @@ namespace Vitex
 		}
 #endif
 #ifdef VI_CXX20
-		inline const std::string_view& HglCast(const std::string_view& Value)
+		inline const std::string_view& KeyLookupCast(const std::string_view& Value)
 		{
 			return Value;
 		}
 #else
-		inline String HglCast(const std::string_view& Value)
+		inline String KeyLookupCast(const std::string_view& Value)
 		{
 			return String(Value);
 		}
 #endif
 		template <typename T>
-		inline ExpectsIO<T> FromStringRadix(const std::string_view& Other, int Base)
-		{
-			static_assert(std::is_integral<T>::value, "base can be specified only for integral types");
-			T Value;
-			std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base);
-			if (Result.ec != std::errc())
-				return std::make_error_condition(Result.ec);
-			return Value;
-		}
-		template <typename T>
-		inline ExpectsIO<T> FromString(const std::string_view& Other)
-		{
-			static_assert(std::is_integral<T>::value, "conversion can be done only for integral types");
-			T Value;
-			std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value);
-			if (Result.ec != std::errc())
-				return std::make_error_condition(Result.ec);
-			return Value;
-		}
-		template <>
-		inline ExpectsIO<float> FromString<float>(const std::string_view& Other)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.data();
-			float Value = strtof(Start, &End);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return Value;
-		}
-		template <>
-		inline ExpectsIO<double> FromString<double>(const std::string_view& Other)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.data();
-			double Value = strtod(Start, &End);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return Value;
-		}
-		template <>
-		inline ExpectsIO<long double> FromString<long double>(const std::string_view& Other)
-		{
-			OS::Error::Clear();
-			char* End = nullptr;
-			const char* Start = Other.data();
-			long double Value = strtold(Start, &End);
-			if (Start == End)
-				return std::make_error_condition(std::errc::invalid_argument);
-			else if (OS::Error::Occurred())
-				return OS::Error::GetCondition();
-			return Value;
-		}
-		template <typename T>
-		inline String ToString(T Other)
+		inline ExpectsIO<T> FromString(const std::string_view& Other, int Base = 10)
 		{
 			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
-			return Copy<String, std::string>(std::to_string(Other));
+			T Value;
+			if constexpr (std::is_integral<T>::value)
+			{
+				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base);
+				if (Result.ec != std::errc())
+					return std::make_error_condition(Result.ec);
+			}
+			else
+			{
+				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base == 16 ? std::chars_format::hex : std::chars_format::general);
+				if (Result.ec != std::errc())
+					return std::make_error_condition(Result.ec);
+			}
+			return Value;
+		}
+		template <typename T>
+		inline std::string_view ToStringView(char* Buffer, size_t Size, T Other, int Base = 10)
+		{
+			static_assert(std::is_arithmetic<T>::value, "conversion can be done only from arithmetic types");
+			if constexpr (std::is_integral<T>::value)
+			{
+				std::to_chars_result Result = std::to_chars(Buffer, Buffer + Size, Other, Base);
+				return Result.ec == std::errc() ? std::string_view(Buffer, Result.ptr - Buffer) : std::string_view();
+			}
+			else
+			{
+				std::to_chars_result Result = std::to_chars(Buffer, Buffer + Size, Other, Base == 16 ? std::chars_format::hex : std::chars_format::general);
+				return Result.ec == std::errc() ? std::string_view(Buffer, Result.ptr - Buffer) : std::string_view();
+			}
+		}
+		template <typename T>
+		inline String ToString(T Other, int Base = 10)
+		{
+			char Buffer[32];
+			return String(ToStringView<T>(Buffer, sizeof(Buffer), Other, Base));
 		}
 	}
 }

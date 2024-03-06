@@ -1199,7 +1199,7 @@ namespace Vitex
 		}
 		bool GraphicsDevice::RemoveSection(const std::string_view& Name)
 		{
-			auto It = Sections.find(Core::HglCast(Name));
+			auto It = Sections.find(Core::KeyLookupCast(Name));
 			if (It == Sections.end())
 				return false;
 
@@ -1444,7 +1444,7 @@ namespace Vitex
 
 			auto Resolve = [this, &Result](const std::string_view& Src)
 			{
-				auto It = Sections.find(Core::HglCast(Src));
+				auto It = Sections.find(Core::KeyLookupCast(Src));
 				if (It == Sections.end())
 					return false;
 
@@ -1791,7 +1791,7 @@ namespace Vitex
 		}
 		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string_view& Name)
 		{
-			auto It = DepthStencilStates.find(Core::HglCast(Name));
+			auto It = DepthStencilStates.find(Core::KeyLookupCast(Name));
 			if (It != DepthStencilStates.end())
 				return It->second;
 
@@ -1799,7 +1799,7 @@ namespace Vitex
 		}
 		BlendState* GraphicsDevice::GetBlendState(const std::string_view& Name)
 		{
-			auto It = BlendStates.find(Core::HglCast(Name));
+			auto It = BlendStates.find(Core::KeyLookupCast(Name));
 			if (It != BlendStates.end())
 				return It->second;
 
@@ -1807,7 +1807,7 @@ namespace Vitex
 		}
 		RasterizerState* GraphicsDevice::GetRasterizerState(const std::string_view& Name)
 		{
-			auto It = RasterizerStates.find(Core::HglCast(Name));
+			auto It = RasterizerStates.find(Core::KeyLookupCast(Name));
 			if (It != RasterizerStates.end())
 				return It->second;
 
@@ -1815,7 +1815,7 @@ namespace Vitex
 		}
 		SamplerState* GraphicsDevice::GetSamplerState(const std::string_view& Name)
 		{
-			auto It = SamplerStates.find(Core::HglCast(Name));
+			auto It = SamplerStates.find(Core::KeyLookupCast(Name));
 			if (It != SamplerStates.end())
 				return It->second;
 
@@ -1823,7 +1823,7 @@ namespace Vitex
 		}
 		InputLayout* GraphicsDevice::GetInputLayout(const std::string_view& Name)
 		{
-			auto It = InputLayouts.find(Core::HglCast(Name));
+			auto It = InputLayouts.find(Core::KeyLookupCast(Name));
 			if (It != InputLayouts.end())
 				return It->second;
 

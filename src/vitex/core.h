@@ -5064,7 +5064,7 @@ namespace Vitex
 			}
 			else
 			{
-				std::to_chars_result Result = std::to_chars(Buffer, Buffer + Size, Other, Base == 16 ? std::chars_format::hex : std::chars_format::general);
+				std::to_chars_result Result = std::to_chars(Buffer, Buffer + Size, Other, Base == 16 ? std::chars_format::hex : std::chars_format::fixed);
 				return Result.ec == std::errc() ? std::string_view(Buffer, Result.ptr - Buffer) : std::string_view();
 			}
 		}

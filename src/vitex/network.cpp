@@ -1,4 +1,15 @@
 #include "network.h"
+#if defined(VI_MICROSOFT) && defined(VI_WEPOLL)
+#define NET_EPOLL 1
+#elif defined(VI_APPLE) || defined(__FreeBSD__)
+#define NET_KQUEUE 1
+#elif defined(__sun) && defined(__SVR4)
+#define NET_POLL 1
+#elif defined(VI_LINUX)
+#define NET_EPOLL 1
+#else
+#define NET_POLL 1
+#endif
 #ifdef VI_MICROSOFT
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <WinSock2.h>
@@ -21,7 +32,7 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#ifndef VI_APPLE
+#ifdef NET_EPOLL
 #include <sys/epoll.h>
 #include <sys/sendfile.h>
 #else
@@ -110,7 +121,7 @@ namespace Vitex
 			auto Hostname = Address.GetHostname();
 			if (Hostname)
 				Result.append(*Hostname);
-			
+
 			auto Port = Address.GetIpPort();
 			if (Port)
 				Result.append(1, ':').append(Core::ToString(*Port));
@@ -206,24 +217,28 @@ namespace Vitex
 			return std::make_pair(Core::DateTime::FetchWebDateGMT(TimeStamp), TimeStamp);
 		}
 #endif
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
-		struct epoll_array
+#ifdef NET_POLL
+		struct epoll_fd
 		{
-			struct epoll_fd
-			{
-				pollfd Fd;
-				void* Data = nullptr;
-			};
+			pollfd Fd;
+			void* Data = nullptr;
+		};
 
+		struct epoll_queue
+		{
 			Core::UnorderedMap<socket_t, epoll_fd> Fds;
 			Core::Vector<pollfd> Events;
 			std::mutex Mutex;
-			std::atomic<uint8_t> Iteration = 0;
-			socket_t Outgoing = INVALID_SOCKET;
-			socket_t Incoming = INVALID_SOCKET;
-			bool Dirty = true;
+			std::atomic<uint8_t> Iteration;
+			socket_t Outgoing;
+			socket_t Incoming;
+			bool Dirty;
 
-			~epoll_array()
+			epoll_queue(size_t) : Iteration(0), Outgoing(INVALID_SOCKET), Incoming(INVALID_SOCKET), Dirty(true)
+			{
+				Initialize().Unwrap();
+			}
+			~epoll_queue()
 			{
 				if (Incoming != INVALID_SOCKET)
 					closesocket(Incoming);
@@ -300,11 +315,21 @@ namespace Vitex
 			bool Upsert(socket_t Fd, bool Readable, bool Writeable, void* Data)
 			{
 				Core::UMutex<std::mutex> Unique(Mutex);
-				if (!Readable && !Writeable && Fds.find(Fd) == Fds.end())
-					return false;
+				auto It = Fds.find(Fd);
+				if (It == Fds.end())
+				{
+					epoll_fd Event;
+					Event.Fd.fd = Fd;
+#ifdef POLLRDHUP
+					Event.Fd.events = POLLRDHUP;
+#else
+					Event.Fd.events = 0;
+#endif
+					It = Fds.insert(std::make_pair(Fd, Event)).first;
+					Dirty = true;
+				}
 
-				auto& Target = Fds[Fd];
-				Target.Fd.fd = Fd;
+				auto& Target = It->second;
 				Target.Fd.revents = 0;
 
 				if (Readable)
@@ -394,6 +419,36 @@ namespace Vitex
 
 				Dirty = false;
 				return Events;
+			}
+		};
+#elif defined(NET_KQUEUE)
+		struct epoll_queue
+		{
+			kevent* Data;
+			size_t Size;
+
+			epoll_queue(size_t NewSize) : Size(NewSize)
+			{
+				Data = Core::Memory::Allocate<struct kevent>(sizeof(struct kevent) * Size);
+			}
+			~epoll_queue()
+			{
+				Core::Memory::Deallocate(Data);
+			}
+		};
+#elif defined(NET_EPOLL)
+		struct epoll_queue
+		{
+			epoll_event* Data;
+			size_t Size;
+
+			epoll_queue(size_t NewSize) : Size(NewSize)
+			{
+				Data = Core::Memory::Allocate<epoll_event>(sizeof(epoll_event) * Size);
+			}
+			~epoll_queue()
+			{
+				Core::Memory::Deallocate(Data);
 			}
 		};
 #endif
@@ -639,7 +694,7 @@ namespace Vitex
 			Info.Protocol = AddressInfo->ai_protocol;
 			AddressSize = std::min<size_t>(sizeof(AddressBuffer), AddressInfo->ai_addrlen);
 			memcpy(AddressBuffer, AddressInfo->ai_addr, AddressSize);
-			
+
 			size_t Leftovers = sizeof(AddressBuffer) - AddressSize;
 			if (Leftovers > 0)
 				memset(AddressBuffer + AddressSize, 0, Leftovers);
@@ -712,7 +767,7 @@ namespace Vitex
 		{
 			switch (Info.Type)
 			{
-				case SOCK_DGRAM :
+				case SOCK_DGRAM:
 					return SocketType::Datagram;
 				case SOCK_RAW:
 					return SocketType::Raw;
@@ -779,49 +834,33 @@ namespace Vitex
 			return *this;
 		}
 
-		EpollHandle::EpollHandle(size_t NewArraySize) noexcept : ArraySize(NewArraySize)
+		EpollHandle::EpollHandle(size_t MaxEvents) noexcept
 		{
-			VI_ASSERT(ArraySize > 0, "array size should be greater than zero");
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			VI_ASSERT(MaxEvents > 0, "array size should be greater than zero");
+			Queue = Core::Memory::New<epoll_queue>(MaxEvents);
+#ifdef NET_POLL
 			Handle = (epoll_handle)(uintptr_t)std::numeric_limits<size_t>::max();
-			Array = (epoll_event*)Core::Memory::New<epoll_array>();
-
-			epoll_array* Handler = (epoll_array*)Array;
-			Handler->Initialize().Unwrap();
-#elif defined(VI_APPLE)
+#elif defined(NET_KQUEUE)
 			Handle = kqueue();
-			Array = Core::Memory::Allocate<struct kevent>(sizeof(struct kevent) * ArraySize);
-#else
+#elif defined(NET_EPOLL)
 			Handle = epoll_create(1);
-			Array = Core::Memory::Allocate<epoll_event>(sizeof(epoll_event) * ArraySize);
 #endif
 		}
-		EpollHandle::EpollHandle(EpollHandle&& Other) noexcept : Array(Other.Array), Handle(Other.Handle), ArraySize(Other.ArraySize)
+		EpollHandle::EpollHandle(EpollHandle&& Other) noexcept : Queue(Other.Queue), Handle(Other.Handle)
 		{
+			Other.Queue = nullptr;
 			Other.Handle = INVALID_EPOLL;
-			Other.Array = nullptr;
 		}
 		EpollHandle::~EpollHandle() noexcept
 		{
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
+			Core::Memory::Delete(Queue);
+#ifdef NET_POLL
 			Handle = INVALID_EPOLL;
-			if (Array != nullptr)
-			{
-				epoll_array* Handler = (epoll_array*)Array;
-				Core::Memory::Delete(Handler);
-				Array = nullptr;
-			}
 #else
 			if (Handle != INVALID_EPOLL)
 			{
 				epoll_close(Handle);
 				Handle = INVALID_EPOLL;
-			}
-
-			if (Array != nullptr)
-			{
-				Core::Memory::Deallocate(Array);
-				Array = nullptr;
 			}
 #endif
 		}
@@ -831,11 +870,10 @@ namespace Vitex
 				return *this;
 
 			this->~EpollHandle();
-			Array = Other.Array;
+			Queue = Other.Queue;
 			Handle = Other.Handle;
-			ArraySize = Other.ArraySize;
 			Other.Handle = INVALID_EPOLL;
-			Other.Array = nullptr;
+			Other.Queue = nullptr;
 			return *this;
 		}
 		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable) noexcept
@@ -843,42 +881,31 @@ namespace Vitex
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_ASSERT(Readable || Writeable, "add should set readable and/or writeable");
-			VI_TRACE("[net] epoll add fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
-			return AddInternal(Fd, Readable, Writeable);
-		}
-		bool EpollHandle::AddInternal(Socket* Fd, bool Readable, bool Writeable) noexcept
-		{
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
-			epoll_array* Handler = (epoll_array*)Array;
-			return Handler->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
-#elif defined(VI_APPLE)
-			struct kevent Event;
-			int Result1 = 1;
-			if (Readable)
-			{
-				EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
-				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
+			VI_TRACE("[net] epoll add fd %i c%s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
+#ifdef NET_POLL
+			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
+			return Queue->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
+#elif defined(NET_KQUEUE)
+			struct kevent ReadEvent;
+			EV_SET(&ReadEvent, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
+			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 1;
 
-			int Result2 = 1;
-			if (Writeable)
-			{
-				EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
-				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
-			return Result1 != -1 || Result2 != -1;
-#else
+			struct kevent WriteEvent;
+			EV_SET(&WriteEvent, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
+			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 1;
+			return Result1 == 1 && Result2 == 1;
+#elif defined(NET_EPOLL)
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
+#ifdef EPOLLRDHUP
 			Event.events = EPOLLRDHUP;
-
+#else
+			Event.events = 0;
+#endif
 			if (Readable)
 				Event.events |= EPOLLIN;
-
 			if (Writeable)
 				Event.events |= EPOLLOUT;
-
 			return epoll_ctl(Handle, EPOLL_CTL_ADD, Fd->Fd, &Event) == 0;
 #endif
 		}
@@ -887,38 +914,31 @@ namespace Vitex
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_ASSERT(Readable || Writeable, "update should set readable and/or writeable");
-			VI_TRACE("[net] epoll update fd %i %s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
-			epoll_array* Handler = (epoll_array*)Array;
-			return Handler->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
-#elif defined(VI_APPLE)
-			struct kevent Event;
-			int Result1 = 1;
-			if (Readable)
-			{
-				EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
-				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
+			VI_TRACE("[net] epoll update fd %i c%s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
+#ifdef NET_POLL
+			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
+			return Queue->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
+#elif defined(NET_KQUEUE)
+			struct kevent ReadEvent;
+			EV_SET(&ReadEvent, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
+			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 1;
 
-			int Result2 = 1;
-			if (Writeable)
-			{
-				EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
-				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
+			struct kevent WriteEvent;
+			EV_SET(&WriteEvent, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
+			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 1;
 			return Result1 == 1 && Result2 == 1;
-#else
+#elif defined(NET_EPOLL)
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
+#ifdef EPOLLRDHUP
 			Event.events = EPOLLRDHUP;
-
+#else
+			Event.events = 0;
+#endif
 			if (Readable)
 				Event.events |= EPOLLIN;
-
 			if (Writeable)
 				Event.events |= EPOLLOUT;
-
 			return epoll_ctl(Handle, EPOLL_CTL_MOD, Fd->Fd, &Event) == 0;
 #endif
 		}
@@ -927,15 +947,11 @@ namespace Vitex
 			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_TRACE("[net] epoll remove fd %i", (int)Fd->Fd);
-			return RemoveInternal(Fd);
-		}
-		bool EpollHandle::RemoveInternal(Socket* Fd) noexcept
-		{
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
-			epoll_array* Handler = (epoll_array*)Array;
-			Handler->Upsert(Fd->Fd, false, false, (void*)Fd);
+#ifdef NET_POLL
+			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
+			Queue->Upsert(Fd->Fd, false, false, (void*)Fd);
 			return true;
-#elif defined(VI_APPLE)
+#elif defined(NET_KQUEUE)
 			struct kevent Event;
 			EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_DELETE, 0, 0, (void*)nullptr);
 			int Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
@@ -943,22 +959,26 @@ namespace Vitex
 			EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void*)nullptr);
 			int Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			return Result1 != -1 && Result2 != -1;
-#else
+#elif defined(NET_EPOLL)
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
+#ifdef EPOLLRDHUP
 			Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
+#else
+			Event.events = EPOLLIN | EPOLLOUT;
+#endif
 			return epoll_ctl(Handle, EPOLL_CTL_DEL, Fd->Fd, &Event) == 0;
 #endif
 		}
 		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept
 		{
-			VI_ASSERT(ArraySize <= DataSize, "epollfd array should be less than or equal to internal events buffer");
-#if defined(VI_MICROSOFT) && !defined(VI_WEPOLL)
-			epoll_array* Handler = (epoll_array*)Array;
-			auto& Events = Handler->Compile();
+			VI_ASSERT(Capacity() >= DataSize, "epollfd array should be less than or equal to internal events buffer");
+#ifdef NET_POLL
+			auto& Events = Queue->Compile();
 			if (Events.empty())
 				return 0;
 
+			VI_TRACE("[net] poll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
 			int Count = Utils::Poll(Events.data(), (int)Events.size(), (int)Timeout);
 			if (Count <= 0)
 				return Count;
@@ -966,7 +986,7 @@ namespace Vitex
 			size_t Incoming = 0;
 			for (auto& Event : Events)
 			{
-				Socket* Target = (Socket*)Handler->Unwrap(Event);
+				Socket* Target = (Socket*)Queue->Unwrap(Event);
 				if (!Target)
 					continue;
 
@@ -974,48 +994,64 @@ namespace Vitex
 				Fd.Base = Target;
 				Fd.Readable = (Event.revents & POLLIN);
 				Fd.Writeable = (Event.revents & POLLOUT);
-				Fd.Closed = (Event.revents & POLLHUP || Event.revents & POLLNVAL || Event.revents & POLLERR);
+#ifdef POLLRDHUP
+				Fd.Closeable = (Event.revents & POLLHUP || Event.revents & POLLRDHUP || Event.revents & POLLNVAL || Event.revents & POLLERR);
+#else
+				Fd.Closeable = (Event.revents & POLLHUP || Event.revents & POLLNVAL || Event.revents & POLLERR);
+#endif
 			}
-#elif defined(VI_APPLE)
+			VI_TRACE("[net] poll recv %i events", (int)Incoming);
+#elif defined(NET_KQUEUE)
 			VI_TRACE("[net] kqueue wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
 			struct timespec Wait;
 			Wait.tv_sec = (int)Timeout / 1000;
 			Wait.tv_nsec = ((int)Timeout % 1000) * 1000000;
 
-			struct kevent* Events = (struct kevent*)Array;
-			int Count = kevent(Handle, nullptr, 0, Events, (int)DataSize, &Wait);
+			int Count = kevent(Handle, nullptr, 0, Queue->Data, (int)DataSize, &Wait);
 			if (Count <= 0)
 				return Count;
 
 			size_t Incoming = 0;
-			for (auto It = Events; It != Events + Count; It++)
+			for (auto It = Queue->Data; It != Queue->Data + Count; It++)
 			{
 				auto& Fd = Data[Incoming++];
 				Fd.Base = (Socket*)It->udata;
 				Fd.Readable = (It->filter == EVFILT_READ);
 				Fd.Writeable = (It->filter == EVFILT_WRITE);
-				Fd.Closed = (It->flags & EV_EOF);
+				Fd.Closeable = (It->flags & EV_EOF);
 			}
 			VI_TRACE("[net] kqueue recv %i events", (int)Incoming);
-#else
+#elif defined(NET_EPOLL)
 			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
-			epoll_event* Events = (epoll_event*)Array;
-			int Count = epoll_wait(Handle, Events, (int)DataSize, (int)Timeout);
+			int Count = epoll_wait(Handle, Queue->Data, (int)DataSize, (int)Timeout);
 			if (Count <= 0)
 				return Count;
 
 			size_t Incoming = 0;
-			for (auto It = Events; It != Events + Count; It++)
+			for (auto It = Queue->Data; It != Queue->Data + Count; It++)
 			{
 				auto& Fd = Data[Incoming++];
 				Fd.Base = (Socket*)It->data.ptr;
 				Fd.Readable = (It->events & EPOLLIN);
 				Fd.Writeable = (It->events & EPOLLOUT);
-				Fd.Closed = (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR);
+#ifdef EPOLLRDHUP
+				Fd.Closeable = (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR);
+#else
+				Fd.Closeable = (It->events & EPOLLHUP || It->events & EPOLLERR);
+#endif
 			}
 			VI_TRACE("[net] epoll recv %i events", (int)Incoming);
 #endif
 			return (int)Incoming;
+		}
+		size_t EpollHandle::Capacity() noexcept
+		{
+#ifdef NET_POLL
+			return std::numeric_limits<size_t>::max() / sizeof(epoll_fd);
+#else
+			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
+			return Queue->Size;
+#endif
 		}
 
 		Core::ExpectsIO<CertificateBlob> Utils::GenerateSelfSignedCertificate(uint32_t Days, const std::string_view& AddressesCommaSeparated, const std::string_view& DomainsCommaSeparated) noexcept
@@ -1216,8 +1252,10 @@ namespace Vitex
 					Next.events |= POLLOUT;
 				if (Base.Events & Error)
 					Next.events |= POLLERR;
+#ifdef POLLRDHUP
 				if (Base.Events & Hangup)
-					Next.events |= POLLHUP;
+					Next.events |= POLLRDHUP;
+#endif
 			}
 
 			int Size = Poll(Fds.data(), FdCount, Timeout);
@@ -1243,8 +1281,13 @@ namespace Vitex
 					Next.Returns |= Output;
 				if (Base.revents & POLLERR)
 					Next.Returns |= Error;
+#ifdef POLLRDHUP
+				if (Base.revents & POLLRDHUP || Base.revents & POLLHUP)
+					Next.Returns |= Hangup;
+#else
 				if (Base.revents & POLLHUP)
 					Next.Returns |= Hangup;
+#endif
 			}
 
 			return Size;
@@ -1822,50 +1865,39 @@ namespace Vitex
 		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time) noexcept
 		{
 			VI_ASSERT(Fd.Base != nullptr, "no socket is connected to epoll fd");
-			VI_TRACE("[net] sock event:%s%s%s on fd %i", Fd.Readable ? "r" : "", Fd.Writeable ? "w" : "", Fd.Closed ? "c" : "", (int)Fd.Base->Fd);
-			if (Fd.Closed)
+			VI_TRACE("[net] sock event:%s%s%s on fd %i", Fd.Closeable ? "c" : "", Fd.Readable ? "r" : "", Fd.Writeable ? "w" : "", (int)Fd.Base->Fd);
+			if (Fd.Closeable)
 			{
 				VI_DEBUG("[net] sock reset on fd %i", (int)Fd.Base->Fd);
 				CancelEvents(Fd.Base, SocketPoll::Reset);
 				return false;
 			}
-
-			if (!Fd.Readable && !Fd.Writeable)
-			{
-				ClearEvents(Fd.Base);
-				return false;
-			}
+			else if (!Fd.Readable && !Fd.Writeable)
+				return true;
 
 			Core::UMutex<std::mutex> Unique(Fd.Base->Events.Mutex);
-			auto ReadCallback = std::move(Fd.Base->Events.ReadCallback);
-			auto WriteCallback = std::move(Fd.Base->Events.WriteCallback);
-			bool WasListeningRead = !!ReadCallback;
-			bool WasListeningWrite = !!WriteCallback;
+			bool WasListeningRead = !!Fd.Base->Events.ReadCallback;
+			bool WasListeningWrite = !!Fd.Base->Events.WriteCallback;
 			bool StillListeningRead = !Fd.Readable && WasListeningRead;
 			bool StillListeningWrite = !Fd.Writeable && WasListeningWrite;
 			if (StillListeningRead || StillListeningWrite)
 			{
-				if (StillListeningRead)
-					Fd.Base->Events.ReadCallback = std::move(ReadCallback);
-				if (StillListeningWrite)
-					Fd.Base->Events.WriteCallback = std::move(WriteCallback);
-
-				StillListeningRead = !!Fd.Base->Events.ReadCallback;
-				StillListeningWrite = !!Fd.Base->Events.WriteCallback;
 				if (WasListeningRead != StillListeningRead || WasListeningWrite != StillListeningWrite)
 					Handle.Update(Fd.Base, StillListeningRead, StillListeningWrite);
 				UpdateTimeout(Fd.Base, Time);
 			}
-			else if (ReadCallback || WriteCallback)
+			else if (WasListeningRead || WasListeningWrite)
 			{
 				Handle.Remove(Fd.Base);
 				RemoveTimeout(Fd.Base);
 				Fd.Base->Release();
 			}
 
-			Unique.Negate();
 			if (Fd.Readable && Fd.Writeable)
 			{
+				auto ReadCallback = std::move(Fd.Base->Events.ReadCallback);
+				auto WriteCallback = std::move(Fd.Base->Events.WriteCallback);
+				Unique.Negate();
 				Core::Cospawn([ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
 				{
 					if (WriteCallback)
@@ -1875,9 +1907,17 @@ namespace Vitex
 				});
 			}
 			else if (Fd.Readable && WasListeningRead)
+			{
+				auto ReadCallback = std::move(Fd.Base->Events.ReadCallback);
+				Unique.Negate();
 				Core::Cospawn([ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(SocketPoll::Finish); });
+			}
 			else if (Fd.Writeable && WasListeningWrite)
+			{
+				auto WriteCallback = std::move(Fd.Base->Events.WriteCallback);
+				Unique.Negate();
 				Core::Cospawn([WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(SocketPoll::Finish); });
+			}
 
 			return StillListeningRead || StillListeningWrite;
 		}
@@ -2050,7 +2090,7 @@ namespace Vitex
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto& Targets : Connections)
 			{
-				for (auto& Stream : Targets.second)
+				for (auto& Stream : Targets.second.Sockets)
 				{
 					Stream->Shutdown();
 					Core::Memory::Release(Stream);
@@ -2073,13 +2113,15 @@ namespace Vitex
 				if (Targets == Connections.end())
 					return;
 
-				auto It = Targets->second.find(Stream);
-				if (It == Targets->second.end())
+				auto It = Targets->second.Sockets.find(Stream);
+				if (It == Targets->second.Sockets.end())
 					return;
 
-				Targets->second.erase(It);
+				VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), GetAddressIdentification(Targets->second.Address).c_str());
+				Targets->second.Sockets.erase(It);
+				if (Targets->second.Sockets.empty())
+					Connections.erase(Targets);
 			}
-			VI_DEBUG("[uplink] expire fd %i of %" PRIu64, (int)Stream->GetFd(), (uint64_t)HashCode);
 			Stream->CloseQueued([Stream](const Core::Option<std::error_condition>&) { Stream->Release(); });
 		}
 		void Uplinks::ListenConnectionHashCode(size_t HashCode, Socket* Target)
@@ -2087,9 +2129,18 @@ namespace Vitex
 			Multiplexer::Get()->WhenReadable(Target, [this, HashCode, Target](SocketPoll Event)
 			{
 				if (Packet::IsError(Event))
-					ExpireConnectionHashCode(HashCode, Target);
-				else if (!Packet::IsSkip(Event))
+					return ExpireConnectionHashCode(HashCode, Target);
+				else if (Packet::IsSkip(Event))
+					return;
+			Retry:
+				uint8_t Buffer;
+				auto Status = Target->Read(&Buffer, sizeof(Buffer));
+				if (Status)
+					goto Retry;
+				else if (Status.Error() == std::errc::operation_would_block)
 					ListenConnectionHashCode(HashCode, Target);
+				else
+					ExpireConnectionHashCode(HashCode, Target);
 			});
 		}
 		void Uplinks::UnlistenConnection(Socket* Target)
@@ -2105,38 +2156,49 @@ namespace Vitex
 			size_t HashCode = Address.GetHashCode();
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
-				Connections[HashCode].insert(Stream);
+				auto Targets = Connections.find(HashCode);
+				if (Targets == Connections.end())
+				{
+					auto& Pool = Connections[HashCode];
+					Pool.Address = Address;
+					Pool.Sockets.insert(Stream);
+				}
+				else
+					Targets->second.Sockets.insert(Stream);
 			}
 			Stream->SetIoTimeout(0);
 			Stream->SetBlocking(false);
 			ListenConnectionHashCode(HashCode, Stream);
-			VI_DEBUG("[uplink] store fd %i of %s (%" PRIu64 ")", (int)Stream->GetFd(), GetAddressIdentification(Address).c_str(), (uint64_t)HashCode);
+			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), GetAddressIdentification(Address).c_str());
 			return true;
 		}
 		Socket* Uplinks::PopConnection(const SocketAddress& Address)
 		{
 			size_t HashCode = Address.GetHashCode();
-			Socket* Stream = nullptr;
+			Socket* ReusableStream = nullptr;
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto Targets = Connections.find(HashCode);
-				if (Targets == Connections.end() || Targets->second.empty())
+				if (Targets == Connections.end() || Targets->second.Sockets.empty())
 					return nullptr;
 
-				auto It = Targets->second.begin();
-				Stream = *It;
-				Targets->second.erase(It);
+				auto It = Targets->second.Sockets.begin();
+				ReusableStream = *It;
+				Targets->second.Sockets.erase(It);
+
+				VI_DEBUG("[uplink] reuse fd %i of %s", (int)ReusableStream->GetFd(), GetAddressIdentification(Address).c_str());
+				if (Targets->second.Sockets.empty())
+					Connections.erase(Targets);
 			}
-			UnlistenConnection(Stream);
-			VI_DEBUG("[uplink] reuse fd %i of %s (%" PRIu64 ")", (int)Stream->GetFd(), GetAddressIdentification(Address).c_str(), (uint64_t)HashCode);
-			return Stream;
+			UnlistenConnection(ReusableStream);
+			return ReusableStream;
 		}
 		size_t Uplinks::GetSize()
 		{
 			size_t Size = 0;
 			Core::UMutex<std::mutex> Unique(Exclusive);
 			for (auto& Targets : Connections)
-				Size += Targets.second.size();
+				Size += Targets.second.Sockets.size();
 			return Size;
 		}
 
@@ -2723,7 +2785,7 @@ namespace Vitex
 			(void)Length;
 			return std::make_error_condition(std::errc::not_supported);
 #endif
-			}
+		}
 		Core::ExpectsIO<size_t> Socket::WriteFileQueued(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer)
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
@@ -3514,7 +3576,7 @@ namespace Vitex
 				return Core::OS::Error::GetConditionOr();
 
 			return Core::Expectation::Met;
-	}
+		}
 		Core::ExpectsIO<void> Socket::GetSocket(int Option, void* Value, size_t* Size)
 		{
 			return GetAny(SOL_SOCKET, Option, Value, Size);
@@ -4035,12 +4097,12 @@ namespace Vitex
 				{
 					Utils::DisplayTransportLog();
 					return Refuse(Base);
+				}
 			}
-		}
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
-}
+		}
 		Core::ExpectsIO<void> SocketServer::Continue(SocketConnection* Base)
 		{
 			VI_ASSERT(Base != nullptr, "socket should be set");
@@ -4339,8 +4401,8 @@ namespace Vitex
 				{
 					Utils::DisplayTransportLog();
 					return Callback(Core::SystemException(Core::Stringify::Text("ssl connection aborted error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::connection_aborted)));
+				}
 			}
-		}
 #else
 			Callback(Core::SystemException("ssl connect error: unsupported", std::make_error_condition(std::errc::not_supported)));
 #endif

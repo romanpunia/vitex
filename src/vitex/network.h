@@ -2,11 +2,6 @@
 #define VI_NETWORK_H
 #include "compute.h"
 #include <atomic>
-#ifdef VI_APPLE
-struct kevent;
-#else
-struct epoll_event;
-#endif
 struct ssl_ctx_st;
 struct ssl_st;
 struct addrinfo;
@@ -17,6 +12,8 @@ namespace Vitex
 {
 	namespace Network
 	{
+		struct epoll_queue;
+
 		struct SocketAccept;
 
 		struct EpollHandle;
@@ -234,22 +231,17 @@ namespace Vitex
 			Socket* Base;
 			bool Readable;
 			bool Writeable;
-			bool Closed;
+			bool Closeable;
 		};
 
 		struct VI_OUT_TS EpollHandle
 		{
 		private:
-#ifdef VI_APPLE
-			kevent* Array;
-#else
-			epoll_event* Array;
-#endif
+			epoll_queue* Queue;
 			epoll_handle Handle;
-			size_t ArraySize;
 
 		public:
-			EpollHandle(size_t NewArraySize) noexcept;
+			EpollHandle(size_t MaxEvents) noexcept;
 			EpollHandle(const EpollHandle&) = delete;
 			EpollHandle(EpollHandle&& Other) noexcept;
 			~EpollHandle() noexcept;
@@ -259,10 +251,7 @@ namespace Vitex
 			bool Update(Socket* Fd, bool Readable, bool Writeable) noexcept;
 			bool Remove(Socket* Fd) noexcept;
 			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept;
-
-		private:
-			bool AddInternal(Socket* Fd, bool Readable, bool Writeable) noexcept;
-			bool RemoveInternal(Socket* Fd) noexcept;
+			size_t Capacity() noexcept;
 		};
 
 		class VI_OUT_TS Packet
@@ -435,7 +424,14 @@ namespace Vitex
 		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
 		{
 		private:
-			Core::UnorderedMap<size_t, Core::UnorderedSet<Socket*>> Connections;
+			struct AddressPool
+			{
+				Core::UnorderedSet<Socket*> Sockets;
+				SocketAddress Address;
+			};
+
+		private:
+			Core::UnorderedMap<size_t, AddressPool> Connections;
 			std::mutex Exclusive;
 
 		public:

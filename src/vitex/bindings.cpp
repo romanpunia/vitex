@@ -16067,7 +16067,7 @@ namespace Vitex
 				VEpollFd->SetProperty<Network::EpollFd>("socket@ base", &Network::EpollFd::Base);
 				VEpollFd->SetProperty<Network::EpollFd>("bool readable", &Network::EpollFd::Readable);
 				VEpollFd->SetProperty<Network::EpollFd>("bool writeable", &Network::EpollFd::Writeable);
-				VEpollFd->SetProperty<Network::EpollFd>("bool closed", &Network::EpollFd::Closed);
+				VEpollFd->SetProperty<Network::EpollFd>("bool closeable", &Network::EpollFd::Closeable);
 				VEpollFd->SetConstructor<Network::EpollFd>("void f()");
 				VEpollFd->SetOperatorCopyStatic(&EpollFdCopy);
 				VEpollFd->SetDestructorEx("void f()", &EpollFdDestructor);
@@ -16077,6 +16077,7 @@ namespace Vitex
 				VEpollHandle->SetMethod("bool add(socket@+, bool, bool)", &Network::EpollHandle::Add);
 				VEpollHandle->SetMethod("bool update(socket@+, bool, bool)", &Network::EpollHandle::Update);
 				VEpollHandle->SetMethod("bool remove(socket@+)", &Network::EpollHandle::Remove);
+				VEpollHandle->SetMethod("usize capacity() const", &Network::EpollHandle::Capacity);
 				VEpollHandle->SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
 				VEpollHandle->SetOperatorMoveCopy<Network::EpollHandle>();
 				VEpollHandle->SetDestructor<Network::EpollHandle>("void f()");

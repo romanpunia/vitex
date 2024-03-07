@@ -1610,11 +1610,11 @@ namespace Vitex
 
 			if (Data.Message.Size > 0)
 			{
-#ifndef NDEBUG
-				Console::Get()->Show();
-#endif
+				auto* Base = Console::Get();
+				Base->Show();
 				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 				Dispatch(Data);
+				Base->FlushWrite();
 			}
 
 			ErrorHandling::Pause();
@@ -1650,11 +1650,11 @@ namespace Vitex
 
 			if (Data.Message.Size > 0)
 			{
-#ifndef NDEBUG
-				Console::Get()->Show();
-#endif
+				auto* Base = Console::Get();
+				Base->Show();
 				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 				Dispatch(Data);
+				Base->FlushWrite();
 			}
 
 			ErrorHandling::Pause();

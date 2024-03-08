@@ -1972,7 +1972,6 @@ namespace Vitex
 			Core::UnorderedMap<Core::String, Addon> Addons;
 			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
 			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
-			Core::UnorderedSet<Core::String> AppliedGenerators;
 			Core::Vector<ImmediateContext*> Threads;
 			Core::Vector<asIScriptContext*> Stacks;
 			Core::String DefaultNamespace;

@@ -7509,8 +7509,8 @@ namespace Vitex
 			std::string_view TargetPath = Path.empty() ? "<anonymous>" : Path;
 			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size(), (uint64_t)Generators.size());
 			{
+				Core::UnorderedSet<Core::String> AppliedGenerators;
 				Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-				AppliedGenerators.clear();
 			Retry:
 				size_t CurrentGenerators = Generators.size();
 				for (auto& Item : Generators)

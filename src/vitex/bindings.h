@@ -459,9 +459,9 @@ namespace Vitex
 
 			public:
 				template <typename T>
-				static T FromString(const Core::String& Base)
+				static T FromString(const Core::String& Text, int Base = 10)
 				{
-					auto Value = Core::FromString<T>(Base);
+					auto Value = Core::FromString<T>(Text, Base);
 					return Value ? *Value : (T)0;
 				}
 			};
@@ -501,9 +501,9 @@ namespace Vitex
 
 			public:
 				template <typename T>
-				static T FromString(const std::string_view& Base)
+				static T FromString(const std::string_view& Text, int Base = 10)
 				{
-					auto Value = Core::FromString<T>(Base);
+					auto Value = Core::FromString<T>(Text, Base);
 					return Value ? *Value : (T)0;
 				}
 			};

@@ -41,6 +41,7 @@ extern "C"
 #define CSS_NORMAL_FONT "div{text-align:center;}"
 #define CSS_SMALL_FONT "h1{font-size:16px;font-weight:normal;}"
 #define HTTP_WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define HTTP_WEBSOCKET_LEGACY_KEY_SIZE 8
 #define HTTP_MAX_REDIRECTS 128
 #define HTTP_HRM_SIZE 1024 * 1024 * 4
 #define GZ_HEADER_SIZE 17
@@ -4968,21 +4969,20 @@ namespace Vitex
 				if (WebSocketKey2.empty())
 					return Base->Abort(400, "Malformed websocket request. Provide second key.");
 
-				const size_t LegacyKeySize = 8;
 				auto ResolveConnection = [Base](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 						Base->Request.Content.Append(std::string_view((char*)Buffer, Recv));
 					else if (Packet::IsDone(Event))
-						Logical::ProcessWebSocket(Base, (uint8_t*)Base->Request.Content.Data.data(), LegacyKeySize);
+						Logical::ProcessWebSocket(Base, (uint8_t*)Base->Request.Content.Data.data(), HTTP_WEBSOCKET_LEGACY_KEY_SIZE);
 					else if (Packet::IsError(Event))
 						Base->Abort();
 					return true;
 				};
-				if (Base->Request.Content.Prefetch >= LegacyKeySize)
+				if (Base->Request.Content.Prefetch >= HTTP_WEBSOCKET_LEGACY_KEY_SIZE)
 					return ResolveConnection(SocketPoll::FinishSync, (uint8_t*)"", 0);
 
-				return !!Base->Stream->ReadQueued(LegacyKeySize - Base->Request.Content.Prefetch, ResolveConnection);
+				return !!Base->Stream->ReadQueued(HTTP_WEBSOCKET_LEGACY_KEY_SIZE - Base->Request.Content.Prefetch, ResolveConnection);
 			}
 			bool Routing::RouteGet(Connection* Base)
 			{

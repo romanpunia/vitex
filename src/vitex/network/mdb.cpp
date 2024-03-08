@@ -1695,10 +1695,10 @@ namespace Vitex
 							continue;
 						}
 						else if (Status.Error().error_code() != 0 && Result->Empty())
-							Coreturn Status.Error();
+							Coreturn ExpectsDB<Core::Schema*>(std::move(Status.Error()));
 						break;
 					}
-					Coreturn Result.Reset();
+					Coreturn ExpectsDB<Core::Schema*>(Result.Reset());
 				});
 			}
 			ExpectsPromiseDB<Property> Response::GetProperty(const std::string_view& Name)
@@ -3039,15 +3039,15 @@ namespace Vitex
 				{
 					auto Context = GetSession();
 					if (!Context)
-						Coreturn Context.Error();
+						Coreturn ExpectsDB<void>(std::move(Context.Error()));
 					else if (!*Context)
-						Coreturn DatabaseException(0, "make transaction: no session");
+						Coreturn ExpectsDB<void>(DatabaseException(0, "make transaction: no session"));
 
 					while (true)
 					{
 						auto Status = VI_AWAIT(Context->Begin());
 						if (!Status)
-							Coreturn Status;
+							Coreturn ExpectsDB<void>(std::move(Status));
 
 						if (!VI_AWAIT(Callback(*Context)))
 							break;
@@ -3056,9 +3056,9 @@ namespace Vitex
 						{
 							TransactionState State = VI_AWAIT(Context->Commit());
 							if (State == TransactionState::Fatal)
-								Coreturn DatabaseException(0, "make transaction: fatal error");
+								Coreturn ExpectsDB<void>(DatabaseException(0, "make transaction: fatal error"));
 							else if (State == TransactionState::OK)
-								Coreturn Core::Expectation::Met;
+								Coreturn ExpectsDB<void>(Core::Expectation::Met);
 
 							if (State == TransactionState::Retry_Commit)
 							{
@@ -3075,7 +3075,7 @@ namespace Vitex
 					}
 
 					VI_AWAIT(Context->Rollback());
-					Coreturn DatabaseException(0, "make transaction: aborted");
+					Coreturn ExpectsDB<void>(DatabaseException(0, "make transaction: aborted"));
 				});
 #else
 				return ExpectsPromiseDB<void>(DatabaseException(0, "not supported"));

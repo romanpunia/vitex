@@ -17,6 +17,7 @@
 #include <charconv>
 #include <cstring>
 #include <list>
+#include <system_error>
 #ifdef VI_CXX20
 #include <coroutine>
 #ifndef NDEBUG
@@ -257,8 +258,8 @@ namespace Vitex
 			XMLInternalError,
 			XMLUnrecognizedTag,
 			XMLBadPi,
-			XMLBadComment, 
-			XMLBadCData, 
+			XMLBadComment,
+			XMLBadCData,
 			XMLBadDocType,
 			XMLBadPCData,
 			XMLBadStartElement,
@@ -530,6 +531,14 @@ namespace Vitex
 			size_t max_size() const
 			{
 				return std::numeric_limits<size_t>::max() / sizeof(T);
+			}
+			bool operator== (const StandardAllocator&)
+			{
+				return true;
+			}
+			bool operator!=(const StandardAllocator&)
+			{
+				return false;
 			}
 
 		public:
@@ -1096,8 +1105,8 @@ namespace Vitex
 			virtual VI_OUT const char* what() const noexcept;
 			virtual VI_OUT const String& message() const& noexcept;
 			virtual VI_OUT const String&& message() const&& noexcept;
-			virtual VI_OUT String& message()& noexcept;
-			virtual VI_OUT String&& message()&& noexcept;
+			virtual VI_OUT String& message() & noexcept;
+			virtual VI_OUT String&& message() && noexcept;
 		};
 
 		class ParserException final : public BasicException
@@ -2884,7 +2893,7 @@ namespace Vitex
 				VI_ASSERT(!Address, "pointer should be null when performing output update");
 				return &Address;
 			}
-			T*const* In() const
+			T* const* In() const
 			{
 				return &Address;
 			}
@@ -3989,6 +3998,7 @@ namespace Vitex
 		class BasicPromise
 		{
 		public:
+			using promise_type = BasicPromise;
 			typedef PromiseState<T> Status;
 			typedef T Type;
 
@@ -4182,9 +4192,86 @@ namespace Vitex
 
 				return Result;
 			}
+#ifdef VI_CXX20
+			bool await_ready() const noexcept
+			{
+				return !IsPending();
+			}
+			T&& await_resume() noexcept
+			{
+				return Load();
+			}
+			void await_suspend(std::coroutine_handle<> Handle) noexcept
+			{
+				if (!IsPending())
+					return Handle.resume();
 
+				Status* Copy = AddRef();
+#ifndef NDEBUG
+				std::chrono::microseconds Time = Schedule::GetClock();
+				VI_WATCH(Handle.address(), typeid(Handle).name());
+				Store([Copy, Time, Handle]()
+				{
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+
+					VI_UNWATCH(Handle.address());
+					Handle.resume();
+					Release(Copy);
+				});
+#else
+				Store([Copy, Handle]()
+				{
+					Handle.resume();
+					Release(Copy);
+				});
+#endif
+			}
+			void return_value(const BasicPromise& NewValue) noexcept
+			{
+				Set(NewValue);
+			}
+			void return_value(const T& NewValue) noexcept
+			{
+				Set(NewValue);
+			}
+			void return_value(T&& NewValue) noexcept
+			{
+				Set(std::move(NewValue));
+			}
+			void unhandled_exception() noexcept
+			{
+			}
+			auto get_return_object() noexcept
+			{
+				return *this;
+			}
+			std::suspend_never initial_suspend() const noexcept
+			{
+				return { };
+			}
+			std::suspend_never final_suspend() const noexcept
+			{
+				return { };
+			}
+#if !defined(_MSC_VER) || defined(NDEBUG)
+			void* operator new(size_t Size) noexcept
+			{
+				return Memory::Allocate<BasicPromise>(Size);
+			}
+			void operator delete(void* Address) noexcept
+			{
+				Memory::Deallocate<void>(Address);
+			}
+			static auto get_return_object_on_allocation_failure() noexcept
+			{
+				return Null();
+			}
+#endif // E3394 Intellisense false positive
+#endif
 		private:
-			BasicPromise(bool Unused1, bool Unused2) noexcept : Data(nullptr)
+			BasicPromise(Status* Context, bool) noexcept : Data(Context)
 			{
 			}
 			Status* AddRef() const noexcept
@@ -4211,7 +4298,7 @@ namespace Vitex
 		public:
 			static BasicPromise Null() noexcept
 			{
-				return BasicPromise(false, false);
+				return BasicPromise((Status*)nullptr, false);
 			}
 
 		private:
@@ -4229,108 +4316,13 @@ namespace Vitex
 				if (State != nullptr && !--State->Count)
 					Memory::Delete(State);
 			}
-
-		public:
-			struct awaitable
-			{
-				BasicPromise Value;
-
-				explicit awaitable(const BasicPromise& NewValue) noexcept : Value(NewValue)
-				{
-				}
-				explicit awaitable(BasicPromise&& NewValue) noexcept : Value(std::move(NewValue))
-				{
-				}
-				awaitable(const awaitable&) = default;
-				awaitable(awaitable&&) = default;
-				bool await_ready() const noexcept
-				{
-					return !Value.IsPending();
-				}
-				T&& await_resume() noexcept
-				{
-					return Value.Get();
-				}
-#ifdef VI_CXX20
-				void await_suspend(std::coroutine_handle<> Handle) noexcept
-				{
-					Value.When([Handle](T&&)
-					{
-						Handle.resume();
-					});
-				}
-#endif
-			};
-
-			struct promise_type
-			{
-				BasicPromise Value;
-#ifndef NDEBUG
-				std::chrono::microseconds Time;
-#endif
-				promise_type() noexcept
-				{
-#ifndef NDEBUG
-					Time = Schedule::GetClock();
-					VI_WATCH((void*)&Value, typeid(BasicPromise).name());
-#endif
-				}
-#ifdef VI_CXX20
-				std::suspend_never initial_suspend() const noexcept
-				{
-					return { };
-				}
-				std::suspend_never final_suspend() const noexcept
-				{
-					return { };
-				}
-#endif
-				BasicPromise get_return_object() noexcept
-				{
-#ifndef NDEBUG
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-					VI_UNWATCH((void*)&Value);
-#endif
-					return Value;
-				}
-				void return_value(const BasicPromise& NewValue) noexcept
-				{
-					Value.Set(NewValue);
-				}
-				void return_value(const T& NewValue) noexcept
-				{
-					Value.Set(NewValue);
-				}
-				void return_value(T&& NewValue) noexcept
-				{
-					Value.Set(std::move(NewValue));
-				}
-				void unhandled_exception() noexcept
-				{
-				}
-#if !defined(_MSC_VER) || defined(NDEBUG)
-				void* operator new(size_t Size) noexcept
-				{
-					return Memory::Allocate<promise_type>(Size);
-				}
-				void operator delete(void* Address) noexcept
-				{
-					Memory::Deallocate<void>(Address);
-				}
-				static BasicPromise get_return_object_on_allocation_failure() noexcept
-				{
-					return BasicPromise::Null();
-				}
-#endif // E3394 Intellisense false positive
-			};
 		};
 
 		template <typename Executor>
 		class BasicPromise<void, Executor>
 		{
 		public:
+			using promise_type = BasicPromise;
 			typedef PromiseState<void> Status;
 			typedef void Type;
 
@@ -4532,11 +4524,81 @@ namespace Vitex
 
 				return Result;
 			}
-
-		private:
-			BasicPromise(Status* Context) noexcept : Data(Context)
+#ifdef VI_CXX20
+			bool await_ready() const noexcept
 			{
-				AddRef();
+				return !IsPending();
+			}
+			void await_resume() noexcept
+			{
+			}
+			void await_suspend(std::coroutine_handle<> Handle) noexcept
+			{
+				if (!IsPending())
+					return Handle.resume();
+
+				Status* Copy = AddRef();
+#ifndef NDEBUG
+				std::chrono::microseconds Time = Schedule::GetClock();
+				VI_WATCH(Handle.address(), typeid(Handle).name());
+				Store([Copy, Time, Handle]()
+				{
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+
+					VI_UNWATCH(Handle.address());
+					Handle.resume();
+					Release(Copy);
+				});
+#else
+				Store([Copy, Handle]()
+				{
+					Handle.resume();
+					Release(Copy);
+				});
+#endif
+			}
+			void return_value(const BasicPromise& NewValue) noexcept
+			{
+				Set(NewValue);
+			}
+			void return_void() noexcept
+			{
+			}
+			void unhandled_exception() noexcept
+			{
+			}
+			auto get_return_object() noexcept
+			{
+				return *this;
+			}
+			std::suspend_never initial_suspend() const noexcept
+			{
+				return { };
+			}
+			std::suspend_never final_suspend() const noexcept
+			{
+				return { };
+			}
+#if !defined(_MSC_VER) || defined(NDEBUG)
+			void* operator new(size_t Size) noexcept
+			{
+				return Memory::Allocate<BasicPromise>(Size);
+			}
+			void operator delete(void* Address) noexcept
+			{
+				Memory::Deallocate<void>(Address);
+			}
+			static auto get_return_object_on_allocation_failure() noexcept
+			{
+				return Null();
+			}
+#endif // E3394 Intellisense false positive
+#endif
+		private:
+			BasicPromise(Status* Context, bool) noexcept : Data(Context)
+			{
 			}
 			Status* AddRef() const noexcept
 			{
@@ -4560,7 +4622,7 @@ namespace Vitex
 		public:
 			static BasicPromise Null() noexcept
 			{
-				return BasicPromise((Status*)nullptr);
+				return BasicPromise((Status*)nullptr, false);
 			}
 
 		private:
@@ -4578,93 +4640,6 @@ namespace Vitex
 				if (State != nullptr && !--State->Count)
 					Memory::Delete(State);
 			}
-
-		public:
-			struct awaitable
-			{
-				BasicPromise Value;
-
-				explicit awaitable(const BasicPromise& NewValue) noexcept : Value(NewValue)
-				{
-				}
-				explicit awaitable(BasicPromise&& NewValue) noexcept : Value(std::move(NewValue))
-				{
-				}
-				awaitable(const awaitable&) = default;
-				awaitable(awaitable&&) = default;
-				bool await_ready() const noexcept
-				{
-					return !Value.IsPending();
-				}
-				void await_resume() noexcept
-				{
-				}
-#ifdef VI_CXX20
-				void await_suspend(std::coroutine_handle<> Handle) noexcept
-				{
-					Value.When([Handle]()
-					{
-						Handle.resume();
-					});
-				}
-#endif
-			};
-
-			struct promise_type
-			{
-				BasicPromise Value;
-#ifndef NDEBUG
-				std::chrono::microseconds Time;
-#endif
-				promise_type() noexcept
-				{
-#ifndef NDEBUG
-					Time = Schedule::GetClock();
-					VI_WATCH((void*)&Value, typeid(BasicPromise).name());
-#endif
-				}
-#ifdef VI_CXX20
-				std::suspend_never initial_suspend() const noexcept
-				{
-					return { };
-				}
-				std::suspend_never final_suspend() const noexcept
-				{
-					return { };
-				}
-#endif
-				BasicPromise get_return_object() noexcept
-				{
-#ifndef NDEBUG
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-					VI_UNWATCH((void*)&Value);
-#endif
-					return Value;
-				}
-				void return_void() noexcept
-				{
-					Value.Set();
-				}
-				void unhandled_exception() noexcept
-				{
-				}
-#if !defined(_MSC_VER) || defined(NDEBUG)
-				void* operator new(size_t Size) noexcept
-				{
-					return Memory::Allocate<promise_type>(Size);
-				}
-				void operator delete(void* Address) noexcept
-				{
-					Memory::Deallocate<void>(Address);
-				}
-				static BasicPromise get_return_object_on_allocation_failure() noexcept
-				{
-					return BasicPromise::Null();
-				}
-#endif // E3394 Intellisense false positive
-			};
 		};
 
 		template <typename T, typename Executor>
@@ -4865,18 +4840,6 @@ namespace Vitex
 				Callback();
 		}
 #ifdef VI_CXX20
-		template <typename T, typename Executor = ParallelExecutor>
-		auto operator co_await(BasicPromise<T, Executor>&& Value) noexcept
-		{
-			using Awaitable = typename BasicPromise<T, Executor>::awaitable;
-			return Awaitable(std::move(Value));
-		}
-		template <typename T, typename Executor = ParallelExecutor>
-		auto operator co_await(const BasicPromise<T, Executor>& Value) noexcept
-		{
-			using Awaitable = typename BasicPromise<T, Executor>::awaitable;
-			return Awaitable(Value);
-		}
 		template <typename T>
 		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
@@ -5039,15 +5002,31 @@ namespace Vitex
 		{
 			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
 			T Value;
-			if constexpr (std::is_integral<T>::value)
+			if constexpr (!std::is_integral<T>::value)
 			{
-				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base);
+#if defined(__clang__) && !defined(VI_CXX20)
+				OS::Error::Clear();
+				char* End = nullptr;
+				if constexpr (!std::is_same<T, long double>::value)
+				{
+					if constexpr (!std::is_same<T, float>::value)
+						Value = strtod(Other.data(), &End);
+					else
+						Value = strtof(Other.data(), &End);
+				}
+				else
+					Value = strtold(Other.data(), &End);
+				if (Other.data() == End || OS::Error::Occurred())
+					return OS::Error::GetConditionOr();
+#else
+				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base == 16 ? std::chars_format::hex : std::chars_format::general);
 				if (Result.ec != std::errc())
 					return std::make_error_condition(Result.ec);
+#endif
 			}
 			else
 			{
-				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base == 16 ? std::chars_format::hex : std::chars_format::general);
+				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base);
 				if (Result.ec != std::errc())
 					return std::make_error_condition(Result.ec);
 			}

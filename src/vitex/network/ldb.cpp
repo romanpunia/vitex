@@ -785,7 +785,7 @@ namespace Vitex
 					Core::String Statement = std::move(QueryCommand);
 					TConnection* Connection = VI_AWAIT(AcquireConnection(Session, Opts));
 					if (!Connection)
-						Coreturn DatabaseException("acquire connection error: no candidate");
+						Coreturn ExpectsDB<Cursor>(DatabaseException("acquire connection error: no candidate"));
 
 					auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Connection, Session ? " (transaction)" : "", Statement.data(), Statement.size() > 64 ? " ..." : "");
@@ -799,7 +799,7 @@ namespace Vitex
 							if (!VI_AWAIT(Core::Cotask<ExpectsDB<void>>([this, Connection, &Result, &Statement]() { return ConsumeStatement(Connection, &Result, &Statement); })))
 							{
 								ReleaseConnection(Connection, Opts);
-								Coreturn Result;
+								Coreturn ExpectsDB<Cursor>(std::move(Result));
 							}
 						}
 						else
@@ -807,15 +807,14 @@ namespace Vitex
 							if (!ConsumeStatement(Connection, &Result, &Statement))
 							{
 								ReleaseConnection(Connection, Opts);
-								Coreturn Result;
+								Coreturn ExpectsDB<Cursor>(std::move(Result));
 							}
 						}
 					}
 
 					VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Connection, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count());
-					ReleaseConnection(Connection, Opts);
-					(void)Time;
-					Coreturn Result;
+					ReleaseConnection(Connection, Opts); (void)Time;
+					Coreturn ExpectsDB<Cursor>(std::move(Result));
 				});
 #else
 				return ExpectsPromiseDB<Cursor>(DatabaseException("query: not supported"));

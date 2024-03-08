@@ -1883,9 +1883,9 @@ namespace Vitex
 						Count += Status && Status->Success() ? 1 : 0;
 					}
 					if (!Count)
-						Coreturn DatabaseException("unlisten error");
+						Coreturn ExpectsDB<void>(DatabaseException("unlisten error"));
 
-					Coreturn Core::Expectation::Met;
+					Coreturn ExpectsDB<void>(Core::Expectation::Met);
 				});
 			}
 			ExpectsPromiseDB<Cursor> Cluster::EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)

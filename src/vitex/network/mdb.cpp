@@ -1260,10 +1260,10 @@ namespace Vitex
 				return DatabaseException(0, "not supported");
 #endif
 			}
-			ExpectsDB<void> Stream::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once)
+			ExpectsDB<void> Stream::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map)
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
-				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
+				auto Template = Driver::Get()->GetQuery(Name, Map);
 				if (!Template)
 					return Template.Error();
 
@@ -1923,9 +1923,9 @@ namespace Vitex
 				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<Response> Transaction::TemplateQuery(Collection& Source, const std::string_view& Name, Core::SchemaArgs* Map, bool Once)
+			ExpectsPromiseDB<Response> Transaction::TemplateQuery(Collection& Source, const std::string_view& Name, Core::SchemaArgs* Map)
 			{
-				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
+				auto Template = Driver::Get()->GetQuery(Name, Map);
 				if (!Template)
 					return ExpectsPromiseDB<Response>(std::move(Template.Error()));
 
@@ -2350,10 +2350,10 @@ namespace Vitex
 				return ExpectsPromiseDB<Cursor>(DatabaseException(0, "not supported"));
 #endif
 			}
-			ExpectsPromiseDB<Response> Collection::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once, const Transaction& Session)
+			ExpectsPromiseDB<Response> Collection::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, const Transaction& Session)
 			{
 				VI_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
-				auto Template = Driver::Get()->GetQuery(Name, Map, Once);
+				auto Template = Driver::Get()->GetQuery(Name, Map);
 				if (!Template)
 					return ExpectsPromiseDB<Response>(Template.Error());
 
@@ -3769,47 +3769,18 @@ namespace Vitex
 				VI_DEBUG("[mdb] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
 				return Result;
 			}
-			ExpectsDB<Document> Driver::GetQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			ExpectsDB<Document> Driver::GetQuery(const std::string_view& Name, Core::SchemaArgs* Map) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Core::KeyLookupCast(Name));
 				if (It == Queries.end())
-				{
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							Core::Memory::Release(Item.second);
-						Map->clear();
-					}
-
 					return DatabaseException(0, "query not found: " + Core::String(Name));
-				}
 
 				if (It->second.Cache.Get() != nullptr)
-				{
-					Document Result = It->second.Cache.Copy();
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							Core::Memory::Release(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
+					return It->second.Cache.Copy();
 
 				if (!Map || Map->empty())
-				{
-					auto Result = Document::FromJSON(It->second.Request);
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							Core::Memory::Release(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
+					return Document::FromJSON(It->second.Request);
 
 				Sequence Origin = It->second;
 				size_t Offset = 0;
@@ -3822,19 +3793,12 @@ namespace Vitex
 					if (It == Map->end())
 						return DatabaseException(0, "query expects @" + Word.Key + " constant: " + Core::String(Name));
 
-					Core::String Value = Utils::GetJSON(It->second, Word.Escape);
+					Core::String Value = Utils::GetJSON(*It->second, Word.Escape);
 					if (Value.empty())
 						continue;
 
 					Result.insert(Word.Offset + Offset, Value);
 					Offset += Value.size();
-				}
-
-				if (Once)
-				{
-					for (auto& Item : *Map)
-						Core::Memory::Release(Item.second);
-					Map->clear();
 				}
 
 				auto Data = Document::FromJSON(Origin.Request);

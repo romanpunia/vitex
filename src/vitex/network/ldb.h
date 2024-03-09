@@ -43,9 +43,8 @@ namespace Vitex
 			enum class QueryOp
 			{
 				DeleteArgs = 0,
-				ReuseArgs = (1 << 0),
-				TransactionStart = (1 << 1),
-				TransactionEnd = (1 << 2)
+				TransactionStart = (1 << 0),
+				TransactionEnd = (1 << 1)
 			};
 
 			enum class CheckpointMode
@@ -379,8 +378,8 @@ namespace Vitex
 			class VI_OUT_TS Utils
 			{
 			public:
-				static ExpectsDB<Core::String> InlineArray(Core::Unique<Core::Schema> Array);
-				static ExpectsDB<Core::String> InlineQuery(Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default = "TRUE");
+				static ExpectsDB<Core::String> InlineArray(Core::UPtr<Core::Schema>&& Array);
+				static ExpectsDB<Core::String> InlineQuery(Core::UPtr<Core::Schema>&& Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default = "TRUE");
 				static Core::String GetCharArray(const std::string_view& Src) noexcept;
 				static Core::String GetByteArray(const std::string_view& Src) noexcept;
 				static Core::String GetSQL(Core::Schema* Source, bool Escape, bool Negate) noexcept;
@@ -426,8 +425,8 @@ namespace Vitex
 				bool RemoveQuery(const std::string_view& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				ExpectsDB<Core::String> Emplace(const std::string_view& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
-				ExpectsDB<Core::String> GetQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> Emplace(const std::string_view& SQL, Core::SchemaList* Map) noexcept;
+				ExpectsDB<Core::String> GetQuery(const std::string_view& Name, Core::SchemaArgs* Map) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

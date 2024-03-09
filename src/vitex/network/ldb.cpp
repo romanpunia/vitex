@@ -759,7 +759,7 @@ namespace Vitex
 			}
 			ExpectsPromiseDB<Cursor> Cluster::EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
 			{
-				auto Template = Driver::Get()->Emplace(Command, Map, !(Opts & (size_t)QueryOp::ReuseArgs));
+				auto Template = Driver::Get()->Emplace(Command, Map);
 				if (!Template)
 					return ExpectsPromiseDB<Cursor>(Template.Error());
 
@@ -768,7 +768,7 @@ namespace Vitex
 			ExpectsPromiseDB<Cursor> Cluster::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
 				VI_DEBUG("[sqlite] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
-				auto Template = Driver::Get()->GetQuery(Name, Map, !(Opts & (size_t)QueryOp::ReuseArgs));
+				auto Template = Driver::Get()->GetQuery(Name, Map);
 				if (!Template)
 					return ExpectsPromiseDB<Cursor>(Template.Error());
 
@@ -1038,9 +1038,9 @@ namespace Vitex
 #endif
 			}
 
-			ExpectsDB<Core::String> Utils::InlineArray(Core::Schema* Array)
+			ExpectsDB<Core::String> Utils::InlineArray(Core::UPtr<Core::Schema>&& Array)
 			{
-				VI_ASSERT(Array != nullptr, "array should be set");
+				VI_ASSERT(Array, "array should be set");
 				Core::SchemaList Map;
 				Core::String Def;
 
@@ -1054,7 +1054,8 @@ namespace Vitex
 						Def += '(';
 						for (auto* Sub : Item->GetChilds())
 						{
-							Map.push_back(Sub);
+							Sub->AddRef();
+							Map.emplace_back(Sub);
 							Def += "?,";
 						}
 						Def.erase(Def.end() - 1);
@@ -1062,21 +1063,21 @@ namespace Vitex
 					}
 					else
 					{
-						Map.push_back(Item);
+						Item->AddRef();
+						Map.emplace_back(Item);
 						Def += "?,";
 					}
 				}
 
-				auto Result = LDB::Driver::Get()->Emplace(Def, &Map, false);
+				auto Result = LDB::Driver::Get()->Emplace(Def, &Map);
 				if (Result && !Result->empty() && Result->back() == ',')
 					Result->erase(Result->end() - 1);
 
-				Core::Memory::Release(Array);
 				return Result;
 			}
-			ExpectsDB<Core::String> Utils::InlineQuery(Core::Schema* Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default)
+			ExpectsDB<Core::String> Utils::InlineQuery(Core::UPtr<Core::Schema>&& Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default)
 			{
-				VI_ASSERT(Where != nullptr, "array should be set");
+				VI_ASSERT(Where, "array should be set");
 				Core::SchemaList Map;
 				Core::String Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
 				for (auto* Statement : Where->GetChilds())
@@ -1116,19 +1117,19 @@ namespace Vitex
 						}
 						else if (!Core::Stringify::HasNumber(Op))
 						{
-							Def += "?";
+							Statement->AddRef();
 							Map.push_back(Statement);
+							Def += "?";
 						}
 						else
 							Def += Op;
 					}
 				}
 
-				auto Result = LDB::Driver::Get()->Emplace(Def, &Map, false);
+				auto Result = LDB::Driver::Get()->Emplace(Def, &Map);
 				if (Result && Result->empty())
 					Result = Core::String(Default);
 
-				Core::Memory::Release(Where);
 				return Result;
 			}
 			Core::String Utils::GetCharArray(const std::string_view& Src) noexcept
@@ -1551,7 +1552,7 @@ namespace Vitex
 				VI_DEBUG("[sqlite] OK save %" PRIu64 " parsed query templates", (uint64_t)Queries.size());
 				return Result;
 			}
-			ExpectsDB<Core::String> Driver::Emplace(const std::string_view& SQL, Core::SchemaList* Map, bool Once) noexcept
+			ExpectsDB<Core::String> Driver::Emplace(const std::string_view& SQL, Core::SchemaList* Map) noexcept
 			{
 				if (!Map || Map->empty())
 					return Core::String(SQL);
@@ -1593,61 +1594,26 @@ namespace Vitex
 							Set.Start--;
 						}
 					}
-					Core::String Value = Utils::GetSQL((*Map)[Next++], Escape, Negate);
+					Core::String Value = Utils::GetSQL(*(*Map)[Next++], Escape, Negate);
 					Buffer.erase(Set.Start, (Escape ? 1 : 2));
 					Buffer.insert(Set.Start, Value);
 					Offset = Set.Start + Value.size();
 				}
 
-				if (!Once)
-					return Src;
-
-				for (auto* Item : *Map)
-					Core::Memory::Release(Item);
-				Map->clear();
 				return Src;
 			}
-			ExpectsDB<Core::String> Driver::GetQuery(const std::string_view& Name, Core::SchemaArgs* Map, bool Once) noexcept
+			ExpectsDB<Core::String> Driver::GetQuery(const std::string_view& Name, Core::SchemaArgs* Map) noexcept
 			{
 				Core::UMutex<std::mutex> Unique(Exclusive);
 				auto It = Queries.find(Core::KeyLookupCast(Name));
 				if (It == Queries.end())
-				{
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							Core::Memory::Release(Item.second);
-						Map->clear();
-					}
-
 					return DatabaseException("query not found: " + Core::String(Name));
-				}
 
 				if (!It->second.Cache.empty())
-				{
-					Core::String Result = It->second.Cache;
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							Core::Memory::Release(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
+					return It->second.Cache;
 
 				if (!Map || Map->empty())
-				{
-					Core::String Result = It->second.Request;
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							Core::Memory::Release(Item.second);
-						Map->clear();
-					}
-
-					return Result;
-				}
+					return It->second.Request;
 
 				Sequence Origin = It->second;
 				size_t Offset = 0;
@@ -1660,7 +1626,7 @@ namespace Vitex
 					if (It == Map->end())
 						return DatabaseException("query expects @" + Word.Key + " constant: " + Core::String(Name));
 
-					Core::String Value = Utils::GetSQL(It->second, Word.Escape, Word.Negate);
+					Core::String Value = Utils::GetSQL(*It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
 						continue;
 
@@ -1668,18 +1634,10 @@ namespace Vitex
 					Offset += Value.size();
 				}
 
-				if (Once)
-				{
-					for (auto& Item : *Map)
-						Core::Memory::Release(Item.second);
-					Map->clear();
-				}
-
-				Core::String Data = Origin.Request;
-				if (Data.empty())
+				if (Result.empty())
 					return DatabaseException("query construction error: " + Core::String(Name));
 
-				return Data;
+				return Result;
 			}
 			Core::Vector<Core::String> Driver::GetQueries() noexcept
 			{

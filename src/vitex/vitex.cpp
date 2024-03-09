@@ -362,16 +362,16 @@ namespace Vitex
 	void Runtime::CleanupInstances() noexcept
 	{
 		VI_TRACE("[lib] free singleton instances");
+		Engine::Application::CleanupInstance();
+		Engine::GUI::Subsystem::CleanupInstance();
 		Network::HTTP::HrmCache::CleanupInstance();
 		Network::LDB::Driver::CleanupInstance();
 		Network::PDB::Driver::CleanupInstance();
 		Network::MDB::Driver::CleanupInstance();
 		Network::Uplinks::CleanupInstance();
-		Network::Multiplexer::CleanupInstance();
 		Network::TransportLayer::CleanupInstance();
 		Network::DNS::CleanupInstance();
-		Engine::Application::CleanupInstance();
-		Engine::GUI::Subsystem::CleanupInstance();
+		Network::Multiplexer::CleanupInstance();
 		Core::Schedule::CleanupInstance();
 		Core::Console::CleanupInstance();
 	}

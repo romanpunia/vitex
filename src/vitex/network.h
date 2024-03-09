@@ -204,7 +204,6 @@ namespace Vitex
 			int32_t GetFamily() const noexcept;
 			int32_t GetType() const noexcept;
 			int32_t GetProtocol() const noexcept;
-			size_t GetHashCode() const noexcept;
 			DNSType GetResolverType() const noexcept;
 			SocketProtocol GetProtocolType() const noexcept;
 			SocketType GetSocketType() const noexcept;
@@ -423,28 +422,29 @@ namespace Vitex
 		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
 		{
 		private:
-			struct AddressPool
+			struct ConnectionQueue
 			{
-				Core::UnorderedSet<Socket*> Sockets;
-				SocketAddress Address;
+				Core::SingleQueue<Core::Promise<Socket*>> Requests;
+				Core::UnorderedSet<Socket*> Streams;
+				size_t Duplicates = 0;
 			};
 
 		private:
-			std::mutex Exclusive;
-			Core::UnorderedMap<size_t, AddressPool> Connections;
+			std::recursive_mutex Exclusive;
+			Core::UnorderedMap<Core::String, ConnectionQueue> Connections;
+			size_t MaxDuplicates;
 
 		public:
 			Uplinks() noexcept;
 			virtual ~Uplinks() noexcept override;
-			void ExpireConnection(const SocketAddress& Address, Socket* Target);
+			void SetMaxDuplicates(size_t Max);
 			bool PushConnection(const SocketAddress& Address, Socket* Target);
-			Socket* PopConnection(const SocketAddress& Address);
+			Core::Promise<Socket*> PopConnection(const SocketAddress& Address);
+			size_t GetMaxDuplicates() const;
 			size_t GetSize();
 
 		private:
-			void ExpireConnectionHashCode(size_t HashCode, Socket* Target);
-			void ListenConnectionHashCode(size_t HashCode, Socket* Target);
-			void UnlistenConnection(Socket* Target);
+			void ListenConnection(Core::String&& Id, Socket* Target);
 		};
 
 		class VI_OUT CertificateBuilder final : public Core::Reference<CertificateBuilder>
@@ -724,11 +724,15 @@ namespace Vitex
 			virtual Core::ExpectsSystem<void> OnDisconnect();
 
 		private:
-			bool TryReuseStream(const SocketAddress& Address);
+			Core::Promise<bool> TryReuseStream(const SocketAddress& Address);
+			bool TryStoreStream();
 			void TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode);
 			void DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status);
 			void DispatchSimpleHandshake();
+			void CreateStream();
+			void ConfigureStream();
+			void DestroyStream();
 
 		protected:
 			void EnableReusability();

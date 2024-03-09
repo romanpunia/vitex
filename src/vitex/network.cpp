@@ -733,15 +733,6 @@ namespace Vitex
 		{
 			return Info.Protocol;
 		}
-		size_t SocketAddress::GetHashCode() const noexcept
-		{
-			char Buffer[sizeof(Info) + sizeof(AddressBuffer) - sizeof(Core::String)];
-			memcpy(Buffer, (char*)&Info + sizeof(Core::String), sizeof(Info) - sizeof(Core::String));
-			memcpy(Buffer, AddressBuffer, sizeof(AddressBuffer));
-
-			Core::KeyHasher<Core::String> Hash;
-			return Hash(std::string_view((char*)&Buffer, sizeof(Buffer)));
-		}
 		DNSType SocketAddress::GetResolverType() const noexcept
 		{
 			return (Info.Flags & AI_PASSIVE ? DNSType::Listen : DNSType::Connect);
@@ -2070,125 +2061,178 @@ namespace Vitex
 			return Activations;
 		}
 
-		Uplinks::Uplinks() noexcept
+		Uplinks::Uplinks() noexcept : MaxDuplicates(1)
 		{
 			Multiplexer::Get()->Activate();
 		}
 		Uplinks::~Uplinks() noexcept
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto& Targets : Connections)
+			auto* Dispatcher = Multiplexer::Get();
+			Core::SingleQueue<Core::Promise<Socket*>> Queue;
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			for (auto& Item : Connections)
 			{
-				for (auto& Stream : Targets.second.Sockets)
+				for (auto& Stream : Item.second.Streams)
 				{
-					Stream->Shutdown();
+					Dispatcher->CancelEvents(Stream);
 					Core::Memory::Release(Stream);
 				}
+
+				while (!Item.second.Requests.empty())
+				{
+					Queue.push(std::move(Item.second.Requests.front()));
+					Item.second.Requests.pop();
+				}
 			}
+
+			MaxDuplicates = 0;
 			Connections.clear();
-			if (Network::Multiplexer::HasInstance())
-				Multiplexer::Get()->Deactivate();
-		}
-		void Uplinks::ExpireConnection(const SocketAddress& Address, Socket* Target)
-		{
-			ExpireConnectionHashCode(Address.GetHashCode(), Target);
-		}
-		void Uplinks::ExpireConnectionHashCode(size_t HashCode, Socket* Stream)
-		{
-			VI_ASSERT(Stream != nullptr, "socket should be set");
+			Dispatcher->Deactivate();
+			Unique.Negate();
+
+			while (!Queue.empty())
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(HashCode);
-				if (Targets == Connections.end())
-					return;
-
-				auto It = Targets->second.Sockets.find(Stream);
-				if (It == Targets->second.Sockets.end())
-					return;
-
-				VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), GetAddressIdentification(Targets->second.Address).c_str());
-				Targets->second.Sockets.erase(It);
-				if (Targets->second.Sockets.empty())
-					Connections.erase(Targets);
+				Queue.front().Set(nullptr);
+				Queue.pop();
 			}
-			Stream->CloseQueued([Stream](const Core::Option<std::error_condition>&) { Stream->Release(); });
 		}
-		void Uplinks::ListenConnectionHashCode(size_t HashCode, Socket* Target)
+		void Uplinks::SetMaxDuplicates(size_t Max)
 		{
-			Multiplexer::Get()->WhenReadable(Target, [this, HashCode, Target](SocketPoll Event)
+			MaxDuplicates = Max + 1;
+		}
+		void Uplinks::ListenConnection(Core::String&& Id, Socket* Stream)
+		{
+			Stream->AddRef();
+			Multiplexer::Get()->WhenReadable(Stream, [this, Id = std::move(Id), Stream](SocketPoll Event) mutable
 			{
 				if (Packet::IsError(Event))
-					return ExpireConnectionHashCode(HashCode, Target);
-				else if (Packet::IsSkip(Event))
-					return;
-			Retry:
-				uint8_t Buffer;
-				auto Status = Target->Read(&Buffer, sizeof(Buffer));
-				if (Status)
-					goto Retry;
-				else if (Status.Error() == std::errc::operation_would_block)
-					ListenConnectionHashCode(HashCode, Target);
-				else
-					ExpireConnectionHashCode(HashCode, Target);
+				{
+				Expire:
+					Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+					auto It = Connections.find(Id);
+					if (It != Connections.end())
+					{
+						auto Queue = std::move(It->second.Requests);
+						Core::UPtr<Socket> TargetStream = Stream;
+						Multiplexer::Get()->CancelEvents(Stream);
+						It->second.Streams.erase(Stream);
+						if (It->second.Streams.empty() && It->second.Requests.empty())
+							Connections.erase(It);
+						Unique.Negate();
+
+						VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), Id.c_str());
+						while (!Queue.empty())
+						{
+							Queue.front().Set(nullptr);
+							Queue.pop();
+						}
+					}
+				}
+				else if (!Packet::IsSkip(Event))
+				{
+				Retry:
+					uint8_t Buffer;
+					auto Status = Stream->Read(&Buffer, sizeof(Buffer));
+					if (Status)
+						goto Retry;
+					else if (Status.Error() != std::errc::operation_would_block)
+						goto Expire;
+					else
+						ListenConnection(std::move(Id), Stream);
+				}
+				Stream->Release();
 			});
-		}
-		void Uplinks::UnlistenConnection(Socket* Target)
-		{
-			Target->ClearEvents(false);
 		}
 		bool Uplinks::PushConnection(const SocketAddress& Address, Socket* Stream)
 		{
-			VI_ASSERT(Stream != nullptr, "socket should be set");
-			if (!Stream->IsValid())
+			if (!MaxDuplicates)
 				return false;
 
-			size_t HashCode = Address.GetHashCode();
+			auto Name = GetAddressIdentification(Address);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			auto It = Connections.find(Name);
+			if (It == Connections.end())
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(HashCode);
-				if (Targets == Connections.end())
-				{
-					auto& Pool = Connections[HashCode];
-					Pool.Address = Address;
-					Pool.Sockets.insert(Stream);
-				}
-				else
-					Targets->second.Sockets.insert(Stream);
+				if (!Stream)
+					return false;
+
+				VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+				auto& Pool = Connections[Name];
+				Pool.Streams.insert(Stream);
+				Stream->SetIoTimeout(0);
+				Stream->SetBlocking(false);
+				ListenConnection(std::move(Name), Stream);
+				return true;
 			}
+			else if (!It->second.Requests.empty())
+			{
+				auto Future = std::move(It->second.Requests.front());
+				It->second.Requests.pop();
+				Unique.Negate();
+				Future.Set(Stream);
+				if (!Stream)
+					return false;
+
+				VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+				return true;
+			}
+			else if (!Stream)
+			{
+				if (It->second.Streams.empty())
+					Connections.erase(It);
+				return false;
+			}
+			else if (It->second.Streams.size() >= MaxDuplicates)
+				return false;
+
+			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+			It->second.Streams.insert(Stream);
 			Stream->SetIoTimeout(0);
 			Stream->SetBlocking(false);
-			ListenConnectionHashCode(HashCode, Stream);
-			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), GetAddressIdentification(Address).c_str());
+			ListenConnection(std::move(Name), Stream);
 			return true;
 		}
-		Socket* Uplinks::PopConnection(const SocketAddress& Address)
+		Core::Promise<Socket*> Uplinks::PopConnection(const SocketAddress& Address)
 		{
-			size_t HashCode = Address.GetHashCode();
-			Socket* ReusableStream = nullptr;
+			if (!MaxDuplicates)
+				return Core::Promise<Socket*>(nullptr);
+
+			auto Name = GetAddressIdentification(Address);
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			auto It = Connections.find(Name);
+			if (It == Connections.end())
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto Targets = Connections.find(HashCode);
-				if (Targets == Connections.end() || Targets->second.Sockets.empty())
-					return nullptr;
-
-				auto It = Targets->second.Sockets.begin();
-				ReusableStream = *It;
-				Targets->second.Sockets.erase(It);
-
-				VI_DEBUG("[uplink] reuse fd %i of %s", (int)ReusableStream->GetFd(), GetAddressIdentification(Address).c_str());
-				if (Targets->second.Sockets.empty())
-					Connections.erase(Targets);
+				auto& Item = Connections[Name];
+				Item.Duplicates = MaxDuplicates - 1;
+				return Core::Promise<Socket*>(nullptr);
 			}
-			UnlistenConnection(ReusableStream);
-			return ReusableStream;
+			else if (It->second.Streams.empty())
+			{
+				if (It->second.Duplicates > 0)
+				{
+					--It->second.Duplicates;
+					return Core::Promise<Socket*>(nullptr);
+				}
+
+				Core::Promise<Socket*> Future;
+				It->second.Requests.push(Future);
+				return Future;
+			}
+
+			Socket* Stream = *It->second.Streams.begin();
+			Multiplexer::Get()->CancelEvents(Stream);
+			It->second.Streams.erase(It->second.Streams.begin());
+			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+			return Core::Promise<Socket*>(Stream);
+		}
+		size_t Uplinks::GetMaxDuplicates() const
+		{
+			return MaxDuplicates;
 		}
 		size_t Uplinks::GetSize()
 		{
-			size_t Size = 0;
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto& Targets : Connections)
-				Size += Targets.second.Sockets.size();
-			return Size;
+			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
+			return Connections.size();
 		}
 
 		CertificateBuilder::CertificateBuilder() noexcept
@@ -4251,9 +4295,8 @@ namespace Vitex
 		}
 		SocketClient::~SocketClient() noexcept
 		{
-			if (HasStream())
-				Net.Stream->Shutdown();
-			Core::Memory::Release(Net.Stream);
+			if (!TryStoreStream())
+				DestroyStream();
 #ifdef VI_OPENSSL
 			if (Net.Context != nullptr)
 			{
@@ -4284,46 +4327,41 @@ namespace Vitex
 			if (AsyncPolicyUpdated && !Async && Multiplexer::HasInstance())
 				Multiplexer::Get()->Deactivate();
 
-			bool IsReusing = TryReuseStream(Address);
 			Config.VerifyPeers = VerifyPeers;
 			Config.IsAsync = Async;
 			State.Address = Address;
 			if (AsyncPolicyUpdated && Async)
 				Multiplexer::Get()->Activate();
 
-			if (IsReusing)
-				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+			return TryReuseStream(Address).Then<Core::ExpectsPromiseSystem<void>>([this](bool&& IsReusing) -> Core::ExpectsPromiseSystem<void>
+			{
+				if (IsReusing)
+					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 
-			auto Status = Net.Stream->Open(State.Address);
-			if (!Status)
-				return Core::ExpectsPromiseSystem<void>(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::move(Status.Error())));
+				auto Status = Net.Stream->Open(State.Address);
+				if (!Status)
+					return Core::ExpectsPromiseSystem<void>(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::move(Status.Error())));
 
-			Core::ExpectsPromiseSystem<void> Future;
-			State.Done = [Future](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); };
-
-			auto* Context = this;
-			Net.Stream->SetBlocking(!Config.IsAsync);
-			Net.Stream->SetCloseOnExec();
-			Net.Stream->ConnectQueued(State.Address, std::bind(&SocketClient::DispatchConnection, this, std::placeholders::_1));
-			return Future;
+				ConfigureStream();
+				Core::ExpectsPromiseSystem<void> Future;
+				State.Done = [Future](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); };
+				Net.Stream->ConnectQueued(State.Address, std::bind(&SocketClient::DispatchConnection, this, std::placeholders::_1));
+				return Future;
+			});
 		}
 		Core::ExpectsPromiseSystem<void> SocketClient::Disconnect()
 		{
 			if (!HasStream())
 				return Core::ExpectsPromiseSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
-			if (Timeout.Cache && Cache != nullptr && Cache->PushConnection(State.Address, Net.Stream))
+			if (TryStoreStream())
 			{
-				Net.Stream = nullptr;
-				Timeout.Cache = false;
 				OnReuse();
 				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
 			}
 
 			Core::ExpectsPromiseSystem<void> Result;
 			State.Done = [Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Result.Set(std::move(Status)); };
-			Timeout.Cache = false;
 			OnDisconnect();
 			return Result;
 		}
@@ -4443,22 +4481,62 @@ namespace Vitex
 		{
 			OnConnect();
 		}
-		bool SocketClient::TryReuseStream(const SocketAddress& Address)
+		Core::Promise<bool> SocketClient::TryReuseStream(const SocketAddress& Address)
 		{
-			Uplinks* Cache = (Uplinks::HasInstance() ? Uplinks::Get() : nullptr);
-			Socket* ReusingStream = Cache ? Cache->PopConnection(Address) : nullptr;
-			if (ReusingStream != nullptr)
+			if (!Uplinks::HasInstance())
 			{
-				if (HasStream())
-					Net.Stream->Shutdown();
-				Core::Memory::Release(Net.Stream);
-				Net.Stream = ReusingStream;
+				CreateStream();
+				return Core::Promise<bool>(false);
 			}
-			else if (!Net.Stream)
+			
+			DestroyStream();
+			return Uplinks::Get()->PopConnection(Address).Then<bool>([this](Socket*&& ReusingStream)
+			{
+				Net.Stream = ReusingStream;
+				if (ReusingStream != nullptr)
+				{
+					ConfigureStream();
+					return true;
+				}
+
+				CreateStream();
+				return false;
+			});
+		}
+		bool SocketClient::TryStoreStream()
+		{
+			if (!Uplinks::HasInstance() || !Net.Stream)
+			{
+				Timeout.Cache = false;
+				return false;
+			}
+			else if (!Uplinks::Get()->PushConnection(State.Address, Timeout.Cache ? Net.Stream : nullptr))
+			{
+				Timeout.Cache = false;
+				return false;
+			}
+
+			Net.Stream = nullptr;
+			Timeout.Cache = false;
+			return true;
+		}
+		void SocketClient::CreateStream()
+		{
+			if (!Net.Stream)
 				Net.Stream = new Socket();
+		}
+		void SocketClient::ConfigureStream()
+		{
+			if (!Net.Stream)
+				return;
 
 			Net.Stream->SetIoTimeout(Timeout.Idle);
-			return ReusingStream != nullptr;
+			Net.Stream->SetBlocking(!Config.IsAsync);
+			Net.Stream->SetCloseOnExec();
+		}
+		void SocketClient::DestroyStream()
+		{
+			Core::Memory::Release(Net.Stream);
 		}
 		void SocketClient::EnableReusability()
 		{

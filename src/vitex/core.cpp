@@ -1610,11 +1610,11 @@ namespace Vitex
 
 			if (Data.Message.Size > 0)
 			{
-				auto* Base = Console::Get();
-				Base->Show();
+				auto* Terminal = Console::Get();
+				Terminal->Show();
 				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 				Dispatch(Data);
-				Base->FlushWrite();
+				Terminal->FlushWrite();
 			}
 
 			ErrorHandling::Pause();
@@ -1650,11 +1650,11 @@ namespace Vitex
 
 			if (Data.Message.Size > 0)
 			{
-				auto* Base = Console::Get();
-				Base->Show();
+				auto* Terminal = Console::Get();
+				Terminal->Show();
 				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
 				Dispatch(Data);
-				Base->FlushWrite();
+				Terminal->FlushWrite();
 			}
 
 			ErrorHandling::Pause();
@@ -1711,61 +1711,58 @@ namespace Vitex
 		}
 		void ErrorHandling::Dispatch(Details& Data) noexcept
 		{
+			InternalLogging = true;
 			if (HasCallback())
-			{
-				InternalLogging = true;
 				Context->Callback(Data);
-				InternalLogging = false;
-			}
 #if defined(VI_MICROSOFT) && !defined(NDEBUG)
 			OutputDebugStringA(GetMessageText(Data).c_str());
 #endif
-			if (!Console::IsAvailable())
-				return;
-
-			Console::Get()->Synced([&Data](Console* Base)
+			if (Console::IsAvailable())
 			{
-				if (!HasFlag(LogOption::Pretty))
-					Base->Write(GetMessageText(Data));
+				auto* Terminal = Console::Get();
+				if (HasFlag(LogOption::Pretty))
+					Terminal->Synced([&Data](Console* Terminal) { Colorify(Terminal, Data); });
 				else
-					Colorify(Base, Data);
-			});
+					Terminal->Write(GetMessageText(Data));
+			}
+			InternalLogging = false;
 		}
-		void ErrorHandling::Colorify(Console* Base, Details& Data) noexcept
+		void ErrorHandling::Colorify(Console* Terminal, Details& Data) noexcept
 		{
 #if VI_DLEVEL < 5
 			bool ParseTokens = Data.Type.Level != LogLevel::Trace && Data.Type.Level != LogLevel::Debug;
 #else
 			bool ParseTokens = Data.Type.Level != LogLevel::Trace;
 #endif
-			Base->ColorBegin(ParseTokens ? StdColor::Cyan : StdColor::Gray);
+			Terminal->ColorBegin(ParseTokens ? StdColor::Cyan : StdColor::Gray);
 			if (HasFlag(LogOption::Dated))
 			{
-				Base->Write(Data.Message.Date);
-				Base->Write(" ");
+				Terminal->Write(Data.Message.Date);
+				Terminal->Write(" ");
 #ifndef NDEBUG
 				if (Data.Origin.File != nullptr)
 				{
-					Base->ColorBegin(StdColor::Gray);
-					Base->Write(Data.Origin.File);
-					Base->Write(":");
+					Terminal->ColorBegin(StdColor::Gray);
+					Terminal->Write(Data.Origin.File);
+					Terminal->Write(":");
 					if (Data.Origin.Line > 0)
 					{
-						Base->Write(Core::ToString(Data.Origin.Line));
-						Base->Write(" ");
+						char Numeric[32];
+						Terminal->Write(Core::ToStringView(Numeric, sizeof(Numeric), Data.Origin.Line));
+						Terminal->Write(" ");
 					}
 				}
 #endif
 			}
-			Base->ColorBegin(GetMessageColor(Data));
-			Base->Write(GetMessageType(Data));
-			Base->Write(" ");
+			Terminal->ColorBegin(GetMessageColor(Data));
+			Terminal->Write(GetMessageType(Data));
+			Terminal->Write(" ");
 			if (ParseTokens)
-				Base->ColorPrint(StdColor::LightGray, std::string_view(Data.Message.Data, Data.Message.Size));
+				Terminal->ColorPrint(StdColor::LightGray, std::string_view(Data.Message.Data, Data.Message.Size));
 			else
-				Base->Write(Data.Message.Data);
-			Base->Write("\n");
-			Base->ColorEnd();
+				Terminal->Write(Data.Message.Data);
+			Terminal->Write("\n");
+			Terminal->ColorEnd();
 		}
 		void ErrorHandling::Pause() noexcept
 		{
@@ -6507,8 +6504,9 @@ namespace Vitex
 					BarContent += ' ';
 			}
 
+			char Numeric[32];
 			BarContent += "] ";
-			BarContent += ToString<uint32_t>((uint32_t)(Value * 100));
+			BarContent += ToStringView<uint32_t>(Numeric, sizeof(Numeric), (uint32_t)(Value * 100));
 			BarContent += " %";
 			ReplaceElement(Id, BarContent);
 		}
@@ -6589,8 +6587,9 @@ namespace Vitex
 					BarContent += ' ';
 			}
 
+			char Numeric[32];
 			BarContent += "] ";
-			BarContent += ToString<uint32_t>((uint32_t)(Value * 100));
+			BarContent += ToStringView<uint32_t>(Numeric, sizeof(Numeric), (uint32_t)(Value * 100));
 			BarContent += " %";
 			ReplaceElement(Id, BarContent);
 		}

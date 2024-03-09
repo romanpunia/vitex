@@ -9677,9 +9677,12 @@ namespace Vitex
 			}
 			Core::Promise<Network::LDB::Cursor> LDBClusterEmplaceQuery(Network::LDB::Cluster* Base, const std::string_view& Command, Array* Data, size_t Options, Network::LDB::SessionId Session)
 			{
-				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
-				for (auto& Item : Args)
+				Core::SchemaList Args;
+				for (auto& Item : Array::Decompose<Core::Schema*>(Data))
+				{
+					Args.emplace_back(Item);
 					Item->AddRef();
+				}
 
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->EmplaceQuery(Command, &Args, Options, Session).Then<Network::LDB::Cursor>([Context](Network::LDB::ExpectsDB<Network::LDB::Cursor>&& Result)
@@ -9753,9 +9756,12 @@ namespace Vitex
 			}
 			Core::String LDBDriverEmplace(Network::LDB::Driver* Base, const std::string_view& SQL, Array* Data)
 			{
-				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
-				for (auto& Item : Args)
+				Core::SchemaList Args;
+				for (auto& Item : Array::Decompose<Core::Schema*>(Data))
+				{
+					Args.emplace_back(Item);
 					Item->AddRef();
+				}
 
 				return ExpectsWrapper::Unwrap(Base->Emplace(SQL, &Args), Core::String());
 			}
@@ -9964,9 +9970,12 @@ namespace Vitex
 			}
 			Core::Promise<Network::PDB::Cursor> PDBClusterEmplaceQuery(Network::PDB::Cluster* Base, const std::string_view& Command, Array* Data, size_t Options, Network::PDB::Connection* Session)
 			{
-				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
-				for (auto& Item : Args)
+				Core::SchemaList Args;
+				for (auto& Item : Array::Decompose<Core::Schema*>(Data))
+				{
+					Args.emplace_back(Item);
 					Item->AddRef();
+				}
 
 				ImmediateContext* Context = ImmediateContext::Get();
 				return Base->EmplaceQuery(Command, &Args, Options, Session).Then<Network::PDB::Cursor>([Context](Network::PDB::ExpectsDB<Network::PDB::Cursor>&& Result)
@@ -10031,9 +10040,12 @@ namespace Vitex
 			}
 			Core::String PDBDriverEmplace(Network::PDB::Driver* Base, Network::PDB::Cluster* Cluster, const std::string_view& SQL, Array* Data)
 			{
-				Core::Vector<Core::Schema*> Args = Array::Decompose<Core::Schema*>(Data);
-				for (auto& Item : Args)
+				Core::SchemaList Args;
+				for (auto& Item : Array::Decompose<Core::Schema*>(Data))
+				{
+					Args.emplace_back(Item);
 					Item->AddRef();
+				}
 
 				return ExpectsWrapper::Unwrap(Base->Emplace(Cluster, SQL, &Args), Core::String());
 			}
@@ -10591,7 +10603,7 @@ namespace Vitex
 				}
 
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Base.TemplateQuery(Name, &Args, true, Session).Then<Network::MDB::Response>([Context](Network::MDB::ExpectsDB<Network::MDB::Response>&& Result)
+				return Base.TemplateQuery(Name, &Args, Session).Then<Network::MDB::Response>([Context](Network::MDB::ExpectsDB<Network::MDB::Response>&& Result)
 				{
 					return ExpectsWrapper::Unwrap(std::move(Result), Network::MDB::Response(), Context);
 				});
@@ -15925,6 +15937,7 @@ namespace Vitex
 				VI_TYPEREF(SocketListener, "socket_listener");
 				VI_TYPEREF(SocketConnection, "socket_connection");
 				VI_TYPEREF(SocketServer, "socket_server");
+				VI_TYPEREF(Socket, "socket@");
 				VI_TYPEREF(String, "string");
 
 				auto VSecureLayerOptions = VM->SetEnum("secure_layer_options");
@@ -15975,7 +15988,6 @@ namespace Vitex
 				VSocketAddress->SetMethod("int32 get_family() const", &Network::SocketAddress::GetFamily);
 				VSocketAddress->SetMethod("int32 get_type() const", &Network::SocketAddress::GetType);
 				VSocketAddress->SetMethod("int32 get_protocol() const", &Network::SocketAddress::GetProtocol);
-				VSocketAddress->SetMethod("usize get_hash_code() const", &Network::SocketAddress::GetHashCode);
 				VSocketAddress->SetMethod("dns_type get_resolver_type() const", &Network::SocketAddress::GetResolverType);
 				VSocketAddress->SetMethod("socket_protocol get_protocol_type() const", &Network::SocketAddress::GetProtocolType);
 				VSocketAddress->SetMethod("socket_type get_socket_type() const", &Network::SocketAddress::GetSocketType);
@@ -16156,9 +16168,10 @@ namespace Vitex
 
 				auto VUplinks = VM->SetClass<Network::Uplinks>("uplinks", false);
 				VUplinks->SetConstructor<Network::Uplinks>("uplinks@ f()");
-				VUplinks->SetMethod("void expire_connection(const socket_address&in, socket@+)", &Network::Uplinks::ExpireConnection);
+				VUplinks->SetMethod("void set_max_duplicates(usize)", &Network::Uplinks::SetMaxDuplicates);
 				VUplinks->SetMethod("bool push_connection(const socket_address&in, socket@+)", &Network::Uplinks::PushConnection);
-				VUplinks->SetMethod("bool pop_connection(const socket_address&in)", &Network::Uplinks::PopConnection);
+				VUplinks->SetMethodEx("promise<socket@>@ pop_connection(const socket_address&in)", &VI_PROMISIFY_REF(Network::Uplinks::PopConnection, Socket));
+				VUplinks->SetMethod("usize max_duplicates() const", &Network::Uplinks::GetMaxDuplicates);
 				VUplinks->SetMethod("usize size() const", &Network::Uplinks::GetSize);
 				VUplinks->SetMethodStatic("uplinks@+ get()", &Network::Uplinks::Get);
 
@@ -16774,8 +16787,6 @@ namespace Vitex
 				VIsolation->SetValue("default_value", (int)Network::LDB::Isolation::Default);
 
 				auto VQueryOp = VM->SetEnum("query_op");
-				VQueryOp->SetValue("delete_args", (int)Network::LDB::QueryOp::DeleteArgs);
-				VQueryOp->SetValue("reuse_args", (int)Network::LDB::QueryOp::ReuseArgs);
 				VQueryOp->SetValue("transaction_start", (int)Network::LDB::QueryOp::TransactionStart);
 				VQueryOp->SetValue("transaction_end", (int)Network::LDB::QueryOp::TransactionEnd);
 
@@ -16918,14 +16929,6 @@ namespace Vitex
 				VDriver->SetMethodStatic("driver@+ get()", &Network::LDB::Driver::Get);
 
 				VM->EndNamespace();
-				VM->BeginNamespace("ldb::utils");
-				VM->SetFunction("string inline_array(schema@+)", &VI_SEXPECTIFY(Network::LDB::Utils::InlineArray));
-				VM->SetFunction("string inline_query(schema@+, dictionary@+, const string_view&in = \"TRUE\")", &LDBUtilsInlineQuery);
-				VM->SetFunction("string get_char_array(const string_view&in)", &Network::LDB::Utils::GetCharArray);
-				VM->SetFunction<Core::String(*)(const std::string_view&)>("string get_byte_array(const string_view&in)", &Network::LDB::Utils::GetByteArray);
-				VM->SetFunction("string get_sql(schema@+, bool, bool)", &Network::LDB::Utils::GetSQL);
-				VM->EndNamespace();
-
 				return true;
 #else
 				VI_ASSERT(false, "<sqlite> is not loaded");
@@ -16948,8 +16951,6 @@ namespace Vitex
 				VIsolation->SetValue("default_value", (int)Network::PDB::Isolation::Default);
 
 				auto VQueryOp = VM->SetEnum("query_op");
-				VQueryOp->SetValue("delete_args", (int)Network::PDB::QueryOp::DeleteArgs);
-				VQueryOp->SetValue("reuse_args", (int)Network::PDB::QueryOp::ReuseArgs);
 				VQueryOp->SetValue("cache_short", (int)Network::PDB::QueryOp::CacheShort);
 				VQueryOp->SetValue("cache_mid", (int)Network::PDB::QueryOp::CacheMid);
 				VQueryOp->SetValue("cache_long", (int)Network::PDB::QueryOp::CacheLong);
@@ -17236,14 +17237,6 @@ namespace Vitex
 				VDriver->SetMethodStatic("driver@+ get()", &Network::PDB::Driver::Get);
 
 				VM->EndNamespace();
-				VM->BeginNamespace("pdb::utils");
-				VM->SetFunction("string inline_array(pdb::cluster@+, schema@+)", &VI_SEXPECTIFY(Network::PDB::Utils::InlineArray));
-				VM->SetFunction("string inline_query(pdb::cluster@+, schema@+, dictionary@+, const string_view&in = \"TRUE\")", &PDBUtilsInlineQuery);
-				VM->SetFunction("string get_char_array(pdb::connection@+, const string_view&in)", &Network::PDB::Utils::GetCharArray);
-				VM->SetFunction<Core::String(*)(Network::PDB::Connection*, const std::string_view&)>("string get_byte_array(pdb::connection@+, const string_view&in)", &Network::PDB::Utils::GetByteArray);
-				VM->SetFunction("string get_sql(pdb::connection@+, schema@+, bool, bool)", &Network::PDB::Utils::GetSQL);
-				VM->EndNamespace();
-
 				return true;
 #else
 				VI_ASSERT(false, "<postgresql> is not loaded");

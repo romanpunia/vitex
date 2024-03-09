@@ -372,7 +372,7 @@ namespace Vitex
 		class VI_OUT TypeCache : public Core::Singletonish
 		{
 		private:
-			static Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* Names;
+			static Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>* Names;
 
 		public:
 			static uint64_t Set(uint64_t Id, const std::string_view& Name);

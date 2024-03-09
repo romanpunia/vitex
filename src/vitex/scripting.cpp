@@ -287,17 +287,17 @@ namespace Vitex
 		{
 			VI_ASSERT(Id > 0 && !Name.empty(), "id should be greater than zero and name should not be empty");
 
-			using Map = Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>;
+			using Map = Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>;
 			if (!Names)
 				Names = Core::Memory::New<Map>();
 
-			Names->Map[Id] = std::make_pair(Name, (int)-1);
+			(*Names)[Id] = std::make_pair(Name, (int)-1);
 			return Id;
 		}
 		int TypeCache::GetTypeId(uint64_t Id)
 		{
-			auto It = Names->Map.find(Id);
-			if (It == Names->Map.end())
+			auto It = Names->find(Id);
+			if (It == Names->end())
 				return -1;
 
 			if (It->second.second < 0)
@@ -313,7 +313,7 @@ namespace Vitex
 		{
 			Core::Memory::Delete(Names);
 		}
-		Core::Mapping<Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>>* TypeCache::Names = nullptr;
+		Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>* TypeCache::Names = nullptr;
 
 		ExpectsVM<void> Parser::ReplaceInlinePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
 		{

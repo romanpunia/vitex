@@ -301,14 +301,6 @@ namespace Vitex
 		template <typename T>
 		using Unique = T*;
 
-		template <typename T>
-		struct Mapping
-		{
-			T Map;
-
-			~Mapping() = default;
-		};
-
 		struct Singletonish { };
 
 		struct VI_OUT MemoryLocation
@@ -376,7 +368,7 @@ namespace Vitex
 
 		public:
 			template <typename T>
-			static void Delete(T*& Value)
+			static inline void Delete(T*& Value)
 			{
 				if (Value != nullptr)
 				{
@@ -386,7 +378,7 @@ namespace Vitex
 				}
 			}
 			template <typename T>
-			static void Delete(T* const& Value)
+			static inline void Delete(T* const& Value)
 			{
 				if (Value != nullptr)
 				{
@@ -395,7 +387,7 @@ namespace Vitex
 				}
 			}
 			template <typename T>
-			static void Deallocate(T*& Value)
+			static inline void Deallocate(T*& Value)
 			{
 				if (Value != nullptr)
 				{
@@ -404,12 +396,12 @@ namespace Vitex
 				}
 			}
 			template <typename T>
-			static void Deallocate(T* const& Value)
+			static inline void Deallocate(T* const& Value)
 			{
 				DefaultDeallocate(static_cast<void*>(Value));
 			}
 			template <typename T>
-			static void Release(T*& Value)
+			static inline void Release(T*& Value)
 			{
 				if (Value != nullptr)
 				{
@@ -418,7 +410,7 @@ namespace Vitex
 				}
 			}
 			template <typename T>
-			static void Release(T* const& Value)
+			static inline void Release(T* const& Value)
 			{
 				if (Value != nullptr)
 					Value->Release();
@@ -998,7 +990,7 @@ namespace Vitex
 		private:
 			static void Enqueue(Details&& Data) noexcept;
 			static void Dispatch(Details& Data) noexcept;
-			static void Colorify(Console* Base, Details& Data) noexcept;
+			static void Colorify(Console* Terminal, Details& Data) noexcept;
 		};
 
 		class OptionUtils
@@ -2093,9 +2085,7 @@ namespace Vitex
 		};
 
 		typedef Vector<Variant> VariantList;
-		typedef Vector<Schema*> SchemaList;
 		typedef UnorderedMap<String, Variant> VariantArgs;
-		typedef UnorderedMap<String, Schema*> SchemaArgs;
 
 		struct VI_OUT TextSettle
 		{
@@ -2838,7 +2828,7 @@ namespace Vitex
 			}
 		};
 
-		template <typename T, bool Releaseable = false>
+		template <typename T, bool AsReference = false>
 		class UPtr
 		{
 		private:
@@ -2851,22 +2841,29 @@ namespace Vitex
 			UPtr(T* NewAddress) noexcept : Address(NewAddress)
 			{
 			}
-			UPtr(const UPtr& Other) noexcept = delete;
+			template <typename E>
+			explicit UPtr(const Expects<T*, E>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			{
+			}
+			explicit UPtr(const Option<T*>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			{
+			}
+			UPtr(const UPtr&) noexcept = delete;
 			UPtr(UPtr&& Other) noexcept : Address(Other.Address)
 			{
 				Other.Address = nullptr;
 			}
 			~UPtr()
 			{
-				Cleanup<T>();
+				Destroy();
 			}
-			UPtr& operator= (const UPtr& Other) noexcept = delete;
+			UPtr& operator= (const UPtr&) noexcept = delete;
 			UPtr& operator= (UPtr&& Other) noexcept
 			{
 				if (this == &Other)
 					return *this;
 
-				Cleanup<T>();
+				Destroy();
 				Address = Other.Address;
 				Other.Address = nullptr;
 				return *this;
@@ -2875,55 +2872,60 @@ namespace Vitex
 			{
 				return Address != nullptr;
 			}
-			T* operator-> ()
+			inline T* operator-> ()
 			{
 				VI_ASSERT(Address != nullptr, "unique null pointer access");
 				return Address;
 			}
-			T* operator* ()
+			inline T* operator-> () const
+			{
+				VI_ASSERT(Address != nullptr, "unique null pointer access");
+				return Address;
+			}
+			inline T* operator* ()
 			{
 				return Address;
 			}
-			T* operator* () const
+			inline T* operator* () const
 			{
 				return Address;
 			}
-			T** Out()
+			inline T** Out()
 			{
 				VI_ASSERT(!Address, "pointer should be null when performing output update");
 				return &Address;
 			}
-			T* const* In() const
+			inline T* const* In() const
 			{
 				return &Address;
 			}
-			T* Expect(const std::string_view& Message)
+			inline T* Expect(const std::string_view& Message)
 			{
 				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
 				return Address;
 			}
-			Unique<T> Reset()
+			inline T* Expect(const std::string_view& Message) const
+			{
+				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				return Address;
+			}
+			inline Unique<T> Reset()
 			{
 				T* Result = Address;
 				Address = nullptr;
 				return Result;
 			}
-
-		private:
-			template <typename Q>
-			inline typename std::enable_if<std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value && !Releaseable, void>::type Cleanup()
+			inline void Destroy()
 			{
-				Memory::Deallocate<T>(Address);
-			}
-			template <typename Q>
-			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && !std::is_base_of<Reference<Q>, Q>::value && !Releaseable, void>::type Cleanup()
-			{
-				Memory::Delete<T>(Address);
-			}
-			template <typename Q>
-			inline typename std::enable_if<!std::is_trivially_default_constructible<Q>::value && (std::is_base_of<Reference<Q>, Q>::value || Releaseable), void>::type Cleanup()
-			{
-				Memory::Release<T>(Address);
+				if constexpr (!std::is_base_of<Reference<T>, T>::value && !AsReference)
+				{
+					if constexpr (std::is_trivially_default_constructible<T>::value)
+						Memory::Deallocate<T>(Address);
+					else
+						Memory::Delete<T>(Address);
+				}
+				else
+					Memory::Release<T>(Address);
 			}
 		};
 
@@ -2931,31 +2933,103 @@ namespace Vitex
 		class UMutex
 		{
 		private:
+#ifndef NDEBUG
+#ifdef VI_CXX20
+			std::source_location Location;
+#endif
+			int64_t Diff;
+#endif
 			T& Mutex;
 			bool Owns;
 
 		public:
+			UMutex(const UMutex&) noexcept = delete;
+			UMutex(UMutex&&) noexcept = delete;
+			~UMutex()
+			{
+#ifndef NDEBUG
+				Unlock();
+#else
+				if (Owns)
+					Mutex.unlock();
+#endif
+			}
+			UMutex& operator= (const UMutex&) noexcept = delete;
+			UMutex& operator= (UMutex&&) noexcept = delete;
+#ifndef NDEBUG
+#ifdef VI_CXX20
+			UMutex(T& NewMutex, std::source_location&& NewLocation = std::source_location::current()) noexcept : Location(std::move(NewLocation)), Diff(0), Mutex(NewMutex), Owns(false)
+			{
+				Lock();
+			}
+#else
+			UMutex(T& NewMutex) noexcept : Diff(0), Mutex(NewMutex), Owns(false)
+			{
+				Lock();
+			}
+#endif
+			inline void Negate()
+			{
+				if (Owns)
+					Unlock();
+				else
+					Lock();
+			}
+			inline void Lock()
+			{
+				if (Owns)
+					return;
+
+				auto Time = std::chrono::system_clock::now().time_since_epoch();
+				Owns = true;
+				Mutex.lock();
+				Diff = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch() - Time).count();
+			}
+			inline void Unlock()
+			{
+				if (!Owns)
+					return;
+
+				Mutex.unlock();
+				Owns = false;
+				if (Diff <= (int64_t)Timings::Pass * 1000000)
+					return;
+#ifdef VI_CXX20
+				VI_WARN("[stall] %s:%i mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", OS::Path::GetFilename(Location.file_name()).data(), (int)Location.line(), Diff / 1000000, Diff, (uint64_t)Timings::Pass);
+#else
+				VI_WARN("[stall] mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", Diff / 1000000, Diff, (uint64_t)Timings::Pass);
+#endif
+			}
+#else
 			UMutex(T& NewMutex) noexcept : Mutex(NewMutex), Owns(true)
 			{
 				Mutex.lock();
 			}
-			UMutex(const UMutex& Other) noexcept = delete;
-			UMutex(UMutex&& Other) noexcept = delete;
-			~UMutex()
-			{
-				if (Owns)
-					Mutex.unlock();
-			}
-			UMutex& operator= (const UMutex& Other) noexcept = delete;
-			UMutex& operator= (UMutex&& Other) noexcept = delete;
 			inline void Negate()
 			{
-				if (Owns)
-					Mutex.unlock();
-				else
-					Mutex.lock();
 				Owns = !Owns;
+				if (Owns)
+					Mutex.lock();
+				else
+					Mutex.unlock();
 			}
+			inline void Lock()
+			{
+				if (!Owns)
+				{
+					Owns = true;
+					Mutex.lock();
+				}
+			}
+			inline void Unlock()
+			{
+				if (Owns)
+				{
+					Mutex.unlock();
+					Owns = false;
+				}
+			}
+#endif
 		};
 
 		template <typename T>
@@ -2971,15 +3045,15 @@ namespace Vitex
 			{
 				Memory::SetLocalAllocator(&NewAllocator);
 			}
-			UAlloc(const UAlloc& Other) noexcept = delete;
-			UAlloc(UAlloc&& Other) noexcept = delete;
+			UAlloc(const UAlloc&) noexcept = delete;
+			UAlloc(UAlloc&&) noexcept = delete;
 			~UAlloc()
 			{
 				Memory::SetLocalAllocator(nullptr);
 				Allocator.Reset();
 			}
-			UAlloc& operator= (const UAlloc& Other) noexcept = delete;
-			UAlloc& operator= (UAlloc&& Other) noexcept = delete;
+			UAlloc& operator= (const UAlloc&) noexcept = delete;
+			UAlloc& operator= (UAlloc&&) noexcept = delete;
 		};
 
 		class VI_OUT_TS Console final : public Singleton<Console>
@@ -3665,6 +3739,9 @@ namespace Vitex
 			static std::chrono::microseconds GetClock();
 		};
 
+		typedef Vector<UPtr<Schema>> SchemaList;
+		typedef UnorderedMap<String, UPtr<Schema>> SchemaArgs;
+
 		template <>
 		class UAlloc<Schedule>
 		{
@@ -3998,7 +4075,6 @@ namespace Vitex
 		class BasicPromise
 		{
 		public:
-			using promise_type = BasicPromise;
 			typedef PromiseState<T> Status;
 			typedef T Type;
 
@@ -4192,84 +4268,7 @@ namespace Vitex
 
 				return Result;
 			}
-#ifdef VI_CXX20
-			bool await_ready() const noexcept
-			{
-				return !IsPending();
-			}
-			T&& await_resume() noexcept
-			{
-				return Load();
-			}
-			void await_suspend(std::coroutine_handle<> Handle) noexcept
-			{
-				if (!IsPending())
-					return Handle.resume();
 
-				Status* Copy = AddRef();
-#ifndef NDEBUG
-				std::chrono::microseconds Time = Schedule::GetClock();
-				VI_WATCH(Handle.address(), typeid(Handle).name());
-				Store([Copy, Time, Handle]()
-				{
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-
-					VI_UNWATCH(Handle.address());
-					Handle.resume();
-					Release(Copy);
-				});
-#else
-				Store([Copy, Handle]()
-				{
-					Handle.resume();
-					Release(Copy);
-				});
-#endif
-			}
-			void return_value(const BasicPromise& NewValue) noexcept
-			{
-				Set(NewValue);
-			}
-			void return_value(const T& NewValue) noexcept
-			{
-				Set(NewValue);
-			}
-			void return_value(T&& NewValue) noexcept
-			{
-				Set(std::move(NewValue));
-			}
-			void unhandled_exception() noexcept
-			{
-			}
-			auto get_return_object() noexcept
-			{
-				return *this;
-			}
-			std::suspend_never initial_suspend() const noexcept
-			{
-				return { };
-			}
-			std::suspend_never final_suspend() const noexcept
-			{
-				return { };
-			}
-#if !defined(_MSC_VER) || defined(NDEBUG)
-			void* operator new(size_t Size) noexcept
-			{
-				return Memory::Allocate<BasicPromise>(Size);
-			}
-			void operator delete(void* Address) noexcept
-			{
-				Memory::Deallocate<void>(Address);
-			}
-			static auto get_return_object_on_allocation_failure() noexcept
-			{
-				return Null();
-			}
-#endif // E3394 Intellisense false positive
-#endif
 		private:
 			BasicPromise(Status* Context, bool) noexcept : Data(Context)
 			{
@@ -4316,13 +4315,99 @@ namespace Vitex
 				if (State != nullptr && !--State->Count)
 					Memory::Delete(State);
 			}
+#ifdef VI_CXX20
+		public:
+			struct promise_type
+			{
+				BasicPromise State;
+
+				void return_value(const BasicPromise& NewValue) noexcept
+				{
+					State.Set(NewValue);
+				}
+				void return_value(const T& NewValue) noexcept
+				{
+					State.Set(NewValue);
+				}
+				void return_value(T&& NewValue) noexcept
+				{
+					State.Set(std::move(NewValue));
+				}
+				void unhandled_exception() noexcept
+				{
+					VI_PANIC(false, "a coroutine has thrown an exception (invalid behaviour)");
+				}
+				auto get_return_object() noexcept
+				{
+					return State;
+				}
+				std::suspend_never initial_suspend() const noexcept
+				{
+					return { };
+				}
+				std::suspend_never final_suspend() const noexcept
+				{
+					return { };
+				}
+#if !defined(_MSC_VER) || defined(NDEBUG)
+				void* operator new(size_t Size) noexcept
+				{
+					return Memory::Allocate<promise_type>(Size);
+				}
+				void operator delete(void* Address) noexcept
+				{
+					Memory::Deallocate<void>(Address);
+				}
+				static auto get_return_object_on_allocation_failure() noexcept
+				{
+					return BasicPromise::Null();
+				}
+#endif // E3394 Intellisense false positive
+			};
+
+		public:
+			bool await_ready() const noexcept
+			{
+				return !IsPending();
+			}
+			T&& await_resume() noexcept
+			{
+				return Load();
+			}
+			void await_suspend(std::coroutine_handle<> Handle) noexcept
+			{
+				if (!IsPending())
+					return Handle.resume();
+
+				Status* Copy = AddRef();
+#ifndef NDEBUG
+				std::chrono::microseconds Time = Schedule::GetClock();
+				VI_WATCH(Handle.address(), typeid(Handle).name());
+				Store([Copy, Time, Handle]()
+				{
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+
+					VI_UNWATCH(Handle.address());
+					Handle.resume();
+					Release(Copy);
+				});
+#else
+				Store([Copy, Handle]()
+				{
+					Handle.resume();
+					Release(Copy);
+				});
+#endif
+			}
+#endif
 		};
 
 		template <typename Executor>
 		class BasicPromise<void, Executor>
 		{
 		public:
-			using promise_type = BasicPromise;
 			typedef PromiseState<void> Status;
 			typedef void Type;
 
@@ -4524,78 +4609,7 @@ namespace Vitex
 
 				return Result;
 			}
-#ifdef VI_CXX20
-			bool await_ready() const noexcept
-			{
-				return !IsPending();
-			}
-			void await_resume() noexcept
-			{
-			}
-			void await_suspend(std::coroutine_handle<> Handle) noexcept
-			{
-				if (!IsPending())
-					return Handle.resume();
 
-				Status* Copy = AddRef();
-#ifndef NDEBUG
-				std::chrono::microseconds Time = Schedule::GetClock();
-				VI_WATCH(Handle.address(), typeid(Handle).name());
-				Store([Copy, Time, Handle]()
-				{
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-
-					VI_UNWATCH(Handle.address());
-					Handle.resume();
-					Release(Copy);
-				});
-#else
-				Store([Copy, Handle]()
-				{
-					Handle.resume();
-					Release(Copy);
-				});
-#endif
-			}
-			void return_value(const BasicPromise& NewValue) noexcept
-			{
-				Set(NewValue);
-			}
-			void return_void() noexcept
-			{
-			}
-			void unhandled_exception() noexcept
-			{
-			}
-			auto get_return_object() noexcept
-			{
-				return *this;
-			}
-			std::suspend_never initial_suspend() const noexcept
-			{
-				return { };
-			}
-			std::suspend_never final_suspend() const noexcept
-			{
-				return { };
-			}
-#if !defined(_MSC_VER) || defined(NDEBUG)
-			void* operator new(size_t Size) noexcept
-			{
-				return Memory::Allocate<BasicPromise>(Size);
-			}
-			void operator delete(void* Address) noexcept
-			{
-				Memory::Deallocate<void>(Address);
-			}
-			static auto get_return_object_on_allocation_failure() noexcept
-			{
-				return Null();
-			}
-#endif // E3394 Intellisense false positive
-#endif
 		private:
 			BasicPromise(Status* Context, bool) noexcept : Data(Context)
 			{
@@ -4640,6 +4654,84 @@ namespace Vitex
 				if (State != nullptr && !--State->Count)
 					Memory::Delete(State);
 			}
+#ifdef VI_CXX20
+		public:
+			struct promise_type
+			{
+				BasicPromise State;
+
+				void return_void() noexcept
+				{
+					State.Set();
+				}
+				void unhandled_exception() noexcept
+				{
+					VI_PANIC(false, "a coroutine has thrown an exception (invalid behaviour)");
+				}
+				auto get_return_object() noexcept
+				{
+					return State;
+				}
+				std::suspend_never initial_suspend() const noexcept
+				{
+					return { };
+				}
+				std::suspend_never final_suspend() const noexcept
+				{
+					return { };
+				}
+#if !defined(_MSC_VER) || defined(NDEBUG)
+				void* operator new(size_t Size) noexcept
+				{
+					return Memory::Allocate<BasicPromise>(Size);
+				}
+				void operator delete(void* Address) noexcept
+				{
+					Memory::Deallocate<void>(Address);
+				}
+				static auto get_return_object_on_allocation_failure() noexcept
+				{
+					return BasicPromise::Null();
+				}
+#endif // E3394 Intellisense false positive
+			};
+
+		public:
+			bool await_ready() const noexcept
+			{
+				return !IsPending();
+			}
+			void await_resume() noexcept
+			{
+			}
+			void await_suspend(std::coroutine_handle<> Handle) noexcept
+			{
+				if (!IsPending())
+					return Handle.resume();
+
+				Status* Copy = AddRef();
+#ifndef NDEBUG
+				std::chrono::microseconds Time = Schedule::GetClock();
+				VI_WATCH(Handle.address(), typeid(Handle).name());
+				Store([Copy, Time, Handle]()
+				{
+					int64_t Diff = (Schedule::GetClock() - Time).count();
+					if (Diff > (int64_t)Timings::Hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+
+					VI_UNWATCH(Handle.address());
+					Handle.resume();
+					Release(Copy);
+				});
+#else
+				Store([Copy, Handle]()
+				{
+					Handle.resume();
+					Release(Copy);
+				});
+#endif
+			}
+#endif
 		};
 
 		template <typename T, typename Executor>
@@ -5053,6 +5145,6 @@ namespace Vitex
 			char Buffer[32];
 			return String(ToStringView<T>(Buffer, sizeof(Buffer), Other, Base));
 		}
+		}
 	}
-}
 #endif

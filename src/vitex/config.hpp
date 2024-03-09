@@ -117,7 +117,7 @@ typedef socklen_t socket_size_t;
 #endif
 #ifdef NDEBUG
 #ifdef VI_PESSIMISTIC
-#define VI_ASSERT(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Assert(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
+#define VI_ASSERT(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Panic(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
 #else
 #define VI_ASSERT(Condition, Format, ...) ((void)0)
 #endif

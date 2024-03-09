@@ -251,7 +251,7 @@ namespace Vitex
 				ExpectsDB<void> InsertOne(const Document& Result, const Document& Options);
 				ExpectsDB<void> UpdateOne(const Document& Match, const Document& Result, const Document& Options);
 				ExpectsDB<void> UpdateMany(const Document& Match, const Document& Result, const Document& Options);
-				ExpectsDB<void> TemplateQuery(const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				ExpectsDB<void> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map);
 				ExpectsDB<void> Query(const Document& Command);
 				ExpectsPromiseDB<Document> ExecuteWithReply();
 				ExpectsPromiseDB<void> Execute();
@@ -366,7 +366,7 @@ namespace Vitex
 				ExpectsPromiseDB<Cursor> FindMany(Collection& Base, const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> FindOne(Collection& Base, const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> Aggregate(Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options);
-				ExpectsPromiseDB<Response> TemplateQuery(Collection& Base, const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
+				ExpectsPromiseDB<Response> TemplateQuery(Collection& Base, const std::string_view& Name, Core::SchemaArgs* Map);
 				ExpectsPromiseDB<Response> Query(Collection& Base, const Document& Command);
 				Core::Promise<TransactionState> Commit();
 				TTransaction* Get() const;
@@ -409,7 +409,7 @@ namespace Vitex
 				ExpectsPromiseDB<Cursor> FindMany(const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> FindOne(const Document& Match, const Document& Options);
 				ExpectsPromiseDB<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options);
-				ExpectsPromiseDB<Response> TemplateQuery(const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, const Transaction& Session = Transaction());
+				ExpectsPromiseDB<Response> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, const Transaction& Session = Transaction());
 				ExpectsPromiseDB<Response> Query(const Document& Command, const Transaction& Session = Transaction());
 				Core::String GetName() const;
 				ExpectsDB<Stream> CreateStream(Document& Options);
@@ -581,7 +581,7 @@ namespace Vitex
 				bool RemoveQuery(const std::string_view& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				ExpectsDB<Document> GetQuery(const std::string_view& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true) noexcept;
+				ExpectsDB<Document> GetQuery(const std::string_view& Name, Core::SchemaArgs* Map) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

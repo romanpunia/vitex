@@ -49,11 +49,9 @@ namespace Vitex
 
 			enum class QueryOp
 			{
-				DeleteArgs = 0,
-				ReuseArgs = (1 << 0),
-				CacheShort = (1 << 1),
-				CacheMid = (1 << 2),
-				CacheLong = (1 << 3)
+				CacheShort = (1 << 0),
+				CacheMid = (1 << 1),
+				CacheLong = (1 << 2)
 			};
 
 			enum class AddressOp
@@ -584,8 +582,8 @@ namespace Vitex
 			class VI_OUT_TS Utils
 			{
 			public:
-				static ExpectsDB<Core::String> InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
-				static ExpectsDB<Core::String> InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default = "TRUE");
+				static ExpectsDB<Core::String> InlineArray(Cluster* Client, Core::UPtr<Core::Schema>&& Array);
+				static ExpectsDB<Core::String> InlineQuery(Cluster* Client, Core::UPtr<Core::Schema>&& Where, const Core::UnorderedMap<Core::String, Core::String>& Whitelist, const std::string_view& Default = "TRUE");
 				static Core::String GetCharArray(Connection* Base, const std::string_view& Src) noexcept;
 				static Core::String GetByteArray(Connection* Base, const std::string_view& Src) noexcept;
 				static Core::String GetSQL(Connection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;
@@ -628,8 +626,8 @@ namespace Vitex
 				bool RemoveQuery(const std::string_view& Name) noexcept;
 				bool LoadCacheDump(Core::Schema* Dump) noexcept;
 				Core::Schema* GetCacheDump() noexcept;
-				ExpectsDB<Core::String> Emplace(Cluster* Base, const std::string_view& SQL, Core::SchemaList* Map, bool Once = true) noexcept;
-				ExpectsDB<Core::String> GetQuery(Cluster* Base, const std::string_view& Name, Core::SchemaArgs* Map, bool Once = true) noexcept;
+				ExpectsDB<Core::String> Emplace(Cluster* Base, const std::string_view& SQL, Core::SchemaList* Map) noexcept;
+				ExpectsDB<Core::String> GetQuery(Cluster* Base, const std::string_view& Name, Core::SchemaArgs* Map) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
 			};
 		}

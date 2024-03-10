@@ -16255,6 +16255,7 @@ namespace Vitex
 				VSocketClient->SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
 				VSocketClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
 				VSocketClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
+				VSocketClient->SetMethod("void apply_reusability(bool)", &Network::SocketClient::ApplyReusability);
 				VSocketClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
 				VSocketClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
 				VSocketClient->SetMethod("bool is_verified() const", &Network::SocketClient::IsVerified);
@@ -16681,6 +16682,7 @@ namespace Vitex
 				VClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
 				VClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
 				VClient->SetMethod("bool is_verified() const", &Network::SocketClient::IsVerified);
+				VClient->SetMethod("void apply_reusability(bool)", &Network::SocketClient::ApplyReusability);
 				VClient->SetMethod("const socket_address& get_peer_address() const", &Network::SocketClient::GetPeerAddress);
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("websocket_frame@+ get_websocket() const", &Network::HTTP::Client::GetWebSocket);
@@ -16760,6 +16762,7 @@ namespace Vitex
 				VClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
 				VClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
 				VClient->SetMethod("bool is_verified() const", &Network::SocketClient::IsVerified);
+				VClient->SetMethod("void apply_reusability(bool)", &Network::SocketClient::ApplyReusability);
 				VClient->SetMethod("const socket_address& get_peer_address() const", &Network::SocketClient::GetPeerAddress);
 				VClient->SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
 				VClient->SetMethod("request_frame& get_request() property", &Network::SMTP::Client::GetRequest);

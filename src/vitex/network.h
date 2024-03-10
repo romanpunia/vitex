@@ -685,7 +685,7 @@ namespace Vitex
 			struct
 			{
 				int64_t Idle = 0;
-				bool Cache = false;
+				int8_t Cache = -1;
 			} Timeout;
 
 			struct
@@ -712,6 +712,7 @@ namespace Vitex
 			virtual ~SocketClient() noexcept;
 			Core::ExpectsPromiseSystem<void> Connect(const SocketAddress& Address, bool Async, int32_t VerifyPeers = PEER_NOT_SECURE);
 			Core::ExpectsPromiseSystem<void> Disconnect();
+			void ApplyReusability(bool KeepAlive);
 			const SocketAddress& GetPeerAddress() const;
 			bool HasStream() const;
 			bool IsSecure() const;

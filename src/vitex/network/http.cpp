@@ -102,7 +102,7 @@ namespace Vitex
 					return std::string_view(Buffer, 0);
 				}
 
-				char Number[32]; size_t Size = 0;
+				char Numeric[Core::NUMSTR_SIZE]; size_t Size = 0;
 				auto AppendText = [&Buffer, &Size](const char* Text, size_t TextSize) { memcpy(Buffer + Size, Text, TextSize); Size += TextSize; };
 				auto AppendView = [&Buffer, &Size](const std::string_view& Text) { memcpy(Buffer + Size, Text.data(), Text.size()); Size += Text.size(); };
 				auto AppendChar = [&Buffer, &Size](char Text) { memcpy(Buffer + Size++, &Text, 1); };
@@ -114,11 +114,11 @@ namespace Vitex
 					AppendChar('0' + Date.tm_mday);
 				}
 				else
-					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_mday));
+					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_mday));
 				AppendChar(' ');
 				AppendText(Months[Date.tm_mon], 3);
 				AppendChar(' ');
-				AppendView(Core::ToStringView(Number, sizeof(Number), (uint32_t)(Date.tm_year + 1900)));
+				AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint32_t)(Date.tm_year + 1900)));
 				AppendChar(' ');
 				if (Date.tm_hour < 10)
 				{
@@ -126,7 +126,7 @@ namespace Vitex
 					AppendChar('0' + Date.tm_hour);
 				}
 				else
-					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_hour));
+					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_hour));
 				AppendChar(':');
 				if (Date.tm_min < 10)
 				{
@@ -134,7 +134,7 @@ namespace Vitex
 					AppendChar('0' + Date.tm_min);
 				}
 				else
-					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_min));
+					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_min));
 				AppendChar(':');
 				if (Date.tm_sec < 10)
 				{
@@ -142,7 +142,7 @@ namespace Vitex
 					AppendChar('0' + Date.tm_sec);
 				}
 				else
-					AppendView(Core::ToStringView(Number, sizeof(Number), (uint8_t)Date.tm_sec));
+					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_sec));
 				AppendText(" GMT\0", 5);
 				return std::string_view(Buffer, Size - 1);
 			}
@@ -3963,7 +3963,7 @@ namespace Vitex
 					Content.append("Connection: Keep-Alive\r\n");
 					if (Router->SocketTimeout > 0)
 					{
-						char Timeout[32];
+						char Timeout[Core::NUMSTR_SIZE];
 						Content.append("Keep-Alive: timeout=");
 						Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->SocketTimeout / 1000));
 						Content.append("\r\n");
@@ -3977,7 +3977,7 @@ namespace Vitex
 					return;
 				}
 
-				char Timeout[32];
+				char Timeout[Core::NUMSTR_SIZE];
 				Content.append("Connection: Keep-Alive\r\nKeep-Alive: ");
 				if (Router->SocketTimeout > 0)
 				{
@@ -6796,10 +6796,38 @@ namespace Vitex
 			{
 				auto Connection = Response.Headers.find("Connection");
 				if (Connection == Response.Headers.end())
+				{
+				CheckProtocol:
+					auto AltSvc = Response.Headers.find("Alt-Svc");
+					if (AltSvc == Response.Headers.end())
+						return DisableReusability();
+
+					const char Prefix[] = "=\":";
+					char Hostname[sizeof(Prefix) + Core::NUMSTR_SIZE];
+					memcpy(Hostname, Prefix, sizeof(Prefix) - 1);
+
+					auto Port = State.Address.GetIpPort();
+					auto Service = Port ? Core::ToStringView<uint16_t>(Hostname + (sizeof(Prefix) - 1), sizeof(Hostname) - (sizeof(Prefix) - 1), *Port) : std::string_view();
+					Service = std::string_view(Hostname, (sizeof(Prefix) - 1) + Service.size());
+					
+					for (auto& Command : AltSvc->second)
+					{
+						size_t PrefixIndex = Command.find('h');
+						if (PrefixIndex == std::string::npos || ++PrefixIndex + 1 >= Command.size())
+							continue;
+						else if (Command[PrefixIndex] != '2' && Command[PrefixIndex] != '3')
+							continue;
+						else if (Command[PrefixIndex + 1] == '-')
+							while (++PrefixIndex < Command.size() && Core::Stringify::IsNumeric(Command[PrefixIndex]));
+						if (Command.find(Service, PrefixIndex) != std::string::npos)
+							return EnableReusability();
+					}
+
 					return DisableReusability();
+				}
 
 				if (Connection->second.size() != 1 || !Core::Stringify::CaseEquals(Connection->second.front(), "keep-alive"))
-					return DisableReusability();
+					goto CheckProtocol;
 
 				return EnableReusability();
 			}

@@ -1747,7 +1747,7 @@ namespace Vitex
 					Terminal->Write(":");
 					if (Data.Origin.Line > 0)
 					{
-						char Numeric[32];
+						char Numeric[NUMSTR_SIZE];
 						Terminal->Write(Core::ToStringView(Numeric, sizeof(Numeric), Data.Origin.Line));
 						Terminal->Write(" ");
 					}
@@ -6504,7 +6504,7 @@ namespace Vitex
 					BarContent += ' ';
 			}
 
-			char Numeric[32];
+			char Numeric[NUMSTR_SIZE];
 			BarContent += "] ";
 			BarContent += ToStringView<uint32_t>(Numeric, sizeof(Numeric), (uint32_t)(Value * 100));
 			BarContent += " %";
@@ -6587,7 +6587,7 @@ namespace Vitex
 					BarContent += ' ';
 			}
 
-			char Numeric[32];
+			char Numeric[NUMSTR_SIZE];
 			BarContent += "] ";
 			BarContent += ToStringView<uint32_t>(Numeric, sizeof(Numeric), (uint32_t)(Value * 100));
 			BarContent += " %";

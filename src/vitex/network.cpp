@@ -4507,17 +4507,17 @@ namespace Vitex
 		{
 			if (!Uplinks::HasInstance() || !Net.Stream)
 			{
-				Timeout.Cache = false;
+				Timeout.Cache = -1;
 				return false;
 			}
-			else if (!Uplinks::Get()->PushConnection(State.Address, Timeout.Cache ? Net.Stream : nullptr))
+			else if (!Uplinks::Get()->PushConnection(State.Address, Timeout.Cache > 0 ? Net.Stream : nullptr))
 			{
-				Timeout.Cache = false;
+				Timeout.Cache = -1;
 				return false;
 			}
 
 			Net.Stream = nullptr;
-			Timeout.Cache = false;
+			Timeout.Cache = -1;
 			return true;
 		}
 		void SocketClient::CreateStream()
@@ -4538,13 +4538,19 @@ namespace Vitex
 		{
 			Core::Memory::Release(Net.Stream);
 		}
+		void SocketClient::ApplyReusability(bool KeepAlive)
+		{
+			Timeout.Cache = KeepAlive ? 0 : 1;
+		}
 		void SocketClient::EnableReusability()
 		{
-			Timeout.Cache = true;
+			if (Timeout.Cache < 0)
+				Timeout.Cache = 1;
 		}
 		void SocketClient::DisableReusability()
 		{
-			Timeout.Cache = false;
+			if (Timeout.Cache < 0)
+				Timeout.Cache = 0;
 		}
 		void SocketClient::Report(Core::ExpectsSystem<void>&& Status)
 		{

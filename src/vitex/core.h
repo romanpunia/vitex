@@ -54,9 +54,10 @@ namespace Vitex
 		enum
 		{
 			INVALID_TASK_ID = (TaskId)0,
-			STACK_SIZE = (size_t)(512 * 1024),
+			NUMSTR_SIZE = (size_t)32,
 			CHUNK_SIZE = (size_t)2048,
-			BLOB_SIZE = (size_t)8192
+			BLOB_SIZE = (size_t)8192,
+			STACK_SIZE = (size_t)(512 * 1024)
 		};
 
 		enum class Timings : uint64_t

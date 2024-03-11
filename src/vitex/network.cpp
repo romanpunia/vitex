@@ -1769,7 +1769,7 @@ namespace Vitex
 		Multiplexer::Multiplexer() noexcept : Multiplexer(100, 256)
 		{
 		}
-		Multiplexer::Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept : Activations(0), Handle(MaxEvents), DefaultTimeout(DispatchTimeout)
+		Multiplexer::Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept : Handle(MaxEvents), Activations(0), DefaultTimeout(DispatchTimeout)
 		{
 			VI_TRACE("[net] OK initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
 			Fds.resize(MaxEvents);
@@ -3797,7 +3797,7 @@ namespace Vitex
 			}
 		}
 
-		SocketServer::SocketServer() noexcept : Router(nullptr), State(ServerState::Idle), ShutdownTimeout((uint64_t)Core::Timings::Hangup), Backlog(1024)
+		SocketServer::SocketServer() noexcept : Router(nullptr), ShutdownTimeout((uint64_t)Core::Timings::Hangup), Backlog(1024), State(ServerState::Idle)
 		{
 			Multiplexer::Get()->Activate();
 		}
@@ -4153,7 +4153,6 @@ namespace Vitex
 			Base->Info.Finish = Utils::Clock();
 			OnRequestClose(Base);
 
-			Base->Stream->Income = Base->Stream->Outcome = 0;
 			Base->Stream->SetIoTimeout(Router->SocketTimeout);
 			if (Base->Info.Abort || !Base->Info.Reuses)
 				return Base->Stream->CloseQueued([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });

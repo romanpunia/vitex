@@ -44,6 +44,7 @@ extern "C"
 #define HTTP_WEBSOCKET_LEGACY_KEY_SIZE 8
 #define HTTP_MAX_REDIRECTS 128
 #define HTTP_HRM_SIZE 1024 * 1024 * 4
+#define HTTP_KIMV_LOAD_FACTOR 64
 #define GZ_HEADER_SIZE 17
 #pragma warning(push)
 #pragma warning(disable: 4996)
@@ -146,6 +147,16 @@ namespace Vitex
 				AppendText(" GMT\0", 5);
 				return std::string_view(Buffer, Size - 1);
 			}
+			static void CleanupHashMap(KimvUnorderedMap& Map)
+			{
+				if (Map.size() <= HTTP_KIMV_LOAD_FACTOR)
+				{
+					for (auto& Item : Map)
+						Item.second.clear();
+				}
+				else
+					Map.clear();
+			}
 
 			MimeStatic::MimeStatic(const std::string_view& Ext, const std::string_view& T) : Extension(Ext), Type(T)
 			{
@@ -161,7 +172,7 @@ namespace Vitex
 				SetExpires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream, void* NewUserData) : State((uint32_t)WebSocketState::Open), Tunneling((uint32_t)Tunnel::Healthy), Active(true), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec()), UserData(NewUserData)
+			WebSocketFrame::WebSocketFrame(Socket* NewStream, void* NewUserData) : Stream(NewStream), Codec(new WebCodec()), State((uint32_t)WebSocketState::Open), Tunneling((uint32_t)Tunnel::Healthy), Active(true), Deadly(false), Busy(false), UserData(NewUserData)
 			{
 			}
 			WebSocketFrame::~WebSocketFrame() noexcept
@@ -907,10 +918,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return nullptr;
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return nullptr;
 
 				auto& Result = It->second.back();
@@ -920,10 +928,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return "";
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return "";
 
 				return It->second.back();
@@ -955,11 +960,11 @@ namespace Vitex
 			{
 				memset(Method, 0, sizeof(Method));
 				memset(Version, 0, sizeof(Version));
+				CleanupHashMap(Headers);
+				CleanupHashMap(Cookies);
 				User.Type = Auth::Unverified;
 				User.Token.clear();
 				Content.Cleanup();
-				Headers.clear();
-				Cookies.clear();
 				Query.clear();
 				Path.clear();
 				Location.clear();
@@ -1018,10 +1023,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return nullptr;
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return nullptr;
 
 				auto& Result = It->second.back();
@@ -1031,10 +1033,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return "";
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return "";
 
 				return It->second.back();
@@ -1049,10 +1048,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end())
-					return nullptr;
-
-				if (It->second.empty())
+				if (It == Cookies.end() || It->second.empty())
 					return nullptr;
 
 				auto& Result = It->second.back();
@@ -1062,10 +1058,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end())
-					return "";
-
-				if (It->second.empty())
+				if (It == Cookies.end() || It->second.empty())
 					return "";
 
 				return It->second.back();
@@ -1184,10 +1177,10 @@ namespace Vitex
 			}
 			void ResponseFrame::Cleanup()
 			{
+				CleanupHashMap(Headers);
 				StatusCode = -1;
 				Error = false;
 				Cookies.clear();
-				Headers.clear();
 				Content.Cleanup();
 			}
 			Core::String& ResponseFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
@@ -1243,10 +1236,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return nullptr;
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return nullptr;
 
 				auto& Result = It->second.back();
@@ -1256,10 +1246,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return "";
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return "";
 
 				return It->second.back();
@@ -1373,14 +1360,14 @@ namespace Vitex
 				return Offset >= Length || Data.size() >= Length;
 			}
 
-			FetchFrame::FetchFrame() : Timeout(10000), VerifyPeers(9), MaxSize(PAYLOAD_SIZE)
+			FetchFrame::FetchFrame() : Timeout(10000), MaxSize(PAYLOAD_SIZE), VerifyPeers(9)
 			{
 			}
 			void FetchFrame::Cleanup()
 			{
+				CleanupHashMap(Headers);
+				CleanupHashMap(Cookies);
 				Content.Cleanup();
-				Headers.clear();
-				Cookies.clear();
 			}
 			Core::String& FetchFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
 			{
@@ -1435,10 +1422,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return nullptr;
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return nullptr;
 
 				auto& Result = It->second.back();
@@ -1448,10 +1432,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Label.empty(), "label should not be empty");
 				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return "";
-
-				if (It->second.empty())
+				if (It == Headers.end() || It->second.empty())
 					return "";
 
 				return It->second.back();
@@ -1466,10 +1447,7 @@ namespace Vitex
 			{
 				VI_ASSERT(!Key.empty(), "key should not be empty");
 				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end())
-					return nullptr;
-
-				if (It->second.empty())
+				if (It == Cookies.end() || It->second.empty())
 					return nullptr;
 
 				auto& Result = It->second.back();
@@ -1583,7 +1561,6 @@ namespace Vitex
 				VI_ASSERT(!Route || (Route->Router && Route->Router->Base), "router should be valid");
 				if (!Fully)
 					Info.Abort = (Info.Abort || Response.StatusCode <= 0);
-
 				if (Route != nullptr)
 					Route = Route->Router->Base;
 				Request.Cleanup();
@@ -2186,6 +2163,13 @@ namespace Vitex
 			{
 				Response.StatusCode = StatusCode;
 				return Next();
+			}
+			bool Connection::IsSkipRequired() const
+			{
+				if (!Request.Content.Resources.empty() || Request.Content.IsFinalized() || Request.Content.Exceeds || !Stream->IsValid())
+					return false;
+
+				return true;
 			}
 			Core::ExpectsIO<Core::String> Connection::GetPeerIpAddress() const
 			{
@@ -6094,6 +6078,9 @@ namespace Vitex
 			{
 				VI_ASSERT(Target != nullptr, "connection should be set");
 				auto Base = (HTTP::Connection*)Target;
+				if (!Base->IsSkipRequired())
+					return true;
+
 				return Base->Skip([](HTTP::Connection* Base)
 				{
 					Base->Root->Finalize(Base);

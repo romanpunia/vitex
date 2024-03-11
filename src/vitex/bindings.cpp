@@ -16613,6 +16613,7 @@ namespace Vitex
 				VConnection->SetMethod<Network::SocketConnection, bool>("bool abort()", &Network::SocketConnection::Abort);
 				VConnection->SetMethodEx("bool abort(int32, const string_view&in)", &SocketConnectionAbort);
 				VConnection->SetMethod("void reset(bool)", &Network::HTTP::Connection::Reset);
+				VConnection->SetMethod("bool is_skip_required() const", &Network::HTTP::Connection::IsSkipRequired);
 				VConnection->SetMethodEx("promise<bool>@ send_headers(int32, bool = true) const", &VI_SPROMISIFY(ConnectionSendHeaders, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<bool>@ send_chunk(const string_view&in) const", &VI_SPROMISIFY(ConnectionSendChunk, TypeId::BOOL));
 				VConnection->SetMethodEx("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(ConnectionStore, ArrayResourceInfo));

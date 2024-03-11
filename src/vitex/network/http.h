@@ -580,6 +580,7 @@ namespace Vitex
 				bool Store(ResourceCallback&& Callback = nullptr, bool Eat = false);
 				bool Skip(SuccessCallback&& Callback);
 				Core::ExpectsIO<Core::String> GetPeerIpAddress() const;
+				bool IsSkipRequired() const;
 
 			private:
 				bool ComposeResponse(bool ApplyErrorResponse, bool ApplyBodyInline, HeadersCallback&& Callback);

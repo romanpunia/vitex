@@ -2931,6 +2931,115 @@ namespace Vitex
 		};
 
 		template <typename T>
+		class URef
+		{
+			static_assert(std::is_base_of<Reference<T>, T>::value, "unique reference type should be based on reference");
+
+		private:
+			T* Address;
+
+		public:
+			URef() noexcept : Address(nullptr)
+			{
+			}
+			URef(T* NewAddress) noexcept : Address(NewAddress)
+			{
+			}
+			template <typename E>
+			explicit URef(const Expects<T*, E>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			{
+			}
+			explicit URef(const Option<T*>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			{
+			}
+			URef(const URef& Other) noexcept : Address(Other.Address)
+			{
+				if (Address != nullptr)
+					Address->AddRef();
+			}
+			URef(URef&& Other) noexcept : Address(Other.Address)
+			{
+				Other.Address = nullptr;
+			}
+			~URef()
+			{
+				Destroy();
+			}
+			URef& operator= (const URef& Other) noexcept
+			{
+				if (this == &Other)
+					return *this;
+
+				Destroy();
+				Address = Other.Address;
+				if (Address != nullptr)
+					Address->AddRef();
+				return *this;
+			}
+			URef& operator= (URef&& Other) noexcept
+			{
+				if (this == &Other)
+					return *this;
+
+				Destroy();
+				Address = Other.Address;
+				Other.Address = nullptr;
+				return *this;
+			}
+			explicit operator bool() const
+			{
+				return Address != nullptr;
+			}
+			inline T* operator-> ()
+			{
+				VI_ASSERT(Address != nullptr, "unique null pointer access");
+				return Address;
+			}
+			inline T* operator-> () const
+			{
+				VI_ASSERT(Address != nullptr, "unique null pointer access");
+				return Address;
+			}
+			inline T* operator* ()
+			{
+				return Address;
+			}
+			inline T* operator* () const
+			{
+				return Address;
+			}
+			inline T** Out()
+			{
+				VI_ASSERT(!Address, "pointer should be null when performing output update");
+				return &Address;
+			}
+			inline T* const* In() const
+			{
+				return &Address;
+			}
+			inline T* Expect(const std::string_view& Message)
+			{
+				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				return Address;
+			}
+			inline T* Expect(const std::string_view& Message) const
+			{
+				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				return Address;
+			}
+			inline Unique<T> Reset()
+			{
+				T* Result = Address;
+				Address = nullptr;
+				return Result;
+			}
+			inline void Destroy()
+			{
+				Memory::Release<T>(Address);
+			}
+		};
+
+		template <typename T>
 		class UMutex
 		{
 		private:

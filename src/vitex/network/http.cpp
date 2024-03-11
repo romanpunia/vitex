@@ -44,7 +44,7 @@ extern "C"
 #define HTTP_WEBSOCKET_LEGACY_KEY_SIZE 8
 #define HTTP_MAX_REDIRECTS 128
 #define HTTP_HRM_SIZE 1024 * 1024 * 4
-#define HTTP_KIMV_LOAD_FACTOR 64
+#define HTTP_KIMV_LOAD_FACTOR 48
 #define GZ_HEADER_SIZE 17
 #pragma warning(push)
 #pragma warning(disable: 4996)

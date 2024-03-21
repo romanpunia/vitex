@@ -2698,9 +2698,12 @@ namespace Vitex
 			}
 			void Release() noexcept
 			{
-				VI_ASSERT(__vcnt > 0 && Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				VI_ASSERT(__vcnt > 0, "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
 				if (!--__vcnt)
+				{
+					VI_ASSERT(Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " is not a valid heap address as %s at %s()", (void*)this, typeid(T).name(), __func__);
 					delete (T*)this;
+				}
 				else
 					__vmrk = 0;
 			}

@@ -9977,7 +9977,7 @@ namespace Vitex
 			if (Code != Z_OK)
 			{
 				Core::Memory::Deallocate(Buffer);
-				return CompressionException(Code, "buffer compression using comress2 error");
+				return CompressionException(Code, "buffer compression using compress2 error");
 			}
 
 			Core::String Output((char*)Buffer, (size_t)Size);
@@ -10010,7 +10010,7 @@ namespace Vitex
 				else if (Code != Z_OK)
 				{
 					Core::Memory::Deallocate(Buffer);
-					return CompressionException(Code, "buffer decompression using uncomress2 error");
+					return CompressionException(Code, "buffer decompression using uncompress2 error");
 				}
 
 				Core::String Output((char*)Buffer, (size_t)Size);

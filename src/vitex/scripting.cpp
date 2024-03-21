@@ -2854,8 +2854,7 @@ namespace Vitex
 				auto Status = VM->GenerateCode(Processor, File.Module, Output);
 				if (!Status)
 					return Status.Error();
-
-				if (Output.empty())
+				else if (Output.empty())
 					return Compute::IncludeType::Virtual;
 
 				return VM->AddScriptSection(Scope, File.Module, Output) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
@@ -3204,7 +3203,9 @@ namespace Vitex
 			auto Status = VM->GenerateCode(Processor, *Source, Code);
 			if (!Status)
 				return VirtualException(std::move(Status.Error().message()));
-
+			else if (Code.empty())
+				return Core::Expectation::Met;
+			
 			auto Result = VM->AddScriptSection(Scope, *Source, Code);
 			if (Result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
@@ -3226,6 +3227,8 @@ namespace Vitex
 			auto Status = VM->GenerateCode(Processor, Name, Buffer);
 			if (!Status)
 				return VirtualException(std::move(Status.Error().message()));
+			else if (Buffer.empty())
+				return Core::Expectation::Met;
 
 			auto Result = VM->AddScriptSection(Scope, Name, Buffer);
 			if (Result)

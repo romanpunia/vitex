@@ -2199,6 +2199,15 @@ namespace Vitex
 				return Class;
 			}
 			template <typename T>
+			ExpectsVM<RefClass> SetInterfaceClass(const std::string_view& Name)
+			{
+				auto RefType = GetTypeInfoByName(Name);
+				if (RefType.IsValid())
+					return RefClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+
+				return SetClassAddress(Name, sizeof(T), (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::NOCOUNT);
+			}
+			template <typename T>
 			ExpectsVM<TemplateClass> SetTemplateClass(const std::string_view& Decl, const std::string_view& Name, bool GC)
 			{
 				auto RefType = GetTypeInfoByDecl(Decl);

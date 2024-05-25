@@ -19,6 +19,8 @@ namespace Vitex
 
 			class Cursor;
 
+			class Connection;
+
 			class Cluster;
 
 			class Driver;
@@ -163,6 +165,7 @@ namespace Vitex
 
 			class VI_OUT Response
 			{
+				friend Connection;
 				friend Cluster;
 				friend Row;
 				friend Column;
@@ -255,6 +258,7 @@ namespace Vitex
 
 			class VI_OUT Cursor
 			{
+				friend Connection;
 				friend Cluster;
 
 			private:
@@ -309,6 +313,50 @@ namespace Vitex
 				{
 					return Base.end();
 				}
+			};
+
+			class VI_OUT_TS Connection final : public Core::Reference<Connection>
+			{
+				friend Driver;
+
+			private:
+				Core::Vector<OnFunctionResult*> Functions;
+				Core::Vector<Aggregate*> Aggregates;
+				Core::Vector<Window*> Windows;
+				Core::String Source;
+				TConnection* Handle;
+				Driver* LibraryHandle;
+				std::mutex Update;
+
+			public:
+				Connection();
+				~Connection() noexcept;
+				void SetWalAutocheckpoint(uint32_t MaxFrames);
+				void SetSoftHeapLimit(uint64_t Memory);
+				void SetHardHeapLimit(uint64_t Memory);
+				void SetSharedCache(bool Enabled);
+				void SetExtensions(bool Enabled);
+				void SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context);
+				void SetAggregateFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Aggregate> Context);
+				void SetWindowFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Window> Context);
+				void OverloadFunction(const std::string_view& Name, uint8_t Args);
+				Core::Vector<Checkpoint> WalCheckpoint(CheckpointMode Mode, const std::string_view& Database = std::string_view());
+				size_t FreeMemoryUsed(size_t Bytes);
+				size_t GetMemoryUsed() const;
+				ExpectsDB<SessionId> TxBegin(Isolation Type);
+				ExpectsDB<SessionId> TxStart(const std::string_view& Command);
+				ExpectsDB<void> TxEnd(const std::string_view& Command, SessionId Session);
+				ExpectsDB<void> TxCommit(SessionId Session);
+				ExpectsDB<void> TxRollback(SessionId Session);
+				ExpectsDB<void> Connect(const std::string_view& Location);
+				ExpectsDB<void> Disconnect();
+				ExpectsDB<void> Flush();
+				ExpectsDB<Cursor> EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsDB<Cursor> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				ExpectsDB<Cursor> Query(const std::string_view& Command, size_t QueryOps = 0, SessionId Session = nullptr);
+				TConnection* GetConnection();
+				const Core::String& GetAddress();
+				bool IsConnected();
 			};
 
 			class VI_OUT_TS Cluster final : public Core::Reference<Cluster>
@@ -371,8 +419,6 @@ namespace Vitex
 				Core::Promise<TConnection*> AcquireConnection(SessionId Session, size_t Opts);
 				void ReleaseConnection(TConnection* Connection, size_t Opts);
 				ExpectsDB<void> ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement);
-				void ConsumeColumns(TStatement* Statement, Response* Result);
-				void ConsumeRow(TStatement* Statement, Response* Result);
 			};
 
 			class VI_OUT_TS Utils

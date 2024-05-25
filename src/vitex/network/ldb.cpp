@@ -465,6 +465,411 @@ namespace Vitex
 				return Base[ResponseIndex].GetArray(Index);
 			}
 
+			Connection::Connection()
+			{
+				LibraryHandle = Driver::Get();
+				if (LibraryHandle != nullptr)
+					LibraryHandle->AddRef();
+			}
+			Connection::~Connection() noexcept
+			{
+#ifdef VI_SQLITE
+				if (Handle != nullptr)
+				{
+					sqlite3_close(Handle);
+					Handle = nullptr;
+				}
+#endif
+				for (auto* Item : Functions)
+					Core::Memory::Delete(Item);
+				for (auto* Item : Aggregates)
+					Core::Memory::Release(Item);
+				for (auto* Item : Windows)
+					Core::Memory::Release(Item);
+				Functions.clear();
+				Aggregates.clear();
+				Windows.clear();
+				Core::Memory::Release(LibraryHandle);
+			}
+			void Connection::SetWalAutocheckpoint(uint32_t MaxFrames)
+			{
+#ifdef VI_SQLITE
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+					sqlite3_wal_autocheckpoint(Handle, (int)MaxFrames);
+#endif
+			}
+			void Connection::SetSoftHeapLimit(uint64_t Memory)
+			{
+#ifdef VI_SQLITE
+				Core::UMutex<std::mutex> Unique(Update);
+				sqlite3_soft_heap_limit64((int64_t)Memory);
+#endif
+			}
+			void Connection::SetHardHeapLimit(uint64_t Memory)
+			{
+#ifdef VI_SQLITE
+				Core::UMutex<std::mutex> Unique(Update);
+				sqlite3_hard_heap_limit64((int64_t)Memory);
+#endif
+			}
+			void Connection::SetSharedCache(bool Enabled)
+			{
+#ifdef VI_SQLITE
+				Core::UMutex<std::mutex> Unique(Update);
+				sqlite3_enable_shared_cache((int)Enabled);
+#endif
+			}
+			void Connection::SetExtensions(bool Enabled)
+			{
+#ifdef VI_SQLITE
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+					sqlite3_enable_load_extension(Handle, (int)Enabled);
+#endif
+			}
+			void Connection::SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context)
+			{
+#ifdef VI_SQLITE
+				VI_ASSERT(Context != nullptr, "callable should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				Core::UMutex<std::mutex> Unique(Update);
+				OnFunctionResult* Callable = Core::Memory::New<OnFunctionResult>(std::move(Context));
+				if (Handle != nullptr)
+					sqlite3_create_function_v2(Handle, Name.data(), (int)Args, SQLITE_UTF8, Callable, &sqlite3_function_call, nullptr, nullptr, nullptr);
+				Functions.push_back(Callable);
+#endif
+			}
+			void Connection::SetAggregateFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Aggregate> Context)
+			{
+#ifdef VI_SQLITE
+				VI_ASSERT(Context != nullptr, "callable should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+					sqlite3_create_function_v2(Handle, Name.data(), (int)Args, SQLITE_UTF8, Context, nullptr, &sqlite3_aggregate_step_call, &sqlite3_aggregate_finalize_call, nullptr);
+				Aggregates.push_back(Context);
+#endif
+			}
+			void Connection::SetWindowFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Window> Context)
+			{
+#ifdef VI_SQLITE
+				VI_ASSERT(Context != nullptr, "callable should be set");
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+					sqlite3_create_window_function(Handle, Name.data(), (int)Args, SQLITE_UTF8, Context, &sqlite3_window_step_call, &sqlite3_window_finalize_call, &sqlite3_window_value_call, &sqlite3_window_inverse_call, nullptr);
+				Windows.push_back(Context);
+#endif
+			}
+			void Connection::OverloadFunction(const std::string_view& Name, uint8_t Args)
+			{
+#ifdef VI_SQLITE
+				VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+					sqlite3_overload_function(Handle, Name.data(), (int)Args);
+#endif
+			}
+			Core::Vector<Checkpoint> Connection::WalCheckpoint(CheckpointMode Mode, const std::string_view& Database)
+			{
+				VI_ASSERT(Database.empty() || Core::Stringify::IsCString(Database), "database should be set");
+				Core::Vector<Checkpoint> Checkpoints;
+#ifdef VI_SQLITE
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+				{
+					int FramesSize, FramesCount;
+					Checkpoint Result;
+					Result.Status = sqlite3_wal_checkpoint_v2(Handle, Database.empty() ? nullptr : Database.data(), (int)Mode, &FramesSize, &FramesCount);
+					Result.FramesSize = (uint32_t)FramesSize;
+					Result.FramesCount = (uint32_t)FramesCount;
+					Result.Database = Database;
+					Checkpoints.push_back(std::move(Result));
+				}
+#endif
+				return Checkpoints;
+			}
+			size_t Connection::FreeMemoryUsed(size_t Bytes)
+			{
+#ifdef VI_SQLITE
+				int Freed = sqlite3_release_memory((int)Bytes);
+				return Freed >= 0 ? (size_t)Freed : 0;
+#else
+				return 0;
+#endif
+			}
+			size_t Connection::GetMemoryUsed() const
+			{
+#ifdef VI_SQLITE
+				return (size_t)sqlite3_memory_used();
+#else
+				return 0;
+#endif
+			}
+			ExpectsDB<SessionId> Connection::TxBegin(Isolation Type)
+			{
+				switch (Type)
+				{
+					case Isolation::Immediate:
+						return TxStart("BEGIN IMMEDIATE TRANSACTION");
+					case Isolation::Exclusive:
+						return TxStart("BEGIN EXCLUSIVE TRANSACTION");
+					case Isolation::Deferred:
+					default:
+						return TxStart("BEGIN TRANSACTION");
+				}
+			}
+			ExpectsDB<SessionId> Connection::TxStart(const std::string_view& Command)
+			{
+				auto Result = Query(Command, (size_t)QueryOp::TransactionStart);
+				if (!Result)
+					return Result.Error();
+				else if (Result->Success())
+					return Result->GetExecutor();
+
+				return DatabaseException("transaction start error");
+			}
+			ExpectsDB<void> Connection::TxEnd(const std::string_view& Command, SessionId Session)
+			{
+				auto Result = Query(Command, (size_t)QueryOp::TransactionEnd, Session);
+				if (!Result)
+					return Result.Error();
+				else if (Result->Success())
+					return Core::Expectation::Met;
+
+				return DatabaseException("transaction end error");
+			}
+			ExpectsDB<void> Connection::TxCommit(SessionId Session)
+			{
+				return TxEnd("COMMIT", Session);
+			}
+			ExpectsDB<void> Connection::TxRollback(SessionId Session)
+			{
+				return TxEnd("ROLLBACK", Session);
+			}
+			ExpectsDB<void> Connection::Connect(const std::string_view& Location)
+			{
+#ifdef VI_SQLITE
+				bool IsInMemory = Location == ":memory:";
+				if (IsInMemory)
+				{
+					if (!Core::OS::Control::Has(Core::AccessOption::Mem))
+						return ExpectsDB<void>(DatabaseException("connect failed: permission denied"));
+				}
+				else if (!Core::OS::Control::Has(Core::AccessOption::Fs))
+					return ExpectsDB<void>(DatabaseException("connect failed: permission denied"));
+				else if (IsConnected())
+					Disconnect();
+
+				Core::UMutex<std::mutex> Unique(Update);
+				Source = Location;
+				Unique.Negate();
+
+				VI_MEASURE(Core::Timings::Intensive);
+				VI_DEBUG("[sqlite] try open database %s", Source.c_str());
+
+				int Flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI | SQLITE_OPEN_NOMUTEX;
+				if (IsInMemory)
+					Flags |= SQLITE_OPEN_MEMORY;
+
+				int Code = sqlite3_open_v2(Source.c_str(), &Handle, Flags, nullptr);
+				if (Code != SQLITE_OK)
+				{
+					DatabaseException Error(Handle);
+					sqlite3_close(Handle);
+					Handle = nullptr;
+					return Error;
+				}
+
+				VI_DEBUG("[sqlite] OK open database on 0x%" PRIXPTR, (uintptr_t)Handle);
+				return Core::Expectation::Met;
+#else
+				return ExpectsDB<void>(DatabaseException("connect: not supported"));
+#endif
+			}
+			ExpectsDB<void> Connection::Disconnect()
+			{
+#ifdef VI_SQLITE
+				if (!IsConnected())
+					return ExpectsDB<void>(DatabaseException("disconnect: not connected"));
+
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+				{
+					sqlite3_close(Handle);
+					Handle = nullptr;
+				}
+				return Core::Expectation::Met;
+#else
+				return ExpectsDB<void>(DatabaseException("disconnect: not supported"));
+#endif
+			}
+			ExpectsDB<void> Connection::Flush()
+			{
+#ifdef VI_SQLITE
+				if (!IsConnected())
+					return ExpectsDB<void>(DatabaseException("flush: not connected"));
+
+				Core::UMutex<std::mutex> Unique(Update);
+				if (Handle != nullptr)
+					sqlite3_db_cacheflush(Handle);
+				return Core::Expectation::Met;
+#else
+				return ExpectsDB<void>(DatabaseException("flush: not supported"));
+#endif
+			}
+			ExpectsDB<Cursor> Connection::EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
+			{
+				auto Template = Driver::Get()->Emplace(Command, Map);
+				if (!Template)
+					return ExpectsDB<Cursor>(Template.Error());
+
+				return Query(*Template, Opts, Session);
+			}
+			ExpectsDB<Cursor> Connection::TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
+			{
+				VI_DEBUG("[sqlite] template query %s", Name.empty() ? "empty-query-name" : Core::String(Name).c_str());
+				auto Template = Driver::Get()->GetQuery(Name, Map);
+				if (!Template)
+					return ExpectsDB<Cursor>(Template.Error());
+
+				return Query(*Template, Opts, Session);
+			}
+			ExpectsDB<Cursor> Connection::Query(const std::string_view& Command, size_t Opts, SessionId Session)
+			{
+				VI_ASSERT(!Command.empty(), "command should not be empty");
+#ifdef VI_SQLITE
+				Core::String QueryCommand = Core::String(Command);
+				Driver::Get()->LogQuery(Command);
+				Core::String Statement = std::move(QueryCommand);
+				if (!Handle)
+					return ExpectsDB<Cursor>(DatabaseException("acquire connection error: no candidate"));
+
+				auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+				VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Handle, Session ? " (transaction)" : "", Statement.data(), Statement.size() > 64 ? " ..." : "");
+
+				Cursor Result(Handle);
+				while (!Statement.empty())
+				{
+					VI_MEASURE(Core::Timings::Intensive);
+					const char* TrailingStatement = nullptr;
+					sqlite3_stmt* Target = nullptr;
+					Result.Base.emplace_back();
+
+					auto& Context = Result.Base.back();
+					int Code = sqlite3_prepare_v2(Handle, Statement.c_str(), (int)Statement.size(), &Target, &TrailingStatement);
+					if (TrailingStatement != nullptr)
+						Statement.erase(Statement.begin(), Statement.begin() + (TrailingStatement - Statement.c_str()));
+					else
+						Statement.clear();
+
+					if (Code != SQLITE_OK)
+						goto StopExecution;
+				NextReturnable:
+					Code = sqlite3_step(Target);
+					if (Context.Columns.empty())
+					{
+						int Columns = sqlite3_column_count(Target);
+						if (Columns > 0 && Columns > (int)Context.Columns.size())
+						{
+							Context.Columns.reserve((int)Columns);
+							for (int i = 0; i < Columns; i++)
+								Context.Columns.push_back(sqlite3_column_name(Target, i));
+						}
+					}
+					switch (Code)
+					{
+						case SQLITE_ROW:
+						{
+							Context.Values.emplace_back();
+							auto& Row = Context.Values.back();
+							if (!Context.Columns.empty())
+							{
+								int Columns = (int)Context.Columns.size();
+								Row.reserve(Context.Columns.size());
+								for (int i = 0; i < Columns; i++)
+								{
+									switch (sqlite3_column_type(Target, i))
+									{
+										case SQLITE_INTEGER:
+											Row.push_back(Core::Var::Integer(sqlite3_column_int64(Target, i)));
+											break;
+										case SQLITE_FLOAT:
+											Row.push_back(Core::Var::Number(sqlite3_column_double(Target, i)));
+											break;
+										case SQLITE_TEXT:
+										{
+											std::string_view Text((const char*)sqlite3_column_text(Target, i), (size_t)sqlite3_column_bytes(Target, i));
+											if (Core::Stringify::HasDecimal(Text))
+												Row.push_back(Core::Var::DecimalString(Text));
+											else if (Core::Stringify::HasInteger(Text))
+												Row.push_back(Core::Var::Integer(Core::FromString<int64_t>(Text).Or(0)));
+											else if (Core::Stringify::HasNumber(Text))
+												Row.push_back(Core::Var::Number(Core::FromString<double>(Text).Or(0.0)));
+											else
+												Row.push_back(Core::Var::String(Text));
+											break;
+										}
+										case SQLITE_BLOB:
+										{
+											const uint8_t* Blob = (const uint8_t*)sqlite3_column_blob(Target, i);
+											size_t BlobSize = (size_t)sqlite3_column_bytes(Target, i);
+											Row.push_back(Core::Var::Binary(Blob ? Blob : (uint8_t*)"", BlobSize));
+											break;
+										}
+										case SQLITE_NULL:
+											Row.push_back(Core::Var::Null());
+											break;
+										default:
+											Row.push_back(Core::Var::Undefined());
+											break;
+									}
+								}
+							}
+							goto NextReturnable;
+						}
+						case SQLITE_DONE:
+							goto NextStatement;
+						case SQLITE_ERROR:
+						default:
+							goto StopExecution;
+					}
+				NextStatement:
+					Context.StatusCode = SQLITE_OK;
+					Context.Stats.AffectedRows = sqlite3_changes64(Handle);
+					Context.Stats.LastInsertedRowId = sqlite3_last_insert_rowid(Handle);
+					sqlite3_finalize(Target);
+					continue;
+				StopExecution:
+					int Error = sqlite3_errcode(Handle);
+					Context.StatusCode = Error == SQLITE_OK ? Code : Error;
+					Context.StatusMessage = Error == SQLITE_OK ? sqlite3_errstr(Code) : sqlite3_errmsg(Handle);
+					if (Target != nullptr)
+						sqlite3_finalize(Target);
+					return DatabaseException(Core::String(Context.StatusMessage));
+				}
+
+				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Handle, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count()); (void)Time;
+				return ExpectsDB<Cursor>(std::move(Result));
+#else
+				return ExpectsDB<Cursor>(DatabaseException("query: not supported"));
+#endif
+			}
+			TConnection* Connection::GetConnection()
+			{
+				return Handle;
+			}
+			const Core::String& Connection::GetAddress()
+			{
+				return Source;
+			}
+			bool Connection::IsConnected()
+			{
+				Core::UMutex<std::mutex> Unique(Update);
+				return Handle != nullptr;
+			}
+
 			Cluster::Cluster()
 			{
 				LibraryHandle = Driver::Get();
@@ -944,12 +1349,64 @@ namespace Vitex
 			NextReturnable:
 				Code = sqlite3_step(Target);
 				if (Context.Columns.empty())
-					ConsumeColumns(Target, &Context);
+				{
+					int Columns = sqlite3_column_count(Target);
+					if (Columns > 0 && Columns > (int)Context.Columns.size())
+					{
+						Context.Columns.reserve((int)Columns);
+						for (int i = 0; i < Columns; i++)
+							Context.Columns.push_back(sqlite3_column_name(Target, i));
+					}
+				}
 				switch (Code)
 				{
 					case SQLITE_ROW:
 					{
-						ConsumeRow(Target, &Context);
+						Context.Values.emplace_back();
+						auto& Row = Context.Values.back();
+						if (!Context.Columns.empty())
+						{
+							int Columns = (int)Context.Columns.size();
+							Row.reserve(Context.Columns.size());
+							for (int i = 0; i < Columns; i++)
+							{
+								switch (sqlite3_column_type(Target, i))
+								{
+									case SQLITE_INTEGER:
+										Row.push_back(Core::Var::Integer(sqlite3_column_int64(Target, i)));
+										break;
+									case SQLITE_FLOAT:
+										Row.push_back(Core::Var::Number(sqlite3_column_double(Target, i)));
+										break;
+									case SQLITE_TEXT:
+									{
+										std::string_view Text((const char*)sqlite3_column_text(Target, i), (size_t)sqlite3_column_bytes(Target, i));
+										if (Core::Stringify::HasDecimal(Text))
+											Row.push_back(Core::Var::DecimalString(Text));
+										else if (Core::Stringify::HasInteger(Text))
+											Row.push_back(Core::Var::Integer(Core::FromString<int64_t>(Text).Or(0)));
+										else if (Core::Stringify::HasNumber(Text))
+											Row.push_back(Core::Var::Number(Core::FromString<double>(Text).Or(0.0)));
+										else
+											Row.push_back(Core::Var::String(Text));
+										break;
+									}
+									case SQLITE_BLOB:
+									{
+										const uint8_t* Blob = (const uint8_t*)sqlite3_column_blob(Target, i);
+										size_t BlobSize = (size_t)sqlite3_column_bytes(Target, i);
+										Row.push_back(Core::Var::Binary(Blob ? Blob : (uint8_t*)"", BlobSize));
+										break;
+									}
+									case SQLITE_NULL:
+										Row.push_back(Core::Var::Null());
+										break;
+									default:
+										Row.push_back(Core::Var::Undefined());
+										break;
+								}
+							}
+						}
 						goto NextReturnable;
 					}
 					case SQLITE_DONE:
@@ -973,68 +1430,6 @@ namespace Vitex
 				return DatabaseException(Core::String(Context.StatusMessage));
 #else
 				return DatabaseException("consume: not supported");
-#endif
-			}
-			void Cluster::ConsumeColumns(TStatement* Target, Response* Context)
-			{
-#ifdef VI_SQLITE
-				int Columns = sqlite3_column_count(Target);
-				if (Columns > 0 && Columns > (int)Context->Columns.size())
-				{
-					Context->Columns.reserve((int)Columns);
-					for (int i = 0; i < Columns; i++)
-						Context->Columns.push_back(sqlite3_column_name(Target, i));
-				}
-#endif
-			}
-			void Cluster::ConsumeRow(TStatement* Target, Response* Context)
-			{
-#ifdef VI_SQLITE
-				Context->Values.emplace_back();
-				auto& Row = Context->Values.back();
-				if (Context->Columns.empty())
-					return;
-
-				int Columns = (int)Context->Columns.size();
-				Row.reserve(Context->Columns.size());
-				for (int i = 0; i < Columns; i++)
-					{
-						switch (sqlite3_column_type(Target, i))
-						{
-							case SQLITE_INTEGER:
-								Row.push_back(Core::Var::Integer(sqlite3_column_int64(Target, i)));
-								break;
-							case SQLITE_FLOAT:
-								Row.push_back(Core::Var::Number(sqlite3_column_double(Target, i)));
-								break;
-							case SQLITE_TEXT:
-							{
-								std::string_view Text((const char*)sqlite3_column_text(Target, i), (size_t)sqlite3_column_bytes(Target, i));
-								if (Core::Stringify::HasDecimal(Text))
-									Row.push_back(Core::Var::DecimalString(Text));
-								else if (Core::Stringify::HasInteger(Text))
-									Row.push_back(Core::Var::Integer(Core::FromString<int64_t>(Text).Or(0)));
-								else if (Core::Stringify::HasNumber(Text))
-									Row.push_back(Core::Var::Number(Core::FromString<double>(Text).Or(0.0)));
-								else
-									Row.push_back(Core::Var::String(Text));
-								break;
-							}
-							case SQLITE_BLOB:
-							{
-								const uint8_t* Blob = (const uint8_t*)sqlite3_column_blob(Target, i);
-								size_t BlobSize = (size_t)sqlite3_column_bytes(Target, i);
-								Row.push_back(Core::Var::Binary(Blob ? Blob : (uint8_t*)"", BlobSize));
-								break;
-							}
-							case SQLITE_NULL:
-								Row.push_back(Core::Var::Null());
-								break;
-							default:
-								Row.push_back(Core::Var::Undefined());
-								break;
-						}
-					}
 #endif
 			}
 

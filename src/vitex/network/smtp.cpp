@@ -38,7 +38,7 @@ namespace Vitex
 		{
 			Client::Client(const std::string_view& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Hoster(Domain), Pending(0), Authorized(false)
 			{
-				Config.IsAutoEncrypted = false;
+				Config.IsAutoHandshake = false;
 			}
 			Core::ExpectsPromiseSystem<void> Client::Send(RequestFrame&& Root)
 			{
@@ -50,7 +50,7 @@ namespace Vitex
 					Request = std::move(Root);
 
 				VI_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
-				State.Done = [this, Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable
+				State.Resolver = [this, Result](Core::ExpectsSystem<void>&& Status) mutable
 				{
 					if (!Buffer.empty())
 						VI_DEBUG("[smtp] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Buffer.size(), Buffer.data());

@@ -2404,7 +2404,7 @@ namespace Vitex
 			{
 #ifdef VI_POSTGRESQL
 				if (Src.empty())
-					return "''";
+					return "'\\x'::bytea";
 
 				if (!Base)
 					return "'\\x" + Compute::Codec::HexEncode(Src) + "'::bytea";
@@ -2742,7 +2742,7 @@ namespace Vitex
 				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
 				{
 					if (Next >= Map->size())
-						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + Core::String(SQL.substr(Set.Start, 64)));
+						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + Core::String(Buffer.substr(Set.Start, 64)));
 
 					bool Escape = true, Negate = false;
 					if (Set.Start > 0)

@@ -84,7 +84,7 @@ namespace Vitex
 			Listen
 		};
 
-		typedef std::function<void(class SocketClient*, Core::ExpectsSystem<void>&&)> SocketClientCallback;
+		typedef std::function<void(Core::ExpectsSystem<void>&&)> SocketClientCallback;
 		typedef std::function<void(SocketPoll)> PollEventCallback;
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
 		typedef std::function<void(const Core::Option<std::error_condition>&)> SocketStatusCallback;
@@ -421,10 +421,13 @@ namespace Vitex
 
 		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
 		{
+		public:
+			typedef std::function<void(Socket*)> AcquireCallback;
+
 		private:
 			struct ConnectionQueue
 			{
-				Core::SingleQueue<Core::Promise<Socket*>> Requests;
+				Core::SingleQueue<AcquireCallback> Requests;
 				Core::UnorderedSet<Socket*> Streams;
 				size_t Duplicates = 0;
 			};
@@ -439,6 +442,7 @@ namespace Vitex
 			virtual ~Uplinks() noexcept override;
 			void SetMaxDuplicates(size_t Max);
 			bool PushConnection(const SocketAddress& Address, Socket* Target);
+			bool PopConnectionQueued(const SocketAddress& Address, AcquireCallback&& Callback);
 			Core::Promise<Socket*> PopConnection(const SocketAddress& Address);
 			size_t GetMaxDuplicates() const;
 			size_t GetSize();
@@ -690,14 +694,14 @@ namespace Vitex
 
 			struct
 			{
-				SocketClientCallback Done;
+				SocketClientCallback Resolver;
 				SocketAddress Address;
 			} State;
 
 			struct
 			{
-				bool IsAutoEncrypted = true;
-				bool IsAsync = false;
+				bool IsAutoHandshake = true;
+				bool IsNonBlocking = false;
 				int32_t VerifyPeers = 100;
 			} Config;
 
@@ -710,7 +714,10 @@ namespace Vitex
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept;
-			Core::ExpectsPromiseSystem<void> Connect(const SocketAddress& Address, bool Async, int32_t VerifyPeers = PEER_NOT_SECURE);
+			Core::ExpectsSystem<void> ConnectQueued(const SocketAddress& Address, bool AsNonBlocking, int32_t VerifyPeers, SocketClientCallback&& Callback);
+			Core::ExpectsSystem<void> DisconnectQueued(SocketClientCallback&& Callback);
+			Core::ExpectsPromiseSystem<void> ConnectSync(const SocketAddress& Address, int32_t VerifyPeers = PEER_NOT_SECURE);
+			Core::ExpectsPromiseSystem<void> ConnectAsync(const SocketAddress& Address, int32_t VerifyPeers = PEER_NOT_SECURE);
 			Core::ExpectsPromiseSystem<void> Disconnect();
 			void ApplyReusability(bool KeepAlive);
 			const SocketAddress& GetPeerAddress() const;
@@ -725,7 +732,7 @@ namespace Vitex
 			virtual Core::ExpectsSystem<void> OnDisconnect();
 
 		private:
-			Core::Promise<bool> TryReuseStream(const SocketAddress& Address);
+			bool TryReuseStream(const SocketAddress& Address, std::function<void(bool)>&& Callback);
 			bool TryStoreStream();
 			void TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
 			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode);

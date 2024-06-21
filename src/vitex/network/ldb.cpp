@@ -465,7 +465,7 @@ namespace Vitex
 				return Base[ResponseIndex].GetArray(Index);
 			}
 
-			Connection::Connection()
+			Connection::Connection() : Handle(nullptr), Timeout(0)
 			{
 				LibraryHandle = Driver::Get();
 				if (LibraryHandle != nullptr)
@@ -527,6 +527,10 @@ namespace Vitex
 				if (Handle != nullptr)
 					sqlite3_enable_load_extension(Handle, (int)Enabled);
 #endif
+			}
+			void Connection::SetBusyTimeout(uint64_t Ms)
+			{
+				Timeout = Ms;
 			}
 			void Connection::SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context)
 			{
@@ -764,6 +768,7 @@ namespace Vitex
 					else
 						Statement.clear();
 
+					bool Slept = !Timeout;
 					if (Code != SQLITE_OK)
 						goto StopExecution;
 				NextReturnable:
@@ -831,6 +836,14 @@ namespace Vitex
 						}
 						case SQLITE_DONE:
 							goto NextStatement;
+						case SQLITE_BUSY:
+						case SQLITE_LOCKED:
+							if (Slept)
+								goto StopExecution;
+
+							std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
+							Slept = true;
+							goto NextStatement;
 						case SQLITE_ERROR:
 						default:
 							goto StopExecution;
@@ -870,7 +883,7 @@ namespace Vitex
 				return Handle != nullptr;
 			}
 
-			Cluster::Cluster()
+			Cluster::Cluster() : Timeout(0)
 			{
 				LibraryHandle = Driver::Get();
 				if (LibraryHandle != nullptr)
@@ -1344,6 +1357,7 @@ namespace Vitex
 				else
 					Statement->clear();
 
+				bool Slept = !Timeout;
 				if (Code != SQLITE_OK)
 					goto StopExecution;
 			NextReturnable:
@@ -1410,6 +1424,14 @@ namespace Vitex
 						goto NextReturnable;
 					}
 					case SQLITE_DONE:
+						goto NextStatement;
+					case SQLITE_BUSY:
+					case SQLITE_LOCKED:
+						if (Slept)
+							goto StopExecution;
+
+						std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
+						Slept = true;
 						goto NextStatement;
 					case SQLITE_ERROR:
 					default:
@@ -1541,7 +1563,7 @@ namespace Vitex
 			Core::String Utils::GetByteArray(const std::string_view& Src) noexcept
 			{
 				if (Src.empty())
-					return "''";
+					return "x''";
 
 				return "x'" + Compute::Codec::HexEncode(Src) + "'";
 			}
@@ -1961,7 +1983,7 @@ namespace Vitex
 				while ((Set = Core::Stringify::Find(Buffer, '?', Offset)).Found)
 				{
 					if (Next >= Map->size())
-						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + Core::String(SQL.substr(Set.Start, 64)));
+						return DatabaseException("query expects at least " + Core::ToString(Next + 1) + " arguments: " + Core::String(Buffer.substr(Set.Start, 64)));
 
 					bool Escape = true, Negate = false;
 					if (Set.Start > 0)

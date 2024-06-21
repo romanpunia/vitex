@@ -4501,6 +4501,14 @@ namespace Vitex
 		{
 			return Lower;
 		}
+		uint64_t& UInt128::High()
+		{
+			return Upper;
+		}
+		uint64_t& UInt128::Low()
+		{
+			return Lower;
+		}
 		uint8_t UInt128::Bits() const
 		{
 			uint8_t out = 0;
@@ -5054,6 +5062,14 @@ namespace Vitex
 			return Upper;
 		}
 		const UInt128& UInt256::Low() const
+		{
+			return Lower;
+		}
+		UInt128& UInt256::High()
+		{
+			return Upper;
+		}
+		UInt128& UInt256::Low()
 		{
 			return Lower;
 		}

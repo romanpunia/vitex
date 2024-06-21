@@ -6344,11 +6344,10 @@ namespace Vitex
 				Core::ExpectsPromiseSystem<void> Result;
 				Request = std::move(Target);
 				Response.Cleanup();
-				State.Done = [Result](SocketClient* Client, Core::ExpectsSystem<void>&& Status) mutable
+				State.Resolver = [this, Result](Core::ExpectsSystem<void>&& Status) mutable
 				{
-					HTTP::Client* Base = (HTTP::Client*)Client;
 					if (!Status)
-						Base->GetResponse()->StatusCode = -1;
+						Response.StatusCode = -1;
 					Result.Set(std::move(Status));
 				};
 
@@ -6657,7 +6656,7 @@ namespace Vitex
                 if (Result || Result.Error() != std::errc::not_supported)
 					return Callback(Core::Expectation::Met);
 
-				if (Config.IsAsync)
+				if (Config.IsNonBlocking)
 					return UploadFileChunkQueued(FileStream, Boundary->File->Length, std::move(Callback));
 
 				return UploadFileChunk(FileStream, Boundary->File->Length, std::move(Callback));
@@ -6863,7 +6862,7 @@ namespace Vitex
 						return Core::ExpectsPromiseSystem<ResponseFrame>(Address.Error());
 
 					HTTP::Client* Client = new HTTP::Client(Timeout);
-					return Client->Connect(*Address, true, VerifyPeers).Then<Core::ExpectsPromiseSystem<void>>([Client, MaxSize, Request = std::move(Request)](Core::ExpectsSystem<void>&& Status) mutable -> Core::ExpectsPromiseSystem<void>
+					return Client->ConnectAsync(*Address, VerifyPeers).Then<Core::ExpectsPromiseSystem<void>>([Client, MaxSize, Request = std::move(Request)](Core::ExpectsSystem<void>&& Status) mutable -> Core::ExpectsPromiseSystem<void>
 					{
 						if (!Status)
 							return Core::ExpectsPromiseSystem<void>(Status);

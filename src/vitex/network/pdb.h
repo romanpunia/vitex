@@ -405,8 +405,10 @@ namespace Vitex
 			{
 				friend Cluster;
 
-			private:
+			public:
 				Core::Vector<Response> Base;
+
+			private:
 				Connection* Executor;
 				Caching Cache;
 

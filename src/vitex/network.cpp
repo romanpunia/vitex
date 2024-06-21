@@ -2068,7 +2068,7 @@ namespace Vitex
 		Uplinks::~Uplinks() noexcept
 		{
 			auto* Dispatcher = Multiplexer::Get();
-			Core::SingleQueue<Core::Promise<Socket*>> Queue;
+			Core::SingleQueue<AcquireCallback> Queue;
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
 			for (auto& Item : Connections)
 			{
@@ -2092,7 +2092,7 @@ namespace Vitex
 
 			while (!Queue.empty())
 			{
-				Queue.front().Set(nullptr);
+				Queue.front()(nullptr);
 				Queue.pop();
 			}
 		}
@@ -2123,7 +2123,7 @@ namespace Vitex
 						VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), Id.c_str());
 						while (!Queue.empty())
 						{
-							Queue.front().Set(nullptr);
+							Queue.front()(nullptr);
 							Queue.pop();
 						}
 					}
@@ -2166,10 +2166,10 @@ namespace Vitex
 			}
 			else if (!It->second.Requests.empty())
 			{
-				auto Future = std::move(It->second.Requests.front());
+				auto Callback = std::move(It->second.Requests.front());
 				It->second.Requests.pop();
 				Unique.Negate();
-				Future.Set(Stream);
+				Callback(Stream);
 				if (!Stream)
 					return false;
 
@@ -2192,10 +2192,14 @@ namespace Vitex
 			ListenConnection(std::move(Name), Stream);
 			return true;
 		}
-		Core::Promise<Socket*> Uplinks::PopConnection(const SocketAddress& Address)
+		bool Uplinks::PopConnectionQueued(const SocketAddress& Address, AcquireCallback&& Callback)
 		{
+			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (!MaxDuplicates)
-				return Core::Promise<Socket*>(nullptr);
+			{
+				Callback(nullptr);
+				return false;
+			}
 
 			auto Name = GetAddressIdentification(Address);
 			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
@@ -2204,26 +2208,37 @@ namespace Vitex
 			{
 				auto& Item = Connections[Name];
 				Item.Duplicates = MaxDuplicates - 1;
-				return Core::Promise<Socket*>(nullptr);
+				Callback(nullptr);
+				return false;
 			}
 			else if (It->second.Streams.empty())
 			{
 				if (It->second.Duplicates > 0)
 				{
 					--It->second.Duplicates;
-					return Core::Promise<Socket*>(nullptr);
+					Callback(nullptr);
+					return false;
 				}
 
-				Core::Promise<Socket*> Future;
-				It->second.Requests.push(Future);
-				return Future;
+				It->second.Requests.emplace(std::move(Callback));
+				return true;
 			}
 
 			Socket* Stream = *It->second.Streams.begin();
-			Multiplexer::Get()->CancelEvents(Stream);
 			It->second.Streams.erase(It->second.Streams.begin());
+			Unique.Unlock();
+
 			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
-			return Core::Promise<Socket*>(Stream);
+			Multiplexer::Get()->CancelEvents(Stream);
+			Callback(Stream);
+
+			return true;
+		}
+		Core::Promise<Socket*> Uplinks::PopConnection(const SocketAddress& Address)
+		{
+			Core::Promise<Socket*> Future;
+			PopConnectionQueued(Address, [Future](Socket* Target) mutable { Future.Set(Target); });
+			return Future;
 		}
 		size_t Uplinks::GetMaxDuplicates() const
 		{
@@ -4303,7 +4318,7 @@ namespace Vitex
 				Net.Context = nullptr;
 			}
 #endif
-			if (Config.IsAsync && Multiplexer::HasInstance())
+			if (Config.IsNonBlocking && Multiplexer::HasInstance())
 				Multiplexer::Get()->Deactivate();
 		}
 		Core::ExpectsSystem<void> SocketClient::OnConnect()
@@ -4320,49 +4335,67 @@ namespace Vitex
 			Report(Core::Expectation::Met);
 			return Core::Expectation::Met;
 		}
-		Core::ExpectsPromiseSystem<void> SocketClient::Connect(const SocketAddress& Address, bool Async, int32_t VerifyPeers)
+		Core::ExpectsSystem<void> SocketClient::ConnectQueued(const SocketAddress& Address, bool AsNonBlocking, int32_t VerifyPeers, SocketClientCallback&& Callback)
 		{
-			bool AsyncPolicyUpdated = Async != Config.IsAsync;
-			if (AsyncPolicyUpdated && !Async && Multiplexer::HasInstance())
+			VI_ASSERT(Callback != nullptr, "callback should be set");
+			bool AsyncPolicyUpdated = AsNonBlocking != Config.IsNonBlocking;
+			if (AsyncPolicyUpdated && !AsNonBlocking && Multiplexer::HasInstance())
 				Multiplexer::Get()->Deactivate();
 
 			Config.VerifyPeers = VerifyPeers;
-			Config.IsAsync = Async;
+			Config.IsNonBlocking = AsNonBlocking;
 			State.Address = Address;
-			if (AsyncPolicyUpdated && Async)
+			if (AsyncPolicyUpdated && Config.IsNonBlocking)
 				Multiplexer::Get()->Activate();
 
-			return TryReuseStream(Address).Then<Core::ExpectsPromiseSystem<void>>([this](bool&& IsReusing) -> Core::ExpectsPromiseSystem<void>
+			TryReuseStream(Address, [this, Callback = std::move(Callback)](bool IsReusing) mutable
 			{
 				if (IsReusing)
-					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+					return Callback(Core::Expectation::Met);
 
 				auto Status = Net.Stream->Open(State.Address);
 				if (!Status)
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::move(Status.Error())));
+					return Callback(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::move(Status.Error())));
 
 				ConfigureStream();
-				Core::ExpectsPromiseSystem<void> Future;
-				State.Done = [Future](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); };
+				State.Resolver = std::move(Callback);
 				Net.Stream->ConnectQueued(State.Address, std::bind(&SocketClient::DispatchConnection, this, std::placeholders::_1));
-				return Future;
 			});
+			return Core::Expectation::Met;
+		}
+		Core::ExpectsSystem<void> SocketClient::DisconnectQueued(SocketClientCallback&& Callback)
+		{
+			VI_ASSERT(Callback != nullptr, "callback should be set");
+			if (!HasStream())
+				return Core::ExpectsSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
+
+			if (!TryStoreStream())
+			{
+				State.Resolver = std::move(Callback);
+				OnDisconnect();
+			}
+			else
+				OnReuse();
+
+			return Core::ExpectsSystem<void>(Core::Expectation::Met);
+		}
+		Core::ExpectsPromiseSystem<void> SocketClient::ConnectSync(const SocketAddress& Address, int32_t VerifyPeers)
+		{
+			Core::ExpectsPromiseSystem<void> Future;
+			ConnectQueued(Address, false, VerifyPeers, [Future](Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); });
+			return Future;
+		}
+		Core::ExpectsPromiseSystem<void> SocketClient::ConnectAsync(const SocketAddress& Address, int32_t VerifyPeers)
+		{
+			Core::ExpectsPromiseSystem<void> Future;
+			ConnectQueued(Address, true, VerifyPeers, [Future](Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); });
+			return Future;
 		}
 		Core::ExpectsPromiseSystem<void> SocketClient::Disconnect()
 		{
-			if (!HasStream())
-				return Core::ExpectsPromiseSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
-
-			if (TryStoreStream())
-			{
-				OnReuse();
-				return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
-			}
-
-			Core::ExpectsPromiseSystem<void> Result;
-			State.Done = [Result](SocketClient*, Core::ExpectsSystem<void>&& Status) mutable { Result.Set(std::move(Status)); };
-			OnDisconnect();
-			return Result;
+			Core::ExpectsPromiseSystem<void> Future;
+			DisconnectQueued([Future](Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); });
+			return Future;
 		}
 		void SocketClient::Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
 		{
@@ -4457,7 +4490,7 @@ namespace Vitex
 					Net.Context = *NewContext;
 			}
 
-			if (!Config.IsAutoEncrypted)
+			if (!Config.IsAutoHandshake)
 				return DispatchSimpleHandshake();
 
 			auto* Context = this;
@@ -4480,25 +4513,28 @@ namespace Vitex
 		{
 			OnConnect();
 		}
-		Core::Promise<bool> SocketClient::TryReuseStream(const SocketAddress& Address)
+		bool SocketClient::TryReuseStream(const SocketAddress& Address, std::function<void(bool)>&& Callback)
 		{
 			if (!Uplinks::HasInstance())
 			{
 				CreateStream();
-				return Core::Promise<bool>(false);
+				Callback(false);
+				return false;
 			}
 			
 			DestroyStream();
-			return Uplinks::Get()->PopConnection(Address).Then<bool>([this](Socket*&& ReusingStream)
+			return Uplinks::Get()->PopConnectionQueued(Address, [this, Callback = std::move(Callback)](Socket*&& ReusingStream) mutable
 			{
 				Net.Stream = ReusingStream;
 				if (ReusingStream != nullptr)
 				{
 					ConfigureStream();
+					Callback(true);
 					return true;
 				}
 
 				CreateStream();
+				Callback(false);
 				return false;
 			});
 		}
@@ -4530,7 +4566,7 @@ namespace Vitex
 				return;
 
 			Net.Stream->SetIoTimeout(Timeout.Idle);
-			Net.Stream->SetBlocking(!Config.IsAsync);
+			Net.Stream->SetBlocking(!Config.IsNonBlocking);
 			Net.Stream->SetCloseOnExec();
 		}
 		void SocketClient::DestroyStream()
@@ -4557,16 +4593,16 @@ namespace Vitex
 			{
 				Net.Stream->CloseQueued([this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
 				{
-					SocketClientCallback Callback(std::move(State.Done));
+					SocketClientCallback Callback(std::move(State.Resolver));
 					if (Callback)
-						Callback(this, std::move(Status));
+						Callback(std::move(Status));
 				});
 			}
 			else
 			{
-				SocketClientCallback Callback(std::move(State.Done));
+				SocketClientCallback Callback(std::move(State.Resolver));
 				if (Callback)
-					Callback(this, std::move(Status));
+					Callback(std::move(Status));
 			}
 		}
 		const SocketAddress& SocketClient::GetPeerAddress() const

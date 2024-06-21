@@ -71,35 +71,35 @@ namespace
 		switch (ResultCode)
 		{
 			case GL_INVALID_ENUM:
-				Text += " causing invalid enum parameter";
+				Text += " CAUSING invalid enum parameter";
 				break;
 			case GL_INVALID_VALUE:
-				Text += " causing invalid argument parameter";
+				Text += " CAUSING invalid argument parameter";
 				break;
 			case GL_INVALID_OPERATION:
-				Text += " causing invalid operation";
+				Text += " CAUSING invalid operation";
 				break;
 			case GL_STACK_OVERFLOW:
-				Text += " causing stack overflow";
+				Text += " CAUSING stack overflow";
 				break;
 			case GL_STACK_UNDERFLOW:
-				Text += " causing stack underflow";
+				Text += " CAUSING stack underflow";
 				break;
 			case GL_OUT_OF_MEMORY:
-				Text += " causing out of memory";
+				Text += " CAUSING out of memory";
 				break;
 			case GL_INVALID_FRAMEBUFFER_OPERATION:
-				Text += " causing invalid frame buffer operation";
+				Text += " CAUSING invalid frame buffer operation";
 				break;
 			case GL_CONTEXT_LOST:
-				Text += " causing graphics system reset";
+				Text += " CAUSING graphics system reset";
 				break;
 			case GL_TABLE_TOO_LARGE:
-				Text += " causing table too large";
+				Text += " CAUSING table too large";
 				break;
 			case GL_NO_ERROR:
 			default:
-				Text += " causing internal graphics error";
+				Text += " CAUSING internal graphics error";
 				break;
 		}
 		return Vitex::Graphics::GraphicsException((int)ResultCode, std::move(Text));

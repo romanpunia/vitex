@@ -267,7 +267,7 @@ namespace Vitex
 			if (ErrorCode == VirtualError::SUCCESS)
 				return;
 
-			Message += " causing ";
+			Message += " CAUSING ";
 			Message += VirtualMachine::GetErrorNameInfo(ErrorCode);
 		}
 		VirtualException::VirtualException(Core::String&& NewMessage)

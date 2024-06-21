@@ -7330,10 +7330,18 @@ namespace Vitex
 				return ExpectsWrapper::UnwrapVoid(Server->Unlisten(Gracefully));
 			}
 
-			Core::Promise<bool> SocketClientConnect(Network::SocketClient* Client, const Network::SocketAddress& Address, bool Async, int32_t VerifyPeers)
+			Core::Promise<bool> SocketClientConnectSync(Network::SocketClient* Client, const Network::SocketAddress& Address, int32_t VerifyPeers)
 			{
 				ImmediateContext* Context = ImmediateContext::Get();
-				return Client->Connect(Address, Async, VerifyPeers).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
+				return Client->ConnectSync(Address, VerifyPeers).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
+				{
+					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
+				});
+			}
+			Core::Promise<bool> SocketClientConnectAsync(Network::SocketClient* Client, const Network::SocketAddress& Address, int32_t VerifyPeers)
+			{
+				ImmediateContext* Context = ImmediateContext::Get();
+				return Client->ConnectAsync(Address, VerifyPeers).Then<bool>([Context](Core::ExpectsSystem<void>&& Result)
 				{
 					return ExpectsWrapper::UnwrapVoid(std::move(Result), Context);
 				});
@@ -11514,8 +11522,8 @@ namespace Vitex
 				VUInt128->SetMethodEx("uint64 to_uint64() const", &UInt128ToUInt64);
 				VUInt128->SetMethod("decimal to_decimal() const", &Compute::UInt128::ToDecimal);
 				VUInt128->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt128::ToString);
-				VUInt128->SetMethod("const uint64& low() const", &Compute::UInt128::Low);
-				VUInt128->SetMethod("const uint64& high() const", &Compute::UInt128::High);
+				VUInt128->SetMethod<Compute::UInt128, const uint64_t&>("const uint64& low() const", &Compute::UInt128::Low);
+				VUInt128->SetMethod<Compute::UInt128, const uint64_t&>("const uint64& high() const", &Compute::UInt128::High);
 				VUInt128->SetMethod("uint16 size() const", &Compute::UInt128::Bits);
 				VUInt128->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128MulEq);
 				VUInt128->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128DivEq);
@@ -11563,8 +11571,8 @@ namespace Vitex
 				VUInt256->SetMethodEx("uint64 to_uint64() const", &UInt256ToUInt64);
 				VUInt256->SetMethod("decimal to_decimal() const", &Compute::UInt256::ToDecimal);
 				VUInt256->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt256::ToString);
-				VUInt256->SetMethod("const uint128& low() const", &Compute::UInt256::Low);
-				VUInt256->SetMethod("const uint128& high() const", &Compute::UInt256::High);
+				VUInt256->SetMethod<Compute::UInt256, const Compute::UInt128&>("const uint128& low() const", &Compute::UInt256::Low);
+				VUInt256->SetMethod<Compute::UInt256, const Compute::UInt128&>("const uint128& high() const", &Compute::UInt256::High);
 				VUInt256->SetMethod("uint16 size() const", &Compute::UInt256::Bits);
 				VUInt256->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256MulEq);
 				VUInt256->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256DivEq);
@@ -16253,7 +16261,8 @@ namespace Vitex
 
 				auto VSocketClient = VM->SetClass<Network::SocketClient>("socket_client", false);
 				VSocketClient->SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
-				VSocketClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VSocketClient->SetMethodEx("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(SocketClientConnectSync, TypeId::BOOL));
+				VSocketClient->SetMethodEx("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(SocketClientConnectAsync, TypeId::BOOL));
 				VSocketClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VSocketClient->SetMethod("void apply_reusability(bool)", &Network::SocketClient::ApplyReusability);
 				VSocketClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
@@ -16678,7 +16687,8 @@ namespace Vitex
 				VClient->SetMethodEx("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(ClientUpgrade, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(ClientSend, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ send_fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(ClientSendFetch, TypeId::BOOL));
-				VClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(SocketClientConnectSync, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(SocketClientConnectAsync, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
 				VClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);
@@ -16758,7 +16768,8 @@ namespace Vitex
 				auto VClient = VM->SetClass<Network::SMTP::Client>("client", false);
 				VClient->SetConstructor<Network::SMTP::Client, const std::string_view&, int64_t>("client@ f(const string_view&in, int64)");
 				VClient->SetMethodEx("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(SMTPClientSend, TypeId::BOOL));
-				VClient->SetMethodEx("promise<bool>@ connect(const socket_address&in, bool = true, int32 = -1)", &VI_SPROMISIFY(SocketClientConnect, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(SocketClientConnectSync, TypeId::BOOL));
+				VClient->SetMethodEx("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(SocketClientConnectAsync, TypeId::BOOL));
 				VClient->SetMethodEx("promise<bool>@ disconnect()", &VI_SPROMISIFY(SocketClientDisconnect, TypeId::BOOL));
 				VClient->SetMethod("bool has_stream() const", &Network::SocketClient::HasStream);
 				VClient->SetMethod("bool is_secure() const", &Network::SocketClient::IsSecure);

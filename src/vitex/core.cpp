@@ -6045,6 +6045,7 @@ namespace Vitex
 				ColorToken(StdColor::DarkGreen, "OK"),
 				ColorToken(StdColor::DarkGreen, "SUCCESS"),
 				ColorToken(StdColor::Yellow, "ASSERT"),
+				ColorToken(StdColor::Yellow, "CAUSING"),
 				ColorToken(StdColor::Yellow, "warn"),
 				ColorToken(StdColor::Yellow, "warning"),
 				ColorToken(StdColor::Yellow, "debug"),
@@ -7744,7 +7745,7 @@ namespace Vitex
 				return Address.Error().error();
 
 			Core::UPtr<Network::HTTP::Client> Client = new Network::HTTP::Client(30000);
-			auto Status = Client->Connect(*Address, false, Secure ? Network::PEER_VERITY_DEFAULT : Network::PEER_NOT_SECURE).Get();
+			auto Status = Client->ConnectSync(*Address, Secure ? Network::PEER_VERITY_DEFAULT : Network::PEER_NOT_SECURE).Get();
 			if (!Status)
 				return Status.Error().error();
 

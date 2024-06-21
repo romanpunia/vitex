@@ -261,8 +261,10 @@ namespace Vitex
 				friend Connection;
 				friend Cluster;
 
-			private:
+			public:
 				Core::Vector<Response> Base;
+
+			private:
 				TConnection* Executor;
 
 			public:
@@ -326,6 +328,7 @@ namespace Vitex
 				Core::String Source;
 				TConnection* Handle;
 				Driver* LibraryHandle;
+				uint64_t Timeout;
 				std::mutex Update;
 
 			public:
@@ -336,6 +339,7 @@ namespace Vitex
 				void SetHardHeapLimit(uint64_t Memory);
 				void SetSharedCache(bool Enabled);
 				void SetExtensions(bool Enabled);
+				void SetBusyTimeout(uint64_t Ms);
 				void SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context);
 				void SetAggregateFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Aggregate> Context);
 				void SetWindowFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Window> Context);
@@ -380,6 +384,7 @@ namespace Vitex
 				Core::Vector<Window*> Windows;
 				Core::String Source;
 				Driver* LibraryHandle;
+				uint64_t Timeout;
 				std::mutex Update;
 
 			public:
@@ -390,6 +395,7 @@ namespace Vitex
 				void SetHardHeapLimit(uint64_t Memory);
 				void SetSharedCache(bool Enabled);
 				void SetExtensions(bool Enabled);
+				void SetBusyTimeout(uint64_t Ms);
 				void SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context);
 				void SetAggregateFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Aggregate> Context);
 				void SetWindowFunction(const std::string_view& Name, uint8_t Args, Core::Unique<Window> Context);

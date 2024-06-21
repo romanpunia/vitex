@@ -300,6 +300,30 @@ namespace Vitex
 		struct IsIterable<T, std::void_t<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>> : std::true_type { };
 
 		template <typename T>
+		struct IsAddRefer
+		{
+			template <typename U>
+			static constexpr std::conditional_t<false, decltype(std::declval<U>().AddRef()), std::true_type> Signature(int);
+
+			template <typename U>
+			static constexpr std::false_type Signature(char);
+
+			static constexpr bool value = decltype(Signature<T>(0))::value;
+		};
+
+		template <typename T>
+		struct IsReleaser
+		{
+			template <typename U>
+			static constexpr std::conditional_t<false, decltype(std::declval<U>().Release()), std::true_type> Signature(int);
+
+			template <typename U>
+			static constexpr std::false_type Signature(char);
+
+			static constexpr bool value = decltype(Signature<T>(0))::value;
+		};
+
+		template <typename T>
 		using Unique = T*;
 
 		struct Singletonish { };
@@ -1264,25 +1288,25 @@ namespace Vitex
 			}
 			const V& Expect(const std::string_view& Message) const&
 			{
-				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
 				const V& Reference = *(V*)Value;
 				return Reference;
 			}
 			const V&& Expect(const std::string_view& Message) const&&
 			{
-				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
 			V& Expect(const std::string_view& Message)&
 			{
-				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value;
 				return Reference;
 			}
 			V&& Expect(const std::string_view& Message)&&
 			{
-				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
 			}
@@ -1341,6 +1365,16 @@ namespace Vitex
 				VI_PANIC(IsValue(), "unwrapping an empty value");
 				V& Reference = *(V*)Value;
 				return std::move(Reference);
+			}
+			const V* Address() const
+			{
+				const V* Reference = IsValue() ? (V*)Value : nullptr;
+				return Reference;
+			}
+			V* Address()
+			{
+				V* Reference = IsValue() ? (V*)Value : nullptr;
+				return Reference;
 			}
 			void Reset()
 			{
@@ -1423,11 +1457,14 @@ namespace Vitex
 			Option& operator= (Option&&) = default;
 			void Expect(const std::string_view& Message) const
 			{
-				VI_PANIC(IsValue(), "%.*s causing unwrapping an empty value", (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
 			}
 			void Unwrap() const
 			{
 				VI_PANIC(IsValue(), "unwrapping an empty value");
+			}
+			void Address() const
+			{
 			}
 			void Reset()
 			{
@@ -1565,25 +1602,25 @@ namespace Vitex
 			}
 			const V& Expect(const std::string_view& Message) const&
 			{
-				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Expect(const std::string_view& Message) const&&
 			{
-				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Expect(const std::string_view& Message)&
 			{
-				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Expect(const std::string_view& Message)&&
 			{
-				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
@@ -1621,27 +1658,37 @@ namespace Vitex
 			}
 			const V& Unwrap() const&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& Unwrap() const&&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& Unwrap()&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& Unwrap()&&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
+			}
+			const V* Address() const
+			{
+				const V* Reference = IsValue() ? (V*)Value.Buffer : nullptr;
+				return Reference;
+			}
+			V* Address()
+			{
+				V* Reference = IsValue() ? (V*)Value.Buffer : nullptr;
+				return Reference;
 			}
 			const E& Error() const&
 			{
@@ -1676,7 +1723,7 @@ namespace Vitex
 			void Report(const std::string_view& Message) const
 			{
 				if (IsError())
-					VI_ERR("%s causing %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
+					VI_ERR("%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
 			}
 			void Reset()
 			{
@@ -1705,37 +1752,37 @@ namespace Vitex
 			}
 			const V& operator* () const&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				const V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			const V&& operator* () const&&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			V& operator* ()&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return Reference;
 			}
 			V&& operator* ()&&
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				V& Reference = *(V*)Value.Buffer;
 				return std::move(Reference);
 			}
 			const typename std::remove_pointer<V>::type* operator-> () const
 			{
-				VI_ASSERT(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_ASSERT(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				auto* Reference = OptionUtils::ToConstPointer<V>(Value.Buffer);
 				return Reference;
 			}
 			typename std::remove_pointer<V>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
+				VI_ASSERT(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
 				auto* Reference = OptionUtils::ToPointer<V>(Value.Buffer);
 				return Reference;
 			}
@@ -1826,11 +1873,14 @@ namespace Vitex
 			}
 			void Expect(const std::string_view& Message) const
 			{
-				VI_PANIC(IsValue(), "%s causing %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
+				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
 			}
 			void Unwrap() const
 			{
-				VI_PANIC(IsValue(), "%s causing unwrapping an empty value", OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
+				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
+			}
+			void Address() const
+			{
 			}
 			const E& Error() const&
 			{
@@ -1865,7 +1915,7 @@ namespace Vitex
 			void Report(const std::string_view& Message) const
 			{
 				if (IsError())
-					VI_ERR("%s causing %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
+					VI_ERR("%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
 			}
 			void Reset()
 			{
@@ -2832,7 +2882,7 @@ namespace Vitex
 			}
 		};
 
-		template <typename T, bool AsReference = false>
+		template <typename T>
 		class UPtr
 		{
 		private:
@@ -2905,12 +2955,12 @@ namespace Vitex
 			}
 			inline T* Expect(const std::string_view& Message)
 			{
-				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
 				return Address;
 			}
 			inline T* Expect(const std::string_view& Message) const
 			{
-				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
 				return Address;
 			}
 			inline Unique<T> Reset()
@@ -2921,7 +2971,7 @@ namespace Vitex
 			}
 			inline void Destroy()
 			{
-				if constexpr (!std::is_base_of<Reference<T>, T>::value && !AsReference)
+				if constexpr (!IsReleaser<T>::value)
 				{
 					if constexpr (std::is_trivially_default_constructible<T>::value)
 						Memory::Deallocate<T>(Address);
@@ -2936,7 +2986,8 @@ namespace Vitex
 		template <typename T>
 		class URef
 		{
-			static_assert(std::is_base_of<Reference<T>, T>::value, "unique reference type should be based on reference");
+			static_assert(IsAddRefer<T>::value, "unique reference type should have AddRef() method");
+			static_assert(IsReleaser<T>::value, "unique reference type should have Release() method");
 
 		private:
 			T* Address;
@@ -3022,12 +3073,12 @@ namespace Vitex
 			}
 			inline T* Expect(const std::string_view& Message)
 			{
-				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
 				return Address;
 			}
 			inline T* Expect(const std::string_view& Message) const
 			{
-				VI_PANIC(Address != nullptr, "%.*s causing panic", (int)Message.size(), Message.data());
+				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
 				return Address;
 			}
 			inline Unique<T> Reset()

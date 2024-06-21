@@ -1221,6 +1221,8 @@ namespace Vitex
 			const uint64_t& High() const;
 			const uint64_t& Low() const;
 			uint8_t Bits() const;
+			uint64_t& High();
+			uint64_t& Low();
 			Core::Decimal ToDecimal() const;
 			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
 			VI_OUT friend std::ostream& operator<<(std::ostream& Stream, const UInt128& Right);
@@ -1659,6 +1661,8 @@ namespace Vitex
 			const UInt128& High() const;
 			const UInt128& Low() const;
 			uint16_t Bits() const;
+			UInt128& High();
+			UInt128& Low();
 			Core::Decimal ToDecimal() const;
 			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
 			VI_OUT friend UInt256 operator&(const UInt128& Left, const UInt256& Right);

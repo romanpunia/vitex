@@ -39,6 +39,7 @@ typedef __int64 as_int64_t;
 #endif
 #endif
 typedef unsigned int as_size_t;
+#define VI_BINDINGS 1
 
 namespace Vitex
 {

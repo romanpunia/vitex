@@ -141,13 +141,25 @@ namespace Vitex
 
 			return Result;
 		}
-		static bool HasIpAddress(const std::string_view& Hostname)
+		static bool HasIpV4Address(const std::string_view& Hostname)
 		{
 			size_t Index = 0;
 			while (Index < Hostname.size())
 			{
 				char V = Hostname[Index++];
 				if (!Core::Stringify::IsNumeric(V) && V != '.')
+					return false;
+			}
+
+			return true;
+		}
+		static bool HasIpV6Address(const std::string_view& Hostname)
+		{
+			size_t Index = 0;
+			while (Index < Hostname.size())
+			{
+				char V = Hostname[Index++];
+				if (!Core::Stringify::IsNumeric(V) && V != 'a' && V != 'b' && V != 'c' && V != 'd' && V != 'e' && V != 'f' && V != 'A' && V != 'B' && V != 'C' && V != 'D' && V != 'E' && V != 'F' && V != ':')
 					return false;
 			}
 
@@ -671,6 +683,11 @@ namespace Vitex
 			return Data;
 		}
 
+		bool SocketCidr::IsMatching(const Compute::UInt128& TargetValue)
+		{
+			return TargetValue == Value || (TargetValue >= MinValue && TargetValue <= MaxValue);
+		}
+
 		SocketAddress::SocketAddress() noexcept : AddressSize(0)
 		{
 			Info.Port = 0;
@@ -679,6 +696,37 @@ namespace Vitex
 			Info.Type = SOCK_STREAM;
 			Info.Protocol = IPPROTO_IP;
 			memset(AddressBuffer, 0, sizeof(AddressBuffer));
+		}
+		SocketAddress::SocketAddress(const std::string_view& IpAddress, uint16_t Port) noexcept : SocketAddress()
+		{
+			sockaddr_in Address4;
+			memset(&Address4, 0, sizeof(Address4));
+			Address4.sin_family = AF_INET;
+			Address4.sin_port = Port;
+			
+			sockaddr_in6 Address6;
+			memset(&Address6, 0, sizeof(Address6));
+			Address6.sin6_family = AF_INET6;
+			Address6.sin6_port = Port;
+
+			if (inet_pton(AF_INET, IpAddress.data(), &Address4.sin_addr) != 1)
+			{
+				if (inet_pton(AF_INET6, IpAddress.data(), &Address6.sin6_addr) == 1)
+				{
+					Info.Family = AF_INET6;
+					AddressSize = sizeof(Address6);
+					memcpy(AddressBuffer, &Address6, AddressSize);
+				}
+			}
+			else
+			{
+				AddressSize = sizeof(Address4);
+				memcpy(AddressBuffer, &Address4, AddressSize);
+			}
+
+			size_t Leftovers = sizeof(AddressBuffer) - AddressSize;
+			if (Leftovers > 0)
+				memset(AddressBuffer + AddressSize, 0, Leftovers);
 		}
 		SocketAddress::SocketAddress(const std::string_view& Hostname, uint16_t Port, addrinfo* AddressInfo) noexcept
 		{
@@ -693,7 +741,18 @@ namespace Vitex
 			Info.Type = AddressInfo->ai_socktype;
 			Info.Protocol = AddressInfo->ai_protocol;
 			AddressSize = std::min<size_t>(sizeof(AddressBuffer), AddressInfo->ai_addrlen);
-			memcpy(AddressBuffer, AddressInfo->ai_addr, AddressSize);
+			switch (AddressInfo->ai_family)
+			{
+				case AF_INET:
+					memcpy(AddressBuffer, (sockaddr_in*)AddressInfo->ai_addr, AddressSize);
+					break;
+				case AF_INET6:
+					memcpy(AddressBuffer, (sockaddr_in6*)AddressInfo->ai_addr, AddressSize);
+					break;
+				default:
+					memcpy(AddressBuffer, AddressInfo->ai_addr, AddressSize);
+					break;
+			}
 
 			size_t Leftovers = sizeof(AddressBuffer) - AddressSize;
 			if (Leftovers > 0)
@@ -709,7 +768,17 @@ namespace Vitex
 			AddressSize = std::min<size_t>(sizeof(AddressBuffer), NewAddressSize);
 			memcpy(AddressBuffer, Address, AddressSize);
 		}
-		const sockaddr* SocketAddress::GetAddress() const noexcept
+		const sockaddr_in* SocketAddress::GetAddress4() const noexcept
+		{
+			auto* Raw = GetRawAddress();
+			return Raw->sa_family == AF_INET ? (sockaddr_in*)AddressBuffer : nullptr;
+		}
+		const sockaddr_in6* SocketAddress::GetAddress6() const noexcept
+		{
+			auto* Raw = GetRawAddress();
+			return Raw->sa_family == AF_INET6 ? (sockaddr_in6*)AddressBuffer : nullptr;
+		}
+		const sockaddr* SocketAddress::GetRawAddress() const noexcept
 		{
 			return (sockaddr*)AddressBuffer;
 		}
@@ -793,7 +862,7 @@ namespace Vitex
 		Core::ExpectsIO<Core::String> SocketAddress::GetIpAddress() const noexcept
 		{
 			char Buffer[NI_MAXHOST];
-			if (getnameinfo(GetAddress(), (socklen_t)GetAddressSize(), Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
+			if (getnameinfo(GetRawAddress(), (socklen_t)GetAddressSize(), Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
 				return Core::OS::Error::GetConditionOr(std::errc::host_unreachable);
 
 			return Core::String(Buffer, strnlen(Buffer, sizeof(Buffer)));
@@ -803,12 +872,34 @@ namespace Vitex
 			if (Info.Port > 0)
 				return Info.Port;
 
-			const sockaddr* Address = GetAddress();
-			if (Address->sa_family == AF_INET)
-				return (uint16_t)ntohs(reinterpret_cast<struct sockaddr_in*>(&Address)->sin_port);
+			const sockaddr_in* Address4 = GetAddress4();
+			if (Address4 != nullptr)
+				return (uint16_t)ntohs(Address4->sin_port);
 
-			if (Address->sa_family == AF_INET6)
-				return (uint16_t)ntohs(reinterpret_cast<struct sockaddr_in6*>(&Address)->sin6_port);
+			const sockaddr_in6* Address6 = GetAddress6();
+			if (Address6 != nullptr)
+				return (uint16_t)ntohs(Address6->sin6_port);
+
+			return std::make_error_condition(std::errc::address_family_not_supported);
+		}
+		Core::ExpectsIO<Compute::UInt128> SocketAddress::GetIpValue() const noexcept
+		{
+			const sockaddr_in* Address4 = GetAddress4();
+			if (Address4 != nullptr)
+			{
+				uint32_t Input = 0;
+				memcpy((char*)&Input, (char*)&Address4->sin_addr, sizeof(Input));
+				return Compute::UInt128(Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Input));
+			}
+
+			const sockaddr_in6* Address6 = GetAddress6();
+			if (Address6 != nullptr)
+			{
+				uint64_t InputH = 0, InputL = 0;
+				memcpy((char*)&InputH, (char*)&Address6->sin6_addr + sizeof(InputH) * 0, sizeof(InputH));
+				memcpy((char*)&InputL, (char*)&Address6->sin6_addr + sizeof(InputL) * 1, sizeof(InputL));
+				return Compute::UInt128(Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, InputH), Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, InputL));
+			}
 
 			return std::make_error_condition(std::errc::address_family_not_supported);
 		}
@@ -1336,6 +1427,86 @@ namespace Vitex
 					return Core::OS::Error::GetCondition(ErrorCode);
 			}
 		}
+		Core::Option<SocketCidr> Utils::ParseAddressMask(const std::string_view& Mask) noexcept
+		{
+			auto IsIpV4 = Core::Stringify::Find(Mask, '.');
+			auto IsIpV6 = Core::Stringify::Find(Mask, ':');
+			auto IsMask = Core::Stringify::Find(Mask, '/');
+			if (Mask.empty() || !IsMask.Found || (!IsIpV4.Found && !IsIpV6.Found) || (IsIpV4.Found && IsIpV6.Found))
+				return Core::Optional::None;
+
+			auto Range = Core::FromString<uint8_t>(Mask.substr(IsMask.End));
+			if (!Range || (IsIpV4.Found && *Range > 32) || (IsIpV6.Found && *Range > 128))
+				return Core::Optional::None;
+
+			auto Address = Mask.substr(0, IsMask.Start);
+			if (IsIpV6.Found)
+			{
+				auto Blocks = Core::Stringify::Split(Address, ':');
+				if (Blocks.size() > 8)
+					return Core::Optional::None;
+
+				auto A = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 1 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[0], 16).Or(0));
+				auto B = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 2 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[1], 16).Or(0));
+				auto C = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 3 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[2], 16).Or(0));
+				auto D = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 4 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[3], 16).Or(0));
+				auto E = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 5 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[4], 16).Or(0));
+				auto F = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 6 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[5], 16).Or(0));
+				auto G = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 7 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[6], 16).Or(0));
+				auto H = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 8 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[7], 16).Or(0));
+
+				uint64_t BaseValueH = 0, BaseValueL = 0;
+				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 0, &A, sizeof(uint16_t));
+				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 1, &B, sizeof(uint16_t));
+				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 2, &C, sizeof(uint16_t));
+				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 3, &D, sizeof(uint16_t));
+				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 0, &E, sizeof(uint16_t));
+				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 1, &F, sizeof(uint16_t));
+				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 2, &G, sizeof(uint16_t));
+				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 3, &H, sizeof(uint16_t));
+				BaseValueH = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, BaseValueH);
+				BaseValueL = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, BaseValueL);
+
+				Compute::UInt128 BaseValue = Compute::UInt128(BaseValueH, BaseValueL);
+				Compute::UInt128 RangeValue = ~(Compute::UInt128::Max() << (128 - *Range));
+				Compute::UInt128 MinValue = BaseValue & (Compute::UInt128::Max() << (128 - *Range));
+				Compute::UInt128 MaxValue = MinValue + RangeValue;
+				SocketCidr Result;
+				Result.MinValue = MinValue;
+				Result.MaxValue = MaxValue;
+				Result.Value = BaseValue;
+				Result.Mask = *Range;
+				return Result;
+			}
+			else
+			{
+				auto Blocks = Core::Stringify::Split(Address, '.');
+				if (Blocks.size() > 4)
+					return Core::Optional::None;
+
+				auto A = Blocks.size() < 1 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[0]).Or(0);
+				auto B = Blocks.size() < 2 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[1]).Or(0);
+				auto C = Blocks.size() < 3 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[2]).Or(0);
+				auto D = Blocks.size() < 4 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[3]).Or(0);
+
+				uint32_t BaseValue = 0;
+				memcpy((char*)&BaseValue + sizeof(uint8_t) * 0, &A, sizeof(uint8_t));
+				memcpy((char*)&BaseValue + sizeof(uint8_t) * 1, &B, sizeof(uint8_t));
+				memcpy((char*)&BaseValue + sizeof(uint8_t) * 2, &C, sizeof(uint8_t));
+				memcpy((char*)&BaseValue + sizeof(uint8_t) * 3, &D, sizeof(uint8_t));
+				BaseValue = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, BaseValue);
+
+				uint32_t RangeValue = ~(std::numeric_limits<uint32_t>::max() << (32 - *Range));
+				uint32_t MinValue = BaseValue & (std::numeric_limits<uint32_t>::max() << (32 - *Range));
+				uint32_t MaxValue = MinValue + RangeValue;
+				SocketCidr Result;
+				Result.MinValue = MinValue;
+				Result.MaxValue = MaxValue;
+				Result.Value = BaseValue;
+				Result.Mask = *Range;
+				return Result;
+			}
+		}
 		bool Utils::IsInvalid(socket_t Fd) noexcept
 		{
 			return Fd == INVALID_SOCKET;
@@ -1570,7 +1741,7 @@ namespace Vitex
 			memset(&Hints, 0, sizeof(Hints));
 			Hints.ai_family = AF_UNSPEC;
 
-			if (HasIpAddress(Hostname))
+			if (HasIpV4Address(Hostname) || HasIpV6Address(Hostname))
 				Hints.ai_flags |= AI_NUMERICHOST;
 			if (Core::Stringify::HasInteger(Service))
 				Hints.ai_flags |= AI_NUMERICSERV;
@@ -1595,7 +1766,7 @@ namespace Vitex
 		{
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
 			char ReverseHostname[NI_MAXHOST], ReverseService[NI_MAXSERV];
-			if (getnameinfo(Address.GetAddress(), (socklen_t)Address.GetAddressSize(), ReverseHostname, NI_MAXHOST, ReverseService, NI_MAXSERV, NI_NUMERICSERV) != 0)
+			if (getnameinfo(Address.GetRawAddress(), (socklen_t)Address.GetAddressSize(), ReverseHostname, NI_MAXHOST, ReverseService, NI_MAXSERV, NI_NUMERICSERV) != 0)
 				return Core::SystemException(Core::Stringify::Text("dns reverse resolve %s address: invalid address", GetAddressIdentification(Address).c_str()));
 
 			VI_DEBUG("[net] dns reverse resolved for entity %s (host %s:%s is used)", GetAddressIdentification(Address).c_str(), ReverseHostname, ReverseService);
@@ -1612,7 +1783,6 @@ namespace Vitex
 		{
 			VI_ASSERT(!Hostname.empty() && Core::Stringify::IsCString(Hostname), "host should be set");
 			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
-
 			int64_t Time = time(nullptr);
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(struct addrinfo));
@@ -1666,7 +1836,7 @@ namespace Vitex
 				default:
 					break;
 			}
-			if (HasIpAddress(Hostname))
+			if (HasIpV4Address(Hostname) || HasIpV6Address(Hostname))
 				Hints.ai_flags |= AI_NUMERICHOST;
 			if (Core::Stringify::HasInteger(Service))
 				Hints.ai_flags |= AI_NUMERICSERV;
@@ -3412,7 +3582,7 @@ namespace Vitex
 		{
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] connect fd %i", (int)Fd);
-			if (connect(Fd, Address.GetAddress(), (int)Address.GetAddressSize()) != 0)
+			if (connect(Fd, Address.GetRawAddress(), (int)Address.GetAddressSize()) != 0)
 				return Core::OS::Error::GetConditionOr();
 
 			return Core::Expectation::Met;
@@ -3428,7 +3598,7 @@ namespace Vitex
 			}
 
 			VI_DEBUG("[net] connect fd %i", (int)Fd);
-			int Status = connect(Fd, Address.GetAddress(), (int)Address.GetAddressSize());
+			int Status = connect(Fd, Address.GetRawAddress(), (int)Address.GetAddressSize());
 			if (Status == 0)
 			{
 				Callback(Core::Optional::None);
@@ -3506,7 +3676,7 @@ namespace Vitex
 			VI_MEASURE(Core::Timings::Networking);
 			VI_DEBUG("[net] bind fd %i", (int)Fd);
 
-			if (bind(Fd, Address.GetAddress(), (int)Address.GetAddressSize()) != 0)
+			if (bind(Fd, Address.GetRawAddress(), (int)Address.GetAddressSize()) != 0)
 				return Core::OS::Error::GetConditionOr();
 
 			return Core::Expectation::Met;

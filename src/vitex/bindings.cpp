@@ -15990,7 +15990,10 @@ namespace Vitex
 
 				auto VSocketAddress = VM->SetStructTrivial<Network::SocketAddress>("socket_address");
 				VSocketAddress->SetConstructor<Network::SocketAddress>("void f()");
-				VSocketAddress->SetMethod("uptr@ get_address_ptr() const", &Network::SocketAddress::GetAddress);
+				VSocketAddress->SetConstructor<Network::SocketAddress, const std::string_view&, uint16_t>("void f(const string_view&in, uint16)");
+				VSocketAddress->SetMethod("uptr@ get_address4_ptr() const", &Network::SocketAddress::GetAddress4);
+				VSocketAddress->SetMethod("uptr@ get_address6_ptr() const", &Network::SocketAddress::GetAddress6);
+				VSocketAddress->SetMethod("uptr@ get_address_ptr() const", &Network::SocketAddress::GetRawAddress);
 				VSocketAddress->SetMethod("usize get_address_ptr_size() const", &Network::SocketAddress::GetAddressSize);
 				VSocketAddress->SetMethod("int32 get_flags() const", &Network::SocketAddress::GetFlags);
 				VSocketAddress->SetMethod("int32 get_family() const", &Network::SocketAddress::GetFamily);

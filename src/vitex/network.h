@@ -6,6 +6,8 @@ struct ssl_ctx_st;
 struct ssl_st;
 struct addrinfo;
 struct sockaddr;
+struct sockaddr_in;
+struct sockaddr_in6;
 struct pollfd;
 
 namespace Vitex
@@ -171,6 +173,16 @@ namespace Vitex
 			uint32_t VerifyPeers = 100;
 		};
 
+		struct VI_OUT SocketCidr
+		{
+			Compute::UInt128 MinValue;
+			Compute::UInt128 MaxValue;
+			Compute::UInt128 Value;
+			uint8_t Mask;
+
+			bool IsMatching(const Compute::UInt128& Value);
+		};
+
 		struct VI_OUT SocketAddress
 		{
 		private:
@@ -191,6 +203,7 @@ namespace Vitex
 
 		public:
 			SocketAddress() noexcept;
+			SocketAddress(const std::string_view& IpAddress, uint16_t Port) noexcept;
 			SocketAddress(const std::string_view& Hostname, uint16_t Port, addrinfo* AddressInfo) noexcept;
 			SocketAddress(const std::string_view& Hostname, uint16_t Port, sockaddr* Address, size_t AddressSize) noexcept;
 			SocketAddress(SocketAddress&&) = default;
@@ -198,7 +211,9 @@ namespace Vitex
 			~SocketAddress() = default;
 			SocketAddress& operator= (const SocketAddress&) = default;
 			SocketAddress& operator= (SocketAddress&&) = default;
-			const sockaddr* GetAddress() const noexcept;
+			const sockaddr_in* GetAddress4() const noexcept;
+			const sockaddr_in6* GetAddress6() const noexcept;
+			const sockaddr* GetRawAddress() const noexcept;
 			size_t GetAddressSize() const noexcept;
 			int32_t GetFlags() const noexcept;
 			int32_t GetFamily() const noexcept;
@@ -211,6 +226,7 @@ namespace Vitex
 			Core::ExpectsIO<Core::String> GetHostname() const noexcept;
 			Core::ExpectsIO<Core::String> GetIpAddress() const noexcept;
 			Core::ExpectsIO<uint16_t> GetIpPort() const noexcept;
+			Core::ExpectsIO<Compute::UInt128> GetIpValue() const noexcept;
 		};
 
 		struct VI_OUT SocketAccept
@@ -338,6 +354,7 @@ namespace Vitex
 			static int Poll(pollfd* Fd, int FdCount, int Timeout) noexcept;
 			static int Poll(PollFd* Fd, int FdCount, int Timeout) noexcept;
 			static std::error_condition GetLastError(ssl_st* Device, int ErrorCode) noexcept;
+			static Core::Option<SocketCidr> ParseAddressMask(const std::string_view& Mask) noexcept;
 			static bool IsInvalid(socket_t Fd) noexcept;
 			static int64_t Clock() noexcept;
 			static void DisplayTransportLog() noexcept;

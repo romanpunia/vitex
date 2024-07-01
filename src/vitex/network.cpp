@@ -4537,7 +4537,10 @@ namespace Vitex
 		{
 			VI_ASSERT(Callback != nullptr, "callback should be set");
 			if (!HasStream())
+			{
+				Callback(Core::ExpectsSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor))));
 				return Core::ExpectsSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
+			}
 
 			if (!TryStoreStream())
 			{
@@ -4545,7 +4548,10 @@ namespace Vitex
 				OnDisconnect();
 			}
 			else
+			{
 				OnReuse();
+				Callback(Core::Expectation::Met);
+			}
 
 			return Core::ExpectsSystem<void>(Core::Expectation::Met);
 		}

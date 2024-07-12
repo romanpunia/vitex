@@ -6587,6 +6587,7 @@ namespace Vitex
 			{
 				Response.Content.Cleanup();
 				Response.Content.Finalize();
+				Report(Core::Expectation::Met);
 				return Core::Expectation::Met;
 			}
 			Core::ExpectsSystem<void> Client::OnDisconnect()
@@ -6782,40 +6783,37 @@ namespace Vitex
 			{
 				auto Connection = Response.Headers.find("Connection");
 				if (Connection == Response.Headers.end())
-				{
-				CheckProtocol:
-					auto AltSvc = Response.Headers.find("Alt-Svc");
-					if (AltSvc == Response.Headers.end())
-						return DisableReusability();
-
-					const char Prefix[] = "=\":";
-					char Hostname[sizeof(Prefix) + Core::NUMSTR_SIZE];
-					memcpy(Hostname, Prefix, sizeof(Prefix) - 1);
-
-					auto Port = State.Address.GetIpPort();
-					auto Service = Port ? Core::ToStringView<uint16_t>(Hostname + (sizeof(Prefix) - 1), sizeof(Hostname) - (sizeof(Prefix) - 1), *Port) : std::string_view();
-					Service = std::string_view(Hostname, (sizeof(Prefix) - 1) + Service.size());
-					
-					for (auto& Command : AltSvc->second)
-					{
-						size_t PrefixIndex = Command.find('h');
-						if (PrefixIndex == std::string::npos || ++PrefixIndex + 1 >= Command.size())
-							continue;
-						else if (Command[PrefixIndex] != '2' && Command[PrefixIndex] != '3')
-							continue;
-						else if (Command[PrefixIndex + 1] == '-')
-							while (++PrefixIndex < Command.size() && Core::Stringify::IsNumeric(Command[PrefixIndex]));
-						if (Command.find(Service, PrefixIndex) != std::string::npos)
-							return EnableReusability();
-					}
-
-					return DisableReusability();
-				}
+					return EnableReusability();
 
 				if (Connection->second.size() != 1 || !Core::Stringify::CaseEquals(Connection->second.front(), "keep-alive"))
-					goto CheckProtocol;
+					return DisableReusability();
 
-				return EnableReusability();
+				auto AltSvc = Response.Headers.find("Alt-Svc");
+				if (AltSvc == Response.Headers.end())
+					return EnableReusability();
+
+				const char Prefix[] = "=\":";
+				char Hostname[sizeof(Prefix) + Core::NUMSTR_SIZE];
+				memcpy(Hostname, Prefix, sizeof(Prefix) - 1);
+
+				auto Port = State.Address.GetIpPort();
+				auto Service = Port ? Core::ToStringView<uint16_t>(Hostname + (sizeof(Prefix) - 1), sizeof(Hostname) - (sizeof(Prefix) - 1), *Port) : std::string_view();
+				Service = std::string_view(Hostname, (sizeof(Prefix) - 1) + Service.size());
+					
+				for (auto& Command : AltSvc->second)
+				{
+					size_t PrefixIndex = Command.find('h');
+					if (PrefixIndex == std::string::npos || ++PrefixIndex + 1 >= Command.size())
+						continue;
+					else if (Command[PrefixIndex] != '2' && Command[PrefixIndex] != '3')
+						continue;
+					else if (Command[PrefixIndex + 1] == '-')
+						while (++PrefixIndex < Command.size() && Core::Stringify::IsNumeric(Command[PrefixIndex]));
+					if (Command.find(Service, PrefixIndex) != std::string::npos)
+						return EnableReusability();
+				}
+
+				return DisableReusability();
 			}
 			void Client::Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize)
 			{

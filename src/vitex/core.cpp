@@ -9566,11 +9566,14 @@ namespace Vitex
 			{
 				size_t Size = IsVirtual ? Stream->VirtualSize() : Stream->Size().Or(0);
 				auto* Bytes = Memory::Allocate<uint8_t>(sizeof(uint8_t) * (Size + 1));
-				auto Status = Stream->Read(Bytes, Size);
-				if (!Status)
+				if (Size > 0)
 				{
-					Memory::Deallocate(Bytes);
-					return Status.Error();
+					auto Status = Stream->Read(Bytes, Size);
+					if (!Status)
+					{
+						Memory::Deallocate(Bytes);
+						return Status.Error();
+					}
 				}
 
 				Bytes[Size] = '\0';
@@ -9602,7 +9605,8 @@ namespace Vitex
 		{
 			VI_ASSERT(Stream != nullptr, "stream should be set");
 			auto* Bytes = Memory::Allocate<uint8_t>(Length + 1);
-			Stream->Read(Bytes, Length);
+			if (Length > 0)
+				Stream->Read(Bytes, Length);
 			Bytes[Length] = '\0';
 			return Bytes;
 		}

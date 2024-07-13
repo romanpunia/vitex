@@ -12273,11 +12273,12 @@ namespace Vitex
 
 			size_t Size = (Base->Nodes ? Base->Nodes->size() : 0);
 			bool Array = (Base->Value.Type == VarType::Array);
+			if (!Size)
+			{
+				Callback(VarForm::Dummy, Array ? "[]" : "{}");
+				return;
+			}
 
-			if (Base->Parent != nullptr)
-				Callback(VarForm::Write_Line, "");
-
-			Callback(VarForm::Write_Tab, "");
 			Callback(VarForm::Dummy, Array ? "[" : "{");
 			Callback(VarForm::Tab_Increase, "");
 
@@ -12319,7 +12320,14 @@ namespace Vitex
 					}
 				}
 				else
+				{
+					if (Array)
+					{
+						Callback(VarForm::Write_Line, "");
+						Callback(VarForm::Write_Tab, "");
+					}
 					ConvertToJSON(Next, Callback);
+				}
 
 				if (i + 1 < Size)
 					Callback(VarForm::Dummy, ",");
@@ -12327,7 +12335,6 @@ namespace Vitex
 
 			Callback(VarForm::Tab_Decrease, "");
 			Callback(VarForm::Write_Line, "");
-
 			if (Base->Parent != nullptr)
 				Callback(VarForm::Write_Tab, "");
 

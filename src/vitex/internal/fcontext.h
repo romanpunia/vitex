@@ -1,5 +1,5 @@
-#ifndef FCONTEXT_H_INCLUDED
-#define FCONTEXT_H_INCLUDED
+#ifndef VI_INTERNAL_FCONTEXT
+#define VI_INTERNAL_FCONTEXT
 #include <stddef.h>
 
 typedef void* fcontext_t;

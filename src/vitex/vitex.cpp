@@ -1,13 +1,13 @@
 #include "vitex.h"
 #include "compute.h"
-#include "audio.h"
 #include "network.h"
 #include "scripting.h"
-#include "engine/gui.h"
+#include "bindings.h"
 #include "network/http.h"
 #include "network/ldb.h"
 #include "network/pdb.h"
 #include "network/mdb.h"
+#include "layer.h"
 #include <clocale>
 #include <sstream>
 #ifdef VI_MICROSOFT
@@ -25,17 +25,8 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #endif
-#ifdef VI_SDL2
-#include "internal/sdl2.hpp"
-#endif
 #ifdef VI_POSTGRESQL
 #include <libpq-fe.h>
-#endif
-#ifdef VI_ASSIMP
-#include <assimp/DefaultLogger.hpp>
-#endif
-#ifdef VI_GLEW
-#include <GL/glew.h>
 #endif
 #ifdef VI_OPENSSL
 extern "C"
@@ -62,26 +53,17 @@ namespace Vitex
 		Instance = this;
 
 		InitializeAllocator(&Allocator);
-		if (Modes & (uint64_t)Init::Network)
+		if (Modes & LOAD_NETWORKING)
 			InitializeNetwork();
 
-		if (Modes & (uint64_t)Init::Cryptography)
-			InitializeCryptography(&Crypto, Modes & (uint64_t)Init::Providers);
+		if (Modes & LOAD_CRYPTOGRAPHY)
+			InitializeCryptography(&Crypto, Modes & LOAD_PROVIDERS);
 
-		if (Modes & (uint64_t)Init::Platform)
-			InitializePlatform();
-
-		if (Modes & (uint64_t)Init::Graphics)
-			InitializeGraphics();
-
-		if (Modes & (uint64_t)Init::Locale)
+		if (Modes & LOAD_LOCALE)
 			InitializeLocale();
 
-		if (Modes & (uint64_t)Init::Cryptography)
+		if (Modes & LOAD_CRYPTOGRAPHY)
 			InitializeRandom();
-
-		if (Modes & (uint64_t)Init::Audio)
-			InitializeAudio();
 
 		InitializeScripting();
 #ifndef VI_MICROSOFT
@@ -93,15 +75,11 @@ namespace Vitex
 		auto* Allocator = Core::Memory::GetGlobalAllocator();
 		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
 		CleanupInstances();
-		if (Modes & (uint64_t)Init::Cryptography)
+		if (Modes & LOAD_CRYPTOGRAPHY)
 			CleanupCryptography(&Crypto);
 
-		if (Modes & (uint64_t)Init::Platform)
-			CleanupPlatform();
-
-		if (Modes & (uint64_t)Init::Network)
+		if (Modes & LOAD_NETWORKING)
 			CleanupNetwork();
-		CleanupImporter();
 		CleanupScripting();
 		CleanupComposer();
 		CleanupErrorHandling();
@@ -241,95 +219,6 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::InitializePlatform() noexcept
-	{
-#ifdef VI_SDL2
-		SDL_SetMainReady();
-		int Code = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
-		VI_PANIC(Code == 0, "SDL2 initialization failed code:%i", Code);
-		SDL_EventState(SDL_QUIT, SDL_ENABLE);
-		SDL_EventState(SDL_APP_TERMINATING, SDL_ENABLE);
-		SDL_EventState(SDL_APP_LOWMEMORY, SDL_ENABLE);
-		SDL_EventState(SDL_APP_WILLENTERBACKGROUND, SDL_ENABLE);
-		SDL_EventState(SDL_APP_DIDENTERBACKGROUND, SDL_ENABLE);
-		SDL_EventState(SDL_APP_WILLENTERFOREGROUND, SDL_ENABLE);
-		SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
-		SDL_EventState(SDL_APP_DIDENTERFOREGROUND, SDL_ENABLE);
-		SDL_EventState(SDL_WINDOWEVENT, SDL_ENABLE);
-		SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
-		SDL_EventState(SDL_KEYDOWN, SDL_ENABLE);
-		SDL_EventState(SDL_KEYUP, SDL_ENABLE);
-		SDL_EventState(SDL_TEXTEDITING, SDL_ENABLE);
-		SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-		SDL_EventState(SDL_KEYMAPCHANGED, SDL_DISABLE);
-#endif
-		SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
-		SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_ENABLE);
-		SDL_EventState(SDL_MOUSEBUTTONUP, SDL_ENABLE);
-		SDL_EventState(SDL_MOUSEWHEEL, SDL_ENABLE);
-		SDL_EventState(SDL_JOYAXISMOTION, SDL_ENABLE);
-		SDL_EventState(SDL_JOYBALLMOTION, SDL_ENABLE);
-		SDL_EventState(SDL_JOYHATMOTION, SDL_ENABLE);
-		SDL_EventState(SDL_JOYBUTTONDOWN, SDL_ENABLE);
-		SDL_EventState(SDL_JOYBUTTONUP, SDL_ENABLE);
-		SDL_EventState(SDL_JOYDEVICEADDED, SDL_ENABLE);
-		SDL_EventState(SDL_JOYDEVICEREMOVED, SDL_ENABLE);
-		SDL_EventState(SDL_CONTROLLERAXISMOTION, SDL_ENABLE);
-		SDL_EventState(SDL_CONTROLLERBUTTONDOWN, SDL_ENABLE);
-		SDL_EventState(SDL_CONTROLLERBUTTONUP, SDL_ENABLE);
-		SDL_EventState(SDL_CONTROLLERDEVICEADDED, SDL_ENABLE);
-		SDL_EventState(SDL_CONTROLLERDEVICEREMOVED, SDL_ENABLE);
-		SDL_EventState(SDL_CONTROLLERDEVICEREMAPPED, SDL_ENABLE);
-		SDL_EventState(SDL_FINGERDOWN, SDL_ENABLE);
-		SDL_EventState(SDL_FINGERUP, SDL_ENABLE);
-		SDL_EventState(SDL_FINGERMOTION, SDL_ENABLE);
-		SDL_EventState(SDL_DOLLARGESTURE, SDL_ENABLE);
-		SDL_EventState(SDL_DOLLARRECORD, SDL_ENABLE);
-		SDL_EventState(SDL_MULTIGESTURE, SDL_ENABLE);
-		SDL_EventState(SDL_CLIPBOARDUPDATE, SDL_DISABLE);
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
-		SDL_EventState(SDL_DROPTEXT, SDL_ENABLE);
-		SDL_EventState(SDL_DROPBEGIN, SDL_ENABLE);
-		SDL_EventState(SDL_DROPCOMPLETE, SDL_ENABLE);
-#endif
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-		SDL_EventState(SDL_AUDIODEVICEADDED, SDL_DISABLE);
-		SDL_EventState(SDL_AUDIODEVICEREMOVED, SDL_DISABLE);
-		SDL_EventState(SDL_RENDER_DEVICE_RESET, SDL_DISABLE);
-#endif
-		SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
-		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-		SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-		SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-		SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-
-		const char* Platform = SDL_GetPlatform();
-		if (!strcmp(Platform, "iOS") || !strcmp(Platform, "Android") || !strcmp(Platform, "Unknown"))
-			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-		else
-			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
-		VI_TRACE("[lib] initialize sdl2 library");
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::InitializeGraphics() noexcept
-	{
-#ifdef VI_GLEW
-		glewExperimental = true;
-		VI_TRACE("[lib] initialize graphics library");
-		return true;
-#else
-		return false;
-#endif
-	}
 	bool Runtime::InitializeLocale() noexcept
 	{
 		VI_TRACE("[lib] initialize locale library");
@@ -347,13 +236,6 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::InitializeAudio() noexcept
-	{
-		VI_TRACE("[lib] initialize audio library");
-		auto Status = Audio::AudioContext::Initialize();
-		Status.Report("audio initialization error");
-		return !!Status;
-	}
 	bool Runtime::InitializeScripting() noexcept
 	{
 		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::DefaultAllocate, Core::Memory::DefaultDeallocate);
@@ -362,8 +244,7 @@ namespace Vitex
 	void Runtime::CleanupInstances() noexcept
 	{
 		VI_TRACE("[lib] free singleton instances");
-		Engine::Application::CleanupInstance();
-		Engine::GUI::Subsystem::CleanupInstance();
+		Layer::Application::CleanupInstance();
 		Network::HTTP::HrmCache::CleanupInstance();
 		Network::LDB::Driver::CleanupInstance();
 		Network::PDB::Driver::CleanupInstance();
@@ -411,13 +292,6 @@ namespace Vitex
 		VI_TRACE("[lib] free openssl library");
 #endif
 	}
-	void Runtime::CleanupPlatform() noexcept
-	{
-#ifdef VI_SDL2
-		SDL_Quit();
-		VI_TRACE("[lib] free sdl2 library");
-#endif
-	}
 	void Runtime::CleanupNetwork() noexcept
 	{
 #ifdef VI_MICROSOFT
@@ -425,15 +299,10 @@ namespace Vitex
 		VI_TRACE("[lib] free windows networking library");
 #endif
 	}
-	void Runtime::CleanupImporter() noexcept
-	{
-#ifdef VI_ASSIMP
-		Assimp::DefaultLogger::kill();
-		VI_TRACE("[lib] free importer library");
-#endif
-	}
 	void Runtime::CleanupScripting() noexcept
 	{
+		Scripting::Bindings::Registry().Cleanup();
+		VI_TRACE("[lib] free bindings registry");
 		Scripting::VirtualMachine::Cleanup();
 		VI_TRACE("[lib] free virtual machine");
 	}
@@ -488,29 +357,9 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasFtShaders() const noexcept
-	{
-		return HasSoSpirv();
-	}
 	bool Runtime::HasFtFContext() const noexcept
 	{
 #ifdef VI_FCONTEXT
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasSoOpenGL() const noexcept
-	{
-#ifdef VI_OPENGL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasSoOpenAL() const noexcept
-	{
-#ifdef VI_OPENAL
 		return true;
 #else
 		return false;
@@ -524,41 +373,9 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoSDL2() const noexcept
-	{
-#ifdef VI_SDL2
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasSoGLEW() const noexcept
-	{
-#ifdef VI_GLEW
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasSoSpirv() const noexcept
-	{
-#ifdef VI_SPIRV
-		return true;
-#else
-		return false;
-#endif
-	}
 	bool Runtime::HasSoZLib() const noexcept
 	{
 #ifdef VI_ZLIB
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasSoAssimp() const noexcept
-	{
-#ifdef VI_ASSIMP
 		return true;
 #else
 		return false;
@@ -588,14 +405,6 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoFreeType() const noexcept
-	{
-#ifdef VI_FREETYPE
-		return true;
-#else
-		return false;
-#endif
-	}
 	bool Runtime::HasMdAngelScript() const noexcept
 	{
 #ifdef VI_ANGELSCRIPT
@@ -612,41 +421,9 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdRmlUI() const noexcept
-	{
-#ifdef VI_RMLUI
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasMdBullet3() const noexcept
-	{
-#ifdef VI_BULLET3
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasMdTinyFileDialogs() const noexcept
-	{
-#ifdef VI_TINYFILEDIALOGS
-		return true;
-#else
-		return false;
-#endif
-	}
 	bool Runtime::HasMdWepoll() const noexcept
 	{
 #ifdef VI_WEPOLL
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasMdStb() const noexcept
-	{
-#ifdef VI_STB
 		return true;
 #else
 		return false;
@@ -663,14 +440,6 @@ namespace Vitex
 	bool Runtime::HasMdRapidJson() const noexcept
 	{
 #ifdef VI_RAPIDJSON
-		return true;
-#else
-		return false;
-#endif
-	}
-	bool Runtime::HasMdVectorclass() const noexcept
-	{
-#ifdef VI_VECTORCLASS
 		return true;
 #else
 		return false;
@@ -711,50 +480,26 @@ namespace Vitex
 	Core::String Runtime::GetDetails() const noexcept
 	{
 		Core::Vector<Core::String> Features;
-		if (HasSoOpenGL())
-			Features.push_back("so:opengl");
-		if (HasSoOpenAL())
-			Features.push_back("so:openal");
 		if (HasSoOpenSSL())
 			Features.push_back("so:openssl");
-		if (HasSoSDL2())
-			Features.push_back("so:sdl2");
-		if (HasSoGLEW())
-			Features.push_back("so:glew");
-		if (HasSoSpirv())
-			Features.push_back("so:spirv");
 		if (HasSoZLib())
 			Features.push_back("so:zlib");
-		if (HasSoAssimp())
-			Features.push_back("so:assimp");
 		if (HasSoMongoc())
 			Features.push_back("so:mongoc");
 		if (HasSoPostgreSQL())
 			Features.push_back("so:pq");
 		if (HasSoSQLite())
 			Features.push_back("so:sqlite");
-		if (HasSoFreeType())
-			Features.push_back("so:freetype");
 		if (HasMdAngelScript())
 			Features.push_back("md:angelscript");
 		if (HasMdBackwardCpp())
 			Features.push_back("md:backward-cpp");
-		if (HasMdRmlUI())
-			Features.push_back("md:rmlui");
-		if (HasMdBullet3())
-			Features.push_back("md:bullet3");
-		if (HasMdTinyFileDialogs())
-			Features.push_back("md:tinyfiledialogs");
 		if (HasMdWepoll())
 			Features.push_back("md:wepoll");
-		if (HasMdStb())
-			Features.push_back("md:stb");
 		if (HasMdPugiXml())
 			Features.push_back("md:pugixml");
 		if (HasMdRapidJson())
 			Features.push_back("md:rapidjson");
-		if (HasMdVectorclass())
-			Features.push_back("md:vectorclass");
 		if (HasFtFContext())
 			Features.push_back("ft:fcontext");
 		if (HasFtAllocator())
@@ -763,8 +508,6 @@ namespace Vitex
 			Features.push_back("ft:pessimistic");
 		if (HasFtBindings())
 			Features.push_back("ft:bindings");
-		if (HasFtShaders())
-			Features.push_back("ft:shaders");
 
 		Core::StringStream Result;
 		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << "." << BUILD_VERSION << " / " << VERSION << "\n";

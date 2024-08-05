@@ -13,13 +13,6 @@ if (MSVC)
     set(CMAKE_SHARED_LINKER_FLAGS "/SUBSYSTEM:WINDOWS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /bigobj")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP /bigobj")
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        if ((VI_BULLET3 AND VI_SIMD) OR VI_SIMD)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX512")
-        elseif (VI_BULLET3)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-        endif()
-    endif()
 else()
     if (WIN32 AND MINGW)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mwindows -D_WIN32_WINNT=0x0600")
@@ -36,8 +29,6 @@ if (WIN32)
         ws2_32.lib
         mswsock.lib)
     target_link_libraries(vitex PRIVATE
-        d3d11.lib
-        d3dcompiler.lib
         crypt32.lib)
 endif()
 if (NOT MSVC)
@@ -61,4 +52,4 @@ unset(FCTX_SOURCES)
 
 # Include main headers and sources as well as installation targets
 target_compile_definitions(vitex PRIVATE -DVI_EXPORT -DNOMINMAX -D_GNU_SOURCE)
-target_include_directories(vitex PUBLIC ${PROJECT_SOURCE_DIR}/src/)
+target_include_directories(vitex PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../src/)

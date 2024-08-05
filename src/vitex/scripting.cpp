@@ -3444,7 +3444,6 @@ namespace Vitex
 		{
 			LastCommandAtStackLevel = 0;
 			AddDefaultCommands();
-			AddDefaultStringifiers();
 		}
 		DebuggerContext::~DebuggerContext() noexcept
 		{
@@ -3730,195 +3729,6 @@ namespace Vitex
 				PrintCallstack(Context);
 				return false;
 			});
-		}
-		void DebuggerContext::AddDefaultStringifiers()
-		{
-			AddToStringCallback("string", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Core::String& Source = *(Core::String*)Object;
-				Core::StringStream Stream;
-				Stream << "\"" << Source << "\"";
-				Stream << " (string, " << Source.size() << " chars)";
-				return Stream.str();
-			});
-			AddToStringCallback("string_view", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				std::string_view& Source = *(std::string_view*)Object;
-				Core::StringStream Stream;
-				Stream << "\"" << Source << "\"";
-				Stream << " (string_view, " << Source.size() << " chars)";
-				return Stream.str();
-			});
-			AddToStringCallback("decimal", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Core::Decimal& Source = *(Core::Decimal*)Object;
-				return Source.ToString() + " (decimal)";
-			});
-			AddToStringCallback("uint128", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Compute::UInt128& Source = *(Compute::UInt128*)Object;
-				return Source.ToString() + " (uint128)";
-			});
-			AddToStringCallback("uint256", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Compute::UInt256& Source = *(Compute::UInt256*)Object;
-				return Source.ToString() + " (uint256)";
-			});
-			AddToStringCallback("variant", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Core::Variant& Source = *(Core::Variant*)Object;
-				return "\"" + Source.Serialize() + "\" (variant)";
-			});
-			AddToStringCallback("any", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Any* Source = (Bindings::Any*)Object;
-				return ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
-			});
-			AddToStringCallback("promise, promise_v", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Promise* Source = (Bindings::Promise*)Object;
-				Core::StringStream Stream;
-				Stream << "(promise<T>)\n";
-				Stream << Indent << "  state = " << (Source->IsPending() ? "pending\n" : "fulfilled\n");
-				Stream << Indent << "  data = " << ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
-				return Stream.str();
-			});
-			AddToStringCallback("array", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Array* Source = (Bindings::Array*)Object;
-				int BaseTypeId = Source->GetElementTypeId();
-				size_t Size = Source->Size();
-				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (array<T>, " << Size << " elements)";
-
-				if (!Depth || !Size)
-					return Stream.str();
-
-				if (Size > 128)
-				{
-					Stream << "\n";
-					Indent.append("  ");
-					for (size_t i = 0; i < Size; i++)
-					{
-						Stream << Indent << "[" << i << "]: " << ToString(Indent, Depth - 1, Source->At(i), BaseTypeId);
-						if (i + 1 < Size)
-							Stream << "\n";
-					}
-					Indent.erase(Indent.end() - 2, Indent.end());
-				}
-				else
-				{
-					Stream << " [";
-					for (size_t i = 0; i < Size; i++)
-					{
-						Stream << ToString(Indent, Depth - 1, Source->At(i), BaseTypeId);
-						if (i + 1 < Size)
-							Stream << ", ";
-					}
-					Stream << "]";
-				}
-
-				return Stream.str();
-			});
-			AddToStringCallback("dictionary", [this](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Dictionary* Source = (Bindings::Dictionary*)Object;
-				size_t Size = Source->Size();
-				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (dictionary, " << Size << " elements)";
-
-				if (!Depth || !Size)
-					return Stream.str();
-
-				Stream << "\n";
-				Indent.append("  ");
-				for (size_t i = 0; i < Size; i++)
-				{
-					Core::String Name; void* Value; int TypeId;
-					if (!Source->GetIndex(i, &Name, &Value, &TypeId))
-						continue;
-
-					TypeInfo Type = VM->GetTypeInfoById(TypeId);
-					Stream << Indent << CharTrimEnd(Type.IsValid() ? Type.GetName() : "?") << " \"" << Name << "\": " << ToString(Indent, Depth - 1, Value, TypeId);
-					if (i + 1 < Size)
-						Stream << "\n";
-				}
-
-				Indent.erase(Indent.end() - 2, Indent.end());
-				return Stream.str();
-			});
-			AddToStringCallback("schema", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Core::StringStream Stream;
-				Core::Schema* Source = (Core::Schema*)Object;
-				if (Source->Value.IsObject())
-					Stream << "0x" << (void*)Source << "(schema)\n";
-
-				Core::Schema::ConvertToJSON(Source, [&Indent, &Stream](Core::VarForm Type, const std::string_view& Buffer)
-				{
-					if (!Buffer.empty())
-						Stream << Buffer;
-
-					switch (Type)
-					{
-						case Core::VarForm::Tab_Decrease:
-							Indent.erase(Indent.end() - 2, Indent.end());
-							break;
-						case Core::VarForm::Tab_Increase:
-							Indent.append("  ");
-							break;
-						case Core::VarForm::Write_Space:
-							Stream << " ";
-							break;
-						case Core::VarForm::Write_Line:
-							Stream << "\n";
-							break;
-						case Core::VarForm::Write_Tab:
-							Stream << Indent;
-							break;
-						default:
-							break;
-					}
-				});
-				return Stream.str();
-			});
-#ifdef VI_BINDINGS
-			AddToStringCallback("thread", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::Thread* Source = (Bindings::Thread*)Object;
-				Core::StringStream Stream;
-				Stream << "(thread)\n";
-				Stream << Indent << "  id = " << Source->GetId() << "\n";
-				Stream << Indent << "  state = " << (Source->IsActive() ? "active" : "suspended");
-				return Stream.str();
-			});
-			AddToStringCallback("char_buffer", [](Core::String& Indent, int Depth, void* Object, int TypeId)
-			{
-				Bindings::CharBuffer* Source = (Bindings::CharBuffer*)Object;
-				size_t Size = Source->Size();
-
-				Core::StringStream Stream;
-				Stream << "0x" << (void*)Source << " (char_buffer, " << Size << " bytes) [";
-
-				char* Buffer = (char*)Source->GetPointer(0);
-				size_t Count = (Size > 256 ? 256 : Size);
-				Core::String Next = "0";
-
-				for (size_t i = 0; i < Count; i++)
-				{
-					Next[0] = Buffer[i];
-					Stream << "0x" << Compute::Codec::HexEncode(Next);
-					if (i + 1 < Count)
-						Stream << ", ";
-				}
-
-				if (Count < Size)
-					Stream << ", ...";
-
-				Stream << "]";
-				return Stream.str();
-			});
-#endif
 		}
 		void DebuggerContext::AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback)
 		{
@@ -6569,7 +6379,6 @@ namespace Vitex
 			Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 0);
 #endif
 			SetTsImports(true);
-			RegisterAddons(this);
 		}
 		VirtualMachine::~VirtualMachine() noexcept
 		{
@@ -8146,7 +7955,6 @@ namespace Vitex
 		}
 		void VirtualMachine::Cleanup()
 		{
-			Bindings::Registry::Cleanup();
 			TypeCache::Cleanup();
 			CleanupThisThread();
 		}
@@ -8468,61 +8276,6 @@ namespace Vitex
 			else if (Info->type == asMSGTYPE_ERROR)
 				VI_ERR("[asc] %s: %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
 #endif
-		}
-		void VirtualMachine::RegisterAddons(VirtualMachine* Engine)
-		{
-			Engine->AddSystemAddon("ctypes", { }, Bindings::Registry::ImportCTypes);
-			Engine->AddSystemAddon("any", { }, Bindings::Registry::ImportAny);
-			Engine->AddSystemAddon("array", { "ctypes" }, Bindings::Registry::ImportArray);
-			Engine->AddSystemAddon("complex", { }, Bindings::Registry::ImportComplex);
-			Engine->AddSystemAddon("math", { }, Bindings::Registry::ImportMath);
-			Engine->AddSystemAddon("string", { "array" }, Bindings::Registry::ImportString);
-			Engine->AddSystemAddon("random", { "string" }, Bindings::Registry::ImportRandom);
-			Engine->AddSystemAddon("dictionary", { "array", "string" }, Bindings::Registry::ImportDictionary);
-			Engine->AddSystemAddon("exception", { "string" }, Bindings::Registry::ImportException);
-			Engine->AddSystemAddon("mutex", { }, Bindings::Registry::ImportMutex);
-			Engine->AddSystemAddon("thread", { "any", "string" }, Bindings::Registry::ImportThread);
-			Engine->AddSystemAddon("buffers", { "string" }, Bindings::Registry::ImportBuffers);
-			Engine->AddSystemAddon("promise", { "exception" }, Bindings::Registry::ImportPromise);
-			Engine->AddSystemAddon("decimal", { "string" }, Bindings::Registry::ImportDecimal);
-			Engine->AddSystemAddon("uint128", { "decimal" }, Bindings::Registry::ImportUInt128);
-			Engine->AddSystemAddon("uint256", { "uint128" }, Bindings::Registry::ImportUInt256);
-			Engine->AddSystemAddon("variant", { "string", "decimal" }, Bindings::Registry::ImportVariant);
-			Engine->AddSystemAddon("timestamp", { "string" }, Bindings::Registry::ImportTimestamp);
-			Engine->AddSystemAddon("console", { "string" }, Bindings::Registry::ImportConsole);
-			Engine->AddSystemAddon("schema", { "array", "string", "dictionary", "variant" }, Bindings::Registry::ImportSchema);
-			Engine->AddSystemAddon("schedule", { "ctypes" }, Bindings::Registry::ImportSchedule);
-			Engine->AddSystemAddon("clock", { }, Bindings::Registry::ImportClockTimer);
-			Engine->AddSystemAddon("fs", { "string" }, Bindings::Registry::ImportFileSystem);
-			Engine->AddSystemAddon("os", { "fs", "array", "dictionary" }, Bindings::Registry::ImportOS);
-			Engine->AddSystemAddon("vertices", { }, Bindings::Registry::ImportVertices);
-			Engine->AddSystemAddon("vectors", { }, Bindings::Registry::ImportVectors);
-			Engine->AddSystemAddon("shapes", { "vectors" }, Bindings::Registry::ImportShapes);
-			Engine->AddSystemAddon("key-frames", { "vectors", "string" }, Bindings::Registry::ImportKeyFrames);
-			Engine->AddSystemAddon("regex", { "string" }, Bindings::Registry::ImportRegex);
-			Engine->AddSystemAddon("crypto", { "string", "schema" }, Bindings::Registry::ImportCrypto);
-			Engine->AddSystemAddon("codec", { "string" }, Bindings::Registry::ImportCodec);
-			Engine->AddSystemAddon("geometric", { "vectors", "vertices", "shapes" }, Bindings::Registry::ImportGeometric);
-			Engine->AddSystemAddon("preprocessor", { "string" }, Bindings::Registry::ImportPreprocessor);
-			Engine->AddSystemAddon("physics", { "string", "geometric" }, Bindings::Registry::ImportPhysics);
-			Engine->AddSystemAddon("audio", { "string", "vectors", "schema" }, Bindings::Registry::ImportAudio);
-			Engine->AddSystemAddon("audio-effects", { "audio" }, Bindings::Registry::ImportAudioEffects);
-			Engine->AddSystemAddon("audio-filters", { "audio" }, Bindings::Registry::ImportAudioFilters);
-			Engine->AddSystemAddon("activity", { "string", "vectors" }, Bindings::Registry::ImportActivity);
-			Engine->AddSystemAddon("graphics", { "activity", "string", "vectors", "vertices", "shapes", "key-frames" }, Bindings::Registry::ImportGraphics);
-			Engine->AddSystemAddon("network", { "string", "array", "dictionary", "promise" }, Bindings::Registry::ImportNetwork);
-			Engine->AddSystemAddon("http", { "schema", "fs", "promise", "regex", "network" }, Bindings::Registry::ImportHTTP);
-			Engine->AddSystemAddon("smtp", { "promise", "network" }, Bindings::Registry::ImportSMTP);
-			Engine->AddSystemAddon("sqlite", { "network", "schema" }, Bindings::Registry::ImportSQLite);
-			Engine->AddSystemAddon("postgresql", { "network", "schema" }, Bindings::Registry::ImportPostgreSQL);
-			Engine->AddSystemAddon("mongodb", { "network", "schema" }, Bindings::Registry::ImportMongoDB);
-			Engine->AddSystemAddon("ui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);
-			Engine->AddSystemAddon("ui-model", { "ui-control", }, Bindings::Registry::ImportUiModel);
-			Engine->AddSystemAddon("ui-context", { "ui-model" }, Bindings::Registry::ImportUiContext);
-			Engine->AddSystemAddon("vm", { }, Bindings::Registry::ImportVM);
-			Engine->AddSystemAddon("engine", { "schema", "schedule", "key-frames", "fs", "graphics", "audio", "physics", "clock", "ui-context" }, Bindings::Registry::ImportEngine);
-			Engine->AddSystemAddon("components", { "engine" }, Bindings::Registry::ImportComponents);
-			Engine->AddSystemAddon("renderers", { "engine" }, Bindings::Registry::ImportRenderers);
 		}
 		size_t VirtualMachine::GetDefaultAccessMask()
 		{

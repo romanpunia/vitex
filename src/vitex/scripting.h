@@ -1764,7 +1764,6 @@ namespace Vitex
 		private:
 			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback);
 			void AddDefaultCommands();
-			void AddDefaultStringifiers();
 			void ClearThread(ImmediateContext* Context);
 			ThreadData GetThread(ImmediateContext* Context);
 		};
@@ -2137,7 +2136,6 @@ namespace Vitex
 			static asIScriptContext* RequestRawContext(asIScriptEngine* Engine, void* Data);
 			static void ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
 			static void MessageLogger(asSMessageInfo* Info, void* Object);
-			static void RegisterAddons(VirtualMachine* Engine);
 			static void* GetNullable();
 
 		public:

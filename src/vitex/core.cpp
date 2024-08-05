@@ -1,4 +1,5 @@
 #define _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE
 #define _FILE_OFFSET_BITS 64
 #include "core.h"
 #include "scripting.h"
@@ -25,16 +26,13 @@
 #ifdef VI_RAPIDJSON
 #include <rapidjson/document.h>
 #endif
-#ifdef VI_TINYFILEDIALOGS
-#include <tinyfiledialogs.h>
-#endif
 #ifdef VI_CXX23
 #include <stacktrace>
 #elif defined(VI_BACKWARDCPP)
 #include <backward.hpp>
 #endif
 #ifdef VI_FCONTEXT
-#include "internal/fcontext/fcontext.h"
+#include "internal/fcontext.h"
 #endif
 #ifdef VI_MICROSOFT
 #include <Windows.h>
@@ -10288,132 +10286,6 @@ namespace Vitex
 			return Expectation::Met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
-#endif
-		}
-
-		bool OS::Input::Text(const std::string_view& Title, const std::string_view& Message, const std::string_view& DefaultInput, String* Result)
-		{
-#ifdef VI_TINYFILEDIALOGS
-			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(Message), "title and message should be set");
-			VI_TRACE("[tfd] open input { title: %.*s, message: %.*s }", (int)Title.size(), Title.data(), (int)Message.size(), Message.data());
-			const char* Data = tinyfd_inputBox(Title.data(), Message.data(), DefaultInput.data());
-			if (!Data)
-				return false;
-
-			VI_TRACE("[tfd] close input: %s", Data ? Data : "NULL");
-			if (Result != nullptr)
-				*Result = Data;
-
-			return true;
-#else
-			return false;
-#endif
-		}
-		bool OS::Input::Password(const std::string_view& Title, const std::string_view& Message, String* Result)
-		{
-#ifdef VI_TINYFILEDIALOGS
-			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(Message), "title and message should be set");
-			VI_TRACE("[tfd] open password { title: %.*s, message: %.*s }", (int)Title.size(), Title.data(), (int)Message.size(), Message.data());
-			const char* Data = tinyfd_inputBox(Title.data(), Message.data(), nullptr);
-			if (!Data)
-				return false;
-
-			VI_TRACE("[tfd] close password: %s", Data ? Data : "NULL");
-			if (Result != nullptr)
-				*Result = Data;
-
-			return true;
-#else
-			return false;
-#endif
-		}
-		bool OS::Input::Save(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, String* Result)
-		{
-#ifdef VI_TINYFILEDIALOGS
-			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultPath) && Stringify::IsCString(Filter) && Stringify::IsCString(FilterDescription), "title, default and filter should be set");
-			VI_ASSERT(FilterDescription.empty() || Stringify::IsCString(FilterDescription), "desc should be set");
-			Vector<String> Sources = Stringify::Split(Filter, ',');
-			Vector<char*> Patterns;
-			for (auto& It : Sources)
-				Patterns.push_back((char*)It.c_str());
-
-			VI_TRACE("[tfd] open save { title: %.*s, filter: %.*s }", (int)Title.size(), Title.data(), (int)Filter.size(), Filter.data());
-			const char* Data = tinyfd_saveFileDialog(Title.data(), DefaultPath.data(), (int)Patterns.size(),
-				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.data());
-
-			if (!Data)
-				return false;
-
-			VI_TRACE("[tfd] close save: %s", Data ? Data : "NULL");
-			if (Result != nullptr)
-				*Result = Data;
-
-			return true;
-#else
-			return false;
-#endif
-		}
-		bool OS::Input::Open(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, bool Multiple, String* Result)
-		{
-#ifdef VI_TINYFILEDIALOGS
-			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultPath) && Stringify::IsCString(Filter) && Stringify::IsCString(FilterDescription), "title, default and filter should be set");
-			VI_ASSERT(FilterDescription.empty() || Stringify::IsCString(FilterDescription), "desc should be set");
-			Vector<String> Sources = Stringify::Split(Filter, ',');
-			Vector<char*> Patterns;
-			for (auto& It : Sources)
-				Patterns.push_back((char*)It.c_str());
-
-			VI_TRACE("[tfd] open load { title: %.*s, filter: %.*s }", (int)Title.size(), Title.data(), (int)Filter.size(), Filter.data());
-			const char* Data = tinyfd_openFileDialog(Title.data(), DefaultPath.data(), (int)Patterns.size(),
-				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.data(), Multiple);
-
-			if (!Data)
-				return false;
-
-			VI_TRACE("[tfd] close load: %s", Data ? Data : "NULL");
-			if (Result != nullptr)
-				*Result = Data;
-
-			return true;
-#else
-			return false;
-#endif
-		}
-		bool OS::Input::Folder(const std::string_view& Title, const std::string_view& DefaultPath, String* Result)
-		{
-#ifdef VI_TINYFILEDIALOGS
-			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultPath), "title and default should be set");
-			VI_TRACE("[tfd] open folder { title: %.*s }", (int)Title.size(), Title.data());
-			const char* Data = tinyfd_selectFolderDialog(Title.data(), DefaultPath.data());
-			if (!Data)
-				return false;
-
-			VI_TRACE("[tfd] close folder: %s", Data ? Data : "NULL");
-			if (Result != nullptr)
-				*Result = Data;
-
-			return true;
-#else
-			return false;
-#endif
-		}
-		bool OS::Input::Color(const std::string_view& Title, const std::string_view& DefaultHexRGB, String* Result)
-		{
-#ifdef VI_TINYFILEDIALOGS
-			VI_ASSERT(Stringify::IsCString(Title) && Stringify::IsCString(DefaultHexRGB), "title and default should be set");
-			VI_TRACE("[tfd] open color { title: %.*s }", (int)Title.size(), Title.data());
-			uint8_t RGB[3] = { 0, 0, 0 };
-			const char* Data = tinyfd_colorChooser(Title.data(), DefaultHexRGB.data(), RGB, RGB);
-			if (!Data)
-				return false;
-
-			VI_TRACE("[tfd] close color: %s", Data ? Data : "NULL");
-			if (Result != nullptr)
-				*Result = Data;
-
-			return true;
-#else
-			return false;
 #endif
 		}
 

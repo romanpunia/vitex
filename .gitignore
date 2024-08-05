@@ -1,7 +1,3 @@
-.idea/
 .git/
-debug/
-release/
 bin/
-src/vitex/graphics/shaders/*.hpp
 **/.DS_Store

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <list>
 #include <system_error>
+#include <algorithm>
 #ifdef VI_CXX20
 #include <coroutine>
 #ifndef NDEBUG
@@ -2609,17 +2610,6 @@ namespace Vitex
 				static ExpectsIO<Unique<void>> Load(const std::string_view& Path = "");
 				static ExpectsIO<Unique<void>> LoadFunction(void* Handle, const std::string_view& Name);
 				static ExpectsIO<void> Unload(void* Handle);
-			};
-
-			class VI_OUT Input
-			{
-			public:
-				static bool Text(const std::string_view& Title, const std::string_view& Message, const std::string_view& DefaultInput, String* Result);
-				static bool Password(const std::string_view& Title, const std::string_view& Message, String* Result);
-				static bool Save(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, String* Result);
-				static bool Open(const std::string_view& Title, const std::string_view& DefaultPath, const std::string_view& Filter, const std::string_view& FilterDescription, bool Multiple, String* Result);
-				static bool Folder(const std::string_view& Title, const std::string_view& DefaultPath, String* Result);
-				static bool Color(const std::string_view& Title, const std::string_view& DefaultHexRGB, String* Result);
 			};
 
 			class VI_OUT Error
@@ -5309,6 +5299,8 @@ namespace Vitex
 			char Buffer[32];
 			return String(ToStringView<T>(Buffer, sizeof(Buffer), Other, Base));
 		}
-		}
 	}
+}
+
+using decimal_t = Vitex::Core::Decimal;
 #endif

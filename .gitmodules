@@ -7,24 +7,9 @@
 [submodule "deps/angelscript"]
 	path = deps/angelscript
 	url = https://github.com/codecat/angelscript-mirror
-[submodule "deps/rmlui"]
-	path = deps/rmlui
-	url = https://github.com/mikke89/RmlUi
-[submodule "deps/bullet3"]
-	path = deps/bullet3
-	url = https://github.com/bulletphysics/bullet3
-[submodule "deps/vectorclass"]
-	path = deps/vectorclass
-	url = https://github.com/vectorclass/version1
 [submodule "deps/concurrentqueue"]
 	path = deps/concurrentqueue
 	url = https://github.com/cameron314/concurrentqueue
-[submodule "deps/stb"]
-	path = deps/stb
-	url = https://github.com/nothings/stb
-[submodule "deps/tinyfiledialogs"]
-	path = deps/tinyfiledialogs
-	url = https://github.com/native-toolkit/libtinyfiledialogs
 [submodule "deps/rapidjson"]
 	path = deps/rapidjson
 	url = https://github.com/tencent/rapidjson

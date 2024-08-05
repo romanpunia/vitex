@@ -206,7 +206,7 @@ namespace Vitex
 			ContentManager* GetContent() const;
 		};
 
-		class VI_OUT_TS ContentManager final : public Core::Reference<ContentManager>
+		class VI_OUT_TS ContentManager : public Core::Reference<ContentManager>
 		{
 		private:
 			Core::UnorderedMap<Core::String, Core::UnorderedMap<Processor*, AssetCache*>> Assets;
@@ -219,7 +219,7 @@ namespace Vitex
 
 		public:
 			ContentManager() noexcept;
-			~ContentManager() noexcept;
+			virtual ~ContentManager() noexcept;
 			void ClearCache();
 			void ClearArchives();
 			void ClearStreams();
@@ -342,7 +342,7 @@ namespace Vitex
 				{
 					float Stable = 120.0f;
 					float Limit = 0.0f;
-				} Framerate;
+				} Refreshrate;
 
 				Core::Schedule::Desc Scheduler;
 				Core::String Preferences;
@@ -355,13 +355,11 @@ namespace Vitex
 					(size_t)USE_PROCESSING |
 					(size_t)USE_NETWORKING |
 					(size_t)USE_SCRIPTING;
-				bool BlockingDispatch = true;
 				bool Daemon = false;
-				bool Cursor = true;
 			};
 
 		private:
-			Core::Timer* InternalClock = nullptr;
+			Core::Timer* Clock = nullptr;
 			ApplicationState State = ApplicationState::Terminated;
 			int ExitCode = 0;
 

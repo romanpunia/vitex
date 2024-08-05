@@ -52,4 +52,4 @@ unset(FCTX_SOURCES)
 
 # Include main headers and sources as well as installation targets
 target_compile_definitions(vitex PRIVATE -DVI_EXPORT -DNOMINMAX -D_GNU_SOURCE)
-target_include_directories(vitex PUBLIC ${PROJECT_SOURCE_DIR}/src/)
+target_include_directories(vitex PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../src/)

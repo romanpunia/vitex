@@ -2,6 +2,7 @@
 #include "compute.h"
 #include "network.h"
 #include "scripting.h"
+#include "bindings.h"
 #include "network/http.h"
 #include "network/ldb.h"
 #include "network/pdb.h"
@@ -300,6 +301,8 @@ namespace Vitex
 	}
 	void Runtime::CleanupScripting() noexcept
 	{
+		Scripting::Bindings::Registry().Cleanup();
+		VI_TRACE("[lib] free bindings registry");
 		Scripting::VirtualMachine::Cleanup();
 		VI_TRACE("[lib] free virtual machine");
 	}

@@ -1205,7 +1205,7 @@ namespace Vitex
 		{
 			Core::Memory::Release(VM);
 			Core::Memory::Release(Content);
-			Core::Memory::Release(InternalClock);
+			Core::Memory::Release(Clock);
 			Application::UnlinkInstance(this);
 			Vitex::Runtime::CleanupInstances();
 		}
@@ -1241,11 +1241,11 @@ namespace Vitex
 			{
 				while (State == ApplicationState::Active)
 				{
-					InternalClock->Begin();
-					Dispatch(InternalClock);
+					Clock->Begin();
+					Dispatch(Clock);
 
-					InternalClock->Finish();
-					Publish(InternalClock);
+					Clock->Finish();
+					Publish(Clock);
 				}
 
 				while (Content && Content->IsBusy())
@@ -1256,12 +1256,11 @@ namespace Vitex
 				while (State == ApplicationState::Active)
 				{
 					Queue->Dispatch();
+					Clock->Begin();
+					Dispatch(Clock);
 
-					InternalClock->Begin();
-					Dispatch(InternalClock);
-
-					InternalClock->Finish();
-					Publish(InternalClock);
+					Clock->Finish();
+					Publish(Clock);
 				}
 			}
 		}
@@ -1295,9 +1294,9 @@ namespace Vitex
 			if (Control.Usage & (size_t)USE_SCRIPTING && !VM)
 				VM = new Scripting::VirtualMachine();
 
-			InternalClock = new Core::Timer();
-			InternalClock->SetFixedFrames(Control.Framerate.Stable);
-			InternalClock->SetMaxFrames(Control.Framerate.Limit);
+			Clock = new Core::Timer();
+			Clock->SetFixedFrames(Control.Refreshrate.Stable);
+			Clock->SetMaxFrames(Control.Refreshrate.Limit);
 
 			if (Control.Usage & (size_t)USE_NETWORKING)
 			{
@@ -1327,7 +1326,7 @@ namespace Vitex
 
 			auto* Queue = Core::Schedule::Get();
 			Queue->Start(Policy);
-			InternalClock->Reset();
+			Clock->Reset();
 			LoopTrigger();
 			Shutdown().Wait();
 			Queue->Stop();

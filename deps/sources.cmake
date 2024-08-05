@@ -1,13 +1,14 @@
 # Create sources list with main sources
+get_filename_component(BASE_PATH "${CMAKE_CURRENT_LIST_DIR}/../" ABSOLUTE)
 file(GLOB_RECURSE SOURCE
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.inl
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.h
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.c
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.cc
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.hpp
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.cpp
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.hxx
-    ${PROJECT_SOURCE_DIR}/src/vitex/*.cxx)
+    ${BASE_PATH}/src/vitex/*.inl
+    ${BASE_PATH}/src/vitex/*.h
+    ${BASE_PATH}/src/vitex/*.c
+    ${BASE_PATH}/src/vitex/*.cc
+    ${BASE_PATH}/src/vitex/*.hpp
+    ${BASE_PATH}/src/vitex/*.cpp
+    ${BASE_PATH}/src/vitex/*.hxx
+    ${BASE_PATH}/src/vitex/*.cxx)
 
 # Append source files of dependencies
 set(VI_ANGELSCRIPT ON CACHE BOOL "Enable angelscript built-in library")
@@ -57,7 +58,7 @@ if (VI_BACKWARDCPP OR TRUE)
     endif()
     if (BACKWARD_ACTIVE)
         set(VI_BACKWARDCPP ON CACHE BOOL "Enable backward-cpp built-in library")
-        list(APPEND SOURCE ${PROJECT_SOURCE_DIR}/deps/backward-cpp/backward.hpp)
+        list(APPEND SOURCE ${CMAKE_CURRENT_LIST_DIR}/backward-cpp/backward.hpp)
         message(STATUS "Backtraces using backward-cpp enabled")
     else()
         set(VI_BACKWARDCPP OFF CACHE BOOL "backward-cpp is unavailable")
@@ -78,46 +79,46 @@ if (VI_BACKWARDCPP OR TRUE)
     unset(BACKWARD_HAS_BFD CACHE)
 endif()
 if (VI_PUGIXML)
-    file(GLOB_RECURSE SOURCE_PUGIXML ${PROJECT_SOURCE_DIR}/deps/pugixml/src/*.*)
+    file(GLOB_RECURSE SOURCE_PUGIXML ${CMAKE_CURRENT_LIST_DIR}/pugixml/src/*.*)
     list(APPEND SOURCE ${SOURCE_PUGIXML})
 endif()
 if (VI_RAPIDJSON)
     file(GLOB_RECURSE SOURCE_RAPIDJSON
-        ${PROJECT_SOURCE_DIR}/deps/rapidjson/include/*.h*)
+        ${CMAKE_CURRENT_LIST_DIR}/rapidjson/include/*.h*)
     list(APPEND SOURCE ${SOURCE_RAPIDJSON})
 endif()
 if (VI_ANGELSCRIPT)
     file(GLOB_RECURSE SOURCE_ANGELSCRIPT
-        ${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/include/angelscript.h
-        ${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/*.h
-        ${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/*.cpp)
+        ${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/include/angelscript.h
+        ${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/*.h
+        ${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/*.cpp)
     if (MSVC)
         if (CMAKE_SIZEOF_VOID_P EQUAL 8)
             if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm64")
-                list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm64_msvc.asm")
+                list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm64_msvc.asm")
             else()
-                list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_x64_msvc_asm.asm")
+                list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_x64_msvc_asm.asm")
             endif()
         elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-            list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm_msvc.asm")
+            list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm_msvc.asm")
         endif()
     elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
-        list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm_gcc.S")
-        list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm_vita.S")
-        list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm_xcode.S")
+        list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm_gcc.S")
+        list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm_vita.S")
+        list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm_xcode.S")
     elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^aarch64")
         if (APPLE)
-            list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm64_xcode.S")
+            list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm64_xcode.S")
         else()
-            list(APPEND SOURCE_ANGELSCRIPT "${PROJECT_SOURCE_DIR}/deps/angelscript/sdk/angelscript/source/as_callfunc_arm64_gcc.S")
+            list(APPEND SOURCE_ANGELSCRIPT "${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source/as_callfunc_arm64_gcc.S")
         endif()
     endif()
     list(APPEND SOURCE ${SOURCE_ANGELSCRIPT})
 endif()
 if (VI_WEPOLL AND WIN32)
 	list(APPEND SOURCE
-        ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.h
-        ${PROJECT_SOURCE_DIR}/deps/wepoll/wepoll.c)
+        ${CMAKE_CURRENT_LIST_DIR}/wepoll/wepoll.h
+        ${CMAKE_CURRENT_LIST_DIR}/wepoll/wepoll.c)
 endif()
 if (VI_FCONTEXT OR TRUE)
     set(FCONTEXT_ARCHS arm arm64 loongarch64 mips32 mips64 ppc32 ppc64 riscv64 s390x i386 x86_64 combined)
@@ -179,14 +180,14 @@ if (VI_FCONTEXT OR TRUE)
     if (FCONTEXT_BIN STREQUAL mach-o)
         set(FCONTEXT_BIN macho)
     endif()
-    if (EXISTS ${PROJECT_SOURCE_DIR}/src/vitex/internal/make_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT})
+    if (EXISTS ${BASE_PATH}/src/vitex/internal/make_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT})
         set(VI_FCONTEXT ON CACHE BOOL "Enable fcontext built-in library (otherwise coroutines based on ucontext, WinAPI or C++20)")
         if (VI_FCONTEXT)
             set(FCONTEXT_SOURCES
-                ${PROJECT_SOURCE_DIR}/src/vitex/internal/fcontext.h
-                ${PROJECT_SOURCE_DIR}/src/vitex/internal/make_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT}
-                ${PROJECT_SOURCE_DIR}/src/vitex/internal/jump_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT}
-                ${PROJECT_SOURCE_DIR}/src/vitex/internal/ontop_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT})
+                ${BASE_PATH}/src/vitex/internal/fcontext.h
+                ${BASE_PATH}/src/vitex/internal/make_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT}
+                ${BASE_PATH}/src/vitex/internal/jump_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT}
+                ${BASE_PATH}/src/vitex/internal/ontop_${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}${FCONTEXT_EXT})
             list(APPEND SOURCE ${FCONTEXT_SOURCES})
             message(STATUS "Async fcontext implementation: ${FCONTEXT_ARCH}_${FCONTEXT_ABI}_${FCONTEXT_BIN}_${FCONTEXT_ASM}")
         else()
@@ -206,15 +207,15 @@ if (VI_FCONTEXT OR TRUE)
 endif()
 if (VI_CONCURRENTQUEUE OR TRUE)
     list(APPEND SOURCE
-        ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/concurrentqueue.h
-        ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/lightweightsemaphore.h
-        ${PROJECT_SOURCE_DIR}/deps/concurrentqueue/blockingconcurrentqueue.h)
+        ${CMAKE_CURRENT_LIST_DIR}/concurrentqueue/concurrentqueue.h
+        ${CMAKE_CURRENT_LIST_DIR}/concurrentqueue/lightweightsemaphore.h
+        ${CMAKE_CURRENT_LIST_DIR}/concurrentqueue/blockingconcurrentqueue.h)
 endif()
 
 # Group all sources for nice IDE preview
 foreach(ITEM IN ITEMS ${SOURCE})
     get_filename_component(ITEM_PATH "${ITEM}" PATH)
-    string(REPLACE "${PROJECT_SOURCE_DIR}" "" ITEM_GROUP "${ITEM_PATH}")
+    string(REPLACE "${BASE_PATH}" "" ITEM_GROUP "${ITEM_PATH}")
     string(REPLACE "/" "\\" ITEM_GROUP "${ITEM_GROUP}")
     source_group("${ITEM_GROUP}" FILES "${ITEM}")
 endforeach()

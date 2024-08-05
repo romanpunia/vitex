@@ -1,15 +1,8 @@
 # Include installation targets
 install(TARGETS vitex DESTINATION lib)
 install(FILES
-        src/vitex/audio/effects.h
-        src/vitex/audio/filters.h
-        DESTINATION include/vitex/audio)
-install(FILES
-        src/vitex/engine/components.h
-        src/vitex/engine/gui.h
-        src/vitex/engine/processors.h
-        src/vitex/engine/renderers.h
-        DESTINATION include/vitex/engine)
+        src/vitex/layer/processors.h
+        DESTINATION include/vitex/layer)
 install(FILES
         src/vitex/network/http.h
         src/vitex/network/ldb.h
@@ -19,11 +12,10 @@ install(FILES
         DESTINATION include/vitex/network)
 install(FILES
         src/vitex/config.hpp
-        src/vitex/audio.h
         src/vitex/bindings.h
         src/vitex/compute.h
         src/vitex/core.h
-        src/vitex/engine.h
+        src/vitex/layer.h
         src/vitex/graphics.h
         src/vitex/network.h
         src/vitex/scripting.h

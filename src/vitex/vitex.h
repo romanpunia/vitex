@@ -12,12 +12,12 @@ namespace Vitex
 		LOAD_LOCALE = 1 << 3,
 		MAJOR_VERSION = 3,
 		MINOR_VERSION = 0,
-		PATCH_VERSION = 0,
-		BUILD_VERSION = 1,
+		PATCH_VERSION = 1,
+		BUILD_VERSION = 2,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 1000 + BUILD_VERSION
 	};
 
-	class VI_OUT_TS Runtime final : public Core::Singletonish
+	class VI_OUT_TS Runtime : public Core::Singletonish
 	{
 	private:
 		static Runtime* Instance;
@@ -30,13 +30,13 @@ namespace Vitex
 			void* DefaultProvider = nullptr;
 		};
 
-	private:
+	protected:
 		CryptographyState* Crypto;
 		size_t Modes;
 
 	public:
 		Runtime(size_t Modules = LOAD_NETWORKING | LOAD_CRYPTOGRAPHY | LOAD_PROVIDERS | LOAD_LOCALE, Core::GlobalAllocator* Allocator = nullptr) noexcept;
-		~Runtime() noexcept;
+		virtual ~Runtime() noexcept;
 		bool HasFtAllocator() const noexcept;
 		bool HasFtPessimistic() const noexcept;
 		bool HasFtBindings() const noexcept;
@@ -59,7 +59,7 @@ namespace Vitex
 		int GetDebugLevel() const noexcept;
 		int GetArchitecture() const noexcept;
 		size_t GetModes() const noexcept;
-		Core::String GetDetails() const noexcept;
+		virtual Core::String GetDetails() const noexcept;
 		std::string_view GetBuild() const noexcept;
 		std::string_view GetCompiler() const noexcept;
 		std::string_view GetPlatform() const noexcept;

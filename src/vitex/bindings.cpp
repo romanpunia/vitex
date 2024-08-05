@@ -1,4 +1,6 @@
 #include "bindings.h"
+#include "internal/types.hpp"
+#include <sstream>
 #ifdef VI_BINDINGS
 #include "network.h"
 #include "network/http.h"
@@ -11,53 +13,6 @@
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #endif
-#define EXCEPTIONCAT_STANDARD "standard_error"
-#define EXCEPTIONCAT_SYSTEM "system_error"
-#define EXCEPTIONCAT_GENERIC "generic_error"
-#define EXCEPTIONCAT_VM "vm_error"
-#define EXCEPTIONCAT_RANGE "range_error"
-#define EXCEPTIONCAT_ALLOCATION "allocation_error"
-#define EXCEPTIONCAT_TEMPLATE "template_error"
-#define EXCEPTIONCAT_TYPE "type_error"
-#define EXCEPTIONCAT_ASYNC "async_error"
-#define EXCEPTIONCAT_SYNC "sync_error"
-#define EXCEPTION_OUTOFBOUNDS EXCEPTIONCAT_RANGE, "index is outside of range"
-#define EXCEPTION_OUTOFMEMORY EXCEPTIONCAT_ALLOCATION, "out of available memory"
-#define EXCEPTION_TOOLARGESIZE EXCEPTIONCAT_ALLOCATION, "too much memory has been requested"
-#define EXCEPTION_TEMPLATEMISMATCH EXCEPTIONCAT_TEMPLATE, "template type does not match the type that was passed to an object"
-#define EXCEPTION_TEMPLATEMULTIPLECOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has multiple opCmp implementations"
-#define EXCEPTION_TEMPLATENOCOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has no opCmp implementation"
-#define EXCEPTION_TEMPLATEMULTIPLEEQCOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has multiple opEquals and/or opCmp implementations"
-#define EXCEPTION_TEMPLATENOEQCOMPARATORS EXCEPTIONCAT_TEMPLATE, "template type has no opEquals or opCmp implementation"
-#define EXCEPTION_COPYFAIL EXCEPTIONCAT_TYPE, "cannot copy this type of object"
-#define EXCEPTION_NULLPOINTER EXCEPTIONCAT_TYPE, "trying to access a null pointer instance"
-#define EXCEPTION_ACCESSINVALID EXCEPTIONCAT_TYPE, "accessing non-existing value"
-#define EXCEPTION_INVALIDINITIATOR EXCEPTIONCAT_TYPE, "type must be a handle or null"
-#define EXCEPTION_PROMISEREADY EXCEPTIONCAT_ASYNC, "trying to settle a promise that is already fulfilled"
-#define EXCEPTION_PROMISENOTREADY EXCEPTIONCAT_ASYNC, "trying to unwrap a promise that is not fulfilled"
-#define EXCEPTION_MUTEXNOTOWNED EXCEPTIONCAT_SYNC, "trying to unlock a mutex that is not owned by this thread"
-#define TYPENAME_ARRAY "array"
-#define TYPENAME_STRING "string"
-#define TYPENAME_DICTIONARY "dictionary"
-#define TYPENAME_ANY "any"
-#define TYPENAME_CLOSURE "closure"
-#define TYPENAME_THREAD "thread"
-#define TYPENAME_PROMISE "promise"
-#define TYPENAME_SCHEMA "schema"
-#define TYPENAME_DECIMAL "decimal"
-#define TYPENAME_VARIANT "variant"
-#define TYPENAME_FILELINK "file_link"
-#define TYPENAME_REGEXMATCH "regex_match"
-#define TYPENAME_REGEXSOURCE "regex_source"
-#define TYPENAME_SOCKETCERTIFICATE "socket_certificate"
-#define TYPENAME_ASSETFILE "asset_file"
-#define TYPENAME_LDBCHECKPOINT "ldb::checkpoint"
-#define TYPENAME_HTTPERRORFILE "http::error_file"
-#define TYPENAME_HTTPMIMETYPE "http::mime_type"
-#define TYPENAME_HTTPRESOURCEINFO "http::resource_info"
-#define TYPENAME_HTTPSERVER "http::server"
-#define TYPENAME_SMTPRECIPIENT "smtp::recipient"
-#define TYPENAME_SMTPATTACHMENT "smtp::attachment"
 
 namespace
 {
@@ -8551,7 +8506,247 @@ namespace Vitex
 				return Array::Compose(Type.GetTypeInfo(), Base->GetQueries());
 			}
 #endif
-			bool Registry::ImportCTypes(VirtualMachine* VM)
+			bool Registry::Cleanup() noexcept
+			{
+#ifdef VI_ANGELSCRIPT
+				StringFactory::Free();
+#endif
+				return true;
+			}
+			bool Registry::BindAddons(VirtualMachine* VM) noexcept
+			{
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
+				VM->AddSystemAddon("ctypes", { }, &ImportCTypes);
+				VM->AddSystemAddon("any", { }, &ImportAny);
+				VM->AddSystemAddon("array", { "ctypes" }, &ImportArray);
+				VM->AddSystemAddon("complex", { }, &ImportComplex);
+				VM->AddSystemAddon("math", { }, &ImportMath);
+				VM->AddSystemAddon("string", { "array" }, &ImportString);
+				VM->AddSystemAddon("random", { "string" }, &ImportRandom);
+				VM->AddSystemAddon("dictionary", { "array", "string" }, &ImportDictionary);
+				VM->AddSystemAddon("exception", { "string" }, &ImportException);
+				VM->AddSystemAddon("mutex", { }, &ImportMutex);
+				VM->AddSystemAddon("thread", { "any", "string" }, &ImportThread);
+				VM->AddSystemAddon("buffers", { "string" }, &ImportBuffers);
+				VM->AddSystemAddon("promise", { "exception" }, &ImportPromise);
+				VM->AddSystemAddon("decimal", { "string" }, &ImportDecimal);
+				VM->AddSystemAddon("uint128", { "decimal" }, &ImportUInt128);
+				VM->AddSystemAddon("uint256", { "uint128" }, &ImportUInt256);
+				VM->AddSystemAddon("variant", { "string", "decimal" }, &ImportVariant);
+				VM->AddSystemAddon("timestamp", { "string" }, &ImportTimestamp);
+				VM->AddSystemAddon("console", { "string" }, &ImportConsole);
+				VM->AddSystemAddon("schema", { "array", "string", "dictionary", "variant" }, &ImportSchema);
+				VM->AddSystemAddon("schedule", { "ctypes" }, &ImportSchedule);
+				VM->AddSystemAddon("clock", { }, &ImportClockTimer);
+				VM->AddSystemAddon("fs", { "string" }, &ImportFileSystem);
+				VM->AddSystemAddon("os", { "fs", "array", "dictionary" }, &ImportOS);
+				VM->AddSystemAddon("regex", { "string" }, &ImportRegex);
+				VM->AddSystemAddon("crypto", { "string", "schema" }, &ImportCrypto);
+				VM->AddSystemAddon("codec", { "string" }, &ImportCodec);
+				VM->AddSystemAddon("preprocessor", { "string" }, &ImportPreprocessor);
+				VM->AddSystemAddon("network", { "string", "array", "dictionary", "promise" }, &ImportNetwork);
+				VM->AddSystemAddon("http", { "schema", "fs", "promise", "regex", "network" }, &ImportHTTP);
+				VM->AddSystemAddon("smtp", { "promise", "network" }, &ImportSMTP);
+				VM->AddSystemAddon("sqlite", { "network", "schema" }, &ImportSQLite);
+				VM->AddSystemAddon("postgresql", { "network", "schema" }, &ImportPostgreSQL);
+				VM->AddSystemAddon("mongodb", { "network", "schema" }, &ImportMongoDB);
+				VM->AddSystemAddon("vm", { }, &ImportVM);
+				VM->AddSystemAddon("layer", { "schema", "schedule", "fs", "clock" }, &ImportLayer);
+				return true;
+			}
+			bool Registry::BindStringifiers(DebuggerContext* Context) noexcept
+			{
+				VI_ASSERT(Context != nullptr, "context should be set");
+				Context->AddToStringCallback("string", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Core::String& Source = *(Core::String*)Object;
+					Core::StringStream Stream;
+					Stream << "\"" << Source << "\"";
+					Stream << " (string, " << Source.size() << " chars)";
+					return Stream.str();
+				});
+				Context->AddToStringCallback("string_view", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					std::string_view& Source = *(std::string_view*)Object;
+					Core::StringStream Stream;
+					Stream << "\"" << Source << "\"";
+					Stream << " (string_view, " << Source.size() << " chars)";
+					return Stream.str();
+				});
+				Context->AddToStringCallback("decimal", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Core::Decimal& Source = *(Core::Decimal*)Object;
+					return Source.ToString() + " (decimal)";
+				});
+				Context->AddToStringCallback("uint128", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Compute::UInt128& Source = *(Compute::UInt128*)Object;
+					return Source.ToString() + " (uint128)";
+				});
+				Context->AddToStringCallback("uint256", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Compute::UInt256& Source = *(Compute::UInt256*)Object;
+					return Source.ToString() + " (uint256)";
+				});
+				Context->AddToStringCallback("variant", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Core::Variant& Source = *(Core::Variant*)Object;
+					return "\"" + Source.Serialize() + "\" (variant)";
+				});
+				Context->AddToStringCallback("any", [Context](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Bindings::Any* Source = (Bindings::Any*)Object;
+					return Context->ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
+				});
+				Context->AddToStringCallback("promise, promise_v", [Context](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Bindings::Promise* Source = (Bindings::Promise*)Object;
+					Core::StringStream Stream;
+					Stream << "(promise<T>)\n";
+					Stream << Indent << "  state = " << (Source->IsPending() ? "pending\n" : "fulfilled\n");
+					Stream << Indent << "  data = " << Context->ToString(Indent, Depth - 1, Source->GetAddressOfObject(), Source->GetTypeId());
+					return Stream.str();
+				});
+				Context->AddToStringCallback("array", [Context](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Bindings::Array* Source = (Bindings::Array*)Object;
+					int BaseTypeId = Source->GetElementTypeId();
+					size_t Size = Source->Size();
+					Core::StringStream Stream;
+					Stream << "0x" << (void*)Source << " (array<T>, " << Size << " elements)";
+
+					if (!Depth || !Size)
+						return Stream.str();
+
+					if (Size > 128)
+					{
+						Stream << "\n";
+						Indent.append("  ");
+						for (size_t i = 0; i < Size; i++)
+						{
+							Stream << Indent << "[" << i << "]: " << Context->ToString(Indent, Depth - 1, Source->At(i), BaseTypeId);
+							if (i + 1 < Size)
+								Stream << "\n";
+						}
+						Indent.erase(Indent.end() - 2, Indent.end());
+					}
+					else
+					{
+						Stream << " [";
+						for (size_t i = 0; i < Size; i++)
+						{
+							Stream << Context->ToString(Indent, Depth - 1, Source->At(i), BaseTypeId);
+							if (i + 1 < Size)
+								Stream << ", ";
+						}
+						Stream << "]";
+					}
+
+					return Stream.str();
+				});
+				Context->AddToStringCallback("dictionary", [Context](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Bindings::Dictionary* Source = (Bindings::Dictionary*)Object;
+					size_t Size = Source->Size();
+					Core::StringStream Stream;
+					Stream << "0x" << (void*)Source << " (dictionary, " << Size << " elements)";
+
+					if (!Depth || !Size)
+						return Stream.str();
+
+					Stream << "\n";
+					Indent.append("  ");
+					for (size_t i = 0; i < Size; i++)
+					{
+						Core::String Name; void* Value; int TypeId;
+						if (!Source->GetIndex(i, &Name, &Value, &TypeId))
+							continue;
+
+						TypeInfo Type = Context->GetEngine()->GetTypeInfoById(TypeId);
+						Core::String Typename = Core::String(Type.IsValid() ? Type.GetName() : "?");
+						Stream << Indent << Core::Stringify::TrimEnd(Typename) << " \"" << Name << "\": " << Context->ToString(Indent, Depth - 1, Value, TypeId);
+						if (i + 1 < Size)
+							Stream << "\n";
+					}
+
+					Indent.erase(Indent.end() - 2, Indent.end());
+					return Stream.str();
+				});
+				Context->AddToStringCallback("schema", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Core::StringStream Stream;
+					Core::Schema* Source = (Core::Schema*)Object;
+					if (Source->Value.IsObject())
+						Stream << "0x" << (void*)Source << "(schema)\n";
+
+					Core::Schema::ConvertToJSON(Source, [&Indent, &Stream](Core::VarForm Type, const std::string_view& Buffer)
+					{
+						if (!Buffer.empty())
+							Stream << Buffer;
+
+						switch (Type)
+						{
+							case Core::VarForm::Tab_Decrease:
+								Indent.erase(Indent.end() - 2, Indent.end());
+								break;
+							case Core::VarForm::Tab_Increase:
+								Indent.append("  ");
+								break;
+							case Core::VarForm::Write_Space:
+								Stream << " ";
+								break;
+							case Core::VarForm::Write_Line:
+								Stream << "\n";
+								break;
+							case Core::VarForm::Write_Tab:
+								Stream << Indent;
+								break;
+							default:
+								break;
+						}
+					});
+					return Stream.str();
+				});
+#ifdef VI_BINDINGS
+				Context->AddToStringCallback("thread", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Bindings::Thread* Source = (Bindings::Thread*)Object;
+					Core::StringStream Stream;
+					Stream << "(thread)\n";
+					Stream << Indent << "  id = " << Source->GetId() << "\n";
+					Stream << Indent << "  state = " << (Source->IsActive() ? "active" : "suspended");
+					return Stream.str();
+				});
+				Context->AddToStringCallback("char_buffer", [](Core::String& Indent, int Depth, void* Object, int TypeId)
+				{
+					Bindings::CharBuffer* Source = (Bindings::CharBuffer*)Object;
+					size_t Size = Source->Size();
+
+					Core::StringStream Stream;
+					Stream << "0x" << (void*)Source << " (char_buffer, " << Size << " bytes) [";
+
+					char* Buffer = (char*)Source->GetPointer(0);
+					size_t Count = (Size > 256 ? 256 : Size);
+					Core::String Next = "0";
+
+					for (size_t i = 0; i < Count; i++)
+					{
+						Next[0] = Buffer[i];
+						Stream << "0x" << Compute::Codec::HexEncode(Next);
+						if (i + 1 < Count)
+							Stream << ", ";
+					}
+
+					if (Count < Size)
+						Stream << ", ...";
+
+					Stream << "]";
+					return Stream.str();
+				});
+#endif
+				return true;
+			}
+			bool Registry::ImportCTypes(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 #ifdef VI_64
@@ -8569,7 +8764,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportAny(VirtualMachine* VM)
+			bool Registry::ImportAny(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
@@ -8586,7 +8781,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportArray(VirtualMachine* VM)
+			bool Registry::ImportArray(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				VM->SetTypeInfoUserDataCleanupCallback(Array::CleanupTypeInfoCache, (size_t)Array::GetId());
@@ -8637,7 +8832,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportComplex(VirtualMachine* VM)
+			bool Registry::ImportComplex(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
@@ -8673,7 +8868,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportDictionary(VirtualMachine* VM)
+			bool Registry::ImportDictionary(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
@@ -8721,7 +8916,7 @@ namespace Vitex
 				FunctionFactory::ReleaseFunctor(&ListFactoryCall);
 				return true;
 			}
-			bool Registry::ImportMath(VirtualMachine* VM)
+			bool Registry::ImportMath(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				VM->SetFunction<float(*)(uint32_t)>("float fp_from_ieee(uint)", &Math::FpFromIEEE);
@@ -8801,7 +8996,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportString(VirtualMachine* VM)
+			bool Registry::ImportString(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				auto VStringView = VM->SetStructAddress("string_view", sizeof(std::string_view), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<std::string_view>() | (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
@@ -8962,7 +9157,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportException(VirtualMachine* VM)
+			bool Registry::ImportException(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				auto VExceptionPtr = VM->SetStructTrivial<Exception::Pointer>("exception_ptr");
@@ -8985,7 +9180,7 @@ namespace Vitex
 				VM->EndNamespace();
 				return true;
 			}
-			bool Registry::ImportMutex(VirtualMachine* VM)
+			bool Registry::ImportMutex(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
@@ -9000,7 +9195,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportThread(VirtualMachine* VM)
+			bool Registry::ImportThread(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
@@ -9032,7 +9227,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportBuffers(VirtualMachine* VM)
+			bool Registry::ImportBuffers(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
@@ -9078,7 +9273,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportRandom(VirtualMachine* VM)
+			bool Registry::ImportRandom(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 
@@ -9095,7 +9290,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportPromise(VirtualMachine* VM)
+			bool Registry::ImportPromise(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				auto VPromise = VM->SetTemplateClass<Promise>("promise<class T>", "promise<T>", true);
@@ -9136,7 +9331,7 @@ namespace Vitex
 				VM->SetCodeGenerator("await-syntax", &Promise::GeneratorCallback);
 				return true;
 			}
-			bool Registry::ImportDecimal(VirtualMachine* VM)
+			bool Registry::ImportDecimal(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
@@ -9197,7 +9392,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportUInt128(VirtualMachine* VM)
+			bool Registry::ImportUInt128(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
@@ -9244,7 +9439,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportUInt256(VirtualMachine* VM)
+			bool Registry::ImportUInt256(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 
@@ -9293,7 +9488,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportVariant(VirtualMachine* VM)
+			bool Registry::ImportVariant(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				auto VVarType = VM->SetEnum("var_type");
@@ -9351,7 +9546,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportTimestamp(VirtualMachine* VM)
+			bool Registry::ImportTimestamp(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				auto VDateTime = VM->SetStructTrivial<Core::DateTime>("timestamp");
@@ -9397,7 +9592,7 @@ namespace Vitex
 				VDateTime->SetMethodStatic("string_view format_compact_time()", &Core::DateTime::FormatCompactTime);
 				return true;
 			}
-			bool Registry::ImportConsole(VirtualMachine* VM)
+			bool Registry::ImportConsole(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -9466,7 +9661,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportSchema(VirtualMachine* VM)
+			bool Registry::ImportSchema(VirtualMachine* VM) noexcept
 			{
 				VI_ASSERT(VM != nullptr, "manager should be set");
 				VI_TYPEREF(Schema, "schema");
@@ -9557,7 +9752,7 @@ namespace Vitex
 
 				return true;
 			}
-			bool Registry::ImportClockTimer(VirtualMachine* VM)
+			bool Registry::ImportClockTimer(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -9584,7 +9779,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportFileSystem(VirtualMachine* VM)
+			bool Registry::ImportFileSystem(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -9797,7 +9992,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportOS(VirtualMachine* VM)
+			bool Registry::ImportOS(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -9955,7 +10150,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportSchedule(VirtualMachine* VM)
+			bool Registry::ImportSchedule(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -10010,7 +10205,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportRegex(VirtualMachine* VM)
+			bool Registry::ImportRegex(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -10063,7 +10258,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportCrypto(VirtualMachine* VM)
+			bool Registry::ImportCrypto(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -10351,7 +10546,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportCodec(VirtualMachine* VM)
+			bool Registry::ImportCodec(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -10389,7 +10584,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportPreprocessor(VirtualMachine* VM)
+			bool Registry::ImportPreprocessor(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -10459,7 +10654,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportNetwork(VirtualMachine* VM)
+			bool Registry::ImportNetwork(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -10803,7 +10998,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportHTTP(VirtualMachine* VM)
+			bool Registry::ImportHTTP(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -11243,7 +11438,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportSMTP(VirtualMachine* VM)
+			bool Registry::ImportSMTP(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -11313,7 +11508,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportSQLite(VirtualMachine* VM)
+			bool Registry::ImportSQLite(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -11476,7 +11671,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportPostgreSQL(VirtualMachine* VM)
+			bool Registry::ImportPostgreSQL(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -11784,7 +11979,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportMongoDB(VirtualMachine* VM)
+			bool Registry::ImportMongoDB(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -12083,7 +12278,7 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportVM(VirtualMachine* VM)
+			bool Registry::ImportVM(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
@@ -12097,19 +12292,12 @@ namespace Vitex
 				return false;
 #endif
 			}
-			bool Registry::ImportLayer(VirtualMachine* VM)
+			bool Registry::ImportLayer(VirtualMachine* VM) noexcept
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(VM != nullptr, "manager should be set");
-				VI_TYPEREF(Material, "material");
-				VI_TYPEREF(Model, "model");
-				VI_TYPEREF(SkinModel, "skin_model");
-				VI_TYPEREF(RenderSystem, "render_system");
-				VI_TYPEREF(ShaderCache, "shader_cache");
-				VI_TYPEREF(PrimitiveCache, "primitive_cache");
 				VI_TYPEREF(ContentManager, "content_manager");
 				VI_TYPEREF(AppData, "app_data");
-				VI_TYPEREF(SceneGraph, "scene_graph");
 				VI_TYPEREF(ApplicationName, "application");
 
 				auto VApplicationUse = VM->SetEnum("application_use");
@@ -12218,7 +12406,7 @@ namespace Vitex
 				VApplicationFrameInfo->SetConstructor<Application::Desc::FramesInfo>("void f()");
 
 				auto VApplicationDesc = VM->SetStructTrivial<Application::Desc>("application_desc");
-				VApplicationDesc->SetProperty<Application::Desc>("application_frame_info framerate", &Application::Desc::Framerate);
+				VApplicationDesc->SetProperty<Application::Desc>("application_frame_info refreshrate", &Application::Desc::Refreshrate);
 				VApplicationDesc->SetProperty<Application::Desc>("schedule_policy scheduler", &Application::Desc::Scheduler);
 				VApplicationDesc->SetProperty<Application::Desc>("string preferences", &Application::Desc::Preferences);
 				VApplicationDesc->SetProperty<Application::Desc>("string environment", &Application::Desc::Environment);
@@ -12227,9 +12415,7 @@ namespace Vitex
 				VApplicationDesc->SetProperty<Application::Desc>("usize polling_events", &Application::Desc::PollingEvents);
 				VApplicationDesc->SetProperty<Application::Desc>("usize threads", &Application::Desc::Threads);
 				VApplicationDesc->SetProperty<Application::Desc>("usize usage", &Application::Desc::Usage);
-				VApplicationDesc->SetProperty<Application::Desc>("bool blocking_dispatch", &Application::Desc::BlockingDispatch);
 				VApplicationDesc->SetProperty<Application::Desc>("bool daemon", &Application::Desc::Daemon);
-				VApplicationDesc->SetProperty<Application::Desc>("bool cursor", &Application::Desc::Cursor);
 				VApplicationDesc->SetConstructor<Application::Desc>("void f()");
 
 				VApplication->SetFunctionDef("void dispatch_sync(clock_timer@+)");
@@ -12284,13 +12470,6 @@ namespace Vitex
 				VI_ASSERT(false, "<layer> is not loaded");
 				return false;
 #endif
-			}
-			bool Registry::Cleanup()
-			{
-#ifdef VI_ANGELSCRIPT
-				StringFactory::Free();
-#endif
-				return false;
 			}
 		}
 	}

@@ -105,48 +105,6 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT_TS Registry final : public Core::Singletonish
-			{
-			public:
-				static bool ImportCTypes(VirtualMachine* VM);
-				static bool ImportAny(VirtualMachine* VM);
-				static bool ImportArray(VirtualMachine* VM);
-				static bool ImportComplex(VirtualMachine* VM);
-				static bool ImportDictionary(VirtualMachine* VM);
-				static bool ImportMath(VirtualMachine* VM);
-				static bool ImportString(VirtualMachine* VM);
-				static bool ImportException(VirtualMachine* VM);
-				static bool ImportMutex(VirtualMachine* VM);
-				static bool ImportThread(VirtualMachine* VM);
-				static bool ImportBuffers(VirtualMachine* Engine);
-				static bool ImportRandom(VirtualMachine* VM);
-				static bool ImportPromise(VirtualMachine* VM);
-				static bool ImportDecimal(VirtualMachine* Engine);
-				static bool ImportUInt128(VirtualMachine* Engine);
-				static bool ImportUInt256(VirtualMachine* Engine);
-				static bool ImportVariant(VirtualMachine* Engine);
-				static bool ImportTimestamp(VirtualMachine* Engine);
-				static bool ImportConsole(VirtualMachine* Engine);
-				static bool ImportSchema(VirtualMachine* Engine);
-				static bool ImportClockTimer(VirtualMachine* Engine);
-				static bool ImportFileSystem(VirtualMachine* Engine);
-				static bool ImportOS(VirtualMachine* Engine);
-				static bool ImportSchedule(VirtualMachine* Engine);
-				static bool ImportRegex(VirtualMachine* Engine);
-				static bool ImportCrypto(VirtualMachine* Engine);
-				static bool ImportCodec(VirtualMachine* Engine);
-				static bool ImportPreprocessor(VirtualMachine* Engine);
-				static bool ImportNetwork(VirtualMachine* Engine);
-				static bool ImportHTTP(VirtualMachine* Engine);
-				static bool ImportSMTP(VirtualMachine* Engine);
-				static bool ImportSQLite(VirtualMachine* Engine);
-				static bool ImportPostgreSQL(VirtualMachine* Engine);
-				static bool ImportMongoDB(VirtualMachine* Engine);
-				static bool ImportVM(VirtualMachine* Engine);
-				static bool ImportLayer(VirtualMachine* Engine);
-				static bool Cleanup();
-			};
-
 			class VI_OUT_TS Imports
 			{
 			public:
@@ -1290,6 +1248,50 @@ namespace Vitex
 				static bool WantsRestart(int ExitCode);
 			};
 #endif
+			class VI_OUT_TS Registry
+			{
+			public:
+				Registry() = default;
+				virtual bool Cleanup() noexcept;
+				virtual bool BindAddons(VirtualMachine* VM) noexcept;
+				virtual bool BindStringifiers(DebuggerContext* Context) noexcept;
+				static bool ImportCTypes(VirtualMachine* VM) noexcept;
+				static bool ImportAny(VirtualMachine* VM) noexcept;
+				static bool ImportArray(VirtualMachine* VM) noexcept;
+				static bool ImportComplex(VirtualMachine* VM) noexcept;
+				static bool ImportDictionary(VirtualMachine* VM) noexcept;
+				static bool ImportMath(VirtualMachine* VM) noexcept;
+				static bool ImportString(VirtualMachine* VM) noexcept;
+				static bool ImportException(VirtualMachine* VM) noexcept;
+				static bool ImportMutex(VirtualMachine* VM) noexcept;
+				static bool ImportThread(VirtualMachine* VM) noexcept;
+				static bool ImportBuffers(VirtualMachine* VM) noexcept;
+				static bool ImportRandom(VirtualMachine* VM) noexcept;
+				static bool ImportPromise(VirtualMachine* VM) noexcept;
+				static bool ImportDecimal(VirtualMachine* VM) noexcept;
+				static bool ImportUInt128(VirtualMachine* VM) noexcept;
+				static bool ImportUInt256(VirtualMachine* VM) noexcept;
+				static bool ImportVariant(VirtualMachine* VM) noexcept;
+				static bool ImportTimestamp(VirtualMachine* VM) noexcept;
+				static bool ImportConsole(VirtualMachine* VM) noexcept;
+				static bool ImportSchema(VirtualMachine* VM) noexcept;
+				static bool ImportClockTimer(VirtualMachine* VM) noexcept;
+				static bool ImportFileSystem(VirtualMachine* VM) noexcept;
+				static bool ImportOS(VirtualMachine* VM) noexcept;
+				static bool ImportSchedule(VirtualMachine* VM) noexcept;
+				static bool ImportRegex(VirtualMachine* VM) noexcept;
+				static bool ImportCrypto(VirtualMachine* VM) noexcept;
+				static bool ImportCodec(VirtualMachine* VM) noexcept;
+				static bool ImportPreprocessor(VirtualMachine* VM) noexcept;
+				static bool ImportNetwork(VirtualMachine* VM) noexcept;
+				static bool ImportHTTP(VirtualMachine* VM) noexcept;
+				static bool ImportSMTP(VirtualMachine* VM) noexcept;
+				static bool ImportSQLite(VirtualMachine* VM) noexcept;
+				static bool ImportPostgreSQL(VirtualMachine* VM) noexcept;
+				static bool ImportMongoDB(VirtualMachine* VM) noexcept;
+				static bool ImportVM(VirtualMachine* VM) noexcept;
+				static bool ImportLayer(VirtualMachine* VM) noexcept;
+			};
 		}
 	}
 }

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <list>
 #include <system_error>
+#include <algorithm>
 #ifdef VI_CXX20
 #include <coroutine>
 #ifndef NDEBUG

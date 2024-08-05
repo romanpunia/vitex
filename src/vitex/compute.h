@@ -1838,23 +1838,6 @@ namespace Vitex
 			{
 				return T(std::atan2(std::sin((double)Angle), std::cos((double)Angle)));
 			}
-			static T AngluarLerp(I A, I B, I DeltaTime)
-			{
-				if (A == B)
-					return A;
-
-				T AX = T(std::cos((double)A)), AY = T(std::sin((double)A));
-				T BX = T(std::cos((double)B)), BY = T(std::sin((double)B));
-				T CX = (BX - AX) * DeltaTime, CY = (BY - AY) * DeltaTime;
-				return T(std::atan2((double)(AY + CY), (double)(AX + CX)));
-			}
-			static T AngleDistance(I A, I B)
-			{
-				T AX = T(std::cos((double)A)), AY = T(std::sin((double)A));
-				T BX = T(std::cos((double)B)), BY = T(std::sin((double)B));
-				T CX = AX - BX, CY = AY - BY;
-				return T(std::sqrt((double)(CX * CX + CY * CY)));
-			}
 			static T Saturate(I Value)
 			{
 				return Min(Max(Value, T(0.0)), T(1.0));

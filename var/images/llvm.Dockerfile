@@ -1,4 +1,4 @@
-FROM silkeh/clang:latest
+FROM silkeh/clang:dev
 ARG CONFIGURE="-DCMAKE_BUILD_TYPE=Release"
 ARG COMPILE="-j"
 RUN apt update -y && apt upgrade -y

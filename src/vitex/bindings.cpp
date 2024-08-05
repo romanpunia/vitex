@@ -8937,8 +8937,6 @@ namespace Vitex
 				VM->SetFunction("float lerpf(float, float, float)", &Compute::Mathf::Lerp);
 				VM->SetFunction("float strong_lerpf(float, float, float)", &Compute::Mathf::StrongLerp);
 				VM->SetFunction("float angle_saturatef(float)", &Compute::Mathf::SaturateAngle);
-				VM->SetFunction("float angle_distancef(float, float)", &Compute::Mathf::AngleDistance);
-				VM->SetFunction("float angle_lerpf(float, float, float)", &Compute::Mathf::AngluarLerp);
 				VM->SetFunction<float(*)()>("float randomf()", &Compute::Mathf::Random);
 				VM->SetFunction("float random_magf()", &Compute::Mathf::RandomMag);
 				VM->SetFunction<float(*)(float, float)>("float random_rangef(float, float)", &Compute::Mathf::Random);
@@ -8971,8 +8969,6 @@ namespace Vitex
 				VM->SetFunction("double lerpd(double, double, double)", &Compute::Mathd::Lerp);
 				VM->SetFunction("double strong_lerpd(double, double, double)", &Compute::Mathd::StrongLerp);
 				VM->SetFunction("double angle_saturated(double)", &Compute::Mathd::SaturateAngle);
-				VM->SetFunction("double angle_distanced(double, double)", &Compute::Mathd::AngleDistance);
-				VM->SetFunction("double angle_lerpd(double, double, double)", &Compute::Mathd::AngluarLerp);
 				VM->SetFunction<double(*)()>("double randomd()", &Compute::Mathd::Random);
 				VM->SetFunction("double random_magd()", &Compute::Mathd::RandomMag);
 				VM->SetFunction<double(*)(double, double)>("double random_ranged(double, double)", &Compute::Mathd::Random);

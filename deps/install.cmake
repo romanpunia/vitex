@@ -16,7 +16,6 @@ install(FILES
         src/vitex/compute.h
         src/vitex/core.h
         src/vitex/layer.h
-        src/vitex/graphics.h
         src/vitex/network.h
         src/vitex/scripting.h
         src/vitex/vitex.h

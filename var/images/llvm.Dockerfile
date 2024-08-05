@@ -3,14 +3,8 @@ ARG CONFIGURE="-DCMAKE_BUILD_TYPE=Release"
 ARG COMPILE="-j"
 RUN apt update -y && apt upgrade -y
 RUN apt install -y cmake \
-    zlib1g-dev \
-    libassimp-dev \
-    libfreetype-dev \
-    libsdl2-dev \
-    libspirv-cross-c-shared-dev glslang-dev glslang-tools \
-    libopenal-dev \
-    libglew-dev \
     libssl-dev \
+    zlib1g-dev \
     libmongoc-dev libbson-dev \
     libpq-dev \
     libsqlite3-dev

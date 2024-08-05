@@ -8,57 +8,6 @@ endif()
 if (VI_BINDINGS)
     target_compile_definitions(vitex PUBLIC -DVI_BINDINGS)
 endif()
-if (VI_BULLET3)
-    target_compile_definitions(vitex PUBLIC -DVI_BULLET3)
-    target_compile_definitions(vitex PRIVATE -DBT_NO_PROFILE)
-    target_include_directories(vitex PRIVATE
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletCollision/BroadphaseCollision
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletCollision/CollisionDispatch
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletCollision/CollisionShapes
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletCollision/Gimpact
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletCollision/NarrowPhaseCollision
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletDynamics/Character
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletDynamics/ConstraintSolver
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletDynamics/Dynamics
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletDynamics/Featherstone
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletDynamics/MLCPSolvers
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletDynamics/Vehicle
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/BulletSoftBody
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/LinearMath
-        ${PROJECT_SOURCE_DIR}/deps/bullet3/src/LinearMath/TaskScheduler)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        target_compile_definitions(vitex PRIVATE -DBT_NO_SIMD_OPERATOR_OVERLOADS)
-    endif()
-    if (MSVC)
-        target_compile_options(vitex PRIVATE
-            $<$<COMPILE_LANGUAGE:CXX>:/wd4305>
-            $<$<COMPILE_LANGUAGE:CXX>:/wd4244>
-            $<$<COMPILE_LANGUAGE:CXX>:/wd4018>
-            $<$<COMPILE_LANGUAGE:CXX>:/wd4267>
-            $<$<COMPILE_LANGUAGE:CXX>:/wd4056>)
-    endif()
-endif()
-if (VI_RMLUI)
-    target_compile_definitions(vitex PUBLIC -DVI_RMLUI)
-    target_compile_definitions(vitex PRIVATE
-        -DRMLUI_STATIC_LIB
-        -DRMLUI_MATRIX_ROW_MAJOR
-        -DRMLUI_CUSTOM_CONFIGURATION_FILE="${PROJECT_SOURCE_DIR}/src/vitex/engine/gui/config.hpp")
-    target_include_directories(vitex PRIVATE
-        ${PROJECT_SOURCE_DIR}/deps/rmlui
-        ${PROJECT_SOURCE_DIR}/deps/rmlui/Include)
-    if (NOT VI_FREETYPE OR (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES))
-        target_compile_definitions(vitex PRIVATE -DRMLUI_NO_FONT_INTERFACE_DEFAULT)
-    else()
-        unset(Freetype_FOUND CACHE)
-        unset(FREETYPE_LIBRARIES CACHE)
-    endif()
-endif()
-if (VI_VECTORCLASS)
-    target_compile_definitions(vitex PUBLIC -DVI_VECTORCLASS)
-    target_include_directories(vitex PRIVATE ${PROJECT_SOURCE_DIR}/deps/vectorclass)
-endif()
 if (VI_BACKWARDCPP)
     target_compile_definitions(vitex PUBLIC -DVI_BACKWARDCPP)
     target_include_directories(vitex PRIVATE ${PROJECT_SOURCE_DIR}/deps/backward-cpp)
@@ -74,15 +23,6 @@ if (VI_BACKWARDCPP)
     unset(BACKWARD_PATHS CACHE)
     unset(BACKWARD_USES CACHE)
     unset(BACKWARD_LINKS CACHE)
-endif()
-if (VI_TINYFILEDIALOGS)
-    target_compile_definitions(vitex PUBLIC -DVI_TINYFILEDIALOGS)
-    target_include_directories(vitex PRIVATE ${PROJECT_SOURCE_DIR}/deps/tinyfiledialogs)
-endif()
-if (VI_STB)
-    target_compile_definitions(vitex PUBLIC -DVI_STB)
-    target_compile_definitions(vitex PRIVATE -DSTB_IMAGE_IMPLEMENTATION)
-    target_include_directories(vitex PRIVATE ${PROJECT_SOURCE_DIR}/deps/stb)
 endif()
 if (VI_PUGIXML)
     target_compile_definitions(vitex PUBLIC -DVI_PUGIXML)

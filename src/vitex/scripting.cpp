@@ -8495,34 +8495,18 @@ namespace Vitex
 			Engine->AddSystemAddon("clock", { }, Bindings::Registry::ImportClockTimer);
 			Engine->AddSystemAddon("fs", { "string" }, Bindings::Registry::ImportFileSystem);
 			Engine->AddSystemAddon("os", { "fs", "array", "dictionary" }, Bindings::Registry::ImportOS);
-			Engine->AddSystemAddon("vertices", { }, Bindings::Registry::ImportVertices);
-			Engine->AddSystemAddon("vectors", { }, Bindings::Registry::ImportVectors);
-			Engine->AddSystemAddon("shapes", { "vectors" }, Bindings::Registry::ImportShapes);
-			Engine->AddSystemAddon("key-frames", { "vectors", "string" }, Bindings::Registry::ImportKeyFrames);
 			Engine->AddSystemAddon("regex", { "string" }, Bindings::Registry::ImportRegex);
 			Engine->AddSystemAddon("crypto", { "string", "schema" }, Bindings::Registry::ImportCrypto);
 			Engine->AddSystemAddon("codec", { "string" }, Bindings::Registry::ImportCodec);
-			Engine->AddSystemAddon("geometric", { "vectors", "vertices", "shapes" }, Bindings::Registry::ImportGeometric);
 			Engine->AddSystemAddon("preprocessor", { "string" }, Bindings::Registry::ImportPreprocessor);
-			Engine->AddSystemAddon("physics", { "string", "geometric" }, Bindings::Registry::ImportPhysics);
-			Engine->AddSystemAddon("audio", { "string", "vectors", "schema" }, Bindings::Registry::ImportAudio);
-			Engine->AddSystemAddon("audio-effects", { "audio" }, Bindings::Registry::ImportAudioEffects);
-			Engine->AddSystemAddon("audio-filters", { "audio" }, Bindings::Registry::ImportAudioFilters);
-			Engine->AddSystemAddon("activity", { "string", "vectors" }, Bindings::Registry::ImportActivity);
-			Engine->AddSystemAddon("graphics", { "activity", "string", "vectors", "vertices", "shapes", "key-frames" }, Bindings::Registry::ImportGraphics);
 			Engine->AddSystemAddon("network", { "string", "array", "dictionary", "promise" }, Bindings::Registry::ImportNetwork);
 			Engine->AddSystemAddon("http", { "schema", "fs", "promise", "regex", "network" }, Bindings::Registry::ImportHTTP);
 			Engine->AddSystemAddon("smtp", { "promise", "network" }, Bindings::Registry::ImportSMTP);
 			Engine->AddSystemAddon("sqlite", { "network", "schema" }, Bindings::Registry::ImportSQLite);
 			Engine->AddSystemAddon("postgresql", { "network", "schema" }, Bindings::Registry::ImportPostgreSQL);
 			Engine->AddSystemAddon("mongodb", { "network", "schema" }, Bindings::Registry::ImportMongoDB);
-			Engine->AddSystemAddon("ui-control", { "vectors", "schema", "array" }, Bindings::Registry::ImportUiControl);
-			Engine->AddSystemAddon("ui-model", { "ui-control", }, Bindings::Registry::ImportUiModel);
-			Engine->AddSystemAddon("ui-context", { "ui-model" }, Bindings::Registry::ImportUiContext);
 			Engine->AddSystemAddon("vm", { }, Bindings::Registry::ImportVM);
-			Engine->AddSystemAddon("engine", { "schema", "schedule", "key-frames", "fs", "graphics", "audio", "physics", "clock", "ui-context" }, Bindings::Registry::ImportEngine);
-			Engine->AddSystemAddon("components", { "engine" }, Bindings::Registry::ImportComponents);
-			Engine->AddSystemAddon("renderers", { "engine" }, Bindings::Registry::ImportRenderers);
+			Engine->AddSystemAddon("layer", { "schema", "schedule", "fs", "clock" }, Bindings::Registry::ImportLayer);
 		}
 		size_t VirtualMachine::GetDefaultAccessMask()
 		{

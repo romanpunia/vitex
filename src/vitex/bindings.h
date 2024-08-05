@@ -1,7 +1,7 @@
 #ifndef VI_BINDINGS_H
 #define VI_BINDINGS_H
 #include "scripting.h"
-#include "engine/gui.h"
+#include "layer.h"
 #include <tuple>
 #define VI_TYPEREF(Name, TypeName) static const uint64_t Name = Vitex::Core::OS::File::GetIndex<sizeof(TypeName)>(TypeName); Vitex::Scripting::TypeCache::Set(Name, TypeName)
 #define VI_PROMISIFY(MemberFunction, TypeId) Vitex::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
@@ -39,7 +39,6 @@ typedef __int64 as_int64_t;
 #endif
 #endif
 typedef unsigned int as_size_t;
-#define VI_BINDINGS 1
 
 namespace Vitex
 {
@@ -133,21 +132,10 @@ namespace Vitex
 				static bool ImportFileSystem(VirtualMachine* Engine);
 				static bool ImportOS(VirtualMachine* Engine);
 				static bool ImportSchedule(VirtualMachine* Engine);
-				static bool ImportVertices(VirtualMachine* Engine);
-				static bool ImportVectors(VirtualMachine* Engine);
-				static bool ImportShapes(VirtualMachine* Engine);
-				static bool ImportKeyFrames(VirtualMachine* Engine);
 				static bool ImportRegex(VirtualMachine* Engine);
 				static bool ImportCrypto(VirtualMachine* Engine);
 				static bool ImportCodec(VirtualMachine* Engine);
-				static bool ImportGeometric(VirtualMachine* Engine);
 				static bool ImportPreprocessor(VirtualMachine* Engine);
-				static bool ImportPhysics(VirtualMachine* Engine);
-				static bool ImportAudio(VirtualMachine* Engine);
-				static bool ImportAudioEffects(VirtualMachine* Engine);
-				static bool ImportAudioFilters(VirtualMachine* Engine);
-				static bool ImportActivity(VirtualMachine* Engine);
-				static bool ImportGraphics(VirtualMachine* Engine);
 				static bool ImportNetwork(VirtualMachine* Engine);
 				static bool ImportHTTP(VirtualMachine* Engine);
 				static bool ImportSMTP(VirtualMachine* Engine);
@@ -155,12 +143,7 @@ namespace Vitex
 				static bool ImportPostgreSQL(VirtualMachine* Engine);
 				static bool ImportMongoDB(VirtualMachine* Engine);
 				static bool ImportVM(VirtualMachine* Engine);
-				static bool ImportEngine(VirtualMachine* Engine);
-				static bool ImportComponents(VirtualMachine* Engine);
-				static bool ImportRenderers(VirtualMachine* Engine);
-				static bool ImportUiModel(VirtualMachine* Engine);
-				static bool ImportUiControl(VirtualMachine* Engine);
-				static bool ImportUiContext(VirtualMachine* Engine);
+				static bool ImportLayer(VirtualMachine* Engine);
 				static bool Cleanup();
 			};
 
@@ -1265,29 +1248,9 @@ namespace Vitex
 				static CharBuffer* Create(char* Pointer);
 			};
 
-			class VI_OUT ModelListener : public Core::Reference<ModelListener>
-			{
-			private:
-				FunctionDelegate Delegate;
-				Engine::GUI::Listener* Base;
-
-			public:
-				ModelListener(asIScriptFunction* NewCallback) noexcept;
-				ModelListener(const std::string_view& FunctionName) noexcept;
-				~ModelListener() noexcept;
-				FunctionDelegate& GetDelegate();
-
-			private:
-				Engine::GUI::EventCallback Bind(asIScriptFunction* Callback);
-			};
-
-			class VI_OUT Application final : public Engine::Application
+			class VI_OUT Application final : public Layer::Application
 			{
 			public:
-				FunctionDelegate OnKeyEvent;
-				FunctionDelegate OnInputEvent;
-				FunctionDelegate OnWheelEvent;
-				FunctionDelegate OnWindowEvent;
 				FunctionDelegate OnDispatch;
 				FunctionDelegate OnPublish;
 				FunctionDelegate OnComposition;
@@ -1304,10 +1267,6 @@ namespace Vitex
 			public:
 				Application(Desc& I, void* Object, int TypeId) noexcept;
 				virtual ~Application() noexcept override;
-				void SetOnKeyEvent(asIScriptFunction* Callback);
-				void SetOnInputEvent(asIScriptFunction* Callback);
-				void SetOnWheelEvent(asIScriptFunction* Callback);
-				void SetOnWindowEvent(asIScriptFunction* Callback);
 				void SetOnDispatch(asIScriptFunction* Callback);
 				void SetOnPublish(asIScriptFunction* Callback);
 				void SetOnComposition(asIScriptFunction* Callback);
@@ -1315,10 +1274,6 @@ namespace Vitex
 				void SetOnInitialize(asIScriptFunction* Callback);
 				void SetOnStartup(asIScriptFunction* Callback);
 				void SetOnShutdown(asIScriptFunction* Callback);
-				void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed) override;
-				void InputEvent(char* Buffer, size_t Length) override;
-				void WheelEvent(int X, int Y, bool Normal) override;
-				void WindowEvent(Graphics::WindowState NewState, int X, int Y) override;
 				void Dispatch(Core::Timer* Time) override;
 				void Publish(Core::Timer* Time) override;
 				void Composition() override;

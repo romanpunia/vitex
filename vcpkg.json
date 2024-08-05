@@ -4,12 +4,6 @@
   "version": "1.0.0",
   "default-features": [
     "compression",
-    "imports",
-    "fonts",
-    "windows",
-    "shaders",
-    "audio",
-    "opengl",
     "openssl",
     "mongodb",
     "postgresql",
@@ -20,43 +14,6 @@
       "description": "Support for zlib compression algorithms",
       "dependencies": [
         "zlib"
-      ]
-    },
-    "imports": {
-      "description": "Support for mesh file imports using different well known formats",
-      "dependencies": [
-        "assimp"
-      ]
-    },
-    "fonts": {
-      "description": "Support for common font format reading and rasterization",
-      "dependencies": [
-        "freetype"
-      ]
-    },
-    "windows": {
-      "description": "Support for windows/activities, keyboard/mouse/joystick/gamepad/touch inputs and shared object imports",
-      "dependencies": [
-        "sdl2"
-      ]
-    },
-    "shaders": {
-      "description": "Support for shader cross-compiling from HLSL to GLSL or other known formats",
-      "dependencies": [
-        "spirv-cross",
-        "glslang"
-      ]
-    },
-    "audio": {
-      "description": "Support for OpenAL 2D/3D audio playback using OpenAL-Soft implementation",
-      "dependencies": [
-        "openal-soft"
-      ]
-    },
-    "opengl": {
-      "description": "Support for OpenGL core and extension bindings using GLEW",
-      "dependencies": [
-        "glew"
       ]
     },
     "openssl": {
@@ -84,5 +41,5 @@
       ]
     }
   },
-  "builtin-baseline": "62aa44929954469878eb8fc562af706a8f5615a5"
+  "builtin-baseline": "d54715d44702b0d06563e8a56d13627743e9db5a"
 }

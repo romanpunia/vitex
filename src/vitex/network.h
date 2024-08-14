@@ -685,19 +685,15 @@ namespace Vitex
 			virtual void OnRequestClose(SocketConnection* Base);
 			virtual SocketConnection* OnAllocate(SocketListener* Host);
 			virtual SocketRouter* OnAllocateRouter();
-
-		private:
-			Core::ExpectsIO<void> TryHandshakeThenBegin(SocketConnection* Base);
-
-		protected:
-			Core::ExpectsIO<void> Refuse(SocketConnection* Base);
-			Core::ExpectsIO<void> Accept(SocketListener* Host, SocketAccept&& Incoming);
-			Core::ExpectsIO<void> HandshakeThenOpen(SocketConnection* Fd, SocketListener* Host);
-			Core::ExpectsIO<void> Continue(SocketConnection* Base);
-			Core::ExpectsIO<void> Finalize(SocketConnection* Base);
-			SocketConnection* Pop(SocketListener* Host);
-			void Push(SocketConnection* Base);
-			bool FreeAll();
+			virtual Core::ExpectsIO<void> TryHandshakeThenBegin(SocketConnection* Base);
+			virtual Core::ExpectsIO<void> Refuse(SocketConnection* Base);
+			virtual Core::ExpectsIO<void> Accept(SocketListener* Host, SocketAccept&& Incoming);
+			virtual Core::ExpectsIO<void> HandshakeThenOpen(SocketConnection* Fd, SocketListener* Host);
+			virtual Core::ExpectsIO<void> Continue(SocketConnection* Base);
+			virtual Core::ExpectsIO<void> Finalize(SocketConnection* Base);
+			virtual SocketConnection* Pop(SocketListener* Host);
+			virtual void Push(SocketConnection* Base);
+			virtual bool FreeAll();
 		};
 
 		class VI_OUT SocketClient : public Core::Reference<SocketClient>
@@ -747,23 +743,19 @@ namespace Vitex
 			virtual Core::ExpectsSystem<void> OnConnect();
 			virtual Core::ExpectsSystem<void> OnReuse();
 			virtual Core::ExpectsSystem<void> OnDisconnect();
-
-		private:
-			bool TryReuseStream(const SocketAddress& Address, std::function<void(bool)>&& Callback);
-			bool TryStoreStream();
-			void TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-			void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode);
-			void DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status);
-			void DispatchSimpleHandshake();
-			void CreateStream();
-			void ConfigureStream();
-			void DestroyStream();
-
-		protected:
-			void EnableReusability();
-			void DisableReusability();
-			void Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-			void Report(Core::ExpectsSystem<void>&& Status);
+			virtual bool TryReuseStream(const SocketAddress& Address, std::function<void(bool)>&& Callback);
+			virtual bool TryStoreStream();
+			virtual void TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+			virtual void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode);
+			virtual void DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status);
+			virtual void DispatchSimpleHandshake();
+			virtual void CreateStream();
+			virtual void ConfigureStream();
+			virtual void DestroyStream();
+			virtual void EnableReusability();
+			virtual void DisableReusability();
+			virtual void Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
+			virtual void Report(Core::ExpectsSystem<void>&& Status);
 		};
 	}
 }

@@ -702,17 +702,19 @@ namespace Vitex
 			sockaddr_in Address4;
 			memset(&Address4, 0, sizeof(Address4));
 			Address4.sin_family = AF_INET;
-			Address4.sin_port = Port;
+			Address4.sin_port = htons(Port);
 			
 			sockaddr_in6 Address6;
 			memset(&Address6, 0, sizeof(Address6));
 			Address6.sin6_family = AF_INET6;
-			Address6.sin6_port = Port;
+			Address6.sin6_port = htons(Port);
 
 			if (inet_pton(AF_INET, IpAddress.data(), &Address4.sin_addr) != 1)
 			{
 				if (inet_pton(AF_INET6, IpAddress.data(), &Address6.sin6_addr) == 1)
 				{
+					Info.Hostname = Core::String(IpAddress);
+					Info.Port = Port;
 					Info.Family = AF_INET6;
 					AddressSize = sizeof(Address6);
 					memcpy(AddressBuffer, &Address6, AddressSize);
@@ -720,6 +722,8 @@ namespace Vitex
 			}
 			else
 			{
+				Info.Hostname = Core::String(IpAddress);
+				Info.Port = Port;
 				AddressSize = sizeof(Address4);
 				memcpy(AddressBuffer, &Address4, AddressSize);
 			}

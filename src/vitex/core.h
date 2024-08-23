@@ -2007,9 +2007,11 @@ namespace Vitex
 			uint64_t ToUInt64() const;
 			String ToString() const;
 			String ToExponent() const;
+			const String& Numeric() const;
 			uint32_t Decimals() const;
 			uint32_t Ints() const;
 			uint32_t Size() const;
+			int8_t Position() const;
 			Decimal operator -() const;
 			Decimal& operator *=(const Decimal& V);
 			Decimal& operator /=(const Decimal& V);
@@ -2045,17 +2047,17 @@ namespace Vitex
 			}
 
 		private:
-			void InitializeFromText(const std::string_view& Text) noexcept;
-			void InitializeFromZero() noexcept;
+			void ApplyBase10(const std::string_view& Text);
+			void ApplyZero();
 
 		public:
 			template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
 			Decimal(const T& Right) noexcept : Decimal()
 			{
 				if (Right != T(0))
-					InitializeFromText(std::to_string(Right));
+					ApplyBase10(std::to_string(Right));
 				else
-					InitializeFromZero();
+					ApplyZero();
 			}
 
 		public:
@@ -2066,6 +2068,7 @@ namespace Vitex
 			VI_OUT friend Decimal operator % (const Decimal& Left, const Decimal& Right);
 
 		public:
+			static Decimal From(const std::string_view& Data, uint8_t Base);
 			static Decimal Zero();
 			static Decimal NaN();
 

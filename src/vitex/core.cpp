@@ -1962,65 +1962,15 @@ namespace Vitex
 		Decimal::Decimal() noexcept : Length(0), Sign('\0')
 		{
 		}
-		Decimal::Decimal(const std::string_view& Value) noexcept : Length(0)
+		Decimal::Decimal(const std::string_view& Text) noexcept : Length(0)
 		{
-			InitializeFromText(Value);
+			ApplyBase10(Text);
 		}
 		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign)
 		{
 		}
 		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign)
 		{
-		}
-		void Decimal::InitializeFromText(const std::string_view& Text) noexcept
-		{
-			if (Text.empty())
-			{
-			InvalidNumber:
-				Source.clear();
-				Length = 0;
-				Sign = '\0';
-				return;
-			}
-
-			bool Points = false;
-			size_t Index = 0;
-			uint8_t Direction = Text[0];
-			if (Direction != '+' && Direction != '-')
-			{
-				if (!isdigit(Direction))
-					goto InvalidNumber;
-				Direction = '+';
-			}
-			else
-				Index = 1;
-
-			Sign = Direction;
-			while (Index < Text.size())
-			{
-				if (!Points && Text[Index] == '.')
-				{
-					if (Source.empty())
-						goto InvalidNumber;
-
-					Points = true;
-					++Index;
-				}
-				else if (!isdigit((uint8_t)Text[Index]))
-					goto InvalidNumber;
-
-				Source.insert(0, 1, Text[Index++]);
-				if (Points)
-					Length++;
-			}
-
-			Trim();
-		}
-		void Decimal::InitializeFromZero() noexcept
-		{
-			Source.push_back('0');
-			Sign = '+';
-			Length = 0;
 		}
 		Decimal& Decimal::Truncate(uint32_t Precision)
 		{
@@ -2119,6 +2069,73 @@ namespace Vitex
 			}
 
 			return *this;
+		}
+		void Decimal::ApplyBase10(const std::string_view& Text)
+		{
+			if (Text.empty())
+			{
+			InvalidNumber:
+				Source.clear();
+				Length = 0;
+				Sign = '\0';
+				return;
+			}
+			else if (Text.size() == 1)
+			{
+				uint8_t Value = (uint8_t)Text.front();
+				if (!isdigit(Value))
+					goto InvalidNumber;
+
+				Source.push_back(Value);
+				Sign = '+';
+				return;
+			}
+
+			Source.reserve(Text.size());
+			Sign = Text[0];
+
+			size_t Index = 0;
+			if (Sign != '+' && Sign != '-')
+			{
+				if (!isdigit(Sign))
+					goto InvalidNumber;
+				Sign = '+';
+			}
+			else
+				Index = 1;
+
+			size_t Position = Text.find('.', Index);
+			size_t Base = std::min(Position, Text.size());
+			while (Index < Base)
+			{
+				uint8_t Value = Text[Index++];
+				Source.push_back(Value);
+				if (!isdigit(Value))
+					goto InvalidNumber;
+			}
+
+			if (Position == std::string::npos)
+			{
+				std::reverse(Source.begin(), Source.end());
+				return;
+			}
+
+			++Index;
+			while (Index < Text.size())
+			{
+				uint8_t Value = Text[Index++];
+				Source.push_back(Value);
+				if (!isdigit(Value))
+					goto InvalidNumber;
+				++Length;
+			}
+
+			std::reverse(Source.begin(), Source.end());
+		}
+		void Decimal::ApplyZero()
+		{
+			Source.push_back('0');
+			Sign = '+';
 		}
 		bool Decimal::IsNaN() const
 		{
@@ -2339,6 +2356,10 @@ namespace Vitex
 
 			return Result;
 		}
+		const String& Decimal::Numeric() const
+		{
+			return Source;
+		}
 		uint32_t Decimal::Decimals() const
 		{
 			return Length;
@@ -2350,6 +2371,18 @@ namespace Vitex
 		uint32_t Decimal::Size() const
 		{
 			return (int32_t)(sizeof(*this) + Source.size() * sizeof(char));
+		}
+		int8_t Decimal::Position() const
+		{
+			switch (Sign)
+			{
+				case '+':
+					return 1;
+				case '-':
+					return -1;
+				default:
+					return 0;
+			}
 		}
 		Decimal Decimal::operator -() const
 		{
@@ -2970,10 +3003,36 @@ namespace Vitex
 			Right = VRight;
 			return Left % Right;
 		}
+		Decimal Decimal::From(const std::string_view& Data, uint8_t Base)
+		{
+			static uint8_t Mapping[] =
+			{
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0,
+				0, 0, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+				0, 0, 0, 0, 0, 0, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+				31, 32, 33, 34, 35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+			};
+			Decimal Radix = Decimal(Base);
+			Decimal Value = Decimal("0");
+			for (auto& Item : Data)
+			{
+				uint8_t Number = Mapping[(uint8_t)Item];
+				Value = Value * Radix + Decimal(Number);
+			}
+
+			return Value;
+		}
 		Decimal Decimal::Zero()
 		{
 			Decimal Result;
-			Result.InitializeFromZero();
+			Result.ApplyZero();
 			return Result;
 		}
 		Decimal Decimal::NaN()

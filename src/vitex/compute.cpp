@@ -1255,28 +1255,64 @@ namespace Vitex
 			}
 			return out;
 		}
+		uint8_t UInt128::Bytes() const
+		{
+			if (!*this)
+				return 0;
+
+			uint8_t Length = Bits();
+			return std::max<uint8_t>(1, std::min(16, (Length - Length % 8 + 8) / 8));
+		}
 		Core::Decimal UInt128::ToDecimal() const
 		{
-			return Core::Decimal(ToString());
+			return Core::Decimal::From(ToString(16), 16);
 		}
 		Core::String UInt128::ToString(uint8_t Base, uint32_t Length) const
 		{
 			VI_ASSERT(Base >= 2 && Base <= 16, "base must be in the range [2, 16]");
+			static const char* Alphabet = "0123456789abcdef";
 			Core::String Output;
-			if (!!(*this))
+			if (!(*this))
 			{
-				std::pair <UInt128, UInt128> QR(*this, UInt128(0));
-				do
-				{
-					QR = Divide(QR.first, Base);
-					Output = "0123456789abcdef"[(uint8_t)QR.second] + Output;
-				} while (QR.first);
+				if (!Length)
+					Output.push_back('0');
+				else if (Output.size() < Length)
+					Output.append(Length - Output.size(), '0');
+				return Output;
 			}
-			else
-				Output = "0";
 
-			if (Output.size() < Length)
-				Output = Core::String(Length - Output.size(), '0') + Output;
+			switch (Base)
+			{
+				case 16:
+				{
+					uint64_t Array[2]; size_t Size = Bytes();
+					if (Size > sizeof(uint64_t) * 0)
+					{
+						Array[1] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Lower);
+						if (Size > sizeof(uint64_t) * 1)
+							Array[0] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Upper);
+					}
+
+					Output = Codec::HexEncodeOdd(std::string_view(((char*)Array) + (sizeof(Array) - Size), Size));
+					if (Output.size() < Length)
+						Output.append(Length - Output.size(), '0');
+					break;
+				}
+				default:
+				{
+					std::pair<UInt256, UInt256> Remainder(*this, Min());
+					do
+					{
+						Remainder = Divide(Remainder.first, Base);
+						Output.push_back(Alphabet[(uint8_t)Remainder.second]);
+					} while (Remainder.first);
+					if (Output.size() < Length)
+						Output.append(Length - Output.size(), '0');
+
+					std::reverse(Output.begin(), Output.end());
+					break;
+				}
+			}
 			return Output;
 		}
 		UInt128 operator<<(const uint8_t& Left, const UInt128& Right)
@@ -1819,28 +1855,72 @@ namespace Vitex
 			}
 			return out;
 		}
+		uint16_t UInt256::Bytes() const
+		{
+			if (!*this)
+				return 0;
+
+			uint16_t Length = Bits();
+			return std::max<uint16_t>(1, std::min(32, (Length - Length % 8 + 8) / 8));
+		}
 		Core::Decimal UInt256::ToDecimal() const
 		{
-			return Core::Decimal(ToString());
+			return Core::Decimal::From(ToString(16), 16);
 		}
 		Core::String UInt256::ToString(uint8_t Base, uint32_t Length) const
 		{
-			VI_ASSERT(Base >= 2 && Base <= 36, "Base must be in the range [2, 36]");
+			VI_ASSERT(Base >= 2 && Base <= 36, "base must be in the range [2, 36]");
+			static const char* Alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
 			Core::String Output;
-			if (!!(*this))
+			if (!(*this))
 			{
-				std::pair <UInt256, UInt256> QR(*this, Min());
-				do
-				{
-					QR = Divide(QR.first, Base);
-					Output = "0123456789abcdefghijklmnopqrstuvwxyz"[(uint8_t)QR.second] + Output;
-				} while (QR.first);
+				if (!Length)
+					Output.push_back('0');
+				else if (Output.size() < Length)
+					Output.append(Length - Output.size(), '0');
+				return Output;
 			}
-			else
-				Output = "0";
 
-			if (Output.size() < Length)
-				Output = Core::String(Length - Output.size(), '0') + Output;
+			switch (Base)
+			{
+				case 16:
+				{
+					uint64_t Array[4]; size_t Size = Bytes();
+					if (Size > sizeof(uint64_t) * 0)
+					{
+						Array[3] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Lower.Low());
+						if (Size > sizeof(uint64_t) * 1)
+						{
+							Array[2] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Lower.High());
+							if (Size > sizeof(uint64_t) * 2)
+							{
+								Array[1] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Upper.Low());
+								if (Size > sizeof(uint64_t) * 3)
+									Array[0] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Upper.High());
+							}
+						}
+					}
+					
+					Output = Codec::HexEncodeOdd(std::string_view(((char*)Array) + (sizeof(Array) - Size), Size));
+					if (Output.size() < Length)
+						Output.append(Length - Output.size(), '0');
+					break;
+				}
+				default:
+				{
+					std::pair<UInt256, UInt256> Remainder(*this, Min());
+					do
+					{
+						Remainder = Divide(Remainder.first, Base);
+						Output.push_back(Alphabet[(uint8_t)Remainder.second]);
+					} while (Remainder.first);
+					if (Output.size() < Length)
+						Output.append(Length - Output.size(), '0');
+
+					std::reverse(Output.begin(), Output.end());
+					break;
+				}
+			}
 			return Output;
 		}
 		UInt256 operator&(const UInt128& Left, const UInt256& Right)

@@ -300,6 +300,7 @@ namespace Vitex
 			const uint64_t& High() const;
 			const uint64_t& Low() const;
 			uint8_t Bits() const;
+			uint8_t Bytes() const;
 			uint64_t& High();
 			uint64_t& Low();
 			Core::Decimal ToDecimal() const;
@@ -740,6 +741,7 @@ namespace Vitex
 			const UInt128& High() const;
 			const UInt128& Low() const;
 			uint16_t Bits() const;
+			uint16_t Bytes() const;
 			UInt128& High();
 			UInt128& Low();
 			Core::Decimal ToDecimal() const;

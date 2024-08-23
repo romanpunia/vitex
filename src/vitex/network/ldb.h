@@ -165,6 +165,7 @@ namespace Vitex
 
 			class VI_OUT Response
 			{
+				friend class sqlite3_util;
 				friend Connection;
 				friend Cluster;
 				friend Row;
@@ -258,8 +259,7 @@ namespace Vitex
 
 			class VI_OUT Cursor
 			{
-				friend Connection;
-				friend Cluster;
+				friend class sqlite3_util;
 
 			public:
 				Core::Vector<Response> Base;
@@ -322,6 +322,7 @@ namespace Vitex
 				friend Driver;
 
 			private:
+				Core::UnorderedMap<Core::String, TStatement*> Statements;
 				Core::Vector<OnFunctionResult*> Functions;
 				Core::Vector<Aggregate*> Aggregates;
 				Core::Vector<Window*> Windows;
@@ -347,6 +348,16 @@ namespace Vitex
 				Core::Vector<Checkpoint> WalCheckpoint(CheckpointMode Mode, const std::string_view& Database = std::string_view());
 				size_t FreeMemoryUsed(size_t Bytes);
 				size_t GetMemoryUsed() const;
+				ExpectsDB<void> BindNull(TStatement* Statement, size_t Index);
+				ExpectsDB<void> BindPointer(TStatement* Statement, size_t Index, void* Value);
+				ExpectsDB<void> BindString(TStatement* Statement, size_t Index, const std::string_view& Value);
+				ExpectsDB<void> BindBlob(TStatement* Statement, size_t Index, const std::string_view& Value);
+				ExpectsDB<void> BindBoolean(TStatement* Statement, size_t Index, bool Value);
+				ExpectsDB<void> BindInt32(TStatement* Statement, size_t Index, int32_t Value);
+				ExpectsDB<void> BindInt64(TStatement* Statement, size_t Index, int64_t Value);
+				ExpectsDB<void> BindDouble(TStatement* Statement, size_t Index, double Value);
+				ExpectsDB<void> BindDecimal(TStatement* Statement, size_t Index, const Core::Decimal& Value, Core::Vector<Core::String>& Temps);
+				ExpectsDB<TStatement*> PrepareStatement(const std::string_view& Command, std::string_view* LeftoverCommand);
 				ExpectsDB<SessionId> TxBegin(Isolation Type);
 				ExpectsDB<SessionId> TxStart(const std::string_view& Command);
 				ExpectsDB<void> TxEnd(const std::string_view& Command, SessionId Session);
@@ -355,6 +366,7 @@ namespace Vitex
 				ExpectsDB<void> Connect(const std::string_view& Location);
 				ExpectsDB<void> Disconnect();
 				ExpectsDB<void> Flush();
+				ExpectsDB<Cursor> PreparedQuery(TStatement* Statement);
 				ExpectsDB<Cursor> EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
 				ExpectsDB<Cursor> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
 				ExpectsDB<Cursor> Query(const std::string_view& Command, size_t QueryOps = 0, SessionId Session = nullptr);
@@ -424,7 +436,6 @@ namespace Vitex
 				TConnection* TryAcquireConnection(SessionId Session, size_t Opts);
 				Core::Promise<TConnection*> AcquireConnection(SessionId Session, size_t Opts);
 				void ReleaseConnection(TConnection* Connection, size_t Opts);
-				ExpectsDB<void> ConsumeStatement(TConnection* Connection, Cursor* Result, Core::String* Statement);
 			};
 
 			class VI_OUT_TS Utils
@@ -480,6 +491,7 @@ namespace Vitex
 				ExpectsDB<Core::String> Emplace(const std::string_view& SQL, Core::SchemaList* Map) noexcept;
 				ExpectsDB<Core::String> GetQuery(const std::string_view& Name, Core::SchemaArgs* Map) noexcept;
 				Core::Vector<Core::String> GetQueries() noexcept;
+				bool IsLogActive() const noexcept;
 			};
 		}
 	}

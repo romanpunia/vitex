@@ -9385,6 +9385,7 @@ namespace Vitex
 				VDecimal->SetOperatorEx(Operators::Mod, (uint32_t)Position::Const, "decimal", "const decimal &in", &DecimalPer);
 				VDecimal->SetMethodStatic("decimal nan()", &Core::Decimal::NaN);
 				VDecimal->SetMethodStatic("decimal zero()", &Core::Decimal::Zero);
+				VDecimal->SetMethodStatic("decimal from(const string_view&in, uint8)", &Core::Decimal::From);
 
 				return true;
 			}
@@ -9414,7 +9415,8 @@ namespace Vitex
 				VUInt128->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt128::ToString);
 				VUInt128->SetMethod<Compute::UInt128, const uint64_t&>("const uint64& low() const", &Compute::UInt128::Low);
 				VUInt128->SetMethod<Compute::UInt128, const uint64_t&>("const uint64& high() const", &Compute::UInt128::High);
-				VUInt128->SetMethod("uint16 size() const", &Compute::UInt128::Bits);
+				VUInt128->SetMethod("uint8 bits() const", &Compute::UInt128::Bits);
+				VUInt128->SetMethod("uint8 bytes() const", &Compute::UInt128::Bits);
 				VUInt128->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128MulEq);
 				VUInt128->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128DivEq);
 				VUInt128->SetOperatorEx(Operators::AddAssign, (uint32_t)Position::Left, "uint128&", "const uint128 &in", &UInt128AddEq);
@@ -9463,7 +9465,8 @@ namespace Vitex
 				VUInt256->SetMethod("string to_string(uint8 = 10, uint32 = 0) const", &Compute::UInt256::ToString);
 				VUInt256->SetMethod<Compute::UInt256, const Compute::UInt128&>("const uint128& low() const", &Compute::UInt256::Low);
 				VUInt256->SetMethod<Compute::UInt256, const Compute::UInt128&>("const uint128& high() const", &Compute::UInt256::High);
-				VUInt256->SetMethod("uint16 size() const", &Compute::UInt256::Bits);
+				VUInt256->SetMethod("uint16 bits() const", &Compute::UInt256::Bits);
+				VUInt256->SetMethod("uint16 bytes() const", &Compute::UInt256::Bytes);
 				VUInt256->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256MulEq);
 				VUInt256->SetOperatorEx(Operators::DivAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256DivEq);
 				VUInt256->SetOperatorEx(Operators::AddAssign, (uint32_t)Position::Left, "uint256&", "const uint256 &in", &UInt256AddEq);

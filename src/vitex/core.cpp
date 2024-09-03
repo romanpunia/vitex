@@ -1029,6 +1029,13 @@ namespace Vitex
 			std::atomic<bool> Resync = true;
 		};
 
+		struct ThreadCheckpoint
+		{
+			SignalCallback Callback;
+			std::thread::native_handle_type Handle;
+			Signal Type;
+		};
+
 		BasicException::BasicException(const std::string_view& NewMessage) noexcept : Message(NewMessage)
 		{
 		}
@@ -9879,6 +9886,14 @@ namespace Vitex
 			return VI_FILENO(Stream);
 		}
 
+#ifdef VI_MICROSOFT
+		VOID CALLBACK ProcessCheckpoint(ULONG_PTR CheckpointHandle)
+		{
+			auto* Checkpoint = (ThreadCheckpoint*)CheckpointHandle;
+			Checkpoint->Callback(OS::Process::GetSignalId(Checkpoint->Type));
+			Memory::Delete(Checkpoint);
+		}
+#endif
 		void OS::Process::Abort()
 		{
 #ifdef NDEBUG
@@ -9912,31 +9927,32 @@ namespace Vitex
 		}
 		int OS::Process::GetSignalId(Signal Type)
 		{
+			int InvalidOffset = 0x2d42;
 			switch (Type)
 			{
 				case Signal::SIG_INT:
 #ifdef SIGINT
 					return SIGINT;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_ILL:
 #ifdef SIGILL
 					return SIGILL;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_FPE:
 #ifdef SIGFPE
 					return SIGFPE;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_SEGV:
 #ifdef SIGSEGV
 					return SIGSEGV;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_TERM:
 #ifdef SIGTERM
@@ -9948,104 +9964,111 @@ namespace Vitex
 #ifdef SIGBREAK
 					return SIGBREAK;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_ABRT:
 #ifdef SIGABRT
 					return SIGABRT;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_BUS:
 #ifdef SIGBUS
 					return SIGBUS;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_ALRM:
 #ifdef SIGALRM
 					return SIGALRM;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_HUP:
 #ifdef SIGHUP
 					return SIGHUP;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_QUIT:
 #ifdef SIGQUIT
 					return SIGQUIT;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_TRAP:
 #ifdef SIGTRAP
 					return SIGTRAP;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_CONT:
 #ifdef SIGCONT
 					return SIGCONT;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_STOP:
 #ifdef SIGSTOP
 					return SIGSTOP;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_PIPE:
 #ifdef SIGPIPE
 					return SIGPIPE;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_CHLD:
 #ifdef SIGCHLD
 					return SIGCHLD;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_USR1:
 #ifdef SIGUSR1
 					return SIGUSR1;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				case Signal::SIG_USR2:
 #ifdef SIGUSR2
 					return SIGUSR2;
 #else
-					return -1;
+					return InvalidOffset + (int)Type;
 #endif
 				default:
 					VI_ASSERT(false, "invalid signal type %i", (int)Type);
 					return -1;
 			}
 		}
-		bool OS::Process::SetSignalCallback(Signal Type, SignalCallback Callback)
+		bool OS::Process::RaiseSignal(Signal Type)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
 			int Id = GetSignalId(Type);
 			if (Id == -1)
 				return false;
-			VI_DEBUG("[os] signal %i: callback", Id);
+
+			return raise(Id) == 0;
+		}
+		bool OS::Process::BindSignal(Signal Type, SignalCallback Callback)
+		{
+			int Id = GetSignalId(Type);
+			if (Id == -1)
+				return false;
+			VI_DEBUG("[os] signal %i: %s", Id, Callback ? "callback" : "ignore");
 #ifdef VI_LINUX
 			struct sigaction Handle;
-			Handle.sa_handler = Callback;
+			Handle.sa_handler = Callback ? Callback : SIG_IGN;
 			sigemptyset(&Handle.sa_mask);
 			Handle.sa_flags = 0;
 
 			return sigaction(Id, &Handle, NULL) != -1;
 #else
-			return signal(Id, Callback) != SIG_ERR;
+			return signal(Id, Callback ? Callback : SIG_IGN) != SIG_ERR;
 #endif
 		}
-		bool OS::Process::SetSignalDefault(Signal Type)
+		bool OS::Process::RebindSignal(Signal Type)
 		{
 			int Id = GetSignalId(Type);
 			if (Id == -1)
@@ -10062,22 +10085,67 @@ namespace Vitex
 			return signal(Id, SIG_DFL) != SIG_ERR;
 #endif
 		}
-		bool OS::Process::SetSignalIgnore(Signal Type)
+		void* OS::Process::BindCheckpoint(Signal Type, SignalCallback Callback)
 		{
+			if (!Callback)
+				return nullptr;
+
 			int Id = GetSignalId(Type);
 			if (Id == -1)
-				return false;
-			VI_DEBUG("[os] signal %i: ignore", Id);
-#ifdef VI_LINUX
-			struct sigaction Handle;
-			Handle.sa_handler = SIG_IGN;
-			sigemptyset(&Handle.sa_mask);
-			Handle.sa_flags = 0;
-
-			return sigaction(Id, &Handle, NULL) != -1;
+				return nullptr;
+#ifdef VI_MICROSOFT
+			HANDLE Handle = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
+			if (!Handle)
+				return nullptr;
 #else
-			return signal(Id, SIG_IGN) != SIG_ERR;
+			signal(Id, Callback);
 #endif
+			auto* Checkpoint = Memory::New<ThreadCheckpoint>();
+			Checkpoint->Callback = Callback;
+			Checkpoint->Type = Type;
+#ifdef VI_LINUX
+			Checkpoint->Handle = gettid();
+#else
+			Checkpoint->Handle = Handle;
+#endif
+			return Checkpoint;
+		}
+		bool OS::Process::RaiseCheckpoint(void** CheckpointHandle)
+		{
+			if (!CheckpointHandle || !*CheckpointHandle)
+				return false;
+
+			auto* Checkpoint = (ThreadCheckpoint*)*CheckpointHandle;
+			*CheckpointHandle = nullptr;
+#ifdef VI_LINUX
+			bool Success = pthread_kill(Checkpoint->Handle, GetSignalId(Checkpoint->Type)) == 0;
+			signal(Checkpoint->Type, SIG_DFL);
+#else
+			auto* CopyCheckpoint = Memory::New<ThreadCheckpoint>(*Checkpoint);
+			bool Success = QueueUserAPC2(&ProcessCheckpoint, CopyCheckpoint->Handle, (ULONG_PTR)CopyCheckpoint, QUEUE_USER_APC_FLAGS_SPECIAL_USER_APC) != 0;
+			//CloseHandle(Checkpoint->Handle);
+#endif
+			Memory::Delete(Checkpoint);
+			return Success;
+		}
+		bool OS::Process::ClearCheckpoint(void** CheckpointHandle)
+		{
+			if (!CheckpointHandle || !*CheckpointHandle)
+				return false;
+
+			auto* Checkpoint = (ThreadCheckpoint*)*CheckpointHandle;
+			*CheckpointHandle = nullptr;
+
+			int Id = GetSignalId(Checkpoint->Type);
+			if (Id == -1)
+				return false;
+#ifdef VI_LINUX
+			signal(Type, SIG_DFL);
+#else
+			CloseHandle(Checkpoint->Handle);
+#endif
+			Memory::Delete(Checkpoint);
+			return true;
 		}
 		ExpectsIO<int> OS::Process::Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback)
 		{

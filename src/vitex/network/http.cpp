@@ -6357,7 +6357,7 @@ namespace Vitex
 					if (Hostname)
 					{
 						auto Port = State.Address.GetIpPort();
-						if (Port && *Port != (Net.Context ? 443 : 80))
+						if (Port && *Port != (Net.Stream->IsSecure() ? 443 : 80))
 							Request.SetHeader("Host", (*Hostname + ':' + Core::ToString(*Port)));
 						else
 							Request.SetHeader("Host", *Hostname);

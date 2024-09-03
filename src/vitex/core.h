@@ -2595,9 +2595,12 @@ namespace Vitex
 				static void Abort();
 				static void Interrupt();
 				static void Exit(int Code);
-				static bool SetSignalCallback(Signal Type, SignalCallback Callback);
-				static bool SetSignalDefault(Signal Type);
-				static bool SetSignalIgnore(Signal Type);
+				static bool RaiseSignal(Signal Type);
+				static bool BindSignal(Signal Type, SignalCallback Callback);
+				static bool RebindSignal(Signal Type);
+				static void* BindCheckpoint(Signal Type, SignalCallback Callback);
+				static bool RaiseCheckpoint(void** Checkpoint);
+				static bool ClearCheckpoint(void** Checkpoint);
 				static int GetSignalId(Signal Type);
 				static ExpectsIO<int> Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback);
 				static ExpectsIO<Unique<ProcessStream>> Spawn(const std::string_view& Command, FileMode Mode);

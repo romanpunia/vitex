@@ -10119,11 +10119,11 @@ namespace Vitex
 			*CheckpointHandle = nullptr;
 #ifdef VI_LINUX
 			bool Success = pthread_kill(Checkpoint->Handle, GetSignalId(Checkpoint->Type)) == 0;
-			signal(Checkpoint->Type, SIG_DFL);
+			signal(GetSignalId(Checkpoint->Type), SIG_DFL);
 #else
 			auto* CopyCheckpoint = Memory::New<ThreadCheckpoint>(*Checkpoint);
 			bool Success = QueueUserAPC2(&ProcessCheckpoint, CopyCheckpoint->Handle, (ULONG_PTR)CopyCheckpoint, QUEUE_USER_APC_FLAGS_SPECIAL_USER_APC) != 0;
-			//CloseHandle(Checkpoint->Handle);
+			CloseHandle(Checkpoint->Handle);
 #endif
 			Memory::Delete(Checkpoint);
 			return Success;
@@ -10135,12 +10135,8 @@ namespace Vitex
 
 			auto* Checkpoint = (ThreadCheckpoint*)*CheckpointHandle;
 			*CheckpointHandle = nullptr;
-
-			int Id = GetSignalId(Checkpoint->Type);
-			if (Id == -1)
-				return false;
 #ifdef VI_LINUX
-			signal(Type, SIG_DFL);
+			signal(GetSignalId(Checkpoint->Type), SIG_DFL);
 #else
 			CloseHandle(Checkpoint->Handle);
 #endif

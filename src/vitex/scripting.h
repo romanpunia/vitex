@@ -1593,9 +1593,6 @@ namespace Vitex
 		class VI_OUT Compiler final : public Core::Reference<Compiler>
 		{
 		private:
-			static int CompilerUD;
-
-		private:
 			Compute::ProcIncludeCallback Include;
 			Compute::ProcPragmaCallback Pragma;
 			Compute::Preprocessor* Processor;
@@ -1618,11 +1615,14 @@ namespace Vitex
 			bool IsBuilt() const;
 			bool IsCached() const;
 			ExpectsVM<void> Prepare(ByteCodeInfo* Info);
+			ExpectsVM<void> Prepare(const Module& Info);
 			ExpectsVM<void> Prepare(const std::string_view& ModuleName, bool Scoped = false);
 			ExpectsVM<void> Prepare(const std::string_view& ModuleName, const std::string_view& Cache, bool Debug = true, bool Scoped = false);
 			ExpectsVM<void> SaveByteCode(ByteCodeInfo* Info);
 			ExpectsVM<void> LoadFile(const std::string_view& Path);
 			ExpectsVM<void> LoadCode(const std::string_view& Name, const std::string_view& Buffer);
+			ExpectsVM<void> LoadByteCodeSync(ByteCodeInfo* Info);
+			ExpectsVM<void> CompileSync();
 			ExpectsPromiseVM<void> LoadByteCode(ByteCodeInfo* Info);
 			ExpectsPromiseVM<void> Compile();
 			ExpectsPromiseVM<void> CompileFile(const std::string_view& Name, const std::string_view& ModuleName, const std::string_view& EntryName);
@@ -1631,9 +1631,6 @@ namespace Vitex
 			Module GetModule() const;
 			VirtualMachine* GetVM() const;
 			Compute::Preprocessor* GetProcessor() const;
-
-		private:
-			static Compiler* Get(ImmediateContext* Context);
 		};
 
 		class VI_OUT DebuggerContext final : public Core::Reference<DebuggerContext>
@@ -1759,7 +1756,7 @@ namespace Vitex
 			VirtualMachine* GetEngine();
 
 		public:
-			static size_t ByteCodeLabelToText(VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, Core::StringStream& Stream);
+			static size_t ByteCodeLabelToText(Core::StringStream& Stream, VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, bool Uppercase);
 
 		private:
 			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback);

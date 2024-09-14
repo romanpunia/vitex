@@ -12867,10 +12867,10 @@ namespace Vitex
 						case rapidjson::kStringType:
 						{
 							const char* Buffer = It->GetString(); size_t Size = It->GetStringLength();
-							if (Size >= 2 && *Buffer == PREFIX_BINARY[0] && Buffer[Size - 1] == PREFIX_BINARY[0])
-								Current->Push(Var::Binary((uint8_t*)Buffer + 1, Size - 2));
+							if (Size < 2 || *Buffer != PREFIX_BINARY[0] || Buffer[Size - 1] != PREFIX_BINARY[0])
+								Current->Push(ProcessConversionFromJSONStringOrNumber((void*)It, false));
 							else
-								Current->Push(Var::String(std::string_view(Buffer, Size)));
+								Current->Push(Var::Binary((uint8_t*)Buffer + 1, Size - 2));
 							break;
 						}
 						case rapidjson::kNumberType:

@@ -8506,6 +8506,14 @@ namespace Vitex
 				return Array::Compose(Type.GetTypeInfo(), Base->GetQueries());
 			}
 #endif
+			void* Registry::FetchStringFactory() noexcept
+			{
+#ifdef VI_ANGELSCRIPT
+				return StringFactory::Get();
+#else
+				return nullptr;
+#endif
+			}
 			bool Registry::Cleanup() noexcept
 			{
 #ifdef VI_ANGELSCRIPT
@@ -9097,6 +9105,149 @@ namespace Vitex
 				VM->SetFunction("string to_string(double, int = 10)", &Core::ToString<double>);
 				VM->SetFunction("string to_string(uptr@, usize)", &String::FromBuffer);
 				VM->SetFunction("string handle_id(uptr@)", &String::FromPointer);
+				VM->BeginNamespace("string");
+				VM->SetProperty("const usize npos", &Core::String::npos);
+				VM->EndNamespace();
+
+				VStringView->SetConstructorEx("void f()", &StringView::Create);
+				VStringView->SetConstructorEx("void f(const string&in)", &StringView::CreateCopy);
+				VStringView->SetDestructorEx("void f()", &StringView::Destroy);
+				VStringView->SetMethodEx("string_view& opAssign(const string&in)", &StringView::Assign);
+				VStringView->SetMethodEx<Core::String, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &StringView::Append1);
+				VStringView->SetMethodEx<Core::String, const std::string_view&, const Core::String&>("string opAdd(const string&in) const", &StringView::Append2);
+				VStringView->SetMethodEx<Core::String, const Core::String&, const std::string_view&>("string opAdd_r(const string&in) const", &StringView::Append3);
+				VStringView->SetMethodEx<Core::String, const std::string_view&, char>("string opAdd(uint8) const", &StringView::Append4);
+				VStringView->SetMethodEx<Core::String, char, const std::string_view&>("string opAdd_r(uint8) const", &StringView::Append5);
+				VStringView->SetMethodEx("int opCmp(const string&in) const", &StringView::Compare1);
+				VStringView->SetMethodEx("int opCmp(const string_view&in) const", &StringView::Compare2);
+				VStringView->SetMethodEx("const uint8& opIndex(usize) const", &StringView::Index);
+				VStringView->SetMethodEx("const uint8& at(usize) const", &StringView::Index);
+				VStringView->SetMethodEx("const uint8& front() const", &StringView::Front);
+				VStringView->SetMethodEx("const uint8& back() const", &StringView::Back);
+				VStringView->SetMethod("uptr@ data() const", &std::string_view::data);
+				VStringView->SetMethod("bool empty() const", &std::string_view::empty);
+				VStringView->SetMethod("usize size() const", &std::string_view::size);
+				VStringView->SetMethod("usize max_size() const", &std::string_view::max_size);
+				VStringView->SetMethodEx("bool starts_with(const string_view&in, usize = 0) const", &StringView::StartsWith);
+				VStringView->SetMethodEx("bool ends_with(const string_view&in) const", &StringView::EndsWith);
+				VStringView->SetMethodEx("string substring(usize) const", &StringView::Substring1);
+				VStringView->SetMethodEx("string substring(usize, usize) const", &StringView::Substring2);
+				VStringView->SetMethodEx("string substr(usize) const", &StringView::Substring1);
+				VStringView->SetMethodEx("string substr(usize, usize) const", &StringView::Substring2);
+				VStringView->SetMethodEx("usize rfind(const string_view&in, usize = 0) const", &StringView::ReverseFind1);
+				VStringView->SetMethodEx("usize rfind(uint8, usize = 0) const", &StringView::ReverseFind2);
+				VStringView->SetMethodEx("usize find(const string_view&in, usize = 0) const", &StringView::Find1);
+				VStringView->SetMethodEx("usize find(uint8, usize = 0) const", &StringView::Find2);
+				VStringView->SetMethodEx("usize find_first_of(const string_view&in, usize = 0) const", &StringView::FindFirstOf);
+				VStringView->SetMethodEx("usize find_first_not_of(const string_view&in, usize = 0) const", &StringView::FindFirstNotOf);
+				VStringView->SetMethodEx("usize find_last_of(const string_view&in, usize = 0) const", &StringView::FindLastOf);
+				VStringView->SetMethodEx("usize find_last_not_of(const string_view&in, usize = 0) const", &StringView::FindLastNotOf);
+				VStringView->SetMethodEx("array<string>@ split(const string_view&in) const", &StringView::Split);
+				VStringView->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "string", "", &StringView::ImplCastString);
+				VM->SetFunction("int8 to_int8(const string_view&in)", &StringView::FromString<int8_t>);
+				VM->SetFunction("int16 to_int16(const string_view&in)", &StringView::FromString<int16_t>);
+				VM->SetFunction("int32 to_int32(const string_view&in)", &StringView::FromString<int32_t>);
+				VM->SetFunction("int64 to_int64(const string_view&in)", &StringView::FromString<int64_t>);
+				VM->SetFunction("uint8 to_uint8(const string_view&in)", &StringView::FromString<uint8_t>);
+				VM->SetFunction("uint16 to_uint16(const string_view&in)", &StringView::FromString<uint16_t>);
+				VM->SetFunction("uint32 to_uint32(const string_view&in)", &StringView::FromString<uint32_t>);
+				VM->SetFunction("uint64 to_uint64(const string_view&in)", &StringView::FromString<uint64_t>);
+				VM->SetFunction("float to_float(const string_view&in)", &StringView::FromString<float>);
+				VM->SetFunction("double to_double(const string_view&in)", &StringView::FromString<double>);
+				VM->SetFunction("uint64 component_id(const string_view&in)", &Core::OS::File::GetHash);
+				VM->BeginNamespace("string_view");
+				VM->SetProperty("const usize npos", &std::string_view::npos);
+				VM->EndNamespace();
+
+				return true;
+			}
+			bool Registry::ImportSafeString(VirtualMachine* VM) noexcept
+			{
+				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
+				auto VStringView = VM->SetStructAddress("string_view", sizeof(std::string_view), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<std::string_view>() | (size_t)ObjectBehaviours::APP_CLASS_ALLINTS);
+				auto VString = VM->SetStructAddress("string", sizeof(Core::String), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<Core::String>());
+#ifdef VI_ANGELSCRIPT
+				VM->SetStringFactoryAddress("string", StringFactory::Get());
+#endif
+				VString->SetConstructorEx("void f()", &String::Create);
+				VString->SetConstructorEx("void f(const string&in)", &String::CreateCopy1);
+				VString->SetConstructorEx("void f(const string_view&in)", &String::CreateCopy2);
+				VString->SetDestructorEx("void f()", &String::Destroy);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAssign(const string&in)", &Core::String::operator=);
+				VString->SetMethod<Core::String, Core::String&, const std::string_view&>("string& opAssign(const string_view&in)", &Core::String::operator=);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& opAddAssign(const string&in)", &Core::String::operator+=);
+				VString->SetMethod<Core::String, Core::String&, const std::string_view&>("string& opAddAssign(const string_view&in)", &Core::String::operator+=);
+				VString->SetMethodEx<Core::String, const Core::String&, const Core::String&>("string opAdd(const string&in) const", &std::operator+);
+				VString->SetMethod<Core::String, Core::String&, char>("string& opAddAssign(uint8)", &Core::String::operator+=);
+				VString->SetMethodEx<Core::String, const Core::String&, char>("string opAdd(uint8) const", &std::operator+);
+				VString->SetMethodEx<Core::String, char, const Core::String&>("string opAdd_r(uint8) const", &std::operator+);
+				VString->SetMethod<Core::String, int, const Core::String&>("int opCmp(const string&in) const", &Core::String::compare);
+				VString->SetMethod<Core::String, int, const std::string_view&>("int opCmp(const string_view&in) const", &Core::String::compare);
+				VString->SetMethodEx("uint8& opIndex(usize)", &String::Index);
+				VString->SetMethodEx("const uint8& opIndex(usize) const", &String::Index);
+				VString->SetMethodEx("uint8& at(usize)", &String::Index);
+				VString->SetMethodEx("const uint8& at(usize) const", &String::Index);
+				VString->SetMethodEx("uint8& front()", &String::Front);
+				VString->SetMethodEx("const uint8& front() const", &String::Front);
+				VString->SetMethodEx("uint8& back()", &String::Back);
+				VString->SetMethodEx("const uint8& back() const", &String::Back);
+				VString->SetMethod("bool empty() const", &Core::String::empty);
+				VString->SetMethod("usize size() const", &Core::String::size);
+				VString->SetMethod("void clear()", &Core::String::clear);
+				VString->SetMethod<Core::String, Core::String&, const Core::String&>("string& append(const string&in)", &Core::String::append);
+				VString->SetMethod<Core::String, Core::String&, const std::string_view&>("string& append(const string_view&in)", &Core::String::append);
+				VString->SetMethod("void push(uint8)", &Core::String::push_back);
+				VString->SetMethodEx("void pop()", &String::PopBack);
+				VString->SetMethodEx("bool starts_with(const string&in, usize = 0) const", &String::StartsWith1);
+				VString->SetMethodEx("bool ends_with(const string&in) const", &String::EndsWith1);
+				VString->SetMethodEx("bool starts_with(const string_view&in, usize = 0) const", &String::StartsWith2);
+				VString->SetMethodEx("bool ends_with(const string_view&in) const", &String::EndsWith2);
+				VString->SetMethodEx("string substring(usize) const", &String::Substring1);
+				VString->SetMethodEx("string substring(usize, usize) const", &String::Substring2);
+				VString->SetMethodEx("string substr(usize) const", &String::Substring1);
+				VString->SetMethodEx("string substr(usize, usize) const", &String::Substring2);
+				VString->SetMethodEx("string& trim()", &Core::Stringify::Trim);
+				VString->SetMethodEx("string& trim_start()", &Core::Stringify::TrimStart);
+				VString->SetMethodEx("string& trim_end()", &Core::Stringify::TrimEnd);
+				VString->SetMethodEx("string& to_lower()", &Core::Stringify::ToLower);
+				VString->SetMethodEx("string& to_upper()", &Core::Stringify::ToUpper);
+				VString->SetMethodEx<Core::String&, Core::String&>("string& reverse()", &Core::Stringify::Reverse);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize rfind(const string&in, usize = 0) const", &Core::String::rfind);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize rfind(const string_view&in, usize = 0) const", &Core::String::rfind);
+				VString->SetMethod<Core::String, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &Core::String::rfind);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find(const string&in, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find(const string_view&in, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, char, size_t>("usize find(uint8, usize = 0) const", &Core::String::find);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_first_of(const string&in, usize = 0) const", &Core::String::find_first_of);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_first_not_of(const string&in, usize = 0) const", &Core::String::find_first_not_of);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_last_of(const string&in, usize = 0) const", &Core::String::find_last_of);
+				VString->SetMethod<Core::String, size_t, const Core::String&, size_t>("usize find_last_not_of(const string&in, usize = 0) const", &Core::String::find_last_not_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_first_of(const string_view&in, usize = 0) const", &Core::String::find_first_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_first_not_of(const string_view&in, usize = 0) const", &Core::String::find_first_not_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_last_of(const string_view&in, usize = 0) const", &Core::String::find_last_of);
+				VString->SetMethod<Core::String, size_t, const std::string_view&, size_t>("usize find_last_not_of(const string_view&in, usize = 0) const", &Core::String::find_last_not_of);
+				VString->SetMethodEx("array<string>@ split(const string&in) const", &String::Split);
+				VString->SetOperatorEx(Operators::ImplCast, (uint32_t)Position::Const, "string_view", "", &String::ImplCastStringView);
+				VM->SetFunction("int8 to_int8(const string&in, int = 10)", &String::FromString<int8_t>);
+				VM->SetFunction("int16 to_int16(const string&in, int = 10)", &String::FromString<int16_t>);
+				VM->SetFunction("int32 to_int32(const string&in, int = 10)", &String::FromString<int32_t>);
+				VM->SetFunction("int64 to_int64(const string&in, int = 10)", &String::FromString<int64_t>);
+				VM->SetFunction("uint8 to_uint8(const string&in, int = 10)", &String::FromString<uint8_t>);
+				VM->SetFunction("uint16 to_uint16(const string&in, int = 10)", &String::FromString<uint16_t>);
+				VM->SetFunction("uint32 to_uint32(const string&in, int = 10)", &String::FromString<uint32_t>);
+				VM->SetFunction("uint64 to_uint64(const string&in, int = 10)", &String::FromString<uint64_t>);
+				VM->SetFunction("float to_float(const string&in, int = 10)", &String::FromString<float>);
+				VM->SetFunction("double to_double(const string&in, int = 10)", &String::FromString<double>);
+				VM->SetFunction("string to_string(int8, int = 10)", &Core::ToString<int8_t>);
+				VM->SetFunction("string to_string(int16, int = 10)", &Core::ToString<int16_t>);
+				VM->SetFunction("string to_string(int32, int = 10)", &Core::ToString<int32_t>);
+				VM->SetFunction("string to_string(int64, int = 10)", &Core::ToString<int64_t>);
+				VM->SetFunction("string to_string(uint8, int = 10)", &Core::ToString<uint8_t>);
+				VM->SetFunction("string to_string(uint16, int = 10)", &Core::ToString<uint16_t>);
+				VM->SetFunction("string to_string(uint32, int = 10)", &Core::ToString<uint32_t>);
+				VM->SetFunction("string to_string(uint64, int = 10)", &Core::ToString<uint64_t>);
+				VM->SetFunction("string to_string(float, int = 10)", &Core::ToString<float>);
+				VM->SetFunction("string to_string(double, int = 10)", &Core::ToString<double>);
 				VM->BeginNamespace("string");
 				VM->SetProperty("const usize npos", &Core::String::npos);
 				VM->EndNamespace();

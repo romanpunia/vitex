@@ -3113,6 +3113,27 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
+		ExpectsVM<void> Compiler::Prepare(const Module& Info)
+		{
+			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(Info.IsValid(), "module should be set");
+#ifdef VI_ANGELSCRIPT
+			if (!Info.IsValid())
+				return VirtualException(VirtualError::INVALID_ARG);
+
+			Built = true;
+			VCache.Valid = false;
+			VCache.Name.clear();
+			if (Scope != nullptr)
+				Scope->Discard();
+
+			Scope = Info.GetModule();
+			VM->SetProcessorOptions(Processor);
+			return Core::Expectation::Met;
+#else
+			return VirtualException(VirtualError::NOT_SUPPORTED);
+#endif
+		}
 		ExpectsVM<void> Compiler::Prepare(const std::string_view& ModuleName, bool Scoped)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
@@ -3122,19 +3143,13 @@ namespace Vitex
 			Built = false;
 			VCache.Valid = false;
 			VCache.Name.clear();
-
 			if (Scope != nullptr)
 				Scope->Discard();
 
-			if (Scoped)
-				Scope = VM->CreateScopedModule(ModuleName);
-			else
-				Scope = VM->CreateModule(ModuleName);
-
+			Scope = Scoped ? VM->CreateScopedModule(ModuleName) : VM->CreateModule(ModuleName);
 			if (!Scope)
 				return VirtualException(VirtualError::INVALID_NAME);
 
-			Scope->SetUserData(this, CompilerUD);
 			VM->SetProcessorOptions(Processor);
 			return Core::Expectation::Met;
 #else
@@ -3238,23 +3253,60 @@ namespace Vitex
 			return VirtualException(VirtualError::NOT_SUPPORTED);
 #endif
 		}
+		ExpectsVM<void> Compiler::LoadByteCodeSync(ByteCodeInfo* Info)
+		{
+			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(Scope != nullptr, "module should not be empty");
+			VI_ASSERT(Info != nullptr, "bytecode should be set");
+#ifdef VI_ANGELSCRIPT
+			int R = 0;
+			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>(Info->Data);
+			while ((R = Scope->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
+				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
+			Core::Memory::Delete(Stream);
+			if (R >= 0)
+				VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+			return FunctionFactory::ToReturn(R);
+#else
+			return VirtualException(VirtualError::NOT_SUPPORTED);
+#endif
+		}
+		ExpectsVM<void> Compiler::CompileSync()
+		{
+			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(Scope != nullptr, "module should not be empty");
+#ifdef VI_ANGELSCRIPT
+			if (VCache.Valid)
+				return LoadByteCodeSync(&VCache);
+
+			int R = 0;
+			while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
+				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
+
+			VM->ClearSections();
+			Built = (R >= 0);
+			if (!Built)
+				return FunctionFactory::ToReturn(R);
+
+			VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
+			if (VCache.Name.empty())
+				return FunctionFactory::ToReturn(R);
+
+			auto Status = SaveByteCode(&VCache);
+			if (Status)
+				VM->SetByteCodeCache(&VCache);
+			return Status;
+#else
+			return VirtualException(VirtualError::NOT_SUPPORTED);
+#endif
+		}
 		ExpectsPromiseVM<void> Compiler::LoadByteCode(ByteCodeInfo* Info)
 		{
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 			VI_ASSERT(Info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>(Info->Data);
-			return Core::Cotask<ExpectsVM<void>>([this, Stream, Info]()
-			{
-				int R = 0;
-				while ((R = Scope->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
-					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
-				Core::Memory::Delete(Stream);
-				if (R >= 0)
-					VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
-				return FunctionFactory::ToReturn(R);
-			});
+			return Core::Cotask<ExpectsVM<void>>(std::bind(&Compiler::LoadByteCodeSync, this, Info));
 #else
 			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
@@ -3264,37 +3316,7 @@ namespace Vitex
 			VI_ASSERT(VM != nullptr, "engine should be set");
 			VI_ASSERT(Scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
-			if (VCache.Valid)
-			{
-				return LoadByteCode(&VCache).Then<ExpectsVM<void>>([this](ExpectsVM<void>&& Result)
-				{
-					Built = !!Result;
-					if (Built)
-						VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
-					return Result;
-				});
-			}
-
-			return Core::Cotask<ExpectsVM<void>>([this]()
-			{
-				int R = 0;
-				while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
-					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
-
-				VM->ClearSections();
-				Built = (R >= 0);
-				if (!Built)
-					return FunctionFactory::ToReturn(R);
-
-				VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
-				if (VCache.Name.empty())
-					return FunctionFactory::ToReturn(R);
-
-				auto Status = SaveByteCode(&VCache);
-				if (Status)
-					VM->SetByteCodeCache(&VCache);
-				return Status;
-			});
+			return Core::Cotask<ExpectsVM<void>>(std::bind(&Compiler::CompileSync, this));
 #else
 			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
 #endif
@@ -3431,14 +3453,6 @@ namespace Vitex
 		{
 			return Processor;
 		}
-		Compiler* Compiler::Get(ImmediateContext* Context)
-		{
-			if (!Context)
-				return nullptr;
-
-			return (Compiler*)Context->GetUserData(CompilerUD);
-		}
-		int Compiler::CompilerUD = 154;
 
 		DebuggerContext::DebuggerContext(DebugType Type) noexcept : LastContext(nullptr), ForceSwitchThreads(0), LastFunction(nullptr), VM(nullptr), Action(Type == DebugType::Suspended ? DebugAction::Trigger : DebugAction::Continue), InputError(false), Attachable(Type != DebugType::Detach)
 		{
@@ -4424,7 +4438,7 @@ namespace Vitex
 			while (Offset < Size)
 			{
 				Stream << "  ";
-				Offset = (asUINT)ByteCodeLabelToText(VM, ByteCode, Offset, false, Stream);
+				Offset = (asUINT)ByteCodeLabelToText(Stream, VM, ByteCode, Offset, false, false);
 				++Instructions;
 			}
 
@@ -4644,7 +4658,7 @@ namespace Vitex
 					while (PreviewProgramPointerBegin < PreviewProgramPointerEnd)
 					{
 						Stream << "  ";
-						PreviewProgramPointerBegin = (asUINT)ByteCodeLabelToText(VM, ByteCode, PreviewProgramPointerBegin, PreviewProgramPointerBegin == ProgramPointer, Stream);
+						PreviewProgramPointerBegin = (asUINT)ByteCodeLabelToText(Stream, VM, ByteCode, PreviewProgramPointerBegin, PreviewProgramPointerBegin == ProgramPointer, false);
 					}
 
 					if (ProgramPointer < PreviewProgramPointerEnd)
@@ -5003,7 +5017,7 @@ namespace Vitex
 		{
 			return Action;
 		}
-		size_t DebuggerContext::ByteCodeLabelToText(VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, Core::StringStream& Stream)
+		size_t DebuggerContext::ByteCodeLabelToText(Core::StringStream& Stream, VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, bool Uppercase)
 		{
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* Engine = VM ? VM->GetEngine() : nullptr;
@@ -5039,7 +5053,14 @@ namespace Vitex
 				}
 			};
 
-			Stream << (Selection ? "> 0x" : "  0x") << (void*)(uintptr_t)ProgramPointer << ": " << Label.Name;
+			Stream << (Selection ? "> 0x" : "  0x") << (void*)(uintptr_t)ProgramPointer << ": ";
+			if (Uppercase)
+			{
+				Core::String Name = Core::String(Label.Name);
+				Stream << Core::Stringify::ToUpper(Name);
+			}
+			else
+				Stream << Label.Name;
 			if (!VM)
 				goto DefaultPrint;
 

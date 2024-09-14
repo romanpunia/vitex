@@ -1252,6 +1252,7 @@ namespace Vitex
 			{
 			public:
 				Registry() = default;
+				virtual void* FetchStringFactory() noexcept;
 				virtual bool Cleanup() noexcept;
 				virtual bool BindAddons(VirtualMachine* VM) noexcept;
 				virtual bool BindStringifiers(DebuggerContext* Context) noexcept;
@@ -1262,6 +1263,7 @@ namespace Vitex
 				static bool ImportDictionary(VirtualMachine* VM) noexcept;
 				static bool ImportMath(VirtualMachine* VM) noexcept;
 				static bool ImportString(VirtualMachine* VM) noexcept;
+				static bool ImportSafeString(VirtualMachine* VM) noexcept;
 				static bool ImportException(VirtualMachine* VM) noexcept;
 				static bool ImportMutex(VirtualMachine* VM) noexcept;
 				static bool ImportThread(VirtualMachine* VM) noexcept;

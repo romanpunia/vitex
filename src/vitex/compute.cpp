@@ -1861,6 +1861,9 @@ namespace Vitex
 				return 0;
 
 			uint16_t Length = Bits();
+			if (!Length--)
+				return 0;
+
 			return std::max<uint16_t>(1, std::min(32, (Length - Length % 8 + 8) / 8));
 		}
 		Core::Decimal UInt256::ToDecimal() const

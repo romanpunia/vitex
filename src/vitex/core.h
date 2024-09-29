@@ -2536,7 +2536,7 @@ namespace Vitex
 				static ExpectsIO<void> Close(Unique<FILE> Stream);
 				static ExpectsIO<void> GetState(const std::string_view& Path, FileEntry* Output);
 				static ExpectsIO<void> Seek64(FILE* Stream, int64_t Offset, FileSeek Mode);
-				static ExpectsIO<uint64_t> Tell64(FILE* Stream);
+				static ExpectsIO<size_t> Tell64(FILE* Stream);
 				static ExpectsIO<size_t> Join(const std::string_view& To, const Vector<String>& Paths);
 				static ExpectsIO<FileState> GetProperties(const std::string_view& Path);
 				static ExpectsIO<FileEntry> GetState(const std::string_view& Path);
@@ -5256,7 +5256,7 @@ namespace Vitex
 			T Value;
 			if constexpr (!std::is_integral<T>::value)
 			{
-#if defined(__clang__) && !defined(VI_CXX20)
+#if defined(__clang__) && (!defined(VI_CXX20) || defined(VI_APPLE))
 				OS::Error::Clear();
 				char* End = nullptr;
 				if constexpr (!std::is_same<T, long double>::value)

@@ -225,14 +225,14 @@ namespace Vitex
 				if (Network != nullptr)
 				{
 					Series::Unpack(Network->Find("keep-alive"), &Router->KeepAliveMaxCount);
-					Series::Unpack(Network->Find("payload-max-length"), &Router->MaxHeapBuffer);
-					Series::Unpack(Network->Find("payload-max-length"), &Router->MaxNetBuffer);
-					Series::Unpack(Network->Find("backlog-queue"), &Router->BacklogQueue);
-					Series::Unpack(Network->Find("socket-timeout"), &Router->SocketTimeout);
+					Series::UnpackA(Network->Find("payload-max-length"), &Router->MaxHeapBuffer);
+					Series::UnpackA(Network->Find("payload-max-length"), &Router->MaxNetBuffer);
+					Series::UnpackA(Network->Find("backlog-queue"), &Router->BacklogQueue);
+					Series::UnpackA(Network->Find("socket-timeout"), &Router->SocketTimeout);
 					Series::Unpack(Network->Find("graceful-time-wait"), &Router->GracefulTimeWait);
-					Series::Unpack(Network->Find("max-connections"), &Router->MaxConnections);
+					Series::UnpackA(Network->Find("max-connections"), &Router->MaxConnections);
 					Series::Unpack(Network->Find("enable-no-delay"), &Router->EnableNoDelay);
-					Series::Unpack(Network->Find("max-uploadable-resources"), &Router->MaxUploadableResources);
+					Series::UnpackA(Network->Find("max-uploadable-resources"), &Router->MaxUploadableResources);
 					Series::Unpack(Network->Find("temporary-directory"), &Router->TemporaryDirectory);
 					Series::Unpack(Network->Fetch("session.cookie.name"), &Router->Session.Cookie.Name);
 					Series::Unpack(Network->Fetch("session.cookie.domain"), &Router->Session.Cookie.Domain);
@@ -318,13 +318,13 @@ namespace Vitex
 							Series::Unpack(Base->Find("alias"), &Route->Alias);
 							Series::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
 							Series::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
-							Series::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
+							Series::UnpackA(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
 							Series::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
 							Series::Unpack(Base->Find("char-set"), &Route->CharSet);
 							Series::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
 							Series::Unpack(Base->Find("redirect"), &Route->Redirect);
-							Series::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
-							Series::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
+							Series::UnpackA(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
+							Series::UnpackA(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
 							Series::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
 							Series::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
 							Series::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);

@@ -1421,7 +1421,11 @@ namespace Vitex
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
+#if MONGOC_CHECK_VERSION(1, 28, 0)
+				return (size_t)mongoc_bulk_operation_get_server_id(Base);
+#else
 				return (size_t)mongoc_bulk_operation_get_hint(Base);
+#endif
 #else
 				return 0;
 #endif
@@ -1496,7 +1500,11 @@ namespace Vitex
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
+#if MONGOC_CHECK_VERSION(1, 28, 0)
+				return mongoc_cursor_set_server_id(Base, (uint32_t)Hint);
+#else
 				return mongoc_cursor_set_hint(Base, (uint32_t)Hint);
+#endif
 #else
 				return false;
 #endif
@@ -1593,7 +1601,11 @@ namespace Vitex
 			{
 #ifdef VI_MONGOC
 				VI_ASSERT(Base != nullptr, "context should be set");
+#if MONGOC_CHECK_VERSION(1, 28, 0)
+				return (size_t)mongoc_cursor_get_server_id(Base);
+#else
 				return (size_t)mongoc_cursor_get_hint(Base);
+#endif
 #else
 				return 0;
 #endif

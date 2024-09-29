@@ -8929,8 +8929,8 @@ namespace Vitex
 				VI_ASSERT(VM != nullptr && VM->GetEngine() != nullptr, "manager should be set");
 				VM->SetFunction<float(*)(uint32_t)>("float fp_from_ieee(uint)", &Math::FpFromIEEE);
 				VM->SetFunction<uint32_t(*)(float)>("uint fp_to_ieee(float)", &Math::FpToIEEE);
-				VM->SetFunction<double(*)(uint64_t)>("double fp_from_ieee(uint64)", &Math::FpFromIEEE);
-				VM->SetFunction<uint64_t(*)(double)>("uint64 fp_to_ieee(double)", &Math::FpToIEEE);
+				VM->SetFunction<double(*)(as_uint64_t)>("double fp_from_ieee(uint64)", &Math::FpFromIEEE);
+				VM->SetFunction<as_uint64_t(*)(double)>("uint64 fp_to_ieee(double)", &Math::FpToIEEE);
 				VM->SetFunction<bool(*)(float, float, float)>("bool close_to(float, float, float = 0.00001f)", &Math::CloseTo);
 				VM->SetFunction<bool(*)(double, double, double)>("bool close_to(double, double, double = 0.0000000001)", &Math::CloseTo);
 				VM->SetFunction("float rad2degf()", &Compute::Mathf::Rad2Deg);

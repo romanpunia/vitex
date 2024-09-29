@@ -162,6 +162,7 @@ namespace Vitex
 			static bool Unpack(Core::Schema* V, int64_t* O);
 			static bool Unpack(Core::Schema* V, uint32_t* O);
 			static bool Unpack(Core::Schema* V, uint64_t* O);
+			static bool UnpackA(Core::Schema* V, size_t* O);
 			static bool Unpack(Core::Schema* V, float* O);
 			static bool Unpack(Core::Schema* V, double* O);
 			static bool Unpack(Core::Schema* V, Core::String* O);

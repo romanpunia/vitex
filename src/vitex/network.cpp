@@ -436,7 +436,7 @@ namespace Vitex
 #elif defined(NET_KQUEUE)
 		struct epoll_queue
 		{
-			kevent* Data;
+			struct kevent* Data;
 			size_t Size;
 
 			epoll_queue(size_t NewSize) : Size(NewSize)
@@ -1180,7 +1180,7 @@ namespace Vitex
 			auto NotAfter = ASN1_GetTime(X509_get_notAfter(Blob));
 
 			Certificate Output;
-			Output.Version = X509_get_version(Blob);
+			Output.Version = (int32_t)X509_get_version(Blob);
 			Output.Signature = X509_get_signature_type(Blob);
 			Output.NotBeforeDate = NotBefore.first;
 			Output.NotBeforeTime = NotBefore.second;
@@ -3084,7 +3084,7 @@ namespace Vitex
 				return Written;
 			}
 #endif
-			int Value = send(Fd, (char*)Buffer, (int)Size, 0);
+			int Value = (int)send(Fd, (char*)Buffer, (int)Size, 0);
 			if (Value == 0)
 				return std::make_error_condition(std::errc::operation_would_block);
 			else if (Value < 0)
@@ -3195,7 +3195,7 @@ namespace Vitex
 				return Received;
 			}
 #endif
-			int Value = recv(Fd, (char*)Buffer, (int)Size, 0);
+			int Value = (int)recv(Fd, (char*)Buffer, (int)Size, 0);
 			if (Value == 0)
 				return std::make_error_condition(std::errc::connection_reset);
 			else if (Value < 0)

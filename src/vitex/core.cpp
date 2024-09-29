@@ -5846,7 +5846,7 @@ namespace Vitex
 		Variant Var::String(const std::string_view& Value)
 		{
 			Variant Result(VarType::String);
-			Result.Length = Value.size();
+			Result.Length = (uint32_t)Value.size();
 
 			size_t StringSize = sizeof(char) * (Result.Length + 1);
 			if (Result.Length > Variant::GetMaxSmallStringSize())
@@ -5866,7 +5866,7 @@ namespace Vitex
 		{
 			VI_ASSERT(Value != nullptr, "value should be set");
 			Variant Result(VarType::Binary);
-			Result.Length = Size;
+			Result.Length = (uint32_t)Size;
 
 			size_t StringSize = sizeof(char) * (Result.Length + 1);
 			if (Result.Length > Variant::GetMaxSmallStringSize())
@@ -7270,7 +7270,7 @@ namespace Vitex
 
 			va_list Args;
 			va_start(Args, Format);
-			int Value = vsprintf(Memory, Format, Args);
+			int Value = vsnprintf(Memory, Memory - Buffer.data(), Format, Args);
 			VI_TRACE("[mem] fd %i write %i bytes", GetWriteableFd(), Value);
 			va_end(Args);
 			if (Value >= 0)
@@ -7468,7 +7468,7 @@ namespace Vitex
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			return fgets(Data, Length, IoStream) ? strnlen(Data, Length) : 0;
+			return fgets(Data, (int)Length, IoStream) ? strnlen(Data, Length) : 0;
 		}
 		ExpectsIO<size_t> FileStream::Read(uint8_t* Data, size_t Length)
 		{
@@ -7679,7 +7679,7 @@ namespace Vitex
 #ifdef VI_ZLIB
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[gz] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			return gzgets((gzFile)IoStream, Data, Length) ? strnlen(Data, Length) : 0;
+			return gzgets((gzFile)IoStream, Data, (int)Length) ? strnlen(Data, Length) : 0;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
@@ -8269,7 +8269,7 @@ namespace Vitex
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[sh] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			return fgets(Data, Length, OutputStream) ? strnlen(Data, Length) : 0;
+			return fgets(Data, (int)Length, OutputStream) ? strnlen(Data, Length) : 0;
 		}
 		ExpectsIO<size_t> ProcessStream::Read(uint8_t* Data, size_t Length)
 		{
@@ -8293,7 +8293,7 @@ namespace Vitex
 			VI_ASSERT(Data != nullptr, "data should be set");
 			VI_MEASURE(Timings::FileSystem);
 			VI_TRACE("[sh] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			int Value = write(InputFd, Data, Length);
+			int Value = (int)write(InputFd, Data, Length);
 			if (Value >= 0)
 				return (size_t)Value;
 
@@ -9413,7 +9413,7 @@ namespace Vitex
 #endif
 			return Expectation::Met;
 		}
-		ExpectsIO<uint64_t> OS::File::Tell64(FILE* Stream)
+		ExpectsIO<size_t> OS::File::Tell64(FILE* Stream)
 		{
 			VI_TRACE("[io] fd %i tell-64", VI_FILENO(Stream));
 #ifdef VI_MICROSOFT
@@ -9424,7 +9424,7 @@ namespace Vitex
 			if (Offset < 0)
 				return OS::Error::GetConditionOr();
 
-			return (uint64_t)Offset;
+			return (size_t)Offset;
 		}
 		ExpectsIO<size_t> OS::File::Join(const std::string_view& To, const Vector<String>& Paths)
 		{
@@ -10104,7 +10104,7 @@ namespace Vitex
 			Checkpoint->Callback = Callback;
 			Checkpoint->Type = Type;
 #ifdef VI_LINUX
-			Checkpoint->Handle = gettid();
+			Checkpoint->Handle = pthread_self();
 #else
 			Checkpoint->Handle = Handle;
 #endif

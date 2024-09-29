@@ -1,6 +1,9 @@
 #include "ldb.h"
 #ifdef VI_SQLITE
 #include <sqlite3.h>
+#ifdef VI_APPLE
+#include <sqlite3ext.h>
+#endif
 #endif
 
 namespace Vitex
@@ -606,23 +609,29 @@ namespace Vitex
 			void Connection::SetHardHeapLimit(uint64_t Memory)
 			{
 #ifdef VI_SQLITE
+#ifndef VI_APPLE
 				Core::UMutex<std::mutex> Unique(Update);
 				sqlite3_hard_heap_limit64((int64_t)Memory);
+#endif
 #endif
 			}
 			void Connection::SetSharedCache(bool Enabled)
 			{
 #ifdef VI_SQLITE
+#ifndef VI_APPLE
 				Core::UMutex<std::mutex> Unique(Update);
 				sqlite3_enable_shared_cache((int)Enabled);
+#endif
 #endif
 			}
 			void Connection::SetExtensions(bool Enabled)
 			{
 #ifdef VI_SQLITE
+#ifndef SQLITE_OMIT_LOAD_EXTENSION
 				Core::UMutex<std::mutex> Unique(Update);
 				if (Handle != nullptr)
 					sqlite3_enable_load_extension(Handle, (int)Enabled);
+#endif
 #endif
 			}
 			void Connection::SetBusyTimeout(uint64_t Ms)
@@ -1126,23 +1135,29 @@ namespace Vitex
 			void Cluster::SetHardHeapLimit(uint64_t Memory)
 			{
 #ifdef VI_SQLITE
+#ifndef VI_APPLE
 				Core::UMutex<std::mutex> Unique(Update);
 				sqlite3_hard_heap_limit64((int64_t)Memory);
+#endif
 #endif
 			}
 			void Cluster::SetSharedCache(bool Enabled)
 			{
 #ifdef VI_SQLITE
+#ifndef VI_APPLE
 				Core::UMutex<std::mutex> Unique(Update);
 				sqlite3_enable_shared_cache((int)Enabled);
+#endif
 #endif
 			}
 			void Cluster::SetExtensions(bool Enabled)
 			{
 #ifdef VI_SQLITE
+#ifndef SQLITE_OMIT_LOAD_EXTENSION
 				Core::UMutex<std::mutex> Unique(Update);
 				for (auto* Item : Idle)
 					sqlite3_enable_load_extension(Item, (int)Enabled);
+#endif
 #endif
 			}
 			void Cluster::SetFunction(const std::string_view& Name, uint8_t Args, OnFunctionResult&& Context)

@@ -7272,19 +7272,19 @@ namespace Vitex
 			unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
 			if (CurrentSize != nullptr)
-				*CurrentSize = (size_t)asCurrentSize;
+				*CurrentSize = (unsigned int)asCurrentSize;
 
 			if (TotalDestroyed != nullptr)
-				*TotalDestroyed = (size_t)asTotalDestroyed;
+				*TotalDestroyed = (unsigned int)asTotalDestroyed;
 
 			if (TotalDetected != nullptr)
-				*TotalDetected = (size_t)asTotalDetected;
+				*TotalDetected = (unsigned int)asTotalDetected;
 
 			if (NewObjects != nullptr)
-				*NewObjects = (size_t)asNewObjects;
+				*NewObjects = (unsigned int)asNewObjects;
 
 			if (TotalNewDestroyed != nullptr)
-				*TotalNewDestroyed = (size_t)asTotalNewDestroyed;
+				*TotalNewDestroyed = (unsigned int)asTotalNewDestroyed;
 #endif
 		}
 		void VirtualMachine::ForwardEnumReferences(void* Reference, const TypeInfo& Type)

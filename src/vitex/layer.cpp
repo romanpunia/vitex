@@ -218,6 +218,15 @@ namespace Vitex
 			*O = (uint64_t)V->GetAttributeVar("i").GetInteger();
 			return true;
 		}
+		bool Series::UnpackA(Core::Schema* V, size_t* O)
+		{
+			VI_ASSERT(O != nullptr, "output should be set");
+			if (!V)
+				return false;
+
+			*O = (size_t)V->GetAttributeVar("i").GetInteger();
+			return true;
+		}
 		bool Series::Unpack(Core::Schema* V, float* O)
 		{
 			VI_ASSERT(O != nullptr, "output should be set");

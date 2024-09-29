@@ -184,13 +184,13 @@ namespace Vitex
 			ReportSysErrors = 1 << 4
 		};
 
-		enum class Optional : char
+		enum class Optional : int8_t
 		{
 			None = 0,
 			Value = 1
 		};
 
-		enum class Expectation : char
+		enum class Expectation : int8_t
 		{
 			Error = -1,
 			Met = 1

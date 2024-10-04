@@ -974,12 +974,12 @@ namespace Vitex
 #elif defined(NET_KQUEUE)
 			struct kevent ReadEvent;
 			EV_SET(&ReadEvent, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
-			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 1;
+			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 0;
 
 			struct kevent WriteEvent;
 			EV_SET(&WriteEvent, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
-			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 1;
-			return Result1 == 1 && Result2 == 1;
+			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 0;
+			return Result1 != -1 && Result2 != -1;
 #elif defined(NET_EPOLL)
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
@@ -1007,12 +1007,12 @@ namespace Vitex
 #elif defined(NET_KQUEUE)
 			struct kevent ReadEvent;
 			EV_SET(&ReadEvent, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
-			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 1;
+			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 0;
 
 			struct kevent WriteEvent;
 			EV_SET(&WriteEvent, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
-			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 1;
-			return Result1 == 1 && Result2 == 1;
+			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 0;
+			return Result1 != -1 && Result2 != -1;
 #elif defined(NET_EPOLL)
 			epoll_event Event;
 			Event.data.ptr = (void*)Fd;
@@ -2058,8 +2058,9 @@ namespace Vitex
 
 			if (Fd.Readable && Fd.Writeable)
 			{
-				auto ReadCallback = std::move(Fd.Base->Events.ReadCallback);
-				auto WriteCallback = std::move(Fd.Base->Events.WriteCallback);
+				PollEventCallback ReadCallback, WriteCallback;
+				Fd.Base->Events.ReadCallback.swap(ReadCallback);
+				Fd.Base->Events.WriteCallback.swap(WriteCallback);
 				Unique.Negate();
 				Core::Cospawn([ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
 				{
@@ -2071,13 +2072,15 @@ namespace Vitex
 			}
 			else if (Fd.Readable && WasListeningRead)
 			{
-				auto ReadCallback = std::move(Fd.Base->Events.ReadCallback);
+				PollEventCallback ReadCallback;
+				Fd.Base->Events.ReadCallback.swap(ReadCallback);
 				Unique.Negate();
 				Core::Cospawn([ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(SocketPoll::Finish); });
 			}
 			else if (Fd.Writeable && WasListeningWrite)
 			{
-				auto WriteCallback = std::move(Fd.Base->Events.WriteCallback);
+				PollEventCallback WriteCallback;
+				Fd.Base->Events.WriteCallback.swap(WriteCallback);
 				Unique.Negate();
 				Core::Cospawn([WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(SocketPoll::Finish); });
 			}
@@ -2123,8 +2126,9 @@ namespace Vitex
 		{
 			VI_ASSERT(Value != nullptr, "socket should be set and valid");
 			Core::UMutex<std::mutex> Unique(Value->Events.Mutex);
-			auto ReadCallback = std::move(Value->Events.ReadCallback);
-			auto WriteCallback = std::move(Value->Events.WriteCallback);
+			PollEventCallback ReadCallback, WriteCallback;
+			Value->Events.ReadCallback.swap(ReadCallback);
+			Value->Events.WriteCallback.swap(WriteCallback);
 			bool WasListening = ReadCallback || WriteCallback;
 			bool NotListening = WasListening && Value->IsValid() ? Handle.Remove(Value) : true;
 			if (WasListening)

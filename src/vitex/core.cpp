@@ -55,6 +55,7 @@
 #endif
 #include <sys/utsname.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
@@ -6809,29 +6810,73 @@ namespace Vitex
 
 			return true;
 #else
-			struct winsize Size;
-			int TargetX, TargetY;
-			if (X != nullptr && Y != nullptr)
+			if (Width != nullptr || Height != nullptr)
 			{
-				std::cout << "\033[6n";
-				std::cout.flush();
+				struct winsize Size;
+				if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &Size) < 0)
+					return false;
+				
+				if (Width != nullptr)
+					*Width = (uint32_t)Size.ws_col;
+
+				if (Height != nullptr)
+					*Height = (uint32_t)Size.ws_row;
+			}
+			
+			if (X != nullptr || Y != nullptr)
+			{
+				static bool Responsive = true;
+				if (!Responsive)
+					return false;
+				
+				struct termios Prev;
+				tcgetattr(STDIN_FILENO, &Prev);
+
+				struct termios Next = Prev;
+				Next.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+				Next.c_oflag &= ~(OPOST);
+				Next.c_cflag |= (CS8);
+				Next.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+				Next.c_cc[VMIN] = 0;
+				Next.c_cc[VTIME] = 0;
+
+				tcsetattr(STDIN_FILENO, TCSANOW, &Next);
+				tcsetattr(STDOUT_FILENO, TCSANOW, &Next);
+				fwrite("\033[6n", 4, 1, stdout);
+				fflush(stdout);
+
+				fd_set Fd;
+				FD_ZERO(&Fd);
+				FD_SET(STDIN_FILENO, &Fd);
+
+				struct timeval Time;
+				Time.tv_sec = 0;
+				Time.tv_usec = 500000;
+
+				if (select(STDIN_FILENO + 1, &Fd, nullptr, nullptr, &Time) != 1)
+				{
+					Responsive = false;
+					tcsetattr(STDIN_FILENO, TCSADRAIN, &Prev);
+					return false;
+				}
+				
+				int TargetX = 0, TargetY = 0;
+				if (scanf("\033[%d;%dR", &TargetX, &TargetY) != 2)
+				{
+					tcsetattr(STDIN_FILENO, TCSADRAIN, &Prev);
+					return false;
+				}
+		
+				if (X != nullptr)
+					*X = TargetX;
+			
+				if (Y != nullptr)
+					*Y = TargetY;
+		
+				tcsetattr(STDIN_FILENO, TCSADRAIN, &Prev);
 			}
 
-			int Coords = X && Y ? scanf("\033[%d;%dR", &TargetX, &TargetY) : 2;
-			int Sizes = Width && Height ? (ioctl(STDOUT_FILENO, TIOCGWINSZ, &Size) != -1 ? 2 : 0) : 2;
-			if (Sizes > 0 && Width != nullptr)
-				*Width = (uint32_t)Size.ws_col;
-
-			if (Sizes > 1 && Height != nullptr)
-				*Height = (uint32_t)Size.ws_row;
-
-			if (Coords > 0 && X != nullptr)
-				*X = (uint32_t)TargetX;
-
-			if (Coords > 1 && Y != nullptr)
-				*Y = (uint32_t)TargetY;
-
-			return Coords > 0 && Sizes > 0;
+			return true;
 #endif
 		}
 		bool Console::ReadLine(String& Data, size_t Size)

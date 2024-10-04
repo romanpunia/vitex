@@ -35,7 +35,7 @@ typedef void* epoll_handle;
 #define VI_OUT_TS
 #define VI_FILENO fileno
 #define VI_SPLITTER '/'
-#if __x86_64__ || __ppc64__
+#if defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
 #define VI_64 1
 #endif
 #ifdef VI_FCONTEXT
@@ -73,7 +73,7 @@ typedef socklen_t socket_size_t;
 #if defined(__sun) && defined(__SVR4)
 #define VI_SOLARIS 1
 #endif
-#if __x86_64__ || __ppc64__
+#if defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
 #define VI_64 1
 #endif
 #ifdef VI_FCONTEXT

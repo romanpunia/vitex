@@ -1030,13 +1030,6 @@ namespace Vitex
 			std::atomic<bool> Resync = true;
 		};
 
-		struct ThreadCheckpoint
-		{
-			SignalCallback Callback;
-			std::thread::native_handle_type Handle;
-			Signal Type;
-		};
-
 		BasicException::BasicException(const std::string_view& NewMessage) noexcept : Message(NewMessage)
 		{
 		}
@@ -9931,14 +9924,6 @@ namespace Vitex
 			return VI_FILENO(Stream);
 		}
 
-#ifdef VI_MICROSOFT
-		VOID CALLBACK ProcessCheckpoint(ULONG_PTR CheckpointHandle)
-		{
-			auto* Checkpoint = (ThreadCheckpoint*)CheckpointHandle;
-			Checkpoint->Callback(OS::Process::GetSignalId(Checkpoint->Type));
-			Memory::Delete(Checkpoint);
-		}
-#endif
 		void OS::Process::Abort()
 		{
 #ifdef NDEBUG
@@ -10129,64 +10114,6 @@ namespace Vitex
 #else
 			return signal(Id, SIG_DFL) != SIG_ERR;
 #endif
-		}
-		void* OS::Process::BindCheckpoint(Signal Type, SignalCallback Callback)
-		{
-			if (!Callback)
-				return nullptr;
-
-			int Id = GetSignalId(Type);
-			if (Id == -1)
-				return nullptr;
-#ifdef VI_MICROSOFT
-			HANDLE Handle = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
-			if (!Handle)
-				return nullptr;
-#else
-			signal(Id, Callback);
-#endif
-			auto* Checkpoint = Memory::New<ThreadCheckpoint>();
-			Checkpoint->Callback = Callback;
-			Checkpoint->Type = Type;
-#ifdef VI_LINUX
-			Checkpoint->Handle = pthread_self();
-#else
-			Checkpoint->Handle = Handle;
-#endif
-			return Checkpoint;
-		}
-		bool OS::Process::RaiseCheckpoint(void** CheckpointHandle)
-		{
-			if (!CheckpointHandle || !*CheckpointHandle)
-				return false;
-
-			auto* Checkpoint = (ThreadCheckpoint*)*CheckpointHandle;
-			*CheckpointHandle = nullptr;
-#ifdef VI_LINUX
-			bool Success = pthread_kill(Checkpoint->Handle, GetSignalId(Checkpoint->Type)) == 0;
-			signal(GetSignalId(Checkpoint->Type), SIG_DFL);
-#else
-			auto* CopyCheckpoint = Memory::New<ThreadCheckpoint>(*Checkpoint);
-			bool Success = QueueUserAPC2(&ProcessCheckpoint, CopyCheckpoint->Handle, (ULONG_PTR)CopyCheckpoint, QUEUE_USER_APC_FLAGS_SPECIAL_USER_APC) != 0;
-			CloseHandle(Checkpoint->Handle);
-#endif
-			Memory::Delete(Checkpoint);
-			return Success;
-		}
-		bool OS::Process::ClearCheckpoint(void** CheckpointHandle)
-		{
-			if (!CheckpointHandle || !*CheckpointHandle)
-				return false;
-
-			auto* Checkpoint = (ThreadCheckpoint*)*CheckpointHandle;
-			*CheckpointHandle = nullptr;
-#ifdef VI_LINUX
-			signal(GetSignalId(Checkpoint->Type), SIG_DFL);
-#else
-			CloseHandle(Checkpoint->Handle);
-#endif
-			Memory::Delete(Checkpoint);
-			return true;
 		}
 		ExpectsIO<int> OS::Process::Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback)
 		{

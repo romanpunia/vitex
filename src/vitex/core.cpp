@@ -5334,7 +5334,7 @@ namespace Vitex
 
 			size_t Digits = 0, Points = 0;
 			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0);
-			for (i = 0; i < Other.size(); i++)
+			for (; i < Other.size(); i++)
 			{
 				char V = Other[i];
 				if (IsNumeric(V))

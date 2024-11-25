@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.10)
 
 #Setup toolchain file if needed
 include(deps/toolchain.cmake)

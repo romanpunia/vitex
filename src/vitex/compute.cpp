@@ -4847,7 +4847,15 @@ namespace Vitex
 				while ((Size = Stream->Read(Buffer, sizeof(Buffer)).Or(0)) > 0)
 					OK = EVP_DigestUpdate(Context, Buffer, Size) == 1 ? OK : false;
 			}
-			OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
+			if (OK)
+			{
+				OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
+				if (!OK)
+				{
+					Size = (uint32_t)Result.size();
+					OK = EVP_DigestFinalXOF(Context, (uint8_t*)Result.data(), Size) == 1;
+				}
+			}
 			EVP_MD_CTX_destroy(Context);
 
 			if (!OK)
@@ -4886,7 +4894,15 @@ namespace Vitex
 			uint32_t Size = 0; bool OK = true;
 			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
 			OK = EVP_DigestUpdate(Context, Value.data(), Value.size()) == 1 ? OK : false;
-			OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
+			if (OK)
+			{
+				OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
+				if (!OK)
+				{
+					Size = (uint32_t)Result.size();
+					OK = EVP_DigestFinalXOF(Context, (uint8_t*)Result.data(), Size) == 1;
+				}
+			}
 			EVP_MD_CTX_destroy(Context);
 			if (!OK)
 				return CryptoException();

@@ -4129,7 +4129,7 @@ namespace Vitex
 				if (Output)
 					return *Output;
 
-				return ExpectsWrapper::Unwrap(Core::Schema::FromJSONB(Core::Vector<char>(Value.begin(), Value.end())), (Core::Schema*)nullptr);
+				return ExpectsWrapper::Unwrap(Core::Schema::FromJSONB(Value), (Core::Schema*)nullptr);
 			}
 			Core::Schema* SchemaCopyAssign1(Core::Schema* Base, const Core::Variant& Other)
 			{

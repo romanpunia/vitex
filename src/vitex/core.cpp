@@ -12562,7 +12562,7 @@ namespace Vitex
 		{
 			return ConvertFromJSON(Text);
 		}
-		ExpectsParser<Schema*> Schema::FromJSONB(const Vector<char>& Binary)
+		ExpectsParser<Schema*> Schema::FromJSONB(const std::string_view& Binary)
 		{
 			size_t Offset = 0;
 			return ConvertFromJSONB([&Binary, &Offset](uint8_t* Buffer, size_t Length)

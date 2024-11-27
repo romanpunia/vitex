@@ -3744,7 +3744,7 @@ namespace Vitex
 			static ExpectsParser<Unique<Schema>> ConvertFromJSONB(const SchemaReadCallback& Callback);
 			static ExpectsParser<Unique<Schema>> FromXML(const std::string_view& Text);
 			static ExpectsParser<Unique<Schema>> FromJSON(const std::string_view& Text);
-			static ExpectsParser<Unique<Schema>> FromJSONB(const Vector<char>& Binary);
+			static ExpectsParser<Unique<Schema>> FromJSONB(const std::string_view& Binary);
 
 		private:
 			static ExpectsParser<void> ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback);

@@ -825,13 +825,13 @@ namespace Vitex
 			{
 				VI_ASSERT(Statement != nullptr, "statement should not be empty");
 				Core::String Numeric = Value.ToString();
-				if (!Value.Decimals())
+				if (!Value.DecimalPlaces())
 				{
 					auto Integer = Core::FromString<int64_t>(Numeric);
 					if (Integer)
 						return BindInt64(Statement, Index, *Integer);
 				}
-				else if (Value.Decimals() <= 3 && Value.Ints() <= 6)
+				else if (Value.DecimalPlaces() <= 3 && Value.IntegerPlaces() <= 6)
 				{
 					auto Double = Core::FromString<double>(Numeric);
 					if (Double)
@@ -1004,7 +1004,7 @@ namespace Vitex
 				if (!Status)
 					return Status.Error();
 
-				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " using statement 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Handle, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count(), (uintptr_t)Statement); (void)Time;
+				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " using statement 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Handle, (uintptr_t)Statement, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count()); (void)Time;
 				return ExpectsDB<Cursor>(std::move(Result));
 #else
 				return ExpectsDB<Cursor>(DatabaseException("query: not supported"));
@@ -1416,7 +1416,7 @@ namespace Vitex
 						Coreturn ExpectsDB<Cursor>(DatabaseException("acquire connection error: no candidate"));
 
 					auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Connection, Session ? " (transaction)" : "", Statement.data(), Statement.size() > 64 ? " ..." : "");
+					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)Connection, Session ? " (transaction)" : "", Command.data(), Command.size() > 64 ? " ..." : "");
 
 					size_t Queries = 0, Offset = 0;
 					Cursor Result(Connection);

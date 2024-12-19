@@ -9503,6 +9503,8 @@ namespace Vitex
 				VDecimal->SetMethod("bool is_zero_or_nan() const", &Core::Decimal::IsZeroOrNaN);
 				VDecimal->SetMethod("bool is_positive() const", &Core::Decimal::IsPositive);
 				VDecimal->SetMethod("bool is_negative() const", &Core::Decimal::IsNegative);
+				VDecimal->SetMethod("bool is_integer() const", &Core::Decimal::IsInteger);
+				VDecimal->SetMethod("bool is_fractional() const", &Core::Decimal::IsFractional);
 				VDecimal->SetMethod("float to_float() const", &Core::Decimal::ToFloat);
 				VDecimal->SetMethod("double to_double() const", &Core::Decimal::ToDouble);
 				VDecimal->SetMethod("int8 to_int8() const", &Core::Decimal::ToInt8);
@@ -9515,8 +9517,8 @@ namespace Vitex
 				VDecimal->SetMethod("uint64 to_uint64() const", &Core::Decimal::ToUInt64);
 				VDecimal->SetMethod("string to_string() const", &Core::Decimal::ToString);
 				VDecimal->SetMethod("string to_exponent() const", &Core::Decimal::ToExponent);
-				VDecimal->SetMethod("uint32 decimals() const", &Core::Decimal::Decimals);
-				VDecimal->SetMethod("uint32 ints() const", &Core::Decimal::Ints);
+				VDecimal->SetMethod("uint32 decimal_places() const", &Core::Decimal::DecimalPlaces);
+				VDecimal->SetMethod("uint32 whole_places() const", &Core::Decimal::IntegerPlaces);
 				VDecimal->SetMethod("uint32 size() const", &Core::Decimal::Size);
 				VDecimal->SetOperatorEx(Operators::Neg, (uint32_t)Position::Const, "decimal", "", &DecimalNegate);
 				VDecimal->SetOperatorEx(Operators::MulAssign, (uint32_t)Position::Left, "decimal&", "const decimal &in", &DecimalMulEq);

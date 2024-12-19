@@ -2164,6 +2164,48 @@ namespace Vitex
 		{
 			return !IsNaN() && *this < 0.0;
 		}
+		bool Decimal::IsInteger() const
+		{
+			return !Length;
+		}
+		bool Decimal::IsFractional() const
+		{
+			return Length > 0;
+		}
+		bool Decimal::IsSafeNumber() const
+		{
+			if (IsNaN())
+				return true;
+
+			auto Numeric = ToString();
+			if (IsFractional())
+			{
+				auto Number = FromString<double>(Numeric);
+				if (!Number)
+					return false;
+
+				char Buffer[NUMSTR_SIZE];
+				return ToStringView(Buffer, sizeof(Buffer), *Number) == Numeric;
+			}
+			else if (IsPositive())
+			{
+				auto Number = FromString<uint64_t>(Numeric);
+				if (!Number)
+					return false;
+
+				char Buffer[NUMSTR_SIZE];
+				return ToStringView(Buffer, sizeof(Buffer), *Number) == Numeric;
+			}
+			else
+			{
+				auto Number = FromString<int64_t>(Numeric);
+				if (!Number)
+					return false;
+
+				char Buffer[NUMSTR_SIZE];
+				return ToStringView(Buffer, sizeof(Buffer), *Number) == Numeric;
+			}
+		}
 		double Decimal::ToDouble() const
 		{
 			if (IsNaN())
@@ -2318,7 +2360,7 @@ namespace Vitex
 						Result += Source[i];
 				}
 				Result += "e+";
-				Result += Core::ToString(Ints() - 1);
+				Result += Core::ToString(IntegerPlaces() - 1);
 			}
 			else if (Compare == 2)
 			{
@@ -2361,11 +2403,11 @@ namespace Vitex
 		{
 			return Source;
 		}
-		uint32_t Decimal::Decimals() const
+		uint32_t Decimal::DecimalPlaces() const
 		{
 			return Length;
 		}
-		uint32_t Decimal::Ints() const
+		uint32_t Decimal::IntegerPlaces() const
 		{
 			return (int32_t)Source.size() - Length;
 		}
@@ -12267,16 +12309,30 @@ namespace Vitex
 
 				if (!Next->Value.IsObject())
 				{
-					String Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
+					auto Type = Next->Value.GetType();
+					String Value = (Type == VarType::Undefined ? "null" : Next->Value.Serialize());
 					Stringify::Escape(Value);
-
 					if (Array)
 					{
 						Callback(VarForm::Write_Line, "");
 						Callback(VarForm::Write_Tab, "");
 					}
 
-					if (!Next->Value.IsObject() && Next->Value.Type != VarType::String && Next->Value.Type != VarType::Binary)
+					if (Type == VarType::Decimal)
+					{
+						bool BigNumber = !((Decimal*)Next->Value.GetContainer())->IsSafeNumber();
+						if (BigNumber)
+							Callback(VarForm::Dummy, "\"");
+
+						if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
+							Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));
+						else
+							Callback(VarForm::Dummy, Value);
+
+						if (BigNumber)
+							Callback(VarForm::Dummy, "\"");
+					}
+					else if (!Next->Value.IsObject() && Type != VarType::String && Type != VarType::Binary)
 					{
 						if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
 							Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));

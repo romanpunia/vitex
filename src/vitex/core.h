@@ -1995,6 +1995,9 @@ namespace Vitex
 			bool IsZeroOrNaN() const;
 			bool IsPositive() const;
 			bool IsNegative() const;
+			bool IsInteger() const;
+			bool IsFractional() const;
+			bool IsSafeNumber() const;
 			double ToDouble() const;
 			float ToFloat() const;
 			int8_t ToInt8() const;
@@ -2008,8 +2011,8 @@ namespace Vitex
 			String ToString() const;
 			String ToExponent() const;
 			const String& Numeric() const;
-			uint32_t Decimals() const;
-			uint32_t Ints() const;
+			uint32_t DecimalPlaces() const;
+			uint32_t IntegerPlaces() const;
 			uint32_t Size() const;
 			int8_t Position() const;
 			Decimal operator -() const;

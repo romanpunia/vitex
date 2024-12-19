@@ -72,6 +72,15 @@ namespace Vitex
 			static size_t GetThreads();
 
 		public:
+			template <typename T>
+			static Core::Vector<T> InlineWaitAll(Core::Vector<Core::Promise<T>>&& Values)
+			{
+				Core::Vector<T> Results;
+				Results.reserve(Values.size());
+				for (auto& Value : Values)
+					Results.emplace_back(std::move(Value.Get()));
+				return Results;
+			}
 			template <typename Iterator, typename Function>
 			static Core::Vector<Core::Promise<void>> ForEach(Iterator Begin, Iterator End, Function&& Callback)
 			{

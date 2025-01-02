@@ -9805,20 +9805,17 @@ namespace Vitex
 		{
 			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
 			VI_MEASURE(Timings::FileSystem);
-			char Buffer[BLOB_SIZE] = { };
+			char Buffer[BLOB_SIZE] = { 0 };
 #ifdef VI_MICROSOFT
 			if (GetFullPathNameA(Path.data(), sizeof(Buffer), Buffer, nullptr) == 0)
 				return OS::Error::GetConditionOr();
 #else
 			if (!realpath(Path.data(), Buffer))
 			{
-				if (Buffer[0] == '\0' || memcmp(Path.data(), Buffer, strnlen(Buffer, BLOB_SIZE)) != 0)
-				{
-					if (Path.empty() || Path.find("./") != std::string::npos || Path.find(".\\") != std::string::npos)
-						return OS::Error::GetConditionOr();
-				}
-
-				String Output = String(Path);
+				if (!*Buffer && (Path.empty() || Path.find("./") != std::string::npos || Path.find(".\\") != std::string::npos))
+					return OS::Error::GetConditionOr();
+				
+				String Output = *Buffer > 0 ? String(Buffer, strnlen(Buffer, BLOB_SIZE)) : String(Path);
 				VI_TRACE("[io] resolve %.*s path (non-existant)", (int)Path.size(), Path.data());
 				return Output;
 			}

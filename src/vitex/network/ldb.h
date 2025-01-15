@@ -366,7 +366,7 @@ namespace Vitex
 				ExpectsDB<void> Connect(const std::string_view& Location);
 				ExpectsDB<void> Disconnect();
 				ExpectsDB<void> Flush();
-				ExpectsDB<Cursor> PreparedQuery(TStatement* Statement);
+				ExpectsDB<Cursor> PreparedQuery(TStatement* Statement, SessionId Session = nullptr);
 				ExpectsDB<Cursor> EmplaceQuery(const std::string_view& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
 				ExpectsDB<Cursor> TemplateQuery(const std::string_view& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
 				ExpectsDB<Cursor> Query(const std::string_view& Command, size_t QueryOps = 0, SessionId Session = nullptr);

@@ -983,7 +983,7 @@ namespace Vitex
 				return ExpectsDB<void>(DatabaseException("flush: not supported"));
 #endif
 			}
-			ExpectsDB<Cursor> Connection::PreparedQuery(TStatement* Statement)
+			ExpectsDB<Cursor> Connection::PreparedQuery(TStatement* Statement, SessionId Session)
 			{
 				VI_ASSERT(Statement != nullptr, "statement should not be empty");
 #ifdef VI_SQLITE
@@ -992,7 +992,7 @@ namespace Vitex
 
 				auto* Log = Driver::Get();
 				if (Log->IsLogActive())
-					Log->LogQuery(Core::String("EXECUTE 0x%" PRIXPTR, (uintptr_t)Statement));
+					Log->LogQuery(Core::Stringify::Text("EXECUTE 0x%%s" PRIXPTR, (uintptr_t)Statement, Session ? " (transaction)" : ""));
 
 				auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 				VI_MEASURE(Core::Timings::Intensive);
@@ -1004,7 +1004,7 @@ namespace Vitex
 				if (!Status)
 					return Status.Error();
 
-				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " using statement 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)Handle, (uintptr_t)Statement, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count()); (void)Time;
+				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " using statement 0x%" PRIXPTR " (%s%" PRIu64 " ms)", (uintptr_t)Handle, (uintptr_t)Statement, Session ? "transaction, " : "", (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - Time).count()); (void)Time;
 				return ExpectsDB<Cursor>(std::move(Result));
 #else
 				return ExpectsDB<Cursor>(DatabaseException("query: not supported"));

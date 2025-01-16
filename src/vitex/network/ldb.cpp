@@ -992,7 +992,7 @@ namespace Vitex
 
 				auto* Log = Driver::Get();
 				if (Log->IsLogActive())
-					Log->LogQuery(Core::Stringify::Text("EXECUTE 0x%%s" PRIXPTR, (uintptr_t)Statement, Session ? " (transaction)" : ""));
+					Log->LogQuery(Core::Stringify::Text("PREPARED QUERY 0x%" PRIXPTR "%s", (uintptr_t)Statement, Session ? " (transaction)" : ""));
 
 				auto Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 				VI_MEASURE(Core::Timings::Intensive);

@@ -9048,9 +9048,13 @@ namespace Vitex
 			VI_DEBUG("[io] remove dir %.*s", (int)Path.size(), Path.data());
 			if (!Control::Has(AccessOption::Fs))
 				return std::make_error_condition(std::errc::permission_denied);
+
+			String TargetPath = String(Path);
+			if (!TargetPath.empty() && (TargetPath.back() == '/' || TargetPath.back() == '\\'))
+				TargetPath.pop_back();
 #ifdef VI_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
-			String FilePath, Pattern = String(Path) + "\\*.*";
+			String FilePath, Pattern = TargetPath + "\\*.*";
 			HANDLE Handle = ::FindFirstFile(Pattern.c_str(), &FileInformation);
 
 			if (Handle == INVALID_HANDLE_VALUE)
@@ -9065,7 +9069,7 @@ namespace Vitex
 				if (!strcmp(FileInformation.cFileName, ".") || !strcmp(FileInformation.cFileName, ".."))
 					continue;
 
-				FilePath = String(Path) + "\\" + FileInformation.cFileName;
+				FilePath = TargetPath + "\\" + FileInformation.cFileName;
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
 					auto Result = Remove(FilePath.c_str());
@@ -9095,15 +9099,15 @@ namespace Vitex
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
 				return OS::Error::GetConditionOr();
 
-			if (::SetFileAttributes(Path.data(), FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(Path.data()) == FALSE)
+			if (::SetFileAttributes(TargetPath.data(), FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(TargetPath.data()) == FALSE)
 				return OS::Error::GetConditionOr();
 #elif defined VI_LINUX
-			DIR* Handle = opendir(Path.data());
-			size_t Size = Path.size();
+			DIR* Handle = opendir(TargetPath.c_str());
+			size_t Size = TargetPath.size();
 
 			if (!Handle)
 			{
-				if (rmdir(Path.data()) != 0)
+				if (rmdir(TargetPath.c_str()) != 0)
 					return OS::Error::GetConditionOr();
 
 				return Expectation::Met;
@@ -9117,7 +9121,7 @@ namespace Vitex
 
 				size_t Length = Size + strlen(It->d_name) + 2;
 				char* Buffer = Memory::Allocate<char>(Length);
-				snprintf(Buffer, Length, "%.*s/%s", (int)Path.size(), Path.data(), It->d_name);
+				snprintf(Buffer, Length, "%.*s/%s", TargetPath.c_str(), It->d_name);
 
 				struct stat State;
 				if (stat(Buffer, &State) != 0)
@@ -9151,7 +9155,7 @@ namespace Vitex
 			}
 
 			closedir(Handle);
-			if (rmdir(Path.data()) != 0)
+			if (rmdir(TargetPath.c_str()) != 0)
 				return OS::Error::GetConditionOr();
 #endif
 			return Expectation::Met;
@@ -9878,8 +9882,8 @@ namespace Vitex
 			if (ExtensionAt == String::npos)
 				return String(Path);
 
-			String First = String(Path.substr(0, ExtensionAt)).append(1, '.');
-			String Second = String(Extension);
+			String First = String(Path.substr(0, ExtensionAt));
+			String Second = String(1, '.') + String(Extension);
 			String Filename = String(Path);
 			size_t Nonce = 0;
 

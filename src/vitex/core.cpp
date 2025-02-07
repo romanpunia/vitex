@@ -10158,6 +10158,14 @@ namespace Vitex
 			return signal(Id, SIG_DFL) != SIG_ERR;
 #endif
 		}
+		bool OS::Process::HasDebugger()
+		{
+#ifdef VI_MICROSOFT
+			return IsDebuggerPresent();
+#else
+			return false;
+#endif
+		}
 		ExpectsIO<int> OS::Process::Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback)
 		{
 			VI_ASSERT(!Command.empty(), "commmand should be set");

@@ -1212,7 +1212,9 @@ namespace Vitex
 		private:
 			alignas(V) char Value[sizeof(V)];
 			int8_t Status;
-
+#ifndef NDEBUG
+			const V* HiddenValue = (const V*)Value;
+#endif
 		public:
 			Option(Optional Type) : Status((int8_t)Type)
 			{
@@ -1505,7 +1507,10 @@ namespace Vitex
 		private:
 			Storage<V, E> Value;
 			int8_t Status;
-
+#ifndef NDEBUG
+			const V* HiddenValue = (const V*)&Value;
+			const E* HiddenError = (const E*)&Value;
+#endif
 		public:
 			Expects(const V& Other) : Status(1)
 			{
@@ -1797,7 +1802,9 @@ namespace Vitex
 		private:
 			alignas(E) char Value[sizeof(E)];
 			int8_t Status;
-
+#ifndef NDEBUG
+			const E* HiddenError = (const E*)&Value;
+#endif
 		public:
 			Expects(Expectation Type) : Status((int8_t)Type)
 			{
@@ -2601,6 +2608,7 @@ namespace Vitex
 				static bool RaiseSignal(Signal Type);
 				static bool BindSignal(Signal Type, SignalCallback Callback);
 				static bool RebindSignal(Signal Type);
+				static bool HasDebugger();
 				static int GetSignalId(Signal Type);
 				static ExpectsIO<int> Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback);
 				static ExpectsIO<Unique<ProcessStream>> Spawn(const std::string_view& Command, FileMode Mode);
@@ -4184,7 +4192,9 @@ namespace Vitex
 			alignas(T) char Value[sizeof(T)];
 			std::atomic<uint32_t> Count;
 			std::atomic<Deferred> Code;
-
+#ifndef NDEBUG
+			const T* HiddenValue = (const T*)Value;
+#endif
 			PromiseState() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
@@ -4912,6 +4922,9 @@ namespace Vitex
 				std::atomic<uint32_t> Count = 1;
 				std::atomic<bool> Exit = false;
 				std::atomic<bool> Next = false;
+#ifndef NDEBUG
+				const T* HiddenValue = (const T*)Value;
+#endif
 			};
 
 		private:

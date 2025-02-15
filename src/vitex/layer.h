@@ -81,31 +81,91 @@ namespace Vitex
 					Results.emplace_back(std::move(Value.Get()));
 				return Results;
 			}
-			template <typename Iterator, typename Function>
-			static Core::Vector<Core::Promise<void>> ForEach(Iterator Begin, Iterator End, Function&& Callback)
+			template <typename Function>
+			static Core::Vector<Core::Promise<void>> For(size_t Size, size_t ThresholdSize, Function Callback)
 			{
 				Core::Vector<Core::Promise<void>> Tasks;
-				size_t Size = End - Begin;
-
 				if (!Size)
 					return Tasks;
 
 				size_t Threads = std::max<size_t>(1, GetThreads());
-				size_t Step = Size / Threads;
-				size_t Remains = Size % Threads;
-				Tasks.reserve(Threads);
-
-				while (Begin != End)
+				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
 				{
-					auto Offset = Begin;
-					Begin += Remains > 0 ? --Remains, Step + 1 : Step;
-					Tasks.emplace_back(Enqueue(std::bind(std::for_each<Iterator, Function>, Offset, Begin, Callback)));
+					size_t Begin = 0, End = Size;
+					size_t Step = Size / Threads;
+					size_t Remains = Size % Threads;
+					Tasks.reserve(Threads);
+					while (Begin != End)
+					{
+						auto Offset = Begin;
+						Begin += Remains > 0 ? --Remains, Step + 1 : Step;
+						Tasks.emplace_back(Core::Cotask<void>([Offset, Begin, &Callback]()
+						{
+							for (size_t i = Offset; i < Begin; i++)
+								Callback(i);
+						}, false));
+					}
 				}
+				else
+				{
+					for (size_t i = 0; i < Size; i++)
+						Callback(i);
+				}
+				return Tasks;
+			}
+			template <typename Iterator, typename Function>
+			static Core::Vector<Core::Promise<void>> ForEach(Iterator Begin, Iterator End, size_t ThresholdSize, Function Callback)
+			{
+				Core::Vector<Core::Promise<void>> Tasks;
+				size_t Size = End - Begin;
+				if (!Size)
+					return Tasks;
 
+				size_t Threads = std::max<size_t>(1, GetThreads());
+				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
+				{
+					size_t Step = Size / Threads;
+					size_t Remains = Size % Threads;
+					Tasks.reserve(Threads);
+					while (Begin != End)
+					{
+						auto Offset = Begin;
+						Begin += Remains > 0 ? --Remains, Step + 1 : Step;
+						Tasks.emplace_back(Core::Cotask<void>(std::bind(std::for_each<Iterator, Function>, Offset, Begin, Callback), false));
+					}
+				}
+				else
+					std::for_each(Begin, End, Callback);
+				return Tasks;
+			}
+			template <typename Iterator, typename Function>
+			static Core::Vector<Core::Promise<void>> ForEachSequential(Iterator Begin, Iterator End, size_t Size, size_t ThresholdSize, Function Callback)
+			{
+				Core::Vector<Core::Promise<void>> Tasks;
+				if (!Size)
+					return Tasks;
+
+				size_t Threads = std::max<size_t>(1, GetThreads());
+				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
+				{
+					size_t Step = Size / Threads;
+					size_t Remains = Size % Threads;
+					Tasks.reserve(Threads);
+					while (Begin != End)
+					{
+						auto Offset = Begin;
+						size_t Count = Remains > 0 ? --Remains, Step + 1 : Step;
+						while (Count-- > 0)
+							++Begin;
+						Tasks.emplace_back(Core::Cotask<void>(std::bind(std::for_each<Iterator, Function>, Offset, Begin, Callback), false));
+					}
+				}
+				else
+					std::for_each(Begin, End, Callback);
 				return Tasks;
 			}
 			template <typename Iterator, typename InitFunction, typename ElementFunction>
-			static Core::Vector<Core::Promise<void>> Distribute(Iterator Begin, Iterator End, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
+			static Core::Vector<Core::Promise<void>> Distribute(Iterator Begin, Iterator End, size_t ThresholdSize, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
 			{
 				Core::Vector<Core::Promise<void>> Tasks;
 				size_t Size = End - Begin;
@@ -116,30 +176,39 @@ namespace Vitex
 				}
 
 				size_t Threads = std::max<size_t>(1, GetThreads());
-				size_t Step = Size / Threads;
-				size_t Remains = Size % Threads;
-				size_t Remainder = Remains;
-				size_t Index = 0, Counting = 0;
-				auto Start = Begin;
-
-				while (Start != End)
+				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
 				{
-					Start += Remainder > 0 ? --Remainder, Step + 1 : Step;
-					++Counting;
-				}
+					size_t Step = Size / Threads;
+					size_t Remains = Size % Threads;
+					size_t Remainder = Remains;
+					size_t Index = 0, Counting = 0;
+					auto Start = Begin;
 
-				Tasks.reserve(Counting);
-				InitCallback(Counting);
-
-				while (Begin != End)
-				{
-					auto Offset = Begin;
-					auto Bound = std::bind(ElementCallback, Index++, std::placeholders::_1);
-					Begin += Remains > 0 ? --Remains, Step + 1 : Step;
-					Tasks.emplace_back(Enqueue([Offset, Begin, Bound]()
+					while (Start != End)
 					{
-						std::for_each<Iterator, decltype(Bound)>(Offset, Begin, Bound);
-					}));
+						Start += Remainder > 0 ? --Remainder, Step + 1 : Step;
+						++Counting;
+					}
+
+					Tasks.reserve(Counting);
+					InitCallback(Counting);
+
+					while (Begin != End)
+					{
+						auto Offset = Begin;
+						auto Bound = std::bind(ElementCallback, Index++, std::placeholders::_1);
+						Begin += Remains > 0 ? --Remains, Step + 1 : Step;
+						Tasks.emplace_back(Enqueue([Offset, Begin, Bound]()
+						{
+							std::for_each<Iterator, decltype(Bound)>(Offset, Begin, Bound);
+						}));
+					}
+				}
+				else
+				{
+					InitCallback((size_t)1);
+					auto Bound = std::bind(ElementCallback, (size_t)0, std::placeholders::_1);
+					std::for_each<Iterator, decltype(Bound)>(Begin, End, Bound);
 				}
 
 				return Tasks;

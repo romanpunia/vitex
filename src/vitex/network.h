@@ -679,6 +679,7 @@ namespace Vitex
 			virtual Core::ExpectsSystem<void> OnConfigure(SocketRouter* New);
 			virtual Core::ExpectsSystem<void> OnListen();
 			virtual Core::ExpectsSystem<void> OnUnlisten();
+			virtual Core::ExpectsSystem<void> OnAfterUnlisten();
 			virtual void OnRequestOpen(SocketConnection* Base);
 			virtual bool OnRequestCleanup(SocketConnection* Base);
 			virtual void OnRequestStall(SocketConnection* Base);

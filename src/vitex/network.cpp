@@ -4170,6 +4170,10 @@ namespace Vitex
 			}
 
 			FreeAll();
+			auto AfterUnlistenStatus = OnAfterUnlisten();
+			if (!AfterUnlistenStatus)
+				return AfterUnlistenStatus;
+
 			for (auto It : Listeners)
 				Core::Memory::Release(It);
 
@@ -4365,6 +4369,10 @@ namespace Vitex
 			return Core::Expectation::Met;
 		}
 		Core::ExpectsSystem<void> SocketServer::OnUnlisten()
+		{
+			return Core::Expectation::Met;
+		}
+		Core::ExpectsSystem<void> SocketServer::OnAfterUnlisten()
 		{
 			return Core::Expectation::Met;
 		}

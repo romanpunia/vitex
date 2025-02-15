@@ -6005,171 +6005,170 @@ namespace Vitex
 
 		Console::Console() noexcept
 		{
-			Tokens.Default =
+			ColorTokens =
 			{
 				/* Scheduling */
-				ColorToken(StdColor::Yellow, "spawn"),
-				ColorToken(StdColor::Yellow, "despawn"),
-				ColorToken(StdColor::Yellow, "start"),
-				ColorToken(StdColor::Yellow, "stop"),
-				ColorToken(StdColor::Yellow, "resume"),
-				ColorToken(StdColor::Yellow, "suspend"),
-				ColorToken(StdColor::Yellow, "acquire"),
-				ColorToken(StdColor::Yellow, "release"),
-				ColorToken(StdColor::Yellow, "execute"),
-				ColorToken(StdColor::Yellow, "join"),
-				ColorToken(StdColor::DarkRed, "terminate"),
-				ColorToken(StdColor::DarkRed, "abort"),
-				ColorToken(StdColor::DarkRed, "exit"),
-				ColorToken(StdColor::Cyan, "thread"),
-				ColorToken(StdColor::Cyan, "process"),
-				ColorToken(StdColor::Cyan, "sync"),
-				ColorToken(StdColor::Cyan, "async"),
-				ColorToken(StdColor::Cyan, "ms"),
-				ColorToken(StdColor::Cyan, "us"),
-				ColorToken(StdColor::Cyan, "ns"),
+				ColorToken("spawn", StdColor::Yellow),
+				ColorToken("despawn", StdColor::Yellow),
+				ColorToken("start", StdColor::Yellow),
+				ColorToken("stop", StdColor::Yellow),
+				ColorToken("resume", StdColor::Yellow),
+				ColorToken("suspend", StdColor::Yellow),
+				ColorToken("acquire", StdColor::Yellow),
+				ColorToken("release", StdColor::Yellow),
+				ColorToken("execute", StdColor::Yellow),
+				ColorToken("join", StdColor::Yellow),
+				ColorToken("terminate", StdColor::DarkRed),
+				ColorToken("abort", StdColor::DarkRed),
+				ColorToken("exit", StdColor::DarkRed),
+				ColorToken("thread", StdColor::Cyan),
+				ColorToken("process", StdColor::Cyan),
+				ColorToken("sync", StdColor::Cyan),
+				ColorToken("async", StdColor::Cyan),
+				ColorToken("ms", StdColor::Cyan),
+				ColorToken("us", StdColor::Cyan),
+				ColorToken("ns", StdColor::Cyan),
 
 				/* Networking and IO */
-				ColorToken(StdColor::Yellow, "open"),
-				ColorToken(StdColor::Yellow, "close"),
-				ColorToken(StdColor::Yellow, "closed"),
-				ColorToken(StdColor::Yellow, "shutdown"),
-				ColorToken(StdColor::Yellow, "bind"),
-				ColorToken(StdColor::Yellow, "assign"),
-				ColorToken(StdColor::Yellow, "resolve"),
-				ColorToken(StdColor::Yellow, "listen"),
-				ColorToken(StdColor::Yellow, "unlisten"),
-				ColorToken(StdColor::Yellow, "accept"),
-				ColorToken(StdColor::Yellow, "connect"),
-				ColorToken(StdColor::Yellow, "reconnect"),
-				ColorToken(StdColor::Yellow, "handshake"),
-				ColorToken(StdColor::Yellow, "reset"),
-				ColorToken(StdColor::Yellow, "read"),
-				ColorToken(StdColor::Yellow, "write"),
-				ColorToken(StdColor::Yellow, "seek"),
-				ColorToken(StdColor::Yellow, "tell"),
-				ColorToken(StdColor::Yellow, "scan"),
-				ColorToken(StdColor::Yellow, "fetch"),
-				ColorToken(StdColor::Yellow, "check"),
-				ColorToken(StdColor::Yellow, "compare"),
-				ColorToken(StdColor::Yellow, "stat"),
-				ColorToken(StdColor::Yellow, "migrate"),
-				ColorToken(StdColor::Yellow, "prepare"),
-				ColorToken(StdColor::Yellow, "load"),
-				ColorToken(StdColor::Yellow, "unload"),
-				ColorToken(StdColor::Yellow, "save"),
-				ColorToken(StdColor::Magenta, "query"),
-				ColorToken(StdColor::Blue, "template"),
-				ColorToken(StdColor::Cyan, "byte"),
-				ColorToken(StdColor::Cyan, "bytes"),
-				ColorToken(StdColor::Cyan, "epoll"),
-				ColorToken(StdColor::Cyan, "kqueue"),
-				ColorToken(StdColor::Cyan, "poll"),
-				ColorToken(StdColor::Cyan, "dns"),
-				ColorToken(StdColor::Cyan, "file"),
-				ColorToken(StdColor::Cyan, "sock"),
-				ColorToken(StdColor::Cyan, "dir"),
-				ColorToken(StdColor::Cyan, "fd"),
+				ColorToken("open", StdColor::Yellow),
+				ColorToken("close", StdColor::Yellow),
+				ColorToken("closed", StdColor::Yellow),
+				ColorToken("shutdown", StdColor::Yellow),
+				ColorToken("bind", StdColor::Yellow),
+				ColorToken("assign", StdColor::Yellow),
+				ColorToken("resolve", StdColor::Yellow),
+				ColorToken("listen", StdColor::Yellow),
+				ColorToken("unlisten", StdColor::Yellow),
+				ColorToken("accept", StdColor::Yellow),
+				ColorToken("connect", StdColor::Yellow),
+				ColorToken("reconnect", StdColor::Yellow),
+				ColorToken("handshake", StdColor::Yellow),
+				ColorToken("reset", StdColor::Yellow),
+				ColorToken("read", StdColor::Yellow),
+				ColorToken("write", StdColor::Yellow),
+				ColorToken("seek", StdColor::Yellow),
+				ColorToken("tell", StdColor::Yellow),
+				ColorToken("scan", StdColor::Yellow),
+				ColorToken("fetch", StdColor::Yellow),
+				ColorToken("check", StdColor::Yellow),
+				ColorToken("compare", StdColor::Yellow),
+				ColorToken("stat", StdColor::Yellow),
+				ColorToken("migrate", StdColor::Yellow),
+				ColorToken("prepare", StdColor::Yellow),
+				ColorToken("load", StdColor::Yellow),
+				ColorToken("unload", StdColor::Yellow),
+				ColorToken("save", StdColor::Yellow),
+				ColorToken("query", StdColor::Magenta),
+				ColorToken("template", StdColor::Blue),
+				ColorToken("byte", StdColor::Cyan),
+				ColorToken("bytes", StdColor::Cyan),
+				ColorToken("epoll", StdColor::Cyan),
+				ColorToken("kqueue", StdColor::Cyan),
+				ColorToken("poll", StdColor::Cyan),
+				ColorToken("dns", StdColor::Cyan),
+				ColorToken("file", StdColor::Cyan),
+				ColorToken("sock", StdColor::Cyan),
+				ColorToken("dir", StdColor::Cyan),
+				ColorToken("fd", StdColor::Cyan),
 
 				/* Graphics */
-				ColorToken(StdColor::Yellow, "compile"),
-				ColorToken(StdColor::Yellow, "transpile"),
-				ColorToken(StdColor::Yellow, "show"),
-				ColorToken(StdColor::Yellow, "hide"),
-				ColorToken(StdColor::Yellow, "clear"),
-				ColorToken(StdColor::Yellow, "resize"),
-				ColorToken(StdColor::Magenta, "vcall"),
-				ColorToken(StdColor::Cyan, "shader"),
-				ColorToken(StdColor::Cyan, "bytecode"),
+				ColorToken("compile", StdColor::Yellow),
+				ColorToken("transpile", StdColor::Yellow),
+				ColorToken("show", StdColor::Yellow),
+				ColorToken("hide", StdColor::Yellow),
+				ColorToken("clear", StdColor::Yellow),
+				ColorToken("resize", StdColor::Yellow),
+				ColorToken("vcall", StdColor::Magenta),
+				ColorToken("shader", StdColor::Cyan),
+				ColorToken("bytecode", StdColor::Cyan),
 
 				/* Audio */
-				ColorToken(StdColor::Yellow, "play"),
-				ColorToken(StdColor::Yellow, "stop"),
-				ColorToken(StdColor::Yellow, "apply"),
+				ColorToken("play", StdColor::Yellow),
+				ColorToken("stop", StdColor::Yellow),
+				ColorToken("apply", StdColor::Yellow),
 
 				/* Engine */
-				ColorToken(StdColor::Yellow, "configure"),
-				ColorToken(StdColor::Yellow, "actualize"),
-				ColorToken(StdColor::Yellow, "register"),
-				ColorToken(StdColor::Yellow, "unregister"),
-				ColorToken(StdColor::Cyan, "entity"),
-				ColorToken(StdColor::Cyan, "component"),
-				ColorToken(StdColor::Cyan, "material"),
+				ColorToken("configure", StdColor::Yellow),
+				ColorToken("actualize", StdColor::Yellow),
+				ColorToken("register", StdColor::Yellow),
+				ColorToken("unregister", StdColor::Yellow),
+				ColorToken("entity", StdColor::Cyan),
+				ColorToken("component", StdColor::Cyan),
+				ColorToken("material", StdColor::Cyan),
 
 				/* Crypto */
-				ColorToken(StdColor::Yellow, "encode"),
-				ColorToken(StdColor::Yellow, "decode"),
-				ColorToken(StdColor::Yellow, "encrypt"),
-				ColorToken(StdColor::Yellow, "decrypt"),
-				ColorToken(StdColor::Yellow, "compress"),
-				ColorToken(StdColor::Yellow, "decompress"),
-				ColorToken(StdColor::Yellow, "transform"),
-				ColorToken(StdColor::Yellow, "shuffle"),
-				ColorToken(StdColor::Yellow, "sign"),
-				ColorToken(StdColor::DarkRed, "expose"),
+				ColorToken("encode", StdColor::Yellow),
+				ColorToken("decode", StdColor::Yellow),
+				ColorToken("encrypt", StdColor::Yellow),
+				ColorToken("decrypt", StdColor::Yellow),
+				ColorToken("compress", StdColor::Yellow),
+				ColorToken("decompress", StdColor::Yellow),
+				ColorToken("transform", StdColor::Yellow),
+				ColorToken("shuffle", StdColor::Yellow),
+				ColorToken("sign", StdColor::Yellow),
+				ColorToken("expose", StdColor::DarkRed),
 
 				/* Memory */
-				ColorToken(StdColor::Yellow, "add"),
-				ColorToken(StdColor::Yellow, "remove"),
-				ColorToken(StdColor::Yellow, "new"),
-				ColorToken(StdColor::Yellow, "delete"),
-				ColorToken(StdColor::Yellow, "create"),
-				ColorToken(StdColor::Yellow, "destroy"),
-				ColorToken(StdColor::Yellow, "push"),
-				ColorToken(StdColor::Yellow, "pop"),
-				ColorToken(StdColor::Yellow, "malloc"),
-				ColorToken(StdColor::Yellow, "free"),
-				ColorToken(StdColor::Yellow, "allocate"),
-				ColorToken(StdColor::Yellow, "deallocate"),
-				ColorToken(StdColor::Yellow, "initialize"),
-				ColorToken(StdColor::Yellow, "generate"),
-				ColorToken(StdColor::Yellow, "finalize"),
-				ColorToken(StdColor::Yellow, "cleanup"),
-				ColorToken(StdColor::Yellow, "copy"),
-				ColorToken(StdColor::Yellow, "fill"),
-				ColorToken(StdColor::Yellow, "store"),
-				ColorToken(StdColor::Yellow, "reuse"),
-				ColorToken(StdColor::Yellow, "update"),
-				ColorToken(StdColor::Cyan, "true"),
-				ColorToken(StdColor::Cyan, "false"),
-				ColorToken(StdColor::Cyan, "on"),
-				ColorToken(StdColor::Cyan, "off"),
-				ColorToken(StdColor::Cyan, "undefined"),
-				ColorToken(StdColor::Cyan, "nullptr"),
-				ColorToken(StdColor::Cyan, "null"),
-				ColorToken(StdColor::Cyan, "this"),
+				ColorToken("add", StdColor::Yellow),
+				ColorToken("remove", StdColor::Yellow),
+				ColorToken("new", StdColor::Yellow),
+				ColorToken("delete", StdColor::Yellow),
+				ColorToken("create", StdColor::Yellow),
+				ColorToken("destroy", StdColor::Yellow),
+				ColorToken("push", StdColor::Yellow),
+				ColorToken("pop", StdColor::Yellow),
+				ColorToken("malloc", StdColor::Yellow),
+				ColorToken("free", StdColor::Yellow),
+				ColorToken("allocate", StdColor::Yellow),
+				ColorToken("deallocate", StdColor::Yellow),
+				ColorToken("initialize", StdColor::Yellow),
+				ColorToken("generate", StdColor::Yellow),
+				ColorToken("finalize", StdColor::Yellow),
+				ColorToken("cleanup", StdColor::Yellow),
+				ColorToken("copy", StdColor::Yellow),
+				ColorToken("fill", StdColor::Yellow),
+				ColorToken("store", StdColor::Yellow),
+				ColorToken("reuse", StdColor::Yellow),
+				ColorToken("update", StdColor::Yellow),
+				ColorToken("true", StdColor::Cyan),
+				ColorToken("false", StdColor::Cyan),
+				ColorToken("on", StdColor::Cyan),
+				ColorToken("off", StdColor::Cyan),
+				ColorToken("undefined", StdColor::Cyan),
+				ColorToken("nullptr", StdColor::Cyan),
+				ColorToken("null", StdColor::Cyan),
+				ColorToken("this", StdColor::Cyan),
 
 				/* Statuses */
-				ColorToken(StdColor::DarkGreen, "ON"),
-				ColorToken(StdColor::DarkGreen, "TRUE"),
-				ColorToken(StdColor::DarkGreen, "OK"),
-				ColorToken(StdColor::DarkGreen, "SUCCESS"),
-				ColorToken(StdColor::Yellow, "ASSERT"),
-				ColorToken(StdColor::Yellow, "CAUSING"),
-				ColorToken(StdColor::Yellow, "warn"),
-				ColorToken(StdColor::Yellow, "warning"),
-				ColorToken(StdColor::Yellow, "debug"),
-				ColorToken(StdColor::Yellow, "debugging"),
-				ColorToken(StdColor::Yellow, "trace"),
-				ColorToken(StdColor::Yellow, "trading"),
-				ColorToken(StdColor::DarkRed, "OFF"),
-				ColorToken(StdColor::DarkRed, "FALSE"),
-				ColorToken(StdColor::DarkRed, "NULL"),
-				ColorToken(StdColor::DarkRed, "ERR"),
-				ColorToken(StdColor::DarkRed, "FATAL"),
-				ColorToken(StdColor::DarkRed, "PANIC!"),
-				ColorToken(StdColor::DarkRed, "leaking"),
-				ColorToken(StdColor::DarkRed, "failure"),
-				ColorToken(StdColor::DarkRed, "failed"),
-				ColorToken(StdColor::DarkRed, "error"),
-				ColorToken(StdColor::DarkRed, "errors"),
-				ColorToken(StdColor::DarkRed, "cannot"),
-				ColorToken(StdColor::DarkRed, "missing"),
-				ColorToken(StdColor::DarkRed, "invalid"),
-				ColorToken(StdColor::DarkRed, "required"),
-				ColorToken(StdColor::DarkRed, "already"),
+				ColorToken("ON", StdColor::DarkGreen),
+				ColorToken("TRUE", StdColor::DarkGreen),
+				ColorToken("OK", StdColor::DarkGreen),
+				ColorToken("SUCCESS", StdColor::DarkGreen),
+				ColorToken("ASSERT", StdColor::Yellow),
+				ColorToken("CAUSING", StdColor::Yellow),
+				ColorToken("warn", StdColor::Yellow),
+				ColorToken("warning", StdColor::Yellow),
+				ColorToken("debug", StdColor::Yellow),
+				ColorToken("debugging", StdColor::Yellow),
+				ColorToken("trace", StdColor::Yellow),
+				ColorToken("trading", StdColor::Yellow),
+				ColorToken("OFF", StdColor::DarkRed),
+				ColorToken("FALSE", StdColor::DarkRed),
+				ColorToken("NULL", StdColor::DarkRed),
+				ColorToken("ERR", StdColor::DarkRed),
+				ColorToken("FATAL", StdColor::DarkRed),
+				ColorToken("PANIC!", StdColor::DarkRed),
+				ColorToken("leaking", StdColor::DarkRed),
+				ColorToken("failure", StdColor::DarkRed),
+				ColorToken("failed", StdColor::DarkRed),
+				ColorToken("error", StdColor::DarkRed),
+				ColorToken("errors", StdColor::DarkRed),
+				ColorToken("cannot", StdColor::DarkRed),
+				ColorToken("missing", StdColor::DarkRed),
+				ColorToken("invalid", StdColor::DarkRed),
+				ColorToken("required", StdColor::DarkRed),
+				ColorToken("already", StdColor::DarkRed),
 			};
-			Tokens.Custom = Tokens.Default;
 		}
 		Console::~Console() noexcept
 		{
@@ -6277,12 +6276,16 @@ namespace Vitex
 		{
 			State.Colors = Enabled;
 		}
-		void Console::SetColorTokens(Vector<Console::ColorToken>&& AdditionalTokens)
+		void Console::AddColorTokens(const Vector<ColorToken>& AdditionalTokens)
 		{
 			UMutex<std::recursive_mutex> Unique(State.Session);
-			Tokens.Custom = std::move(AdditionalTokens);
-			Tokens.Custom.reserve(Tokens.Custom.size() + Tokens.Default.size());
-			Tokens.Custom.insert(Tokens.Custom.end(), Tokens.Default.begin(), Tokens.Default.end());
+			ColorTokens.reserve(ColorTokens.size() + AdditionalTokens.size());
+			ColorTokens.insert(ColorTokens.end(), AdditionalTokens.begin(), AdditionalTokens.end());
+		}
+		void Console::ClearColorTokens()
+		{
+			UMutex<std::recursive_mutex> Unique(State.Session);
+			ColorTokens.clear();
 		}
 		void Console::ColorBegin(StdColor Text, StdColor Background)
 		{
@@ -6394,18 +6397,18 @@ namespace Vitex
 				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Buffer[Offset - 1])))
 				{
 					bool IsMatched = false;
-					for (auto& Token : Tokens.Custom)
+					for (auto& Token : ColorTokens)
 					{
-						if (V != Token.First || Buffer.size() - Offset < Token.Size)
+						if (Token.Text.empty() || V != Token.Text.front() || Buffer.size() - Offset < Token.Text.size())
 							continue;
 
-						if (Offset + Token.Size < Buffer.size() && Stringify::IsAlphabetic(Buffer[Offset + Token.Size]))
+						if (Offset + Token.Text.size() < Buffer.size() && Stringify::IsAlphabetic(Buffer[Offset + Token.Text.size()]))
 							continue;
 
-						if (memcmp(Buffer.data() + Offset, Token.Token, Token.Size) == 0)
+						if (memcmp(Buffer.data() + Offset, Token.Text.data(), Token.Text.size()) == 0)
 						{
-							ColorBegin(Token.Color);
-							for (size_t j = 0; j < Token.Size; j++)
+							ColorBegin(Token.Foreground, Token.Background);
+							for (size_t j = 0; j < Token.Text.size(); j++)
 								WriteChar(Buffer[Offset++]);
 
 							ColorBegin(BaseColor);

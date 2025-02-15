@@ -3229,12 +3229,11 @@ namespace Vitex
 		public:
 			struct ColorToken
 			{
-				StdColor Color;
-				const char* Token;
-				char First;
-				size_t Size;
+				std::string_view Text;
+				StdColor Background;
+				StdColor Foreground;
 
-				ColorToken(StdColor BaseColor, const char* Name) : Color(BaseColor), Token(Name), First(Name ? *Name : '\0'), Size(Name ? strlen(Name) : 0)
+				ColorToken(const std::string_view& Name, StdColor ForegroundColor, StdColor BackgroundColor = StdColor::Zero) : Text(Name), Foreground(ForegroundColor), Background(BackgroundColor)
 				{
 				}
 			};
@@ -3279,11 +3278,8 @@ namespace Vitex
 				uint64_t Id = 0;
 			} State;
 
-			struct
-			{
-				Vector<ColorToken> Default;
-				Vector<ColorToken> Custom;
-			} Tokens;
+		private:
+			Vector<ColorToken> ColorTokens;
 
 		public:
 			Console() noexcept;
@@ -3297,7 +3293,8 @@ namespace Vitex
 			void Deallocate();
 			void Trace(uint32_t MaxFrames = 32);
 			void SetColoring(bool Enabled);
-			void SetColorTokens(Vector<ColorToken>&& AdditionalTokens);
+			void AddColorTokens(const Vector<ColorToken>& AdditionalTokens);
+			void ClearColorTokens();
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Zero);
 			void ColorEnd();
 			void ColorPrint(StdColor BaseColor, const std::string_view& Buffer);

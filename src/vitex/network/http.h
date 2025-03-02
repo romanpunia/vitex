@@ -163,19 +163,19 @@ namespace Vitex
 
 			class WebCodec;
 
-			struct VI_OUT ErrorFile
+			struct ErrorFile
 			{
 				Core::String Pattern;
 				int StatusCode = 0;
 			};
 
-			struct VI_OUT MimeType
+			struct MimeType
 			{
 				Core::String Extension;
 				Core::String Type;
 			};
 
-			struct VI_OUT MimeStatic
+			struct MimeStatic
 			{
 				std::string_view Extension = "";
 				std::string_view Type = "";
@@ -183,13 +183,13 @@ namespace Vitex
 				MimeStatic(const std::string_view& Ext, const std::string_view& T);
 			};
 
-			struct VI_OUT Credentials
+			struct Credentials
 			{
 				Core::String Token;
 				Auth Type = Auth::Unverified;
 			};
 
-			struct VI_OUT Resource
+			struct Resource
 			{
 				KimvUnorderedMap Headers;
 				Core::String Path;
@@ -208,7 +208,7 @@ namespace Vitex
 				const Core::String& GetInMemoryContents() const;
 			};
 
-			struct VI_OUT Cookie
+			struct Cookie
 			{
 				Core::String Name;
 				Core::String Value;
@@ -223,7 +223,7 @@ namespace Vitex
 				void SetExpired();
 			};
 
-			struct VI_OUT ContentFrame
+			struct ContentFrame
 			{
 				Core::Vector<Resource> Resources;
 				Core::Vector<char> Data;
@@ -249,7 +249,7 @@ namespace Vitex
 				bool IsFinalized() const;
 			};
 
-			struct VI_OUT RequestFrame
+			struct RequestFrame
 			{
 				ContentFrame Content;
 				KimvUnorderedMap Cookies;
@@ -284,7 +284,7 @@ namespace Vitex
 				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
 
-			struct VI_OUT ResponseFrame
+			struct ResponseFrame
 			{
 				ContentFrame Content;
 				KimvUnorderedMap Headers;
@@ -311,7 +311,7 @@ namespace Vitex
 				bool IsOK() const;
 			};
 
-			struct VI_OUT FetchFrame
+			struct FetchFrame
 			{
 				ContentFrame Content;
 				KimvUnorderedMap Cookies;
@@ -339,7 +339,7 @@ namespace Vitex
 				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
 
-			class VI_OUT WebSocketFrame final : public Core::Reference<WebSocketFrame>
+			class WebSocketFrame final : public Core::Reference<WebSocketFrame>
 			{
 				friend class Connection;
 
@@ -408,7 +408,7 @@ namespace Vitex
 				bool IsIgnore();
 			};
 
-			class VI_OUT RouterGroup final : public Core::Reference<RouterGroup>
+			class RouterGroup final : public Core::Reference<RouterGroup>
 			{
 			public:
 				Core::String Match;
@@ -420,7 +420,7 @@ namespace Vitex
 				~RouterGroup() noexcept;
 			};
 
-			class VI_OUT RouterEntry final : public Core::Reference<RouterEntry>
+			class RouterEntry final : public Core::Reference<RouterEntry>
 			{
 				friend MapRouter;
 
@@ -489,7 +489,7 @@ namespace Vitex
 				static RouterEntry* From(const RouterEntry& Other, const Compute::RegexSource& Source);
 			};
 
-			class VI_OUT MapRouter final : public SocketRouter
+			class MapRouter final : public SocketRouter
 			{
 			public:
 				struct RouterSession
@@ -557,7 +557,7 @@ namespace Vitex
 				bool WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketReadCallback&& Callback);
 			};
 
-			class VI_OUT Connection final : public SocketConnection
+			class Connection final : public SocketConnection
 			{
 			public:
 				RequestFrame Request;
@@ -589,7 +589,7 @@ namespace Vitex
 				bool WaitingForWebSocket();
 			};
 
-			class VI_OUT Query final : public Core::Reference<Query>
+			class Query final : public Core::Reference<Query>
 			{
 			private:
 				struct QueryToken
@@ -626,7 +626,7 @@ namespace Vitex
 				static Core::Schema* FindParameter(Core::Schema* Base, QueryToken* Name);
 			};
 
-			class VI_OUT Session final : public Core::Reference<Session>
+			class Session final : public Core::Reference<Session>
 			{
 			public:
 				Core::String SessionId;
@@ -648,7 +648,7 @@ namespace Vitex
 				static Core::ExpectsSystem<void> InvalidateCache(const std::string_view& Path);
 			};
 
-			class VI_OUT Parser final : public Core::Reference<Parser>
+			class Parser final : public Core::Reference<Parser>
 			{
 			private:
 				enum class MultipartStatus : uint8_t
@@ -741,7 +741,7 @@ namespace Vitex
 				const uint8_t* ProcessResponse(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
 			};
 
-			class VI_OUT WebCodec final : public Core::Reference<WebCodec>
+			class WebCodec final : public Core::Reference<WebCodec>
 			{
 			public:
 				typedef Core::SingleQueue<std::pair<WebSocketOp, Core::Vector<char>>> MessageQueue;
@@ -790,7 +790,7 @@ namespace Vitex
 				bool GetFrame(WebSocketOp* Op, Core::Vector<char>* Message);
 			};
 
-			class VI_OUT_TS HrmCache final : public Core::Singleton<HrmCache>
+			class HrmCache final : public Core::Singleton<HrmCache>
 			{
 			private:
 				std::mutex Mutex;
@@ -811,7 +811,7 @@ namespace Vitex
 				void ShrinkToFit() noexcept;
 			};
 
-			class VI_OUT_TS Utils
+			class Utils
 			{
 			public:
 				static void UpdateKeepAliveHeaders(Connection* Base, Core::String& Content);
@@ -819,7 +819,7 @@ namespace Vitex
 				static std::string_view ContentType(const std::string_view& Path, Core::Vector<MimeType>* MimeTypes);
 			};
 
-			class VI_OUT_TS Paths
+			class Paths
 			{
 			public:
 				static void ConstructPath(Connection* Base);
@@ -831,7 +831,7 @@ namespace Vitex
 				static Core::String ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
 			};
 
-			class VI_OUT_TS Parsing
+			class Parsing
 			{
 			public:
 				static bool ParseMultipartHeaderField(Parser* Target, const uint8_t* Name, size_t Length);
@@ -852,7 +852,7 @@ namespace Vitex
 				static void ParseCookie(const std::string_view& Value);
 			};
 
-			class VI_OUT_TS Permissions
+			class Permissions
 			{
 			public:
 				static Core::String Authorize(const std::string_view& Username, const std::string_view& Password, const std::string_view& Type = "Basic");
@@ -861,7 +861,7 @@ namespace Vitex
 				static bool WebSocketUpgradeAllowed(Connection* Base);
 			};
 
-			class VI_OUT_TS Resources
+			class Resources
 			{
 			public:
 				static bool ResourceHasAlternative(Connection* Base);
@@ -871,7 +871,7 @@ namespace Vitex
 				static bool ResourceCompressed(Connection* Base, size_t Size);
 			};
 
-			class VI_OUT_TS Routing
+			class Routing
 			{
 			public:
 				static bool RouteWebSocket(Connection* Base);
@@ -883,7 +883,7 @@ namespace Vitex
 				static bool RouteOptions(Connection* Base);
 			};
 
-			class VI_OUT_TS Logical
+			class Logical
 			{
 			public:
 				static bool ProcessDirectory(Connection* Base);
@@ -898,7 +898,7 @@ namespace Vitex
 				static bool ProcessWebSocket(Connection* Base, const uint8_t* Key, size_t KeySize);
 			};
 
-			class VI_OUT_TS Server final : public SocketServer
+			class Server final : public SocketServer
 			{
 				friend Connection;
 				friend Logical;
@@ -921,7 +921,7 @@ namespace Vitex
 				SocketRouter* OnAllocateRouter() override;
 			};
 
-			class VI_OUT Client final : public SocketClient
+			class Client final : public SocketClient
 			{
 			private:
 				struct BoundaryBlock
@@ -966,7 +966,7 @@ namespace Vitex
 				void Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize);
 			};
 
-			VI_OUT Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const std::string_view& Location, const std::string_view& Method = "GET", const FetchFrame& Options = FetchFrame());
+			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const std::string_view& Location, const std::string_view& Method = "GET", const FetchFrame& Options = FetchFrame());
 		}
 	}
 }

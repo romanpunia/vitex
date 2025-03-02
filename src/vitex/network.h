@@ -93,7 +93,7 @@ namespace Vitex
 		typedef std::function<bool(SocketPoll, const uint8_t*, size_t)> SocketReadCallback;
 		typedef std::function<bool(SocketAccept&)> SocketAcceptedCallback;
 
-		struct VI_OUT Location
+		struct Location
 		{
 		public:
 			Core::UnorderedMap<Core::String, Core::String> Query;
@@ -114,7 +114,7 @@ namespace Vitex
 			Location& operator= (Location&&) noexcept = default;
 		};
 
-		struct VI_OUT X509Blob
+		struct X509Blob
 		{
 			void* Pointer;
 
@@ -126,13 +126,13 @@ namespace Vitex
 			X509Blob& operator= (X509Blob&& Other) noexcept;
 		};
 
-		struct VI_OUT CertificateBlob
+		struct CertificateBlob
 		{
 			Core::String PrivateKey;
 			Core::String Certificate;
 		};
 
-		struct VI_OUT Certificate
+		struct Certificate
 		{
 			Core::UnorderedMap<Core::String, Core::String> Extensions;
 			Core::String SubjectName;
@@ -151,7 +151,7 @@ namespace Vitex
 			Core::UnorderedMap<Core::String, Core::Vector<Core::String>> GetFullExtensions() const;
 		};
 
-		struct VI_OUT DataFrame
+		struct DataFrame
 		{
 			Core::String Message;
 			size_t Reuses = 1;
@@ -164,7 +164,7 @@ namespace Vitex
 			DataFrame& operator= (const DataFrame& Other);
 		};
 
-		struct VI_OUT SocketCertificate
+		struct SocketCertificate
 		{
 			CertificateBlob Blob;
 			Core::String Ciphers = "ALL";
@@ -173,7 +173,7 @@ namespace Vitex
 			uint32_t VerifyPeers = 100;
 		};
 
-		struct VI_OUT SocketCidr
+		struct SocketCidr
 		{
 			Compute::UInt128 MinValue;
 			Compute::UInt128 MaxValue;
@@ -183,7 +183,7 @@ namespace Vitex
 			bool IsMatching(const Compute::UInt128& Value);
 		};
 
-		struct VI_OUT SocketAddress
+		struct SocketAddress
 		{
 		private:
 			struct
@@ -229,19 +229,19 @@ namespace Vitex
 			Core::ExpectsIO<Compute::UInt128> GetIpValue() const noexcept;
 		};
 
-		struct VI_OUT SocketAccept
+		struct SocketAccept
 		{
 			SocketAddress Address;
 			socket_t Fd = 0;
 		};
 		
-		struct VI_OUT RouterListener
+		struct RouterListener
 		{
 			SocketAddress Address;
 			bool IsSecure;
 		};
 
-		struct VI_OUT EpollFd
+		struct EpollFd
 		{
 			Socket* Base;
 			bool Readable;
@@ -249,7 +249,7 @@ namespace Vitex
 			bool Closeable;
 		};
 
-		struct VI_OUT_TS EpollHandle
+		struct EpollHandle
 		{
 		private:
 			epoll_queue* Queue;
@@ -269,7 +269,7 @@ namespace Vitex
 			size_t Capacity() noexcept;
 		};
 
-		class VI_OUT_TS Packet
+		class Packet
 		{
 		public:
 			static bool IsData(SocketPoll Event)
@@ -324,7 +324,7 @@ namespace Vitex
 			}
 		};
 
-		class VI_OUT_TS Utils
+		class Utils
 		{
 		public:
 			enum PollEvent : uint32_t
@@ -360,7 +360,7 @@ namespace Vitex
 			static void DisplayTransportLog() noexcept;
 		};
 
-		class VI_OUT_TS TransportLayer final : public Core::Singleton<TransportLayer>
+		class TransportLayer final : public Core::Singleton<TransportLayer>
 		{
 		private:
 			std::mutex Exclusive;
@@ -380,7 +380,7 @@ namespace Vitex
 			Core::ExpectsIO<void> InitializeContext(ssl_ctx_st* Context, bool LoadCertificates) noexcept;
 		};
 
-		class VI_OUT_TS DNS final : public Core::Singleton<DNS>
+		class DNS final : public Core::Singleton<DNS>
 		{
 		private:
 			std::mutex Exclusive;
@@ -397,7 +397,7 @@ namespace Vitex
 			Core::ExpectsPromiseSystem<SocketAddress> LookupDeferred(const std::string_view& Hostname, const std::string_view& Service, DNSType Resolver, SocketProtocol Proto = SocketProtocol::TCP, SocketType Type = SocketType::Stream);
 		};
 
-		class VI_OUT_TS Multiplexer final : public Core::Singleton<Multiplexer>
+		class Multiplexer final : public Core::Singleton<Multiplexer>
 		{
 		private:
 			std::mutex Exclusive;
@@ -436,7 +436,7 @@ namespace Vitex
 			void RemoveTimeout(Socket* Value) noexcept;
 		};
 
-		class VI_OUT_TS Uplinks final : public Core::Singleton<Uplinks>
+		class Uplinks final : public Core::Singleton<Uplinks>
 		{
 		public:
 			typedef std::function<void(Socket*)> AcquireCallback;
@@ -468,7 +468,7 @@ namespace Vitex
 			void ListenConnection(Core::String&& Id, Socket* Target);
 		};
 
-		class VI_OUT CertificateBuilder final : public Core::Reference<CertificateBuilder>
+		class CertificateBuilder final : public Core::Reference<CertificateBuilder>
 		{
 		private:
 			void* Certificate;
@@ -494,7 +494,7 @@ namespace Vitex
 			void* GetPrivateKeyEVP_PKEY();
 		};
 
-		class VI_OUT Socket final : public Core::Reference<Socket>
+		class Socket final : public Core::Reference<Socket>
 		{
 			friend EpollHandle;
 			friend Multiplexer;
@@ -591,7 +591,7 @@ namespace Vitex
 			Core::ExpectsIO<void> TryCloseQueued(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying);
 		};
 
-		class VI_OUT SocketListener final : public Core::Reference<SocketListener>
+		class SocketListener final : public Core::Reference<SocketListener>
 		{
 		public:
 			Core::String Name;
@@ -604,7 +604,7 @@ namespace Vitex
 			~SocketListener() noexcept;
 		};
 
-		class VI_OUT SocketRouter : public Core::Reference<SocketRouter>
+		class SocketRouter : public Core::Reference<SocketRouter>
 		{
 		public:
 			Core::UnorderedMap<Core::String, SocketCertificate> Certificates;
@@ -625,7 +625,7 @@ namespace Vitex
 			Core::ExpectsSystem<RouterListener*> Listen(const std::string_view& Pattern, const std::string_view& Hostname, const std::string_view& Service, bool Secure = false);
 		};
 
-		class VI_OUT SocketConnection : public Core::Reference<SocketConnection>
+		class SocketConnection : public Core::Reference<SocketConnection>
 		{
 		public:
 			SocketAddress Address;
@@ -644,7 +644,7 @@ namespace Vitex
 			virtual bool Closable(SocketRouter* Router);
 		};
 
-		class VI_OUT SocketServer : public Core::Reference<SocketServer>
+		class SocketServer : public Core::Reference<SocketServer>
 		{
 			friend SocketConnection;
 
@@ -697,7 +697,7 @@ namespace Vitex
 			virtual bool FreeAll();
 		};
 
-		class VI_OUT SocketClient : public Core::Reference<SocketClient>
+		class SocketClient : public Core::Reference<SocketClient>
 		{
 		protected:
 			struct

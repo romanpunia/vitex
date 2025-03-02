@@ -27,13 +27,13 @@ endif()
 include(deps/sources.cmake)
 
 #Project's library target and properties
-add_library(vitex SHARED ${SOURCE})
+add_library(vitex ${SOURCE})
 set_target_properties(vitex PROPERTIES
-		CXX_STANDARD ${VI_CXX}
-        CXX_STANDARD_REQUIRED ON
-		CXX_EXTENSIONS OFF
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION})
+	CXX_STANDARD ${VI_CXX}
+	CXX_STANDARD_REQUIRED ON
+	CXX_EXTENSIONS OFF
+	VERSION ${PROJECT_VERSION}
+	SOVERSION ${PROJECT_VERSION})
 
 #Project's basic settings
 set(VI_ALLOCATOR ON CACHE BOOL "Enable custom allocator for standard containers")

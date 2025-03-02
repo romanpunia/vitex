@@ -72,7 +72,7 @@ namespace Vitex
 		typedef void* Digest;
 		typedef int32_t SignAlg;
 
-		struct VI_OUT IncludeDesc
+		struct IncludeDesc
 		{
 			Core::Vector<Core::String> Exts;
 			Core::String From;
@@ -80,7 +80,7 @@ namespace Vitex
 			Core::String Root;
 		};
 
-		struct VI_OUT IncludeResult
+		struct IncludeResult
 		{
 			Core::String Module;
 			bool IsAbstract = false;
@@ -88,7 +88,7 @@ namespace Vitex
 			bool IsFile = false;
 		};
 
-		struct VI_OUT RegexBracket
+		struct RegexBracket
 		{
 			const char* Pointer = nullptr;
 			int64_t Length = 0;
@@ -96,13 +96,13 @@ namespace Vitex
 			int64_t BranchesCount = 0;
 		};
 
-		struct VI_OUT RegexBranch
+		struct RegexBranch
 		{
 			int64_t BracketIndex;
 			const char* Pointer;
 		};
 
-		struct VI_OUT RegexMatch
+		struct RegexMatch
 		{
 			const char* Pointer;
 			int64_t Start;
@@ -111,7 +111,7 @@ namespace Vitex
 			int64_t Steps;
 		};
 
-		struct VI_OUT RegexSource
+		struct RegexSource
 		{
 			friend class Regex;
 
@@ -146,7 +146,7 @@ namespace Vitex
 			void Compile();
 		};
 
-		struct VI_OUT RegexResult
+		struct RegexResult
 		{
 			friend class Regex;
 
@@ -171,18 +171,18 @@ namespace Vitex
 			Core::Vector<Core::String> ToArray() const;
 		};
 
-		struct VI_OUT PrivateKey
+		struct PrivateKey
 		{
 		public:
 			template <size_t MaxSize>
 			struct Exposable
 			{
-				char Key[MaxSize];
-				size_t Size;
+				uint8_t Buffer[MaxSize];
+				std::string_view View;
 
 				~Exposable() noexcept
 				{
-					PrivateKey::RandomizeBuffer(Key, Size);
+					PrivateKey::RandomizeBuffer((char*)Buffer, View.size());
 				}
 			};
 
@@ -207,13 +207,16 @@ namespace Vitex
 			void ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize = nullptr) const;
 			Core::String ExposeToHeap() const;
 			size_t Size() const;
+			bool Empty() const;
 
 		public:
 			template <size_t MaxSize>
 			Exposable<MaxSize> Expose() const
 			{
+				size_t Size = 0;
 				Exposable<MaxSize> Result;
-				ExposeToStack(Result.Key, MaxSize, &Result.Size);
+				ExposeToStack((char*)Result.Buffer, MaxSize, &Size);
+				Result.View = std::string_view((char*)Result.Buffer, Size);
 				return Result;
 			}
 
@@ -229,7 +232,7 @@ namespace Vitex
 			void CopyDistribution(const PrivateKey& Other);
 		};
 
-		struct VI_OUT ProcDirective
+		struct ProcDirective
 		{
 			Core::String Name;
 			Core::String Value;
@@ -240,7 +243,7 @@ namespace Vitex
 			bool AsScope = false;
 		};
 
-		struct VI_OUT UInt128
+		struct UInt128
 		{
 		private:
 #ifdef VI_ENDIAN_BIG
@@ -305,23 +308,23 @@ namespace Vitex
 			uint64_t& Low();
 			Core::Decimal ToDecimal() const;
 			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
-			VI_OUT friend std::ostream& operator<<(std::ostream& Stream, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const uint8_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const uint16_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const uint32_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const uint64_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const int8_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const int16_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const int32_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator<<(const int64_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const uint8_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const uint16_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const uint32_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const uint64_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const int8_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const int16_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const int32_t& Left, const UInt128& Right);
-			VI_OUT friend UInt128 operator>>(const int64_t& Left, const UInt128& Right);
+			friend std::ostream& operator<<(std::ostream& Stream, const UInt128& Right);
+			friend UInt128 operator<<(const uint8_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const uint16_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const uint32_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const uint64_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const int8_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const int16_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const int32_t& Left, const UInt128& Right);
+			friend UInt128 operator<<(const int64_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const uint8_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const uint16_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const uint32_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const uint64_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const int8_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const int16_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const int32_t& Left, const UInt128& Right);
+			friend UInt128 operator>>(const int64_t& Left, const UInt128& Right);
 
 		public:
 			static UInt128 Min();
@@ -635,7 +638,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT UInt256
+		struct UInt256
 		{
 		private:
 #ifdef VI_ENDIAN_BIG
@@ -746,49 +749,49 @@ namespace Vitex
 			UInt128& Low();
 			Core::Decimal ToDecimal() const;
 			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
-			VI_OUT friend UInt256 operator&(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator&=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator|(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator|=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator^(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator^=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const uint8_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const uint16_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const uint32_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const uint64_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const int8_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const int16_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const int32_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator<<(const int64_t& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator<<=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const uint8_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const uint16_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const uint32_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const uint64_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const int8_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const int16_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const int32_t& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator>>(const int64_t& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator>>=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend bool operator==(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend bool operator!=(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend bool operator>(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend bool operator<(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend bool operator>=(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend bool operator<=(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator+(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator+=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator-(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator-=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator*(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator*=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator/(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator/=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt256 operator%(const UInt128& Left, const UInt256& Right);
-			VI_OUT friend UInt128& operator%=(UInt128& Left, const UInt256& Right);
-			VI_OUT friend std::ostream& operator<<(std::ostream& Stream, const UInt256& Right);
+			friend UInt256 operator&(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator&=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator|(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator|=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator^(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator^=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator<<(const uint8_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const uint16_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const uint32_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const uint64_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const UInt128& Left, const UInt256& Right);
+			friend UInt256 operator<<(const int8_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const int16_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const int32_t& Left, const UInt256& Right);
+			friend UInt256 operator<<(const int64_t& Left, const UInt256& Right);
+			friend UInt128& operator<<=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator>>(const uint8_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const uint16_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const uint32_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const uint64_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const UInt128& Left, const UInt256& Right);
+			friend UInt256 operator>>(const int8_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const int16_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const int32_t& Left, const UInt256& Right);
+			friend UInt256 operator>>(const int64_t& Left, const UInt256& Right);
+			friend UInt128& operator>>=(UInt128& Left, const UInt256& Right);
+			friend bool operator==(const UInt128& Left, const UInt256& Right);
+			friend bool operator!=(const UInt128& Left, const UInt256& Right);
+			friend bool operator>(const UInt128& Left, const UInt256& Right);
+			friend bool operator<(const UInt128& Left, const UInt256& Right);
+			friend bool operator>=(const UInt128& Left, const UInt256& Right);
+			friend bool operator<=(const UInt128& Left, const UInt256& Right);
+			friend UInt256 operator+(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator+=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator-(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator-=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator*(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator*=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator/(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator/=(UInt128& Left, const UInt256& Right);
+			friend UInt256 operator%(const UInt128& Left, const UInt256& Right);
+			friend UInt128& operator%=(UInt128& Left, const UInt256& Right);
+			friend std::ostream& operator<<(std::ostream& Stream, const UInt256& Right);
 
 		public:
 			static UInt256 Min();
@@ -1114,12 +1117,12 @@ namespace Vitex
 			size_t Offset;
 
 		public:
-			VI_OUT PreprocessorException(PreprocessorError NewType);
-			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset);
-			VI_OUT PreprocessorException(PreprocessorError NewType, size_t NewOffset, const std::string_view& Message);
-			VI_OUT const char* type() const noexcept override;
-			VI_OUT PreprocessorError status() const noexcept;
-			VI_OUT size_t offset() const noexcept;
+			PreprocessorException(PreprocessorError NewType);
+			PreprocessorException(PreprocessorError NewType, size_t NewOffset);
+			PreprocessorException(PreprocessorError NewType, size_t NewOffset, const std::string_view& Message);
+			const char* type() const noexcept override;
+			PreprocessorError status() const noexcept;
+			size_t offset() const noexcept;
 		};
 
 		class CryptoException final : public Core::BasicException
@@ -1128,10 +1131,10 @@ namespace Vitex
 			size_t ErrorCode;
 
 		public:
-			VI_OUT CryptoException();
-			VI_OUT CryptoException(size_t ErrorCode, const std::string_view& Message);
-			VI_OUT const char* type() const noexcept override;
-			VI_OUT size_t error_code() const noexcept;
+			CryptoException();
+			CryptoException(size_t ErrorCode, const std::string_view& Message);
+			const char* type() const noexcept override;
+			size_t error_code() const noexcept;
 		};
 
 		class CompressionException final : public Core::BasicException
@@ -1140,9 +1143,9 @@ namespace Vitex
 			int ErrorCode;
 
 		public:
-			VI_OUT CompressionException(int ErrorCode, const std::string_view& Message);
-			VI_OUT const char* type() const noexcept override;
-			VI_OUT int error_code() const noexcept;
+			CompressionException(int ErrorCode, const std::string_view& Message);
+			const char* type() const noexcept override;
+			int error_code() const noexcept;
 		};
 
 		template <typename V>
@@ -1159,7 +1162,7 @@ namespace Vitex
 		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const struct ProcDirective&, Core::String& Output)> ProcDirectiveCallback;
 		typedef std::function<ExpectsPreprocessor<Core::String>(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
 
-		class VI_OUT MD5Hasher
+		class MD5Hasher
 		{
 		private:
 			typedef uint8_t UInt1;
@@ -1216,7 +1219,7 @@ namespace Vitex
 			static UInt4 L(UInt4 X, int n);
 		};
 
-		class VI_OUT S8Hasher
+		class S8Hasher
 		{
 		public:
 			S8Hasher() noexcept = default;
@@ -1249,7 +1252,7 @@ namespace Vitex
 			}
 		};
 
-		class VI_OUT_TS Ciphers
+		class Ciphers
 		{
 		public:
 			static Cipher DES_ECB();
@@ -1400,7 +1403,7 @@ namespace Vitex
 			static Cipher SM4_CTR();
 		};
 
-		class VI_OUT_TS Digests
+		class Digests
 		{
 		public:
 			static Digest MD2();
@@ -1428,7 +1431,7 @@ namespace Vitex
 			static Digest SM3();
 		};
 
-		class VI_OUT_TS Signers
+		class Signers
 		{
 		public:
 			static SignAlg PkRSA();
@@ -1466,7 +1469,7 @@ namespace Vitex
 			static SignAlg ED448();
 		};
 
-		class VI_OUT_TS Crypto
+		class Crypto
 		{
 		public:
 			typedef std::function<void(uint8_t**, size_t*)> BlockCallback;
@@ -1509,7 +1512,7 @@ namespace Vitex
 			static void DisplayCryptoLog();
 		};
 
-		class VI_OUT_TS Codec
+		class Codec
 		{
 		public:
 			static void RotateBuffer(uint8_t* Buffer, size_t BufferSize, uint64_t Hash, int8_t Direction);
@@ -1544,7 +1547,7 @@ namespace Vitex
 			static bool IsBase64(uint8_t Value);
 		};
 
-		class VI_OUT_TS Regex
+		class Regex
 		{
 			friend RegexSource;
 
@@ -1568,7 +1571,7 @@ namespace Vitex
 			static const char* Syntax();
 		};
 
-		class VI_OUT WebToken final : public Core::Reference<WebToken>
+		class WebToken final : public Core::Reference<WebToken>
 		{
 		public:
 			Core::Schema* Header;
@@ -1599,7 +1602,7 @@ namespace Vitex
 			bool IsValid() const;
 		};
 
-		class VI_OUT Preprocessor final : public Core::Reference<Preprocessor>
+		class Preprocessor final : public Core::Reference<Preprocessor>
 		{
 		public:
 			struct Desc

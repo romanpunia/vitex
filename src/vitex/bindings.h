@@ -50,7 +50,7 @@ namespace Vitex
 
 			class Array;
 
-			struct VI_OUT Dynamic
+			struct Dynamic
 			{
 				union
 				{
@@ -76,7 +76,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT_TS Utils
+			class Utils
 			{
 			public:
 				template <typename F, typename Tuple, std::size_t... I>
@@ -105,14 +105,14 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT_TS Imports
+			class Imports
 			{
 			public:
 				static void BindSyntax(VirtualMachine* VM, bool Enabled, const std::string_view& Syntax);
 				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, const std::string_view& Syntax);
 			};
 
-			class VI_OUT_TS Tags
+			class Tags
 			{
 			public:
 				enum class TagType
@@ -155,10 +155,10 @@ namespace Vitex
 				static void AppendDirective(TagDeclaration& Tag, Core::String& Directive);
 			};
 
-			class VI_OUT_TS Exception
+			class Exception
 			{
 			public:
-				struct VI_OUT Pointer
+				struct Pointer
 				{
 					Core::String Type;
 					Core::String Text;
@@ -190,7 +190,7 @@ namespace Vitex
 				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code);
 			};
 
-			class VI_OUT_TS ExpectsWrapper
+			class ExpectsWrapper
 			{
 			public:
 				static Exception::Pointer TranslateThrow(const std::exception& Error);
@@ -284,7 +284,7 @@ namespace Vitex
 				};
 			};
 
-			class VI_OUT_TS OptionWrapper
+			class OptionWrapper
 			{
 			public:
 				static Exception::Pointer TranslateThrow();
@@ -373,7 +373,7 @@ namespace Vitex
 				};
 			};
 
-			class VI_OUT String
+			class String
 			{
 			public:
 				static std::string_view ImplCastStringView(Core::String& Base);
@@ -408,7 +408,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT StringView
+			class StringView
 			{
 			public:
 				static Core::String ImplCastString(std::string_view& Base);
@@ -450,7 +450,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Math
+			class Math
 			{
 			public:
 				static float FpFromIEEE(uint32_t raw);
@@ -461,7 +461,7 @@ namespace Vitex
 				static bool CloseTo(double a, double b, double epsilon);
 			};
 
-			class VI_OUT Storable
+			class Storable
 			{
 			private:
 				friend class Dictionary;
@@ -482,7 +482,7 @@ namespace Vitex
 				void EnumReferences(asIScriptEngine* Engine);
 			};
 
-			class VI_OUT Random
+			class Random
 			{
 			public:
 				static Core::String Getb(uint64_t Size);
@@ -495,7 +495,7 @@ namespace Vitex
 				static uint64_t Betweeni(uint64_t Min, uint64_t Max);
 			};
 
-			class VI_OUT Any : public Core::Reference<Any>
+			class Any : public Core::Reference<Any>
 			{
 				friend Promise;
 
@@ -570,7 +570,7 @@ namespace Vitex
 				};
 			};
 
-			class VI_OUT Array : public Core::Reference<Array>
+			class Array : public Core::Reference<Array>
 			{
 			public:
 				struct SBuffer
@@ -769,7 +769,7 @@ namespace Vitex
 				};
 			};
 
-			class VI_OUT Dictionary : public Core::Reference<Dictionary>
+			class Dictionary : public Core::Reference<Dictionary>
 			{
 			public:
 				typedef Core::UnorderedMap<Core::String, Storable> InternalMap;
@@ -908,7 +908,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Promise : public Core::Reference<Promise>
+			class Promise : public Core::Reference<Promise>
 			{
 			private:
 				static int PromiseNULL;
@@ -1048,7 +1048,7 @@ namespace Vitex
 				};
 			};
 #ifdef VI_BINDINGS
-			class VI_OUT Complex
+			class Complex
 			{
 			public:
 				float R;
@@ -1084,7 +1084,7 @@ namespace Vitex
 				static void ListConstructor(Complex* Base, float* List);
 			};
 
-			class VI_OUT Mutex : public Core::Reference<Mutex>
+			class Mutex : public Core::Reference<Mutex>
 			{
 			private:
 				static int MutexUD;
@@ -1104,7 +1104,7 @@ namespace Vitex
 				static bool IsAnyLocked(ImmediateContext* Context);
 			};
 
-			class VI_OUT Thread : public Core::Reference<Thread>
+			class Thread : public Core::Reference<Thread>
 			{
 			private:
 				static int ThreadUD;
@@ -1152,7 +1152,7 @@ namespace Vitex
 				static bool ThreadSuspend();
 			};
 
-			class VI_OUT CharBuffer : public Core::Reference<CharBuffer>
+			class CharBuffer : public Core::Reference<CharBuffer>
 			{
 			private:
 				char* Buffer;
@@ -1206,7 +1206,7 @@ namespace Vitex
 				static CharBuffer* Create(char* Pointer);
 			};
 
-			class VI_OUT Application final : public Layer::Application
+			class Application final : public Layer::Application
 			{
 			public:
 				FunctionDelegate OnDispatch;
@@ -1248,7 +1248,7 @@ namespace Vitex
 				static bool WantsRestart(int ExitCode);
 			};
 #endif
-			class VI_OUT_TS Registry
+			class Registry
 			{
 			public:
 				Registry() = default;

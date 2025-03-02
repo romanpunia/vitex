@@ -356,11 +356,11 @@ namespace Vitex
 			VirtualError ErrorCode;
 
 		public:
-			VI_OUT VirtualException(VirtualError ErrorCode);
-			VI_OUT VirtualException(VirtualError ErrorCode, Core::String&& Message);
-			VI_OUT VirtualException(Core::String&& Message);
-			VI_OUT const char* type() const noexcept override;
-			VI_OUT VirtualError error_code() const noexcept;
+			VirtualException(VirtualError ErrorCode);
+			VirtualException(VirtualError ErrorCode, Core::String&& Message);
+			VirtualException(Core::String&& Message);
+			const char* type() const noexcept override;
+			VirtualError error_code() const noexcept;
 		};
 
 		template <typename T>
@@ -369,7 +369,7 @@ namespace Vitex
 		template <typename T>
 		using ExpectsPromiseVM = Core::Promise<ExpectsVM<T>>;
 
-		class VI_OUT TypeCache : public Core::Singletonish
+		class TypeCache : public Core::Singletonish
 		{
 		private:
 			static Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>* Names;
@@ -380,7 +380,7 @@ namespace Vitex
 			static void Cleanup();
 		};
 
-		class VI_OUT_TS Parser
+		class Parser
 		{
 		public:
 			static ExpectsVM<void> ReplaceInlinePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
@@ -390,7 +390,7 @@ namespace Vitex
 			static ExpectsVM<void> ReplacePreconditions(bool IsDirective, const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
 		};
 
-		class VI_OUT_TS FunctionFactory
+		class FunctionFactory
 		{
 		public:
 			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
@@ -485,7 +485,7 @@ namespace Vitex
 			}
 		};
 #endif
-		class VI_OUT GenericContext
+		class GenericContext
 		{
 		private:
 			VirtualMachine* VM;
@@ -533,7 +533,7 @@ namespace Vitex
 			}
 		};
 
-		class VI_OUT Bridge
+		class Bridge
 		{
 		public:
 			template <typename T>
@@ -674,7 +674,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT ByteCodeInfo
+		struct ByteCodeInfo
 		{
 			Core::Vector<uint8_t> Data;
 			Core::String Name;
@@ -682,7 +682,7 @@ namespace Vitex
 			bool Debug = true;
 		};
 
-		struct VI_OUT ByteCodeLabel
+		struct ByteCodeLabel
 		{
 			std::string_view Name;
 			size_t OffsetOfArg0;
@@ -696,7 +696,7 @@ namespace Vitex
 			uint8_t SizeOfArg2;
 		};
 
-		struct VI_OUT PropertyInfo
+		struct PropertyInfo
 		{
 			std::string_view Name;
 			std::string_view Namespace;
@@ -707,7 +707,7 @@ namespace Vitex
 			size_t AccessMask;
 		};
 
-		struct VI_OUT FunctionInfo
+		struct FunctionInfo
 		{
 			std::string_view Name;
 			size_t AccessMask;
@@ -718,7 +718,7 @@ namespace Vitex
 			bool IsReference;
 		};
 
-		struct VI_OUT MessageInfo
+		struct MessageInfo
 		{
 		private:
 			asSMessageInfo* Info;
@@ -734,7 +734,7 @@ namespace Vitex
 			bool IsValid() const;
 		};
 
-		struct VI_OUT TypeInfo
+		struct TypeInfo
 		{
 		private:
 			VirtualMachine* VM;
@@ -832,7 +832,7 @@ namespace Vitex
 			static bool IsScriptObject(int TypeId);
 		};
 
-		struct VI_OUT Function
+		struct Function
 		{
 		private:
 			VirtualMachine* VM;
@@ -883,7 +883,7 @@ namespace Vitex
 			VirtualMachine* GetVM() const;
 		};
 
-		struct VI_OUT ScriptObject
+		struct ScriptObject
 		{
 		private:
 			asIScriptObject* Object;
@@ -906,7 +906,7 @@ namespace Vitex
 			asIScriptObject* GetObject() const;
 		};
 
-		struct VI_OUT BaseClass
+		struct BaseClass
 		{
 		protected:
 			VirtualMachine* VM;
@@ -1160,7 +1160,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT RefBaseClass : public BaseClass
+		struct RefBaseClass : public BaseClass
 		{
 		public:
 			RefBaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
@@ -1323,7 +1323,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT RefClass final : public RefBaseClass
+		struct RefClass final : public RefBaseClass
 		{
 		public:
 			RefClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : RefBaseClass(Engine, Source, Type)
@@ -1331,7 +1331,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT TemplateClass final : public RefBaseClass
+		struct TemplateClass final : public RefBaseClass
 		{
 		private:
 			Core::String Name;
@@ -1356,7 +1356,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT TypeClass final : public BaseClass
+		struct TypeClass final : public BaseClass
 		{
 		public:
 			TypeClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
@@ -1424,7 +1424,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT TypeInterface
+		struct TypeInterface
 		{
 		private:
 			VirtualMachine* VM;
@@ -1444,7 +1444,7 @@ namespace Vitex
 			VirtualMachine* GetVM() const;
 		};
 
-		struct VI_OUT Enumeration
+		struct Enumeration
 		{
 		private:
 			VirtualMachine* VM;
@@ -1464,7 +1464,7 @@ namespace Vitex
 			VirtualMachine* GetVM() const;
 		};
 
-		struct VI_OUT Module
+		struct Module
 		{
 		private:
 			VirtualMachine* VM;
@@ -1565,7 +1565,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT FunctionDelegate
+		struct FunctionDelegate
 		{
 			ImmediateContext* Context;
 			asIScriptFunction* Callback;
@@ -1590,7 +1590,7 @@ namespace Vitex
 			void AddRefAndInitialize(bool IsFirstTime);
 		};
 
-		class VI_OUT Compiler final : public Core::Reference<Compiler>
+		class Compiler final : public Core::Reference<Compiler>
 		{
 		private:
 			Compute::ProcIncludeCallback Include;
@@ -1633,7 +1633,7 @@ namespace Vitex
 			Compute::Preprocessor* GetProcessor() const;
 		};
 
-		class VI_OUT DebuggerContext final : public Core::Reference<DebuggerContext>
+		class DebuggerContext final : public Core::Reference<DebuggerContext>
 		{
 		public:
 			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object)> ToStringCallback;
@@ -1765,7 +1765,7 @@ namespace Vitex
 			ThreadData GetThread(ImmediateContext* Context);
 		};
 
-		class VI_OUT ImmediateContext final : public Core::Reference<ImmediateContext>
+		class ImmediateContext final : public Core::Reference<ImmediateContext>
 		{
 			friend FunctionDelegate;
 			friend VirtualMachine;
@@ -1920,7 +1920,7 @@ namespace Vitex
 			static ImmediateContext* Get();
 		};
 
-		class VI_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
+		class VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
 			typedef std::function<ExpectsVM<void>(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Buffer)> GeneratorCallback;
@@ -2311,7 +2311,7 @@ namespace Vitex
 			}
 		};
 
-		class VI_OUT EventLoop final : public Core::Reference<EventLoop>
+		class EventLoop final : public Core::Reference<EventLoop>
 		{
 		public:
 			struct Callable

@@ -201,9 +201,9 @@ namespace Vitex
 			class DatabaseException final : public Core::BasicException
 			{
 			public:
-				VI_OUT DatabaseException(TConnection* Connection);
-				VI_OUT DatabaseException(Core::String&& Message);
-				VI_OUT const char* type() const noexcept override;
+				DatabaseException(TConnection* Connection);
+				DatabaseException(Core::String&& Message);
+				const char* type() const noexcept override;
 			};
 
 			template <typename V>
@@ -212,7 +212,7 @@ namespace Vitex
 			template <typename T, typename Executor = Core::ParallelExecutor>
 			using ExpectsPromiseDB = Core::BasicPromise<ExpectsDB<T>, Executor>;
 
-			class VI_OUT Address
+			class Address
 			{
 			private:
 				Core::UnorderedMap<Core::String, Core::String> Params;
@@ -234,7 +234,7 @@ namespace Vitex
 				static std::string_view GetKeyName(AddressOp Key);
 			};
 
-			class VI_OUT Notify
+			class Notify
 			{
 			private:
 				Core::String Name;
@@ -249,7 +249,7 @@ namespace Vitex
 				int GetPid() const;
 			};
 
-			class VI_OUT Column
+			class Column
 			{
 				friend Row;
 
@@ -283,7 +283,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Row
+			class Row
 			{
 				friend Column;
 				friend Response;
@@ -317,7 +317,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Response
+			class Response
 			{
 			public:
 				struct Iterator
@@ -401,7 +401,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Cursor
+			class Cursor
 			{
 				friend Cluster;
 
@@ -463,7 +463,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Connection final : public Core::Reference<Connection>
+			class Connection final : public Core::Reference<Connection>
 			{
 				friend Cluster;
 
@@ -491,7 +491,7 @@ namespace Vitex
 				Request* MakeLost();
 			};
 
-			class VI_OUT Request final : public Core::Reference<Request>
+			class Request final : public Core::Reference<Request>
 			{
 				friend Cluster;
 
@@ -517,7 +517,7 @@ namespace Vitex
 				bool Pending() const;
 			};
 
-			class VI_OUT_TS Cluster final : public Core::Reference<Cluster>
+			class Cluster final : public Core::Reference<Cluster>
 			{
 				friend Driver;
 
@@ -581,7 +581,7 @@ namespace Vitex
 				Connection* IsListens(const std::string_view& Name);
 			};
 
-			class VI_OUT_TS Utils
+			class Utils
 			{
 			public:
 				static ExpectsDB<Core::String> InlineArray(Cluster* Client, Core::UPtr<Core::Schema>&& Array);
@@ -591,7 +591,7 @@ namespace Vitex
 				static Core::String GetSQL(Connection* Base, Core::Schema* Source, bool Escape, bool Negate) noexcept;
 			};
 
-			class VI_OUT_TS Driver final : public Core::Singleton<Driver>
+			class Driver final : public Core::Singleton<Driver>
 			{
 			private:
 				struct Pose

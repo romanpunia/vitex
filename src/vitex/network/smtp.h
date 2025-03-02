@@ -17,19 +17,19 @@ namespace Vitex
 				Low = 4
 			};
 
-			struct VI_OUT Recipient
+			struct Recipient
 			{
 				Core::String Name;
 				Core::String Address;
 			};
 
-			struct VI_OUT Attachment
+			struct Attachment
 			{
 				Core::String Path;
 				size_t Length = 0;
 			};
 
-			struct VI_OUT RequestFrame
+			struct RequestFrame
 			{
 				Core::UnorderedMap<Core::String, Core::String> Headers;
 				Core::Vector<Recipient> Recipients;
@@ -51,7 +51,7 @@ namespace Vitex
 				bool AllowHTML = false;
 			};
 
-			class VI_OUT Client final : public SocketClient
+			class Client final : public SocketClient
 			{
 			private:
 				FILE * AttachmentFile;

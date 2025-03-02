@@ -806,7 +806,11 @@ namespace Vitex
 		}
 		size_t PrivateKey::Size() const
 		{
-			return Blocks.size();
+			return Plain.empty() ? Blocks.size() : Plain.size();
+		}
+		bool PrivateKey::Empty() const
+		{
+			return std::max(Plain.size(), Blocks.size()) == 0;
 		}
 		char PrivateKey::LoadPartition(size_t* Dest, size_t Size, size_t Index) const
 		{
@@ -4791,7 +4795,7 @@ namespace Vitex
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] generate %s public key from %i bytes", GetSignerName(Type).data(), (int)SecretKey.Size());
 			auto LocalKey = SecretKey.Expose<Core::CHUNK_SIZE>();
-			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)Type, nullptr, (uint8_t*)LocalKey.Key, LocalKey.Size);
+			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)Type, nullptr, (uint8_t*)LocalKey.View.data(), LocalKey.View.size());
 			if (!Key)
 				return CryptoException();
 
@@ -4921,7 +4925,7 @@ namespace Vitex
 				return Core::String();
 
 			auto LocalKey = SecretKey.Expose<Core::CHUNK_SIZE>();
-			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)KeyType, nullptr, (uint8_t*)LocalKey.Key, LocalKey.Size);
+			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)KeyType, nullptr, (uint8_t*)LocalKey.View.data(), LocalKey.View.size());
 			if (!Key)
 				return CryptoException();
 
@@ -4966,7 +4970,7 @@ namespace Vitex
 				return CryptoException(-1, "verify:empty");
 
 			auto LocalKey = PublicKey.Expose<Core::CHUNK_SIZE>();
-			EVP_PKEY* Key = EVP_PKEY_new_raw_public_key((int)KeyType, nullptr, (uint8_t*)LocalKey.Key, LocalKey.Size);
+			EVP_PKEY* Key = EVP_PKEY_new_raw_public_key((int)KeyType, nullptr, (uint8_t*)LocalKey.View.data(), LocalKey.View.size());
 			if (!Key)
 				return CryptoException();
 
@@ -5004,7 +5008,7 @@ namespace Vitex
 #if OPENSSL_VERSION_MAJOR >= 3
 			uint8_t Result[EVP_MAX_MD_SIZE];
 			uint32_t Size = sizeof(Result);
-			uint8_t* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const uint8_t*)Value.data(), Value.size(), Result, &Size);
+			uint8_t* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.View.data(), (int)LocalKey.View.size(), (const uint8_t*)Value.data(), Value.size(), Result, &Size);
 
 			if (!Pointer)
 				return CryptoException();
@@ -5017,7 +5021,7 @@ namespace Vitex
 				return CryptoException();
 
 			uint8_t Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
+			if (1 != HMAC_Init_ex(Context, LocalKey.View.data(), (int)LocalKey.View.size(), (const EVP_MD*)Type, nullptr))
 			{
 				HMAC_CTX_free(Context);
 				return CryptoException();
@@ -5046,7 +5050,7 @@ namespace Vitex
 			HMAC_CTX_init(&Context);
 
 			uint8_t Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(&Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
+			if (1 != HMAC_Init_ex(&Context, LocalKey.View.data(), (int)LocalKey.View.size(), (const EVP_MD*)Type, nullptr))
 			{
 				HMAC_CTX_cleanup(&Context);
 				return CryptoException();
@@ -5097,7 +5101,7 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
@@ -5168,7 +5172,7 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
@@ -5332,7 +5336,7 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();
@@ -5419,7 +5423,7 @@ namespace Vitex
 			}
 
 			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.Key, (const uint8_t*)LocalSalt.Key))
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return CryptoException();

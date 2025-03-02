@@ -8,14 +8,14 @@ namespace Vitex
 	{
 		namespace Processors
 		{
-			class VI_OUT AssetProcessor final : public Processor
+			class AssetProcessor final : public Processor
 			{
 			public:
 				AssetProcessor(ContentManager * Manager);
 				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class VI_OUT SchemaProcessor final : public Processor
+			class SchemaProcessor final : public Processor
 			{
 			public:
 				SchemaProcessor(ContentManager* Manager);
@@ -23,7 +23,7 @@ namespace Vitex
 				ExpectsContent<void> Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
-			class VI_OUT ServerProcessor final : public Processor
+			class ServerProcessor final : public Processor
 			{
 			public:
 				std::function<void(void*, Core::Schema*)> Callback;

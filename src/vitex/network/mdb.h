@@ -81,7 +81,7 @@ namespace Vitex
 				return static_cast<QueryFlags>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 
-			struct VI_OUT Property
+			struct Property
 			{
 				Core::String Name;
 				Core::String String;
@@ -116,9 +116,9 @@ namespace Vitex
 				int ErrorCode;
 
 			public:
-				VI_OUT DatabaseException(int ErrorCode, Core::String&& Message);
-				VI_OUT const char* type() const noexcept override;
-				VI_OUT int error_code() const noexcept;
+				DatabaseException(int ErrorCode, Core::String&& Message);
+				const char* type() const noexcept override;
+				int error_code() const noexcept;
 			};
 
 			template <typename V>
@@ -127,7 +127,7 @@ namespace Vitex
 			template <typename T, typename Executor = Core::ParallelExecutor>
 			using ExpectsPromiseDB = Core::BasicPromise<ExpectsDB<T>, Executor>;
 
-			class VI_OUT Document
+			class Document
 			{
 			private:
 				TDocument* Base;
@@ -197,7 +197,7 @@ namespace Vitex
 				static bool Clone(void* It, Property* Output);
 			};
 
-			class VI_OUT Address
+			class Address
 			{
 			private:
 				TAddress* Base;
@@ -229,7 +229,7 @@ namespace Vitex
 				static ExpectsDB<Address> FromURL(const std::string_view& Location);
 			};
 
-			class VI_OUT Stream
+			class Stream
 			{
 			private:
 				Document NetOptions;
@@ -266,7 +266,7 @@ namespace Vitex
 				ExpectsDB<void> NextOperation();
 			};
 
-			class VI_OUT Cursor
+			class Cursor
 			{
 			private:
 				TCursor* Base;
@@ -307,7 +307,7 @@ namespace Vitex
 				void Cleanup();
 			};
 
-			class VI_OUT Response
+			class Response
 			{
 			private:
 				Cursor NetCursor;
@@ -339,7 +339,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Transaction
+			class Transaction
 			{
 			private:
 				TTransaction* Base;
@@ -376,7 +376,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Collection
+			class Collection
 			{
 			private:
 				TCollection* Base;
@@ -420,7 +420,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Database
+			class Database
 			{
 			private:
 				TDatabase* Base;
@@ -451,7 +451,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Watcher
+			class Watcher
 			{
 			private:
 				TWatcher* Base;
@@ -478,7 +478,7 @@ namespace Vitex
 				static ExpectsDB<Watcher> FromCollection(const Collection& Src, const Document& Pipeline, const Document& Options);
 			};
 
-			class VI_OUT Connection final : public Core::Reference<Connection>
+			class Connection final : public Core::Reference<Connection>
 			{
 				friend Cluster;
 				friend Transaction;
@@ -509,7 +509,7 @@ namespace Vitex
 				bool IsConnected() const;
 			};
 
-			class VI_OUT_TS Cluster final : public Core::Reference<Cluster>
+			class Cluster final : public Core::Reference<Cluster>
 			{
 			private:
 				std::atomic<bool> Connected;
@@ -528,7 +528,7 @@ namespace Vitex
 				Address& GetAddress();
 			};
 
-			class VI_OUT_TS Utils
+			class Utils
 			{
 			public:
 				static bool GetId(uint8_t* Id12) noexcept;
@@ -540,7 +540,7 @@ namespace Vitex
 				static Core::String GetJSON(Core::Schema* Source, bool Escape) noexcept;
 			};
 
-			class VI_OUT_TS Driver final : public Core::Singleton<Driver>
+			class Driver final : public Core::Singleton<Driver>
 			{
 			private:
 				struct Pose

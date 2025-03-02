@@ -11,13 +11,13 @@ namespace Vitex
 		LOAD_PROVIDERS = 1 << 2,
 		LOAD_LOCALE = 1 << 3,
 		MAJOR_VERSION = 3,
-		MINOR_VERSION = 4,
-		PATCH_VERSION = 8,
-		BUILD_VERSION = 20,
+		MINOR_VERSION = 5,
+		PATCH_VERSION = 0,
+		BUILD_VERSION = 0,
 		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 1000 + BUILD_VERSION
 	};
 
-	class VI_OUT_TS Runtime : public Core::Singletonish
+	class Runtime : public Core::Singletonish
 	{
 	private:
 		static Runtime* Instance;

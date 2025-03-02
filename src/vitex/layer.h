@@ -33,13 +33,13 @@ namespace Vitex
 			Restart
 		};
 
-		struct VI_OUT AssetCache
+		struct AssetCache
 		{
 			Core::String Path;
 			void* Resource = nullptr;
 		};
 
-		struct VI_OUT AssetArchive
+		struct AssetArchive
 		{
 			Core::Stream* Stream = nullptr;
 			Core::String Path;
@@ -50,9 +50,9 @@ namespace Vitex
 		class ContentException : public Core::SystemException
 		{
 		public:
-			VI_OUT ContentException();
-			VI_OUT ContentException(const std::string_view& Message);
-			VI_OUT const char* type() const noexcept override;
+			ContentException();
+			ContentException(const std::string_view& Message);
+			const char* type() const noexcept override;
 		};
 
 		template <typename V>
@@ -61,7 +61,7 @@ namespace Vitex
 		template <typename T, typename Executor = Core::ParallelExecutor>
 		using ExpectsPromiseContent = Core::BasicPromise<ExpectsContent<T>, Executor>;
 
-		class VI_OUT_TS Parallel
+		class Parallel
 		{
 		public:
 			static Core::Promise<void> Enqueue(Core::TaskCallback&& Callback);
@@ -215,7 +215,7 @@ namespace Vitex
 			}
 		};
 
-		class VI_OUT_TS Series
+		class Series
 		{
 		public:
 			static void Pack(Core::Schema* V, bool Value);
@@ -255,7 +255,7 @@ namespace Vitex
 			static bool Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O);
 		};
 
-		class VI_OUT AssetFile final : public Core::Reference<AssetFile>
+		class AssetFile final : public Core::Reference<AssetFile>
 		{
 		private:
 			char* Buffer;
@@ -268,7 +268,7 @@ namespace Vitex
 			size_t Size();
 		};
 
-		class VI_OUT Processor : public Core::Reference<Processor>
+		class Processor : public Core::Reference<Processor>
 		{
 			friend ContentManager;
 
@@ -285,7 +285,7 @@ namespace Vitex
 			ContentManager* GetContent() const;
 		};
 
-		class VI_OUT_TS ContentManager : public Core::Reference<ContentManager>
+		class ContentManager : public Core::Reference<ContentManager>
 		{
 		private:
 			Core::UnorderedMap<Core::String, Core::UnorderedMap<Processor*, AssetCache*>> Assets;
@@ -388,7 +388,7 @@ namespace Vitex
 			}
 		};
 
-		class VI_OUT_TS AppData final : public Core::Reference<AppData>
+		class AppData final : public Core::Reference<AppData>
 		{
 		private:
 			ContentManager* Content;
@@ -412,7 +412,7 @@ namespace Vitex
 			bool WriteAppData(const std::string_view& Path);
 		};
 
-		class VI_OUT Application : public Core::Singleton<Application>
+		class Application : public Core::Singleton<Application>
 		{
 		public:
 			struct Desc

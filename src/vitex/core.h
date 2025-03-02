@@ -329,7 +329,7 @@ namespace Vitex
 
 		struct Singletonish { };
 
-		struct VI_OUT MemoryLocation
+		struct MemoryLocation
 		{
 			const char* Source;
 			const char* Function;
@@ -340,7 +340,7 @@ namespace Vitex
 			MemoryLocation(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
 		};
 
-		class VI_OUT_TS GlobalAllocator
+		class GlobalAllocator
 		{
 		public:
 			virtual ~GlobalAllocator() = default;
@@ -356,7 +356,7 @@ namespace Vitex
 			virtual bool IsFinalizable() noexcept = 0;
 		};
 
-		class VI_OUT LocalAllocator
+		class LocalAllocator
 		{
 		public:
 			virtual ~LocalAllocator() = default;
@@ -366,7 +366,7 @@ namespace Vitex
 			virtual bool IsValid(void* Address) noexcept = 0;
 		};
 
-		class VI_OUT_TS Memory final : public Singletonish
+		class Memory final : public Singletonish
 		{
 		private:
 			struct State
@@ -741,10 +741,10 @@ namespace Vitex
 
 		namespace Allocators
 		{
-			class VI_OUT_TS DebugAllocator final : public GlobalAllocator
+			class DebugAllocator final : public GlobalAllocator
 			{
 			public:
-				struct VI_OUT_TS TracingInfo
+				struct TracingInfo
 				{
 					std::thread::id Thread;
 					std::string TypeName;
@@ -781,7 +781,7 @@ namespace Vitex
 				const std::unordered_map<void*, TracingInfo>& GetWatchers() const;
 			};
 
-			class VI_OUT_TS DefaultAllocator final : public GlobalAllocator
+			class DefaultAllocator final : public GlobalAllocator
 			{
 			public:
 				~DefaultAllocator() override = default;
@@ -797,7 +797,7 @@ namespace Vitex
 				bool IsFinalizable() noexcept override;
 			};
 
-			class VI_OUT_TS CachedAllocator final : public GlobalAllocator
+			class CachedAllocator final : public GlobalAllocator
 			{
 			private:
 				struct PageCache;
@@ -852,7 +852,7 @@ namespace Vitex
 				size_t GetElementsCount(PageGroup& Page, size_t Size);
 			};
 
-			class VI_OUT LinearAllocator final : public LocalAllocator
+			class LinearAllocator final : public LocalAllocator
 			{
 			private:
 				struct Region
@@ -884,7 +884,7 @@ namespace Vitex
 				void FlushRegions() noexcept;
 			};
 
-			class VI_OUT StackAllocator final : public LocalAllocator
+			class StackAllocator final : public LocalAllocator
 			{
 			private:
 				struct Region
@@ -916,10 +916,10 @@ namespace Vitex
 			};
 		}
 
-		class VI_OUT StackTrace
+		class StackTrace
 		{
 		public:
-			struct VI_OUT Frame
+			struct Frame
 			{
 				String Code;
 				String Function;
@@ -948,10 +948,10 @@ namespace Vitex
 			size_t Size() const;
 		};
 
-		class VI_OUT_TS ErrorHandling final : public Singletonish
+		class ErrorHandling final : public Singletonish
 		{
 		public:
-			struct VI_OUT Details
+			struct Details
 			{
 				struct
 				{
@@ -973,7 +973,7 @@ namespace Vitex
 				} Message;
 			};
 
-			struct VI_OUT Tick
+			struct Tick
 			{
 				bool IsCounting;
 
@@ -1112,19 +1112,19 @@ namespace Vitex
 
 		public:
 			BasicException() = default;
-			VI_OUT BasicException(const std::string_view& NewMessage) noexcept;
-			VI_OUT BasicException(String&& NewMessage) noexcept;
+			BasicException(const std::string_view& NewMessage) noexcept;
+			BasicException(String&& NewMessage) noexcept;
 			BasicException(const BasicException&) = default;
 			BasicException(BasicException&&) = default;
 			BasicException& operator= (const BasicException&) = default;
 			BasicException& operator= (BasicException&&) = default;
 			virtual ~BasicException() = default;
 			virtual const char* type() const noexcept = 0;
-			virtual VI_OUT const char* what() const noexcept;
-			virtual VI_OUT const String& message() const& noexcept;
-			virtual VI_OUT const String&& message() const&& noexcept;
-			virtual VI_OUT String& message() & noexcept;
-			virtual VI_OUT String&& message() && noexcept;
+			virtual const char* what() const noexcept;
+			virtual const String& message() const& noexcept;
+			virtual const String&& message() const&& noexcept;
+			virtual String& message() & noexcept;
+			virtual String&& message() && noexcept;
 		};
 
 		class ParserException final : public BasicException
@@ -1134,12 +1134,12 @@ namespace Vitex
 			size_t Offset;
 
 		public:
-			VI_OUT ParserException(ParserError NewType);
-			VI_OUT ParserException(ParserError NewType, size_t NewOffset);
-			VI_OUT ParserException(ParserError NewType, size_t NewOffset, const std::string_view& NewMessage);
-			VI_OUT const char* type() const noexcept override;
-			VI_OUT ParserError status() const noexcept;
-			VI_OUT size_t offset() const noexcept;
+			ParserException(ParserError NewType);
+			ParserException(ParserError NewType, size_t NewOffset);
+			ParserException(ParserError NewType, size_t NewOffset, const std::string_view& NewMessage);
+			const char* type() const noexcept override;
+			ParserError status() const noexcept;
+			size_t offset() const noexcept;
 		};
 
 		class SystemException : public BasicException
@@ -1148,14 +1148,14 @@ namespace Vitex
 			std::error_condition Error;
 
 		public:
-			VI_OUT SystemException();
-			VI_OUT SystemException(const std::string_view& Message);
-			VI_OUT SystemException(const std::string_view& Message, std::error_condition&& Condition);
-			virtual VI_OUT const char* type() const noexcept override;
-			virtual VI_OUT const std::error_condition& error() const& noexcept;
-			virtual VI_OUT const std::error_condition&& error() const&& noexcept;
-			virtual VI_OUT std::error_condition& error() & noexcept;
-			virtual VI_OUT std::error_condition&& error() && noexcept;
+			SystemException();
+			SystemException(const std::string_view& Message);
+			SystemException(const std::string_view& Message, std::error_condition&& Condition);
+			virtual const char* type() const noexcept override;
+			virtual const std::error_condition& error() const& noexcept;
+			virtual const std::error_condition&& error() const&& noexcept;
+			virtual std::error_condition& error() & noexcept;
+			virtual std::error_condition&& error() && noexcept;
 		};
 
 		template <typename T>
@@ -1961,7 +1961,7 @@ namespace Vitex
 		template <typename V>
 		using ExpectsSystem = Expects<V, SystemException>;
 
-		struct VI_OUT Coroutine
+		struct Coroutine
 		{
 			friend Costate;
 
@@ -1980,7 +1980,7 @@ namespace Vitex
 			~Coroutine() noexcept;
 		};
 
-		struct VI_OUT Decimal
+		struct Decimal
 		{
 		private:
 			String Source;
@@ -2071,11 +2071,11 @@ namespace Vitex
 			}
 
 		public:
-			VI_OUT friend Decimal operator + (const Decimal& Left, const Decimal& Right);
-			VI_OUT friend Decimal operator - (const Decimal& Left, const Decimal& Right);
-			VI_OUT friend Decimal operator * (const Decimal& Left, const Decimal& Right);
-			VI_OUT friend Decimal operator / (const Decimal& Left, const Decimal& Right);
-			VI_OUT friend Decimal operator % (const Decimal& Left, const Decimal& Right);
+			friend Decimal operator + (const Decimal& Left, const Decimal& Right);
+			friend Decimal operator - (const Decimal& Left, const Decimal& Right);
+			friend Decimal operator * (const Decimal& Left, const Decimal& Right);
+			friend Decimal operator / (const Decimal& Left, const Decimal& Right);
+			friend Decimal operator % (const Decimal& Left, const Decimal& Right);
 
 		public:
 			static Decimal From(const std::string_view& Data, uint8_t Base);
@@ -2091,7 +2091,7 @@ namespace Vitex
 			static char IntToChar(const int& Value);
 		};
 
-		struct VI_OUT Variant
+		struct Variant
 		{
 			friend Schema;
 			friend Var;
@@ -2152,14 +2152,14 @@ namespace Vitex
 		typedef Vector<Variant> VariantList;
 		typedef UnorderedMap<String, Variant> VariantArgs;
 
-		struct VI_OUT TextSettle
+		struct TextSettle
 		{
 			size_t Start = 0;
 			size_t End = 0;
 			bool Found = false;
 		};
 
-		struct VI_OUT FileState
+		struct FileState
 		{
 			size_t Size = 0;
 			size_t Links = 0;
@@ -2174,7 +2174,7 @@ namespace Vitex
 			bool Exists = false;
 		};
 
-		struct VI_OUT Timeout
+		struct Timeout
 		{
 			std::chrono::microseconds Expires;
 			TaskCallback Callback;
@@ -2188,7 +2188,7 @@ namespace Vitex
 			Timeout& operator= (Timeout&& Other) noexcept;
 		};
 
-		struct VI_OUT FileEntry
+		struct FileEntry
 		{
 			size_t Size = 0;
 			int64_t LastModified = 0;
@@ -2198,7 +2198,7 @@ namespace Vitex
 			bool IsExists = false;
 		};
 
-		struct VI_OUT DateTime
+		struct DateTime
 		{
 		private:
 			std::chrono::system_clock::duration Offset;
@@ -2275,7 +2275,7 @@ namespace Vitex
 			static bool MakeLocalTime(time_t Time, struct tm* Timepoint);
 		};
 
-		struct VI_OUT Stringify
+		struct Stringify
 		{
 		public:
 			static String& EscapePrint(String& Other);
@@ -2374,7 +2374,7 @@ namespace Vitex
 			static void ConvertToWide(const std::string_view& Input, wchar_t* Output, size_t OutputSize);
 		};
 
-		struct VI_OUT ConcurrentTimeoutQueue
+		struct ConcurrentTimeoutQueue
 		{
 			OrderedMap<std::chrono::microseconds, Timeout> Queue;
 			std::condition_variable Notify;
@@ -2382,7 +2382,7 @@ namespace Vitex
 			bool Resync = true;
 		};
 
-		struct VI_OUT InlineArgs
+		struct InlineArgs
 		{
 		public:
 			UnorderedMap<String, String> Args;
@@ -2402,10 +2402,10 @@ namespace Vitex
 			bool IsFalse(const std::string_view& Value) const;
 		};
 
-		class VI_OUT_TS Var
+		class Var
 		{
 		public:
-			class VI_OUT Set
+			class Set
 			{
 			public:
 				static Unique<Schema> Auto(Variant&& Value);
@@ -2445,10 +2445,10 @@ namespace Vitex
 			static Variant Boolean(bool Value);
 		};
 
-		class VI_OUT_TS OS
+		class OS
 		{
 		public:
-			class VI_OUT CPU
+			class CPU
 			{
 			public:
 				enum class Arch
@@ -2517,7 +2517,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Directory
+			class Directory
 			{
 			public:
 				static bool IsExists(const std::string_view& Path);
@@ -2532,7 +2532,7 @@ namespace Vitex
 				static Vector<String> GetMounts();
 			};
 
-			class VI_OUT File
+			class File
 			{
 			public:
 				static bool IsExists(const std::string_view& Path);
@@ -2575,7 +2575,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Path
+			class Path
 			{
 			public:
 				static bool IsRemote(const std::string_view& Path);
@@ -2591,7 +2591,7 @@ namespace Vitex
 				static ExpectsIO<String> ResolveDirectory(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists);
 			};
 
-			class VI_OUT Net
+			class Net
 			{
 			public:
 				static bool GetETag(char* Buffer, size_t Length, FileEntry* Resource);
@@ -2599,7 +2599,7 @@ namespace Vitex
 				static socket_t GetFd(FILE* Stream);
 			};
 
-			class VI_OUT Process
+			class Process
 			{
 			public:
 				static void Abort();
@@ -2618,7 +2618,7 @@ namespace Vitex
 				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
 			};
 
-			class VI_OUT Symbol
+			class Symbol
 			{
 			public:
 				static ExpectsIO<Unique<void>> Load(const std::string_view& Path = "");
@@ -2626,7 +2626,7 @@ namespace Vitex
 				static ExpectsIO<void> Unload(void* Handle);
 			};
 
-			class VI_OUT Error
+			class Error
 			{
 			public:
 				static int Get(bool Clear = true);
@@ -2639,7 +2639,7 @@ namespace Vitex
 				static String GetName(int Code);
 			};
 
-			class VI_OUT Control
+			class Control
 			{
 			private:
 				static std::atomic<uint64_t> Options;
@@ -2653,7 +2653,7 @@ namespace Vitex
 			};
 		};
 
-		class VI_OUT_TS Composer : public Singletonish
+		class Composer : public Singletonish
 		{
 		private:
 			struct State
@@ -3224,7 +3224,7 @@ namespace Vitex
 			UAlloc& operator= (UAlloc&&) noexcept = delete;
 		};
 
-		class VI_OUT_TS Console final : public Singleton<Console>
+		class Console final : public Singleton<Console>
 		{
 		public:
 			struct ColorToken
@@ -3341,7 +3341,7 @@ namespace Vitex
 			static bool IsAvailable();
 		};
 
-		class VI_OUT Timer final : public Reference<Timer>
+		class Timer final : public Reference<Timer>
 		{
 		public:
 			typedef std::chrono::microseconds Units;
@@ -3411,7 +3411,7 @@ namespace Vitex
 			static Units Clock();
 		};
 
-		class VI_OUT Stream : public Reference<Stream>
+		class Stream : public Reference<Stream>
 		{
 		private:
 			String VName;
@@ -3449,7 +3449,7 @@ namespace Vitex
 			void CloseVirtual();
 		};
 
-		class VI_OUT MemoryStream final : public Stream
+		class MemoryStream final : public Stream
 		{
 		protected:
 			Vector<char> Buffer;
@@ -3481,7 +3481,7 @@ namespace Vitex
 			char* PrepareBuffer(size_t Size);
 		};
 
-		class VI_OUT FileStream final : public Stream
+		class FileStream final : public Stream
 		{
 		protected:
 			FILE* IoStream;
@@ -3507,7 +3507,7 @@ namespace Vitex
 			bool IsSized() const override;
 		};
 
-		class VI_OUT GzStream final : public Stream
+		class GzStream final : public Stream
 		{
 		protected:
 			void* IoStream;
@@ -3533,7 +3533,7 @@ namespace Vitex
 			bool IsSized() const override;
 		};
 
-		class VI_OUT WebStream final : public Stream
+		class WebStream final : public Stream
 		{
 		protected:
 			UnorderedMap<String, String> Headers;
@@ -3565,7 +3565,7 @@ namespace Vitex
 			bool IsSized() const override;
 		};
 
-		class VI_OUT ProcessStream final : public Stream
+		class ProcessStream final : public Stream
 		{
 		private:
 			struct
@@ -3609,7 +3609,7 @@ namespace Vitex
 			int GetExitCode() const;
 		};
 
-		class VI_OUT FileTree final : public Reference<FileTree>
+		class FileTree final : public Reference<FileTree>
 		{
 		public:
 			Vector<FileTree*> Directories;
@@ -3624,7 +3624,7 @@ namespace Vitex
 			size_t GetFiles() const;
 		};
 
-		class VI_OUT Costate final : public Reference<Costate>
+		class Costate final : public Reference<Costate>
 		{
 			friend Cocontext;
 
@@ -3676,7 +3676,7 @@ namespace Vitex
 			static void VI_COCALL ExecutionEntry(VI_CODATA);
 		};
 
-		class VI_OUT Schema final : public Reference<Schema>
+		class Schema final : public Reference<Schema>
 		{
 		protected:
 			Vector<Schema*>* Nodes;
@@ -3763,7 +3763,7 @@ namespace Vitex
 			static void GenerateNamingTable(const Schema* Current, UnorderedMap<String, size_t>* Map, size_t& Index);
 		};
 
-		class VI_OUT_TS Schedule final : public Singleton<Schedule>
+		class Schedule final : public Singleton<Schedule>
 		{
 		public:
 			enum class ThreadTask
@@ -3781,7 +3781,7 @@ namespace Vitex
 				Despawn
 			};
 
-			struct VI_OUT ThreadData
+			struct ThreadData
 			{
 				SingleQueue<TaskCallback> Queue;
 				std::condition_variable Notify;
@@ -3800,7 +3800,7 @@ namespace Vitex
 				~ThreadData() = default;
 			};
 
-			struct VI_OUT ThreadMessage
+			struct ThreadMessage
 			{
 				const ThreadData* Thread;
 				ThreadTask State;
@@ -3814,7 +3814,7 @@ namespace Vitex
 				}
 			};
 
-			struct VI_OUT Desc
+			struct Desc
 			{
 				size_t Threads[(size_t)Difficulty::Count];
 				size_t PreallocatedSize;
@@ -4170,7 +4170,7 @@ namespace Vitex
 			}
 		};
 
-		struct VI_OUT_TS ParallelExecutor
+		struct ParallelExecutor
 		{
 			inline void operator()(TaskCallback&& Callback, bool Async)
 			{

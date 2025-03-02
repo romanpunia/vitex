@@ -62,7 +62,7 @@ namespace Vitex
 				return static_cast<size_t>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 			
-			struct VI_OUT Checkpoint
+			struct Checkpoint
 			{
 				Core::String Database;
 				uint32_t FramesSize = 0;
@@ -73,9 +73,9 @@ namespace Vitex
 			class DatabaseException final : public Core::BasicException
 			{
 			public:
-				VI_OUT DatabaseException(TConnection* Connection);
-				VI_OUT DatabaseException(Core::String&& Message);
-				VI_OUT const char* type() const noexcept override;
+				DatabaseException(TConnection* Connection);
+				DatabaseException(Core::String&& Message);
+				const char* type() const noexcept override;
 			};
 
 			template <typename V>
@@ -84,7 +84,7 @@ namespace Vitex
 			template <typename T, typename Executor = Core::ParallelExecutor>
 			using ExpectsPromiseDB = Core::BasicPromise<ExpectsDB<T>, Executor>;
 
-			class VI_OUT Aggregate : public Core::Reference<Aggregate>
+			class Aggregate : public Core::Reference<Aggregate>
 			{
 			public:
 				virtual ~Aggregate() = default;
@@ -92,7 +92,7 @@ namespace Vitex
 				virtual Core::Variant Finalize() = 0;
 			};
 
-			class VI_OUT Window : public Core::Reference<Window>
+			class Window : public Core::Reference<Window>
 			{
 			public:
 				virtual ~Window() = default;
@@ -102,7 +102,7 @@ namespace Vitex
 				virtual Core::Variant Finalize() = 0;
 			};
 
-			class VI_OUT Column
+			class Column
 			{
 				friend Row;
 
@@ -129,7 +129,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Row
+			class Row
 			{
 				friend Column;
 				friend Response;
@@ -163,7 +163,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Response
+			class Response
 			{
 				friend class sqlite3_util;
 				friend Connection;
@@ -257,7 +257,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT Cursor
+			class Cursor
 			{
 				friend class sqlite3_util;
 
@@ -317,7 +317,7 @@ namespace Vitex
 				}
 			};
 
-			class VI_OUT_TS Connection final : public Core::Reference<Connection>
+			class Connection final : public Core::Reference<Connection>
 			{
 				friend Driver;
 
@@ -375,7 +375,7 @@ namespace Vitex
 				bool IsConnected();
 			};
 
-			class VI_OUT_TS Cluster final : public Core::Reference<Cluster>
+			class Cluster final : public Core::Reference<Cluster>
 			{
 				friend Driver;
 
@@ -438,7 +438,7 @@ namespace Vitex
 				void ReleaseConnection(TConnection* Connection, size_t Opts);
 			};
 
-			class VI_OUT_TS Utils
+			class Utils
 			{
 			public:
 				static ExpectsDB<Core::String> InlineArray(Core::UPtr<Core::Schema>&& Array);
@@ -451,7 +451,7 @@ namespace Vitex
 				static void ContextReturn(TContext* Context, const Core::Variant& Result) noexcept;
 			};
 
-			class VI_OUT_TS Driver final : public Core::Singleton<Driver>
+			class Driver final : public Core::Singleton<Driver>
 			{
 			private:
 				struct Pose

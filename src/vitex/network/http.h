@@ -963,7 +963,7 @@ namespace vitex
 				void upload_file_chunk_queued(FILE* stream, size_t content_length, std::function<void(core::expects_system<void>&&)>&& callback);
 				void upload(size_t file_id);
 				void manage_keep_alive();
-				void receive(const uint8_t* leftover_buffer, size_t leftover_size);
+				void receive(socket_poll event, const uint8_t* leftover_buffer, size_t leftover_size);
 			};
 
 			core::expects_promise_system<response_frame> fetch(const std::string_view& location, const std::string_view& method = "GET", const fetch_frame& options = fetch_frame());

@@ -94,7 +94,7 @@ namespace vitex
 
 			socket_t socket = (socket_t)accept(fd, address, address_length);
 			if (socket == INVALID_SOCKET)
-				return utils::GetLastError(nullptr, -1);
+				return utils::get_last_error(nullptr, -1);
 
 			return socket;
 		}
@@ -176,7 +176,7 @@ namespace vitex
 				VI_DEBUG("[net] resolve dns on fd %i", (int)host.first);
 				set_socket_blocking(host.first, false);
 				int status = connect(host.first, host.second->ai_addr, (int)host.second->ai_addrlen);
-				if (status != 0 && utils::GetLastError(nullptr, status) != std::errc::operation_would_block)
+				if (status != 0 && utils::get_last_error(nullptr, status) != std::errc::operation_would_block)
 					continue;
 
 				pollfd fd;
@@ -1379,7 +1379,7 @@ namespace vitex
 
 			return size;
 		}
-		std::error_condition utils::GetLastError(ssl_st* device, int error_code) noexcept
+		std::error_condition utils::get_last_error(ssl_st* device, int error_code) noexcept
 		{
 #ifdef VI_OPENSSL
 			if (device != nullptr)
@@ -2981,7 +2981,7 @@ namespace vitex
 				ossl_ssize_t value = SSL_sendfile(device, VI_FILENO(stream), seek, length, 0);
 				if (value < 0)
 				{
-					auto condition = utils::GetLastError(device, (int)value);
+					auto condition = utils::get_last_error(device, (int)value);
 					is_unsupported = (condition == std::errc::protocol_error);
 					return is_unsupported ? std::make_error_condition(std::errc::not_supported) : condition;
 				}
@@ -2994,7 +2994,7 @@ namespace vitex
 #ifdef VI_APPLE
 			int value = sendfile(VI_FILENO(stream), fd, seek, &length, nullptr, 0);
 			if (value < 0)
-				return utils::GetLastError(device, value);
+				return utils::get_last_error(device, value);
 
 			size_t written = (size_t)length;
 			outcome += written;
@@ -3002,7 +3002,7 @@ namespace vitex
 #elif defined(VI_LINUX)
 			ssize_t value = sendfile(fd, VI_FILENO(stream), &seek, size);
 			if (value < 0)
-				return utils::GetLastError(device, (int)value);
+				return utils::get_last_error(device, (int)value);
 
 			size_t written = (size_t)value;
 			outcome += written;
@@ -3082,7 +3082,7 @@ namespace vitex
 			{
 				int value = SSL_write(device, buffer, (int)size);
 				if (value <= 0)
-					return utils::GetLastError(device, value);
+					return utils::get_last_error(device, value);
 
 				size_t written = (size_t)value;
 				outcome += written;
@@ -3093,7 +3093,7 @@ namespace vitex
 			if (value == 0)
 				return std::make_error_condition(std::errc::operation_would_block);
 			else if (value < 0)
-				return utils::GetLastError(device, value);
+				return utils::get_last_error(device, value);
 
 			size_t written = (size_t)value;
 			outcome += written;
@@ -3193,7 +3193,7 @@ namespace vitex
 			{
 				int value = SSL_read(device, buffer, (int)size);
 				if (value <= 0)
-					return utils::GetLastError(device, value);
+					return utils::get_last_error(device, value);
 
 				size_t received = (size_t)value;
 				income += received;
@@ -3204,7 +3204,7 @@ namespace vitex
 			if (value == 0)
 				return std::make_error_condition(std::errc::connection_reset);
 			else if (value < 0)
-				return utils::GetLastError(device, value);
+				return utils::get_last_error(device, value);
 
 			size_t received = (size_t)value;
 			income += received;
@@ -3613,7 +3613,7 @@ namespace vitex
 				callback(core::optional::none);
 				return core::expectation::met;
 			}
-			else if (utils::GetLastError(device, status) != std::errc::operation_would_block)
+			else if (utils::get_last_error(device, status) != std::errc::operation_would_block)
 			{
 				auto condition = core::os::error::get_condition_or();
 				callback(condition);

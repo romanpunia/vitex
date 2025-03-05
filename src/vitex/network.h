@@ -353,7 +353,7 @@ namespace vitex
 			static core::vector<core::string> get_host_ip_addresses() noexcept;
 			static int poll(pollfd* fd, int fd_count, int timeout) noexcept;
 			static int poll(poll_fd* fd, int fd_count, int timeout) noexcept;
-			static std::error_condition GetLastError(ssl_st* device, int error_code) noexcept;
+			static std::error_condition get_last_error(ssl_st* device, int error_code) noexcept;
 			static core::option<socket_cidr> parse_address_mask(const std::string_view& mask) noexcept;
 			static bool is_invalid(socket_t fd) noexcept;
 			static int64_t clock() noexcept;

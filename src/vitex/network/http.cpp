@@ -943,7 +943,7 @@ namespace vitex
 				memset(method, 0, sizeof(method));
 				memset(version, 0, sizeof(version));
 				strcpy(method, "GET");
-				strcpy(version, "http/1.1");
+				strcpy(version, "HTTP/1.1");
 			}
 			void request_frame::set_method(const std::string_view& value)
 			{
@@ -952,7 +952,7 @@ namespace vitex
 			}
 			void request_frame::set_version(uint32_t major, uint32_t minor)
 			{
-				core::string value = "http/" + core::to_string(major) + '.' + core::to_string(minor);
+				core::string value = "HTTP/" + core::to_string(major) + '.' + core::to_string(minor);
 				memset(version, 0, sizeof(version));
 				memcpy((void*)version, (void*)value.c_str(), std::min<size_t>(value.size(), sizeof(version)));
 			}
@@ -1605,7 +1605,7 @@ namespace vitex
 					utils::update_keep_alive_headers(this, *content);
 
 				if (response.get_header("Accept-Ranges").empty())
-					content->append("Accept-ranges: bytes\r\n", 22);
+					content->append("Accept-Ranges: bytes\r\n", 22);
 
 				core::option<core::string> boundary = core::optional::none;
 				if (content_type.empty())
@@ -1617,10 +1617,10 @@ namespace vitex
 						if (!request.get_header("Range").empty())
 						{
 							boundary = parsing::parse_multipart_data_boundary();
-							content->append("Content-type: multipart/byteranges; boundary=").append(*boundary).append("; charset=").append(route->char_set).append("\r\n");
+							content->append("Content-Type: multipart/byteranges; boundary=").append(*boundary).append("; charset=").append(route->char_set).append("\r\n");
 						}
 						else
-							content->append("Content-type: ").append(content_type).append("; charset=").append(route->char_set).append("\r\n");
+							content->append("Content-Type: ").append(content_type).append("; charset=").append(route->char_set).append("\r\n");
 					}
 				}
 
@@ -1660,9 +1660,9 @@ namespace vitex
 									if (response.get_header("Content-Encoding").empty())
 									{
 										if (gzip)
-											content->append("Content-encoding: gzip\r\n", 24);
+											content->append("Content-Encoding: gzip\r\n", 24);
 										else
-											content->append("Content-encoding: deflate\r\n", 27);
+											content->append("Content-Encoding: deflate\r\n", 27);
 									}
 								}
 							}
@@ -1695,12 +1695,12 @@ namespace vitex
 
 								if (!content_type.empty())
 								{
-									data.append("Content-type: ", 14);
+									data.append("Content-Type: ", 14);
 									data.append(content_type);
 									data.append("\r\n", 2);
 								}
 
-								data.append("Content-range: ", 15);
+								data.append("Content-Range: ", 15);
 								data.append(content_range.c_str(), content_range.size());
 								data.append("\r\n", 2);
 								data.append("\r\n", 2);
@@ -1721,7 +1721,7 @@ namespace vitex
 							bool is_full_length = (range->first == -1 && range->second == -1);
 							std::pair<size_t, size_t> offset = request.get_range(range, response.content.data.size());
 							if (response.get_header("Content-Range").empty())
-								content->append("Content-range: ").append(paths::construct_content_range(offset.first, offset.second, response.content.data.size())).append("\r\n");
+								content->append("Content-Range: ").append(paths::construct_content_range(offset.first, offset.second, response.content.data.size())).append("\r\n");
 							if (!offset.second)
 								response.content.data.clear();
 							else if (!is_full_length)
@@ -1730,13 +1730,13 @@ namespace vitex
 					}
 
 					if (response.get_header("Content-Length").empty())
-						content->append("Content-length: ").append(core::to_string(response.content.data.size())).append("\r\n");
+						content->append("Content-Length: ").append(core::to_string(response.content.data.size())).append("\r\n");
 				}
 				else if (response.get_header("Content-Length").empty())
-					content->append("Content-length: 0\r\n", 19);
+					content->append("Content-Length: 0\r\n", 19);
 
 				if (request.user.type == auth::denied && response.get_header("WWW-Authenticate").empty())
-					content->append("WWW-authenticate: " + route->auth.type + " realm=\"" + route->auth.realm + "\"\r\n");
+					content->append("WWW-Authenticate: " + route->auth.type + " realm=\"" + route->auth.realm + "\"\r\n");
 
 				paths::construct_head_full(&request, &response, false, *content);
 				if (route->callbacks.headers)
@@ -4032,7 +4032,7 @@ namespace vitex
 					case 202:
 						return "Accepted";
 					case 203:
-						return "Non-authoritative Information";
+						return "Non-Authoritative Information";
 					case 204:
 						return "No Content";
 					case 205:
@@ -4074,7 +4074,7 @@ namespace vitex
 					case 404:
 						return "Not Found";
 					case 405:
-						return "Method not Allowed";
+						return "Method Not Allowed";
 					case 406:
 						return "Not Acceptable";
 					case 407:
@@ -4294,7 +4294,7 @@ namespace vitex
 					if (item.name.empty())
 						continue;
 
-					buffer.append("Set-cookie: ").append(item.name).append("=").append(item.value);
+					buffer.append("Set-Cookie: ").append(item.name).append("=").append(item.value);
 					if (!item.expires.empty())
 						buffer.append("; expires=").append(item.expires);
 					if (!item.domain.empty())
@@ -4316,14 +4316,14 @@ namespace vitex
 				if (!base->route->static_file_max_age)
 					return construct_head_uncache(buffer);
 
-				buffer.append("Cache-control: max-age=");
+				buffer.append("Cache-Control: max-age=");
 				buffer.append(core::to_string(base->route->static_file_max_age));
 				buffer.append("\r\n");
 			}
 			void paths::construct_head_uncache(core::string& buffer)
 			{
 				buffer.append(
-					"Cache-control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
+					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
 					"Pragma: no-cache\r\n"
 					"Expires: 0\r\n", 102);
 			}
@@ -4895,7 +4895,7 @@ namespace vitex
 				if (!cache_control.empty() && (core::stringify::case_equals(cache_control, "no-cache") || core::stringify::case_equals(cache_control, "max-age=0")))
 					return true;
 
-				auto if_none_match = base->request.get_header("If-none-Match");
+				auto if_none_match = base->request.get_header("If-None-Match");
 				if (!if_none_match.empty())
 				{
 					char etag[64];
@@ -4904,7 +4904,7 @@ namespace vitex
 						return false;
 				}
 
-				auto if_modified_since = base->request.get_header("If-modified-Since");
+				auto if_modified_since = base->request.get_header("If-Modified-Since");
 				if (if_modified_since.empty())
 					return false;
 
@@ -4941,15 +4941,15 @@ namespace vitex
 				if (!base->route->allow_web_socket)
 					return base->abort(404, "Websocket protocol is not allowed on this server.");
 
-				auto* web_socket_key = base->request.get_header_blob("Sec-web_socket-Key");
+				auto* web_socket_key = base->request.get_header_blob("Sec-WebSocket-Key");
 				if (web_socket_key != nullptr)
 					return logical::process_web_socket(base, (uint8_t*)web_socket_key->c_str(), web_socket_key->size());
 
-				auto web_socket_key1 = base->request.get_header("Sec-web_socket-Key1");
+				auto web_socket_key1 = base->request.get_header("Sec-WebSocket-Key1");
 				if (web_socket_key1.empty())
 					return base->abort(400, "Malformed websocket request. provide first key.");
 
-				auto web_socket_key2 = base->request.get_header("Sec-web_socket-Key2");
+				auto web_socket_key2 = base->request.get_header("Sec-WebSocket-Key2");
 				if (web_socket_key2.empty())
 					return base->abort(400, "Malformed websocket request. provide second key.");
 
@@ -5062,10 +5062,10 @@ namespace vitex
 						char date[64];
 						auto* content = hrm_cache::get()->pop();
 						content->append(base->request.version);
-						content->append(" 204 no content\r\nDate: ");
+						content->append(" 204 No Content\r\nDate: ");
 						content->append(header_date(date, base->info.start / 1000));
 						content->append("\r\n");
-						content->append("Content-location: ").append(base->request.location).append("\r\n");
+						content->append("Content-Location: ").append(base->request.location).append("\r\n");
 						core::os::file::close(stream);
 
 						utils::update_keep_alive_headers(base, *content);
@@ -5108,10 +5108,10 @@ namespace vitex
 				char date[64];
 				auto* content = hrm_cache::get()->pop();
 				content->append(base->request.version);
-				content->append(" 204 no content\r\nDate: ");
+				content->append(" 204 No Content\r\nDate: ");
 				content->append(header_date(date, base->info.start / 1000));
 				content->append("\r\n");
-				content->append("Content-location: ").append(base->request.location).append("\r\n");
+				content->append("Content-Location: ").append(base->request.location).append("\r\n");
 
 				utils::update_keep_alive_headers(base, *content);
 				if (base->route->callbacks.headers)
@@ -5147,7 +5147,7 @@ namespace vitex
 				char date[64];
 				auto* content = hrm_cache::get()->pop();
 				content->append(base->request.version);
-				content->append(" 204 no content\r\nDate: ");
+				content->append(" 204 No Content\r\nDate: ");
 				content->append(header_date(date, base->info.start / 1000));
 				content->append("\r\n");
 
@@ -5171,7 +5171,7 @@ namespace vitex
 				char date[64];
 				auto* content = hrm_cache::get()->pop();
 				content->append(base->request.version);
-				content->append(" 204 no content\r\nDate: ");
+				content->append(" 204 No Content\r\nDate: ");
 				content->append(header_date(date, base->info.start / 1000));
 				content->append("\r\n");
 				content->append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
@@ -5205,7 +5205,7 @@ namespace vitex
 				content->append(" 200 OK\r\nDate: ");
 				content->append(header_date(date, base->info.start / 1000));
 				content->append("\r\n");
-				content->append("Content-type: text/html; charset=").append(base->route->char_set);
+				content->append("Content-Type: text/html; charset=").append(base->route->char_set);
 				content->append("\r\nAccept-ranges: bytes\r\n");
 
 				paths::construct_head_cache(base, *content);
@@ -5316,16 +5316,16 @@ namespace vitex
 								if (base->response.get_header("Content-Encoding").empty())
 								{
 									if (gzip)
-										content->append("Content-encoding: gzip\r\n", 24);
+										content->append("Content-Encoding: gzip\r\n", 24);
 									else
-										content->append("Content-encoding: deflate\r\n", 27);
+										content->append("Content-Encoding: deflate\r\n", 27);
 								}
 							}
 						}
 					}
 				}
 #endif
-				content->append("Content-length: ").append(core::to_string(base->response.content.data.size())).append("\r\n\r\n");
+				content->append("Content-Length: ").append(core::to_string(base->response.content.data.size())).append("\r\n\r\n");
 				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
 					hrm_cache::get()->push(content);
@@ -5363,7 +5363,7 @@ namespace vitex
 					else
 						content_length -= range1;
 
-					snprintf(content_range, sizeof(content_range), "Content-range: bytes %" PRId64 "-%" PRId64 "/%" PRId64 "\r\n", range1, range1 + content_length - 1, (int64_t)base->resource.size);
+					snprintf(content_range, sizeof(content_range), "Content-Range: bytes %" PRId64 "-%" PRId64 "/%" PRId64 "\r\n", range1, range1 + content_length - 1, (int64_t)base->resource.size);
 					status_message = utils::status_message(base->response.status_code = (base->response.error ? base->response.status_code : 206));
 				}
 #ifdef VI_ZLIB
@@ -5390,7 +5390,7 @@ namespace vitex
 
 				auto origin = base->request.get_header("Origin");
 				if (!origin.empty())
-					content->append("Access-control-allow-origin: ").append(base->route->access_control_allow_origin).append("\r\n");
+					content->append("Access-Control-Allow-Origin: ").append(base->route->access_control_allow_origin).append("\r\n");
 
 				paths::construct_head_cache(base, *content);
 				utils::update_keep_alive_headers(base, *content);
@@ -5401,14 +5401,14 @@ namespace vitex
 				if (!message.empty())
 					content->append("X-error: ").append(message).append("\r\n");
 
-				content->append("Accept-ranges: bytes\r\nLast-modified: ");
+				content->append("Accept-Ranges: bytes\r\nLast-modified: ");
 				content->append(header_date(date, base->resource.last_modified));
 				content->append("\r\n");
 
 				core::os::net::get_etag(date, sizeof(date), &base->resource);
 				content->append("Etag: ").append(date, strnlen(date, sizeof(date))).append("\r\n");
-				content->append("Content-type: ").append(content_type).append("; charset=").append(base->route->char_set).append("\r\n");
-				content->append("Content-length: ").append(core::to_string(content_length)).append("\r\n");
+				content->append("Content-Type: ").append(content_type).append("; charset=").append(base->route->char_set).append("\r\n");
+				content->append("Content-Length: ").append(core::to_string(content_length)).append("\r\n");
 				content->append(content_range).append("\r\n");
 
 				if (content_length > 0 && strcmp(base->request.method, "HEAD") != 0)
@@ -5453,7 +5453,7 @@ namespace vitex
 
 				auto origin = base->request.get_header("Origin");
 				if (!origin.empty())
-					content->append("Access-control-allow-origin: ").append(base->route->access_control_allow_origin).append("\r\n");
+					content->append("Access-Control-Allow-Origin: ").append(base->route->access_control_allow_origin).append("\r\n");
 
 				paths::construct_head_cache(base, *content);
 				utils::update_keep_alive_headers(base, *content);
@@ -5464,15 +5464,15 @@ namespace vitex
 				if (!message.empty())
 					content->append("X-error: ").append(message).append("\r\n");
 
-				content->append("Accept-ranges: bytes\r\nLast-modified: ");
+				content->append("Accept-Ranges: bytes\r\nLast-modified: ");
 				content->append(header_date(date, base->resource.last_modified));
 				content->append("\r\n");
 
 				core::os::net::get_etag(date, sizeof(date), &base->resource);
 				content->append("Etag: ").append(date, strnlen(date, sizeof(date))).append("\r\n");
-				content->append("Content-type: ").append(content_type).append("; charset=").append(base->route->char_set).append("\r\n");
-				content->append("Content-encoding: ").append(gzip ? "gzip" : "deflate").append("\r\n");
-				content->append("Transfer-encoding: chunked\r\n");
+				content->append("Content-Type: ").append(content_type).append("; charset=").append(base->route->char_set).append("\r\n");
+				content->append("Content-Encoding: ").append(gzip ? "gzip" : "deflate").append("\r\n");
+				content->append("Transfer-Encoding: chunked\r\n");
 				content->append(content_range).append("\r\n");
 
 				if (content_length > 0 && strcmp(base->request.method, "HEAD") != 0)
@@ -5513,7 +5513,7 @@ namespace vitex
 				if (base->route->callbacks.headers)
 					base->route->callbacks.headers(base, *content);
 
-				content->append("Accept-ranges: bytes\r\nLast-modified: ");
+				content->append("Accept-Ranges: bytes\r\nLast-modified: ");
 				content->append(header_date(date, base->resource.last_modified));
 				content->append("\r\n");
 
@@ -5793,7 +5793,7 @@ namespace vitex
 			{
 				VI_ASSERT(connection_valid(base), "connection should be valid");
 				VI_ASSERT(key != nullptr, "key should be set");
-				auto version = base->request.get_header("Sec-web_socket-Version");
+				auto version = base->request.get_header("Sec-WebSocket-Version");
 				if (version.empty() || version != "13")
 					return base->abort(426, "Protocol upgrade required. version \"%s\" is not allowed", version);
 
@@ -5811,21 +5811,21 @@ namespace vitex
 
 				auto* content = hrm_cache::get()->pop();
 				content->append(
-					"http/1.1 101 switching protocols\r\n"
+					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: upgrade\r\n"
-					"Sec-web_socket-accept: ");
+					"Sec-WebSocket-Accept: ");
 				content->append(compute::codec::base64_encode(std::string_view(encoded20, 20)));
 				content->append("\r\n");
 
-				auto protocol = base->request.get_header("Sec-web_socket-Protocol");
+				auto protocol = base->request.get_header("Sec-WebSocket-Protocol");
 				if (!protocol.empty())
 				{
 					const char* offset = strchr(protocol.data(), ',');
 					if (offset != nullptr)
-						content->append("Sec-web_socket-protocol: ").append(protocol, (size_t)(offset - protocol.data())).append("\r\n");
+						content->append("Sec-WebSocket-protocol: ").append(protocol, (size_t)(offset - protocol.data())).append("\r\n");
 					else
-						content->append("Sec-web_socket-protocol: ").append(protocol).append("\r\n");
+						content->append("Sec-WebSocket-protocol: ").append(protocol).append("\r\n");
 				}
 
 				if (base->route->callbacks.headers)
@@ -6306,13 +6306,13 @@ namespace vitex
 				target.set_header("Pragma", "no-cache");
 				target.set_header("Upgrade", "WebSocket");
 				target.set_header("Connection", "Upgrade");
-				target.set_header("Sec-web_socket-Version", "13");
+				target.set_header("Sec-WebSocket-Version", "13");
 
 				auto random = compute::crypto::random_bytes(16);
 				if (random)
-					target.set_header("Sec-web_socket-Key", compute::codec::base64_encode(*random));
+					target.set_header("Sec-WebSocket-Key", compute::codec::base64_encode(*random));
 				else
-					target.set_header("Sec-web_socket-Key", HTTP_WEBSOCKET_KEY);
+					target.set_header("Sec-WebSocket-Key", HTTP_WEBSOCKET_KEY);
 
 				return send(std::move(target)).then<core::expects_promise_system<void>>([this](core::expects_system<void>&& status) -> core::expects_promise_system<void>
 				{
@@ -6323,7 +6323,7 @@ namespace vitex
 					if (response.status_code != 101)
 						return core::expects_promise_system<void>(core::system_exception("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
 
-					if (response.get_header("Sec-web_socket-Accept").empty())
+					if (response.get_header("Sec-WebSocket-Accept").empty())
 						return core::expects_promise_system<void>(core::system_exception("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
 
 					future = core::expects_promise_system<void>();
@@ -6333,7 +6333,7 @@ namespace vitex
 			}
 			core::expects_promise_system<void> client::send(http::request_frame&& target)
 			{
-				VI_ASSERT(!web_socket || !target.get_header("Sec-web_socket-Key").empty(), "cannot send http request over websocket");
+				VI_ASSERT(!web_socket || !target.get_header("Sec-WebSocket-Key").empty(), "cannot send http request over websocket");
 				if (!has_stream())
 					return core::expects_promise_system<void>(core::system_exception("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
@@ -6425,11 +6425,8 @@ namespace vitex
 										{
 											if (packet::is_data(event))
 												response.content.append(std::string_view((char*)buffer, recv));
-											else if (packet::is_done(event))
-												receive(buffer, recv);
-											else if (packet::is_error_or_skip(event))
-												report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-
+											else if (packet::is_done(event) || packet::is_error_or_skip(event))
+												receive(event, buffer, recv);
 											return true;
 										});
 									}
@@ -6443,11 +6440,8 @@ namespace vitex
 								{
 									if (packet::is_data(event))
 										response.content.append(std::string_view((char*)buffer, recv));
-									else if (packet::is_done(event))
-										receive(buffer, recv);
-									else if (packet::is_error_or_skip(event))
-										report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-
+									else if (packet::is_done(event) || packet::is_error_or_skip(event))
+										receive(event, buffer, recv);
 									return true;
 								});
 							}
@@ -6505,7 +6499,7 @@ namespace vitex
 
 						block.data.append(boundary).append("\r\n");
 						block.data.append("Content-disposition: form-data; name=\"").append(item.key).append("\"; filename=\"").append(item.name).append("\"\r\n");
-						block.data.append("Content-type: ").append(item.type).append("\r\n\r\n");
+						block.data.append("Content-Type: ").append(item.type).append("\r\n\r\n");
 
 						if (!item.is_in_memory)
 						{
@@ -6770,11 +6764,8 @@ namespace vitex
 					{
 						if (packet::is_data(event))
 							response.content.append(std::string_view((char*)buffer, recv));
-						else if (packet::is_done(event))
-							receive(buffer, recv);
-						else if (packet::is_error_or_skip(event))
-							report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-
+						else if (packet::is_done(event) || packet::is_error_or_skip(event))
+							receive(event, buffer, recv);
 						return true;
 					});
 				}
@@ -6815,7 +6806,7 @@ namespace vitex
 
 				return disable_reusability();
 			}
-			void client::receive(const uint8_t* leftover_buffer, size_t leftover_size)
+			void client::receive(socket_poll event, const uint8_t* leftover_buffer, size_t leftover_size)
 			{
 				resolver->prepare_for_response_parsing(&response);
 				if (resolver->parse_response((uint8_t*)response.content.data.data(), response.content.data.size(), 0) >= 0)
@@ -6824,6 +6815,8 @@ namespace vitex
 					manage_keep_alive();
 					report(core::expectation::met);
 				}
+				else if (packet::is_error_or_skip(event))
+					report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				else
 					report(core::system_exception(core::stringify::text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, response.content.data.size()), response.content.data.data()), std::make_error_condition(std::errc::bad_message)));
 			}

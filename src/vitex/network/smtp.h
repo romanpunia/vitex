@@ -2,85 +2,85 @@
 #define VI_NETWORK_SMTP_H
 #include "../network.h"
 
-namespace Vitex
+namespace vitex
 {
-	namespace Network
+	namespace network
 	{
-		namespace SMTP
+		namespace smtp
 		{
-			typedef std::function<void()> ReplyCallback;
+			typedef std::function<void()> reply_callback;
 
-			enum class Priority
+			enum class priority
 			{
-				High = 2,
-				Normal = 3,
-				Low = 4
+				high = 2,
+				normal = 3,
+				low = 4
 			};
 
-			struct Recipient
+			struct recipient
 			{
-				Core::String Name;
-				Core::String Address;
+				core::string name;
+				core::string address;
 			};
 
-			struct Attachment
+			struct attachment
 			{
-				Core::String Path;
-				size_t Length = 0;
+				core::string path;
+				size_t length = 0;
 			};
 
-			struct RequestFrame
+			struct request_frame
 			{
-				Core::UnorderedMap<Core::String, Core::String> Headers;
-				Core::Vector<Recipient> Recipients;
-				Core::Vector<Recipient> CCRecipients;
-				Core::Vector<Recipient> BCCRecipients;
-				Core::Vector<Attachment> Attachments;
-				Core::Vector<Core::String> Messages;
-				Core::String SenderName;
-				Core::String SenderAddress;
-				Core::String Subject;
-				Core::String Charset = "utf-8";
-				Core::String Mailer;
-				Core::String Receiver;
-				Core::String Login;
-				Core::String Password;
-				Priority Prior = Priority::Normal;
-				bool Authenticate = true;
-				bool NoNotification = false;
-				bool AllowHTML = false;
+				core::unordered_map<core::string, core::string> headers;
+				core::vector<recipient> recipients;
+				core::vector<recipient> cc_recipients;
+				core::vector<recipient> bcc_recipients;
+				core::vector<attachment> attachments;
+				core::vector<core::string> messages;
+				core::string sender_name;
+				core::string sender_address;
+				core::string subject;
+				core::string charset = "utf-8";
+				core::string mailer;
+				core::string receiver;
+				core::string login;
+				core::string password;
+				priority prior = priority::normal;
+				bool authenticate = true;
+				bool no_notification = false;
+				bool allow_html = false;
 			};
 
-			class Client final : public SocketClient
+			class client final : public socket_client
 			{
 			private:
-				FILE * AttachmentFile;
-				Core::String Buffer;
-				Core::String Command;
-				Core::String Boundary;
-				Core::String Hoster;
-				RequestFrame Request;
-				int32_t Pending;
-				bool Authorized;
+				FILE* attachment_file;
+				core::string buffer;
+				core::string command;
+				core::string boundary;
+				core::string hoster;
+				request_frame request;
+				int32_t pending;
+				bool authorized;
 
 			public:
-				Client(const std::string_view& Domain, int64_t ReadTimeout);
-				~Client() override = default;
-				Core::ExpectsPromiseSystem<void> Send(RequestFrame&& Root);
-				RequestFrame* GetRequest();
+				client(const std::string_view& domain, int64_t read_timeout);
+				~client() override = default;
+				core::expects_promise_system<void> send(request_frame&& root);
+				request_frame* get_request();
 
 			private:
-				Core::ExpectsSystem<void> OnConnect() override;
-				Core::ExpectsSystem<void> OnDisconnect() override;
-				bool Authorize(ReplyCallback&& Callback);
-				bool PrepareAndSend();
-				bool SendAttachment();
-				bool ProcessAttachment();
-				bool ReadResponses(int Code, ReplyCallback&& Callback);
-				bool ReadResponse(int Code, ReplyCallback&& Callback);
-				bool SendRequest(int Code, const std::string_view& Content, ReplyCallback&& Callback);
-				bool CanRequest(const std::string_view& Keyword);
-				uint8_t* Unicode(const std::string_view& Value);
+				core::expects_system<void> on_connect() override;
+				core::expects_system<void> on_disconnect() override;
+				bool authorize(reply_callback&& callback);
+				bool prepare_and_send();
+				bool send_attachment();
+				bool process_attachment();
+				bool read_responses(int code, reply_callback&& callback);
+				bool read_response(int code, reply_callback&& callback);
+				bool send_request(int code, const std::string_view& content, reply_callback&& callback);
+				bool can_request(const std::string_view& keyword);
+				uint8_t* unicode(const std::string_view& value);
 			};
 		}
 	}

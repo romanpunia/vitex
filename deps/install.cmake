@@ -5,9 +5,9 @@ install(FILES
         DESTINATION include/vitex/layer)
 install(FILES
         src/vitex/network/http.h
-        src/vitex/network/ldb.h
-        src/vitex/network/mdb.h
-        src/vitex/network/pdb.h
+        src/vitex/network/sqlite.h
+        src/vitex/network/mongo.h
+        src/vitex/network/pq.h
         src/vitex/network/smtp.h
         DESTINATION include/vitex/network)
 install(FILES

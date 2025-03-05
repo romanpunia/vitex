@@ -35,7 +35,7 @@
 #include "internal/fcontext.h"
 #endif
 #ifdef VI_MICROSOFT
-#include <Windows.h>
+#include <windows.h>
 #include <fcntl.h>
 #include <io.h>
 #else
@@ -72,17 +72,17 @@ extern "C"
 #define PREFIX_ENUM "$"
 #define PREFIX_BINARY "`"
 #define JSONB_VERSION 0xef1033dd
-#define MAKEUQUAD(L, H) ((uint64_t)(((uint32_t)(L)) | ((uint64_t)((uint32_t)(H))) << 32))
+#define MAKEUQUAD(l, h) ((uint64_t)(((uint32_t)(l)) | ((uint64_t)((uint32_t)(h))) << 32))
 #define RATE_DIFF (10000000)
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
-#define SYS2UNIX_TIME(L, H) ((int64_t)((MAKEUQUAD((L), (H)) - EPOCH_DIFF) / RATE_DIFF))
-#define LEAP_YEAR(X) (((X) % 4 == 0) && (((X) % 100) != 0 || ((X) % 400) == 0))
+#define SYS2UNIX_TIME(l, h) ((int64_t)((MAKEUQUAD((l), (h)) - EPOCH_DIFF) / RATE_DIFF))
+#define LEAP_YEAR(x) (((x) % 4 == 0) && (((x) % 100) != 0 || ((x) % 400) == 0))
 #ifdef VI_MICROSOFT
 namespace
 {
-	BOOL WINAPI ConsoleEventHandler(DWORD Event)
+	BOOL WINAPI console_event_handler(DWORD event)
 	{
-		switch (Event)
+		switch (event)
 		{
 			case CTRL_C_EVENT:
 			case CTRL_BREAK_EVENT:
@@ -99,76 +99,76 @@ namespace
 
 		return TRUE;
 	}
-	bool LocalTime(time_t const* const A, struct tm* const B)
+	bool local_time(time_t const* const a, struct tm* const b)
 	{
-		return localtime_s(B, A) == 0;
+		return localtime_s(b, a) == 0;
 	}
 }
 #else
 namespace
 {
-	void Pack2_64(void* Value, int* X, int* Y)
+	void pack264(void* value, int* x, int* y)
 	{
-		uint64_t Subvalue = (uint64_t)Value;
-		*X = (int)(uint32_t)((Subvalue & 0xFFFFFFFF00000000LL) >> 32);
-		*Y = (int)(uint32_t)(Subvalue & 0xFFFFFFFFLL);
+		uint64_t subvalue = (uint64_t)value;
+		*x = (int)(uint32_t)((subvalue & 0xFFFFFFFF00000000LL) >> 32);
+		*y = (int)(uint32_t)(subvalue & 0xFFFFFFFFLL);
 	}
-	void* Unpack2_64(int X, int Y)
+	void* unpack264(int x, int y)
 	{
-		uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
-		return (void*)Subvalue;
+		uint64_t subvalue = ((uint64_t)(uint32_t)x) << 32 | (uint32_t)y;
+		return (void*)subvalue;
 	}
-	bool LocalTime(time_t const* const A, struct tm* const B)
+	bool local_time(time_t const* const a, struct tm* const b)
 	{
-		return localtime_r(A, B) != nullptr;
+		return localtime_r(a, b) != nullptr;
 	}
-	const char* GetColorId(Vitex::Core::StdColor Color, bool Background)
+	const char* get_color_id(vitex::core::std_color color, bool background)
 	{
-		switch (Color)
+		switch (color)
 		{
-			case Vitex::Core::StdColor::Black:
-				return Background ? "40" : "30";
-			case Vitex::Core::StdColor::DarkBlue:
-				return Background ? "44" : "34";
-			case Vitex::Core::StdColor::DarkGreen:
-				return Background ? "42" : "32";
-			case Vitex::Core::StdColor::DarkRed:
-				return Background ? "41" : "31";
-			case Vitex::Core::StdColor::Magenta:
-				return Background ? "45" : "35";
-			case Vitex::Core::StdColor::Orange:
-				return Background ? "43" : "93";
-			case Vitex::Core::StdColor::LightGray:
-				return Background ? "47" : "97";
-			case Vitex::Core::StdColor::LightBlue:
-				return Background ? "46" : "94";
-			case Vitex::Core::StdColor::Gray:
-				return Background ? "100" : "90";
-			case Vitex::Core::StdColor::Blue:
-				return Background ? "104" : "94";
-			case Vitex::Core::StdColor::Green:
-				return Background ? "102" : "92";
-			case Vitex::Core::StdColor::Cyan:
-				return Background ? "106" : "36";
-			case Vitex::Core::StdColor::Red:
-				return Background ? "101" : "91";
-			case Vitex::Core::StdColor::Pink:
-				return Background ? "105" : "95";
-			case Vitex::Core::StdColor::Yellow:
-				return Background ? "103" : "33";
-			case Vitex::Core::StdColor::White:
-				return Background ? "107" : "37";
-			case Vitex::Core::StdColor::Zero:
-				return Background ? "49" : "39";
+			case vitex::core::std_color::black:
+				return background ? "40" : "30";
+			case vitex::core::std_color::dark_blue:
+				return background ? "44" : "34";
+			case vitex::core::std_color::dark_green:
+				return background ? "42" : "32";
+			case vitex::core::std_color::dark_red:
+				return background ? "41" : "31";
+			case vitex::core::std_color::magenta:
+				return background ? "45" : "35";
+			case vitex::core::std_color::orange:
+				return background ? "43" : "93";
+			case vitex::core::std_color::light_gray:
+				return background ? "47" : "97";
+			case vitex::core::std_color::light_blue:
+				return background ? "46" : "94";
+			case vitex::core::std_color::gray:
+				return background ? "100" : "90";
+			case vitex::core::std_color::blue:
+				return background ? "104" : "94";
+			case vitex::core::std_color::green:
+				return background ? "102" : "92";
+			case vitex::core::std_color::cyan:
+				return background ? "106" : "36";
+			case vitex::core::std_color::red:
+				return background ? "101" : "91";
+			case vitex::core::std_color::pink:
+				return background ? "105" : "95";
+			case vitex::core::std_color::yellow:
+				return background ? "103" : "33";
+			case vitex::core::std_color::white:
+				return background ? "107" : "37";
+			case vitex::core::std_color::zero:
+				return background ? "49" : "39";
 			default:
-				return Background ? "40" : "107";
+				return background ? "40" : "107";
 		}
 	}
 }
 #endif
 namespace
 {
-	bool GlobalTime(const time_t* timep, struct tm* tm)
+	bool global_time(const time_t* timep, struct tm* tm)
 	{
 		const time_t ts = *timep;
 		time_t t = ts / 86400;
@@ -229,1811 +229,1811 @@ namespace
 		tm->tm_isdst = 0;
 		return true;
 	}
-	bool IsPathExists(const std::string_view& Path)
+	bool is_path_exists(const std::string_view& path)
 	{
-		struct stat Buffer;
-		return stat(Path.data(), &Buffer) == 0;
+		struct stat buffer;
+		return stat(path.data(), &buffer) == 0;
 	}
-	void EscapeText(char* Text, size_t Size)
+	void escape_text(char* text, size_t size)
 	{
-		size_t Index = 0;
-		while (Size-- > 0)
+		size_t index = 0;
+		while (size-- > 0)
 		{
-			char& V = Text[Index++];
-			if (V == '\a' || V == '\b' || V == '\f' || V == '\v' || V == '\0')
-				V = '\?';
+			char& v = text[index++];
+			if (v == '\a' || v == '\b' || v == '\f' || v == '\v' || v == '\0')
+				v = '\?';
 		}
 	}
 #ifdef VI_APPLE
-#define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};Vitex::Core::Vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
-	template <class T>
-	static std::pair<bool, T> SysDecompose(const Vitex::Core::Vector<char>& Data)
+#define SYSCTL(fname, ...) std::size_t size{};if(fname(__VA_ARGS__,nullptr,&size,nullptr,0))return{};vitex::core::vector<char> result(size);if(fname(__VA_ARGS__,result.data(),&size,nullptr,0))return{};return result
+	template <class t>
+	static std::pair<bool, t> sys_decompose(const vitex::core::vector<char>& data)
 	{
-		std::pair<bool, T> Out { true, {} };
-		std::memcpy(&Out.second, Data.data(), sizeof(Out.second));
-		return Out;
+		std::pair<bool, t> out { true, { } };
+		std::memcpy(&out.second, data.data(), sizeof(out.second));
+		return out;
 	}
-	Vitex::Core::Vector<char> SysControl(const char* Name)
+	vitex::core::vector<char> sys_control(const char* name)
 	{
-		SYSCTL(::sysctlbyname, Name);
+		SYSCTL(::sysctlbyname, name);
 	}
-	Vitex::Core::Vector<char> SysControl(int M1, int M2)
+	vitex::core::vector<char> sys_control(int M1, int M2)
 	{
-		int Name[2]{ M1, M2 };
-		SYSCTL(::sysctl, Name, sizeof(Name) / sizeof(*Name));
+		int name[2] { M1, M2 };
+		SYSCTL(::sysctl, name, sizeof(name) / sizeof(*name));
 	}
-	std::pair<bool, uint64_t> SysExtract(const Vitex::Core::Vector<char>& Data)
+	std::pair<bool, uint64_t> sys_extract(const vitex::core::vector<char>& data)
 	{
-		switch (Data.size())
+		switch (data.size())
 		{
 			case sizeof(uint16_t) :
-				return SysDecompose<uint16_t>(Data);
+				return sys_decompose<uint16_t>(data);
 				case sizeof(uint32_t) :
-					return SysDecompose<uint32_t>(Data);
+					return sys_decompose<uint32_t>(data);
 					case sizeof(uint64_t) :
-						return SysDecompose<uint64_t>(Data);
+						return sys_decompose<uint64_t>(data);
 					default:
-						return {};
+						return { };
 		}
 	}
 #endif
 #ifdef VI_MICROSOFT
-	static Vitex::Core::Vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> CPUInfoBuffer()
+	static vitex::core::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> cpu_info_buffer()
 	{
-		DWORD ByteCount = 0;
-		Vitex::Core::Vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> Buffer;
-		GetLogicalProcessorInformation(nullptr, &ByteCount);
-		Buffer.resize(ByteCount / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-		GetLogicalProcessorInformation(Buffer.data(), &ByteCount);
+		DWORD byte_count = 0;
+		vitex::core::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer;
+		GetLogicalProcessorInformation(nullptr, &byte_count);
+		buffer.resize(byte_count / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+		GetLogicalProcessorInformation(buffer.data(), &byte_count);
 
-		return Buffer;
+		return buffer;
 	}
 #endif
 }
 
-namespace Vitex
+namespace vitex
 {
-	namespace Core
+	namespace core
 	{
-		namespace Allocators
+		namespace allocators
 		{
-			DebugAllocator::TracingInfo::TracingInfo() : Thread(std::this_thread::get_id()), Time(0), Size(0), Active(false)
+			debug_allocator::tracing_info::tracing_info() : thread(std::this_thread::get_id()), time(0), size(0), active(false)
 			{
 			}
-			DebugAllocator::TracingInfo::TracingInfo(const char* NewTypeName, MemoryLocation&& NewLocation, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic) : Thread(std::this_thread::get_id()), TypeName(NewTypeName ? NewTypeName : "void"), Location(std::move(NewLocation)), Time(NewTime), Size(NewSize), Active(IsActive), Static(IsStatic)
+			debug_allocator::tracing_info::tracing_info(const char* new_type_name, memory_location&& new_location, time_t new_time, size_t new_size, bool is_active, bool is_static) : thread(std::this_thread::get_id()), type_name(new_type_name ? new_type_name : "void"), location(std::move(new_location)), time(new_time), size(new_size), active(is_active), constant(is_static)
 			{
 			}
 
-			void* DebugAllocator::Allocate(size_t Size) noexcept
+			void* debug_allocator::allocate(size_t size) noexcept
 			{
-				return Allocate(MemoryLocation("[unknown]", "[external]", "void", 0), Size);
+				return allocate(memory_location("[unknown]", "[external]", "void", 0), size);
 			}
-			void* DebugAllocator::Allocate(MemoryLocation&& Location, size_t Size) noexcept
+			void* debug_allocator::allocate(memory_location&& location, size_t size) noexcept
 			{
-				void* Address = malloc(Size);
-				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
+				void* address = malloc(size);
+				VI_ASSERT(address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)size);
 
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				Blocks[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), Size, true, false);
-				return Address;
+				umutex<std::recursive_mutex> unique(mutex);
+				blocks[address] = tracing_info(location.type_name, std::move(location), time(nullptr), size, true, false);
+				return address;
 			}
-			void DebugAllocator::Free(void* Address) noexcept
+			void debug_allocator::free(void* address) noexcept
 			{
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Blocks.find(Address);
-				VI_ASSERT(It != Blocks.end() && It->second.Active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, Address);
+				umutex<std::recursive_mutex> unique(mutex);
+				auto it = blocks.find(address);
+				VI_ASSERT(it != blocks.end() && it->second.active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, address);
 
-				Blocks.erase(It);
-				free(Address);
+				blocks.erase(it);
+				::free(address);
 			}
-			void DebugAllocator::Transfer(void* Address, size_t Size) noexcept
+			void debug_allocator::transfer(void* address, size_t size) noexcept
 			{
 				VI_ASSERT(false, "invalid allocator transfer call without memory context");
 			}
-			void DebugAllocator::Transfer(void* Address, MemoryLocation&& Location, size_t Size) noexcept
+			void debug_allocator::transfer(void* address, memory_location&& location, size_t size) noexcept
 			{
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				Blocks[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), Size, true, true);
+				umutex<std::recursive_mutex> unique(mutex);
+				blocks[address] = tracing_info(location.type_name, std::move(location), time(nullptr), size, true, true);
 			}
-			void DebugAllocator::Watch(MemoryLocation&& Location, void* Address) noexcept
+			void debug_allocator::watch(memory_location&& location, void* address) noexcept
 			{
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Watchers.find(Address);
+				umutex<std::recursive_mutex> unique(mutex);
+				auto it = watchers.find(address);
 
-				VI_ASSERT(It == Watchers.end() || !It->second.Active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, Address);
-				if (It != Watchers.end())
-					It->second = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), sizeof(void*), false, false);
+				VI_ASSERT(it == watchers.end() || !it->second.active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, address);
+				if (it != watchers.end())
+					it->second = tracing_info(location.type_name, std::move(location), time(nullptr), sizeof(void*), false, false);
 				else
-					Watchers[Address] = TracingInfo(Location.TypeName, std::move(Location), time(nullptr), sizeof(void*), false, false);
+					watchers[address] = tracing_info(location.type_name, std::move(location), time(nullptr), sizeof(void*), false, false);
 			}
-			void DebugAllocator::Unwatch(void* Address) noexcept
+			void debug_allocator::unwatch(void* address) noexcept
 			{
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Watchers.find(Address);
+				umutex<std::recursive_mutex> unique(mutex);
+				auto it = watchers.find(address);
 
-				VI_ASSERT(It != Watchers.end() && !It->second.Active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", Address);
-				Watchers.erase(It);
+				VI_ASSERT(it != watchers.end() && !it->second.active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", address);
+				watchers.erase(it);
 			}
-			void DebugAllocator::Finalize() noexcept
+			void debug_allocator::finalize() noexcept
 			{
-				Dump(nullptr);
+				dump(nullptr);
 			}
-			bool DebugAllocator::IsValid(void* Address) noexcept
+			bool debug_allocator::is_valid(void* address) noexcept
 			{
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Blocks.find(Address);
+				umutex<std::recursive_mutex> unique(mutex);
+				auto it = blocks.find(address);
 
-				VI_ASSERT(It != Blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
-				return It != Blocks.end();
+				VI_ASSERT(it != blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
+				return it != blocks.end();
 			}
-			bool DebugAllocator::IsFinalizable() noexcept
+			bool debug_allocator::is_finalizable() noexcept
 			{
 				return true;
 			}
-			bool DebugAllocator::Dump(void* Address)
+			bool debug_allocator::dump(void* address)
 			{
 #if VI_DLEVEL >= 4
-				VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, Address);
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				if (Address != nullptr)
+				VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, address);
+				umutex<std::recursive_mutex> unique(mutex);
+				if (address != nullptr)
 				{
-					bool LogActive = ErrorHandling::HasFlag(LogOption::Active), Exists = false;
-					if (!LogActive)
-						ErrorHandling::SetFlag(LogOption::Active, true);
+					bool log_active = error_handling::has_flag(log_option::active), exists = false;
+					if (!log_active)
+						error_handling::set_flag(log_option::active, true);
 
-					auto It = Blocks.find(Address);
-					if (It != Blocks.end())
+					auto it = blocks.find(address);
+					if (it != blocks.end())
 					{
-						char Date[64];
-						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(It->second.Time)), DateTime::FormatCompactTime());
-						ErrorHandling::Message(LogLevel::Debug, It->second.Location.Line, It->second.Location.Source, "[mem] %saddress at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
-							It->second.Static ? "static " : "",
-							It->first, Date, It->second.TypeName.c_str(),
-							(uint64_t)It->second.Size,
-							It->second.Location.Function,
-							OS::Process::GetThreadId(It->second.Thread).c_str());
-						Exists = true;
+						char date[64];
+						date_time::serialize_local(date, sizeof(date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(it->second.time)), date_time::format_compact_time());
+						error_handling::message(log_level::debug, it->second.location.line, it->second.location.source, "[mem] %saddress at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							it->second.constant ? "static " : "",
+							it->first, date, it->second.type_name.c_str(),
+							(uint64_t)it->second.size,
+							it->second.location.function,
+							os::process::get_thread_id(it->second.thread).c_str());
+						exists = true;
 					}
 
-					It = Watchers.find(Address);
-					if (It != Watchers.end())
+					it = watchers.find(address);
+					if (it != watchers.end())
 					{
-						char Date[64];
-						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(It->second.Time)), DateTime::FormatCompactTime());
-						ErrorHandling::Message(LogLevel::Debug, It->second.Location.Line, It->second.Location.Source, "[mem-watch] %saddress at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
-							It->second.Static ? "static " : "",
-							It->first, Date, It->second.TypeName.c_str(),
-							(uint64_t)It->second.Size,
-							It->second.Location.Function,
-							OS::Process::GetThreadId(It->second.Thread).c_str());
-						Exists = true;
+						char date[64];
+						date_time::serialize_local(date, sizeof(date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(it->second.time)), date_time::format_compact_time());
+						error_handling::message(log_level::debug, it->second.location.line, it->second.location.source, "[mem-watch] %saddress at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							it->second.constant ? "static " : "",
+							it->first, date, it->second.type_name.c_str(),
+							(uint64_t)it->second.size,
+							it->second.location.function,
+							os::process::get_thread_id(it->second.thread).c_str());
+						exists = true;
 					}
 
-					ErrorHandling::SetFlag(LogOption::Active, LogActive);
-					return Exists;
+					error_handling::set_flag(log_option::active, log_active);
+					return exists;
 				}
-				else if (!Blocks.empty() || !Watchers.empty())
+				else if (!blocks.empty() || !watchers.empty())
 				{
-					size_t StaticAddresses = 0;
-					for (auto& Item : Blocks)
+					size_t static_addresses = 0;
+					for (auto& item : blocks)
 					{
-						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
-							++StaticAddresses;
+						if (item.second.constant || item.second.type_name.find("ontainer_proxy") != std::string::npos || item.second.type_name.find("ist_node") != std::string::npos)
+							++static_addresses;
 					}
-					for (auto& Item : Watchers)
+					for (auto& item : watchers)
 					{
-						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
-							++StaticAddresses;
+						if (item.second.constant || item.second.type_name.find("ontainer_proxy") != std::string::npos || item.second.type_name.find("ist_node") != std::string::npos)
+							++static_addresses;
 					}
 
-					bool LogActive = ErrorHandling::HasFlag(LogOption::Active);
-					if (!LogActive)
-						ErrorHandling::SetFlag(LogOption::Active, true);
+					bool log_active = error_handling::has_flag(log_option::active);
+					if (!log_active)
+						error_handling::set_flag(log_option::active, true);
 
-					if (StaticAddresses == Blocks.size() + Watchers.size())
+					if (static_addresses == blocks.size() + watchers.size())
 					{
 						VI_DEBUG("[mem] memory tracing OK: no memory leaked");
-						ErrorHandling::SetFlag(LogOption::Active, LogActive);
+						error_handling::set_flag(log_option::active, log_active);
 						return false;
 					}
 
-					size_t TotalMemory = 0;
-					for (auto& Item : Blocks)
-						TotalMemory += Item.second.Size;
-					for (auto& Item : Watchers)
-						TotalMemory += Item.second.Size;
+					size_t total_memory = 0;
+					for (auto& item : blocks)
+						total_memory += item.second.size;
+					for (auto& item : watchers)
+						total_memory += item.second.size;
 
-					uint64_t Count = (uint64_t)(Blocks.size() + Watchers.size() - StaticAddresses);
-					VI_DEBUG("[mem] %" PRIu64 " address%s still used (memory still in use: %" PRIu64 " bytes inc. static allocations)", Count, Count > 1 ? "es are" : " is", (uint64_t)TotalMemory);
-					for (auto& Item : Blocks)
+					uint64_t count = (uint64_t)(blocks.size() + watchers.size() - static_addresses);
+					VI_DEBUG("[mem] %" PRIu64 " address%s still used (memory still in use: %" PRIu64 " bytes inc. static allocations)", count, count > 1 ? "es are" : " is", (uint64_t)total_memory);
+					for (auto& item : blocks)
 					{
-						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+						if (item.second.constant || item.second.type_name.find("ontainer_proxy") != std::string::npos || item.second.type_name.find("ist_node") != std::string::npos)
 							continue;
 
-						char Date[64];
-						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Item.second.Time)), DateTime::FormatCompactTime());
-						ErrorHandling::Message(LogLevel::Debug, Item.second.Location.Line, Item.second.Location.Source, "[mem] address at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
-							Item.first,
-							Date,
-							Item.second.TypeName.c_str(),
-							(uint64_t)Item.second.Size,
-							Item.second.Location.Function,
-							OS::Process::GetThreadId(Item.second.Thread).c_str());
+						char date[64];
+						date_time::serialize_local(date, sizeof(date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(item.second.time)), date_time::format_compact_time());
+						error_handling::message(log_level::debug, item.second.location.line, item.second.location.source, "[mem] address at 0x%" PRIXPTR " is used since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							item.first,
+							date,
+							item.second.type_name.c_str(),
+							(uint64_t)item.second.size,
+							item.second.location.function,
+							os::process::get_thread_id(item.second.thread).c_str());
 					}
-					for (auto& Item : Watchers)
+					for (auto& item : watchers)
 					{
-						if (Item.second.Static || Item.second.TypeName.find("ontainer_proxy") != std::string::npos || Item.second.TypeName.find("ist_node") != std::string::npos)
+						if (item.second.constant || item.second.type_name.find("ontainer_proxy") != std::string::npos || item.second.type_name.find("ist_node") != std::string::npos)
 							continue;
 
-						char Date[64];
-						DateTime::SerializeLocal(Date, sizeof(Date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Item.second.Time)), DateTime::FormatCompactTime());
-						ErrorHandling::Message(LogLevel::Debug, Item.second.Location.Line, Item.second.Location.Source, "[mem-watch] address at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
-							Item.first,
-							Date,
-							Item.second.TypeName.c_str(),
-							(uint64_t)Item.second.Size,
-							Item.second.Location.Function,
-							OS::Process::GetThreadId(Item.second.Thread).c_str());
+						char date[64];
+						date_time::serialize_local(date, sizeof(date), std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(item.second.time)), date_time::format_compact_time());
+						error_handling::message(log_level::debug, item.second.location.line, item.second.location.source, "[mem-watch] address at 0x%" PRIXPTR " is being watched since %s as %s (%" PRIu64 " bytes) at %s() on thread %s",
+							item.first,
+							date,
+							item.second.type_name.c_str(),
+							(uint64_t)item.second.size,
+							item.second.location.function,
+							os::process::get_thread_id(item.second.thread).c_str());
 					}
 
-					ErrorHandling::SetFlag(LogOption::Active, LogActive);
+					error_handling::set_flag(log_option::active, log_active);
 					return true;
 				}
 #endif
 				return false;
 			}
-			bool DebugAllocator::FindBlock(void* Address, TracingInfo* Output)
+			bool debug_allocator::find_block(void* address, tracing_info* output)
 			{
-				VI_ASSERT(Address != nullptr, "address should not be null");
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto It = Blocks.find(Address);
-				if (It == Blocks.end())
+				VI_ASSERT(address != nullptr, "address should not be null");
+				umutex<std::recursive_mutex> unique(mutex);
+				auto it = blocks.find(address);
+				if (it == blocks.end())
 				{
-					It = Watchers.find(Address);
-					if (It == Watchers.end())
+					it = watchers.find(address);
+					if (it == watchers.end())
 						return false;
 				}
 
-				if (Output != nullptr)
-					*Output = It->second;
+				if (output != nullptr)
+					*output = it->second;
 
 				return true;
 			}
-			const std::unordered_map<void*, DebugAllocator::TracingInfo>& DebugAllocator::GetBlocks() const
+			const std::unordered_map<void*, debug_allocator::tracing_info>& debug_allocator::get_blocks() const
 			{
-				return Blocks;
+				return blocks;
 			}
-			const std::unordered_map<void*, DebugAllocator::TracingInfo>& DebugAllocator::GetWatchers() const
+			const std::unordered_map<void*, debug_allocator::tracing_info>& debug_allocator::get_watchers() const
 			{
-				return Watchers;
+				return watchers;
 			}
 
-			void* DefaultAllocator::Allocate(size_t Size) noexcept
+			void* default_allocator::allocate(size_t size) noexcept
 			{
-				void* Address = malloc(Size);
-				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-				return Address;
+				void* address = malloc(size);
+				VI_ASSERT(address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)size);
+				return address;
 			}
-			void* DefaultAllocator::Allocate(MemoryLocation&& Location, size_t Size) noexcept
+			void* default_allocator::allocate(memory_location&& location, size_t size) noexcept
 			{
-				void* Address = malloc(Size);
-				VI_ASSERT(Address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)Size);
-				return Address;
+				void* address = malloc(size);
+				VI_ASSERT(address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)size);
+				return address;
 			}
-			void DefaultAllocator::Free(void* Address) noexcept
+			void default_allocator::free(void* address) noexcept
 			{
-				free(Address);
+				::free(address);
 			}
-			void DefaultAllocator::Transfer(void* Address, size_t Size) noexcept
-			{
-			}
-			void DefaultAllocator::Transfer(void* Address, MemoryLocation&& Location, size_t Size) noexcept
+			void default_allocator::transfer(void* address, size_t size) noexcept
 			{
 			}
-			void DefaultAllocator::Watch(MemoryLocation&& Location, void* Address) noexcept
+			void default_allocator::transfer(void* address, memory_location&& location, size_t size) noexcept
 			{
 			}
-			void DefaultAllocator::Unwatch(void* Address) noexcept
+			void default_allocator::watch(memory_location&& location, void* address) noexcept
 			{
 			}
-			void DefaultAllocator::Finalize() noexcept
+			void default_allocator::unwatch(void* address) noexcept
 			{
 			}
-			bool DefaultAllocator::IsValid(void* Address) noexcept
+			void default_allocator::finalize() noexcept
+			{
+			}
+			bool default_allocator::is_valid(void* address) noexcept
 			{
 				return true;
 			}
-			bool DefaultAllocator::IsFinalizable() noexcept
+			bool default_allocator::is_finalizable() noexcept
 			{
 				return true;
 			}
 
-			CachedAllocator::CachedAllocator(uint64_t MinimalLifeTimeMs, size_t MaxElementsPerAllocation, size_t ElementsReducingBaseBytes, double ElementsReducingFactorRate) : MinimalLifeTime(MinimalLifeTimeMs), ElementsReducingFactor(ElementsReducingFactorRate), ElementsReducingBase(ElementsReducingBaseBytes), ElementsPerAllocation(MaxElementsPerAllocation)
+			cached_allocator::cached_allocator(uint64_t minimal_life_time_ms, size_t max_elements_per_allocation, size_t elements_reducing_base_bytes, double elements_reducing_factor_rate) : minimal_life_time(minimal_life_time_ms), elements_reducing_factor(elements_reducing_factor_rate), elements_reducing_base(elements_reducing_base_bytes), elements_per_allocation(max_elements_per_allocation)
 			{
-				VI_ASSERT(ElementsPerAllocation > 0, "elements count per allocation should be greater then zero");
-				VI_ASSERT(ElementsReducingFactor > 1.0, "elements reducing factor should be greater then zero");
-				VI_ASSERT(ElementsReducingBase > 0, "elements reducing base should be greater then zero");
+				VI_ASSERT(elements_per_allocation > 0, "elements count per allocation should be greater then zero");
+				VI_ASSERT(elements_reducing_factor > 1.0, "elements reducing factor should be greater then zero");
+				VI_ASSERT(elements_reducing_base > 0, "elements reducing base should be greater then zero");
 			}
-			CachedAllocator::~CachedAllocator() noexcept
+			cached_allocator::~cached_allocator() noexcept
 			{
-				for (auto& Page : Pages)
+				for (auto& page : pages)
 				{
-					for (auto* Cache : Page.second)
+					for (auto* cache : page.second)
 					{
-						Cache->~PageCache();
-						free(Cache);
+						cache->~page_cache();
+						free(cache);
 					}
 				}
-				Pages.clear();
+				pages.clear();
 			}
-			void* CachedAllocator::Allocate(size_t Size) noexcept
+			void* cached_allocator::allocate(size_t size) noexcept
 			{
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				auto* Cache = GetPageCache(Size);
-				if (!Cache)
+				umutex<std::recursive_mutex> unique(mutex);
+				auto* cache = get_page_cache(size);
+				if (!cache)
 					return nullptr;
 
-				PageAddress* Address = Cache->Addresses.back();
-				Cache->Addresses.pop_back();
-				return Address->Address;
+				page_address* address = cache->addresses.back();
+				cache->addresses.pop_back();
+				return address->address;
 			}
-			void* CachedAllocator::Allocate(MemoryLocation&&, size_t Size) noexcept
+			void* cached_allocator::allocate(memory_location&&, size_t size) noexcept
 			{
-				return Allocate(Size);
+				return allocate(size);
 			}
-			void CachedAllocator::Free(void* Address) noexcept
+			void cached_allocator::free(void* address) noexcept
 			{
-				char* SourceAddress = nullptr;
-				PageAddress* Source = (PageAddress*)((char*)Address - sizeof(PageAddress));
-				memcpy(&SourceAddress, (char*)Source + sizeof(void*), sizeof(void*));
-				if (SourceAddress != Address)
-					return free(Address);
+				char* source_address = nullptr;
+				page_address* source = (page_address*)((char*)address - sizeof(page_address));
+				memcpy(&source_address, (char*)source + sizeof(void*), sizeof(void*));
+				if (source_address != address)
+					return free(address);
 
-				PageCache* Cache = nullptr;
-				memcpy(&Cache, Source, sizeof(void*));
+				page_cache* cache = nullptr;
+				memcpy(&cache, source, sizeof(void*));
 
-				UMutex<std::recursive_mutex> Unique(Mutex);
-				Cache->Addresses.push_back(Source);
+				umutex<std::recursive_mutex> unique(mutex);
+				cache->addresses.push_back(source);
 
-				if (Cache->Addresses.size() >= Cache->Capacity && (Cache->Capacity == 1 || GetClock() - Cache->Timing > (int64_t)MinimalLifeTime))
+				if (cache->addresses.size() >= cache->capacity && (cache->capacity == 1 || get_clock() - cache->timing > (int64_t)minimal_life_time))
 				{
-					Cache->Page.erase(std::find(Cache->Page.begin(), Cache->Page.end(), Cache));
-					Cache->~PageCache();
-					free(Cache);
+					cache->page.erase(std::find(cache->page.begin(), cache->page.end(), cache));
+					cache->~page_cache();
+					free(cache);
 				}
 			}
-			void CachedAllocator::Transfer(void* Address, size_t Size) noexcept
+			void cached_allocator::transfer(void* address, size_t size) noexcept
 			{
 			}
-			void CachedAllocator::Transfer(void* Address, MemoryLocation&& Location, size_t Size) noexcept
+			void cached_allocator::transfer(void* address, memory_location&& location, size_t size) noexcept
 			{
 			}
-			void CachedAllocator::Watch(MemoryLocation&& Location, void* Address) noexcept
+			void cached_allocator::watch(memory_location&& location, void* address) noexcept
 			{
 			}
-			void CachedAllocator::Unwatch(void* Address) noexcept
+			void cached_allocator::unwatch(void* address) noexcept
 			{
 			}
-			void CachedAllocator::Finalize() noexcept
+			void cached_allocator::finalize() noexcept
 			{
 			}
-			bool CachedAllocator::IsValid(void* Address) noexcept
+			bool cached_allocator::is_valid(void* address) noexcept
 			{
 				return true;
 			}
-			bool CachedAllocator::IsFinalizable() noexcept
+			bool cached_allocator::is_finalizable() noexcept
 			{
 				return false;
 			}
-			CachedAllocator::PageCache* CachedAllocator::GetPageCache(size_t Size)
+			cached_allocator::page_cache* cached_allocator::get_page_cache(size_t size)
 			{
-				auto& Page = Pages[Size];
-				for (auto* Cache : Page)
+				auto& page = pages[size];
+				for (auto* cache : page)
 				{
-					if (!Cache->Addresses.empty())
-						return Cache;
+					if (!cache->addresses.empty())
+						return cache;
 				}
 
-				size_t AddressSize = sizeof(PageAddress) + Size;
-				size_t PageElements = GetElementsCount(Page, Size);
-				size_t PageSize = sizeof(PageCache) + AddressSize * PageElements;
-				PageCache* Cache = (PageCache*)malloc(PageSize);
-				VI_ASSERT(Cache != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)PageSize);
+				size_t address_size = sizeof(page_address) + size;
+				size_t page_elements = get_elements_count(page, size);
+				size_t page_size = sizeof(page_cache) + address_size * page_elements;
+				page_cache* cache = (page_cache*)malloc(page_size);
+				VI_ASSERT(cache != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)page_size);
 
-				if (!Cache)
+				if (!cache)
 					return nullptr;
 
-				char* BaseAddress = (char*)Cache + sizeof(PageCache);
-				new(Cache) PageCache(Page, GetClock(), PageElements);
-				for (size_t i = 0; i < PageElements; i++)
+				char* base_address = (char*)cache + sizeof(page_cache);
+				new(cache) page_cache(page, get_clock(), page_elements);
+				for (size_t i = 0; i < page_elements; i++)
 				{
-					PageAddress* Next = (PageAddress*)(BaseAddress + AddressSize * i);
-					Next->Address = (void*)(BaseAddress + AddressSize * i + sizeof(PageAddress));
-					Next->Cache = Cache;
-					Cache->Addresses[i] = Next;
+					page_address* next = (page_address*)(base_address + address_size * i);
+					next->address = (void*)(base_address + address_size * i + sizeof(page_address));
+					next->cache = cache;
+					cache->addresses[i] = next;
 				}
 
-				Page.push_back(Cache);
-				return Cache;
+				page.push_back(cache);
+				return cache;
 			}
-			int64_t CachedAllocator::GetClock()
+			int64_t cached_allocator::get_clock()
 			{
 				return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 			}
-			size_t CachedAllocator::GetElementsCount(PageGroup& Page, size_t Size)
+			size_t cached_allocator::get_elements_count(page_group& page, size_t size)
 			{
-				double Frequency;
-				if (Pages.size() > 1)
+				double frequency;
+				if (pages.size() > 1)
 				{
-					Frequency = 0.0;
-					for (auto& Next : Pages)
+					frequency = 0.0;
+					for (auto& next : pages)
 					{
-						if (Next.second != Page)
-							Frequency += (double)Next.second.size();
+						if (next.second != page)
+							frequency += (double)next.second.size();
 					}
 
-					Frequency /= (double)Pages.size() - 1;
-					if (Frequency < 1.0)
-						Frequency = std::max(1.0, (double)Page.size());
+					frequency /= (double)pages.size() - 1;
+					if (frequency < 1.0)
+						frequency = std::max(1.0, (double)page.size());
 					else
-						Frequency = std::max(1.0, (double)Page.size() / Frequency);
+						frequency = std::max(1.0, (double)page.size() / frequency);
 				}
 				else
-					Frequency = 1.0;
+					frequency = 1.0;
 
-				double Total = (double)ElementsPerAllocation;
-				double Reducing = (double)Size / (double)ElementsReducingBase;
-				if (Reducing > 1.0)
+				double total = (double)elements_per_allocation;
+				double reducing = (double)size / (double)elements_reducing_base;
+				if (reducing > 1.0)
 				{
-					Total /= ElementsReducingFactor * Reducing;
-					if (Total < 1.0)
-						Total = 1.0;
+					total /= elements_reducing_factor * reducing;
+					if (total < 1.0)
+						total = 1.0;
 				}
-				else if (Frequency > 1.0)
-					Total *= Frequency;
+				else if (frequency > 1.0)
+					total *= frequency;
 
-				return (size_t)Total;
+				return (size_t)total;
 			}
 
-			LinearAllocator::LinearAllocator(size_t Size) : Top(nullptr), Bottom(nullptr), LatestSize(0), Sizing(Size)
+			linear_allocator::linear_allocator(size_t size) : top(nullptr), bottom(nullptr), latest_size(0), sizing(size)
 			{
-				if (Sizing > 0)
-					NextRegion(Sizing);
+				if (sizing > 0)
+					next_region(sizing);
 			}
-			LinearAllocator::~LinearAllocator() noexcept
+			linear_allocator::~linear_allocator() noexcept
 			{
-				FlushRegions();
+				flush_regions();
 			}
-			void* LinearAllocator::Allocate(size_t Size) noexcept
+			void* linear_allocator::allocate(size_t size) noexcept
 			{
-				if (!Bottom)
-					NextRegion(Size);
-			Retry:
-				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
-				char* OffsetAddress = Bottom->FreeAddress;
-				size_t Leftovers = MaxAddress - OffsetAddress;
-				if (Leftovers < Size)
+				if (!bottom)
+					next_region(size);
+			retry:
+				char* max_address = bottom->base_address + bottom->size;
+				char* offset_address = bottom->free_address;
+				size_t leftovers = max_address - offset_address;
+				if (leftovers < size)
 				{
-					NextRegion(Size);
-					goto Retry;
-				}
-
-				char* Address = OffsetAddress;
-				Bottom->FreeAddress = Address + Size;
-				LatestSize = Size;
-				return Address;
-			}
-			void LinearAllocator::Free(void* Address) noexcept
-			{
-				VI_ASSERT(IsValid(Address), "address is not valid");
-				char* OriginAddress = Bottom->FreeAddress - LatestSize;
-				if (OriginAddress == Address)
-				{
-					Bottom->FreeAddress = OriginAddress;
-					LatestSize = 0;
-				}
-			}
-			void LinearAllocator::Reset() noexcept
-			{
-				size_t TotalSize = 0;
-				Region* Next = Top;
-				while (Next != nullptr)
-				{
-					TotalSize += Next->Size;
-					Next->FreeAddress = Next->BaseAddress;
-					Next = Next->LowerAddress;
+					next_region(size);
+					goto retry;
 				}
 
-				if (TotalSize > Sizing)
+				char* address = offset_address;
+				bottom->free_address = address + size;
+				latest_size = size;
+				return address;
+			}
+			void linear_allocator::free(void* address) noexcept
+			{
+				VI_ASSERT(is_valid(address), "address is not valid");
+				char* origin_address = bottom->free_address - latest_size;
+				if (origin_address == address)
 				{
-					Sizing = TotalSize;
-					FlushRegions();
-					NextRegion(Sizing);
+					bottom->free_address = origin_address;
+					latest_size = 0;
 				}
 			}
-			bool LinearAllocator::IsValid(void* Address) noexcept
+			void linear_allocator::reset() noexcept
 			{
-				char* Target = (char*)Address;
-				Region* Next = Top;
-				while (Next != nullptr)
+				size_t total_size = 0;
+				region* next = top;
+				while (next != nullptr)
 				{
-					if (Target >= Next->BaseAddress && Target <= Next->BaseAddress + Next->Size)
+					total_size += next->size;
+					next->free_address = next->base_address;
+					next = next->lower_address;
+				}
+
+				if (total_size > sizing)
+				{
+					sizing = total_size;
+					flush_regions();
+					next_region(sizing);
+				}
+			}
+			bool linear_allocator::is_valid(void* address) noexcept
+			{
+				char* target = (char*)address;
+				region* next = top;
+				while (next != nullptr)
+				{
+					if (target >= next->base_address && target <= next->base_address + next->size)
 						return true;
 
-					Next = Next->LowerAddress;
+					next = next->lower_address;
 				}
 
 				return false;
 			}
-			void LinearAllocator::NextRegion(size_t Size) noexcept
+			void linear_allocator::next_region(size_t size) noexcept
 			{
-				LocalAllocator* Current = Memory::GetLocalAllocator();
-				Memory::SetLocalAllocator(nullptr);
+				local_allocator* current = memory::get_local_allocator();
+				memory::set_local_allocator(nullptr);
 
-				Region* Next = Memory::Allocate<Region>(sizeof(Region) + Size);
-				Next->BaseAddress = (char*)Next + sizeof(Region);
-				Next->FreeAddress = Next->BaseAddress;
-				Next->UpperAddress = Bottom;
-				Next->LowerAddress = nullptr;
-				Next->Size = Size;
+				region* next = memory::allocate<region>(sizeof(region) + size);
+				next->base_address = (char*)next + sizeof(region);
+				next->free_address = next->base_address;
+				next->upper_address = bottom;
+				next->lower_address = nullptr;
+				next->size = size;
 
-				if (!Top)
-					Top = Next;
-				if (Bottom != nullptr)
-					Bottom->LowerAddress = Next;
+				if (!top)
+					top = next;
+				if (bottom != nullptr)
+					bottom->lower_address = next;
 
-				Bottom = Next;
-				Memory::SetLocalAllocator(Current);
+				bottom = next;
+				memory::set_local_allocator(current);
 			}
-			void LinearAllocator::FlushRegions() noexcept
+			void linear_allocator::flush_regions() noexcept
 			{
-				LocalAllocator* Current = Memory::GetLocalAllocator();
-				Memory::SetLocalAllocator(nullptr);
+				local_allocator* current = memory::get_local_allocator();
+				memory::set_local_allocator(nullptr);
 
-				Region* Next = Bottom;
-				Bottom = nullptr;
-				Top = nullptr;
+				region* next = bottom;
+				bottom = nullptr;
+				top = nullptr;
 
-				while (Next != nullptr)
+				while (next != nullptr)
 				{
-					void* Address = (void*)Next;
-					Next = Next->UpperAddress;
-					Memory::Deallocate(Address);
+					void* address = (void*)next;
+					next = next->upper_address;
+					memory::deallocate(address);
 				}
 
-				Memory::SetLocalAllocator(Current);
+				memory::set_local_allocator(current);
 			}
-			size_t LinearAllocator::GetLeftovers() const noexcept
+			size_t linear_allocator::get_leftovers() const noexcept
 			{
-				if (!Bottom)
+				if (!bottom)
 					return 0;
 
-				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
-				char* OffsetAddress = Bottom->FreeAddress;
-				return MaxAddress - OffsetAddress;
+				char* max_address = bottom->base_address + bottom->size;
+				char* offset_address = bottom->free_address;
+				return max_address - offset_address;
 			}
 
-			StackAllocator::StackAllocator(size_t Size) : Top(nullptr), Bottom(nullptr), Sizing(Size)
+			stack_allocator::stack_allocator(size_t size) : top(nullptr), bottom(nullptr), sizing(size)
 			{
-				if (Sizing > 0)
-					NextRegion(Sizing);
+				if (sizing > 0)
+					next_region(sizing);
 			}
-			StackAllocator::~StackAllocator() noexcept
+			stack_allocator::~stack_allocator() noexcept
 			{
-				FlushRegions();
+				flush_regions();
 			}
-			void* StackAllocator::Allocate(size_t Size) noexcept
+			void* stack_allocator::allocate(size_t size) noexcept
 			{
-				Size = Size + sizeof(size_t);
-				if (!Bottom)
-					NextRegion(Size);
-			Retry:
-				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
-				char* OffsetAddress = Bottom->FreeAddress;
-				size_t Leftovers = MaxAddress - OffsetAddress;
-				if (Leftovers < Size)
+				size = size + sizeof(size_t);
+				if (!bottom)
+					next_region(size);
+			retry:
+				char* max_address = bottom->base_address + bottom->size;
+				char* offset_address = bottom->free_address;
+				size_t leftovers = max_address - offset_address;
+				if (leftovers < size)
 				{
-					NextRegion(Size);
-					goto Retry;
+					next_region(size);
+					goto retry;
 				}
 
-				char* Address = OffsetAddress;
-				Bottom->FreeAddress = Address + Size;
-				*(size_t*)Address = Size;
-				return Address + sizeof(size_t);
+				char* address = offset_address;
+				bottom->free_address = address + size;
+				*(size_t*)address = size;
+				return address + sizeof(size_t);
 			}
-			void StackAllocator::Free(void* Address) noexcept
+			void stack_allocator::free(void* address) noexcept
 			{
-				VI_ASSERT(IsValid(Address), "address is not valid");
-				char* OffsetAddress = (char*)Address - sizeof(size_t);
-				char* OriginAddress = Bottom->FreeAddress - *(size_t*)OffsetAddress;
-				if (OriginAddress == OffsetAddress)
-					Bottom->FreeAddress = OriginAddress;
+				VI_ASSERT(is_valid(address), "address is not valid");
+				char* offset_address = (char*)address - sizeof(size_t);
+				char* origin_address = bottom->free_address - *(size_t*)offset_address;
+				if (origin_address == offset_address)
+					bottom->free_address = origin_address;
 			}
-			void StackAllocator::Reset() noexcept
+			void stack_allocator::reset() noexcept
 			{
-				size_t TotalSize = 0;
-				Region* Next = Top;
-				while (Next != nullptr)
+				size_t total_size = 0;
+				region* next = top;
+				while (next != nullptr)
 				{
-					TotalSize += Next->Size;
-					Next->FreeAddress = Next->BaseAddress;
-					Next = Next->LowerAddress;
+					total_size += next->size;
+					next->free_address = next->base_address;
+					next = next->lower_address;
 				}
 
-				if (TotalSize > Sizing)
+				if (total_size > sizing)
 				{
-					Sizing = TotalSize;
-					FlushRegions();
-					NextRegion(Sizing);
+					sizing = total_size;
+					flush_regions();
+					next_region(sizing);
 				}
 			}
-			bool StackAllocator::IsValid(void* Address) noexcept
+			bool stack_allocator::is_valid(void* address) noexcept
 			{
-				char* Target = (char*)Address;
-				Region* Next = Top;
-				while (Next != nullptr)
+				char* target = (char*)address;
+				region* next = top;
+				while (next != nullptr)
 				{
-					if (Target >= Next->BaseAddress && Target <= Next->BaseAddress + Next->Size)
+					if (target >= next->base_address && target <= next->base_address + next->size)
 						return true;
 
-					Next = Next->LowerAddress;
+					next = next->lower_address;
 				}
 
 				return false;
 			}
-			void StackAllocator::NextRegion(size_t Size) noexcept
+			void stack_allocator::next_region(size_t size) noexcept
 			{
-				LocalAllocator* Current = Memory::GetLocalAllocator();
-				Memory::SetLocalAllocator(nullptr);
+				local_allocator* current = memory::get_local_allocator();
+				memory::set_local_allocator(nullptr);
 
-				Region* Next = Memory::Allocate<Region>(sizeof(Region) + Size);
-				Next->BaseAddress = (char*)Next + sizeof(Region);
-				Next->FreeAddress = Next->BaseAddress;
-				Next->UpperAddress = Bottom;
-				Next->LowerAddress = nullptr;
-				Next->Size = Size;
+				region* next = memory::allocate<region>(sizeof(region) + size);
+				next->base_address = (char*)next + sizeof(region);
+				next->free_address = next->base_address;
+				next->upper_address = bottom;
+				next->lower_address = nullptr;
+				next->size = size;
 
-				if (!Top)
-					Top = Next;
-				if (Bottom != nullptr)
-					Bottom->LowerAddress = Next;
+				if (!top)
+					top = next;
+				if (bottom != nullptr)
+					bottom->lower_address = next;
 
-				Bottom = Next;
-				Memory::SetLocalAllocator(Current);
+				bottom = next;
+				memory::set_local_allocator(current);
 			}
-			void StackAllocator::FlushRegions() noexcept
+			void stack_allocator::flush_regions() noexcept
 			{
-				LocalAllocator* Current = Memory::GetLocalAllocator();
-				Memory::SetLocalAllocator(nullptr);
+				local_allocator* current = memory::get_local_allocator();
+				memory::set_local_allocator(nullptr);
 
-				Region* Next = Bottom;
-				Bottom = nullptr;
-				Top = nullptr;
+				region* next = bottom;
+				bottom = nullptr;
+				top = nullptr;
 
-				while (Next != nullptr)
+				while (next != nullptr)
 				{
-					void* Address = (void*)Next;
-					Next = Next->UpperAddress;
-					Memory::Deallocate(Address);
+					void* address = (void*)next;
+					next = next->upper_address;
+					memory::deallocate(address);
 				}
 
-				Memory::SetLocalAllocator(Current);
+				memory::set_local_allocator(current);
 			}
-			size_t StackAllocator::GetLeftovers() const noexcept
+			size_t stack_allocator::get_leftovers() const noexcept
 			{
-				if (!Bottom)
+				if (!bottom)
 					return 0;
 
-				char* MaxAddress = Bottom->BaseAddress + Bottom->Size;
-				char* OffsetAddress = Bottom->FreeAddress;
-				return MaxAddress - OffsetAddress;
+				char* max_address = bottom->base_address + bottom->size;
+				char* offset_address = bottom->free_address;
+				return max_address - offset_address;
 			}
 		}
 
-		typedef moodycamel::BlockingConcurrentQueue<TaskCallback> FastQueue;
-		typedef moodycamel::ConsumerToken ReceiveToken;
+		typedef moodycamel::BlockingConcurrentQueue<task_callback> fast_queue;
+		typedef moodycamel::ConsumerToken receive_token;
 
-		struct Measurement
+		struct measurement
 		{
 #ifndef NDEBUG
-			const char* File = nullptr;
-			const char* Function = nullptr;
-			void* Id = nullptr;
-			uint64_t Threshold = 0;
-			uint64_t Time = 0;
-			int Line = 0;
+			const char* file = nullptr;
+			const char* function = nullptr;
+			void* id = nullptr;
+			uint64_t threshold = 0;
+			uint64_t time = 0;
+			int line = 0;
 
-			void NotifyOfOverConsumption()
+			void notify_of_over_consumption()
 			{
-				if (Threshold == (uint64_t)Timings::Infinite)
+				if (threshold == (uint64_t)timings::infinite)
 					return;
 
-				uint64_t Delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Time;
-				if (Delta <= Threshold)
+				uint64_t delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - time;
+				if (delta <= threshold)
 					return;
 
-				String BackTrace = ErrorHandling::GetMeasureTrace();
-				VI_WARN("[stall] sync operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
+				string back_trace = error_handling::get_measure_trace();
+				VI_WARN("[stall] sync operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", delta / 1000, delta, back_trace.c_str());
 			}
 #endif
 		};
 
-		struct Cocontext
+		struct cocontext
 		{
 #ifdef VI_FCONTEXT
-			fcontext_t Context = nullptr;
-			char* Stack = nullptr;
+			fcontext_t context = nullptr;
+			char* stack = nullptr;
 #elif VI_MICROSOFT
-			LPVOID Context = nullptr;
-			bool Main = false;
+			LPVOID context = nullptr;
+			bool main = false;
 #else
-			ucontext_t Context = nullptr;
-			char* Stack = nullptr;
+			ucontext_t context = nullptr;
+			char* stack = nullptr;
 #endif
-			Cocontext()
+			cocontext()
 			{
 #ifndef VI_FCONTEXT
 #ifdef VI_MICROSOFT
-				Context = ConvertThreadToFiber(nullptr);
-				Main = true;
+				context = ConvertThreadToFiber(nullptr);
+				main = true;
 #endif
 #endif
 			}
-			Cocontext(Costate* State)
+			cocontext(costate* state)
 			{
 #ifdef VI_FCONTEXT
-				Stack = Memory::Allocate<char>(sizeof(char) * State->Size);
-				Context = make_fcontext(Stack + State->Size, State->Size, [](transfer_t Transfer)
+				stack = memory::allocate<char>(sizeof(char) * state->size);
+				context = make_fcontext(stack + state->size, state->size, [](transfer_t transfer)
 				{
-					Costate::ExecutionEntry(&Transfer);
+					costate::execution_entry(&transfer);
 				});
 #elif VI_MICROSOFT
-				Context = CreateFiber(State->Size, &Costate::ExecutionEntry, (LPVOID)State);
+				context = CreateFiber(state->size, &costate::execution_entry, (LPVOID)state);
 #else
-				getcontext(&Context);
-				Stack = Memory::Allocate<char>(sizeof(char) * State->Size);
-				Context.uc_stack.ss_sp = Stack;
-				Context.uc_stack.ss_size = State->Size;
-				Context.uc_stack.ss_flags = 0;
-				Context.uc_link = &State->Master->Context;
+				getcontext(&context);
+				stack = memory::allocate<char>(sizeof(char) * state->size);
+				context.uc_stack.ss_sp = stack;
+				context.uc_stack.ss_size = state->size;
+				context.uc_stack.ss_flags = 0;
+				context.uc_link = &state->master->context;
 
-				int X, Y;
-				Pack2_64((void*)State, &X, &Y);
-				makecontext(&Context, (void(*)()) & Costate::ExecutionEntry, 2, X, Y);
+				int x, y;
+				pack264((void*)state, &x, &y);
+				makecontext(&context, (void(*)()) & costate::execution_entry, 2, x, y);
 #endif
 			}
-			~Cocontext()
+			~cocontext()
 			{
 #ifdef VI_FCONTEXT
-				Memory::Deallocate(Stack);
+				memory::deallocate(stack);
 #elif VI_MICROSOFT
-				if (Main)
+				if (main)
 					ConvertFiberToThread();
-				else if (Context != nullptr)
-					DeleteFiber(Context);
+				else if (context != nullptr)
+					DeleteFiber(context);
 #else
-				Memory::Deallocate(Stack);
+				memory::deallocate(stack);
 #endif
 			}
 		};
 
-		struct ConcurrentSyncQueue
+		struct concurrent_sync_queue
 		{
-			FastQueue Queue;
+			fast_queue queue;
 		};
 
-		struct ConcurrentAsyncQueue : ConcurrentSyncQueue
+		struct concurrent_async_queue : concurrent_sync_queue
 		{
-			std::condition_variable Notify;
-			std::mutex Update;
-			std::atomic<bool> Resync = true;
+			std::condition_variable notify;
+			std::mutex update;
+			std::atomic<bool> resync = true;
 		};
 
-		BasicException::BasicException(const std::string_view& NewMessage) noexcept : Message(NewMessage)
+		basic_exception::basic_exception(const std::string_view& new_message) noexcept : error_message(new_message)
 		{
 		}
-		BasicException::BasicException(String&& NewMessage) noexcept : Message(std::move(NewMessage))
+		basic_exception::basic_exception(string&& new_message) noexcept : error_message(std::move(new_message))
 		{
 		}
-		const char* BasicException::what() const noexcept
+		const char* basic_exception::what() const noexcept
 		{
-			return Message.c_str();
+			return error_message.c_str();
 		}
-		const String& BasicException::message() const& noexcept
+		const string& basic_exception::message() const& noexcept
 		{
-			return Message;
+			return error_message;
 		}
-		const String&& BasicException::message() const&& noexcept
+		const string&& basic_exception::message() const&& noexcept
 		{
-			return std::move(Message);
+			return std::move(error_message);
 		}
-		String& BasicException::message() & noexcept
+		string& basic_exception::message() & noexcept
 		{
-			return Message;
+			return error_message;
 		}
-		String&& BasicException::message() && noexcept
+		string&& basic_exception::message() && noexcept
 		{
-			return std::move(Message);
+			return std::move(error_message);
 		}
 
-		ParserException::ParserException(ParserError NewType) : ParserException(NewType, -1, Core::String())
+		parser_exception::parser_exception(parser_error new_type) : parser_exception(new_type, -1, core::string())
 		{
 		}
-		ParserException::ParserException(ParserError NewType, size_t NewOffset) : ParserException(NewType, NewOffset, Core::String())
+		parser_exception::parser_exception(parser_error new_type, size_t new_offset) : parser_exception(new_type, new_offset, core::string())
 		{
 		}
-		ParserException::ParserException(ParserError NewType, size_t NewOffset, const std::string_view& NewMessage) : BasicException(), Type(NewType), Offset(NewOffset)
+		parser_exception::parser_exception(parser_error new_type, size_t new_offset, const std::string_view& new_message) : basic_exception(), error_type(new_type), error_offset(new_offset)
 		{
-			if (NewMessage.empty())
+			if (new_message.empty())
 			{
-				switch (Type)
+				switch (error_type)
 				{
-					case ParserError::NotSupported:
-						Message = "required libraries are not loaded";
+					case parser_error::not_supported:
+						error_message = "required libraries are not loaded";
 						break;
-					case ParserError::BadVersion:
-						Message = "corrupted JSONB version header";
+					case parser_error::bad_version:
+						error_message = "corrupted JSONB version header";
 						break;
-					case ParserError::BadDictionary:
-						Message = "corrupted JSONB dictionary body";
+					case parser_error::bad_dictionary:
+						error_message = "corrupted JSONB dictionary body";
 						break;
-					case ParserError::BadNameIndex:
-						Message = "invalid JSONB dictionary name index";
+					case parser_error::bad_name_index:
+						error_message = "invalid JSONB dictionary name index";
 						break;
-					case ParserError::BadName:
-						Message = "invalid JSONB name";
+					case parser_error::bad_name:
+						error_message = "invalid JSONB name";
 						break;
-					case ParserError::BadKeyName:
-						Message = "invalid JSONB key name";
+					case parser_error::bad_key_name:
+						error_message = "invalid JSONB key name";
 						break;
-					case ParserError::BadKeyType:
-						Message = "invalid JSONB key type";
+					case parser_error::bad_key_type:
+						error_message = "invalid JSONB key type";
 						break;
-					case ParserError::BadValue:
-						Message = "invalid JSONB value for specified key";
+					case parser_error::bad_value:
+						error_message = "invalid JSONB value for specified key";
 						break;
-					case ParserError::BadString:
-						Message = "invalid JSONB value string";
+					case parser_error::bad_string:
+						error_message = "invalid JSONB value string";
 						break;
-					case ParserError::BadInteger:
-						Message = "invalid JSONB value integer";
+					case parser_error::bad_integer:
+						error_message = "invalid JSONB value integer";
 						break;
-					case ParserError::BadDouble:
-						Message = "invalid JSONB value double";
+					case parser_error::bad_double:
+						error_message = "invalid JSONB value double";
 						break;
-					case ParserError::BadBoolean:
-						Message = "invalid JSONB value boolean";
+					case parser_error::bad_boolean:
+						error_message = "invalid JSONB value boolean";
 						break;
-					case ParserError::XMLOutOfMemory:
-						Message = "XML out of memory";
+					case parser_error::xml_out_of_memory:
+						error_message = "XML out of memory";
 						break;
-					case ParserError::XMLInternalError:
-						Message = "XML internal error";
+					case parser_error::xml_internal_error:
+						error_message = "XML internal error";
 						break;
-					case ParserError::XMLUnrecognizedTag:
-						Message = "XML unrecognized tag";
+					case parser_error::xml_unrecognized_tag:
+						error_message = "XML unrecognized tag";
 						break;
-					case ParserError::XMLBadPi:
-						Message = "XML bad pi";
+					case parser_error::xml_bad_pi:
+						error_message = "XML bad pi";
 						break;
-					case ParserError::XMLBadComment:
-						Message = "XML bad comment";
+					case parser_error::xml_bad_comment:
+						error_message = "XML bad comment";
 						break;
-					case ParserError::XMLBadCData:
-						Message = "XML bad cdata";
+					case parser_error::xml_bad_cdata:
+						error_message = "XML bad cdata";
 						break;
-					case ParserError::XMLBadDocType:
-						Message = "XML bad doctype";
+					case parser_error::xml_bad_doc_type:
+						error_message = "XML bad doctype";
 						break;
-					case ParserError::XMLBadPCData:
-						Message = "XML bad pcdata";
+					case parser_error::xml_bad_pc_data:
+						error_message = "XML bad pcdata";
 						break;
-					case ParserError::XMLBadStartElement:
-						Message = "XML bad start element";
+					case parser_error::xml_bad_start_element:
+						error_message = "XML bad start element";
 						break;
-					case ParserError::XMLBadAttribute:
-						Message = "XML bad attribute";
+					case parser_error::xml_bad_attribute:
+						error_message = "XML bad attribute";
 						break;
-					case ParserError::XMLBadEndElement:
-						Message = "XML bad end element";
+					case parser_error::xml_bad_end_element:
+						error_message = "XML bad end element";
 						break;
-					case ParserError::XMLEndElementMismatch:
-						Message = "XML end element mismatch";
+					case parser_error::xml_end_element_mismatch:
+						error_message = "XML end element mismatch";
 						break;
-					case ParserError::XMLAppendInvalidRoot:
-						Message = "XML append invalid root";
+					case parser_error::xml_append_invalid_root:
+						error_message = "XML append invalid root";
 						break;
-					case ParserError::XMLNoDocumentElement:
-						Message = "XML no document element";
+					case parser_error::xml_no_document_element:
+						error_message = "XML no document element";
 						break;
-					case ParserError::JSONDocumentEmpty:
-						Message = "the JSON document is empty";
+					case parser_error::json_document_empty:
+						error_message = "the JSON document is empty";
 						break;
-					case ParserError::JSONDocumentRootNotSingular:
-						Message = "the JSON document root must not follow by other values";
+					case parser_error::json_document_root_not_singular:
+						error_message = "the JSON document root must not follow by other values";
 						break;
-					case ParserError::JSONValueInvalid:
-						Message = "the JSON document contains an invalid value";
+					case parser_error::json_value_invalid:
+						error_message = "the JSON document contains an invalid value";
 						break;
-					case ParserError::JSONObjectMissName:
-						Message = "missing a name for a JSON object member";
+					case parser_error::json_object_miss_name:
+						error_message = "missing a name for a JSON object member";
 						break;
-					case ParserError::JSONObjectMissColon:
-						Message = "missing a colon after a name of a JSON object member";
+					case parser_error::json_object_miss_colon:
+						error_message = "missing a colon after a name of a JSON object member";
 						break;
-					case ParserError::JSONObjectMissCommaOrCurlyBracket:
-						Message = "missing a comma or '}' after a JSON object member";
+					case parser_error::json_object_miss_comma_or_curly_bracket:
+						error_message = "missing a comma or '}' after a JSON object member";
 						break;
-					case ParserError::JSONArrayMissCommaOrSquareBracket:
-						Message = "missing a comma or ']' after a JSON array element";
+					case parser_error::json_array_miss_comma_or_square_bracket:
+						error_message = "missing a comma or ']' after a JSON array element";
 						break;
-					case ParserError::JSONStringUnicodeEscapeInvalidHex:
-						Message = "incorrect hex digit after \\u escape in a JSON string";
+					case parser_error::json_string_unicode_escape_invalid_hex:
+						error_message = "incorrect hex digit after \\u escape in a JSON string";
 						break;
-					case ParserError::JSONStringUnicodeSurrogateInvalid:
-						Message = "the surrogate pair in a JSON string is invalid";
+					case parser_error::json_string_unicode_surrogate_invalid:
+						error_message = "the surrogate pair in a JSON string is invalid";
 						break;
-					case ParserError::JSONStringEscapeInvalid:
-						Message = "invalid escape character in a JSON string";
+					case parser_error::json_string_escape_invalid:
+						error_message = "invalid escape character in a JSON string";
 						break;
-					case ParserError::JSONStringMissQuotationMark:
-						Message = "missing a closing quotation mark in a JSON string";
+					case parser_error::json_string_miss_quotation_mark:
+						error_message = "missing a closing quotation mark in a JSON string";
 						break;
-					case ParserError::JSONStringInvalidEncoding:
-						Message = "invalid encoding in a JSON string";
+					case parser_error::json_string_invalid_encoding:
+						error_message = "invalid encoding in a JSON string";
 						break;
-					case ParserError::JSONNumberTooBig:
-						Message = "JSON number too big to be stored in double";
+					case parser_error::json_number_too_big:
+						error_message = "JSON number too big to be stored in double";
 						break;
-					case ParserError::JSONNumberMissFraction:
-						Message = "missing fraction part in a JSON number";
+					case parser_error::json_number_miss_fraction:
+						error_message = "missing fraction part in a JSON number";
 						break;
-					case ParserError::JSONNumberMissExponent:
-						Message = "missing exponent in a JSON number";
+					case parser_error::json_number_miss_exponent:
+						error_message = "missing exponent in a JSON number";
 						break;
-					case ParserError::JSONTermination:
-						Message = "unexpected end of file while parsing a JSON document";
+					case parser_error::json_termination:
+						error_message = "unexpected end of file while parsing a JSON document";
 						break;
-					case ParserError::JSONUnspecificSyntaxError:
-						Message = "unspecified JSON syntax error";
+					case parser_error::json_unspecific_syntax_error:
+						error_message = "unspecified JSON syntax error";
 						break;
 					default:
-						Message = "(unrecognized condition)";
+						error_message = "(unrecognized condition)";
 						break;
 				}
 			}
 			else
-				Message = NewMessage;
+				error_message = new_message;
 
-			if (Offset > 0)
+			if (error_offset > 0)
 			{
-				Message += " at offset ";
-				Message += ToString(Offset);
+				error_message += " at offset ";
+				error_message += to_string(error_offset);
 			}
 		}
-		const char* ParserException::type() const noexcept
+		const char* parser_exception::type() const noexcept
 		{
 			return "parser_error";
 		}
-		ParserError ParserException::status() const noexcept
+		parser_error parser_exception::status() const noexcept
 		{
-			return Type;
+			return error_type;
 		}
-		size_t ParserException::offset() const noexcept
+		size_t parser_exception::offset() const noexcept
 		{
-			return Offset;
+			return error_offset;
 		}
 
-		SystemException::SystemException() : SystemException(String())
+		system_exception::system_exception() : system_exception(string())
 		{
 		}
-		SystemException::SystemException(const std::string_view& NewMessage) : Error(OS::Error::GetConditionOr(std::errc::operation_not_permitted))
+		system_exception::system_exception(const std::string_view& new_message) : error_condition(os::error::get_condition_or(std::errc::operation_not_permitted))
 		{
-			if (!NewMessage.empty())
+			if (!new_message.empty())
 			{
-				Message += NewMessage;
-				Message += " (error = ";
-				Message += Error.message().c_str();
-				Message += ")";
+				error_message += new_message;
+				error_message += " (error = ";
+				error_message += error_condition.message().c_str();
+				error_message += ")";
 			}
 			else
-				Message = Copy<String>(Error.message());
+				error_message = copy<string>(error_condition.message());
 		}
-		SystemException::SystemException(const std::string_view& NewMessage, std::error_condition&& Condition) : Error(std::move(Condition))
+		system_exception::system_exception(const std::string_view& new_message, std::error_condition&& condition) : error_condition(std::move(condition))
 		{
-			if (!NewMessage.empty())
+			if (!new_message.empty())
 			{
-				Message += NewMessage;
-				Message += " (error = ";
-				Message += Error.message().c_str();
-				Message += ")";
+				error_message += new_message;
+				error_message += " (error = ";
+				error_message += error_condition.message().c_str();
+				error_message += ")";
 			}
 			else
-				Message = Copy<String>(Error.message());
+				error_message = copy<string>(error_condition.message());
 		}
-		const char* SystemException::type() const noexcept
+		const char* system_exception::type() const noexcept
 		{
 			return "system_error";
 		}
-		const std::error_condition& SystemException::error() const& noexcept
+		const std::error_condition& system_exception::error() const& noexcept
 		{
-			return Error;
+			return error_condition;
 		}
-		const std::error_condition&& SystemException::error() const&& noexcept
+		const std::error_condition&& system_exception::error() const&& noexcept
 		{
-			return std::move(Error);
+			return std::move(error_condition);
 		}
-		std::error_condition& SystemException::error() & noexcept
+		std::error_condition& system_exception::error() & noexcept
 		{
-			return Error;
+			return error_condition;
 		}
-		std::error_condition&& SystemException::error() && noexcept
+		std::error_condition&& system_exception::error() && noexcept
 		{
-			return std::move(Error);
-		}
-
-		MemoryLocation::MemoryLocation() : Source("?.cpp"), Function("?"), TypeName("void"), Line(0)
-		{
-		}
-		MemoryLocation::MemoryLocation(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine) : Source(NewSource ? NewSource : "?.cpp"), Function(NewFunction ? NewFunction : "?"), TypeName(NewTypeName ? NewTypeName : "void"), Line(NewLine >= 0 ? NewLine : 0)
-		{
+			return std::move(error_condition);
 		}
 
-		static thread_local LocalAllocator* InternalAllocator = nullptr;
-		void* Memory::DefaultAllocate(size_t Size) noexcept
+		memory_location::memory_location() : source("?.cpp"), function("?"), type_name("void"), line(0)
 		{
-			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
-			if (InternalAllocator != nullptr)
-			{
-				void* Address = InternalAllocator->Allocate(Size);
-				VI_PANIC(Address != nullptr, "application is out of local memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-				return Address;
-			}
-			else if (Global != nullptr)
-			{
-				void* Address = Global->Allocate(Size);
-				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-				return Address;
-			}
-			else if (!Context)
-				Context = new State();
-
-			void* Address = malloc(Size);
-			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			UMutex<std::mutex> Unique(Context->Mutex);
-			Context->Allocations[Address].second = Size;
-			return Address;
 		}
-		void* Memory::TracingAllocate(size_t Size, MemoryLocation&& Origin) noexcept
+		memory_location::memory_location(const char* new_source, const char* new_function, const char* new_type_name, int new_line) : source(new_source ? new_source : "?.cpp"), function(new_function ? new_function : "?"), type_name(new_type_name ? new_type_name : "void"), line(new_line >= 0 ? new_line : 0)
 		{
-			VI_ASSERT(Size > 0, "cannot allocate zero bytes");
-			if (InternalAllocator != nullptr)
-			{
-				void* Address = InternalAllocator->Allocate(Size);
-				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-				return Address;
-			}
-			else if (Global != nullptr)
-			{
-				void* Address = Global->Allocate(std::move(Origin), Size);
-				VI_PANIC(Address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-				return Address;
-			}
-			else if (!Context)
-				Context = new State();
-
-			void* Address = malloc(Size);
-			VI_PANIC(Address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)Size);
-			UMutex<std::mutex> Unique(Context->Mutex);
-			auto& Item = Context->Allocations[Address];
-			Item.first = std::move(Origin);
-			Item.second = Size;
-			return Address;
 		}
-		void Memory::DefaultDeallocate(void* Address) noexcept
+
+		static thread_local local_allocator* internal_allocator = nullptr;
+		void* memory::default_allocate(size_t size) noexcept
 		{
-			if (!Address)
+			VI_ASSERT(size > 0, "cannot allocate zero bytes");
+			if (internal_allocator != nullptr)
+			{
+				void* address = internal_allocator->allocate(size);
+				VI_PANIC(address != nullptr, "application is out of local memory allocating %" PRIu64 " bytes", (uint64_t)size);
+				return address;
+			}
+			else if (global != nullptr)
+			{
+				void* address = global->allocate(size);
+				VI_PANIC(address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)size);
+				return address;
+			}
+			else if (!context)
+				context = new state();
+
+			void* address = malloc(size);
+			VI_PANIC(address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)size);
+			umutex<std::mutex> unique(context->mutex);
+			context->allocations[address].second = size;
+			return address;
+		}
+		void* memory::tracing_allocate(size_t size, memory_location&& origin) noexcept
+		{
+			VI_ASSERT(size > 0, "cannot allocate zero bytes");
+			if (internal_allocator != nullptr)
+			{
+				void* address = internal_allocator->allocate(size);
+				VI_PANIC(address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)size);
+				return address;
+			}
+			else if (global != nullptr)
+			{
+				void* address = global->allocate(std::move(origin), size);
+				VI_PANIC(address != nullptr, "application is out of global memory allocating %" PRIu64 " bytes", (uint64_t)size);
+				return address;
+			}
+			else if (!context)
+				context = new state();
+
+			void* address = malloc(size);
+			VI_PANIC(address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)size);
+			umutex<std::mutex> unique(context->mutex);
+			auto& item = context->allocations[address];
+			item.first = std::move(origin);
+			item.second = size;
+			return address;
+		}
+		void memory::default_deallocate(void* address) noexcept
+		{
+			if (!address)
 				return;
 
-			if (InternalAllocator != nullptr)
-				return InternalAllocator->Free(Address);
-			else if (Global != nullptr)
-				return Global->Free(Address);
-			else if (!Context)
-				Context = new State();
+			if (internal_allocator != nullptr)
+				return internal_allocator->free(address);
+			else if (global != nullptr)
+				return global->free(address);
+			else if (!context)
+				context = new state();
 
-			UMutex<std::mutex> Unique(Context->Mutex);
-			Context->Allocations.erase(Address);
-			free(Address);
+			umutex<std::mutex> unique(context->mutex);
+			context->allocations.erase(address);
+			free(address);
 		}
-		void Memory::Watch(void* Address, MemoryLocation&& Origin) noexcept
+		void memory::watch(void* address, memory_location&& origin) noexcept
 		{
-			VI_ASSERT(Global != nullptr, "allocator should be set");
-			VI_ASSERT(Address != nullptr, "address should be set");
-			Global->Watch(std::move(Origin), Address);
+			VI_ASSERT(global != nullptr, "allocator should be set");
+			VI_ASSERT(address != nullptr, "address should be set");
+			global->watch(std::move(origin), address);
 		}
-		void Memory::Unwatch(void* Address) noexcept
+		void memory::unwatch(void* address) noexcept
 		{
-			VI_ASSERT(Global != nullptr, "allocator should be set");
-			VI_ASSERT(Address != nullptr, "address should be set");
-			Global->Unwatch(Address);
+			VI_ASSERT(global != nullptr, "allocator should be set");
+			VI_ASSERT(address != nullptr, "address should be set");
+			global->unwatch(address);
 		}
-		void Memory::Cleanup() noexcept
+		void memory::cleanup() noexcept
 		{
-			SetGlobalAllocator(nullptr);
+			set_global_allocator(nullptr);
 		}
-		void Memory::SetGlobalAllocator(GlobalAllocator* NewAllocator) noexcept
+		void memory::set_global_allocator(global_allocator* new_allocator) noexcept
 		{
-			if (Global != nullptr)
-				Global->Finalize();
+			if (global != nullptr)
+				global->finalize();
 
-			Global = NewAllocator;
-			if (Global != nullptr && Context != nullptr)
+			global = new_allocator;
+			if (global != nullptr && context != nullptr)
 			{
-				for (auto& Item : Context->Allocations)
+				for (auto& item : context->allocations)
 				{
 #ifndef NDEBUG
-					Global->Transfer(Item.first, MemoryLocation(Item.second.first), Item.second.second);
+					global->transfer(item.first, memory_location(item.second.first), item.second.second);
 #else
-					Global->Transfer(Item.first, Item.second.second);
+					global->transfer(item.first, item.second.second);
 #endif
 				}
 			}
 
-			delete Context;
-			Context = nullptr;
+			delete context;
+			context = nullptr;
 		}
-		void Memory::SetLocalAllocator(LocalAllocator* NewAllocator) noexcept
+		void memory::set_local_allocator(local_allocator* new_allocator) noexcept
 		{
-			InternalAllocator = NewAllocator;
+			internal_allocator = new_allocator;
 		}
-		bool Memory::IsValidAddress(void* Address) noexcept
+		bool memory::is_valid_address(void* address) noexcept
 		{
-			VI_ASSERT(Global != nullptr, "allocator should be set");
-			VI_ASSERT(Address != nullptr, "address should be set");
-			if (InternalAllocator != nullptr && InternalAllocator->IsValid(Address))
+			VI_ASSERT(global != nullptr, "allocator should be set");
+			VI_ASSERT(address != nullptr, "address should be set");
+			if (internal_allocator != nullptr && internal_allocator->is_valid(address))
 				return true;
 
-			return Global->IsValid(Address);
+			return global->is_valid(address);
 		}
-		GlobalAllocator* Memory::GetGlobalAllocator() noexcept
+		global_allocator* memory::get_global_allocator() noexcept
 		{
-			return Global;
+			return global;
 		}
-		LocalAllocator* Memory::GetLocalAllocator() noexcept
+		local_allocator* memory::get_local_allocator() noexcept
 		{
-			return InternalAllocator;
+			return internal_allocator;
 		}
-		GlobalAllocator* Memory::Global = nullptr;
-		Memory::State* Memory::Context = nullptr;
+		global_allocator* memory::global = nullptr;
+		memory::state* memory::context = nullptr;
 
-		StackTrace::StackTrace(size_t Skips, size_t MaxDepth)
+		stack_trace::stack_trace(size_t skips, size_t max_depth)
 		{
-			Scripting::ImmediateContext* Context = Scripting::ImmediateContext::Get();
-			if (Context != nullptr)
+			scripting::immediate_context* context = scripting::immediate_context::get();
+			if (context != nullptr)
 			{
-				Scripting::VirtualMachine* VM = Context->GetVM();
-				size_t CallstackSize = Context->GetCallstackSize();
-				Frames.reserve(CallstackSize);
-				for (size_t i = 0; i < CallstackSize; i++)
+				scripting::virtual_machine* VM = context->get_vm();
+				size_t callstack_size = context->get_callstack_size();
+				frames.reserve(callstack_size);
+				for (size_t i = 0; i < callstack_size; i++)
 				{
-					int ColumnNumber = 0;
-					int LineNumber = Context->GetLineNumber(i, &ColumnNumber);
-					Scripting::Function Next = Context->GetFunction(i);
-					auto SectionName = Next.GetSectionName();
-					Frame Target;
-					if (!SectionName.empty())
+					int column_number = 0;
+					int line_number = context->get_line_number(i, &column_number);
+					scripting::function next = context->get_function(i);
+					auto section_name = next.get_section_name();
+					frame target;
+					if (!section_name.empty())
 					{
-						auto SourceCode = VM->GetSourceCodeAppendixByPath("source", SectionName, (uint32_t)LineNumber, (uint32_t)ColumnNumber, 5);
-						if (SourceCode)
-							Target.Code = *SourceCode;
-						Target.File = SectionName;
+						auto source_code = VM->get_source_code_appendix_by_path("source", section_name, (uint32_t)line_number, (uint32_t)column_number, 5);
+						if (source_code)
+							target.code = *source_code;
+						target.file = section_name;
 					}
 					else
-						Target.File = "[native]";
-					Target.Function = (Next.GetDecl().empty() ? "[optimized]" : Next.GetDecl());
-					Target.Line = (uint32_t)LineNumber;
-					Target.Column = (uint32_t)ColumnNumber;
-					Target.Handle = (void*)Next.GetFunction();
-					Target.Native = false;
-					Frames.emplace_back(std::move(Target));
+						target.file = "[native]";
+					target.function = (next.get_decl().empty() ? "[optimized]" : next.get_decl());
+					target.line = (uint32_t)line_number;
+					target.column = (uint32_t)column_number;
+					target.handle = (void*)next.get_function();
+					target.native = false;
+					frames.emplace_back(std::move(target));
 				}
 			}
 #ifdef VI_CXX23
-			using StackTraceContainer = std::basic_stacktrace<StandardAllocator<std::stacktrace_entry>>;
-			StackTraceContainer Stack = StackTraceContainer::current(Skips + 2, MaxDepth + Skips + 2);
-			Frames.reserve((size_t)Stack.size());
+			using stack_trace_container = std::basic_stacktrace<standard_allocator<std::stacktrace_entry>>;
+			stack_trace_container stack = stack_trace_container::current(skips + 2, max_depth + skips + 2);
+			frames.reserve((size_t)stack.size());
 
-			for (auto& Next : Stack)
+			for (auto& next : stack)
 			{
-				Frame Target;
-				Target.File = Copy<String>(Next.source_file());
-				Target.Function = Copy<String>(Next.description());
-				Target.Line = (uint32_t)Next.source_line();
-				Target.Column = 0;
-				Target.Handle = (void*)Next.native_handle();
-				Target.Native = true;
-				if (Target.File.empty())
-					Target.File = "[external]";
-				if (Target.Function.empty())
-					Target.Function = "[optimized]";
-				Frames.emplace_back(std::move(Target));
+				frame target;
+				target.file = copy<string>(next.source_file());
+				target.function = copy<string>(next.description());
+				target.line = (uint32_t)next.source_line();
+				target.column = 0;
+				target.handle = (void*)next.native_handle();
+				target.native = true;
+				if (target.file.empty())
+					target.file = "[external]";
+				if (target.function.empty())
+					target.function = "[optimized]";
+				frames.emplace_back(std::move(target));
 			}
 #elif defined(VI_BACKWARDCPP)
-			static bool IsPreloaded = false;
-			if (!IsPreloaded)
+			static bool is_preloaded = false;
+			if (!is_preloaded)
 			{
-				backward::StackTrace EmptyStack;
-				EmptyStack.load_here();
-				backward::TraceResolver EmptyResolver;
-				EmptyResolver.load_stacktrace(EmptyStack);
-				IsPreloaded = true;
+				backward::StackTrace empty_stack;
+				empty_stack.load_here();
+				backward::TraceResolver empty_resolver;
+				empty_resolver.load_stacktrace(empty_stack);
+				is_preloaded = true;
 			}
 
-			backward::StackTrace Stack;
-			Stack.load_here(MaxDepth + Skips + 3);
-			Stack.skip_n_firsts(Skips + 3);
-			Frames.reserve(Stack.size());
+			backward::StackTrace stack;
+			stack.load_here(max_depth + skips + 3);
+			stack.skip_n_firsts(skips + 3);
+			frames.reserve(stack.size());
 
-			backward::TraceResolver Resolver;
-			Resolver.load_stacktrace(Stack);
+			backward::TraceResolver resolver;
+			resolver.load_stacktrace(stack);
 
-			size_t Size = Stack.size();
-			for (size_t i = 0; i < Size; i++)
+			size_t size = stack.size();
+			for (size_t i = 0; i < size; i++)
 			{
-				backward::ResolvedTrace Next = Resolver.resolve(Stack[i]);
-				Frame Target;
-				Target.File = Next.source.filename.empty() ? (Next.object_filename.empty() ? "[external]" : Next.object_filename.c_str()) : Next.source.filename.c_str();
-				Target.Function = Next.source.function.empty() ? "[optimized]" : Next.source.function.c_str();
-				Target.Line = (uint32_t)Next.source.line;
-				Target.Column = 0;
-				Target.Handle = Next.addr;
-				Target.Native = true;
-				if (!Next.source.function.empty() && Target.Function.back() != ')')
-					Target.Function += "()";
-				Frames.emplace_back(std::move(Target));
+				backward::ResolvedTrace next = resolver.resolve(stack[i]);
+				frame target;
+				target.file = next.source.filename.empty() ? (next.object_filename.empty() ? "[external]" : next.object_filename.c_str()) : next.source.filename.c_str();
+				target.function = next.source.function.empty() ? "[optimized]" : next.source.function.c_str();
+				target.line = (uint32_t)next.source.line;
+				target.column = 0;
+				target.handle = next.addr;
+				target.native = true;
+				if (!next.source.function.empty() && target.function.back() != ')')
+					target.function += "()";
+				frames.emplace_back(std::move(target));
 			}
 #endif
 		}
-		StackTrace::StackPtr::const_iterator StackTrace::begin() const
+		stack_trace::stack_ptr::const_iterator stack_trace::begin() const
 		{
-			return Frames.begin();
+			return frames.begin();
 		}
-		StackTrace::StackPtr::const_iterator StackTrace::end() const
+		stack_trace::stack_ptr::const_iterator stack_trace::end() const
 		{
-			return Frames.end();
+			return frames.end();
 		}
-		StackTrace::StackPtr::const_reverse_iterator StackTrace::rbegin() const
+		stack_trace::stack_ptr::const_reverse_iterator stack_trace::rbegin() const
 		{
-			return Frames.rbegin();
+			return frames.rbegin();
 		}
-		StackTrace::StackPtr::const_reverse_iterator StackTrace::rend() const
+		stack_trace::stack_ptr::const_reverse_iterator stack_trace::rend() const
 		{
-			return Frames.rend();
+			return frames.rend();
 		}
-		StackTrace::operator bool() const
+		stack_trace::operator bool() const
 		{
-			return !Frames.empty();
+			return !frames.empty();
 		}
-		const StackTrace::StackPtr& StackTrace::Range() const
+		const stack_trace::stack_ptr& stack_trace::range() const
 		{
-			return Frames;
+			return frames;
 		}
-		bool StackTrace::Empty() const
+		bool stack_trace::empty() const
 		{
-			return Frames.empty();
+			return frames.empty();
 		}
-		size_t StackTrace::Size() const
+		size_t stack_trace::size() const
 		{
-			return Frames.size();
+			return frames.size();
 		}
 #ifndef NDEBUG
-		static thread_local std::stack<Measurement> InternalStacktrace;
+		static thread_local std::stack<measurement> internal_stacktrace;
 #endif
-		static thread_local bool InternalLogging = false;
-		ErrorHandling::Tick::Tick(bool Active) noexcept : IsCounting(Active)
+		static thread_local bool internal_logging = false;
+		error_handling::tick::tick(bool active) noexcept : is_counting(active)
 		{
 		}
-		ErrorHandling::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
+		error_handling::tick::tick(tick&& other) noexcept : is_counting(other.is_counting)
 		{
-			Other.IsCounting = false;
+			other.is_counting = false;
 		}
-		ErrorHandling::Tick::~Tick() noexcept
+		error_handling::tick::~tick() noexcept
 		{
 #ifndef NDEBUG
-			if (InternalLogging || !IsCounting)
+			if (internal_logging || !is_counting)
 				return;
 
-			VI_ASSERT(!InternalStacktrace.empty(), "debug frame should be set");
-			auto& Next = InternalStacktrace.top();
-			Next.NotifyOfOverConsumption();
-			InternalStacktrace.pop();
+			VI_ASSERT(!internal_stacktrace.empty(), "debug frame should be set");
+			auto& next = internal_stacktrace.top();
+			next.notify_of_over_consumption();
+			internal_stacktrace.pop();
 #endif
 		}
-		ErrorHandling::Tick& ErrorHandling::Tick::operator =(Tick&& Other) noexcept
+		error_handling::tick& error_handling::tick::operator =(tick&& other) noexcept
 		{
-			if (&Other == this)
+			if (&other == this)
 				return *this;
 
-			IsCounting = Other.IsCounting;
-			Other.IsCounting = false;
+			is_counting = other.is_counting;
+			other.is_counting = false;
 			return *this;
 		}
 
-		void ErrorHandling::Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept
+		void error_handling::panic(int line, const char* source, const char* function, const char* condition, const char* format, ...) noexcept
 		{
-			Details Data;
-			Data.Origin.File = OS::Path::GetFilename(Source).data();
-			Data.Origin.Line = Line;
-			Data.Type.Level = LogLevel::Error;
-			Data.Type.Fatal = true;
-			if (HasFlag(LogOption::ReportSysErrors) || true)
+			details data;
+			data.origin.file = os::path::get_filename(source).data();
+			data.origin.line = line;
+			data.type.level = log_level::error;
+			data.type.fatal = true;
+			if (has_flag(log_option::report_sys_errors) || true)
 			{
-				int ErrorCode = OS::Error::Get();
-				if (!OS::Error::IsError(ErrorCode))
-					goto DefaultFormat;
-				
-				Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s PANIC! %s(): %s on \"!(%s)\", latest system error [%s]\n%s",
-					OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
-					Function ? Function : "?",
-					Format ? Format : "check failed",
-					Condition ? Condition : "?",
-					OS::Error::GetName(ErrorCode).c_str(),
-					ErrorHandling::GetStackTrace(1).c_str());
+				int error_code = os::error::get();
+				if (!os::error::is_error(error_code))
+					goto default_format;
+
+				data.message.size = snprintf(data.message.data, sizeof(data.message.data), "thread %s PANIC! %s(): %s on \"!(%s)\", latest system error [%s]\n%s",
+					os::process::get_thread_id(std::this_thread::get_id()).c_str(),
+					function ? function : "?",
+					format ? format : "check failed",
+					condition ? condition : "?",
+					os::error::get_name(error_code).c_str(),
+					error_handling::get_stack_trace(1).c_str());
 			}
 			else
 			{
-			DefaultFormat:
-				Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s PANIC! %s(): %s on \"!(%s)\"\n%s",
-					OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
-					Function ? Function : "?",
-					Format ? Format : "check failed",
-					Condition ? Condition : "?",
-					ErrorHandling::GetStackTrace(1).c_str());
+			default_format:
+				data.message.size = snprintf(data.message.data, sizeof(data.message.data), "thread %s PANIC! %s(): %s on \"!(%s)\"\n%s",
+					os::process::get_thread_id(std::this_thread::get_id()).c_str(),
+					function ? function : "?",
+					format ? format : "check failed",
+					condition ? condition : "?",
+					error_handling::get_stack_trace(1).c_str());
 			}
-			if (HasFlag(LogOption::Dated))
-				DateTime::SerializeLocal(Data.Message.Date, sizeof(Data.Message.Date), DateTime::Now(), DateTime::FormatCompactTime());
+			if (has_flag(log_option::dated))
+				date_time::serialize_local(data.message.date, sizeof(data.message.date), date_time::now(), date_time::format_compact_time());
 
-			if (Format != nullptr)
+			if (format != nullptr)
 			{
-				va_list Args;
-				va_start(Args, Format);
-				char Buffer[BLOB_SIZE] = { '\0' };
-				Data.Message.Size = vsnprintf(Buffer, sizeof(Buffer), Data.Message.Data, Args);
-				if (Data.Message.Size > sizeof(Data.Message.Data))
-					Data.Message.Size = sizeof(Data.Message.Data);
-				memcpy(Data.Message.Data, Buffer, sizeof(Buffer));
-				va_end(Args);
+				va_list args;
+				va_start(args, format);
+				char buffer[BLOB_SIZE] = { '\0' };
+				data.message.size = vsnprintf(buffer, sizeof(buffer), data.message.data, args);
+				if (data.message.size > sizeof(data.message.data))
+					data.message.size = sizeof(data.message.data);
+				memcpy(data.message.data, buffer, sizeof(buffer));
+				va_end(args);
 			}
 
-			if (Data.Message.Size > 0)
+			if (data.message.size > 0)
 			{
-				auto* Terminal = Console::Get();
-				Terminal->Show();
-				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
-				Dispatch(Data);
-				Terminal->FlushWrite();
+				auto* terminal = console::get();
+				terminal->show();
+				escape_text(data.message.data, (size_t)data.message.size);
+				dispatch(data);
+				terminal->flush_write();
 			}
 
-			ErrorHandling::Pause();
-			OS::Process::Abort();
+			error_handling::pause();
+			os::process::abort();
 		}
-		void ErrorHandling::Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept
+		void error_handling::assertion(int line, const char* source, const char* function, const char* condition, const char* format, ...) noexcept
 		{
-			Details Data;
-			Data.Origin.File = OS::Path::GetFilename(Source).data();
-			Data.Origin.Line = Line;
-			Data.Type.Level = LogLevel::Error;
-			Data.Type.Fatal = true;
-			Data.Message.Size = snprintf(Data.Message.Data, sizeof(Data.Message.Data), "thread %s ASSERT %s(): %s on \"!(%s)\"\n%s",
-				OS::Process::GetThreadId(std::this_thread::get_id()).c_str(),
-				Function ? Function : "?",
-				Format ? Format : "assertion failed",
-				Condition ? Condition : "?",
-				ErrorHandling::GetStackTrace(1).c_str());
-			if (HasFlag(LogOption::Dated))
-				DateTime::SerializeLocal(Data.Message.Date, sizeof(Data.Message.Date), DateTime::Now(), DateTime::FormatCompactTime());
+			details data;
+			data.origin.file = os::path::get_filename(source).data();
+			data.origin.line = line;
+			data.type.level = log_level::error;
+			data.type.fatal = true;
+			data.message.size = snprintf(data.message.data, sizeof(data.message.data), "thread %s ASSERT %s(): %s on \"!(%s)\"\n%s",
+				os::process::get_thread_id(std::this_thread::get_id()).c_str(),
+				function ? function : "?",
+				format ? format : "assertion failed",
+				condition ? condition : "?",
+				error_handling::get_stack_trace(1).c_str());
+			if (has_flag(log_option::dated))
+				date_time::serialize_local(data.message.date, sizeof(data.message.date), date_time::now(), date_time::format_compact_time());
 
-			if (Format != nullptr)
+			if (format != nullptr)
 			{
-				va_list Args;
-				va_start(Args, Format);
-				char Buffer[BLOB_SIZE] = { '\0' };
-				Data.Message.Size = vsnprintf(Buffer, sizeof(Buffer), Data.Message.Data, Args);
-				if (Data.Message.Size > sizeof(Data.Message.Data))
-					Data.Message.Size = sizeof(Data.Message.Data);
-				memcpy(Data.Message.Data, Buffer, sizeof(Buffer));
-				va_end(Args);
+				va_list args;
+				va_start(args, format);
+				char buffer[BLOB_SIZE] = { '\0' };
+				data.message.size = vsnprintf(buffer, sizeof(buffer), data.message.data, args);
+				if (data.message.size > sizeof(data.message.data))
+					data.message.size = sizeof(data.message.data);
+				memcpy(data.message.data, buffer, sizeof(buffer));
+				va_end(args);
 			}
 
-			if (Data.Message.Size > 0)
+			if (data.message.size > 0)
 			{
-				auto* Terminal = Console::Get();
-				Terminal->Show();
-				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
-				Dispatch(Data);
-				Terminal->FlushWrite();
+				auto* terminal = console::get();
+				terminal->show();
+				escape_text(data.message.data, (size_t)data.message.size);
+				dispatch(data);
+				terminal->flush_write();
 			}
 
-			ErrorHandling::Pause();
-			OS::Process::Abort();
+			error_handling::pause();
+			os::process::abort();
 		}
-		void ErrorHandling::Message(LogLevel Level, int Line, const char* Source, const char* Format, ...) noexcept
+		void error_handling::message(log_level level, int line, const char* source, const char* format, ...) noexcept
 		{
-			VI_ASSERT(Format != nullptr, "format string should be set");
-			if (InternalLogging || (!HasFlag(LogOption::Active) && !HasCallback()))
+			VI_ASSERT(format != nullptr, "format string should be set");
+			if (internal_logging || (!has_flag(log_option::active) && !has_callback()))
 				return;
 
-			Details Data;
-			Data.Origin.File = OS::Path::GetFilename(Source).data();
-			Data.Origin.Line = Line;
-			Data.Type.Level = Level;
-			Data.Type.Fatal = false;
-			if (HasFlag(LogOption::Dated))
-				DateTime::SerializeLocal(Data.Message.Date, sizeof(Data.Message.Date), DateTime::Now(), DateTime::FormatCompactTime());
+			details data;
+			data.origin.file = os::path::get_filename(source).data();
+			data.origin.line = line;
+			data.type.level = level;
+			data.type.fatal = false;
+			if (has_flag(log_option::dated))
+				date_time::serialize_local(data.message.date, sizeof(data.message.date), date_time::now(), date_time::format_compact_time());
 
-			char Buffer[512] = { '\0' };
-			if (Level == LogLevel::Error && HasFlag(LogOption::ReportSysErrors))
+			char buffer[512] = { '\0' };
+			if (level == log_level::error && has_flag(log_option::report_sys_errors))
 			{
-				int ErrorCode = OS::Error::Get();
-				if (!OS::Error::IsError(ErrorCode))
-					goto DefaultFormat;
+				int error_code = os::error::get();
+				if (!os::error::is_error(error_code))
+					goto default_format;
 
-				snprintf(Buffer, sizeof(Buffer), "%s, latest system error [%s]", Format, OS::Error::GetName(ErrorCode).c_str());
+				snprintf(buffer, sizeof(buffer), "%s, latest system error [%s]", format, os::error::get_name(error_code).c_str());
 			}
 			else
 			{
-			DefaultFormat:
-				memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
+			default_format:
+				memcpy(buffer, format, std::min(sizeof(buffer), strlen(format)));
 			}
 
-			va_list Args;
-			va_start(Args, Format);
-			Data.Message.Size = vsnprintf(Data.Message.Data, sizeof(Data.Message.Data), Buffer, Args);
-			if (Data.Message.Size > sizeof(Data.Message.Data))
-				Data.Message.Size = sizeof(Data.Message.Data);
-			va_end(Args);
+			va_list args;
+			va_start(args, format);
+			data.message.size = vsnprintf(data.message.data, sizeof(data.message.data), buffer, args);
+			if (data.message.size > sizeof(data.message.data))
+				data.message.size = sizeof(data.message.data);
+			va_end(args);
 
-			if (Data.Message.Size > 0)
+			if (data.message.size > 0)
 			{
-				EscapeText(Data.Message.Data, (size_t)Data.Message.Size);
-				Enqueue(std::move(Data));
+				escape_text(data.message.data, (size_t)data.message.size);
+				enqueue(std::move(data));
 			}
 		}
-		void ErrorHandling::Enqueue(Details&& Data) noexcept
+		void error_handling::enqueue(details&& data) noexcept
 		{
-			if (HasFlag(LogOption::Async))
-				Codefer([Data = std::move(Data)]() mutable { Dispatch(Data); });
+			if (has_flag(log_option::async))
+				codefer([data = std::move(data)]() mutable { dispatch(data); });
 			else
-				Dispatch(Data);
+				dispatch(data);
 		}
-		void ErrorHandling::Dispatch(Details& Data) noexcept
+		void error_handling::dispatch(details& data) noexcept
 		{
-			InternalLogging = true;
-			if (HasCallback())
-				Context->Callback(Data);
+			internal_logging = true;
+			if (has_callback())
+				context->callback(data);
 #if defined(VI_MICROSOFT) && !defined(NDEBUG)
-			OutputDebugStringA(GetMessageText(Data).c_str());
+			OutputDebugStringA(get_message_text(data).c_str());
 #endif
-			if (Console::IsAvailable())
+			if (console::is_available())
 			{
-				auto* Terminal = Console::Get();
-				if (HasFlag(LogOption::Pretty))
-					Terminal->Synced([&Data](Console* Terminal) { Colorify(Terminal, Data); });
+				auto* terminal = console::get();
+				if (has_flag(log_option::pretty))
+					terminal->synced([&data](console* terminal) { colorify(terminal, data); });
 				else
-					Terminal->Write(GetMessageText(Data));
+					terminal->write(get_message_text(data));
 			}
-			InternalLogging = false;
+			internal_logging = false;
 		}
-		void ErrorHandling::Colorify(Console* Terminal, Details& Data) noexcept
+		void error_handling::colorify(console* terminal, details& data) noexcept
 		{
 #if VI_DLEVEL < 5
-			bool ParseTokens = Data.Type.Level != LogLevel::Trace && Data.Type.Level != LogLevel::Debug;
+			bool parse_tokens = data.type.level != log_level::trace && data.type.level != log_level::debug;
 #else
-			bool ParseTokens = Data.Type.Level != LogLevel::Trace;
+			bool parse_tokens = data.type.level != log_level::trace;
 #endif
-			Terminal->ColorBegin(ParseTokens ? StdColor::Cyan : StdColor::Gray);
-			if (HasFlag(LogOption::Dated))
+			terminal->color_begin(parse_tokens ? std_color::cyan : std_color::gray);
+			if (has_flag(log_option::dated))
 			{
-				Terminal->Write(Data.Message.Date);
-				Terminal->Write(" ");
+				terminal->write(data.message.date);
+				terminal->write(" ");
 #ifndef NDEBUG
-				if (Data.Origin.File != nullptr)
+				if (data.origin.file != nullptr)
 				{
-					Terminal->ColorBegin(StdColor::Gray);
-					Terminal->Write(Data.Origin.File);
-					Terminal->Write(":");
-					if (Data.Origin.Line > 0)
+					terminal->color_begin(std_color::gray);
+					terminal->write(data.origin.file);
+					terminal->write(":");
+					if (data.origin.line > 0)
 					{
-						char Numeric[NUMSTR_SIZE];
-						Terminal->Write(Core::ToStringView(Numeric, sizeof(Numeric), Data.Origin.Line));
-						Terminal->Write(" ");
+						char numeric[NUMSTR_SIZE];
+						terminal->write(core::to_string_view(numeric, sizeof(numeric), data.origin.line));
+						terminal->write(" ");
 					}
 				}
 #endif
 			}
-			Terminal->ColorBegin(GetMessageColor(Data));
-			Terminal->Write(GetMessageType(Data));
-			Terminal->Write(" ");
-			if (ParseTokens)
-				Terminal->ColorPrint(StdColor::LightGray, std::string_view(Data.Message.Data, Data.Message.Size));
+			terminal->color_begin(get_message_color(data));
+			terminal->write(get_message_type(data));
+			terminal->write(" ");
+			if (parse_tokens)
+				terminal->color_print(std_color::light_gray, std::string_view(data.message.data, data.message.size));
 			else
-				Terminal->Write(Data.Message.Data);
-			Terminal->Write("\n");
-			Terminal->ColorEnd();
+				terminal->write(data.message.data);
+			terminal->write("\n");
+			terminal->color_end();
 		}
-		void ErrorHandling::Pause() noexcept
+		void error_handling::pause() noexcept
 		{
-			OS::Process::Interrupt();
+			os::process::interrupt();
 		}
-		void ErrorHandling::Cleanup() noexcept
+		void error_handling::cleanup() noexcept
 		{
-			delete Context;
-			Context = nullptr;
+			delete context;
+			context = nullptr;
 		}
-		void ErrorHandling::SetCallback(std::function<void(Details&)>&& Callback) noexcept
+		void error_handling::set_callback(std::function<void(details&)>&& callback) noexcept
 		{
-			if (!Context)
-				Context = new State();
+			if (!context)
+				context = new state();
 
-			Context->Callback = std::move(Callback);
+			context->callback = std::move(callback);
 		}
-		void ErrorHandling::SetFlag(LogOption Option, bool Active) noexcept
+		void error_handling::set_flag(log_option option, bool active) noexcept
 		{
-			if (!Context)
-				Context = new State();
+			if (!context)
+				context = new state();
 
-			if (Active)
-				Context->Flags = Context->Flags | (uint32_t)Option;
+			if (active)
+				context->flags = context->flags | (uint32_t)option;
 			else
-				Context->Flags = Context->Flags & ~(uint32_t)Option;
+				context->flags = context->flags & ~(uint32_t)option;
 		}
-		bool ErrorHandling::HasFlag(LogOption Option) noexcept
+		bool error_handling::has_flag(log_option option) noexcept
 		{
-			if (!Context)
-				return ((uint32_t)LogOption::Pretty) & (uint32_t)Option;
+			if (!context)
+				return ((uint32_t)log_option::pretty) & (uint32_t)option;
 
-			return Context->Flags & (uint32_t)Option;
+			return context->flags & (uint32_t)option;
 		}
-		bool ErrorHandling::HasCallback() noexcept
+		bool error_handling::has_callback() noexcept
 		{
-			return Context != nullptr && Context->Callback != nullptr;
+			return context != nullptr && context->callback != nullptr;
 		}
-		ErrorHandling::Tick ErrorHandling::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS) noexcept
+		error_handling::tick error_handling::measure(const char* file, const char* function, int line, uint64_t threshold_ms) noexcept
 		{
 #ifndef NDEBUG
-			VI_ASSERT(File != nullptr, "file should be set");
-			VI_ASSERT(Function != nullptr, "function should be set");
-			VI_ASSERT(ThresholdMS > 0 || ThresholdMS == (uint64_t)Timings::Infinite, "threshold time should be greater than zero");
-			if (InternalLogging)
-				return ErrorHandling::Tick(false);
+			VI_ASSERT(file != nullptr, "file should be set");
+			VI_ASSERT(function != nullptr, "function should be set");
+			VI_ASSERT(threshold_ms > 0 || threshold_ms == (uint64_t)timings::infinite, "threshold time should be greater than zero");
+			if (internal_logging)
+				return error_handling::tick(false);
 
-			Measurement Next;
-			Next.File = File;
-			Next.Function = Function;
-			Next.Threshold = ThresholdMS * 1000;
-			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			Next.Line = Line;
+			measurement next;
+			next.file = file;
+			next.function = function;
+			next.threshold = threshold_ms * 1000;
+			next.time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			next.line = line;
 
-			InternalStacktrace.emplace(std::move(Next));
-			return ErrorHandling::Tick(true);
+			internal_stacktrace.emplace(std::move(next));
+			return error_handling::tick(true);
 #else
-			return ErrorHandling::Tick(false);
+			return error_handling::tick(false);
 #endif
 		}
-		void ErrorHandling::MeasureLoop() noexcept
+		void error_handling::measure_loop() noexcept
 		{
 #ifndef NDEBUG
-			if (!InternalLogging)
+			if (!internal_logging)
 			{
-				VI_ASSERT(!InternalStacktrace.empty(), "debug frame should be set");
-				auto& Next = InternalStacktrace.top();
-				Next.NotifyOfOverConsumption();
+				VI_ASSERT(!internal_stacktrace.empty(), "debug frame should be set");
+				auto& next = internal_stacktrace.top();
+				next.notify_of_over_consumption();
 			}
 #endif
 		}
-		String ErrorHandling::GetMeasureTrace() noexcept
+		string error_handling::get_measure_trace() noexcept
 		{
 #ifndef NDEBUG
-			auto Source = InternalStacktrace;
-			StringStream Stream;
-			Stream << "in thread " << std::this_thread::get_id() << ":\n";
+			auto source = internal_stacktrace;
+			string_stream stream;
+			stream << "in thread " << std::this_thread::get_id() << ":\n";
 
-			size_t Size = Source.size();
-			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
+			size_t size = source.size();
+			for (size_t trace_idx = source.size(); trace_idx > 0; --trace_idx)
 			{
-				auto& Frame = Source.top();
-				Stream << "  #" << (Size - TraceIdx) + 1 << " at " << OS::Path::GetFilename(Frame.File);
-				if (Frame.Line > 0)
-					Stream << ":" << Frame.Line;
-				Stream << " in " << Frame.Function << "()";
-				if (Frame.Id != nullptr)
-					Stream << " pointed here 0x" << Frame.Id;
-				Stream << " - expects < " << Frame.Threshold / 1000 << " ms\n";
-				Source.pop();
+				auto& frame = source.top();
+				stream << "  #" << (size - trace_idx) + 1 << " at " << os::path::get_filename(frame.file);
+				if (frame.line > 0)
+					stream << ":" << frame.line;
+				stream << " in " << frame.function << "()";
+				if (frame.id != nullptr)
+					stream << " pointed here 0x" << frame.id;
+				stream << " - expects < " << frame.threshold / 1000 << " ms\n";
+				source.pop();
 			}
 
-			String Out(Stream.str());
-			return Out.substr(0, Out.size() - 1);
+			string out(stream.str());
+			return out.substr(0, out.size() - 1);
 #else
-			return String();
+			return string();
 #endif
 		}
-		String ErrorHandling::GetStackTrace(size_t Skips, size_t MaxFrames) noexcept
+		string error_handling::get_stack_trace(size_t skips, size_t max_frames) noexcept
 		{
-			StackTrace Stack(Skips, MaxFrames);
-			if (!Stack)
+			stack_trace stack(skips, max_frames);
+			if (!stack)
 				return "  * #0 [unavailable]";
 
-			StringStream Stream;
-			size_t Size = Stack.Size();
-			for (auto& Frame : Stack)
+			string_stream stream;
+			size_t size = stack.size();
+			for (auto& frame : stack)
 			{
-				Stream << "  #" << --Size << " at " << OS::Path::GetFilename(Frame.File.c_str());
-				if (Frame.Line > 0)
-					Stream << ":" << Frame.Line;
-				if (Frame.Column > 0)
-					Stream << "," << Frame.Column;
-				Stream << " in " << Frame.Function;
-				if (!Frame.Native)
-					Stream << " (vcall)";
-				if (!Frame.Code.empty())
+				stream << "  #" << --size << " at " << os::path::get_filename(frame.file.c_str());
+				if (frame.line > 0)
+					stream << ":" << frame.line;
+				if (frame.column > 0)
+					stream << "," << frame.column;
+				stream << " in " << frame.function;
+				if (!frame.native)
+					stream << " (vcall)";
+				if (!frame.code.empty())
 				{
-					auto Lines = Stringify::Split(Frame.Code, '\n');
-					for (size_t i = 0; i < Lines.size(); i++)
+					auto lines = stringify::split(frame.code, '\n');
+					for (size_t i = 0; i < lines.size(); i++)
 					{
-						Stream << "  " << Lines[i];
-						if (i + 1 < Lines.size())
-							Stream << "\n";
+						stream << "  " << lines[i];
+						if (i + 1 < lines.size())
+							stream << "\n";
 					}
 				}
-				if (Size > 0)
-					Stream << "\n";
+				if (size > 0)
+					stream << "\n";
 			}
 
-			return Stream.str();
+			return stream.str();
 		}
-		std::string_view ErrorHandling::GetMessageType(const Details& Base) noexcept
+		std::string_view error_handling::get_message_type(const details& base) noexcept
 		{
-			switch (Base.Type.Level)
+			switch (base.type.level)
 			{
-				case LogLevel::Error:
+				case log_level::error:
 					return "ERROR";
-				case LogLevel::Warning:
+				case log_level::warning:
 					return "WARN";
-				case LogLevel::Info:
+				case log_level::info:
 					return "INFO";
-				case LogLevel::Debug:
+				case log_level::debug:
 					return "DEBUG";
-				case LogLevel::Trace:
+				case log_level::trace:
 					return "TRACE";
 				default:
 					return "LOG";
 			}
 		}
-		StdColor ErrorHandling::GetMessageColor(const Details& Base) noexcept
+		std_color error_handling::get_message_color(const details& base) noexcept
 		{
-			switch (Base.Type.Level)
+			switch (base.type.level)
 			{
-				case LogLevel::Error:
-					return StdColor::DarkRed;
-				case LogLevel::Warning:
-					return StdColor::Orange;
-				case LogLevel::Info:
-					return StdColor::LightBlue;
-				case LogLevel::Debug:
-					return StdColor::Gray;
-				case LogLevel::Trace:
-					return StdColor::Gray;
+				case log_level::error:
+					return std_color::dark_red;
+				case log_level::warning:
+					return std_color::orange;
+				case log_level::info:
+					return std_color::light_blue;
+				case log_level::debug:
+					return std_color::gray;
+				case log_level::trace:
+					return std_color::gray;
 				default:
-					return StdColor::LightGray;
+					return std_color::light_gray;
 			}
 		}
-		String ErrorHandling::GetMessageText(const Details& Base) noexcept
+		string error_handling::get_message_text(const details& base) noexcept
 		{
-			StringStream Stream;
-			if (HasFlag(LogOption::Dated))
+			string_stream stream;
+			if (has_flag(log_option::dated))
 			{
-				Stream << Base.Message.Date;
+				stream << base.message.date;
 #ifndef NDEBUG
-				if (Base.Origin.File != nullptr)
+				if (base.origin.file != nullptr)
 				{
-					Stream << ' ' << Base.Origin.File << ':';
-					if (Base.Origin.Line > 0)
-						Stream << Base.Origin.Line;
+					stream << ' ' << base.origin.file << ':';
+					if (base.origin.line > 0)
+						stream << base.origin.line;
 				}
 #endif
-				Stream << ' ';
+				stream << ' ';
 			}
-			Stream << GetMessageType(Base) << ' ';
-			Stream << Base.Message.Data << '\n';
-			return Stream.str();
+			stream << get_message_type(base) << ' ';
+			stream << base.message.data << '\n';
+			return stream.str();
 		}
-		ErrorHandling::State* ErrorHandling::Context = nullptr;
+		error_handling::state* error_handling::context = nullptr;
 
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coexecution::Active), Callback(std::move(Procedure)), Slave(Memory::New<Cocontext>(Base)), Master(Base), UserData(nullptr)
+		coroutine::coroutine(costate* base, task_callback&& procedure) noexcept : state(coexecution::active), callback(std::move(procedure)), slave(memory::init<cocontext>(base)), master(base), user_data(nullptr)
 		{
 		}
-		Coroutine::~Coroutine() noexcept
+		coroutine::~coroutine() noexcept
 		{
-			Memory::Delete(Slave);
+			memory::deinit(slave);
 		}
 
-		Decimal::Decimal() noexcept : Length(0), Sign('\0')
+		decimal::decimal() noexcept : length(0), sign('\0')
 		{
 		}
-		Decimal::Decimal(const std::string_view& Text) noexcept : Length(0)
+		decimal::decimal(const std::string_view& text) noexcept : length(0)
 		{
-			ApplyBase10(Text);
+			apply_base10(text);
 		}
-		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign)
-		{
-		}
-		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign)
+		decimal::decimal(const decimal& value) noexcept : source(value.source), length(value.length), sign(value.sign)
 		{
 		}
-		Decimal& Decimal::Truncate(uint32_t Precision)
+		decimal::decimal(decimal&& value) noexcept : source(std::move(value.source)), length(value.length), sign(value.sign)
 		{
-			if (IsNaN())
+		}
+		decimal& decimal::truncate(uint32_t precision)
+		{
+			if (is_nan())
 				return *this;
 
-			int32_t NewPrecision = Precision;
-			if (Length < NewPrecision)
+			int32_t new_precision = precision;
+			if (length < new_precision)
 			{
-				while (Length < NewPrecision)
+				while (length < new_precision)
 				{
-					Length++;
-					Source.insert(0, 1, '0');
+					length++;
+					source.insert(0, 1, '0');
 				}
 			}
-			else if (Length > NewPrecision)
+			else if (length > new_precision)
 			{
-				while (Length > NewPrecision)
+				while (length > new_precision)
 				{
-					Length--;
-					Source.erase(0, 1);
+					length--;
+					source.erase(0, 1);
 				}
 			}
 
 			return *this;
 		}
-		Decimal& Decimal::Round(uint32_t Precision)
+		decimal& decimal::round(uint32_t precision)
 		{
-			if (IsNaN())
+			if (is_nan())
 				return *this;
 
-			int32_t NewPrecision = Precision;
-			if (Length < NewPrecision)
+			int32_t new_precision = precision;
+			if (length < new_precision)
 			{
-				while (Length < NewPrecision)
+				while (length < new_precision)
 				{
-					Length++;
-					Source.insert(0, 1, '0');
+					length++;
+					source.insert(0, 1, '0');
 				}
 			}
-			else if (Length > NewPrecision)
+			else if (length > new_precision)
 			{
-				char Last;
-				while (Length > NewPrecision)
+				char last;
+				while (length > new_precision)
 				{
-					Last = Source[0];
-					Length--;
-					Source.erase(0, 1);
+					last = source[0];
+					length--;
+					source.erase(0, 1);
 				}
 
-				if (CharToInt(Last) >= 5)
+				if (char_to_int(last) >= 5)
 				{
-					if (NewPrecision != 0)
+					if (new_precision != 0)
 					{
-						String Result = "0.";
-						Result.reserve(3 + (size_t)NewPrecision);
-						for (int32_t i = 1; i < NewPrecision; i++)
-							Result += '0';
-						Result += '1';
+						string result = "0.";
+						result.reserve(3 + (size_t)new_precision);
+						for (int32_t i = 1; i < new_precision; i++)
+							result += '0';
+						result += '1';
 
-						Decimal Temp(Result);
-						*this = *this + Temp;
+						decimal temp(result);
+						*this = *this + temp;
 					}
 					else
 						++(*this);
@@ -2042,382 +2042,382 @@ namespace Vitex
 
 			return *this;
 		}
-		Decimal& Decimal::Trim()
+		decimal& decimal::trim()
 		{
-			return Unlead().Untrail();
+			return unlead().untrail();
 		}
-		Decimal& Decimal::Unlead()
+		decimal& decimal::unlead()
 		{
-			for (int32_t i = (int32_t)Source.size() - 1; i > Length; --i)
+			for (int32_t i = (int32_t)source.size() - 1; i > length; --i)
 			{
-				if (Source[i] != '0')
+				if (source[i] != '0')
 					break;
 
-				Source.pop_back();
+				source.pop_back();
 			}
 
 			return *this;
 		}
-		Decimal& Decimal::Untrail()
+		decimal& decimal::untrail()
 		{
-			if (IsNaN() || Source.empty())
+			if (is_nan() || source.empty())
 				return *this;
 
-			while ((Source[0] == '0') && (Length > 0))
+			while ((source[0] == '0') && (length > 0))
 			{
-				Source.erase(0, 1);
-				Length--;
+				source.erase(0, 1);
+				length--;
 			}
 
 			return *this;
 		}
-		void Decimal::ApplyBase10(const std::string_view& Text)
+		void decimal::apply_base10(const std::string_view& text)
 		{
-			if (Text.empty())
+			if (text.empty())
 			{
-			InvalidNumber:
-				Source.clear();
-				Length = 0;
-				Sign = '\0';
+			invalid_number:
+				source.clear();
+				length = 0;
+				sign = '\0';
 				return;
 			}
-			else if (Text.size() == 1)
+			else if (text.size() == 1)
 			{
-				uint8_t Value = (uint8_t)Text.front();
-				if (!isdigit(Value))
-					goto InvalidNumber;
+				uint8_t value = (uint8_t)text.front();
+				if (!isdigit(value))
+					goto invalid_number;
 
-				Source.push_back(Value);
-				Sign = '+';
+				source.push_back(value);
+				sign = '+';
 				return;
 			}
 
-			Source.reserve(Text.size());
-			Sign = Text[0];
+			source.reserve(text.size());
+			sign = text[0];
 
-			size_t Index = 0;
-			if (Sign != '+' && Sign != '-')
+			size_t index = 0;
+			if (sign != '+' && sign != '-')
 			{
-				if (!isdigit(Sign))
-					goto InvalidNumber;
-				Sign = '+';
+				if (!isdigit(sign))
+					goto invalid_number;
+				sign = '+';
 			}
 			else
-				Index = 1;
+				index = 1;
 
-			size_t Position = Text.find('.', Index);
-			size_t Base = std::min(Position, Text.size());
-			while (Index < Base)
+			size_t position = text.find('.', index);
+			size_t base = std::min(position, text.size());
+			while (index < base)
 			{
-				uint8_t Value = Text[Index++];
-				Source.push_back(Value);
-				if (!isdigit(Value))
-					goto InvalidNumber;
+				uint8_t value = text[index++];
+				source.push_back(value);
+				if (!isdigit(value))
+					goto invalid_number;
 			}
 
-			if (Position == std::string::npos)
+			if (position == std::string::npos)
 			{
-				std::reverse(Source.begin(), Source.end());
+				std::reverse(source.begin(), source.end());
 				return;
 			}
 
-			++Index;
-			while (Index < Text.size())
+			++index;
+			while (index < text.size())
 			{
-				uint8_t Value = Text[Index++];
-				Source.push_back(Value);
-				if (!isdigit(Value))
-					goto InvalidNumber;
-				++Length;
+				uint8_t value = text[index++];
+				source.push_back(value);
+				if (!isdigit(value))
+					goto invalid_number;
+				++length;
 			}
 
-			std::reverse(Source.begin(), Source.end());
+			std::reverse(source.begin(), source.end());
 		}
-		void Decimal::ApplyZero()
+		void decimal::apply_zero()
 		{
-			Source.push_back('0');
-			Sign = '+';
+			source.push_back('0');
+			sign = '+';
 		}
-		bool Decimal::IsNaN() const
+		bool decimal::is_nan() const
 		{
-			return Sign == '\0';
+			return sign == '\0';
 		}
-		bool Decimal::IsZero() const
+		bool decimal::is_zero() const
 		{
-			for (char Item : Source)
+			for (char item : source)
 			{
-				if (Item != '0')
+				if (item != '0')
 					return false;
 			}
 
 			return true;
 		}
-		bool Decimal::IsZeroOrNaN() const
+		bool decimal::is_zero_or_nan() const
 		{
-			return IsNaN() || IsZero();
+			return is_nan() || is_zero();
 		}
-		bool Decimal::IsPositive() const
+		bool decimal::is_positive() const
 		{
-			return !IsNaN() && *this > 0.0;
+			return !is_nan() && *this > 0.0;
 		}
-		bool Decimal::IsNegative() const
+		bool decimal::is_negative() const
 		{
-			return !IsNaN() && *this < 0.0;
+			return !is_nan() && *this < 0.0;
 		}
-		bool Decimal::IsInteger() const
+		bool decimal::is_integer() const
 		{
-			return !Length;
+			return !length;
 		}
-		bool Decimal::IsFractional() const
+		bool decimal::is_fractional() const
 		{
-			return Length > 0;
+			return length > 0;
 		}
-		bool Decimal::IsSafeNumber() const
+		bool decimal::is_safe_number() const
 		{
-			if (IsNaN())
+			if (is_nan())
 				return true;
 
-			auto Numeric = ToString();
-			if (IsFractional())
+			auto numeric = to_string();
+			if (is_fractional())
 			{
-				auto Number = FromString<double>(Numeric);
-				if (!Number)
+				auto number = from_string<double>(numeric);
+				if (!number)
 					return false;
 
-				char Buffer[NUMSTR_SIZE];
-				return ToStringView(Buffer, sizeof(Buffer), *Number) == Numeric;
+				char buffer[NUMSTR_SIZE];
+				return to_string_view(buffer, sizeof(buffer), *number) == numeric;
 			}
-			else if (IsPositive())
+			else if (is_positive())
 			{
-				auto Number = FromString<uint64_t>(Numeric);
-				if (!Number)
+				auto number = from_string<uint64_t>(numeric);
+				if (!number)
 					return false;
 
-				char Buffer[NUMSTR_SIZE];
-				return ToStringView(Buffer, sizeof(Buffer), *Number) == Numeric;
+				char buffer[NUMSTR_SIZE];
+				return to_string_view(buffer, sizeof(buffer), *number) == numeric;
 			}
 			else
 			{
-				auto Number = FromString<int64_t>(Numeric);
-				if (!Number)
+				auto number = from_string<int64_t>(numeric);
+				if (!number)
 					return false;
 
-				char Buffer[NUMSTR_SIZE];
-				return ToStringView(Buffer, sizeof(Buffer), *Number) == Numeric;
+				char buffer[NUMSTR_SIZE];
+				return to_string_view(buffer, sizeof(buffer), *number) == numeric;
 			}
 		}
-		double Decimal::ToDouble() const
+		double decimal::to_double() const
 		{
-			if (IsNaN())
+			if (is_nan())
 				return std::nan("");
 
-			double Dec = 1;
-			if (Length > 0)
+			double dec = 1;
+			if (length > 0)
 			{
-				int32_t Aus = Length;
-				while (Aus != 0)
+				int32_t aus = length;
+				while (aus != 0)
 				{
-					Dec /= 10;
-					Aus--;
+					dec /= 10;
+					aus--;
 				}
 			}
 
-			double Var = 0;
-			for (char Char : Source)
+			double var = 0;
+			for (char symbol : source)
 			{
-				Var += CharToInt(Char) * Dec;
-				Dec *= 10;
+				var += char_to_int(symbol) * dec;
+				dec *= 10;
 			}
 
-			if (Sign == '-')
-				Var *= -1;
+			if (sign == '-')
+				var *= -1;
 
-			return Var;
+			return var;
 		}
-		float Decimal::ToFloat() const
+		float decimal::to_float() const
 		{
-			return (float)ToDouble();
+			return (float)to_double();
 		}
-		int8_t Decimal::ToInt8() const
+		int8_t decimal::to_int8() const
 		{
-			return (int8_t)ToInt16();
+			return (int8_t)to_int16();
 		}
-		uint8_t Decimal::ToUInt8() const
+		uint8_t decimal::to_uint8() const
 		{
-			return (uint8_t)ToUInt16();
+			return (uint8_t)to_uint16();
 		}
-		int16_t Decimal::ToInt16() const
+		int16_t decimal::to_int16() const
 		{
-			return (int16_t)ToInt32();
+			return (int16_t)to_int32();
 		}
-		uint16_t Decimal::ToUInt16() const
+		uint16_t decimal::to_uint16() const
 		{
-			return (uint16_t)ToUInt32();
+			return (uint16_t)to_uint32();
 		}
-		int32_t Decimal::ToInt32() const
+		int32_t decimal::to_int32() const
 		{
-			return (int32_t)ToInt64();
+			return (int32_t)to_int64();
 		}
-		uint32_t Decimal::ToUInt32() const
+		uint32_t decimal::to_uint32() const
 		{
-			return (uint32_t)ToUInt64();
+			return (uint32_t)to_uint64();
 		}
-		int64_t Decimal::ToInt64() const
+		int64_t decimal::to_int64() const
 		{
-			if (IsNaN() || Source.empty())
+			if (is_nan() || source.empty())
 				return 0;
 
-			String Result;
-			if (Sign == '-')
-				Result += Sign;
+			string result;
+			if (sign == '-')
+				result += sign;
 
-			int32_t Offset = 0, Size = Length;
-			while ((Source[Offset] == '0') && (Size > 0))
+			int32_t offset = 0, size = length;
+			while ((source[offset] == '0') && (size > 0))
 			{
-				Offset++;
-				Size--;
+				offset++;
+				size--;
 			}
 
-			for (int32_t i = (int32_t)Source.size() - 1; i >= Offset; i--)
+			for (int32_t i = (int32_t)source.size() - 1; i >= offset; i--)
 			{
-				Result += Source[i];
-				if ((i == Length) && (i != 0) && Offset != Length)
+				result += source[i];
+				if ((i == length) && (i != 0) && offset != length)
 					break;
 			}
 
-			return strtoll(Result.c_str(), nullptr, 10);
+			return strtoll(result.c_str(), nullptr, 10);
 		}
-		uint64_t Decimal::ToUInt64() const
+		uint64_t decimal::to_uint64() const
 		{
-			if (IsNaN() || Source.empty())
+			if (is_nan() || source.empty())
 				return 0;
 
-			String Result;
-			int32_t Offset = 0, Size = Length;
-			while ((Source[Offset] == '0') && (Size > 0))
+			string result;
+			int32_t offset = 0, size = length;
+			while ((source[offset] == '0') && (size > 0))
 			{
-				Offset++;
-				Size--;
+				offset++;
+				size--;
 			}
 
-			for (int32_t i = (int32_t)Source.size() - 1; i >= Offset; i--)
+			for (int32_t i = (int32_t)source.size() - 1; i >= offset; i--)
 			{
-				Result += Source[i];
-				if ((i == Length) && (i != 0) && Offset != Length)
+				result += source[i];
+				if ((i == length) && (i != 0) && offset != length)
 					break;
 			}
 
-			return strtoull(Result.c_str(), nullptr, 10);
+			return strtoull(result.c_str(), nullptr, 10);
 		}
-		String Decimal::ToString() const
+		string decimal::to_string() const
 		{
-			if (IsNaN() || Source.empty())
+			if (is_nan() || source.empty())
 				return "NaN";
 
-			String Result;
-			if (Sign == '-')
-				Result += Sign;
+			string result;
+			if (sign == '-')
+				result += sign;
 
-			int32_t Offset = 0, Size = Length;
-			while ((Source[Offset] == '0') && (Size > 0))
+			int32_t offset = 0, size = length;
+			while ((source[offset] == '0') && (size > 0))
 			{
-				Offset++;
-				Size--;
+				offset++;
+				size--;
 			}
 
-			for (int32_t i = (int32_t)Source.size() - 1; i >= Offset; i--)
+			for (int32_t i = (int32_t)source.size() - 1; i >= offset; i--)
 			{
-				Result += Source[i];
-				if ((i == Length) && (i != 0) && Offset != Length)
-					Result += '.';
+				result += source[i];
+				if ((i == length) && (i != 0) && offset != length)
+					result += '.';
 			}
 
-			return Result;
+			return result;
 		}
-		String Decimal::ToExponent() const
+		string decimal::to_exponent() const
 		{
-			if (IsNaN())
+			if (is_nan())
 				return "NaN";
 
-			String Result;
-			int Compare = Decimal::CompareNum(*this, Decimal(1));
-			if (Compare == 0)
+			string result;
+			int compare = decimal::compare_num(*this, decimal(1));
+			if (compare == 0)
 			{
-				Result += Sign;
-				Result += "1e+0";
+				result += sign;
+				result += "1e+0";
 			}
-			else if (Compare == 1)
+			else if (compare == 1)
 			{
-				Result += Sign;
-				int32_t i = (int32_t)Source.size() - 1;
-				Result += Source[i];
+				result += sign;
+				int32_t i = (int32_t)source.size() - 1;
+				result += source[i];
 				i--;
 
 				if (i > 0)
 				{
-					Result += '.';
-					for (; (i >= (int32_t)Source.size() - 6) && (i >= 0); --i)
-						Result += Source[i];
+					result += '.';
+					for (; (i >= (int32_t)source.size() - 6) && (i >= 0); --i)
+						result += source[i];
 				}
-				Result += "e+";
-				Result += Core::ToString(IntegerPlaces() - 1);
+				result += "e+";
+				result += core::to_string(integer_places() - 1);
 			}
-			else if (Compare == 2)
+			else if (compare == 2)
 			{
-				int32_t Exp = 0, Count = (int32_t)Source.size() - 1;
-				while (Count > 0 && Source[Count] == '0')
+				int32_t exp = 0, count = (int32_t)source.size() - 1;
+				while (count > 0 && source[count] == '0')
 				{
-					Count--;
-					Exp++;
+					count--;
+					exp++;
 				}
 
-				if (Count == 0)
+				if (count == 0)
 				{
-					if (Source[Count] != '0')
+					if (source[count] != '0')
 					{
-						Result += Sign;
-						Result += Source[Count];
-						Result += "e-";
-						Result += Core::ToString(Exp);
+						result += sign;
+						result += source[count];
+						result += "e-";
+						result += core::to_string(exp);
 					}
 					else
-						Result += "+0";
+						result += "+0";
 				}
 				else
 				{
-					Result += Sign;
-					Result += Source[Count];
-					Result += '.';
+					result += sign;
+					result += source[count];
+					result += '.';
 
-					for (int32_t i = Count - 1; (i >= Count - 5) && (i >= 0); --i)
-						Result += Source[i];
+					for (int32_t i = count - 1; (i >= count - 5) && (i >= 0); --i)
+						result += source[i];
 
-					Result += "e-";
-					Result += Core::ToString(Exp);
+					result += "e-";
+					result += core::to_string(exp);
 				}
 			}
 
-			return Result;
+			return result;
 		}
-		const String& Decimal::Numeric() const
+		const string& decimal::numeric() const
 		{
-			return Source;
+			return source;
 		}
-		uint32_t Decimal::DecimalPlaces() const
+		uint32_t decimal::decimal_places() const
 		{
-			return Length;
+			return length;
 		}
-		uint32_t Decimal::IntegerPlaces() const
+		uint32_t decimal::integer_places() const
 		{
-			return (int32_t)Source.size() - Length;
+			return (int32_t)source.size() - length;
 		}
-		uint32_t Decimal::Size() const
+		uint32_t decimal::size() const
 		{
-			return (int32_t)(sizeof(*this) + Source.size() * sizeof(char));
+			return (int32_t)(sizeof(*this) + source.size() * sizeof(char));
 		}
-		int8_t Decimal::Position() const
+		int8_t decimal::position() const
 		{
-			switch (Sign)
+			switch (sign)
 			{
 				case '+':
 					return 1;
@@ -2427,628 +2427,628 @@ namespace Vitex
 					return 0;
 			}
 		}
-		Decimal Decimal::operator -() const
+		decimal decimal::operator -() const
 		{
-			Decimal Result = *this;
-			if (Result.Sign == '+')
-				Result.Sign = '-';
-			else if (Result.Sign == '-')
-				Result.Sign = '+';
+			decimal result = *this;
+			if (result.sign == '+')
+				result.sign = '-';
+			else if (result.sign == '-')
+				result.sign = '+';
 
-			return Result;
+			return result;
 		}
-		Decimal& Decimal::operator *=(const Decimal& V)
+		decimal& decimal::operator *=(const decimal& v)
 		{
-			*this = *this * V;
+			*this = *this * v;
 			return *this;
 		}
-		Decimal& Decimal::operator /=(const Decimal& V)
+		decimal& decimal::operator /=(const decimal& v)
 		{
-			*this = *this / V;
+			*this = *this / v;
 			return *this;
 		}
-		Decimal& Decimal::operator +=(const Decimal& V)
+		decimal& decimal::operator +=(const decimal& v)
 		{
-			*this = *this + V;
+			*this = *this + v;
 			return *this;
 		}
-		Decimal& Decimal::operator -=(const Decimal& V)
+		decimal& decimal::operator -=(const decimal& v)
 		{
-			*this = *this - V;
+			*this = *this - v;
 			return *this;
 		}
-		Decimal& Decimal::operator=(const Decimal& Value) noexcept
+		decimal& decimal::operator=(const decimal& value) noexcept
 		{
-			Source = Value.Source;
-			Length = Value.Length;
-			Sign = Value.Sign;
+			source = value.source;
+			length = value.length;
+			sign = value.sign;
 			return *this;
 		}
-		Decimal& Decimal::operator=(Decimal&& Value) noexcept
+		decimal& decimal::operator=(decimal&& value) noexcept
 		{
-			Source = std::move(Value.Source);
-			Length = Value.Length;
-			Sign = Value.Sign;
+			source = std::move(value.source);
+			length = value.length;
+			sign = value.sign;
 			return *this;
 		}
-		Decimal& Decimal::operator++(int)
+		decimal& decimal::operator++(int)
 		{
 			*this = *this + 1;
 			return *this;
 		}
-		Decimal& Decimal::operator++()
+		decimal& decimal::operator++()
 		{
 			*this = *this + 1;
 			return *this;
 		}
-		Decimal& Decimal::operator--(int)
+		decimal& decimal::operator--(int)
 		{
 			*this = *this - 1;
 			return *this;
 		}
-		Decimal& Decimal::operator--()
+		decimal& decimal::operator--()
 		{
 			*this = *this - 1;
 			return *this;
 		}
-		bool Decimal::operator==(const Decimal& Right) const
+		bool decimal::operator==(const decimal& right) const
 		{
-			if (IsNaN() || Right.IsNaN())
+			if (is_nan() || right.is_nan())
 				return false;
 
-			int Check = CompareNum(*this, Right);
-			if ((Check == 0) && (Sign == Right.Sign))
+			int check = compare_num(*this, right);
+			if ((check == 0) && (sign == right.sign))
 				return true;
 
 			return false;
 		}
-		bool Decimal::operator!=(const Decimal& Right) const
+		bool decimal::operator!=(const decimal& right) const
 		{
-			if (IsNaN() || Right.IsNaN())
+			if (is_nan() || right.is_nan())
 				return false;
 
-			return !(*this == Right);
+			return !(*this == right);
 		}
-		bool Decimal::operator>(const Decimal& Right) const
+		bool decimal::operator>(const decimal& right) const
 		{
-			if (IsNaN() || Right.IsNaN())
+			if (is_nan() || right.is_nan())
 				return false;
 
-			if (((Sign == '+') && (Right.Sign == '+')))
+			if (((sign == '+') && (right.sign == '+')))
 			{
-				int Check = CompareNum(*this, Right);
-				return Check == 1;
+				int check = compare_num(*this, right);
+				return check == 1;
 			}
 
-			if (((Sign == '-') && (Right.Sign == '-')))
+			if (((sign == '-') && (right.sign == '-')))
 			{
-				int Check = CompareNum(*this, Right);
-				return Check == 2;
+				int check = compare_num(*this, right);
+				return check == 2;
 			}
 
-			if (((Sign == '-') && (Right.Sign == '+')))
+			if (((sign == '-') && (right.sign == '+')))
 				return false;
 
-			if (((Sign == '+') && (Right.Sign == '-')))
+			if (((sign == '+') && (right.sign == '-')))
 				return true;
 
 			return false;
 		}
-		bool Decimal::operator>=(const Decimal& Right) const
+		bool decimal::operator>=(const decimal& right) const
 		{
-			if (IsNaN() || Right.IsNaN())
+			if (is_nan() || right.is_nan())
 				return false;
 
-			return !(*this < Right);
+			return !(*this < right);
 		}
-		bool Decimal::operator<(const Decimal& Right) const
+		bool decimal::operator<(const decimal& right) const
 		{
-			if (IsNaN() || Right.IsNaN())
+			if (is_nan() || right.is_nan())
 				return false;
 
-			if (((Sign == '+') && (Right.Sign == '+')))
+			if (((sign == '+') && (right.sign == '+')))
 			{
-				int Check = CompareNum(*this, Right);
-				return Check == 2;
+				int check = compare_num(*this, right);
+				return check == 2;
 			}
 
-			if (((Sign == '-') && (Right.Sign == '-')))
+			if (((sign == '-') && (right.sign == '-')))
 			{
-				int Check = CompareNum(*this, Right);
-				return Check == 1;
+				int check = compare_num(*this, right);
+				return check == 1;
 			}
 
-			if (((Sign == '-') && (Right.Sign == '+')))
+			if (((sign == '-') && (right.sign == '+')))
 				return true;
 
-			if (((Sign == '+') && (Right.Sign == '-')))
+			if (((sign == '+') && (right.sign == '-')))
 				return false;
 
 			return false;
 		}
-		bool Decimal::operator<=(const Decimal& Right) const
+		bool decimal::operator<=(const decimal& right) const
 		{
-			if (IsNaN() || Right.IsNaN())
+			if (is_nan() || right.is_nan())
 				return false;
 
-			return !(*this > Right);
+			return !(*this > right);
 		}
-		Decimal operator+(const Decimal& _Left, const Decimal& _Right)
+		decimal operator+(const decimal& _Left, const decimal& _Right)
 		{
-			Decimal Temp;
-			if (_Left.IsNaN() || _Right.IsNaN())
-				return Temp;
+			decimal temp;
+			if (_Left.is_nan() || _Right.is_nan())
+				return temp;
 
-			Decimal Left, Right;
-			Left = _Left;
-			Right = _Right;
+			decimal left, right;
+			left = _Left;
+			right = _Right;
 
-			if (Left.Length > Right.Length)
+			if (left.length > right.length)
 			{
-				while (Left.Length > Right.Length)
+				while (left.length > right.length)
 				{
-					Right.Length++;
-					Right.Source.insert(0, 1, '0');
+					right.length++;
+					right.source.insert(0, 1, '0');
 				}
 			}
-			else if (Left.Length < Right.Length)
+			else if (left.length < right.length)
 			{
-				while (Left.Length < Right.Length)
+				while (left.length < right.length)
 				{
-					Left.Length++;
-					Left.Source.insert(0, 1, '0');
-				}
-			}
-
-			if ((Left.Sign == '+') && (Right.Sign == '-'))
-			{
-				int Check = Decimal::CompareNum(Left, Right);
-				if (Check == 0)
-				{
-					Temp = 0;
-					return Temp;
-				}
-
-				if (Check == 1)
-				{
-					Temp = Decimal::Subtract(Left, Right);
-					Temp.Sign = '+';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
-				}
-
-				if (Check == 2)
-				{
-					Temp = Decimal::Subtract(Right, Left);
-					Temp.Sign = '-';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
+					left.length++;
+					left.source.insert(0, 1, '0');
 				}
 			}
 
-			if ((Left.Sign == '-') && (Right.Sign == '+'))
+			if ((left.sign == '+') && (right.sign == '-'))
 			{
-				int Check = Decimal::CompareNum(Left, Right);
-				if (Check == 0)
+				int check = decimal::compare_num(left, right);
+				if (check == 0)
 				{
-					Temp = 0;
-					return Temp;
+					temp = 0;
+					return temp;
 				}
 
-				if (Check == 1)
+				if (check == 1)
 				{
-					Temp = Decimal::Subtract(Left, Right);
-					Temp.Sign = '-';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
+					temp = decimal::subtract(left, right);
+					temp.sign = '+';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
 				}
 
-				if (Check == 2)
+				if (check == 2)
 				{
-					Temp = Decimal::Subtract(Right, Left);
-					Temp.Sign = '+';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
+					temp = decimal::subtract(right, left);
+					temp.sign = '-';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
 				}
 			}
 
-			if ((Left.Sign == '+') && (Right.Sign == '+'))
+			if ((left.sign == '-') && (right.sign == '+'))
 			{
-				Temp = Decimal::Sum(Left, Right);
-				Temp.Sign = '+';
-				Temp.Length = Left.Length;
-				return Temp;
+				int check = decimal::compare_num(left, right);
+				if (check == 0)
+				{
+					temp = 0;
+					return temp;
+				}
+
+				if (check == 1)
+				{
+					temp = decimal::subtract(left, right);
+					temp.sign = '-';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
+				}
+
+				if (check == 2)
+				{
+					temp = decimal::subtract(right, left);
+					temp.sign = '+';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
+				}
 			}
 
-			if ((Left.Sign == '-') && (Right.Sign == '-'))
+			if ((left.sign == '+') && (right.sign == '+'))
 			{
-				Temp = Decimal::Sum(Left, Right);
-				Temp.Sign = '-';
-				Temp.Length = Left.Length;
-				return Temp;
+				temp = decimal::sum(left, right);
+				temp.sign = '+';
+				temp.length = left.length;
+				return temp;
 			}
 
-			return Temp;
+			if ((left.sign == '-') && (right.sign == '-'))
+			{
+				temp = decimal::sum(left, right);
+				temp.sign = '-';
+				temp.length = left.length;
+				return temp;
+			}
+
+			return temp;
 		}
-		Decimal operator+(const Decimal& Left, const int& VRight)
+		decimal operator+(const decimal& left, const int& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left + Right;
+			decimal right;
+			right = vright;
+			return left + right;
 		}
-		Decimal operator+(const Decimal& Left, const double& VRight)
+		decimal operator+(const decimal& left, const double& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left + Right;
+			decimal right;
+			right = vright;
+			return left + right;
 		}
-		Decimal operator-(const Decimal& _Left, const Decimal& _Right)
+		decimal operator-(const decimal& _Left, const decimal& _Right)
 		{
-			Decimal Temp;
-			if (_Left.IsNaN() || _Right.IsNaN())
-				return Temp;
+			decimal temp;
+			if (_Left.is_nan() || _Right.is_nan())
+				return temp;
 
-			Decimal Left, Right;
-			Left = _Left;
-			Right = _Right;
+			decimal left, right;
+			left = _Left;
+			right = _Right;
 
-			if (Left.Length > Right.Length)
+			if (left.length > right.length)
 			{
-				while (Left.Length > Right.Length)
+				while (left.length > right.length)
 				{
-					Right.Length++;
-					Right.Source.insert(0, 1, '0');
+					right.length++;
+					right.source.insert(0, 1, '0');
 				}
 			}
-			else if (Left.Length < Right.Length)
+			else if (left.length < right.length)
 			{
-				while (Left.Length < Right.Length)
+				while (left.length < right.length)
 				{
-					Left.Length++;
-					Left.Source.insert(0, 1, '0');
-				}
-			}
-
-			if ((Left.Sign == '+') && (Right.Sign == '-'))
-			{
-				Temp = Decimal::Sum(Left, Right);
-				Temp.Sign = '+';
-				Temp.Length = Left.Length;
-				return Temp;
-			}
-			if ((Left.Sign == '-') && (Right.Sign == '+'))
-			{
-				Temp = Decimal::Sum(Left, Right);
-				Temp.Sign = '-';
-				Temp.Length = Left.Length;
-				return Temp;
-			}
-
-			if ((Left.Sign == '+') && (Right.Sign == '+'))
-			{
-				int Check = Decimal::CompareNum(Left, Right);
-				if (Check == 0)
-				{
-					Temp = 0;
-					return Temp;
-				}
-
-				if (Check == 1)
-				{
-					Temp = Decimal::Subtract(Left, Right);
-					Temp.Sign = '+';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
-				}
-
-				if (Check == 2)
-				{
-					Temp = Decimal::Subtract(Right, Left);
-					Temp.Sign = '-';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
+					left.length++;
+					left.source.insert(0, 1, '0');
 				}
 			}
 
-			if ((Left.Sign == '-') && (Right.Sign == '-'))
+			if ((left.sign == '+') && (right.sign == '-'))
 			{
-				int Check = Decimal::CompareNum(Left, Right);
-				if (Check == 0)
+				temp = decimal::sum(left, right);
+				temp.sign = '+';
+				temp.length = left.length;
+				return temp;
+			}
+			if ((left.sign == '-') && (right.sign == '+'))
+			{
+				temp = decimal::sum(left, right);
+				temp.sign = '-';
+				temp.length = left.length;
+				return temp;
+			}
+
+			if ((left.sign == '+') && (right.sign == '+'))
+			{
+				int check = decimal::compare_num(left, right);
+				if (check == 0)
 				{
-					Temp = 0;
-					return Temp;
+					temp = 0;
+					return temp;
 				}
 
-				if (Check == 1)
+				if (check == 1)
 				{
-					Temp = Decimal::Subtract(Left, Right);
-					Temp.Sign = '-';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
+					temp = decimal::subtract(left, right);
+					temp.sign = '+';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
 				}
 
-				if (Check == 2)
+				if (check == 2)
 				{
-					Temp = Decimal::Subtract(Right, Left);
-					Temp.Sign = '+';
-					Temp.Length = Left.Length;
-					Temp.Unlead();
-					return Temp;
+					temp = decimal::subtract(right, left);
+					temp.sign = '-';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
 				}
 			}
 
-			return Temp;
+			if ((left.sign == '-') && (right.sign == '-'))
+			{
+				int check = decimal::compare_num(left, right);
+				if (check == 0)
+				{
+					temp = 0;
+					return temp;
+				}
+
+				if (check == 1)
+				{
+					temp = decimal::subtract(left, right);
+					temp.sign = '-';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
+				}
+
+				if (check == 2)
+				{
+					temp = decimal::subtract(right, left);
+					temp.sign = '+';
+					temp.length = left.length;
+					temp.unlead();
+					return temp;
+				}
+			}
+
+			return temp;
 		}
-		Decimal operator-(const Decimal& Left, const int& VRight)
+		decimal operator-(const decimal& left, const int& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left - Right;
+			decimal right;
+			right = vright;
+			return left - right;
 		}
-		Decimal operator-(const Decimal& Left, const double& VRight)
+		decimal operator-(const decimal& left, const double& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left - Right;
+			decimal right;
+			right = vright;
+			return left - right;
 		}
-		Decimal operator*(const Decimal& Left, const Decimal& Right)
+		decimal operator*(const decimal& left, const decimal& right)
 		{
-			Decimal Temp;
-			if (Left.IsNaN() || Right.IsNaN())
-				return Temp;
+			decimal temp;
+			if (left.is_nan() || right.is_nan())
+				return temp;
 
-			Temp = Decimal::Multiply(Left, Right);
-			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
-				Temp.Sign = '+';
+			temp = decimal::multiply(left, right);
+			if (((left.sign == '-') && (right.sign == '-')) || ((left.sign == '+') && (right.sign == '+')))
+				temp.sign = '+';
 			else
-				Temp.Sign = '-';
+				temp.sign = '-';
 
-			Temp.Length = Left.Length + Right.Length;
-			Temp.Unlead();
+			temp.length = left.length + right.length;
+			temp.unlead();
 
-			return Temp;
+			return temp;
 		}
-		Decimal operator*(const Decimal& Left, const int& VRight)
+		decimal operator*(const decimal& left, const int& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left * Right;
+			decimal right;
+			right = vright;
+			return left * right;
 		}
-		Decimal operator*(const Decimal& Left, const double& VRight)
+		decimal operator*(const decimal& left, const double& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left * Right;
+			decimal right;
+			right = vright;
+			return left * right;
 		}
-		Decimal operator/(const Decimal& Left, const Decimal& Right)
+		decimal operator/(const decimal& left, const decimal& right)
 		{
-			Decimal Temp;
-			if (Left.IsNaN() || Right.IsNaN())
-				return Temp;
+			decimal temp;
+			if (left.is_nan() || right.is_nan())
+				return temp;
 
-			Decimal Q, R, D, N, Zero;
-			Zero = 0;
+			decimal q, r, d, n, zero;
+			zero = 0;
 
-			if (Right == Zero)
-				return Temp;
+			if (right == zero)
+				return temp;
 
-			N = (Left > Zero) ? (Left) : (Left * (-1));
-			D = (Right > Zero) ? (Right) : (Right * (-1));
-			R.Sign = '+';
+			n = (left > zero) ? (left) : (left * (-1));
+			d = (right > zero) ? (right) : (right * (-1));
+			r.sign = '+';
 
-			while ((N.Length != 0) || (D.Length != 0))
+			while ((n.length != 0) || (d.length != 0))
 			{
-				if (N.Length == 0)
-					N.Source.insert(0, 1, '0');
+				if (n.length == 0)
+					n.source.insert(0, 1, '0');
 				else
-					N.Length--;
+					n.length--;
 
-				if (D.Length == 0)
-					D.Source.insert(0, 1, '0');
+				if (d.length == 0)
+					d.source.insert(0, 1, '0');
 				else
-					D.Length--;
+					d.length--;
 			}
 
-			N.Unlead();
-			D.Unlead();
+			n.unlead();
+			d.unlead();
 
-			int32_t DivPrecision = (Left.Length > Right.Length) ? (Left.Length) : (Right.Length);
-			for (int32_t i = 0; i < DivPrecision; i++)
-				N.Source.insert(0, 1, '0');
+			int32_t div_precision = (left.length > right.length) ? (left.length) : (right.length);
+			for (int32_t i = 0; i < div_precision; i++)
+				n.source.insert(0, 1, '0');
 
-			int Check = Decimal::CompareNum(N, D);
-			if (Check == 0)
-				Temp.Source.insert(0, 1, '1');
+			int check = decimal::compare_num(n, d);
+			if (check == 0)
+				temp.source.insert(0, 1, '1');
 
-			if (Check == 2)
-				return Zero;
+			if (check == 2)
+				return zero;
 
-			while (!N.Source.empty())
+			while (!n.source.empty())
 			{
-				R.Source.insert(0, 1, *(N.Source.rbegin()));
-				N.Source.pop_back();
+				r.source.insert(0, 1, *(n.source.rbegin()));
+				n.source.pop_back();
 
-				bool IsZero = true;
-				auto ZeroIt = R.Source.begin();
-				for (; ZeroIt != R.Source.end(); ++ZeroIt)
+				bool is_zero = true;
+				auto zero_it = r.source.begin();
+				for (; zero_it != r.source.end(); ++zero_it)
 				{
-					if (*ZeroIt != '0')
-						IsZero = false;
+					if (*zero_it != '0')
+						is_zero = false;
 				}
 
-				if ((R >= D) && (!IsZero))
+				if ((r >= d) && (!is_zero))
 				{
-					int32_t QSub = 0;
-					int32_t Min = 0;
-					int32_t Max = 9;
+					int32_t qsub = 0;
+					int32_t min = 0;
+					int32_t max = 9;
 
-					while (R >= D)
+					while (r >= d)
 					{
-						int32_t Avg = Max - Min;
-						int32_t ModAvg = Avg / 2;
-						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
+						int32_t avg = max - min;
+						int32_t mod_avg = avg / 2;
+						avg = (avg - mod_avg * 2) ? (mod_avg + 1) : (mod_avg);
 
-						int DivCheck = Decimal::CompareNum(R, D * Avg);
-						if (DivCheck != 2)
+						int div_check = decimal::compare_num(r, d * avg);
+						if (div_check != 2)
 						{
-							QSub = QSub + Avg;
-							R = R - D * Avg;
+							qsub = qsub + avg;
+							r = r - d * avg;
 
-							Max = 9;
+							max = 9;
 						}
 						else
-							Max = Avg;
+							max = avg;
 					}
 
-					Q.Source.insert(0, 1, Decimal::IntToChar(QSub));
+					q.source.insert(0, 1, decimal::int_to_char(qsub));
 
-					bool IsZero = true;
-					auto ZeroIt = R.Source.begin();
-					for (; ZeroIt != R.Source.end(); ++ZeroIt)
+					bool is_zero = true;
+					auto zero_it = r.source.begin();
+					for (; zero_it != r.source.end(); ++zero_it)
 					{
-						if (*ZeroIt != '0')
-							IsZero = false;
+						if (*zero_it != '0')
+							is_zero = false;
 					}
 
-					if (IsZero)
-						R.Source.clear();
+					if (is_zero)
+						r.source.clear();
 				}
 				else
-					Q.Source.insert(0, 1, '0');
+					q.source.insert(0, 1, '0');
 			}
 
-			Temp = Q;
-			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
-				Temp.Sign = '+';
+			temp = q;
+			if (((left.sign == '-') && (right.sign == '-')) || ((left.sign == '+') && (right.sign == '+')))
+				temp.sign = '+';
 			else
-				Temp.Sign = '-';
-			Temp.Length = DivPrecision;
-			Temp.Unlead();
-			return Temp;
+				temp.sign = '-';
+			temp.length = div_precision;
+			temp.unlead();
+			return temp;
 		}
-		Decimal operator/(const Decimal& Left, const int& VRight)
+		decimal operator/(const decimal& left, const int& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left / Right;
+			decimal right;
+			right = vright;
+			return left / right;
 		}
-		Decimal operator/(const Decimal& Left, const double& VRight)
+		decimal operator/(const decimal& left, const double& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left / Right;
+			decimal right;
+			right = vright;
+			return left / right;
 		}
-		Decimal operator%(const Decimal& Left, const Decimal& Right)
+		decimal operator%(const decimal& left, const decimal& right)
 		{
-			Decimal Temp;
-			if (Left.IsNaN() || Right.IsNaN())
-				return Temp;
+			decimal temp;
+			if (left.is_nan() || right.is_nan())
+				return temp;
 
-			if ((Left.Length != 0) || (Right.Length != 0))
-				return Temp;
+			if ((left.length != 0) || (right.length != 0))
+				return temp;
 
-			Decimal Q, R, D, N, Zero, Result;
-			Zero = 0;
+			decimal q, r, d, n, zero, result;
+			zero = 0;
 
-			if (Right == Zero)
-				return Temp;
+			if (right == zero)
+				return temp;
 
-			N = (Left > Zero) ? (Left) : (Left * (-1));
-			D = (Right > Zero) ? (Right) : (Right * (-1));
-			R.Sign = '+';
+			n = (left > zero) ? (left) : (left * (-1));
+			d = (right > zero) ? (right) : (right * (-1));
+			r.sign = '+';
 
-			int Check = Decimal::CompareNum(N, D);
-			if (Check == 0)
-				return Zero;
+			int check = decimal::compare_num(n, d);
+			if (check == 0)
+				return zero;
 
-			if (Check == 2)
-				return Left;
+			if (check == 2)
+				return left;
 
-			while (!N.Source.empty())
+			while (!n.source.empty())
 			{
-				R.Source.insert(0, 1, *(N.Source.rbegin()));
-				N.Source.pop_back();
+				r.source.insert(0, 1, *(n.source.rbegin()));
+				n.source.pop_back();
 
-				bool IsZero = true;
-				auto ZeroIt = R.Source.begin();
-				for (; ZeroIt != R.Source.end(); ++ZeroIt)
+				bool is_zero = true;
+				auto zero_it = r.source.begin();
+				for (; zero_it != r.source.end(); ++zero_it)
 				{
-					if (*ZeroIt != '0')
-						IsZero = false;
+					if (*zero_it != '0')
+						is_zero = false;
 				}
 
-				if ((R >= D) && (!IsZero))
+				if ((r >= d) && (!is_zero))
 				{
-					int32_t QSub = 0;
-					int32_t Min = 0;
-					int32_t Max = 9;
+					int32_t qsub = 0;
+					int32_t min = 0;
+					int32_t max = 9;
 
-					while (R >= D)
+					while (r >= d)
 					{
-						int32_t Avg = Max - Min;
-						int32_t ModAvg = Avg / 2;
-						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
+						int32_t avg = max - min;
+						int32_t mod_avg = avg / 2;
+						avg = (avg - mod_avg * 2) ? (mod_avg + 1) : (mod_avg);
 
-						int DivCheck = Decimal::CompareNum(R, D * Avg);
-						if (DivCheck != 2)
+						int div_check = decimal::compare_num(r, d * avg);
+						if (div_check != 2)
 						{
-							QSub = QSub + Avg;
-							R = R - D * Avg;
+							qsub = qsub + avg;
+							r = r - d * avg;
 
-							Max = 9;
+							max = 9;
 						}
 						else
-							Max = Avg;
+							max = avg;
 					}
 
-					Q.Source.insert(0, 1, Decimal::IntToChar(QSub));
-					Result = R;
+					q.source.insert(0, 1, decimal::int_to_char(qsub));
+					result = r;
 
-					bool IsZero = true;
-					auto ZeroIt = R.Source.begin();
-					for (; ZeroIt != R.Source.end(); ++ZeroIt)
+					bool is_zero = true;
+					auto zero_it = r.source.begin();
+					for (; zero_it != r.source.end(); ++zero_it)
 					{
-						if (*ZeroIt != '0')
-							IsZero = false;
+						if (*zero_it != '0')
+							is_zero = false;
 					}
 
-					if (IsZero)
-						R.Source.clear();
+					if (is_zero)
+						r.source.clear();
 				}
 				else
 				{
-					Result = R;
-					Q.Source.insert(0, 1, '0');
+					result = r;
+					q.source.insert(0, 1, '0');
 				}
 			}
 
-			Q.Unlead();
-			Result.Unlead();
-			Temp = Result;
-			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
-				Temp.Sign = '+';
+			q.unlead();
+			result.unlead();
+			temp = result;
+			if (((left.sign == '-') && (right.sign == '-')) || ((left.sign == '+') && (right.sign == '+')))
+				temp.sign = '+';
 			else
-				Temp.Sign = '-';
-			if (!Decimal::CompareNum(Temp, Zero))
-				Temp.Sign = '+';
-			return Temp;
+				temp.sign = '-';
+			if (!decimal::compare_num(temp, zero))
+				temp.sign = '+';
+			return temp;
 		}
-		Decimal operator%(const Decimal& Left, const int& VRight)
+		decimal operator%(const decimal& left, const int& vright)
 		{
-			Decimal Right;
-			Right = VRight;
-			return Left % Right;
+			decimal right;
+			right = vright;
+			return left % right;
 		}
-		Decimal Decimal::From(const std::string_view& Data, uint8_t Base)
+		decimal decimal::from(const std::string_view& data, uint8_t base)
 		{
-			static uint8_t Mapping[] =
+			static uint8_t mapping[] =
 			{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3062,168 +3062,168 @@ namespace Vitex
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 			};
-			Decimal Radix = Decimal(Base);
-			Decimal Value = Decimal("0");
-			for (auto& Item : Data)
+			decimal radix = decimal(base);
+			decimal value = decimal("0");
+			for (auto& item : data)
 			{
-				uint8_t Number = Mapping[(uint8_t)Item];
-				Value = Value * Radix + Decimal(Number);
+				uint8_t number = mapping[(uint8_t)item];
+				value = value * radix + decimal(number);
 			}
 
-			return Value;
+			return value;
 		}
-		Decimal Decimal::Zero()
+		decimal decimal::zero()
 		{
-			Decimal Result;
-			Result.ApplyZero();
-			return Result;
+			decimal result;
+			result.apply_zero();
+			return result;
 		}
-		Decimal Decimal::NaN()
+		decimal decimal::nan()
 		{
-			Decimal Result;
-			return Result;
+			decimal result;
+			return result;
 		}
-		Decimal Decimal::Sum(const Decimal& Left, const Decimal& Right)
+		decimal decimal::sum(const decimal& left, const decimal& right)
 		{
-			Decimal Temp;
-			size_t LoopSize = (Left.Source.size() > Right.Source.size() ? Left.Source.size() : Right.Source.size());
-			int32_t Carry = 0;
+			decimal temp;
+			size_t loop_size = (left.source.size() > right.source.size() ? left.source.size() : right.source.size());
+			int32_t carry = 0;
 
-			for (size_t i = 0; i < LoopSize; ++i)
+			for (size_t i = 0; i < loop_size; ++i)
 			{
-				int32_t Val1, Val2;
-				Val1 = (i > Left.Source.size() - 1) ? 0 : CharToInt(Left.Source[i]);
-				Val2 = (i > Right.Source.size() - 1) ? 0 : CharToInt(Right.Source[i]);
+				int32_t val1, val2;
+				val1 = (i > left.source.size() - 1) ? 0 : char_to_int(left.source[i]);
+				val2 = (i > right.source.size() - 1) ? 0 : char_to_int(right.source[i]);
 
-				int32_t Aus = Val1 + Val2 + Carry;
-				Carry = 0;
+				int32_t aus = val1 + val2 + carry;
+				carry = 0;
 
-				if (Aus > 9)
+				if (aus > 9)
 				{
-					Carry = 1;
-					Aus = Aus - 10;
+					carry = 1;
+					aus = aus - 10;
 				}
 
-				Temp.Source.push_back(IntToChar(Aus));
+				temp.source.push_back(int_to_char(aus));
 			}
 
-			if (Carry != 0)
-				Temp.Source.push_back(IntToChar(Carry));
+			if (carry != 0)
+				temp.source.push_back(int_to_char(carry));
 
-			return Temp;
+			return temp;
 		}
-		Decimal Decimal::Subtract(const Decimal& Left, const Decimal& Right)
+		decimal decimal::subtract(const decimal& left, const decimal& right)
 		{
-			Decimal Temp;
-			int32_t Carry = 0;
-			int32_t Aus;
+			decimal temp;
+			int32_t carry = 0;
+			int32_t aus;
 
-			for (size_t i = 0; i < Left.Source.size(); ++i)
+			for (size_t i = 0; i < left.source.size(); ++i)
 			{
-				int32_t Val1, Val2;
-				Val1 = CharToInt(Left.Source[i]);
-				Val2 = (i > Right.Source.size() - 1) ? 0 : CharToInt(Right.Source[i]);
-				Val1 -= Carry;
+				int32_t val1, val2;
+				val1 = char_to_int(left.source[i]);
+				val2 = (i > right.source.size() - 1) ? 0 : char_to_int(right.source[i]);
+				val1 -= carry;
 
-				if (Val1 < Val2)
+				if (val1 < val2)
 				{
-					Aus = 10 + Val1 - Val2;
-					Carry = 1;
+					aus = 10 + val1 - val2;
+					carry = 1;
 				}
 				else
 				{
-					Aus = Val1 - Val2;
-					Carry = 0;
+					aus = val1 - val2;
+					carry = 0;
 				}
 
-				Temp.Source.push_back(IntToChar(Aus));
+				temp.source.push_back(int_to_char(aus));
 			}
 
-			return Temp;
+			return temp;
 		}
-		Decimal Decimal::Multiply(const Decimal& Left, const Decimal& Right)
+		decimal decimal::multiply(const decimal& left, const decimal& right)
 		{
-			Decimal Result;
-			Decimal Temp;
-			Result.Source.push_back('0');
-			int32_t Carry = 0;
+			decimal result;
+			decimal temp;
+			result.source.push_back('0');
+			int32_t carry = 0;
 
-			for (size_t i = 0; i < Right.Source.size(); ++i)
+			for (size_t i = 0; i < right.source.size(); ++i)
 			{
 				for (size_t k = 0; k < i; ++k)
-					Temp.Source.insert(0, 1, '0');
+					temp.source.insert(0, 1, '0');
 
-				for (size_t j = 0; j < Left.Source.size(); ++j)
+				for (size_t j = 0; j < left.source.size(); ++j)
 				{
-					int32_t Aus = CharToInt(Right.Source[i]) * CharToInt(Left.Source[j]) + Carry;
-					Carry = 0;
-					if (Aus > 9)
+					int32_t aus = char_to_int(right.source[i]) * char_to_int(left.source[j]) + carry;
+					carry = 0;
+					if (aus > 9)
 					{
-						while (Aus > 9)
+						while (aus > 9)
 						{
-							Carry++;
-							Aus -= 10;
+							carry++;
+							aus -= 10;
 						}
 					}
 
-					Temp.Source.push_back(IntToChar(Aus));
+					temp.source.push_back(int_to_char(aus));
 				}
 
-				if (Carry != 0)
-					Temp.Source.push_back(IntToChar(Carry));
+				if (carry != 0)
+					temp.source.push_back(int_to_char(carry));
 
-				Carry = 0;
-				Result = Sum(Result, Temp);
-				Temp.Source.clear();
+				carry = 0;
+				result = sum(result, temp);
+				temp.source.clear();
 			}
 
-			return Result;
+			return result;
 		}
-		int Decimal::CompareNum(const Decimal& Left, const Decimal& Right)
+		int decimal::compare_num(const decimal& left, const decimal& right)
 		{
-			if ((Left.Source.size() - Left.Length) > (Right.Source.size() - Right.Length))
+			if ((left.source.size() - left.length) > (right.source.size() - right.length))
 				return 1;
 
-			if ((Left.Source.size() - Left.Length) < (Right.Source.size() - Right.Length))
+			if ((left.source.size() - left.length) < (right.source.size() - right.length))
 				return 2;
 
-			if (Left.Length > Right.Length)
+			if (left.length > right.length)
 			{
-				Decimal Temp;
-				Temp = Right;
-				while (Left.Length > Temp.Length)
+				decimal temp;
+				temp = right;
+				while (left.length > temp.length)
 				{
-					Temp.Length++;
-					Temp.Source.insert(0, 1, '0');
+					temp.length++;
+					temp.source.insert(0, 1, '0');
 				}
 
-				for (int32_t i = (int32_t)Left.Source.size() - 1; i >= 0; i--)
+				for (int32_t i = (int32_t)left.source.size() - 1; i >= 0; i--)
 				{
-					if (Left.Source[i] > Temp.Source[i])
+					if (left.source[i] > temp.source[i])
 						return 1;
 
-					if (Left.Source[i] < Temp.Source[i])
+					if (left.source[i] < temp.source[i])
 						return 2;
 				}
 
 				return 0;
 			}
-			else if (Left.Length < Right.Length)
+			else if (left.length < right.length)
 			{
-				Decimal Temp;
-				Temp = Left;
-				while (Temp.Length < Right.Length)
+				decimal temp;
+				temp = left;
+				while (temp.length < right.length)
 				{
-					Temp.Length++;
-					Temp.Source.insert(0, 1, '0');
+					temp.length++;
+					temp.source.insert(0, 1, '0');
 				}
 
-				for (int32_t i = (int32_t)Temp.Source.size() - 1; i >= 0; i--)
+				for (int32_t i = (int32_t)temp.source.size() - 1; i >= 0; i--)
 				{
-					if (Temp.Source[i] > Right.Source[i])
+					if (temp.source[i] > right.source[i])
 						return 1;
 
-					if (Temp.Source[i] < Right.Source[i])
+					if (temp.source[i] < right.source[i])
 						return 2;
 				}
 
@@ -3231,1722 +3231,1722 @@ namespace Vitex
 			}
 			else
 			{
-				for (int32_t i = (int32_t)Left.Source.size() - 1; i >= 0; i--)
+				for (int32_t i = (int32_t)left.source.size() - 1; i >= 0; i--)
 				{
-					if (Left.Source[i] > Right.Source[i])
+					if (left.source[i] > right.source[i])
 						return 1;
-					else if (Left.Source[i] < Right.Source[i])
+					else if (left.source[i] < right.source[i])
 						return 2;
 				}
 
 				return 0;
 			}
 		}
-		int Decimal::CharToInt(char Value)
+		int decimal::char_to_int(char value)
 		{
-			return Value - '0';
+			return value - '0';
 		}
-		char Decimal::IntToChar(const int& Value)
+		char decimal::int_to_char(const int& value)
 		{
-			return Value + '0';
+			return value + '0';
 		}
 
-		Variant::Variant() noexcept : Type(VarType::Undefined), Length(0)
+		variant::variant() noexcept : type(var_type::undefined), length(0)
 		{
-			Value.Pointer = nullptr;
+			value.pointer = nullptr;
 		}
-		Variant::Variant(VarType NewType) noexcept : Type(NewType), Length(0)
+		variant::variant(var_type new_type) noexcept : type(new_type), length(0)
 		{
-			Value.Pointer = nullptr;
+			value.pointer = nullptr;
 		}
-		Variant::Variant(const Variant& Other) noexcept
+		variant::variant(const variant& other) noexcept
 		{
-			Copy(Other);
+			copy(other);
 		}
-		Variant::Variant(Variant&& Other) noexcept
+		variant::variant(variant&& other) noexcept
 		{
-			Move(std::move(Other));
+			move(std::move(other));
 		}
-		Variant::~Variant() noexcept
+		variant::~variant() noexcept
 		{
-			Free();
+			free();
 		}
-		bool Variant::Deserialize(const std::string_view& Text, bool Strict)
+		bool variant::deserialize(const std::string_view& text, bool strict)
 		{
-			Free();
-			if (!Strict && !Text.empty())
+			free();
+			if (!strict && !text.empty())
 			{
-				if (Text.size() > 2 && Text.front() == PREFIX_ENUM[0] && Text.back() == PREFIX_ENUM[0])
+				if (text.size() > 2 && text.front() == PREFIX_ENUM[0] && text.back() == PREFIX_ENUM[0])
 				{
-					if (Text == PREFIX_ENUM "null" PREFIX_ENUM)
+					if (text == PREFIX_ENUM "null" PREFIX_ENUM)
 					{
-						Type = VarType::Null;
+						type = var_type::null;
 						return true;
 					}
-					else if (Text == PREFIX_ENUM "undefined" PREFIX_ENUM)
+					else if (text == PREFIX_ENUM "undefined" PREFIX_ENUM)
 					{
-						Type = VarType::Undefined;
+						type = var_type::undefined;
 						return true;
 					}
-					else if (Text == PREFIX_ENUM "{}" PREFIX_ENUM)
+					else if (text == PREFIX_ENUM "{}" PREFIX_ENUM)
 					{
-						Type = VarType::Object;
+						type = var_type::object;
 						return true;
 					}
-					else if (Text == PREFIX_ENUM "[]" PREFIX_ENUM)
+					else if (text == PREFIX_ENUM "[]" PREFIX_ENUM)
 					{
-						Type = VarType::Array;
+						type = var_type::array;
 						return true;
 					}
-					else if (Text == PREFIX_ENUM "void*" PREFIX_ENUM)
+					else if (text == PREFIX_ENUM "void*" PREFIX_ENUM)
 					{
-						Type = VarType::Pointer;
+						type = var_type::pointer;
 						return true;
 					}
 				}
-				else if (Text.front() == 't' && Text == "true")
+				else if (text.front() == 't' && text == "true")
 				{
-					Move(Var::Boolean(true));
+					move(var::boolean(true));
 					return true;
 				}
-				else if (Text.front() == 'f' && Text == "false")
+				else if (text.front() == 'f' && text == "false")
 				{
-					Move(Var::Boolean(false));
+					move(var::boolean(false));
 					return true;
 				}
-				else if (Stringify::HasNumber(Text))
+				else if (stringify::has_number(text))
 				{
-					if (Stringify::HasInteger(Text))
+					if (stringify::has_integer(text))
 					{
-						auto Number = FromString<int64_t>(Text);
-						if (Number)
+						auto number = from_string<int64_t>(text);
+						if (number)
 						{
-							Move(Var::Integer(*Number));
+							move(var::integer(*number));
 							return true;
 						}
 					}
-					else if (Stringify::HasDecimal(Text))
+					else if (stringify::has_decimal(text))
 					{
-						Move(Var::DecimalString(Text));
+						move(var::decimal_string(text));
 						return true;
 					}
 					else
 					{
-						auto Number = FromString<double>(Text);
-						if (Number)
+						auto number = from_string<double>(text);
+						if (number)
 						{
-							Move(Var::Number(*Number));
+							move(var::number(*number));
 							return true;
 						}
 					}
 				}
 			}
 
-			if (Text.size() > 2 && Text.front() == PREFIX_BINARY[0] && Text.back() == PREFIX_BINARY[0])
+			if (text.size() > 2 && text.front() == PREFIX_BINARY[0] && text.back() == PREFIX_BINARY[0])
 			{
-				auto Data = Compute::Codec::Bep45Decode(Text.substr(1, Text.size() - 2));
-				Move(Var::Binary((uint8_t*)Data.data(), Data.size()));
+				auto data = compute::codec::bep45_decode(text.substr(1, text.size() - 2));
+				move(var::binary((uint8_t*)data.data(), data.size()));
 			}
 			else
-				Move(Var::String(Text));
+				move(var::string(text));
 
 			return true;
 		}
-		String Variant::Serialize() const
+		string variant::serialize() const
 		{
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Null:
+				case var_type::null:
 					return PREFIX_ENUM "null" PREFIX_ENUM;
-				case VarType::Undefined:
+				case var_type::undefined:
 					return PREFIX_ENUM "undefined" PREFIX_ENUM;
-				case VarType::Object:
+				case var_type::object:
 					return PREFIX_ENUM "{}" PREFIX_ENUM;
-				case VarType::Array:
+				case var_type::array:
 					return PREFIX_ENUM "[]" PREFIX_ENUM;
-				case VarType::Pointer:
+				case var_type::pointer:
 					return PREFIX_ENUM "void*" PREFIX_ENUM;
-				case VarType::String:
-					return String(GetString());
-				case VarType::Binary:
-					return PREFIX_BINARY + Compute::Codec::Bep45Encode(GetString()) + PREFIX_BINARY;
-				case VarType::Decimal:
+				case var_type::string:
+					return string(get_string());
+				case var_type::binary:
+					return PREFIX_BINARY + compute::codec::bep45_encode(get_string()) + PREFIX_BINARY;
+				case var_type::decimal:
 				{
-					auto* Data = ((Decimal*)Value.Pointer);
-					if (Data->IsNaN())
+					auto* data = ((decimal*)value.pointer);
+					if (data->is_nan())
 						return PREFIX_ENUM "null" PREFIX_ENUM;
 
-					return Data->ToString();
+					return data->to_string();
 				}
-				case VarType::Integer:
-					return Core::ToString(Value.Integer);
-				case VarType::Number:
-					return Core::ToString(Value.Number);
-				case VarType::Boolean:
-					return Value.Boolean ? "true" : "false";
+				case var_type::integer:
+					return core::to_string(value.integer);
+				case var_type::number:
+					return core::to_string(value.number);
+				case var_type::boolean:
+					return value.boolean ? "true" : "false";
 				default:
 					return "";
 			}
 		}
-		String Variant::GetBlob() const
+		string variant::get_blob() const
 		{
-			if (Type == VarType::String || Type == VarType::Binary)
-				return String(GetString());
+			if (type == var_type::string || type == var_type::binary)
+				return string(get_string());
 
-			if (Type == VarType::Decimal)
-				return ((Decimal*)Value.Pointer)->ToString();
+			if (type == var_type::decimal)
+				return ((decimal*)value.pointer)->to_string();
 
-			if (Type == VarType::Integer)
-				return Core::ToString(GetInteger());
+			if (type == var_type::integer)
+				return core::to_string(get_integer());
 
-			if (Type == VarType::Number)
-				return Core::ToString(GetNumber());
+			if (type == var_type::number)
+				return core::to_string(get_number());
 
-			if (Type == VarType::Boolean)
-				return Value.Boolean ? "1" : "0";
+			if (type == var_type::boolean)
+				return value.boolean ? "1" : "0";
 
 			return "";
 		}
-		Decimal Variant::GetDecimal() const
+		decimal variant::get_decimal() const
 		{
-			if (Type == VarType::Decimal)
-				return *(Decimal*)Value.Pointer;
+			if (type == var_type::decimal)
+				return *(decimal*)value.pointer;
 
-			if (Type == VarType::Integer)
-				return Decimal(Core::ToString(Value.Integer));
+			if (type == var_type::integer)
+				return decimal(core::to_string(value.integer));
 
-			if (Type == VarType::Number)
-				return Decimal(Core::ToString(Value.Number));
+			if (type == var_type::number)
+				return decimal(core::to_string(value.number));
 
-			if (Type == VarType::Boolean)
-				return Decimal(Value.Boolean ? "1" : "0");
+			if (type == var_type::boolean)
+				return decimal(value.boolean ? "1" : "0");
 
-			if (Type == VarType::String)
-				return Decimal(GetString());
+			if (type == var_type::string)
+				return decimal(get_string());
 
-			return Decimal::NaN();
+			return decimal::nan();
 		}
-		void* Variant::GetPointer() const
+		void* variant::get_pointer() const
 		{
-			if (Type == VarType::Pointer)
-				return (void*)Value.Pointer;
+			if (type == var_type::pointer)
+				return (void*)value.pointer;
 
 			return nullptr;
 		}
-		void* Variant::GetContainer()
+		void* variant::get_container()
 		{
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Pointer:
-					return Value.Pointer;
-				case VarType::String:
-				case VarType::Binary:
-					return (void*)GetString().data();
-				case VarType::Integer:
-					return &Value.Integer;
-				case VarType::Number:
-					return &Value.Number;
-				case VarType::Decimal:
-					return Value.Pointer;
-				case VarType::Boolean:
-					return &Value.Boolean;
-				case VarType::Null:
-				case VarType::Undefined:
-				case VarType::Object:
-				case VarType::Array:
+				case var_type::pointer:
+					return value.pointer;
+				case var_type::string:
+				case var_type::binary:
+					return (void*)get_string().data();
+				case var_type::integer:
+					return &value.integer;
+				case var_type::number:
+					return &value.number;
+				case var_type::decimal:
+					return value.pointer;
+				case var_type::boolean:
+					return &value.boolean;
+				case var_type::null:
+				case var_type::undefined:
+				case var_type::object:
+				case var_type::array:
 				default:
 					return nullptr;
 			}
 		}
-		std::string_view Variant::GetString() const
+		std::string_view variant::get_string() const
 		{
-			if (Type != VarType::String && Type != VarType::Binary)
+			if (type != var_type::string && type != var_type::binary)
 				return std::string_view("", 0);
 
-			return std::string_view(Length <= GetMaxSmallStringSize() ? Value.String : Value.Pointer, Length);
+			return std::string_view(length <= get_max_small_string_size() ? value.string : value.pointer, length);
 		}
-		uint8_t* Variant::GetBinary() const
+		uint8_t* variant::get_binary() const
 		{
-			if (Type != VarType::String && Type != VarType::Binary)
+			if (type != var_type::string && type != var_type::binary)
 				return nullptr;
 
-			return Length <= GetMaxSmallStringSize() ? (uint8_t*)Value.String : (uint8_t*)Value.Pointer;
+			return length <= get_max_small_string_size() ? (uint8_t*)value.string : (uint8_t*)value.pointer;
 		}
-		int64_t Variant::GetInteger() const
+		int64_t variant::get_integer() const
 		{
-			if (Type == VarType::Integer)
-				return Value.Integer;
+			if (type == var_type::integer)
+				return value.integer;
 
-			if (Type == VarType::Number)
-				return (int64_t)Value.Number;
+			if (type == var_type::number)
+				return (int64_t)value.number;
 
-			if (Type == VarType::Decimal)
-				return (int64_t)((Decimal*)Value.Pointer)->ToDouble();
+			if (type == var_type::decimal)
+				return (int64_t)((decimal*)value.pointer)->to_double();
 
-			if (Type == VarType::Boolean)
-				return Value.Boolean ? 1 : 0;
+			if (type == var_type::boolean)
+				return value.boolean ? 1 : 0;
 
-			if (Type == VarType::String)
+			if (type == var_type::string)
 			{
-				auto Result = FromString<int64_t>(GetString());
-				if (Result)
-					return *Result;
+				auto result = from_string<int64_t>(get_string());
+				if (result)
+					return *result;
 			}
 
 			return 0;
 		}
-		double Variant::GetNumber() const
+		double variant::get_number() const
 		{
-			if (Type == VarType::Number)
-				return Value.Number;
+			if (type == var_type::number)
+				return value.number;
 
-			if (Type == VarType::Integer)
-				return (double)Value.Integer;
+			if (type == var_type::integer)
+				return (double)value.integer;
 
-			if (Type == VarType::Decimal)
-				return ((Decimal*)Value.Pointer)->ToDouble();
+			if (type == var_type::decimal)
+				return ((decimal*)value.pointer)->to_double();
 
-			if (Type == VarType::Boolean)
-				return Value.Boolean ? 1.0 : 0.0;
+			if (type == var_type::boolean)
+				return value.boolean ? 1.0 : 0.0;
 
-			if (Type == VarType::String)
+			if (type == var_type::string)
 			{
-				auto Result = FromString<double>(GetString());
-				if (Result)
-					return *Result;
+				auto result = from_string<double>(get_string());
+				if (result)
+					return *result;
 			}
 
 			return 0.0;
 		}
-		bool Variant::GetBoolean() const
+		bool variant::get_boolean() const
 		{
-			if (Type == VarType::Boolean)
-				return Value.Boolean;
+			if (type == var_type::boolean)
+				return value.boolean;
 
-			if (Type == VarType::Number)
-				return Value.Number > 0.0;
+			if (type == var_type::number)
+				return value.number > 0.0;
 
-			if (Type == VarType::Integer)
-				return Value.Integer > 0;
+			if (type == var_type::integer)
+				return value.integer > 0;
 
-			if (Type == VarType::Decimal)
-				return ((Decimal*)Value.Pointer)->ToDouble() > 0.0;
+			if (type == var_type::decimal)
+				return ((decimal*)value.pointer)->to_double() > 0.0;
 
-			return Size() > 0;
+			return size() > 0;
 		}
-		VarType Variant::GetType() const
+		var_type variant::get_type() const
 		{
-			return Type;
+			return type;
 		}
-		size_t Variant::Size() const
+		size_t variant::size() const
 		{
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Null:
-				case VarType::Undefined:
-				case VarType::Object:
-				case VarType::Array:
+				case var_type::null:
+				case var_type::undefined:
+				case var_type::object:
+				case var_type::array:
 					return 0;
-				case VarType::Pointer:
+				case var_type::pointer:
 					return sizeof(void*);
-				case VarType::String:
-				case VarType::Binary:
-					return Length;
-				case VarType::Decimal:
-					return ((Decimal*)Value.Pointer)->Size();
-				case VarType::Integer:
+				case var_type::string:
+				case var_type::binary:
+					return length;
+				case var_type::decimal:
+					return ((decimal*)value.pointer)->size();
+				case var_type::integer:
 					return sizeof(int64_t);
-				case VarType::Number:
+				case var_type::number:
 					return sizeof(double);
-				case VarType::Boolean:
+				case var_type::boolean:
 					return sizeof(bool);
 			}
 
 			return 0;
 		}
-		bool Variant::operator== (const Variant& Other) const
+		bool variant::operator== (const variant& other) const
 		{
-			return Same(Other);
+			return same(other);
 		}
-		bool Variant::operator!= (const Variant& Other) const
+		bool variant::operator!= (const variant& other) const
 		{
-			return !Same(Other);
+			return !same(other);
 		}
-		Variant& Variant::operator= (const Variant& Other) noexcept
+		variant& variant::operator= (const variant& other) noexcept
 		{
-			Free();
-			Copy(Other);
+			free();
+			copy(other);
 
 			return *this;
 		}
-		Variant& Variant::operator= (Variant&& Other) noexcept
+		variant& variant::operator= (variant&& other) noexcept
 		{
-			Free();
-			Move(std::move(Other));
+			free();
+			move(std::move(other));
 
 			return *this;
 		}
-		Variant::operator bool() const
+		variant::operator bool() const
 		{
-			return !Empty();
+			return !empty();
 		}
-		bool Variant::IsString(const std::string_view& Text) const
+		bool variant::is_string(const std::string_view& text) const
 		{
-			return GetString() == Text;
+			return get_string() == text;
 		}
-		bool Variant::IsObject() const
+		bool variant::is_object() const
 		{
-			return Type == VarType::Object || Type == VarType::Array;
+			return type == var_type::object || type == var_type::array;
 		}
-		bool Variant::Empty() const
+		bool variant::empty() const
 		{
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Null:
-				case VarType::Undefined:
+				case var_type::null:
+				case var_type::undefined:
 					return true;
-				case VarType::Object:
-				case VarType::Array:
+				case var_type::object:
+				case var_type::array:
 					return false;
-				case VarType::Pointer:
-					return Value.Pointer == nullptr;
-				case VarType::String:
-				case VarType::Binary:
-					return Length == 0;
-				case VarType::Decimal:
-					return ((Decimal*)Value.Pointer)->ToDouble() == 0.0;
-				case VarType::Integer:
-					return Value.Integer == 0;
-				case VarType::Number:
-					return Value.Number == 0.0;
-				case VarType::Boolean:
-					return Value.Boolean == false;
+				case var_type::pointer:
+					return value.pointer == nullptr;
+				case var_type::string:
+				case var_type::binary:
+					return length == 0;
+				case var_type::decimal:
+					return ((decimal*)value.pointer)->to_double() == 0.0;
+				case var_type::integer:
+					return value.integer == 0;
+				case var_type::number:
+					return value.number == 0.0;
+				case var_type::boolean:
+					return value.boolean == false;
 				default:
 					return true;
 			}
 		}
-		bool Variant::Is(VarType Value) const
+		bool variant::is(var_type value) const
 		{
-			return Type == Value;
+			return type == value;
 		}
-		bool Variant::Same(const Variant& Other) const
+		bool variant::same(const variant& other) const
 		{
-			if (Type != Other.Type)
+			if (type != other.type)
 				return false;
 
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Null:
-				case VarType::Undefined:
+				case var_type::null:
+				case var_type::undefined:
 					return true;
-				case VarType::Pointer:
-					return GetPointer() == Other.GetPointer();
-				case VarType::String:
-				case VarType::Binary:
+				case var_type::pointer:
+					return get_pointer() == other.get_pointer();
+				case var_type::string:
+				case var_type::binary:
 				{
-					size_t Sizing = Size();
-					if (Sizing != Other.Size())
+					size_t sizing = size();
+					if (sizing != other.size())
 						return false;
 
-					return GetString() == Other.GetString();
+					return get_string() == other.get_string();
 				}
-				case VarType::Decimal:
-					return (*(Decimal*)Value.Pointer) == (*(Decimal*)Other.Value.Pointer);
-				case VarType::Integer:
-					return GetInteger() == Other.GetInteger();
-				case VarType::Number:
-					return abs(GetNumber() - Other.GetNumber()) < std::numeric_limits<double>::epsilon();
-				case VarType::Boolean:
-					return GetBoolean() == Other.GetBoolean();
+				case var_type::decimal:
+					return (*(decimal*)value.pointer) == (*(decimal*)other.value.pointer);
+				case var_type::integer:
+					return get_integer() == other.get_integer();
+				case var_type::number:
+					return abs(get_number() - other.get_number()) < std::numeric_limits<double>::epsilon();
+				case var_type::boolean:
+					return get_boolean() == other.get_boolean();
 				default:
 					return false;
 			}
 		}
-		void Variant::Copy(const Variant& Other)
+		void variant::copy(const variant& other)
 		{
-			Type = Other.Type;
-			Length = Other.Length;
+			type = other.type;
+			length = other.length;
 
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Null:
-				case VarType::Undefined:
-				case VarType::Object:
-				case VarType::Array:
-					Value.Pointer = nullptr;
+				case var_type::null:
+				case var_type::undefined:
+				case var_type::object:
+				case var_type::array:
+					value.pointer = nullptr;
 					break;
-				case VarType::Pointer:
-					Value.Pointer = Other.Value.Pointer;
+				case var_type::pointer:
+					value.pointer = other.value.pointer;
 					break;
-				case VarType::String:
-				case VarType::Binary:
+				case var_type::string:
+				case var_type::binary:
 				{
-					size_t StringSize = sizeof(char) * (Length + 1);
-					if (Length > GetMaxSmallStringSize())
-						Value.Pointer = Memory::Allocate<char>(StringSize);
-					memcpy((void*)GetString().data(), Other.GetString().data(), StringSize);
+					size_t string_size = sizeof(char) * (length + 1);
+					if (length > get_max_small_string_size())
+						value.pointer = memory::allocate<char>(string_size);
+					memcpy((void*)get_string().data(), other.get_string().data(), string_size);
 					break;
 				}
-				case VarType::Decimal:
+				case var_type::decimal:
 				{
-					Decimal* From = (Decimal*)Other.Value.Pointer;
-					Value.Pointer = (char*)Memory::New<Decimal>(*From);
+					decimal* from = (decimal*)other.value.pointer;
+					value.pointer = (char*)memory::init<decimal>(*from);
 					break;
 				}
-				case VarType::Integer:
-					Value.Integer = Other.Value.Integer;
+				case var_type::integer:
+					value.integer = other.value.integer;
 					break;
-				case VarType::Number:
-					Value.Number = Other.Value.Number;
+				case var_type::number:
+					value.number = other.value.number;
 					break;
-				case VarType::Boolean:
-					Value.Boolean = Other.Value.Boolean;
+				case var_type::boolean:
+					value.boolean = other.value.boolean;
 					break;
 				default:
-					Value.Pointer = nullptr;
+					value.pointer = nullptr;
 					break;
 			}
 		}
-		void Variant::Move(Variant&& Other)
+		void variant::move(variant&& other)
 		{
-			Type = Other.Type;
-			Length = Other.Length;
+			type = other.type;
+			length = other.length;
 
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Null:
-				case VarType::Undefined:
-				case VarType::Object:
-				case VarType::Array:
-				case VarType::Pointer:
-				case VarType::Decimal:
-					Value.Pointer = Other.Value.Pointer;
-					Other.Value.Pointer = nullptr;
+				case var_type::null:
+				case var_type::undefined:
+				case var_type::object:
+				case var_type::array:
+				case var_type::pointer:
+				case var_type::decimal:
+					value.pointer = other.value.pointer;
+					other.value.pointer = nullptr;
 					break;
-				case VarType::String:
-				case VarType::Binary:
-					if (Length <= GetMaxSmallStringSize())
-						memcpy((void*)GetString().data(), Other.GetString().data(), sizeof(char) * (Length + 1));
+				case var_type::string:
+				case var_type::binary:
+					if (length <= get_max_small_string_size())
+						memcpy((void*)get_string().data(), other.get_string().data(), sizeof(char) * (length + 1));
 					else
-						Value.Pointer = Other.Value.Pointer;
-					Other.Value.Pointer = nullptr;
+						value.pointer = other.value.pointer;
+					other.value.pointer = nullptr;
 					break;
-				case VarType::Integer:
-					Value.Integer = Other.Value.Integer;
+				case var_type::integer:
+					value.integer = other.value.integer;
 					break;
-				case VarType::Number:
-					Value.Number = Other.Value.Number;
+				case var_type::number:
+					value.number = other.value.number;
 					break;
-				case VarType::Boolean:
-					Value.Boolean = Other.Value.Boolean;
+				case var_type::boolean:
+					value.boolean = other.value.boolean;
 					break;
 				default:
 					break;
 			}
 
-			Other.Type = VarType::Undefined;
-			Other.Length = 0;
+			other.type = var_type::undefined;
+			other.length = 0;
 		}
-		void Variant::Free()
+		void variant::free()
 		{
-			switch (Type)
+			switch (type)
 			{
-				case VarType::Pointer:
-					Value.Pointer = nullptr;
+				case var_type::pointer:
+					value.pointer = nullptr;
 					break;
-				case VarType::String:
-				case VarType::Binary:
+				case var_type::string:
+				case var_type::binary:
 				{
-					if (!Value.Pointer || Length <= GetMaxSmallStringSize())
+					if (!value.pointer || length <= get_max_small_string_size())
 						break;
 
-					Memory::Deallocate(Value.Pointer);
-					Value.Pointer = nullptr;
+					memory::deallocate(value.pointer);
+					value.pointer = nullptr;
 					break;
 				}
-				case VarType::Decimal:
+				case var_type::decimal:
 				{
-					if (!Value.Pointer)
+					if (!value.pointer)
 						break;
 
-					Decimal* Buffer = (Decimal*)Value.Pointer;
-					Memory::Delete(Buffer);
-					Value.Pointer = nullptr;
+					decimal* buffer = (decimal*)value.pointer;
+					memory::deinit(buffer);
+					value.pointer = nullptr;
 					break;
 				}
 				default:
 					break;
 			}
 		}
-		size_t Variant::GetMaxSmallStringSize()
+		size_t variant::get_max_small_string_size()
 		{
-			return sizeof(Tag::String) - 1;
+			return sizeof(tag::string) - 1;
 		}
 
-		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Id(NewId), Alive(NewAlive)
+		timeout::timeout(task_callback&& new_callback, const std::chrono::microseconds& new_timeout, task_id new_id, bool new_alive) noexcept : expires(new_timeout), callback(std::move(new_callback)), id(new_id), alive(new_alive)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) noexcept : Expires(Other.Expires), Callback(Other.Callback), Id(Other.Id), Alive(Other.Alive)
+		timeout::timeout(const timeout& other) noexcept : expires(other.expires), callback(other.callback), id(other.id), alive(other.alive)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) noexcept : Expires(Other.Expires), Callback(std::move(Other.Callback)), Id(Other.Id), Alive(Other.Alive)
+		timeout::timeout(timeout&& other) noexcept : expires(other.expires), callback(std::move(other.callback)), id(other.id), alive(other.alive)
 		{
 		}
-		Timeout& Timeout::operator= (const Timeout& Other) noexcept
+		timeout& timeout::operator= (const timeout& other) noexcept
 		{
-			Callback = Other.Callback;
-			Expires = Other.Expires;
-			Id = Other.Id;
-			Alive = Other.Alive;
+			callback = other.callback;
+			expires = other.expires;
+			id = other.id;
+			alive = other.alive;
 			return *this;
 		}
-		Timeout& Timeout::operator= (Timeout&& Other) noexcept
+		timeout& timeout::operator= (timeout&& other) noexcept
 		{
-			Callback = std::move(Other.Callback);
-			Expires = Other.Expires;
-			Id = Other.Id;
-			Alive = Other.Alive;
+			callback = std::move(other.callback);
+			expires = other.expires;
+			id = other.id;
+			alive = other.alive;
 			return *this;
 		}
 
-		DateTime::DateTime() noexcept : DateTime(std::chrono::system_clock::now().time_since_epoch())
+		date_time::date_time() noexcept : date_time(std::chrono::system_clock::now().time_since_epoch())
 		{
 		}
-		DateTime::DateTime(const struct tm& Duration) noexcept : Offset({ }), Timepoint(Duration), Synchronized(false), Globalized(false)
+		date_time::date_time(const struct tm& duration) noexcept : offset({ }), timepoint(duration), synchronized(false), globalized(false)
 		{
-			ApplyTimepoint();
+			apply_timepoint();
 		}
-		DateTime::DateTime(std::chrono::system_clock::duration&& Duration) noexcept : Offset(std::move(Duration)), Timepoint({ }), Synchronized(false), Globalized(false)
+		date_time::date_time(std::chrono::system_clock::duration&& duration) noexcept : offset(std::move(duration)), timepoint({ }), synchronized(false), globalized(false)
 		{
-			ApplyOffset();
+			apply_offset();
 		}
-		DateTime& DateTime::operator +=(const DateTime& Right)
+		date_time& date_time::operator +=(const date_time& right)
 		{
-			Offset += Right.Offset;
-			return ApplyOffset(true);
+			offset += right.offset;
+			return apply_offset(true);
 		}
-		DateTime& DateTime::operator -=(const DateTime& Right)
+		date_time& date_time::operator -=(const date_time& right)
 		{
-			Offset -= Right.Offset;
-			return ApplyOffset(true);
+			offset -= right.offset;
+			return apply_offset(true);
 		}
-		bool DateTime::operator >=(const DateTime& Right)
+		bool date_time::operator >=(const date_time& right)
 		{
-			return Offset >= Right.Offset;
+			return offset >= right.offset;
 		}
-		bool DateTime::operator <=(const DateTime& Right)
+		bool date_time::operator <=(const date_time& right)
 		{
-			return Offset <= Right.Offset;
+			return offset <= right.offset;
 		}
-		bool DateTime::operator >(const DateTime& Right)
+		bool date_time::operator >(const date_time& right)
 		{
-			return Offset > Right.Offset;
+			return offset > right.offset;
 		}
-		bool DateTime::operator <(const DateTime& Right)
+		bool date_time::operator <(const date_time& right)
 		{
-			return Offset < Right.Offset;
+			return offset < right.offset;
 		}
-		bool DateTime::operator ==(const DateTime& Right)
+		bool date_time::operator ==(const date_time& right)
 		{
-			return Offset == Right.Offset;
+			return offset == right.offset;
 		}
-		DateTime DateTime::operator +(const DateTime& Right) const
+		date_time date_time::operator +(const date_time& right) const
 		{
-			DateTime New = *this;
-			New.Offset = Offset + Right.Offset;
-			return New.ApplyOffset(true);
+			date_time init = *this;
+			init.offset = offset + right.offset;
+			return init.apply_offset(true);
 		}
-		DateTime DateTime::operator -(const DateTime& Right) const
+		date_time date_time::operator -(const date_time& right) const
 		{
-			DateTime New = *this;
-			New.Offset = Offset - Right.Offset;
-			return New.ApplyOffset(true);
+			date_time init = *this;
+			init.offset = offset - right.offset;
+			return init.apply_offset(true);
 		}
-		DateTime& DateTime::ApplyOffset(bool Always)
+		date_time& date_time::apply_offset(bool always)
 		{
-			if (!Synchronized || Always)
+			if (!synchronized || always)
 			{
-				time_t Time = std::chrono::duration_cast<std::chrono::seconds>(Offset).count();
-				if (Globalized)
-					GlobalTime(&Time, &Timepoint);
+				time_t time = std::chrono::duration_cast<std::chrono::seconds>(offset).count();
+				if (globalized)
+					global_time(&time, &timepoint);
 				else
-					LocalTime(&Time, &Timepoint);
-				Synchronized = true;
+					local_time(&time, &timepoint);
+				synchronized = true;
 			}
 			return *this;
 		}
-		DateTime& DateTime::ApplyTimepoint(bool Always)
+		date_time& date_time::apply_timepoint(bool always)
 		{
-			if (!Synchronized || Always)
+			if (!synchronized || always)
 			{
-				Offset = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&Timepoint)));
-				Synchronized = true;
+				offset = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&timepoint)));
+				synchronized = true;
 			}
 			return *this;
 		}
-		DateTime& DateTime::UseGlobalTime()
+		date_time& date_time::use_global_time()
 		{
-			Globalized = true;
+			globalized = true;
 			return *this;
 		}
-		DateTime& DateTime::UseLocalTime()
+		date_time& date_time::use_local_time()
 		{
-			Globalized = false;
+			globalized = false;
 			return *this;
 		}
-		DateTime& DateTime::SetSecond(uint8_t Value)
+		date_time& date_time::set_second(uint8_t value)
 		{
-			if (Value > 60)
-				Value = 60;
+			if (value > 60)
+				value = 60;
 
-			Timepoint.tm_sec = (int)Value;
-			return ApplyTimepoint(true);
+			timepoint.tm_sec = (int)value;
+			return apply_timepoint(true);
 		}
-		DateTime& DateTime::SetMinute(uint8_t Value)
+		date_time& date_time::set_minute(uint8_t value)
 		{
-			if (Value > 60)
-				Value = 60;
-			else if (Value < 1)
-				Value = 1;
+			if (value > 60)
+				value = 60;
+			else if (value < 1)
+				value = 1;
 
-			Timepoint.tm_min = (int)Value - 1;
-			return ApplyTimepoint(true);
+			timepoint.tm_min = (int)value - 1;
+			return apply_timepoint(true);
 		}
-		DateTime& DateTime::SetHour(uint8_t Value)
+		date_time& date_time::set_hour(uint8_t value)
 		{
-			if (Value > 24)
-				Value = 24;
-			else if (Value < 1)
-				Value = 1;
+			if (value > 24)
+				value = 24;
+			else if (value < 1)
+				value = 1;
 
-			Timepoint.tm_hour = (int)Value - 1;
-			return ApplyTimepoint(true);
+			timepoint.tm_hour = (int)value - 1;
+			return apply_timepoint(true);
 		}
-		DateTime& DateTime::SetDay(uint8_t Value)
+		date_time& date_time::set_day(uint8_t value)
 		{
-			uint8_t Month = this->Month(), Days = 31;
-			if (Month == 1 || Month == 3 || Month == 5 || Month == 7 || Month == 8 || Month == 10 || Month == 12)
-				Days = 31;
-			else if (Month != 2)
-				Days = 30;
+			uint8_t month = this->month(), days = 31;
+			if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12)
+				days = 31;
+			else if (month != 2)
+				days = 30;
 			else
-				Days = 28;
+				days = 28;
 
-			if (Value > Days)
-				Value = Days;
-			else if (Value < 1)
-				Value = 1;
+			if (value > days)
+				value = days;
+			else if (value < 1)
+				value = 1;
 
-			if (Timepoint.tm_mday > (int)Value)
-				Timepoint.tm_yday = Timepoint.tm_yday - Timepoint.tm_mday + (int)Value;
+			if (timepoint.tm_mday > (int)value)
+				timepoint.tm_yday = timepoint.tm_yday - timepoint.tm_mday + (int)value;
 			else
-				Timepoint.tm_yday = Timepoint.tm_yday - (int)Value + Timepoint.tm_mday;
+				timepoint.tm_yday = timepoint.tm_yday - (int)value + timepoint.tm_mday;
 
-			if (Value <= 7)
-				Timepoint.tm_wday = (int)Value - 1;
-			else if (Value <= 14)
-				Timepoint.tm_wday = (int)Value - 8;
-			else if (Value <= 21)
-				Timepoint.tm_wday = (int)Value - 15;
+			if (value <= 7)
+				timepoint.tm_wday = (int)value - 1;
+			else if (value <= 14)
+				timepoint.tm_wday = (int)value - 8;
+			else if (value <= 21)
+				timepoint.tm_wday = (int)value - 15;
 			else
-				Timepoint.tm_wday = (int)Value - 22;
+				timepoint.tm_wday = (int)value - 22;
 
-			Timepoint.tm_mday = (int)Value;
-			return ApplyTimepoint(true);
+			timepoint.tm_mday = (int)value;
+			return apply_timepoint(true);
 		}
-		DateTime& DateTime::SetWeek(uint8_t Value)
+		date_time& date_time::set_week(uint8_t value)
 		{
-			if (Value > 7)
-				Value = 7;
-			else if (Value < 1)
-				Value = 1;
+			if (value > 7)
+				value = 7;
+			else if (value < 1)
+				value = 1;
 
-			Timepoint.tm_wday = (int)Value - 1;
-			return ApplyTimepoint(true);
+			timepoint.tm_wday = (int)value - 1;
+			return apply_timepoint(true);
 		}
-		DateTime& DateTime::SetMonth(uint8_t Value)
+		date_time& date_time::set_month(uint8_t value)
 		{
-			if (Value < 1)
-				Value = 1;
-			else if (Value > 12)
-				Value = 12;
+			if (value < 1)
+				value = 1;
+			else if (value > 12)
+				value = 12;
 
-			Timepoint.tm_mon = (int)Value - 1;
-			return ApplyTimepoint(true);
+			timepoint.tm_mon = (int)value - 1;
+			return apply_timepoint(true);
 		}
-		DateTime& DateTime::SetYear(uint32_t Value)
+		date_time& date_time::set_year(uint32_t value)
 		{
-			if (Value < 1900)
-				Value = 1900;
+			if (value < 1900)
+				value = 1900;
 
-			Timepoint.tm_year = (int)Value - 1900;
-			return ApplyTimepoint(true);
+			timepoint.tm_year = (int)value - 1900;
+			return apply_timepoint(true);
 		}
-		String DateTime::Serialize(const std::string_view& Format) const
+		string date_time::serialize(const std::string_view& format) const
 		{
-			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
-			char Buffer[CHUNK_SIZE];
-			strftime(Buffer, sizeof(Buffer), Format.data(), &Timepoint);
-			return Buffer;
+			VI_ASSERT(stringify::is_cstring(format) && !format.empty(), "format should be set");
+			char buffer[CHUNK_SIZE];
+			strftime(buffer, sizeof(buffer), format.data(), &timepoint);
+			return buffer;
 		}
-		uint8_t DateTime::Second() const
+		uint8_t date_time::second() const
 		{
-			return Timepoint.tm_sec;
+			return timepoint.tm_sec;
 		}
-		uint8_t DateTime::Minute() const
+		uint8_t date_time::minute() const
 		{
-			return Timepoint.tm_min;
+			return timepoint.tm_min;
 		}
-		uint8_t DateTime::Hour() const
+		uint8_t date_time::hour() const
 		{
-			return Timepoint.tm_hour;
+			return timepoint.tm_hour;
 		}
-		uint8_t DateTime::Day() const
+		uint8_t date_time::day() const
 		{
-			return Timepoint.tm_mday;
+			return timepoint.tm_mday;
 		}
-		uint8_t DateTime::Week() const
+		uint8_t date_time::week() const
 		{
-			return Timepoint.tm_wday + 1;
+			return timepoint.tm_wday + 1;
 		}
-		uint8_t DateTime::Month() const
+		uint8_t date_time::month() const
 		{
-			return Timepoint.tm_mon + 1;
+			return timepoint.tm_mon + 1;
 		}
-		uint32_t DateTime::Year() const
+		uint32_t date_time::year() const
 		{
-			return Timepoint.tm_year + 1900;
+			return timepoint.tm_year + 1900;
 		}
-		int64_t DateTime::Nanoseconds() const
+		int64_t date_time::nanoseconds() const
 		{
-			return std::chrono::duration_cast<std::chrono::nanoseconds>(Offset).count();
+			return std::chrono::duration_cast<std::chrono::nanoseconds>(offset).count();
 		}
-		int64_t DateTime::Microseconds() const
+		int64_t date_time::microseconds() const
 		{
-			return std::chrono::duration_cast<std::chrono::microseconds>(Offset).count();
+			return std::chrono::duration_cast<std::chrono::microseconds>(offset).count();
 		}
-		int64_t DateTime::Milliseconds() const
+		int64_t date_time::milliseconds() const
 		{
-			return std::chrono::duration_cast<std::chrono::milliseconds>(Offset).count();
+			return std::chrono::duration_cast<std::chrono::milliseconds>(offset).count();
 		}
-		int64_t DateTime::Seconds() const
+		int64_t date_time::seconds() const
 		{
-			return std::chrono::duration_cast<std::chrono::seconds>(Offset).count();
+			return std::chrono::duration_cast<std::chrono::seconds>(offset).count();
 		}
-		const struct tm& DateTime::CurrentTimepoint() const
+		const struct tm& date_time::current_timepoint() const
 		{
-			return Timepoint;
+			return timepoint;
 		}
-		const std::chrono::system_clock::duration& DateTime::CurrentOffset() const
+		const std::chrono::system_clock::duration& date_time::current_offset() const
 		{
-			return Offset;
+			return offset;
 		}
-		std::chrono::system_clock::duration DateTime::Now()
+		std::chrono::system_clock::duration date_time::now()
 		{
 			return std::chrono::system_clock::now().time_since_epoch();
 		}
-		DateTime DateTime::FromNanoseconds(int64_t Value)
+		date_time date_time::from_nanoseconds(int64_t value)
 		{
-			return DateTime(std::chrono::nanoseconds(Value));
+			return date_time(std::chrono::nanoseconds(value));
 		}
-		DateTime DateTime::FromMicroseconds(int64_t Value)
+		date_time date_time::from_microseconds(int64_t value)
 		{
-			return DateTime(std::chrono::microseconds(Value));
+			return date_time(std::chrono::microseconds(value));
 		}
-		DateTime DateTime::FromMilliseconds(int64_t Value)
+		date_time date_time::from_milliseconds(int64_t value)
 		{
-			return DateTime(std::chrono::milliseconds(Value));
+			return date_time(std::chrono::milliseconds(value));
 		}
-		DateTime DateTime::FromSeconds(int64_t Value)
+		date_time date_time::from_seconds(int64_t value)
 		{
-			return DateTime(std::chrono::seconds(Value));
+			return date_time(std::chrono::seconds(value));
 		}
-		DateTime DateTime::FromSerialized(const std::string_view& Text, const std::string_view& Format)
+		date_time date_time::from_serialized(const std::string_view& text, const std::string_view& format)
 		{
-			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
-			std::istringstream Stream = std::istringstream(std::string(Text));
-			Stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
+			VI_ASSERT(stringify::is_cstring(format) && !format.empty(), "format should be set");
+			std::istringstream stream = std::istringstream(std::string(text));
+			stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
 
-			tm Date { };
-			Stream >> std::get_time(&Date, Format.data());
-			return Stream.fail() ? DateTime(std::chrono::seconds(0)) : DateTime(Date);
+			tm date { };
+			stream >> std::get_time(&date, format.data());
+			return stream.fail() ? date_time(std::chrono::seconds(0)) : date_time(date);
 		}
-		String DateTime::SerializeGlobal(const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		string date_time::serialize_global(const std::chrono::system_clock::duration& time, const std::string_view& format)
 		{
-			char Buffer[CHUNK_SIZE];
-			return String(SerializeGlobal(Buffer, sizeof(Buffer), Time, Format));
+			char buffer[CHUNK_SIZE];
+			return string(serialize_global(buffer, sizeof(buffer), time, format));
 		}
-		String DateTime::SerializeLocal(const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		string date_time::serialize_local(const std::chrono::system_clock::duration& time, const std::string_view& format)
 		{
-			char Buffer[CHUNK_SIZE];
-			return String(SerializeLocal(Buffer, sizeof(Buffer), Time, Format));
+			char buffer[CHUNK_SIZE];
+			return string(serialize_local(buffer, sizeof(buffer), time, format));
 		}
-		std::string_view DateTime::SerializeGlobal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		std::string_view date_time::serialize_global(char* buffer, size_t length, const std::chrono::system_clock::duration& time, const std::string_view& format)
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
-			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
-			time_t Offset = (time_t)std::chrono::duration_cast<std::chrono::seconds>(Time).count();
-			struct tm Date { };
-			if (GlobalTime(&Offset, &Date))
-				return std::string_view(Buffer, strftime(Buffer, Length, Format.data(), &Date));
+			VI_ASSERT(buffer != nullptr && length > 0, "buffer should be set");
+			VI_ASSERT(stringify::is_cstring(format) && !format.empty(), "format should be set");
+			time_t offset = (time_t)std::chrono::duration_cast<std::chrono::seconds>(time).count();
+			struct tm date { };
+			if (global_time(&offset, &date))
+				return std::string_view(buffer, strftime(buffer, length, format.data(), &date));
 
-			memset(Buffer, 0, Length);
-			return std::string_view(Buffer, 0);
+			memset(buffer, 0, length);
+			return std::string_view(buffer, 0);
 		}
-		std::string_view DateTime::SerializeLocal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Time, const std::string_view& Format)
+		std::string_view date_time::serialize_local(char* buffer, size_t length, const std::chrono::system_clock::duration& time, const std::string_view& format)
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set");
-			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
-			time_t Offset = (time_t)std::chrono::duration_cast<std::chrono::seconds>(Time).count();
-			struct tm Date { };
-			if (LocalTime(&Offset, &Date))
-				return std::string_view(Buffer, strftime(Buffer, Length, Format.data(), &Date));
+			VI_ASSERT(buffer != nullptr && length > 0, "buffer should be set");
+			VI_ASSERT(stringify::is_cstring(format) && !format.empty(), "format should be set");
+			time_t offset = (time_t)std::chrono::duration_cast<std::chrono::seconds>(time).count();
+			struct tm date { };
+			if (local_time(&offset, &date))
+				return std::string_view(buffer, strftime(buffer, length, format.data(), &date));
 
-			memset(Buffer, 0, Length);
-			return std::string_view(Buffer, 0);
+			memset(buffer, 0, length);
+			return std::string_view(buffer, 0);
 		}
-		std::string_view DateTime::FormatIso8601Time()
+		std::string_view date_time::format_iso8601_time()
 		{
 			return "%FT%TZ";
 		}
-		std::string_view DateTime::FormatWebTime()
+		std::string_view date_time::format_web_time()
 		{
-			return "%a, %d %b %Y %H:%M:%S GMT";
+			return "%a, %d %b %y %h:%m:%s GMT";
 		}
-		std::string_view DateTime::FormatWebLocalTime()
+		std::string_view date_time::format_web_local_time()
 		{
-			return "%a, %d %b %Y %H:%M:%S %Z";
+			return "%a, %d %b %y %h:%m:%s %Z";
 		}
-		std::string_view DateTime::FormatCompactTime()
+		std::string_view date_time::format_compact_time()
 		{
-			return "%Y-%m-%d %H:%M:%S";
+			return "%y-%m-%d %h:%m:%S";
 		}
-		int64_t DateTime::SecondsFromSerialized(const std::string_view& Text, const std::string_view& Format)
+		int64_t date_time::seconds_from_serialized(const std::string_view& text, const std::string_view& format)
 		{
-			VI_ASSERT(Stringify::IsCString(Format) && !Format.empty(), "format should be set");
-			std::istringstream Stream = std::istringstream(std::string(Text));
-			Stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
+			VI_ASSERT(stringify::is_cstring(format) && !format.empty(), "format should be set");
+			std::istringstream stream = std::istringstream(std::string(text));
+			stream.imbue(std::locale(setlocale(LC_ALL, nullptr)));
 
-			tm Date { };
-			Stream >> std::get_time(&Date, Format.data());
-			return Stream.fail() ? 0 : mktime(&Date);
+			tm date { };
+			stream >> std::get_time(&date, format.data());
+			return stream.fail() ? 0 : mktime(&date);
 		}
-		bool DateTime::MakeGlobalTime(time_t Time, struct tm* Timepoint)
+		bool date_time::make_global_time(time_t time, struct tm* timepoint)
 		{
-			VI_ASSERT(Timepoint != nullptr, "time should be set");
-			return GlobalTime(&Time, Timepoint);
+			VI_ASSERT(timepoint != nullptr, "time should be set");
+			return global_time(&time, timepoint);
 		}
-		bool DateTime::MakeLocalTime(time_t Time, struct tm* Timepoint)
+		bool date_time::make_local_time(time_t time, struct tm* timepoint)
 		{
-			VI_ASSERT(Timepoint != nullptr, "time should be set");
-			return LocalTime(&Time, Timepoint);
+			VI_ASSERT(timepoint != nullptr, "time should be set");
+			return local_time(&time, timepoint);
 		}
 
-		String& Stringify::EscapePrint(String& Other)
+		string& stringify::escape_print(string& other)
 		{
-			for (size_t i = 0; i < Other.size(); i++)
+			for (size_t i = 0; i < other.size(); i++)
 			{
-				if (Other.at(i) != '%')
+				if (other.at(i) != '%')
 					continue;
 
-				if (i + 1 < Other.size())
+				if (i + 1 < other.size())
 				{
-					if (Other.at(i + 1) != '%')
+					if (other.at(i + 1) != '%')
 					{
-						Other.insert(Other.begin() + i, '%');
+						other.insert(other.begin() + i, '%');
 						i++;
 					}
 				}
 				else
 				{
-					Other.append(1, '%');
+					other.append(1, '%');
 					i++;
 				}
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::Escape(String& Other)
+		string& stringify::escape(string& other)
 		{
-			for (size_t i = 0; i < Other.size(); i++)
+			for (size_t i = 0; i < other.size(); i++)
 			{
-				char& V = Other.at(i);
-				if (V == '\"')
+				char& v = other.at(i);
+				if (v == '\"')
 				{
-					if (i > 0 && Other.at(i - 1) == '\\')
+					if (i > 0 && other.at(i - 1) == '\\')
 						continue;
 				}
-				else if (V == '\n')
-					V = 'n';
-				else if (V == '\t')
-					V = 't';
-				else if (V == '\v')
-					V = 'v';
-				else if (V == '\b')
-					V = 'b';
-				else if (V == '\r')
-					V = 'r';
-				else if (V == '\f')
-					V = 'f';
-				else if (V == '\a')
-					V = 'a';
+				else if (v == '\n')
+					v = 'n';
+				else if (v == '\t')
+					v = 't';
+				else if (v == '\v')
+					v = 'v';
+				else if (v == '\b')
+					v = 'b';
+				else if (v == '\r')
+					v = 'r';
+				else if (v == '\f')
+					v = 'f';
+				else if (v == '\a')
+					v = 'a';
 				else
 					continue;
 
-				Other.insert(Other.begin() + i, '\\');
+				other.insert(other.begin() + i, '\\');
 				i++;
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::Unescape(String& Other)
+		string& stringify::unescape(string& other)
 		{
-			for (size_t i = 0; i < Other.size(); i++)
+			for (size_t i = 0; i < other.size(); i++)
 			{
-				if (Other.at(i) != '\\' || i + 1 >= Other.size())
+				if (other.at(i) != '\\' || i + 1 >= other.size())
 					continue;
 
-				char& V = Other.at(i + 1);
-				if (V == 'n')
-					V = '\n';
-				else if (V == 't')
-					V = '\t';
-				else if (V == 'v')
-					V = '\v';
-				else if (V == 'b')
-					V = '\b';
-				else if (V == 'r')
-					V = '\r';
-				else if (V == 'f')
-					V = '\f';
-				else if (V == 'a')
-					V = '\a';
+				char& v = other.at(i + 1);
+				if (v == 'n')
+					v = '\n';
+				else if (v == 't')
+					v = '\t';
+				else if (v == 'v')
+					v = '\v';
+				else if (v == 'b')
+					v = '\b';
+				else if (v == 'r')
+					v = '\r';
+				else if (v == 'f')
+					v = '\f';
+				else if (v == 'a')
+					v = '\a';
 				else
 					continue;
 
-				Other.erase(Other.begin() + i);
+				other.erase(other.begin() + i);
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ToUpper(String& Other)
+		string& stringify::to_upper(string& other)
 		{
-			std::transform(Other.begin(), Other.end(), Other.begin(), ::toupper);
-			return Other;
+			std::transform(other.begin(), other.end(), other.begin(), ::toupper);
+			return other;
 		}
-		String& Stringify::ToLower(String& Other)
+		string& stringify::to_lower(string& other)
 		{
-			std::transform(Other.begin(), Other.end(), Other.begin(), ::tolower);
-			return Other;
+			std::transform(other.begin(), other.end(), other.begin(), ::tolower);
+			return other;
 		}
-		String& Stringify::Clip(String& Other, size_t Length)
+		string& stringify::clip(string& other, size_t length)
 		{
-			if (Length < Other.size())
-				Other.erase(Length, Other.size() - Length);
-			return Other;
+			if (length < other.size())
+				other.erase(length, other.size() - length);
+			return other;
 		}
-		String& Stringify::Compress(String& Other, const std::string_view& Tokenbase, const std::string_view& NotInBetweenOf, size_t Start)
+		string& stringify::compress(string& other, const std::string_view& tokenbase, const std::string_view& not_in_between_of, size_t start)
 		{
-			size_t TokenbaseSize = Tokenbase.size();
-			size_t NiboSize = NotInBetweenOf.size();
-			char Skip = '\0';
+			size_t tokenbase_size = tokenbase.size();
+			size_t nibo_size = not_in_between_of.size();
+			char skip = '\0';
 
-			for (size_t i = Start; i < Other.size(); i++)
+			for (size_t i = start; i < other.size(); i++)
 			{
-				for (size_t j = 0; j < NiboSize; j++)
+				for (size_t j = 0; j < nibo_size; j++)
 				{
-					char& Next = Other.at(i);
-					if (Next == NotInBetweenOf[j])
+					char& next = other.at(i);
+					if (next == not_in_between_of[j])
 					{
-						Skip = Next;
+						skip = next;
 						++i;
 						break;
 					}
 				}
 
-				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
+				while (skip != '\0' && i < other.size() && other.at(i) != skip)
 					++i;
 
-				if (Skip != '\0')
+				if (skip != '\0')
 				{
-					Skip = '\0';
-					if (i >= Other.size())
+					skip = '\0';
+					if (i >= other.size())
 						break;
 				}
 
-				char& Next = Other.at(i);
-				if (Next != ' ' && Next != '\r' && Next != '\n' && Next != '\t')
+				char& next = other.at(i);
+				if (next != ' ' && next != '\r' && next != '\n' && next != '\t')
 					continue;
 
-				bool Removable = false;
+				bool removable = false;
 				if (i > 0)
 				{
-					Next = Other.at(i - 1);
-					for (size_t j = 0; j < TokenbaseSize; j++)
+					next = other.at(i - 1);
+					for (size_t j = 0; j < tokenbase_size; j++)
 					{
-						if (Next == Tokenbase[j])
+						if (next == tokenbase[j])
 						{
-							Removable = true;
+							removable = true;
 							break;
 						}
 					}
 				}
 
-				if (!Removable && i + 1 < Other.size())
+				if (!removable && i + 1 < other.size())
 				{
-					Next = Other.at(i + 1);
-					for (size_t j = 0; j < TokenbaseSize; j++)
+					next = other.at(i + 1);
+					for (size_t j = 0; j < tokenbase_size; j++)
 					{
-						if (Next == Tokenbase[j])
+						if (next == tokenbase[j])
 						{
-							Removable = true;
+							removable = true;
 							break;
 						}
 					}
 				}
 
-				if (Removable)
-					Other.erase(Other.begin() + i--);
+				if (removable)
+					other.erase(other.begin() + i--);
 				else
-					Other[i] = ' ';
+					other[i] = ' ';
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplaceOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start)
+		string& stringify::replace_of(string& other, const std::string_view& chars, const std::string_view& to, size_t start)
 		{
-			VI_ASSERT(!Chars.empty(), "match list and replacer should not be empty");
-			TextSettle Result{ };
-			size_t Offset = Start, ToSize = To.size();
-			while ((Result = FindOf(Other, Chars, Offset)).Found)
+			VI_ASSERT(!chars.empty(), "match list and replacer should not be empty");
+			text_settle result { };
+			size_t offset = start, to_size = to.size();
+			while ((result = find_of(other, chars, offset)).found)
 			{
-				EraseOffsets(Other, Result.Start, Result.End);
-				Other.insert(Result.Start, To);
-				Offset = Result.Start + ToSize;
+				erase_offsets(other, result.start, result.end);
+				other.insert(result.start, to);
+				offset = result.start + to_size;
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplaceNotOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start)
+		string& stringify::replace_not_of(string& other, const std::string_view& chars, const std::string_view& to, size_t start)
 		{
-			VI_ASSERT(!Chars.empty(), "match list and replacer should not be empty");
-			TextSettle Result{};
-			size_t Offset = Start, ToSize = To.size();
-			while ((Result = FindNotOf(Other, Chars, Offset)).Found)
+			VI_ASSERT(!chars.empty(), "match list and replacer should not be empty");
+			text_settle result { };
+			size_t offset = start, to_size = to.size();
+			while ((result = find_not_of(other, chars, offset)).found)
 			{
-				EraseOffsets(Other, Result.Start, Result.End);
-				Other.insert(Result.Start, To);
-				Offset = Result.Start + ToSize;
+				erase_offsets(other, result.start, result.end);
+				other.insert(result.start, to);
+				offset = result.start + to_size;
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::Replace(String& Other, const std::string_view& From, const std::string_view& To, size_t Start)
+		string& stringify::replace(string& other, const std::string_view& from, const std::string_view& to, size_t start)
 		{
-			VI_ASSERT(!From.empty(), "match should not be empty");
-			size_t Offset = Start;
-			TextSettle Result{ };
+			VI_ASSERT(!from.empty(), "match should not be empty");
+			size_t offset = start;
+			text_settle result { };
 
-			while ((Result = Find(Other, From, Offset)).Found)
+			while ((result = find(other, from, offset)).found)
 			{
-				EraseOffsets(Other, Result.Start, Result.End);
-				Other.insert(Result.Start, To);
-				Offset = Result.Start + To.size();
+				erase_offsets(other, result.start, result.end);
+				other.insert(result.start, to);
+				offset = result.start + to.size();
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplaceGroups(String& Other, const std::string_view& FromRegex, const std::string_view& To)
+		string& stringify::replace_groups(string& other, const std::string_view& from_regex, const std::string_view& to)
 		{
-			Compute::RegexSource Source('(' + String(FromRegex) + ')');
-			Compute::Regex::Replace(&Source, To, Other);
-			return Other;
+			compute::regex_source source('(' + string(from_regex) + ')');
+			compute::regex::replace(&source, to, other);
+			return other;
 		}
-		String& Stringify::Replace(String& Other, char From, char To, size_t Position)
+		string& stringify::replace(string& other, char from, char to, size_t position)
 		{
-			for (size_t i = Position; i < Other.size(); i++)
+			for (size_t i = position; i < other.size(); i++)
 			{
-				char& C = Other.at(i);
-				if (C == From)
-					C = To;
+				char& c = other.at(i);
+				if (c == from)
+					c = to;
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::Replace(String& Other, char From, char To, size_t Position, size_t Count)
+		string& stringify::replace(string& other, char from, char to, size_t position, size_t count)
 		{
-			VI_ASSERT(Other.size() >= (Position + Count), "invalid offset");
-			size_t Size = Position + Count;
-			for (size_t i = Position; i < Size; i++)
+			VI_ASSERT(other.size() >= (position + count), "invalid offset");
+			size_t size = position + count;
+			for (size_t i = position; i < size; i++)
 			{
-				char& C = Other.at(i);
-				if (C == From)
-					C = To;
+				char& c = other.at(i);
+				if (c == from)
+					c = to;
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplacePart(String& Other, size_t Start, size_t End, const std::string_view& Value)
+		string& stringify::replace_part(string& other, size_t start, size_t end, const std::string_view& value)
 		{
-			VI_ASSERT(Start < Other.size(), "invalid start");
-			VI_ASSERT(End <= Other.size(), "invalid end");
-			VI_ASSERT(Start < End, "start should be less than end");
-			if (Start == 0)
+			VI_ASSERT(start < other.size(), "invalid start");
+			VI_ASSERT(end <= other.size(), "invalid end");
+			VI_ASSERT(start < end, "start should be less than end");
+			if (start == 0)
 			{
-				if (Other.size() != End)
-					Other.assign(String(Value) + Other.substr(End, Other.size() - End));
+				if (other.size() != end)
+					other.assign(string(value) + other.substr(end, other.size() - end));
 				else
-					Other.assign(Value);
+					other.assign(value);
 			}
-			else if (Other.size() == End)
-				Other.assign(Other.substr(0, Start) + String(Value));
+			else if (other.size() == end)
+				other.assign(other.substr(0, start) + string(value));
 			else
-				Other.assign(Other.substr(0, Start) + String(Value) + Other.substr(End, Other.size() - End));
-			return Other;
+				other.assign(other.substr(0, start) + string(value) + other.substr(end, other.size() - end));
+			return other;
 		}
-		String& Stringify::ReplaceStartsWithEndsOf(String& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& With, size_t Start)
+		string& stringify::replace_starts_with_ends_of(string& other, const std::string_view& begins, const std::string_view& ends_of, const std::string_view& with, size_t start)
 		{
-			VI_ASSERT(!Begins.empty(), "begin should not be empty");
-			VI_ASSERT(!EndsOf.empty(), "end should not be empty");
+			VI_ASSERT(!begins.empty(), "begin should not be empty");
+			VI_ASSERT(!ends_of.empty(), "end should not be empty");
 
-			size_t BeginsSize = Begins.size(), EndsOfSize = EndsOf.size();
-			for (size_t i = Start; i < Other.size(); i++)
+			size_t begins_size = begins.size(), ends_of_size = ends_of.size();
+			for (size_t i = start; i < other.size(); i++)
 			{
-				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				size_t from = i, begins_offset = 0;
+				while (begins_offset < begins_size && from < other.size() && other.at(from) == begins[begins_offset])
 				{
-					++From;
-					++BeginsOffset;
+					++from;
+					++begins_offset;
 				}
 
-				bool Matching = false;
-				if (BeginsOffset != BeginsSize)
+				bool matching = false;
+				if (begins_offset != begins_size)
 				{
-					i = From;
+					i = from;
 					continue;
 				}
 
-				size_t To = From;
-				while (!Matching && To < Other.size())
+				size_t to = from;
+				while (!matching && to < other.size())
 				{
-					auto& Next = Other.at(To++);
-					for (size_t j = 0; j < EndsOfSize; j++)
+					auto& next = other.at(to++);
+					for (size_t j = 0; j < ends_of_size; j++)
 					{
-						if (Next == EndsOf[j])
+						if (next == ends_of[j])
 						{
-							Matching = true;
+							matching = true;
 							break;
 						}
 					}
 				}
 
-				if (To >= Other.size())
-					Matching = true;
+				if (to >= other.size())
+					matching = true;
 
-				if (!Matching)
+				if (!matching)
 					continue;
 
-				Other.replace(Other.begin() + From - BeginsSize, Other.begin() + To, With);
-				i = With.size();
+				other.replace(other.begin() + from - begins_size, other.begin() + to, with);
+				i = with.size();
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplaceInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start)
+		string& stringify::replace_in_between(string& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& with, bool recursive, size_t start)
 		{
-			VI_ASSERT(!Begins.empty(), "begin should not be empty");
-			VI_ASSERT(!Ends.empty(), "end should not be empty");
+			VI_ASSERT(!begins.empty(), "begin should not be empty");
+			VI_ASSERT(!ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
-			for (size_t i = Start; i < Other.size(); i++)
+			size_t begins_size = begins.size(), ends_size = ends.size();
+			for (size_t i = start; i < other.size(); i++)
 			{
-				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				size_t from = i, begins_offset = 0;
+				while (begins_offset < begins_size && from < other.size() && other.at(from) == begins[begins_offset])
 				{
-					++From;
-					++BeginsOffset;
+					++from;
+					++begins_offset;
 				}
 
-				size_t Nesting = 1;
-				if (BeginsOffset != BeginsSize)
+				size_t nesting = 1;
+				if (begins_offset != begins_size)
 				{
-					i = From;
+					i = from;
 					continue;
 				}
 
-				size_t To = From, EndsOffset = 0;
-				while (To < Other.size())
+				size_t to = from, ends_offset = 0;
+				while (to < other.size())
 				{
-					if (Other.at(To++) != Ends[EndsOffset])
+					if (other.at(to++) != ends[ends_offset])
 					{
-						if (!Recursive)
+						if (!recursive)
 							continue;
 
-						size_t Substep = To - 1, Suboffset = 0;
-						while (Suboffset < BeginsSize && Substep < Other.size() && Other.at(Substep) == Begins[Suboffset])
+						size_t substep = to - 1, suboffset = 0;
+						while (suboffset < begins_size && substep < other.size() && other.at(substep) == begins[suboffset])
 						{
-							++Substep;
-							++Suboffset;
+							++substep;
+							++suboffset;
 						}
 
-						if (Suboffset == BeginsSize)
-							++Nesting;
+						if (suboffset == begins_size)
+							++nesting;
 					}
-					else if (++EndsOffset >= EndsSize)
+					else if (++ends_offset >= ends_size)
 					{
-						if (!--Nesting)
+						if (!--nesting)
 							break;
 
-						EndsOffset = 0;
+						ends_offset = 0;
 					}
 				}
 
-				if (EndsOffset != EndsSize)
+				if (ends_offset != ends_size)
 				{
-					i = To;
+					i = to;
 					continue;
 				}
 
-				if (To > Other.size())
-					To = Other.size();
+				if (to > other.size())
+					to = other.size();
 
-				Other.replace(Other.begin() + From - BeginsSize, Other.begin() + To, With);
-				i = With.size();
+				other.replace(other.begin() + from - begins_size, other.begin() + to, with);
+				i = with.size();
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplaceNotInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start)
+		string& stringify::replace_not_in_between(string& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& with, bool recursive, size_t start)
 		{
-			VI_ASSERT(!Begins.empty(), "begin should not be empty");
-			VI_ASSERT(!Ends.empty(), "end should not be empty");
+			VI_ASSERT(!begins.empty(), "begin should not be empty");
+			VI_ASSERT(!ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
-			size_t ReplaceAt = String::npos;
+			size_t begins_size = begins.size(), ends_size = ends.size();
+			size_t replace_at = string::npos;
 
-			for (size_t i = Start; i < Other.size(); i++)
+			for (size_t i = start; i < other.size(); i++)
 			{
-				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				size_t from = i, begins_offset = 0;
+				while (begins_offset < begins_size && from < other.size() && other.at(from) == begins[begins_offset])
 				{
-					++From;
-					++BeginsOffset;
+					++from;
+					++begins_offset;
 				}
 
-				size_t Nesting = 1;
-				if (BeginsOffset != BeginsSize)
+				size_t nesting = 1;
+				if (begins_offset != begins_size)
 				{
-					if (ReplaceAt == String::npos)
-						ReplaceAt = i;
+					if (replace_at == string::npos)
+						replace_at = i;
 
 					continue;
 				}
 
-				if (ReplaceAt != String::npos)
+				if (replace_at != string::npos)
 				{
-					Other.replace(Other.begin() + ReplaceAt, Other.begin() + i, With);
-					From = ReplaceAt + BeginsSize + With.size();
-					i = From - BeginsSize;
-					ReplaceAt = String::npos;
+					other.replace(other.begin() + replace_at, other.begin() + i, with);
+					from = replace_at + begins_size + with.size();
+					i = from - begins_size;
+					replace_at = string::npos;
 				}
 
-				size_t To = From, EndsOffset = 0;
-				while (To < Other.size())
+				size_t to = from, ends_offset = 0;
+				while (to < other.size())
 				{
-					if (Other.at(To++) != Ends[EndsOffset])
+					if (other.at(to++) != ends[ends_offset])
 					{
-						if (!Recursive)
+						if (!recursive)
 							continue;
 
-						size_t Substep = To - 1, Suboffset = 0;
-						while (Suboffset < BeginsSize && Substep < Other.size() && Other.at(Substep) == Begins[Suboffset])
+						size_t substep = to - 1, suboffset = 0;
+						while (suboffset < begins_size && substep < other.size() && other.at(substep) == begins[suboffset])
 						{
-							++Substep;
-							++Suboffset;
+							++substep;
+							++suboffset;
 						}
 
-						if (Suboffset == BeginsSize)
-							++Nesting;
+						if (suboffset == begins_size)
+							++nesting;
 					}
-					else if (++EndsOffset >= EndsSize)
+					else if (++ends_offset >= ends_size)
 					{
-						if (!--Nesting)
+						if (!--nesting)
 							break;
 
-						EndsOffset = 0;
+						ends_offset = 0;
 					}
 				}
 
-				i = To - 1;
+				i = to - 1;
 			}
 
-			if (ReplaceAt != String::npos)
-				Other.replace(Other.begin() + ReplaceAt, Other.end(), With);
-			return Other;
+			if (replace_at != string::npos)
+				other.replace(other.begin() + replace_at, other.end(), with);
+			return other;
 		}
-		String& Stringify::ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const std::string_view& With, const std::function<char(const std::string_view&, char, int)>& Surrounding)
+		string& stringify::replace_parts(string& other, vector<std::pair<string, text_settle>>& inout, const std::string_view& with, const std::function<char(const std::string_view&, char, int)>& surrounding)
 		{
-			VI_SORT(Inout.begin(), Inout.end(), [](const std::pair<String, TextSettle>& A, const std::pair<String, TextSettle>& B)
+			VI_SORT(inout.begin(), inout.end(), [](const std::pair<string, text_settle>& a, const std::pair<string, text_settle>& b)
 			{
-				return A.second.Start < B.second.Start;
+				return a.second.start < b.second.start;
 			});
 
-			int64_t Offset = 0;
-			for (auto& Item : Inout)
+			int64_t offset = 0;
+			for (auto& item : inout)
 			{
-				size_t Size = Item.second.End - Item.second.Start;
-				if (!Item.second.Found || !Size)
+				size_t size = item.second.end - item.second.start;
+				if (!item.second.found || !size)
 					continue;
 
-				Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
-				Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
-				if (Surrounding != nullptr)
+				item.second.start = (size_t)((int64_t)item.second.start + offset);
+				item.second.end = (size_t)((int64_t)item.second.end + offset);
+				if (surrounding != nullptr)
 				{
-					String Replacement = String(With);
-					if (Item.second.Start > 0)
+					string replacement = string(with);
+					if (item.second.start > 0)
 					{
-						char Next = Surrounding(Item.first, Other.at(Item.second.Start - 1), -1);
-						if (Next != '\0')
-							Replacement.insert(Replacement.begin(), Next);
+						char next = surrounding(item.first, other.at(item.second.start - 1), -1);
+						if (next != '\0')
+							replacement.insert(replacement.begin(), next);
 					}
 
-					if (Item.second.End < Other.size())
+					if (item.second.end < other.size())
 					{
-						char Next = Surrounding(Item.first, Other.at(Item.second.End), 1);
-						if (Next != '\0')
-							Replacement.push_back(Next);
+						char next = surrounding(item.first, other.at(item.second.end), 1);
+						if (next != '\0')
+							replacement.push_back(next);
 					}
 
-					ReplacePart(Other, Item.second.Start, Item.second.End, Replacement);
-					Offset += (int64_t)Replacement.size() - (int64_t)Size;
-					Item.second.End = Item.second.Start + Replacement.size();
+					replace_part(other, item.second.start, item.second.end, replacement);
+					offset += (int64_t)replacement.size() - (int64_t)size;
+					item.second.end = item.second.start + replacement.size();
 				}
 				else
 				{
-					ReplacePart(Other, Item.second.Start, Item.second.End, With);
-					Offset += (int64_t)With.size() - (int64_t)Size;
-					Item.second.End = Item.second.Start + With.size();
+					replace_part(other, item.second.start, item.second.end, with);
+					offset += (int64_t)with.size() - (int64_t)size;
+					item.second.end = item.second.start + with.size();
 				}
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::ReplaceParts(String& Other, Vector<TextSettle>& Inout, const std::string_view& With, const std::function<char(char, int)>& Surrounding)
+		string& stringify::replace_parts(string& other, vector<text_settle>& inout, const std::string_view& with, const std::function<char(char, int)>& surrounding)
 		{
-			VI_SORT(Inout.begin(), Inout.end(), [](const TextSettle& A, const TextSettle& B)
+			VI_SORT(inout.begin(), inout.end(), [](const text_settle& a, const text_settle& b)
 			{
-				return A.Start < B.Start;
+				return a.start < b.start;
 			});
 
-			int64_t Offset = 0;
-			for (auto& Item : Inout)
+			int64_t offset = 0;
+			for (auto& item : inout)
 			{
-				size_t Size = Item.End - Item.Start;
-				if (!Item.Found || !Size)
+				size_t size = item.end - item.start;
+				if (!item.found || !size)
 					continue;
 
-				Item.Start = (size_t)((int64_t)Item.Start + Offset);
-				Item.End = (size_t)((int64_t)Item.End + Offset);
-				if (Surrounding != nullptr)
+				item.start = (size_t)((int64_t)item.start + offset);
+				item.end = (size_t)((int64_t)item.end + offset);
+				if (surrounding != nullptr)
 				{
-					String Replacement = String(With);
-					if (Item.Start > 0)
+					string replacement = string(with);
+					if (item.start > 0)
 					{
-						char Next = Surrounding(Other.at(Item.Start - 1), -1);
-						if (Next != '\0')
-							Replacement.insert(Replacement.begin(), Next);
+						char next = surrounding(other.at(item.start - 1), -1);
+						if (next != '\0')
+							replacement.insert(replacement.begin(), next);
 					}
 
-					if (Item.End < Other.size())
+					if (item.end < other.size())
 					{
-						char Next = Surrounding(Other.at(Item.End), 1);
-						if (Next != '\0')
-							Replacement.push_back(Next);
+						char next = surrounding(other.at(item.end), 1);
+						if (next != '\0')
+							replacement.push_back(next);
 					}
 
-					ReplacePart(Other, Item.Start, Item.End, Replacement);
-					Offset += (int64_t)Replacement.size() - (int64_t)Size;
-					Item.End = Item.Start + Replacement.size();
+					replace_part(other, item.start, item.end, replacement);
+					offset += (int64_t)replacement.size() - (int64_t)size;
+					item.end = item.start + replacement.size();
 				}
 				else
 				{
-					ReplacePart(Other, Item.Start, Item.End, With);
-					Offset += (int64_t)With.size() - (int64_t)Size;
-					Item.End = Item.Start + With.size();
+					replace_part(other, item.start, item.end, with);
+					offset += (int64_t)with.size() - (int64_t)size;
+					item.end = item.start + with.size();
 				}
 			}
-			return Other;
+			return other;
 		}
-		String& Stringify::RemovePart(String& Other, size_t Start, size_t End)
+		string& stringify::remove_part(string& other, size_t start, size_t end)
 		{
-			VI_ASSERT(Start < Other.size(), "invalid start");
-			VI_ASSERT(End <= Other.size(), "invalid end");
-			VI_ASSERT(Start < End, "start should be less than end");
+			VI_ASSERT(start < other.size(), "invalid start");
+			VI_ASSERT(end <= other.size(), "invalid end");
+			VI_ASSERT(start < end, "start should be less than end");
 
-			if (Start == 0)
+			if (start == 0)
 			{
-				if (Other.size() != End)
-					Other.assign(Other.substr(End, Other.size() - End));
+				if (other.size() != end)
+					other.assign(other.substr(end, other.size() - end));
 				else
-					Other.clear();
+					other.clear();
 			}
-			else if (Other.size() == End)
-				Other.assign(Other.substr(0, Start));
+			else if (other.size() == end)
+				other.assign(other.substr(0, start));
 			else
-				Other.assign(Other.substr(0, Start) + Other.substr(End, Other.size() - End));
-			return Other;
+				other.assign(other.substr(0, start) + other.substr(end, other.size() - end));
+			return other;
 		}
-		String& Stringify::Reverse(String& Other)
+		string& stringify::reverse(string& other)
 		{
-			if (Other.size() > 1)
-				Reverse(Other, 0, Other.size());
-			return Other;
+			if (other.size() > 1)
+				reverse(other, 0, other.size());
+			return other;
 		}
-		String& Stringify::Reverse(String& Other, size_t Start, size_t End)
+		string& stringify::reverse(string& other, size_t start, size_t end)
 		{
-			VI_ASSERT(!Other.empty(), "length should be at least 1 char");
-			VI_ASSERT(End <= Other.size(), "end should be less than length");
-			VI_ASSERT(Start < Other.size(), "start should be less than length - 1");
-			VI_ASSERT(Start < End, "start should be less than end");
-			std::reverse(Other.begin() + Start, Other.begin() + End);
-			return Other;
+			VI_ASSERT(!other.empty(), "length should be at least 1 char");
+			VI_ASSERT(end <= other.size(), "end should be less than length");
+			VI_ASSERT(start < other.size(), "start should be less than length - 1");
+			VI_ASSERT(start < end, "start should be less than end");
+			std::reverse(other.begin() + start, other.begin() + end);
+			return other;
 		}
-		String& Stringify::Substring(String& Other, const TextSettle& Result)
+		string& stringify::substring(string& other, const text_settle& result)
 		{
-			VI_ASSERT(Result.Found, "result should be found");
-			if (Result.Start >= Other.size())
+			VI_ASSERT(result.found, "result should be found");
+			if (result.start >= other.size())
 			{
-				Other.clear();
-				return Other;
+				other.clear();
+				return other;
 			}
 
-			auto Offset = (int64_t)Result.End;
-			if (Result.End > Other.size())
-				Offset = (int64_t)(Other.size() - Result.Start);
+			auto offset = (int64_t)result.end;
+			if (result.end > other.size())
+				offset = (int64_t)(other.size() - result.start);
 
-			Offset = (int64_t)Result.Start - Offset;
-			Other.assign(Other.substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
-			return Other;
+			offset = (int64_t)result.start - offset;
+			other.assign(other.substr(result.start, (size_t)(offset < 0 ? -offset : offset)));
+			return other;
 		}
-		String& Stringify::Splice(String& Other, size_t Start, size_t End)
+		string& stringify::splice(string& other, size_t start, size_t end)
 		{
-			VI_ASSERT(Start < Other.size(), "result start should be less or equal than length - 1");
-			if (End > Other.size())
-				End = (Other.size() - Start);
+			VI_ASSERT(start < other.size(), "result start should be less or equal than length - 1");
+			if (end > other.size())
+				end = (other.size() - start);
 
-			int64_t Offset = (int64_t)Start - (int64_t)End;
-			Other.assign(Other.substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
-			return Other;
+			int64_t offset = (int64_t)start - (int64_t)end;
+			other.assign(other.substr(start, (size_t)(offset < 0 ? -offset : offset)));
+			return other;
 		}
-		String& Stringify::Trim(String& Other)
+		string& stringify::trim(string& other)
 		{
-			TrimStart(Other);
-			TrimEnd(Other);
-			return Other;
+			trim_start(other);
+			trim_end(other);
+			return other;
 		}
-		String& Stringify::TrimStart(String& Other)
+		string& stringify::trim_start(string& other)
 		{
-			Other.erase(Other.begin(), std::find_if(Other.begin(), Other.end(), [](uint8_t V) -> bool { return std::isspace(V) == 0; }));
-			return Other;
+			other.erase(other.begin(), std::find_if(other.begin(), other.end(), [](uint8_t v) -> bool { return std::isspace(v) == 0; }));
+			return other;
 		}
-		String& Stringify::TrimEnd(String& Other)
+		string& stringify::trim_end(string& other)
 		{
-			Other.erase(std::find_if(Other.rbegin(), Other.rend(), [](uint8_t V) -> bool { return std::isspace(V) == 0; }).base(), Other.end());
-			return Other;
+			other.erase(std::find_if(other.rbegin(), other.rend(), [](uint8_t v) -> bool { return std::isspace(v) == 0; }).base(), other.end());
+			return other;
 		}
-		String& Stringify::Fill(String& Other, char Char)
+		string& stringify::fill(string& other, char symbol)
 		{
-			for (char& i : Other)
-				i = Char;
-			return Other;
+			for (char& i : other)
+				i = symbol;
+			return other;
 		}
-		String& Stringify::Fill(String& Other, char Char, size_t Count)
+		string& stringify::fill(string& other, char symbol, size_t count)
 		{
-			Other.assign(Count, Char);
-			return Other;
+			other.assign(count, symbol);
+			return other;
 		}
-		String& Stringify::Fill(String& Other, char Char, size_t Start, size_t Count)
+		string& stringify::fill(string& other, char symbol, size_t start, size_t count)
 		{
-			VI_ASSERT(!Other.empty(), "length should be greater than Zero");
-			VI_ASSERT(Start <= Other.size(), "start should be less or equal than length");
-			if (Start + Count > Other.size())
-				Count = Other.size() - Start;
+			VI_ASSERT(!other.empty(), "length should be greater than Zero");
+			VI_ASSERT(start <= other.size(), "start should be less or equal than length");
+			if (start + count > other.size())
+				count = other.size() - start;
 
-			size_t Size = (Start + Count);
-			for (size_t i = Start; i < Size; i++)
-				Other.at(i) = Char;
-			return Other;
+			size_t size = (start + count);
+			for (size_t i = start; i < size; i++)
+				other.at(i) = symbol;
+			return other;
 		}
-		String& Stringify::Append(String& Other, const char* Format, ...)
+		string& stringify::append(string& other, const char* format, ...)
 		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			char Buffer[BLOB_SIZE];
-			va_list Args;
-			va_start(Args, Format);
-			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
+			VI_ASSERT(format != nullptr, "format should be set");
+			char buffer[BLOB_SIZE];
+			va_list args;
+			va_start(args, format);
+			int count = vsnprintf(buffer, sizeof(buffer), format, args);
+			va_end(args);
 
-			if (Count > sizeof(Buffer))
-				Count = sizeof(Buffer);
+			if (count > sizeof(buffer))
+				count = sizeof(buffer);
 
-			Other.append(Buffer, Count);
-			return Other;
+			other.append(buffer, count);
+			return other;
 		}
-		String& Stringify::Erase(String& Other, size_t Position)
+		string& stringify::erase(string& other, size_t position)
 		{
-			VI_ASSERT(Position < Other.size(), "position should be less than length");
-			Other.erase(Position);
-			return Other;
+			VI_ASSERT(position < other.size(), "position should be less than length");
+			other.erase(position);
+			return other;
 		}
-		String& Stringify::Erase(String& Other, size_t Position, size_t Count)
+		string& stringify::erase(string& other, size_t position, size_t count)
 		{
-			VI_ASSERT(Position < Other.size(), "position should be less than length");
-			Other.erase(Position, Count);
-			return Other;
+			VI_ASSERT(position < other.size(), "position should be less than length");
+			other.erase(position, count);
+			return other;
 		}
-		String& Stringify::EraseOffsets(String& Other, size_t Start, size_t End)
+		string& stringify::erase_offsets(string& other, size_t start, size_t end)
 		{
-			return Erase(Other, Start, End - Start);
+			return erase(other, start, end - start);
 		}
-		ExpectsSystem<void> Stringify::EvalEnvs(String& Other, const std::string_view& Directory, const Vector<String>& Tokens, const std::string_view& Token)
+		expects_system<void> stringify::eval_envs(string& other, const std::string_view& directory, const vector<string>& tokens, const std::string_view& token)
 		{
-			if (Other.empty())
-				return Core::Expectation::Met;
+			if (other.empty())
+				return core::expectation::met;
 
-			if (StartsOf(Other, "./\\"))
+			if (starts_of(other, "./\\"))
 			{
-				ExpectsIO<String> Result = OS::Path::Resolve(Other.c_str(), Directory, true);
-				if (Result)
-					Other.assign(*Result);
+				expects_io<string> result = os::path::resolve(other.c_str(), directory, true);
+				if (result)
+					other.assign(*result);
 			}
-			else if (Other.front() == '$' && Other.size() > 1)
+			else if (other.front() == '$' && other.size() > 1)
 			{
-				auto Env = OS::Process::GetEnv(Other.c_str() + 1);
-				if (!Env)
-					return SystemException("invalid env name: " + Other.substr(1), std::move(Env.Error()));
-				Other.assign(*Env);
+				auto env = os::process::get_env(other.c_str() + 1);
+				if (!env)
+					return system_exception("invalid env name: " + other.substr(1), std::move(env.error()));
+				other.assign(*env);
 			}
-			else if (!Tokens.empty())
+			else if (!tokens.empty())
 			{
-				size_t Start = std::string::npos, Offset = 0;
-				while ((Start = Other.find(Token, Offset)) != std::string::npos)
+				size_t start = std::string::npos, offset = 0;
+				while ((start = other.find(token, offset)) != std::string::npos)
 				{
-					size_t Subset = Start + Token.size(); size_t End = Subset;
-					while (End < Other.size() && IsNumeric(Other[End]))
-						++End;
+					size_t subset = start + token.size(); size_t end = subset;
+					while (end < other.size() && is_numeric(other[end]))
+						++end;
 
-					auto Index = FromString<uint8_t>(std::string_view(Other.data() + Subset, End - Subset));
-					if (Index && *Index < Tokens.size())
+					auto index = from_string<uint8_t>(std::string_view(other.data() + subset, end - subset));
+					if (index && *index < tokens.size())
 					{
-						auto& Target = Tokens[*Index];
-						Other.replace(Other.begin() + Start, Other.begin() + End, Target);
-						Offset = Start + Target.size();
+						auto& target = tokens[*index];
+						other.replace(other.begin() + start, other.begin() + end, target);
+						offset = start + target.size();
 					}
 					else
-						Offset = End;
+						offset = end;
 				}
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Vector<std::pair<String, TextSettle>> Stringify::FindInBetween(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset)
+		vector<std::pair<string, text_settle>> stringify::find_in_between(const std::string_view& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& not_in_sub_between_of, size_t offset)
 		{
-			Vector<std::pair<String, TextSettle>> Result;
-			PmFindInBetween(Result, Other, Begins, Ends, NotInSubBetweenOf, Offset);
-			return Result;
+			vector<std::pair<string, text_settle>> result;
+			pm_find_in_between(result, other, begins, ends, not_in_sub_between_of, offset);
+			return result;
 		}
-		Vector<std::pair<String, TextSettle>> Stringify::FindInBetweenInCode(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset)
+		vector<std::pair<string, text_settle>> stringify::find_in_between_in_code(const std::string_view& other, const std::string_view& begins, const std::string_view& ends, size_t offset)
 		{
-			Vector<std::pair<String, TextSettle>> Result;
-			PmFindInBetweenInCode(Result, Other, Begins, Ends, Offset);
-			return Result;
+			vector<std::pair<string, text_settle>> result;
+			pm_find_in_between_in_code(result, other, begins, ends, offset);
+			return result;
 		}
-		Vector<std::pair<String, TextSettle>> Stringify::FindStartsWithEndsOf(const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset)
+		vector<std::pair<string, text_settle>> stringify::find_starts_with_ends_of(const std::string_view& other, const std::string_view& begins, const std::string_view& ends_of, const std::string_view& not_in_sub_between_of, size_t offset)
 		{
-			Vector<std::pair<String, TextSettle>> Result;
-			PmFindStartsWithEndsOf(Result, Other, Begins, EndsOf, NotInSubBetweenOf, Offset);
-			return Result;
+			vector<std::pair<string, text_settle>> result;
+			pm_find_starts_with_ends_of(result, other, begins, ends_of, not_in_sub_between_of, offset);
+			return result;
 		}
-		void Stringify::PmFindInBetween(Vector<std::pair<String, TextSettle>>& Result, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset)
+		void stringify::pm_find_in_between(vector<std::pair<string, text_settle>>& result, const std::string_view& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& not_in_sub_between_of, size_t offset)
 		{
-			VI_ASSERT(!Begins.empty(), "begin should not be empty");
-			VI_ASSERT(!Ends.empty(), "end should not be empty");
+			VI_ASSERT(!begins.empty(), "begin should not be empty");
+			VI_ASSERT(!ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
-			size_t NisboSize = NotInSubBetweenOf.size();
-			char Skip = '\0';
+			size_t begins_size = begins.size(), ends_size = ends.size();
+			size_t nisbo_size = not_in_sub_between_of.size();
+			char skip = '\0';
 
-			for (size_t i = Offset; i < Other.size(); i++)
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				for (size_t j = 0; j < NisboSize; j++)
+				for (size_t j = 0; j < nisbo_size; j++)
 				{
-					char Next = Other.at(i);
-					if (Next == NotInSubBetweenOf[j])
+					char next = other.at(i);
+					if (next == not_in_sub_between_of[j])
 					{
-						Skip = Next;
+						skip = next;
 						++i;
 						break;
 					}
 				}
 
-				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
+				while (skip != '\0' && i < other.size() && other.at(i) != skip)
 					++i;
 
-				if (Skip != '\0')
+				if (skip != '\0')
 				{
-					Skip = '\0';
-					if (i >= Other.size())
+					skip = '\0';
+					if (i >= other.size())
 						break;
 				}
 
-				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				size_t from = i, begins_offset = 0;
+				while (begins_offset < begins_size && from < other.size() && other.at(from) == begins[begins_offset])
 				{
-					++From;
-					++BeginsOffset;
+					++from;
+					++begins_offset;
 				}
 
-				if (BeginsOffset != BeginsSize)
+				if (begins_offset != begins_size)
 				{
-					i = From;
+					i = from;
 					continue;
 				}
 
-				size_t To = From, EndsOffset = 0;
-				while (To < Other.size())
+				size_t to = from, ends_offset = 0;
+				while (to < other.size())
 				{
-					if (Other.at(To++) != Ends[EndsOffset])
+					if (other.at(to++) != ends[ends_offset])
 						continue;
 
-					if (++EndsOffset >= EndsSize)
+					if (++ends_offset >= ends_size)
 						break;
 				}
 
-				i = To;
-				if (EndsOffset != EndsSize)
+				i = to;
+				if (ends_offset != ends_size)
 					continue;
 
-				TextSettle At;
-				At.Start = From - BeginsSize;
-				At.End = To;
-				At.Found = true;
+				text_settle at;
+				at.start = from - begins_size;
+				at.end = to;
+				at.found = true;
 
-				Result.push_back(std::make_pair(String(Other.substr(From, (To - EndsSize) - From)), std::move(At)));
+				result.push_back(std::make_pair(string(other.substr(from, (to - ends_size) - from)), std::move(at)));
 			}
 		}
-		void Stringify::PmFindInBetweenInCode(Vector<std::pair<String, TextSettle>>& Result, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset)
+		void stringify::pm_find_in_between_in_code(vector<std::pair<string, text_settle>>& result, const std::string_view& other, const std::string_view& begins, const std::string_view& ends, size_t offset)
 		{
-			VI_ASSERT(!Begins.empty(), "begin should not be empty");
-			VI_ASSERT(!Ends.empty(), "end should not be empty");
+			VI_ASSERT(!begins.empty(), "begin should not be empty");
+			VI_ASSERT(!ends.empty(), "end should not be empty");
 
-			size_t BeginsSize = Begins.size(), EndsSize = Ends.size();
-			for (size_t i = Offset; i < Other.size(); i++)
+			size_t begins_size = begins.size(), ends_size = ends.size();
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				if (Other.at(i) == '/' && i + 1 < Other.size() && (Other[i + 1] == '/' || Other[i + 1] == '*'))
+				if (other.at(i) == '/' && i + 1 < other.size() && (other[i + 1] == '/' || other[i + 1] == '*'))
 				{
-					if (Other[++i] == '*')
+					if (other[++i] == '*')
 					{
-						while (i + 1 < Other.size())
+						while (i + 1 < other.size())
 						{
-							char N = Other[i++];
-							if (N == '*' && Other[i++] == '/')
+							char n = other[i++];
+							if (n == '*' && other[i++] == '/')
 								break;
 						}
 					}
 					else
 					{
-						while (i < Other.size())
+						while (i < other.size())
 						{
-							char N = Other[i++];
-							if (N == '\r' || N == '\n')
+							char n = other[i++];
+							if (n == '\r' || n == '\n')
 								break;
 						}
 					}
@@ -4954,574 +4954,574 @@ namespace Vitex
 					continue;
 				}
 
-				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				size_t from = i, begins_offset = 0;
+				while (begins_offset < begins_size && from < other.size() && other.at(from) == begins[begins_offset])
 				{
-					++From;
-					++BeginsOffset;
+					++from;
+					++begins_offset;
 				}
 
-				if (BeginsOffset != BeginsSize)
+				if (begins_offset != begins_size)
 				{
-					i = From;
+					i = from;
 					continue;
 				}
 
-				size_t To = From, EndsOffset = 0;
-				while (To < Other.size())
+				size_t to = from, ends_offset = 0;
+				while (to < other.size())
 				{
-					if (Other.at(To++) != Ends[EndsOffset])
+					if (other.at(to++) != ends[ends_offset])
 						continue;
 
-					if (++EndsOffset >= EndsSize)
+					if (++ends_offset >= ends_size)
 						break;
 				}
 
-				i = To;
-				if (EndsOffset != EndsSize)
+				i = to;
+				if (ends_offset != ends_size)
 					continue;
 
-				TextSettle At;
-				At.Start = From - BeginsSize;
-				At.End = To;
-				At.Found = true;
+				text_settle at;
+				at.start = from - begins_size;
+				at.end = to;
+				at.found = true;
 
-				Result.push_back(std::make_pair(String(Other.substr(From, (To - EndsSize) - From)), std::move(At)));
+				result.push_back(std::make_pair(string(other.substr(from, (to - ends_size) - from)), std::move(at)));
 			}
 		}
-		void Stringify::PmFindStartsWithEndsOf(Vector<std::pair<String, TextSettle>>& Result, const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset)
+		void stringify::pm_find_starts_with_ends_of(vector<std::pair<string, text_settle>>& result, const std::string_view& other, const std::string_view& begins, const std::string_view& ends_of, const std::string_view& not_in_sub_between_of, size_t offset)
 		{
-			VI_ASSERT(!Begins.empty(), "begin should not be empty");
-			VI_ASSERT(!EndsOf.empty(), "end should not be empty");
+			VI_ASSERT(!begins.empty(), "begin should not be empty");
+			VI_ASSERT(!ends_of.empty(), "end should not be empty");
 
-			size_t BeginsSize = Begins.size(), EndsOfSize = EndsOf.size();
-			size_t NisboSize = NotInSubBetweenOf.size();
-			char Skip = '\0';
+			size_t begins_size = begins.size(), ends_of_size = ends_of.size();
+			size_t nisbo_size = not_in_sub_between_of.size();
+			char skip = '\0';
 
-			for (size_t i = Offset; i < Other.size(); i++)
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				for (size_t j = 0; j < NisboSize; j++)
+				for (size_t j = 0; j < nisbo_size; j++)
 				{
-					char Next = Other.at(i);
-					if (Next == NotInSubBetweenOf[j])
+					char next = other.at(i);
+					if (next == not_in_sub_between_of[j])
 					{
-						Skip = Next;
+						skip = next;
 						++i;
 						break;
 					}
 				}
 
-				while (Skip != '\0' && i < Other.size() && Other.at(i) != Skip)
+				while (skip != '\0' && i < other.size() && other.at(i) != skip)
 					++i;
 
-				if (Skip != '\0')
+				if (skip != '\0')
 				{
-					Skip = '\0';
-					if (i >= Other.size())
+					skip = '\0';
+					if (i >= other.size())
 						break;
 				}
 
-				size_t From = i, BeginsOffset = 0;
-				while (BeginsOffset < BeginsSize && From < Other.size() && Other.at(From) == Begins[BeginsOffset])
+				size_t from = i, begins_offset = 0;
+				while (begins_offset < begins_size && from < other.size() && other.at(from) == begins[begins_offset])
 				{
-					++From;
-					++BeginsOffset;
+					++from;
+					++begins_offset;
 				}
 
-				bool Matching = false;
-				if (BeginsOffset != BeginsSize)
+				bool matching = false;
+				if (begins_offset != begins_size)
 				{
-					i = From;
+					i = from;
 					continue;
 				}
 
-				size_t To = From;
-				while (!Matching && To < Other.size())
+				size_t to = from;
+				while (!matching && to < other.size())
 				{
-					auto& Next = Other.at(To++);
-					for (size_t j = 0; j < EndsOfSize; j++)
+					auto& next = other.at(to++);
+					for (size_t j = 0; j < ends_of_size; j++)
 					{
-						if (Next == EndsOf[j])
+						if (next == ends_of[j])
 						{
-							Matching = true;
-							--To;
+							matching = true;
+							--to;
 							break;
 						}
 					}
 				}
 
-				if (To >= Other.size())
-					Matching = true;
+				if (to >= other.size())
+					matching = true;
 
-				if (!Matching)
+				if (!matching)
 					continue;
 
-				TextSettle At;
-				At.Start = From - BeginsSize;
-				At.End = To;
-				At.Found = true;
+				text_settle at;
+				at.start = from - begins_size;
+				at.end = to;
+				at.found = true;
 
-				Result.push_back(std::make_pair(String(Other.substr(From, To - From)), std::move(At)));
+				result.push_back(std::make_pair(string(other.substr(from, to - from)), std::move(at)));
 			}
 		}
-		TextSettle Stringify::ReverseFind(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
+		text_settle stringify::reverse_find(const std::string_view& other, const std::string_view& needle, size_t offset)
 		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
+			if (other.empty() || offset >= other.size())
+				return { other.size(), other.size(), false };
 
-			const char* Ptr = Other.data() - Offset;
-			if (Needle.data() > Ptr)
-				return { Other.size(), Other.size(), false };
+			const char* ptr = other.data() - offset;
+			if (needle.data() > ptr)
+				return { other.size(), other.size(), false };
 
-			const char* It = nullptr;
-			for (It = Ptr + Other.size() - Needle.size(); It > Ptr; --It)
+			const char* it = nullptr;
+			for (it = ptr + other.size() - needle.size(); it > ptr; --it)
 			{
-				if (strncmp(Ptr, Needle.data(), Needle.size()) == 0)
+				if (strncmp(ptr, needle.data(), needle.size()) == 0)
 				{
-					size_t Set = (size_t)(It - Ptr);
-					return { Set, Set + Needle.size(), true };
+					size_t set = (size_t)(it - ptr);
+					return { set, set + needle.size(), true };
 				}
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::ReverseFind(const std::string_view& Other, char Needle, size_t Offset)
+		text_settle stringify::reverse_find(const std::string_view& other, char needle, size_t offset)
 		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
+			if (other.empty() || offset >= other.size())
+				return { other.size(), other.size(), false };
 
-			size_t Size = Other.size() - Offset;
-			for (size_t i = Size; i-- > 0;)
+			size_t size = other.size() - offset;
+			for (size_t i = size; i-- > 0;)
 			{
-				if (Other.at(i) == Needle)
+				if (other.at(i) == needle)
 					return { i, i + 1, true };
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindUnescaped(const std::string_view& Other, char Needle, size_t Offset)
+		text_settle stringify::reverse_find_unescaped(const std::string_view& other, char needle, size_t offset)
 		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
+			if (other.empty() || offset >= other.size())
+				return { other.size(), other.size(), false };
 
-			size_t Size = Other.size() - Offset;
-			for (size_t i = Size; i-- > 0;)
+			size_t size = other.size() - offset;
+			for (size_t i = size; i-- > 0;)
 			{
-				if (Other.at(i) == Needle && ((int64_t)i - 1 < 0 || Other.at(i - 1) != '\\'))
+				if (other.at(i) == needle && ((int64_t)i - 1 < 0 || other.at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::ReverseFindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
+		text_settle stringify::reverse_find_of(const std::string_view& other, const std::string_view& needle, size_t offset)
 		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
+			if (other.empty() || offset >= other.size())
+				return { other.size(), other.size(), false };
 
-			size_t Size = Other.size() - Offset;
-			for (size_t i = Size; i-- > 0;)
+			size_t size = other.size() - offset;
+			for (size_t i = size; i-- > 0;)
 			{
-				for (char k : Needle)
+				for (char k : needle)
 				{
-					if (Other.at(i) == k)
+					if (other.at(i) == k)
 						return { i, i + 1, true };
 				}
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::Find(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
+		text_settle stringify::find(const std::string_view& other, const std::string_view& needle, size_t offset)
 		{
-			if (Other.empty() || Offset >= Other.size())
-				return { Other.size(), Other.size(), false };
+			if (other.empty() || offset >= other.size())
+				return { other.size(), other.size(), false };
 
-			const char* It = strstr(Other.data() + Offset, Needle.data());
-			if (It == nullptr)
-				return { Other.size(), Other.size(), false };
+			const char* it = strstr(other.data() + offset, needle.data());
+			if (it == nullptr)
+				return { other.size(), other.size(), false };
 
-			size_t Set = (size_t)(It - Other.data());
-			return { Set, Set + Needle.size(), true };
+			size_t set = (size_t)(it - other.data());
+			return { set, set + needle.size(), true };
 		}
-		TextSettle Stringify::Find(const std::string_view& Other, char Needle, size_t Offset)
+		text_settle stringify::find(const std::string_view& other, char needle, size_t offset)
 		{
-			for (size_t i = Offset; i < Other.size(); i++)
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				if (Other.at(i) == Needle)
+				if (other.at(i) == needle)
 					return { i, i + 1, true };
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::FindUnescaped(const std::string_view& Other, char Needle, size_t Offset)
+		text_settle stringify::find_unescaped(const std::string_view& other, char needle, size_t offset)
 		{
-			for (size_t i = Offset; i < Other.size(); i++)
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				if (Other.at(i) == Needle && ((int64_t)i - 1 < 0 || Other.at(i - 1) != '\\'))
+				if (other.at(i) == needle && ((int64_t)i - 1 < 0 || other.at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::FindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
+		text_settle stringify::find_of(const std::string_view& other, const std::string_view& needle, size_t offset)
 		{
-			for (size_t i = Offset; i < Other.size(); i++)
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				for (char k : Needle)
+				for (char k : needle)
 				{
-					if (Other.at(i) == k)
+					if (other.at(i) == k)
 						return { i, i + 1, true };
 				}
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		TextSettle Stringify::FindNotOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset)
+		text_settle stringify::find_not_of(const std::string_view& other, const std::string_view& needle, size_t offset)
 		{
-			for (size_t i = Offset; i < Other.size(); i++)
+			for (size_t i = offset; i < other.size(); i++)
 			{
-				bool Result = false;
-				for (char k : Needle)
+				bool result = false;
+				for (char k : needle)
 				{
-					if (Other.at(i) == k)
+					if (other.at(i) == k)
 					{
-						Result = true;
+						result = true;
 						break;
 					}
 				}
 
-				if (!Result)
+				if (!result)
 					return { i, i + 1, true };
 			}
 
-			return { Other.size(), Other.size(), false };
+			return { other.size(), other.size(), false };
 		}
-		size_t Stringify::CountLines(const std::string_view& Other)
+		size_t stringify::count_lines(const std::string_view& other)
 		{
-			size_t Lines = 1;
-			for (char Item : Other)
+			size_t lines = 1;
+			for (char item : other)
 			{
-				if (Item == '\n')
-					++Lines;
+				if (item == '\n')
+					++lines;
 			}
-			return Lines;
+			return lines;
 		}
-		bool Stringify::IsCString(const std::string_view& Other)
+		bool stringify::is_cstring(const std::string_view& other)
 		{
-			auto* Data = Other.data();
-			return Data != nullptr && Data[Other.size()] == '\0';
+			auto* data = other.data();
+			return data != nullptr && data[other.size()] == '\0';
 		}
-		bool Stringify::IsNotPrecededByEscape(const std::string_view& Buffer, size_t Offset, char Escape)
+		bool stringify::is_not_preceded_by_escape(const std::string_view& buffer, size_t offset, char escape)
 		{
-			VI_ASSERT(!Buffer.empty(), "buffer should be set");
-			if (Offset < 1 || Buffer[Offset - 1] != Escape)
+			VI_ASSERT(!buffer.empty(), "buffer should be set");
+			if (offset < 1 || buffer[offset - 1] != escape)
 				return true;
 
-			return Offset > 1 && Buffer[Offset - 2] == Escape;
+			return offset > 1 && buffer[offset - 2] == escape;
 		}
-		bool Stringify::IsEmptyOrWhitespace(const std::string_view& Other)
+		bool stringify::is_empty_or_whitespace(const std::string_view& other)
 		{
-			if (Other.empty())
+			if (other.empty())
 				return true;
 
-			for (char Next : Other)
+			for (char next : other)
 			{
-				if (!IsWhitespace(Next))
+				if (!is_whitespace(next))
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::IsPrecededBy(const std::string_view& Other, size_t At, const std::string_view& Of)
+		bool stringify::is_preceded_by(const std::string_view& other, size_t at, const std::string_view& of)
 		{
-			VI_ASSERT(!Of.empty(), "tokenbase should be set");
-			if (!At || At - 1 >= Other.size())
+			VI_ASSERT(!of.empty(), "tokenbase should be set");
+			if (!at || at - 1 >= other.size())
 				return false;
 
-			size_t Size = Of.size();
-			char Next = Other.at(At - 1);
-			for (size_t i = 0; i < Size; i++)
+			size_t size = of.size();
+			char next = other.at(at - 1);
+			for (size_t i = 0; i < size; i++)
 			{
-				if (Next == Of[i])
+				if (next == of[i])
 					return true;
 			}
 
 			return false;
 		}
-		bool Stringify::IsFollowedBy(const std::string_view& Other, size_t At, const std::string_view& Of)
+		bool stringify::is_followed_by(const std::string_view& other, size_t at, const std::string_view& of)
 		{
-			VI_ASSERT(!Of.empty(), "tokenbase should be set");
-			if (At + 1 >= Other.size())
+			VI_ASSERT(!of.empty(), "tokenbase should be set");
+			if (at + 1 >= other.size())
 				return false;
 
-			size_t Size = Of.size();
-			char Next = Other.at(At + 1);
-			for (size_t i = 0; i < Size; i++)
+			size_t size = of.size();
+			char next = other.at(at + 1);
+			for (size_t i = 0; i < size; i++)
 			{
-				if (Next == Of[i])
+				if (next == of[i])
 					return true;
 			}
 
 			return false;
 		}
-		bool Stringify::StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset)
+		bool stringify::starts_with(const std::string_view& other, const std::string_view& value, size_t offset)
 		{
-			if (Other.size() < Value.size())
+			if (other.size() < value.size())
 				return false;
 
-			for (size_t i = Offset; i < Value.size(); i++)
+			for (size_t i = offset; i < value.size(); i++)
 			{
-				if (Value[i] != Other.at(i))
+				if (value[i] != other.at(i))
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::StartsOf(const std::string_view& Other, const std::string_view& Value, size_t Offset)
+		bool stringify::starts_of(const std::string_view& other, const std::string_view& value, size_t offset)
 		{
-			VI_ASSERT(!Value.empty(), "value should be set");
-			size_t Length = Value.size();
-			if (Offset >= Other.size())
+			VI_ASSERT(!value.empty(), "value should be set");
+			size_t length = value.size();
+			if (offset >= other.size())
 				return false;
 
-			for (size_t j = 0; j < Length; j++)
+			for (size_t j = 0; j < length; j++)
 			{
-				if (Other.at(Offset) == Value[j])
+				if (other.at(offset) == value[j])
 					return true;
 			}
 
 			return false;
 		}
-		bool Stringify::StartsNotOf(const std::string_view& Other, const std::string_view& Value, size_t Offset)
+		bool stringify::starts_not_of(const std::string_view& other, const std::string_view& value, size_t offset)
 		{
-			VI_ASSERT(!Value.empty(), "value should be set");
-			size_t Length = Value.size();
-			if (Offset >= Other.size())
+			VI_ASSERT(!value.empty(), "value should be set");
+			size_t length = value.size();
+			if (offset >= other.size())
 				return false;
 
-			bool Result = true;
-			for (size_t j = 0; j < Length; j++)
+			bool result = true;
+			for (size_t j = 0; j < length; j++)
 			{
-				if (Other.at(Offset) == Value[j])
+				if (other.at(offset) == value[j])
 				{
-					Result = false;
+					result = false;
 					break;
 				}
 			}
 
-			return Result;
+			return result;
 		}
-		bool Stringify::EndsWith(const std::string_view& Other, const std::string_view& Value)
+		bool stringify::ends_with(const std::string_view& other, const std::string_view& value)
 		{
-			if (Other.empty() || Value.size() > Other.size())
+			if (other.empty() || value.size() > other.size())
 				return false;
 
-			return strcmp(Other.data() + Other.size() - Value.size(), Value.data()) == 0;
+			return strcmp(other.data() + other.size() - value.size(), value.data()) == 0;
 		}
-		bool Stringify::EndsWith(const std::string_view& Other, char Value)
+		bool stringify::ends_with(const std::string_view& other, char value)
 		{
-			return !Other.empty() && Other.back() == Value;
+			return !other.empty() && other.back() == value;
 		}
-		bool Stringify::EndsOf(const std::string_view& Other, const std::string_view& Value)
+		bool stringify::ends_of(const std::string_view& other, const std::string_view& value)
 		{
-			VI_ASSERT(!Value.empty(), "value should be set");
-			if (Other.empty())
+			VI_ASSERT(!value.empty(), "value should be set");
+			if (other.empty())
 				return false;
 
-			size_t Length = Value.size();
-			for (size_t j = 0; j < Length; j++)
+			size_t length = value.size();
+			for (size_t j = 0; j < length; j++)
 			{
-				if (Other.back() == Value[j])
+				if (other.back() == value[j])
 					return true;
 			}
 
 			return false;
 		}
-		bool Stringify::EndsNotOf(const std::string_view& Other, const std::string_view& Value)
+		bool stringify::ends_not_of(const std::string_view& other, const std::string_view& value)
 		{
-			VI_ASSERT(!Value.empty(), "value should be set");
-			if (Other.empty())
+			VI_ASSERT(!value.empty(), "value should be set");
+			if (other.empty())
 				return true;
 
-			size_t Length = Value.size();
-			for (size_t j = 0; j < Length; j++)
+			size_t length = value.size();
+			for (size_t j = 0; j < length; j++)
 			{
-				if (Other.back() == Value[j])
+				if (other.back() == value[j])
 					return false;
 			}
 
 			return true;
 		}
-		bool Stringify::HasInteger(const std::string_view& Other)
+		bool stringify::has_integer(const std::string_view& other)
 		{
-			if (Other.empty() || (Other.size() == 1 && !IsNumeric(Other.front())))
+			if (other.empty() || (other.size() == 1 && !is_numeric(other.front())))
 				return false;
-			
-			size_t Digits = 0;
-			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0); 
-			for (; i < Other.size(); i++)
+
+			size_t digits = 0;
+			size_t i = (other.front() == '+' || other.front() == '-' ? 1 : 0);
+			for (; i < other.size(); i++)
 			{
-				char V = Other[i];
-				if (!IsNumeric(V))
+				char v = other[i];
+				if (!is_numeric(v))
 					return false;
 
-				++Digits;
+				++digits;
 			}
 
-			return Digits > 0;
+			return digits > 0;
 		}
-		bool Stringify::HasNumber(const std::string_view& Other)
+		bool stringify::has_number(const std::string_view& other)
 		{
-			if (Other.empty() || (Other.size() == 1 && !IsNumeric(Other.front())))
+			if (other.empty() || (other.size() == 1 && !is_numeric(other.front())))
 				return false;
 
-			size_t Digits = 0, Points = 0;
-			size_t i = (Other.front() == '+' || Other.front() == '-' ? 1 : 0);
-			for (; i < Other.size(); i++)
+			size_t digits = 0, points = 0;
+			size_t i = (other.front() == '+' || other.front() == '-' ? 1 : 0);
+			for (; i < other.size(); i++)
 			{
-				char V = Other[i];
-				if (IsNumeric(V))
+				char v = other[i];
+				if (is_numeric(v))
 				{
-					++Digits;
+					++digits;
 					continue;
 				}
 
-				if (!Points && V == '.' && i + 1 < Other.size())
+				if (!points && v == '.' && i + 1 < other.size())
 				{
-					++Points;
+					++points;
 					continue;
 				}
 
 				return false;
 			}
 
-			return Digits > 0 && Points < 2;
+			return digits > 0 && points < 2;
 		}
-		bool Stringify::HasDecimal(const std::string_view& Other)
+		bool stringify::has_decimal(const std::string_view& other)
 		{
-			auto F = Find(Other, '.');
-			if (!F.Found)
-				return HasInteger(Other) && Other.size() >= 19;
+			auto f = find(other, '.');
+			if (!f.found)
+				return has_integer(other) && other.size() >= 19;
 
-			auto D1 = Other.substr(0, F.End - 1);
-			if (D1.empty() || !HasInteger(D1))
+			auto D1 = other.substr(0, f.end - 1);
+			if (D1.empty() || !has_integer(D1))
 				return false;
 
-			auto D2 = Other.substr(F.End + 1, Other.size() - F.End - 1);
-			if (D2.empty() || !HasInteger(D2))
+			auto D2 = other.substr(f.end + 1, other.size() - f.end - 1);
+			if (D2.empty() || !has_integer(D2))
 				return false;
 
 			return D1.size() >= 19 || D2.size() > 6;
 		}
-		bool Stringify::IsNumericOrDot(char Char)
+		bool stringify::is_numeric_or_dot(char symbol)
 		{
-			return Char == '.' || IsNumeric(Char);
+			return symbol == '.' || is_numeric(symbol);
 		}
-		bool Stringify::IsNumericOrDotOrWhitespace(char Char)
+		bool stringify::is_numeric_or_dot_or_whitespace(char symbol)
 		{
-			return IsWhitespace(Char) || IsNumericOrDot(Char);
+			return is_whitespace(symbol) || is_numeric_or_dot(symbol);
 		}
-		bool Stringify::IsHex(char Char)
+		bool stringify::is_hex(char symbol)
 		{
-			return IsNumeric(Char) || (Char >= 'a' && Char <= 'f') || (Char >= 'A' && Char <= 'F');
+			return is_numeric(symbol) || (symbol >= 'a' && symbol <= 'f') || (symbol >= 'a' && symbol <= 'f');
 		}
-		bool Stringify::IsHexOrDot(char Char)
+		bool stringify::is_hex_or_dot(char symbol)
 		{
-			return Char == '.' || IsHex(Char);
+			return symbol == '.' || is_hex(symbol);
 		}
-		bool Stringify::IsHexOrDotOrWhitespace(char Char)
+		bool stringify::is_hex_or_dot_or_whitespace(char symbol)
 		{
-			return IsWhitespace(Char) || IsHexOrDot(Char);
+			return is_whitespace(symbol) || is_hex_or_dot(symbol);
 		}
-		bool Stringify::IsAlphabetic(char Char)
+		bool stringify::is_alphabetic(char symbol)
 		{
-			return std::isalpha(static_cast<uint8_t>(Char)) != 0;
+			return std::isalpha(static_cast<uint8_t>(symbol)) != 0;
 		}
-		bool Stringify::IsNumeric(char Char)
+		bool stringify::is_numeric(char symbol)
 		{
-			return std::isdigit(static_cast<uint8_t>(Char)) != 0;
+			return std::isdigit(static_cast<uint8_t>(symbol)) != 0;
 		}
-		bool Stringify::IsAlphanum(char Char)
+		bool stringify::is_alphanum(char symbol)
 		{
-			return std::isalnum(static_cast<uint8_t>(Char)) != 0;
+			return std::isalnum(static_cast<uint8_t>(symbol)) != 0;
 		}
-		bool Stringify::IsWhitespace(char Char)
+		bool stringify::is_whitespace(char symbol)
 		{
-			return std::isspace(static_cast<uint8_t>(Char)) != 0;
+			return std::isspace(static_cast<uint8_t>(symbol)) != 0;
 		}
-		char Stringify::ToLowerLiteral(char Char)
+		char stringify::to_lower_literal(char symbol)
 		{
-			return static_cast<char>(std::tolower(static_cast<uint8_t>(Char)));
+			return static_cast<char>(std::tolower(static_cast<uint8_t>(symbol)));
 		}
-		char Stringify::ToUpperLiteral(char Char)
+		char stringify::to_upper_literal(char symbol)
 		{
-			return static_cast<char>(std::toupper(static_cast<uint8_t>(Char)));
+			return static_cast<char>(std::toupper(static_cast<uint8_t>(symbol)));
 		}
-		bool Stringify::CaseEquals(const std::string_view& Value1, const std::string_view& Value2)
+		bool stringify::case_equals(const std::string_view& value1, const std::string_view& value2)
 		{
-			return Value1.size() == Value2.size() && std::equal(Value1.begin(), Value1.end(), Value2.begin(), [](const uint8_t A, const uint8_t B)
+			return value1.size() == value2.size() && std::equal(value1.begin(), value1.end(), value2.begin(), [](const uint8_t a, const uint8_t b)
 			{
-				return std::tolower(A) == std::tolower(B);
+				return std::tolower(a) == std::tolower(b);
 			});
 		}
-		int Stringify::CaseCompare(const std::string_view& Value1, const std::string_view& Value2)
+		int stringify::case_compare(const std::string_view& value1, const std::string_view& value2)
 		{
-			int Diff = 0;
-			size_t Size = std::min(Value1.size(), Value2.size());
-			size_t Offset = 0;
+			int diff = 0;
+			size_t size = std::min(value1.size(), value2.size());
+			size_t offset = 0;
 			do
 			{
-				Diff = tolower((uint8_t)Value1[Offset]) - tolower((uint8_t)Value2[Offset]);
-				++Offset;
-			} while (Diff == 0 && Offset < Size);
-			return Diff;
+				diff = tolower((uint8_t)value1[offset]) - tolower((uint8_t)value2[offset]);
+				++offset;
+			} while (diff == 0 && offset < size);
+			return diff;
 		}
-		int Stringify::Match(const char* Pattern, const std::string_view& Text)
+		int stringify::match(const char* pattern, const std::string_view& text)
 		{
-			VI_ASSERT(Pattern != nullptr, "pattern and text should be set");
-			return Match(Pattern, strlen(Pattern), Text);
+			VI_ASSERT(pattern != nullptr, "pattern and text should be set");
+			return match(pattern, strlen(pattern), text);
 		}
-		int Stringify::Match(const char* Pattern, size_t Length, const std::string_view& Text)
+		int stringify::match(const char* pattern, size_t length, const std::string_view& text)
 		{
-			VI_ASSERT(Pattern != nullptr, "pattern and text should be set");
-			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
-			if (Token != nullptr)
+			VI_ASSERT(pattern != nullptr, "pattern and text should be set");
+			const char* token = (const char*)memchr(pattern, '|', (size_t)length);
+			if (token != nullptr)
 			{
-				int Output = Match(Pattern, (size_t)(Token - Pattern), Text);
-				return (Output > 0) ? Output : Match(Token + 1, (size_t)((Pattern + Length) - (Token + 1)), Text);
+				int output = match(pattern, (size_t)(token - pattern), text);
+				return (output > 0) ? output : match(token + 1, (size_t)((pattern + length) - (token + 1)), text);
 			}
 
-			int Offset = 0, Result = 0;
+			int offset = 0, result = 0;
 			size_t i = 0; int j = 0;
-			while (i < Length)
+			while (i < length)
 			{
-				if (Pattern[i] == '?' && Text[j] != '\0')
+				if (pattern[i] == '?' && text[j] != '\0')
 					continue;
 
-				if (Pattern[i] == '$')
-					return (Text[j] == '\0') ? j : -1;
+				if (pattern[i] == '$')
+					return (text[j] == '\0') ? j : -1;
 
-				if (Pattern[i] == '*')
+				if (pattern[i] == '*')
 				{
 					i++;
-					if (Pattern[i] == '*')
+					if (pattern[i] == '*')
 					{
-						Offset = (int)Text.substr(j).size();
+						offset = (int)text.substr(j).size();
 						i++;
 					}
 					else
-						Offset = (int)strcspn(Text.data() + j, "/");
+						offset = (int)strcspn(text.data() + j, "/");
 
-					if (i == Length)
-						return j + Offset;
+					if (i == length)
+						return j + offset;
 
 					do
 					{
-						Result = Match(Pattern + i, Length - i, Text.substr(j + Offset));
-					} while (Result == -1 && Offset-- > 0);
+						result = match(pattern + i, length - i, text.substr(j + offset));
+					} while (result == -1 && offset-- > 0);
 
-					return (Result == -1) ? -1 : j + Result + Offset;
+					return (result == -1) ? -1 : j + result + offset;
 				}
-				else if (tolower((const uint8_t)Pattern[i]) != tolower((const uint8_t)Text[j]))
+				else if (tolower((const uint8_t)pattern[i]) != tolower((const uint8_t)text[j]))
 					return -1;
 
 				i++;
@@ -5530,2207 +5530,2207 @@ namespace Vitex
 
 			return j;
 		}
-		String Stringify::Text(const char* Format, ...)
+		string stringify::text(const char* format, ...)
 		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			va_list Args;
-			va_start(Args, Format);
-			char Buffer[BLOB_SIZE];
-			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			if (Size > sizeof(Buffer))
-				Size = sizeof(Buffer);
-			va_end(Args);
-			return String(Buffer, (size_t)Size);
+			VI_ASSERT(format != nullptr, "format should be set");
+			va_list args;
+			va_start(args, format);
+			char buffer[BLOB_SIZE];
+			int size = vsnprintf(buffer, sizeof(buffer), format, args);
+			if (size > sizeof(buffer))
+				size = sizeof(buffer);
+			va_end(args);
+			return string(buffer, (size_t)size);
 		}
-		WideString Stringify::ToWide(const std::string_view& Other)
+		wide_string stringify::to_wide(const std::string_view& other)
 		{
-			WideString Output;
-			Output.reserve(Other.size());
+			wide_string output;
+			output.reserve(other.size());
 
-			wchar_t W;
-			for (size_t i = 0; i < Other.size();)
+			wchar_t w;
+			for (size_t i = 0; i < other.size();)
 			{
-				char C = Other.at(i);
-				if ((C & 0x80) == 0)
+				char c = other.at(i);
+				if ((c & 0x80) == 0)
 				{
-					W = C;
+					w = c;
 					i++;
 				}
-				else if ((C & 0xE0) == 0xC0)
+				else if ((c & 0xE0) == 0xC0)
 				{
-					W = (C & 0x1F) << 6;
-					W |= (Other.at(i + 1) & 0x3F);
+					w = (c & 0x1F) << 6;
+					w |= (other.at(i + 1) & 0x3F);
 					i += 2;
 				}
-				else if ((C & 0xF0) == 0xE0)
+				else if ((c & 0xF0) == 0xE0)
 				{
-					W = (C & 0xF) << 12;
-					W |= (Other.at(i + 1) & 0x3F) << 6;
-					W |= (Other.at(i + 2) & 0x3F);
+					w = (c & 0xF) << 12;
+					w |= (other.at(i + 1) & 0x3F) << 6;
+					w |= (other.at(i + 2) & 0x3F);
 					i += 3;
 				}
-				else if ((C & 0xF8) == 0xF0)
+				else if ((c & 0xF8) == 0xF0)
 				{
-					W = (C & 0x7) << 18;
-					W |= (Other.at(i + 1) & 0x3F) << 12;
-					W |= (Other.at(i + 2) & 0x3F) << 6;
-					W |= (Other.at(i + 3) & 0x3F);
+					w = (c & 0x7) << 18;
+					w |= (other.at(i + 1) & 0x3F) << 12;
+					w |= (other.at(i + 2) & 0x3F) << 6;
+					w |= (other.at(i + 3) & 0x3F);
 					i += 4;
 				}
-				else if ((C & 0xFC) == 0xF8)
+				else if ((c & 0xFC) == 0xF8)
 				{
-					W = (C & 0x3) << 24;
-					W |= (C & 0x3F) << 18;
-					W |= (C & 0x3F) << 12;
-					W |= (C & 0x3F) << 6;
-					W |= (C & 0x3F);
+					w = (c & 0x3) << 24;
+					w |= (c & 0x3F) << 18;
+					w |= (c & 0x3F) << 12;
+					w |= (c & 0x3F) << 6;
+					w |= (c & 0x3F);
 					i += 5;
 				}
-				else if ((C & 0xFE) == 0xFC)
+				else if ((c & 0xFE) == 0xFC)
 				{
-					W = (C & 0x1) << 30;
-					W |= (C & 0x3F) << 24;
-					W |= (C & 0x3F) << 18;
-					W |= (C & 0x3F) << 12;
-					W |= (C & 0x3F) << 6;
-					W |= (C & 0x3F);
+					w = (c & 0x1) << 30;
+					w |= (c & 0x3F) << 24;
+					w |= (c & 0x3F) << 18;
+					w |= (c & 0x3F) << 12;
+					w |= (c & 0x3F) << 6;
+					w |= (c & 0x3F);
 					i += 6;
 				}
 				else
-					W = C;
+					w = c;
 
-				Output += W;
+				output += w;
 			}
 
-			return Output;
+			return output;
 		}
-		Vector<String> Stringify::Split(const std::string_view& Other, const std::string_view& With, size_t Start)
+		vector<string> stringify::split(const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			Vector<String> Output;
-			PmSplit(Output, Other, With, Start);
-			return Output;
+			vector<string> output;
+			pm_split(output, other, with, start);
+			return output;
 		}
-		Vector<String> Stringify::Split(const std::string_view& Other, char With, size_t Start)
+		vector<string> stringify::split(const std::string_view& other, char with, size_t start)
 		{
-			Vector<String> Output;
-			PmSplit(Output, Other, With, Start);
-			return Output;
+			vector<string> output;
+			pm_split(output, other, with, start);
+			return output;
 		}
-		Vector<String> Stringify::SplitMax(const std::string_view& Other, char With, size_t Count, size_t Start)
+		vector<string> stringify::split_max(const std::string_view& other, char with, size_t count, size_t start)
 		{
-			Vector<String> Output;
-			PmSplitMax(Output, Other, With, Count, Start);
-			return Output;
+			vector<string> output;
+			pm_split_max(output, other, with, count, start);
+			return output;
 		}
-		Vector<String> Stringify::SplitOf(const std::string_view& Other, const std::string_view& With, size_t Start)
+		vector<string> stringify::split_of(const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			Vector<String> Output;
-			PmSplitOf(Output, Other, With, Start);
-			return Output;
+			vector<string> output;
+			pm_split_of(output, other, with, start);
+			return output;
 		}
-		Vector<String> Stringify::SplitNotOf(const std::string_view& Other, const std::string_view& With, size_t Start)
+		vector<string> stringify::split_not_of(const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			Vector<String> Output;
-			PmSplitNotOf(Output, Other, With, Start);
-			return Output;
+			vector<string> output;
+			pm_split_not_of(output, other, with, start);
+			return output;
 		}
-		void Stringify::PmSplit(Vector<String>& Output, const std::string_view& Other, const std::string_view& With, size_t Start)
+		void stringify::pm_split(vector<string>& output, const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			if (Start >= Other.size())
+			if (start >= other.size())
 				return;
 
-			size_t Offset = Start;
-			TextSettle Result = Find(Other, With, Offset);
-			while (Result.Found)
+			size_t offset = start;
+			text_settle result = find(other, with, offset);
+			while (result.found)
 			{
-				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
-				Result = Find(Other, With, Offset = Result.End);
+				output.emplace_back(other.substr(offset, result.start - offset));
+				result = find(other, with, offset = result.end);
 			}
 
-			if (Offset < Other.size())
-				Output.emplace_back(Other.substr(Offset));
+			if (offset < other.size())
+				output.emplace_back(other.substr(offset));
 		}
-		void Stringify::PmSplit(Vector<String>& Output, const std::string_view& Other, char With, size_t Start)
+		void stringify::pm_split(vector<string>& output, const std::string_view& other, char with, size_t start)
 		{
-			if (Start >= Other.size())
+			if (start >= other.size())
 				return;
 
-			size_t Offset = Start;
-			TextSettle Result = Find(Other, With, Start);
-			while (Result.Found)
+			size_t offset = start;
+			text_settle result = find(other, with, start);
+			while (result.found)
 			{
-				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
-				Result = Find(Other, With, Offset = Result.End);
+				output.emplace_back(other.substr(offset, result.start - offset));
+				result = find(other, with, offset = result.end);
 			}
 
-			if (Offset < Other.size())
-				Output.emplace_back(Other.substr(Offset));
+			if (offset < other.size())
+				output.emplace_back(other.substr(offset));
 		}
-		void Stringify::PmSplitMax(Vector<String>& Output, const std::string_view& Other, char With, size_t Count, size_t Start)
+		void stringify::pm_split_max(vector<string>& output, const std::string_view& other, char with, size_t count, size_t start)
 		{
-			if (Start >= Other.size())
+			if (start >= other.size())
 				return;
 
-			size_t Offset = Start;
-			TextSettle Result = Find(Other, With, Start);
-			while (Result.Found && Output.size() < Count)
+			size_t offset = start;
+			text_settle result = find(other, with, start);
+			while (result.found && output.size() < count)
 			{
-				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
-				Result = Find(Other, With, Offset = Result.End);
+				output.emplace_back(other.substr(offset, result.start - offset));
+				result = find(other, with, offset = result.end);
 			}
 
-			if (Offset < Other.size() && Output.size() < Count)
-				Output.emplace_back(Other.substr(Offset));
+			if (offset < other.size() && output.size() < count)
+				output.emplace_back(other.substr(offset));
 		}
-		void Stringify::PmSplitOf(Vector<String>& Output, const std::string_view& Other, const std::string_view& With, size_t Start)
+		void stringify::pm_split_of(vector<string>& output, const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			if (Start >= Other.size())
+			if (start >= other.size())
 				return;
 
-			size_t Offset = Start;
-			TextSettle Result = FindOf(Other, With, Start);
-			while (Result.Found)
+			size_t offset = start;
+			text_settle result = find_of(other, with, start);
+			while (result.found)
 			{
-				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
-				Result = FindOf(Other, With, Offset = Result.End);
+				output.emplace_back(other.substr(offset, result.start - offset));
+				result = find_of(other, with, offset = result.end);
 			}
 
-			if (Offset < Other.size())
-				Output.emplace_back(Other.substr(Offset));
+			if (offset < other.size())
+				output.emplace_back(other.substr(offset));
 		}
-		void Stringify::PmSplitNotOf(Vector<String>& Output, const std::string_view& Other, const std::string_view& With, size_t Start)
+		void stringify::pm_split_not_of(vector<string>& output, const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			if (Start >= Other.size())
+			if (start >= other.size())
 				return;
 
-			size_t Offset = Start;
-			TextSettle Result = FindNotOf(Other, With, Start);
-			while (Result.Found)
+			size_t offset = start;
+			text_settle result = find_not_of(other, with, start);
+			while (result.found)
 			{
-				Output.emplace_back(Other.substr(Offset, Result.Start - Offset));
-				Result = FindNotOf(Other, With, Offset = Result.End);
+				output.emplace_back(other.substr(offset, result.start - offset));
+				result = find_not_of(other, with, offset = result.end);
 			}
 
-			if (Offset < Other.size())
-				Output.emplace_back(Other.substr(Offset));
+			if (offset < other.size())
+				output.emplace_back(other.substr(offset));
 		}
-		void Stringify::ConvertToWide(const std::string_view& Input, wchar_t* Output, size_t OutputSize)
+		void stringify::convert_to_wide(const std::string_view& input, wchar_t* output, size_t output_size)
 		{
-			VI_ASSERT(Output != nullptr && OutputSize > 0, "output should be set");
+			VI_ASSERT(output != nullptr && output_size > 0, "output should be set");
 
-			wchar_t W = '\0'; size_t Size = 0;
-			for (size_t i = 0; i < Input.size();)
+			wchar_t w = '\0'; size_t size = 0;
+			for (size_t i = 0; i < input.size();)
 			{
-				char C = Input[i];
-				if ((C & 0x80) == 0)
+				char c = input[i];
+				if ((c & 0x80) == 0)
 				{
-					W = C;
+					w = c;
 					i++;
 				}
-				else if ((C & 0xE0) == 0xC0)
+				else if ((c & 0xE0) == 0xC0)
 				{
-					W = (C & 0x1F) << 6;
-					W |= (Input[i + 1] & 0x3F);
+					w = (c & 0x1F) << 6;
+					w |= (input[i + 1] & 0x3F);
 					i += 2;
 				}
-				else if ((C & 0xF0) == 0xE0)
+				else if ((c & 0xF0) == 0xE0)
 				{
-					W = (C & 0xF) << 12;
-					W |= (Input[i + 1] & 0x3F) << 6;
-					W |= (Input[i + 2] & 0x3F);
+					w = (c & 0xF) << 12;
+					w |= (input[i + 1] & 0x3F) << 6;
+					w |= (input[i + 2] & 0x3F);
 					i += 3;
 				}
-				else if ((C & 0xF8) == 0xF0)
+				else if ((c & 0xF8) == 0xF0)
 				{
-					W = (C & 0x7) << 18;
-					W |= (Input[i + 1] & 0x3F) << 12;
-					W |= (Input[i + 2] & 0x3F) << 6;
-					W |= (Input[i + 3] & 0x3F);
+					w = (c & 0x7) << 18;
+					w |= (input[i + 1] & 0x3F) << 12;
+					w |= (input[i + 2] & 0x3F) << 6;
+					w |= (input[i + 3] & 0x3F);
 					i += 4;
 				}
-				else if ((C & 0xFC) == 0xF8)
+				else if ((c & 0xFC) == 0xF8)
 				{
-					W = (C & 0x3) << 24;
-					W |= (C & 0x3F) << 18;
-					W |= (C & 0x3F) << 12;
-					W |= (C & 0x3F) << 6;
-					W |= (C & 0x3F);
+					w = (c & 0x3) << 24;
+					w |= (c & 0x3F) << 18;
+					w |= (c & 0x3F) << 12;
+					w |= (c & 0x3F) << 6;
+					w |= (c & 0x3F);
 					i += 5;
 				}
-				else if ((C & 0xFE) == 0xFC)
+				else if ((c & 0xFE) == 0xFC)
 				{
-					W = (C & 0x1) << 30;
-					W |= (C & 0x3F) << 24;
-					W |= (C & 0x3F) << 18;
-					W |= (C & 0x3F) << 12;
-					W |= (C & 0x3F) << 6;
-					W |= (C & 0x3F);
+					w = (c & 0x1) << 30;
+					w |= (c & 0x3F) << 24;
+					w |= (c & 0x3F) << 18;
+					w |= (c & 0x3F) << 12;
+					w |= (c & 0x3F) << 6;
+					w |= (c & 0x3F);
 					i += 6;
 				}
 				else
-					W = C;
+					w = c;
 
-				Output[Size++] = W;
-				if (Size >= OutputSize)
+				output[size++] = w;
+				if (size >= output_size)
 					break;
 			}
 
-			if (Size < OutputSize)
-				Output[Size] = '\0';
+			if (size < output_size)
+				output[size] = '\0';
 		}
 
-		Schema* Var::Set::Auto(Variant&& Value)
+		schema* var::set::any(variant&& value)
 		{
-			return new Schema(std::move(Value));
+			return new schema(std::move(value));
 		}
-		Schema* Var::Set::Auto(const Variant& Value)
+		schema* var::set::any(const variant& value)
 		{
-			return new Schema(Value);
+			return new schema(value);
 		}
-		Schema* Var::Set::Auto(const std::string_view& Value, bool Strict)
+		schema* var::set::any(const std::string_view& value, bool strict)
 		{
-			return new Schema(Var::Auto(Value, Strict));
+			return new schema(var::any(value, strict));
 		}
-		Schema* Var::Set::Null()
+		schema* var::set::null()
 		{
-			return new Schema(Var::Null());
+			return new schema(var::null());
 		}
-		Schema* Var::Set::Undefined()
+		schema* var::set::undefined()
 		{
-			return new Schema(Var::Undefined());
+			return new schema(var::undefined());
 		}
-		Schema* Var::Set::Object()
+		schema* var::set::object()
 		{
-			return new Schema(Var::Object());
+			return new schema(var::object());
 		}
-		Schema* Var::Set::Array()
+		schema* var::set::array()
 		{
-			return new Schema(Var::Array());
+			return new schema(var::array());
 		}
-		Schema* Var::Set::Pointer(void* Value)
+		schema* var::set::pointer(void* value)
 		{
-			return new Schema(Var::Pointer(Value));
+			return new schema(var::pointer(value));
 		}
-		Schema* Var::Set::String(const std::string_view& Value)
+		schema* var::set::string(const std::string_view& value)
 		{
-			return new Schema(Var::String(Value));
+			return new schema(var::string(value));
 		}
-		Schema* Var::Set::Binary(const std::string_view& Value)
+		schema* var::set::binary(const std::string_view& value)
 		{
-			return Binary((uint8_t*)Value.data(), Value.size());
+			return binary((uint8_t*)value.data(), value.size());
 		}
-		Schema* Var::Set::Binary(const uint8_t* Value, size_t Size)
+		schema* var::set::binary(const uint8_t* value, size_t size)
 		{
-			return new Schema(Var::Binary(Value, Size));
+			return new schema(var::binary(value, size));
 		}
-		Schema* Var::Set::Integer(int64_t Value)
+		schema* var::set::integer(int64_t value)
 		{
-			return new Schema(Var::Integer(Value));
+			return new schema(var::integer(value));
 		}
-		Schema* Var::Set::Number(double Value)
+		schema* var::set::number(double value)
 		{
-			return new Schema(Var::Number(Value));
+			return new schema(var::number(value));
 		}
-		Schema* Var::Set::Decimal(const Core::Decimal& Value)
+		schema* var::set::decimal(const core::decimal& value)
 		{
-			return new Schema(Var::Decimal(Value));
+			return new schema(var::decimal(value));
 		}
-		Schema* Var::Set::Decimal(Core::Decimal&& Value)
+		schema* var::set::decimal(core::decimal&& value)
 		{
-			return new Schema(Var::Decimal(std::move(Value)));
+			return new schema(var::decimal(std::move(value)));
 		}
-		Schema* Var::Set::DecimalString(const std::string_view& Value)
+		schema* var::set::decimal_string(const std::string_view& value)
 		{
-			return new Schema(Var::DecimalString(Value));
+			return new schema(var::decimal_string(value));
 		}
-		Schema* Var::Set::Boolean(bool Value)
+		schema* var::set::boolean(bool value)
 		{
-			return new Schema(Var::Boolean(Value));
-		}
-
-		Variant Var::Auto(const std::string_view& Value, bool Strict)
-		{
-			Variant Result;
-			Result.Deserialize(Value, Strict);
-			return Result;
-		}
-		Variant Var::Null()
-		{
-			return Variant(VarType::Null);
-		}
-		Variant Var::Undefined()
-		{
-			return Variant(VarType::Undefined);
-		}
-		Variant Var::Object()
-		{
-			return Variant(VarType::Object);
-		}
-		Variant Var::Array()
-		{
-			return Variant(VarType::Array);
-		}
-		Variant Var::Pointer(void* Value)
-		{
-			if (!Value)
-				return Null();
-
-			Variant Result(VarType::Pointer);
-			Result.Value.Pointer = (char*)Value;
-			return Result;
-		}
-		Variant Var::String(const std::string_view& Value)
-		{
-			Variant Result(VarType::String);
-			Result.Length = (uint32_t)Value.size();
-
-			size_t StringSize = sizeof(char) * (Result.Length + 1);
-			if (Result.Length > Variant::GetMaxSmallStringSize())
-				Result.Value.Pointer = Memory::Allocate<char>(StringSize);
-
-			char* Data = (char*)Result.GetString().data();
-			memcpy(Data, Value.data(), StringSize - sizeof(char));
-			Data[StringSize - 1] = '\0';
-
-			return Result;
-		}
-		Variant Var::Binary(const std::string_view& Value)
-		{
-			return Binary((uint8_t*)Value.data(), Value.size());
-		}
-		Variant Var::Binary(const uint8_t* Value, size_t Size)
-		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			Variant Result(VarType::Binary);
-			Result.Length = (uint32_t)Size;
-
-			size_t StringSize = sizeof(char) * (Result.Length + 1);
-			if (Result.Length > Variant::GetMaxSmallStringSize())
-				Result.Value.Pointer = Memory::Allocate<char>(StringSize);
-
-			char* Data = (char*)Result.GetString().data();
-			memcpy(Data, Value, StringSize - sizeof(char));
-			Data[StringSize - 1] = '\0';
-
-			return Result;
-		}
-		Variant Var::Integer(int64_t Value)
-		{
-			Variant Result(VarType::Integer);
-			Result.Value.Integer = Value;
-			return Result;
-		}
-		Variant Var::Number(double Value)
-		{
-			Variant Result(VarType::Number);
-			Result.Value.Number = Value;
-			return Result;
-		}
-		Variant Var::Decimal(const Core::Decimal& Value)
-		{
-			Core::Decimal* Buffer = Memory::New<Core::Decimal>(Value);
-			Variant Result(VarType::Decimal);
-			Result.Value.Pointer = (char*)Buffer;
-			return Result;
-		}
-		Variant Var::Decimal(Core::Decimal&& Value)
-		{
-			Core::Decimal* Buffer = Memory::New<Core::Decimal>(std::move(Value));
-			Variant Result(VarType::Decimal);
-			Result.Value.Pointer = (char*)Buffer;
-			return Result;
-		}
-		Variant Var::DecimalString(const std::string_view& Value)
-		{
-			Core::Decimal* Buffer = Memory::New<Core::Decimal>(Value);
-			Variant Result(VarType::Decimal);
-			Result.Value.Pointer = (char*)Buffer;
-			return Result;
-		}
-		Variant Var::Boolean(bool Value)
-		{
-			Variant Result(VarType::Boolean);
-			Result.Value.Boolean = Value;
-			return Result;
+			return new schema(var::boolean(value));
 		}
 
-		UnorderedSet<uint64_t> Composer::Fetch(uint64_t Id) noexcept
+		variant var::any(const std::string_view& value, bool strict)
 		{
-			VI_ASSERT(Context != nullptr, "composer should be initialized");
-			UnorderedSet<uint64_t> Hashes;
-			for (auto& Item : Context->Factory)
+			variant result;
+			result.deserialize(value, strict);
+			return result;
+		}
+		variant var::null()
+		{
+			return variant(var_type::null);
+		}
+		variant var::undefined()
+		{
+			return variant(var_type::undefined);
+		}
+		variant var::object()
+		{
+			return variant(var_type::object);
+		}
+		variant var::array()
+		{
+			return variant(var_type::array);
+		}
+		variant var::pointer(void* value)
+		{
+			if (!value)
+				return null();
+
+			variant result(var_type::pointer);
+			result.value.pointer = (char*)value;
+			return result;
+		}
+		variant var::string(const std::string_view& value)
+		{
+			variant result(var_type::string);
+			result.length = (uint32_t)value.size();
+
+			size_t string_size = sizeof(char) * (result.length + 1);
+			if (result.length > variant::get_max_small_string_size())
+				result.value.pointer = memory::allocate<char>(string_size);
+
+			char* data = (char*)result.get_string().data();
+			memcpy(data, value.data(), string_size - sizeof(char));
+			data[string_size - 1] = '\0';
+
+			return result;
+		}
+		variant var::binary(const std::string_view& value)
+		{
+			return binary((uint8_t*)value.data(), value.size());
+		}
+		variant var::binary(const uint8_t* value, size_t size)
+		{
+			VI_ASSERT(value != nullptr, "value should be set");
+			variant result(var_type::binary);
+			result.length = (uint32_t)size;
+
+			size_t string_size = sizeof(char) * (result.length + 1);
+			if (result.length > variant::get_max_small_string_size())
+				result.value.pointer = memory::allocate<char>(string_size);
+
+			char* data = (char*)result.get_string().data();
+			memcpy(data, value, string_size - sizeof(char));
+			data[string_size - 1] = '\0';
+
+			return result;
+		}
+		variant var::integer(int64_t value)
+		{
+			variant result(var_type::integer);
+			result.value.integer = value;
+			return result;
+		}
+		variant var::number(double value)
+		{
+			variant result(var_type::number);
+			result.value.number = value;
+			return result;
+		}
+		variant var::decimal(const core::decimal& value)
+		{
+			core::decimal* buffer = memory::init<core::decimal>(value);
+			variant result(var_type::decimal);
+			result.value.pointer = (char*)buffer;
+			return result;
+		}
+		variant var::decimal(core::decimal&& value)
+		{
+			core::decimal* buffer = memory::init<core::decimal>(std::move(value));
+			variant result(var_type::decimal);
+			result.value.pointer = (char*)buffer;
+			return result;
+		}
+		variant var::decimal_string(const std::string_view& value)
+		{
+			core::decimal* buffer = memory::init<core::decimal>(value);
+			variant result(var_type::decimal);
+			result.value.pointer = (char*)buffer;
+			return result;
+		}
+		variant var::boolean(bool value)
+		{
+			variant result(var_type::boolean);
+			result.value.boolean = value;
+			return result;
+		}
+
+		unordered_set<uint64_t> composer::fetch(uint64_t id) noexcept
+		{
+			VI_ASSERT(context != nullptr, "composer should be initialized");
+			unordered_set<uint64_t> hashes;
+			for (auto& item : context->factory)
 			{
-				if (Item.second.first == Id)
-					Hashes.insert(Item.first);
+				if (item.second.first == id)
+					hashes.insert(item.first);
 			}
 
-			return Hashes;
+			return hashes;
 		}
-		bool Composer::Pop(const std::string_view& Hash) noexcept
+		bool composer::pop(const std::string_view& hash) noexcept
 		{
-			VI_ASSERT(Context != nullptr, "composer should be initialized");
-			VI_TRACE("[composer] pop %.*s", (int)Hash.size(), Hash.data());
+			VI_ASSERT(context != nullptr, "composer should be initialized");
+			VI_TRACE("[composer] pop %.*s", (int)hash.size(), hash.data());
 
-			auto It = Context->Factory.find(VI_HASH(Hash));
-			if (It == Context->Factory.end())
+			auto it = context->factory.find(VI_HASH(hash));
+			if (it == context->factory.end())
 				return false;
 
-			Context->Factory.erase(It);
+			context->factory.erase(it);
 			return true;
 		}
-		void Composer::Cleanup() noexcept
+		void composer::cleanup() noexcept
 		{
-			Memory::Delete(Context);
-			Context = nullptr;
+			memory::deinit(context);
+			context = nullptr;
 		}
-		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback) noexcept
+		void composer::push(uint64_t type_id, uint64_t tag, void* callback) noexcept
 		{
-			VI_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, TypeId, Tag);
-			if (!Context)
-				Context = Memory::New<State>();
+			VI_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, type_id, tag);
+			if (!context)
+				context = memory::init<state>();
 
-			if (Context->Factory.find(TypeId) == Context->Factory.end())
-				Context->Factory[TypeId] = std::make_pair(Tag, Callback);
+			if (context->factory.find(type_id) == context->factory.end())
+				context->factory[type_id] = std::make_pair(tag, callback);
 		}
-		void* Composer::Find(uint64_t TypeId) noexcept
+		void* composer::find(uint64_t type_id) noexcept
 		{
-			VI_ASSERT(Context != nullptr, "composer should be initialized");
-			auto It = Context->Factory.find(TypeId);
-			if (It != Context->Factory.end())
-				return It->second.second;
+			VI_ASSERT(context != nullptr, "composer should be initialized");
+			auto it = context->factory.find(type_id);
+			if (it != context->factory.end())
+				return it->second.second;
 
 			return nullptr;
 		}
-		Composer::State* Composer::Context = nullptr;
+		composer::state* composer::context = nullptr;
 
-		Console::Console() noexcept
+		console::console() noexcept
 		{
-			ColorTokens =
+			color_tokens =
 			{
-				/* Scheduling */
-				ColorToken("spawn", StdColor::Yellow),
-				ColorToken("despawn", StdColor::Yellow),
-				ColorToken("start", StdColor::Yellow),
-				ColorToken("stop", StdColor::Yellow),
-				ColorToken("resume", StdColor::Yellow),
-				ColorToken("suspend", StdColor::Yellow),
-				ColorToken("acquire", StdColor::Yellow),
-				ColorToken("release", StdColor::Yellow),
-				ColorToken("execute", StdColor::Yellow),
-				ColorToken("join", StdColor::Yellow),
-				ColorToken("terminate", StdColor::DarkRed),
-				ColorToken("abort", StdColor::DarkRed),
-				ColorToken("exit", StdColor::DarkRed),
-				ColorToken("thread", StdColor::Cyan),
-				ColorToken("process", StdColor::Cyan),
-				ColorToken("sync", StdColor::Cyan),
-				ColorToken("async", StdColor::Cyan),
-				ColorToken("ms", StdColor::Cyan),
-				ColorToken("us", StdColor::Cyan),
-				ColorToken("ns", StdColor::Cyan),
+				/* scheduling */
+				color_token("spawn", std_color::yellow),
+				color_token("despawn", std_color::yellow),
+				color_token("start", std_color::yellow),
+				color_token("stop", std_color::yellow),
+				color_token("resume", std_color::yellow),
+				color_token("suspend", std_color::yellow),
+				color_token("acquire", std_color::yellow),
+				color_token("release", std_color::yellow),
+				color_token("execute", std_color::yellow),
+				color_token("join", std_color::yellow),
+				color_token("terminate", std_color::dark_red),
+				color_token("abort", std_color::dark_red),
+				color_token("exit", std_color::dark_red),
+				color_token("thread", std_color::cyan),
+				color_token("process", std_color::cyan),
+				color_token("sync", std_color::cyan),
+				color_token("async", std_color::cyan),
+				color_token("ms", std_color::cyan),
+				color_token("us", std_color::cyan),
+				color_token("ns", std_color::cyan),
 
-				/* Networking and IO */
-				ColorToken("open", StdColor::Yellow),
-				ColorToken("close", StdColor::Yellow),
-				ColorToken("closed", StdColor::Yellow),
-				ColorToken("shutdown", StdColor::Yellow),
-				ColorToken("bind", StdColor::Yellow),
-				ColorToken("assign", StdColor::Yellow),
-				ColorToken("resolve", StdColor::Yellow),
-				ColorToken("listen", StdColor::Yellow),
-				ColorToken("unlisten", StdColor::Yellow),
-				ColorToken("accept", StdColor::Yellow),
-				ColorToken("connect", StdColor::Yellow),
-				ColorToken("reconnect", StdColor::Yellow),
-				ColorToken("handshake", StdColor::Yellow),
-				ColorToken("reset", StdColor::Yellow),
-				ColorToken("read", StdColor::Yellow),
-				ColorToken("write", StdColor::Yellow),
-				ColorToken("seek", StdColor::Yellow),
-				ColorToken("tell", StdColor::Yellow),
-				ColorToken("scan", StdColor::Yellow),
-				ColorToken("fetch", StdColor::Yellow),
-				ColorToken("check", StdColor::Yellow),
-				ColorToken("compare", StdColor::Yellow),
-				ColorToken("stat", StdColor::Yellow),
-				ColorToken("migrate", StdColor::Yellow),
-				ColorToken("prepare", StdColor::Yellow),
-				ColorToken("load", StdColor::Yellow),
-				ColorToken("unload", StdColor::Yellow),
-				ColorToken("save", StdColor::Yellow),
-				ColorToken("query", StdColor::Magenta),
-				ColorToken("template", StdColor::Blue),
-				ColorToken("byte", StdColor::Cyan),
-				ColorToken("bytes", StdColor::Cyan),
-				ColorToken("epoll", StdColor::Cyan),
-				ColorToken("kqueue", StdColor::Cyan),
-				ColorToken("poll", StdColor::Cyan),
-				ColorToken("dns", StdColor::Cyan),
-				ColorToken("file", StdColor::Cyan),
-				ColorToken("sock", StdColor::Cyan),
-				ColorToken("dir", StdColor::Cyan),
-				ColorToken("fd", StdColor::Cyan),
+				/* networking and IO */
+				color_token("open", std_color::yellow),
+				color_token("close", std_color::yellow),
+				color_token("closed", std_color::yellow),
+				color_token("shutdown", std_color::yellow),
+				color_token("bind", std_color::yellow),
+				color_token("assign", std_color::yellow),
+				color_token("resolve", std_color::yellow),
+				color_token("listen", std_color::yellow),
+				color_token("unlisten", std_color::yellow),
+				color_token("accept", std_color::yellow),
+				color_token("connect", std_color::yellow),
+				color_token("reconnect", std_color::yellow),
+				color_token("handshake", std_color::yellow),
+				color_token("reset", std_color::yellow),
+				color_token("read", std_color::yellow),
+				color_token("write", std_color::yellow),
+				color_token("seek", std_color::yellow),
+				color_token("tell", std_color::yellow),
+				color_token("scan", std_color::yellow),
+				color_token("fetch", std_color::yellow),
+				color_token("check", std_color::yellow),
+				color_token("compare", std_color::yellow),
+				color_token("stat", std_color::yellow),
+				color_token("migrate", std_color::yellow),
+				color_token("prepare", std_color::yellow),
+				color_token("load", std_color::yellow),
+				color_token("unload", std_color::yellow),
+				color_token("save", std_color::yellow),
+				color_token("query", std_color::magenta),
+				color_token("template", std_color::blue),
+				color_token("byte", std_color::cyan),
+				color_token("bytes", std_color::cyan),
+				color_token("epoll", std_color::cyan),
+				color_token("kqueue", std_color::cyan),
+				color_token("poll", std_color::cyan),
+				color_token("dns", std_color::cyan),
+				color_token("file", std_color::cyan),
+				color_token("sock", std_color::cyan),
+				color_token("dir", std_color::cyan),
+				color_token("fd", std_color::cyan),
 
-				/* Graphics */
-				ColorToken("compile", StdColor::Yellow),
-				ColorToken("transpile", StdColor::Yellow),
-				ColorToken("show", StdColor::Yellow),
-				ColorToken("hide", StdColor::Yellow),
-				ColorToken("clear", StdColor::Yellow),
-				ColorToken("resize", StdColor::Yellow),
-				ColorToken("vcall", StdColor::Magenta),
-				ColorToken("shader", StdColor::Cyan),
-				ColorToken("bytecode", StdColor::Cyan),
+				/* graphics */
+				color_token("compile", std_color::yellow),
+				color_token("transpile", std_color::yellow),
+				color_token("show", std_color::yellow),
+				color_token("hide", std_color::yellow),
+				color_token("clear", std_color::yellow),
+				color_token("resize", std_color::yellow),
+				color_token("vcall", std_color::magenta),
+				color_token("shader", std_color::cyan),
+				color_token("bytecode", std_color::cyan),
 
-				/* Audio */
-				ColorToken("play", StdColor::Yellow),
-				ColorToken("stop", StdColor::Yellow),
-				ColorToken("apply", StdColor::Yellow),
+				/* audio */
+				color_token("play", std_color::yellow),
+				color_token("stop", std_color::yellow),
+				color_token("apply", std_color::yellow),
 
-				/* Engine */
-				ColorToken("configure", StdColor::Yellow),
-				ColorToken("actualize", StdColor::Yellow),
-				ColorToken("register", StdColor::Yellow),
-				ColorToken("unregister", StdColor::Yellow),
-				ColorToken("entity", StdColor::Cyan),
-				ColorToken("component", StdColor::Cyan),
-				ColorToken("material", StdColor::Cyan),
+				/* engine */
+				color_token("configure", std_color::yellow),
+				color_token("actualize", std_color::yellow),
+				color_token("register", std_color::yellow),
+				color_token("unregister", std_color::yellow),
+				color_token("entity", std_color::cyan),
+				color_token("component", std_color::cyan),
+				color_token("material", std_color::cyan),
 
-				/* Crypto */
-				ColorToken("encode", StdColor::Yellow),
-				ColorToken("decode", StdColor::Yellow),
-				ColorToken("encrypt", StdColor::Yellow),
-				ColorToken("decrypt", StdColor::Yellow),
-				ColorToken("compress", StdColor::Yellow),
-				ColorToken("decompress", StdColor::Yellow),
-				ColorToken("transform", StdColor::Yellow),
-				ColorToken("shuffle", StdColor::Yellow),
-				ColorToken("sign", StdColor::Yellow),
-				ColorToken("expose", StdColor::DarkRed),
+				/* crypto */
+				color_token("encode", std_color::yellow),
+				color_token("decode", std_color::yellow),
+				color_token("encrypt", std_color::yellow),
+				color_token("decrypt", std_color::yellow),
+				color_token("compress", std_color::yellow),
+				color_token("decompress", std_color::yellow),
+				color_token("transform", std_color::yellow),
+				color_token("shuffle", std_color::yellow),
+				color_token("sign", std_color::yellow),
+				color_token("expose", std_color::dark_red),
 
-				/* Memory */
-				ColorToken("add", StdColor::Yellow),
-				ColorToken("remove", StdColor::Yellow),
-				ColorToken("new", StdColor::Yellow),
-				ColorToken("delete", StdColor::Yellow),
-				ColorToken("create", StdColor::Yellow),
-				ColorToken("destroy", StdColor::Yellow),
-				ColorToken("push", StdColor::Yellow),
-				ColorToken("pop", StdColor::Yellow),
-				ColorToken("malloc", StdColor::Yellow),
-				ColorToken("free", StdColor::Yellow),
-				ColorToken("allocate", StdColor::Yellow),
-				ColorToken("deallocate", StdColor::Yellow),
-				ColorToken("initialize", StdColor::Yellow),
-				ColorToken("generate", StdColor::Yellow),
-				ColorToken("finalize", StdColor::Yellow),
-				ColorToken("cleanup", StdColor::Yellow),
-				ColorToken("copy", StdColor::Yellow),
-				ColorToken("fill", StdColor::Yellow),
-				ColorToken("store", StdColor::Yellow),
-				ColorToken("reuse", StdColor::Yellow),
-				ColorToken("update", StdColor::Yellow),
-				ColorToken("true", StdColor::Cyan),
-				ColorToken("false", StdColor::Cyan),
-				ColorToken("on", StdColor::Cyan),
-				ColorToken("off", StdColor::Cyan),
-				ColorToken("undefined", StdColor::Cyan),
-				ColorToken("nullptr", StdColor::Cyan),
-				ColorToken("null", StdColor::Cyan),
-				ColorToken("this", StdColor::Cyan),
+				/* memory */
+				color_token("add", std_color::yellow),
+				color_token("remove", std_color::yellow),
+				color_token("new", std_color::yellow),
+				color_token("delete", std_color::yellow),
+				color_token("create", std_color::yellow),
+				color_token("destroy", std_color::yellow),
+				color_token("push", std_color::yellow),
+				color_token("pop", std_color::yellow),
+				color_token("malloc", std_color::yellow),
+				color_token("free", std_color::yellow),
+				color_token("allocate", std_color::yellow),
+				color_token("deallocate", std_color::yellow),
+				color_token("initialize", std_color::yellow),
+				color_token("generate", std_color::yellow),
+				color_token("finalize", std_color::yellow),
+				color_token("cleanup", std_color::yellow),
+				color_token("copy", std_color::yellow),
+				color_token("fill", std_color::yellow),
+				color_token("store", std_color::yellow),
+				color_token("reuse", std_color::yellow),
+				color_token("update", std_color::yellow),
+				color_token("true", std_color::cyan),
+				color_token("false", std_color::cyan),
+				color_token("on", std_color::cyan),
+				color_token("off", std_color::cyan),
+				color_token("undefined", std_color::cyan),
+				color_token("nullptr", std_color::cyan),
+				color_token("null", std_color::cyan),
+				color_token("this", std_color::cyan),
 
-				/* Statuses */
-				ColorToken("ON", StdColor::DarkGreen),
-				ColorToken("TRUE", StdColor::DarkGreen),
-				ColorToken("OK", StdColor::DarkGreen),
-				ColorToken("SUCCESS", StdColor::DarkGreen),
-				ColorToken("ASSERT", StdColor::Yellow),
-				ColorToken("CAUSING", StdColor::Yellow),
-				ColorToken("warn", StdColor::Yellow),
-				ColorToken("warning", StdColor::Yellow),
-				ColorToken("debug", StdColor::Yellow),
-				ColorToken("debugging", StdColor::Yellow),
-				ColorToken("trace", StdColor::Yellow),
-				ColorToken("trading", StdColor::Yellow),
-				ColorToken("OFF", StdColor::DarkRed),
-				ColorToken("FALSE", StdColor::DarkRed),
-				ColorToken("NULL", StdColor::DarkRed),
-				ColorToken("ERR", StdColor::DarkRed),
-				ColorToken("FATAL", StdColor::DarkRed),
-				ColorToken("PANIC!", StdColor::DarkRed),
-				ColorToken("leaking", StdColor::DarkRed),
-				ColorToken("failure", StdColor::DarkRed),
-				ColorToken("failed", StdColor::DarkRed),
-				ColorToken("error", StdColor::DarkRed),
-				ColorToken("errors", StdColor::DarkRed),
-				ColorToken("cannot", StdColor::DarkRed),
-				ColorToken("missing", StdColor::DarkRed),
-				ColorToken("invalid", StdColor::DarkRed),
-				ColorToken("required", StdColor::DarkRed),
-				ColorToken("already", StdColor::DarkRed),
+				/* statuses */
+				color_token("ON", std_color::dark_green),
+				color_token("TRUE", std_color::dark_green),
+				color_token("OK", std_color::dark_green),
+				color_token("SUCCESS", std_color::dark_green),
+				color_token("ASSERT", std_color::yellow),
+				color_token("CAUSING", std_color::yellow),
+				color_token("warn", std_color::yellow),
+				color_token("warning", std_color::yellow),
+				color_token("debug", std_color::yellow),
+				color_token("debugging", std_color::yellow),
+				color_token("trace", std_color::yellow),
+				color_token("trading", std_color::yellow),
+				color_token("OFF", std_color::dark_red),
+				color_token("FALSE", std_color::dark_red),
+				color_token("NULL", std_color::dark_red),
+				color_token("ERR", std_color::dark_red),
+				color_token("FATAL", std_color::dark_red),
+				color_token("PANIC!", std_color::dark_red),
+				color_token("leaking", std_color::dark_red),
+				color_token("failure", std_color::dark_red),
+				color_token("failed", std_color::dark_red),
+				color_token("error", std_color::dark_red),
+				color_token("errors", std_color::dark_red),
+				color_token("cannot", std_color::dark_red),
+				color_token("missing", std_color::dark_red),
+				color_token("invalid", std_color::dark_red),
+				color_token("required", std_color::dark_red),
+				color_token("already", std_color::dark_red),
 			};
 		}
-		Console::~Console() noexcept
+		console::~console() noexcept
 		{
-			Deallocate();
+			deallocate();
 		}
-		void Console::Allocate()
+		void console::allocate()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			if (State.Status != Mode::Detached)
+			umutex<std::recursive_mutex> unique(state.session);
+			if (state.status != mode::detached)
 				return;
 #ifdef VI_MICROSOFT
 			if (AllocConsole())
 			{
-				Streams.Input = freopen("conin$", "r", stdin);
-				Streams.Output = freopen("conout$", "w", stdout);
-				Streams.Errors = freopen("conout$", "w", stderr);
+				streams.input = freopen("conin$", "r", stdin);
+				streams.output = freopen("conout$", "w", stdout);
+				streams.errors = freopen("conout$", "w", stderr);
 			}
 
-			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
-			HANDLE Handle = GetStdHandle(STD_OUTPUT_HANDLE);
-			if (GetConsoleScreenBufferInfo(Handle, &ScreenBuffer))
-				State.Attributes = ScreenBuffer.wAttributes;
+			CONSOLE_SCREEN_BUFFER_INFO screen_buffer;
+			HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(handle, &screen_buffer))
+				state.attributes = screen_buffer.wAttributes;
 
-			SetConsoleCtrlHandler(ConsoleEventHandler, true);
-			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)Handle);
+			SetConsoleCtrlHandler(console_event_handler, true);
+			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)handle);
 #endif
-			State.Status = Mode::Allocated;
+			state.status = mode::allocated;
 		}
-		void Console::Deallocate()
+		void console::deallocate()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			if (State.Status != Mode::Allocated)
+			umutex<std::recursive_mutex> unique(state.session);
+			if (state.status != mode::allocated)
 				return;
 #ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 			VI_TRACE("[console] deallocate window");
 #endif
-			State.Status = Mode::Detached;
+			state.status = mode::detached;
 		}
-		void Console::Hide()
+		void console::hide()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
 			VI_TRACE("[console] hide window");
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #endif
 		}
-		void Console::Show()
+		void console::show()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			Allocate();
+			umutex<std::recursive_mutex> unique(state.session);
+			allocate();
 #ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_SHOW);
 			VI_TRACE("[console] show window");
 #endif
 		}
-		void Console::Clear()
+		void console::clear()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			State.Elements.clear();
+			umutex<std::recursive_mutex> unique(state.session);
+			state.elements.clear();
 #ifdef VI_MICROSOFT
-			HANDLE Handle = GetStdHandle(STD_OUTPUT_HANDLE);
-			DWORD Written = 0;
+			HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			DWORD written = 0;
 
-			CONSOLE_SCREEN_BUFFER_INFO Info;
-			GetConsoleScreenBufferInfo(Handle, &Info);
+			CONSOLE_SCREEN_BUFFER_INFO info;
+			GetConsoleScreenBufferInfo(handle, &info);
 
-			COORD TopLeft = { 0, 0 };
-			FillConsoleOutputCharacterA(Handle, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
-			FillConsoleOutputAttribute(Handle, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
-			SetConsoleCursorPosition(Handle, TopLeft);
+			COORD top_left = { 0, 0 };
+			FillConsoleOutputCharacterA(handle, ' ', info.dwSize.X * info.dwSize.Y, top_left, &written);
+			FillConsoleOutputAttribute(handle, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, info.dwSize.X * info.dwSize.Y, top_left, &written);
+			SetConsoleCursorPosition(handle, top_left);
 #else
-			int ExitCode = std::system("clear");
-			(void)ExitCode;
+			int exit_code = std::system("clear");
+			(void)exit_code;
 #endif
 		}
-		void Console::Attach()
+		void console::attach()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			if (State.Status != Mode::Detached)
+			umutex<std::recursive_mutex> unique(state.session);
+			if (state.status != mode::detached)
 				return;
 #ifdef VI_MICROSOFT
-			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
-			HANDLE Handle = GetStdHandle(STD_OUTPUT_HANDLE);
-			if (GetConsoleScreenBufferInfo(Handle, &ScreenBuffer))
-				State.Attributes = ScreenBuffer.wAttributes;
+			CONSOLE_SCREEN_BUFFER_INFO screen_buffer;
+			HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (GetConsoleScreenBufferInfo(handle, &screen_buffer))
+				state.attributes = screen_buffer.wAttributes;
 
-			SetConsoleCtrlHandler(ConsoleEventHandler, true);
-			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)Handle);
+			SetConsoleCtrlHandler(console_event_handler, true);
+			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)handle);
 #endif
-			State.Status = Mode::Attached;
+			state.status = mode::attached;
 		}
-		void Console::Detach()
+		void console::detach()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			State.Status = Mode::Detached;
+			umutex<std::recursive_mutex> unique(state.session);
+			state.status = mode::detached;
 		}
-		void Console::Trace(uint32_t MaxFrames)
+		void console::trace(uint32_t max_frames)
 		{
-			String Stacktrace = ErrorHandling::GetStackTrace(0, MaxFrames);
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Stacktrace << '\n';
+			string stacktrace = error_handling::get_stack_trace(0, max_frames);
+			umutex<std::recursive_mutex> unique(state.session);
+			std::cout << stacktrace << '\n';
 		}
-		void Console::SetColoring(bool Enabled)
+		void console::set_coloring(bool enabled)
 		{
-			State.Colors = Enabled;
+			state.colors = enabled;
 		}
-		void Console::AddColorTokens(const Vector<ColorToken>& AdditionalTokens)
+		void console::add_color_tokens(const vector<color_token>& additional_tokens)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			ColorTokens.reserve(ColorTokens.size() + AdditionalTokens.size());
-			ColorTokens.insert(ColorTokens.end(), AdditionalTokens.begin(), AdditionalTokens.end());
+			umutex<std::recursive_mutex> unique(state.session);
+			color_tokens.reserve(color_tokens.size() + additional_tokens.size());
+			color_tokens.insert(color_tokens.end(), additional_tokens.begin(), additional_tokens.end());
 		}
-		void Console::ClearColorTokens()
+		void console::clear_color_tokens()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			ColorTokens.clear();
+			umutex<std::recursive_mutex> unique(state.session);
+			color_tokens.clear();
 		}
-		void Console::ColorBegin(StdColor Text, StdColor Background)
+		void console::color_begin(std_color text, std_color background)
 		{
-			if (!State.Colors)
+			if (!state.colors)
 				return;
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
-			if (Background == StdColor::Zero)
-				Background = StdColor::Black;
+			if (background == std_color::zero)
+				background = std_color::black;
 
-			if (Text == StdColor::Zero)
-				Text = StdColor::White;
-			
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (int)Background << 4 | (int)Text);
+			if (text == std_color::zero)
+				text = std_color::white;
+
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (int)background << 4 | (int)text);
 #else
-			std::cout << "\033[" << GetColorId(Text, false) << ";" << GetColorId(Background, true) << "m";
+			std::cout << "\033[" << get_color_id(text, false) << ";" << get_color_id(background, true) << "m";
 #endif
 		}
-		void Console::ColorEnd()
+		void console::color_end()
 		{
-			if (!State.Colors)
+			if (!state.colors)
 				return;
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), State.Attributes);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), state.attributes);
 #else
 			std::cout << "\033[0m";
 #endif
 		}
-		void Console::ColorPrint(StdColor BaseColor, const std::string_view& Buffer)
+		void console::color_print(std_color base_color, const std::string_view& buffer)
 		{
-			if (Buffer.empty())
+			if (buffer.empty())
 				return;
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			ColorBegin(BaseColor);
+			umutex<std::recursive_mutex> unique(state.session);
+			color_begin(base_color);
 
-			size_t Offset = 0;
-			while (Offset < Buffer.size())
+			size_t offset = 0;
+			while (offset < buffer.size())
 			{
-				auto V = Buffer[Offset];
-				if (Stringify::IsNumericOrDot(V) && (!Offset || !Stringify::IsAlphanum(Buffer[Offset - 1])))
+				auto v = buffer[offset];
+				if (stringify::is_numeric_or_dot(v) && (!offset || !stringify::is_alphanum(buffer[offset - 1])))
 				{
-					ColorBegin(StdColor::Yellow);
-					while (Offset < Buffer.size())
+					color_begin(std_color::yellow);
+					while (offset < buffer.size())
 					{
-						char N = Buffer[Offset];
-						if (!Stringify::IsHexOrDot(N) && N != 'x')
+						char n = buffer[offset];
+						if (!stringify::is_hex_or_dot(n) && n != 'x')
 							break;
 
-						WriteChar(Buffer[Offset++]);
+						write_char(buffer[offset++]);
 					}
 
-					ColorBegin(BaseColor);
+					color_begin(base_color);
 					continue;
 				}
-				else if (V == '@')
+				else if (v == '@')
 				{
-					ColorBegin(StdColor::LightBlue);
-					WriteChar(V);
+					color_begin(std_color::light_blue);
+					write_char(v);
 
-					while (Offset < Buffer.size() && (Stringify::IsNumeric(Buffer[++Offset]) || Stringify::IsAlphabetic(Buffer[Offset]) || Buffer[Offset] == '-' || Buffer[Offset] == '_'))
-						WriteChar(Buffer[Offset]);
+					while (offset < buffer.size() && (stringify::is_numeric(buffer[++offset]) || stringify::is_alphabetic(buffer[offset]) || buffer[offset] == '-' || buffer[offset] == '_'))
+						write_char(buffer[offset]);
 
-					ColorBegin(BaseColor);
+					color_begin(base_color);
 					continue;
 				}
-				else if (V == '[' && Buffer.substr(Offset + 1).find(']') != std::string::npos)
+				else if (v == '[' && buffer.substr(offset + 1).find(']') != std::string::npos)
 				{
-					size_t Iterations = 0, Skips = 0;
-					ColorBegin(StdColor::Cyan);
+					size_t iterations = 0, skips = 0;
+					color_begin(std_color::cyan);
 					do
 					{
-						WriteChar(Buffer[Offset]);
-						if (Iterations++ > 0 && Buffer[Offset] == '[')
-							Skips++;
-					} while (Offset < Buffer.size() && (Buffer[Offset++] != ']' || Skips > 0));
+						write_char(buffer[offset]);
+						if (iterations++ > 0 && buffer[offset] == '[')
+							skips++;
+					} while (offset < buffer.size() && (buffer[offset++] != ']' || skips > 0));
 
-					ColorBegin(BaseColor);
+					color_begin(base_color);
 					continue;
 				}
-				else if (V == '\"' && Buffer.substr(Offset + 1).find('\"') != std::string::npos)
+				else if (v == '\"' && buffer.substr(offset + 1).find('\"') != std::string::npos)
 				{
-					ColorBegin(StdColor::LightBlue);
+					color_begin(std_color::light_blue);
 					do
 					{
-						WriteChar(Buffer[Offset]);
-					} while (Offset < Buffer.size() && Buffer[++Offset] != '\"');
+						write_char(buffer[offset]);
+					} while (offset < buffer.size() && buffer[++offset] != '\"');
 
-					if (Offset < Buffer.size())
-						WriteChar(Buffer[Offset++]);
-					ColorBegin(BaseColor);
+					if (offset < buffer.size())
+						write_char(buffer[offset++]);
+					color_begin(base_color);
 					continue;
 				}
-				else if (V == '\'' && Buffer.substr(Offset + 1).find('\'') != std::string::npos)
+				else if (v == '\'' && buffer.substr(offset + 1).find('\'') != std::string::npos)
 				{
-					ColorBegin(StdColor::LightBlue);
+					color_begin(std_color::light_blue);
 					do
 					{
-						WriteChar(Buffer[Offset]);
-					} while (Offset < Buffer.size() && Buffer[++Offset] != '\'');
+						write_char(buffer[offset]);
+					} while (offset < buffer.size() && buffer[++offset] != '\'');
 
-					if (Offset < Buffer.size())
-						WriteChar(Buffer[Offset++]);
-					ColorBegin(BaseColor);
+					if (offset < buffer.size())
+						write_char(buffer[offset++]);
+					color_begin(base_color);
 					continue;
 				}
-				else if (Stringify::IsAlphabetic(V) && (!Offset || !Stringify::IsAlphabetic(Buffer[Offset - 1])))
+				else if (stringify::is_alphabetic(v) && (!offset || !stringify::is_alphabetic(buffer[offset - 1])))
 				{
-					bool IsMatched = false;
-					for (auto& Token : ColorTokens)
+					bool is_matched = false;
+					for (auto& token : color_tokens)
 					{
-						if (Token.Text.empty() || V != Token.Text.front() || Buffer.size() - Offset < Token.Text.size())
+						if (token.text.empty() || v != token.text.front() || buffer.size() - offset < token.text.size())
 							continue;
 
-						if (Offset + Token.Text.size() < Buffer.size() && Stringify::IsAlphabetic(Buffer[Offset + Token.Text.size()]))
+						if (offset + token.text.size() < buffer.size() && stringify::is_alphabetic(buffer[offset + token.text.size()]))
 							continue;
 
-						if (memcmp(Buffer.data() + Offset, Token.Text.data(), Token.Text.size()) == 0)
+						if (memcmp(buffer.data() + offset, token.text.data(), token.text.size()) == 0)
 						{
-							ColorBegin(Token.Foreground, Token.Background);
-							for (size_t j = 0; j < Token.Text.size(); j++)
-								WriteChar(Buffer[Offset++]);
+							color_begin(token.foreground, token.background);
+							for (size_t j = 0; j < token.text.size(); j++)
+								write_char(buffer[offset++]);
 
-							ColorBegin(BaseColor);
-							IsMatched = true;
+							color_begin(base_color);
+							is_matched = true;
 							break;
 						}
 					}
 
-					if (IsMatched)
+					if (is_matched)
 						continue;
 				}
 
-				WriteChar(V);
-				++Offset;
+				write_char(v);
+				++offset;
 			}
 		}
-		void Console::CaptureTime()
+		void console::capture_time()
 		{
-			State.Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
+			state.time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
 		}
-		uint64_t Console::CaptureWindow(uint32_t Height)
+		uint64_t console::capture_window(uint32_t height)
 		{
-			if (!Height)
+			if (!height)
 				return 0;
 
-			WindowState Window;
-			Window.Elements.reserve(Height);
+			window_state window;
+			window.elements.reserve(height);
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			for (size_t i = 0; i < Height; i++)
+			umutex<std::recursive_mutex> unique(state.session);
+			for (size_t i = 0; i < height; i++)
 			{
-				uint64_t Id = CaptureElement();
-				if (Id > 0)
+				uint64_t id = capture_element();
+				if (id > 0)
 				{
-					Window.Elements.push_back(std::make_pair(Id, String()));
+					window.elements.push_back(std::make_pair(id, string()));
 					continue;
 				}
 
-				for (auto& Element : Window.Elements)
-					FreeElement(Element.first);
+				for (auto& element : window.elements)
+					free_element(element.first);
 
 				return 0;
 			}
 
-			uint64_t Id = ++State.Id;
-			State.Windows[Id] = std::move(Window);
-			return Id;
+			uint64_t id = ++state.id;
+			state.windows[id] = std::move(window);
+			return id;
 		}
-		void Console::FreeWindow(uint64_t Id, bool RestorePosition)
+		void console::free_window(uint64_t id, bool restore_position)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Windows.find(Id);
-			if (It == State.Windows.end())
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.windows.find(id);
+			if (it == state.windows.end())
 				return;
 
-			uint32_t Y = 0;
-			bool Exists = false;
-			if (RestorePosition && !It->second.Elements.empty())
+			uint32_t y = 0;
+			bool exists = false;
+			if (restore_position && !it->second.elements.empty())
 			{
-				auto Root = State.Elements.find(It->second.Elements.front().first);
-				if (Root != State.Elements.end())
+				auto root = state.elements.find(it->second.elements.front().first);
+				if (root != state.elements.end())
 				{
-					Y = Root->second.Y;
-					Exists = true;
+					y = root->second.y;
+					exists = true;
 				}
 			}
 
-			for (auto& Element : It->second.Elements)
+			for (auto& element : it->second.elements)
 			{
-				ClearElement(Element.first);
-				FreeElement(Element.first);
+				clear_element(element.first);
+				free_element(element.first);
 			}
 
-			State.Windows.erase(Id);
-			if (Exists && RestorePosition)
-				WritePosition(0, Y);
+			state.windows.erase(id);
+			if (exists && restore_position)
+				write_position(0, y);
 		}
-		void Console::EmplaceWindow(uint64_t Id, const std::string_view& Text)
+		void console::emplace_window(uint64_t id, const std::string_view& text)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Windows.find(Id);
-			if (It == State.Windows.end() || It->second.Elements.empty())
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.windows.find(id);
+			if (it == state.windows.end() || it->second.elements.empty())
 				return;
 
-			size_t Count = It->second.Elements.size();
-			if (It->second.Position >= Count)
+			size_t count = it->second.elements.size();
+			if (it->second.position >= count)
 			{
-				--Count;
-				for (size_t i = 0; i < Count; i++)
+				--count;
+				for (size_t i = 0; i < count; i++)
 				{
-					auto& PrevElement = It->second.Elements[i + 0];
-					auto& NextElement = It->second.Elements[i + 1];
-					if (NextElement.second == PrevElement.second)
+					auto& prev_element = it->second.elements[i + 0];
+					auto& next_element = it->second.elements[i + 1];
+					if (next_element.second == prev_element.second)
 						continue;
 
-					ReplaceElement(PrevElement.first, NextElement.second);
-					PrevElement.second = std::move(NextElement.second);
+					replace_element(prev_element.first, next_element.second);
+					prev_element.second = std::move(next_element.second);
 				}
-				It->second.Position = Count;
+				it->second.position = count;
 			}
 
-			auto& Element = It->second.Elements[It->second.Position++];
-			Element.second = Text;
-			ReplaceElement(Element.first, Element.second);
+			auto& element = it->second.elements[it->second.position++];
+			element.second = text;
+			replace_element(element.first, element.second);
 		}
-		uint64_t Console::CaptureElement()
+		uint64_t console::capture_element()
 		{
-			ElementState Element;
-			Element.State = Compute::Crypto::Random();
+			element_state element;
+			element.state = compute::crypto::random();
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			if (!ReadScreen(nullptr, nullptr, &Element.X, &Element.Y))
+			umutex<std::recursive_mutex> unique(state.session);
+			if (!read_screen(nullptr, nullptr, &element.x, &element.y))
 				return 0;
 
-			uint64_t Id = ++State.Id;
-			State.Elements[Id] = Element;
+			uint64_t id = ++state.id;
+			state.elements[id] = element;
 			std::cout << '\n';
-			return Id;
+			return id;
 		}
-		void Console::FreeElement(uint64_t Id)
+		void console::free_element(uint64_t id)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It != State.Elements.end())
-				State.Elements.erase(Id);
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it != state.elements.end())
+				state.elements.erase(id);
 		}
-		void Console::ResizeElement(uint64_t Id, uint32_t X)
+		void console::resize_element(uint64_t id, uint32_t x)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It != State.Elements.end())
-				It->second.X = X;
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it != state.elements.end())
+				it->second.x = x;
 		}
-		void Console::MoveElement(uint64_t Id, uint32_t Y)
+		void console::move_element(uint64_t id, uint32_t y)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It != State.Elements.end())
-				It->second.Y = Y;
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it != state.elements.end())
+				it->second.y = y;
 		}
-		void Console::ReadElement(uint64_t Id, uint32_t* X, uint32_t* Y)
+		void console::read_element(uint64_t id, uint32_t* x, uint32_t* y)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It != State.Elements.end())
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it != state.elements.end())
 			{
-				if (X != nullptr)
-					*X = It->second.X;
-				if (Y != nullptr)
-					*Y = It->second.Y;
+				if (x != nullptr)
+					*x = it->second.x;
+				if (y != nullptr)
+					*y = it->second.y;
 			}
 		}
-		void Console::ReplaceElement(uint64_t Id, const std::string_view& Text)
+		void console::replace_element(uint64_t id, const std::string_view& text)
 		{
-			String Writeable = String(Text);
-			Stringify::ReplaceOf(Writeable, "\b\f\n\r\v", " ");
-			Stringify::Replace(Writeable, "\t", "  ");
+			string writeable = string(text);
+			stringify::replace_of(writeable, "\b\f\n\r\v", " ");
+			stringify::replace(writeable, "\t", "  ");
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It == State.Elements.end())
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it == state.elements.end())
 				return;
 
-			uint32_t Width = 0, Height = 0, X = 0, Y = 0;
-			if (!ReadScreen(&Width, &Height, &X, &Y))
+			uint32_t width = 0, height = 0, x = 0, y = 0;
+			if (!read_screen(&width, &height, &x, &y))
 				return;
 
-			WritePosition(0, It->second.Y >= --Height ? It->second.Y - 1 : It->second.Y);
-			Writeable = Writeable.substr(0, --Width);
-			Writeable.append(Width - Writeable.size(), ' ');
-			Writeable.append(1, '\n');
-			std::cout << Writeable;
-			WritePosition(X, Y);
+			write_position(0, it->second.y >= --height ? it->second.y - 1 : it->second.y);
+			writeable = writeable.substr(0, --width);
+			writeable.append(width - writeable.size(), ' ');
+			writeable.append(1, '\n');
+			std::cout << writeable;
+			write_position(x, y);
 		}
-		void Console::ProgressElement(uint64_t Id, double Value, double Coverage)
+		void console::progress_element(uint64_t id, double value, double coverage)
 		{
-			uint32_t ScreenWidth;
-			if (!ReadScreen(&ScreenWidth, nullptr, nullptr, nullptr))
+			uint32_t screen_width;
+			if (!read_screen(&screen_width, nullptr, nullptr, nullptr))
 				return;
-			else if (ScreenWidth < 8)
+			else if (screen_width < 8)
 				return;
 
-			String BarContent;
-			BarContent.reserve(ScreenWidth);
-			BarContent += '[';
-			ScreenWidth -= 8;
+			string bar_content;
+			bar_content.reserve(screen_width);
+			bar_content += '[';
+			screen_width -= 8;
 
-			size_t BarWidth = (size_t)(ScreenWidth * std::max<double>(0.0, std::min<double>(1.0, Coverage)));
-			size_t BarPosition = (size_t)(BarWidth * std::max<double>(0.0, std::min<double>(1.0, Value)));
-			for (size_t i = 0; i < BarWidth; i++)
+			size_t bar_width = (size_t)(screen_width * std::max<double>(0.0, std::min<double>(1.0, coverage)));
+			size_t bar_position = (size_t)(bar_width * std::max<double>(0.0, std::min<double>(1.0, value)));
+			for (size_t i = 0; i < bar_width; i++)
 			{
-				if (i < BarPosition)
-					BarContent += '=';
-				else if (i == BarPosition)
-					BarContent += '>';
+				if (i < bar_position)
+					bar_content += '=';
+				else if (i == bar_position)
+					bar_content += '>';
 				else
-					BarContent += ' ';
+					bar_content += ' ';
 			}
 
-			char Numeric[NUMSTR_SIZE];
-			BarContent += "] ";
-			BarContent += ToStringView<uint32_t>(Numeric, sizeof(Numeric), (uint32_t)(Value * 100));
-			BarContent += " %";
-			ReplaceElement(Id, BarContent);
+			char numeric[NUMSTR_SIZE];
+			bar_content += "] ";
+			bar_content += to_string_view<uint32_t>(numeric, sizeof(numeric), (uint32_t)(value * 100));
+			bar_content += " %";
+			replace_element(id, bar_content);
 		}
-		void Console::SpinningElement(uint64_t Id, const std::string_view& Label)
+		void console::spinning_element(uint64_t id, const std::string_view& label)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It == State.Elements.end())
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it == state.elements.end())
 				return;
 
-			uint64_t Status = It->second.State++ % 4;
-			switch (Status)
+			uint64_t status = it->second.state++ % 4;
+			switch (status)
 			{
 				case 0:
-					ReplaceElement(Id, Label.empty() ? "[|]" : String(Label) + " [|]");
+					replace_element(id, label.empty() ? "[|]" : string(label) + " [|]");
 					break;
 				case 1:
-					ReplaceElement(Id, Label.empty() ? "[/]" : String(Label) + " [/]");
+					replace_element(id, label.empty() ? "[/]" : string(label) + " [/]");
 					break;
 				case 2:
-					ReplaceElement(Id, Label.empty() ? "[-]" : String(Label) + " [-]");
+					replace_element(id, label.empty() ? "[-]" : string(label) + " [-]");
 					break;
 				case 3:
-					ReplaceElement(Id, Label.empty() ? "[\\]" : String(Label) + " [\\]");
+					replace_element(id, label.empty() ? "[\\]" : string(label) + " [\\]");
 					break;
 				default:
-					ReplaceElement(Id, Label.empty() ? "[ ]" : String(Label) + " [ ]");
+					replace_element(id, label.empty() ? "[ ]" : string(label) + " [ ]");
 					break;
 			}
 		}
-		void Console::SpinningProgressElement(uint64_t Id, double Value, double Coverage)
+		void console::spinning_progress_element(uint64_t id, double value, double coverage)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			auto It = State.Elements.find(Id);
-			if (It == State.Elements.end())
+			umutex<std::recursive_mutex> unique(state.session);
+			auto it = state.elements.find(id);
+			if (it == state.elements.end())
 				return;
 
-			uint32_t ScreenWidth;
-			if (!ReadScreen(&ScreenWidth, nullptr, nullptr, nullptr))
+			uint32_t screen_width;
+			if (!read_screen(&screen_width, nullptr, nullptr, nullptr))
 				return;
-			else if (ScreenWidth < 8)
+			else if (screen_width < 8)
 				return;
 
-			String BarContent;
-			BarContent.reserve(ScreenWidth);
-			BarContent += '[';
-			ScreenWidth -= 8;
+			string bar_content;
+			bar_content.reserve(screen_width);
+			bar_content += '[';
+			screen_width -= 8;
 
-			size_t BarWidth = (size_t)(ScreenWidth * std::max<double>(0.0, std::min<double>(1.0, Coverage)));
-			size_t BarPosition = (size_t)(BarWidth * std::max<double>(0.0, std::min<double>(1.0, Value)));
-			for (size_t i = 0; i < BarWidth; i++)
+			size_t bar_width = (size_t)(screen_width * std::max<double>(0.0, std::min<double>(1.0, coverage)));
+			size_t bar_position = (size_t)(bar_width * std::max<double>(0.0, std::min<double>(1.0, value)));
+			for (size_t i = 0; i < bar_width; i++)
 			{
-				if (i == BarPosition)
+				if (i == bar_position)
 				{
-					uint8_t Status = It->second.State++ % 4;
-					switch (Status)
+					uint8_t status = it->second.state++ % 4;
+					switch (status)
 					{
 						case 0:
-							BarContent += '|';
+							bar_content += '|';
 							break;
 						case 1:
-							BarContent += '/';
+							bar_content += '/';
 							break;
 						case 2:
-							BarContent += '-';
+							bar_content += '-';
 							break;
 						case 3:
-							BarContent += '\\';
+							bar_content += '\\';
 							break;
 						default:
-							BarContent += '>';
+							bar_content += '>';
 							break;
 					}
 				}
-				else if (i < BarPosition)
-					BarContent += '=';
+				else if (i < bar_position)
+					bar_content += '=';
 				else
-					BarContent += ' ';
+					bar_content += ' ';
 			}
 
-			char Numeric[NUMSTR_SIZE];
-			BarContent += "] ";
-			BarContent += ToStringView<uint32_t>(Numeric, sizeof(Numeric), (uint32_t)(Value * 100));
-			BarContent += " %";
-			ReplaceElement(Id, BarContent);
+			char numeric[NUMSTR_SIZE];
+			bar_content += "] ";
+			bar_content += to_string_view<uint32_t>(numeric, sizeof(numeric), (uint32_t)(value * 100));
+			bar_content += " %";
+			replace_element(id, bar_content);
 		}
-		void Console::ClearElement(uint64_t Id)
+		void console::clear_element(uint64_t id)
 		{
-			ReplaceElement(Id, String());
+			replace_element(id, string());
 		}
-		void Console::Flush()
+		void console::flush()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 			std::cout.flush();
 		}
-		void Console::FlushWrite()
+		void console::flush_write()
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 			std::cout << std::flush;
 		}
-		void Console::WriteSize(uint32_t Width, uint32_t Height)
+		void console::write_size(uint32_t width, uint32_t height)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
-			SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), { (short)Width, (short)Height });
+			SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), { (short)width, (short)height });
 #else
-			struct winsize Size;
-			Size.ws_col = Width;
-			Size.ws_row = Height;
-			ioctl(STDOUT_FILENO, TIOCSWINSZ, &Size);
+			struct winsize size;
+			size.ws_col = width;
+			size.ws_row = height;
+			ioctl(STDOUT_FILENO, TIOCSWINSZ, &size);
 #endif
 		}
-		void Console::WritePosition(uint32_t X, uint32_t Y)
+		void console::write_position(uint32_t x, uint32_t y)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
-			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { (short)X, (short)Y });
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { (short)x, (short)y });
 #else
-			std::cout << "\033[" << X << ';' << Y << 'H';
+			std::cout << "\033[" << x << ';' << y << 'h';
 #endif
 		}
-		void Console::WriteLine(const std::string_view& Line)
+		void console::write_line(const std::string_view& line)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Line << '\n';
+			umutex<std::recursive_mutex> unique(state.session);
+			std::cout << line << '\n';
 		}
-		void Console::WriteChar(char Value)
+		void console::write_char(char value)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Value;
+			umutex<std::recursive_mutex> unique(state.session);
+			std::cout << value;
 		}
-		void Console::Write(const std::string_view& Text)
+		void console::write(const std::string_view& text)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Text;
+			umutex<std::recursive_mutex> unique(state.session);
+			std::cout << text;
 		}
-		void Console::jWrite(Schema* Data)
+		void console::jwrite(schema* data)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			if (!Data)
+			umutex<std::recursive_mutex> unique(state.session);
+			if (!data)
 			{
 				std::cout << "null";
 				return;
 			}
 
-			String Offset;
-			Schema::ConvertToJSON(Data, [&Offset](Core::VarForm Pretty, const std::string_view& Buffer)
+			string offset;
+			schema::convert_to_json(data, [&offset](core::var_form pretty, const std::string_view& buffer)
 			{
-				if (!Buffer.empty())
-					std::cout << Buffer;
+				if (!buffer.empty())
+					std::cout << buffer;
 
-				switch (Pretty)
+				switch (pretty)
 				{
-					case Vitex::Core::VarForm::Tab_Decrease:
-						Offset.erase(Offset.size() - 2);
+					case vitex::core::var_form::tab_decrease:
+						offset.erase(offset.size() - 2);
 						break;
-					case Vitex::Core::VarForm::Tab_Increase:
-						Offset.append(2, ' ');
+					case vitex::core::var_form::tab_increase:
+						offset.append(2, ' ');
 						break;
-					case Vitex::Core::VarForm::Write_Space:
+					case vitex::core::var_form::write_space:
 						std::cout << ' ';
 						break;
-					case Vitex::Core::VarForm::Write_Line:
+					case vitex::core::var_form::write_line:
 						std::cout << '\n';
 						break;
-					case Vitex::Core::VarForm::Write_Tab:
-						std::cout << Offset;
+					case vitex::core::var_form::write_tab:
+						std::cout << offset;
 						break;
 					default:
 						break;
 				}
 			});
 		}
-		void Console::jWriteLine(Schema* Data)
+		void console::jwrite_line(schema* data)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			jWrite(Data);
+			umutex<std::recursive_mutex> unique(state.session);
+			jwrite(data);
 			std::cout << '\n';
 		}
-		void Console::fWriteLine(const char* Format, ...)
+		void console::fwrite_line(const char* format, ...)
 		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			char Buffer[BLOB_SIZE] = { '\0' };
-			va_list Args;
-			va_start(Args, Format);
+			VI_ASSERT(format != nullptr, "format should be set");
+			char buffer[BLOB_SIZE] = { '\0' };
+			va_list args;
+			va_start(args, format);
 #ifdef VI_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			_vsnprintf(buffer, sizeof(buffer), format, args);
 #else
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			vsnprintf(buffer, sizeof(buffer), format, args);
 #endif
-			va_end(Args);
+			va_end(args);
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Buffer << '\n';
+			umutex<std::recursive_mutex> unique(state.session);
+			std::cout << buffer << '\n';
 		}
-		void Console::fWrite(const char* Format, ...)
+		void console::fwrite(const char* format, ...)
 		{
-			VI_ASSERT(Format != nullptr, "format should be set");
-			char Buffer[BLOB_SIZE] = { '\0' };
-			va_list Args;
-			va_start(Args, Format);
+			VI_ASSERT(format != nullptr, "format should be set");
+			char buffer[BLOB_SIZE] = { '\0' };
+			va_list args;
+			va_start(args, format);
 #ifdef VI_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			_vsnprintf(buffer, sizeof(buffer), format, args);
 #else
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			vsnprintf(buffer, sizeof(buffer), format, args);
 #endif
-			va_end(Args);
+			va_end(args);
 
-			UMutex<std::recursive_mutex> Unique(State.Session);
-			std::cout << Buffer;
+			umutex<std::recursive_mutex> unique(state.session);
+			std::cout << buffer;
 		}
-		double Console::GetCapturedTime() const
+		double console::get_captured_time() const
 		{
-			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - State.Time;
+			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - state.time;
 		}
-		bool Console::ReadScreen(uint32_t* Width, uint32_t* Height, uint32_t* X, uint32_t* Y)
+		bool console::read_screen(uint32_t* width, uint32_t* height, uint32_t* x, uint32_t* y)
 		{
-			UMutex<std::recursive_mutex> Unique(State.Session);
+			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
-			CONSOLE_SCREEN_BUFFER_INFO Size;
-			if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &Size) != TRUE)
+			CONSOLE_SCREEN_BUFFER_INFO size;
+			if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &size) != TRUE)
 				return false;
 
-			if (Width != nullptr)
-				*Width = (uint32_t)(Size.srWindow.Right - Size.srWindow.Left + 1);
+			if (width != nullptr)
+				*width = (uint32_t)(size.srWindow.Right - size.srWindow.Left + 1);
 
-			if (Height != nullptr)
-				*Height = (uint32_t)(Size.srWindow.Bottom - Size.srWindow.Top + 1);
+			if (height != nullptr)
+				*height = (uint32_t)(size.srWindow.Bottom - size.srWindow.Top + 1);
 
-			if (X != nullptr)
-				*X = (uint32_t)Size.dwCursorPosition.X;
+			if (x != nullptr)
+				*x = (uint32_t)size.dwCursorPosition.X;
 
-			if (Y != nullptr)
-				*Y = (uint32_t)Size.dwCursorPosition.Y;
+			if (y != nullptr)
+				*y = (uint32_t)size.dwCursorPosition.Y;
 
 			return true;
 #else
-			if (Width != nullptr || Height != nullptr)
+			if (width != nullptr || height != nullptr)
 			{
-				struct winsize Size;
-				if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &Size) < 0)
+				struct winsize size;
+				if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) < 0)
 					return false;
-				
-				if (Width != nullptr)
-					*Width = (uint32_t)Size.ws_col;
 
-				if (Height != nullptr)
-					*Height = (uint32_t)Size.ws_row;
+				if (width != nullptr)
+					*width = (uint32_t)size.ws_col;
+
+				if (height != nullptr)
+					*height = (uint32_t)size.ws_row;
 			}
-			
-			if (X != nullptr || Y != nullptr)
+
+			if (x != nullptr || y != nullptr)
 			{
-				static bool Responsive = true;
-				if (!Responsive)
+				static bool responsive = true;
+				if (!responsive)
 					return false;
-				
-				struct termios Prev;
-				tcgetattr(STDIN_FILENO, &Prev);
 
-				struct termios Next = Prev;
-				Next.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-				Next.c_oflag &= ~(OPOST);
-				Next.c_cflag |= (CS8);
-				Next.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-				Next.c_cc[VMIN] = 0;
-				Next.c_cc[VTIME] = 0;
+				struct termios prev;
+				tcgetattr(STDIN_FILENO, &prev);
 
-				tcsetattr(STDIN_FILENO, TCSANOW, &Next);
-				tcsetattr(STDOUT_FILENO, TCSANOW, &Next);
+				struct termios next = prev;
+				next.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+				next.c_oflag &= ~(OPOST);
+				next.c_cflag |= (CS8);
+				next.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+				next.c_cc[VMIN] = 0;
+				next.c_cc[VTIME] = 0;
+
+				tcsetattr(STDIN_FILENO, TCSANOW, &next);
+				tcsetattr(STDOUT_FILENO, TCSANOW, &next);
 				fwrite("\033[6n", 4, 1, stdout);
 				fflush(stdout);
 
-				fd_set Fd;
-				FD_ZERO(&Fd);
-				FD_SET(STDIN_FILENO, &Fd);
+				fd_set fd;
+				FD_ZERO(&fd);
+				FD_SET(STDIN_FILENO, &fd);
 
-				struct timeval Time;
-				Time.tv_sec = 0;
-				Time.tv_usec = 500000;
+				struct timeval time;
+				time.tv_sec = 0;
+				time.tv_usec = 500000;
 
-				if (select(STDIN_FILENO + 1, &Fd, nullptr, nullptr, &Time) != 1)
+				if (select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &time) != 1)
 				{
-					Responsive = false;
-					tcsetattr(STDIN_FILENO, TCSADRAIN, &Prev);
+					responsive = false;
+					tcsetattr(STDIN_FILENO, TCSADRAIN, &prev);
 					return false;
 				}
-				
-				int TargetX = 0, TargetY = 0;
-				if (scanf("\033[%d;%dR", &TargetX, &TargetY) != 2)
+
+				int target_x = 0, target_y = 0;
+				if (scanf("\033[%d;%dR", &target_x, &target_y) != 2)
 				{
-					tcsetattr(STDIN_FILENO, TCSADRAIN, &Prev);
+					tcsetattr(STDIN_FILENO, TCSADRAIN, &prev);
 					return false;
 				}
-		
-				if (X != nullptr)
-					*X = TargetX;
-			
-				if (Y != nullptr)
-					*Y = TargetY;
-		
-				tcsetattr(STDIN_FILENO, TCSADRAIN, &Prev);
+
+				if (x != nullptr)
+					*x = target_x;
+
+				if (y != nullptr)
+					*y = target_y;
+
+				tcsetattr(STDIN_FILENO, TCSADRAIN, &prev);
 			}
 
 			return true;
 #endif
 		}
-		bool Console::ReadLine(String& Data, size_t Size)
+		bool console::read_line(string& data, size_t size)
 		{
-			VI_ASSERT(State.Status != Mode::Detached, "console should be shown at least once");
-			VI_ASSERT(Size > 0, "read length should be greater than zero");
-			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)Size);
+			VI_ASSERT(state.status != mode::detached, "console should be shown at least once");
+			VI_ASSERT(size > 0, "read length should be greater than zero");
+			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)size);
 
-			bool Success;
-			if (Size > CHUNK_SIZE - 1)
+			bool success;
+			if (size > CHUNK_SIZE - 1)
 			{
-				char* Value = Memory::Allocate<char>(sizeof(char) * (Size + 1));
-				memset(Value, 0, (Size + 1) * sizeof(char));
-				if ((Success = (bool)std::cin.getline(Value, Size)))
-					Data.assign(Value);
+				char* value = memory::allocate<char>(sizeof(char) * (size + 1));
+				memset(value, 0, (size + 1) * sizeof(char));
+				if ((success = (bool)std::cin.getline(value, size)))
+					data.assign(value);
 				else
-					Data.clear();
-				Memory::Deallocate(Value);
+					data.clear();
+				memory::deallocate(value);
 			}
 			else
 			{
-				char Value[CHUNK_SIZE] = { 0 };
-				if ((Success = (bool)std::cin.getline(Value, Size)))
-					Data.assign(Value);
+				char value[CHUNK_SIZE] = { 0 };
+				if ((success = (bool)std::cin.getline(value, size)))
+					data.assign(value);
 				else
-					Data.clear();
+					data.clear();
 			}
 
-			return Success;
+			return success;
 		}
-		String Console::Read(size_t Size)
+		string console::read(size_t size)
 		{
-			String Data;
-			Data.reserve(Size);
-			ReadLine(Data, Size);
-			return Data;
+			string data;
+			data.reserve(size);
+			read_line(data, size);
+			return data;
 		}
-		char Console::ReadChar()
+		char console::read_char()
 		{
 			return (char)getchar();
 		}
-		bool Console::IsAvailable()
+		bool console::is_available()
 		{
-			return HasInstance() && Get()->State.Status != Mode::Detached;
+			return has_instance() && get()->state.status != mode::detached;
 		}
 
-		static float UnitsToSeconds = 1000000.0f;
-		static float UnitsToMills = 1000.0f;
-		Timer::Timer() noexcept
+		static float units_to_seconds = 1000000.0f;
+		static float units_to_mills = 1000.0f;
+		timer::timer() noexcept
 		{
-			Reset();
+			reset();
 		}
-		void Timer::SetFixedFrames(float Value)
+		void timer::set_fixed_frames(float value)
 		{
-			FixedFrames = Value;
-			if (FixedFrames > 0.0)
-				MaxDelta = ToUnits(1.0f / FixedFrames);
+			fixed_frames = value;
+			if (fixed_frames > 0.0)
+				max_delta = to_units(1.0f / fixed_frames);
 		}
-		void Timer::SetMaxFrames(float Value)
+		void timer::set_max_frames(float value)
 		{
-			MaxFrames = Value;
-			if (MaxFrames > 0.0)
-				MinDelta = ToUnits(1.0f / MaxFrames);
+			max_frames = value;
+			if (max_frames > 0.0)
+				min_delta = to_units(1.0f / max_frames);
 		}
-		void Timer::Reset()
+		void timer::reset()
 		{
-			Timing.Begin = Clock();
-			Timing.When = Timing.Begin;
-			Timing.Delta = Units(0);
-			Timing.Frame = 0;
-			Fixed.When = Timing.Begin;
-			Fixed.Delta = Units(0);
-			Fixed.Sum = Units(0);
-			Fixed.Frame = 0;
-			Fixed.InFrame = false;
+			timing.begin = clock();
+			timing.when = timing.begin;
+			timing.delta = units(0);
+			timing.frame = 0;
+			fixed.when = timing.begin;
+			fixed.delta = units(0);
+			fixed.sum = units(0);
+			fixed.frame = 0;
+			fixed.in_frame = false;
 		}
-		void Timer::Begin()
+		void timer::begin()
 		{
-			Units Time = Clock();
-			Timing.Delta = Time - Timing.When;
-			++Timing.Frame;
+			units time = clock();
+			timing.delta = time - timing.when;
+			++timing.frame;
 
-			if (FixedFrames <= 0.0)
+			if (fixed_frames <= 0.0)
 				return;
 
-			Fixed.Sum += Timing.Delta;
-			Fixed.InFrame = Fixed.Sum > MaxDelta;
-			if (Fixed.InFrame)
+			fixed.sum += timing.delta;
+			fixed.in_frame = fixed.sum > max_delta;
+			if (fixed.in_frame)
 			{
-				Fixed.Sum = Units(0);
-				Fixed.Delta = Time - Fixed.When;
-				Fixed.When = Time;
-				++Fixed.Frame;
+				fixed.sum = units(0);
+				fixed.delta = time - fixed.when;
+				fixed.when = time;
+				++fixed.frame;
 			}
 		}
-		void Timer::Finish()
+		void timer::finish()
 		{
-			Timing.When = Clock();
-			if (MaxFrames > 0.0 && Timing.Delta < MinDelta)
-				std::this_thread::sleep_for(MinDelta - Timing.Delta);
+			timing.when = clock();
+			if (max_frames > 0.0 && timing.delta < min_delta)
+				std::this_thread::sleep_for(min_delta - timing.delta);
 		}
-		void Timer::Push(const char* Name)
+		void timer::push(const char* name)
 		{
-			Capture Next = { Name, Clock() };
-			Captures.emplace(std::move(Next));
+			capture next = { name, clock() };
+			captures.emplace(std::move(next));
 		}
-		bool Timer::PopIf(float GreaterThan, Capture* Out)
+		bool timer::pop_if(float greater_than, capture* out)
 		{
-			Capture Data = Pop();
-			bool Overdue = (Data.Step > GreaterThan);
-			if (Out != nullptr)
-				*Out = std::move(Data);
+			capture data = pop();
+			bool overdue = (data.step > greater_than);
+			if (out != nullptr)
+				*out = std::move(data);
 
-			return Overdue;
+			return overdue;
 		}
-		bool Timer::IsFixed() const
+		bool timer::is_fixed() const
 		{
-			return Fixed.InFrame;
+			return fixed.in_frame;
 		}
-		Timer::Capture Timer::Pop()
+		timer::capture timer::pop()
 		{
-			VI_ASSERT(!Captures.empty(), "there is no time captured at the moment");
-			Capture Base = Captures.front();
-			Base.End = Clock();
-			Base.Delta = Base.End - Base.Begin;
-			Base.Step = ToSeconds(Base.Delta);
-			Captures.pop();
+			VI_ASSERT(!captures.empty(), "there is no time captured at the moment");
+			capture base = captures.front();
+			base.end = clock();
+			base.delta = base.end - base.begin;
+			base.step = to_seconds(base.delta);
+			captures.pop();
 
-			return Base;
+			return base;
 		}
-		size_t Timer::GetFrameIndex() const
+		size_t timer::get_frame_index() const
 		{
-			return Timing.Frame;
+			return timing.frame;
 		}
-		size_t Timer::GetFixedFrameIndex() const
+		size_t timer::get_fixed_frame_index() const
 		{
-			return Fixed.Frame;
+			return fixed.frame;
 		}
-		float Timer::GetMaxFrames() const
+		float timer::get_max_frames() const
 		{
-			return MaxFrames;
+			return max_frames;
 		}
-		float Timer::GetMinStep() const
+		float timer::get_min_step() const
 		{
-			if (MaxFrames <= 0.0f)
+			if (max_frames <= 0.0f)
 				return 0.0f;
 
-			return ToSeconds(MinDelta);
+			return to_seconds(min_delta);
 		}
-		float Timer::GetFrames() const
+		float timer::get_frames() const
 		{
-			return 1.0f / ToSeconds(Timing.Delta);
+			return 1.0f / to_seconds(timing.delta);
 		}
-		float Timer::GetElapsed() const
+		float timer::get_elapsed() const
 		{
-			return ToSeconds(Clock() - Timing.Begin);
+			return to_seconds(clock() - timing.begin);
 		}
-		float Timer::GetElapsedMills() const
+		float timer::get_elapsed_mills() const
 		{
-			return ToMills(Clock() - Timing.Begin);
+			return to_mills(clock() - timing.begin);
 		}
-		float Timer::GetStep() const
+		float timer::get_step() const
 		{
-			return ToSeconds(Timing.Delta);
+			return to_seconds(timing.delta);
 		}
-		float Timer::GetFixedStep() const
+		float timer::get_fixed_step() const
 		{
-			return ToSeconds(Fixed.Delta);
+			return to_seconds(fixed.delta);
 		}
-		float Timer::GetFixedFrames() const
+		float timer::get_fixed_frames() const
 		{
-			return FixedFrames;
+			return fixed_frames;
 		}
-		float Timer::ToSeconds(const Units& Value)
+		float timer::to_seconds(const units& value)
 		{
-			return (float)((double)Value.count() / UnitsToSeconds);
+			return (float)((double)value.count() / units_to_seconds);
 		}
-		float Timer::ToMills(const Units& Value)
+		float timer::to_mills(const units& value)
 		{
-			return (float)((double)Value.count() / UnitsToMills);
+			return (float)((double)value.count() / units_to_mills);
 		}
-		Timer::Units Timer::ToUnits(float Value)
+		timer::units timer::to_units(float value)
 		{
-			return Units((uint64_t)(Value * UnitsToSeconds));
+			return units((uint64_t)(value * units_to_seconds));
 		}
-		Timer::Units Timer::Clock()
+		timer::units timer::clock()
 		{
-			return std::chrono::duration_cast<Units>(std::chrono::system_clock::now().time_since_epoch());
+			return std::chrono::duration_cast<units>(std::chrono::system_clock::now().time_since_epoch());
 		}
 
-		Stream::Stream() noexcept : VSize(0)
+		stream::stream() noexcept : vsize(0)
 		{
 		}
-		ExpectsIO<void> Stream::Move(int64_t Offset)
+		expects_io<void> stream::move(int64_t offset)
 		{
-			return Seek(FileSeek::Current, Offset);
+			return seek(file_seek::current, offset);
 		}
-		void Stream::OpenVirtual(String&& Path)
+		void stream::open_virtual(string&& path)
 		{
-			VName = std::move(Path);
-			VSize = 0;
+			vname = std::move(path);
+			vsize = 0;
 		}
-		void Stream::CloseVirtual()
+		void stream::close_virtual()
 		{
-			VName.clear();
-			VSize = 0;
+			vname.clear();
+			vsize = 0;
 		}
-		void Stream::SetVirtualSize(size_t Size)
+		void stream::set_virtual_size(size_t size)
 		{
-			VSize = Size;
+			vsize = size;
 		}
-		void Stream::SetVirtualName(const std::string_view& File)
+		void stream::set_virtual_name(const std::string_view& file)
 		{
-			VName = File;
+			vname = file;
 		}
-		ExpectsIO<size_t> Stream::ReadAll(const std::function<void(uint8_t*, size_t)>& Callback)
+		expects_io<size_t> stream::read_all(const std::function<void(uint8_t*, size_t)>& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_TRACE("[io] read all bytes on fd %i", GetReadableFd());
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_TRACE("[io] read all bytes on fd %i", get_readable_fd());
 
-			size_t Total = 0;
-			uint8_t Buffer[CHUNK_SIZE];
+			size_t total = 0;
+			uint8_t buffer[CHUNK_SIZE];
 			while (true)
 			{
-				size_t Length = VSize > 0 ? std::min<size_t>(sizeof(Buffer), VSize - Total) : sizeof(Buffer);
-				if (!Length)
+				size_t length = vsize > 0 ? std::min<size_t>(sizeof(buffer), vsize - total) : sizeof(buffer);
+				if (!length)
 					break;
 
-				auto Size = Read(Buffer, Length);
-				if (!Size || !*Size)
-					return Size;
+				auto size = read(buffer, length);
+				if (!size || !*size)
+					return size;
 
-				Length = *Size;
-				Total += Length;
-				Callback(Buffer, Length);
+				length = *size;
+				total += length;
+				callback(buffer, length);
 			}
 
-			return Total;
+			return total;
 		}
-		ExpectsIO<size_t> Stream::Size()
+		expects_io<size_t> stream::size()
 		{
-			if (!IsSized())
+			if (!is_sized())
 				return std::make_error_condition(std::errc::not_supported);
 
-			auto Position = Tell();
-			if (!Position)
-				return Position;
+			auto position = tell();
+			if (!position)
+				return position;
 
-			auto Status = Seek(FileSeek::End, 0);
-			if (!Status)
-				return Status.Error();
+			auto status = seek(file_seek::end, 0);
+			if (!status)
+				return status.error();
 
-			auto Size = Tell();
-			Status = Seek(FileSeek::Begin, *Position);
-			if (!Status)
-				return Status.Error();
+			auto size = tell();
+			status = seek(file_seek::begin, *position);
+			if (!status)
+				return status.error();
 
-			return Size;
+			return size;
 		}
-		size_t Stream::VirtualSize() const
+		size_t stream::virtual_size() const
 		{
-			return VSize;
+			return vsize;
 		}
-		std::string_view Stream::VirtualName() const
+		std::string_view stream::virtual_name() const
 		{
-			return VName;
+			return vname;
 		}
 
-		MemoryStream::MemoryStream() noexcept : Offset(0), Readable(false), Writeable(false)
+		memory_stream::memory_stream() noexcept : offset(0), readable(false), writeable(false)
 		{
 		}
-		MemoryStream::~MemoryStream() noexcept
+		memory_stream::~memory_stream() noexcept
 		{
-			Close();
+			close();
 		}
-		ExpectsIO<void> MemoryStream::Clear()
+		expects_io<void> memory_stream::clear()
 		{
-			VI_TRACE("[mem] fd %i clear", GetWriteableFd());
-			Buffer.clear();
-			Offset = 0;
-			Readable = false;
-			return Expectation::Met;
+			VI_TRACE("[mem] fd %i clear", get_writeable_fd());
+			buffer.clear();
+			offset = 0;
+			readable = false;
+			return expectation::met;
 		}
-		ExpectsIO<void> MemoryStream::Open(const std::string_view& File, FileMode Mode)
+		expects_io<void> memory_stream::open(const std::string_view& file, file_mode mode)
 		{
-			VI_ASSERT(!File.empty(), "filename should be set");
-			VI_MEASURE(Timings::Pass);
-			auto Result = Close();
-			if (!Result)
-				return Result;
-			else if (!OS::Control::Has(AccessOption::Mem))
+			VI_ASSERT(!file.empty(), "filename should be set");
+			VI_MEASURE(timings::pass);
+			auto result = close();
+			if (!result)
+				return result;
+			else if (!os::control::has(access_option::mem))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			switch (Mode)
+			switch (mode)
 			{
-				case FileMode::Read_Only:
-				case FileMode::Binary_Read_Only:
-					Readable = true;
+				case file_mode::read_only:
+				case file_mode::binary_read_only:
+					readable = true;
 					break;
-				case FileMode::Write_Only:
-				case FileMode::Binary_Write_Only:
-				case FileMode::Append_Only:
-				case FileMode::Binary_Append_Only:
-					Writeable = true;
+				case file_mode::write_only:
+				case file_mode::binary_write_only:
+				case file_mode::append_only:
+				case file_mode::binary_append_only:
+					writeable = true;
 					break;
-				case FileMode::Read_Write:
-				case FileMode::Binary_Read_Write:
-				case FileMode::Write_Read:
-				case FileMode::Binary_Write_Read:
-				case FileMode::Read_Append_Write:
-				case FileMode::Binary_Read_Append_Write:
-					Readable = true;
-					Writeable = true;
+				case file_mode::read_write:
+				case file_mode::binary_read_write:
+				case file_mode::write_read:
+				case file_mode::binary_write_read:
+				case file_mode::read_append_write:
+				case file_mode::binary_read_append_write:
+					readable = true;
+					writeable = true;
 					break;
 				default:
 					break;
 			}
 
-			VI_PANIC(Readable || Writeable, "file open cannot be issued with mode:%i", (int)Mode);
-			VI_DEBUG("[mem] open %s%s %s fd", Readable ? "r" : "", Writeable ? "w" : "", File, (int)GetReadableFd());
-			OpenVirtual(String(File));
-			return Expectation::Met;
+			VI_PANIC(readable || writeable, "file open cannot be issued with mode:%i", (int)mode);
+			VI_DEBUG("[mem] open %s%s %s fd", readable ? "r" : "", writeable ? "w" : "", file, (int)get_readable_fd());
+			open_virtual(string(file));
+			return expectation::met;
 		}
-		ExpectsIO<void> MemoryStream::Close()
+		expects_io<void> memory_stream::close()
 		{
-			VI_MEASURE(Timings::Pass);
-			VI_DEBUG("[mem] close fd %i", GetReadableFd());
-			CloseVirtual();
-			Buffer.clear();
-			Offset = 0;
-			Readable = false;
-			Writeable = false;
-			return Expectation::Met;
+			VI_MEASURE(timings::pass);
+			VI_DEBUG("[mem] close fd %i", get_readable_fd());
+			close_virtual();
+			buffer.clear();
+			offset = 0;
+			readable = false;
+			writeable = false;
+			return expectation::met;
 		}
-		ExpectsIO<void> MemoryStream::Seek(FileSeek Mode, int64_t Seek)
+		expects_io<void> memory_stream::seek(file_seek mode, int64_t seek)
 		{
-			VI_ASSERT(!VirtualName().empty(), "file should be opened");
-			VI_MEASURE(Timings::Pass);
-			switch (Mode)
+			VI_ASSERT(!virtual_name().empty(), "file should be opened");
+			VI_MEASURE(timings::pass);
+			switch (mode)
 			{
-				case FileSeek::Begin:
-					VI_TRACE("[mem] seek-64 fd %i begin %" PRId64, GetReadableFd(), Seek);
-					Offset = Seek < 0 ? 0 : Buffer.size() + (size_t)Seek;
+				case file_seek::begin:
+					VI_TRACE("[mem] seek-64 fd %i begin %" PRId64, get_readable_fd(), seek);
+					offset = seek < 0 ? 0 : buffer.size() + (size_t)seek;
 					break;
-				case FileSeek::Current:
-					VI_TRACE("[mem] seek-64 fd %i move %" PRId64, GetReadableFd(), Seek);
-					if (Seek < 0)
+				case file_seek::current:
+					VI_TRACE("[mem] seek-64 fd %i move %" PRId64, get_readable_fd(), seek);
+					if (seek < 0)
 					{
-						size_t Position = (size_t)(-Seek);
-						Offset -= Position > Offset ? 0 : Position;
+						size_t position = (size_t)(-seek);
+						offset -= position > offset ? 0 : position;
 					}
 					else
-						Offset += (size_t)Seek;
+						offset += (size_t)seek;
 					break;
-				case FileSeek::End:
-					VI_TRACE("[mem] seek-64 fd %i end %" PRId64, GetReadableFd(), Seek);
-					if (Seek < 0)
+				case file_seek::end:
+					VI_TRACE("[mem] seek-64 fd %i end %" PRId64, get_readable_fd(), seek);
+					if (seek < 0)
 					{
-						size_t Position = (size_t)(-Seek);
-						Offset = Position > Buffer.size() ? 0 : Buffer.size() - Position;
+						size_t position = (size_t)(-seek);
+						offset = position > buffer.size() ? 0 : buffer.size() - position;
 					}
 					else
-						Offset = Buffer.size() + (size_t)Seek;
+						offset = buffer.size() + (size_t)seek;
 					break;
 				default:
 					break;
 			}
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<void> MemoryStream::Flush()
+		expects_io<void> memory_stream::flush()
 		{
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<size_t> MemoryStream::ReadScan(const char* Format, ...)
+		expects_io<size_t> memory_stream::read_scan(const char* format, ...)
 		{
-			VI_ASSERT(!VirtualName().empty(), "file should be opened");
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Timings::Pass);
-			char* Memory = PrepareBuffer(0);
-			if (!Memory)
+			VI_ASSERT(!virtual_name().empty(), "file should be opened");
+			VI_ASSERT(format != nullptr, "format should be set");
+			VI_MEASURE(timings::pass);
+			char* memory = prepare_buffer(0);
+			if (!memory)
 				return std::make_error_condition(std::errc::broken_pipe);
 
-			va_list Args;
-			va_start(Args, Format);
-			int Value = vsscanf(Memory, Format, Args);
-			VI_TRACE("[mem] fd %i scan %i bytes", GetReadableFd(), (int)Value);
-			va_end(Args);
-			if (Value >= 0)
-				return (size_t)Value;
+			va_list args;
+			va_start(args, format);
+			int value = vsscanf(memory, format, args);
+			VI_TRACE("[mem] fd %i scan %i bytes", get_readable_fd(), (int)value);
+			va_end(args);
+			if (value >= 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> MemoryStream::ReadLine(char* Data, size_t Length)
+		expects_io<size_t> memory_stream::read_line(char* data, size_t length)
 		{
-			VI_ASSERT(!VirtualName().empty(), "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::Pass);
-			VI_TRACE("[mem] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			size_t Offset = 0;
-			while (Offset < Length)
+			VI_ASSERT(!virtual_name().empty(), "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::pass);
+			VI_TRACE("[mem] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			size_t offset = 0;
+			while (offset < length)
 			{
-				auto Status = Read((uint8_t*)Data + Offset, sizeof(uint8_t));
-				if (!Status)
-					return Status;
-				else if (*Status != sizeof(uint8_t))
+				auto status = read((uint8_t*)data + offset, sizeof(uint8_t));
+				if (!status)
+					return status;
+				else if (*status != sizeof(uint8_t))
 					break;
-				else if (Stringify::IsWhitespace(Data[Offset++]))
+				else if (stringify::is_whitespace(data[offset++]))
 					break;
 			}
-			return Offset;
+			return offset;
 		}
-		ExpectsIO<size_t> MemoryStream::Read(uint8_t* Data, size_t Length)
+		expects_io<size_t> memory_stream::read(uint8_t* data, size_t length)
 		{
-			VI_ASSERT(!VirtualName().empty(), "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::Pass);
-			VI_TRACE("[mem] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			if (!Length)
+			VI_ASSERT(!virtual_name().empty(), "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::pass);
+			VI_TRACE("[mem] fd %i read %i bytes", get_readable_fd(), (int)length);
+			if (!length)
 				return 0;
 
-			char* Memory = PrepareBuffer(Length);
-			if (!Memory)
+			char* memory = prepare_buffer(length);
+			if (!memory)
 				return std::make_error_condition(std::errc::broken_pipe);
 
-			memcpy(Data, Memory, Length);
-			return Length;
+			memcpy(data, memory, length);
+			return length;
 		}
-		ExpectsIO<size_t> MemoryStream::WriteFormat(const char* Format, ...)
+		expects_io<size_t> memory_stream::write_format(const char* format, ...)
 		{
-			VI_ASSERT(!VirtualName().empty(), "file should be opened");
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Timings::Pass);
-			char* Memory = PrepareBuffer(0);
-			if (!Memory)
+			VI_ASSERT(!virtual_name().empty(), "file should be opened");
+			VI_ASSERT(format != nullptr, "format should be set");
+			VI_MEASURE(timings::pass);
+			char* memory = prepare_buffer(0);
+			if (!memory)
 				return std::make_error_condition(std::errc::broken_pipe);
 
-			va_list Args;
-			va_start(Args, Format);
-			int Value = vsnprintf(Memory, Memory - Buffer.data(), Format, Args);
-			VI_TRACE("[mem] fd %i write %i bytes", GetWriteableFd(), Value);
-			va_end(Args);
-			if (Value >= 0)
-				return (size_t)Value;
+			va_list args;
+			va_start(args, format);
+			int value = vsnprintf(memory, memory - buffer.data(), format, args);
+			VI_TRACE("[mem] fd %i write %i bytes", get_writeable_fd(), value);
+			va_end(args);
+			if (value >= 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> MemoryStream::Write(const uint8_t* Data, size_t Length)
+		expects_io<size_t> memory_stream::write(const uint8_t* data, size_t length)
 		{
-			VI_ASSERT(!VirtualName().empty(), "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::Pass);
-			VI_TRACE("[mem] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			if (!Length)
+			VI_ASSERT(!virtual_name().empty(), "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::pass);
+			VI_TRACE("[mem] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			if (!length)
 				return 0;
 
-			char* Memory = PrepareBuffer(Length);
-			if (!Memory)
+			char* memory = prepare_buffer(length);
+			if (!memory)
 				return std::make_error_condition(std::errc::broken_pipe);
 
-			memcpy(Memory, Data, Length);
-			return Length;
+			memcpy(memory, data, length);
+			return length;
 		}
-		ExpectsIO<size_t> MemoryStream::Tell()
+		expects_io<size_t> memory_stream::tell()
 		{
-			return Offset;
+			return offset;
 		}
-		socket_t MemoryStream::GetReadableFd() const
+		socket_t memory_stream::get_readable_fd() const
 		{
-			return (socket_t)(uintptr_t)Buffer.data();
+			return (socket_t)(uintptr_t)buffer.data();
 		}
-		socket_t MemoryStream::GetWriteableFd() const
+		socket_t memory_stream::get_writeable_fd() const
 		{
-			return (socket_t)(uintptr_t)Buffer.data();
+			return (socket_t)(uintptr_t)buffer.data();
 		}
-		void* MemoryStream::GetReadable() const
+		void* memory_stream::get_readable() const
 		{
-			return (void*)Buffer.data();
+			return (void*)buffer.data();
 		}
-		void* MemoryStream::GetWriteable() const
+		void* memory_stream::get_writeable() const
 		{
-			return (void*)Buffer.data();
+			return (void*)buffer.data();
 		}
-		bool MemoryStream::IsSized() const
+		bool memory_stream::is_sized() const
 		{
 			return true;
 		}
-		char* MemoryStream::PrepareBuffer(size_t Size)
+		char* memory_stream::prepare_buffer(size_t size)
 		{
-			if (Offset + Size > Buffer.size())
-				Buffer.resize(Offset);
+			if (offset + size > buffer.size())
+				buffer.resize(offset);
 
-			char* Target = Buffer.data() + Offset;
-			Offset += Size;
-			return Target;
+			char* target = buffer.data() + offset;
+			offset += size;
+			return target;
 		}
 
-		FileStream::FileStream() noexcept : IoStream(nullptr)
+		file_stream::file_stream() noexcept : io_stream(nullptr)
 		{
 		}
-		FileStream::~FileStream() noexcept
+		file_stream::~file_stream() noexcept
 		{
-			Close();
+			close();
 		}
-		ExpectsIO<void> FileStream::Clear()
+		expects_io<void> file_stream::clear()
 		{
-			VI_TRACE("[io] fd %i clear", GetWriteableFd());
-			auto Result = Close();
-			if (!Result)
-				return Result;
+			VI_TRACE("[io] fd %i clear", get_writeable_fd());
+			auto result = close();
+			if (!result)
+				return result;
 
-			auto Path = VirtualName();
-			if (Path.empty())
+			auto path = virtual_name();
+			if (path.empty())
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			auto Target = OS::File::Open(Path, "w");
-			if (!Target)
-				return Target.Error();
-			
-			IoStream = *Target;
-			return Expectation::Met;
+			auto target = os::file::open(path, "w");
+			if (!target)
+				return target.error();
+
+			io_stream = *target;
+			return expectation::met;
 		}
-		ExpectsIO<void> FileStream::Open(const std::string_view& File, FileMode Mode)
+		expects_io<void> file_stream::open(const std::string_view& file, file_mode mode)
 		{
-			VI_ASSERT(!File.empty(), "filename should be set");
-			VI_MEASURE(Timings::FileSystem);
-			auto Result = Close();
-			if (!Result)
-				return Result;
-			else if (!OS::Control::Has(AccessOption::Fs))
+			VI_ASSERT(!file.empty(), "filename should be set");
+			VI_MEASURE(timings::file_system);
+			auto result = close();
+			if (!result)
+				return result;
+			else if (!os::control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			const char* Type = nullptr;
-			switch (Mode)
+			const char* type = nullptr;
+			switch (mode)
 			{
-				case FileMode::Read_Only:
-					Type = "r";
+				case file_mode::read_only:
+					type = "r";
 					break;
-				case FileMode::Write_Only:
-					Type = "w";
+				case file_mode::write_only:
+					type = "w";
 					break;
-				case FileMode::Append_Only:
-					Type = "a";
+				case file_mode::append_only:
+					type = "a";
 					break;
-				case FileMode::Read_Write:
-					Type = "r+";
+				case file_mode::read_write:
+					type = "r+";
 					break;
-				case FileMode::Write_Read:
-					Type = "w+";
+				case file_mode::write_read:
+					type = "w+";
 					break;
-				case FileMode::Read_Append_Write:
-					Type = "a+";
+				case file_mode::read_append_write:
+					type = "a+";
 					break;
-				case FileMode::Binary_Read_Only:
-					Type = "rb";
+				case file_mode::binary_read_only:
+					type = "rb";
 					break;
-				case FileMode::Binary_Write_Only:
-					Type = "wb";
+				case file_mode::binary_write_only:
+					type = "wb";
 					break;
-				case FileMode::Binary_Append_Only:
-					Type = "ab";
+				case file_mode::binary_append_only:
+					type = "ab";
 					break;
-				case FileMode::Binary_Read_Write:
-					Type = "rb+";
+				case file_mode::binary_read_write:
+					type = "rb+";
 					break;
-				case FileMode::Binary_Write_Read:
-					Type = "wb+";
+				case file_mode::binary_write_read:
+					type = "wb+";
 					break;
-				case FileMode::Binary_Read_Append_Write:
-					Type = "ab+";
+				case file_mode::binary_read_append_write:
+					type = "ab+";
 					break;
 				default:
 					break;
-			} 
+			}
 
-			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
-			ExpectsIO<String> TargetPath = OS::Path::Resolve(File);
-			if (!TargetPath)
-				return TargetPath.Error();
+			VI_PANIC(type != nullptr, "file open cannot be issued with mode:%i", (int)mode);
+			expects_io<string> target_path = os::path::resolve(file);
+			if (!target_path)
+				return target_path.error();
 
-			auto Target = OS::File::Open(*TargetPath, Type);
-			if (!Target)
-				return Target.Error();
+			auto target = os::file::open(*target_path, type);
+			if (!target)
+				return target.error();
 
-			IoStream = *Target;
-			OpenVirtual(std::move(*TargetPath));
-			return Expectation::Met;
+			io_stream = *target;
+			open_virtual(std::move(*target_path));
+			return expectation::met;
 		}
-		ExpectsIO<void> FileStream::Close()
+		expects_io<void> file_stream::close()
 		{
-			VI_MEASURE(Timings::FileSystem);
-			CloseVirtual();
+			VI_MEASURE(timings::file_system);
+			close_virtual();
 
-			if (!IoStream)
-				return Expectation::Met;
+			if (!io_stream)
+				return expectation::met;
 
-			FILE* Target = IoStream;
-			IoStream = nullptr;
-			return OS::File::Close(Target);
+			FILE* target = io_stream;
+			io_stream = nullptr;
+			return os::file::close(target);
 		}
-		ExpectsIO<void> FileStream::Seek(FileSeek Mode, int64_t Offset)
+		expects_io<void> file_stream::seek(file_seek mode, int64_t offset)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_MEASURE(Timings::FileSystem);
-			return OS::File::Seek64(IoStream, Offset, Mode);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_MEASURE(timings::file_system);
+			return os::file::seek64(io_stream, offset, mode);
 		}
-		ExpectsIO<void> FileStream::Flush()
+		expects_io<void> file_stream::flush()
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] flush fd %i", GetWriteableFd());
-			if (fflush(IoStream) != 0)
-				return OS::Error::GetConditionOr();
-			return Expectation::Met;
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] flush fd %i", get_writeable_fd());
+			if (fflush(io_stream) != 0)
+				return os::error::get_condition_or();
+			return expectation::met;
 		}
-		ExpectsIO<size_t> FileStream::ReadScan(const char* Format, ...)
+		expects_io<size_t> file_stream::read_scan(const char* format, ...)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Timings::FileSystem);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(format != nullptr, "format should be set");
+			VI_MEASURE(timings::file_system);
 
-			va_list Args;
-			va_start(Args, Format);
-			int Value = vfscanf(IoStream, Format, Args);
-			VI_TRACE("[io] fd %i scan %i bytes", GetReadableFd(), Value);
-			va_end(Args);
-			if (Value >= 0)
-				return (size_t)Value;
+			va_list args;
+			va_start(args, format);
+			int value = vfscanf(io_stream, format, args);
+			VI_TRACE("[io] fd %i scan %i bytes", get_readable_fd(), value);
+			va_end(args);
+			if (value >= 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> FileStream::ReadLine(char* Data, size_t Length)
+		expects_io<size_t> file_stream::read_line(char* data, size_t length)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			return fgets(Data, (int)Length, IoStream) ? strnlen(Data, Length) : 0;
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			return fgets(data, (int)length, io_stream) ? strnlen(data, length) : 0;
 		}
-		ExpectsIO<size_t> FileStream::Read(uint8_t* Data, size_t Length)
+		expects_io<size_t> file_stream::read(uint8_t* data, size_t length)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			size_t Value = fread(Data, 1, Length, IoStream);
-			if (Value > 0 || feof(IoStream) != 0)
-				return (size_t)Value;
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] fd %i read %i bytes", get_readable_fd(), (int)length);
+			size_t value = fread(data, 1, length, io_stream);
+			if (value > 0 || feof(io_stream) != 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> FileStream::WriteFormat(const char* Format, ...)
+		expects_io<size_t> file_stream::write_format(const char* format, ...)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Timings::FileSystem);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(format != nullptr, "format should be set");
+			VI_MEASURE(timings::file_system);
 
-			va_list Args;
-			va_start(Args, Format);
-			int Value = vfprintf(IoStream, Format, Args);
-			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), Value);
-			va_end(Args);
-			if (Value >= 0)
-				return (size_t)Value;
+			va_list args;
+			va_start(args, format);
+			int value = vfprintf(io_stream, format, args);
+			VI_TRACE("[io] fd %i write %i bytes", get_writeable_fd(), value);
+			va_end(args);
+			if (value >= 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> FileStream::Write(const uint8_t* Data, size_t Length)
+		expects_io<size_t> file_stream::write(const uint8_t* data, size_t length)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			size_t Value = fwrite(Data, 1, Length, IoStream);
-			if (Value > 0 || feof(IoStream) != 0)
-				return (size_t)Value;
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			size_t value = fwrite(data, 1, length, io_stream);
+			if (value > 0 || feof(io_stream) != 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> FileStream::Tell()
+		expects_io<size_t> file_stream::tell()
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_MEASURE(Timings::FileSystem);
-			return OS::File::Tell64(IoStream);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_MEASURE(timings::file_system);
+			return os::file::tell64(io_stream);
 		}
-		socket_t FileStream::GetReadableFd() const
+		socket_t file_stream::get_readable_fd() const
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			return (socket_t)VI_FILENO(IoStream);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			return (socket_t)VI_FILENO(io_stream);
 		}
-		socket_t FileStream::GetWriteableFd() const
+		socket_t file_stream::get_writeable_fd() const
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			return (socket_t)VI_FILENO(IoStream);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			return (socket_t)VI_FILENO(io_stream);
 		}
-		void* FileStream::GetReadable() const
+		void* file_stream::get_readable() const
 		{
-			return IoStream;
+			return io_stream;
 		}
-		void* FileStream::GetWriteable() const
+		void* file_stream::get_writeable() const
 		{
-			return IoStream;
+			return io_stream;
 		}
-		bool FileStream::IsSized() const
+		bool file_stream::is_sized() const
 		{
 			return true;
 		}
 
-		GzStream::GzStream() noexcept : IoStream(nullptr)
+		gz_stream::gz_stream() noexcept : io_stream(nullptr)
 		{
 		}
-		GzStream::~GzStream() noexcept
+		gz_stream::~gz_stream() noexcept
 		{
-			Close();
+			close();
 		}
-		ExpectsIO<void> GzStream::Clear()
+		expects_io<void> gz_stream::clear()
 		{
-			VI_TRACE("[gz] fd %i clear", GetWriteableFd());
-			auto Result = Close();
-			if (!Result)
-				return Result;
+			VI_TRACE("[gz] fd %i clear", get_writeable_fd());
+			auto result = close();
+			if (!result)
+				return result;
 
-			auto Path = VirtualName();
-			if (Path.empty())
+			auto path = virtual_name();
+			if (path.empty())
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			auto Target = OS::File::Open(Path, "w");
-			if (!Target)
-				return Target.Error();
+			auto target = os::file::open(path, "w");
+			if (!target)
+				return target.error();
 
-			Result = OS::File::Close(*Target);
-			if (!Result)
-				return Result;
+			result = os::file::close(*target);
+			if (!result)
+				return result;
 
-			return Open(Path, FileMode::Binary_Write_Only);
+			return open(path, file_mode::binary_write_only);
 		}
-		ExpectsIO<void> GzStream::Open(const std::string_view& File, FileMode Mode)
+		expects_io<void> gz_stream::open(const std::string_view& file, file_mode mode)
 		{
-			VI_ASSERT(!File.empty(), "filename should be set");
+			VI_ASSERT(!file.empty(), "filename should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			auto Result = Close();
-			if (!Result)
-				return Result;
-			else if (!OS::Control::Has(AccessOption::Gz))
+			VI_MEASURE(timings::file_system);
+			auto result = close();
+			if (!result)
+				return result;
+			else if (!os::control::has(access_option::gz))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			const char* Type = nullptr;
-			switch (Mode)
+			const char* type = nullptr;
+			switch (mode)
 			{
-				case FileMode::Read_Only:
-				case FileMode::Binary_Read_Only:
-					Type = "rb";
+				case file_mode::read_only:
+				case file_mode::binary_read_only:
+					type = "rb";
 					break;
-				case FileMode::Write_Only:
-				case FileMode::Binary_Write_Only:
-				case FileMode::Append_Only:
-				case FileMode::Binary_Append_Only:
-					Type = "wb";
+				case file_mode::write_only:
+				case file_mode::binary_write_only:
+				case file_mode::append_only:
+				case file_mode::binary_append_only:
+					type = "wb";
 					break;
 				default:
 					break;
 			}
 
-			VI_PANIC(Type != nullptr, "file open cannot be issued with mode:%i", (int)Mode);
-			ExpectsIO<String> TargetPath = OS::Path::Resolve(File);
-			if (!TargetPath)
-				return TargetPath.Error();
+			VI_PANIC(type != nullptr, "file open cannot be issued with mode:%i", (int)mode);
+			expects_io<string> target_path = os::path::resolve(file);
+			if (!target_path)
+				return target_path.error();
 
-			VI_DEBUG("[gz] open %s %s", Type, TargetPath->c_str());
-			IoStream = gzopen(TargetPath->c_str(), Type);
-			if (!IoStream)
+			VI_DEBUG("[gz] open %s %s", type, target_path->c_str());
+			io_stream = gzopen(target_path->c_str(), type);
+			if (!io_stream)
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
-			OpenVirtual(std::move(*TargetPath));
-			return Expectation::Met;
+			open_virtual(std::move(*target_path));
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> GzStream::Close()
+		expects_io<void> gz_stream::close()
 		{
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			CloseVirtual();
+			VI_MEASURE(timings::file_system);
+			close_virtual();
 
-			if (!IoStream)
-				return Expectation::Met;
+			if (!io_stream)
+				return expectation::met;
 
-			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)IoStream);
-			if (gzclose((gzFile)IoStream) != Z_OK)
+			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)io_stream);
+			if (gzclose((gzFile)io_stream) != Z_OK)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			IoStream = nullptr;
-			return Expectation::Met;
+			io_stream = nullptr;
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> GzStream::Seek(FileSeek Mode, int64_t Offset)
+		expects_io<void> gz_stream::seek(file_seek mode, int64_t offset)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			switch (Mode)
+			VI_MEASURE(timings::file_system);
+			switch (mode)
 			{
-				case FileSeek::Begin:
-					VI_TRACE("[gz] seek fd %i begin %" PRId64, GetReadableFd(), Offset);
-					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_SET) == -1)
-						return OS::Error::GetConditionOr();
-					return Expectation::Met;
-				case FileSeek::Current:
-					VI_TRACE("[gz] seek fd %i move %" PRId64, GetReadableFd(), Offset);
-					if (gzseek((gzFile)IoStream, (long)Offset, SEEK_CUR) == -1)
-						return OS::Error::GetConditionOr();
-					return Expectation::Met;
-				case FileSeek::End:
+				case file_seek::begin:
+					VI_TRACE("[gz] seek fd %i begin %" PRId64, get_readable_fd(), offset);
+					if (gzseek((gzFile)io_stream, (long)offset, SEEK_SET) == -1)
+						return os::error::get_condition_or();
+					return expectation::met;
+				case file_seek::current:
+					VI_TRACE("[gz] seek fd %i move %" PRId64, get_readable_fd(), offset);
+					if (gzseek((gzFile)io_stream, (long)offset, SEEK_CUR) == -1)
+						return os::error::get_condition_or();
+					return expectation::met;
+				case file_seek::end:
 					return std::make_error_condition(std::errc::not_supported);
 				default:
 					return std::make_error_condition(std::errc::invalid_argument);
@@ -7739,304 +7739,304 @@ namespace Vitex
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> GzStream::Flush()
+		expects_io<void> gz_stream::flush()
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			if (gzflush((gzFile)IoStream, Z_SYNC_FLUSH) != Z_OK)
-				return OS::Error::GetConditionOr();
-			return Expectation::Met;
+			VI_MEASURE(timings::file_system);
+			if (gzflush((gzFile)io_stream, Z_SYNC_FLUSH) != Z_OK)
+				return os::error::get_condition_or();
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::ReadScan(const char* Format, ...)
+		expects_io<size_t> gz_stream::read_scan(const char* format, ...)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> GzStream::ReadLine(char* Data, size_t Length)
+		expects_io<size_t> gz_stream::read_line(char* data, size_t length)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			return gzgets((gzFile)IoStream, Data, (int)Length) ? strnlen(Data, Length) : 0;
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[gz] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			return gzgets((gzFile)io_stream, data, (int)length) ? strnlen(data, length) : 0;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::Read(uint8_t* Data, size_t Length)
+		expects_io<size_t> gz_stream::read(uint8_t* data, size_t length)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			int Value = gzread((gzFile)IoStream, Data, (uint32_t)Length);
-			if (Value >= 0)
-				return (size_t)Value;
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[gz] fd %i read %i bytes", get_readable_fd(), (int)length);
+			int value = gzread((gzFile)io_stream, data, (uint32_t)length);
+			if (value >= 0)
+				return (size_t)value;
 
 			return std::make_error_condition(std::errc::broken_pipe);
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::WriteFormat(const char* Format, ...)
+		expects_io<size_t> gz_stream::write_format(const char* format, ...)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Timings::FileSystem);
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(format != nullptr, "format should be set");
+			VI_MEASURE(timings::file_system);
 #ifdef VI_ZLIB
-			va_list Args;
-			va_start(Args, Format);
-			int Value = gzvprintf((gzFile)IoStream, Format, Args);
-			VI_TRACE("[gz] fd %i write %i bytes", GetWriteableFd(), Value);
-			va_end(Args);
-			if (Value >= 0)
-				return (size_t)Value;
+			va_list args;
+			va_start(args, format);
+			int value = gzvprintf((gzFile)io_stream, format, args);
+			VI_TRACE("[gz] fd %i write %i bytes", get_writeable_fd(), value);
+			va_end(args);
+			if (value >= 0)
+				return (size_t)value;
 
 			return std::make_error_condition(std::errc::broken_pipe);
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::Write(const uint8_t* Data, size_t Length)
+		expects_io<size_t> gz_stream::write(const uint8_t* data, size_t length)
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			int Value = gzwrite((gzFile)IoStream, Data, (uint32_t)Length);
-			if (Value >= 0)
-				return (size_t)Value;
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[gz] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			int value = gzwrite((gzFile)io_stream, data, (uint32_t)length);
+			if (value >= 0)
+				return (size_t)value;
 
 			return std::make_error_condition(std::errc::broken_pipe);
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<size_t> GzStream::Tell()
+		expects_io<size_t> gz_stream::tell()
 		{
-			VI_ASSERT(IoStream != nullptr, "file should be opened");
+			VI_ASSERT(io_stream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[gz] fd %i tell", GetReadableFd());
-			long Value = gztell((gzFile)IoStream);
-			if (Value >= 0)
-				return (size_t)Value;
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[gz] fd %i tell", get_readable_fd());
+			long value = gztell((gzFile)io_stream);
+			if (value >= 0)
+				return (size_t)value;
 
 			return std::make_error_condition(std::errc::broken_pipe);
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		socket_t GzStream::GetReadableFd() const
+		socket_t gz_stream::get_readable_fd() const
 		{
-			return (socket_t)(uintptr_t)IoStream;
+			return (socket_t)(uintptr_t)io_stream;
 		}
-		socket_t GzStream::GetWriteableFd() const
+		socket_t gz_stream::get_writeable_fd() const
 		{
-			return (socket_t)(uintptr_t)IoStream;
+			return (socket_t)(uintptr_t)io_stream;
 		}
-		void* GzStream::GetReadable() const
+		void* gz_stream::get_readable() const
 		{
-			return IoStream;
+			return io_stream;
 		}
-		void* GzStream::GetWriteable() const
+		void* gz_stream::get_writeable() const
 		{
-			return IoStream;
+			return io_stream;
 		}
-		bool GzStream::IsSized() const
+		bool gz_stream::is_sized() const
 		{
 			return false;
 		}
 
-		WebStream::WebStream(bool IsAsync) noexcept : OutputStream(nullptr), Offset(0), Length(0), Async(IsAsync)
+		web_stream::web_stream(bool is_async) noexcept : output_stream(nullptr), offset(0), length(0), async(is_async)
 		{
 		}
-		WebStream::WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept : WebStream(IsAsync)
+		web_stream::web_stream(bool is_async, unordered_map<string, string>&& new_headers) noexcept : web_stream(is_async)
 		{
-			Headers = std::move(NewHeaders);
+			headers = std::move(new_headers);
 		}
-		WebStream::~WebStream() noexcept
+		web_stream::~web_stream() noexcept
 		{
-			Close();
+			close();
 		}
-		ExpectsIO<void> WebStream::Clear()
+		expects_io<void> web_stream::clear()
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<void> WebStream::Open(const std::string_view& File, FileMode Mode)
+		expects_io<void> web_stream::open(const std::string_view& file, file_mode mode)
 		{
-			VI_ASSERT(!File.empty(), "filename should be set");
-			auto Result = Close();
-			if (!Result)
-				return Result;
+			VI_ASSERT(!file.empty(), "filename should be set");
+			auto result = close();
+			if (!result)
+				return result;
 
-			Network::Location Origin(File);
-			if (Origin.Protocol != "http" && Origin.Protocol != "https")
+			network::location origin(file);
+			if (origin.protocol != "http" && origin.protocol != "https")
 				return std::make_error_condition(std::errc::address_family_not_supported);
 
-			bool Secure = (Origin.Protocol == "https");
-			if (Secure && !OS::Control::Has(AccessOption::Https))
+			bool secure = (origin.protocol == "https");
+			if (secure && !os::control::has(access_option::https))
 				return std::make_error_condition(std::errc::permission_denied);
-			else if (!Secure && !OS::Control::Has(AccessOption::Http))
+			else if (!secure && !os::control::has(access_option::http))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			auto* DNS = Network::DNS::Get();
-			auto Address = DNS->Lookup(Origin.Hostname, Origin.Port > 0 ? ToString(Origin.Port) : (Secure ? "443" : "80"), Network::DNSType::Connect);
-			if (!Address)
-				return Address.Error().error();
+			auto* dns = network::dns::get();
+			auto address = dns->lookup(origin.hostname, origin.port > 0 ? to_string(origin.port) : (secure ? "443" : "80"), network::dns_type::connect);
+			if (!address)
+				return address.error().error();
 
-			Core::UPtr<Network::HTTP::Client> Client = new Network::HTTP::Client(30000);
-			auto Status = Client->ConnectSync(*Address, Secure ? Network::PEER_VERITY_DEFAULT : Network::PEER_NOT_SECURE).Get();
-			if (!Status)
-				return Status.Error().error();
+			core::uptr<network::http::client> client = new network::http::client(30000);
+			auto status = client->connect_sync(*address, secure ? network::PEER_VERITY_DEFAULT : network::PEER_NOT_SECURE).get();
+			if (!status)
+				return status.error().error();
 
-			Network::HTTP::RequestFrame Request;
-			Request.Location.assign(Origin.Path);
-			VI_DEBUG("[ws] open ro %.*s", (int)File.size(), File.data());
+			network::http::request_frame request;
+			request.location.assign(origin.path);
+			VI_DEBUG("[ws] open ro %.*s", (int)file.size(), file.data());
 
-			for (auto& Item : Origin.Query)
-				Request.Query += Item.first + "=" + Item.second + "&";
+			for (auto& item : origin.query)
+				request.query += item.first + "=" + item.second + "&";
 
-			if (!Request.Query.empty())
-				Request.Query.pop_back();
+			if (!request.query.empty())
+				request.query.pop_back();
 
-			for (auto& Item : Headers)
-				Request.SetHeader(Item.first, Item.second);
+			for (auto& item : headers)
+				request.set_header(item.first, item.second);
 
-			auto* Response = Client->GetResponse();
-			Status = Client->Send(std::move(Request)).Get();
-			if (!Status || Response->StatusCode < 0)
-				return Status ? std::make_error_condition(std::errc::protocol_error) : Status.Error().error();
-			else if (Response->Content.Limited)
-				Length = Response->Content.Length;
+			auto* response = client->get_response();
+			status = client->send(std::move(request)).get();
+			if (!status || response->status_code < 0)
+				return status ? std::make_error_condition(std::errc::protocol_error) : status.error().error();
+			else if (response->content.limited)
+				length = response->content.length;
 
-			OutputStream = Client.Reset();
-			OpenVirtual(String(File));
-			return Expectation::Met;
+			output_stream = client.reset();
+			open_virtual(string(file));
+			return expectation::met;
 		}
-		ExpectsIO<void> WebStream::Close()
+		expects_io<void> web_stream::close()
 		{
-			auto* Client = (Network::HTTP::Client*)OutputStream;
-			VI_DEBUG("[ws] close 0x%" PRIXPTR, (uintptr_t)Client);
-			OutputStream = nullptr;
-			Offset = Length = 0;
-			Chunk.clear();
-			CloseVirtual();
+			auto* client = (network::http::client*)output_stream;
+			VI_DEBUG("[ws] close 0x%" PRIXPTR, (uintptr_t)client);
+			output_stream = nullptr;
+			offset = length = 0;
+			chunk.clear();
+			close_virtual();
 
-			if (!Client)
-				return Expectation::Met;
+			if (!client)
+				return expectation::met;
 
-			auto Status = Client->Disconnect().Get();
-			Memory::Release(Client);
-			if (!Status)
-				return Status.Error().error();
+			auto status = client->disconnect().get();
+			memory::release(client);
+			if (!status)
+				return status.error().error();
 
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<void> WebStream::Seek(FileSeek Mode, int64_t NewOffset)
+		expects_io<void> web_stream::seek(file_seek mode, int64_t new_offset)
 		{
-			switch (Mode)
+			switch (mode)
 			{
-				case FileSeek::Begin:
-					VI_TRACE("[ws] seek fd %i begin %" PRId64, GetReadableFd(), (int)NewOffset);
-					Offset = NewOffset;
-					return Expectation::Met;
-				case FileSeek::Current:
-					VI_TRACE("[ws] seek fd %i move %" PRId64, GetReadableFd(), (int)NewOffset);
-					if (NewOffset < 0)
+				case file_seek::begin:
+					VI_TRACE("[ws] seek fd %i begin %" PRId64, get_readable_fd(), (int)new_offset);
+					offset = new_offset;
+					return expectation::met;
+				case file_seek::current:
+					VI_TRACE("[ws] seek fd %i move %" PRId64, get_readable_fd(), (int)new_offset);
+					if (new_offset < 0)
 					{
-						size_t Pointer = (size_t)(-NewOffset);
-						if (Pointer > Offset)
+						size_t pointer = (size_t)(-new_offset);
+						if (pointer > offset)
 						{
-							Pointer -= Offset;
-							if (Pointer > Length)
+							pointer -= offset;
+							if (pointer > length)
 								return std::make_error_condition(std::errc::result_out_of_range);
 
-							Offset = Length - Pointer;
+							offset = length - pointer;
 						}
 					}
 					else
-						Offset += NewOffset;
-					return Expectation::Met;
-				case FileSeek::End:
-					VI_TRACE("[ws] seek fd %i end %" PRId64, GetReadableFd(), (int)NewOffset);
-					Offset = Length - NewOffset;
-					return Expectation::Met;
+						offset += new_offset;
+					return expectation::met;
+				case file_seek::end:
+					VI_TRACE("[ws] seek fd %i end %" PRId64, get_readable_fd(), (int)new_offset);
+					offset = length - new_offset;
+					return expectation::met;
 				default:
 					return std::make_error_condition(std::errc::not_supported);
 			}
 		}
-		ExpectsIO<void> WebStream::Flush()
+		expects_io<void> web_stream::flush()
 		{
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<size_t> WebStream::ReadScan(const char* Format, ...)
+		expects_io<size_t> web_stream::read_scan(const char* format, ...)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> WebStream::ReadLine(char* Data, size_t DataLength)
+		expects_io<size_t> web_stream::read_line(char* data, size_t data_length)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> WebStream::Read(uint8_t* Data, size_t DataLength)
+		expects_io<size_t> web_stream::read(uint8_t* data, size_t data_length)
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_ASSERT(DataLength > 0, "length should be greater than zero");
-			VI_TRACE("[ws] fd %i read %i bytes", GetReadableFd(), (int)DataLength);
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_ASSERT(data_length > 0, "length should be greater than zero");
+			VI_TRACE("[ws] fd %i read %i bytes", get_readable_fd(), (int)data_length);
 
-			size_t Result = 0;
-			if (Offset + DataLength > Chunk.size() && (Chunk.size() < Length || (!Length && !((Network::HTTP::Client*)OutputStream)->GetResponse()->Content.Limited)))
+			size_t result = 0;
+			if (offset + data_length > chunk.size() && (chunk.size() < length || (!length && !((network::http::client*)output_stream)->get_response()->content.limited)))
 			{
-				auto* Client = (Network::HTTP::Client*)OutputStream;
-				auto Status = Client->Fetch(DataLength).Get();
-				if (!Status)
-					return Status.Error().error();
+				auto* client = (network::http::client*)output_stream;
+				auto status = client->fetch(data_length).get();
+				if (!status)
+					return status.error().error();
 
-				auto* Response = Client->GetResponse();
-				if (!Length && Response->Content.Limited)
+				auto* response = client->get_response();
+				if (!length && response->content.limited)
 				{
-					Length = Response->Content.Length;
-					if (!Length)
+					length = response->content.length;
+					if (!length)
 						return 0;
 				}
-				
-				if (Response->Content.Data.empty())
+
+				if (response->content.data.empty())
 					return 0;
 
-				Chunk.insert(Chunk.end(), Response->Content.Data.begin(), Response->Content.Data.end());
+				chunk.insert(chunk.end(), response->content.data.begin(), response->content.data.end());
 			}
 
-			Result = std::min(DataLength, Chunk.size() - (size_t)Offset);
-			memcpy(Data, Chunk.data() + (size_t)Offset, Result);
-			Offset += (size_t)Result;
-			return Result;
+			result = std::min(data_length, chunk.size() - (size_t)offset);
+			memcpy(data, chunk.data() + (size_t)offset, result);
+			offset += (size_t)result;
+			return result;
 		}
-		ExpectsIO<size_t> WebStream::WriteFormat(const char* Format, ...)
+		expects_io<size_t> web_stream::write_format(const char* format, ...)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> WebStream::Write(const uint8_t* Data, size_t Length)
+		expects_io<size_t> web_stream::write(const uint8_t* data, size_t length)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> WebStream::Tell()
+		expects_io<size_t> web_stream::tell()
 		{
-			VI_TRACE("[ws] fd %i tell", GetReadableFd());
-			return Offset;
+			VI_TRACE("[ws] fd %i tell", get_readable_fd());
+			return offset;
 		}
-		socket_t WebStream::GetReadableFd() const
+		socket_t web_stream::get_readable_fd() const
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			return ((Network::HTTP::Client*)OutputStream)->GetStream()->GetFd();
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			return ((network::http::client*)output_stream)->get_stream()->get_fd();
 		}
-		socket_t WebStream::GetWriteableFd() const
+		socket_t web_stream::get_writeable_fd() const
 		{
 #ifndef INVALID_SOCKET
 			return (socket_t)-1;
@@ -8044,800 +8044,800 @@ namespace Vitex
 			return INVALID_SOCKET;
 #endif
 		}
-		void* WebStream::GetReadable() const
+		void* web_stream::get_readable() const
 		{
-			return OutputStream;
+			return output_stream;
 		}
-		void* WebStream::GetWriteable() const
+		void* web_stream::get_writeable() const
 		{
 			return nullptr;
 		}
-		bool WebStream::IsSized() const
+		bool web_stream::is_sized() const
 		{
 			return true;
 		}
 
-		ProcessStream::ProcessStream() noexcept : OutputStream(nullptr), InputFd(-1), ExitCode(-1)
+		process_stream::process_stream() noexcept : output_stream(nullptr), input_fd(-1), exit_code(-1)
 		{
 		}
-		ProcessStream::~ProcessStream() noexcept
+		process_stream::~process_stream() noexcept
 		{
-			Close();
+			close();
 		}
-		ExpectsIO<void> ProcessStream::Clear()
+		expects_io<void> process_stream::clear()
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<void> ProcessStream::Open(const std::string_view& File, FileMode Mode)
+		expects_io<void> process_stream::open(const std::string_view& file, file_mode mode)
 		{
-			VI_ASSERT(!File.empty(), "command should be set");
-			auto Result = Close();
-			if (!Result)
-				return Result;
-			else if (!OS::Control::Has(AccessOption::Shell))
+			VI_ASSERT(!file.empty(), "command should be set");
+			auto result = close();
+			if (!result)
+				return result;
+			else if (!os::control::has(access_option::shell))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			bool Readable = false;
-			bool Writeable = false;
-			switch (Mode)
+			bool readable = false;
+			bool writeable = false;
+			switch (mode)
 			{
-				case FileMode::Read_Only:
-				case FileMode::Binary_Read_Only:
-					Readable = true;
+				case file_mode::read_only:
+				case file_mode::binary_read_only:
+					readable = true;
 					break;
-				case FileMode::Write_Only:
-				case FileMode::Binary_Write_Only:
-				case FileMode::Append_Only:
-				case FileMode::Binary_Append_Only:
-					Writeable = true;
+				case file_mode::write_only:
+				case file_mode::binary_write_only:
+				case file_mode::append_only:
+				case file_mode::binary_append_only:
+					writeable = true;
 					break;
-				case FileMode::Read_Write:
-				case FileMode::Binary_Read_Write:
-				case FileMode::Write_Read:
-				case FileMode::Binary_Write_Read:
-				case FileMode::Read_Append_Write:
-				case FileMode::Binary_Read_Append_Write:
-					Readable = true;
-					Writeable = true;
+				case file_mode::read_write:
+				case file_mode::binary_read_write:
+				case file_mode::write_read:
+				case file_mode::binary_write_read:
+				case file_mode::read_append_write:
+				case file_mode::binary_read_append_write:
+					readable = true;
+					writeable = true;
 					break;
 				default:
 					break;
 			}
 
-			VI_PANIC(Readable || Writeable, "file open cannot be issued with mode:%i", (int)Mode);
-			Internal.ErrorExitCode = Compute::Crypto::Random() % std::numeric_limits<int>::max();
-			auto Shell = OS::Process::GetShell();
-			if (!Shell)
-				return Shell.Error();
+			VI_PANIC(readable || writeable, "file open cannot be issued with mode:%i", (int)mode);
+			internal.error_exit_code = compute::crypto::random() % std::numeric_limits<int>::max();
+			auto shell = os::process::get_shell();
+			if (!shell)
+				return shell.error();
 #ifdef VI_MICROSOFT
-			SECURITY_ATTRIBUTES PipePolicy = { 0 };
-			PipePolicy.nLength = sizeof(SECURITY_ATTRIBUTES);
-			PipePolicy.lpSecurityDescriptor = nullptr;
-			PipePolicy.bInheritHandle = TRUE;
+			SECURITY_ATTRIBUTES pipe_policy = { 0 };
+			pipe_policy.nLength = sizeof(SECURITY_ATTRIBUTES);
+			pipe_policy.lpSecurityDescriptor = nullptr;
+			pipe_policy.bInheritHandle = TRUE;
 
-			HANDLE OutputReadable = nullptr, OutputWriteable = nullptr;
-			if (Readable)
+			HANDLE output_readable = nullptr, output_writeable = nullptr;
+			if (readable)
 			{
-				if (CreatePipe(&OutputReadable, &OutputWriteable, &PipePolicy, 0) == FALSE)
+				if (CreatePipe(&output_readable, &output_writeable, &pipe_policy, 0) == FALSE)
 				{
-				OutputError:
-					auto Condition = OS::Error::GetConditionOr();
-					if (OutputReadable != nullptr && OutputReadable != INVALID_HANDLE_VALUE)
-						CloseHandle(OutputReadable);
-					if (OutputWriteable != nullptr && OutputWriteable != INVALID_HANDLE_VALUE)
-						CloseHandle(OutputWriteable);
-					OutputStream = nullptr;
-					return Condition;
+				output_error:
+					auto condition = os::error::get_condition_or();
+					if (output_readable != nullptr && output_readable != INVALID_HANDLE_VALUE)
+						CloseHandle(output_readable);
+					if (output_writeable != nullptr && output_writeable != INVALID_HANDLE_VALUE)
+						CloseHandle(output_writeable);
+					output_stream = nullptr;
+					return condition;
 				}
 
-				OutputStream = _fdopen(_open_osfhandle((intptr_t)OutputReadable, _O_RDONLY | _O_BINARY), "rb");
-				if (!OutputStream)
-					goto OutputError;
+				output_stream = _fdopen(_open_osfhandle((intptr_t)output_readable, _O_RDONLY | _O_BINARY), "rb");
+				if (!output_stream)
+					goto output_error;
 
-				VI_DEBUG("[sh] open ro:pipe fd %i", VI_FILENO(OutputStream));
+				VI_DEBUG("[sh] open ro:pipe fd %i", VI_FILENO(output_stream));
 			}
 
-			HANDLE InputReadable = nullptr, InputWriteable = nullptr;
-			if (Writeable)
+			HANDLE input_readable = nullptr, input_writeable = nullptr;
+			if (writeable)
 			{
-				if (CreatePipe(&InputReadable, &InputWriteable, &PipePolicy, 0) == FALSE)
+				if (CreatePipe(&input_readable, &input_writeable, &pipe_policy, 0) == FALSE)
 				{
-				InputError:
-					auto Condition = OS::Error::GetConditionOr();
-					if (OutputReadable != nullptr && OutputReadable != INVALID_HANDLE_VALUE)
-						CloseHandle(OutputReadable);
-					if (OutputWriteable != nullptr && OutputWriteable != INVALID_HANDLE_VALUE)
-						CloseHandle(OutputWriteable);
-					if (InputReadable != nullptr && InputReadable != INVALID_HANDLE_VALUE)
-						CloseHandle(InputReadable);
-					if (InputWriteable != nullptr && InputWriteable != INVALID_HANDLE_VALUE)
-						CloseHandle(InputWriteable);
-					OutputStream = nullptr;
-					InputFd = -1;
-					return Condition;
+				input_error:
+					auto condition = os::error::get_condition_or();
+					if (output_readable != nullptr && output_readable != INVALID_HANDLE_VALUE)
+						CloseHandle(output_readable);
+					if (output_writeable != nullptr && output_writeable != INVALID_HANDLE_VALUE)
+						CloseHandle(output_writeable);
+					if (input_readable != nullptr && input_readable != INVALID_HANDLE_VALUE)
+						CloseHandle(input_readable);
+					if (input_writeable != nullptr && input_writeable != INVALID_HANDLE_VALUE)
+						CloseHandle(input_writeable);
+					output_stream = nullptr;
+					input_fd = -1;
+					return condition;
 				}
 
-				InputFd = _open_osfhandle((intptr_t)InputWriteable, _O_WRONLY | _O_BINARY);
-				if (InputFd < 0)
-					goto InputError;
+				input_fd = _open_osfhandle((intptr_t)input_writeable, _O_WRONLY | _O_BINARY);
+				if (input_fd < 0)
+					goto input_error;
 
-				VI_DEBUG("[sh] open wo:pipe fd %i", InputFd);
+				VI_DEBUG("[sh] open wo:pipe fd %i", input_fd);
 			}
 
-			STARTUPINFO StartupPolicy;
-			ZeroMemory(&StartupPolicy, sizeof(STARTUPINFO));
-			StartupPolicy.cb = sizeof(STARTUPINFO);
-			StartupPolicy.hStdError = OutputWriteable;
-			StartupPolicy.hStdOutput = OutputWriteable;
-			StartupPolicy.hStdInput = InputReadable;
-			StartupPolicy.dwFlags |= STARTF_USESTDHANDLES;
+			STARTUPINFO startup_policy;
+			ZeroMemory(&startup_policy, sizeof(STARTUPINFO));
+			startup_policy.cb = sizeof(STARTUPINFO);
+			startup_policy.hStdError = output_writeable;
+			startup_policy.hStdOutput = output_writeable;
+			startup_policy.hStdInput = input_readable;
+			startup_policy.dwFlags |= STARTF_USESTDHANDLES;
 
-			String Executable = "/c ";
-			Executable += File;
+			string executable = "/c ";
+			executable += file;
 
-			PROCESS_INFORMATION ProcessInfo = { 0 };
-			if (CreateProcessA(Shell->c_str(), (LPSTR)Executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &StartupPolicy, &ProcessInfo) == FALSE)
-				goto InputError;
+			PROCESS_INFORMATION process_info = { 0 };
+			if (CreateProcessA(shell->c_str(), (LPSTR)executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup_policy, &process_info) == FALSE)
+				goto input_error;
 
-			VI_DEBUG("[sh] spawn piped process pid %i (tid = %i)", (int)ProcessInfo.dwProcessId, (int)ProcessInfo.dwThreadId);
-			Internal.OutputPipe = OutputReadable;
-			Internal.InputPipe = InputWriteable;
-			Internal.Process = ProcessInfo.hProcess;
-			Internal.Thread = ProcessInfo.hThread;
-			Internal.ProcessId = (socket_t)ProcessInfo.dwProcessId;
-			Internal.ThreadId = (socket_t)ProcessInfo.dwThreadId;
-			if (OutputWriteable != nullptr && OutputWriteable != INVALID_HANDLE_VALUE)
-				CloseHandle(OutputWriteable);
-			if (InputReadable != nullptr && InputReadable != INVALID_HANDLE_VALUE)
-				CloseHandle(InputReadable);
+			VI_DEBUG("[sh] spawn piped process pid %i (tid = %i)", (int)process_info.dwProcessId, (int)process_info.dwThreadId);
+			internal.output_pipe = output_readable;
+			internal.input_pipe = input_writeable;
+			internal.process = process_info.hProcess;
+			internal.thread = process_info.hThread;
+			internal.process_id = (socket_t)process_info.dwProcessId;
+			internal.thread_id = (socket_t)process_info.dwThreadId;
+			if (output_writeable != nullptr && output_writeable != INVALID_HANDLE_VALUE)
+				CloseHandle(output_writeable);
+			if (input_readable != nullptr && input_readable != INVALID_HANDLE_VALUE)
+				CloseHandle(input_readable);
 #else
-			int OutputPipe[2] = { 0, 0 };
-			if (Readable)
+			int output_pipe[2] = { 0, 0 };
+			if (readable)
 			{
-				if (pipe(OutputPipe) != 0)
+				if (pipe(output_pipe) != 0)
 				{
-				OutputError:
-					auto Condition = OS::Error::GetConditionOr();
-					if (OutputPipe[0] > 0)
-						close(OutputPipe[0]);
-					if (OutputPipe[1] > 0)
-						close(OutputPipe[1]);
-					if (OutputStream != nullptr)
-						fclose(OutputStream);
-					return Condition;
+				output_error:
+					auto condition = os::error::get_condition_or();
+					if (output_pipe[0] > 0)
+						::close(output_pipe[0]);
+					if (output_pipe[1] > 0)
+						::close(output_pipe[1]);
+					if (output_stream != nullptr)
+						fclose(output_stream);
+					return condition;
 				}
 
-				OutputStream = fdopen(OutputPipe[0], "r");
-				if (!OutputStream)
-					goto OutputError;
+				output_stream = fdopen(output_pipe[0], "r");
+				if (!output_stream)
+					goto output_error;
 
-				VI_DEBUG("[sh] open readable ro:pipe fd %i", VI_FILENO(OutputStream));
+				VI_DEBUG("[sh] open readable ro:pipe fd %i", VI_FILENO(output_stream));
 			}
 
-			int InputPipe[2] = { 0, 0 };
-			if (Writeable)
+			int input_pipe[2] = { 0, 0 };
+			if (writeable)
 			{
-				if (pipe(InputPipe) != 0)
+				if (pipe(input_pipe) != 0)
 				{
-				InputError:
-					auto Condition = OS::Error::GetConditionOr();
-					if (OutputPipe[0] > 0)
-						close(OutputPipe[0]);
-					if (OutputPipe[1] > 0)
-						close(OutputPipe[1]);
-					if (OutputStream != nullptr)
-						fclose(OutputStream);
-					if (InputPipe[0] > 0)
-						close(InputPipe[0]);
-					if (InputPipe[1] > 0)
-						close(InputPipe[1]);
-					return Condition;
+				input_error:
+					auto condition = os::error::get_condition_or();
+					if (output_pipe[0] > 0)
+						::close(output_pipe[0]);
+					if (output_pipe[1] > 0)
+						::close(output_pipe[1]);
+					if (output_stream != nullptr)
+						fclose(output_stream);
+					if (input_pipe[0] > 0)
+						::close(input_pipe[0]);
+					if (input_pipe[1] > 0)
+						::close(input_pipe[1]);
+					return condition;
 				}
 
-				InputFd = InputPipe[1];
-				VI_DEBUG("[sh] open writeable wo:pipe fd %i", InputFd);
+				input_fd = input_pipe[1];
+				VI_DEBUG("[sh] open writeable wo:pipe fd %i", input_fd);
 			}
 
-			pid_t ProcessId = fork();
-			if (ProcessId < 0)
-				goto InputError;
+			pid_t process_id = fork();
+			if (process_id < 0)
+				goto input_error;
 
-			String Executable = String(File);
-			int ErrorExitCode = Internal.ErrorExitCode;
-			if (ProcessId == 0)
+			string executable = string(file);
+			int error_exit_code = internal.error_exit_code;
+			if (process_id == 0)
 			{
-				if (!Readable)
-					OutputPipe[0] = open("/dev/null", O_WRONLY | O_CREAT, 0666);
+				if (!readable)
+					output_pipe[0] = ::open("/dev/null", O_WRONLY | O_CREAT, 0666);
 				else
-					close(OutputPipe[1]);
+					::close(output_pipe[1]);
 
-				if (!Writeable)
-					InputPipe[1] = open("/dev/null", O_RDONLY | O_CREAT, 0666);
+				if (!writeable)
+					input_pipe[1] = ::open("/dev/null", O_RDONLY | O_CREAT, 0666);
 				else
-					close(InputPipe[0]);
+					::close(input_pipe[0]);
 
-				dup2(OutputPipe[0], 0);
-				dup2(InputPipe[1], 1);
-				execl(Shell->c_str(), "sh", "-c", Executable.c_str(), NULL);
-				exit(ErrorExitCode);
+				dup2(output_pipe[0], 0);
+				dup2(input_pipe[1], 1);
+				execl(shell->c_str(), "sh", "-c", executable.c_str(), NULL);
+				exit(error_exit_code);
 				return std::make_error_condition(std::errc::broken_pipe);
 			}
 			else
 			{
-				VI_DEBUG("[sh] spawn piped process pid %i", (int)ProcessId);
-				Internal.OutputPipe = (void*)(uintptr_t)OutputPipe[1];
-				Internal.InputPipe = (void*)(uintptr_t)InputPipe[0];
-				Internal.Process = (void*)(uintptr_t)ProcessId;
-				Internal.Thread = (void*)(uintptr_t)ProcessId;
-				Internal.ProcessId = (socket_t)ProcessId;
-				Internal.ThreadId = (socket_t)ProcessId;
-				if (OutputPipe[0] > 0)
-					close(OutputPipe[0]);
-				if (InputPipe[1] > 0)
-					close(InputPipe[1]);
+				VI_DEBUG("[sh] spawn piped process pid %i", (int)process_id);
+				internal.output_pipe = (void*)(uintptr_t)output_pipe[1];
+				internal.input_pipe = (void*)(uintptr_t)input_pipe[0];
+				internal.process = (void*)(uintptr_t)process_id;
+				internal.thread = (void*)(uintptr_t)process_id;
+				internal.process_id = (socket_t)process_id;
+				internal.thread_id = (socket_t)process_id;
+				if (output_pipe[0] > 0)
+					::close(output_pipe[0]);
+				if (input_pipe[1] > 0)
+					::close(input_pipe[1]);
 			}
 #endif
-			OpenVirtual(String(File));
-			return Expectation::Met;
+			open_virtual(string(file));
+			return expectation::met;
 		}
-		ExpectsIO<void> ProcessStream::Close()
+		expects_io<void> process_stream::close()
 		{
-			CloseVirtual();
+			close_virtual();
 #ifdef VI_MICROSOFT
-			if (Internal.Thread != nullptr)
+			if (internal.thread != nullptr)
 			{
-				VI_TRACE("[sh] close thread tid %i (wait)", (int)Internal.ThreadId);
-				WaitForSingleObject((HANDLE)Internal.Thread, INFINITE);
-				CloseHandle((HANDLE)Internal.Thread);
+				VI_TRACE("[sh] close thread tid %i (wait)", (int)internal.thread_id);
+				WaitForSingleObject((HANDLE)internal.thread, INFINITE);
+				CloseHandle((HANDLE)internal.thread);
 			}
-			if (Internal.Process != nullptr)
+			if (internal.process != nullptr)
 			{
-				VI_DEBUG("[sh] close process pid %i (wait)", (int)Internal.ThreadId);
-				WaitForSingleObject((HANDLE)Internal.Process, INFINITE);
+				VI_DEBUG("[sh] close process pid %i (wait)", (int)internal.thread_id);
+				WaitForSingleObject((HANDLE)internal.process, INFINITE);
 
-				DWORD StatusCode = 0;
-				if (GetExitCodeProcess((HANDLE)Internal.Process, &StatusCode) == TRUE)
-					ExitCode = (int)StatusCode;
+				DWORD status_code = 0;
+				if (GetExitCodeProcess((HANDLE)internal.process, &status_code) == TRUE)
+					exit_code = (int)status_code;
 
-				CloseHandle((HANDLE)Internal.Process);
+				CloseHandle((HANDLE)internal.process);
 			}
 #else
-			if (Internal.Process != nullptr)
+			if (internal.process != nullptr)
 			{
-				VI_DEBUG("[sh] close process pid %i (wait)", (int)Internal.ThreadId);
-				waitpid((pid_t)(uintptr_t)Internal.Process, &ExitCode, 0);
+				VI_DEBUG("[sh] close process pid %i (wait)", (int)internal.thread_id);
+				waitpid((pid_t)(uintptr_t)internal.process, &exit_code, 0);
 			}
 #endif
-			if (OutputStream != nullptr)
+			if (output_stream != nullptr)
 			{
-				OS::File::Close(OutputStream);
-				OutputStream = nullptr;
+				os::file::close(output_stream);
+				output_stream = nullptr;
 			}
-			if (InputFd > 0)
+			if (input_fd > 0)
 			{
-				VI_DEBUG("[sh] close fd %i", InputFd);
-				close(InputFd);
-				InputFd = -1;
+				VI_DEBUG("[sh] close fd %i", input_fd);
+				::close(input_fd);
+				input_fd = -1;
 			}
-			memset(&Internal, 0, sizeof(Internal));
-			return Expectation::Met;
+			memset(&internal, 0, sizeof(internal));
+			return expectation::met;
 		}
-		ExpectsIO<void> ProcessStream::Seek(FileSeek Mode, int64_t Offset)
+		expects_io<void> process_stream::seek(file_seek mode, int64_t offset)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<void> ProcessStream::Flush()
+		expects_io<void> process_stream::flush()
 		{
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<size_t> ProcessStream::ReadScan(const char* Format, ...)
+		expects_io<size_t> process_stream::read_scan(const char* format, ...)
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			VI_ASSERT(Format != nullptr, "format should be set");
-			VI_MEASURE(Timings::FileSystem);
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			VI_ASSERT(format != nullptr, "format should be set");
+			VI_MEASURE(timings::file_system);
 
-			va_list Args;
-			va_start(Args, Format);
-			int Value = vfscanf(OutputStream, Format, Args);
-			VI_TRACE("[sh] fd %i scan %i bytes", GetReadableFd(), Value);
-			va_end(Args);
-			if (Value >= 0)
-				return (size_t)Value;
+			va_list args;
+			va_start(args, format);
+			int value = vfscanf(output_stream, format, args);
+			VI_TRACE("[sh] fd %i scan %i bytes", get_readable_fd(), value);
+			va_end(args);
+			if (value >= 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> ProcessStream::ReadLine(char* Data, size_t Length)
+		expects_io<size_t> process_stream::read_line(char* data, size_t length)
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[sh] fd %i readln %i bytes", GetReadableFd(), (int)Length);
-			return fgets(Data, (int)Length, OutputStream) ? strnlen(Data, Length) : 0;
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[sh] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			return fgets(data, (int)length, output_stream) ? strnlen(data, length) : 0;
 		}
-		ExpectsIO<size_t> ProcessStream::Read(uint8_t* Data, size_t Length)
+		expects_io<size_t> process_stream::read(uint8_t* data, size_t length)
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[sh] fd %i read %i bytes", GetReadableFd(), (int)Length);
-			size_t Value = fread(Data, 1, Length, OutputStream);
-			if (Value > 0 || feof(OutputStream) != 0)
-				return (size_t)Value;
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[sh] fd %i read %i bytes", get_readable_fd(), (int)length);
+			size_t value = fread(data, 1, length, output_stream);
+			if (value > 0 || feof(output_stream) != 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> ProcessStream::WriteFormat(const char* Format, ...)
+		expects_io<size_t> process_stream::write_format(const char* format, ...)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		ExpectsIO<size_t> ProcessStream::Write(const uint8_t* Data, size_t Length)
+		expects_io<size_t> process_stream::write(const uint8_t* data, size_t length)
 		{
-			VI_ASSERT(InputFd > 0, "file should be opened");
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[sh] fd %i write %i bytes", GetWriteableFd(), (int)Length);
-			int Value = (int)write(InputFd, Data, Length);
-			if (Value >= 0)
-				return (size_t)Value;
+			VI_ASSERT(input_fd > 0, "file should be opened");
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[sh] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			int value = (int)::write(input_fd, data, length);
+			if (value >= 0)
+				return (size_t)value;
 
-			return OS::Error::GetConditionOr(std::errc::broken_pipe);
+			return os::error::get_condition_or(std::errc::broken_pipe);
 		}
-		ExpectsIO<size_t> ProcessStream::Tell()
+		expects_io<size_t> process_stream::tell()
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			VI_MEASURE(Timings::FileSystem);
-			return OS::File::Tell64(OutputStream);
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			VI_MEASURE(timings::file_system);
+			return os::file::tell64(output_stream);
 		}
-		socket_t ProcessStream::GetProcessId() const
+		socket_t process_stream::get_process_id() const
 		{
-			return Internal.ProcessId;
+			return internal.process_id;
 		}
-		socket_t ProcessStream::GetThreadId() const
+		socket_t process_stream::get_thread_id() const
 		{
-			return Internal.ThreadId;
+			return internal.thread_id;
 		}
-		socket_t ProcessStream::GetReadableFd() const
+		socket_t process_stream::get_readable_fd() const
 		{
-			VI_ASSERT(OutputStream != nullptr, "file should be opened");
-			return (socket_t)VI_FILENO(OutputStream);
+			VI_ASSERT(output_stream != nullptr, "file should be opened");
+			return (socket_t)VI_FILENO(output_stream);
 		}
-		socket_t ProcessStream::GetWriteableFd() const
+		socket_t process_stream::get_writeable_fd() const
 		{
-			return (socket_t)InputFd;
+			return (socket_t)input_fd;
 		}
-		void* ProcessStream::GetReadable() const
+		void* process_stream::get_readable() const
 		{
-			return OutputStream;
+			return output_stream;
 		}
-		void* ProcessStream::GetWriteable() const
+		void* process_stream::get_writeable() const
 		{
-			return (void*)(uintptr_t)InputFd;
+			return (void*)(uintptr_t)input_fd;
 		}
-		bool ProcessStream::IsSized() const
+		bool process_stream::is_sized() const
 		{
 			return false;
 		}
-		bool ProcessStream::IsAlive()
+		bool process_stream::is_alive()
 		{
-			if (!Internal.Process)
+			if (!internal.process)
 				return false;
 #ifdef VI_MICROSOFT
-			return WaitForSingleObject((HANDLE)Internal.Process, 0) == WAIT_TIMEOUT;
+			return WaitForSingleObject((HANDLE)internal.process, 0) == WAIT_TIMEOUT;
 #else
-			return waitpid((pid_t)(uintptr_t)Internal.Process, &ExitCode, WNOHANG) == 0;
+			return waitpid((pid_t)(uintptr_t)internal.process, &exit_code, WNOHANG) == 0;
 #endif
 		}
-		int ProcessStream::GetExitCode() const
+		int process_stream::get_exit_code() const
 		{
-			return ExitCode;
+			return exit_code;
 		}
 
-		FileTree::FileTree(const std::string_view& Folder) noexcept
+		file_tree::file_tree(const std::string_view& folder) noexcept
 		{
-			auto Target = OS::Path::Resolve(Folder);
-			if (!Target)
+			auto target = os::path::resolve(folder);
+			if (!target)
 				return;
 
-			Vector<std::pair<String, FileEntry>> Entries;
-			if (!OS::Directory::Scan(Target->c_str(), Entries))
+			vector<std::pair<string, file_entry>> entries;
+			if (!os::directory::scan(target->c_str(), entries))
 				return;
-				
-			Directories.reserve(Entries.size());
-			Files.reserve(Entries.size());
-			Path = *Target;
-				
-			for (auto& Item : Entries)
+
+			directories.reserve(entries.size());
+			files.reserve(entries.size());
+			path = *target;
+
+			for (auto& item : entries)
 			{
-				if (Item.second.IsDirectory)
-					Directories.push_back(new FileTree(*Target + VI_SPLITTER + Item.first));
+				if (item.second.is_directory)
+					directories.push_back(new file_tree(*target + VI_SPLITTER + item.first));
 				else
-					Files.emplace_back(std::move(Item.first));
+					files.emplace_back(std::move(item.first));
 			}
 		}
-		FileTree::~FileTree() noexcept
+		file_tree::~file_tree() noexcept
 		{
-			for (auto& Directory : Directories)
-				Memory::Release(Directory);
+			for (auto& directory : directories)
+				memory::release(directory);
 		}
-		void FileTree::Loop(const std::function<bool(const FileTree*)>& Callback) const
+		void file_tree::loop(const std::function<bool(const file_tree*)>& callback) const
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Callback(this))
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!callback(this))
 				return;
 
-			for (auto& Directory : Directories)
-				Directory->Loop(Callback);
+			for (auto& directory : directories)
+				directory->loop(callback);
 		}
-		const FileTree* FileTree::Find(const std::string_view& V) const
+		const file_tree* file_tree::find(const std::string_view& v) const
 		{
-			if (Path == V)
+			if (path == v)
 				return this;
 
-			for (const auto& Directory : Directories)
+			for (const auto& directory : directories)
 			{
-				const FileTree* Ref = Directory->Find(V);
-				if (Ref != nullptr)
-					return Ref;
+				const file_tree* ref = directory->find(v);
+				if (ref != nullptr)
+					return ref;
 			}
 
 			return nullptr;
 		}
-		size_t FileTree::GetFiles() const
+		size_t file_tree::get_files() const
 		{
-			size_t Count = Files.size();
-			for (auto& Directory : Directories)
-				Count += Directory->GetFiles();
+			size_t count = files.size();
+			for (auto& directory : directories)
+				count += directory->get_files();
 
-			return Count;
+			return count;
 		}
 
-		InlineArgs::InlineArgs() noexcept
+		inline_args::inline_args() noexcept
 		{
 		}
-		bool InlineArgs::IsEnabled(const std::string_view& Option, const std::string_view& Shortcut) const
+		bool inline_args::is_enabled(const std::string_view& option, const std::string_view& shortcut) const
 		{
-			auto It = Args.find(KeyLookupCast(Option));
-			if (It == Args.end() || !IsTrue(It->second))
-				return Shortcut.empty() ? false : IsEnabled(Shortcut);
+			auto it = args.find(key_lookup_cast(option));
+			if (it == args.end() || !is_true(it->second))
+				return shortcut.empty() ? false : is_enabled(shortcut);
 
 			return true;
 		}
-		bool InlineArgs::IsDisabled(const std::string_view& Option, const std::string_view& Shortcut) const
+		bool inline_args::is_disabled(const std::string_view& option, const std::string_view& shortcut) const
 		{
-			auto It = Args.find(KeyLookupCast(Option));
-			if (It == Args.end())
-				return Shortcut.empty() ? true : IsDisabled(Shortcut);
+			auto it = args.find(key_lookup_cast(option));
+			if (it == args.end())
+				return shortcut.empty() ? true : is_disabled(shortcut);
 
-			return IsFalse(It->second);
+			return is_false(it->second);
 		}
-		bool InlineArgs::Has(const std::string_view& Option, const std::string_view& Shortcut) const
+		bool inline_args::has(const std::string_view& option, const std::string_view& shortcut) const
 		{
-			if (Args.find(KeyLookupCast(Option)) != Args.end())
+			if (args.find(key_lookup_cast(option)) != args.end())
 				return true;
 
-			return Shortcut.empty() ? false : Args.find(KeyLookupCast(Shortcut)) != Args.end();
+			return shortcut.empty() ? false : args.find(key_lookup_cast(shortcut)) != args.end();
 		}
-		String& InlineArgs::Get(const std::string_view& Option, const std::string_view& Shortcut)
+		string& inline_args::get(const std::string_view& option, const std::string_view& shortcut)
 		{
-			auto It = Args.find(KeyLookupCast(Option));
-			if (It != Args.end())
-				return It->second;
-			else if (Shortcut.empty())
-				return Args[String(Option)];
+			auto it = args.find(key_lookup_cast(option));
+			if (it != args.end())
+				return it->second;
+			else if (shortcut.empty())
+				return args[string(option)];
 
-			It = Args.find(KeyLookupCast(Shortcut));
-			if (It != Args.end())
-				return It->second;
-			
-			return Args[String(Shortcut)];
+			it = args.find(key_lookup_cast(shortcut));
+			if (it != args.end())
+				return it->second;
+
+			return args[string(shortcut)];
 		}
-		String& InlineArgs::GetIf(const std::string_view& Option, const std::string_view& Shortcut, const std::string_view& WhenEmpty)
+		string& inline_args::get_if(const std::string_view& option, const std::string_view& shortcut, const std::string_view& when_empty)
 		{
-			auto It = Args.find(KeyLookupCast(Option));
-			if (It != Args.end())
-				return It->second;
+			auto it = args.find(key_lookup_cast(option));
+			if (it != args.end())
+				return it->second;
 
-			if (!Shortcut.empty())
+			if (!shortcut.empty())
 			{
-				It = Args.find(KeyLookupCast(Shortcut));
-				if (It != Args.end())
-					return It->second;
+				it = args.find(key_lookup_cast(shortcut));
+				if (it != args.end())
+					return it->second;
 			}
 
-			String& Value = Args[String(Option)];
-			Value = WhenEmpty;
-			return Value;
+			string& value = args[string(option)];
+			value = when_empty;
+			return value;
 		}
-		bool InlineArgs::IsTrue(const std::string_view& Value) const
+		bool inline_args::is_true(const std::string_view& value) const
 		{
-			if (Value.empty())
+			if (value.empty())
 				return false;
 
-			auto MaybeNumber = FromString<uint64_t>(Value);
-			if (MaybeNumber && *MaybeNumber > 0)
+			auto maybe_number = from_string<uint64_t>(value);
+			if (maybe_number && *maybe_number > 0)
 				return true;
 
-			String Data(Value);
-			Stringify::ToLower(Data);
-			return Data == "on" || Data == "true" || Data == "yes" || Data == "y";
+			string data(value);
+			stringify::to_lower(data);
+			return data == "on" || data == "true" || data == "yes" || data == "y";
 		}
-		bool InlineArgs::IsFalse(const std::string_view& Value) const
+		bool inline_args::is_false(const std::string_view& value) const
 		{
-			if (Value.empty())
+			if (value.empty())
 				return true;
 
-			auto MaybeNumber = FromString<uint64_t>(Value);
-			if (MaybeNumber && *MaybeNumber > 0)
+			auto maybe_number = from_string<uint64_t>(value);
+			if (maybe_number && *maybe_number > 0)
 				return false;
 
-			String Data(Value);
-			Stringify::ToLower(Data);
-			return Data == "off" || Data == "false" || Data == "no" || Data == "n";
+			string data(value);
+			stringify::to_lower(data);
+			return data == "off" || data == "false" || data == "no" || data == "n";
 		}
 
-		OS::CPU::QuantityInfo OS::CPU::GetQuantityInfo()
+		os::hw::quantity_info os::hw::get_quantity_info()
 		{
-			QuantityInfo Result{};
+			quantity_info result { };
 #ifdef VI_MICROSOFT
-			for (auto&& Info : CPUInfoBuffer())
+			for (auto&& info : cpu_info_buffer())
 			{
-				switch (Info.Relationship)
+				switch (info.Relationship)
 				{
 					case RelationProcessorCore:
-						++Result.Physical;
-						Result.Logical += static_cast<std::uint32_t>(std::bitset<sizeof(ULONG_PTR) * 8>(static_cast<std::uintptr_t>(Info.ProcessorMask)).count());
+						++result.physical;
+						result.logical += static_cast<std::uint32_t>(std::bitset<sizeof(ULONG_PTR) * 8>(static_cast<std::uintptr_t>(info.ProcessorMask)).count());
 						break;
 					case RelationProcessorPackage:
-						++Result.Packages;
+						++result.packages;
 						break;
 					default:
 						break;
 				}
 			}
 #elif VI_APPLE
-			const auto CtlThreadData = SysControl("machdep.cpu.thread_count");
-			if (!CtlThreadData.empty())
+			const auto ctl_thread_data = sys_control("machdep.cpu.thread_count");
+			if (!ctl_thread_data.empty())
 			{
-				const auto ThreadData = SysExtract(CtlThreadData);
-				if (ThreadData.first)
-					Result.Logical = (uint32_t)ThreadData.second;
+				const auto thread_data = sys_extract(ctl_thread_data);
+				if (thread_data.first)
+					result.logical = (uint32_t)thread_data.second;
 			}
 
-			const auto CtlCoreData = SysControl("machdep.cpu.core_count");
-			if (!CtlCoreData.empty())
+			const auto ctl_core_data = sys_control("machdep.cpu.core_count");
+			if (!ctl_core_data.empty())
 			{
-				const auto CoreData = SysExtract(CtlCoreData);
-				if (CoreData.first)
-					Result.Physical = (uint32_t)CoreData.second;
+				const auto core_data = sys_extract(ctl_core_data);
+				if (core_data.first)
+					result.physical = (uint32_t)core_data.second;
 			}
 
-			const auto CtlPackagesData = SysControl("hw.packages");
-			if (!CtlPackagesData.empty())
+			const auto ctl_packages_data = sys_control("hw.packages");
+			if (!ctl_packages_data.empty())
 			{
-				const auto PackagesData = SysExtract(CtlPackagesData);
-				if (PackagesData.first)
-					Result.Packages = (uint32_t)PackagesData.second;
+				const auto packages_data = sys_extract(ctl_packages_data);
+				if (packages_data.first)
+					result.packages = (uint32_t)packages_data.second;
 			}
 #else
-			Result.Logical = sysconf(_SC_NPROCESSORS_ONLN);
-			std::ifstream Info("/proc/cpuinfo");
+			result.logical = sysconf(_SC_NPROCESSORS_ONLN);
+			std::ifstream info("/proc/cpuinfo");
 
-			if (!Info.is_open() || !Info)
-				return Result;
+			if (!info.is_open() || !info)
+				return result;
 
-			Vector<uint32_t> Packages;
-			for (String Line; std::getline(Info, Line);)
+			vector<uint32_t> packages;
+			for (string line; std::getline(info, line);)
 			{
-				if (Line.find("physical id") == 0)
+				if (line.find("physical id") == 0)
 				{
-					const auto PhysicalId = std::strtoul(Line.c_str() + Line.find_first_of("1234567890"), nullptr, 10);
-					if (std::find(Packages.begin(), Packages.end(), PhysicalId) == Packages.end())
-						Packages.emplace_back(PhysicalId);
+					const auto physical_id = std::strtoul(line.c_str() + line.find_first_of("1234567890"), nullptr, 10);
+					if (std::find(packages.begin(), packages.end(), physical_id) == packages.end())
+						packages.emplace_back(physical_id);
 				}
 			}
 
-			Result.Packages = Packages.size();
-			Result.Physical = Result.Logical / Result.Packages;
+			result.packages = packages.size();
+			result.physical = result.logical / result.packages;
 #endif
-			return Result;
+			return result;
 		}
-		OS::CPU::CacheInfo OS::CPU::GetCacheInfo(uint32_t Level)
+		os::hw::cache_info os::hw::get_cache_info(uint32_t level)
 		{
 #ifdef VI_MICROSOFT
-			for (auto&& Info : CPUInfoBuffer())
+			for (auto&& info : cpu_info_buffer())
 			{
-				if (Info.Relationship != RelationCache || Info.Cache.Level != Level)
+				if (info.Relationship != RelationCache || info.Cache.Level != level)
 					continue;
 
-				Cache Type{};
-				switch (Info.Cache.Type)
+				cache type { };
+				switch (info.Cache.Type)
 				{
 					case CacheUnified:
-						Type = Cache::Unified;
+						type = cache::unified;
 						break;
 					case CacheInstruction:
-						Type = Cache::Instruction;
+						type = cache::instruction;
 						break;
 					case CacheData:
-						Type = Cache::Data;
+						type = cache::data;
 						break;
 					case CacheTrace:
-						Type = Cache::Trace;
+						type = cache::trace;
 						break;
 				}
 
-				return { Info.Cache.Size, Info.Cache.LineSize, Info.Cache.Associativity, Type };
+				return { info.Cache.Size, info.Cache.LineSize, info.Cache.Associativity, type };
 			}
 
-			return {};
+			return { };
 #elif VI_APPLE
-			static const char* SizeKeys[][3]{ {}, {"hw.l1icachesize", "hw.l1dcachesize", "hw.l1cachesize"}, {"hw.l2cachesize"}, {"hw.l3cachesize"} };
-			CacheInfo Result{};
+			static const char* size_keys[][3] { { }, { "hw.l1icachesize", "hw.l1dcachesize", "hw.l1cachesize" }, { "hw.l2cachesize" }, { "hw.l3cachesize" } };
+			cache_info result { };
 
-			const auto CtlCacheLineSize = SysControl("hw.cachelinesize");
-			if (!CtlCacheLineSize.empty())
+			const auto ctl_cache_line_size = sys_control("hw.cachelinesize");
+			if (!ctl_cache_line_size.empty())
 			{
-				const auto CacheLineSize = SysExtract(CtlCacheLineSize);
-				if (CacheLineSize.first)
-					Result.LineSize = CacheLineSize.second;
+				const auto cache_line_size = sys_extract(ctl_cache_line_size);
+				if (cache_line_size.first)
+					result.line_size = cache_line_size.second;
 			}
 
-			if (Level < sizeof(SizeKeys) / sizeof(*SizeKeys))
+			if (level < sizeof(size_keys) / sizeof(*size_keys))
 			{
-				for (auto Key : SizeKeys[Level])
+				for (auto key : size_keys[level])
 				{
-					if (!Key)
+					if (!key)
 						break;
 
-					const auto CtlCacheSizeData = SysControl(Key);
-					if (!CtlCacheSizeData.empty())
+					const auto ctl_cache_size_data = sys_control(key);
+					if (!ctl_cache_size_data.empty())
 					{
-						const auto CacheSizeData = SysExtract(CtlCacheSizeData);
-						if (CacheSizeData.first)
-							Result.Size += CacheSizeData.second;
+						const auto cache_size_data = sys_extract(ctl_cache_size_data);
+						if (cache_size_data.first)
+							result.size += cache_size_data.second;
 					}
 				}
 			}
 
-			return Result;
+			return result;
 #else
-			String Prefix("/sys/devices/system/cpu/cpu0/cache/index" + Core::ToString(Level) + '/');
-			String SizePath(Prefix + "size");
-			String LineSizePath(Prefix + "coherency_line_size");
-			String AssociativityPath(Prefix + "associativity");
-			String TypePath(Prefix + "type");
-			std::ifstream Size(SizePath.c_str());
-			std::ifstream LineSize(LineSizePath.c_str());
-			std::ifstream Associativity(AssociativityPath.c_str());
-			std::ifstream Type(TypePath.c_str());
-			CacheInfo Result{};
+			string prefix("/sys/devices/system/cpu/cpu0/cache/index" + core::to_string(level) + '/');
+			string size_path(prefix + "size");
+			string line_size_path(prefix + "coherency_line_size");
+			string associativity_path(prefix + "associativity");
+			string type_path(prefix + "type");
+			std::ifstream size(size_path.c_str());
+			std::ifstream line_size(line_size_path.c_str());
+			std::ifstream associativity(associativity_path.c_str());
+			std::ifstream type(type_path.c_str());
+			cache_info result { };
 
-			if (Size.is_open() && Size)
+			if (size.is_open() && size)
 			{
-				char Suffix;
-				Size >> Result.Size >> Suffix;
-				switch (Suffix)
+				char suffix;
+				size >> result.size >> suffix;
+				switch (suffix)
 				{
-					case 'G':
-						Result.Size *= 1024;
+					case 'g':
+						result.size *= 1024;
 						[[fallthrough]];
-					case 'M':
-						Result.Size *= 1024;
+					case 'm':
+						result.size *= 1024;
 						[[fallthrough]];
-					case 'K':
-						Result.Size *= 1024;
+					case 'k':
+						result.size *= 1024;
 				}
 			}
 
-			if (LineSize.is_open() && LineSize)
-				LineSize >> Result.LineSize;
+			if (line_size.is_open() && line_size)
+				line_size >> result.line_size;
 
-			if (Associativity.is_open() && Associativity)
+			if (associativity.is_open() && associativity)
 			{
-				uint32_t Temp;
-				Associativity >> Temp;
-				Result.Associativity = Temp;
+				uint32_t temp;
+				associativity >> temp;
+				result.associativity = temp;
 			}
 
-			if (Type.is_open() && Type)
+			if (type.is_open() && type)
 			{
-				String Temp;
-				Type >> Temp;
+				string temp;
+				type >> temp;
 
-				if (Temp.find("nified") == 1)
-					Result.Type = Cache::Unified;
-				else if (Temp.find("nstruction") == 1)
-					Result.Type = Cache::Instruction;
-				else if (Temp.find("ata") == 1)
-					Result.Type = Cache::Data;
-				else if (Temp.find("race") == 1)
-					Result.Type = Cache::Trace;
+				if (temp.find("nified") == 1)
+					result.type = cache::unified;
+				else if (temp.find("nstruction") == 1)
+					result.type = cache::instruction;
+				else if (temp.find("ata") == 1)
+					result.type = cache::data;
+				else if (temp.find("race") == 1)
+					result.type = cache::trace;
 			}
 
-			return Result;
+			return result;
 #endif
 		}
-		OS::CPU::Arch OS::CPU::GetArch() noexcept
+		os::hw::arch os::hw::get_arch() noexcept
 		{
 #ifndef VI_MICROSOFT
-			utsname Buffer;
-			if (uname(&Buffer) == -1)
-				return Arch::Unknown;
+			utsname buffer;
+			if (uname(&buffer) == -1)
+				return arch::unknown;
 
-			if (!strcmp(Buffer.machine, "x86_64"))
-				return Arch::X64;
-			else if (strstr(Buffer.machine, "arm") == Buffer.machine)
-				return Arch::ARM;
-			else if (!strcmp(Buffer.machine, "ia64") || !strcmp(Buffer.machine, "IA64"))
-				return Arch::Itanium;
-			else if (!strcmp(Buffer.machine, "i686"))
-				return Arch::X86;
+			if (!strcmp(buffer.machine, "x86_64"))
+				return arch::x64;
+			else if (strstr(buffer.machine, "arm") == buffer.machine)
+				return arch::arm;
+			else if (!strcmp(buffer.machine, "ia64") || !strcmp(buffer.machine, "IA64"))
+				return arch::itanium;
+			else if (!strcmp(buffer.machine, "i686"))
+				return arch::x86;
 
-			return Arch::Unknown;
+			return arch::unknown;
 #else
-			SYSTEM_INFO Buffer;
-			GetNativeSystemInfo(&Buffer);
+			SYSTEM_INFO buffer;
+			GetNativeSystemInfo(&buffer);
 
-			switch (Buffer.wProcessorArchitecture)
+			switch (buffer.wProcessorArchitecture)
 			{
 				case PROCESSOR_ARCHITECTURE_AMD64:
-					return Arch::X64;
+					return arch::x64;
 				case PROCESSOR_ARCHITECTURE_ARM:
 				case PROCESSOR_ARCHITECTURE_ARM64:
-					return Arch::ARM;
+					return arch::arm;
 				case PROCESSOR_ARCHITECTURE_IA64:
-					return Arch::Itanium;
+					return arch::itanium;
 				case PROCESSOR_ARCHITECTURE_INTEL:
-					return Arch::X86;
+					return arch::x86;
 				default:
-					return Arch::Unknown;
+					return arch::unknown;
 			}
 #endif
 		}
-		OS::CPU::Endian OS::CPU::GetEndianness() noexcept
+		os::hw::endian os::hw::get_endianness() noexcept
 		{
-			static const uint16_t Value = 0xFF00;
-			static const uint8_t Result = *static_cast<const uint8_t*>(static_cast<const void*>(&Value));
+			static const uint16_t value = 0xFF00;
+			static const uint8_t result = *static_cast<const uint8_t*>(static_cast<const void*>(&value));
 
-			return Result == 0xFF ? Endian::Big : Endian::Little;
+			return result == 0xFF ? endian::big : endian::little;
 		}
-		size_t OS::CPU::GetFrequency() noexcept
+		size_t os::hw::get_frequency() noexcept
 		{
 #ifdef VI_MICROSOFT
-			HKEY Key;
-			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, R"(HARDWARE\DESCRIPTION\System\CentralProcessor\0)", 0, KEY_READ, &Key))
+			HKEY key;
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, R"(HARDWARE\DESCRIPTION\system\central_processor\0)", 0, KEY_READ, &key))
 			{
-				LARGE_INTEGER Frequency;
-				QueryPerformanceFrequency(&Frequency);
-				return (size_t)Frequency.QuadPart * 1000;
+				LARGE_INTEGER frequency;
+				QueryPerformanceFrequency(&frequency);
+				return (size_t)frequency.QuadPart * 1000;
 			}
 
-			DWORD FrequencyMHZ, Size = sizeof(DWORD);
-			if (RegQueryValueExA(Key, "~MHz", nullptr, nullptr, static_cast<LPBYTE>(static_cast<void*>(&FrequencyMHZ)), &Size))
+			DWORD frequency_mhz, size = sizeof(DWORD);
+			if (RegQueryValueExA(key, "~MHz", nullptr, nullptr, static_cast<LPBYTE>(static_cast<void*>(&frequency_mhz)), &size))
 				return 0;
 
-			return (size_t)FrequencyMHZ * 1000000;
+			return (size_t)frequency_mhz * 1000000;
 #elif VI_APPLE
-			const auto Frequency = SysControl("hw.cpufrequency");
-			if (Frequency.empty())
+			const auto frequency = sys_control("hw.cpufrequency");
+			if (frequency.empty())
 				return 0;
 
-			const auto Data = SysExtract(Frequency);
-			if (!Data.first)
+			const auto data = sys_extract(frequency);
+			if (!data.first)
 				return 0;
 
-			return Data.second;
+			return data.second;
 #else
-			std::ifstream Info("/proc/cpuinfo");
-			if (!Info.is_open() || !Info)
+			std::ifstream info("/proc/cpuinfo");
+			if (!info.is_open() || !info)
 				return 0;
 
-			for (String Line; std::getline(Info, Line);)
+			for (string line; std::getline(info, line);)
 			{
-				if (Line.find("cpu MHz") == 0)
+				if (line.find("cpu MHz") == 0)
 				{
-					const auto ColonId = Line.find_first_of(':');
-					return static_cast<size_t>(std::strtod(Line.c_str() + ColonId + 1, nullptr)) * 1000000;
+					const auto colon_id = line.find_first_of(':');
+					return static_cast<size_t>(std::strtod(line.c_str() + colon_id + 1, nullptr)) * 1000000;
 				}
 			}
 
@@ -8845,1150 +8845,1150 @@ namespace Vitex
 #endif
 		}
 
-		bool OS::Directory::IsExists(const std::string_view& Path)
+		bool os::directory::is_exists(const std::string_view& path)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check path %.*s", (int)Path.size(), Path.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] check path %.*s", (int)path.size(), path.data());
+			if (!control::has(access_option::fs))
 				return false;
 
-			auto TargetPath = Path::Resolve(Path);
-			if (!TargetPath)
+			auto target_path = path::resolve(path);
+			if (!target_path)
 				return false;
 
-			struct stat Buffer;
-			if (stat(TargetPath->c_str(), &Buffer) != 0)
+			struct stat buffer;
+			if (stat(target_path->c_str(), &buffer) != 0)
 				return false;
 
-			return Buffer.st_mode & S_IFDIR;
+			return buffer.st_mode & S_IFDIR;
 		}
-		bool OS::Directory::IsEmpty(const std::string_view& Path)
+		bool os::directory::is_empty(const std::string_view& path)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check dir %.*s", (int)Path.size(), Path.data());
-			if (Path.empty() || !Control::Has(AccessOption::Fs))
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] check dir %.*s", (int)path.size(), path.data());
+			if (path.empty() || !control::has(access_option::fs))
 				return true;
 #if defined(VI_MICROSOFT)
-			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
+			wchar_t buffer[CHUNK_SIZE];
+			stringify::convert_to_wide(path, buffer, CHUNK_SIZE);
 
-			DWORD Attributes = GetFileAttributesW(Buffer);
-			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
+			DWORD attributes = GetFileAttributesW(buffer);
+			if (attributes == 0xFFFFFFFF || (attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
 				return true;
 
-			if (Path[0] != '\\' && Path[0] != '/')
-				wcscat(Buffer, L"\\*");
+			if (path[0] != '\\' && path[0] != '/')
+				wcscat(buffer, L"\\*");
 			else
-				wcscat(Buffer, L"*");
+				wcscat(buffer, L"*");
 
-			WIN32_FIND_DATAW Info;
-			HANDLE Handle = FindFirstFileW(Buffer, &Info);
-			if (!Handle)
+			WIN32_FIND_DATAW info;
+			HANDLE handle = FindFirstFileW(buffer, &info);
+			if (!handle)
 				return true;
 
-			while (FindNextFileW(Handle, &Info) == TRUE)
+			while (FindNextFileW(handle, &info) == TRUE)
 			{
-				if (wcscmp(Info.cFileName, L".") != 0 && wcscmp(Info.cFileName, L"..") != 0)
+				if (wcscmp(info.cFileName, L".") != 0 && wcscmp(info.cFileName, L"..") != 0)
 				{
-					FindClose(Handle);
+					FindClose(handle);
 					return false;
 				}
 			}
 
-			FindClose(Handle);
+			FindClose(handle);
 			return true;
 #else
-			DIR* Handle = opendir(Path.data());
-			if (!Handle)
+			DIR* handle = opendir(path.data());
+			if (!handle)
 				return true;
 
-			dirent* Next = nullptr;
-			while ((Next = readdir(Handle)) != nullptr)
+			dirent* next = nullptr;
+			while ((next = readdir(handle)) != nullptr)
 			{
-				if (strcmp(Next->d_name, ".") != 0 && strcmp(Next->d_name, "..") != 0)
+				if (strcmp(next->d_name, ".") != 0 && strcmp(next->d_name, "..") != 0)
 				{
-					closedir(Handle);
+					closedir(handle);
 					return false;
 				}
 			}
 
-			closedir(Handle);
+			closedir(handle);
 			return true;
 #endif
 		}
-		ExpectsIO<void> OS::Directory::SetWorking(const std::string_view& Path)
+		expects_io<void> os::directory::set_working(const std::string_view& path)
 		{
-			VI_TRACE("[io] apply working dir %.*s", (int)Path.size(), Path.data());
+			VI_TRACE("[io] apply working dir %.*s", (int)path.size(), path.data());
 #ifdef VI_MICROSOFT
-			if (SetCurrentDirectoryA(Path.data()) != TRUE)
-				return OS::Error::GetConditionOr();
+			if (SetCurrentDirectoryA(path.data()) != TRUE)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #elif defined(VI_LINUX)
-			if (chdir(Path.data()) != 0)
-				return OS::Error::GetConditionOr();
+			if (chdir(path.data()) != 0)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::Directory::Patch(const std::string_view& Path)
+		expects_io<void> os::directory::patch(const std::string_view& path)
 		{
-			if (IsExists(Path.data()))
-				return Expectation::Met;
+			if (is_exists(path.data()))
+				return expectation::met;
 
-			return Create(Path.data());
+			return create(path.data());
 		}
-		ExpectsIO<void> OS::Directory::Scan(const std::string_view& Path, Vector<std::pair<String, FileEntry>>& Entries)
+		expects_io<void> os::directory::scan(const std::string_view& path, vector<std::pair<string, file_entry>>& entries)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] scan dir %.*s", (int)Path.size(), Path.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] scan dir %.*s", (int)path.size(), path.data());
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			if (Path.empty())
+			if (path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 #if defined(VI_MICROSOFT)
-			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
+			wchar_t buffer[CHUNK_SIZE];
+			stringify::convert_to_wide(path, buffer, CHUNK_SIZE);
 
-			DWORD Attributes = GetFileAttributesW(Buffer);
-			if (Attributes == 0xFFFFFFFF || (Attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
+			DWORD attributes = GetFileAttributesW(buffer);
+			if (attributes == 0xFFFFFFFF || (attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
 				return std::make_error_condition(std::errc::not_a_directory);
 
-			if (Path.back() != '\\' && Path.back() != '/')
-				wcscat(Buffer, L"\\*");
+			if (path.back() != '\\' && path.back() != '/')
+				wcscat(buffer, L"\\*");
 			else
-				wcscat(Buffer, L"*");
+				wcscat(buffer, L"*");
 
-			WIN32_FIND_DATAW Info;
-			HANDLE Handle = FindFirstFileW(Buffer, &Info);
-			if (!Handle)
+			WIN32_FIND_DATAW info;
+			HANDLE handle = FindFirstFileW(buffer, &info);
+			if (!handle)
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
 
 			do
 			{
-				char Directory[CHUNK_SIZE] = { 0 };
-				WideCharToMultiByte(CP_UTF8, 0, Info.cFileName, -1, Directory, sizeof(Directory), nullptr, nullptr);
-				if (strcmp(Directory, ".") != 0 && strcmp(Directory, "..") != 0)
+				char directory[CHUNK_SIZE] = { 0 };
+				WideCharToMultiByte(CP_UTF8, 0, info.cFileName, -1, directory, sizeof(directory), nullptr, nullptr);
+				if (strcmp(directory, ".") != 0 && strcmp(directory, "..") != 0)
 				{
-					auto State = File::GetState(String(Path) + '/' + Directory);
-					if (State)
-						Entries.push_back(std::make_pair<String, FileEntry>(Directory, std::move(*State)));
+					auto state = file::get_state(string(path) + '/' + directory);
+					if (state)
+						entries.push_back(std::make_pair<string, file_entry>(directory, std::move(*state)));
 				}
-			} while (FindNextFileW(Handle, &Info) == TRUE);
-			FindClose(Handle);
+			} while (FindNextFileW(handle, &info) == TRUE);
+			FindClose(handle);
 #else
-			DIR* Handle = opendir(Path.data());
-			if (!Handle)
-				return OS::Error::GetConditionOr();
+			DIR* handle = opendir(path.data());
+			if (!handle)
+				return os::error::get_condition_or();
 
-			dirent* Next = nullptr;
-			while ((Next = readdir(Handle)) != nullptr)
+			dirent* next = nullptr;
+			while ((next = readdir(handle)) != nullptr)
 			{
-				if (strcmp(Next->d_name, ".") != 0 && strcmp(Next->d_name, "..") != 0)
+				if (strcmp(next->d_name, ".") != 0 && strcmp(next->d_name, "..") != 0)
 				{
-					auto State = File::GetState(String(Path) + '/' + Next->d_name);
-					if (State)
-						Entries.push_back(std::make_pair<String, FileEntry>(Next->d_name, std::move(*State)));
+					auto state = file::get_state(string(path) + '/' + next->d_name);
+					if (state)
+						entries.push_back(std::make_pair<string, file_entry>(next->d_name, std::move(*state)));
 				}
 			}
-			closedir(Handle);
+			closedir(handle);
 #endif
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<void> OS::Directory::Create(const std::string_view& Path)
+		expects_io<void> os::directory::create(const std::string_view& path)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] create dir %.*s", (int)Path.size(), Path.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_MEASURE(timings::file_system);
+			VI_DEBUG("[io] create dir %.*s", (int)path.size(), path.data());
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
+			wchar_t buffer[CHUNK_SIZE];
+			stringify::convert_to_wide(path, buffer, CHUNK_SIZE);
 
-			size_t Length = wcslen(Buffer);
-			if (!Length)
+			size_t length = wcslen(buffer);
+			if (!length)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
-				return Expectation::Met;
+			if (::CreateDirectoryW(buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
+				return expectation::met;
 
-			size_t Index = Length - 1;
-			while (Index > 0 && (Buffer[Index] == '/' || Buffer[Index] == '\\'))
-				Index--;
+			size_t index = length - 1;
+			while (index > 0 && (buffer[index] == '/' || buffer[index] == '\\'))
+				index--;
 
-			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
-				Index--;
+			while (index > 0 && buffer[index] != '/' && buffer[index] != '\\')
+				index--;
 
-			String Subpath(Path.data(), Index);
-			if (Index > 0 && !Create(Subpath.c_str()))
-				return OS::Error::GetConditionOr();
+			string subpath(path.data(), index);
+			if (index > 0 && !create(subpath.c_str()))
+				return os::error::get_condition_or();
 
-			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
-				return Expectation::Met;
+			if (::CreateDirectoryW(buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
+				return expectation::met;
 #else
-			if (mkdir(Path.data(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-				return Expectation::Met;
+			if (mkdir(path.data(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+				return expectation::met;
 
-			size_t Index = Path.empty() ? 0 : Path.size() - 1;
-			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
-				Index--;
+			size_t index = path.empty() ? 0 : path.size() - 1;
+			while (index > 0 && path[index] != '/' && path[index] != '\\')
+				index--;
 
-			String Subpath(Path.data(), Index);
-			if (Index > 0 && !Create(Subpath.c_str()))
-				return OS::Error::GetConditionOr();
+			string subpath(path.data(), index);
+			if (index > 0 && !create(subpath.c_str()))
+				return os::error::get_condition_or();
 
-			if (mkdir(Path.data(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-				return Expectation::Met;
+			if (mkdir(path.data(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+				return expectation::met;
 #endif
-			return OS::Error::GetConditionOr();
+			return os::error::get_condition_or();
 		}
-		ExpectsIO<void> OS::Directory::Remove(const std::string_view& Path)
+		expects_io<void> os::directory::remove(const std::string_view& path)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] remove dir %.*s", (int)Path.size(), Path.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_MEASURE(timings::file_system);
+			VI_DEBUG("[io] remove dir %.*s", (int)path.size(), path.data());
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			String TargetPath = String(Path);
-			if (!TargetPath.empty() && (TargetPath.back() == '/' || TargetPath.back() == '\\'))
-				TargetPath.pop_back();
+			string target_path = string(path);
+			if (!target_path.empty() && (target_path.back() == '/' || target_path.back() == '\\'))
+				target_path.pop_back();
 #ifdef VI_MICROSOFT
-			WIN32_FIND_DATA FileInformation;
-			String FilePath, Pattern = TargetPath + "\\*.*";
-			HANDLE Handle = ::FindFirstFile(Pattern.c_str(), &FileInformation);
+			WIN32_FIND_DATA file_information;
+			string file_path, pattern = target_path + "\\*.*";
+			HANDLE handle = ::FindFirstFile(pattern.c_str(), &file_information);
 
-			if (Handle == INVALID_HANDLE_VALUE)
+			if (handle == INVALID_HANDLE_VALUE)
 			{
-				auto Condition = OS::Error::GetConditionOr();
-				::FindClose(Handle);
-				return Condition;
+				auto condition = os::error::get_condition_or();
+				::FindClose(handle);
+				return condition;
 			}
 
 			do
 			{
-				if (!strcmp(FileInformation.cFileName, ".") || !strcmp(FileInformation.cFileName, ".."))
+				if (!strcmp(file_information.cFileName, ".") || !strcmp(file_information.cFileName, ".."))
 					continue;
 
-				FilePath = TargetPath + "\\" + FileInformation.cFileName;
-				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				file_path = target_path + "\\" + file_information.cFileName;
+				if (file_information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
-					auto Result = Remove(FilePath.c_str());
-					if (Result)
+					auto result = remove(file_path.c_str());
+					if (result)
 						continue;
 
-					::FindClose(Handle);
-					return Result;
+					::FindClose(handle);
+					return result;
 				}
 
-				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
+				if (::SetFileAttributes(file_path.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
 				{
-					auto Condition = OS::Error::GetConditionOr();
-					::FindClose(Handle);
-					return Condition;
+					auto condition = os::error::get_condition_or();
+					::FindClose(handle);
+					return condition;
 				}
 
-				if (::DeleteFile(FilePath.c_str()) == FALSE)
+				if (::DeleteFile(file_path.c_str()) == FALSE)
 				{
-					auto Condition = OS::Error::GetConditionOr();
-					::FindClose(Handle);
-					return Condition;
+					auto condition = os::error::get_condition_or();
+					::FindClose(handle);
+					return condition;
 				}
-			} while (::FindNextFile(Handle, &FileInformation) != FALSE);
+			} while (::FindNextFile(handle, &file_information) != FALSE);
 
-			::FindClose(Handle);
+			::FindClose(handle);
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
-				return OS::Error::GetConditionOr();
+				return os::error::get_condition_or();
 
-			if (::SetFileAttributes(TargetPath.data(), FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(TargetPath.data()) == FALSE)
-				return OS::Error::GetConditionOr();
+			if (::SetFileAttributes(target_path.data(), FILE_ATTRIBUTE_NORMAL) == FALSE || ::RemoveDirectory(target_path.data()) == FALSE)
+				return os::error::get_condition_or();
 #elif defined VI_LINUX
-			DIR* Handle = opendir(TargetPath.c_str());
-			size_t Size = TargetPath.size();
+			DIR* handle = opendir(target_path.c_str());
+			size_t size = target_path.size();
 
-			if (!Handle)
+			if (!handle)
 			{
-				if (rmdir(TargetPath.c_str()) != 0)
-					return OS::Error::GetConditionOr();
+				if (rmdir(target_path.c_str()) != 0)
+					return os::error::get_condition_or();
 
-				return Expectation::Met;
+				return expectation::met;
 			}
 
-			struct dirent* It;
-			while ((It = readdir(Handle)))
+			struct dirent* it;
+			while ((it = readdir(handle)))
 			{
-				if (!strcmp(It->d_name, ".") || !strcmp(It->d_name, ".."))
+				if (!strcmp(it->d_name, ".") || !strcmp(it->d_name, ".."))
 					continue;
 
-				size_t Length = Size + strlen(It->d_name) + 2;
-				char* Buffer = Memory::Allocate<char>(Length);
-				snprintf(Buffer, Length, "%.*s/%s", TargetPath.c_str(), It->d_name);
+				size_t length = size + strlen(it->d_name) + 2;
+				char* buffer = memory::allocate<char>(length);
+				snprintf(buffer, length, "%.*s/%s", (int)target_path.size(), target_path.c_str(), it->d_name);
 
-				struct stat State;
-				if (stat(Buffer, &State) != 0)
+				struct stat state;
+				if (stat(buffer, &state) != 0)
 				{
-					auto Condition = OS::Error::GetConditionOr();
-					Memory::Deallocate(Buffer);
-					closedir(Handle);
-					return Condition;
+					auto condition = os::error::get_condition_or();
+					memory::deallocate(buffer);
+					closedir(handle);
+					return condition;
 				}
 
-				if (S_ISDIR(State.st_mode))
+				if (S_ISDIR(state.st_mode))
 				{
-					auto Result = Remove(Buffer);
-					Memory::Deallocate(Buffer);
-					if (Result)
+					auto result = remove(buffer);
+					memory::deallocate(buffer);
+					if (result)
 						continue;
 
-					closedir(Handle);
-					return Result;
+					closedir(handle);
+					return result;
 				}
 
-				if (unlink(Buffer) != 0)
+				if (unlink(buffer) != 0)
 				{
-					auto Condition = OS::Error::GetConditionOr();
-					Memory::Deallocate(Buffer);
-					closedir(Handle);
-					return Condition;
+					auto condition = os::error::get_condition_or();
+					memory::deallocate(buffer);
+					closedir(handle);
+					return condition;
 				}
 
-				Memory::Deallocate(Buffer);
+				memory::deallocate(buffer);
 			}
 
-			closedir(Handle);
-			if (rmdir(TargetPath.c_str()) != 0)
-				return OS::Error::GetConditionOr();
+			closedir(handle);
+			if (rmdir(target_path.c_str()) != 0)
+				return os::error::get_condition_or();
 #endif
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<String> OS::Directory::GetModule()
+		expects_io<string> os::directory::get_module()
 		{
-			VI_MEASURE(Timings::FileSystem);
+			VI_MEASURE(timings::file_system);
 #ifdef VI_MICROSOFT
-			char Buffer[MAX_PATH + 1] = { };
-			if (GetModuleFileNameA(nullptr, Buffer, MAX_PATH) == 0)
-				return OS::Error::GetConditionOr();
+			char buffer[MAX_PATH + 1] = { };
+			if (GetModuleFileNameA(nullptr, buffer, MAX_PATH) == 0)
+				return os::error::get_condition_or();
 #else
 #ifdef PATH_MAX
-			char Buffer[PATH_MAX + 1] = { };
+			char buffer[PATH_MAX + 1] = { };
 #elif defined(_POSIX_PATH_MAX)
-			char Buffer[_POSIX_PATH_MAX + 1] = { };
+			char buffer[_POSIX_PATH_MAX + 1] = { };
 #else
-			char Buffer[CHUNK_SIZE + 1] = { };
+			char buffer[CHUNK_SIZE + 1] = { };
 #endif
 #ifdef VI_APPLE
-			uint32_t BufferSize = sizeof(Buffer) - 1;
-			if (_NSGetExecutablePath(Buffer, &BufferSize) != 0)
-				return OS::Error::GetConditionOr();
+			uint32_t buffer_size = sizeof(buffer) - 1;
+			if (_NSGetExecutablePath(buffer, &buffer_size) != 0)
+				return os::error::get_condition_or();
 #elif defined(VI_SOLARIS)
-			const char* TempBuffer = getexecname();
-			if (!TempBuffer || *TempBuffer == '\0')
-				return OS::Error::GetConditionOr();
+			const char* temp_buffer = getexecname();
+			if (!temp_buffer || *temp_buffer == '\0')
+				return os::error::get_condition_or();
 
-			TempBuffer = OS::Path::GetDirectory(TempBuffer);
-			size_t TempBufferSize = strlen(TempBuffer);
-			memcpy(Buffer, TempBuffer, TempBufferSize > sizeof(Buffer) - 1 ? sizeof(Buffer) - 1 : TempBufferSize);
+			temp_buffer = os::path::get_directory(temp_buffer);
+			size_t temp_buffer_size = strlen(temp_buffer);
+			memcpy(buffer, temp_buffer, temp_buffer_size > sizeof(buffer) - 1 ? sizeof(buffer) - 1 : temp_buffer_size);
 #else
-			size_t BufferSize = sizeof(Buffer) - 1;
-			if (readlink("/proc/self/exe", Buffer, BufferSize) == -1 && readlink("/proc/curproc/file", Buffer, BufferSize) == -1 && readlink("/proc/curproc/exe", Buffer, BufferSize) == -1)
-				return OS::Error::GetConditionOr();
+			size_t buffer_size = sizeof(buffer) - 1;
+			if (readlink("/proc/self/exe", buffer, buffer_size) == -1 && readlink("/proc/curproc/file", buffer, buffer_size) == -1 && readlink("/proc/curproc/exe", buffer, buffer_size) == -1)
+				return os::error::get_condition_or();
 #endif
 #endif
-			String Result = OS::Path::GetDirectory(Buffer);
-			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
-				Result += VI_SPLITTER;
+			string result = os::path::get_directory(buffer);
+			if (!result.empty() && result.back() != '/' && result.back() != '\\')
+				result += VI_SPLITTER;
 
-			VI_TRACE("[io] fetch module dir %s", Result.c_str());
-			return Result;
+			VI_TRACE("[io] fetch library dir %s", result.c_str());
+			return result;
 		}
-		ExpectsIO<String> OS::Directory::GetWorking()
+		expects_io<string> os::directory::get_working()
 		{
-			VI_MEASURE(Timings::FileSystem);
+			VI_MEASURE(timings::file_system);
 #ifdef VI_MICROSOFT
-			char Buffer[MAX_PATH + 1] = { };
-			if (GetCurrentDirectoryA(MAX_PATH, Buffer) == 0)
-				return OS::Error::GetConditionOr();
+			char buffer[MAX_PATH + 1] = { };
+			if (GetCurrentDirectoryA(MAX_PATH, buffer) == 0)
+				return os::error::get_condition_or();
 #else
 #ifdef PATH_MAX
-			char Buffer[PATH_MAX + 1] = { };
+			char buffer[PATH_MAX + 1] = { };
 #elif defined(_POSIX_PATH_MAX)
-			char Buffer[_POSIX_PATH_MAX + 1] = { };
+			char buffer[_POSIX_PATH_MAX + 1] = { };
 #else
-			char Buffer[CHUNK_SIZE + 1] = { };
+			char buffer[CHUNK_SIZE + 1] = { };
 #endif
-			if (!getcwd(Buffer, sizeof(Buffer)))
-				return OS::Error::GetConditionOr();
+			if (!getcwd(buffer, sizeof(buffer)))
+				return os::error::get_condition_or();
 #endif
-			String Result = Buffer;
-			if (!Result.empty() && Result.back() != '/' && Result.back() != '\\')
-				Result += VI_SPLITTER;
+			string result = buffer;
+			if (!result.empty() && result.back() != '/' && result.back() != '\\')
+				result += VI_SPLITTER;
 
-			VI_TRACE("[io] fetch working dir %s", Result.c_str());
-			return Result;
+			VI_TRACE("[io] fetch working dir %s", result.c_str());
+			return result;
 		}
-		Vector<String> OS::Directory::GetMounts()
+		vector<string> os::directory::get_mounts()
 		{
 			VI_TRACE("[io] fetch mount points");
-			Vector<String> Output;
+			vector<string> output;
 #ifdef VI_MICROSOFT
-			DWORD DriveMask = GetLogicalDrives();
-			char Offset = 'A';
-			while (DriveMask)
+			DWORD drive_mask = GetLogicalDrives();
+			char offset = 'a';
+			while (drive_mask)
 			{
-				if (DriveMask & 1)
+				if (drive_mask & 1)
 				{
-					String Letter(1, Offset);
-					Letter.append(":\\");
-					Output.push_back(std::move(Letter));
+					string letter(1, offset);
+					letter.append(":\\");
+					output.push_back(std::move(letter));
 				}
-				DriveMask >>= 1;
-				++Offset;
+				drive_mask >>= 1;
+				++offset;
 			}
 
-			return Output;
+			return output;
 #else
-			Output.push_back("/");
-			return Output;
+			output.push_back("/");
+			return output;
 #endif
 		}
 
-		bool OS::File::IsExists(const std::string_view& Path)
+		bool os::file::is_exists(const std::string_view& path)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_TRACE("[io] check path %.*s", (int)Path.size(), Path.data());
-			auto TargetPath = OS::Path::Resolve(Path);
-			return TargetPath && IsPathExists(TargetPath->c_str());
+			VI_MEASURE(timings::file_system);
+			VI_TRACE("[io] check path %.*s", (int)path.size(), path.data());
+			auto target_path = os::path::resolve(path);
+			return target_path && is_path_exists(target_path->c_str());
 		}
-		int OS::File::Compare(const std::string_view& FirstPath, const std::string_view& SecondPath)
+		int os::file::compare(const std::string_view& first_path, const std::string_view& second_path)
 		{
-			VI_ASSERT(!FirstPath.empty(), "first path should not be empty");
-			VI_ASSERT(!SecondPath.empty(), "second path should not be empty");
+			VI_ASSERT(!first_path.empty(), "first path should not be empty");
+			VI_ASSERT(!second_path.empty(), "second path should not be empty");
 
-			auto Props1 = GetProperties(FirstPath);
-			auto Props2 = GetProperties(SecondPath);
-			if (!Props1 || !Props2)
+			auto props1 = get_properties(first_path);
+			auto props2 = get_properties(second_path);
+			if (!props1 || !props2)
 			{
-				if (!Props1 && !Props2)
+				if (!props1 && !props2)
 					return 0;
-				else if (Props1)
+				else if (props1)
 					return 1;
-				else if (Props2)
+				else if (props2)
 					return -1;
 			}
 
-			size_t Size1 = Props1->Size, Size2 = Props2->Size;
-			VI_TRACE("[io] compare paths { %.*s (%" PRIu64 "), %.*s (%" PRIu64 ") }", (int)FirstPath.size(), FirstPath.data(), Size1, (int)SecondPath.size(), SecondPath.data(), Size2);
+			size_t size1 = props1->size, size2 = props2->size;
+			VI_TRACE("[io] compare paths { %.*s (%" PRIu64 "), %.*s (%" PRIu64 ") }", (int)first_path.size(), first_path.data(), size1, (int)second_path.size(), second_path.data(), size2);
 
-			if (Size1 > Size2)
+			if (size1 > size2)
 				return 1;
-			else if (Size1 < Size2)
+			else if (size1 < size2)
 				return -1;
 
-			auto First = Open(FirstPath, "rb");
-			if (!First)
+			auto first = open(first_path, "rb");
+			if (!first)
 				return -1;
 
-			auto Second = Open(SecondPath, "rb");
-			if (!Second)
+			auto second = open(second_path, "rb");
+			if (!second)
 			{
-				OS::File::Close(*First);
+				os::file::close(*first);
 				return -1;
 			}
 
-			const size_t Size = CHUNK_SIZE;
-			char Buffer1[Size];
-			char Buffer2[Size];
-			int Diff = 0;
+			const size_t size = CHUNK_SIZE;
+			char buffer1[size];
+			char buffer2[size];
+			int diff = 0;
 
 			do
 			{
-				VI_MEASURE(Timings::FileSystem);
-				size_t S1 = fread(Buffer1, sizeof(char), Size, (FILE*)*First);
-				size_t S2 = fread(Buffer2, sizeof(char), Size, (FILE*)*Second);
+				VI_MEASURE(timings::file_system);
+				size_t S1 = fread(buffer1, sizeof(char), size, (FILE*)*first);
+				size_t S2 = fread(buffer2, sizeof(char), size, (FILE*)*second);
 				if (S1 == S2)
 				{
 					if (S1 == 0)
 						break;
 
-					Diff = memcmp(Buffer1, Buffer2, S1);
+					diff = memcmp(buffer1, buffer2, S1);
 				}
 				else if (S1 > S2)
-					Diff = 1;
+					diff = 1;
 				else if (S1 < S2)
-					Diff = -1;
-			} while (Diff == 0);
+					diff = -1;
+			} while (diff == 0);
 
-			OS::File::Close(*First);
-			OS::File::Close(*Second);
-			return Diff;
+			os::file::close(*first);
+			os::file::close(*second);
+			return diff;
 		}
-		uint64_t OS::File::GetHash(const std::string_view& Data)
+		uint64_t os::file::get_hash(const std::string_view& data)
 		{
-			return Compute::Crypto::CRC32(Data);
+			return compute::crypto::CRC32(data);
 		}
-		uint64_t OS::File::GetIndex(const std::string_view& Data)
+		uint64_t os::file::get_index(const std::string_view& data)
 		{
-			uint64_t Result = 0xcbf29ce484222325;
-			for (size_t i = 0; i < Data.size(); i++)
+			uint64_t result = 0xcbf29ce484222325;
+			for (size_t i = 0; i < data.size(); i++)
 			{
-				Result ^= Data[i];
-				Result *= 1099511628211;
+				result ^= data[i];
+				result *= 1099511628211;
 			}
 
-			return Result;
+			return result;
 		}
-		ExpectsIO<size_t> OS::File::Write(const std::string_view& Path, const uint8_t* Data, size_t Length)
+		expects_io<size_t> os::file::write(const std::string_view& path, const uint8_t* data, size_t length)
 		{
-			VI_ASSERT(Data != nullptr, "data should be set");
-			VI_MEASURE(Timings::FileSystem);
-			auto Status = Open(Path, FileMode::Binary_Write_Only);
-			if (!Status)
-				return Status.Error();
+			VI_ASSERT(data != nullptr, "data should be set");
+			VI_MEASURE(timings::file_system);
+			auto status = open(path, file_mode::binary_write_only);
+			if (!status)
+				return status.error();
 
-			UPtr<Core::Stream> Stream = *Status;
-			if (!Length)
+			uptr<core::stream> stream = *status;
+			if (!length)
 				return 0;
 
-			return Stream->Write(Data, Length);
+			return stream->write(data, length);
 		}
-		ExpectsIO<void> OS::File::Copy(const std::string_view& From, const std::string_view& To)
+		expects_io<void> os::file::copy(const std::string_view& from, const std::string_view& to)
 		{
-			VI_ASSERT(Stringify::IsCString(From) && Stringify::IsCString(To), "from and to should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] copy file from %.*s to %.*s", (int)From.size(), From.data(), (int)To.size(), To.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_ASSERT(stringify::is_cstring(from) && stringify::is_cstring(to), "from and to should be set");
+			VI_MEASURE(timings::file_system);
+			VI_DEBUG("[io] copy file from %.*s to %.*s", (int)from.size(), from.data(), (int)to.size(), to.data());
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			std::ifstream Source(std::string(From), std::ios::binary);
-			if (!Source)
-				return std::make_error_condition(std::errc::bad_file_descriptor);
-			
-			auto Result = OS::Directory::Patch(OS::Path::GetDirectory(To));
-			if (!Result)
-				return Result;
-
-			std::ofstream Destination(std::string(To), std::ios::binary);
-			if (!Source)
+			std::ifstream source(std::string(from), std::ios::binary);
+			if (!source)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			Destination << Source.rdbuf();
-			return Expectation::Met;
+			auto result = os::directory::patch(os::path::get_directory(to));
+			if (!result)
+				return result;
+
+			std::ofstream destination(std::string(to), std::ios::binary);
+			if (!source)
+				return std::make_error_condition(std::errc::bad_file_descriptor);
+
+			destination << source.rdbuf();
+			return expectation::met;
 		}
-		ExpectsIO<void> OS::File::Move(const std::string_view& From, const std::string_view& To)
+		expects_io<void> os::file::move(const std::string_view& from, const std::string_view& to)
 		{
-			VI_ASSERT(Stringify::IsCString(From) && Stringify::IsCString(To), "from and to should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] move file from %.*s to %.*s", (int)From.size(), From.data(), (int)To.size(), To.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_ASSERT(stringify::is_cstring(from) && stringify::is_cstring(to), "from and to should be set");
+			VI_MEASURE(timings::file_system);
+			VI_DEBUG("[io] move file from %.*s to %.*s", (int)from.size(), from.data(), (int)to.size(), to.data());
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			if (MoveFileA(From.data(), To.data()) != TRUE)
-				return OS::Error::GetConditionOr();
+			if (MoveFileA(from.data(), to.data()) != TRUE)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #elif defined VI_LINUX
-			if (rename(From.data(), To.data()) != 0)
-				return OS::Error::GetConditionOr();
+			if (rename(from.data(), to.data()) != 0)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::File::Remove(const std::string_view& Path)
+		expects_io<void> os::file::remove(const std::string_view& path)
 		{
-			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[io] remove file %.*s", (int)Path.size(), Path.data());
-			if (!Control::Has(AccessOption::Fs))
+			VI_ASSERT(stringify::is_cstring(path), "path should be set");
+			VI_MEASURE(timings::file_system);
+			VI_DEBUG("[io] remove file %.*s", (int)path.size(), path.data());
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			SetFileAttributesA(Path.data(), 0);
-			if (DeleteFileA(Path.data()) != TRUE)
-				return OS::Error::GetConditionOr();
+			SetFileAttributesA(path.data(), 0);
+			if (DeleteFileA(path.data()) != TRUE)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #elif defined VI_LINUX
-			if (unlink(Path.data()) != 0)
-				return OS::Error::GetConditionOr();
+			if (unlink(path.data()) != 0)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::File::Close(FILE* Stream)
+		expects_io<void> os::file::close(FILE* stream)
 		{
-			VI_ASSERT(Stream != nullptr, "stream should be set");
-			VI_DEBUG("[io] close fd %i", VI_FILENO(Stream));
-			if (fclose(Stream) != 0)
-				return OS::Error::GetConditionOr();
+			VI_ASSERT(stream != nullptr, "stream should be set");
+			VI_DEBUG("[io] close fd %i", VI_FILENO(stream));
+			if (fclose(stream) != 0)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<void> OS::File::GetState(const std::string_view& Path, FileEntry* File)
+		expects_io<void> os::file::get_state(const std::string_view& path, file_entry* file)
 		{
-			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
-			VI_MEASURE(Timings::FileSystem);
-			if (!Control::Has(AccessOption::Fs))
+			VI_ASSERT(stringify::is_cstring(path), "path should be set");
+			VI_MEASURE(timings::file_system);
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #if defined(VI_MICROSOFT)
-			wchar_t Buffer[CHUNK_SIZE];
-			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
+			wchar_t buffer[CHUNK_SIZE];
+			stringify::convert_to_wide(path, buffer, CHUNK_SIZE);
 
-			WIN32_FILE_ATTRIBUTE_DATA Info;
-			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
-				return OS::Error::GetConditionOr();
+			WIN32_FILE_ATTRIBUTE_DATA info;
+			if (GetFileAttributesExW(buffer, GetFileExInfoStandard, &info) == 0)
+				return os::error::get_condition_or();
 
-			File->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
-			File->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
-			File->CreationTime = SYS2UNIX_TIME(Info.ftCreationTime.dwLowDateTime, Info.ftCreationTime.dwHighDateTime);
-			File->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
-			File->IsExists = File->IsReferenced = false;
-			if (File->CreationTime > File->LastModified)
-				File->LastModified = File->CreationTime;
-			if (File->IsDirectory)
-				File->IsExists = true;
-			else if (!Path.empty())
-				File->IsExists = (isalnum(Path.back()) || strchr("_-", Path.back()) != nullptr);
+			file->size = MAKEUQUAD(info.nFileSizeLow, info.nFileSizeHigh);
+			file->last_modified = SYS2UNIX_TIME(info.ftLastWriteTime.dwLowDateTime, info.ftLastWriteTime.dwHighDateTime);
+			file->creation_time = SYS2UNIX_TIME(info.ftCreationTime.dwLowDateTime, info.ftCreationTime.dwHighDateTime);
+			file->is_directory = info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+			file->is_exists = file->is_referenced = false;
+			if (file->creation_time > file->last_modified)
+				file->last_modified = file->creation_time;
+			if (file->is_directory)
+				file->is_exists = true;
+			else if (!path.empty())
+				file->is_exists = (isalnum(path.back()) || strchr("_-", path.back()) != nullptr);
 #else
-			struct stat State;
-			if (stat(Path.data(), &State) != 0)
-				return OS::Error::GetConditionOr();
+			struct stat state;
+			if (stat(path.data(), &state) != 0)
+				return os::error::get_condition_or();
 
-			struct tm Time;
-			LocalTime(&State.st_ctime, &Time);
+			struct tm time;
+			local_time(&state.st_ctime, &time);
 
-			File->Size = (size_t)(State.st_size);
-			File->LastModified = State.st_mtime;
-			File->CreationTime = mktime(&Time);
-			File->IsDirectory = S_ISDIR(State.st_mode);
-			File->IsReferenced = false;
-			File->IsExists = true;
+			file->size = (size_t)(state.st_size);
+			file->last_modified = state.st_mtime;
+			file->creation_time = mktime(&time);
+			file->is_directory = S_ISDIR(state.st_mode);
+			file->is_referenced = false;
+			file->is_exists = true;
 #endif
-			VI_TRACE("[io] stat %.*s: %s %" PRIu64 " bytes", (int)Path.size(), Path.data(), File->IsDirectory ? "dir" : "file", (uint64_t)File->Size);
-			return Core::Expectation::Met;
+			VI_TRACE("[io] stat %.*s: %s %" PRIu64 " bytes", (int)path.size(), path.data(), file->is_directory ? "dir" : "file", (uint64_t)file->size);
+			return core::expectation::met;
 		}
-		ExpectsIO<void> OS::File::Seek64(FILE* Stream, int64_t Offset, FileSeek Mode)
+		expects_io<void> os::file::seek64(FILE* stream, int64_t offset, file_seek mode)
 		{
-			int Origin;
-			switch (Mode)
+			int origin;
+			switch (mode)
 			{
-				case FileSeek::Begin:
-					VI_TRACE("[io] seek-64 fd %i begin %" PRId64, VI_FILENO(Stream), Offset);
-					Origin = SEEK_SET;
+				case file_seek::begin:
+					VI_TRACE("[io] seek-64 fd %i begin %" PRId64, VI_FILENO(stream), offset);
+					origin = SEEK_SET;
 					break;
-				case FileSeek::Current:
-					VI_TRACE("[io] seek-64 fd %i move %" PRId64, VI_FILENO(Stream), Offset);
-					Origin = SEEK_CUR;
+				case file_seek::current:
+					VI_TRACE("[io] seek-64 fd %i move %" PRId64, VI_FILENO(stream), offset);
+					origin = SEEK_CUR;
 					break;
-				case FileSeek::End:
-					VI_TRACE("[io] seek-64 fd %i end %" PRId64, VI_FILENO(Stream), Offset);
-					Origin = SEEK_END;
+				case file_seek::end:
+					VI_TRACE("[io] seek-64 fd %i end %" PRId64, VI_FILENO(stream), offset);
+					origin = SEEK_END;
 					break;
 				default:
 					return std::make_error_condition(std::errc::invalid_argument);
 			}
 #ifdef VI_MICROSOFT
-			if (_fseeki64(Stream, Offset, Origin) != 0)
-				return OS::Error::GetConditionOr();
+			if (_fseeki64(stream, offset, origin) != 0)
+				return os::error::get_condition_or();
 #else
-			if (fseeko(Stream, Offset, Origin) != 0)
-				return OS::Error::GetConditionOr();
+			if (fseeko(stream, offset, origin) != 0)
+				return os::error::get_condition_or();
 #endif
-			return Expectation::Met;
+			return expectation::met;
 		}
-		ExpectsIO<size_t> OS::File::Tell64(FILE* Stream)
+		expects_io<size_t> os::file::tell64(FILE* stream)
 		{
-			VI_TRACE("[io] fd %i tell-64", VI_FILENO(Stream));
+			VI_TRACE("[io] fd %i tell-64", VI_FILENO(stream));
 #ifdef VI_MICROSOFT
-			int64_t Offset = _ftelli64(Stream);
+			int64_t offset = _ftelli64(stream);
 #else
-			int64_t Offset = ftello(Stream);
+			int64_t offset = ftello(stream);
 #endif
-			if (Offset < 0)
-				return OS::Error::GetConditionOr();
+			if (offset < 0)
+				return os::error::get_condition_or();
 
-			return (size_t)Offset;
+			return (size_t)offset;
 		}
-		ExpectsIO<size_t> OS::File::Join(const std::string_view& To, const Vector<String>& Paths)
+		expects_io<size_t> os::file::join(const std::string_view& to, const vector<string>& paths)
 		{
-			VI_ASSERT(!To.empty(), "to should not be empty");
-			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] join %i path to %.*s", (int)Paths.size(), (int)To.size(), To.data());
-			auto Target = Open(To, FileMode::Binary_Write_Only);
-			if (!Target)
-				return Target.Error();
+			VI_ASSERT(!to.empty(), "to should not be empty");
+			VI_ASSERT(!paths.empty(), "paths to join should not be empty");
+			VI_TRACE("[io] join %i path to %.*s", (int)paths.size(), (int)to.size(), to.data());
+			auto target = open(to, file_mode::binary_write_only);
+			if (!target)
+				return target.error();
 
-			size_t Total = 0;
-			UPtr<Stream> Pipe = *Target;
-			for (auto& Path : Paths)
+			size_t total = 0;
+			uptr<stream> pipe = *target;
+			for (auto& path : paths)
 			{
-				UPtr<Stream> Base = Open(Path, FileMode::Binary_Read_Only).Or(nullptr);
-				if (Base)
-					Total += Base->ReadAll([&Pipe](uint8_t* Buffer, size_t Size) { Pipe->Write(Buffer, Size); }).Or(0);
+				uptr<stream> base = open(path, file_mode::binary_read_only).otherwise(nullptr);
+				if (base)
+					total += base->read_all([&pipe](uint8_t* buffer, size_t size) { pipe->write(buffer, size); }).otherwise(0);
 			}
 
-			return Total;
+			return total;
 		}
-		ExpectsIO<FileState> OS::File::GetProperties(const std::string_view& Path)
+		expects_io<file_state> os::file::get_properties(const std::string_view& path)
 		{
-			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
-			VI_MEASURE(Timings::FileSystem);
-			if (!Control::Has(AccessOption::Fs))
+			VI_ASSERT(stringify::is_cstring(path), "path should be set");
+			VI_MEASURE(timings::file_system);
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			struct stat Buffer;
-			if (stat(Path.data(), &Buffer) != 0)
-				return OS::Error::GetConditionOr();
+			struct stat buffer;
+			if (stat(path.data(), &buffer) != 0)
+				return os::error::get_condition_or();
 
-			FileState State;
-			State.Exists = true;
-			State.Size = Buffer.st_size;
-			State.Links = Buffer.st_nlink;
-			State.Permissions = Buffer.st_mode;
-			State.Device = Buffer.st_dev;
-			State.GroupId = Buffer.st_gid;
-			State.UserId = Buffer.st_uid;
-			State.Document = Buffer.st_ino;
-			State.LastAccess = Buffer.st_atime;
-			State.LastPermissionChange = Buffer.st_ctime;
-			State.LastModified = Buffer.st_mtime;
+			file_state state;
+			state.exists = true;
+			state.size = buffer.st_size;
+			state.links = buffer.st_nlink;
+			state.permissions = buffer.st_mode;
+			state.device = buffer.st_dev;
+			state.group_id = buffer.st_gid;
+			state.user_id = buffer.st_uid;
+			state.document = buffer.st_ino;
+			state.last_access = buffer.st_atime;
+			state.last_permission_change = buffer.st_ctime;
+			state.last_modified = buffer.st_mtime;
 
-			VI_TRACE("[io] stat %.*s: %" PRIu64 " bytes", (int)Path.size(), Path.data(), (uint64_t)State.Size);
-			return State;
+			VI_TRACE("[io] stat %.*s: %" PRIu64 " bytes", (int)path.size(), path.data(), (uint64_t)state.size);
+			return state;
 		}
-		ExpectsIO<FileEntry> OS::File::GetState(const std::string_view& Path)
+		expects_io<file_entry> os::file::get_state(const std::string_view& path)
 		{
-			FileEntry File;
-			auto Status = GetState(Path, &File);
-			if (!Status)
-				return Status.Error();
+			file_entry file;
+			auto status = get_state(path, &file);
+			if (!status)
+				return status.error();
 
-			return File;
+			return file;
 		}
-		ExpectsIO<FILE*> OS::File::Open(const std::string_view& Path, const std::string_view& Mode)
+		expects_io<FILE*> os::file::open(const std::string_view& path, const std::string_view& mode)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
-			VI_ASSERT(Stringify::IsCString(Mode), "mode should be set");
-			if (!Control::Has(AccessOption::Fs))
+			VI_MEASURE(timings::file_system);
+			VI_ASSERT(stringify::is_cstring(path), "path should be set");
+			VI_ASSERT(stringify::is_cstring(mode), "mode should be set");
+			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			wchar_t Buffer[CHUNK_SIZE], Type[20];
-			Stringify::ConvertToWide(Path, Buffer, CHUNK_SIZE);
-			Stringify::ConvertToWide(Mode, Type, 20);
+			wchar_t buffer[CHUNK_SIZE], type[20];
+			stringify::convert_to_wide(path, buffer, CHUNK_SIZE);
+			stringify::convert_to_wide(mode, type, 20);
 
-			FILE* Stream = _wfopen(Buffer, Type);
-			if (!Stream)
-				return OS::Error::GetConditionOr();
+			FILE* stream = _wfopen(buffer, type);
+			if (!stream)
+				return os::error::get_condition_or();
 
-			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)Mode.size(), Mode.data(), VI_FILENO(Stream), (int)Path.size(), Path.data());
-			return Stream;
+			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)mode.size(), mode.data(), VI_FILENO(stream), (int)path.size(), path.data());
+			return stream;
 #else
-			FILE* Stream = fopen(Path.data(), Mode.data());
-			if (!Stream)
-				return OS::Error::GetConditionOr();
+			FILE* stream = fopen(path.data(), mode.data());
+			if (!stream)
+				return os::error::get_condition_or();
 
-			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)Mode.size(), Mode.data(), VI_FILENO(Stream), (int)Path.size(), Path.data());
-			fcntl(VI_FILENO(Stream), F_SETFD, FD_CLOEXEC);
-			return Stream;
+			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)mode.size(), mode.data(), VI_FILENO(stream), (int)path.size(), path.data());
+			fcntl(VI_FILENO(stream), F_SETFD, FD_CLOEXEC);
+			return stream;
 #endif
 		}
-		ExpectsIO<Stream*> OS::File::Open(const std::string_view& Path, FileMode Mode, bool Async)
+		expects_io<stream*> os::file::open(const std::string_view& path, file_mode mode, bool async)
 		{
-			if (Path.empty())
+			if (path.empty())
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
-			else if (!Control::Has(AccessOption::Fs))
+			else if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			Network::Location Origin(Path);
-			if (Origin.Protocol == "file")
+			network::location origin(path);
+			if (origin.protocol == "file")
 			{
-				UPtr<Stream> Target;
-				if (Stringify::EndsWith(Path, ".gz"))
-					Target = new GzStream();
+				uptr<stream> target;
+				if (stringify::ends_with(path, ".gz"))
+					target = new gz_stream();
 				else
-					Target = new FileStream();
+					target = new file_stream();
 
-				auto Result = Target->Open(Path, Mode);
-				if (!Result)
-					return Result.Error();
+				auto result = target->open(path, mode);
+				if (!result)
+					return result.error();
 
-				return Target.Reset();
+				return target.reset();
 			}
-			else if (Origin.Protocol == "http" || Origin.Protocol == "https")
+			else if (origin.protocol == "http" || origin.protocol == "https")
 			{
-				UPtr<Stream> Target = new WebStream(Async);
-				auto Result = Target->Open(Path, Mode);
-				if (!Result)
-					return Result.Error();
+				uptr<stream> target = new web_stream(async);
+				auto result = target->open(path, mode);
+				if (!result)
+					return result.error();
 
-				return Target.Reset();
+				return target.reset();
 			}
-			else if (Origin.Protocol == "shell")
+			else if (origin.protocol == "shell")
 			{
-				UPtr<Stream> Target = new ProcessStream();
-				auto Result = Target->Open(Origin.Path.c_str(), Mode);
-				if (!Result)
-					return Result.Error();
+				uptr<stream> target = new process_stream();
+				auto result = target->open(origin.path.c_str(), mode);
+				if (!result)
+					return result.error();
 
-				return Target.Reset();
+				return target.reset();
 			}
-			else if (Origin.Protocol == "mem")
+			else if (origin.protocol == "mem")
 			{
-				UPtr<Stream> Target = new MemoryStream();
-				auto Result = Target->Open(Path, Mode);
-				if (!Result)
-					return Result.Error();
+				uptr<stream> target = new memory_stream();
+				auto result = target->open(path, mode);
+				if (!result)
+					return result.error();
 
-				return Target.Reset();
+				return target.reset();
 			}
 
 			return std::make_error_condition(std::errc::invalid_argument);
 		}
-		ExpectsIO<Stream*> OS::File::OpenArchive(const std::string_view& Path, size_t UnarchivedMaxSize)
+		expects_io<stream*> os::file::open_archive(const std::string_view& path, size_t unarchived_max_size)
 		{
-			auto State = OS::File::GetState(Path);
-			if (!State)
-				return Open(Path, FileMode::Binary_Write_Only);
+			auto state = os::file::get_state(path);
+			if (!state)
+				return open(path, file_mode::binary_write_only);
 
-			String Temp = Path::GetNonExistant(Path);
-			Move(Path, Temp.c_str());
+			string temp = path::get_non_existant(path);
+			move(path, temp.c_str());
 
-			if (State->Size <= UnarchivedMaxSize)
+			if (state->size <= unarchived_max_size)
 			{
-				auto Target = OpenJoin(Path, { Temp });
-				if (Target)
-					Remove(Temp.c_str());
-				return Target;
+				auto target = open_join(path, { temp });
+				if (target)
+					remove(temp.c_str());
+				return target;
 			}
 
-			auto Target = Open(Path, FileMode::Binary_Write_Only);
-			if (Stringify::EndsWith(Temp, ".gz"))
-				return Target;
+			auto target = open(path, file_mode::binary_write_only);
+			if (stringify::ends_with(temp, ".gz"))
+				return target;
 
-			UPtr<Stream> Archive = OpenJoin(Temp + ".gz", { Temp }).Or(nullptr);
-			if (Archive)
-				Remove(Temp.c_str());
+			uptr<stream> archive = open_join(temp + ".gz", { temp }).otherwise(nullptr);
+			if (archive)
+				remove(temp.c_str());
 
-			return Target;
+			return target;
 		}
-		ExpectsIO<Stream*> OS::File::OpenJoin(const std::string_view& To, const Vector<String>& Paths)
+		expects_io<stream*> os::file::open_join(const std::string_view& to, const vector<string>& paths)
 		{
-			VI_ASSERT(!To.empty(), "to should not be empty");
-			VI_ASSERT(!Paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] open join %i path to %.*s", (int)Paths.size(), (int)To.size(), To.data());
-			auto Target = Open(To, FileMode::Binary_Write_Only);
-			if (!Target)
-				return Target;
+			VI_ASSERT(!to.empty(), "to should not be empty");
+			VI_ASSERT(!paths.empty(), "paths to join should not be empty");
+			VI_TRACE("[io] open join %i path to %.*s", (int)paths.size(), (int)to.size(), to.data());
+			auto target = open(to, file_mode::binary_write_only);
+			if (!target)
+				return target;
 
-			auto* Channel = *Target;
-			for (auto& Path : Paths)
+			auto* channel = *target;
+			for (auto& path : paths)
 			{
-				UPtr<Stream> Base = Open(Path, FileMode::Binary_Read_Only).Or(nullptr);
-				if (Base)
-					Base->ReadAll([&Channel](uint8_t* Buffer, size_t Size) { Channel->Write(Buffer, Size); });
+				uptr<stream> base = open(path, file_mode::binary_read_only).otherwise(nullptr);
+				if (base)
+					base->read_all([&channel](uint8_t* buffer, size_t size) { channel->write(buffer, size); });
 			}
 
-			return Target;
+			return target;
 		}
-		ExpectsIO<uint8_t*> OS::File::ReadAll(const std::string_view& Path, size_t* Length)
+		expects_io<uint8_t*> os::file::read_all(const std::string_view& path, size_t* length)
 		{
-			auto Target = Open(Path, FileMode::Binary_Read_Only);
-			if (!Target)
-				return Target.Error();
+			auto target = open(path, file_mode::binary_read_only);
+			if (!target)
+				return target.error();
 
-			UPtr<Stream> Base = *Target;
-			return ReadAll(*Base, Length);
+			uptr<stream> base = *target;
+			return read_all(*base, length);
 		}
-		ExpectsIO<uint8_t*> OS::File::ReadAll(Stream* Stream, size_t* Length)
+		expects_io<uint8_t*> os::file::read_all(stream* stream, size_t* length)
 		{
-			VI_ASSERT(Stream != nullptr, "path should be set");
-			VI_MEASURE(Core::Timings::FileSystem);
-			VI_TRACE("[io] fd %i read-all", Stream->GetReadableFd());
-			if (Length != nullptr)
-				*Length = 0;
+			VI_ASSERT(stream != nullptr, "path should be set");
+			VI_MEASURE(core::timings::file_system);
+			VI_TRACE("[io] fd %i read-all", stream->get_readable_fd());
+			if (length != nullptr)
+				*length = 0;
 
-			bool IsVirtual = Stream->VirtualSize() > 0;
-			if (IsVirtual || Stream->IsSized())
+			bool is_virtual = stream->virtual_size() > 0;
+			if (is_virtual || stream->is_sized())
 			{
-				size_t Size = IsVirtual ? Stream->VirtualSize() : Stream->Size().Or(0);
-				auto* Bytes = Memory::Allocate<uint8_t>(sizeof(uint8_t) * (Size + 1));
-				if (Size > 0)
+				size_t size = is_virtual ? stream->virtual_size() : stream->size().otherwise(0);
+				auto* bytes = memory::allocate<uint8_t>(sizeof(uint8_t) * (size + 1));
+				if (size > 0)
 				{
-					auto Status = Stream->Read(Bytes, Size);
-					if (!Status)
+					auto status = stream->read(bytes, size);
+					if (!status)
 					{
-						Memory::Deallocate(Bytes);
-						return Status.Error();
+						memory::deallocate(bytes);
+						return status.error();
 					}
 				}
 
-				Bytes[Size] = '\0';
-				if (Length != nullptr)
-					*Length = Size;
+				bytes[size] = '\0';
+				if (length != nullptr)
+					*length = size;
 
-				return Bytes;
+				return bytes;
 			}
 
-			Core::String Data;
-			auto Status = Stream->ReadAll([&Data](uint8_t* Buffer, size_t Length)
+			core::string data;
+			auto status = stream->read_all([&data](uint8_t* buffer, size_t length)
 			{
-				Data.reserve(Data.size() + Length);
-				Data.append((char*)Buffer, Length);
+				data.reserve(data.size() + length);
+				data.append((char*)buffer, length);
 			});
-			if (!Status)
-				return Status.Error();
+			if (!status)
+				return status.error();
 
-			size_t Size = Data.size();
-			auto* Bytes = Memory::Allocate<uint8_t>(sizeof(uint8_t) * (Data.size() + 1));
-			memcpy(Bytes, Data.data(), sizeof(uint8_t) * Data.size());
-			Bytes[Size] = '\0';
-			if (Length != nullptr)
-				*Length = Size;
+			size_t size = data.size();
+			auto* bytes = memory::allocate<uint8_t>(sizeof(uint8_t) * (data.size() + 1));
+			memcpy(bytes, data.data(), sizeof(uint8_t) * data.size());
+			bytes[size] = '\0';
+			if (length != nullptr)
+				*length = size;
 
-			return Bytes;
+			return bytes;
 		}
-		ExpectsIO<uint8_t*> OS::File::ReadChunk(Stream* Stream, size_t Length)
+		expects_io<uint8_t*> os::file::read_chunk(stream* stream, size_t length)
 		{
-			VI_ASSERT(Stream != nullptr, "stream should be set");
-			auto* Bytes = Memory::Allocate<uint8_t>(Length + 1);
-			if (Length > 0)
-				Stream->Read(Bytes, Length);
-			Bytes[Length] = '\0';
-			return Bytes;
+			VI_ASSERT(stream != nullptr, "stream should be set");
+			auto* bytes = memory::allocate<uint8_t>(length + 1);
+			if (length > 0)
+				stream->read(bytes, length);
+			bytes[length] = '\0';
+			return bytes;
 		}
-		ExpectsIO<String> OS::File::ReadAsString(const std::string_view& Path)
+		expects_io<string> os::file::read_as_string(const std::string_view& path)
 		{
-			size_t Length = 0;
-			auto FileData = ReadAll(Path, &Length);
-			if (!FileData)
-				return FileData.Error();
+			size_t length = 0;
+			auto file_data = read_all(path, &length);
+			if (!file_data)
+				return file_data.error();
 
-			auto* Data = (char*)*FileData;
-			String Output(Data, Length);
-			Memory::Deallocate(Data);
-			return Output;
+			auto* data = (char*)*file_data;
+			string output(data, length);
+			memory::deallocate(data);
+			return output;
 		}
-		ExpectsIO<Vector<String>> OS::File::ReadAsArray(const std::string_view& Path)
+		expects_io<vector<string>> os::file::read_as_array(const std::string_view& path)
 		{
-			ExpectsIO<String> Result = ReadAsString(Path);
-			if (!Result)
-				return Result.Error();
+			expects_io<string> result = read_as_string(path);
+			if (!result)
+				return result.error();
 
-			return Stringify::Split(*Result, '\n');
+			return stringify::split(*result, '\n');
 		}
-		
-		bool OS::Path::IsRemote(const std::string_view& Path)
+
+		bool os::path::is_remote(const std::string_view& path)
 		{
-			return Network::Location(Path).Protocol != "file";
+			return network::location(path).protocol != "file";
 		}
-		bool OS::Path::IsRelative(const std::string_view& Path)
+		bool os::path::is_relative(const std::string_view& path)
 		{
 #ifdef VI_MICROSOFT
-			return !IsAbsolute(Path);
+			return !is_absolute(path);
 #else
-			return Path[0] == '/' || Path[0] == '\\';
+			return path[0] == '/' || path[0] == '\\';
 #endif
 		}
-		bool OS::Path::IsAbsolute(const std::string_view& Path)
+		bool os::path::is_absolute(const std::string_view& path)
 		{
 #ifdef VI_MICROSOFT
-			if (Path[0] == '/' || Path[0] == '\\')
+			if (path[0] == '/' || path[0] == '\\')
 				return true;
 
-			if (Path.size() < 2)
+			if (path.size() < 2)
 				return false;
 
-			return Path[1] == ':' && Stringify::IsAlphanum(Path[0]);
+			return path[1] == ':' && stringify::is_alphanum(path[0]);
 #else
-			return Path[0] == '/' || Path[0] == '\\';
+			return path[0] == '/' || path[0] == '\\';
 #endif
 		}
-		ExpectsIO<String> OS::Path::Resolve(const std::string_view& Path)
+		expects_io<string> os::path::resolve(const std::string_view& path)
 		{
-			VI_ASSERT(Stringify::IsCString(Path), "path should be set");
-			VI_MEASURE(Timings::FileSystem);
-			char Buffer[BLOB_SIZE] = { 0 };
+			VI_ASSERT(stringify::is_cstring(path), "path should be set");
+			VI_MEASURE(timings::file_system);
+			char buffer[BLOB_SIZE] = { 0 };
 #ifdef VI_MICROSOFT
-			if (GetFullPathNameA(Path.data(), sizeof(Buffer), Buffer, nullptr) == 0)
-				return OS::Error::GetConditionOr();
+			if (GetFullPathNameA(path.data(), sizeof(buffer), buffer, nullptr) == 0)
+				return os::error::get_condition_or();
 #else
-			if (!realpath(Path.data(), Buffer))
+			if (!realpath(path.data(), buffer))
 			{
-				if (!*Buffer && (Path.empty() || Path.find("./") != std::string::npos || Path.find(".\\") != std::string::npos))
-					return OS::Error::GetConditionOr();
-				
-				String Output = *Buffer > 0 ? String(Buffer, strnlen(Buffer, BLOB_SIZE)) : String(Path);
-				VI_TRACE("[io] resolve %.*s path (non-existant)", (int)Path.size(), Path.data());
-				return Output;
+				if (!*buffer && (path.empty() || path.find("./") != std::string::npos || path.find(".\\") != std::string::npos))
+					return os::error::get_condition_or();
+
+				string output = *buffer > 0 ? string(buffer, strnlen(buffer, BLOB_SIZE)) : string(path);
+				VI_TRACE("[io] resolve %.*s path (non-existant)", (int)path.size(), path.data());
+				return output;
 			}
 #endif
-			String Output(Buffer, strnlen(Buffer, BLOB_SIZE));
-			VI_TRACE("[io] resolve %.*s path: %s", (int)Path.size(), Path.data(), Output.c_str());
-			return Output;
+			string output(buffer, strnlen(buffer, BLOB_SIZE));
+			VI_TRACE("[io] resolve %.*s path: %s", (int)path.size(), path.data(), output.c_str());
+			return output;
 		}
-		ExpectsIO<String> OS::Path::Resolve(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists)
+		expects_io<string> os::path::resolve(const std::string_view& path, const std::string_view& directory, bool even_if_exists)
 		{
-			VI_ASSERT(!Path.empty() && !Directory.empty(), "path and directory should not be empty");
-			if (IsAbsolute(Path))
-				return String(Path);
-			else if (!EvenIfExists && IsPathExists(Path) && Path.find("..") == std::string::npos)
-				return String(Path);
+			VI_ASSERT(!path.empty() && !directory.empty(), "path and directory should not be empty");
+			if (is_absolute(path))
+				return string(path);
+			else if (!even_if_exists && is_path_exists(path) && path.find("..") == std::string::npos)
+				return string(path);
 
-			bool Prefixed = Stringify::StartsOf(Path, "/\\");
-			bool Relative = !Prefixed && (Stringify::StartsWith(Path, "./") || Stringify::StartsWith(Path, ".\\"));
-			bool Postfixed = Stringify::EndsOf(Directory, "/\\");
+			bool prefixed = stringify::starts_of(path, "/\\");
+			bool relative = !prefixed && (stringify::starts_with(path, "./") || stringify::starts_with(path, ".\\"));
+			bool postfixed = stringify::ends_of(directory, "/\\");
 
-			String Target = String(Directory);
-			if (!Prefixed && !Postfixed)
-				Target.append(1, VI_SPLITTER);
+			string target = string(directory);
+			if (!prefixed && !postfixed)
+				target.append(1, VI_SPLITTER);
 
-			if (Relative)
-				Target.append(Path.data() + 2, Path.size() - 2);
+			if (relative)
+				target.append(path.data() + 2, path.size() - 2);
 			else
-				Target.append(Path);
+				target.append(path);
 
-			return Resolve(Target.c_str());
+			return resolve(target.c_str());
 		}
-		ExpectsIO<String> OS::Path::ResolveDirectory(const std::string_view& Path)
+		expects_io<string> os::path::resolve_directory(const std::string_view& path)
 		{
-			ExpectsIO<String> Result = Resolve(Path);
-			if (!Result)
-				return Result;
+			expects_io<string> result = resolve(path);
+			if (!result)
+				return result;
 
-			if (!Result->empty() && !Stringify::EndsOf(*Result, "/\\"))
-				Result->append(1, VI_SPLITTER);
+			if (!result->empty() && !stringify::ends_of(*result, "/\\"))
+				result->append(1, VI_SPLITTER);
 
-			return Result;
+			return result;
 		}
-		ExpectsIO<String> OS::Path::ResolveDirectory(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists)
+		expects_io<string> os::path::resolve_directory(const std::string_view& path, const std::string_view& directory, bool even_if_exists)
 		{
-			ExpectsIO<String> Result = Resolve(Path, Directory, EvenIfExists);
-			if (!Result)
-				return Result;
+			expects_io<string> result = resolve(path, directory, even_if_exists);
+			if (!result)
+				return result;
 
-			if (!Result->empty() && !Stringify::EndsOf(*Result, "/\\"))
-				Result->append(1, VI_SPLITTER);
+			if (!result->empty() && !stringify::ends_of(*result, "/\\"))
+				result->append(1, VI_SPLITTER);
 
-			return Result;
+			return result;
 		}
-		String OS::Path::GetNonExistant(const std::string_view& Path)
+		string os::path::get_non_existant(const std::string_view& path)
 		{
-			VI_ASSERT(!Path.empty(), "path should not be empty");
-			auto Extension = GetExtension(Path);
-			bool IsTrueFile = !Extension.empty();
-			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
-			if (ExtensionAt == String::npos)
-				return String(Path);
+			VI_ASSERT(!path.empty(), "path should not be empty");
+			auto extension = get_extension(path);
+			bool is_true_file = !extension.empty();
+			size_t extension_at = is_true_file ? path.rfind(extension) : path.size();
+			if (extension_at == string::npos)
+				return string(path);
 
-			String First = String(Path.substr(0, ExtensionAt));
-			String Second = String(1, '.') + String(Extension);
-			String Filename = String(Path);
-			size_t Nonce = 0;
+			string first = string(path.substr(0, extension_at));
+			string second = string(1, '.') + string(extension);
+			string filename = string(path);
+			size_t nonce = 0;
 
 			while (true)
 			{
-				auto Data = OS::File::GetState(Filename);
-				if (!Data || !Data->Size)
+				auto data = os::file::get_state(filename);
+				if (!data || !data->size)
 					break;
 
-				Filename = First + Core::ToString(++Nonce) + Second;
+				filename = first + core::to_string(++nonce) + second;
 			}
 
-			return Filename;
+			return filename;
 		}
-		String OS::Path::GetDirectory(const std::string_view& Path, size_t Level)
+		string os::path::get_directory(const std::string_view& path, size_t level)
 		{
-			String Buffer(Path);
-			TextSettle Result = Stringify::ReverseFindOf(Buffer, "/\\");
-			if (!Result.Found)
-				return Buffer;
+			string buffer(path);
+			text_settle result = stringify::reverse_find_of(buffer, "/\\");
+			if (!result.found)
+				return buffer;
 
-			size_t Size = Buffer.size();
-			for (size_t i = 0; i < Level; i++)
+			size_t size = buffer.size();
+			for (size_t i = 0; i < level; i++)
 			{
-				TextSettle Current = Stringify::ReverseFindOf(Buffer, "/\\", Size - Result.Start);
-				if (!Current.Found)
+				text_settle current = stringify::reverse_find_of(buffer, "/\\", size - result.start);
+				if (!current.found)
 				{
-					Stringify::Splice(Buffer, 0, Result.End);
-					if (Buffer.empty())
+					stringify::splice(buffer, 0, result.end);
+					if (buffer.empty())
 						return "/";
 
-					return Buffer;
+					return buffer;
 				}
 
-				Result = Current;
+				result = current;
 			}
 
-			Stringify::Splice(Buffer, 0, Result.End);
-			if (Buffer.empty())
-				Buffer.assign("/");
+			stringify::splice(buffer, 0, result.end);
+			if (buffer.empty())
+				buffer.assign("/");
 
-			return Buffer;
+			return buffer;
 		}
-		std::string_view OS::Path::GetFilename(const std::string_view& Path)
+		std::string_view os::path::get_filename(const std::string_view& path)
 		{
-			size_t Size = Path.size();
-			for (size_t i = Size; i-- > 0;)
+			size_t size = path.size();
+			for (size_t i = size; i-- > 0;)
 			{
-				if (Path[i] == '/' || Path[i] == '\\')
-					return Path.substr(i + 1);
+				if (path[i] == '/' || path[i] == '\\')
+					return path.substr(i + 1);
 			}
 
-			return Path;
+			return path;
 		}
-		std::string_view OS::Path::GetExtension(const std::string_view& Path)
+		std::string_view os::path::get_extension(const std::string_view& path)
 		{
-			if (Path.empty())
+			if (path.empty())
 				return "";
 
-			size_t Index = Path.rfind('.');
-			if (Index == std::string::npos)
+			size_t index = path.rfind('.');
+			if (index == std::string::npos)
 				return "";
 
-			return Path.substr(Index + 1);
+			return path.substr(index + 1);
 		}
 
-		bool OS::Net::GetETag(char* Buffer, size_t Length, FileEntry* Resource)
+		bool os::net::get_etag(char* buffer, size_t length, file_entry* resource)
 		{
-			VI_ASSERT(Resource != nullptr, "resource should be set");
-			return GetETag(Buffer, Length, Resource->LastModified, Resource->Size);
+			VI_ASSERT(resource != nullptr, "resource should be set");
+			return get_etag(buffer, length, resource->last_modified, resource->size);
 		}
-		bool OS::Net::GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength)
+		bool os::net::get_etag(char* buffer, size_t length, int64_t last_modified, size_t content_length)
 		{
-			VI_ASSERT(Buffer != nullptr && Length > 0, "buffer should be set and size should be greater than zero");
-			snprintf(Buffer, Length, "\"%lx.%" PRIu64 "\"", (unsigned long)LastModified, (uint64_t)ContentLength);
+			VI_ASSERT(buffer != nullptr && length > 0, "buffer should be set and size should be greater than zero");
+			snprintf(buffer, length, "\"%lx.%" PRIu64 "\"", (unsigned long)last_modified, (uint64_t)content_length);
 			return true;
 		}
-		socket_t OS::Net::GetFd(FILE* Stream)
+		socket_t os::net::get_fd(FILE* stream)
 		{
-			VI_ASSERT(Stream != nullptr, "stream should be set");
-			return VI_FILENO(Stream);
+			VI_ASSERT(stream != nullptr, "stream should be set");
+			return VI_FILENO(stream);
 		}
 
-		void OS::Process::Abort()
+		void os::process::abort()
 		{
 #ifdef NDEBUG
-			VI_DEBUG("[os] process terminate on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
+			VI_DEBUG("[os] process terminate on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 			std::terminate();
 #else
-			VI_DEBUG("[os] process abort on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
+			VI_DEBUG("[os] process abort on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 			std::abort();
 #endif
 		}
-		void OS::Process::Exit(int Code)
+		void os::process::exit(int code)
 		{
-			VI_DEBUG("[os] process exit:%i on thread %s", Code, GetThreadId(std::this_thread::get_id()).c_str());
-			std::exit(Code);
+			VI_DEBUG("[os] process exit:%i on thread %s", code, get_thread_id(std::this_thread::get_id()).c_str());
+			std::exit(code);
 		}
-		void OS::Process::Interrupt()
+		void os::process::interrupt()
 		{
 #ifndef NDEBUG
-			VI_DEBUG("[os] process suspend on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
+			VI_DEBUG("[os] process suspend on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 #ifndef VI_MICROSOFT
 #ifndef SIGTRAP
 			__debugbreak();
@@ -10001,167 +10001,167 @@ namespace Vitex
 #endif
 #endif
 		}
-		int OS::Process::GetSignalId(Signal Type)
+		int os::process::get_signal_id(signal_code type)
 		{
-			int InvalidOffset = 0x2d42;
-			switch (Type)
+			int invalid_offset = 0x2d42;
+			switch (type)
 			{
-				case Signal::SIG_INT:
+				case signal_code::SIG_INT:
 #ifdef SIGINT
 					return SIGINT;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_ILL:
+				case signal_code::SIG_ILL:
 #ifdef SIGILL
 					return SIGILL;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_FPE:
+				case signal_code::SIG_FPE:
 #ifdef SIGFPE
 					return SIGFPE;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_SEGV:
+				case signal_code::SIG_SEGV:
 #ifdef SIGSEGV
 					return SIGSEGV;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_TERM:
+				case signal_code::SIG_TERM:
 #ifdef SIGTERM
 					return SIGTERM;
 #else
 					return -1;
 #endif
-				case Signal::SIG_BREAK:
+				case signal_code::SIG_BREAK:
 #ifdef SIGBREAK
 					return SIGBREAK;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_ABRT:
+				case signal_code::SIG_ABRT:
 #ifdef SIGABRT
 					return SIGABRT;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_BUS:
+				case signal_code::SIG_BUS:
 #ifdef SIGBUS
 					return SIGBUS;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_ALRM:
+				case signal_code::SIG_ALRM:
 #ifdef SIGALRM
 					return SIGALRM;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_HUP:
+				case signal_code::SIG_HUP:
 #ifdef SIGHUP
 					return SIGHUP;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_QUIT:
+				case signal_code::SIG_QUIT:
 #ifdef SIGQUIT
 					return SIGQUIT;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_TRAP:
+				case signal_code::SIG_TRAP:
 #ifdef SIGTRAP
 					return SIGTRAP;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_CONT:
+				case signal_code::SIG_CONT:
 #ifdef SIGCONT
 					return SIGCONT;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_STOP:
+				case signal_code::SIG_STOP:
 #ifdef SIGSTOP
 					return SIGSTOP;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_PIPE:
+				case signal_code::SIG_PIPE:
 #ifdef SIGPIPE
 					return SIGPIPE;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_CHLD:
+				case signal_code::SIG_CHLD:
 #ifdef SIGCHLD
 					return SIGCHLD;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_USR1:
+				case signal_code::SIG_USR1:
 #ifdef SIGUSR1
 					return SIGUSR1;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
-				case Signal::SIG_USR2:
+				case signal_code::SIG_USR2:
 #ifdef SIGUSR2
 					return SIGUSR2;
 #else
-					return InvalidOffset + (int)Type;
+					return invalid_offset + (int)type;
 #endif
 				default:
-					VI_ASSERT(false, "invalid signal type %i", (int)Type);
+					VI_ASSERT(false, "invalid signal type %i", (int)type);
 					return -1;
 			}
 		}
-		bool OS::Process::RaiseSignal(Signal Type)
+		bool os::process::raise_signal(signal_code type)
 		{
-			int Id = GetSignalId(Type);
-			if (Id == -1)
+			int id = get_signal_id(type);
+			if (id == -1)
 				return false;
 
-			return raise(Id) == 0;
+			return raise(id) == 0;
 		}
-		bool OS::Process::BindSignal(Signal Type, SignalCallback Callback)
+		bool os::process::bind_signal(signal_code type, signal_callback callback)
 		{
-			int Id = GetSignalId(Type);
-			if (Id == -1)
+			int id = get_signal_id(type);
+			if (id == -1)
 				return false;
-			VI_DEBUG("[os] signal %i: %s", Id, Callback ? "callback" : "ignore");
+			VI_DEBUG("[os] signal %i: %s", id, callback ? "callback" : "ignore");
 #ifdef VI_LINUX
-			struct sigaction Handle;
-			Handle.sa_handler = Callback ? Callback : SIG_IGN;
-			sigemptyset(&Handle.sa_mask);
-			Handle.sa_flags = 0;
+			struct sigaction handle;
+			handle.sa_handler = callback ? callback : SIG_IGN;
+			sigemptyset(&handle.sa_mask);
+			handle.sa_flags = 0;
 
-			return sigaction(Id, &Handle, NULL) != -1;
+			return sigaction(id, &handle, NULL) != -1;
 #else
-			return signal(Id, Callback ? Callback : SIG_IGN) != SIG_ERR;
+			return signal(id, callback ? callback : SIG_IGN) != SIG_ERR;
 #endif
 		}
-		bool OS::Process::RebindSignal(Signal Type)
+		bool os::process::rebind_signal(signal_code type)
 		{
-			int Id = GetSignalId(Type);
-			if (Id == -1)
+			int id = get_signal_id(type);
+			if (id == -1)
 				return false;
-			VI_DEBUG("[os] signal %i: default", Id);
+			VI_DEBUG("[os] signal %i: default", id);
 #ifdef VI_LINUX
-			struct sigaction Handle;
-			Handle.sa_handler = SIG_DFL;
-			sigemptyset(&Handle.sa_mask);
-			Handle.sa_flags = 0;
+			struct sigaction handle;
+			handle.sa_handler = SIG_DFL;
+			sigemptyset(&handle.sa_mask);
+			handle.sa_flags = 0;
 
-			return sigaction(Id, &Handle, NULL) != -1;
+			return sigaction(id, &handle, NULL) != -1;
 #else
-			return signal(Id, SIG_DFL) != SIG_ERR;
+			return signal(id, SIG_DFL) != SIG_ERR;
 #endif
 		}
-		bool OS::Process::HasDebugger()
+		bool os::process::has_debugger()
 		{
 #ifdef VI_MICROSOFT
 			return IsDebuggerPresent();
@@ -10169,326 +10169,326 @@ namespace Vitex
 			return false;
 #endif
 		}
-		ExpectsIO<int> OS::Process::Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback)
+		expects_io<int> os::process::execute(const std::string_view& command, file_mode mode, process_callback&& callback)
 		{
-			VI_ASSERT(!Command.empty(), "commmand should be set");
-			VI_DEBUG("[os] execute sh [ %.*s ]", (int)Command.size(), Command.data());
-			UPtr<ProcessStream> Stream = new ProcessStream();
-			auto Result = Stream->Open(Command, FileMode::Read_Only);
-			if (!Result)
-				return Result.Error();
+			VI_ASSERT(!command.empty(), "commmand should be set");
+			VI_DEBUG("[os] execute sh [ %.*s ]", (int)command.size(), command.data());
+			uptr<process_stream> stream = new process_stream();
+			auto result = stream->open(command, file_mode::read_only);
+			if (!result)
+				return result.error();
 
-			bool Notify = true;
-			char Buffer[CHUNK_SIZE];
+			bool notify = true;
+			char buffer[CHUNK_SIZE];
 			while (true)
 			{
-				auto Size = Stream->ReadLine(Buffer, sizeof(Buffer));
-				if (!Size || !*Size)
+				auto size = stream->read_line(buffer, sizeof(buffer));
+				if (!size || !*size)
 					break;
-				else if (Notify && Callback)
-					Notify = Callback(std::string_view(Buffer, *Size));
+				else if (notify && callback)
+					notify = callback(std::string_view(buffer, *size));
 			}
 
-			Result = Stream->Close();
-			if (!Result)
-				return Result.Error();
+			result = stream->close();
+			if (!result)
+				return result.error();
 
-			return Stream->GetExitCode();
+			return stream->get_exit_code();
 		}
-		ExpectsIO<Unique<ProcessStream>> OS::Process::Spawn(const std::string_view& Command, FileMode Mode)
+		expects_io<unique<process_stream>> os::process::spawn(const std::string_view& command, file_mode mode)
 		{
-			VI_ASSERT(!Command.empty(), "command should be set");
-			VI_DEBUG("[os] execute sh [ %.*s ]", (int)Command.size(), Command.data());
-			UPtr<ProcessStream> Stream = new ProcessStream();
-			auto Result = Stream->Open(Command, Mode);
-			if (Result)
-				return Stream.Reset();
+			VI_ASSERT(!command.empty(), "command should be set");
+			VI_DEBUG("[os] execute sh [ %.*s ]", (int)command.size(), command.data());
+			uptr<process_stream> stream = new process_stream();
+			auto result = stream->open(command, mode);
+			if (result)
+				return stream.reset();
 
-			return Result.Error();
+			return result.error();
 		}
-		String OS::Process::GetThreadId(const std::thread::id& Id)
+		string os::process::get_thread_id(const std::thread::id& id)
 		{
-			StringStream Stream;
-			Stream << Id;
-			return Stream.str();
+			string_stream stream;
+			stream << id;
+			return stream.str();
 		}
-		ExpectsIO<String> OS::Process::GetEnv(const std::string_view& Name)
+		expects_io<string> os::process::get_env(const std::string_view& name)
 		{
-			VI_ASSERT(Stringify::IsCString(Name), "name should be set");
-			VI_TRACE("[os] load env %.*s", (int)Name.size(), Name.data());
-			if (!Control::Has(AccessOption::Env))
+			VI_ASSERT(stringify::is_cstring(name), "name should be set");
+			VI_TRACE("[os] load env %.*s", (int)name.size(), name.data());
+			if (!control::has(access_option::env))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			char* Value = std::getenv(Name.data());
-			if (!Value)
-				return OS::Error::GetConditionOr();
+			char* value = std::getenv(name.data());
+			if (!value)
+				return os::error::get_condition_or();
 
-			String Output(Value, strlen(Value));
-			return Output;
+			string output(value, strlen(value));
+			return output;
 		}
-		ExpectsIO<String> OS::Process::GetShell()
+		expects_io<string> os::process::get_shell()
 		{
 #ifdef VI_MICROSOFT
-			auto Shell = GetEnv("ComSpec");
-			if (Shell)
-				return Shell;
+			auto shell = get_env("ComSpec");
+			if (shell)
+				return shell;
 #else
-			auto Shell = GetEnv("SHELL");
-			if (Shell)
-				return Shell;
+			auto shell = get_env("SHELL");
+			if (shell)
+				return shell;
 #endif
 			return std::make_error_condition(std::errc::no_such_file_or_directory);
 		}
-		InlineArgs OS::Process::ParseArgs(int ArgsCount, char** Args, size_t Opts, const UnorderedSet<String>& Flags)
+		inline_args os::process::parse_args(int args_count, char** args, size_t opts, const unordered_set<string>& flags)
 		{
-			VI_ASSERT(Args != nullptr, "arguments should be set");
-			VI_ASSERT(ArgsCount > 0, "arguments count should be greater than zero");
+			VI_ASSERT(args != nullptr, "arguments should be set");
+			VI_ASSERT(args_count > 0, "arguments count should be greater than zero");
 
-			InlineArgs Context;
-			for (int i = 0; i < ArgsCount; i++)
+			inline_args context;
+			for (int i = 0; i < args_count; i++)
 			{
-				VI_ASSERT(Args[i] != nullptr, "argument %i should be set", i);
-				Context.Params.push_back(Args[i]);
+				VI_ASSERT(args[i] != nullptr, "argument %i should be set", i);
+				context.params.push_back(args[i]);
 			}
 
-			Vector<String> Params;
-			Params.reserve(Context.Params.size());
+			vector<string> params;
+			params.reserve(context.params.size());
 
-			String Default = "1";
-			auto InlineText = [&Default](const Core::String& Value) -> const Core::String& { return Value.empty() ? Default : Value; };
-			for (size_t i = 1; i < Context.Params.size(); i++)
+			string placeholder = "1";
+			auto inline_text = [&placeholder](const core::string& value) -> const core::string& { return value.empty() ? placeholder : value; };
+			for (size_t i = 1; i < context.params.size(); i++)
 			{
-				auto& Item = Context.Params[i];
-				if (Item.empty() || Item.front() != '-')
-					goto NoMatch;
+				auto& item = context.params[i];
+				if (item.empty() || item.front() != '-')
+					goto no_match;
 
-				if ((Opts & (size_t)ArgsFormat::Key || Opts & (size_t)ArgsFormat::KeyValue) && Item.size() > 1 && Item[1] == '-')
+				if ((opts & (size_t)args_format::key || opts & (size_t)args_format::key_value) && item.size() > 1 && item[1] == '-')
 				{
-					Item = Item.substr(2);
-					size_t Position = Item.find('=');
-					if (Position != String::npos)
+					item = item.substr(2);
+					size_t position = item.find('=');
+					if (position != string::npos)
 					{
-						String Name = Item.substr(0, Position);
-						if (Flags.find(Name) != Flags.end())
+						string name = item.substr(0, position);
+						if (flags.find(name) != flags.end())
 						{
-							Context.Args[Item] = Default;
-							if (Opts & (size_t)ArgsFormat::StopIfNoMatch)
+							context.args[item] = placeholder;
+							if (opts & (size_t)args_format::stop_if_no_match)
 							{
-								Params.insert(Params.begin(), Context.Params.begin() + i + 1, Context.Params.end());
+								params.insert(params.begin(), context.params.begin() + i + 1, context.params.end());
 								break;
 							}
 						}
 						else
-							Context.Args[Name] = InlineText(Item.substr(Position + 1));
+							context.args[name] = inline_text(item.substr(position + 1));
 					}
-					else if (Opts & (size_t)ArgsFormat::Key || Flags.find(Item) != Flags.end())
-						Context.Args[Item] = Default;
+					else if (opts & (size_t)args_format::key || flags.find(item) != flags.end())
+						context.args[item] = placeholder;
 					else
-						goto NoMatch;
+						goto no_match;
 				}
-				else 
+				else
 				{
-					String Name = Item.substr(1);
-					if ((Opts & (size_t)ArgsFormat::FlagValue) && i + 1 < Context.Params.size() && Context.Params[i + 1].front() != '-')
+					string name = item.substr(1);
+					if ((opts & (size_t)args_format::flag_value) && i + 1 < context.params.size() && context.params[i + 1].front() != '-')
 					{
-						if (Flags.find(Name) != Flags.end())
+						if (flags.find(name) != flags.end())
 						{
-							Context.Args[Name] = Default;
-							if (Opts & (size_t)ArgsFormat::StopIfNoMatch)
+							context.args[name] = placeholder;
+							if (opts & (size_t)args_format::stop_if_no_match)
 							{
-								Params.insert(Params.begin(), Context.Params.begin() + i + 1, Context.Params.end());
+								params.insert(params.begin(), context.params.begin() + i + 1, context.params.end());
 								break;
 							}
 						}
 						else
-							Context.Args[Name] = InlineText(Context.Params[++i]);
+							context.args[name] = inline_text(context.params[++i]);
 					}
-					else if (Opts & (size_t)ArgsFormat::Flag || Flags.find(Name) != Flags.end())
-						Context.Args[Item.substr(1)] = Default;
+					else if (opts & (size_t)args_format::flag || flags.find(name) != flags.end())
+						context.args[item.substr(1)] = placeholder;
 					else
-						goto NoMatch;
+						goto no_match;
 				}
 
 				continue;
-			NoMatch:
-				if (Opts & (size_t)ArgsFormat::StopIfNoMatch)
+			no_match:
+				if (opts & (size_t)args_format::stop_if_no_match)
 				{
-					Params.insert(Params.begin(), Context.Params.begin() + i, Context.Params.end());
+					params.insert(params.begin(), context.params.begin() + i, context.params.end());
 					break;
 				}
 				else
-					Params.push_back(Item);
+					params.push_back(item);
 			}
 
-			if (!Context.Params.empty())
-				Context.Path = Context.Params.front();
-			Context.Params = std::move(Params);
-			return Context;
+			if (!context.params.empty())
+				context.path = context.params.front();
+			context.params = std::move(params);
+			return context;
 		}
 
-		ExpectsIO<void*> OS::Symbol::Load(const std::string_view& Path)
+		expects_io<void*> os::symbol::load(const std::string_view& path)
 		{
-			VI_MEASURE(Timings::FileSystem);
-			if (!Control::Has(AccessOption::Lib))
+			VI_MEASURE(timings::file_system);
+			if (!control::has(access_option::lib))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			if (Path.empty())
+			if (path.empty())
 			{
-				HMODULE Module = GetModuleHandle(nullptr);
-				if (!Module)
-					return OS::Error::GetConditionOr();
+				HMODULE library = GetModuleHandle(nullptr);
+				if (!library)
+					return os::error::get_condition_or();
 
-				return (void*)Module;
+				return (void*)library;
 			}
 
-			String Name = String(Path);
-			if (!Stringify::EndsWith(Name, ".dll"))
-				Name.append(".dll");
+			string name = string(path);
+			if (!stringify::ends_with(name, ".dll"))
+				name.append(".dll");
 
-			VI_DEBUG("[dl] load dll library %s", Name.c_str());
-			HMODULE Module = LoadLibrary(Name.c_str());
-			if (!Module)
-				return OS::Error::GetConditionOr();
+			VI_DEBUG("[dl] load dll library %s", name.c_str());
+			HMODULE library = LoadLibrary(name.c_str());
+			if (!library)
+				return os::error::get_condition_or();
 
-			return (void*)Module;
+			return (void*)library;
 #elif defined(VI_APPLE)
-			if (Path.empty())
+			if (path.empty())
 			{
-				void* Module = (void*)dlopen(nullptr, RTLD_LAZY);
-				if (!Module)
-					return OS::Error::GetConditionOr();
+				void* library = (void*)dlopen(nullptr, RTLD_LAZY);
+				if (!library)
+					return os::error::get_condition_or();
 
-				return (void*)Module;
+				return (void*)library;
 			}
 
-			String Name = String(Path);
-			if (!Stringify::EndsWith(Name, ".dylib"))
-				Name.append(".dylib");
+			string name = string(path);
+			if (!stringify::ends_with(name, ".dylib"))
+				name.append(".dylib");
 
-			VI_DEBUG("[dl] load dylib library %s", Name.c_str());
-			void* Module = (void*)dlopen(Name.c_str(), RTLD_LAZY);
-			if (!Module)
-				return OS::Error::GetConditionOr();
+			VI_DEBUG("[dl] load dylib library %s", name.c_str());
+			void* library = (void*)dlopen(name.c_str(), RTLD_LAZY);
+			if (!library)
+				return os::error::get_condition_or();
 
-			return (void*)Module;
+			return (void*)library;
 #elif defined(VI_LINUX)
-			if (Path.empty())
+			if (path.empty())
 			{
-				void* Module = (void*)dlopen(nullptr, RTLD_LAZY);
-				if (!Module)
-					return OS::Error::GetConditionOr();
+				void* library = (void*)dlopen(nullptr, RTLD_LAZY);
+				if (!library)
+					return os::error::get_condition_or();
 
-				return (void*)Module;
+				return (void*)library;
 			}
 
-			String Name = String(Path);
-			if (!Stringify::EndsWith(Name, ".so"))
-				Name.append(".so");
+			string name = string(path);
+			if (!stringify::ends_with(name, ".so"))
+				name.append(".so");
 
-			VI_DEBUG("[dl] load so library %s", Name.c_str());
-			void* Module = (void*)dlopen(Name.c_str(), RTLD_LAZY);
-			if (!Module)
-				return OS::Error::GetConditionOr();
+			VI_DEBUG("[dl] load so library %s", name.c_str());
+			void* library = (void*)dlopen(name.c_str(), RTLD_LAZY);
+			if (!library)
+				return os::error::get_condition_or();
 
-			return (void*)Module;
+			return (void*)library;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void*> OS::Symbol::LoadFunction(void* Handle, const std::string_view& Name)
+		expects_io<void*> os::symbol::load_function(void* handle, const std::string_view& name)
 		{
-			VI_ASSERT(Handle != nullptr && Stringify::IsCString(Name), "handle should be set and name should not be empty");
-			VI_DEBUG("[dl] load function %.*s", (int)Name.size(), Name.data());
-			VI_MEASURE(Timings::FileSystem);
-			if (!Control::Has(AccessOption::Lib))
+			VI_ASSERT(handle != nullptr && stringify::is_cstring(name), "handle should be set and name should not be empty");
+			VI_DEBUG("[dl] load function %.*s", (int)name.size(), name.data());
+			VI_MEASURE(timings::file_system);
+			if (!control::has(access_option::lib))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
-			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.data());
-			if (!Result)
-				return OS::Error::GetConditionOr();
+			void* result = (void*)GetProcAddress((HMODULE)handle, name.data());
+			if (!result)
+				return os::error::get_condition_or();
 
-			return Result;
+			return result;
 #elif defined(VI_LINUX)
-			void* Result = (void*)dlsym(Handle, Name.data());
-			if (!Result)
-				return OS::Error::GetConditionOr();
+			void* result = (void*)dlsym(handle, name.data());
+			if (!result)
+				return os::error::get_condition_or();
 
-			return Result;
+			return result;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		ExpectsIO<void> OS::Symbol::Unload(void* Handle)
+		expects_io<void> os::symbol::unload(void* handle)
 		{
-			VI_ASSERT(Handle != nullptr, "handle should be set");
-			VI_MEASURE(Timings::FileSystem);
-			VI_DEBUG("[dl] unload library 0x%" PRIXPTR, Handle);
+			VI_ASSERT(handle != nullptr, "handle should be set");
+			VI_MEASURE(timings::file_system);
+			VI_DEBUG("[dl] unload library 0x%" PRIXPTR, handle);
 #ifdef VI_MICROSOFT
-			if (FreeLibrary((HMODULE)Handle) != TRUE)
-				return OS::Error::GetConditionOr();
+			if (FreeLibrary((HMODULE)handle) != TRUE)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #elif defined(VI_LINUX)
-			if (dlclose(Handle) != 0)
-				return OS::Error::GetConditionOr();
+			if (dlclose(handle) != 0)
+				return os::error::get_condition_or();
 
-			return Expectation::Met;
+			return expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
 
-		int OS::Error::Get(bool ClearLastError)
+		int os::error::get(bool clear_last_error)
 		{
 #ifdef VI_MICROSOFT
-			int ErrorCode = GetLastError();
-			if (ErrorCode != ERROR_SUCCESS)
+			int error_code = GetLastError();
+			if (error_code != ERROR_SUCCESS)
 			{
-				if (ClearLastError)
+				if (clear_last_error)
 					SetLastError(ERROR_SUCCESS);
-				return ErrorCode;
+				return error_code;
 			}
 
-			ErrorCode = WSAGetLastError();
-			if (ErrorCode != ERROR_SUCCESS)
+			error_code = WSAGetLastError();
+			if (error_code != ERROR_SUCCESS)
 			{
-				if (ClearLastError)
+				if (clear_last_error)
 					WSASetLastError(ERROR_SUCCESS);
 			}
 
-			ErrorCode = errno;
-			if (ErrorCode != 0)
+			error_code = errno;
+			if (error_code != 0)
 			{
-				if (ClearLastError)
+				if (clear_last_error)
 					errno = 0;
-				return ErrorCode;
+				return error_code;
 			}
 
-			return ErrorCode;
+			return error_code;
 #else
-			int ErrorCode = errno;
-			if (ErrorCode != 0)
+			int error_code = errno;
+			if (error_code != 0)
 			{
-				if (ClearLastError)
+				if (clear_last_error)
 					errno = 0;
 			}
 
-			return ErrorCode;
+			return error_code;
 #endif
 		}
-		bool OS::Error::Occurred()
+		bool os::error::occurred()
 		{
-			return IsError(Get(false));
+			return is_error(get(false));
 		}
-		bool OS::Error::IsError(int Code)
+		bool os::error::is_error(int code)
 		{
 #ifdef VI_MICROSOFT
-			return Code != ERROR_SUCCESS;
+			return code != ERROR_SUCCESS;
 #else
-			return Code != 0;
+			return code != 0;
 #endif
 		}
-		void OS::Error::Clear()
+		void os::error::clear()
 		{
 #ifdef VI_MICROSOFT
 			SetLastError(ERROR_SUCCESS);
@@ -10496,638 +10496,638 @@ namespace Vitex
 #endif
 			errno = 0;
 		}
-		std::error_condition OS::Error::GetCondition()
+		std::error_condition os::error::get_condition()
 		{
-			return GetCondition(Get());
+			return get_condition(get());
 		}
-		std::error_condition OS::Error::GetCondition(int Code)
+		std::error_condition os::error::get_condition(int code)
 		{
 #ifdef VI_MICROSOFT
-			return std::error_condition(Code, std::system_category());
+			return std::error_condition(code, std::system_category());
 #else
-			return std::error_condition(Code, std::generic_category());
+			return std::error_condition(code, std::generic_category());
 #endif
 		}
-		std::error_condition OS::Error::GetConditionOr(std::errc Code)
+		std::error_condition os::error::get_condition_or(std::errc code)
 		{
-			if (!Occurred())
-				return std::make_error_condition(Code);
+			if (!occurred())
+				return std::make_error_condition(code);
 
-			return GetCondition(Get());
+			return get_condition(get());
 		}
-		String OS::Error::GetName(int Code)
+		string os::error::get_name(int code)
 		{
 #ifdef VI_MICROSOFT
-			LPSTR Buffer = nullptr;
-			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
-			String Result(Buffer, Size);
-			Stringify::Replace(Result, "\r", "");
-			Stringify::Replace(Result, "\n", "");
-			LocalFree(Buffer);
-			return Result;
+			LPSTR buffer = nullptr;
+			size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&buffer, 0, nullptr);
+			string result(buffer, size);
+			stringify::replace(result, "\r", "");
+			stringify::replace(result, "\n", "");
+			LocalFree(buffer);
+			return result;
 #else
-			char* Buffer = strerror(Code);
-			return Buffer ? Buffer : "";
+			char* buffer = strerror(code);
+			return buffer ? buffer : "";
 #endif
 		}
 
-		void OS::Control::Set(AccessOption Option, bool Enabled)
+		void os::control::set(access_option option, bool enabled)
 		{
-			VI_DEBUG("[os] control %s set %s", Control::ToString(Option).data(), Enabled ? "ON" : "OFF");
-			uint64_t PrevOptions = Options.load();
-			if (Enabled)
-				PrevOptions |= (uint64_t)Option;
+			VI_DEBUG("[os] control %s set %s", control::to_string(option).data(), enabled ? "ON" : "OFF");
+			uint64_t prev_options = options.load();
+			if (enabled)
+				prev_options |= (uint64_t)option;
 			else
-				PrevOptions &= ~((uint64_t)Option);
-			Options = PrevOptions;
+				prev_options &= ~((uint64_t)option);
+			options = prev_options;
 		}
-		bool OS::Control::Has(AccessOption Option)
+		bool os::control::has(access_option option)
 		{
-			return Options & (uint64_t)Option;
+			return options & (uint64_t)option;
 		}
-		Option<AccessOption> OS::Control::ToOption(const std::string_view& Option)
+		option<access_option> os::control::to_option(const std::string_view& option)
 		{
-			if (Option == "mem")
-				return AccessOption::Mem;
-			if (Option == "fs")
-				return AccessOption::Fs;
-			if (Option == "gz")
-				return AccessOption::Gz;
-			if (Option == "net")
-				return AccessOption::Net;
-			if (Option == "lib")
-				return AccessOption::Lib;
-			if (Option == "http")
-				return AccessOption::Http;
-			if (Option == "https")
-				return AccessOption::Https;
-			if (Option == "shell")
-				return AccessOption::Shell;
-			if (Option == "env")
-				return AccessOption::Env;
-			if (Option == "addons")
-				return AccessOption::Addons;
-			if (Option == "all")
-				return AccessOption::All;
-			return Optional::None;
+			if (option == "mem")
+				return access_option::mem;
+			if (option == "fs")
+				return access_option::fs;
+			if (option == "gz")
+				return access_option::gz;
+			if (option == "net")
+				return access_option::net;
+			if (option == "lib")
+				return access_option::lib;
+			if (option == "http")
+				return access_option::http;
+			if (option == "https")
+				return access_option::https;
+			if (option == "shell")
+				return access_option::shell;
+			if (option == "env")
+				return access_option::env;
+			if (option == "addons")
+				return access_option::addons;
+			if (option == "all")
+				return access_option::all;
+			return optional::none;
 		}
-		std::string_view OS::Control::ToString(AccessOption Option)
+		std::string_view os::control::to_string(access_option option)
 		{
-			switch (Option)
+			switch (option)
 			{
-				case AccessOption::Mem:
+				case access_option::mem:
 					return "mem";
-				case AccessOption::Fs:
+				case access_option::fs:
 					return "fs";
-				case AccessOption::Gz:
+				case access_option::gz:
 					return "gz";
-				case AccessOption::Net:
+				case access_option::net:
 					return "net";
-				case AccessOption::Lib:
+				case access_option::lib:
 					return "lib";
-				case AccessOption::Http:
+				case access_option::http:
 					return "http";
-				case AccessOption::Https:
+				case access_option::https:
 					return "https";
-				case AccessOption::Shell:
+				case access_option::shell:
 					return "shell";
-				case AccessOption::Env:
+				case access_option::env:
 					return "env";
-				case AccessOption::Addons:
+				case access_option::addons:
 					return "addons";
-				case AccessOption::All:
+				case access_option::all:
 					return "all";
 				default:
 					return "";
 			}
 		}
-		std::string_view OS::Control::ToOptions()
+		std::string_view os::control::to_options()
 		{
 			return "mem, fs, gz, net, lib, http, https, shell, env, addons, all";
 		}
-		std::atomic<uint64_t> OS::Control::Options = (uint64_t)AccessOption::All;
+		std::atomic<uint64_t> os::control::options = (uint64_t)access_option::all;
 
-		static thread_local Costate* InternalCoroutine = nullptr;
-		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(Memory::New<Cocontext>()), Size(StackSize), ExternalCondition(nullptr), ExternalMutex(nullptr)
+		static thread_local costate* internal_coroutine = nullptr;
+		costate::costate(size_t stack_size) noexcept : thread(std::this_thread::get_id()), current(nullptr), master(memory::init<cocontext>()), size(stack_size), external_condition(nullptr), external_mutex(nullptr)
 		{
-			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
+			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(thread).c_str());
 		}
-		Costate::~Costate() noexcept
+		costate::~costate() noexcept
 		{
-			VI_TRACE("[co] despawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(Thread).c_str());
-			if (InternalCoroutine == this)
-				InternalCoroutine = nullptr;
+			VI_TRACE("[co] despawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(thread).c_str());
+			if (internal_coroutine == this)
+				internal_coroutine = nullptr;
 
-			for (auto& Routine : Cached)
-				Memory::Delete(Routine);
+			for (auto& routine : cached)
+				memory::deinit(routine);
 
-			for (auto& Routine : Used)
-				Memory::Delete(Routine);
+			for (auto& routine : used)
+				memory::deinit(routine);
 
-			Memory::Delete(Master);
+			memory::deinit(master);
 		}
-		Coroutine* Costate::Pop(TaskCallback&& Procedure)
+		coroutine* costate::pop(task_callback&& procedure)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
 
-			Coroutine* Routine = nullptr;
-			if (!Cached.empty())
+			coroutine* routine = nullptr;
+			if (!cached.empty())
 			{
-				Routine = *Cached.begin();
-				Routine->Callback = std::move(Procedure);
-				Routine->State = Coexecution::Active;
-				Cached.erase(Cached.begin());
+				routine = *cached.begin();
+				routine->callback = std::move(procedure);
+				routine->state = coexecution::active;
+				cached.erase(cached.begin());
 			}
 			else
-				Routine = Memory::New<Coroutine>(this, std::move(Procedure));
+				routine = memory::init<coroutine>(this, std::move(procedure));
 
-			Used.emplace(Routine);
-			return Routine;
+			used.emplace(routine);
+			return routine;
 		}
-		Coexecution Costate::Resume(Coroutine* Routine)
+		coexecution costate::resume(coroutine* routine)
 		{
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot resume coroutine outside costate thread");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot resume coroutine outside costate thread");
+			VI_ASSERT(routine->master == this, "coroutine should be created by this costate");
 
-			if (Current == Routine)
-				return Coexecution::Active;
-			else if (Routine->State == Coexecution::Finished)
-				return Coexecution::Finished;
+			if (current == routine)
+				return coexecution::active;
+			else if (routine->state == coexecution::finished)
+				return coexecution::finished;
 
-			return Execute(Routine);
+			return execute(routine);
 		}
-		Coexecution Costate::Execute(Coroutine* Routine)
+		coexecution costate::execute(coroutine* routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->State != Coexecution::Finished, "coroutine should not be dead");
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			VI_ASSERT(routine->state != coexecution::finished, "coroutine should not be dead");
 
-			if (Routine->State == Coexecution::Suspended)
-				return Coexecution::Suspended;
+			if (routine->state == coexecution::suspended)
+				return coexecution::suspended;
 
-			if (Routine->State == Coexecution::Resumable)
-				Routine->State = Coexecution::Active;
+			if (routine->state == coexecution::resumable)
+				routine->state = coexecution::active;
 
-			Cocontext* Fiber = Routine->Slave;
-			Current = Routine;
+			cocontext* fiber = routine->slave;
+			current = routine;
 #ifdef VI_FCONTEXT
-			Fiber->Context = jump_fcontext(Fiber->Context, (void*)this).fctx;
+			fiber->context = jump_fcontext(fiber->context, (void*)this).fctx;
 #elif VI_MICROSOFT
-			SwitchToFiber(Fiber->Context);
+			SwitchToFiber(fiber->context);
 #else
-			swapcontext(&Master->Context, &Fiber->Context);
+			swapcontext(&master->context, &fiber->context);
 #endif
-			if (Routine->Return)
+			if (routine->defer)
 			{
-				Routine->Return();
-				Routine->Return = nullptr;
+				routine->defer();
+				routine->defer = nullptr;
 			}
-			
-			return Routine->State == Coexecution::Finished ? Coexecution::Finished : Coexecution::Active;
-		}
-		void Costate::Reuse(Coroutine* Routine)
-		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->State == Coexecution::Finished, "coroutine should be empty");
 
-			Routine->Callback = nullptr;
-			Routine->Return = nullptr;
-			Routine->State = Coexecution::Active;
-			Used.erase(Routine);
-			Cached.emplace(Routine);
+			return routine->state == coexecution::finished ? coexecution::finished : coexecution::active;
 		}
-		void Costate::Push(Coroutine* Routine)
+		void costate::reuse(coroutine* routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->State == Coexecution::Finished, "coroutine should be empty");
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			VI_ASSERT(routine->master == this, "coroutine should be created by this costate");
+			VI_ASSERT(routine->state == coexecution::finished, "coroutine should be empty");
 
-			Cached.erase(Routine);
-			Used.erase(Routine);
-			Memory::Delete(Routine);
+			routine->callback = nullptr;
+			routine->defer = nullptr;
+			routine->state = coexecution::active;
+			used.erase(routine);
+			cached.emplace(routine);
 		}
-		void Costate::Activate(Coroutine* Routine)
+		void costate::push(coroutine* routine)
 		{
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->State != Coexecution::Finished, "coroutine should not be empty");
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			VI_ASSERT(routine->master == this, "coroutine should be created by this costate");
+			VI_ASSERT(routine->state == coexecution::finished, "coroutine should be empty");
 
-			if (ExternalMutex != nullptr && ExternalCondition != nullptr && Thread != std::this_thread::get_id())
+			cached.erase(routine);
+			used.erase(routine);
+			memory::deinit(routine);
+		}
+		void costate::activate(coroutine* routine)
+		{
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			VI_ASSERT(routine->master == this, "coroutine should be created by this costate");
+			VI_ASSERT(routine->state != coexecution::finished, "coroutine should not be empty");
+
+			if (external_mutex != nullptr && external_condition != nullptr && thread != std::this_thread::get_id())
 			{
-				UMutex<std::mutex> Unique(*ExternalMutex);
-				if (Routine->State == Coexecution::Suspended)
-					Routine->State = Coexecution::Resumable;
-				ExternalCondition->notify_one();
+				umutex<std::mutex> unique(*external_mutex);
+				if (routine->state == coexecution::suspended)
+					routine->state = coexecution::resumable;
+				external_condition->notify_one();
 			}
-			else if (Routine->State == Coexecution::Suspended)
-				Routine->State = Coexecution::Resumable;
+			else if (routine->state == coexecution::suspended)
+				routine->state = coexecution::resumable;
 		}
-		void Costate::Deactivate(Coroutine* Routine)
+		void costate::deactivate(coroutine* routine)
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			VI_ASSERT(Routine->Master == this, "coroutine should be created by this costate");
-			VI_ASSERT(Routine->State != Coexecution::Finished, "coroutine should not be empty");
-			if (Current != Routine || Routine->State != Coexecution::Active)
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot deactive coroutine outside costate thread");
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			VI_ASSERT(routine->master == this, "coroutine should be created by this costate");
+			VI_ASSERT(routine->state != coexecution::finished, "coroutine should not be empty");
+			if (current != routine || routine->state != coexecution::active)
 				return;
 
-			Routine->State = Coexecution::Suspended;
-			Suspend();
+			routine->state = coexecution::suspended;
+			suspend();
 		}
-		void Costate::Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend)
+		void costate::deactivate(coroutine* routine, task_callback&& after_suspend)
 		{
-			VI_ASSERT(Routine != nullptr, "coroutine should be set");
-			Routine->Return = std::move(AfterSuspend);
-			Deactivate(Routine);
+			VI_ASSERT(routine != nullptr, "coroutine should be set");
+			routine->defer = std::move(after_suspend);
+			deactivate(routine);
 		}
-		void Costate::Clear()
+		void costate::clear()
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			for (auto& Routine : Cached)
-				Memory::Delete(Routine);
-			Cached.clear();
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			for (auto& routine : cached)
+				memory::deinit(routine);
+			cached.clear();
 		}
-		bool Costate::Dispatch()
+		bool costate::dispatch()
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot dispatch coroutine outside costate thread");
-			VI_ASSERT(!Current, "cannot dispatch coroutines inside another coroutine");
-			size_t Executions = 0;
-		Retry:
-			for (auto* Routine : Used)
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot dispatch coroutine outside costate thread");
+			VI_ASSERT(!current, "cannot dispatch coroutines inside another coroutine");
+			size_t executions = 0;
+		retry:
+			for (auto* routine : used)
 			{
-				switch (Execute(Routine))
+				switch (execute(routine))
 				{
-					case Coexecution::Active:
-						++Executions;
+					case coexecution::active:
+						++executions;
 						break;
-					case Coexecution::Suspended:
-					case Coexecution::Resumable:
+					case coexecution::suspended:
+					case coexecution::resumable:
 						break;
-					case Coexecution::Finished:
-						++Executions;
-						Reuse(Routine);
-						goto Retry;
+					case coexecution::finished:
+						++executions;
+						reuse(routine);
+						goto retry;
 				}
 			}
 
-			return Executions > 0;
+			return executions > 0;
 		}
-		bool Costate::Suspend()
+		bool costate::suspend()
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot suspend coroutine outside costate thread");
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot suspend coroutine outside costate thread");
 
-			Coroutine* Routine = Current;
-			if (!Routine || Routine->Master != this)
+			coroutine* routine = current;
+			if (!routine || routine->master != this)
 				return false;
 #ifdef VI_FCONTEXT
-			Current = nullptr;
-			jump_fcontext(Master->Context, (void*)this);
+			current = nullptr;
+			jump_fcontext(master->context, (void*)this);
 #elif VI_MICROSOFT
-			Current = nullptr;
-			SwitchToFiber(Master->Context);
+			current = nullptr;
+			SwitchToFiber(master->context);
 #else
-			char Bottom = 0;
-			char* Top = Routine->Slave->Stack + Size;
-			if (size_t(Top - &Bottom) > Size)
+			char bottom = 0;
+			char* top = routine->slave->stack + size;
+			if (size_t(top - &bottom) > size)
 				return false;
 
-			Current = nullptr;
-			swapcontext(&Routine->Slave->Context, &Master->Context);
+			current = nullptr;
+			swapcontext(&routine->slave->context, &master->context);
 #endif
 			return true;
 		}
-		bool Costate::HasResumableCoroutines() const
+		bool costate::has_resumable_coroutines() const
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			for (const auto& Item : Used)
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			for (const auto& item : used)
 			{
-				if (Item->State == Coexecution::Active || Item->State == Coexecution::Resumable)
+				if (item->state == coexecution::active || item->state == coexecution::resumable)
 					return true;
 			}
 
 			return false;
 		}
-		bool Costate::HasAliveCoroutines() const
+		bool costate::has_alive_coroutines() const
 		{
-			VI_ASSERT(Thread == std::this_thread::get_id(), "cannot call outside costate thread");
-			for (const auto& Item : Used)
+			VI_ASSERT(thread == std::this_thread::get_id(), "cannot call outside costate thread");
+			for (const auto& item : used)
 			{
-				if (Item->State != Coexecution::Finished)
+				if (item->state != coexecution::finished)
 					return true;
 			}
 
 			return false;
 		}
-		bool Costate::HasCoroutines() const
+		bool costate::has_coroutines() const
 		{
-			return !Used.empty();
+			return !used.empty();
 		}
-		size_t Costate::GetCount() const
+		size_t costate::get_count() const
 		{
-			return Used.size();
+			return used.size();
 		}
-		Coroutine* Costate::GetCurrent() const
+		coroutine* costate::get_current() const
 		{
-			return Current;
+			return current;
 		}
-		Costate* Costate::Get()
+		costate* costate::get()
 		{
-			return InternalCoroutine;
+			return internal_coroutine;
 		}
-		Coroutine* Costate::GetCoroutine()
+		coroutine* costate::get_coroutine()
 		{
-			return InternalCoroutine ? InternalCoroutine->Current : nullptr;
+			return internal_coroutine ? internal_coroutine->current : nullptr;
 		}
-		bool Costate::GetState(Costate** State, Coroutine** Routine)
+		bool costate::get_state(costate** state, coroutine** routine)
 		{
-			VI_ASSERT(State != nullptr, "state should be set");
-			VI_ASSERT(Routine != nullptr, "state should be set");
-			*Routine = (InternalCoroutine ? InternalCoroutine->Current : nullptr);
-			*State = InternalCoroutine;
+			VI_ASSERT(state != nullptr, "state should be set");
+			VI_ASSERT(routine != nullptr, "state should be set");
+			*routine = (internal_coroutine ? internal_coroutine->current : nullptr);
+			*state = internal_coroutine;
 
-			return *Routine != nullptr;
+			return *routine != nullptr;
 		}
-		bool Costate::IsCoroutine()
+		bool costate::is_coroutine()
 		{
-			return InternalCoroutine ? InternalCoroutine->Current != nullptr : false;
+			return internal_coroutine ? internal_coroutine->current != nullptr : false;
 		}
-		void VI_COCALL Costate::ExecutionEntry(VI_CODATA)
+		void VI_COCALL costate::execution_entry(VI_CODATA)
 		{
 #ifdef VI_FCONTEXT
-			transfer_t* Transfer = (transfer_t*)Context;
-			Costate* State = (Costate*)Transfer->data;
-			State->Master->Context = Transfer->fctx;
+			transfer_t* transfer = (transfer_t*)context;
+			costate* state = (costate*)transfer->data;
+			state->master->context = transfer->fctx;
 #elif VI_MICROSOFT
-			Costate* State = (Costate*)Context;
+			costate* state = (costate*)context;
 #else
-			Costate* State = (Costate*)Unpack2_64(X, Y);
+			costate* state = (costate*)unpack264(x, y);
 #endif
-			InternalCoroutine = State;
-			VI_ASSERT(State != nullptr, "costate should be set");
-			Coroutine* Routine = State->Current;
-			if (Routine != nullptr)
+			internal_coroutine = state;
+			VI_ASSERT(state != nullptr, "costate should be set");
+			coroutine* routine = state->current;
+			if (routine != nullptr)
 			{
-			Reuse:
-				if (Routine->Callback)
-					Routine->Callback();
-				Routine->Return = nullptr;
-				Routine->State = Coexecution::Finished;
+			reuse:
+				if (routine->callback)
+					routine->callback();
+				routine->defer = nullptr;
+				routine->state = coexecution::finished;
 			}
 
-			State->Current = nullptr;
+			state->current = nullptr;
 #ifdef VI_FCONTEXT
-			jump_fcontext(State->Master->Context, Context);
+			jump_fcontext(state->master->context, context);
 #elif VI_MICROSOFT
-			SwitchToFiber(State->Master->Context);
+			SwitchToFiber(state->master->context);
 #else
-			swapcontext(&Routine->Slave->Context, &State->Master->Context);
+			swapcontext(&routine->slave->context, &state->master->context);
 #endif
-			if (Routine != nullptr && Routine->Callback)
-				goto Reuse;
+			if (routine != nullptr && routine->callback)
+				goto reuse;
 		}
 
-		Schedule::Desc::Desc() : Desc(std::max<uint32_t>(2, OS::CPU::GetQuantityInfo().Logical) - 1)
+		schedule::desc::desc() : desc(std::max<uint32_t>(2, os::hw::get_quantity_info().logical) - 1)
 		{
 		}
-		Schedule::Desc::Desc(size_t Size) : PreallocatedSize(0), StackSize(STACK_SIZE), MaxCoroutines(96), MaxRecycles(64), IdleTimeout(std::chrono::milliseconds(2000)), ClockTimeout(std::chrono::milliseconds((uint64_t)Timings::Intensive)), Parallel(true)
+		schedule::desc::desc(size_t size) : preallocated_size(0), stack_size(STACK_SIZE), max_coroutines(96), max_recycles(64), idle_timeout(std::chrono::milliseconds(2000)), clock_timeout(std::chrono::milliseconds((uint64_t)timings::intensive)), parallel(true)
 		{
-			if (!Size)
-				Size = 1;
+			if (!size)
+				size = 1;
 #ifndef VI_CXX20
-			const size_t Async = (size_t)std::max(std::ceil(Size * 0.20), 1.0);
+			const size_t async = (size_t)std::max(std::ceil(size * 0.20), 1.0);
 #else
-			const size_t Async = 0;
+			const size_t async = 0;
 #endif
-			const size_t Timeout = 1;
-			const size_t Sync = std::max<size_t>(std::min<size_t>(Size - Async - Timeout, Size), 1);
-			Threads[((size_t)Difficulty::Async)] = Async;
-			Threads[((size_t)Difficulty::Sync)] = Sync;
-			Threads[((size_t)Difficulty::Timeout)] = Timeout;
-			MaxCoroutines = std::min<size_t>(Size * 8, 256);
+			const size_t timeout = 1;
+			const size_t sync = std::max<size_t>(std::min<size_t>(size - async - timeout, size), 1);
+			threads[((size_t)difficulty::async)] = async;
+			threads[((size_t)difficulty::sync)] = sync;
+			threads[((size_t)difficulty::timeout)] = timeout;
+			max_coroutines = std::min<size_t>(size * 8, 256);
 		}
 
-		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Terminate(false), Enqueue(true), Suspended(false), Active(false)
+		schedule::schedule() noexcept : generation(0), debug(nullptr), terminate(false), enqueue(true), suspended(false), active(false)
 		{
-			Timeouts = Memory::New<ConcurrentTimeoutQueue>();
-			Async = Memory::New<ConcurrentAsyncQueue>();
-			Sync = Memory::New<ConcurrentSyncQueue>();
+			timeouts = memory::init<concurrent_timeout_queue>();
+			async = memory::init<concurrent_async_queue>();
+			sync = memory::init<concurrent_sync_queue>();
 		}
-		Schedule::~Schedule() noexcept
+		schedule::~schedule() noexcept
 		{
-			Stop();
-			Memory::Delete(Sync);
-			Memory::Delete(Async);
-			Memory::Delete(Timeouts);
-			Memory::Release(Dispatcher.State);
-			Scripting::VirtualMachine::CleanupThisThread();
+			stop();
+			memory::deinit(sync);
+			memory::deinit(async);
+			memory::deinit(timeouts);
+			memory::release(dispatcher.state);
+			scripting::virtual_machine::cleanup_this_thread();
 		}
-		TaskId Schedule::GetTaskId()
+		task_id schedule::get_task_id()
 		{
-			TaskId Id = ++Generation;
-			while (Id == INVALID_TASK_ID)
-				Id = ++Generation;
-			return Id;
+			task_id id = ++generation;
+			while (id == INVALID_TASK_ID)
+				id = ++generation;
+			return id;
 		}
-		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
+		task_id schedule::set_interval(uint64_t milliseconds, task_callback&& callback)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
+			report_thread(thread_task::enqueue_timer, 1, get_thread());
 #endif
-			VI_MEASURE(Timings::Atomic);
-			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
-			auto Expires = GetClock() + Duration;
-			auto Id = GetTaskId();
+			VI_MEASURE(timings::atomic);
+			auto duration = std::chrono::microseconds(milliseconds * 1000);
+			auto expires = get_clock() + duration;
+			auto id = get_task_id();
 
-			UMutex<std::mutex> Unique(Timeouts->Update);
-			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true)));
-			Timeouts->Resync = true;
-			Timeouts->Notify.notify_all();
-			return Id;
+			umutex<std::mutex> unique(timeouts->update);
+			timeouts->queue.emplace(std::make_pair(get_timeout(expires), timeout(std::move(callback), duration, id, true)));
+			timeouts->resync = true;
+			timeouts->notify.notify_all();
+			return id;
 		}
-		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
+		task_id schedule::set_timeout(uint64_t milliseconds, task_callback&& callback)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!enqueue)
 				return INVALID_TASK_ID;
 #ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueTimer, 1, GetThread());
+			report_thread(thread_task::enqueue_timer, 1, get_thread());
 #endif
-			VI_MEASURE(Timings::Atomic);
-			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
-			auto Expires = GetClock() + Duration;
-			auto Id = GetTaskId();
+			VI_MEASURE(timings::atomic);
+			auto duration = std::chrono::microseconds(milliseconds * 1000);
+			auto expires = get_clock() + duration;
+			auto id = get_task_id();
 
-			UMutex<std::mutex> Unique(Timeouts->Update);
-			Timeouts->Queue.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false)));
-			Timeouts->Resync = true;
-			Timeouts->Notify.notify_all();
-			return Id;
+			umutex<std::mutex> unique(timeouts->update);
+			timeouts->queue.emplace(std::make_pair(get_timeout(expires), timeout(std::move(callback), duration, id, false)));
+			timeouts->resync = true;
+			timeouts->notify.notify_all();
+			return id;
 		}
-		bool Schedule::SetTask(TaskCallback&& Callback, bool Recyclable)
+		bool schedule::set_task(task_callback&& callback, bool recyclable)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!enqueue)
 				return false;
 #ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueTask, 1, GetThread());
+			report_thread(thread_task::enqueue_task, 1, get_thread());
 #endif
-			VI_MEASURE(Timings::Atomic);
-			if (!Recyclable || !FastBypassEnqueue(Difficulty::Sync, std::move(Callback)))
-				Sync->Queue.enqueue(std::move(Callback));
+			VI_MEASURE(timings::atomic);
+			if (!recyclable || !fast_bypass_enqueue(difficulty::sync, std::move(callback)))
+				sync->queue.enqueue(std::move(callback));
 			return true;
 		}
-		bool Schedule::SetCoroutine(TaskCallback&& Callback, bool Recyclable)
+		bool schedule::set_coroutine(task_callback&& callback, bool recyclable)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Enqueue)
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!enqueue)
 				return false;
 #ifndef NDEBUG
-			ReportThread(ThreadTask::EnqueueCoroutine, 1, GetThread());
+			report_thread(thread_task::enqueue_coroutine, 1, get_thread());
 #endif
-			VI_MEASURE(Timings::Atomic);
-			if (Recyclable && FastBypassEnqueue(Difficulty::Async, std::move(Callback)))
+			VI_MEASURE(timings::atomic);
+			if (recyclable && fast_bypass_enqueue(difficulty::async, std::move(callback)))
 				return true;
 
-			Async->Queue.enqueue(std::move(Callback));
-			UMutex<std::mutex> Unique(Async->Update);
-			for (auto* Thread : Threads[(size_t)Difficulty::Async])
-				Thread->Notify.notify_all();
+			async->queue.enqueue(std::move(callback));
+			umutex<std::mutex> unique(async->update);
+			for (auto* thread : threads[(size_t)difficulty::async])
+				thread->notify.notify_all();
 
 			return true;
 		}
-		bool Schedule::SetDebugCallback(ThreadDebugCallback&& Callback)
+		bool schedule::set_debug_callback(thread_debug_callback&& callback)
 		{
 #ifndef NDEBUG
-			Debug = std::move(Callback);
+			debug = std::move(callback);
 			return true;
 #else
 			return false;
 #endif
 		}
-		bool Schedule::ClearTimeout(TaskId Target)
+		bool schedule::clear_timeout(task_id target)
 		{
-			VI_MEASURE(Timings::Atomic);
-			if (Target == INVALID_TASK_ID)
+			VI_MEASURE(timings::atomic);
+			if (target == INVALID_TASK_ID)
 				return false;
 
-			UMutex<std::mutex> Unique(Timeouts->Update);
-			for (auto It = Timeouts->Queue.begin(); It != Timeouts->Queue.end(); ++It)
+			umutex<std::mutex> unique(timeouts->update);
+			for (auto it = timeouts->queue.begin(); it != timeouts->queue.end(); ++it)
 			{
-				if (It->second.Id == Target)
+				if (it->second.id == target)
 				{
-					Timeouts->Resync = true;
-					Timeouts->Queue.erase(It);
-					Timeouts->Notify.notify_all();
+					timeouts->resync = true;
+					timeouts->queue.erase(it);
+					timeouts->notify.notify_all();
 					return true;
 				}
 			}
 			return false;
 		}
-		bool Schedule::TriggerTimers()
+		bool schedule::trigger_timers()
 		{
-			VI_MEASURE(Timings::Pass);
-			UMutex<std::mutex> Unique(Timeouts->Update);
-			for (auto& Item : Timeouts->Queue)
-				SetTask(std::move(Item.second.Callback));
+			VI_MEASURE(timings::pass);
+			umutex<std::mutex> unique(timeouts->update);
+			for (auto& item : timeouts->queue)
+				set_task(std::move(item.second.callback));
 
-			size_t Size = Timeouts->Queue.size();
-			Timeouts->Resync = true;
-			Timeouts->Queue.clear();
-			return Size > 0;
+			size_t size = timeouts->queue.size();
+			timeouts->resync = true;
+			timeouts->queue.clear();
+			return size > 0;
 		}
-		bool Schedule::Trigger(Difficulty Type)
+		bool schedule::trigger(difficulty type)
 		{
-			VI_MEASURE(Timings::Intensive);
-			switch (Type)
+			VI_MEASURE(timings::intensive);
+			switch (type)
 			{
-				case Difficulty::Timeout:
+				case difficulty::timeout:
 				{
-					if (Timeouts->Queue.empty())
+					if (timeouts->queue.empty())
 						return false;
-					else if (Suspended)
+					else if (suspended)
 						return true;
 
-					auto Clock = GetClock();
-					auto It = Timeouts->Queue.begin();
-					if (It->first >= Clock)
+					auto clock = get_clock();
+					auto it = timeouts->queue.begin();
+					if (it->first >= clock)
 						return true;
 #ifndef NDEBUG
-					ReportThread(ThreadTask::ProcessTimer, 1, nullptr);
+					report_thread(thread_task::process_timer, 1, nullptr);
 #endif
-					if (It->second.Alive && Active)
+					if (it->second.alive && active)
 					{
-						Timeout Next(std::move(It->second));
-						Timeouts->Queue.erase(It);
+						timeout next(std::move(it->second));
+						timeouts->queue.erase(it);
 
-						SetTask([this, Next = std::move(Next)]() mutable
+						set_task([this, next = std::move(next)]() mutable
 						{
-							Next.Callback();
-							UMutex<std::mutex> Unique(Timeouts->Update);
-							Timeouts->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-							Timeouts->Resync = true;
-							Timeouts->Notify.notify_all();
+							next.callback();
+							umutex<std::mutex> unique(timeouts->update);
+							timeouts->queue.emplace(std::make_pair(get_timeout(get_clock() + next.expires), std::move(next)));
+							timeouts->resync = true;
+							timeouts->notify.notify_all();
 						});
 					}
 					else
 					{
-						SetTask(std::move(It->second.Callback));
-						Timeouts->Queue.erase(It);
+						set_task(std::move(it->second.callback));
+						timeouts->queue.erase(it);
 					}
 #ifndef NDEBUG
-					ReportThread(ThreadTask::Awake, 0, nullptr);
+					report_thread(thread_task::awake, 0, nullptr);
 #endif
 					return true;
 				}
-				case Difficulty::Async:
+				case difficulty::async:
 				{
-					if (!Dispatcher.State)
-						Dispatcher.State = new Costate(Policy.StackSize);
+					if (!dispatcher.state)
+						dispatcher.state = new costate(policy.stack_size);
 
-					if (Suspended)
-						return Dispatcher.State->HasCoroutines();
+					if (suspended)
+						return dispatcher.state->has_coroutines();
 
-					size_t Active = Dispatcher.State->GetCount();
-					size_t Cache = Policy.MaxCoroutines - Active, Executions = Active;
-					while (Cache > 0 && Async->Queue.try_dequeue(Dispatcher.Event))
+					size_t active = dispatcher.state->get_count();
+					size_t cache = policy.max_coroutines - active, executions = active;
+					while (cache > 0 && async->queue.try_dequeue(dispatcher.event))
 					{
-						--Cache; ++Executions;
-						Dispatcher.State->Pop(std::move(Dispatcher.Event));
+						--cache; ++executions;
+						dispatcher.state->pop(std::move(dispatcher.event));
 #ifndef NDEBUG
-						ReportThread(ThreadTask::ConsumeCoroutine, 1, nullptr);
+						report_thread(thread_task::consume_coroutine, 1, nullptr);
 #endif
 					}
 #ifndef NDEBUG
-					ReportThread(ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount(), nullptr);
+					report_thread(thread_task::process_coroutine, dispatcher.state->get_count(), nullptr);
 #endif
 					{
-						VI_MEASURE(Timings::Frame);
-						while (Dispatcher.State->Dispatch())
-							++Executions;
+						VI_MEASURE(timings::frame);
+						while (dispatcher.state->dispatch())
+							++executions;
 					}
 #ifndef NDEBUG
-					ReportThread(ThreadTask::Awake, 0, nullptr);
+					report_thread(thread_task::awake, 0, nullptr);
 #endif
-					return Executions > 0;
+					return executions > 0;
 				}
-				case Difficulty::Sync:
+				case difficulty::sync:
 				{
-					if (Suspended)
-						return Sync->Queue.size_approx() > 0;
-					else if (!Sync->Queue.try_dequeue(Dispatcher.Event))
+					if (suspended)
+						return sync->queue.size_approx() > 0;
+					else if (!sync->queue.try_dequeue(dispatcher.event))
 						return false;
 #ifndef NDEBUG
-					ReportThread(ThreadTask::ProcessTask, 1, nullptr);
+					report_thread(thread_task::process_task, 1, nullptr);
 #endif
-					Dispatcher.Event();
+					dispatcher.event();
 #ifndef NDEBUG
-					ReportThread(ThreadTask::Awake, 0, nullptr);
+					report_thread(thread_task::awake, 0, nullptr);
 #endif
 					return true;
 				}
@@ -11137,289 +11137,289 @@ namespace Vitex
 
 			return false;
 		}
-		bool Schedule::Start(const Desc& NewPolicy)
+		bool schedule::start(const desc& new_policy)
 		{
-			VI_ASSERT(!Active, "queue should be stopped");
-			VI_ASSERT(NewPolicy.StackSize > 0, "stack size should not be zero");
-			VI_ASSERT(NewPolicy.MaxCoroutines > 0, "there must be at least one coroutine");
-			VI_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
+			VI_ASSERT(!active, "queue should be stopped");
+			VI_ASSERT(new_policy.stack_size > 0, "stack size should not be zero");
+			VI_ASSERT(new_policy.max_coroutines > 0, "there must be at least one coroutine");
+			VI_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
 
-			Policy = NewPolicy;
-			Active = true;
+			policy = new_policy;
+			active = true;
 
-			if (!Policy.Parallel)
+			if (!policy.parallel)
 			{
-				InitializeThread(nullptr, true);
+				initialize_thread(nullptr, true);
 				return true;
 			}
 
-			size_t Index = 0;
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Async]; j++)
-				PushThread(Difficulty::Async, Index++, j, false);
+			size_t index = 0;
+			for (size_t j = 0; j < policy.threads[(size_t)difficulty::async]; j++)
+				push_thread(difficulty::async, index++, j, false);
 
-			for (size_t j = 0; j < Policy.Threads[(size_t)Difficulty::Sync]; j++)
-				PushThread(Difficulty::Sync, Index++, j, false);
+			for (size_t j = 0; j < policy.threads[(size_t)difficulty::sync]; j++)
+				push_thread(difficulty::sync, index++, j, false);
 
-			InitializeSpawnTrigger();
-			if (Policy.Threads[(size_t)Difficulty::Timeout] > 0)
+			initialize_spawn_trigger();
+			if (policy.threads[(size_t)difficulty::timeout] > 0)
 			{
-				if (Policy.Ping)
-					PushThread(Difficulty::Timeout, 0, 0, true);
-				PushThread(Difficulty::Timeout, Index++, 0, false);
+				if (policy.ping)
+					push_thread(difficulty::timeout, 0, 0, true);
+				push_thread(difficulty::timeout, index++, 0, false);
 			}
 
 			return true;
 		}
-		bool Schedule::Stop()
+		bool schedule::stop()
 		{
-			VI_TRACE("[schedule] stop 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			UMutex<std::mutex> Unique(Exclusive);
-			if (!Active && !Terminate)
+			VI_TRACE("[schedule] stop 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
+			umutex<std::mutex> unique(exclusive);
+			if (!active && !terminate)
 				return false;
 
-			Active = Enqueue = false;
-			Wakeup();
+			active = enqueue = false;
+			wakeup();
 
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+			for (size_t i = 0; i < (size_t)difficulty::count; i++)
 			{
-				for (auto* Thread : Threads[i])
+				for (auto* thread : threads[i])
 				{
-					if (!PopThread(Thread))
+					if (!pop_thread(thread))
 					{
-						Terminate = true;
+						terminate = true;
 						return false;
 					}
 				}
 			}
 
-			Timeouts->Queue.clear();
-			Terminate = false;
-			Enqueue = true;
-			ChunkCleanup();
+			timeouts->queue.clear();
+			terminate = false;
+			enqueue = true;
+			chunk_cleanup();
 			return true;
 		}
-		bool Schedule::Wakeup()
+		bool schedule::wakeup()
 		{
-			VI_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, OS::Process::GetThreadId(std::this_thread::get_id()).c_str());
-			TaskCallback Dummy[2] = { []() { }, []() { } };
-			size_t DummySize = sizeof(Dummy) / sizeof(TaskCallback);
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+			VI_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
+			task_callback dummy[2] = { []() { }, []() { } };
+			size_t dummy_size = sizeof(dummy) / sizeof(task_callback);
+			for (size_t i = 0; i < (size_t)difficulty::count; i++)
 			{
-				for (auto* Thread : Threads[i])
+				for (auto* thread : threads[i])
 				{
-					if (Thread->Type == Difficulty::Async)
-						Async->Queue.enqueue_bulk(Dummy, DummySize);
-					else if (Thread->Type == Difficulty::Sync || Thread->Type == Difficulty::Timeout)
-						Sync->Queue.enqueue_bulk(Dummy, DummySize);
-					Thread->Notify.notify_all();
+					if (thread->type == difficulty::async)
+						async->queue.enqueue_bulk(dummy, dummy_size);
+					else if (thread->type == difficulty::sync || thread->type == difficulty::timeout)
+						sync->queue.enqueue_bulk(dummy, dummy_size);
+					thread->notify.notify_all();
 				}
 
-				if (i == (size_t)Difficulty::Async)
+				if (i == (size_t)difficulty::async)
 				{
-					UMutex<std::mutex> Unique(Async->Update);
-					Async->Resync = true;
-					Async->Notify.notify_all();
+					umutex<std::mutex> unique(async->update);
+					async->resync = true;
+					async->notify.notify_all();
 				}
-				else if (i == (size_t)Difficulty::Timeout)
+				else if (i == (size_t)difficulty::timeout)
 				{
-					UMutex<std::mutex> Unique(Timeouts->Update);
-					Timeouts->Resync = true;
-					Timeouts->Notify.notify_all();
+					umutex<std::mutex> unique(timeouts->update);
+					timeouts->resync = true;
+					timeouts->notify.notify_all();
 				}
 			}
 			return true;
 		}
-		bool Schedule::Dispatch()
+		bool schedule::dispatch()
 		{
-			size_t Passes = 0;
-			VI_MEASURE(Timings::Intensive);
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				Passes += (size_t)Trigger((Difficulty)i);
+			size_t passes = 0;
+			VI_MEASURE(timings::intensive);
+			for (size_t i = 0; i < (size_t)difficulty::count; i++)
+				passes += (size_t)trigger((difficulty)i);
 
-			return Passes > 0;
+			return passes > 0;
 		}
-		bool Schedule::TriggerThread(Difficulty Type, ThreadData* Thread)
+		bool schedule::trigger_thread(difficulty type, thread_data* thread)
 		{
-			String ThreadId = OS::Process::GetThreadId(Thread->Id);
-			InitializeThread(Thread, true);
-			if (!ThreadActive(Thread))
-				goto ExitThread;
+			string thread_id = os::process::get_thread_id(thread->id);
+			initialize_thread(thread, true);
+			if (!thread_active(thread))
+				goto exit_thread;
 
-			switch (Type)
+			switch (type)
 			{
-				case Difficulty::Timeout:
+				case difficulty::timeout:
 				{
-					TaskCallback Event;
-					ReceiveToken Token(Sync->Queue);
-					if (Thread->Daemon)
-						VI_DEBUG("[schedule] acquire thread %s (timers)", ThreadId.c_str());
+					task_callback event;
+					receive_token token(sync->queue);
+					if (thread->daemon)
+						VI_DEBUG("[schedule] acquire thread %s (timers)", thread_id.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (timers)", ThreadId.c_str());
+						VI_DEBUG("[schedule] spawn thread %s (timers)", thread_id.c_str());
 
 					do
 					{
-						if (SleepThread(Type, Thread))
+						if (sleep_thread(type, thread))
 							continue;
 
-						std::unique_lock<std::mutex> Unique(Timeouts->Update);
-					Retry:
+						std::unique_lock<std::mutex> unique(timeouts->update);
+					retry:
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Awake, 0, Thread);
+						report_thread(thread_task::awake, 0, thread);
 #endif
-						std::chrono::microseconds When = std::chrono::microseconds(0);
-						if (!Timeouts->Queue.empty())
+						std::chrono::microseconds when = std::chrono::microseconds(0);
+						if (!timeouts->queue.empty())
 						{
-							auto Clock = GetClock();
-							auto It = Timeouts->Queue.begin();
-							if (It->first <= Clock)
+							auto clock = get_clock();
+							auto it = timeouts->queue.begin();
+							if (it->first <= clock)
 							{
 #ifndef NDEBUG
-								ReportThread(ThreadTask::ProcessTimer, 1, Thread);
+								report_thread(thread_task::process_timer, 1, thread);
 #endif
-								if (It->second.Alive)
+								if (it->second.alive)
 								{
-									Timeout Next(std::move(It->second));
-									Timeouts->Queue.erase(It);
+									timeout next(std::move(it->second));
+									timeouts->queue.erase(it);
 
-									SetTask([this, Next = std::move(Next)]() mutable
+									set_task([this, next = std::move(next)]() mutable
 									{
-										Next.Callback();
-										UMutex<std::mutex> Unique(Timeouts->Update);
-										Timeouts->Queue.emplace(std::make_pair(GetTimeout(GetClock() + Next.Expires), std::move(Next)));
-										Timeouts->Resync = true;
-										Timeouts->Notify.notify_all();
+										next.callback();
+										umutex<std::mutex> unique(timeouts->update);
+										timeouts->queue.emplace(std::make_pair(get_timeout(get_clock() + next.expires), std::move(next)));
+										timeouts->resync = true;
+										timeouts->notify.notify_all();
 									});
 								}
 								else
 								{
-									SetTask(std::move(It->second.Callback));
-									Timeouts->Queue.erase(It);
+									set_task(std::move(it->second.callback));
+									timeouts->queue.erase(it);
 								}
 
-								goto Retry;
+								goto retry;
 							}
 							else
 							{
-								When = It->first - Clock;
-								if (When > Policy.IdleTimeout)
-									When = Policy.IdleTimeout;
+								when = it->first - clock;
+								if (when > policy.idle_timeout)
+									when = policy.idle_timeout;
 							}
 						}
 						else
-							When = Policy.IdleTimeout;
+							when = policy.idle_timeout;
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Sleep, 0, Thread);
+						report_thread(thread_task::sleep, 0, thread);
 #endif
-						Timeouts->Notify.wait_for(Unique, When, [this, Thread]() { return !ThreadActive(Thread) || Timeouts->Resync || Sync->Queue.size_approx() > 0; });
-						Timeouts->Resync = false;
-						Unique.unlock();
-	
-						if (!Sync->Queue.try_dequeue(Token, Event))
+						timeouts->notify.wait_for(unique, when, [this, thread]() { return !thread_active(thread) || timeouts->resync || sync->queue.size_approx() > 0; });
+						timeouts->resync = false;
+						unique.unlock();
+
+						if (!sync->queue.try_dequeue(token, event))
 							continue;
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Awake, 0, Thread);
-						ReportThread(ThreadTask::ProcessTask, 1, Thread);
+						report_thread(thread_task::awake, 0, thread);
+						report_thread(thread_task::process_task, 1, thread);
 #endif
-						VI_MEASURE(Timings::Intensive);
-						Event();
-					} while (ThreadActive(Thread));
+						VI_MEASURE(timings::intensive);
+						event();
+					} while (thread_active(thread));
 					break;
 				}
-				case Difficulty::Async:
+				case difficulty::async:
 				{
-					TaskCallback Event;
-					ReceiveToken Token(Async->Queue);
-					if (Thread->Daemon)
-						VI_DEBUG("[schedule] acquire thread %s (coroutines)", ThreadId.c_str());
+					task_callback event;
+					receive_token token(async->queue);
+					if (thread->daemon)
+						VI_DEBUG("[schedule] acquire thread %s (coroutines)", thread_id.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (coroutines)", ThreadId.c_str());
+						VI_DEBUG("[schedule] spawn thread %s (coroutines)", thread_id.c_str());
 
-					UPtr<Costate> State = new Costate(Policy.StackSize);
-					State->ExternalCondition = &Thread->Notify;
-					State->ExternalMutex = &Thread->Update;
+					uptr<costate> state = new costate(policy.stack_size);
+					state->external_condition = &thread->notify;
+					state->external_mutex = &thread->update;
 
 					do
 					{
-						if (SleepThread(Type, Thread))
+						if (sleep_thread(type, thread))
 							continue;
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Awake, 0, Thread);
+						report_thread(thread_task::awake, 0, thread);
 #endif
-						size_t Cache = Policy.MaxCoroutines - State->GetCount();
-						while (Cache > 0)
+						size_t cache = policy.max_coroutines - state->get_count();
+						while (cache > 0)
 						{
-							if (!Thread->Queue.empty())
+							if (!thread->queue.empty())
 							{
-								Event = std::move(Thread->Queue.front());
-								Thread->Queue.pop();
+								event = std::move(thread->queue.front());
+								thread->queue.pop();
 							}
-							else if (!Async->Queue.try_dequeue(Token, Event))
+							else if (!async->queue.try_dequeue(token, event))
 								break;
 
-							--Cache;
-							State->Pop(std::move(Event));
+							--cache;
+							state->pop(std::move(event));
 #ifndef NDEBUG
-							ReportThread(ThreadTask::EnqueueCoroutine, 1, Thread);
+							report_thread(thread_task::enqueue_coroutine, 1, thread);
 #endif
 						}
 #ifndef NDEBUG
-						ReportThread(ThreadTask::ProcessCoroutine, State->GetCount(), Thread);
+						report_thread(thread_task::process_coroutine, state->get_count(), thread);
 #endif
 						{
-							VI_MEASURE(Timings::Frame);
-							State->Dispatch();
+							VI_MEASURE(timings::frame);
+							state->dispatch();
 						}
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Sleep, 0, Thread);
+						report_thread(thread_task::sleep, 0, thread);
 #endif
-						std::unique_lock<std::mutex> Unique(Thread->Update);
-						Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, &State, Thread]()
+						std::unique_lock<std::mutex> unique(thread->update);
+						thread->notify.wait_for(unique, policy.idle_timeout, [this, &state, thread]()
 						{
-							return !ThreadActive(Thread) || State->HasResumableCoroutines() || Async->Resync.load() || (Async->Queue.size_approx() > 0 && State->GetCount() + 1 < Policy.MaxCoroutines);
+							return !thread_active(thread) || state->has_resumable_coroutines() || async->resync.load() || (async->queue.size_approx() > 0 && state->get_count() + 1 < policy.max_coroutines);
 						});
-						Async->Resync = false;
-					} while (ThreadActive(Thread));
-					while (!Thread->Queue.empty())
+						async->resync = false;
+					} while (thread_active(thread));
+					while (!thread->queue.empty())
 					{
-						Async->Queue.enqueue(std::move(Thread->Queue.front()));
-						Thread->Queue.pop();
+						async->queue.enqueue(std::move(thread->queue.front()));
+						thread->queue.pop();
 					}
 					break;
 				}
-				case Difficulty::Sync:
+				case difficulty::sync:
 				{
-					TaskCallback Event;
-					ReceiveToken Token(Sync->Queue);
-					if (Thread->Daemon)
-						VI_DEBUG("[schedule] acquire thread %s (tasks)", ThreadId.c_str());
+					task_callback event;
+					receive_token token(sync->queue);
+					if (thread->daemon)
+						VI_DEBUG("[schedule] acquire thread %s (tasks)", thread_id.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (tasks)", ThreadId.c_str());
+						VI_DEBUG("[schedule] spawn thread %s (tasks)", thread_id.c_str());
 
 					do
 					{
-						if (SleepThread(Type, Thread))
+						if (sleep_thread(type, thread))
 							continue;
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Sleep, 0, Thread);
+						report_thread(thread_task::sleep, 0, thread);
 #endif
-						if (!Thread->Queue.empty())
+						if (!thread->queue.empty())
 						{
-							Event = std::move(Thread->Queue.front());
-							Thread->Queue.pop();
+							event = std::move(thread->queue.front());
+							thread->queue.pop();
 						}
-						else if (!Sync->Queue.wait_dequeue_timed(Token, Event, Policy.IdleTimeout))
+						else if (!sync->queue.wait_dequeue_timed(token, event, policy.idle_timeout))
 							continue;
 #ifndef NDEBUG
-						ReportThread(ThreadTask::Awake, 0, Thread);
-						ReportThread(ThreadTask::ProcessTask, 1, Thread);
+						report_thread(thread_task::awake, 0, thread);
+						report_thread(thread_task::process_task, 1, thread);
 #endif
-						VI_MEASURE(Timings::Intensive);
-						Event();
-					} while (ThreadActive(Thread));
-					while (!Thread->Queue.empty())
+						VI_MEASURE(timings::intensive);
+						event();
+					} while (thread_active(thread));
+					while (!thread->queue.empty())
 					{
-						Sync->Queue.enqueue(std::move(Thread->Queue.front()));
-						Thread->Queue.pop();
+						sync->queue.enqueue(std::move(thread->queue.front()));
+						thread->queue.pop();
 					}
 					break;
 				}
@@ -11427,1497 +11427,1497 @@ namespace Vitex
 					break;
 			}
 
-		ExitThread:
-			if (Thread->Daemon)
-				VI_DEBUG("[schedule] release thread %s", ThreadId.c_str());
+		exit_thread:
+			if (thread->daemon)
+				VI_DEBUG("[schedule] release thread %s", thread_id.c_str());
 			else
-				VI_DEBUG("[schedule] join thread %s", ThreadId.c_str());
+				VI_DEBUG("[schedule] join thread %s", thread_id.c_str());
 
-			Scripting::VirtualMachine::CleanupThisThread();
-			InitializeThread(nullptr, true);
+			scripting::virtual_machine::cleanup_this_thread();
+			initialize_thread(nullptr, true);
 			return true;
 		}
-		bool Schedule::SleepThread(Difficulty Type, ThreadData* Thread)
+		bool schedule::sleep_thread(difficulty type, thread_data* thread)
 		{
-			if (!Suspended)
+			if (!suspended)
 				return false;
 
 #ifndef NDEBUG
-			ReportThread(ThreadTask::Sleep, 0, Thread);
+			report_thread(thread_task::sleep, 0, thread);
 #endif
-			std::unique_lock<std::mutex> Unique(Thread->Update);
-			Thread->Notify.wait_for(Unique, Policy.IdleTimeout, [this, Thread]()
+			std::unique_lock<std::mutex> unique(thread->update);
+			thread->notify.wait_for(unique, policy.idle_timeout, [this, thread]()
 			{
-				return !ThreadActive(Thread) || !Suspended;
+				return !thread_active(thread) || !suspended;
 			});
 #ifndef NDEBUG
-			ReportThread(ThreadTask::Awake, 0, Thread);
+			report_thread(thread_task::awake, 0, thread);
 #endif
 			return true;
 		}
-		bool Schedule::ThreadActive(ThreadData* Thread)
+		bool schedule::thread_active(thread_data* thread)
 		{
-			if (Thread->Daemon)
-				return Active && (Policy.Ping ? Policy.Ping() : true);
+			if (thread->daemon)
+				return active && (policy.ping ? policy.ping() : true);
 
-			return Active;
+			return active;
 		}
-		bool Schedule::ChunkCleanup()
+		bool schedule::chunk_cleanup()
 		{
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+			for (size_t i = 0; i < (size_t)difficulty::count; i++)
 			{
-				for (auto* Thread : Threads[i])
-					Memory::Delete(Thread);
-				Threads[i].clear();
+				for (auto* thread : threads[i])
+					memory::deinit(thread);
+				threads[i].clear();
 			}
 
 			return true;
 		}
-		bool Schedule::PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon)
+		bool schedule::push_thread(difficulty type, size_t global_index, size_t local_index, bool is_daemon)
 		{
-			ThreadData* Thread = Memory::New<ThreadData>(Type, Policy.PreallocatedSize, GlobalIndex, LocalIndex, IsDaemon);
-			if (!Thread->Daemon)
+			thread_data* thread = memory::init<thread_data>(type, policy.preallocated_size, global_index, local_index, is_daemon);
+			if (!thread->daemon)
 			{
-				Thread->Handle = std::thread(&Schedule::TriggerThread, this, Type, Thread);
-				Thread->Id = Thread->Handle.get_id();
+				thread->handle = std::thread(&schedule::trigger_thread, this, type, thread);
+				thread->id = thread->handle.get_id();
 			}
 			else
-				Thread->Id = std::this_thread::get_id();
+				thread->id = std::this_thread::get_id();
 #ifndef NDEBUG
-			ReportThread(ThreadTask::Spawn, 0, Thread);
+			report_thread(thread_task::spawn, 0, thread);
 #endif
-			Threads[(size_t)Type].emplace_back(Thread);
-			return Thread->Daemon ? TriggerThread(Type, Thread) : Thread->Handle.joinable();
+			threads[(size_t)type].emplace_back(thread);
+			return thread->daemon ? trigger_thread(type, thread) : thread->handle.joinable();
 		}
-		bool Schedule::PopThread(ThreadData* Thread)
+		bool schedule::pop_thread(thread_data* thread)
 		{
-			if (Thread->Daemon)
+			if (thread->daemon)
 				return true;
 
-			if (Thread->Id == std::this_thread::get_id())
+			if (thread->id == std::this_thread::get_id())
 				return false;
 
-			if (Thread->Handle.joinable())
-				Thread->Handle.join();
+			if (thread->handle.joinable())
+				thread->handle.join();
 #ifndef NDEBUG
-			ReportThread(ThreadTask::Despawn, 0, Thread);
+			report_thread(thread_task::despawn, 0, thread);
 #endif
 			return true;
 		}
-		bool Schedule::IsActive() const
+		bool schedule::is_active() const
 		{
-			return Active;
+			return active;
 		}
-		bool Schedule::CanEnqueue() const
+		bool schedule::can_enqueue() const
 		{
-			return Enqueue;
+			return enqueue;
 		}
-		bool Schedule::HasTasks(Difficulty Type) const
+		bool schedule::has_tasks(difficulty type) const
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
-			switch (Type)
+			VI_ASSERT(type != difficulty::count, "difficulty should be set");
+			switch (type)
 			{
-				case Difficulty::Async:
-					return Async->Queue.size_approx() > 0;
-				case Difficulty::Sync:
-					return Sync->Queue.size_approx() > 0;
-				case Difficulty::Timeout:
-					return Timeouts->Queue.size() > 0;
+				case difficulty::async:
+					return async->queue.size_approx() > 0;
+				case difficulty::sync:
+					return sync->queue.size_approx() > 0;
+				case difficulty::timeout:
+					return timeouts->queue.size() > 0;
 				default:
 					return false;
 			}
 		}
-		bool Schedule::HasAnyTasks() const
+		bool schedule::has_any_tasks() const
 		{
-			return HasTasks(Difficulty::Sync) || HasTasks(Difficulty::Async) || HasTasks(Difficulty::Timeout);
+			return has_tasks(difficulty::sync) || has_tasks(difficulty::async) || has_tasks(difficulty::timeout);
 		}
-		bool Schedule::IsSuspended() const
+		bool schedule::is_suspended() const
 		{
-			return Suspended;
+			return suspended;
 		}
-		void Schedule::Suspend()
+		void schedule::suspend()
 		{
-			Suspended = true;
+			suspended = true;
 		}
-		void Schedule::Resume()
+		void schedule::resume()
 		{
-			Suspended = false;
-			Wakeup();
+			suspended = false;
+			wakeup();
 		}
-		bool Schedule::ReportThread(ThreadTask State, size_t Tasks, const ThreadData* Thread)
+		bool schedule::report_thread(thread_task state, size_t tasks, const thread_data* thread)
 		{
-			if (!Debug)
+			if (!debug)
 				return false;
 
-			Debug(ThreadMessage(Thread, State, Tasks));
+			debug(thread_message(thread, state, tasks));
 			return true;
 		}
-		bool Schedule::FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback)
+		bool schedule::fast_bypass_enqueue(difficulty type, task_callback&& callback)
 		{
-			if (!HasParallelThreads(Type))
+			if (!has_parallel_threads(type))
 				return false;
 
-			auto* Thread = (ThreadData*)InitializeThread(nullptr, false);
-			if (!Thread || Thread->Type != Type || Thread->Queue.size() >= Policy.MaxRecycles)
+			auto* thread = (thread_data*)initialize_thread(nullptr, false);
+			if (!thread || thread->type != type || thread->queue.size() >= policy.max_recycles)
 				return false;
 
-			Thread->Queue.push(std::move(Callback));
+			thread->queue.push(std::move(callback));
 			return true;
 		}
-		size_t Schedule::GetThreadGlobalIndex()
+		size_t schedule::get_thread_global_index()
 		{
-			auto* Thread = GetThread();
-			return Thread ? Thread->GlobalIndex : 0;
+			auto* thread = get_thread();
+			return thread ? thread->global_index : 0;
 		}
-		size_t Schedule::GetThreadLocalIndex()
+		size_t schedule::get_thread_local_index()
 		{
-			auto* Thread = GetThread();
-			return Thread ? Thread->LocalIndex : 0;
+			auto* thread = get_thread();
+			return thread ? thread->local_index : 0;
 		}
-		size_t Schedule::GetTotalThreads() const
+		size_t schedule::get_total_threads() const
 		{
-			size_t Size = 0;
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				Size += GetThreads((Difficulty)i);
+			size_t size = 0;
+			for (size_t i = 0; i < (size_t)difficulty::count; i++)
+				size += get_threads((difficulty)i);
 
-			return Size;
+			return size;
 		}
-		size_t Schedule::GetThreads(Difficulty Type) const
+		size_t schedule::get_threads(difficulty type) const
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
-			return Threads[(size_t)Type].size();
+			VI_ASSERT(type != difficulty::count, "difficulty should be set");
+			return threads[(size_t)type].size();
 		}
-		bool Schedule::HasParallelThreads(Difficulty Type) const
+		bool schedule::has_parallel_threads(difficulty type) const
 		{
-			VI_ASSERT(Type != Difficulty::Count, "difficulty should be set");
-			return Threads[(size_t)Type].size() > 1;
+			VI_ASSERT(type != difficulty::count, "difficulty should be set");
+			return threads[(size_t)type].size() > 1;
 		}
-		void Schedule::InitializeSpawnTrigger()
+		void schedule::initialize_spawn_trigger()
 		{
-			if (!Policy.Initialize)
+			if (!policy.initialize)
 				return;
 
-			bool IsPending = true;
-			std::recursive_mutex AwaitingMutex;
-			std::unique_lock<std::recursive_mutex> Unique(AwaitingMutex);
-			std::condition_variable_any Ready;
-			Policy.Initialize([&AwaitingMutex, &Ready, &IsPending]()
+			bool is_pending = true;
+			std::recursive_mutex awaiting_mutex;
+			std::unique_lock<std::recursive_mutex> unique(awaiting_mutex);
+			std::condition_variable_any ready;
+			policy.initialize([&awaiting_mutex, &ready, &is_pending]()
 			{
-				std::unique_lock<std::recursive_mutex> Unique(AwaitingMutex);
-				IsPending = false;
-				Ready.notify_all();
+				std::unique_lock<std::recursive_mutex> unique(awaiting_mutex);
+				is_pending = false;
+				ready.notify_all();
 			});
-			Ready.wait(Unique, [&IsPending]() { return !IsPending; });
+			ready.wait(unique, [&is_pending]() { return !is_pending; });
 		}
-		const Schedule::ThreadData* Schedule::InitializeThread(ThreadData* Source, bool Update) const
+		const schedule::thread_data* schedule::initialize_thread(thread_data* source, bool update) const
 		{
-			static thread_local ThreadData* InternalThread = nullptr;
-			if (Update)
-				InternalThread = Source;
-			return InternalThread;
+			static thread_local thread_data* internal_thread = nullptr;
+			if (update)
+				internal_thread = source;
+			return internal_thread;
 		}
-		const Schedule::ThreadData* Schedule::GetThread() const
+		const schedule::thread_data* schedule::get_thread() const
 		{
-			return InitializeThread(nullptr, false);
+			return initialize_thread(nullptr, false);
 		}
-		const Schedule::Desc& Schedule::GetPolicy() const
+		const schedule::desc& schedule::get_policy() const
 		{
-			return Policy;
+			return policy;
 		}
-		std::chrono::microseconds Schedule::GetTimeout(std::chrono::microseconds Clock)
+		std::chrono::microseconds schedule::get_timeout(std::chrono::microseconds clock)
 		{
-			while (Timeouts->Queue.find(Clock) != Timeouts->Queue.end())
-				++Clock;
-			return Clock;
+			while (timeouts->queue.find(clock) != timeouts->queue.end())
+				++clock;
+			return clock;
 		}
-		std::chrono::microseconds Schedule::GetClock()
+		std::chrono::microseconds schedule::get_clock()
 		{
 			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
 		}
-		bool Schedule::IsAvailable(Difficulty Type)
+		bool schedule::is_available(difficulty type)
 		{
-			if (!HasInstance())
+			if (!has_instance())
 				return false;
 
-			auto* Instance = Get();
-			if (!Instance->Active || !Instance->Enqueue)
+			auto* instance = get();
+			if (!instance->active || !instance->enqueue)
 				return false;
 
-			return Type == Difficulty::Count || Instance->HasParallelThreads(Type);
+			return type == difficulty::count || instance->has_parallel_threads(type);
 		}
 
-		Schema::Schema(const Variant& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(Base)
+		schema::schema(const variant& base) noexcept : nodes(nullptr), parent(nullptr), saved(true), value(base)
 		{
 		}
-		Schema::Schema(Variant&& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(std::move(Base))
+		schema::schema(variant&& base) noexcept : nodes(nullptr), parent(nullptr), saved(true), value(std::move(base))
 		{
 		}
-		Schema::~Schema() noexcept
+		schema::~schema() noexcept
 		{
-			Unlink();
-			Clear();
+			unlink();
+			clear();
 		}
-		UnorderedMap<String, size_t> Schema::GetNames() const
+		unordered_map<string, size_t> schema::get_names() const
 		{
-			size_t Index = 0;
-			UnorderedMap<String, size_t> Mapping;
-			GenerateNamingTable(this, &Mapping, Index);
-			return Mapping;
+			size_t index = 0;
+			unordered_map<string, size_t> mapping;
+			generate_naming_table(this, &mapping, index);
+			return mapping;
 		}
-		Vector<Schema*> Schema::FindCollection(const std::string_view& Name, bool Deep) const
+		vector<schema*> schema::find_collection(const std::string_view& name, bool deep) const
 		{
-			Vector<Schema*> Result;
-			if (!Nodes)
-				return Result;
+			vector<schema*> result;
+			if (!nodes)
+				return result;
 
-			for (auto Value : *Nodes)
+			for (auto value : *nodes)
 			{
-				if (Value->Key == Name)
-					Result.push_back(Value);
+				if (value->key == name)
+					result.push_back(value);
 
-				if (!Deep)
+				if (!deep)
 					continue;
 
-				Vector<Schema*> New = Value->FindCollection(Name);
-				for (auto& Subvalue : New)
-					Result.push_back(Subvalue);
+				vector<schema*> init = value->find_collection(name);
+				for (auto& subvalue : init)
+					result.push_back(subvalue);
 			}
 
-			return Result;
+			return result;
 		}
-		Vector<Schema*> Schema::FetchCollection(const std::string_view& Notation, bool Deep) const
+		vector<schema*> schema::fetch_collection(const std::string_view& notation, bool deep) const
 		{
-			Vector<String> Names = Stringify::Split(Notation, '.');
-			if (Names.empty())
-				return Vector<Schema*>();
+			vector<string> names = stringify::split(notation, '.');
+			if (names.empty())
+				return vector<schema*>();
 
-			if (Names.size() == 1)
-				return FindCollection(*Names.begin());
+			if (names.size() == 1)
+				return find_collection(*names.begin());
 
-			Schema* Current = Find(*Names.begin(), Deep);
-			if (!Current)
-				return Vector<Schema*>();
+			schema* current = find(*names.begin(), deep);
+			if (!current)
+				return vector<schema*>();
 
-			for (auto It = Names.begin() + 1; It != Names.end() - 1; ++It)
+			for (auto it = names.begin() + 1; it != names.end() - 1; ++it)
 			{
-				Current = Current->Find(*It, Deep);
-				if (!Current)
-					return Vector<Schema*>();
+				current = current->find(*it, deep);
+				if (!current)
+					return vector<schema*>();
 			}
 
-			return Current->FindCollection(*(Names.end() - 1), Deep);
+			return current->find_collection(*(names.end() - 1), deep);
 		}
-		Vector<Schema*> Schema::GetAttributes() const
+		vector<schema*> schema::get_attributes() const
 		{
-			Vector<Schema*> Attributes;
-			if (!Nodes)
-				return Attributes;
+			vector<schema*> attributes;
+			if (!nodes)
+				return attributes;
 
-			for (auto It : *Nodes)
+			for (auto it : *nodes)
 			{
-				if (It->IsAttribute())
-					Attributes.push_back(It);
+				if (it->is_attribute())
+					attributes.push_back(it);
 			}
 
-			return Attributes;
+			return attributes;
 		}
-		Vector<Schema*>& Schema::GetChilds()
+		vector<schema*>& schema::get_childs()
 		{
-			Allocate();
-			return *Nodes;
+			allocate();
+			return *nodes;
 		}
-		Schema* Schema::Find(const std::string_view& Name, bool Deep) const
+		schema* schema::find(const std::string_view& name, bool deep) const
 		{
-			if (!Nodes)
+			if (!nodes)
 				return nullptr;
 
-			if (Stringify::HasInteger(Name))
+			if (stringify::has_integer(name))
 			{
-				size_t Index = (size_t)*FromString<uint64_t>(Name);
-				if (Index < Nodes->size())
-					return (*Nodes)[Index];
+				size_t index = (size_t)*from_string<uint64_t>(name);
+				if (index < nodes->size())
+					return (*nodes)[index];
 			}
 
-			for (auto K : *Nodes)
+			for (auto k : *nodes)
 			{
-				if (K->Key == Name)
-					return K;
+				if (k->key == name)
+					return k;
 
-				if (!Deep)
+				if (!deep)
 					continue;
 
-				Schema* V = K->Find(Name);
-				if (V != nullptr)
-					return V;
+				schema* v = k->find(name);
+				if (v != nullptr)
+					return v;
 			}
 
 			return nullptr;
 		}
-		Schema* Schema::Fetch(const std::string_view& Notation, bool Deep) const
+		schema* schema::fetch(const std::string_view& notation, bool deep) const
 		{
-			Vector<String> Names = Stringify::Split(Notation, '.');
-			if (Names.empty())
+			vector<string> names = stringify::split(notation, '.');
+			if (names.empty())
 				return nullptr;
 
-			Schema* Current = Find(*Names.begin(), Deep);
-			if (!Current)
+			schema* current = find(*names.begin(), deep);
+			if (!current)
 				return nullptr;
 
-			for (auto It = Names.begin() + 1; It != Names.end(); ++It)
+			for (auto it = names.begin() + 1; it != names.end(); ++it)
 			{
-				Current = Current->Find(*It, Deep);
-				if (!Current)
+				current = current->find(*it, deep);
+				if (!current)
 					return nullptr;
 			}
 
-			return Current;
+			return current;
 		}
-		Schema* Schema::GetParent() const
+		schema* schema::get_parent() const
 		{
-			return Parent;
+			return parent;
 		}
-		Schema* Schema::GetAttribute(const std::string_view& Name) const
+		schema* schema::get_attribute(const std::string_view& name) const
 		{
-			return Get(':' + String(Name));
+			return get(':' + string(name));
 		}
-		Variant Schema::FetchVar(const std::string_view& fKey, bool Deep) const
+		variant schema::fetch_var(const std::string_view& fkey, bool deep) const
 		{
-			Schema* Result = Fetch(fKey, Deep);
-			if (!Result)
-				return Var::Undefined();
+			schema* result = fetch(fkey, deep);
+			if (!result)
+				return var::undefined();
 
-			return Result->Value;
+			return result->value;
 		}
-		Variant Schema::GetVar(size_t Index) const
+		variant schema::get_var(size_t index) const
 		{
-			Schema* Result = Get(Index);
-			if (!Result)
-				return Var::Undefined();
+			schema* result = get(index);
+			if (!result)
+				return var::undefined();
 
-			return Result->Value;
+			return result->value;
 		}
-		Variant Schema::GetVar(const std::string_view& fKey) const
+		variant schema::get_var(const std::string_view& fkey) const
 		{
-			Schema* Result = Get(fKey);
-			if (!Result)
-				return Var::Undefined();
+			schema* result = get(fkey);
+			if (!result)
+				return var::undefined();
 
-			return Result->Value;
+			return result->value;
 		}
-		Variant Schema::GetAttributeVar(const std::string_view& Key) const
+		variant schema::get_attribute_var(const std::string_view& key) const
 		{
-			return GetVar(':' + String(Key));
+			return get_var(':' + string(key));
 		}
-		Schema* Schema::Get(size_t Index) const
+		schema* schema::get(size_t index) const
 		{
-			VI_ASSERT(Nodes != nullptr, "there must be at least one node");
-			VI_ASSERT(Index < Nodes->size(), "index outside of range");
+			VI_ASSERT(nodes != nullptr, "there must be at least one node");
+			VI_ASSERT(index < nodes->size(), "index outside of range");
 
-			return (*Nodes)[Index];
+			return (*nodes)[index];
 		}
-		Schema* Schema::Get(const std::string_view& Name) const
+		schema* schema::get(const std::string_view& name) const
 		{
-			VI_ASSERT(!Name.empty(), "name should not be empty");
-			if (!Nodes)
+			VI_ASSERT(!name.empty(), "name should not be empty");
+			if (!nodes)
 				return nullptr;
 
-			for (auto Schema : *Nodes)
+			for (auto schema : *nodes)
 			{
-				if (Schema->Key == Name)
-					return Schema;
+				if (schema->key == name)
+					return schema;
 			}
 
 			return nullptr;
 		}
-		Schema* Schema::Set(const std::string_view& Name)
+		schema* schema::set(const std::string_view& name)
 		{
-			return Set(Name, Var::Object());
+			return set(name, var::object());
 		}
-		Schema* Schema::Set(const std::string_view& Name, const Variant& Base)
+		schema* schema::set(const std::string_view& name, const variant& base)
 		{
-			if (Value.Type == VarType::Object && Nodes != nullptr)
+			if (value.type == var_type::object && nodes != nullptr)
 			{
-				for (auto Node : *Nodes)
+				for (auto node : *nodes)
 				{
-					if (Node->Key == Name)
+					if (node->key == name)
 					{
-						Node->Value = Base;
-						Node->Saved = false;
-						Node->Clear();
-						Saved = false;
+						node->value = base;
+						node->saved = false;
+						node->clear();
+						saved = false;
 
-						return Node;
+						return node;
 					}
 				}
 			}
 
-			Schema* Result = new Schema(Base);
-			Result->Key.assign(Name);
-			Result->Attach(this);
+			schema* result = new schema(base);
+			result->key.assign(name);
+			result->attach(this);
 
-			Allocate();
-			Nodes->push_back(Result);
-			return Result;
+			allocate();
+			nodes->push_back(result);
+			return result;
 		}
-		Schema* Schema::Set(const std::string_view& Name, Variant&& Base)
+		schema* schema::set(const std::string_view& name, variant&& base)
 		{
-			if (Value.Type == VarType::Object && Nodes != nullptr)
+			if (value.type == var_type::object && nodes != nullptr)
 			{
-				for (auto Node : *Nodes)
+				for (auto node : *nodes)
 				{
-					if (Node->Key == Name)
+					if (node->key == name)
 					{
-						Node->Value = std::move(Base);
-						Node->Saved = false;
-						Node->Clear();
-						Saved = false;
+						node->value = std::move(base);
+						node->saved = false;
+						node->clear();
+						saved = false;
 
-						return Node;
+						return node;
 					}
 				}
 			}
 
-			Schema* Result = new Schema(std::move(Base));
-			Result->Key.assign(Name);
-			Result->Attach(this);
+			schema* result = new schema(std::move(base));
+			result->key.assign(name);
+			result->attach(this);
 
-			Allocate();
-			Nodes->push_back(Result);
-			return Result;
+			allocate();
+			nodes->push_back(result);
+			return result;
 		}
-		Schema* Schema::Set(const std::string_view& Name, Schema* Base)
+		schema* schema::set(const std::string_view& name, schema* base)
 		{
-			if (!Base)
-				return Set(Name, Var::Null());
+			if (!base)
+				return set(name, var::null());
 
-			Base->Key.assign(Name);
-			Base->Attach(this);
+			base->key.assign(name);
+			base->attach(this);
 
-			if (Value.Type == VarType::Object && Nodes != nullptr)
+			if (value.type == var_type::object && nodes != nullptr)
 			{
-				for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
+				for (auto it = nodes->begin(); it != nodes->end(); ++it)
 				{
-					if ((*It)->Key != Name)
+					if ((*it)->key != name)
 						continue;
 
-					if (*It == Base)
-						return Base;
+					if (*it == base)
+						return base;
 
-					(*It)->Parent = nullptr;
-					Memory::Release(*It);
-					*It = Base;
-					return Base;
+					(*it)->parent = nullptr;
+					memory::release(*it);
+					*it = base;
+					return base;
 				}
 			}
 
-			Allocate();
-			Nodes->push_back(Base);
-			return Base;
+			allocate();
+			nodes->push_back(base);
+			return base;
 		}
-		Schema* Schema::SetAttribute(const std::string_view& Name, const Variant& fValue)
+		schema* schema::set_attribute(const std::string_view& name, const variant& fvalue)
 		{
-			return Set(':' + String(Name), fValue);
+			return set(':' + string(name), fvalue);
 		}
-		Schema* Schema::SetAttribute(const std::string_view& Name, Variant&& fValue)
+		schema* schema::set_attribute(const std::string_view& name, variant&& fvalue)
 		{
-			return Set(':' + String(Name), std::move(fValue));
+			return set(':' + string(name), std::move(fvalue));
 		}
-		Schema* Schema::Push(const Variant& Base)
+		schema* schema::push(const variant& base)
 		{
-			Schema* Result = new Schema(Base);
-			Result->Attach(this);
+			schema* result = new schema(base);
+			result->attach(this);
 
-			Allocate();
-			Nodes->push_back(Result);
-			return Result;
+			allocate();
+			nodes->push_back(result);
+			return result;
 		}
-		Schema* Schema::Push(Variant&& Base)
+		schema* schema::push(variant&& base)
 		{
-			Schema* Result = new Schema(std::move(Base));
-			Result->Attach(this);
+			schema* result = new schema(std::move(base));
+			result->attach(this);
 
-			Allocate();
-			Nodes->push_back(Result);
-			return Result;
+			allocate();
+			nodes->push_back(result);
+			return result;
 		}
-		Schema* Schema::Push(Schema* Base)
+		schema* schema::push(schema* base)
 		{
-			if (!Base)
-				return Push(Var::Null());
+			if (!base)
+				return push(var::null());
 
-			Base->Attach(this);
-			Allocate();
-			Nodes->push_back(Base);
-			return Base;
+			base->attach(this);
+			allocate();
+			nodes->push_back(base);
+			return base;
 		}
-		Schema* Schema::Pop(size_t Index)
+		schema* schema::pop(size_t index)
 		{
-			VI_ASSERT(Nodes != nullptr, "there must be at least one node");
-			VI_ASSERT(Index < Nodes->size(), "index outside of range");
+			VI_ASSERT(nodes != nullptr, "there must be at least one node");
+			VI_ASSERT(index < nodes->size(), "index outside of range");
 
-			auto It = Nodes->begin() + Index;
-			Schema* Base = *It;
-			Base->Parent = nullptr;
-			Memory::Release(Base);
-			Nodes->erase(It);
-			Saved = false;
+			auto it = nodes->begin() + index;
+			schema* base = *it;
+			base->parent = nullptr;
+			memory::release(base);
+			nodes->erase(it);
+			saved = false;
 
 			return this;
 		}
-		Schema* Schema::Pop(const std::string_view& Name)
+		schema* schema::pop(const std::string_view& name)
 		{
-			if (!Nodes)
+			if (!nodes)
 				return this;
 
-			for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
+			for (auto it = nodes->begin(); it != nodes->end(); ++it)
 			{
-				if (!*It || (*It)->Key != Name)
+				if (!*it || (*it)->key != name)
 					continue;
 
-				(*It)->Parent = nullptr;
-				Memory::Release(*It);
-				Nodes->erase(It);
-				Saved = false;
+				(*it)->parent = nullptr;
+				memory::release(*it);
+				nodes->erase(it);
+				saved = false;
 				break;
 			}
 
 			return this;
 		}
-		Schema* Schema::Copy() const
+		schema* schema::copy() const
 		{
-			Schema* New = new Schema(Value);
-			New->Key.assign(Key);
-			New->Saved = Saved;
+			schema* init = new schema(value);
+			init->key.assign(key);
+			init->saved = saved;
 
-			if (!Nodes)
-				return New;
+			if (!nodes)
+				return init;
 
-			New->Allocate(*Nodes);
-			for (auto*& Item : *New->Nodes)
+			init->allocate(*nodes);
+			for (auto*& item : *init->nodes)
 			{
-				if (Item != nullptr)
-					Item = Item->Copy();
+				if (item != nullptr)
+					item = item->copy();
 			}
 
-			return New;
+			return init;
 		}
-		bool Schema::Rename(const std::string_view& Name, const std::string_view& NewName)
+		bool schema::rename(const std::string_view& name, const std::string_view& new_name)
 		{
-			VI_ASSERT(!Name.empty() && !NewName.empty(), "name and new name should not be empty");
+			VI_ASSERT(!name.empty() && !new_name.empty(), "name and new name should not be empty");
 
-			Schema* Result = Get(Name);
-			if (!Result)
+			schema* result = get(name);
+			if (!result)
 				return false;
 
-			Result->Key = NewName;
+			result->key = new_name;
 			return true;
 		}
-		bool Schema::Has(const std::string_view& Name) const
+		bool schema::has(const std::string_view& name) const
 		{
-			return Fetch(Name) != nullptr;
+			return fetch(name) != nullptr;
 		}
-		bool Schema::HasAttribute(const std::string_view& Name) const
+		bool schema::has_attribute(const std::string_view& name) const
 		{
-			return Fetch(':' + String(Name)) != nullptr;
+			return fetch(':' + string(name)) != nullptr;
 		}
-		bool Schema::Empty() const
+		bool schema::empty() const
 		{
-			return !Nodes || Nodes->empty();
+			return !nodes || nodes->empty();
 		}
-		bool Schema::IsAttribute() const
+		bool schema::is_attribute() const
 		{
-			if (Key.size() < 2)
+			if (key.size() < 2)
 				return false;
 
-			return Key.front() == ':';
+			return key.front() == ':';
 		}
-		bool Schema::IsSaved() const
+		bool schema::is_saved() const
 		{
-			return Saved;
+			return saved;
 		}
-		size_t Schema::Size() const
+		size_t schema::size() const
 		{
-			return Nodes ? Nodes->size() : 0;
+			return nodes ? nodes->size() : 0;
 		}
-		String Schema::GetName() const
+		string schema::get_name() const
 		{
-			return IsAttribute() ? Key.substr(1) : Key;
+			return is_attribute() ? key.substr(1) : key;
 		}
-		void Schema::Join(Schema* Other, bool AppendOnly)
+		void schema::join(schema* other, bool append_only)
 		{
-			VI_ASSERT(Other != nullptr && Value.IsObject(), "other should be object and not empty");
-			auto FillArena = [](UnorderedMap<String, Schema*>& Nodes, Schema* Base)
+			VI_ASSERT(other != nullptr && value.is_object(), "other should be object and not empty");
+			auto fill_arena = [](unordered_map<string, schema*>& nodes, schema* base)
 			{
-				if (!Base->Nodes)
+				if (!base->nodes)
 					return;
 
-				for (auto& Node : *Base->Nodes)
+				for (auto& node : *base->nodes)
 				{
-					auto& Next = Nodes[Node->Key];
-					Memory::Release(Next);
-					Next = Node;
+					auto& next = nodes[node->key];
+					memory::release(next);
+					next = node;
 				}
 
-				Base->Nodes->clear();
+				base->nodes->clear();
 			};
 
-			Allocate();
-			Nodes->reserve(Nodes->size() + Other->Nodes->size());
-			Saved = false;
+			allocate();
+			nodes->reserve(nodes->size() + other->nodes->size());
+			saved = false;
 
-			if (!AppendOnly)
+			if (!append_only)
 			{
-				UnorderedMap<String, Schema*> Subnodes;
-				Subnodes.reserve(Nodes->capacity());
-				FillArena(Subnodes, this);
-				FillArena(Subnodes, Other);
+				unordered_map<string, schema*> subnodes;
+				subnodes.reserve(nodes->capacity());
+				fill_arena(subnodes, this);
+				fill_arena(subnodes, other);
 
-				for (auto& Node : Subnodes)
-					Nodes->push_back(Node.second);
+				for (auto& node : subnodes)
+					nodes->push_back(node.second);
 			}
-			else if (Other->Nodes != nullptr)
+			else if (other->nodes != nullptr)
 			{
-				Nodes->insert(Nodes->end(), Other->Nodes->begin(), Other->Nodes->end());
-				Other->Nodes->clear();
+				nodes->insert(nodes->end(), other->nodes->begin(), other->nodes->end());
+				other->nodes->clear();
 			}
 
-			for (auto& Node : *Nodes)
+			for (auto& node : *nodes)
 			{
-				Node->Saved = false;
-				Node->Parent = this;
+				node->saved = false;
+				node->parent = this;
 			}
 		}
-		void Schema::Reserve(size_t Size)
+		void schema::reserve(size_t size)
 		{
-			Allocate();
-			Nodes->reserve(Size);
+			allocate();
+			nodes->reserve(size);
 		}
-		void Schema::Unlink()
+		void schema::unlink()
 		{
-			if (!Parent)
+			if (!parent)
 				return;
 
-			if (!Parent->Nodes)
+			if (!parent->nodes)
 			{
-				Parent = nullptr;
+				parent = nullptr;
 				return;
 			}
 
-			for (auto It = Parent->Nodes->begin(); It != Parent->Nodes->end(); ++It)
+			for (auto it = parent->nodes->begin(); it != parent->nodes->end(); ++it)
 			{
-				if (*It == this)
+				if (*it == this)
 				{
-					Parent->Nodes->erase(It);
+					parent->nodes->erase(it);
 					break;
 				}
 			}
 
-			Parent = nullptr;
+			parent = nullptr;
 		}
-		void Schema::Clear()
+		void schema::clear()
 		{
-			if (!Nodes)
+			if (!nodes)
 				return;
 
-			for (auto& Next : *Nodes)
+			for (auto& next : *nodes)
 			{
-				if (Next != nullptr)
+				if (next != nullptr)
 				{
-					Next->Parent = nullptr;
-					Memory::Release(Next);
+					next->parent = nullptr;
+					memory::release(next);
 				}
 			}
 
-			Memory::Delete(Nodes);
-			Nodes = nullptr;
+			memory::deinit(nodes);
+			nodes = nullptr;
 		}
-		void Schema::Save()
+		void schema::save()
 		{
-			if (Nodes != nullptr)
+			if (nodes != nullptr)
 			{
-				for (auto& It : *Nodes)
+				for (auto& it : *nodes)
 				{
-					if (It->Value.IsObject())
-						It->Save();
+					if (it->value.is_object())
+						it->save();
 					else
-						It->Saved = true;
+						it->saved = true;
 				}
 			}
 
-			Saved = true;
+			saved = true;
 		}
-		void Schema::Attach(Schema* Root)
+		void schema::attach(schema* root)
 		{
-			Saved = false;
-			if (Parent != nullptr && Parent->Nodes != nullptr)
+			saved = false;
+			if (parent != nullptr && parent->nodes != nullptr)
 			{
-				for (auto It = Parent->Nodes->begin(); It != Parent->Nodes->end(); ++It)
+				for (auto it = parent->nodes->begin(); it != parent->nodes->end(); ++it)
 				{
-					if (*It == this)
+					if (*it == this)
 					{
-						Parent->Nodes->erase(It);
+						parent->nodes->erase(it);
 						break;
 					}
 				}
 			}
 
-			Parent = Root;
-			if (Parent != nullptr)
-				Parent->Saved = false;
+			parent = root;
+			if (parent != nullptr)
+				parent->saved = false;
 		}
-		void Schema::Allocate()
+		void schema::allocate()
 		{
-			if (!Nodes)
-				Nodes = Memory::New<Vector<Schema*>>();
+			if (!nodes)
+				nodes = memory::init<vector<schema*>>();
 		}
-		void Schema::Allocate(const Vector<Schema*>& Other)
+		void schema::allocate(const vector<schema*>& other)
 		{
-			if (!Nodes)
-				Nodes = Memory::New<Vector<Schema*>>(Other);
+			if (!nodes)
+				nodes = memory::init<vector<schema*>>(other);
 			else
-				*Nodes = Other;
+				*nodes = other;
 		}
-		void Schema::Transform(Schema* Value, const SchemaNameCallback& Callback)
+		void schema::transform(schema* value, const schema_name_callback& callback)
 		{
-			VI_ASSERT(!!Callback, "callback should not be empty");
-			if (!Value)
+			VI_ASSERT(!!callback, "callback should not be empty");
+			if (!value)
 				return;
 
-			Value->Key = Callback(Value->Key);
-			if (!Value->Nodes)
+			value->key = callback(value->key);
+			if (!value->nodes)
 				return;
 
-			for (auto* Item : *Value->Nodes)
-				Transform(Item, Callback);
+			for (auto* item : *value->nodes)
+				transform(item, callback);
 		}
-		void Schema::ConvertToXML(Schema* Base, const SchemaWriteCallback& Callback)
+		void schema::convert_to_xml(schema* base, const schema_write_callback& callback)
 		{
-			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
-			Vector<Schema*> Attributes = Base->GetAttributes();
-			bool Scalable = (Base->Value.Size() > 0 || ((size_t)(Base->Nodes ? Base->Nodes->size() : 0) > (size_t)Attributes.size()));
-			Callback(VarForm::Write_Tab, "");
-			Callback(VarForm::Dummy, "<");
-			Callback(VarForm::Dummy, Base->Key);
+			VI_ASSERT(base != nullptr && callback, "base should be set and callback should not be empty");
+			vector<schema*> attributes = base->get_attributes();
+			bool scalable = (base->value.size() > 0 || ((size_t)(base->nodes ? base->nodes->size() : 0) > (size_t)attributes.size()));
+			callback(var_form::write_tab, "");
+			callback(var_form::dummy, "<");
+			callback(var_form::dummy, base->key);
 
-			if (Attributes.empty())
+			if (attributes.empty())
 			{
-				if (Scalable)
-					Callback(VarForm::Dummy, ">");
+				if (scalable)
+					callback(var_form::dummy, ">");
 				else
-					Callback(VarForm::Dummy, " />");
+					callback(var_form::dummy, " />");
 			}
 			else
-				Callback(VarForm::Dummy, " ");
+				callback(var_form::dummy, " ");
 
-			for (auto It = Attributes.begin(); It != Attributes.end(); ++It)
+			for (auto it = attributes.begin(); it != attributes.end(); ++it)
 			{
-				String Key = (*It)->GetName();
-				String Value = (*It)->Value.Serialize();
+				string key = (*it)->get_name();
+				string value = (*it)->value.serialize();
 
-				Callback(VarForm::Dummy, Key);
-				Callback(VarForm::Dummy, "=\"");
-				Callback(VarForm::Dummy, Value);
-				++It;
+				callback(var_form::dummy, key);
+				callback(var_form::dummy, "=\"");
+				callback(var_form::dummy, value);
+				++it;
 
-				if (It == Attributes.end())
+				if (it == attributes.end())
 				{
-					if (!Scalable)
+					if (!scalable)
 					{
-						Callback(VarForm::Write_Space, "\"");
-						Callback(VarForm::Dummy, "/>");
+						callback(var_form::write_space, "\"");
+						callback(var_form::dummy, "/>");
 					}
 					else
-						Callback(VarForm::Dummy, "\">");
+						callback(var_form::dummy, "\">");
 				}
 				else
-					Callback(VarForm::Write_Space, "\"");
+					callback(var_form::write_space, "\"");
 
-				--It;
+				--it;
 			}
 
-			Callback(VarForm::Tab_Increase, "");
-			if (Base->Value.Size() > 0)
+			callback(var_form::tab_increase, "");
+			if (base->value.size() > 0)
 			{
-				String Text = Base->Value.Serialize();
-				if (Base->Nodes != nullptr && !Base->Nodes->empty())
+				string text = base->value.serialize();
+				if (base->nodes != nullptr && !base->nodes->empty())
 				{
-					Callback(VarForm::Write_Line, "");
-					Callback(VarForm::Write_Tab, "");
-					Callback(VarForm::Dummy, Text);
-					Callback(VarForm::Write_Line, "");
+					callback(var_form::write_line, "");
+					callback(var_form::write_tab, "");
+					callback(var_form::dummy, text);
+					callback(var_form::write_line, "");
 				}
 				else
-					Callback(VarForm::Dummy, Text);
+					callback(var_form::dummy, text);
 			}
 			else
-				Callback(VarForm::Write_Line, "");
+				callback(var_form::write_line, "");
 
-			if (Base->Nodes != nullptr)
+			if (base->nodes != nullptr)
 			{
-				for (auto&& It : *Base->Nodes)
+				for (auto&& it : *base->nodes)
 				{
-					if (!It->IsAttribute())
-						ConvertToXML(It, Callback);
+					if (!it->is_attribute())
+						convert_to_xml(it, callback);
 				}
 			}
 
-			Callback(VarForm::Tab_Decrease, "");
-			if (!Scalable)
+			callback(var_form::tab_decrease, "");
+			if (!scalable)
 				return;
 
-			if (Base->Nodes != nullptr && !Base->Nodes->empty())
-				Callback(VarForm::Write_Tab, "");
+			if (base->nodes != nullptr && !base->nodes->empty())
+				callback(var_form::write_tab, "");
 
-			Callback(VarForm::Dummy, "</");
-			Callback(VarForm::Dummy, Base->Key);
-			Callback(Base->Parent ? VarForm::Write_Line : VarForm::Dummy, ">");
+			callback(var_form::dummy, "</");
+			callback(var_form::dummy, base->key);
+			callback(base->parent ? var_form::write_line : var_form::dummy, ">");
 		}
-		void Schema::ConvertToJSON(Schema* Base, const SchemaWriteCallback& Callback)
+		void schema::convert_to_json(schema* base, const schema_write_callback& callback)
 		{
-			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
-			if (!Base->Value.IsObject())
+			VI_ASSERT(base != nullptr && callback, "base should be set and callback should not be empty");
+			if (!base->value.is_object())
 			{
-				String Value = Base->Value.Serialize();
-				Stringify::Escape(Value);
+				string value = base->value.serialize();
+				stringify::escape(value);
 
-				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Binary)
+				if (base->value.type != var_type::string && base->value.type != var_type::binary)
 				{
-					if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
-						Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));
+					if (value.size() >= 2 && value.front() == PREFIX_ENUM[0] && value.back() == PREFIX_ENUM[0])
+						callback(var_form::dummy, value.substr(1, value.size() - 2));
 					else
-						Callback(VarForm::Dummy, Value);
+						callback(var_form::dummy, value);
 				}
 				else
 				{
-					Callback(VarForm::Dummy, "\"");
-					Callback(VarForm::Dummy, Value);
-					Callback(VarForm::Dummy, "\"");
+					callback(var_form::dummy, "\"");
+					callback(var_form::dummy, value);
+					callback(var_form::dummy, "\"");
 				}
 				return;
 			}
 
-			size_t Size = (Base->Nodes ? Base->Nodes->size() : 0);
-			bool Array = (Base->Value.Type == VarType::Array);
-			if (!Size)
+			size_t size = (base->nodes ? base->nodes->size() : 0);
+			bool array = (base->value.type == var_type::array);
+			if (!size)
 			{
-				Callback(VarForm::Dummy, Array ? "[]" : "{}");
+				callback(var_form::dummy, array ? "[]" : "{}");
 				return;
 			}
 
-			Callback(VarForm::Dummy, Array ? "[" : "{");
-			Callback(VarForm::Tab_Increase, "");
+			callback(var_form::dummy, array ? "[" : "{");
+			callback(var_form::tab_increase, "");
 
-			for (size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < size; i++)
 			{
-				auto* Next = (*Base->Nodes)[i];
-				if (!Array)
+				auto* next = (*base->nodes)[i];
+				if (!array)
 				{
-					Callback(VarForm::Write_Line, "");
-					Callback(VarForm::Write_Tab, "");
-					Callback(VarForm::Dummy, "\"");
-					Callback(VarForm::Dummy, Next->Key);
-					Callback(VarForm::Write_Space, "\":");
+					callback(var_form::write_line, "");
+					callback(var_form::write_tab, "");
+					callback(var_form::dummy, "\"");
+					callback(var_form::dummy, next->key);
+					callback(var_form::write_space, "\":");
 				}
 
-				if (!Next->Value.IsObject())
+				if (!next->value.is_object())
 				{
-					auto Type = Next->Value.GetType();
-					String Value = (Type == VarType::Undefined ? "null" : Next->Value.Serialize());
-					Stringify::Escape(Value);
-					if (Array)
+					auto type = next->value.get_type();
+					string value = (type == var_type::undefined ? "null" : next->value.serialize());
+					stringify::escape(value);
+					if (array)
 					{
-						Callback(VarForm::Write_Line, "");
-						Callback(VarForm::Write_Tab, "");
+						callback(var_form::write_line, "");
+						callback(var_form::write_tab, "");
 					}
 
-					if (Type == VarType::Decimal)
+					if (type == var_type::decimal)
 					{
-						bool BigNumber = !((Decimal*)Next->Value.GetContainer())->IsSafeNumber();
-						if (BigNumber)
-							Callback(VarForm::Dummy, "\"");
+						bool big_number = !((decimal*)next->value.get_container())->is_safe_number();
+						if (big_number)
+							callback(var_form::dummy, "\"");
 
-						if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
-							Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));
+						if (value.size() >= 2 && value.front() == PREFIX_ENUM[0] && value.back() == PREFIX_ENUM[0])
+							callback(var_form::dummy, value.substr(1, value.size() - 2));
 						else
-							Callback(VarForm::Dummy, Value);
+							callback(var_form::dummy, value);
 
-						if (BigNumber)
-							Callback(VarForm::Dummy, "\"");
+						if (big_number)
+							callback(var_form::dummy, "\"");
 					}
-					else if (!Next->Value.IsObject() && Type != VarType::String && Type != VarType::Binary)
+					else if (!next->value.is_object() && type != var_type::string && type != var_type::binary)
 					{
-						if (Value.size() >= 2 && Value.front() == PREFIX_ENUM[0] && Value.back() == PREFIX_ENUM[0])
-							Callback(VarForm::Dummy, Value.substr(1, Value.size() - 2));
+						if (value.size() >= 2 && value.front() == PREFIX_ENUM[0] && value.back() == PREFIX_ENUM[0])
+							callback(var_form::dummy, value.substr(1, value.size() - 2));
 						else
-							Callback(VarForm::Dummy, Value);
+							callback(var_form::dummy, value);
 					}
 					else
 					{
-						Callback(VarForm::Dummy, "\"");
-						Callback(VarForm::Dummy, Value);
-						Callback(VarForm::Dummy, "\"");
+						callback(var_form::dummy, "\"");
+						callback(var_form::dummy, value);
+						callback(var_form::dummy, "\"");
 					}
 				}
 				else
 				{
-					if (Array)
+					if (array)
 					{
-						Callback(VarForm::Write_Line, "");
-						Callback(VarForm::Write_Tab, "");
+						callback(var_form::write_line, "");
+						callback(var_form::write_tab, "");
 					}
-					ConvertToJSON(Next, Callback);
+					convert_to_json(next, callback);
 				}
 
-				if (i + 1 < Size)
-					Callback(VarForm::Dummy, ",");
+				if (i + 1 < size)
+					callback(var_form::dummy, ",");
 			}
 
-			Callback(VarForm::Tab_Decrease, "");
-			Callback(VarForm::Write_Line, "");
-			if (Base->Parent != nullptr)
-				Callback(VarForm::Write_Tab, "");
+			callback(var_form::tab_decrease, "");
+			callback(var_form::write_line, "");
+			if (base->parent != nullptr)
+				callback(var_form::write_tab, "");
 
-			Callback(VarForm::Dummy, Array ? "]" : "}");
+			callback(var_form::dummy, array ? "]" : "}");
 		}
-		void Schema::ConvertToJSONB(Schema* Base, const SchemaWriteCallback& Callback)
+		void schema::convert_to_jsonb(schema* base, const schema_write_callback& callback)
 		{
-			VI_ASSERT(Base != nullptr && Callback, "base should be set and callback should not be empty");
-			UnorderedMap<String, size_t> Mapping = Base->GetNames();
-			uint32_t Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Mapping.size());
-			uint64_t Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, JSONB_VERSION);
-			Callback(VarForm::Dummy, std::string_view((const char*)&Version, sizeof(uint64_t)));
-			Callback(VarForm::Dummy, std::string_view((const char*)&Set, sizeof(uint32_t)));
+			VI_ASSERT(base != nullptr && callback, "base should be set and callback should not be empty");
+			unordered_map<string, size_t> mapping = base->get_names();
+			uint32_t set = os::hw::to_endianness(os::hw::endian::little, (uint32_t)mapping.size());
+			uint64_t version = os::hw::to_endianness<uint64_t>(os::hw::endian::little, JSONB_VERSION);
+			callback(var_form::dummy, std::string_view((const char*)&version, sizeof(uint64_t)));
+			callback(var_form::dummy, std::string_view((const char*)&set, sizeof(uint32_t)));
 
-			for (auto It = Mapping.begin(); It != Mapping.end(); ++It)
+			for (auto it = mapping.begin(); it != mapping.end(); ++it)
 			{
-				uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)It->second);
-				Callback(VarForm::Dummy, std::string_view((const char*)&Id, sizeof(uint32_t)));
+				uint32_t id = os::hw::to_endianness(os::hw::endian::little, (uint32_t)it->second);
+				callback(var_form::dummy, std::string_view((const char*)&id, sizeof(uint32_t)));
 
-				uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)It->first.size());
-				Callback(VarForm::Dummy, std::string_view((const char*)&Size, sizeof(uint16_t)));
+				uint16_t size = os::hw::to_endianness(os::hw::endian::little, (uint16_t)it->first.size());
+				callback(var_form::dummy, std::string_view((const char*)&size, sizeof(uint16_t)));
 
-				if (Size > 0)
-					Callback(VarForm::Dummy, std::string_view(It->first.c_str(), sizeof(char) * (size_t)Size));
+				if (size > 0)
+					callback(var_form::dummy, std::string_view(it->first.c_str(), sizeof(char) * (size_t)size));
 			}
-			ProcessConvertionToJSONB(Base, &Mapping, Callback);
+			process_convertion_to_jsonb(base, &mapping, callback);
 		}
-		String Schema::ToXML(Schema* Value)
+		string schema::to_xml(schema* value)
 		{
-			String Result;
-			ConvertToXML(Value, [&](VarForm Type, const std::string_view& Buffer) { Result.append(Buffer); });
-			return Result;
+			string result;
+			convert_to_xml(value, [&](var_form type, const std::string_view& buffer) { result.append(buffer); });
+			return result;
 		}
-		String Schema::ToJSON(Schema* Value)
+		string schema::to_json(schema* value)
 		{
-			String Result;
-			ConvertToJSON(Value, [&](VarForm Type, const std::string_view& Buffer) { Result.append(Buffer); });
-			return Result;
+			string result;
+			convert_to_json(value, [&](var_form type, const std::string_view& buffer) { result.append(buffer); });
+			return result;
 		}
-		Vector<char> Schema::ToJSONB(Schema* Value)
+		vector<char> schema::to_jsonb(schema* value)
 		{
-			Vector<char> Result;
-			ConvertToJSONB(Value, [&](VarForm Type, const std::string_view& Buffer)
+			vector<char> result;
+			convert_to_jsonb(value, [&](var_form type, const std::string_view& buffer)
 			{
-				if (Buffer.empty())
+				if (buffer.empty())
 					return;
 
-				size_t Offset = Result.size();
-				Result.resize(Offset + Buffer.size());
-				memcpy(&Result[Offset], Buffer.data(), Buffer.size());
+				size_t offset = result.size();
+				result.resize(offset + buffer.size());
+				memcpy(&result[offset], buffer.data(), buffer.size());
 			});
-			return Result;
+			return result;
 		}
-		ExpectsParser<Schema*> Schema::ConvertFromXML(const std::string_view& Buffer)
+		expects_parser<schema*> schema::convert_from_xml(const std::string_view& buffer)
 		{
 #ifdef VI_PUGIXML
-			if (Buffer.empty())
-				return ParserException(ParserError::XMLNoDocumentElement, 0, "empty XML buffer");
+			if (buffer.empty())
+				return parser_exception(parser_error::xml_no_document_element, 0, "empty XML buffer");
 
-			pugi::xml_document Data;
-			pugi::xml_parse_result Status = Data.load_buffer(Buffer.data(), Buffer.size());
-			if (!Status)
+			pugi::xml_document data;
+			pugi::xml_parse_result status = data.load_buffer(buffer.data(), buffer.size());
+			if (!status)
 			{
-				switch (Status.status)
+				switch (status.status)
 				{
 					case pugi::status_out_of_memory:
-						return ParserException(ParserError::XMLOutOfMemory, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_out_of_memory, (size_t)status.offset, status.description());
 					case pugi::status_internal_error:
-						return ParserException(ParserError::XMLInternalError, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_internal_error, (size_t)status.offset, status.description());
 					case pugi::status_unrecognized_tag:
-						return ParserException(ParserError::XMLUnrecognizedTag, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_unrecognized_tag, (size_t)status.offset, status.description());
 					case pugi::status_bad_pi:
-						return ParserException(ParserError::XMLBadPi, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_pi, (size_t)status.offset, status.description());
 					case pugi::status_bad_comment:
-						return ParserException(ParserError::XMLBadComment, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_comment, (size_t)status.offset, status.description());
 					case pugi::status_bad_cdata:
-						return ParserException(ParserError::XMLBadCData, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_cdata, (size_t)status.offset, status.description());
 					case pugi::status_bad_doctype:
-						return ParserException(ParserError::XMLBadDocType, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_doc_type, (size_t)status.offset, status.description());
 					case pugi::status_bad_pcdata:
-						return ParserException(ParserError::XMLBadPCData, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_pc_data, (size_t)status.offset, status.description());
 					case pugi::status_bad_start_element:
-						return ParserException(ParserError::XMLBadStartElement, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_start_element, (size_t)status.offset, status.description());
 					case pugi::status_bad_attribute:
-						return ParserException(ParserError::XMLBadAttribute, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_attribute, (size_t)status.offset, status.description());
 					case pugi::status_bad_end_element:
-						return ParserException(ParserError::XMLBadEndElement, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_bad_end_element, (size_t)status.offset, status.description());
 					case pugi::status_end_element_mismatch:
-						return ParserException(ParserError::XMLEndElementMismatch, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_end_element_mismatch, (size_t)status.offset, status.description());
 					case pugi::status_append_invalid_root:
-						return ParserException(ParserError::XMLAppendInvalidRoot, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_append_invalid_root, (size_t)status.offset, status.description());
 					case pugi::status_no_document_element:
-						return ParserException(ParserError::XMLNoDocumentElement, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_no_document_element, (size_t)status.offset, status.description());
 					default:
-						return ParserException(ParserError::XMLInternalError, (size_t)Status.offset, Status.description());
+						return parser_exception(parser_error::xml_internal_error, (size_t)status.offset, status.description());
 				}
 			}
 
-			pugi::xml_node Main = Data.first_child();
-			Schema* Result = Var::Set::Array();
-			ProcessConvertionFromXML((void*)&Main, Result);
-			return Result;
+			pugi::xml_node main = data.first_child();
+			schema* result = var::set::array();
+			process_convertion_from_xml((void*)&main, result);
+			return result;
 #else
-			return ParserException(ParserError::NotSupported, 0, "no capabilities to parse XML");
+			return parser_exception(parser_error::not_supported, 0, "no capabilities to parse XML");
 #endif
 		}
-		ExpectsParser<Schema*> Schema::ConvertFromJSON(const std::string_view& Buffer)
+		expects_parser<schema*> schema::convert_from_json(const std::string_view& buffer)
 		{
 #ifdef VI_RAPIDJSON
-			if (Buffer.empty())
-				return ParserException(ParserError::JSONDocumentEmpty, 0);
+			if (buffer.empty())
+				return parser_exception(parser_error::json_document_empty, 0);
 
-			rapidjson::Document Base;
-			Base.Parse<rapidjson::kParseNumbersAsStringsFlag>(Buffer.data(), Buffer.size());
+			rapidjson::Document base;
+			base.Parse<rapidjson::kParseNumbersAsStringsFlag>(buffer.data(), buffer.size());
 
-			Schema* Result = nullptr;
-			if (Base.HasParseError())
+			schema* result = nullptr;
+			if (base.HasParseError())
 			{
-				size_t Offset = Base.GetErrorOffset();
-				switch (Base.GetParseError())
+				size_t offset = base.GetErrorOffset();
+				switch (base.GetParseError())
 				{
 					case rapidjson::kParseErrorDocumentEmpty:
-						return ParserException(ParserError::JSONDocumentEmpty, Offset);
+						return parser_exception(parser_error::json_document_empty, offset);
 					case rapidjson::kParseErrorDocumentRootNotSingular:
-						return ParserException(ParserError::JSONDocumentRootNotSingular, Offset);
+						return parser_exception(parser_error::json_document_root_not_singular, offset);
 					case rapidjson::kParseErrorValueInvalid:
-						return ParserException(ParserError::JSONValueInvalid, Offset);
+						return parser_exception(parser_error::json_value_invalid, offset);
 					case rapidjson::kParseErrorObjectMissName:
-						return ParserException(ParserError::JSONObjectMissName, Offset);
+						return parser_exception(parser_error::json_object_miss_name, offset);
 					case rapidjson::kParseErrorObjectMissColon:
-						return ParserException(ParserError::JSONObjectMissColon, Offset);
+						return parser_exception(parser_error::json_object_miss_colon, offset);
 					case rapidjson::kParseErrorObjectMissCommaOrCurlyBracket:
-						return ParserException(ParserError::JSONObjectMissCommaOrCurlyBracket, Offset);
+						return parser_exception(parser_error::json_object_miss_comma_or_curly_bracket, offset);
 					case rapidjson::kParseErrorArrayMissCommaOrSquareBracket:
-						return ParserException(ParserError::JSONArrayMissCommaOrSquareBracket, Offset);
+						return parser_exception(parser_error::json_array_miss_comma_or_square_bracket, offset);
 					case rapidjson::kParseErrorStringUnicodeEscapeInvalidHex:
-						return ParserException(ParserError::JSONStringUnicodeEscapeInvalidHex, Offset);
+						return parser_exception(parser_error::json_string_unicode_escape_invalid_hex, offset);
 					case rapidjson::kParseErrorStringUnicodeSurrogateInvalid:
-						return ParserException(ParserError::JSONStringUnicodeSurrogateInvalid, Offset);
+						return parser_exception(parser_error::json_string_unicode_surrogate_invalid, offset);
 					case rapidjson::kParseErrorStringEscapeInvalid:
-						return ParserException(ParserError::JSONStringEscapeInvalid, Offset);
+						return parser_exception(parser_error::json_string_escape_invalid, offset);
 					case rapidjson::kParseErrorStringMissQuotationMark:
-						return ParserException(ParserError::JSONStringMissQuotationMark, Offset);
+						return parser_exception(parser_error::json_string_miss_quotation_mark, offset);
 					case rapidjson::kParseErrorStringInvalidEncoding:
-						return ParserException(ParserError::JSONStringInvalidEncoding, Offset);
+						return parser_exception(parser_error::json_string_invalid_encoding, offset);
 					case rapidjson::kParseErrorNumberTooBig:
-						return ParserException(ParserError::JSONNumberTooBig, Offset);
+						return parser_exception(parser_error::json_number_too_big, offset);
 					case rapidjson::kParseErrorNumberMissFraction:
-						return ParserException(ParserError::JSONNumberMissFraction, Offset);
+						return parser_exception(parser_error::json_number_miss_fraction, offset);
 					case rapidjson::kParseErrorNumberMissExponent:
-						return ParserException(ParserError::JSONNumberMissExponent, Offset);
+						return parser_exception(parser_error::json_number_miss_exponent, offset);
 					case rapidjson::kParseErrorTermination:
-						return ParserException(ParserError::JSONTermination, Offset);
+						return parser_exception(parser_error::json_termination, offset);
 					case rapidjson::kParseErrorUnspecificSyntaxError:
-						return ParserException(ParserError::JSONUnspecificSyntaxError, Offset);
+						return parser_exception(parser_error::json_unspecific_syntax_error, offset);
 					default:
-						return ParserException(ParserError::BadValue);
+						return parser_exception(parser_error::bad_value);
 				}
 			}
 
-			rapidjson::Type Type = Base.GetType();
-			switch (Type)
+			rapidjson::Type type = base.GetType();
+			switch (type)
 			{
 				case rapidjson::kNullType:
-					Result = new Schema(Var::Null());
+					result = new schema(var::null());
 					break;
 				case rapidjson::kFalseType:
-					Result = new Schema(Var::Boolean(false));
+					result = new schema(var::boolean(false));
 					break;
 				case rapidjson::kTrueType:
-					Result = new Schema(Var::Boolean(true));
+					result = new schema(var::boolean(true));
 					break;
 				case rapidjson::kObjectType:
-					Result = Var::Set::Object();
-					ProcessConvertionFromJSON((void*)&Base, Result);
+					result = var::set::object();
+					process_convertion_from_json((void*)&base, result);
 					break;
 				case rapidjson::kArrayType:
-					Result = Var::Set::Array();
-					ProcessConvertionFromJSON((void*)&Base, Result);
+					result = var::set::array();
+					process_convertion_from_json((void*)&base, result);
 					break;
 				case rapidjson::kStringType:
-					Result = ProcessConversionFromJSONStringOrNumber(&Base, true);
+					result = process_conversion_from_json_string_or_number(&base, true);
 					break;
 				case rapidjson::kNumberType:
-					if (Base.IsInt())
-						Result = new Schema(Var::Integer(Base.GetInt64()));
+					if (base.IsInt())
+						result = new schema(var::integer(base.GetInt64()));
 					else
-						Result = new Schema(Var::Number(Base.GetDouble()));
+						result = new schema(var::number(base.GetDouble()));
 					break;
 				default:
-					Result = new Schema(Var::Undefined());
+					result = new schema(var::undefined());
 					break;
 			}
 
-			return Result;
+			return result;
 #else
-			return ParserException(ParserError::NotSupported, 0, "no capabilities to parse JSON");
+			return parser_exception(parser_error::not_supported, 0, "no capabilities to parse JSON");
 #endif
 		}
-		ExpectsParser<Schema*> Schema::ConvertFromJSONB(const SchemaReadCallback& Callback)
+		expects_parser<schema*> schema::convert_from_jsonb(const schema_read_callback& callback)
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			uint64_t Version = 0;
-			if (!Callback((uint8_t*)&Version, sizeof(uint64_t)))
-				return ParserException(ParserError::BadVersion);
+			VI_ASSERT(callback, "callback should not be empty");
+			uint64_t version = 0;
+			if (!callback((uint8_t*)&version, sizeof(uint64_t)))
+				return parser_exception(parser_error::bad_version);
 
-			Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, Version);
-			if (Version != JSONB_VERSION)
-				return ParserException(ParserError::BadVersion);
+			version = os::hw::to_endianness<uint64_t>(os::hw::endian::little, version);
+			if (version != JSONB_VERSION)
+				return parser_exception(parser_error::bad_version);
 
-			uint32_t Set = 0;
-			if (!Callback((uint8_t*)&Set, sizeof(uint32_t)))
-				return ParserException(ParserError::BadDictionary);
+			uint32_t set = 0;
+			if (!callback((uint8_t*)&set, sizeof(uint32_t)))
+				return parser_exception(parser_error::bad_dictionary);
 
-			UnorderedMap<size_t, String> Map;
-			Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Set);
+			unordered_map<size_t, string> map;
+			set = os::hw::to_endianness(os::hw::endian::little, set);
 
-			for (uint32_t i = 0; i < Set; ++i)
+			for (uint32_t i = 0; i < set; ++i)
 			{
-				uint32_t Index = 0;
-				if (!Callback((uint8_t*)&Index, sizeof(uint32_t)))
-					return ParserException(ParserError::BadNameIndex);
+				uint32_t index = 0;
+				if (!callback((uint8_t*)&index, sizeof(uint32_t)))
+					return parser_exception(parser_error::bad_name_index);
 
-				uint16_t Size = 0;
-				if (!Callback((uint8_t*)&Size, sizeof(uint16_t)))
-					return ParserException(ParserError::BadName);
+				uint16_t size = 0;
+				if (!callback((uint8_t*)&size, sizeof(uint16_t)))
+					return parser_exception(parser_error::bad_name);
 
-				Index = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Index);
-				Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
+				index = os::hw::to_endianness(os::hw::endian::little, index);
+				size = os::hw::to_endianness(os::hw::endian::little, size);
 
-				if (Size <= 0)
+				if (size <= 0)
 					continue;
 
-				String Name;
-				Name.resize((size_t)Size);
-				if (!Callback((uint8_t*)Name.c_str(), sizeof(char) * Size))
-					return ParserException(ParserError::BadName);
+				string name;
+				name.resize((size_t)size);
+				if (!callback((uint8_t*)name.c_str(), sizeof(char) * size))
+					return parser_exception(parser_error::bad_name);
 
-				Map.insert({ Index, Name });
+				map.insert({ index, name });
 			}
 
-			UPtr<Schema> Current = Var::Set::Object();
-			auto Status = ProcessConvertionFromJSONB(*Current, &Map, Callback);
-			if (!Status)
-				return Status.Error();
+			uptr<schema> current = var::set::object();
+			auto status = process_convertion_from_jsonb(*current, &map, callback);
+			if (!status)
+				return status.error();
 
-			return Current.Reset();
+			return current.reset();
 		}
-		ExpectsParser<Schema*> Schema::FromXML(const std::string_view& Text)
+		expects_parser<schema*> schema::from_xml(const std::string_view& text)
 		{
-			return ConvertFromXML(Text);
+			return convert_from_xml(text);
 		}
-		ExpectsParser<Schema*> Schema::FromJSON(const std::string_view& Text)
+		expects_parser<schema*> schema::from_json(const std::string_view& text)
 		{
-			return ConvertFromJSON(Text);
+			return convert_from_json(text);
 		}
-		ExpectsParser<Schema*> Schema::FromJSONB(const std::string_view& Binary)
+		expects_parser<schema*> schema::from_jsonb(const std::string_view& binary)
 		{
-			size_t Offset = 0;
-			return ConvertFromJSONB([&Binary, &Offset](uint8_t* Buffer, size_t Length)
+			size_t offset = 0;
+			return convert_from_jsonb([&binary, &offset](uint8_t* buffer, size_t length)
 			{
-				if (Offset + Length > Binary.size())
+				if (offset + length > binary.size())
 					return false;
 
-				memcpy((void*)Buffer, Binary.data() + Offset, Length);
-				Offset += Length;
+				memcpy((void*)buffer, binary.data() + offset, length);
+				offset += length;
 				return true;
 			});
 		}
-		Expects<void, ParserException> Schema::ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback)
+		expects<void, parser_exception> schema::process_convertion_from_jsonb(schema* current, unordered_map<size_t, string>* map, const schema_read_callback& callback)
 		{
-			uint32_t Id = 0;
-			if (!Callback((uint8_t*)&Id, sizeof(uint32_t)))
-				return ParserException(ParserError::BadKeyName);
+			uint32_t id = 0;
+			if (!callback((uint8_t*)&id, sizeof(uint32_t)))
+				return parser_exception(parser_error::bad_key_name);
 
-			if (Id != (uint32_t)-1)
+			if (id != (uint32_t)-1)
 			{
-				auto It = Map->find((size_t)OS::CPU::ToEndianness(OS::CPU::Endian::Little, Id));
-				if (It != Map->end())
-					Current->Key = It->second;
+				auto it = map->find((size_t)os::hw::to_endianness(os::hw::endian::little, id));
+				if (it != map->end())
+					current->key = it->second;
 			}
 
-			if (!Callback((uint8_t*)&Current->Value.Type, sizeof(VarType)))
-				return ParserException(ParserError::BadKeyType);
+			if (!callback((uint8_t*)&current->value.type, sizeof(var_type)))
+				return parser_exception(parser_error::bad_key_type);
 
-			switch (Current->Value.Type)
+			switch (current->value.type)
 			{
-				case VarType::Object:
-				case VarType::Array:
+				case var_type::object:
+				case var_type::array:
 				{
-					uint32_t Count = 0;
-					if (!Callback((uint8_t*)&Count, sizeof(uint32_t)))
-						return ParserException(ParserError::BadValue);
+					uint32_t count = 0;
+					if (!callback((uint8_t*)&count, sizeof(uint32_t)))
+						return parser_exception(parser_error::bad_value);
 
-					Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Count);
-					if (!Count)
+					count = os::hw::to_endianness(os::hw::endian::little, count);
+					if (!count)
 						break;
 
-					Current->Allocate();
-					Current->Nodes->resize((size_t)Count);
+					current->allocate();
+					current->nodes->resize((size_t)count);
 
-					for (auto*& Item : *Current->Nodes)
+					for (auto*& item : *current->nodes)
 					{
-						Item = Var::Set::Object();
-						Item->Parent = Current;
-						Item->Saved = true;
+						item = var::set::object();
+						item->parent = current;
+						item->saved = true;
 
-						auto Status = ProcessConvertionFromJSONB(Item, Map, Callback);
-						if (!Status)
-							return Status;
+						auto status = process_convertion_from_jsonb(item, map, callback);
+						if (!status)
+							return status;
 					}
 					break;
 				}
-				case VarType::String:
+				case var_type::string:
 				{
-					uint32_t Size = 0;
-					if (!Callback((uint8_t*)&Size, sizeof(uint32_t)))
-						return ParserException(ParserError::BadValue);
+					uint32_t size = 0;
+					if (!callback((uint8_t*)&size, sizeof(uint32_t)))
+						return parser_exception(parser_error::bad_value);
 
-					String Buffer;
-					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
-					Buffer.resize((size_t)Size);
+					string buffer;
+					size = os::hw::to_endianness(os::hw::endian::little, size);
+					buffer.resize((size_t)size);
 
-					if (!Callback((uint8_t*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-						return ParserException(ParserError::BadString);
+					if (!callback((uint8_t*)buffer.c_str(), (size_t)size * sizeof(char)))
+						return parser_exception(parser_error::bad_string);
 
-					Current->Value = Var::String(Buffer);
+					current->value = var::string(buffer);
 					break;
 				}
-				case VarType::Binary:
+				case var_type::binary:
 				{
-					uint32_t Size = 0;
-					if (!Callback((uint8_t*)&Size, sizeof(uint32_t)))
-						return ParserException(ParserError::BadValue);
+					uint32_t size = 0;
+					if (!callback((uint8_t*)&size, sizeof(uint32_t)))
+						return parser_exception(parser_error::bad_value);
 
-					String Buffer;
-					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
-					Buffer.resize(Size);
+					string buffer;
+					size = os::hw::to_endianness(os::hw::endian::little, size);
+					buffer.resize(size);
 
-					if (!Callback((uint8_t*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-						return ParserException(ParserError::BadString);
+					if (!callback((uint8_t*)buffer.c_str(), (size_t)size * sizeof(char)))
+						return parser_exception(parser_error::bad_string);
 
-					Current->Value = Var::Binary((uint8_t*)Buffer.data(), Buffer.size());
+					current->value = var::binary((uint8_t*)buffer.data(), buffer.size());
 					break;
 				}
-				case VarType::Integer:
+				case var_type::integer:
 				{
-					int64_t Integer = 0;
-					if (!Callback((uint8_t*)&Integer, sizeof(int64_t)))
-						return ParserException(ParserError::BadInteger);
+					int64_t integer = 0;
+					if (!callback((uint8_t*)&integer, sizeof(int64_t)))
+						return parser_exception(parser_error::bad_integer);
 
-					Current->Value = Var::Integer(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Integer));
+					current->value = var::integer(os::hw::to_endianness(os::hw::endian::little, integer));
 					break;
 				}
-				case VarType::Number:
+				case var_type::number:
 				{
-					double Number = 0.0;
-					if (!Callback((uint8_t*)&Number, sizeof(double)))
-						return ParserException(ParserError::BadDouble);
+					double number = 0.0;
+					if (!callback((uint8_t*)&number, sizeof(double)))
+						return parser_exception(parser_error::bad_double);
 
-					Current->Value = Var::Number(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Number));
+					current->value = var::number(os::hw::to_endianness(os::hw::endian::little, number));
 					break;
 				}
-				case VarType::Decimal:
+				case var_type::decimal:
 				{
-					uint16_t Size = 0;
-					if (!Callback((uint8_t*)&Size, sizeof(uint16_t)))
-						return ParserException(ParserError::BadValue);
+					uint16_t size = 0;
+					if (!callback((uint8_t*)&size, sizeof(uint16_t)))
+						return parser_exception(parser_error::bad_value);
 
-					String Buffer;
-					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
-					Buffer.resize((size_t)Size);
+					string buffer;
+					size = os::hw::to_endianness(os::hw::endian::little, size);
+					buffer.resize((size_t)size);
 
-					if (!Callback((uint8_t*)Buffer.c_str(), (size_t)Size * sizeof(char)))
-						return ParserException(ParserError::BadString);
+					if (!callback((uint8_t*)buffer.c_str(), (size_t)size * sizeof(char)))
+						return parser_exception(parser_error::bad_string);
 
-					Current->Value = Var::DecimalString(Buffer);
+					current->value = var::decimal_string(buffer);
 					break;
 				}
-				case VarType::Boolean:
+				case var_type::boolean:
 				{
-					bool Boolean = false;
-					if (!Callback((uint8_t*)&Boolean, sizeof(bool)))
-						return ParserException(ParserError::BadBoolean);
+					bool boolean = false;
+					if (!callback((uint8_t*)&boolean, sizeof(bool)))
+						return parser_exception(parser_error::bad_boolean);
 
-					Current->Value = Var::Boolean(Boolean);
+					current->value = var::boolean(boolean);
 					break;
 				}
 				default:
 					break;
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Schema* Schema::ProcessConversionFromJSONStringOrNumber(void* Base, bool IsDocument)
+		schema* schema::process_conversion_from_json_string_or_number(void* base, bool is_document)
 		{
 #ifdef VI_RAPIDJSON
-			const char* Buffer = (IsDocument ? ((rapidjson::Document*)Base)->GetString() : ((rapidjson::Value*)Base)->GetString());
-			size_t Size = (IsDocument ? ((rapidjson::Document*)Base)->GetStringLength() : ((rapidjson::Value*)Base)->GetStringLength());
-			String Text(Buffer, Size);
+			const char* buffer = (is_document ? ((rapidjson::Document*)base)->GetString() : ((rapidjson::Value*)base)->GetString());
+			size_t size = (is_document ? ((rapidjson::Document*)base)->GetStringLength() : ((rapidjson::Value*)base)->GetStringLength());
+			string text(buffer, size);
 
-			if (!Stringify::HasNumber(Text))
-				return new Schema(Var::String(Text));
+			if (!stringify::has_number(text))
+				return new schema(var::string(text));
 
-			if (Stringify::HasDecimal(Text))
-				return new Schema(Var::DecimalString(Text));
+			if (stringify::has_decimal(text))
+				return new schema(var::decimal_string(text));
 
-			if (Stringify::HasInteger(Text))
+			if (stringify::has_integer(text))
 			{
-				auto Number = FromString<int64_t>(Text);
-				if (Number)
-					return new Schema(Var::Integer(*Number));
+				auto number = from_string<int64_t>(text);
+				if (number)
+					return new schema(var::integer(*number));
 			}
 			else
 			{
-				auto Number = FromString<double>(Text);
-				if (Number)
-					return new Schema(Var::Number(*Number));
+				auto number = from_string<double>(text);
+				if (number)
+					return new schema(var::number(*number));
 			}
 
-			return new Schema(Var::String(Text));
+			return new schema(var::string(text));
 #else
-			return Var::Set::Undefined();
+			return var::set::undefined();
 #endif
 		}
-		void Schema::ProcessConvertionFromXML(void* Base, Schema* Current)
+		void schema::process_convertion_from_xml(void* base, schema* current)
 		{
 #ifdef VI_PUGIXML
-			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
-			pugi::xml_node& Next = *(pugi::xml_node*)Base;
-			Current->Key = Next.name();
+			VI_ASSERT(base != nullptr && current != nullptr, "base and current should be set");
+			pugi::xml_node& next = *(pugi::xml_node*)base;
+			current->key = next.name();
 
-			for (auto Attribute : Next.attributes())
-				Current->SetAttribute(Attribute.name(), Attribute.empty() ? Var::Null() : Var::Auto(Attribute.value()));
+			for (auto attribute : next.attributes())
+				current->set_attribute(attribute.name(), attribute.empty() ? var::null() : var::any(attribute.value()));
 
-			for (auto Child : Next.children())
+			for (auto child : next.children())
 			{
-				Schema* Subresult = Current->Set(Child.name(), Var::Set::Array());
-				ProcessConvertionFromXML((void*)&Child, Subresult);
+				schema* subresult = current->set(child.name(), var::set::array());
+				process_convertion_from_xml((void*)&child, subresult);
 
-				if (*Child.value() != '\0')
+				if (*child.value() != '\0')
 				{
-					Subresult->Value.Deserialize(Child.value());
+					subresult->value.deserialize(child.value());
 					continue;
 				}
 
-				auto Text = Child.text();
-				if (!Text.empty())
-					Subresult->Value.Deserialize(Child.text().get());
+				auto text = child.text();
+				if (!text.empty())
+					subresult->value.deserialize(child.text().get());
 				else
-					Subresult->Value = Var::Null();
+					subresult->value = var::null();
 			}
 #endif
 		}
-		void Schema::ProcessConvertionFromJSON(void* Base, Schema* Current)
+		void schema::process_convertion_from_json(void* base, schema* current)
 		{
 #ifdef VI_RAPIDJSON
-			VI_ASSERT(Base != nullptr && Current != nullptr, "base and current should be set");
-			auto Child = (rapidjson::Value*)Base;
-			if (!Child->IsArray())
+			VI_ASSERT(base != nullptr && current != nullptr, "base and current should be set");
+			auto child = (rapidjson::Value*)base;
+			if (!child->IsArray())
 			{
-				String Name;
-				Current->Reserve((size_t)Child->MemberCount());
+				string name;
+				current->reserve((size_t)child->MemberCount());
 
-				VarType Type = Current->Value.Type;
-				Current->Value.Type = VarType::Array;
+				var_type type = current->value.type;
+				current->value.type = var_type::array;
 
-				for (auto It = Child->MemberBegin(); It != Child->MemberEnd(); ++It)
+				for (auto it = child->MemberBegin(); it != child->MemberEnd(); ++it)
 				{
-					if (!It->name.IsString())
+					if (!it->name.IsString())
 						continue;
 
-					Name.assign(It->name.GetString(), (size_t)It->name.GetStringLength());
-					switch (It->value.GetType())
+					name.assign(it->name.GetString(), (size_t)it->name.GetStringLength());
+					switch (it->value.GetType())
 					{
 						case rapidjson::kNullType:
-							Current->Set(Name, Var::Null());
+							current->set(name, var::null());
 							break;
 						case rapidjson::kFalseType:
-							Current->Set(Name, Var::Boolean(false));
+							current->set(name, var::boolean(false));
 							break;
 						case rapidjson::kTrueType:
-							Current->Set(Name, Var::Boolean(true));
+							current->set(name, var::boolean(true));
 							break;
 						case rapidjson::kObjectType:
-							ProcessConvertionFromJSON((void*)&It->value, Current->Set(Name));
+							process_convertion_from_json((void*)&it->value, current->set(name));
 							break;
 						case rapidjson::kArrayType:
-							ProcessConvertionFromJSON((void*)&It->value, Current->Set(Name, Var::Array()));
+							process_convertion_from_json((void*)&it->value, current->set(name, var::array()));
 							break;
 						case rapidjson::kStringType:
-							Current->Set(Name, ProcessConversionFromJSONStringOrNumber(&It->value, false));
+							current->set(name, process_conversion_from_json_string_or_number(&it->value, false));
 							break;
 						case rapidjson::kNumberType:
-							if (It->value.IsInt())
-								Current->Set(Name, Var::Integer(It->value.GetInt64()));
+							if (it->value.IsInt())
+								current->set(name, var::integer(it->value.GetInt64()));
 							else
-								Current->Set(Name, Var::Number(It->value.GetDouble()));
+								current->set(name, var::number(it->value.GetDouble()));
 							break;
 						default:
 							break;
 					}
 				}
 
-				Current->Value.Type = Type;
+				current->value.type = type;
 			}
 			else
 			{
-				String Value;
-				Current->Reserve((size_t)Child->Size());
+				string value;
+				current->reserve((size_t)child->Size());
 
-				for (auto It = Child->Begin(); It != Child->End(); ++It)
+				for (auto it = child->Begin(); it != child->End(); ++it)
 				{
-					switch (It->GetType())
+					switch (it->GetType())
 					{
 						case rapidjson::kNullType:
-							Current->Push(Var::Null());
+							current->push(var::null());
 							break;
 						case rapidjson::kFalseType:
-							Current->Push(Var::Boolean(false));
+							current->push(var::boolean(false));
 							break;
 						case rapidjson::kTrueType:
-							Current->Push(Var::Boolean(true));
+							current->push(var::boolean(true));
 							break;
 						case rapidjson::kObjectType:
-							ProcessConvertionFromJSON((void*)It, Current->Push(Var::Object()));
+							process_convertion_from_json((void*)it, current->push(var::object()));
 							break;
 						case rapidjson::kArrayType:
-							ProcessConvertionFromJSON((void*)It, Current->Push(Var::Array()));
+							process_convertion_from_json((void*)it, current->push(var::array()));
 							break;
 						case rapidjson::kStringType:
 						{
-							const char* Buffer = It->GetString(); size_t Size = It->GetStringLength();
-							if (Size < 2 || *Buffer != PREFIX_BINARY[0] || Buffer[Size - 1] != PREFIX_BINARY[0])
-								Current->Push(ProcessConversionFromJSONStringOrNumber((void*)It, false));
+							const char* buffer = it->GetString(); size_t size = it->GetStringLength();
+							if (size < 2 || *buffer != PREFIX_BINARY[0] || buffer[size - 1] != PREFIX_BINARY[0])
+								current->push(process_conversion_from_json_string_or_number((void*)it, false));
 							else
-								Current->Push(Var::Binary((uint8_t*)Buffer + 1, Size - 2));
+								current->push(var::binary((uint8_t*)buffer + 1, size - 2));
 							break;
 						}
 						case rapidjson::kNumberType:
-							if (It->IsInt())
-								Current->Push(Var::Integer(It->GetInt64()));
+							if (it->IsInt())
+								current->push(var::integer(it->GetInt64()));
 							else
-								Current->Push(Var::Number(It->GetDouble()));
+								current->push(var::number(it->GetDouble()));
 							break;
 						default:
 							break;
@@ -12926,77 +12926,77 @@ namespace Vitex
 			}
 #endif
 		}
-		void Schema::ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback)
+		void schema::process_convertion_to_jsonb(schema* current, unordered_map<string, size_t>* map, const schema_write_callback& callback)
 		{
-			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Key.empty() ? (uint32_t)-1 : (uint32_t)Map->at(Current->Key));
-			Callback(VarForm::Dummy, std::string_view((const char*)&Id, sizeof(uint32_t)));
-			Callback(VarForm::Dummy, std::string_view((const char*)&Current->Value.Type, sizeof(VarType)));
+			uint32_t id = os::hw::to_endianness(os::hw::endian::little, current->key.empty() ? (uint32_t)-1 : (uint32_t)map->at(current->key));
+			callback(var_form::dummy, std::string_view((const char*)&id, sizeof(uint32_t)));
+			callback(var_form::dummy, std::string_view((const char*)&current->value.type, sizeof(var_type)));
 
-			switch (Current->Value.Type)
+			switch (current->value.type)
 			{
-				case VarType::Object:
-				case VarType::Array:
+				case var_type::object:
+				case var_type::array:
 				{
-					uint32_t Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)(Current->Nodes ? Current->Nodes->size() : 0));
-					Callback(VarForm::Dummy, std::string_view((const char*)&Count, sizeof(uint32_t)));
-					if (Count > 0)
+					uint32_t count = os::hw::to_endianness(os::hw::endian::little, (uint32_t)(current->nodes ? current->nodes->size() : 0));
+					callback(var_form::dummy, std::string_view((const char*)&count, sizeof(uint32_t)));
+					if (count > 0)
 					{
-						for (auto& Schema : *Current->Nodes)
-							ProcessConvertionToJSONB(Schema, Map, Callback);
+						for (auto& schema : *current->nodes)
+							process_convertion_to_jsonb(schema, map, callback);
 					}
 					break;
 				}
-				case VarType::String:
-				case VarType::Binary:
+				case var_type::string:
+				case var_type::binary:
 				{
-					uint32_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Current->Value.Size());
-					Callback(VarForm::Dummy, std::string_view((const char*)&Size, sizeof(uint32_t)));
-					Callback(VarForm::Dummy, std::string_view(Current->Value.GetString().data(), Size * sizeof(char)));
+					uint32_t size = os::hw::to_endianness(os::hw::endian::little, (uint32_t)current->value.size());
+					callback(var_form::dummy, std::string_view((const char*)&size, sizeof(uint32_t)));
+					callback(var_form::dummy, std::string_view(current->value.get_string().data(), size * sizeof(char)));
 					break;
 				}
-				case VarType::Decimal:
+				case var_type::decimal:
 				{
-					String Number = ((Decimal*)Current->Value.Value.Pointer)->ToString();
-					uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)Number.size());
-					Callback(VarForm::Dummy, std::string_view((const char*)&Size, sizeof(uint16_t)));
-					Callback(VarForm::Dummy, std::string_view(Number.c_str(), (size_t)Size * sizeof(char)));
+					string number = ((decimal*)current->value.value.pointer)->to_string();
+					uint16_t size = os::hw::to_endianness(os::hw::endian::little, (uint16_t)number.size());
+					callback(var_form::dummy, std::string_view((const char*)&size, sizeof(uint16_t)));
+					callback(var_form::dummy, std::string_view(number.c_str(), (size_t)size * sizeof(char)));
 					break;
 				}
-				case VarType::Integer:
+				case var_type::integer:
 				{
-					int64_t Value = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Value.Value.Integer);
-					Callback(VarForm::Dummy, std::string_view((const char*)&Value, sizeof(int64_t)));
+					int64_t value = os::hw::to_endianness(os::hw::endian::little, current->value.value.integer);
+					callback(var_form::dummy, std::string_view((const char*)&value, sizeof(int64_t)));
 					break;
 				}
-				case VarType::Number:
+				case var_type::number:
 				{
-					double Value = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Value.Value.Number);
-					Callback(VarForm::Dummy, std::string_view((const char*)&Value, sizeof(double)));
+					double value = os::hw::to_endianness(os::hw::endian::little, current->value.value.number);
+					callback(var_form::dummy, std::string_view((const char*)&value, sizeof(double)));
 					break;
 				}
-				case VarType::Boolean:
+				case var_type::boolean:
 				{
-					Callback(VarForm::Dummy, std::string_view((const char*)&Current->Value.Value.Boolean, sizeof(bool)));
+					callback(var_form::dummy, std::string_view((const char*)&current->value.value.boolean, sizeof(bool)));
 					break;
 				}
 				default:
 					break;
 			}
 		}
-		void Schema::GenerateNamingTable(const Schema* Current, UnorderedMap<String, size_t>* Map, size_t& Index)
+		void schema::generate_naming_table(const schema* current, unordered_map<string, size_t>* map, size_t& index)
 		{
-			if (!Current->Key.empty())
+			if (!current->key.empty())
 			{
-				auto M = Map->find(Current->Key);
-				if (M == Map->end())
-					Map->insert({ Current->Key, Index++ });
+				auto m = map->find(current->key);
+				if (m == map->end())
+					map->insert({ current->key, index++ });
 			}
 
-			if (!Current->Nodes)
+			if (!current->nodes)
 				return;
 
-			for (auto Schema : *Current->Nodes)
-				GenerateNamingTable(Schema, Map, Index);
+			for (auto schema : *current->nodes)
+				generate_naming_table(schema, map, index);
 		}
 	}
 }

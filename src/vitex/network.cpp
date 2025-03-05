@@ -14,7 +14,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <WinSock2.h>
 #include <Windows.h>
-#include <Ws2tcpip.h>
+#include <WS2tcpip.h>
 #include <io.h>
 #ifdef VI_WEPOLL
 #include <wepoll.h>
@@ -43,8 +43,8 @@
 #define INVALID_SOCKET -1
 #define INVALID_EPOLL -1
 #define SOCKET_ERROR -1
-#define closesocket close
-#define epoll_close close
+#define closesocket ::close
+#define epoll_close ::close
 #define SD_SEND SHUT_WR
 #define SD_BOTH SHUT_RDWR
 #endif
@@ -69,146 +69,147 @@ extern "C"
 #include <openssl/conf.h>
 #include <openssl/dh.h>
 }
+#undef hex_to_string
 #endif
 
-namespace Vitex
+namespace vitex
 {
-	namespace Network
+	namespace network
 	{
-		static Core::ExpectsIO<socket_t> ExecuteSocket(int Net, int Type, int Protocol)
+		static core::expects_io<socket_t> execute_socket(int net, int type, int protocol)
 		{
-			if (!Core::OS::Control::Has(Core::AccessOption::Net))
+			if (!core::os::control::has(core::access_option::net))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			socket_t Socket = (socket_t)socket(Net, Type, Protocol);
-			if (Socket == INVALID_SOCKET)
-				return Core::OS::Error::GetConditionOr();
+			socket_t socket = (socket_t)::socket(net, type, protocol);
+			if (socket == INVALID_SOCKET)
+				return core::os::error::get_condition_or();
 
-			return Socket;
+			return socket;
 		}
-		static Core::ExpectsIO<socket_t> ExecuteAccept(socket_t Fd, sockaddr* Address, socket_size_t* AddressLength)
+		static core::expects_io<socket_t> execute_accept(socket_t fd, sockaddr* address, socket_size_t* address_length)
 		{
-			if (!Core::OS::Control::Has(Core::AccessOption::Net))
+			if (!core::os::control::has(core::access_option::net))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			socket_t Socket = (socket_t)accept(Fd, Address, AddressLength);
-			if (Socket == INVALID_SOCKET)
-				return Utils::GetLastError(nullptr, -1);
+			socket_t socket = (socket_t)accept(fd, address, address_length);
+			if (socket == INVALID_SOCKET)
+				return utils::GetLastError(nullptr, -1);
 
-			return Socket;
+			return socket;
 		}
-		static Core::ExpectsIO<void> SetSocketBlocking(socket_t Fd, bool Enabled)
+		static core::expects_io<void> set_socket_blocking(socket_t fd, bool enabled)
 		{
-			VI_TRACE("[net] fd %i setopt: blocking %s", (int)Fd, Enabled ? "on" : "off");
+			VI_TRACE("[net] fd %i setopt: blocking %s", (int)fd, enabled ? "on" : "off");
 #ifdef VI_MICROSOFT
-			unsigned long Mode = (Enabled ? 0 : 1);
-			if (ioctlsocket(Fd, (long)FIONBIO, &Mode) != 0)
-				return Core::OS::Error::GetConditionOr();
+			unsigned long mode = (enabled ? 0 : 1);
+			if (ioctlsocket(fd, (long)FIONBIO, &mode) != 0)
+				return core::os::error::get_condition_or();
 #else
-			int Flags = fcntl(Fd, F_GETFL, 0);
-			if (Flags == -1)
-				return Core::OS::Error::GetConditionOr();
+			int flags = fcntl(fd, F_GETFL, 0);
+			if (flags == -1)
+				return core::os::error::get_condition_or();
 
-			Flags = Enabled ? (Flags & ~O_NONBLOCK) : (Flags | O_NONBLOCK);
-			if (fcntl(Fd, F_SETFL, Flags) == -1)
-				return Core::OS::Error::GetConditionOr();
+			flags = enabled ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+			if (fcntl(fd, F_SETFL, flags) == -1)
+				return core::os::error::get_condition_or();
 #endif
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		static Core::String GetAddressIdentification(const SocketAddress& Address)
+		static core::string get_address_identification(const socket_address& address)
 		{
-			Core::String Result;
-			auto Hostname = Address.GetHostname();
-			if (Hostname)
-				Result.append(*Hostname);
+			core::string result;
+			auto hostname = address.get_hostname();
+			if (hostname)
+				result.append(*hostname);
 
-			auto Port = Address.GetIpPort();
-			if (Port)
-				Result.append(1, ':').append(Core::ToString(*Port));
+			auto port = address.get_ip_port();
+			if (port)
+				result.append(1, ':').append(core::to_string(*port));
 
-			return Result;
+			return result;
 		}
-		static Core::String GetIpAddressIdentification(const SocketAddress& Address)
+		static core::string get_ip_address_identification(const socket_address& address)
 		{
-			Core::String Result;
-			auto Hostname = Address.GetIpAddress();
-			if (Hostname)
-				Result.append(*Hostname);
+			core::string result;
+			auto hostname = address.get_ip_address();
+			if (hostname)
+				result.append(*hostname);
 
-			auto Port = Address.GetIpPort();
-			if (Port)
-				Result.append(1, ':').append(Core::ToString(*Port));
+			auto port = address.get_ip_port();
+			if (port)
+				result.append(1, ':').append(core::to_string(*port));
 
-			return Result;
+			return result;
 		}
-		static bool HasIpV4Address(const std::string_view& Hostname)
+		static bool has_ip_v4_address(const std::string_view& hostname)
 		{
-			size_t Index = 0;
-			while (Index < Hostname.size())
+			size_t index = 0;
+			while (index < hostname.size())
 			{
-				char V = Hostname[Index++];
-				if (!Core::Stringify::IsNumeric(V) && V != '.')
+				char v = hostname[index++];
+				if (!core::stringify::is_numeric(v) && v != '.')
 					return false;
 			}
 
 			return true;
 		}
-		static bool HasIpV6Address(const std::string_view& Hostname)
+		static bool has_ip_v6_address(const std::string_view& hostname)
 		{
-			size_t Index = 0;
-			while (Index < Hostname.size())
+			size_t index = 0;
+			while (index < hostname.size())
 			{
-				char V = Hostname[Index++];
-				if (!Core::Stringify::IsNumeric(V) && V != 'a' && V != 'b' && V != 'c' && V != 'd' && V != 'e' && V != 'f' && V != 'A' && V != 'B' && V != 'C' && V != 'D' && V != 'E' && V != 'F' && V != ':')
+				char v = hostname[index++];
+				if (!core::stringify::is_numeric(v) && v != 'a' && v != 'b' && v != 'c' && v != 'd' && v != 'e' && v != 'f' && v != 'A' && v != 'B' && v != 'C' && v != 'D' && v != 'E' && v != 'F' && v != ':')
 					return false;
 			}
 
 			return true;
 		}
-		static addrinfo* TryConnectDNS(const Core::UnorderedMap<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
+		static addrinfo* try_connect_dns(const core::unordered_map<socket_t, addrinfo*>& hosts, uint64_t timeout)
 		{
-			VI_MEASURE(Core::Timings::Networking);
+			VI_MEASURE(core::timings::networking);
 
-			Core::Vector<pollfd> Sockets4, Sockets6;
-			for (auto& Host : Hosts)
+			core::vector<pollfd> sockets4, sockets6;
+			for (auto& host : hosts)
 			{
-				VI_DEBUG("[net] resolve dns on fd %i", (int)Host.first);
-				SetSocketBlocking(Host.first, false);
-				int Status = connect(Host.first, Host.second->ai_addr, (int)Host.second->ai_addrlen);
-				if (Status != 0 && Utils::GetLastError(nullptr, Status) != std::errc::operation_would_block)
+				VI_DEBUG("[net] resolve dns on fd %i", (int)host.first);
+				set_socket_blocking(host.first, false);
+				int status = connect(host.first, host.second->ai_addr, (int)host.second->ai_addrlen);
+				if (status != 0 && utils::GetLastError(nullptr, status) != std::errc::operation_would_block)
 					continue;
 
-				pollfd Fd;
-				Fd.fd = Host.first;
-				Fd.events = POLLOUT;
-				if (Host.second->ai_family == AF_INET6)
-					Sockets6.push_back(Fd);
+				pollfd fd;
+				fd.fd = host.first;
+				fd.events = POLLOUT;
+				if (host.second->ai_family == AF_INET6)
+					sockets6.push_back(fd);
 				else
-					Sockets4.push_back(Fd);
+					sockets4.push_back(fd);
 			}
 
-			if (!Sockets4.empty() && Utils::Poll(Sockets4.data(), (int)Sockets4.size(), (int)Timeout) > 0)
+			if (!sockets4.empty() && utils::poll(sockets4.data(), (int)sockets4.size(), (int)timeout) > 0)
 			{
-				for (auto& Fd : Sockets4)
+				for (auto& fd : sockets4)
 				{
-					if (Fd.revents & POLLOUT)
+					if (fd.revents & POLLOUT)
 					{
-						auto It = Hosts.find(Fd.fd);
-						if (It != Hosts.end())
-							return It->second;
+						auto it = hosts.find(fd.fd);
+						if (it != hosts.end())
+							return it->second;
 					}
 				}
 			}
 
-			if (!Sockets6.empty() && Utils::Poll(Sockets6.data(), (int)Sockets6.size(), (int)Timeout) > 0)
+			if (!sockets6.empty() && utils::poll(sockets6.data(), (int)sockets6.size(), (int)timeout) > 0)
 			{
-				for (auto& Fd : Sockets6)
+				for (auto& fd : sockets6)
 				{
-					if (Fd.revents & POLLOUT)
+					if (fd.revents & POLLOUT)
 					{
-						auto It = Hosts.find(Fd.fd);
-						if (It != Hosts.end())
-							return It->second;
+						auto it = hosts.find(fd.fd);
+						if (it != hosts.end())
+							return it->second;
 					}
 				}
 			}
@@ -216,1175 +217,1175 @@ namespace Vitex
 			return nullptr;
 		}
 #ifdef VI_OPENSSL
-		static std::pair<Core::String, time_t> ASN1_GetTime(ASN1_TIME* Time)
+		static std::pair<core::string, time_t> asn1_get_time(ASN1_TIME* time)
 		{
-			if (!Time)
-				return std::make_pair<Core::String, time_t>(Core::String(), time_t(0));
+			if (!time)
+				return std::make_pair<core::string, time_t>(core::string(), time_t(0));
 
-			struct tm Date;
-			memset(&Date, 0, sizeof(Date));
-			ASN1_TIME_to_tm(Time, &Date);
-
-			time_t TimeStamp = mktime(&Date);
-			return std::make_pair(Core::DateTime::SerializeGlobal(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(TimeStamp)), Core::DateTime::FormatWebTime()), TimeStamp);
+			struct tm date;
+			memset(&date, 0, sizeof(date));
+			ASN1_TIME_to_tm(time, &date);
+			
+			time_t time_stamp = mktime(&date);
+			return std::make_pair(core::date_time::serialize_global(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(time_stamp)), core::date_time::format_web_time()), time_stamp);
 		}
 #endif
 #ifdef NET_POLL
-		struct epoll_fd
+		struct epoll_descriptor
 		{
-			pollfd Fd;
-			void* Data = nullptr;
+			pollfd fd;
+			void* data = nullptr;
 		};
 
 		struct epoll_queue
 		{
-			Core::UnorderedMap<socket_t, epoll_fd> Fds;
-			Core::Vector<pollfd> Events;
-			std::mutex Mutex;
-			std::atomic<uint8_t> Iteration;
-			socket_t Outgoing;
-			socket_t Incoming;
-			bool Dirty;
+			core::unordered_map<socket_t, epoll_descriptor> fds;
+			core::vector<pollfd> events;
+			std::mutex mutex;
+			std::atomic<uint8_t> iteration;
+			socket_t outgoing;
+			socket_t incoming;
+			bool dirty;
 
-			epoll_queue(size_t) : Iteration(0), Outgoing(INVALID_SOCKET), Incoming(INVALID_SOCKET), Dirty(true)
+			epoll_queue(size_t) : iteration(0), outgoing(INVALID_SOCKET), incoming(INVALID_SOCKET), dirty(true)
 			{
-				Initialize().Unwrap();
+				initialize().unwrap();
 			}
 			~epoll_queue()
 			{
-				if (Incoming != INVALID_SOCKET)
-					closesocket(Incoming);
-				if (Outgoing != INVALID_SOCKET)
-					closesocket(Outgoing);
+				if (incoming != INVALID_SOCKET)
+					closesocket(incoming);
+				if (outgoing != INVALID_SOCKET)
+					closesocket(outgoing);
 			}
-			Core::ExpectsSystem<void> Initialize()
+			core::expects_system<void> initialize()
 			{
-				auto Listenable = ExecuteSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-				if (!Listenable)
-					return Core::SystemException("epoll initialize: listener initialization failed", std::move(Listenable.Error()));
+				auto listenable = execute_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+				if (!listenable)
+					return core::system_exception("epoll initialize: listener initialization failed", std::move(listenable.error()));
 
-				socket_t Listener = *Listenable; int ReuseAddress = 1;
-				if (setsockopt(Listener, SOL_SOCKET, SO_REUSEADDR, (char*)&ReuseAddress, sizeof(ReuseAddress)) != 0)
+				socket_t listener = *listenable; int reuse_address = 1;
+				if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse_address, sizeof(reuse_address)) != 0)
 				{
-					closesocket(Listener);
-					return Core::SystemException("epoll initialize: listener configuration failed");
+					closesocket(listener);
+					return core::system_exception("epoll initialize: listener configuration failed");
 				}
 
-				struct sockaddr_in Address;
-				memset(&Address, 0, sizeof(Address));
-				Address.sin_family = AF_INET;
-				Address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-				Address.sin_port = 0;
-				if (bind(Listener, (struct sockaddr*)&Address, sizeof(Address)) != 0)
+				struct sockaddr_in address;
+				memset(&address, 0, sizeof(address));
+				address.sin_family = AF_INET;
+				address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+				address.sin_port = 0;
+				if (bind(listener, (struct sockaddr*)&address, sizeof(address)) != 0)
 				{
-					closesocket(Listener);
-					return Core::SystemException("epoll initialize: listener bind failed");
+					closesocket(listener);
+					return core::system_exception("epoll initialize: listener bind failed");
 				}
-				else if (listen(Listener, 1) != 0)
+				else if (listen(listener, 1) != 0)
 				{
-					closesocket(Listener);
-					return Core::SystemException("epoll initialize: listener listen failed");
-				}
-
-				int ListenerAddressSize = sizeof(Address);
-				struct sockaddr ListenerAddress;
-				memset(&ListenerAddress, 0, sizeof(ListenerAddress));
-				if (getsockname(Listener, &ListenerAddress, &ListenerAddressSize) == -1)
-				{
-					closesocket(Listener);
-					return Core::SystemException("epoll initialize: listener listen failed");
+					closesocket(listener);
+					return core::system_exception("epoll initialize: listener listen failed");
 				}
 
-				auto Connectable = ExecuteSocket(AF_INET, SOCK_STREAM, 0);
-				if (!Connectable)
+				int listener_address_size = sizeof(address);
+				struct sockaddr listener_address;
+				memset(&listener_address, 0, sizeof(listener_address));
+				if (getsockname(listener, &listener_address, &listener_address_size) == -1)
 				{
-					closesocket(Listener);
-					return Core::SystemException("epoll initialize: outgoing pipe initialization failed", std::move(Connectable.Error()));
+					closesocket(listener);
+					return core::system_exception("epoll initialize: listener listen failed");
 				}
 
-				Outgoing = *Connectable;
-				if (connect(Outgoing, &ListenerAddress, ListenerAddressSize) != 0)
+				auto connectable = execute_socket(AF_INET, SOCK_STREAM, 0);
+				if (!connectable)
 				{
-					closesocket(Listener);
-					closesocket(Outgoing);
-					return Core::SystemException("epoll initialize: outgoing pipe connect failed");
+					closesocket(listener);
+					return core::system_exception("epoll initialize: outgoing pipe initialization failed", std::move(connectable.error()));
 				}
 
-				auto Acceptable = ExecuteAccept(Listener, nullptr, nullptr);
-				closesocket(Listener);
-				if (Acceptable)
+				outgoing = *connectable;
+				if (connect(outgoing, &listener_address, listener_address_size) != 0)
 				{
-					Incoming = *Acceptable;
-					SetSocketBlocking(Outgoing, false);
-					SetSocketBlocking(Incoming, false);
-					Upsert(Incoming, true, false, nullptr);
-					return Core::Expectation::Met;
+					closesocket(listener);
+					closesocket(outgoing);
+					return core::system_exception("epoll initialize: outgoing pipe connect failed");
 				}
 
-				closesocket(Outgoing);
-				return Core::SystemException("epoll initialize: outgoing pipe accept failed", std::move(Acceptable.Error()));
+				auto acceptable = execute_accept(listener, nullptr, nullptr);
+				closesocket(listener);
+				if (acceptable)
+				{
+					incoming = *acceptable;
+					set_socket_blocking(outgoing, false);
+					set_socket_blocking(incoming, false);
+					upsert(incoming, true, false, nullptr);
+					return core::expectation::met;
+				}
+
+				closesocket(outgoing);
+				return core::system_exception("epoll initialize: outgoing pipe accept failed", std::move(acceptable.error()));
 			}
-			bool Upsert(socket_t Fd, bool Readable, bool Writeable, void* Data)
+			bool upsert(socket_t fd, bool readable, bool writeable, void* data)
 			{
-				Core::UMutex<std::mutex> Unique(Mutex);
-				auto It = Fds.find(Fd);
-				if (It == Fds.end())
+				core::umutex<std::mutex> unique(mutex);
+				auto it = fds.find(fd);
+				if (it == fds.end())
 				{
-					epoll_fd Event;
-					Event.Fd.fd = Fd;
+					epoll_descriptor event;
+					event.fd.fd = fd;
 #ifdef POLLRDHUP
-					Event.Fd.events = POLLRDHUP;
+					event.fd.events = POLLRDHUP;
 #else
-					Event.Fd.events = 0;
+					event.fd.events = 0;
 #endif
-					It = Fds.insert(std::make_pair(Fd, Event)).first;
-					Dirty = true;
+					it = fds.insert(std::make_pair(fd, event)).first;
+					dirty = true;
 				}
 
-				auto& Target = It->second;
-				Target.Fd.revents = 0;
+				auto& target = it->second;
+				target.fd.revents = 0;
 
-				if (Readable)
+				if (readable)
 				{
-					if (!(Target.Fd.events & POLLIN))
+					if (!(target.fd.events & POLLIN))
 					{
-						Target.Fd.events |= POLLIN;
-						Dirty = true;
+						target.fd.events |= POLLIN;
+						dirty = true;
 					}
 				}
-				else if (Target.Fd.events & POLLIN)
+				else if (target.fd.events & POLLIN)
 				{
-					Target.Fd.events &= ~(POLLIN);
-					Dirty = true;
+					target.fd.events &= ~(POLLIN);
+					dirty = true;
 				}
 
-				if (Writeable)
+				if (writeable)
 				{
-					if (!(Target.Fd.events & POLLOUT))
+					if (!(target.fd.events & POLLOUT))
 					{
-						Target.Fd.events |= POLLOUT;
-						Dirty = true;
+						target.fd.events |= POLLOUT;
+						dirty = true;
 					}
 				}
-				else if (Target.Fd.events & POLLOUT)
+				else if (target.fd.events & POLLOUT)
 				{
-					Target.Fd.events &= ~(POLLOUT);
-					Dirty = true;
+					target.fd.events &= ~(POLLOUT);
+					dirty = true;
 				}
 
-				if (Target.Data != Data)
+				if (target.data != data)
 				{
-					Target.Data = Data;
-					Dirty = true;
+					target.data = data;
+					dirty = true;
 				}
 
-				if (Dirty)
+				if (dirty)
 				{
-					uint8_t Buffer = Iteration++;
-					send(Outgoing, (char*)&Buffer, 1, 0);
+					uint8_t buffer = iteration++;
+					send(outgoing, (char*)&buffer, 1, 0);
 				}
 
 				return true;
 			}
-			void* Unwrap(pollfd& Event)
+			void* unwrap(pollfd& event)
 			{
-				if (!Event.events || !Event.revents)
+				if (!event.events || !event.revents)
 					return nullptr;
 
-				if (Event.fd == Incoming)
+				if (event.fd == incoming)
 				{
-					if (Event.revents & POLLIN)
+					if (event.revents & POLLIN)
 					{
-						uint8_t Buffer;
-						while (recv(Incoming, (char*)&Buffer, 1, 0) > 0);
+						uint8_t buffer;
+						while (recv(incoming, (char*)&buffer, 1, 0) > 0);
 					}
 					return nullptr;
 				}
 
-				Core::UMutex<std::mutex> Unique(Mutex);
-				auto It = Fds.find(Event.fd);
-				if (It == Fds.end())
+				core::umutex<std::mutex> unique(mutex);
+				auto it = fds.find(event.fd);
+				if (it == fds.end())
 					return nullptr;
-				else if (!It->second.Fd.events)
+				else if (!it->second.fd.events)
 					return nullptr;
 
-				return It->second.Data;
+				return it->second.data;
 			}
-			Core::Vector<pollfd>& Compile()
+			core::vector<pollfd>& compile()
 			{
-				Core::UMutex<std::mutex> Unique(Mutex);
-				if (!Dirty)
-					return Events;
+				core::umutex<std::mutex> unique(mutex);
+				if (!dirty)
+					return events;
 
-				Events.clear();
-				Events.reserve(Fds.size());
-				for (auto It = Fds.begin(); It != Fds.end();)
+				events.clear();
+				events.reserve(fds.size());
+				for (auto it = fds.begin(); it != fds.end();)
 				{
-					if (It->second.Fd.events > 0)
+					if (it->second.fd.events > 0)
 					{
-						Events.emplace_back(It->second.Fd);
-						++It;
+						events.emplace_back(it->second.fd);
+						++it;
 					}
 					else
-						Fds.erase(It++);
+						fds.erase(it++);
 				}
 
-				Dirty = false;
-				return Events;
+				dirty = false;
+				return events;
 			}
 		};
 #elif defined(NET_KQUEUE)
 		struct epoll_queue
 		{
-			struct kevent* Data;
-			size_t Size;
+			struct kevent* data;
+			size_t size;
 
-			epoll_queue(size_t NewSize) : Size(NewSize)
+			epoll_queue(size_t new_size) : size(new_size)
 			{
-				Data = Core::Memory::Allocate<struct kevent>(sizeof(struct kevent) * Size);
+				data = core::memory::allocate<struct kevent>(sizeof(struct kevent) * size);
 			}
 			~epoll_queue()
 			{
-				Core::Memory::Deallocate(Data);
+				core::memory::deallocate(data);
 			}
 		};
 #elif defined(NET_EPOLL)
 		struct epoll_queue
 		{
-			epoll_event* Data;
-			size_t Size;
+			epoll_event* data;
+			size_t size;
 
-			epoll_queue(size_t NewSize) : Size(NewSize)
+			epoll_queue(size_t new_size) : size(new_size)
 			{
-				Data = Core::Memory::Allocate<epoll_event>(sizeof(epoll_event) * Size);
+				data = core::memory::allocate<epoll_event>(sizeof(epoll_event) * size);
 			}
 			~epoll_queue()
 			{
-				Core::Memory::Deallocate(Data);
+				core::memory::deallocate(data);
 			}
 		};
 #endif
-		Location::Location(const std::string_view& From) noexcept : Body(From), Port(0)
+		location::location(const std::string_view& from) noexcept : body(from), port(0)
 		{
-			VI_ASSERT(!Body.empty(), "location should not be empty");
-			Core::Stringify::Replace(Body, '\\', '/');
+			VI_ASSERT(!body.empty(), "location should not be empty");
+			core::stringify::replace(body, '\\', '/');
 
-			const char* ParametersBegin = nullptr;
-			const char* PathBegin = nullptr;
-			const char* HostBegin = strchr(Body.c_str(), ':');
-			if (HostBegin != nullptr)
+			const char* parameters_begin = nullptr;
+			const char* path_begin = nullptr;
+			const char* host_begin = strchr(body.c_str(), ':');
+			if (host_begin != nullptr)
 			{
-				if (strncmp(HostBegin, "://", 3) != 0)
+				if (strncmp(host_begin, "://", 3) != 0)
 				{
-					while (*HostBegin != '\0' && *HostBegin != '/' && *HostBegin != ':' && *HostBegin != '?' && *HostBegin != '#')
-						++HostBegin;
+					while (*host_begin != '\0' && *host_begin != '/' && *host_begin != ':' && *host_begin != '?' && *host_begin != '#')
+						++host_begin;
 
-					PathBegin = *HostBegin == '\0' || *HostBegin == '/' ? HostBegin : HostBegin + 1;
-					Protocol = Core::String(Body.c_str(), HostBegin);
-					goto InlineURL;
+					path_begin = *host_begin == '\0' || *host_begin == '/' ? host_begin : host_begin + 1;
+					protocol = core::string(body.c_str(), host_begin);
+					goto inline_url;
 				}
 				else
 				{
-					Protocol = Core::String(Body.c_str(), HostBegin);
-					HostBegin += 3;
+					protocol = core::string(body.c_str(), host_begin);
+					host_begin += 3;
 				}
 			}
 			else
-				HostBegin = Body.c_str();
+				host_begin = body.c_str();
 
-			if (HostBegin != Body.c_str())
+			if (host_begin != body.c_str())
 			{
-				const char* AtSymbol = strchr(HostBegin, '@');
-				PathBegin = strchr(HostBegin, '/');
+				const char* at_symbol = strchr(host_begin, '@');
+				path_begin = strchr(host_begin, '/');
 
-				if (AtSymbol != nullptr && (PathBegin == nullptr || AtSymbol < PathBegin))
+				if (at_symbol != nullptr && (path_begin == nullptr || at_symbol < path_begin))
 				{
-					Core::String LoginPassword;
-					LoginPassword = Core::String(HostBegin, AtSymbol);
-					HostBegin = AtSymbol + 1;
-					PathBegin = strchr(HostBegin, '/');
+					core::string login_password;
+					login_password = core::string(host_begin, at_symbol);
+					host_begin = at_symbol + 1;
+					path_begin = strchr(host_begin, '/');
 
-					const char* PasswordPtr = strchr(LoginPassword.c_str(), ':');
-					if (PasswordPtr)
+					const char* password_ptr = strchr(login_password.c_str(), ':');
+					if (password_ptr)
 					{
-						Username = Compute::Codec::URLDecode(Core::String(LoginPassword.c_str(), PasswordPtr));
-						Password = Compute::Codec::URLDecode(Core::String(PasswordPtr + 1));
+						username = compute::codec::url_decode(core::string(login_password.c_str(), password_ptr));
+						password = compute::codec::url_decode(core::string(password_ptr + 1));
 					}
 					else
-						Username = Compute::Codec::URLDecode(LoginPassword);
+						username = compute::codec::url_decode(login_password);
 				}
 
-				const char* IpV6End = strchr(HostBegin, ']');
-				const char* PortBegin = strchr(IpV6End ? IpV6End : HostBegin, ':');
-				if (PortBegin != nullptr && (PathBegin == nullptr || PortBegin < PathBegin))
+				const char* ip_v6_end = strchr(host_begin, ']');
+				const char* port_begin = strchr(ip_v6_end ? ip_v6_end : host_begin, ':');
+				if (port_begin != nullptr && (path_begin == nullptr || port_begin < path_begin))
 				{
-					if (1 != sscanf(PortBegin, ":%" SCNd16, &Port))
-						goto FinalizeURL;
+					if (1 != sscanf(port_begin, ":%" SCNd16, &port))
+						goto finalize_url;
 
-					Hostname = Core::String(HostBegin + (IpV6End ? 1 : 0), IpV6End ? IpV6End : PortBegin);
-					if (!PathBegin)
-						goto FinalizeURL;
+					hostname = core::string(host_begin + (ip_v6_end ? 1 : 0), ip_v6_end ? ip_v6_end : port_begin);
+					if (!path_begin)
+						goto finalize_url;
 				}
 				else
 				{
-					if (PathBegin == nullptr)
+					if (path_begin == nullptr)
 					{
-						Hostname = HostBegin;
-						goto FinalizeURL;
+						hostname = host_begin;
+						goto finalize_url;
 					}
 
-					Hostname = Core::String(HostBegin + (IpV6End ? 1 : 0), IpV6End ? IpV6End : PathBegin);
+					hostname = core::string(host_begin + (ip_v6_end ? 1 : 0), ip_v6_end ? ip_v6_end : path_begin);
 				}
 			}
 			else
-				PathBegin = Body.c_str();
+				path_begin = body.c_str();
 
-		InlineURL:
-			ParametersBegin = strchr(PathBegin, '?');
-			if (ParametersBegin != nullptr)
+		inline_url:
+			parameters_begin = strchr(path_begin, '?');
+			if (parameters_begin != nullptr)
 			{
-				const char* ParametersEnd = strchr(++ParametersBegin, '#');
-				Core::String Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
-				Path = Core::String(PathBegin, ParametersBegin - 1);
+				const char* parameters_end = strchr(++parameters_begin, '#');
+				core::string parameters(parameters_begin, parameters_end ? parameters_end - parameters_begin : strlen(parameters_begin));
+				path = core::string(path_begin, parameters_begin - 1);
 
-				if (!ParametersEnd)
+				if (!parameters_end)
 				{
-					ParametersEnd = strchr(Path.c_str(), '#');
-					if (ParametersEnd != nullptr && ParametersEnd > Path.c_str())
+					parameters_end = strchr(path.c_str(), '#');
+					if (parameters_end != nullptr && parameters_end > path.c_str())
 					{
-						Fragment = ParametersEnd + 1;
-						Path = Core::String(Path.c_str(), ParametersEnd);
+						fragment = parameters_end + 1;
+						path = core::string(path.c_str(), parameters_end);
 					}
 				}
 				else
-					Fragment = ParametersEnd + 1;
+					fragment = parameters_end + 1;
 
-				for (auto& Item : Core::Stringify::Split(Parameters, '&'))
+				for (auto& item : core::stringify::split(parameters, '&'))
 				{
-					Core::Vector<Core::String> KeyValue = Core::Stringify::Split(Item, '=');
-					KeyValue[0] = Compute::Codec::URLDecode(KeyValue[0]);
+					core::vector<core::string> key_value = core::stringify::split(item, '=');
+					key_value[0] = compute::codec::url_decode(key_value[0]);
 
-					if (KeyValue.size() >= 2)
-						Query[KeyValue[0]] = Compute::Codec::URLDecode(KeyValue[1]);
+					if (key_value.size() >= 2)
+						query[key_value[0]] = compute::codec::url_decode(key_value[1]);
 					else
-						Query[KeyValue[0]] = "";
+						query[key_value[0]] = "";
 				}
 			}
 			else
 			{
-				const char* ParametersEnd = strchr(PathBegin, '#');
-				if (ParametersEnd != nullptr)
+				const char* parameters_end = strchr(path_begin, '#');
+				if (parameters_end != nullptr)
 				{
-					Fragment = ParametersEnd + 1;
-					Path = Core::String(PathBegin, ParametersEnd);
+					fragment = parameters_end + 1;
+					path = core::string(path_begin, parameters_end);
 				}
 				else
-					Path = PathBegin;
+					path = path_begin;
 			}
 
-		FinalizeURL:
-			if (Protocol.size() < 2)
+		finalize_url:
+			if (protocol.size() < 2)
 			{
-				Path = Protocol + ':' + Path;
-				Protocol = "file";
+				path = protocol + ':' + path;
+				protocol = "file";
 			}
 
-			if (!Path.empty())
-				Path.assign(Compute::Codec::URLDecode(Path));
+			if (!path.empty())
+				path.assign(compute::codec::url_decode(path));
 			else
-				Path.assign("/");
+				path.assign("/");
 
-			if (Port > 0)
+			if (port > 0)
 				return;
 
-			if (Protocol == "http" || Protocol == "ws")
-				Port = 80;
-			else if (Protocol == "https" || Protocol == "wss")
-				Port = 443;
-			else if (Protocol == "ftp")
-				Port = 21;
-			else if (Protocol == "gopher")
-				Port = 70;
-			else if (Protocol == "imap")
-				Port = 143;
-			else if (Protocol == "idap")
-				Port = 389;
-			else if (Protocol == "nfs")
-				Port = 2049;
-			else if (Protocol == "nntp")
-				Port = 119;
-			else if (Protocol == "pop")
-				Port = 110;
-			else if (Protocol == "smtp")
-				Port = 25;
-			else if (Protocol == "telnet")
-				Port = 23;
+			if (protocol == "http" || protocol == "ws")
+				port = 80;
+			else if (protocol == "https" || protocol == "wss")
+				port = 443;
+			else if (protocol == "ftp")
+				port = 21;
+			else if (protocol == "gopher")
+				port = 70;
+			else if (protocol == "imap")
+				port = 143;
+			else if (protocol == "idap")
+				port = 389;
+			else if (protocol == "nfs")
+				port = 2049;
+			else if (protocol == "nntp")
+				port = 119;
+			else if (protocol == "pop")
+				port = 110;
+			else if (protocol == "smtp")
+				port = 25;
+			else if (protocol == "telnet")
+				port = 23;
 
-			if (Port > 0 || Protocol == "file")
+			if (port > 0 || protocol == "file")
 				return;
 
-			servent* Entry = getservbyname(Protocol.c_str(), nullptr);
-			if (Entry != nullptr)
-				Port = Entry->s_port;
+			servent* entry = getservbyname(protocol.c_str(), nullptr);
+			if (entry != nullptr)
+				port = entry->s_port;
 		}
 
-		X509Blob::X509Blob(void* NewPointer) noexcept : Pointer(NewPointer)
+		x509_blob::x509_blob(void* new_pointer) noexcept : pointer(new_pointer)
 		{
 		}
-		X509Blob::X509Blob(const X509Blob& Other) noexcept : Pointer(nullptr)
+		x509_blob::x509_blob(const x509_blob& other) noexcept : pointer(nullptr)
 		{
 #ifdef VI_OPENSSL
-			if (Other.Pointer != nullptr)
-				Pointer = X509_dup((X509*)Other.Pointer);
+			if (other.pointer != nullptr)
+				pointer = X509_dup((X509*)other.pointer);
 #endif
 		}
-		X509Blob::X509Blob(X509Blob&& Other) noexcept : Pointer(Other.Pointer)
+		x509_blob::x509_blob(x509_blob&& other) noexcept : pointer(other.pointer)
 		{
-			Other.Pointer = nullptr;
+			other.pointer = nullptr;
 		}
-		X509Blob::~X509Blob() noexcept
+		x509_blob::~x509_blob() noexcept
 		{
 #ifdef VI_OPENSSL
-			if (Pointer != nullptr)
-				X509_free((X509*)Pointer);
+			if (pointer != nullptr)
+				X509_free((X509*)pointer);
 #endif
 		}
-		X509Blob& X509Blob::operator= (const X509Blob& Other) noexcept
+		x509_blob& x509_blob::operator= (const x509_blob& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
 #ifdef VI_OPENSSL
-			if (Pointer != nullptr)
-				X509_free((X509*)Pointer);
-			if (Other.Pointer != nullptr)
-				Pointer = X509_dup((X509*)Other.Pointer);
+			if (pointer != nullptr)
+				X509_free((X509*)pointer);
+			if (other.pointer != nullptr)
+				pointer = X509_dup((X509*)other.pointer);
 #endif
 			return *this;
 		}
-		X509Blob& X509Blob::operator= (X509Blob&& Other) noexcept
+		x509_blob& x509_blob::operator= (x509_blob&& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			Pointer = Other.Pointer;
-			Other.Pointer = nullptr;
+			pointer = other.pointer;
+			other.pointer = nullptr;
 			return *this;
 		}
 
-		Core::UnorderedMap<Core::String, Core::Vector<Core::String>> Certificate::GetFullExtensions() const
+		core::unordered_map<core::string, core::vector<core::string>> certificate::get_full_extensions() const
 		{
-			Core::UnorderedMap<Core::String, Core::Vector<Core::String>> Data;
-			Data.reserve(Extensions.size());
+			core::unordered_map<core::string, core::vector<core::string>> data;
+			data.reserve(extensions.size());
 
-			for (auto& Item : Extensions)
-				Data[Item.first] = Core::Stringify::Split(Item.second, '\n');
+			for (auto& item : extensions)
+				data[item.first] = core::stringify::split(item.second, '\n');
 
-			return Data;
+			return data;
 		}
 
-		bool SocketCidr::IsMatching(const Compute::UInt128& TargetValue)
+		bool socket_cidr::is_matching(const compute::uint128& target_value)
 		{
-			return TargetValue == Value || (TargetValue >= MinValue && TargetValue <= MaxValue);
+			return target_value == value || (target_value >= min_value && target_value <= max_value);
 		}
 
-		SocketAddress::SocketAddress() noexcept : AddressSize(0)
+		socket_address::socket_address() noexcept : address_size(0)
 		{
-			Info.Port = 0;
-			Info.Flags = 0;
-			Info.Family = AF_INET;
-			Info.Type = SOCK_STREAM;
-			Info.Protocol = IPPROTO_IP;
-			memset(AddressBuffer, 0, sizeof(AddressBuffer));
+			info.port = 0;
+			info.flags = 0;
+			info.family = AF_INET;
+			info.type = SOCK_STREAM;
+			info.protocol = IPPROTO_IP;
+			memset(address_buffer, 0, sizeof(address_buffer));
 		}
-		SocketAddress::SocketAddress(const std::string_view& IpAddress, uint16_t Port) noexcept : SocketAddress()
+		socket_address::socket_address(const std::string_view& ip_address, uint16_t port) noexcept : socket_address()
 		{
-			sockaddr_in Address4;
-			memset(&Address4, 0, sizeof(Address4));
-			Address4.sin_family = AF_INET;
-			Address4.sin_port = htons(Port);
-			
-			sockaddr_in6 Address6;
-			memset(&Address6, 0, sizeof(Address6));
-			Address6.sin6_family = AF_INET6;
-			Address6.sin6_port = htons(Port);
+			sockaddr_in address4;
+			memset(&address4, 0, sizeof(address4));
+			address4.sin_family = AF_INET;
+			address4.sin_port = htons(port);
 
-			if (inet_pton(AF_INET, IpAddress.data(), &Address4.sin_addr) != 1)
+			sockaddr_in6 address6;
+			memset(&address6, 0, sizeof(address6));
+			address6.sin6_family = AF_INET6;
+			address6.sin6_port = htons(port);
+
+			if (inet_pton(AF_INET, ip_address.data(), &address4.sin_addr) != 1)
 			{
-				if (inet_pton(AF_INET6, IpAddress.data(), &Address6.sin6_addr) == 1)
+				if (inet_pton(AF_INET6, ip_address.data(), &address6.sin6_addr) == 1)
 				{
-					Info.Hostname = Core::String(IpAddress);
-					Info.Port = Port;
-					Info.Family = AF_INET6;
-					AddressSize = sizeof(Address6);
-					memcpy(AddressBuffer, &Address6, AddressSize);
+					info.hostname = core::string(ip_address);
+					info.port = port;
+					info.family = AF_INET6;
+					address_size = sizeof(address6);
+					memcpy(address_buffer, &address6, address_size);
 				}
 			}
 			else
 			{
-				Info.Hostname = Core::String(IpAddress);
-				Info.Port = Port;
-				AddressSize = sizeof(Address4);
-				memcpy(AddressBuffer, &Address4, AddressSize);
+				info.hostname = core::string(ip_address);
+				info.port = port;
+				address_size = sizeof(address4);
+				memcpy(address_buffer, &address4, address_size);
 			}
 
-			size_t Leftovers = sizeof(AddressBuffer) - AddressSize;
-			if (Leftovers > 0)
-				memset(AddressBuffer + AddressSize, 0, Leftovers);
+			size_t leftovers = sizeof(address_buffer) - address_size;
+			if (leftovers > 0)
+				memset(address_buffer + address_size, 0, leftovers);
 		}
-		SocketAddress::SocketAddress(const std::string_view& Hostname, uint16_t Port, addrinfo* AddressInfo) noexcept
+		socket_address::socket_address(const std::string_view& hostname, uint16_t port, addrinfo* address_info) noexcept
 		{
-			VI_ASSERT(AddressInfo != nullptr, "address info should be set");
-			if (!Hostname.empty())
-				Info.Hostname = Core::String(Hostname);
-			else if (AddressInfo->ai_canonname != nullptr)
-				Info.Hostname = AddressInfo->ai_canonname;
-			Info.Port = Port;
-			Info.Flags = AddressInfo->ai_flags;
-			Info.Family = AddressInfo->ai_family;
-			Info.Type = AddressInfo->ai_socktype;
-			Info.Protocol = AddressInfo->ai_protocol;
-			AddressSize = std::min<size_t>(sizeof(AddressBuffer), AddressInfo->ai_addrlen);
-			switch (AddressInfo->ai_family)
+			VI_ASSERT(address_info != nullptr, "address info should be set");
+			if (!hostname.empty())
+				info.hostname = core::string(hostname);
+			else if (address_info->ai_canonname != nullptr)
+				info.hostname = address_info->ai_canonname;
+			info.port = port;
+			info.flags = address_info->ai_flags;
+			info.family = address_info->ai_family;
+			info.type = address_info->ai_socktype;
+			info.protocol = address_info->ai_protocol;
+			address_size = std::min<size_t>(sizeof(address_buffer), address_info->ai_addrlen);
+			switch (address_info->ai_family)
 			{
 				case AF_INET:
-					memcpy(AddressBuffer, (sockaddr_in*)AddressInfo->ai_addr, AddressSize);
+					memcpy(address_buffer, (sockaddr_in*)address_info->ai_addr, address_size);
 					break;
 				case AF_INET6:
-					memcpy(AddressBuffer, (sockaddr_in6*)AddressInfo->ai_addr, AddressSize);
+					memcpy(address_buffer, (sockaddr_in6*)address_info->ai_addr, address_size);
 					break;
 				default:
-					memcpy(AddressBuffer, AddressInfo->ai_addr, AddressSize);
+					memcpy(address_buffer, address_info->ai_addr, address_size);
 					break;
 			}
 
-			size_t Leftovers = sizeof(AddressBuffer) - AddressSize;
-			if (Leftovers > 0)
-				memset(AddressBuffer + AddressSize, 0, Leftovers);
+			size_t leftovers = sizeof(address_buffer) - address_size;
+			if (leftovers > 0)
+				memset(address_buffer + address_size, 0, leftovers);
 		}
-		SocketAddress::SocketAddress(const std::string_view& Hostname, uint16_t Port, sockaddr* Address, size_t NewAddressSize) noexcept : SocketAddress()
+		socket_address::socket_address(const std::string_view& hostname, uint16_t port, sockaddr* address, size_t new_address_size) noexcept : socket_address()
 		{
-			VI_ASSERT(Address != nullptr, "address should be set");
-			if (!Hostname.empty())
-				Info.Hostname = Core::String(Hostname);
-			Info.Port = Port;
-			Info.Family = (int32_t)Address->sa_family;
-			AddressSize = std::min<size_t>(sizeof(AddressBuffer), NewAddressSize);
-			memcpy(AddressBuffer, Address, AddressSize);
+			VI_ASSERT(address != nullptr, "address should be set");
+			if (!hostname.empty())
+				info.hostname = core::string(hostname);
+			info.port = port;
+			info.family = (int32_t)address->sa_family;
+			address_size = std::min<size_t>(sizeof(address_buffer), new_address_size);
+			memcpy(address_buffer, address, address_size);
 		}
-		const sockaddr_in* SocketAddress::GetAddress4() const noexcept
+		const sockaddr_in* socket_address::get_address4() const noexcept
 		{
-			auto* Raw = GetRawAddress();
-			return Raw->sa_family == AF_INET ? (sockaddr_in*)AddressBuffer : nullptr;
+			auto* raw = get_raw_address();
+			return raw->sa_family == AF_INET ? (sockaddr_in*)address_buffer : nullptr;
 		}
-		const sockaddr_in6* SocketAddress::GetAddress6() const noexcept
+		const sockaddr_in6* socket_address::get_address6() const noexcept
 		{
-			auto* Raw = GetRawAddress();
-			return Raw->sa_family == AF_INET6 ? (sockaddr_in6*)AddressBuffer : nullptr;
+			auto* raw = get_raw_address();
+			return raw->sa_family == AF_INET6 ? (sockaddr_in6*)address_buffer : nullptr;
 		}
-		const sockaddr* SocketAddress::GetRawAddress() const noexcept
+		const sockaddr* socket_address::get_raw_address() const noexcept
 		{
-			return (sockaddr*)AddressBuffer;
+			return (sockaddr*)address_buffer;
 		}
-		size_t SocketAddress::GetAddressSize() const noexcept
+		size_t socket_address::get_address_size() const noexcept
 		{
-			return AddressSize;
+			return address_size;
 		}
-		int32_t SocketAddress::GetFlags() const noexcept
+		int32_t socket_address::get_flags() const noexcept
 		{
-			return Info.Flags;
+			return info.flags;
 		}
-		int32_t SocketAddress::GetFamily() const noexcept
+		int32_t socket_address::get_family() const noexcept
 		{
-			return Info.Family;
+			return info.family;
 		}
-		int32_t SocketAddress::GetType() const noexcept
+		int32_t socket_address::get_type() const noexcept
 		{
-			return Info.Type;
+			return info.type;
 		}
-		int32_t SocketAddress::GetProtocol() const noexcept
+		int32_t socket_address::get_protocol() const noexcept
 		{
-			return Info.Protocol;
+			return info.protocol;
 		}
-		DNSType SocketAddress::GetResolverType() const noexcept
+		dns_type socket_address::get_resolver_type() const noexcept
 		{
-			return (Info.Flags & AI_PASSIVE ? DNSType::Listen : DNSType::Connect);
+			return (info.flags & AI_PASSIVE ? dns_type::listen : dns_type::connect);
 		}
-		SocketProtocol SocketAddress::GetProtocolType() const noexcept
+		socket_protocol socket_address::get_protocol_type() const noexcept
 		{
-			switch (Info.Protocol)
+			switch (info.protocol)
 			{
 				case IPPROTO_IP:
-					return SocketProtocol::IP;
+					return socket_protocol::IP;
 				case IPPROTO_ICMP:
-					return SocketProtocol::ICMP;
+					return socket_protocol::ICMP;
 				case IPPROTO_UDP:
-					return SocketProtocol::UDP;
+					return socket_protocol::UDP;
 				case IPPROTO_RAW:
-					return SocketProtocol::RAW;
+					return socket_protocol::RAW;
 				case IPPROTO_TCP:
 				default:
-					return SocketProtocol::TCP;
+					return socket_protocol::TCP;
 			}
 		}
-		SocketType SocketAddress::GetSocketType() const noexcept
+		socket_type socket_address::get_socket_type() const noexcept
 		{
-			switch (Info.Type)
+			switch (info.type)
 			{
 				case SOCK_DGRAM:
-					return SocketType::Datagram;
+					return socket_type::datagram;
 				case SOCK_RAW:
-					return SocketType::Raw;
+					return socket_type::raw;
 				case SOCK_RDM:
-					return SocketType::Reliably_Delivered_Message;
+					return socket_type::reliably_delivered_message;
 				case SOCK_SEQPACKET:
-					return SocketType::Sequence_Packet_Stream;
+					return socket_type::sequence_packet_stream;
 				case SOCK_STREAM:
 				default:
-					return SocketType::Stream;
+					return socket_type::stream;
 			}
 		}
-		bool SocketAddress::IsValid() const noexcept
+		bool socket_address::is_valid() const noexcept
 		{
-			return AddressSize >= sizeof(sockaddr);
+			return address_size >= sizeof(sockaddr);
 		}
-		Core::ExpectsIO<Core::String> SocketAddress::GetHostname() const noexcept
+		core::expects_io<core::string> socket_address::get_hostname() const noexcept
 		{
-			if (!Info.Hostname.empty())
+			if (!info.hostname.empty())
 			{
-				size_t Offset = Info.Hostname.rfind(':');
-				if (!Offset || Offset == std::string::npos)
-					return Info.Hostname;
+				size_t offset = info.hostname.rfind(':');
+				if (!offset || offset == std::string::npos)
+					return info.hostname;
 
-				auto SourceName = Info.Hostname.substr(0, Offset);
-				if (!SourceName.empty())
-					return SourceName;
+				auto source_name = info.hostname.substr(0, offset);
+				if (!source_name.empty())
+					return source_name;
 			}
 
-			return GetIpAddress();
+			return get_ip_address();
 		}
-		Core::ExpectsIO<Core::String> SocketAddress::GetIpAddress() const noexcept
+		core::expects_io<core::string> socket_address::get_ip_address() const noexcept
 		{
-			char Buffer[NI_MAXHOST];
-			if (getnameinfo(GetRawAddress(), (socklen_t)GetAddressSize(), Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST) != 0)
-				return Core::OS::Error::GetConditionOr(std::errc::host_unreachable);
+			char buffer[NI_MAXHOST];
+			if (getnameinfo(get_raw_address(), (socklen_t)get_address_size(), buffer, sizeof(buffer), nullptr, 0, NI_NUMERICHOST) != 0)
+				return core::os::error::get_condition_or(std::errc::host_unreachable);
 
-			return Core::String(Buffer, strnlen(Buffer, sizeof(Buffer)));
+			return core::string(buffer, strnlen(buffer, sizeof(buffer)));
 		}
-		Core::ExpectsIO<uint16_t> SocketAddress::GetIpPort() const noexcept
+		core::expects_io<uint16_t> socket_address::get_ip_port() const noexcept
 		{
-			if (Info.Port > 0)
-				return Info.Port;
+			if (info.port > 0)
+				return info.port;
 
-			const sockaddr_in* Address4 = GetAddress4();
-			if (Address4 != nullptr)
-				return (uint16_t)ntohs(Address4->sin_port);
+			const sockaddr_in* address4 = get_address4();
+			if (address4 != nullptr)
+				return (uint16_t)ntohs(address4->sin_port);
 
-			const sockaddr_in6* Address6 = GetAddress6();
-			if (Address6 != nullptr)
-				return (uint16_t)ntohs(Address6->sin6_port);
+			const sockaddr_in6* address6 = get_address6();
+			if (address6 != nullptr)
+				return (uint16_t)ntohs(address6->sin6_port);
 
 			return std::make_error_condition(std::errc::address_family_not_supported);
 		}
-		Core::ExpectsIO<Compute::UInt128> SocketAddress::GetIpValue() const noexcept
+		core::expects_io<compute::uint128> socket_address::get_ip_value() const noexcept
 		{
-			const sockaddr_in* Address4 = GetAddress4();
-			if (Address4 != nullptr)
+			const sockaddr_in* address4 = get_address4();
+			if (address4 != nullptr)
 			{
-				uint32_t Input = 0;
-				memcpy((char*)&Input, (char*)&Address4->sin_addr, sizeof(Input));
-				return Compute::UInt128(Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Input));
+				uint32_t input = 0;
+				memcpy((char*)&input, (char*)&address4->sin_addr, sizeof(input));
+				return compute::uint128(core::os::hw::to_endianness(core::os::hw::endian::big, input));
 			}
 
-			const sockaddr_in6* Address6 = GetAddress6();
-			if (Address6 != nullptr)
+			const sockaddr_in6* address6 = get_address6();
+			if (address6 != nullptr)
 			{
-				uint64_t InputH = 0, InputL = 0;
-				memcpy((char*)&InputH, (char*)&Address6->sin6_addr + sizeof(InputH) * 0, sizeof(InputH));
-				memcpy((char*)&InputL, (char*)&Address6->sin6_addr + sizeof(InputL) * 1, sizeof(InputL));
-				return Compute::UInt128(Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, InputH), Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, InputL));
+				uint64_t input_h = 0, input_l = 0;
+				memcpy((char*)&input_h, (char*)&address6->sin6_addr + sizeof(input_h) * 0, sizeof(input_h));
+				memcpy((char*)&input_l, (char*)&address6->sin6_addr + sizeof(input_l) * 1, sizeof(input_l));
+				return compute::uint128(core::os::hw::to_endianness(core::os::hw::endian::big, input_h), core::os::hw::to_endianness(core::os::hw::endian::big, input_l));
 			}
 
 			return std::make_error_condition(std::errc::address_family_not_supported);
 		}
 
-		DataFrame& DataFrame::operator= (const DataFrame& Other)
+		data_frame& data_frame::operator= (const data_frame& other)
 		{
-			VI_ASSERT(this != &Other, "this should not be other");
-			Message = Other.Message;
-			Reuses = Other.Reuses;
-			Start = Other.Start;
-			Finish = Other.Finish;
-			Timeout = Other.Timeout;
-			Abort = Other.Abort;
+			VI_ASSERT(this != &other, "this should not be other");
+			message = other.message;
+			reuses = other.reuses;
+			start = other.start;
+			finish = other.finish;
+			timeout = other.timeout;
+			abort = other.abort;
 			return *this;
 		}
 
-		EpollHandle::EpollHandle(size_t MaxEvents) noexcept
+		epoll_interface::epoll_interface(size_t max_events) noexcept
 		{
-			VI_ASSERT(MaxEvents > 0, "array size should be greater than zero");
-			Queue = Core::Memory::New<epoll_queue>(MaxEvents);
+			VI_ASSERT(max_events > 0, "array size should be greater than zero");
+			queue = core::memory::init<epoll_queue>(max_events);
 #ifdef NET_POLL
-			Handle = (epoll_handle)(uintptr_t)std::numeric_limits<size_t>::max();
+			handle = (epoll_handle)(uintptr_t)std::numeric_limits<size_t>::max();
 #elif defined(NET_KQUEUE)
-			Handle = kqueue();
+			handle = kqueue();
 #elif defined(NET_EPOLL)
-			Handle = epoll_create(1);
+			handle = epoll_create(1);
 #endif
 		}
-		EpollHandle::EpollHandle(EpollHandle&& Other) noexcept : Queue(Other.Queue), Handle(Other.Handle)
+		epoll_interface::epoll_interface(epoll_interface&& other) noexcept : queue(other.queue), handle(other.handle)
 		{
-			Other.Queue = nullptr;
-			Other.Handle = INVALID_EPOLL;
+			other.queue = nullptr;
+			other.handle = INVALID_EPOLL;
 		}
-		EpollHandle::~EpollHandle() noexcept
+		epoll_interface::~epoll_interface() noexcept
 		{
-			Core::Memory::Delete(Queue);
+			core::memory::deinit(queue);
 #ifdef NET_POLL
-			Handle = INVALID_EPOLL;
+			handle = INVALID_EPOLL;
 #else
-			if (Handle != INVALID_EPOLL)
+			if (handle != INVALID_EPOLL)
 			{
-				epoll_close(Handle);
-				Handle = INVALID_EPOLL;
+				epoll_close(handle);
+				handle = INVALID_EPOLL;
 			}
 #endif
 		}
-		EpollHandle& EpollHandle::operator= (EpollHandle&& Other) noexcept
+		epoll_interface& epoll_interface::operator= (epoll_interface&& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			this->~EpollHandle();
-			Queue = Other.Queue;
-			Handle = Other.Handle;
-			Other.Handle = INVALID_EPOLL;
-			Other.Queue = nullptr;
+			this->~epoll_interface();
+			queue = other.queue;
+			handle = other.handle;
+			other.handle = INVALID_EPOLL;
+			other.queue = nullptr;
 			return *this;
 		}
-		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable) noexcept
+		bool epoll_interface::add(socket* fd, bool readable, bool writeable) noexcept
 		{
-			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
-			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
-			VI_ASSERT(Readable || Writeable, "add should set readable and/or writeable");
-			VI_TRACE("[net] epoll add fd %i c%s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
+			VI_ASSERT(handle != INVALID_EPOLL, "epoll should be initialized");
+			VI_ASSERT(fd != nullptr && fd->fd != INVALID_SOCKET, "socket should be set and valid");
+			VI_ASSERT(readable || writeable, "add should set readable and/or writeable");
+			VI_TRACE("[net] epoll add fd %i c%s%s", (int)fd->fd, readable ? "r" : "", writeable ? "w" : "");
 #ifdef NET_POLL
-			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
-			return Queue->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
+			VI_ASSERT(queue != nullptr, "epoll should be initialized");
+			return queue->upsert(fd->fd, readable, writeable, (void*)fd);
 #elif defined(NET_KQUEUE)
-			struct kevent ReadEvent;
-			EV_SET(&ReadEvent, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
-			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 0;
+			struct kevent read_event;
+			EV_SET(&read_event, fd->fd, EVFILT_READ, EV_ADD, 0, 0, (void*)fd);
+			int result1 = readable ? kevent(handle, &read_event, 1, nullptr, 0, nullptr) : 0;
 
-			struct kevent WriteEvent;
-			EV_SET(&WriteEvent, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
-			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 0;
-			return Result1 != -1 && Result2 != -1;
+			struct kevent write_event;
+			EV_SET(&write_event, fd->fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)fd);
+			int result2 = writeable ? kevent(handle, &write_event, 1, nullptr, 0, nullptr) : 0;
+			return result1 != -1 && result2 != -1;
 #elif defined(NET_EPOLL)
-			epoll_event Event;
-			Event.data.ptr = (void*)Fd;
+			epoll_event event;
+			event.data.ptr = (void*)fd;
 #ifdef EPOLLRDHUP
-			Event.events = EPOLLRDHUP;
+			event.events = EPOLLRDHUP;
 #else
-			Event.events = 0;
+			event.events = 0;
 #endif
-			if (Readable)
-				Event.events |= EPOLLIN;
-			if (Writeable)
-				Event.events |= EPOLLOUT;
-			return epoll_ctl(Handle, EPOLL_CTL_ADD, Fd->Fd, &Event) == 0;
+			if (readable)
+				event.events |= EPOLLIN;
+			if (writeable)
+				event.events |= EPOLLOUT;
+			return epoll_ctl(handle, EPOLL_CTL_ADD, fd->fd, &event) == 0;
 #endif
 		}
-		bool EpollHandle::Update(Socket* Fd, bool Readable, bool Writeable) noexcept
+		bool epoll_interface::update(socket* fd, bool readable, bool writeable) noexcept
 		{
-			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
-			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
-			VI_ASSERT(Readable || Writeable, "update should set readable and/or writeable");
-			VI_TRACE("[net] epoll update fd %i c%s%s", (int)Fd->Fd, Readable ? "r" : "", Writeable ? "w" : "");
+			VI_ASSERT(handle != INVALID_EPOLL, "epoll should be initialized");
+			VI_ASSERT(fd != nullptr && fd->fd != INVALID_SOCKET, "socket should be set and valid");
+			VI_ASSERT(readable || writeable, "update should set readable and/or writeable");
+			VI_TRACE("[net] epoll update fd %i c%s%s", (int)fd->fd, readable ? "r" : "", writeable ? "w" : "");
 #ifdef NET_POLL
-			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
-			return Queue->Upsert(Fd->Fd, Readable, Writeable, (void*)Fd);
+			VI_ASSERT(queue != nullptr, "epoll should be initialized");
+			return queue->upsert(fd->fd, readable, writeable, (void*)fd);
 #elif defined(NET_KQUEUE)
-			struct kevent ReadEvent;
-			EV_SET(&ReadEvent, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
-			int Result1 = Readable ? kevent(Handle, &ReadEvent, 1, nullptr, 0, nullptr) : 0;
+			struct kevent read_event;
+			EV_SET(&read_event, fd->fd, EVFILT_READ, EV_ADD, 0, 0, (void*)fd);
+			int result1 = readable ? kevent(handle, &read_event, 1, nullptr, 0, nullptr) : 0;
 
-			struct kevent WriteEvent;
-			EV_SET(&WriteEvent, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
-			int Result2 = Writeable ? kevent(Handle, &WriteEvent, 1, nullptr, 0, nullptr) : 0;
-			return Result1 != -1 && Result2 != -1;
+			struct kevent write_event;
+			EV_SET(&write_event, fd->fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)fd);
+			int result2 = writeable ? kevent(handle, &write_event, 1, nullptr, 0, nullptr) : 0;
+			return result1 != -1 && result2 != -1;
 #elif defined(NET_EPOLL)
-			epoll_event Event;
-			Event.data.ptr = (void*)Fd;
+			epoll_event event;
+			event.data.ptr = (void*)fd;
 #ifdef EPOLLRDHUP
-			Event.events = EPOLLRDHUP;
+			event.events = EPOLLRDHUP;
 #else
-			Event.events = 0;
+			event.events = 0;
 #endif
-			if (Readable)
-				Event.events |= EPOLLIN;
-			if (Writeable)
-				Event.events |= EPOLLOUT;
-			return epoll_ctl(Handle, EPOLL_CTL_MOD, Fd->Fd, &Event) == 0;
+			if (readable)
+				event.events |= EPOLLIN;
+			if (writeable)
+				event.events |= EPOLLOUT;
+			return epoll_ctl(handle, EPOLL_CTL_MOD, fd->fd, &event) == 0;
 #endif
 		}
-		bool EpollHandle::Remove(Socket* Fd) noexcept
+		bool epoll_interface::remove(socket* fd) noexcept
 		{
-			VI_ASSERT(Handle != INVALID_EPOLL, "epoll should be initialized");
-			VI_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, "socket should be set and valid");
-			VI_TRACE("[net] epoll remove fd %i", (int)Fd->Fd);
+			VI_ASSERT(handle != INVALID_EPOLL, "epoll should be initialized");
+			VI_ASSERT(fd != nullptr && fd->fd != INVALID_SOCKET, "socket should be set and valid");
+			VI_TRACE("[net] epoll remove fd %i", (int)fd->fd);
 #ifdef NET_POLL
-			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
-			Queue->Upsert(Fd->Fd, false, false, (void*)Fd);
+			VI_ASSERT(queue != nullptr, "epoll should be initialized");
+			queue->upsert(fd->fd, false, false, (void*)fd);
 			return true;
 #elif defined(NET_KQUEUE)
-			struct kevent Event;
-			EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_DELETE, 0, 0, (void*)nullptr);
-			int Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			struct kevent event;
+			EV_SET(&event, fd->fd, EVFILT_READ, EV_DELETE, 0, 0, (void*)nullptr);
+			int result1 = kevent(handle, &event, 1, nullptr, 0, nullptr);
 
-			EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void*)nullptr);
-			int Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			return Result1 != -1 && Result2 != -1;
+			EV_SET(&event, fd->fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void*)nullptr);
+			int result2 = kevent(handle, &event, 1, nullptr, 0, nullptr);
+			return result1 != -1 && result2 != -1;
 #elif defined(NET_EPOLL)
-			epoll_event Event;
-			Event.data.ptr = (void*)Fd;
+			epoll_event event;
+			event.data.ptr = (void*)fd;
 #ifdef EPOLLRDHUP
-			Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
+			event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
 #else
-			Event.events = EPOLLIN | EPOLLOUT;
+			event.events = EPOLLIN | EPOLLOUT;
 #endif
-			return epoll_ctl(Handle, EPOLL_CTL_DEL, Fd->Fd, &Event) == 0;
+			return epoll_ctl(handle, EPOLL_CTL_DEL, fd->fd, &event) == 0;
 #endif
 		}
-		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept
+		int epoll_interface::wait(epoll_fd* data, size_t data_size, uint64_t timeout) noexcept
 		{
-			VI_ASSERT(Capacity() >= DataSize, "epollfd array should be less than or equal to internal events buffer");
+			VI_ASSERT(capacity() >= data_size, "epollfd array should be less than or equal to internal events buffer");
 #ifdef NET_POLL
-			auto& Events = Queue->Compile();
-			if (Events.empty())
+			auto& events = queue->compile();
+			if (events.empty())
 				return 0;
 
-			VI_TRACE("[net] poll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
-			int Count = Utils::Poll(Events.data(), (int)Events.size(), (int)Timeout);
-			if (Count <= 0)
-				return Count;
+			VI_TRACE("[net] poll wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
+			int count = utils::poll(events.data(), (int)events.size(), (int)timeout);
+			if (count <= 0)
+				return count;
 
-			size_t Incoming = 0;
-			for (auto& Event : Events)
+			size_t incoming = 0;
+			for (auto& event : events)
 			{
-				Socket* Target = (Socket*)Queue->Unwrap(Event);
-				if (!Target)
+				socket* target = (socket*)queue->unwrap(event);
+				if (!target)
 					continue;
 
-				auto& Fd = Data[Incoming++];
-				Fd.Base = Target;
-				Fd.Readable = (Event.revents & POLLIN);
-				Fd.Writeable = (Event.revents & POLLOUT);
+				auto& fd = data[incoming++];
+				fd.base = target;
+				fd.readable = (event.revents & POLLIN);
+				fd.writeable = (event.revents & POLLOUT);
 #ifdef POLLRDHUP
-				Fd.Closeable = (Event.revents & POLLHUP || Event.revents & POLLRDHUP || Event.revents & POLLNVAL || Event.revents & POLLERR);
+				fd.closeable = (event.revents & POLLHUP || event.revents & POLLRDHUP || event.revents & POLLNVAL || event.revents & POLLERR);
 #else
-				Fd.Closeable = (Event.revents & POLLHUP || Event.revents & POLLNVAL || Event.revents & POLLERR);
+				fd.closeable = (event.revents & POLLHUP || event.revents & POLLNVAL || event.revents & POLLERR);
 #endif
 			}
-			VI_TRACE("[net] poll recv %i events", (int)Incoming);
+			VI_TRACE("[net] poll recv %i events", (int)incoming);
 #elif defined(NET_KQUEUE)
-			VI_TRACE("[net] kqueue wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
-			struct timespec Wait;
-			Wait.tv_sec = (int)Timeout / 1000;
-			Wait.tv_nsec = ((int)Timeout % 1000) * 1000000;
+			VI_TRACE("[net] kqueue wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
+			struct timespec wait;
+			wait.tv_sec = (int)timeout / 1000;
+			wait.tv_nsec = ((int)timeout % 1000) * 1000000;
 
-			int Count = kevent(Handle, nullptr, 0, Queue->Data, (int)DataSize, &Wait);
-			if (Count <= 0)
-				return Count;
+			int count = kevent(handle, nullptr, 0, queue->data, (int)data_size, &wait);
+			if (count <= 0)
+				return count;
 
-			size_t Incoming = 0;
-			for (auto It = Queue->Data; It != Queue->Data + Count; It++)
+			size_t incoming = 0;
+			for (auto it = queue->data; it != queue->data + count; it++)
 			{
-				auto& Fd = Data[Incoming++];
-				Fd.Base = (Socket*)It->udata;
-				Fd.Readable = (It->filter == EVFILT_READ);
-				Fd.Writeable = (It->filter == EVFILT_WRITE);
-				Fd.Closeable = (It->flags & EV_EOF);
+				auto& fd = data[incoming++];
+				fd.base = (socket*)it->udata;
+				fd.readable = (it->filter == EVFILT_READ);
+				fd.writeable = (it->filter == EVFILT_WRITE);
+				fd.closeable = (it->flags & EV_EOF);
 			}
-			VI_TRACE("[net] kqueue recv %i events", (int)Incoming);
+			VI_TRACE("[net] kqueue recv %i events", (int)incoming);
 #elif defined(NET_EPOLL)
-			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)DataSize, Timeout);
-			int Count = epoll_wait(Handle, Queue->Data, (int)DataSize, (int)Timeout);
-			if (Count <= 0)
-				return Count;
+			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
+			int count = epoll_wait(handle, queue->data, (int)data_size, (int)timeout);
+			if (count <= 0)
+				return count;
 
-			size_t Incoming = 0;
-			for (auto It = Queue->Data; It != Queue->Data + Count; It++)
+			size_t incoming = 0;
+			for (auto it = queue->data; it != queue->data + count; it++)
 			{
-				auto& Fd = Data[Incoming++];
-				Fd.Base = (Socket*)It->data.ptr;
-				Fd.Readable = (It->events & EPOLLIN);
-				Fd.Writeable = (It->events & EPOLLOUT);
+				auto& fd = data[incoming++];
+				fd.base = (socket*)it->data.ptr;
+				fd.readable = (it->events & EPOLLIN);
+				fd.writeable = (it->events & EPOLLOUT);
 #ifdef EPOLLRDHUP
-				Fd.Closeable = (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR);
+				fd.closeable = (it->events & EPOLLHUP || it->events & EPOLLRDHUP || it->events & EPOLLERR);
 #else
-				Fd.Closeable = (It->events & EPOLLHUP || It->events & EPOLLERR);
+				fd.closeable = (it->events & EPOLLHUP || it->events & EPOLLERR);
 #endif
 			}
-			VI_TRACE("[net] epoll recv %i events", (int)Incoming);
+			VI_TRACE("[net] epoll recv %i events", (int)incoming);
 #endif
-			return (int)Incoming;
+			return (int)incoming;
 		}
-		size_t EpollHandle::Capacity() noexcept
+		size_t epoll_interface::capacity() noexcept
 		{
 #ifdef NET_POLL
 			return std::numeric_limits<size_t>::max() / sizeof(epoll_fd);
 #else
-			VI_ASSERT(Queue != nullptr, "epoll should be initialized");
-			return Queue->Size;
+			VI_ASSERT(queue != nullptr, "epoll should be initialized");
+			return queue->size;
 #endif
 		}
 
-		Core::ExpectsIO<CertificateBlob> Utils::GenerateSelfSignedCertificate(uint32_t Days, const std::string_view& AddressesCommaSeparated, const std::string_view& DomainsCommaSeparated) noexcept
+		core::expects_io<certificate_blob> utils::generate_self_signed_certificate(uint32_t days, const std::string_view& addresses_comma_separated, const std::string_view& domains_comma_separated) noexcept
 		{
-			Core::UPtr<CertificateBuilder> Builder = new CertificateBuilder();
-			Builder->SetSerialNumber();
-			Builder->SetVersion(2);
-			Builder->SetNotBefore();
-			Builder->SetNotAfter(86400 * Days);
-			Builder->SetPublicKey();
-			Builder->AddSubjectInfo("CN", "Self-signed certificate");
-			Builder->AddIssuerInfo("CN", "CA for self-signed certificates");
+			core::uptr<certificate_builder> builder = new certificate_builder();
+			builder->set_serial_number();
+			builder->set_version(2);
+			builder->set_not_before();
+			builder->set_not_after(86400 * days);
+			builder->set_public_key();
+			builder->add_subject_info("CN", "Self-signed certificate");
+			builder->add_issuer_info("CN", "CA for self-signed certificates");
 
-			Core::String AlternativeNames;
-			for (auto& Domain : Core::Stringify::Split(DomainsCommaSeparated, ','))
-				AlternativeNames += "DNS: " + Domain + ", ";
+			core::string alternative_names;
+			for (auto& domain : core::stringify::split(domains_comma_separated, ','))
+				alternative_names += "dns: " + domain + ", ";
 
-			for (auto& Address : Core::Stringify::Split(AddressesCommaSeparated, ','))
-				AlternativeNames += "IP: " + Address + ", ";
+			for (auto& address : core::stringify::split(addresses_comma_separated, ','))
+				alternative_names += "IP: " + address + ", ";
 
-			if (!AlternativeNames.empty())
+			if (!alternative_names.empty())
 			{
-				AlternativeNames.erase(AlternativeNames.size() - 2, 2);
-				Builder->AddStandardExtension(nullptr, "subjectAltName", AlternativeNames.c_str());
+				alternative_names.erase(alternative_names.size() - 2, 2);
+				builder->add_standard_extension(nullptr, "subjectAltName", alternative_names.c_str());
 			}
 
-			Builder->Sign(Compute::Digests::SHA256());
-			return Builder->Build();
+			builder->sign(compute::digests::SHA256());
+			return builder->build();
 		}
-		Core::ExpectsIO<Certificate> Utils::GetCertificateFromX509(void* CertificateX509) noexcept
+		core::expects_io<certificate> utils::get_certificate_from_x509(void* certificate_x509) noexcept
 		{
-			VI_ASSERT(CertificateX509 != nullptr, "certificate should be set");
-			VI_MEASURE(Core::Timings::Networking);
+			VI_ASSERT(certificate_x509 != nullptr, "certificate should be set");
+			VI_MEASURE(core::timings::networking);
 #ifdef VI_OPENSSL
-			X509* Blob = (X509*)CertificateX509;
-			X509_NAME* Subject = X509_get_subject_name(Blob);
-			X509_NAME* Issuer = X509_get_issuer_name(Blob);
-			ASN1_INTEGER* Serial = X509_get_serialNumber(Blob);
-			auto NotBefore = ASN1_GetTime(X509_get_notBefore(Blob));
-			auto NotAfter = ASN1_GetTime(X509_get_notAfter(Blob));
+			X509* blob = (X509*)certificate_x509;
+			X509_NAME* subject = X509_get_subject_name(blob);
+			X509_NAME* issuer = X509_get_issuer_name(blob);
+			ASN1_INTEGER* serial = X509_get_serialNumber(blob);
+			auto not_before = asn1_get_time(X509_get_notBefore(blob));
+			auto not_after = asn1_get_time(X509_get_notAfter(blob));
 
-			Certificate Output;
-			Output.Version = (int32_t)X509_get_version(Blob);
-			Output.Signature = X509_get_signature_type(Blob);
-			Output.NotBeforeDate = NotBefore.first;
-			Output.NotBeforeTime = NotBefore.second;
-			Output.NotAfterDate = NotAfter.first;
-			Output.NotAfterTime = NotAfter.second;
-			Output.Blob.Pointer = Blob;
+			certificate output;
+			output.version = (int32_t)X509_get_version(blob);
+			output.signature = X509_get_signature_type(blob);
+			output.not_before_date = not_before.first;
+			output.not_before_time = not_before.second;
+			output.not_after_date = not_after.first;
+			output.not_after_time = not_after.second;
+			output.blob.pointer = blob;
 
-			int Extensions = X509_get_ext_count(Blob);
-			Output.Extensions.reserve((size_t)Extensions);
+			int extensions = X509_get_ext_count(blob);
+			output.extensions.reserve((size_t)extensions);
 
-			for (int i = 0; i < Extensions; i++)
+			for (int i = 0; i < extensions; i++)
 			{
-				Core::String Name, Value;
-				X509_EXTENSION* Extension = X509_get_ext(Blob, i);
-				ASN1_OBJECT* Object = X509_EXTENSION_get_object(Extension);
+				core::string name, value;
+				X509_EXTENSION* extension = X509_get_ext(blob, i);
+				ASN1_OBJECT* object = X509_EXTENSION_get_object(extension);
 
-				BIO* ExtensionBio = BIO_new(BIO_s_mem());
-				if (ExtensionBio != nullptr)
+				BIO* extension_bio = BIO_new(BIO_s_mem());
+				if (extension_bio != nullptr)
 				{
-					BUF_MEM* ExtensionMemory = nullptr;
-					i2a_ASN1_OBJECT(ExtensionBio, Object);
-					if (BIO_get_mem_ptr(ExtensionBio, &ExtensionMemory) != 0 && ExtensionMemory->data != nullptr && ExtensionMemory->length > 0)
-						Name = Core::String(ExtensionMemory->data, (size_t)ExtensionMemory->length);
-					BIO_free(ExtensionBio);
+					BUF_MEM* extension_memory = nullptr;
+					i2a_ASN1_OBJECT(extension_bio, object);
+					if (BIO_get_mem_ptr(extension_bio, &extension_memory) != 0 && extension_memory->data != nullptr && extension_memory->length > 0)
+						name = core::string(extension_memory->data, (size_t)extension_memory->length);
+					BIO_free(extension_bio);
 				}
 
-				ExtensionBio = BIO_new(BIO_s_mem());
-				if (ExtensionBio != nullptr)
+				extension_bio = BIO_new(BIO_s_mem());
+				if (extension_bio != nullptr)
 				{
-					BUF_MEM* ExtensionMemory = nullptr;
-					X509V3_EXT_print(ExtensionBio, Extension, 0, 0);
-					if (BIO_get_mem_ptr(ExtensionBio, &ExtensionMemory) != 0 && ExtensionMemory->data != nullptr && ExtensionMemory->length > 0)
-						Value = Core::String(ExtensionMemory->data, (size_t)ExtensionMemory->length);
-					BIO_free(ExtensionBio);
+					BUF_MEM* extension_memory = nullptr;
+					X509V3_EXT_print(extension_bio, extension, 0, 0);
+					if (BIO_get_mem_ptr(extension_bio, &extension_memory) != 0 && extension_memory->data != nullptr && extension_memory->length > 0)
+						value = core::string(extension_memory->data, (size_t)extension_memory->length);
+					BIO_free(extension_bio);
 				}
 
-				Output.Extensions[Name] = std::move(Value);
+				output.extensions[name] = std::move(value);
 			}
 
-			char SubjectBuffer[Core::CHUNK_SIZE];
-			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
-			Output.SubjectName = SubjectBuffer;
+			char subject_buffer[core::CHUNK_SIZE];
+			X509_NAME_oneline(subject, subject_buffer, (int)sizeof(subject_buffer));
+			output.subject_name = subject_buffer;
 
-			char IssuerBuffer[Core::CHUNK_SIZE], SerialBuffer[Core::CHUNK_SIZE];
-			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
-			Output.IssuerName = IssuerBuffer;
+			char issuer_buffer[core::CHUNK_SIZE], serial_buffer[core::CHUNK_SIZE];
+			X509_NAME_oneline(issuer, issuer_buffer, (int)sizeof(issuer_buffer));
+			output.issuer_name = issuer_buffer;
 
-			uint8_t Buffer[256];
-			int Length = i2d_ASN1_INTEGER(Serial, nullptr);
-			if (Length > 0 && (unsigned)Length < (unsigned)sizeof(Buffer))
+			uint8_t buffer[256];
+			int length = i2d_ASN1_INTEGER(serial, nullptr);
+			if (length > 0 && (unsigned)length < (unsigned)sizeof(buffer))
 			{
-				uint8_t* Pointer = Buffer;
-				if (!Compute::Codec::HexToString(std::string_view((char*)Buffer, (uint64_t)i2d_ASN1_INTEGER(Serial, &Pointer)), SerialBuffer, sizeof(SerialBuffer)))
-					*SerialBuffer = '\0';
+				uint8_t* pointer = buffer;
+				if (!compute::codec::hex_to_string(std::string_view((char*)buffer, (uint64_t)i2d_ASN1_INTEGER(serial, &pointer)), serial_buffer, sizeof(serial_buffer)))
+					*serial_buffer = '\0';
 			}
 			else
-				*SerialBuffer = '\0';
-			Output.SerialNumber = SerialBuffer;
+				*serial_buffer = '\0';
+			output.serial_number = serial_buffer;
 
-			const EVP_MD* Digest = EVP_get_digestbyname("sha256");
-			uint32_t BufferLength = sizeof(Buffer) - 1;
-			X509_digest(Blob, Digest, Buffer, &BufferLength);
-			Output.Fingerprint = Compute::Codec::HexEncode(Core::String((const char*)Buffer, BufferLength));
+			const EVP_MD* digest = EVP_get_digestbyname("sha256");
+			uint32_t buffer_length = sizeof(buffer) - 1;
+			X509_digest(blob, digest, buffer, &buffer_length);
+			output.fingerprint = compute::codec::hex_encode(core::string((const char*)buffer, buffer_length));
 
-			X509_pubkey_digest(Blob, Digest, Buffer, &BufferLength);
-			Output.PublicKey = Compute::Codec::HexEncode(Core::String((const char*)Buffer, BufferLength));
+			X509_pubkey_digest(blob, digest, buffer, &buffer_length);
+			output.public_key = compute::codec::hex_encode(core::string((const char*)buffer, buffer_length));
 
-			return Output;
+			return output;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::Vector<Core::String> Utils::GetHostIpAddresses() noexcept
+		core::vector<core::string> utils::get_host_ip_addresses() noexcept
 		{
-			Core::Vector<Core::String> IpAddresses;
-			IpAddresses.push_back("127.0.0.1");
+			core::vector<core::string> ip_addresses;
+			ip_addresses.push_back("127.0.0.1");
 
-			char Hostname[Core::CHUNK_SIZE];
-			struct addrinfo* Addresses = nullptr;
-			if (gethostname(Hostname, sizeof(Hostname)) == SOCKET_ERROR)
-				return IpAddresses;
+			char hostname[core::CHUNK_SIZE];
+			struct addrinfo* addresses = nullptr;
+			if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR)
+				return ip_addresses;
 
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(struct addrinfo));
-			Hints.ai_family = AF_INET;
-			Hints.ai_protocol = IPPROTO_TCP;
-			Hints.ai_socktype = SOCK_STREAM;
+			struct addrinfo hints;
+			memset(&hints, 0, sizeof(struct addrinfo));
+			hints.ai_family = AF_INET;
+			hints.ai_protocol = IPPROTO_TCP;
+			hints.ai_socktype = SOCK_STREAM;
 
-			if (getaddrinfo(Hostname, nullptr, &Hints, &Addresses) == 0)
+			if (getaddrinfo(hostname, nullptr, &hints, &addresses) == 0)
 			{
-				for (auto It = Addresses; It != nullptr; It = It->ai_next)
+				for (auto it = addresses; it != nullptr; it = it->ai_next)
 				{
-					char IpAddress[INET_ADDRSTRLEN];
-					if (inet_ntop(It->ai_family, &(((struct sockaddr_in*)It->ai_addr)->sin_addr), IpAddress, sizeof(IpAddress)))
-						IpAddresses.push_back(Core::String(IpAddress, strnlen(IpAddress, sizeof(IpAddress))));
+					char ip_address[INET_ADDRSTRLEN];
+					if (inet_ntop(it->ai_family, &(((struct sockaddr_in*)it->ai_addr)->sin_addr), ip_address, sizeof(ip_address)))
+						ip_addresses.push_back(core::string(ip_address, strnlen(ip_address, sizeof(ip_address))));
 				}
-				freeaddrinfo(Addresses);
+				freeaddrinfo(addresses);
 			}
 
-			Hints.ai_family = AF_INET6;
-			if (getaddrinfo(Hostname, nullptr, &Hints, &Addresses) == 0)
+			hints.ai_family = AF_INET6;
+			if (getaddrinfo(hostname, nullptr, &hints, &addresses) == 0)
 			{
-				for (auto It = Addresses; It != nullptr; It = It->ai_next)
+				for (auto it = addresses; it != nullptr; it = it->ai_next)
 				{
-					char IpAddress[INET6_ADDRSTRLEN];
-					if (inet_ntop(It->ai_family, &(((struct sockaddr_in6*)It->ai_addr)->sin6_addr), IpAddress, sizeof(IpAddress)))
-						IpAddresses.push_back(Core::String(IpAddress, strnlen(IpAddress, sizeof(IpAddress))));
+					char ip_address[INET6_ADDRSTRLEN];
+					if (inet_ntop(it->ai_family, &(((struct sockaddr_in6*)it->ai_addr)->sin6_addr), ip_address, sizeof(ip_address)))
+						ip_addresses.push_back(core::string(ip_address, strnlen(ip_address, sizeof(ip_address))));
 				}
-				freeaddrinfo(Addresses);
+				freeaddrinfo(addresses);
 			}
 
-			return IpAddresses;
+			return ip_addresses;
 		}
-		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout) noexcept
+		int utils::poll(pollfd* fd, int fd_count, int timeout) noexcept
 		{
-			VI_ASSERT(Fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll wait %i fds (%i ms)", FdCount, Timeout);
+			VI_ASSERT(fd != nullptr, "poll should be set");
+			VI_TRACE("[net] poll wait %i fds (%i ms)", fd_count, timeout);
 #if defined(VI_MICROSOFT)
-			int Count = WSAPoll(Fd, FdCount, Timeout);
+			int count = WSAPoll(fd, fd_count, timeout);
 #else
-			int Count = poll(Fd, FdCount, Timeout);
+			int count = poll(fd, fd_count, timeout);
 #endif
-			if (Count > 0)
-				VI_TRACE("[net] poll recv %i events", Count);
-			return Count;
+			if (count > 0)
+				VI_TRACE("[net] poll recv %i events", count);
+			return count;
 		}
-		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout) noexcept
+		int utils::poll(poll_fd* fd, int fd_count, int timeout) noexcept
 		{
-			VI_ASSERT(Fd != nullptr, "poll should be set");
-			Core::Vector<pollfd> Fds;
-			Fds.resize(FdCount);
+			VI_ASSERT(fd != nullptr, "poll should be set");
+			core::vector<pollfd> fds;
+			fds.resize(fd_count);
 
-			for (size_t i = 0; i < (size_t)FdCount; i++)
+			for (size_t i = 0; i < (size_t)fd_count; i++)
 			{
-				auto& Next = Fds[i];
-				Next.revents = 0;
-				Next.events = 0;
+				auto& next = fds[i];
+				next.revents = 0;
+				next.events = 0;
 
-				auto& Base = Fd[i];
-				Next.fd = Base.Fd;
+				auto& base = fd[i];
+				next.fd = base.fd;
 
-				if (Base.Events & InputNormal)
-					Next.events |= POLLRDNORM;
-				if (Base.Events & InputBand)
-					Next.events |= POLLRDBAND;
-				if (Base.Events & InputPriority)
-					Next.events |= POLLPRI;
-				if (Base.Events & Input)
-					Next.events |= POLLIN;
-				if (Base.Events & OutputNormal)
-					Next.events |= POLLWRNORM;
-				if (Base.Events & OutputBand)
-					Next.events |= POLLWRBAND;
-				if (Base.Events & Output)
-					Next.events |= POLLOUT;
-				if (Base.Events & Error)
-					Next.events |= POLLERR;
+				if (base.events & input_normal)
+					next.events |= POLLRDNORM;
+				if (base.events & input_band)
+					next.events |= POLLRDBAND;
+				if (base.events & input_priority)
+					next.events |= POLLPRI;
+				if (base.events & input)
+					next.events |= POLLIN;
+				if (base.events & output_normal)
+					next.events |= POLLWRNORM;
+				if (base.events & output_band)
+					next.events |= POLLWRBAND;
+				if (base.events & output)
+					next.events |= POLLOUT;
+				if (base.events & error)
+					next.events |= POLLERR;
 #ifdef POLLRDHUP
-				if (Base.Events & Hangup)
-					Next.events |= POLLRDHUP;
+				if (base.events & hangup)
+					next.events |= POLLRDHUP;
 #endif
 			}
 
-			int Size = Poll(Fds.data(), FdCount, Timeout);
-			for (size_t i = 0; i < (size_t)FdCount; i++)
+			int size = poll(fds.data(), fd_count, timeout);
+			for (size_t i = 0; i < (size_t)fd_count; i++)
 			{
-				auto& Next = Fd[i];
-				Next.Returns = 0;
+				auto& next = fd[i];
+				next.returns = 0;
 
-				auto& Base = Fds[i];
-				if (Base.revents & POLLRDNORM)
-					Next.Returns |= InputNormal;
-				if (Base.revents & POLLRDBAND)
-					Next.Returns |= InputBand;
-				if (Base.revents & POLLPRI)
-					Next.Returns |= InputPriority;
-				if (Base.revents & POLLIN)
-					Next.Returns |= Input;
-				if (Base.revents & POLLWRNORM)
-					Next.Returns |= OutputNormal;
-				if (Base.revents & POLLWRBAND)
-					Next.Returns |= OutputBand;
-				if (Base.revents & POLLOUT)
-					Next.Returns |= Output;
-				if (Base.revents & POLLERR)
-					Next.Returns |= Error;
+				auto& base = fds[i];
+				if (base.revents & POLLRDNORM)
+					next.returns |= input_normal;
+				if (base.revents & POLLRDBAND)
+					next.returns |= input_band;
+				if (base.revents & POLLPRI)
+					next.returns |= input_priority;
+				if (base.revents & POLLIN)
+					next.returns |= input;
+				if (base.revents & POLLWRNORM)
+					next.returns |= output_normal;
+				if (base.revents & POLLWRBAND)
+					next.returns |= output_band;
+				if (base.revents & POLLOUT)
+					next.returns |= output;
+				if (base.revents & POLLERR)
+					next.returns |= error;
 #ifdef POLLRDHUP
-				if (Base.revents & POLLRDHUP || Base.revents & POLLHUP)
-					Next.Returns |= Hangup;
+				if (base.revents & POLLRDHUP || base.revents & POLLHUP)
+					next.returns |= hangup;
 #else
-				if (Base.revents & POLLHUP)
-					Next.Returns |= Hangup;
+				if (base.revents & POLLHUP)
+					next.returns |= hangup;
 #endif
 			}
 
-			return Size;
+			return size;
 		}
-		std::error_condition Utils::GetLastError(ssl_st* Device, int ErrorCode) noexcept
+		std::error_condition utils::GetLastError(ssl_st* device, int error_code) noexcept
 		{
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				ErrorCode = SSL_get_error(Device, ErrorCode);
-				switch (ErrorCode)
+				error_code = SSL_get_error(device, error_code);
+				switch (error_code)
 				{
 					case SSL_ERROR_WANT_READ:
 					case SSL_ERROR_WANT_WRITE:
@@ -1397,27 +1398,27 @@ namespace Vitex
 					case SSL_ERROR_WANT_RETRY_VERIFY:
 						return std::make_error_condition(std::errc::operation_would_block);
 					case SSL_ERROR_SSL:
-						Utils::DisplayTransportLog();
+						utils::display_transport_log();
 						return std::make_error_condition(std::errc::protocol_error);
 					case SSL_ERROR_ZERO_RETURN:
-						Utils::DisplayTransportLog();
+						utils::display_transport_log();
 						return std::make_error_condition(std::errc::bad_message);
 					case SSL_ERROR_SYSCALL:
-						Utils::DisplayTransportLog();
+						utils::display_transport_log();
 						return std::make_error_condition(std::errc::io_error);
 					case SSL_ERROR_NONE:
 					default:
-						Utils::DisplayTransportLog();
+						utils::display_transport_log();
 						return std::make_error_condition(std::errc());
 				}
 			}
 #endif
 #ifdef VI_MICROSOFT
-			ErrorCode = WSAGetLastError();
+			error_code = WSAGetLastError();
 #else
-			ErrorCode = errno;
+			error_code = errno;
 #endif
-			switch (ErrorCode)
+			switch (error_code)
 			{
 #ifdef VI_MICROSOFT
 				case WSAEWOULDBLOCK:
@@ -1428,3387 +1429,3387 @@ namespace Vitex
 				case 0:
 					return std::make_error_condition(std::errc::connection_reset);
 				default:
-					return Core::OS::Error::GetCondition(ErrorCode);
+					return core::os::error::get_condition(error_code);
 			}
 		}
-		Core::Option<SocketCidr> Utils::ParseAddressMask(const std::string_view& Mask) noexcept
+		core::option<socket_cidr> utils::parse_address_mask(const std::string_view& mask) noexcept
 		{
-			auto IsIpV4 = Core::Stringify::Find(Mask, '.');
-			auto IsIpV6 = Core::Stringify::Find(Mask, ':');
-			auto IsMask = Core::Stringify::Find(Mask, '/');
-			if (Mask.empty() || !IsMask.Found || (!IsIpV4.Found && !IsIpV6.Found) || (IsIpV4.Found && IsIpV6.Found))
-				return Core::Optional::None;
+			auto is_ip_v4 = core::stringify::find(mask, '.');
+			auto is_ip_v6 = core::stringify::find(mask, ':');
+			auto is_mask = core::stringify::find(mask, '/');
+			if (mask.empty() || !is_mask.found || (!is_ip_v4.found && !is_ip_v6.found) || (is_ip_v4.found && is_ip_v6.found))
+				return core::optional::none;
 
-			auto Range = Core::FromString<uint8_t>(Mask.substr(IsMask.End));
-			if (!Range || (IsIpV4.Found && *Range > 32) || (IsIpV6.Found && *Range > 128))
-				return Core::Optional::None;
+			auto range = core::from_string<uint8_t>(mask.substr(is_mask.end));
+			if (!range || (is_ip_v4.found && *range > 32) || (is_ip_v6.found && *range > 128))
+				return core::optional::none;
 
-			auto Address = Mask.substr(0, IsMask.Start);
-			if (IsIpV6.Found)
+			auto address = mask.substr(0, is_mask.start);
+			if (is_ip_v6.found)
 			{
-				auto Blocks = Core::Stringify::Split(Address, ':');
-				if (Blocks.size() > 8)
-					return Core::Optional::None;
+				auto blocks = core::stringify::split(address, ':');
+				if (blocks.size() > 8)
+					return core::optional::none;
 
-				auto A = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 1 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[0], 16).Or(0));
-				auto B = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 2 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[1], 16).Or(0));
-				auto C = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 3 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[2], 16).Or(0));
-				auto D = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 4 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[3], 16).Or(0));
-				auto E = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 5 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[4], 16).Or(0));
-				auto F = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 6 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[5], 16).Or(0));
-				auto G = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 7 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[6], 16).Or(0));
-				auto H = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Blocks.size() < 8 ? uint16_t(0) : Core::FromString<uint16_t>(Blocks[7], 16).Or(0));
+				auto a = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 1 ? uint16_t(0) : core::from_string<uint16_t>(blocks[0], 16).otherwise(0));
+				auto b = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 2 ? uint16_t(0) : core::from_string<uint16_t>(blocks[1], 16).otherwise(0));
+				auto c = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 3 ? uint16_t(0) : core::from_string<uint16_t>(blocks[2], 16).otherwise(0));
+				auto d = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 4 ? uint16_t(0) : core::from_string<uint16_t>(blocks[3], 16).otherwise(0));
+				auto e = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 5 ? uint16_t(0) : core::from_string<uint16_t>(blocks[4], 16).otherwise(0));
+				auto f = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 6 ? uint16_t(0) : core::from_string<uint16_t>(blocks[5], 16).otherwise(0));
+				auto g = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 7 ? uint16_t(0) : core::from_string<uint16_t>(blocks[6], 16).otherwise(0));
+				auto h = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 8 ? uint16_t(0) : core::from_string<uint16_t>(blocks[7], 16).otherwise(0));
 
-				uint64_t BaseValueH = 0, BaseValueL = 0;
-				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 0, &A, sizeof(uint16_t));
-				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 1, &B, sizeof(uint16_t));
-				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 2, &C, sizeof(uint16_t));
-				memcpy((char*)&BaseValueH + sizeof(uint16_t) * 3, &D, sizeof(uint16_t));
-				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 0, &E, sizeof(uint16_t));
-				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 1, &F, sizeof(uint16_t));
-				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 2, &G, sizeof(uint16_t));
-				memcpy((char*)&BaseValueL + sizeof(uint16_t) * 3, &H, sizeof(uint16_t));
-				BaseValueH = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, BaseValueH);
-				BaseValueL = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, BaseValueL);
+				uint64_t base_value_h = 0, base_value_l = 0;
+				memcpy((char*)&base_value_h + sizeof(uint16_t) * 0, &a, sizeof(uint16_t));
+				memcpy((char*)&base_value_h + sizeof(uint16_t) * 1, &b, sizeof(uint16_t));
+				memcpy((char*)&base_value_h + sizeof(uint16_t) * 2, &c, sizeof(uint16_t));
+				memcpy((char*)&base_value_h + sizeof(uint16_t) * 3, &d, sizeof(uint16_t));
+				memcpy((char*)&base_value_l + sizeof(uint16_t) * 0, &e, sizeof(uint16_t));
+				memcpy((char*)&base_value_l + sizeof(uint16_t) * 1, &f, sizeof(uint16_t));
+				memcpy((char*)&base_value_l + sizeof(uint16_t) * 2, &g, sizeof(uint16_t));
+				memcpy((char*)&base_value_l + sizeof(uint16_t) * 3, &h, sizeof(uint16_t));
+				base_value_h = core::os::hw::to_endianness(core::os::hw::endian::big, base_value_h);
+				base_value_l = core::os::hw::to_endianness(core::os::hw::endian::big, base_value_l);
 
-				Compute::UInt128 BaseValue = Compute::UInt128(BaseValueH, BaseValueL);
-				Compute::UInt128 RangeValue = ~(Compute::UInt128::Max() << (128 - *Range));
-				Compute::UInt128 MinValue = BaseValue & (Compute::UInt128::Max() << (128 - *Range));
-				Compute::UInt128 MaxValue = MinValue + RangeValue;
-				SocketCidr Result;
-				Result.MinValue = MinValue;
-				Result.MaxValue = MaxValue;
-				Result.Value = BaseValue;
-				Result.Mask = *Range;
-				return Result;
+				compute::uint128 base_value = compute::uint128(base_value_h, base_value_l);
+				compute::uint128 range_value = ~(compute::uint128::max() << (128 - *range));
+				compute::uint128 min_value = base_value & (compute::uint128::max() << (128 - *range));
+				compute::uint128 max_value = min_value + range_value;
+				socket_cidr result;
+				result.min_value = min_value;
+				result.max_value = max_value;
+				result.value = base_value;
+				result.mask = *range;
+				return result;
 			}
 			else
 			{
-				auto Blocks = Core::Stringify::Split(Address, '.');
-				if (Blocks.size() > 4)
-					return Core::Optional::None;
+				auto blocks = core::stringify::split(address, '.');
+				if (blocks.size() > 4)
+					return core::optional::none;
 
-				auto A = Blocks.size() < 1 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[0]).Or(0);
-				auto B = Blocks.size() < 2 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[1]).Or(0);
-				auto C = Blocks.size() < 3 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[2]).Or(0);
-				auto D = Blocks.size() < 4 ? uint8_t(0) : Core::FromString<uint8_t>(Blocks[3]).Or(0);
+				auto a = blocks.size() < 1 ? uint8_t(0) : core::from_string<uint8_t>(blocks[0]).otherwise(0);
+				auto b = blocks.size() < 2 ? uint8_t(0) : core::from_string<uint8_t>(blocks[1]).otherwise(0);
+				auto c = blocks.size() < 3 ? uint8_t(0) : core::from_string<uint8_t>(blocks[2]).otherwise(0);
+				auto d = blocks.size() < 4 ? uint8_t(0) : core::from_string<uint8_t>(blocks[3]).otherwise(0);
 
-				uint32_t BaseValue = 0;
-				memcpy((char*)&BaseValue + sizeof(uint8_t) * 0, &A, sizeof(uint8_t));
-				memcpy((char*)&BaseValue + sizeof(uint8_t) * 1, &B, sizeof(uint8_t));
-				memcpy((char*)&BaseValue + sizeof(uint8_t) * 2, &C, sizeof(uint8_t));
-				memcpy((char*)&BaseValue + sizeof(uint8_t) * 3, &D, sizeof(uint8_t));
-				BaseValue = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, BaseValue);
+				uint32_t base_value = 0;
+				memcpy((char*)&base_value + sizeof(uint8_t) * 0, &a, sizeof(uint8_t));
+				memcpy((char*)&base_value + sizeof(uint8_t) * 1, &b, sizeof(uint8_t));
+				memcpy((char*)&base_value + sizeof(uint8_t) * 2, &c, sizeof(uint8_t));
+				memcpy((char*)&base_value + sizeof(uint8_t) * 3, &d, sizeof(uint8_t));
+				base_value = core::os::hw::to_endianness(core::os::hw::endian::big, base_value);
 
-				uint32_t RangeValue = ~(std::numeric_limits<uint32_t>::max() << (32 - *Range));
-				uint32_t MinValue = BaseValue & (std::numeric_limits<uint32_t>::max() << (32 - *Range));
-				uint32_t MaxValue = MinValue + RangeValue;
-				SocketCidr Result;
-				Result.MinValue = MinValue;
-				Result.MaxValue = MaxValue;
-				Result.Value = BaseValue;
-				Result.Mask = *Range;
-				return Result;
+				uint32_t range_value = ~(std::numeric_limits<uint32_t>::max() << (32 - *range));
+				uint32_t min_value = base_value & (std::numeric_limits<uint32_t>::max() << (32 - *range));
+				uint32_t max_value = min_value + range_value;
+				socket_cidr result;
+				result.min_value = min_value;
+				result.max_value = max_value;
+				result.value = base_value;
+				result.mask = *range;
+				return result;
 			}
 		}
-		bool Utils::IsInvalid(socket_t Fd) noexcept
+		bool utils::is_invalid(socket_t fd) noexcept
 		{
-			return Fd == INVALID_SOCKET;
+			return fd == INVALID_SOCKET;
 		}
-		int64_t Utils::Clock() noexcept
+		int64_t utils::clock() noexcept
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-		void Utils::DisplayTransportLog() noexcept
+		void utils::display_transport_log() noexcept
 		{
-			Compute::Crypto::DisplayCryptoLog();
+			compute::crypto::display_crypto_log();
 		}
 
-		TransportLayer::TransportLayer() noexcept : IsInstalled(false)
+		transport_layer::transport_layer() noexcept : is_installed(false)
 		{
 		}
-		TransportLayer::~TransportLayer() noexcept
+		transport_layer::~transport_layer() noexcept
 		{
 #ifdef VI_OPENSSL
-			for (auto& Context : Servers)
-				SSL_CTX_free(Context);
-			Servers.clear();
+			for (auto& context : servers)
+				SSL_CTX_free(context);
+			servers.clear();
 
-			for (auto& Context : Clients)
-				SSL_CTX_free(Context);
-			Clients.clear();
+			for (auto& context : clients)
+				SSL_CTX_free(context);
+			clients.clear();
 #endif
 		}
-		Core::ExpectsIO<ssl_ctx_st*> TransportLayer::CreateServerContext(size_t VerifyDepth, SecureLayerOptions Options, const std::string_view& CiphersList) noexcept
+		core::expects_io<ssl_ctx_st*> transport_layer::create_server_context(size_t verify_depth, secure_layer_options options, const std::string_view& ciphers_list) noexcept
 		{
 #ifdef VI_OPENSSL
-			VI_ASSERT(Core::Stringify::IsCString(CiphersList), "ciphers list should be set");
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			SSL_CTX* Context; bool LoadCertificates = false;
-			if (Servers.empty())
+			VI_ASSERT(core::stringify::is_cstring(ciphers_list), "ciphers list should be set");
+			core::umutex<std::mutex> unique(exclusive);
+			SSL_CTX* context; bool load_certificates = false;
+			if (servers.empty())
 			{
-				Context = SSL_CTX_new(TLS_server_method());
-				if (!Context)
+				context = SSL_CTX_new(TLS_server_method());
+				if (!context)
 				{
-					Utils::DisplayTransportLog();
+					utils::display_transport_log();
 					return std::make_error_condition(std::errc::protocol_not_supported);
 				}
-				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", Context);
-				LoadCertificates = VerifyDepth > 0;
+				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", context);
+				load_certificates = verify_depth > 0;
 			}
 			else
 			{
-				Context = *Servers.begin();
-				Servers.erase(Servers.begin());
-				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", Context);
-				LoadCertificates = VerifyDepth > 0 && SSL_CTX_get_verify_depth(Context) <= 0;
+				context = *servers.begin();
+				servers.erase(servers.begin());
+				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", context);
+				load_certificates = verify_depth > 0 && SSL_CTX_get_verify_depth(context) <= 0;
 			}
-			Unique.Negate();
+			unique.negate();
 
-			auto Status = InitializeContext(Context, LoadCertificates);
-			if (!Status)
+			auto status = initialize_context(context, load_certificates);
+			if (!status)
 			{
-				SSL_CTX_free(Context);
-				return Status.Error();
+				SSL_CTX_free(context);
+				return status.error();
 			}
 
-			long Flags = SSL_OP_ALL;
-			if ((size_t)Options & (size_t)SecureLayerOptions::NoSSL_V2)
-				Flags |= SSL_OP_NO_SSLv2;
-			if ((size_t)Options & (size_t)SecureLayerOptions::NoSSL_V3)
-				Flags |= SSL_OP_NO_SSLv3;
-			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1)
-				Flags |= SSL_OP_NO_TLSv1;
-			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1_1)
-				Flags |= SSL_OP_NO_TLSv1_1;
+			long flags = SSL_OP_ALL;
+			if ((size_t)options & (size_t)secure_layer_options::no_sslv2)
+				flags |= SSL_OP_NO_SSLv2;
+			if ((size_t)options & (size_t)secure_layer_options::no_sslv3)
+				flags |= SSL_OP_NO_SSLv3;
+			if ((size_t)options & (size_t)secure_layer_options::no_tlsv1)
+				flags |= SSL_OP_NO_TLSv1;
+			if ((size_t)options & (size_t)secure_layer_options::no_tlsv11)
+				flags |= SSL_OP_NO_TLSv1_1;
 #ifdef SSL_OP_NO_TLSv1_2
-			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1_2)
-				Flags |= SSL_OP_NO_TLSv1_2;
+			if ((size_t)options & (size_t)secure_layer_options::no_tlsv12)
+				flags |= SSL_OP_NO_TLSv1_2;
 #endif
 #ifdef SSL_OP_NO_TLSv1_2
-			if ((size_t)Options & (size_t)SecureLayerOptions::NoTLS_V1_3)
-				Flags |= SSL_OP_NO_TLSv1_3;
+			if ((size_t)options & (size_t)secure_layer_options::no_tlsv13)
+				flags |= SSL_OP_NO_TLSv1_3;
 #endif
-			SSL_CTX_set_options(Context, Flags);
-			SSL_CTX_set_verify_depth(Context, (int)VerifyDepth);
-			if (!CiphersList.empty() && SSL_CTX_set_cipher_list(Context, CiphersList.data()) != 1)
+			SSL_CTX_set_options(context, flags);
+			SSL_CTX_set_verify_depth(context, (int)verify_depth);
+			if (!ciphers_list.empty() && SSL_CTX_set_cipher_list(context, ciphers_list.data()) != 1)
 			{
-				SSL_CTX_free(Context);
-				Utils::DisplayTransportLog();
+				SSL_CTX_free(context);
+				utils::display_transport_log();
 				return std::make_error_condition(std::errc::protocol_not_supported);
 			}
 
-			VI_DEBUG("[net] OK create server 0x%" PRIuPTR " TLS context", Context);
-			return Context;
+			VI_DEBUG("[net] OK create server 0x%" PRIuPTR " TLS context", context);
+			return context;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<ssl_ctx_st*> TransportLayer::CreateClientContext(size_t VerifyDepth) noexcept
+		core::expects_io<ssl_ctx_st*> transport_layer::create_client_context(size_t verify_depth) noexcept
 		{
 #ifdef VI_OPENSSL
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			SSL_CTX* Context; bool LoadCertificates = false;
-			if (Clients.empty())
+			core::umutex<std::mutex> unique(exclusive);
+			SSL_CTX* context; bool load_certificates = false;
+			if (clients.empty())
 			{
-				Context = SSL_CTX_new(TLS_client_method());
-				if (!Context)
+				context = SSL_CTX_new(TLS_client_method());
+				if (!context)
 				{
-					Utils::DisplayTransportLog();
+					utils::display_transport_log();
 					return std::make_error_condition(std::errc::protocol_not_supported);
 				}
-				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", Context);
-				LoadCertificates = VerifyDepth > 0;
+				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", context);
+				load_certificates = verify_depth > 0;
 			}
 			else
 			{
-				Context = *Clients.begin();
-				Clients.erase(Clients.begin());
-				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", Context);
-				LoadCertificates = VerifyDepth > 0 && SSL_CTX_get_verify_depth(Context) <= 0;
+				context = *clients.begin();
+				clients.erase(clients.begin());
+				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", context);
+				load_certificates = verify_depth > 0 && SSL_CTX_get_verify_depth(context) <= 0;
 			}
-			Unique.Negate();
+			unique.negate();
 
-			auto Status = InitializeContext(Context, LoadCertificates);
-			if (!Status)
+			auto status = initialize_context(context, load_certificates);
+			if (!status)
 			{
-				SSL_CTX_free(Context);
-				return Status.Error();
+				SSL_CTX_free(context);
+				return status.error();
 			}
 
-			SSL_CTX_set_verify_depth(Context, (int)VerifyDepth);
-			return Context;
+			SSL_CTX_set_verify_depth(context, (int)verify_depth);
+			return context;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		void TransportLayer::FreeServerContext(ssl_ctx_st* Context) noexcept
+		void transport_layer::free_server_context(ssl_ctx_st* context) noexcept
 		{
-			if (!Context)
+			if (!context)
 				return;
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			Servers.insert(Context);
+			core::umutex<std::mutex> unique(exclusive);
+			servers.insert(context);
 		}
-		void TransportLayer::FreeClientContext(ssl_ctx_st* Context) noexcept
+		void transport_layer::free_client_context(ssl_ctx_st* context) noexcept
 		{
-			if (!Context)
+			if (!context)
 				return;
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			Clients.insert(Context);
+			core::umutex<std::mutex> unique(exclusive);
+			clients.insert(context);
 		}
-		Core::ExpectsIO<void> TransportLayer::InitializeContext(ssl_ctx_st* Context, bool LoadCertificates) noexcept
+		core::expects_io<void> transport_layer::initialize_context(ssl_ctx_st* context, bool load_certificates) noexcept
 		{
 #ifdef VI_OPENSSL
-			SSL_CTX_set_options(Context, SSL_OP_SINGLE_DH_USE);
-			SSL_CTX_set_options(Context, SSL_OP_CIPHER_SERVER_PREFERENCE);
-			SSL_CTX_set_mode(Context, SSL_MODE_ENABLE_PARTIAL_WRITE);
-			SSL_CTX_set_mode(Context, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+			SSL_CTX_set_options(context, SSL_OP_SINGLE_DH_USE);
+			SSL_CTX_set_options(context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+			SSL_CTX_set_mode(context, SSL_MODE_ENABLE_PARTIAL_WRITE);
+			SSL_CTX_set_mode(context, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #ifdef SSL_CTX_set_ecdh_auto
-			SSL_CTX_set_ecdh_auto(Context, 1);
+			SSL_CTX_set_ecdh_auto(context, 1);
 #endif
-			auto SessionId = Compute::Crypto::RandomBytes(12);
-			if (SessionId)
+			auto session_id = compute::crypto::random_bytes(12);
+			if (session_id)
 			{
-				auto ContextId = Compute::Codec::HexEncode(*SessionId);
-				SSL_CTX_set_session_id_context(Context, (const uint8_t*)ContextId.c_str(), (uint32_t)ContextId.size());
+				auto context_id = compute::codec::hex_encode(*session_id);
+				SSL_CTX_set_session_id_context(context, (const uint8_t*)context_id.c_str(), (uint32_t)context_id.size());
 			}
 
-			if (LoadCertificates)
+			if (load_certificates)
 			{
 #ifdef VI_MICROSOFT
-				HCERTSTORE Store = CertOpenSystemStore(0, "ROOT");
-				if (!Store)
+				HCERTSTORE store = CertOpenSystemStore(0, "ROOT");
+				if (!store)
 				{
-					Utils::DisplayTransportLog();
+					utils::display_transport_log();
 					return std::make_error_condition(std::errc::permission_denied);
 				}
 
-				X509_STORE* Storage = SSL_CTX_get_cert_store(Context);
-				if (!Storage)
+				X509_STORE* storage = SSL_CTX_get_cert_store(context);
+				if (!storage)
 				{
-					CertCloseStore(Store, 0);
-					Utils::DisplayTransportLog();
+					CertCloseStore(store, 0);
+					utils::display_transport_log();
 					return std::make_error_condition(std::errc::bad_file_descriptor);
 				}
 
-				PCCERT_CONTEXT Next = nullptr; uint32_t Count = 0;
-				while ((Next = CertEnumCertificatesInStore(Store, Next)) != nullptr)
+				PCCERT_CONTEXT next = nullptr; uint32_t count = 0;
+				while ((next = CertEnumCertificatesInStore(store, next)) != nullptr)
 				{
-					X509* Certificate = d2i_X509(nullptr, (const uint8_t**)&Next->pbCertEncoded, Next->cbCertEncoded);
-					if (!Certificate)
+					X509* certificate = d2i_X509(nullptr, (const uint8_t**)&next->pbCertEncoded, next->cbCertEncoded);
+					if (!certificate)
 						continue;
 
-					if (X509_STORE_add_cert(Storage, Certificate) && !IsInstalled)
-						VI_TRACE("[net] OK load root level certificate: %s", Compute::Codec::HexEncode((const char*)Next->pCertInfo->SerialNumber.pbData, (size_t)Next->pCertInfo->SerialNumber.cbData).c_str());
-					X509_free(Certificate);
-					++Count;
+					if (X509_STORE_add_cert(storage, certificate) && !is_installed)
+						VI_TRACE("[net] OK load root level certificate: %s", compute::codec::hex_encode((const char*)next->pCertInfo->serial_number.pbData, (size_t)next->pCertInfo->serial_number.cbData).c_str());
+					X509_free(certificate);
+					++count;
 				}
 
-				(void)Count;
-				VI_DEBUG("[net] OK load %i root level certificates from ROOT registry", Count);
-				CertCloseStore(Store, 0);
-				Utils::DisplayTransportLog();
+				(void)count;
+				VI_DEBUG("[net] OK load %i root level certificates from ROOT registry", count);
+				CertCloseStore(store, 0);
+				utils::display_transport_log();
 #else
-				if (!SSL_CTX_set_default_verify_paths(Context))
+				if (!SSL_CTX_set_default_verify_paths(context))
 				{
-					Utils::DisplayTransportLog();
+					utils::display_transport_log();
 					return std::make_error_condition(std::errc::no_such_file_or_directory);
 				}
 #endif
 			}
 
-			IsInstalled = true;
-			return Core::Expectation::Met;
+			is_installed = true;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
 
-		DNS::DNS() noexcept
+		dns::dns() noexcept
 		{
 			VI_TRACE("[dns] OK initialize cache");
 		}
-		DNS::~DNS() noexcept
+		dns::~dns() noexcept
 		{
 			VI_TRACE("[dns] cleanup cache");
-			Names.clear();
+			names.clear();
 		}
-		Core::ExpectsSystem<Core::String> DNS::ReverseLookup(const std::string_view& Hostname, const std::string_view& Service)
+		core::expects_system<core::string> dns::reverse_lookup(const std::string_view& hostname, const std::string_view& service)
 		{
-			VI_ASSERT(Hostname.empty() || Core::Stringify::IsCString(Hostname), "host should be set");
-			VI_ASSERT(Service.empty() || Core::Stringify::IsCString(Service), "service should be set");
-			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
+			VI_ASSERT(hostname.empty() || core::stringify::is_cstring(hostname), "host should be set");
+			VI_ASSERT(service.empty() || core::stringify::is_cstring(service), "service should be set");
+			VI_MEASURE((uint64_t)core::timings::networking * 3);
 
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(Hints));
-			Hints.ai_family = AF_UNSPEC;
+			struct addrinfo hints;
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = AF_UNSPEC;
 
-			if (HasIpV4Address(Hostname) || HasIpV6Address(Hostname))
-				Hints.ai_flags |= AI_NUMERICHOST;
-			if (Core::Stringify::HasInteger(Service))
-				Hints.ai_flags |= AI_NUMERICSERV;
+			if (has_ip_v4_address(hostname) || has_ip_v6_address(hostname))
+				hints.ai_flags |= AI_NUMERICHOST;
+			if (core::stringify::has_integer(service))
+				hints.ai_flags |= AI_NUMERICSERV;
 
-			struct addrinfo* Address = nullptr;
-			if (getaddrinfo(Hostname.empty() ? nullptr : Hostname.data(), Service.empty() ? nullptr : Service.data(), &Hints, &Address) != 0)
-				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address: invalid address", Hostname.data(), Service.data()));
+			struct addrinfo* address = nullptr;
+			if (getaddrinfo(hostname.empty() ? nullptr : hostname.data(), service.empty() ? nullptr : service.data(), &hints, &address) != 0)
+				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()));
 
-			SocketAddress Target = SocketAddress(Hostname, Core::FromString<uint16_t>(Service).Or(0), Address);
-			freeaddrinfo(Address);
-			return ReverseAddressLookup(Target);
+			socket_address target = socket_address(hostname, core::from_string<uint16_t>(service).otherwise(0), address);
+			freeaddrinfo(address);
+			return reverse_address_lookup(target);
 		}
-		Core::ExpectsPromiseSystem<Core::String> DNS::ReverseLookupDeferred(const std::string_view& SourceHostname, const std::string_view& SourceService)
+		core::expects_promise_system<core::string> dns::reverse_lookup_deferred(const std::string_view& source_hostname, const std::string_view& source_service)
 		{
-			Core::String Hostname = Core::String(SourceHostname), Service = Core::String(SourceService);
-			return Core::Cotask<Core::ExpectsSystem<Core::String>>([this, Hostname = std::move(Hostname), Service = std::move(Service)]() mutable
+			core::string hostname = core::string(source_hostname), service = core::string(source_service);
+			return core::cotask<core::expects_system<core::string>>([this, hostname = std::move(hostname), service = std::move(service)]() mutable
 			{
-				return ReverseLookup(Hostname, Service);
+				return reverse_lookup(hostname, service);
 			});
 		}
-		Core::ExpectsSystem<Core::String> DNS::ReverseAddressLookup(const SocketAddress& Address)
+		core::expects_system<core::string> dns::reverse_address_lookup(const socket_address& address)
 		{
-			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
-			char ReverseHostname[NI_MAXHOST], ReverseService[NI_MAXSERV];
-			if (getnameinfo(Address.GetRawAddress(), (socklen_t)Address.GetAddressSize(), ReverseHostname, NI_MAXHOST, ReverseService, NI_MAXSERV, NI_NUMERICSERV) != 0)
-				return Core::SystemException(Core::Stringify::Text("dns reverse resolve %s address: invalid address", GetAddressIdentification(Address).c_str()));
+			VI_MEASURE((uint64_t)core::timings::networking * 3);
+			char reverse_hostname[NI_MAXHOST], reverse_service[NI_MAXSERV];
+			if (getnameinfo(address.get_raw_address(), (socklen_t)address.get_address_size(), reverse_hostname, NI_MAXHOST, reverse_service, NI_MAXSERV, NI_NUMERICSERV) != 0)
+				return core::system_exception(core::stringify::text("dns reverse resolve %s address: invalid address", get_address_identification(address).c_str()));
 
-			VI_DEBUG("[net] dns reverse resolved for entity %s (host %s:%s is used)", GetAddressIdentification(Address).c_str(), ReverseHostname, ReverseService);
-			return Core::String(ReverseHostname, strnlen(ReverseHostname, sizeof(ReverseHostname)));
+			VI_DEBUG("[net] dns reverse resolved for entity %s (host %s:%s is used)", get_address_identification(address).c_str(), reverse_hostname, reverse_service);
+			return core::string(reverse_hostname, strnlen(reverse_hostname, sizeof(reverse_hostname)));
 		}
-		Core::ExpectsPromiseSystem<Core::String> DNS::ReverseAddressLookupDeferred(const SocketAddress& Address)
+		core::expects_promise_system<core::string> dns::reverse_address_lookup_deferred(const socket_address& address)
 		{
-			return Core::Cotask<Core::ExpectsSystem<Core::String>>([this, Address]() mutable
+			return core::cotask<core::expects_system<core::string>>([this, address]() mutable
 			{
-				return ReverseAddressLookup(Address);
+				return reverse_address_lookup(address);
 			});
 		}
-		Core::ExpectsSystem<SocketAddress> DNS::Lookup(const std::string_view& Hostname, const std::string_view& Service, DNSType Resolver, SocketProtocol Proto, SocketType Type)
+		core::expects_system<socket_address> dns::lookup(const std::string_view& hostname, const std::string_view& service, dns_type resolver, socket_protocol proto, socket_type type)
 		{
-			VI_ASSERT(!Hostname.empty() && Core::Stringify::IsCString(Hostname), "host should be set");
-			VI_MEASURE((uint64_t)Core::Timings::Networking * 3);
-			int64_t Time = time(nullptr);
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(struct addrinfo));
-			Hints.ai_family = AF_UNSPEC;
-			switch (Proto)
+			VI_ASSERT(!hostname.empty() && core::stringify::is_cstring(hostname), "host should be set");
+			VI_MEASURE((uint64_t)core::timings::networking * 3);
+			int64_t time = ::time(nullptr);
+			struct addrinfo hints;
+			memset(&hints, 0, sizeof(struct addrinfo));
+			hints.ai_family = AF_UNSPEC;
+			switch (proto)
 			{
-				case SocketProtocol::IP:
-					Hints.ai_protocol = IPPROTO_IP;
+				case socket_protocol::IP:
+					hints.ai_protocol = IPPROTO_IP;
 					break;
-				case SocketProtocol::ICMP:
-					Hints.ai_protocol = IPPROTO_ICMP;
+				case socket_protocol::ICMP:
+					hints.ai_protocol = IPPROTO_ICMP;
 					break;
-				case SocketProtocol::UDP:
-					Hints.ai_protocol = IPPROTO_UDP;
+				case socket_protocol::UDP:
+					hints.ai_protocol = IPPROTO_UDP;
 					break;
-				case SocketProtocol::RAW:
-					Hints.ai_protocol = IPPROTO_RAW;
+				case socket_protocol::RAW:
+					hints.ai_protocol = IPPROTO_RAW;
 					break;
-				case SocketProtocol::TCP:
+				case socket_protocol::TCP:
 				default:
-					Hints.ai_protocol = IPPROTO_TCP;
+					hints.ai_protocol = IPPROTO_TCP;
 					break;
 			}
-			switch (Type)
+			switch (type)
 			{
-				case SocketType::Datagram:
-					Hints.ai_socktype = SOCK_DGRAM;
+				case socket_type::datagram:
+					hints.ai_socktype = SOCK_DGRAM;
 					break;
-				case SocketType::Raw:
-					Hints.ai_socktype = SOCK_RAW;
+				case socket_type::raw:
+					hints.ai_socktype = SOCK_RAW;
 					break;
-				case SocketType::Reliably_Delivered_Message:
-					Hints.ai_socktype = SOCK_RDM;
+				case socket_type::reliably_delivered_message:
+					hints.ai_socktype = SOCK_RDM;
 					break;
-				case SocketType::Sequence_Packet_Stream:
-					Hints.ai_socktype = SOCK_SEQPACKET;
+				case socket_type::sequence_packet_stream:
+					hints.ai_socktype = SOCK_SEQPACKET;
 					break;
-				case SocketType::Stream:
+				case socket_type::stream:
 				default:
-					Hints.ai_socktype = SOCK_STREAM;
+					hints.ai_socktype = SOCK_STREAM;
 					break;
 			}
-			switch (Resolver)
+			switch (resolver)
 			{
-				case DNSType::Connect:
-					Hints.ai_flags = AI_CANONNAME;
+				case dns_type::connect:
+					hints.ai_flags = AI_CANONNAME;
 					break;
-				case DNSType::Listen:
-					Hints.ai_flags = AI_CANONNAME | AI_PASSIVE;
+				case dns_type::listen:
+					hints.ai_flags = AI_CANONNAME | AI_PASSIVE;
 					break;
 				default:
 					break;
 			}
-			if (HasIpV4Address(Hostname) || HasIpV6Address(Hostname))
-				Hints.ai_flags |= AI_NUMERICHOST;
-			if (Core::Stringify::HasInteger(Service))
-				Hints.ai_flags |= AI_NUMERICSERV;
+			if (has_ip_v4_address(hostname) || has_ip_v6_address(hostname))
+				hints.ai_flags |= AI_NUMERICHOST;
+			if (core::stringify::has_integer(service))
+				hints.ai_flags |= AI_NUMERICSERV;
 
-			char Buffer[Core::CHUNK_SIZE];
-			size_t HeaderSize = sizeof(uint16_t) * 7;
-			size_t MaxServiceSize = sizeof(Buffer) - HeaderSize;
-			size_t ServiceSize = std::min<size_t>(Service.size(), MaxServiceSize);
-			size_t HostnameSize = std::min<size_t>(Hostname.size(), MaxServiceSize - ServiceSize);
-			memcpy(Buffer + sizeof(uint32_t) * 0, &Resolver, sizeof(uint32_t));
-			memcpy(Buffer + sizeof(uint32_t) * 1, &Proto, sizeof(uint32_t));
-			memcpy(Buffer + sizeof(uint32_t) * 2, &Type, sizeof(uint32_t));
-			memcpy(Buffer + sizeof(uint32_t) * 3, Service.data(), ServiceSize);
-			memcpy(Buffer + sizeof(uint32_t) * 3 + ServiceSize, Hostname.data(), HostnameSize);
+			char buffer[core::CHUNK_SIZE];
+			size_t header_size = sizeof(uint16_t) * 7;
+			size_t max_service_size = sizeof(buffer) - header_size;
+			size_t service_size = std::min<size_t>(service.size(), max_service_size);
+			size_t hostname_size = std::min<size_t>(hostname.size(), max_service_size - service_size);
+			memcpy(buffer + sizeof(uint32_t) * 0, &resolver, sizeof(uint32_t));
+			memcpy(buffer + sizeof(uint32_t) * 1, &proto, sizeof(uint32_t));
+			memcpy(buffer + sizeof(uint32_t) * 2, &type, sizeof(uint32_t));
+			memcpy(buffer + sizeof(uint32_t) * 3, service.data(), service_size);
+			memcpy(buffer + sizeof(uint32_t) * 3 + service_size, hostname.data(), hostname_size);
 
-			Core::KeyHasher<Core::String> Hasher;
-			size_t Hash = Hasher(std::string_view(Buffer, HeaderSize + ServiceSize + HostnameSize));
+			core::key_hasher<core::string> hasher;
+			size_t hash = hasher(std::string_view(buffer, header_size + service_size + hostname_size));
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Names.find(Hash);
-				if (It != Names.end() && It->second.first > Time)
-					return It->second.second;
+				core::umutex<std::mutex> unique(exclusive);
+				auto it = names.find(hash);
+				if (it != names.end() && it->second.first > time)
+					return it->second.second;
 			}
 
-			struct addrinfo* Addresses = nullptr;
-			if (getaddrinfo(Hostname.empty() ? nullptr : Hostname.data(), Service.empty() ? nullptr : Service.data(), &Hints, &Addresses) != 0)
-				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address: invalid address", Hostname.data(), Service.data()));
+			struct addrinfo* addresses = nullptr;
+			if (getaddrinfo(hostname.empty() ? nullptr : hostname.data(), service.empty() ? nullptr : service.data(), &hints, &addresses) != 0)
+				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()));
 
-			struct addrinfo* TargetAddress = nullptr;
-			Core::UnorderedMap<socket_t, addrinfo*> Hosts;
-			for (auto It = Addresses; It != nullptr; It = It->ai_next)
+			struct addrinfo* target_address = nullptr;
+			core::unordered_map<socket_t, addrinfo*> hosts;
+			for (auto it = addresses; it != nullptr; it = it->ai_next)
 			{
-				auto Connectable = ExecuteSocket(It->ai_family, It->ai_socktype, It->ai_protocol);
-				if (!Connectable && Connectable.Error() == std::errc::permission_denied)
+				auto connectable = execute_socket(it->ai_family, it->ai_socktype, it->ai_protocol);
+				if (!connectable && connectable.error() == std::errc::permission_denied)
 				{
-					for (auto& Host : Hosts)
+					for (auto& host : hosts)
 					{
-						closesocket(Host.first);
-						VI_DEBUG("[net] close dns fd %i", (int)Host.first);
+						closesocket(host.first);
+						VI_DEBUG("[net] close dns fd %i", (int)host.first);
 					}
-					return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address", Hostname.data(), Service.data()), std::move(Connectable.Error()));
+					return core::system_exception(core::stringify::text("dns resolve %s:%s address", hostname.data(), service.data()), std::move(connectable.error()));
 				}
-				else if (!Connectable)
+				else if (!connectable)
 					continue;
 
-				socket_t Connection = *Connectable;
-				VI_DEBUG("[net] open dns fd %i", (int)Connection);
-				if (Resolver == DNSType::Connect)
+				socket_t connection = *connectable;
+				VI_DEBUG("[net] open dns fd %i", (int)connection);
+				if (resolver == dns_type::connect)
 				{
-					Hosts[Connection] = It;
+					hosts[connection] = it;
 					continue;
 				}
 
-				TargetAddress = It;
-				closesocket(Connection);
-				VI_DEBUG("[net] close dns fd %i", (int)Connection);
+				target_address = it;
+				closesocket(connection);
+				VI_DEBUG("[net] close dns fd %i", (int)connection);
 				break;
 			}
 
-			if (Resolver == DNSType::Connect)
-				TargetAddress = TryConnectDNS(Hosts, CONNECT_TIMEOUT);
+			if (resolver == dns_type::connect)
+				target_address = try_connect_dns(hosts, CONNECT_TIMEOUT);
 
-			for (auto& Host : Hosts)
+			for (auto& host : hosts)
 			{
-				closesocket(Host.first);
-				VI_DEBUG("[net] close dns fd %i", (int)Host.first);
+				closesocket(host.first);
+				VI_DEBUG("[net] close dns fd %i", (int)host.first);
 			}
 
-			if (!TargetAddress)
+			if (!target_address)
 			{
-				freeaddrinfo(Addresses);
-				return Core::SystemException(Core::Stringify::Text("dns resolve %s:%s address: invalid address", Hostname.data(), Service.data()), std::make_error_condition(std::errc::host_unreachable));
+				freeaddrinfo(addresses);
+				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()), std::make_error_condition(std::errc::host_unreachable));
 			}
 
-			SocketAddress Result = SocketAddress(Hostname, Core::FromString<uint16_t>(Service).Or(0), TargetAddress);
-			VI_DEBUG("[net] dns resolved for entity %s:%s (address %s is used)", Hostname.data(), Service.data(), GetIpAddressIdentification(Result).c_str());
-			freeaddrinfo(Addresses);
+			socket_address result = socket_address(hostname, core::from_string<uint16_t>(service).otherwise(0), target_address);
+			VI_DEBUG("[net] dns resolved for entity %s:%s (address %s is used)", hostname.data(), service.data(), get_ip_address_identification(result).c_str());
+			freeaddrinfo(addresses);
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Names.find(Hash);
-			if (It != Names.end())
+			core::umutex<std::mutex> unique(exclusive);
+			auto it = names.find(hash);
+			if (it != names.end())
 			{
-				It->second.first = Time + DNS_TIMEOUT;
-				Result = It->second.second;
+				it->second.first = time + DNS_TIMEOUT;
+				result = it->second.second;
 			}
 			else
-				Names[Hash] = std::make_pair(Time + DNS_TIMEOUT, Result);
+				names[hash] = std::make_pair(time + DNS_TIMEOUT, result);
 
-			return Result;
+			return result;
 		}
-		Core::ExpectsPromiseSystem<SocketAddress> DNS::LookupDeferred(const std::string_view& SourceHostname, const std::string_view& SourceService, DNSType Resolver, SocketProtocol Proto, SocketType Type)
+		core::expects_promise_system<socket_address> dns::lookup_deferred(const std::string_view& source_hostname, const std::string_view& source_service, dns_type resolver, socket_protocol proto, socket_type type)
 		{
-			Core::String Hostname = Core::String(SourceHostname), Service = Core::String(SourceService);
-			return Core::Cotask<Core::ExpectsSystem<SocketAddress>>([this, Hostname = std::move(Hostname), Service = std::move(Service), Resolver, Proto, Type]() mutable
+			core::string hostname = core::string(source_hostname), service = core::string(source_service);
+			return core::cotask<core::expects_system<socket_address>>([this, hostname = std::move(hostname), service = std::move(service), resolver, proto, type]() mutable
 			{
-				return Lookup(Hostname, Service, Resolver, Proto, Type);
+				return lookup(hostname, service, resolver, proto, type);
 			});
 		}
 
-		Multiplexer::Multiplexer() noexcept : Multiplexer(100, 256)
+		multiplexer::multiplexer() noexcept : multiplexer(100, 256)
 		{
 		}
-		Multiplexer::Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept : Handle(MaxEvents), Activations(0), DefaultTimeout(DispatchTimeout)
+		multiplexer::multiplexer(uint64_t dispatch_timeout, size_t max_events) noexcept : handle(max_events), activations(0), default_timeout(dispatch_timeout)
 		{
-			VI_TRACE("[net] OK initialize multiplexer (%" PRIu64 " events)", (uint64_t)MaxEvents);
-			Fds.resize(MaxEvents);
+			VI_TRACE("[net] OK initialize multiplexer (%" PRIu64 " events)", (uint64_t)max_events);
+			fds.resize(max_events);
 		}
-		Multiplexer::~Multiplexer() noexcept
+		multiplexer::~multiplexer() noexcept
 		{
-			Shutdown();
+			shutdown();
 			VI_TRACE("[net] free multiplexer");
 		}
-		void Multiplexer::Rescale(uint64_t DispatchTimeout, size_t MaxEvents) noexcept
+		void multiplexer::rescale(uint64_t dispatch_timeout, size_t max_events) noexcept
 		{
-			DefaultTimeout = DispatchTimeout;
-			Handle = EpollHandle(MaxEvents);
+			default_timeout = dispatch_timeout;
+			handle = epoll_interface(max_events);
 		}
-		void Multiplexer::Activate() noexcept
+		void multiplexer::activate() noexcept
 		{
-			TryListen();
+			try_listen();
 		}
-		void Multiplexer::Deactivate() noexcept
+		void multiplexer::deactivate() noexcept
 		{
-			TryUnlisten();
+			try_unlisten();
 		}
-		void Multiplexer::Shutdown() noexcept
+		void multiplexer::shutdown() noexcept
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
-			DispatchTimers(Core::Schedule::GetClock());
+			VI_MEASURE(core::timings::file_system);
+			dispatch_timers(core::schedule::get_clock());
 
-			Core::OrderedMap<std::chrono::microseconds, Socket*> DirtyTimers;
-			Core::UnorderedSet<Socket*> DirtyTrackers;
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			VI_DEBUG("[net] shutdown multiplexer on fds (sockets = %i)", (int)(Timers.size() + Trackers.size()));
-			DirtyTimers.swap(Timers);
-			DirtyTrackers.swap(Trackers);
+			core::ordered_map<std::chrono::microseconds, socket*> dirty_timers;
+			core::unordered_set<socket*> dirty_trackers;
+			core::umutex<std::mutex> unique(exclusive);
+			VI_DEBUG("[net] shutdown multiplexer on fds (sockets = %i)", (int)(timers.size() + trackers.size()));
+			dirty_timers.swap(timers);
+			dirty_trackers.swap(trackers);
 
-			for (auto& Item : DirtyTrackers)
+			for (auto& item : dirty_trackers)
 			{
-				VI_DEBUG("[net] sock reset on fd %i", (int)Item->Fd);
-				Item->Events.Expiration = std::chrono::microseconds(0);
-				CancelEvents(Item, SocketPoll::Reset);
+				VI_DEBUG("[net] sock reset on fd %i", (int)item->fd);
+				item->events.expiration = std::chrono::microseconds(0);
+				cancel_events(item, socket_poll::reset);
 			}
 
-			for (auto& Item : DirtyTimers)
+			for (auto& item : dirty_timers)
 			{
-				VI_DEBUG("[net] sock timeout on fd %i", (int)Item.second->Fd);
-				Item.second->Events.Expiration = std::chrono::microseconds(0);
-				CancelEvents(Item.second, SocketPoll::Timeout);
+				VI_DEBUG("[net] sock timeout on fd %i", (int)item.second->fd);
+				item.second->events.expiration = std::chrono::microseconds(0);
+				cancel_events(item.second, socket_poll::timeout);
 			}
 		}
-		int Multiplexer::Dispatch(uint64_t EventTimeout) noexcept
+		int multiplexer::dispatch(uint64_t event_timeout) noexcept
 		{
-			int Count = Handle.Wait(Fds.data(), Fds.size(), EventTimeout);
-			auto Time = Core::Schedule::GetClock();
-			if (Count > 0)
+			int count = handle.wait(fds.data(), fds.size(), event_timeout);
+			auto time = core::schedule::get_clock();
+			if (count > 0)
 			{
-				VI_MEASURE(Core::Timings::FileSystem);
-				size_t Size = (size_t)Count;
-				for (size_t i = 0; i < Size; i++)
-					DispatchEvents(Fds[i], Time);
+				VI_MEASURE(core::timings::file_system);
+				size_t size = (size_t)count;
+				for (size_t i = 0; i < size; i++)
+					dispatch_events(fds[i], time);
 			}
 
-			DispatchTimers(Time);
-			return Count;
+			dispatch_timers(time);
+			return count;
 		}
-		void Multiplexer::DispatchTimers(const std::chrono::microseconds& Time) noexcept
+		void multiplexer::dispatch_timers(const std::chrono::microseconds& time) noexcept
 		{
-			VI_MEASURE(Core::Timings::FileSystem);
-			if (Timers.empty())
+			VI_MEASURE(core::timings::file_system);
+			if (timers.empty())
 				return;
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			while (!Timers.empty())
+			core::umutex<std::mutex> unique(exclusive);
+			while (!timers.empty())
 			{
-				auto It = Timers.begin();
-				if (It->first > Time)
+				auto it = timers.begin();
+				if (it->first > time)
 					break;
 
-				VI_DEBUG("[net] sock timeout on fd %i", (int)It->second->Fd);
-				It->second->Events.Expiration = std::chrono::microseconds(0);
-				CancelEvents(It->second, SocketPoll::Timeout);
-				Timers.erase(It);
+				VI_DEBUG("[net] sock timeout on fd %i", (int)it->second->fd);
+				it->second->events.expiration = std::chrono::microseconds(0);
+				cancel_events(it->second, socket_poll::timeout);
+				timers.erase(it);
 			}
 		}
-		bool Multiplexer::DispatchEvents(const EpollFd& Fd, const std::chrono::microseconds& Time) noexcept
+		bool multiplexer::dispatch_events(const epoll_fd& fd, const std::chrono::microseconds& time) noexcept
 		{
-			VI_ASSERT(Fd.Base != nullptr, "no socket is connected to epoll fd");
-			VI_TRACE("[net] sock event:%s%s%s on fd %i", Fd.Closeable ? "c" : "", Fd.Readable ? "r" : "", Fd.Writeable ? "w" : "", (int)Fd.Base->Fd);
-			if (Fd.Closeable)
+			VI_ASSERT(fd.base != nullptr, "no socket is connected to epoll fd");
+			VI_TRACE("[net] sock event:%s%s%s on fd %i", fd.closeable ? "c" : "", fd.readable ? "r" : "", fd.writeable ? "w" : "", (int)fd.base->fd);
+			if (fd.closeable)
 			{
-				VI_DEBUG("[net] sock reset on fd %i", (int)Fd.Base->Fd);
-				CancelEvents(Fd.Base, SocketPoll::Reset);
+				VI_DEBUG("[net] sock reset on fd %i", (int)fd.base->fd);
+				cancel_events(fd.base, socket_poll::reset);
 				return false;
 			}
-			else if (!Fd.Readable && !Fd.Writeable)
+			else if (!fd.readable && !fd.writeable)
 				return true;
 
-			Core::UMutex<std::mutex> Unique(Fd.Base->Events.Mutex);
-			bool WasListeningRead = !!Fd.Base->Events.ReadCallback;
-			bool WasListeningWrite = !!Fd.Base->Events.WriteCallback;
-			bool StillListeningRead = !Fd.Readable && WasListeningRead;
-			bool StillListeningWrite = !Fd.Writeable && WasListeningWrite;
-			if (StillListeningRead || StillListeningWrite)
+			core::umutex<std::mutex> unique(fd.base->events.mutex);
+			bool was_listening_read = !!fd.base->events.read_callback;
+			bool was_listening_write = !!fd.base->events.write_callback;
+			bool still_listening_read = !fd.readable && was_listening_read;
+			bool still_listening_write = !fd.writeable && was_listening_write;
+			if (still_listening_read || still_listening_write)
 			{
-				if (WasListeningRead != StillListeningRead || WasListeningWrite != StillListeningWrite)
-					Handle.Update(Fd.Base, StillListeningRead, StillListeningWrite);
-				UpdateTimeout(Fd.Base, Time);
+				if (was_listening_read != still_listening_read || was_listening_write != still_listening_write)
+					handle.update(fd.base, still_listening_read, still_listening_write);
+				update_timeout(fd.base, time);
 			}
-			else if (WasListeningRead || WasListeningWrite)
+			else if (was_listening_read || was_listening_write)
 			{
-				Handle.Remove(Fd.Base);
-				RemoveTimeout(Fd.Base);
+				handle.remove(fd.base);
+				remove_timeout(fd.base);
 			}
 
-			if (Fd.Readable && Fd.Writeable)
+			if (fd.readable && fd.writeable)
 			{
-				PollEventCallback ReadCallback, WriteCallback;
-				Fd.Base->Events.ReadCallback.swap(ReadCallback);
-				Fd.Base->Events.WriteCallback.swap(WriteCallback);
-				Unique.Negate();
-				Core::Cospawn([ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
+				poll_event_callback read_callback, write_callback;
+				fd.base->events.read_callback.swap(read_callback);
+				fd.base->events.write_callback.swap(write_callback);
+				unique.negate();
+				core::cospawn([read_callback = std::move(read_callback), write_callback = std::move(write_callback)]() mutable
 				{
-					if (WriteCallback)
-						WriteCallback(SocketPoll::Finish);
-					if (ReadCallback)
-						ReadCallback(SocketPoll::Finish);
+					if (write_callback)
+						write_callback(socket_poll::finish);
+					if (read_callback)
+						read_callback(socket_poll::finish);
 				});
 			}
-			else if (Fd.Readable && WasListeningRead)
+			else if (fd.readable && was_listening_read)
 			{
-				PollEventCallback ReadCallback;
-				Fd.Base->Events.ReadCallback.swap(ReadCallback);
-				Unique.Negate();
-				Core::Cospawn([ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(SocketPoll::Finish); });
+				poll_event_callback read_callback;
+				fd.base->events.read_callback.swap(read_callback);
+				unique.negate();
+				core::cospawn([read_callback = std::move(read_callback)]() mutable { read_callback(socket_poll::finish); });
 			}
-			else if (Fd.Writeable && WasListeningWrite)
+			else if (fd.writeable && was_listening_write)
 			{
-				PollEventCallback WriteCallback;
-				Fd.Base->Events.WriteCallback.swap(WriteCallback);
-				Unique.Negate();
-				Core::Cospawn([WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(SocketPoll::Finish); });
+				poll_event_callback write_callback;
+				fd.base->events.write_callback.swap(write_callback);
+				unique.negate();
+				core::cospawn([write_callback = std::move(write_callback)]() mutable { write_callback(socket_poll::finish); });
 			}
 
-			return StillListeningRead || StillListeningWrite;
+			return still_listening_read || still_listening_write;
 		}
-		bool Multiplexer::WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept
+		bool multiplexer::when_readable(socket* value, poll_event_callback&& when_ready) noexcept
 		{
-			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-			VI_ASSERT(WhenReady != nullptr, "readable callback should be set");
-			Core::UMutex<std::mutex> Unique(Value->Events.Mutex);
-			bool WasListeningRead = !!Value->Events.ReadCallback;
-			bool StillListeningWrite = !!Value->Events.WriteCallback;
-			Value->Events.ReadCallback.swap(WhenReady);
-			bool Listening = (WhenReady ? Handle.Update(Value, true, StillListeningWrite) : Handle.Add(Value, true, StillListeningWrite));
-			if (!WasListeningRead && !StillListeningWrite)
-				AddTimeout(Value, Core::Schedule::GetClock());
+			VI_ASSERT(value != nullptr && value->fd != INVALID_SOCKET, "socket should be set and valid");
+			VI_ASSERT(when_ready != nullptr, "readable callback should be set");
+			core::umutex<std::mutex> unique(value->events.mutex);
+			bool was_listening_read = !!value->events.read_callback;
+			bool still_listening_write = !!value->events.write_callback;
+			value->events.read_callback.swap(when_ready);
+			bool listening = (when_ready ? handle.update(value, true, still_listening_write) : handle.add(value, true, still_listening_write));
+			if (!was_listening_read && !still_listening_write)
+				add_timeout(value, core::schedule::get_clock());
 
-			Unique.Negate();
-			if (WhenReady)
-				Core::Cospawn([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); });
+			unique.negate();
+			if (when_ready)
+				core::cospawn([when_ready = std::move(when_ready)]() mutable { when_ready(socket_poll::cancel); });
 
-			return Listening;
+			return listening;
 		}
-		bool Multiplexer::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept
+		bool multiplexer::when_writeable(socket* value, poll_event_callback&& when_ready) noexcept
 		{
-			VI_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, "socket should be set and valid");
-			Core::UMutex<std::mutex> Unique(Value->Events.Mutex);
-			bool StillListeningRead = !!Value->Events.ReadCallback;
-			bool WasListeningWrite = !!Value->Events.WriteCallback;
-			Value->Events.WriteCallback.swap(WhenReady);
-			bool Listening = (WhenReady ? Handle.Update(Value, StillListeningRead, true) : Handle.Add(Value, StillListeningRead, true));
-			if (!WasListeningWrite && !StillListeningRead)
-				AddTimeout(Value, Core::Schedule::GetClock());
+			VI_ASSERT(value != nullptr && value->fd != INVALID_SOCKET, "socket should be set and valid");
+			core::umutex<std::mutex> unique(value->events.mutex);
+			bool still_listening_read = !!value->events.read_callback;
+			bool was_listening_write = !!value->events.write_callback;
+			value->events.write_callback.swap(when_ready);
+			bool listening = (when_ready ? handle.update(value, still_listening_read, true) : handle.add(value, still_listening_read, true));
+			if (!was_listening_write && !still_listening_read)
+				add_timeout(value, core::schedule::get_clock());
 
-			Unique.Negate();
-			if (WhenReady)
-				Core::Cospawn([WhenReady = std::move(WhenReady)]() mutable { WhenReady(SocketPoll::Cancel); });
+			unique.negate();
+			if (when_ready)
+				core::cospawn([when_ready = std::move(when_ready)]() mutable { when_ready(socket_poll::cancel); });
 
-			return Listening;
+			return listening;
 		}
-		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event) noexcept
+		bool multiplexer::cancel_events(socket* value, socket_poll event) noexcept
 		{
-			VI_ASSERT(Value != nullptr, "socket should be set and valid");
-			Core::UMutex<std::mutex> Unique(Value->Events.Mutex);
-			PollEventCallback ReadCallback, WriteCallback;
-			Value->Events.ReadCallback.swap(ReadCallback);
-			Value->Events.WriteCallback.swap(WriteCallback);
-			bool WasListening = ReadCallback || WriteCallback;
-			bool NotListening = WasListening && Value->IsValid() ? Handle.Remove(Value) : true;
-			if (WasListening)
-				RemoveTimeout(Value);
+			VI_ASSERT(value != nullptr, "socket should be set and valid");
+			core::umutex<std::mutex> unique(value->events.mutex);
+			poll_event_callback read_callback, write_callback;
+			value->events.read_callback.swap(read_callback);
+			value->events.write_callback.swap(write_callback);
+			bool was_listening = read_callback || write_callback;
+			bool not_listening = was_listening && value->is_valid() ? handle.remove(value) : true;
+			if (was_listening)
+				remove_timeout(value);
 
-			Unique.Negate();
-			if (Packet::IsDone(Event) || !WasListening)
-				return NotListening;
+			unique.negate();
+			if (packet::is_done(event) || !was_listening)
+				return not_listening;
 
-			if (ReadCallback && WriteCallback)
+			if (read_callback && write_callback)
 			{
-				Core::Cospawn([Event, ReadCallback = std::move(ReadCallback), WriteCallback = std::move(WriteCallback)]() mutable
+				core::cospawn([event, read_callback = std::move(read_callback), write_callback = std::move(write_callback)]() mutable
 				{
-					if (WriteCallback)
-						WriteCallback(Event);
-					if (ReadCallback)
-						ReadCallback(Event);
+					if (write_callback)
+						write_callback(event);
+					if (read_callback)
+						read_callback(event);
 				});
 			}
-			else if (ReadCallback)
-				Core::Cospawn([Event, ReadCallback = std::move(ReadCallback)]() mutable { ReadCallback(Event); });
-			else if (WriteCallback)
-				Core::Cospawn([Event, WriteCallback = std::move(WriteCallback)]() mutable { WriteCallback(Event); });
-			return NotListening;
+			else if (read_callback)
+				core::cospawn([event, read_callback = std::move(read_callback)]() mutable { read_callback(event); });
+			else if (write_callback)
+				core::cospawn([event, write_callback = std::move(write_callback)]() mutable { write_callback(event); });
+			return not_listening;
 		}
-		bool Multiplexer::ClearEvents(Socket* Value) noexcept
+		bool multiplexer::clear_events(socket* value) noexcept
 		{
-			return CancelEvents(Value, SocketPoll::Finish);
+			return cancel_events(value, socket_poll::finish);
 		}
-		bool Multiplexer::IsListening() noexcept
+		bool multiplexer::is_listening() noexcept
 		{
-			return Activations > 0;
+			return activations > 0;
 		}
-		void Multiplexer::AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
+		void multiplexer::add_timeout(socket* value, const std::chrono::microseconds& time) noexcept
 		{
-			if (Value->Events.Timeout > 0)
+			if (value->events.timeout > 0)
 			{
-				VI_TRACE("[net] sock set timeout on fd %i (time = %i)", (int)Value->Fd, (int)Value->Events.Timeout);
-				auto Expiration = Time + std::chrono::milliseconds(Value->Events.Timeout);
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				while (Timers.find(Expiration) != Timers.end())
-					++Expiration;
+				VI_TRACE("[net] sock set timeout on fd %i (time = %i)", (int)value->fd, (int)value->events.timeout);
+				auto expiration = time + std::chrono::milliseconds(value->events.timeout);
+				core::umutex<std::mutex> unique(exclusive);
+				while (timers.find(expiration) != timers.end())
+					++expiration;
 
-				Timers[Expiration] = Value;
-				Value->Events.Expiration = Expiration;
+				timers[expiration] = value;
+				value->events.expiration = expiration;
 			}
 			else
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				Value->Events.Expiration = std::chrono::microseconds(-1);
-				Trackers.insert(Value);
+				core::umutex<std::mutex> unique(exclusive);
+				value->events.expiration = std::chrono::microseconds(-1);
+				trackers.insert(value);
 			}
 		}
-		void Multiplexer::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept
+		void multiplexer::update_timeout(socket* value, const std::chrono::microseconds& time) noexcept
 		{
-			RemoveTimeout(Value);
-			AddTimeout(Value, Time);
+			remove_timeout(value);
+			add_timeout(value, time);
 		}
-		void Multiplexer::RemoveTimeout(Socket* Value) noexcept
+		void multiplexer::remove_timeout(socket* value) noexcept
 		{
-			VI_TRACE("[net] sock cancel timeout on fd %i", (int)Value->Fd);
-			if (Value->Events.Expiration > std::chrono::microseconds(0))
+			VI_TRACE("[net] sock cancel timeout on fd %i", (int)value->fd);
+			if (value->events.expiration > std::chrono::microseconds(0))
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				auto It = Timers.find(Value->Events.Expiration);
-				VI_ASSERT(It != Timers.end(), "socket timeout update de-sync happend");
-				Value->Events.Expiration = std::chrono::microseconds(0);
-				if (It != Timers.end())
-					Timers.erase(It);
+				core::umutex<std::mutex> unique(exclusive);
+				auto it = timers.find(value->events.expiration);
+				VI_ASSERT(it != timers.end(), "socket timeout update de-sync happend");
+				value->events.expiration = std::chrono::microseconds(0);
+				if (it != timers.end())
+					timers.erase(it);
 			}
-			else if (Value->Events.Expiration < std::chrono::microseconds(0))
+			else if (value->events.expiration < std::chrono::microseconds(0))
 			{
-				Core::UMutex<std::mutex> Unique(Exclusive);
-				Value->Events.Expiration = std::chrono::microseconds(0);
-				Trackers.erase(Value);
+				core::umutex<std::mutex> unique(exclusive);
+				value->events.expiration = std::chrono::microseconds(0);
+				trackers.erase(value);
 			}
 		}
-		void Multiplexer::TryDispatch() noexcept
+		void multiplexer::try_dispatch() noexcept
 		{
-			auto* Queue = Core::Schedule::Get();
-			Dispatch(Queue->HasParallelThreads(Core::Difficulty::Sync) ? DefaultTimeout : 5);
-			TryEnqueue();
+			auto* queue = core::schedule::get();
+			dispatch(queue->has_parallel_threads(core::difficulty::sync) ? default_timeout : 5);
+			try_enqueue();
 		}
-		void Multiplexer::TryEnqueue() noexcept
+		void multiplexer::try_enqueue() noexcept
 		{
-			if (!Activations)
+			if (!activations)
 				return;
 
-			auto* Queue = Core::Schedule::Get();
-			Queue->SetTask(std::bind(&Multiplexer::TryDispatch, this));
+			auto* queue = core::schedule::get();
+			queue->set_task(std::bind(&multiplexer::try_dispatch, this));
 		}
-		void Multiplexer::TryListen() noexcept
+		void multiplexer::try_listen() noexcept
 		{
-			if (!Activations++)
+			if (!activations++)
 			{
 				VI_DEBUG("[net] start events polling");
-				TryEnqueue();
+				try_enqueue();
 			}
 		}
-		void Multiplexer::TryUnlisten() noexcept
+		void multiplexer::try_unlisten() noexcept
 		{
-			VI_ASSERT(Activations > 0, "events poller is already inactive");
-			if (!--Activations)
+			VI_ASSERT(activations > 0, "events poller is already inactive");
+			if (!--activations)
 				VI_DEBUG("[net] stop events polling");
 		}
-		size_t Multiplexer::GetActivations() noexcept
+		size_t multiplexer::get_activations() noexcept
 		{
-			return Activations;
+			return activations;
 		}
 
-		Uplinks::Uplinks() noexcept : MaxDuplicates(1)
+		uplinks::uplinks() noexcept : max_duplicates(1)
 		{
-			Multiplexer::Get()->Activate();
+			multiplexer::get()->activate();
 		}
-		Uplinks::~Uplinks() noexcept
+		uplinks::~uplinks() noexcept
 		{
-			auto* Dispatcher = Multiplexer::Get();
-			Core::SingleQueue<AcquireCallback> Queue;
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			for (auto& Item : Connections)
+			auto* dispatcher = multiplexer::get();
+			core::single_queue<acquire_callback> queue;
+			core::umutex<std::recursive_mutex> unique(exclusive);
+			for (auto& item : connections)
 			{
-				for (auto& Stream : Item.second.Streams)
+				for (auto& stream : item.second.streams)
 				{
-					Dispatcher->CancelEvents(Stream);
-					Core::Memory::Release(Stream);
+					dispatcher->cancel_events(stream);
+					core::memory::release(stream);
 				}
 
-				while (!Item.second.Requests.empty())
+				while (!item.second.requests.empty())
 				{
-					Queue.push(std::move(Item.second.Requests.front()));
-					Item.second.Requests.pop();
+					queue.push(std::move(item.second.requests.front()));
+					item.second.requests.pop();
 				}
 			}
 
-			MaxDuplicates = 0;
-			Connections.clear();
-			Dispatcher->Deactivate();
-			Unique.Negate();
+			max_duplicates = 0;
+			connections.clear();
+			dispatcher->deactivate();
+			unique.negate();
 
-			while (!Queue.empty())
+			while (!queue.empty())
 			{
-				Queue.front()(nullptr);
-				Queue.pop();
+				queue.front()(nullptr);
+				queue.pop();
 			}
 		}
-		void Uplinks::SetMaxDuplicates(size_t Max)
+		void uplinks::set_max_duplicates(size_t max)
 		{
-			MaxDuplicates = Max + 1;
+			max_duplicates = max + 1;
 		}
-		void Uplinks::ListenConnection(Core::String&& Id, Socket* Stream)
+		void uplinks::listen_connection(core::string&& id, socket* stream)
 		{
-			Stream->AddRef();
-			Multiplexer::Get()->WhenReadable(Stream, [this, Id = std::move(Id), Stream](SocketPoll Event) mutable
+			stream->add_ref();
+			multiplexer::get()->when_readable(stream, [this, id = std::move(id), stream](socket_poll event) mutable
 			{
-				if (Packet::IsError(Event))
+				if (packet::is_error(event))
 				{
-				Expire:
-					Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-					auto It = Connections.find(Id);
-					if (It != Connections.end())
+				expire:
+					core::umutex<std::recursive_mutex> unique(exclusive);
+					auto it = connections.find(id);
+					if (it != connections.end())
 					{
-						auto Queue = std::move(It->second.Requests);
-						Core::UPtr<Socket> TargetStream = Stream;
-						Multiplexer::Get()->CancelEvents(Stream);
-						It->second.Streams.erase(Stream);
-						if (It->second.Streams.empty() && It->second.Requests.empty())
-							Connections.erase(It);
-						Unique.Negate();
+						auto queue = std::move(it->second.requests);
+						core::uptr<socket> target_stream = stream;
+						multiplexer::get()->cancel_events(stream);
+						it->second.streams.erase(stream);
+						if (it->second.streams.empty() && it->second.requests.empty())
+							connections.erase(it);
+						unique.negate();
 
-						VI_DEBUG("[uplink] expire fd %i of %s", (int)Stream->GetFd(), Id.c_str());
-						while (!Queue.empty())
+						VI_DEBUG("[uplink] expire fd %i of %s", (int)stream->get_fd(), id.c_str());
+						while (!queue.empty())
 						{
-							Queue.front()(nullptr);
-							Queue.pop();
+							queue.front()(nullptr);
+							queue.pop();
 						}
 					}
 				}
-				else if (!Packet::IsSkip(Event))
+				else if (!packet::is_skip(event))
 				{
-				Retry:
-					uint8_t Buffer;
-					auto Status = Stream->Read(&Buffer, sizeof(Buffer));
-					if (Status)
-						goto Retry;
-					else if (Status.Error() != std::errc::operation_would_block)
-						goto Expire;
+				retry:
+					uint8_t buffer;
+					auto status = stream->read(&buffer, sizeof(buffer));
+					if (status)
+						goto retry;
+					else if (status.error() != std::errc::operation_would_block)
+						goto expire;
 					else
-						ListenConnection(std::move(Id), Stream);
+						listen_connection(std::move(id), stream);
 				}
-				Stream->Release();
+				stream->release();
 			});
 		}
-		bool Uplinks::PushConnection(const SocketAddress& Address, Socket* Stream)
+		bool uplinks::push_connection(const socket_address& address, socket* stream)
 		{
-			if (!MaxDuplicates)
+			if (!max_duplicates)
 				return false;
 
-			auto Name = GetAddressIdentification(Address);
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto It = Connections.find(Name);
-			if (It == Connections.end())
+			auto name = get_address_identification(address);
+			core::umutex<std::recursive_mutex> unique(exclusive);
+			auto it = connections.find(name);
+			if (it == connections.end())
 			{
-				if (!Stream)
+				if (!stream)
 					return false;
 
-				VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
-				auto& Pool = Connections[Name];
-				Pool.Streams.insert(Stream);
-				Stream->SetIoTimeout(0);
-				Stream->SetBlocking(false);
-				ListenConnection(std::move(Name), Stream);
+				VI_DEBUG("[uplink] store fd %i of %s", (int)stream->get_fd(), name.c_str());
+				auto& pool = connections[name];
+				pool.streams.insert(stream);
+				stream->set_io_timeout(0);
+				stream->set_blocking(false);
+				listen_connection(std::move(name), stream);
 				return true;
 			}
-			else if (!It->second.Requests.empty())
+			else if (!it->second.requests.empty())
 			{
-				auto Callback = std::move(It->second.Requests.front());
-				It->second.Requests.pop();
-				Unique.Negate();
-				Callback(Stream);
-				if (!Stream)
+				auto callback = std::move(it->second.requests.front());
+				it->second.requests.pop();
+				unique.negate();
+				callback(stream);
+				if (!stream)
 					return false;
 
-				VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
+				VI_DEBUG("[uplink] reuse fd %i of %s", (int)stream->get_fd(), name.c_str());
 				return true;
 			}
-			else if (!Stream)
+			else if (!stream)
 			{
-				if (It->second.Streams.empty())
-					Connections.erase(It);
+				if (it->second.streams.empty())
+					connections.erase(it);
 				return false;
 			}
-			else if (It->second.Streams.size() >= MaxDuplicates)
+			else if (it->second.streams.size() >= max_duplicates)
 				return false;
 
-			VI_DEBUG("[uplink] store fd %i of %s", (int)Stream->GetFd(), Name.c_str());
-			It->second.Streams.insert(Stream);
-			Stream->SetIoTimeout(0);
-			Stream->SetBlocking(false);
-			ListenConnection(std::move(Name), Stream);
+			VI_DEBUG("[uplink] store fd %i of %s", (int)stream->get_fd(), name.c_str());
+			it->second.streams.insert(stream);
+			stream->set_io_timeout(0);
+			stream->set_blocking(false);
+			listen_connection(std::move(name), stream);
 			return true;
 		}
-		bool Uplinks::PopConnectionQueued(const SocketAddress& Address, AcquireCallback&& Callback)
+		bool uplinks::pop_connection_queued(const socket_address& address, acquire_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (!MaxDuplicates)
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			if (!max_duplicates)
 			{
-				Callback(nullptr);
+				callback(nullptr);
 				return false;
 			}
 
-			auto Name = GetAddressIdentification(Address);
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto It = Connections.find(Name);
-			if (It == Connections.end())
+			auto name = get_address_identification(address);
+			core::umutex<std::recursive_mutex> unique(exclusive);
+			auto it = connections.find(name);
+			if (it == connections.end())
 			{
-				auto& Item = Connections[Name];
-				Item.Duplicates = MaxDuplicates - 1;
-				Callback(nullptr);
+				auto& item = connections[name];
+				item.duplicates = max_duplicates - 1;
+				callback(nullptr);
 				return false;
 			}
-			else if (It->second.Streams.empty())
+			else if (it->second.streams.empty())
 			{
-				if (It->second.Duplicates > 0)
+				if (it->second.duplicates > 0)
 				{
-					--It->second.Duplicates;
-					Callback(nullptr);
+					--it->second.duplicates;
+					callback(nullptr);
 					return false;
 				}
 
-				It->second.Requests.emplace(std::move(Callback));
+				it->second.requests.emplace(std::move(callback));
 				return true;
 			}
 
-			Socket* Stream = *It->second.Streams.begin();
-			It->second.Streams.erase(It->second.Streams.begin());
-			Unique.Unlock();
+			socket* stream = *it->second.streams.begin();
+			it->second.streams.erase(it->second.streams.begin());
+			unique.unlock();
 
-			VI_DEBUG("[uplink] reuse fd %i of %s", (int)Stream->GetFd(), Name.c_str());
-			Multiplexer::Get()->CancelEvents(Stream);
-			Callback(Stream);
+			VI_DEBUG("[uplink] reuse fd %i of %s", (int)stream->get_fd(), name.c_str());
+			multiplexer::get()->cancel_events(stream);
+			callback(stream);
 
 			return true;
 		}
-		Core::Promise<Socket*> Uplinks::PopConnection(const SocketAddress& Address)
+		core::promise<socket*> uplinks::pop_connection(const socket_address& address)
 		{
-			Core::Promise<Socket*> Future;
-			PopConnectionQueued(Address, [Future](Socket* Target) mutable { Future.Set(Target); });
-			return Future;
+			core::promise<socket*> future;
+			pop_connection_queued(address, [future](socket* target) mutable { future.set(target); });
+			return future;
 		}
-		size_t Uplinks::GetMaxDuplicates() const
+		size_t uplinks::get_max_duplicates() const
 		{
-			return MaxDuplicates;
+			return max_duplicates;
 		}
-		size_t Uplinks::GetSize()
+		size_t uplinks::get_size()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			return Connections.size();
+			core::umutex<std::recursive_mutex> unique(exclusive);
+			return connections.size();
 		}
 
-		CertificateBuilder::CertificateBuilder() noexcept
+		certificate_builder::certificate_builder() noexcept
 		{
 #ifdef VI_OPENSSL
-			Certificate = X509_new();
-			PrivateKey = EVP_PKEY_new();
+			certificate = X509_new();
+			private_key = EVP_PKEY_new();
 #endif
 		}
-		CertificateBuilder::~CertificateBuilder() noexcept
+		certificate_builder::~certificate_builder() noexcept
 		{
 #ifdef VI_OPENSSL
-			if (Certificate != nullptr)
-				X509_free((X509*)Certificate);
-			if (PrivateKey != nullptr)
-				EVP_PKEY_free((EVP_PKEY*)PrivateKey);
+			if (certificate != nullptr)
+				X509_free((X509*)certificate);
+			if (private_key != nullptr)
+				EVP_PKEY_free((EVP_PKEY*)private_key);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::SetSerialNumber(uint32_t Bits)
+		core::expects_io<void> certificate_builder::set_serial_number(uint32_t bits)
 		{
 #ifdef VI_OPENSSL
-			VI_ASSERT(Bits > 0, "bits should be greater than zero");
-			ASN1_STRING* SerialNumber = X509_get_serialNumber((X509*)Certificate);
-			if (!SerialNumber)
+			VI_ASSERT(bits > 0, "bits should be greater than zero");
+			ASN1_STRING* serial_number = X509_get_serialNumber((X509*)certificate);
+			if (!serial_number)
 				return std::make_error_condition(std::errc::bad_message);
 
-			auto Data = Compute::Crypto::RandomBytes(Bits / 8);
-			if (!Data)
+			auto data = compute::crypto::random_bytes(bits / 8);
+			if (!data)
 				return std::make_error_condition(std::errc::bad_message);
 
-			if (!ASN1_STRING_set(SerialNumber, Data->data(), static_cast<int>(Data->size())))
+			if (!ASN1_STRING_set(serial_number, data->data(), static_cast<int>(data->size())))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::SetVersion(uint8_t Version)
+		core::expects_io<void> certificate_builder::set_version(uint8_t version)
 		{
 #ifdef VI_OPENSSL
-			if (!X509_set_version((X509*)Certificate, Version))
+			if (!X509_set_version((X509*)certificate, version))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::SetNotAfter(int64_t OffsetSeconds)
+		core::expects_io<void> certificate_builder::set_not_after(int64_t offset_seconds)
 		{
 #ifdef VI_OPENSSL
-			if (!X509_gmtime_adj(X509_get_notAfter((X509*)Certificate), (long)OffsetSeconds))
+			if (!X509_gmtime_adj(X509_get_notAfter((X509*)certificate), (long)offset_seconds))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::SetNotBefore(int64_t OffsetSeconds)
+		core::expects_io<void> certificate_builder::set_not_before(int64_t offset_seconds)
 		{
 #ifdef VI_OPENSSL
-			if (!X509_gmtime_adj(X509_get_notBefore((X509*)Certificate), (long)OffsetSeconds))
+			if (!X509_gmtime_adj(X509_get_notBefore((X509*)certificate), (long)offset_seconds))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::SetPublicKey(uint32_t Bits)
+		core::expects_io<void> certificate_builder::set_public_key(uint32_t bits)
 		{
 #ifdef VI_OPENSSL
-			VI_ASSERT(Bits > 0, "bits should be greater than zero");
-			EVP_PKEY* NewPrivateKey = EVP_RSA_gen(Bits);
-			if (!NewPrivateKey)
+			VI_ASSERT(bits > 0, "bits should be greater than zero");
+			EVP_PKEY* new_private_key = EVP_RSA_gen(bits);
+			if (!new_private_key)
 				return std::make_error_condition(std::errc::function_not_supported);
 
-			EVP_PKEY_free((EVP_PKEY*)PrivateKey);
-			PrivateKey = NewPrivateKey;
+			EVP_PKEY_free((EVP_PKEY*)private_key);
+			private_key = new_private_key;
 
-			if (!X509_set_pubkey((X509*)Certificate, (EVP_PKEY*)PrivateKey))
+			if (!X509_set_pubkey((X509*)certificate, (EVP_PKEY*)private_key))
 				return std::make_error_condition(std::errc::bad_message);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::SetIssuer(const X509Blob& Issuer)
+		core::expects_io<void> certificate_builder::set_issuer(const x509_blob& issuer)
 		{
 #ifdef VI_OPENSSL
-			if (!Issuer.Pointer)
+			if (!issuer.pointer)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			X509_NAME* SubjectName = X509_get_subject_name((X509*)Issuer.Pointer);
-			if (!SubjectName)
+			X509_NAME* subject_name = X509_get_subject_name((X509*)issuer.pointer);
+			if (!subject_name)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			if (!X509_set_issuer_name((X509*)Certificate, SubjectName))
+			if (!X509_set_issuer_name((X509*)certificate, subject_name))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::AddCustomExtension(bool Critical, const std::string_view& Key, const std::string_view& Value, const std::string_view& Description)
+		core::expects_io<void> certificate_builder::add_custom_extension(bool critical, const std::string_view& key, const std::string_view& value, const std::string_view& description)
 		{
-			VI_ASSERT(!Key.empty() && Core::Stringify::IsCString(Key), "key should be set");
-			VI_ASSERT(Description.empty() || Core::Stringify::IsCString(Description), "description should be set");
+			VI_ASSERT(!key.empty() && core::stringify::is_cstring(key), "key should be set");
+			VI_ASSERT(description.empty() || core::stringify::is_cstring(description), "description should be set");
 #ifdef VI_OPENSSL
-			const int NID = OBJ_create(Key.data(), Value.data(), Description.empty() ? nullptr : Description.data());
-			ASN1_OCTET_STRING* Data = ASN1_OCTET_STRING_new();
-			if (!Data)
+			const int NID = OBJ_create(key.data(), value.data(), description.empty() ? nullptr : description.data());
+			ASN1_OCTET_STRING* data = ASN1_OCTET_STRING_new();
+			if (!data)
 				return std::make_error_condition(std::errc::not_enough_memory);
 
-			if (!ASN1_OCTET_STRING_set(Data, reinterpret_cast<unsigned const char*>(Value.data()), (int)Value.size()))
+			if (!ASN1_OCTET_STRING_set(data, reinterpret_cast<unsigned const char*>(value.data()), (int)value.size()))
 			{
-				ASN1_OCTET_STRING_free(Data);
+				ASN1_OCTET_STRING_free(data);
 				return std::make_error_condition(std::errc::invalid_argument);
 			}
 
-			X509_EXTENSION* Extension = X509_EXTENSION_create_by_NID(nullptr, NID, Critical, Data);
-			if (!Extension)
+			X509_EXTENSION* extension = X509_EXTENSION_create_by_NID(nullptr, NID, critical, data);
+			if (!extension)
 			{
-				ASN1_OCTET_STRING_free(Data);
+				ASN1_OCTET_STRING_free(data);
 				return std::make_error_condition(std::errc::invalid_argument);
 			}
 
-			bool Success = X509_add_ext((X509*)Certificate, Extension, -1) == 1;
-			X509_EXTENSION_free(Extension);
-			ASN1_OCTET_STRING_free(Data);
+			bool success = X509_add_ext((X509*)certificate, extension, -1) == 1;
+			X509_EXTENSION_free(extension);
+			ASN1_OCTET_STRING_free(data);
 
-			if (!Success)
+			if (!success)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::AddStandardExtension(const X509Blob& Issuer, int NID, const std::string_view& Value)
+		core::expects_io<void> certificate_builder::add_standard_extension(const x509_blob& issuer, int NID, const std::string_view& value)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Value), "value should be set");
+			VI_ASSERT(core::stringify::is_cstring(value), "value should be set");
 #ifdef VI_OPENSSL
-			X509V3_CTX Context;
-			X509V3_set_ctx_nodb(&Context);
-			X509V3_set_ctx(&Context, (X509*)(Issuer.Pointer ? Issuer.Pointer : Certificate), (X509*)Certificate, nullptr, nullptr, 0);
+			X509V3_CTX context;
+			X509V3_set_ctx_nodb(&context);
+			X509V3_set_ctx(&context, (X509*)(issuer.pointer ? issuer.pointer : certificate), (X509*)certificate, nullptr, nullptr, 0);
 
-			X509_EXTENSION* Extension = X509V3_EXT_conf_nid(nullptr, &Context, NID, Value.data());
-			if (!Extension)
+			X509_EXTENSION* extension = X509V3_EXT_conf_nid(nullptr, &context, NID, value.data());
+			if (!extension)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			bool Success = X509_add_ext((X509*)Certificate, Extension, -1) == 1;
-			X509_EXTENSION_free(Extension);
-			if (!Success)
+			bool success = X509_add_ext((X509*)certificate, extension, -1) == 1;
+			X509_EXTENSION_free(extension);
+			if (!success)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::AddStandardExtension(const X509Blob& Issuer, const std::string_view& NameOfNID, const std::string_view& Value)
+		core::expects_io<void> certificate_builder::add_standard_extension(const x509_blob& issuer, const std::string_view& name_of_nid, const std::string_view& value)
 		{
-			VI_ASSERT(!NameOfNID.empty() && Core::Stringify::IsCString(NameOfNID), "name of nid should be set");
+			VI_ASSERT(!name_of_nid.empty() && core::stringify::is_cstring(name_of_nid), "name of nid should be set");
 #ifdef VI_OPENSSL
-			int NID = OBJ_txt2nid(NameOfNID.data());
+			int NID = OBJ_txt2nid(name_of_nid.data());
 			if (NID == NID_undef)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return AddStandardExtension(Issuer, NID, Value);
+			return add_standard_extension(issuer, NID, value);
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::AddSubjectInfo(const std::string_view& Key, const std::string_view& Value)
+		core::expects_io<void> certificate_builder::add_subject_info(const std::string_view& key, const std::string_view& value)
 		{
-			VI_ASSERT(!Key.empty() && Core::Stringify::IsCString(Key), "key should be set");
+			VI_ASSERT(!key.empty() && core::stringify::is_cstring(key), "key should be set");
 #ifdef VI_OPENSSL
-			X509_NAME* SubjectName = X509_get_subject_name((X509*)Certificate);
-			if (!SubjectName)
+			X509_NAME* subject_name = X509_get_subject_name((X509*)certificate);
+			if (!subject_name)
 				return std::make_error_condition(std::errc::bad_message);
 
-			if (!X509_NAME_add_entry_by_txt(SubjectName, Key.data(), MBSTRING_ASC, (uint8_t*)Value.data(), (int)Value.size(), -1, 0))
+			if (!X509_NAME_add_entry_by_txt(subject_name, key.data(), MBSTRING_ASC, (uint8_t*)value.data(), (int)value.size(), -1, 0))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::AddIssuerInfo(const std::string_view& Key, const std::string_view& Value)
+		core::expects_io<void> certificate_builder::add_issuer_info(const std::string_view& key, const std::string_view& value)
 		{
-			VI_ASSERT(!Key.empty() && Core::Stringify::IsCString(Key), "key should be set");
+			VI_ASSERT(!key.empty() && core::stringify::is_cstring(key), "key should be set");
 #ifdef VI_OPENSSL
-			X509_NAME* IssuerName = X509_get_issuer_name((X509*)Certificate);
-			if (!IssuerName)
+			X509_NAME* issuer_name = X509_get_issuer_name((X509*)certificate);
+			if (!issuer_name)
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			if (!X509_NAME_add_entry_by_txt(IssuerName, Key.data(), MBSTRING_ASC, (uint8_t*)Value.data(), (int)Value.size(), -1, 0))
+			if (!X509_NAME_add_entry_by_txt(issuer_name, key.data(), MBSTRING_ASC, (uint8_t*)value.data(), (int)value.size(), -1, 0))
 				return std::make_error_condition(std::errc::invalid_argument);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> CertificateBuilder::Sign(Compute::Digest Algorithm)
-		{
-#ifdef VI_OPENSSL
-			VI_ASSERT(Algorithm != nullptr, "algorithm should be set");
-			if (X509_sign((X509*)Certificate, (EVP_PKEY*)PrivateKey, (EVP_MD*)Algorithm) != 0)
-				return std::make_error_condition(std::errc::invalid_argument);
-
-			return Core::Expectation::Met;
-#else
-			return std::make_error_condition(std::errc::not_supported);
-#endif
-		}
-		Core::ExpectsIO<CertificateBlob> CertificateBuilder::Build()
+		core::expects_io<void> certificate_builder::sign(compute::digest algorithm)
 		{
 #ifdef VI_OPENSSL
-			CertificateBlob Blob;
-			BIO* Bio = BIO_new(BIO_s_mem());
-			PEM_write_bio_X509(Bio, (X509*)Certificate);
+			VI_ASSERT(algorithm != nullptr, "algorithm should be set");
+			if (X509_sign((X509*)certificate, (EVP_PKEY*)private_key, (EVP_MD*)algorithm) != 0)
+				return std::make_error_condition(std::errc::invalid_argument);
 
-			BUF_MEM* BioMemory = nullptr;
-			if (BIO_get_mem_ptr(Bio, &BioMemory) != 0 && BioMemory->data != nullptr && BioMemory->length > 0)
-				Blob.Certificate = Core::String(BioMemory->data, (size_t)BioMemory->length);
-
-			BIO_free(Bio);
-			Bio = BIO_new(BIO_s_mem());
-			PEM_write_bio_PrivateKey(Bio, (EVP_PKEY*)PrivateKey, nullptr, nullptr, 0, nullptr, nullptr);
-
-			BioMemory = nullptr;
-			if (BIO_get_mem_ptr(Bio, &BioMemory) != 0 && BioMemory->data != nullptr && BioMemory->length > 0)
-				Blob.PrivateKey = Core::String(BioMemory->data, (size_t)BioMemory->length);
-
-			BIO_free(Bio);
-			return Blob;
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		void* CertificateBuilder::GetCertificateX509()
+		core::expects_io<certificate_blob> certificate_builder::build()
 		{
-			return Certificate;
+#ifdef VI_OPENSSL
+			certificate_blob blob;
+			BIO* bio = BIO_new(BIO_s_mem());
+			PEM_write_bio_X509(bio, (X509*)certificate);
+
+			BUF_MEM* bio_memory = nullptr;
+			if (BIO_get_mem_ptr(bio, &bio_memory) != 0 && bio_memory->data != nullptr && bio_memory->length > 0)
+				blob.certificate = core::string(bio_memory->data, (size_t)bio_memory->length);
+
+			BIO_free(bio);
+			bio = BIO_new(BIO_s_mem());
+			PEM_write_bio_PrivateKey(bio, (EVP_PKEY*)private_key, nullptr, nullptr, 0, nullptr, nullptr);
+
+			bio_memory = nullptr;
+			if (BIO_get_mem_ptr(bio, &bio_memory) != 0 && bio_memory->data != nullptr && bio_memory->length > 0)
+				blob.private_key = core::string(bio_memory->data, (size_t)bio_memory->length);
+
+			BIO_free(bio);
+			return blob;
+#else
+			return std::make_error_condition(std::errc::not_supported);
+#endif
 		}
-		void* CertificateBuilder::GetPrivateKeyEVP_PKEY()
+		void* certificate_builder::get_certificate_x509()
 		{
-			return PrivateKey;
+			return certificate;
+		}
+		void* certificate_builder::get_private_key_evppkey()
+		{
+			return private_key;
 		}
 
-		Socket::IEvents::IEvents(IEvents&& Other) noexcept : ReadCallback(Other.ReadCallback), WriteCallback(Other.WriteCallback), Expiration(Other.Expiration), Timeout(Other.Timeout)
+		socket::ievents::ievents(ievents&& other) noexcept : read_callback(other.read_callback), write_callback(other.write_callback), expiration(other.expiration), timeout(other.timeout)
 		{
-			Other.Expiration = std::chrono::milliseconds(0);
-			Other.Timeout = 0;
+			other.expiration = std::chrono::milliseconds(0);
+			other.timeout = 0;
 		}
-		Socket::IEvents& Socket::IEvents::operator=(IEvents&& Other) noexcept
+		socket::ievents& socket::ievents::operator=(ievents&& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			ReadCallback = std::move(Other.ReadCallback);
-			WriteCallback = std::move(Other.WriteCallback);
-			Expiration = Other.Expiration;
-			Timeout = Other.Timeout;
-			Other.Expiration = std::chrono::milliseconds(0);
-			Other.Timeout = 0;
+			read_callback = std::move(other.read_callback);
+			write_callback = std::move(other.write_callback);
+			expiration = other.expiration;
+			timeout = other.timeout;
+			other.expiration = std::chrono::milliseconds(0);
+			other.timeout = 0;
 			return *this;
 		}
 
-		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Income(0), Outcome(0)
+		socket::socket() noexcept : device(nullptr), fd(INVALID_SOCKET), income(0), outcome(0)
 		{
 			VI_WATCH(this, "socket fd (empty)");
 		}
-		Socket::Socket(socket_t FromFd) noexcept : Device(nullptr), Fd(FromFd), Income(0), Outcome(0)
+		socket::socket(socket_t from_fd) noexcept : device(nullptr), fd(from_fd), income(0), outcome(0)
 		{
 			VI_WATCH(this, "socket fd");
 		}
-		Socket::Socket(Socket&& Other) noexcept : Events(std::move(Other.Events)), Device(Other.Device), Fd(Other.Fd), Income(Other.Income), Outcome(Other.Outcome)
+		socket::socket(socket&& other) noexcept : events(std::move(other.events)), device(other.device), fd(other.fd), income(other.income), outcome(other.outcome)
 		{
 			VI_WATCH(this, "socket fd (moved)");
-			Other.Device = nullptr;
-			Other.Fd = INVALID_SOCKET;
+			other.device = nullptr;
+			other.fd = INVALID_SOCKET;
 		}
-		Socket::~Socket() noexcept
+		socket::~socket() noexcept
 		{
 			VI_UNWATCH(this);
-			Shutdown();
+			shutdown();
 		}
-		Socket& Socket::operator= (Socket&& Other) noexcept
+		socket& socket::operator= (socket&& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			Shutdown();
-			Events = std::move(Other.Events);
-			Device = Other.Device;
-			Fd = Other.Fd;
-			Income = Other.Income;
-			Outcome = Other.Outcome;
-			Other.Device = nullptr;
-			Other.Fd = INVALID_SOCKET;
+			shutdown();
+			events = std::move(other.events);
+			device = other.device;
+			fd = other.fd;
+			income = other.income;
+			outcome = other.outcome;
+			other.device = nullptr;
+			other.fd = INVALID_SOCKET;
 			return *this;
 		}
-		Core::ExpectsIO<void> Socket::Accept(SocketAccept* Incoming)
+		core::expects_io<void> socket::accept(socket_accept* incoming)
 		{
-			VI_ASSERT(Incoming != nullptr, "incoming socket should be set");
-			char Address[ADDRESS_SIZE];
-			socket_size_t Length = sizeof(Address);
-			auto NewFd = ExecuteAccept(Fd, (sockaddr*)&Address, &Length);
-			if (!NewFd)
+			VI_ASSERT(incoming != nullptr, "incoming socket should be set");
+			char address[ADDRESS_SIZE];
+			socket_size_t length = sizeof(address);
+			auto new_fd = execute_accept(fd, (sockaddr*)&address, &length);
+			if (!new_fd)
 			{
-				VI_TRACE("[net] fd %i: not acceptable", (int)Fd);
-				return NewFd.Error();
+				VI_TRACE("[net] fd %i: not acceptable", (int)fd);
+				return new_fd.error();
 			}
 
-			VI_DEBUG("[net] accept fd %i on %i fd", (int)*NewFd, (int)Fd);
-			Incoming->Address = SocketAddress(std::string_view(), 0, (sockaddr*)&Address, Length);
-			Incoming->Fd = *NewFd;
-			return Core::Expectation::Met;
+			VI_DEBUG("[net] accept fd %i on %i fd", (int)*new_fd, (int)fd);
+			incoming->address = socket_address(std::string_view(), 0, (sockaddr*)&address, length);
+			incoming->fd = *new_fd;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::AcceptQueued(SocketAcceptedCallback&& Callback)
+		core::expects_io<void> socket::accept_queued(socket_accepted_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (!Multiplexer::Get()->WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			if (!multiplexer::get()->when_readable(this, [this, callback = std::move(callback)](socket_poll event) mutable
 			{
-				SocketAccept Incoming;
-				if (!Packet::IsDone(Event))
+				socket_accept incoming;
+				if (!packet::is_done(event))
 				{
-					Incoming.Fd = INVALID_SOCKET;
-					Callback(Incoming);
+					incoming.fd = INVALID_SOCKET;
+					callback(incoming);
 					return;
 				}
 
-				while (Accept(&Incoming))
+				while (accept(&incoming))
 				{
-					if (!Callback(Incoming))
+					if (!callback(incoming))
 						break;
 				}
-				AcceptQueued(std::move(Callback));
+				accept_queued(std::move(callback));
 			}))
-				return Core::OS::Error::GetConditionOr();
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsPromiseIO<SocketAccept> Socket::AcceptDeferred()
+		core::expects_promise_io<socket_accept> socket::accept_deferred()
 		{
-			SocketAccept Incoming;
-			auto Status = Accept(&Incoming);
-			if (Status)
-				return Core::ExpectsPromiseIO<SocketAccept>(std::move(Incoming));
-			else if (Status.Error() != std::errc::operation_would_block)
-				return Core::ExpectsPromiseIO<SocketAccept>(std::move(Status.Error()));
+			socket_accept incoming;
+			auto status = accept(&incoming);
+			if (status)
+				return core::expects_promise_io<socket_accept>(std::move(incoming));
+			else if (status.error() != std::errc::operation_would_block)
+				return core::expects_promise_io<socket_accept>(std::move(status.error()));
 
-			Core::ExpectsPromiseIO<SocketAccept> Future;
-			if (!Multiplexer::Get()->WhenReadable(this, [this, Future](SocketPoll Event) mutable
+			core::expects_promise_io<socket_accept> future;
+			if (!multiplexer::get()->when_readable(this, [this, future](socket_poll event) mutable
 			{
-				if (!Future.IsPending())
+				if (!future.is_pending())
 					return;
 
-				if (Packet::IsDone(Event))
+				if (packet::is_done(event))
 				{
-					SocketAccept Incoming;
-					auto Status = Accept(&Incoming);
-					if (Status)
-						Future.Set(std::move(Incoming));
+					socket_accept incoming;
+					auto status = accept(&incoming);
+					if (status)
+						future.set(std::move(incoming));
 					else
-						Future.Set(std::move(Status.Error()));
+						future.set(std::move(status.error()));
 				}
 				else
-					Future.Set(std::make_error_condition(std::errc::connection_aborted));
+					future.set(std::make_error_condition(std::errc::connection_aborted));
 			}))
 			{
-				if (Future.IsPending())
-					Future.Set(Core::OS::Error::GetConditionOr());
+				if (future.is_pending())
+					future.set(core::os::error::get_condition_or());
 			}
 
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<void> Socket::Shutdown(bool Gracefully)
+		core::expects_io<void> socket::shutdown(bool gracefully)
 		{
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				VI_TRACE("[net] fd %i free ssl device", (int)Fd);
-				SSL_free(Device);
-				Device = nullptr;
+				VI_TRACE("[net] fd %i free ssl device", (int)fd);
+				SSL_free(device);
+				device = nullptr;
 			}
 #endif
-			ClearEvents(Gracefully);
-			if (Fd == INVALID_SOCKET)
+			clear_events(gracefully);
+			if (fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			uint8_t Buffer;
-			SetBlocking(false);
-			while (Read(&Buffer, 1));
+			uint8_t buffer;
+			set_blocking(false);
+			while (read(&buffer, 1));
 
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-			shutdown(Fd, SD_BOTH);
-			closesocket(Fd);
-			VI_DEBUG("[net] sock fd %i shutdown", (int)Fd);
-			Fd = INVALID_SOCKET;
-			return Core::Expectation::Met;
+			int error = 1;
+			socklen_t size = sizeof(error);
+			getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*)&error, &size);
+			::shutdown(fd, SD_BOTH);
+			closesocket(fd);
+			VI_DEBUG("[net] sock fd %i shutdown", (int)fd);
+			fd = INVALID_SOCKET;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::Close()
+		core::expects_io<void> socket::close()
 		{
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				VI_TRACE("[net] fd %i free ssl device", (int)Fd);
-				SSL_free(Device);
-				Device = nullptr;
+				VI_TRACE("[net] fd %i free ssl device", (int)fd);
+				SSL_free(device);
+				device = nullptr;
 			}
 #endif
-			ClearEvents(false);
-			if (Fd == INVALID_SOCKET)
+			clear_events(false);
+			if (fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			SetBlocking(false);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-			shutdown(Fd, SD_SEND);
+			int error = 1;
+			socklen_t size = sizeof(error);
+			set_blocking(false);
+			getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*)&error, &size);
+			::shutdown(fd, SD_SEND);
 
-			pollfd Handle;
-			Handle.fd = Fd;
-			Handle.events = POLLIN;
+			pollfd handle;
+			handle.fd = fd;
+			handle.events = POLLIN;
 
-			VI_MEASURE(Core::Timings::Networking);
-			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)Fd, Error);
-			auto Time = Core::Schedule::GetClock();
-			while (Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
+			VI_MEASURE(core::timings::networking);
+			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)fd, error);
+			auto time = core::schedule::get_clock();
+			while (core::schedule::get_clock() - time <= std::chrono::milliseconds(10))
 			{
-				auto Status = Read((uint8_t*)&Error, 1);
-				if (Status)
+				auto status = read((uint8_t*)&error, 1);
+				if (status)
 				{
 					VI_MEASURE_LOOP();
 					continue;
 				}
-				else if (Status.Error() != std::errc::operation_would_block)
+				else if (status.error() != std::errc::operation_would_block)
 					break;
 
-				Handle.revents = 0;
-				Utils::Poll(&Handle, 1, 1);
+				handle.revents = 0;
+				utils::poll(&handle, 1, 1);
 			}
 
-			closesocket(Fd);
-			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-			return Core::Expectation::Met;
+			closesocket(fd);
+			VI_DEBUG("[net] sock fd %i closed", (int)fd);
+			fd = INVALID_SOCKET;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::CloseQueued(SocketStatusCallback&& Callback)
+		core::expects_io<void> socket::close_queued(socket_status_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				VI_TRACE("[net] fd %i free ssl device", (int)Fd);
-				SSL_free(Device);
-				Device = nullptr;
+				VI_TRACE("[net] fd %i free ssl device", (int)fd);
+				SSL_free(device);
+				device = nullptr;
 			}
 #endif
-			ClearEvents(false);
-			if (Fd == INVALID_SOCKET)
+			clear_events(false);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(std::make_error_condition(std::errc::bad_file_descriptor));
+				callback(std::make_error_condition(std::errc::bad_file_descriptor));
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			SetBlocking(false);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-			shutdown(Fd, SD_SEND);
+			int error = 1;
+			socklen_t size = sizeof(error);
+			set_blocking(false);
+			getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*)&error, &size);
+			::shutdown(fd, SD_SEND);
 
-			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)Fd, Error);
-			return TryCloseQueued(std::move(Callback), Core::Schedule::GetClock(), true);
+			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)fd, error);
+			return try_close_queued(std::move(callback), core::schedule::get_clock(), true);
 		}
-		Core::ExpectsPromiseIO<void> Socket::CloseDeferred()
+		core::expects_promise_io<void> socket::close_deferred()
 		{
-			Core::ExpectsPromiseIO<void> Future;
-			CloseQueued([Future](const Core::Option<std::error_condition>& Error) mutable
+			core::expects_promise_io<void> future;
+			close_queued([future](const core::option<std::error_condition>& error) mutable
 			{
-				if (Error)
-					Future.Set(*Error);
+				if (error)
+					future.set(*error);
 				else
-					Future.Set(Core::Expectation::Met);
+					future.set(core::expectation::met);
 			});
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<void> Socket::TryCloseQueued(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying)
+		core::expects_io<void> socket::try_close_queued(socket_status_callback&& callback, const std::chrono::microseconds& time, bool keep_trying)
 		{
-			Events.Timeout = CLOSE_TIMEOUT;
-			while (KeepTrying && Core::Schedule::GetClock() - Time <= std::chrono::milliseconds(10))
+			events.timeout = CLOSE_TIMEOUT;
+			while (keep_trying && core::schedule::get_clock() - time <= std::chrono::milliseconds(10))
 			{
-				uint8_t Buffer;
-				auto Status = Read(&Buffer, 1);
-				if (Status)
+				uint8_t buffer;
+				auto status = read(&buffer, 1);
+				if (status)
 					continue;
-				else if (Status.Error() != std::errc::operation_would_block)
+				else if (status.error() != std::errc::operation_would_block)
 					break;
 
-				if (Core::Schedule::IsAvailable())
+				if (core::schedule::is_available())
 				{
-					Multiplexer::Get()->WhenReadable(this, [this, Time, Callback = std::move(Callback)](SocketPoll Event) mutable
+					multiplexer::get()->when_readable(this, [this, time, callback = std::move(callback)](socket_poll event) mutable
 					{
-						if (!Packet::IsSkip(Event))
-							TryCloseQueued(std::move(Callback), Time, Packet::IsDone(Event));
+						if (!packet::is_skip(event))
+							try_close_queued(std::move(callback), time, packet::is_done(event));
 						else
-							Callback(Core::Optional::None);
+							callback(core::optional::none);
 					});
-					return Status.Error();
+					return status.error();
 				}
 				else
 				{
-					pollfd Handle;
-					Handle.fd = Fd;
-					Handle.events = POLLIN;
-					Utils::Poll(&Handle, 1, 1);
+					pollfd handle;
+					handle.fd = fd;
+					handle.events = POLLIN;
+					utils::poll(&handle, 1, 1);
 				}
 			}
 
-			closesocket(Fd);
-			VI_DEBUG("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
+			closesocket(fd);
+			VI_DEBUG("[net] sock fd %i closed", (int)fd);
+			fd = INVALID_SOCKET;
 
-			Callback(Core::Optional::None);
-			return Core::Expectation::Met;
+			callback(core::optional::none);
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<size_t> Socket::WriteFile(FILE* Stream, size_t Offset, size_t Size)
+		core::expects_io<size_t> socket::write_file(FILE* stream, size_t offset, size_t size)
 		{
-			VI_ASSERT(Stream != nullptr, "stream should be set");
-			VI_ASSERT(Offset >= 0, "offset should be set and positive");
-			VI_ASSERT(Size > 0, "size should be set and greater than zero");
-			VI_MEASURE(Core::Timings::Networking);
-			VI_TRACE("[net] fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)Fd, Offset, Size);
-			off_t Seek = (off_t)Offset, Length = (off_t)Size;
+			VI_ASSERT(stream != nullptr, "stream should be set");
+			VI_ASSERT(offset >= 0, "offset should be set and positive");
+			VI_ASSERT(size > 0, "size should be set and greater than zero");
+			VI_MEASURE(core::timings::networking);
+			VI_TRACE("[net] fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)fd, offset, size);
+			off_t seek = (off_t)offset, length = (off_t)size;
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				static bool IsUnsupported = false;
-				if (IsUnsupported)
+				static bool is_unsupported = false;
+				if (is_unsupported)
 					return std::make_error_condition(std::errc::not_supported);
 
-				ossl_ssize_t Value = SSL_sendfile(Device, VI_FILENO(Stream), Seek, Length, 0);
-				if (Value < 0)
+				ossl_ssize_t value = SSL_sendfile(device, VI_FILENO(stream), seek, length, 0);
+				if (value < 0)
 				{
-					auto Condition = Utils::GetLastError(Device, (int)Value);
-					IsUnsupported = (Condition == std::errc::protocol_error);
-					return IsUnsupported ? std::make_error_condition(std::errc::not_supported) : Condition;
+					auto condition = utils::GetLastError(device, (int)value);
+					is_unsupported = (condition == std::errc::protocol_error);
+					return is_unsupported ? std::make_error_condition(std::errc::not_supported) : condition;
 				}
 
-				size_t Written = (size_t)Value;
-				Outcome += Written;
-				return Written;
+				size_t written = (size_t)value;
+				outcome += written;
+				return written;
 			}
 #endif
 #ifdef VI_APPLE
-			int Value = sendfile(VI_FILENO(Stream), Fd, Seek, &Length, nullptr, 0);
-			if (Value < 0)
-				return Utils::GetLastError(Device, Value);
+			int value = sendfile(VI_FILENO(stream), fd, seek, &length, nullptr, 0);
+			if (value < 0)
+				return utils::GetLastError(device, value);
 
-			size_t Written = (size_t)Length;
-			Outcome += Written;
-			return Written;
+			size_t written = (size_t)length;
+			outcome += written;
+			return written;
 #elif defined(VI_LINUX)
-			ssize_t Value = sendfile(Fd, VI_FILENO(Stream), &Seek, Size);
-			if (Value < 0)
-				return Utils::GetLastError(Device, (int)Value);
+			ssize_t value = sendfile(fd, VI_FILENO(stream), &seek, size);
+			if (value < 0)
+				return utils::GetLastError(device, (int)value);
 
-			size_t Written = (size_t)Value;
-			Outcome += Written;
-			return Written;
+			size_t written = (size_t)value;
+			outcome += written;
+			return written;
 #else
-			(void)Seek;
-			(void)Length;
+			(void)seek;
+			(void)length;
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<size_t> Socket::WriteFileQueued(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer)
+		core::expects_io<size_t> socket::write_file_queued(FILE* stream, size_t offset, size_t size, socket_written_callback&& callback, size_t temp_buffer)
 		{
-			VI_ASSERT(Stream != nullptr, "stream should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_ASSERT(Offset >= 0, "offset should be set and positive");
-			VI_ASSERT(Size > 0, "size should be set and greater than zero");
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(stream != nullptr, "stream should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_ASSERT(offset >= 0, "offset should be set and positive");
+			VI_ASSERT(size > 0, "size should be set and greater than zero");
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(SocketPoll::Reset);
+				callback(socket_poll::reset);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			size_t Written = 0;
-			while (Size > 0)
+			size_t written = 0;
+			while (size > 0)
 			{
-				auto Status = WriteFile(Stream, Offset, Size);
-				if (!Status)
+				auto status = write_file(stream, offset, size);
+				if (!status)
 				{
-					if (Status.Error() == std::errc::operation_would_block)
+					if (status.error() == std::errc::operation_would_block)
 					{
-						Multiplexer::Get()->WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+						multiplexer::get()->when_writeable(this, [this, temp_buffer, stream, offset, size, callback = std::move(callback)](socket_poll event) mutable
 						{
-							if (Packet::IsDone(Event))
-								WriteFileQueued(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
+							if (packet::is_done(event))
+								write_file_queued(stream, offset, size, std::move(callback), ++temp_buffer);
 							else
-								Callback(Event);
+								callback(event);
 						});
 					}
-					else if (Status.Error() != std::errc::not_supported)
-						Callback(SocketPoll::Reset);
+					else if (status.error() != std::errc::not_supported)
+						callback(socket_poll::reset);
 
-					return Status;
+					return status;
 				}
 				else
 				{
-					size_t WrittenSize = *Status;
-					Size -= WrittenSize;
-					Offset += WrittenSize;
-					Written += WrittenSize;
+					size_t written_size = *status;
+					size -= written_size;
+					offset += written_size;
+					written += written_size;
 				}
 			}
 
-			Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync);
-			return Written;
+			callback(temp_buffer != 0 ? socket_poll::finish : socket_poll::finish_sync);
+			return written;
 		}
-		Core::ExpectsPromiseIO<size_t> Socket::WriteFileDeferred(FILE* Stream, size_t Offset, size_t Size)
+		core::expects_promise_io<size_t> socket::write_file_deferred(FILE* stream, size_t offset, size_t size)
 		{
-			Core::ExpectsPromiseIO<size_t> Future;
-			WriteFileQueued(Stream, Offset, Size, [Future, Size](SocketPoll Event) mutable
+			core::expects_promise_io<size_t> future;
+			write_file_queued(stream, offset, size, [future, size](socket_poll event) mutable
 			{
-				if (Packet::IsDone(Event))
-					Future.Set(Size);
+				if (packet::is_done(event))
+					future.set(size);
 				else
-					Future.Set(Packet::ToCondition(Event));
+					future.set(packet::to_condition(event));
 			});
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<size_t> Socket::Write(const uint8_t* Buffer, size_t Size)
+		core::expects_io<size_t> socket::write(const uint8_t* buffer, size_t size)
 		{
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			VI_TRACE("[net] fd %i write %i bytes", (int)Fd, (int)Size);
+			VI_TRACE("[net] fd %i write %i bytes", (int)fd, (int)size);
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				int Value = SSL_write(Device, Buffer, (int)Size);
-				if (Value <= 0)
-					return Utils::GetLastError(Device, Value);
+				int value = SSL_write(device, buffer, (int)size);
+				if (value <= 0)
+					return utils::GetLastError(device, value);
 
-				size_t Written = (size_t)Value;
-				Outcome += Written;
-				return Written;
+				size_t written = (size_t)value;
+				outcome += written;
+				return written;
 			}
 #endif
-			int Value = (int)send(Fd, (char*)Buffer, (int)Size, 0);
-			if (Value == 0)
+			int value = (int)send(fd, (char*)buffer, (int)size, 0);
+			if (value == 0)
 				return std::make_error_condition(std::errc::operation_would_block);
-			else if (Value < 0)
-				return Utils::GetLastError(Device, Value);
+			else if (value < 0)
+				return utils::GetLastError(device, value);
 
-			size_t Written = (size_t)Value;
-			Outcome += Written;
-			return Written;
+			size_t written = (size_t)value;
+			outcome += written;
+			return written;
 		}
-		Core::ExpectsIO<size_t> Socket::WriteQueued(const uint8_t* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync, uint8_t* TempBuffer, size_t TempOffset)
+		core::expects_io<size_t> socket::write_queued(const uint8_t* buffer, size_t size, socket_written_callback&& callback, bool copy_buffer_when_async, uint8_t* temp_buffer, size_t temp_offset)
 		{
-			VI_ASSERT(Buffer != nullptr && Size > 0, "buffer should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(buffer != nullptr && size > 0, "buffer should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			if (fd == INVALID_SOCKET)
 			{
-				if (CopyBufferWhenAsync && TempBuffer != nullptr)
-					Core::Memory::Deallocate(TempBuffer);
-				Callback(SocketPoll::Reset);
+				if (copy_buffer_when_async && temp_buffer != nullptr)
+					core::memory::deallocate(temp_buffer);
+				callback(socket_poll::reset);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			size_t Payload = Size;
-			size_t Written = 0;
+			size_t payload = size;
+			size_t written = 0;
 
-			while (Size > 0)
+			while (size > 0)
 			{
-				auto Status = Write(Buffer + TempOffset, (int)Size);
-				if (!Status)
+				auto status = write(buffer + temp_offset, (int)size);
+				if (!status)
 				{
-					if (Status.Error() == std::errc::operation_would_block)
+					if (status.error() == std::errc::operation_would_block)
 					{
-						if (!TempBuffer)
+						if (!temp_buffer)
 						{
-							if (CopyBufferWhenAsync)
+							if (copy_buffer_when_async)
 							{
-								TempBuffer = Core::Memory::Allocate<uint8_t>(Payload);
-								memcpy(TempBuffer, Buffer, Payload);
+								temp_buffer = core::memory::allocate<uint8_t>(payload);
+								memcpy(temp_buffer, buffer, payload);
 							}
 							else
-								TempBuffer = (uint8_t*)Buffer;
+								temp_buffer = (uint8_t*)buffer;
 						}
 
-						Multiplexer::Get()->WhenWriteable(this, [this, CopyBufferWhenAsync, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+						multiplexer::get()->when_writeable(this, [this, copy_buffer_when_async, temp_buffer, temp_offset, size, callback = std::move(callback)](socket_poll event) mutable
 						{
-							if (!Packet::IsDone(Event))
+							if (!packet::is_done(event))
 							{
-								if (CopyBufferWhenAsync && TempBuffer != nullptr)
-									Core::Memory::Deallocate(TempBuffer);
-								Callback(Event);
+								if (copy_buffer_when_async && temp_buffer != nullptr)
+									core::memory::deallocate(temp_buffer);
+								callback(event);
 							}
 							else
-								WriteQueued(TempBuffer, Size, std::move(Callback), CopyBufferWhenAsync, TempBuffer, TempOffset);
+								write_queued(temp_buffer, size, std::move(callback), copy_buffer_when_async, temp_buffer, temp_offset);
 						});
 					}
 					else
 					{
-						if (CopyBufferWhenAsync && TempBuffer != nullptr)
-							Core::Memory::Deallocate(TempBuffer);
-						Callback(SocketPoll::Reset);
+						if (copy_buffer_when_async && temp_buffer != nullptr)
+							core::memory::deallocate(temp_buffer);
+						callback(socket_poll::reset);
 					}
 
-					return Status;
+					return status;
 				}
 				else
 				{
-					size_t WrittenSize = *Status;
-					Size -= WrittenSize;
-					TempOffset += WrittenSize;
-					Written += WrittenSize;
+					size_t written_size = *status;
+					size -= written_size;
+					temp_offset += written_size;
+					written += written_size;
 				}
 			}
 
-			if (CopyBufferWhenAsync && TempBuffer != nullptr)
-				Core::Memory::Deallocate(TempBuffer);
+			if (copy_buffer_when_async && temp_buffer != nullptr)
+				core::memory::deallocate(temp_buffer);
 
-			Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
-			return Written;
+			callback(temp_buffer ? socket_poll::finish : socket_poll::finish_sync);
+			return written;
 		}
-		Core::ExpectsPromiseIO<size_t> Socket::WriteDeferred(const uint8_t* Buffer, size_t Size, bool CopyBufferWhenAsync)
+		core::expects_promise_io<size_t> socket::write_deferred(const uint8_t* buffer, size_t size, bool copy_buffer_when_async)
 		{
-			Core::ExpectsPromiseIO<size_t> Future;
-			WriteQueued(Buffer, Size, [Future, Size](SocketPoll Event) mutable
+			core::expects_promise_io<size_t> future;
+			write_queued(buffer, size, [future, size](socket_poll event) mutable
 			{
-				if (Packet::IsDone(Event))
-					Future.Set(Size);
+				if (packet::is_done(event))
+					future.set(size);
 				else
-					Future.Set(Packet::ToCondition(Event));
-			}, CopyBufferWhenAsync);
-			return Future;
+					future.set(packet::to_condition(event));
+			}, copy_buffer_when_async);
+			return future;
 		}
-		Core::ExpectsIO<size_t> Socket::Read(uint8_t* Buffer, size_t Size)
+		core::expects_io<size_t> socket::read(uint8_t* buffer, size_t size)
 		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(buffer != nullptr, "buffer should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			VI_TRACE("[net] fd %i read %i bytes", (int)Fd, (int)Size);
+			VI_TRACE("[net] fd %i read %i bytes", (int)fd, (int)size);
 #ifdef VI_OPENSSL
-			if (Device != nullptr)
+			if (device != nullptr)
 			{
-				int Value = SSL_read(Device, Buffer, (int)Size);
-				if (Value <= 0)
-					return Utils::GetLastError(Device, Value);
+				int value = SSL_read(device, buffer, (int)size);
+				if (value <= 0)
+					return utils::GetLastError(device, value);
 
-				size_t Received = (size_t)Value;
-				Income += Received;
-				return Received;
+				size_t received = (size_t)value;
+				income += received;
+				return received;
 			}
 #endif
-			int Value = (int)recv(Fd, (char*)Buffer, (int)Size, 0);
-			if (Value == 0)
+			int value = (int)recv(fd, (char*)buffer, (int)size, 0);
+			if (value == 0)
 				return std::make_error_condition(std::errc::connection_reset);
-			else if (Value < 0)
-				return Utils::GetLastError(Device, Value);
+			else if (value < 0)
+				return utils::GetLastError(device, value);
 
-			size_t Received = (size_t)Value;
-			Income += Received;
-			return Received;
+			size_t received = (size_t)value;
+			income += received;
+			return received;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadQueued(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer)
+		core::expects_io<size_t> socket::read_queued(size_t size, socket_read_callback&& callback, size_t temp_buffer)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(SocketPoll::Reset, nullptr, 0);
+				callback(socket_poll::reset, nullptr, 0);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			uint8_t Buffer[Core::BLOB_SIZE];
-			size_t Offset = 0;
+			uint8_t buffer[core::BLOB_SIZE];
+			size_t offset = 0;
 
-			while (Size > 0)
+			while (size > 0)
 			{
-				auto Status = Read(Buffer, Size > sizeof(Buffer) ? sizeof(Buffer) : Size);
-				if (!Status)
+				auto status = read(buffer, size > sizeof(buffer) ? sizeof(buffer) : size);
+				if (!status)
 				{
-					if (Status.Error() == std::errc::operation_would_block)
+					if (status.error() == std::errc::operation_would_block)
 					{
-						Multiplexer::Get()->WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
+						multiplexer::get()->when_readable(this, [this, size, temp_buffer, callback = std::move(callback)](socket_poll event) mutable
 						{
-							if (Packet::IsDone(Event))
-								ReadQueued(Size, std::move(Callback), ++TempBuffer);
+							if (packet::is_done(event))
+								read_queued(size, std::move(callback), ++temp_buffer);
 							else
-								Callback(Event, nullptr, 0);
+								callback(event, nullptr, 0);
 						});
 					}
 					else
-						Callback(SocketPoll::Reset, nullptr, 0);
+						callback(socket_poll::reset, nullptr, 0);
 
-					return Status;
+					return status;
 				}
 
-				size_t Received = *Status;
-				if (!Callback(SocketPoll::Next, Buffer, Received))
+				size_t received = *status;
+				if (!callback(socket_poll::next, buffer, received))
 					break;
 
-				Size -= Received;
-				Offset += Received;
+				size -= received;
+				offset += received;
 			}
 
-			Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
-			return Offset;
+			callback(temp_buffer != 0 ? socket_poll::finish : socket_poll::finish_sync, nullptr, 0);
+			return offset;
 		}
-		Core::ExpectsPromiseIO<Core::String> Socket::ReadDeferred(size_t Size)
+		core::expects_promise_io<core::string> socket::read_deferred(size_t size)
 		{
-			Core::String* Merge = Core::Memory::New<Core::String>();
-			Merge->reserve(Size);
+			core::string* merge = core::memory::init<core::string>();
+			merge->reserve(size);
 
-			Core::ExpectsPromiseIO<Core::String> Future;
-			ReadQueued(Size, [Future, Merge](SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+			core::expects_promise_io<core::string> future;
+			read_queued(size, [future, merge](socket_poll event, const uint8_t* buffer, size_t size) mutable
 			{
-				if (Packet::IsDone(Event))
+				if (packet::is_done(event))
 				{
-					Future.Set(std::move(*Merge));
-					Core::Memory::Delete(Merge);
+					future.set(std::move(*merge));
+					core::memory::deinit(merge);
 				}
-				else if (!Packet::IsData(Event))
+				else if (!packet::is_data(event))
 				{
-					Future.Set(Packet::ToCondition(Event));
-					Core::Memory::Delete(Merge);
+					future.set(packet::to_condition(event));
+					core::memory::deinit(merge);
 				}
-				else if (Buffer != nullptr && Size > 0)
-					Merge->append((char*)Buffer, Size);
+				else if (buffer != nullptr && size > 0)
+					merge->append((char*)buffer, size);
 
 				return true;
 			});
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntil(const std::string_view& Match, SocketReadCallback&& Callback)
+		core::expects_io<size_t> socket::read_until(const std::string_view& match, socket_read_callback&& callback)
 		{
-			VI_ASSERT(!Match.empty(), "match should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(!match.empty(), "match should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(SocketPoll::Reset, nullptr, 0);
+				callback(socket_poll::reset, nullptr, 0);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			uint8_t Buffer[MAX_READ_UNTIL];
-			size_t Size = Match.size(), Cache = 0, Receiving = 0, Index = 0;
-			auto NotifyIncoming = [&Callback, &Buffer, &Cache, &Receiving]()
+			uint8_t buffer[MAX_READ_UNTIL];
+			size_t size = match.size(), cache = 0, receiving = 0, index = 0;
+			auto notify_incoming = [&callback, &buffer, &cache, &receiving]()
 			{
-				if (!Cache)
+				if (!cache)
 					return true;
 
-				size_t Size = Cache;
-				Cache = 0; Receiving += Size;
-				return Callback(SocketPoll::Next, Buffer, Size);
+				size_t size = cache;
+				cache = 0; receiving += size;
+				return callback(socket_poll::next, buffer, size);
 			};
 
-			VI_ASSERT(Size > 0, "match should not be empty");
-			while (Index < Size)
+			VI_ASSERT(size > 0, "match should not be empty");
+			while (index < size)
 			{
-				auto Status = Read(Buffer + Cache, 1);
-				if (!Status)
+				auto status = read(buffer + cache, 1);
+				if (!status)
 				{
-					if (NotifyIncoming())
-						Callback(SocketPoll::Reset, nullptr, 0);
-					return Status;
+					if (notify_incoming())
+						callback(socket_poll::reset, nullptr, 0);
+					return status;
 				}
 
-				size_t Offset = Cache;
-				if (++Cache >= sizeof(Buffer) && !NotifyIncoming())
+				size_t offset = cache;
+				if (++cache >= sizeof(buffer) && !notify_incoming())
 					break;
 
-				if (Match[Index] == Buffer[Offset])
+				if (match[index] == buffer[offset])
 				{
-					if (++Index >= Size)
+					if (++index >= size)
 					{
-						if (NotifyIncoming())
-							Callback(SocketPoll::FinishSync, nullptr, 0);
+						if (notify_incoming())
+							callback(socket_poll::finish_sync, nullptr, 0);
 						break;
 					}
 				}
 				else
-					Index = 0;
+					index = 0;
 			}
 
-			return Receiving;
+			return receiving;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntilQueued(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
+		core::expects_io<size_t> socket::read_until_queued(core::string&& match, socket_read_callback&& callback, size_t temp_index, bool temp_buffer)
 		{
-			VI_ASSERT(!Match.empty(), "match should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(!match.empty(), "match should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(SocketPoll::Reset, nullptr, 0);
+				callback(socket_poll::reset, nullptr, 0);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			uint8_t Buffer[MAX_READ_UNTIL];
-			size_t Size = Match.size(), Cache = 0, Receiving = 0;
-			auto NotifyIncoming = [&Callback, &Buffer, &Cache, &Receiving]()
+			uint8_t buffer[MAX_READ_UNTIL];
+			size_t size = match.size(), cache = 0, receiving = 0;
+			auto notify_incoming = [&callback, &buffer, &cache, &receiving]()
 			{
-				if (!Cache)
+				if (!cache)
 					return true;
 
-				size_t Size = Cache;
-				Cache = 0; Receiving += Size;
-				return Callback(SocketPoll::Next, Buffer, Size);
+				size_t size = cache;
+				cache = 0; receiving += size;
+				return callback(socket_poll::next, buffer, size);
 			};
 
-			VI_ASSERT(Size > 0, "match should not be empty");
-			while (TempIndex < Size)
+			VI_ASSERT(size > 0, "match should not be empty");
+			while (temp_index < size)
 			{
-				auto Status = Read(Buffer + Cache, 1);
-				if (!Status)
+				auto status = read(buffer + cache, 1);
+				if (!status)
 				{
-					if (Status.Error() == std::errc::operation_would_block)
+					if (status.error() == std::errc::operation_would_block)
 					{
-						Multiplexer::Get()->WhenReadable(this, [this, TempIndex, Match = std::move(Match), Callback = std::move(Callback)](SocketPoll Event) mutable
+						multiplexer::get()->when_readable(this, [this, temp_index, match = std::move(match), callback = std::move(callback)](socket_poll event) mutable
 						{
-							if (Packet::IsDone(Event))
-								ReadUntilQueued(std::move(Match), std::move(Callback), TempIndex, true);
+							if (packet::is_done(event))
+								read_until_queued(std::move(match), std::move(callback), temp_index, true);
 							else
-								Callback(Event, nullptr, 0);
+								callback(event, nullptr, 0);
 						});
 					}
-					else if (NotifyIncoming())
-						Callback(SocketPoll::Reset, nullptr, 0);
+					else if (notify_incoming())
+						callback(socket_poll::reset, nullptr, 0);
 
-					return Status;
+					return status;
 				}
 
-				size_t Offset = Cache++;
-				if (Cache >= sizeof(Buffer) && !NotifyIncoming())
+				size_t offset = cache++;
+				if (cache >= sizeof(buffer) && !notify_incoming())
 					break;
 
-				if (Match[TempIndex] == Buffer[Offset])
+				if (match[temp_index] == buffer[offset])
 				{
-					if (++TempIndex >= Size)
+					if (++temp_index >= size)
 					{
-						if (NotifyIncoming())
-							Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
+						if (notify_incoming())
+							callback(temp_buffer ? socket_poll::finish : socket_poll::finish_sync, nullptr, 0);
 						break;
 					}
 				}
 				else
-					TempIndex = 0;
+					temp_index = 0;
 			}
 
-			return Receiving;
+			return receiving;
 		}
-		Core::ExpectsPromiseIO<Core::String> Socket::ReadUntilDeferred(Core::String&& Match, size_t MaxSize)
+		core::expects_promise_io<core::string> socket::read_until_deferred(core::string&& match, size_t max_size)
 		{
-			Core::String* Merge = Core::Memory::New<Core::String>();
-			Merge->reserve(MaxSize);
+			core::string* merge = core::memory::init<core::string>();
+			merge->reserve(max_size);
 
-			Core::ExpectsPromiseIO<Core::String> Future;
-			ReadUntilQueued(std::move(Match), [Future, Merge, MaxSize](SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+			core::expects_promise_io<core::string> future;
+			read_until_queued(std::move(match), [future, merge, max_size](socket_poll event, const uint8_t* buffer, size_t size) mutable
 			{
-				if (Packet::IsDone(Event))
+				if (packet::is_done(event))
 				{
-					Future.Set(std::move(*Merge));
-					Core::Memory::Delete(Merge);
+					future.set(std::move(*merge));
+					core::memory::deinit(merge);
 				}
-				else if (!Packet::IsData(Event))
+				else if (!packet::is_data(event))
 				{
-					Future.Set(Packet::ToCondition(Event));
-					Core::Memory::Delete(Merge);
+					future.set(packet::to_condition(event));
+					core::memory::deinit(merge);
 				}
-				else if (Buffer != nullptr && Size > 0)
+				else if (buffer != nullptr && size > 0)
 				{
-					Size = std::min<size_t>(MaxSize, Size);
-					Merge->append((char*)Buffer, Size);
-					MaxSize -= Size;
-					return MaxSize > 0;
+					size = std::min<size_t>(max_size, size);
+					merge->append((char*)buffer, size);
+					max_size -= size;
+					return max_size > 0;
 				}
 
 				return true;
 			});
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntilChunked(const std::string_view& Match, SocketReadCallback&& Callback)
+		core::expects_io<size_t> socket::read_until_chunked(const std::string_view& match, socket_read_callback&& callback)
 		{
-			VI_ASSERT(!Match.empty(), "match should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(!match.empty(), "match should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(SocketPoll::Reset, nullptr, 0);
+				callback(socket_poll::reset, nullptr, 0);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			uint8_t Buffer[MAX_READ_UNTIL];
-			size_t Size = Match.size(), Cache = 0, Receiving = 0, Index = 0;
-			auto NotifyIncoming = [&Callback, &Buffer, &Cache, &Receiving]()
+			uint8_t buffer[MAX_READ_UNTIL];
+			size_t size = match.size(), cache = 0, receiving = 0, index = 0;
+			auto notify_incoming = [&callback, &buffer, &cache, &receiving]()
 			{
-				if (!Cache)
+				if (!cache)
 					return true;
 
-				size_t Size = Cache;
-				Cache = 0; Receiving += Size;
-				return Callback(SocketPoll::Next, Buffer, Size);
+				size_t size = cache;
+				cache = 0; receiving += size;
+				return callback(socket_poll::next, buffer, size);
 			};
 
-			VI_ASSERT(Size > 0, "match should not be empty");
-			while (Index < Size)
+			VI_ASSERT(size > 0, "match should not be empty");
+			while (index < size)
 			{
-				auto Status = Read(Buffer + Cache, sizeof(Buffer) - Cache);
-				if (!Status)
+				auto status = read(buffer + cache, sizeof(buffer) - cache);
+				if (!status)
 				{
-					if (NotifyIncoming())
-						Callback(SocketPoll::Reset, nullptr, 0);
-					return Status;
+					if (notify_incoming())
+						callback(socket_poll::reset, nullptr, 0);
+					return status;
 				}
 
-				size_t Length = *Status;
-				size_t Remaining = Length;
-				while (Remaining-- > 0)
+				size_t length = *status;
+				size_t remaining = length;
+				while (remaining-- > 0)
 				{
-					size_t Offset = Cache;
-					if (++Cache >= Length && !NotifyIncoming())
+					size_t offset = cache;
+					if (++cache >= length && !notify_incoming())
 						break;
 
-					if (Match[Index] == Buffer[Offset])
+					if (match[index] == buffer[offset])
 					{
-						if (++Index >= Size)
+						if (++index >= size)
 						{
-							if (NotifyIncoming())
-								Callback(SocketPoll::FinishSync, nullptr, 0);
+							if (notify_incoming())
+								callback(socket_poll::finish_sync, nullptr, 0);
 							break;
 						}
 					}
 					else
-						Index = 0;
+						index = 0;
 				}
 			}
 
-			return Receiving;
+			return receiving;
 		}
-		Core::ExpectsIO<size_t> Socket::ReadUntilChunkedQueued(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex, bool TempBuffer)
+		core::expects_io<size_t> socket::read_until_chunked_queued(core::string&& match, socket_read_callback&& callback, size_t temp_index, bool temp_buffer)
 		{
-			VI_ASSERT(!Match.empty(), "match should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(!match.empty(), "match should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(SocketPoll::Reset, nullptr, 0);
+				callback(socket_poll::reset, nullptr, 0);
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			uint8_t Buffer[MAX_READ_UNTIL];
-			size_t Size = Match.size(), Cache = 0, Receiving = 0, Remaining = 0;
-			auto NotifyIncoming = [&Callback, &Buffer, &Cache, &Receiving]()
+			uint8_t buffer[MAX_READ_UNTIL];
+			size_t size = match.size(), cache = 0, receiving = 0, remaining = 0;
+			auto notify_incoming = [&callback, &buffer, &cache, &receiving]()
 			{
-				if (!Cache)
+				if (!cache)
 					return true;
 
-				size_t Size = Cache;
-				Cache = 0; Receiving += Size;
-				return Callback(SocketPoll::Next, Buffer, Size);
+				size_t size = cache;
+				cache = 0; receiving += size;
+				return callback(socket_poll::next, buffer, size);
 			};
 
-			VI_ASSERT(Size > 0, "match should not be empty");
-			while (TempIndex < Size)
+			VI_ASSERT(size > 0, "match should not be empty");
+			while (temp_index < size)
 			{
-				auto Status = Read(Buffer + Cache, sizeof(Buffer) - Cache);
-				if (!Status)
+				auto status = read(buffer + cache, sizeof(buffer) - cache);
+				if (!status)
 				{
-					if (Status.Error() == std::errc::operation_would_block)
+					if (status.error() == std::errc::operation_would_block)
 					{
-						Multiplexer::Get()->WhenReadable(this, [this, TempIndex, Match = std::move(Match), Callback = std::move(Callback)](SocketPoll Event) mutable
+						multiplexer::get()->when_readable(this, [this, temp_index, match = std::move(match), callback = std::move(callback)](socket_poll event) mutable
 						{
-							if (Packet::IsDone(Event))
-								ReadUntilChunkedQueued(std::move(Match), std::move(Callback), TempIndex, true);
+							if (packet::is_done(event))
+								read_until_chunked_queued(std::move(match), std::move(callback), temp_index, true);
 							else
-								Callback(Event, nullptr, 0);
+								callback(event, nullptr, 0);
 						});
 					}
-					else if (NotifyIncoming())
-						Callback(SocketPoll::Reset, nullptr, 0);
+					else if (notify_incoming())
+						callback(socket_poll::reset, nullptr, 0);
 
-					return Status;
+					return status;
 				}
 
-				size_t Length = *Status;
-				Remaining = Length;
-				while (Remaining-- > 0)
+				size_t length = *status;
+				remaining = length;
+				while (remaining-- > 0)
 				{
-					size_t Offset = Cache;
-					if (++Cache >= Length && !NotifyIncoming())
+					size_t offset = cache;
+					if (++cache >= length && !notify_incoming())
 						break;
 
-					if (Match[TempIndex] == Buffer[Offset])
+					if (match[temp_index] == buffer[offset])
 					{
-						if (++TempIndex >= Size)
+						if (++temp_index >= size)
 						{
-							if (NotifyIncoming())
+							if (notify_incoming())
 							{
-								Cache = ++Offset;
-								Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, Remaining > 0 ? Buffer + Cache : nullptr, Remaining);
+								cache = ++offset;
+								callback(temp_buffer ? socket_poll::finish : socket_poll::finish_sync, remaining > 0 ? buffer + cache : nullptr, remaining);
 							}
 							break;
 						}
 					}
 					else
-						TempIndex = 0;
+						temp_index = 0;
 				}
 			}
 
-			return Receiving;
+			return receiving;
 		}
-		Core::ExpectsPromiseIO<Core::String> Socket::ReadUntilChunkedDeferred(Core::String&& Match, size_t MaxSize)
+		core::expects_promise_io<core::string> socket::read_until_chunked_deferred(core::string&& match, size_t max_size)
 		{
-			Core::String* Merge = Core::Memory::New<Core::String>();
-			Merge->reserve(MaxSize);
+			core::string* merge = core::memory::init<core::string>();
+			merge->reserve(max_size);
 
-			Core::ExpectsPromiseIO<Core::String> Future;
-			ReadUntilChunkedQueued(std::move(Match), [Future, Merge, MaxSize](SocketPoll Event, const uint8_t* Buffer, size_t Size) mutable
+			core::expects_promise_io<core::string> future;
+			read_until_chunked_queued(std::move(match), [future, merge, max_size](socket_poll event, const uint8_t* buffer, size_t size) mutable
 			{
-				if (Packet::IsDone(Event))
+				if (packet::is_done(event))
 				{
-					Future.Set(std::move(*Merge));
-					Core::Memory::Delete(Merge);
+					future.set(std::move(*merge));
+					core::memory::deinit(merge);
 				}
-				else if (!Packet::IsData(Event))
+				else if (!packet::is_data(event))
 				{
-					Future.Set(Packet::ToCondition(Event));
-					Core::Memory::Delete(Merge);
+					future.set(packet::to_condition(event));
+					core::memory::deinit(merge);
 				}
-				else if (Buffer != nullptr && Size > 0)
+				else if (buffer != nullptr && size > 0)
 				{
-					Size = std::min<size_t>(MaxSize, Size);
-					Merge->append((char*)Buffer, Size);
-					MaxSize -= Size;
-					return MaxSize > 0;
+					size = std::min<size_t>(max_size, size);
+					merge->append((char*)buffer, size);
+					max_size -= size;
+					return max_size > 0;
 				}
 
 				return true;
 			});
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<void> Socket::Connect(const SocketAddress& Address, uint64_t Timeout)
+		core::expects_io<void> socket::connect(const socket_address& address, uint64_t timeout)
 		{
-			VI_MEASURE(Core::Timings::Networking);
-			VI_DEBUG("[net] connect fd %i", (int)Fd);
-			if (connect(Fd, Address.GetRawAddress(), (int)Address.GetAddressSize()) != 0)
-				return Core::OS::Error::GetConditionOr();
+			VI_MEASURE(core::timings::networking);
+			VI_DEBUG("[net] connect fd %i", (int)fd);
+			if (::connect(fd, address.get_raw_address(), (int)address.get_address_size()) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::ConnectQueued(const SocketAddress& Address, SocketStatusCallback&& Callback)
+		core::expects_io<void> socket::connect_queued(const socket_address& address, socket_status_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			VI_MEASURE(Core::Timings::Networking);
-			if (Fd == INVALID_SOCKET)
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			VI_MEASURE(core::timings::networking);
+			if (fd == INVALID_SOCKET)
 			{
-				Callback(std::make_error_condition(std::errc::bad_file_descriptor));
+				callback(std::make_error_condition(std::errc::bad_file_descriptor));
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			VI_DEBUG("[net] connect fd %i", (int)Fd);
-			int Status = connect(Fd, Address.GetRawAddress(), (int)Address.GetAddressSize());
-			if (Status == 0)
+			VI_DEBUG("[net] connect fd %i", (int)fd);
+			int status = ::connect(fd, address.get_raw_address(), (int)address.get_address_size());
+			if (status == 0)
 			{
-				Callback(Core::Optional::None);
-				return Core::Expectation::Met;
+				callback(core::optional::none);
+				return core::expectation::met;
 			}
-			else if (Utils::GetLastError(Device, Status) != std::errc::operation_would_block)
+			else if (utils::GetLastError(device, status) != std::errc::operation_would_block)
 			{
-				auto Condition = Core::OS::Error::GetConditionOr();
-				Callback(Condition);
-				return Condition;
+				auto condition = core::os::error::get_condition_or();
+				callback(condition);
+				return condition;
 			}
 
-			Multiplexer::Get()->WhenWriteable(this, [Callback = std::move(Callback)](SocketPoll Event) mutable
+			multiplexer::get()->when_writeable(this, [callback = std::move(callback)](socket_poll event) mutable
 			{
-				if (Packet::IsDone(Event))
-					Callback(Core::Optional::None);
-				else if (Packet::IsTimeout(Event))
-					Callback(std::make_error_condition(std::errc::timed_out));
+				if (packet::is_done(event))
+					callback(core::optional::none);
+				else if (packet::is_timeout(event))
+					callback(std::make_error_condition(std::errc::timed_out));
 				else
-					Callback(std::make_error_condition(std::errc::connection_refused));
+					callback(std::make_error_condition(std::errc::connection_refused));
 			});
 			return std::make_error_condition(std::errc::operation_would_block);
 		}
-		Core::ExpectsPromiseIO<void> Socket::ConnectDeferred(const SocketAddress& Address)
+		core::expects_promise_io<void> socket::connect_deferred(const socket_address& address)
 		{
-			Core::ExpectsPromiseIO<void> Future;
-			ConnectQueued(Address, [Future](const Core::Option<std::error_condition>& Error) mutable
+			core::expects_promise_io<void> future;
+			connect_queued(address, [future](const core::option<std::error_condition>& error) mutable
 			{
-				if (Error)
-					Future.Set(*Error);
+				if (error)
+					future.set(*error);
 				else
-					Future.Set(Core::Expectation::Met);
+					future.set(core::expectation::met);
 			});
-			return Future;
+			return future;
 		}
-		Core::ExpectsIO<void> Socket::Open(const SocketAddress& Address)
+		core::expects_io<void> socket::open(const socket_address& address)
 		{
-			VI_MEASURE(Core::Timings::Networking);
+			VI_MEASURE(core::timings::networking);
 			VI_DEBUG("[net] assign fd");
-			if (!Core::OS::Control::Has(Core::AccessOption::Net))
+			if (!core::os::control::has(core::access_option::net))
 				return std::make_error_condition(std::errc::permission_denied);
 
-			auto Openable = ExecuteSocket(Address.GetFamily(), Address.GetType(), Address.GetProtocol());
-			if (!Openable)
-				return Openable.Error();
+			auto openable = execute_socket(address.get_family(), address.get_type(), address.get_protocol());
+			if (!openable)
+				return openable.error();
 
-			int Option = 1; Fd = *Openable;
-			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
-			return Core::Expectation::Met;
+			int option = 1; fd = *openable;
+			setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&option, sizeof(option));
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::Secure(ssl_ctx_st* Context, const std::string_view& Hostname)
+		core::expects_io<void> socket::secure(ssl_ctx_st* context, const std::string_view& hostname)
 		{
 #ifdef VI_OPENSSL
-			VI_MEASURE(Core::Timings::Networking);
-			VI_ASSERT(Hostname.empty() || Core::Stringify::IsCString(Hostname), "hostname should be set");
-			VI_TRACE("[net] fd %i create ssl device on %.*s", (int)Fd, (int)Hostname.size(), Hostname.data());
-			if (Device != nullptr)
-				SSL_free(Device);
+			VI_MEASURE(core::timings::networking);
+			VI_ASSERT(hostname.empty() || core::stringify::is_cstring(hostname), "hostname should be set");
+			VI_TRACE("[net] fd %i create ssl device on %.*s", (int)fd, (int)hostname.size(), hostname.data());
+			if (device != nullptr)
+				SSL_free(device);
 
-			Device = SSL_new(Context);
-			if (!Device)
+			device = SSL_new(context);
+			if (!device)
 				return std::make_error_condition(std::errc::broken_pipe);
 
-			SSL_set_mode(Device, SSL_MODE_ENABLE_PARTIAL_WRITE);
-			SSL_set_mode(Device, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+			SSL_set_mode(device, SSL_MODE_ENABLE_PARTIAL_WRITE);
+			SSL_set_mode(device, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #ifndef OPENSSL_NO_TLSEXT
-			if (!Hostname.empty())
-				SSL_set_tlsext_host_name(Device, Hostname.data());
+			if (!hostname.empty())
+				SSL_set_tlsext_host_name(device, hostname.data());
 #endif
 #endif
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::Bind(const SocketAddress& Address)
+		core::expects_io<void> socket::bind(const socket_address& address)
 		{
-			VI_MEASURE(Core::Timings::Networking);
-			VI_DEBUG("[net] bind fd %i", (int)Fd);
+			VI_MEASURE(core::timings::networking);
+			VI_DEBUG("[net] bind fd %i", (int)fd);
 
-			if (bind(Fd, Address.GetRawAddress(), (int)Address.GetAddressSize()) != 0)
-				return Core::OS::Error::GetConditionOr();
+			if (::bind(fd, address.get_raw_address(), (int)address.get_address_size()) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::Listen(int Backlog)
+		core::expects_io<void> socket::listen(int backlog)
 		{
-			VI_MEASURE(Core::Timings::Networking);
-			VI_DEBUG("[net] listen fd %i", (int)Fd);
-			if (listen(Fd, Backlog) != 0)
-				return Core::OS::Error::GetConditionOr();
+			VI_MEASURE(core::timings::networking);
+			VI_DEBUG("[net] listen fd %i", (int)fd);
+			if (::listen(fd, backlog) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::ClearEvents(bool Gracefully)
+		core::expects_io<void> socket::clear_events(bool gracefully)
 		{
-			VI_MEASURE(Core::Timings::Networking);
-			VI_TRACE("[net] fd %i clear events %s", (int)Fd, Gracefully ? "gracefully" : "forcefully");
-			auto* Handle = Multiplexer::Get();
-			bool Success = Gracefully ? Handle->CancelEvents(this, SocketPoll::Reset) : Handle->ClearEvents(this);
-			if (!Success)
+			VI_MEASURE(core::timings::networking);
+			VI_TRACE("[net] fd %i clear events %s", (int)fd, gracefully ? "gracefully" : "forcefully");
+			auto* handle = multiplexer::get();
+			bool success = gracefully ? handle->cancel_events(this, socket_poll::reset) : handle->clear_events(this);
+			if (!success)
 				return std::make_error_condition(std::errc::not_connected);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::MigrateTo(socket_t NewFd, bool Gracefully)
+		core::expects_io<void> socket::migrate_to(socket_t new_fd, bool gracefully)
 		{
-			VI_MEASURE(Core::Timings::Networking);
-			VI_TRACE("[net] migrate fd %i to fd %i", (int)Fd, (int)NewFd);
-			if (!Gracefully)
+			VI_MEASURE(core::timings::networking);
+			VI_TRACE("[net] migrate fd %i to fd %i", (int)fd, (int)new_fd);
+			if (!gracefully)
 			{
-				Fd = NewFd;
-				return Core::Expectation::Met;
+				fd = new_fd;
+				return core::expectation::met;
 			}
 
-			auto Status = ClearEvents(false);
-			Fd = NewFd;
-			return Status;
+			auto status = clear_events(false);
+			fd = new_fd;
+			return status;
 		}
-		Core::ExpectsIO<void> Socket::SetCloseOnExec()
+		core::expects_io<void> socket::set_close_on_exec()
 		{
-			VI_TRACE("[net] fd %i setopt: cloexec", (int)Fd);
+			VI_TRACE("[net] fd %i setopt: cloexec", (int)fd);
 #if defined(_WIN32)
 			return std::make_error_condition(std::errc::not_supported);
 #else
-			if (fcntl(Fd, F_SETFD, FD_CLOEXEC) == -1)
-				return Core::OS::Error::GetConditionOr();
+			if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 #endif
 		}
-		Core::ExpectsIO<void> Socket::SetTimeWait(int Timeout)
+		core::expects_io<void> socket::set_time_wait(int timeout)
 		{
-			linger Linger;
-			Linger.l_onoff = (Timeout >= 0 ? 1 : 0);
-			Linger.l_linger = Timeout;
+			linger linger;
+			linger.l_onoff = (timeout >= 0 ? 1 : 0);
+			linger.l_linger = timeout;
 
-			VI_TRACE("[net] fd %i setopt: timewait %i", (int)Fd, Timeout);
-			if (setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger)) != 0)
-				return Core::OS::Error::GetConditionOr();
+			VI_TRACE("[net] fd %i setopt: timewait %i", (int)fd, timeout);
+			if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char*)&linger, sizeof(linger)) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::SetSocket(int Option, void* Value, size_t Size)
+		core::expects_io<void> socket::set_socket(int option, void* value, size_t size)
 		{
-			VI_TRACE("[net] fd %i setsockopt: opt%i %i bytes", (int)Fd, Option, (int)Size);
-			if (::setsockopt(Fd, SOL_SOCKET, Option, (const char*)Value, (int)Size) != 0)
-				return Core::OS::Error::GetConditionOr();
+			VI_TRACE("[net] fd %i setsockopt: opt%i %i bytes", (int)fd, option, (int)size);
+			if (::setsockopt(fd, SOL_SOCKET, option, (const char*)value, (int)size) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::SetAny(int Level, int Option, void* Value, size_t Size)
+		core::expects_io<void> socket::set_any(int level, int option, void* value, size_t size)
 		{
-			VI_TRACE("[net] fd %i setopt: l%i opt%i %i bytes", (int)Fd, Level, Option, (int)Size);
-			if (::setsockopt(Fd, Level, Option, (const char*)Value, (int)Size) != 0)
-				return Core::OS::Error::GetConditionOr();
+			VI_TRACE("[net] fd %i setopt: l%i opt%i %i bytes", (int)fd, level, option, (int)size);
+			if (::setsockopt(fd, level, option, (const char*)value, (int)size) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::SetSocketFlag(int Option, int Value)
+		core::expects_io<void> socket::set_socket_flag(int option, int value)
 		{
-			return SetSocket(Option, (void*)&Value, sizeof(int));
+			return set_socket(option, (void*)&value, sizeof(int));
 		}
-		Core::ExpectsIO<void> Socket::SetAnyFlag(int Level, int Option, int Value)
+		core::expects_io<void> socket::set_any_flag(int level, int option, int value)
 		{
-			VI_TRACE("[net] fd %i setopt: l%i opt%i %i", (int)Fd, Level, Option, Value);
-			return SetAny(Level, Option, (void*)&Value, sizeof(int));
+			VI_TRACE("[net] fd %i setopt: l%i opt%i %i", (int)fd, level, option, value);
+			return set_any(level, option, (void*)&value, sizeof(int));
 		}
-		Core::ExpectsIO<void> Socket::SetBlocking(bool Enabled)
+		core::expects_io<void> socket::set_blocking(bool enabled)
 		{
-			return SetSocketBlocking(Fd, Enabled);
+			return set_socket_blocking(fd, enabled);
 		}
-		Core::ExpectsIO<void> Socket::SetNoDelay(bool Enabled)
+		core::expects_io<void> socket::set_no_delay(bool enabled)
 		{
-			return SetAnyFlag(IPPROTO_TCP, TCP_NODELAY, (Enabled ? 1 : 0));
+			return set_any_flag(IPPROTO_TCP, TCP_NODELAY, (enabled ? 1 : 0));
 		}
-		Core::ExpectsIO<void> Socket::SetKeepAlive(bool Enabled)
+		core::expects_io<void> socket::set_keep_alive(bool enabled)
 		{
-			return SetSocketFlag(SO_KEEPALIVE, (Enabled ? 1 : 0));
+			return set_socket_flag(SO_KEEPALIVE, (enabled ? 1 : 0));
 		}
-		Core::ExpectsIO<void> Socket::SetTimeout(int Timeout)
+		core::expects_io<void> socket::set_timeout(int timeout)
 		{
-			VI_TRACE("[net] fd %i setopt: rwtimeout %i", (int)Fd, Timeout);
+			VI_TRACE("[net] fd %i setopt: rwtimeout %i", (int)fd, timeout);
 #ifdef VI_MICROSOFT
-			DWORD Time = (DWORD)Timeout;
+			DWORD time = (DWORD)timeout;
 #else
-			struct timeval Time;
-			memset(&Time, 0, sizeof(Time));
-			Time.tv_sec = Timeout / 1000;
-			Time.tv_usec = (Timeout * 1000) % 1000000;
+			struct timeval time;
+			memset(&time, 0, sizeof(time));
+			time.tv_sec = timeout / 1000;
+			time.tv_usec = (timeout * 1000) % 1000000;
 #endif
-			if (setsockopt(Fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&Time, sizeof(Time)) != 0)
-				return Core::OS::Error::GetConditionOr();
+			if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&time, sizeof(time)) != 0)
+				return core::os::error::get_condition_or();
 
-			if (setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time)) != 0)
-				return Core::OS::Error::GetConditionOr();
+			if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&time, sizeof(time)) != 0)
+				return core::os::error::get_condition_or();
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::GetSocket(int Option, void* Value, size_t* Size)
+		core::expects_io<void> socket::get_socket(int option, void* value, size_t* size)
 		{
-			return GetAny(SOL_SOCKET, Option, Value, Size);
+			return get_any(SOL_SOCKET, option, value, size);
 		}
-		Core::ExpectsIO<void> Socket::GetAny(int Level, int Option, void* Value, size_t* Size)
+		core::expects_io<void> socket::get_any(int level, int option, void* value, size_t* size)
 		{
-			socket_size_t Length = (socket_size_t)Level;
-			if (::getsockopt(Fd, Level, Option, (char*)Value, &Length) == -1)
-				return Core::OS::Error::GetConditionOr();
+			socket_size_t length = (socket_size_t)level;
+			if (::getsockopt(fd, level, option, (char*)value, &length) == -1)
+				return core::os::error::get_condition_or();
 
-			if (Size != nullptr)
-				*Size = (size_t)Length;
+			if (size != nullptr)
+				*size = (size_t)length;
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> Socket::GetSocketFlag(int Option, int* Value)
+		core::expects_io<void> socket::get_socket_flag(int option, int* value)
 		{
-			size_t Size = sizeof(int);
-			return GetSocket(Option, (void*)Value, &Size);
+			size_t size = sizeof(int);
+			return get_socket(option, (void*)value, &size);
 		}
-		Core::ExpectsIO<void> Socket::GetAnyFlag(int Level, int Option, int* Value)
+		core::expects_io<void> socket::get_any_flag(int level, int option, int* value)
 		{
-			return GetAny(Level, Option, (char*)Value, nullptr);
+			return get_any(level, option, (char*)value, nullptr);
 		}
-		Core::ExpectsIO<SocketAddress> Socket::GetPeerAddress()
+		core::expects_io<socket_address> socket::get_peer_address()
 		{
-			struct sockaddr_storage Address;
-			socklen_t Length = sizeof(Address);
-			if (getpeername(Fd, (sockaddr*)&Address, &Length) == -1)
-				return Core::OS::Error::GetConditionOr();
+			struct sockaddr_storage address;
+			socklen_t length = sizeof(address);
+			if (getpeername(fd, (sockaddr*)&address, &length) == -1)
+				return core::os::error::get_condition_or();
 
-			return SocketAddress(std::string_view(), 0, (sockaddr*)&Address, Length);
+			return socket_address(std::string_view(), 0, (sockaddr*)&address, length);
 		}
-		Core::ExpectsIO<SocketAddress> Socket::GetThisAddress()
+		core::expects_io<socket_address> socket::get_this_address()
 		{
-			struct sockaddr_storage Address;
-			socket_size_t Length = sizeof(Address);
-			if (getsockname(Fd, reinterpret_cast<struct sockaddr*>(&Address), &Length) == -1)
-				return Core::OS::Error::GetConditionOr();
+			struct sockaddr_storage address;
+			socket_size_t length = sizeof(address);
+			if (getsockname(fd, reinterpret_cast<struct sockaddr*>(&address), &length) == -1)
+				return core::os::error::get_condition_or();
 
-			return SocketAddress(std::string_view(), 0, (sockaddr*)&Address, Length);
+			return socket_address(std::string_view(), 0, (sockaddr*)&address, length);
 		}
-		Core::ExpectsIO<Certificate> Socket::GetCertificate()
+		core::expects_io<certificate> socket::get_certificate()
 		{
-			if (!Device)
+			if (!device)
 				return std::make_error_condition(std::errc::not_supported);
 #ifdef VI_OPENSSL
-			X509* Blob = SSL_get_peer_certificate(Device);
-			if (!Blob)
+			X509* blob = SSL_get_peer_certificate(device);
+			if (!blob)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			return Utils::GetCertificateFromX509(Blob);
+			return utils::get_certificate_from_x509(blob);
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		void Socket::SetIoTimeout(uint64_t TimeoutMs)
+		void socket::set_io_timeout(uint64_t timeout_ms)
 		{
-			Events.Timeout = TimeoutMs;
+			events.timeout = timeout_ms;
 		}
-		socket_t Socket::GetFd() const
+		socket_t socket::get_fd() const
 		{
-			return Fd;
+			return fd;
 		}
-		ssl_st* Socket::GetDevice() const
+		ssl_st* socket::get_device() const
 		{
-			return Device;
+			return device;
 		}
-		bool Socket::IsValid() const
+		bool socket::is_valid() const
 		{
-			return Fd != INVALID_SOCKET;
+			return fd != INVALID_SOCKET;
 		}
-		bool Socket::IsAwaitingEvents()
+		bool socket::is_awaiting_events()
 		{
-			Core::UMutex<std::mutex> Unique(Events.Mutex);
-			return Events.ReadCallback || Events.WriteCallback;
+			core::umutex<std::mutex> unique(events.mutex);
+			return events.read_callback || events.write_callback;
 		}
-		bool Socket::IsAwaitingReadable()
+		bool socket::is_awaiting_readable()
 		{
-			Core::UMutex<std::mutex> Unique(Events.Mutex);
-			return !!Events.ReadCallback;
+			core::umutex<std::mutex> unique(events.mutex);
+			return !!events.read_callback;
 		}
-		bool Socket::IsAwaitingWriteable()
+		bool socket::is_awaiting_writeable()
 		{
-			Core::UMutex<std::mutex> Unique(Events.Mutex);
-			return !!Events.WriteCallback;
+			core::umutex<std::mutex> unique(events.mutex);
+			return !!events.write_callback;
 		}
-		bool Socket::IsSecure() const
+		bool socket::is_secure() const
 		{
-			return Device != nullptr;
-		}
-
-		SocketListener::SocketListener(const std::string_view& NewName, const SocketAddress& NewAddress, bool Secure) : Name(NewName), Address(NewAddress), Stream(new Socket()), IsSecure(Secure)
-		{
-		}
-		SocketListener::~SocketListener() noexcept
-		{
-			if (Stream != nullptr)
-				Stream->Shutdown();
-			Core::Memory::Release(Stream);
+			return device != nullptr;
 		}
 
-		SocketRouter::~SocketRouter() noexcept
+		socket_listener::socket_listener(const std::string_view& new_name, const socket_address& new_address, bool secure) : name(new_name), address(new_address), stream(new socket()), is_secure(secure)
+		{
+		}
+		socket_listener::~socket_listener() noexcept
+		{
+			if (stream != nullptr)
+				stream->shutdown();
+			core::memory::release(stream);
+		}
+
+		socket_router::~socket_router() noexcept
 		{
 #ifdef VI_OPENSSL
-			auto* Transporter = TransportLayer::Get();
-			for (auto& Item : Certificates)
-				Transporter->FreeServerContext(Item.second.Context);
-			Certificates.clear();
+			auto* transporter = transport_layer::get();
+			for (auto& item : certificates)
+				transporter->free_server_context(item.second.context);
+			certificates.clear();
 #endif
 		}
-		Core::ExpectsSystem<RouterListener*> SocketRouter::Listen(const std::string_view& Hostname, const std::string_view& Service, bool Secure)
+		core::expects_system<router_listener*> socket_router::listen(const std::string_view& hostname, const std::string_view& service, bool secure)
 		{
-			return Listen("*", Hostname, Service, Secure);
+			return listen("*", hostname, service, secure);
 		}
-		Core::ExpectsSystem<RouterListener*> SocketRouter::Listen(const std::string_view& Pattern, const std::string_view& Hostname, const std::string_view& Service, bool Secure)
+		core::expects_system<router_listener*> socket_router::listen(const std::string_view& pattern, const std::string_view& hostname, const std::string_view& service, bool secure)
 		{
-			auto Address = DNS::Get()->Lookup(Hostname, Service, DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
-			if (!Address)
-				return Address.Error();
+			auto address = dns::get()->lookup(hostname, service, dns_type::listen, socket_protocol::TCP, socket_type::stream);
+			if (!address)
+				return address.error();
 
-			RouterListener& Info = Listeners[Core::String(Pattern.empty() ? "*" : Pattern)];
-			Info.Address = std::move(*Address);
-			Info.IsSecure = Secure;
-			return &Info;
+			router_listener& info = listeners[core::string(pattern.empty() ? "*" : pattern)];
+			info.address = std::move(*address);
+			info.is_secure = secure;
+			return &info;
 		}
 
-		SocketConnection::~SocketConnection() noexcept
+		socket_connection::~socket_connection() noexcept
 		{
-			Core::Memory::Release(Stream);
-			Core::Memory::Release(Host);
+			core::memory::release(stream);
+			core::memory::release(host);
 		}
-		bool SocketConnection::Abort()
+		bool socket_connection::abort()
 		{
-			Info.Abort = true;
-			return Next(-1);
+			info.abort = true;
+			return next(-1);
 		}
-		bool SocketConnection::Abort(int StatusCode, const char* ErrorMessage, ...)
+		bool socket_connection::abort(int status_code, const char* error_message, ...)
 		{
-			char Buffer[Core::BLOB_SIZE];
-			if (Info.Abort)
-				return Next();
+			char buffer[core::BLOB_SIZE];
+			if (info.abort)
+				return next();
 
-			va_list Args;
-			va_start(Args, ErrorMessage);
-			int Count = vsnprintf(Buffer, sizeof(Buffer), ErrorMessage, Args);
-			va_end(Args);
+			va_list args;
+			va_start(args, error_message);
+			int count = vsnprintf(buffer, sizeof(buffer), error_message, args);
+			va_end(args);
 
-			Info.Message.assign(Buffer, Count);
-			return Next(StatusCode);
+			info.message.assign(buffer, count);
+			return next(status_code);
 		}
-		bool SocketConnection::Next()
+		bool socket_connection::next()
 		{
 			return false;
 		}
-		bool SocketConnection::Next(int)
+		bool socket_connection::next(int)
 		{
-			return Next();
+			return next();
 		}
-		bool SocketConnection::Closable(SocketRouter* Router)
+		bool socket_connection::closable(socket_router* router)
 		{
-			if (Info.Abort)
+			if (info.abort)
 				return true;
-			else if (Info.Reuses > 1)
+			else if (info.reuses > 1)
 				return false;
 
-			return Router && Router->KeepAliveMaxCount != 0;
+			return router && router->keep_alive_max_count != 0;
 		}
-		void SocketConnection::Reset(bool Fully)
+		void socket_connection::reset(bool fully)
 		{
-			if (Fully)
+			if (fully)
 			{
-				Info.Message.clear();
-				Info.Reuses = 1;
-				Info.Start = 0;
-				Info.Finish = 0;
-				Info.Timeout = 0;
-				Info.Abort = false;
+				info.message.clear();
+				info.reuses = 1;
+				info.start = 0;
+				info.finish = 0;
+				info.timeout = 0;
+				info.abort = false;
 			}
 
-			if (Stream != nullptr)
+			if (stream != nullptr)
 			{
-				Stream->Income = 0;
-				Stream->Outcome = 0;
+				stream->income = 0;
+				stream->outcome = 0;
 			}
 		}
 
-		SocketServer::SocketServer() noexcept : Router(nullptr), ShutdownTimeout((uint64_t)Core::Timings::Hangup), Backlog(1024), State(ServerState::Idle)
+		socket_server::socket_server() noexcept : router(nullptr), shutdown_timeout((uint64_t)core::timings::hangup), backlog(1024), state(server_state::idle)
 		{
-			Multiplexer::Get()->Activate();
+			multiplexer::get()->activate();
 		}
-		SocketServer::~SocketServer() noexcept
+		socket_server::~socket_server() noexcept
 		{
-			Unlisten(false);
-			if (Network::Multiplexer::HasInstance())
-				Multiplexer::Get()->Deactivate();
+			unlisten(false);
+			if (network::multiplexer::has_instance())
+				multiplexer::get()->deactivate();
 		}
-		void SocketServer::SetRouter(SocketRouter* New)
+		void socket_server::set_router(socket_router* init)
 		{
-			Core::Memory::Release(Router);
-			Router = New;
+			core::memory::release(router);
+			router = init;
 		}
-		void SocketServer::SetBacklog(size_t Value)
+		void socket_server::set_backlog(size_t value)
 		{
-			VI_ASSERT(Value > 0, "backlog must be greater than zero");
-			Backlog = Value;
+			VI_ASSERT(value > 0, "backlog must be greater than zero");
+			backlog = value;
 		}
-		void SocketServer::SetShutdownTimeout(uint64_t TimeoutMs)
+		void socket_server::set_shutdown_timeout(uint64_t timeout_ms)
 		{
-			ShutdownTimeout = TimeoutMs;
+			shutdown_timeout = timeout_ms;
 		}
-		Core::ExpectsSystem<void> SocketServer::Configure(SocketRouter* NewRouter)
+		core::expects_system<void> socket_server::configure(socket_router* new_router)
 		{
-			VI_ASSERT(State == ServerState::Idle, "server should not be running");
-			if (NewRouter != nullptr)
+			VI_ASSERT(state == server_state::idle, "server should not be running");
+			if (new_router != nullptr)
 			{
-				if (Router != NewRouter)
+				if (router != new_router)
 				{
-					Core::Memory::Release(Router);
-					Router = NewRouter;
+					core::memory::release(router);
+					router = new_router;
 				}
 			}
-			else if (!Router && !(Router = OnAllocateRouter()))
+			else if (!router && !(router = on_allocate_router()))
 			{
 				VI_ASSERT(false, "router is not valid");
-				return Core::SystemException("configure server: invalid router", std::make_error_condition(std::errc::invalid_argument));
+				return core::system_exception("configure server: invalid router", std::make_error_condition(std::errc::invalid_argument));
 			}
 
-			auto ConfigureStatus = OnConfigure(Router);
-			if (!ConfigureStatus)
-				return ConfigureStatus;
+			auto configure_status = on_configure(router);
+			if (!configure_status)
+				return configure_status;
 
-			if (Router->Listeners.empty())
+			if (router->listeners.empty())
 			{
 				VI_ASSERT(false, "there are no listeners provided");
-				return Core::SystemException("configure server: invalid listeners", std::make_error_condition(std::errc::invalid_argument));
+				return core::system_exception("configure server: invalid listeners", std::make_error_condition(std::errc::invalid_argument));
 			}
 
-			for (auto&& It : Router->Listeners)
+			for (auto&& it : router->listeners)
 			{
-				SocketListener* Host = new SocketListener(It.first, It.second.Address, It.second.IsSecure);
-				auto Status = Host->Stream->Open(Host->Address);
-				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("open %s listener error", GetAddressIdentification(Host->Address).c_str()), std::move(Status.Error()));
+				socket_listener* host = new socket_listener(it.first, it.second.address, it.second.is_secure);
+				auto status = host->stream->open(host->address);
+				if (!status)
+					return core::system_exception(core::stringify::text("open %s listener error", get_address_identification(host->address).c_str()), std::move(status.error()));
 
-				Status = Host->Stream->Bind(Host->Address);
-				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("bind %s listener error", GetAddressIdentification(Host->Address).c_str()), std::move(Status.Error()));
+				status = host->stream->bind(host->address);
+				if (!status)
+					return core::system_exception(core::stringify::text("bind %s listener error", get_address_identification(host->address).c_str()), std::move(status.error()));
 
-				Status = Host->Stream->Listen((int)Router->BacklogQueue);
-				if (!Status)
-					return Core::SystemException(Core::Stringify::Text("listen %s listener error", GetAddressIdentification(Host->Address).c_str()), std::move(Status.Error()));
+				status = host->stream->listen((int)router->backlog_queue);
+				if (!status)
+					return core::system_exception(core::stringify::text("listen %s listener error", get_address_identification(host->address).c_str()), std::move(status.error()));
 
-				Host->Stream->SetCloseOnExec();
-				Host->Stream->SetBlocking(false);
-				Listeners.push_back(Host);
+				host->stream->set_close_on_exec();
+				host->stream->set_blocking(false);
+				listeners.push_back(host);
 			}
 #ifdef VI_OPENSSL
-			for (auto&& It : Router->Certificates)
+			for (auto&& it : router->certificates)
 			{
-				auto Context = TransportLayer::Get()->CreateServerContext(It.second.VerifyPeers, It.second.Options, It.second.Ciphers);
-				if (!Context)
-					return Core::SystemException("create server transport layer error: " + It.first, std::move(Context.Error()));
+				auto context = transport_layer::get()->create_server_context(it.second.verify_peers, it.second.options, it.second.ciphers);
+				if (!context)
+					return core::system_exception("create server transport layer error: " + it.first, std::move(context.error()));
 
-				It.second.Context = *Context;
-				if (It.second.VerifyPeers > 0)
-					SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT | SSL_VERIFY_CLIENT_ONCE, nullptr);
+				it.second.context = *context;
+				if (it.second.verify_peers > 0)
+					SSL_CTX_set_verify(it.second.context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT | SSL_VERIFY_CLIENT_ONCE, nullptr);
 				else
-					SSL_CTX_set_verify(It.second.Context, SSL_VERIFY_NONE, nullptr);
+					SSL_CTX_set_verify(it.second.context, SSL_VERIFY_NONE, nullptr);
 
-				if (It.second.Blob.Certificate.empty() || It.second.Blob.PrivateKey.empty())
-					return Core::SystemException("invalid server transport layer private key or certificate error: " + It.first, std::make_error_condition(std::errc::invalid_argument));
+				if (it.second.blob.certificate.empty() || it.second.blob.private_key.empty())
+					return core::system_exception("invalid server transport layer private key or certificate error: " + it.first, std::make_error_condition(std::errc::invalid_argument));
 
-				BIO* CertificateBio = BIO_new_mem_buf((void*)It.second.Blob.Certificate.c_str(), (int)It.second.Blob.Certificate.size());
-				if (!CertificateBio)
-					return Core::SystemException(Core::Stringify::Text("server transport layer certificate %s memory error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::not_enough_memory));
+				BIO* certificate_bio = BIO_new_mem_buf((void*)it.second.blob.certificate.c_str(), (int)it.second.blob.certificate.size());
+				if (!certificate_bio)
+					return core::system_exception(core::stringify::text("server transport layer certificate %s memory error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::not_enough_memory));
 
-				X509* Certificate = PEM_read_bio_X509(CertificateBio, nullptr, 0, nullptr);
-				BIO_free(CertificateBio);
-				if (!Certificate)
-					return Core::SystemException(Core::Stringify::Text("server transport layer certificate %s parse error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::invalid_argument));
+				X509* certificate = PEM_read_bio_X509(certificate_bio, nullptr, 0, nullptr);
+				BIO_free(certificate_bio);
+				if (!certificate)
+					return core::system_exception(core::stringify::text("server transport layer certificate %s parse error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::invalid_argument));
 
-				if (SSL_CTX_use_certificate(It.second.Context, Certificate) != 1)
-					return Core::SystemException(Core::Stringify::Text("server transport layer certificate %s import error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
+				if (SSL_CTX_use_certificate(it.second.context, certificate) != 1)
+					return core::system_exception(core::stringify::text("server transport layer certificate %s import error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
 
-				BIO* PrivateKeyBio = BIO_new_mem_buf((void*)It.second.Blob.PrivateKey.c_str(), (int)It.second.Blob.PrivateKey.size());
-				if (!PrivateKeyBio)
-					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s memory error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::not_enough_memory));
+				BIO* private_key_bio = BIO_new_mem_buf((void*)it.second.blob.private_key.c_str(), (int)it.second.blob.private_key.size());
+				if (!private_key_bio)
+					return core::system_exception(core::stringify::text("server transport layer private key %s memory error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::not_enough_memory));
 
-				EVP_PKEY* PrivateKey = PEM_read_bio_PrivateKey(PrivateKeyBio, nullptr, 0, nullptr);
-				BIO_free(PrivateKeyBio);
-				if (!PrivateKey)
-					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s parse error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::invalid_argument));
+				EVP_PKEY* private_key = PEM_read_bio_PrivateKey(private_key_bio, nullptr, 0, nullptr);
+				BIO_free(private_key_bio);
+				if (!private_key)
+					return core::system_exception(core::stringify::text("server transport layer private key %s parse error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::invalid_argument));
 
-				if (SSL_CTX_use_PrivateKey(It.second.Context, PrivateKey) != 1)
-					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s import error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
+				if (SSL_CTX_use_PrivateKey(it.second.context, private_key) != 1)
+					return core::system_exception(core::stringify::text("server transport layer private key %s import error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
 
-				if (!SSL_CTX_check_private_key(It.second.Context))
-					return Core::SystemException(Core::Stringify::Text("server transport layer private key %s verify error: %s", It.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
+				if (!SSL_CTX_check_private_key(it.second.context))
+					return core::system_exception(core::stringify::text("server transport layer private key %s verify error: %s", it.first.c_str(), ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::bad_message));
 			}
 #endif
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketServer::Unlisten(bool Gracefully)
+		core::expects_system<void> socket_server::unlisten(bool gracefully)
 		{
-			VI_MEASURE(ShutdownTimeout);
-			if (!Router && State == ServerState::Idle)
-				return Core::Expectation::Met;
+			VI_MEASURE(shutdown_timeout);
+			if (!router && state == server_state::idle)
+				return core::expectation::met;
 
-			VI_DEBUG("[net] shutdown server %s", Gracefully ? "gracefully" : "fast");
-			Core::SingleQueue<SocketConnection*> Queue;
-			State = ServerState::Stopping;
+			VI_DEBUG("[net] shutdown server %s", gracefully ? "gracefully" : "fast");
+			core::single_queue<socket_connection*> queue;
+			state = server_state::stopping;
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-				for (auto It : Listeners)
-					It->Stream->Shutdown();
+				core::umutex<std::recursive_mutex> unique(exclusive);
+				for (auto it : listeners)
+					it->stream->shutdown();
 
-				for (auto* Base : Active)
-					Queue.push(Base);
+				for (auto* base : active)
+					queue.push(base);
 
-				while (!Queue.empty())
+				while (!queue.empty())
 				{
-					auto* Base = Queue.front();
-					Base->Info.Abort = true;
-					if (!Core::Schedule::IsAvailable())
-						Base->Stream->SetBlocking(true);
-					if (Gracefully)
-						Base->Stream->ClearEvents(true);
+					auto* base = queue.front();
+					base->info.abort = true;
+					if (!core::schedule::is_available())
+						base->stream->set_blocking(true);
+					if (gracefully)
+						base->stream->clear_events(true);
 					else
-						Base->Stream->Shutdown(true);
-					Queue.pop();
+						base->stream->shutdown(true);
+					queue.pop();
 				}
 			}
 
-			auto Timeout = std::chrono::milliseconds(ShutdownTimeout);
-			auto Time = Core::Schedule::GetClock();
+			auto timeout = std::chrono::milliseconds(shutdown_timeout);
+			auto time = core::schedule::get_clock();
 			do
 			{
-				if (ShutdownTimeout > 0 && Core::Schedule::GetClock() - Time > Timeout)
+				if (shutdown_timeout > 0 && core::schedule::get_clock() - time > timeout)
 				{
-					Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-					VI_DEBUG("[stall] server is leaking connections: %i", (int)Active.size());
-					for (auto* Next : Active)
-						OnRequestStall(Next);
+					core::umutex<std::recursive_mutex> unique(exclusive);
+					VI_DEBUG("[stall] server is leaking connections: %i", (int)active.size());
+					for (auto* next : active)
+						on_request_stall(next);
 					break;
 				}
 
-				FreeAll();
+				free_all();
 				std::this_thread::sleep_for(std::chrono::microseconds(SERVER_BLOCKED_WAIT_US));
 				VI_MEASURE_LOOP();
-			} while (Core::Schedule::IsAvailable() && (!Inactive.empty() || !Active.empty()));
+			} while (core::schedule::is_available() && (!inactive.empty() || !active.empty()));
 
-			auto UnlistenStatus = OnUnlisten();
-			if (!UnlistenStatus)
-				return UnlistenStatus;
+			auto unlisten_status = on_unlisten();
+			if (!unlisten_status)
+				return unlisten_status;
 
-			if (!Core::Schedule::IsAvailable())
+			if (!core::schedule::is_available())
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-				if (!Active.empty())
+				core::umutex<std::recursive_mutex> unique(exclusive);
+				if (!active.empty())
 				{
-					Inactive.insert(Active.begin(), Active.end());
-					Active.clear();
+					inactive.insert(active.begin(), active.end());
+					active.clear();
 				}
 			}
 
-			FreeAll();
-			auto AfterUnlistenStatus = OnAfterUnlisten();
-			if (!AfterUnlistenStatus)
-				return AfterUnlistenStatus;
+			free_all();
+			auto after_unlisten_status = on_after_unlisten();
+			if (!after_unlisten_status)
+				return after_unlisten_status;
 
-			for (auto It : Listeners)
-				Core::Memory::Release(It);
+			for (auto it : listeners)
+				core::memory::release(it);
 
-			Core::Memory::Release(Router);
-			Listeners.clear();
-			State = ServerState::Idle;
-			Router = nullptr;
-			return Core::Expectation::Met;
+			core::memory::release(router);
+			listeners.clear();
+			state = server_state::idle;
+			router = nullptr;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketServer::Listen()
+		core::expects_system<void> socket_server::listen()
 		{
-			if (Listeners.empty() || State != ServerState::Idle)
-				return Core::Expectation::Met;
+			if (listeners.empty() || state != server_state::idle)
+				return core::expectation::met;
 
-			State = ServerState::Working;
-			auto ListenStatus = OnListen();
-			if (!ListenStatus)
-				return ListenStatus;
+			state = server_state::working;
+			auto listen_status = on_listen();
+			if (!listen_status)
+				return listen_status;
 
-			VI_DEBUG("[net] listen server on %i listeners", (int)Listeners.size());
-			for (auto&& Source : Listeners)
+			VI_DEBUG("[net] listen server on %i listeners", (int)listeners.size());
+			for (auto&& source : listeners)
 			{
-				Source->Stream->AcceptQueued([this, Source](SocketAccept& Incoming)
+				source->stream->accept_queued([this, source](socket_accept& incoming)
 				{
-					if (State != ServerState::Working)
+					if (state != server_state::working)
 					{
-						if (Incoming.Fd != INVALID_SOCKET)
-							closesocket(Incoming.Fd);
+						if (incoming.fd != INVALID_SOCKET)
+							closesocket(incoming.fd);
 						return false;
 					}
-					else if (Incoming.Fd == INVALID_SOCKET)
+					else if (incoming.fd == INVALID_SOCKET)
 						return false;
 
-					Core::Cospawn([this, Source, Incoming]() mutable { Accept(Source, std::move(Incoming)); });
+					core::cospawn([this, source, incoming]() mutable { accept(source, std::move(incoming)); });
 					return true;
 				});
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> SocketServer::Refuse(SocketConnection* Base)
+		core::expects_io<void> socket_server::refuse(socket_connection* base)
 		{
-			return Base->Stream->CloseQueued([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
+			return base->stream->close_queued([this, base](const core::option<std::error_condition>&) { push(base); });
 		}
-		Core::ExpectsIO<void> SocketServer::Accept(SocketListener* Host, SocketAccept&& Incoming)
+		core::expects_io<void> socket_server::accept(socket_listener* host, socket_accept&& incoming)
 		{
-			auto* Base = Pop(Host);
-			if (!Base)
+			auto* base = pop(host);
+			if (!base)
 			{
-				closesocket(Incoming.Fd);
-				return std::make_error_condition(State == ServerState::Working ? std::errc::not_enough_memory : std::errc::connection_aborted);
+				closesocket(incoming.fd);
+				return std::make_error_condition(state == server_state::working ? std::errc::not_enough_memory : std::errc::connection_aborted);
 			}
 
-			Base->Address = std::move(Incoming.Address);
-			Base->Stream->SetIoTimeout(Router->SocketTimeout);
-			Base->Stream->MigrateTo(Incoming.Fd, false);
-			Base->Stream->SetCloseOnExec();
-			Base->Stream->SetNoDelay(Router->EnableNoDelay);
-			Base->Stream->SetKeepAlive(true);
-			Base->Stream->SetBlocking(false);
+			base->address = std::move(incoming.address);
+			base->stream->set_io_timeout(router->socket_timeout);
+			base->stream->migrate_to(incoming.fd, false);
+			base->stream->set_close_on_exec();
+			base->stream->set_no_delay(router->enable_no_delay);
+			base->stream->set_keep_alive(true);
+			base->stream->set_blocking(false);
 
-			if (Router->GracefulTimeWait >= 0)
-				Base->Stream->SetTimeWait((int)Router->GracefulTimeWait);
+			if (router->graceful_time_wait >= 0)
+				base->stream->set_time_wait((int)router->graceful_time_wait);
 
-			if (Router->MaxConnections > 0 && Active.size() >= Router->MaxConnections)
+			if (router->max_connections > 0 && active.size() >= router->max_connections)
 			{
-				Refuse(Base);
+				refuse(base);
 				return std::make_error_condition(std::errc::too_many_files_open);
 			}
 
-			if (!Host->IsSecure)
+			if (!host->is_secure)
 			{
-				OnRequestOpen(Base);
-				return Core::Expectation::Met;
+				on_request_open(base);
+				return core::expectation::met;
 			}
 
-			if (!HandshakeThenOpen(Base, Host))
+			if (!handshake_then_open(base, host))
 			{
-				Refuse(Base);
+				refuse(base);
 				return std::make_error_condition(std::errc::protocol_error);
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsIO<void> SocketServer::HandshakeThenOpen(SocketConnection* Base, SocketListener* Host)
+		core::expects_io<void> socket_server::handshake_then_open(socket_connection* base, socket_listener* host)
 		{
-			VI_ASSERT(Base != nullptr, "socket should be set");
-			VI_ASSERT(Base->Stream != nullptr, "socket should be set");
-			VI_ASSERT(Host != nullptr, "host should be set");
+			VI_ASSERT(base != nullptr, "socket should be set");
+			VI_ASSERT(base->stream != nullptr, "socket should be set");
+			VI_ASSERT(host != nullptr, "host should be set");
 
-			if (Router->Certificates.empty())
+			if (router->certificates.empty())
 				return std::make_error_condition(std::errc::not_supported);
 
-			auto Source = Router->Certificates.find(Host->Name);
-			if (Source == Router->Certificates.end())
+			auto source = router->certificates.find(host->name);
+			if (source == router->certificates.end())
 				return std::make_error_condition(std::errc::not_supported);
 
-			ssl_ctx_st* Context = Source->second.Context;
-			if (!Context)
+			ssl_ctx_st* context = source->second.context;
+			if (!context)
 				return std::make_error_condition(std::errc::host_unreachable);
 
-			auto Status = Base->Stream->Secure(Context, "");
-			if (!Status)
-				return Status;
+			auto status = base->stream->secure(context, "");
+			if (!status)
+				return status;
 #ifdef VI_OPENSSL
-			if (SSL_set_fd(Base->Stream->GetDevice(), (int)Base->Stream->GetFd()) != 1)
+			if (SSL_set_fd(base->stream->get_device(), (int)base->stream->get_fd()) != 1)
 				return std::make_error_condition(std::errc::connection_aborted);
 
-			TryHandshakeThenBegin(Base);
-			return Core::Expectation::Met;
+			try_handshake_then_begin(base);
+			return core::expectation::met;
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> SocketServer::TryHandshakeThenBegin(SocketConnection* Base)
+		core::expects_io<void> socket_server::try_handshake_then_begin(socket_connection* base)
 		{
 #ifdef VI_OPENSSL
-			int ErrorCode = SSL_accept(Base->Stream->GetDevice());
-			if (ErrorCode != -1)
+			int error_code = SSL_accept(base->stream->get_device());
+			if (error_code != -1)
 			{
-				OnRequestOpen(Base);
-				return Core::Expectation::Met;
+				on_request_open(base);
+				return core::expectation::met;
 			}
 
-			switch (SSL_get_error(Base->Stream->GetDevice(), ErrorCode))
+			switch (SSL_get_error(base->stream->get_device(), error_code))
 			{
 				case SSL_ERROR_WANT_ACCEPT:
 				case SSL_ERROR_WANT_READ:
 				{
-					Multiplexer::Get()->WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
+					multiplexer::get()->when_readable(base->stream, [this, base](socket_poll event)
 					{
-						if (Packet::IsDone(Event))
-							TryHandshakeThenBegin(Base);
+						if (packet::is_done(event))
+							try_handshake_then_begin(base);
 						else
-							Refuse(Base);
+							refuse(base);
 					});
 					return std::make_error_condition(std::errc::operation_would_block);
 				}
 				case SSL_ERROR_WANT_WRITE:
 				{
-					Multiplexer::Get()->WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					multiplexer::get()->when_writeable(base->stream, [this, base](socket_poll event)
 					{
-						if (Packet::IsDone(Event))
-							TryHandshakeThenBegin(Base);
+						if (packet::is_done(event))
+							try_handshake_then_begin(base);
 						else
-							Refuse(Base);
+							refuse(base);
 					});
 					return std::make_error_condition(std::errc::operation_would_block);
 				}
 				default:
 				{
-					Utils::DisplayTransportLog();
-					return Refuse(Base);
+					utils::display_transport_log();
+					return refuse(base);
 				}
 			}
 #else
 			return std::make_error_condition(std::errc::not_supported);
 #endif
 		}
-		Core::ExpectsIO<void> SocketServer::Continue(SocketConnection* Base)
+		core::expects_io<void> socket_server::next(socket_connection* base)
 		{
-			VI_ASSERT(Base != nullptr, "socket should be set");
-			if (!Base->Closable(Router) && !OnRequestCleanup(Base))
+			VI_ASSERT(base != nullptr, "socket should be set");
+			if (!base->closable(router) && !on_request_cleanup(base))
 				return std::make_error_condition(std::errc::operation_in_progress);
 
-			return Finalize(Base);
+			return finalize(base);
 		}
-		Core::ExpectsIO<void> SocketServer::Finalize(SocketConnection* Base)
+		core::expects_io<void> socket_server::finalize(socket_connection* base)
 		{
-			VI_ASSERT(Base != nullptr, "socket should be set");
-			if (Router->KeepAliveMaxCount != 0 && Base->Info.Reuses > 0)
-				--Base->Info.Reuses;
+			VI_ASSERT(base != nullptr, "socket should be set");
+			if (router->keep_alive_max_count != 0 && base->info.reuses > 0)
+				--base->info.reuses;
 
-			Base->Info.Finish = Utils::Clock();
-			OnRequestClose(Base);
+			base->info.finish = utils::clock();
+			on_request_close(base);
 
-			Base->Stream->SetIoTimeout(Router->SocketTimeout);
-			if (Base->Info.Abort || !Base->Info.Reuses)
-				return Base->Stream->CloseQueued([this, Base](const Core::Option<std::error_condition>&) { Push(Base); });
-			else if (Base->Stream->IsValid())
-				Core::Codefer(std::bind(&SocketServer::OnRequestOpen, this, Base));
+			base->stream->set_io_timeout(router->socket_timeout);
+			if (base->info.abort || !base->info.reuses)
+				return base->stream->close_queued([this, base](const core::option<std::error_condition>&) { push(base); });
+			else if (base->stream->is_valid())
+				core::codefer(std::bind(&socket_server::on_request_open, this, base));
 			else
-				Push(Base);
+				push(base);
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketServer::OnConfigure(SocketRouter*)
+		core::expects_system<void> socket_server::on_configure(socket_router*)
 		{
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketServer::OnListen()
+		core::expects_system<void> socket_server::on_listen()
 		{
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketServer::OnUnlisten()
+		core::expects_system<void> socket_server::on_unlisten()
 		{
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketServer::OnAfterUnlisten()
+		core::expects_system<void> socket_server::on_after_unlisten()
 		{
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		void SocketServer::OnRequestStall(SocketConnection* Base)
-		{
-		}
-		void SocketServer::OnRequestOpen(SocketConnection*)
+		void socket_server::on_request_stall(socket_connection* base)
 		{
 		}
-		void SocketServer::OnRequestClose(SocketConnection*)
+		void socket_server::on_request_open(socket_connection*)
 		{
 		}
-		bool SocketServer::OnRequestCleanup(SocketConnection*)
+		void socket_server::on_request_close(socket_connection*)
+		{
+		}
+		bool socket_server::on_request_cleanup(socket_connection*)
 		{
 			return true;
 		}
-		bool SocketServer::FreeAll()
+		bool socket_server::free_all()
 		{
-			VI_MEASURE(Core::Timings::Pass);
-			if (Inactive.empty())
+			VI_MEASURE(core::timings::pass);
+			if (inactive.empty())
 				return false;
 
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			for (auto* Item : Inactive)
-				Core::Memory::Release(Item);
-			Inactive.clear();
+			core::umutex<std::recursive_mutex> unique(exclusive);
+			for (auto* item : inactive)
+				core::memory::release(item);
+			inactive.clear();
 			return true;
 		}
-		void SocketServer::Push(SocketConnection* Base)
+		void socket_server::push(socket_connection* base)
 		{
-			VI_MEASURE(Core::Timings::Pass);
-			Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-			auto It = Active.find(Base);
-			if (It != Active.end())
-				Active.erase(It);
+			VI_MEASURE(core::timings::pass);
+			core::umutex<std::recursive_mutex> unique(exclusive);
+			auto it = active.find(base);
+			if (it != active.end())
+				active.erase(it);
 
-			Base->Reset(true);
-			if (Inactive.size() < Backlog)
-				Inactive.insert(Base);
+			base->reset(true);
+			if (inactive.size() < backlog)
+				inactive.insert(base);
 			else
-				Core::Memory::Release(Base);
+				core::memory::release(base);
 		}
-		SocketConnection* SocketServer::Pop(SocketListener* Host)
+		socket_connection* socket_server::pop(socket_listener* host)
 		{
-			VI_ASSERT(Host != nullptr, "host should be set");
-			if (State != ServerState::Working)
+			VI_ASSERT(host != nullptr, "host should be set");
+			if (state != server_state::working)
 				return nullptr;
 
-			SocketConnection* Result = nullptr;
-			if (!Inactive.empty())
+			socket_connection* result = nullptr;
+			if (!inactive.empty())
 			{
-				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-				if (!Inactive.empty())
+				core::umutex<std::recursive_mutex> unique(exclusive);
+				if (!inactive.empty())
 				{
-					auto It = Inactive.begin();
-					Result = *It;
-					Inactive.erase(It);
-					Active.insert(Result);
+					auto it = inactive.begin();
+					result = *it;
+					inactive.erase(it);
+					active.insert(result);
 				}
 			}
 
-			if (!Result)
+			if (!result)
 			{
-				Result = OnAllocate(Host);
-				if (!Result)
+				result = on_allocate(host);
+				if (!result)
 					return nullptr;
 
-				Result->Stream = new Socket();
-				Core::UMutex<std::recursive_mutex> Unique(Exclusive);
-				Active.insert(Result);
+				result->stream = new socket();
+				core::umutex<std::recursive_mutex> unique(exclusive);
+				active.insert(result);
 			}
 
-			Core::Memory::Release(Result->Host);
-			Result->Info.Reuses = (Router->KeepAliveMaxCount > 0 ? (size_t)Router->KeepAliveMaxCount : 1);
-			Result->Host = Host;
-			Result->Host->AddRef();
+			core::memory::release(result->host);
+			result->info.reuses = (router->keep_alive_max_count > 0 ? (size_t)router->keep_alive_max_count : 1);
+			result->host = host;
+			result->host->add_ref();
 
-			return Result;
+			return result;
 		}
-		SocketConnection* SocketServer::OnAllocate(SocketListener*)
+		socket_connection* socket_server::on_allocate(socket_listener*)
 		{
-			return new SocketConnection();
+			return new socket_connection();
 		}
-		SocketRouter* SocketServer::OnAllocateRouter()
+		socket_router* socket_server::on_allocate_router()
 		{
-			return new SocketRouter();
+			return new socket_router();
 		}
-		const Core::UnorderedSet<SocketConnection*>& SocketServer::GetActiveClients()
+		const core::unordered_set<socket_connection*>& socket_server::get_active_clients()
 		{
-			return Active;
+			return active;
 		}
-		const Core::UnorderedSet<SocketConnection*>& SocketServer::GetPooledClients()
+		const core::unordered_set<socket_connection*>& socket_server::get_pooled_clients()
 		{
-			return Inactive;
+			return inactive;
 		}
-		const Core::Vector<SocketListener*>& SocketServer::GetListeners()
+		const core::vector<socket_listener*>& socket_server::get_listeners()
 		{
-			return Listeners;
+			return listeners;
 		}
-		ServerState SocketServer::GetState() const
+		server_state socket_server::get_state() const
 		{
-			return State;
+			return state;
 		}
-		SocketRouter* SocketServer::GetRouter()
+		socket_router* socket_server::get_router()
 		{
-			return Router;
+			return router;
 		}
-		size_t SocketServer::GetBacklog() const
+		size_t socket_server::get_backlog() const
 		{
-			return Backlog;
+			return backlog;
 		}
-		uint64_t SocketServer::GetShutdownTimeout() const
+		uint64_t socket_server::get_shutdown_timeout() const
 		{
-			return ShutdownTimeout;
+			return shutdown_timeout;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) noexcept
+		socket_client::socket_client(int64_t request_timeout) noexcept
 		{
-			Timeout.Idle = RequestTimeout;
+			timeout.idle = request_timeout;
 		}
-		SocketClient::~SocketClient() noexcept
+		socket_client::~socket_client() noexcept
 		{
-			if (!TryStoreStream())
-				DestroyStream();
+			if (!try_store_stream())
+				destroy_stream();
 #ifdef VI_OPENSSL
-			if (Net.Context != nullptr)
+			if (net.context != nullptr)
 			{
-				TransportLayer::Get()->FreeClientContext(Net.Context);
-				Net.Context = nullptr;
+				transport_layer::get()->free_client_context(net.context);
+				net.context = nullptr;
 			}
 #endif
-			if (Config.IsNonBlocking && Multiplexer::HasInstance())
-				Multiplexer::Get()->Deactivate();
+			if (config.is_non_blocking && multiplexer::has_instance())
+				multiplexer::get()->deactivate();
 		}
-		Core::ExpectsSystem<void> SocketClient::OnConnect()
+		core::expects_system<void> socket_client::on_connect()
 		{
-			Report(Core::Expectation::Met);
-			return Core::Expectation::Met;
+			report(core::expectation::met);
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketClient::OnReuse()
+		core::expects_system<void> socket_client::on_reuse()
 		{
-			Report(Core::Expectation::Met);
-			return Core::Expectation::Met;
+			report(core::expectation::met);
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketClient::OnDisconnect()
+		core::expects_system<void> socket_client::on_disconnect()
 		{
-			Report(Core::Expectation::Met);
-			return Core::Expectation::Met;
+			report(core::expectation::met);
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketClient::ConnectQueued(const SocketAddress& Address, bool AsNonBlocking, int32_t VerifyPeers, SocketClientCallback&& Callback)
+		core::expects_system<void> socket_client::connect_queued(const socket_address& address, bool as_non_blocking, int32_t verify_peers, socket_client_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			bool AsyncPolicyUpdated = AsNonBlocking != Config.IsNonBlocking;
-			if (AsyncPolicyUpdated && !AsNonBlocking && Multiplexer::HasInstance())
-				Multiplexer::Get()->Deactivate();
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			bool async_policy_updated = as_non_blocking != config.is_non_blocking;
+			if (async_policy_updated && !as_non_blocking && multiplexer::has_instance())
+				multiplexer::get()->deactivate();
 
-			Config.VerifyPeers = VerifyPeers;
-			Config.IsNonBlocking = AsNonBlocking;
-			State.Address = Address;
-			if (AsyncPolicyUpdated && Config.IsNonBlocking)
-				Multiplexer::Get()->Activate();
+			config.verify_peers = verify_peers;
+			config.is_non_blocking = as_non_blocking;
+			state.address = address;
+			if (async_policy_updated && config.is_non_blocking)
+				multiplexer::get()->activate();
 
-			TryReuseStream(Address, [this, Callback = std::move(Callback)](bool IsReusing) mutable
+			try_reuse_stream(address, [this, callback = std::move(callback)](bool is_reusing) mutable
 			{
-				if (IsReusing)
-					return Callback(Core::Expectation::Met);
+				if (is_reusing)
+					return callback(core::expectation::met);
 
-				auto Status = Net.Stream->Open(State.Address);
-				if (!Status)
-					return Callback(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::move(Status.Error())));
+				auto status = net.stream->open(state.address);
+				if (!status)
+					return callback(core::system_exception(core::stringify::text("connect to %s error", get_address_identification(state.address).c_str()), std::move(status.error())));
 
-				ConfigureStream();
-				State.Resolver = std::move(Callback);
-				Net.Stream->ConnectQueued(State.Address, std::bind(&SocketClient::DispatchConnection, this, std::placeholders::_1));
+				configure_stream();
+				state.resolver = std::move(callback);
+				net.stream->connect_queued(state.address, std::bind(&socket_client::dispatch_connection, this, std::placeholders::_1));
 			});
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		Core::ExpectsSystem<void> SocketClient::DisconnectQueued(SocketClientCallback&& Callback)
+		core::expects_system<void> socket_client::disconnect_queued(socket_client_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (!HasStream())
-				return Core::ExpectsSystem<void>(Core::SystemException("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			if (!has_stream())
+				return core::expects_system<void>(core::system_exception("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-			State.Resolver = std::move(Callback);
-			if (!TryStoreStream())
-				OnDisconnect();
+			state.resolver = std::move(callback);
+			if (!try_store_stream())
+				on_disconnect();
 			else
-				OnReuse();
+				on_reuse();
 
-			return Core::ExpectsSystem<void>(Core::Expectation::Met);
+			return core::expects_system<void>(core::expectation::met);
 		}
-		Core::ExpectsPromiseSystem<void> SocketClient::ConnectSync(const SocketAddress& Address, int32_t VerifyPeers)
+		core::expects_promise_system<void> socket_client::connect_sync(const socket_address& address, int32_t verify_peers)
 		{
-			Core::ExpectsPromiseSystem<void> Future;
-			ConnectQueued(Address, false, VerifyPeers, [Future](Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); });
-			return Future;
+			core::expects_promise_system<void> future;
+			connect_queued(address, false, verify_peers, [future](core::expects_system<void>&& status) mutable { future.set(std::move(status)); });
+			return future;
 		}
-		Core::ExpectsPromiseSystem<void> SocketClient::ConnectAsync(const SocketAddress& Address, int32_t VerifyPeers)
+		core::expects_promise_system<void> socket_client::connect_async(const socket_address& address, int32_t verify_peers)
 		{
-			Core::ExpectsPromiseSystem<void> Future;
-			ConnectQueued(Address, true, VerifyPeers, [Future](Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); });
-			return Future;
+			core::expects_promise_system<void> future;
+			connect_queued(address, true, verify_peers, [future](core::expects_system<void>&& status) mutable { future.set(std::move(status)); });
+			return future;
 		}
-		Core::ExpectsPromiseSystem<void> SocketClient::Disconnect()
+		core::expects_promise_system<void> socket_client::disconnect()
 		{
-			Core::ExpectsPromiseSystem<void> Future;
-			DisconnectQueued([Future](Core::ExpectsSystem<void>&& Status) mutable { Future.Set(std::move(Status)); });
-			return Future;
+			core::expects_promise_system<void> future;
+			disconnect_queued([future](core::expects_system<void>&& status) mutable { future.set(std::move(status)); });
+			return future;
 		}
-		void SocketClient::Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
+		void socket_client::handshake(std::function<void(core::expects_system<void>&&)>&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			if (!HasStream())
-				return Callback(Core::SystemException("ssl handshake error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			if (!has_stream())
+				return callback(core::system_exception("ssl handshake error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 #ifdef VI_OPENSSL
-			if (Net.Stream->GetDevice() || !Net.Context)
-				return Callback(Core::SystemException("ssl handshake error: invalid operation", std::make_error_condition(std::errc::bad_file_descriptor)));
+			if (net.stream->get_device() || !net.context)
+				return callback(core::system_exception("ssl handshake error: invalid operation", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-			auto Hostname = State.Address.GetHostname();
-			auto Status = Net.Stream->Secure(Net.Context, Hostname ? std::string_view(*Hostname) : std::string_view());
-			if (!Status)
-				return Callback(Core::SystemException("ssl handshake establish error", std::move(Status.Error())));
+			auto hostname = state.address.get_hostname();
+			auto status = net.stream->secure(net.context, hostname ? std::string_view(*hostname) : std::string_view());
+			if (!status)
+				return callback(core::system_exception("ssl handshake establish error", std::move(status.error())));
 
-			if (SSL_set_fd(Net.Stream->GetDevice(), (int)Net.Stream->GetFd()) != 1)
-				return Callback(Core::SystemException("ssl handshake set error", std::make_error_condition(std::errc::bad_file_descriptor)));
+			if (SSL_set_fd(net.stream->get_device(), (int)net.stream->get_fd()) != 1)
+				return callback(core::system_exception("ssl handshake set error", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-			if (Config.VerifyPeers > 0)
-				SSL_set_verify(Net.Stream->GetDevice(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+			if (config.verify_peers > 0)
+				SSL_set_verify(net.stream->get_device(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
 			else
-				SSL_set_verify(Net.Stream->GetDevice(), SSL_VERIFY_NONE, nullptr);
+				SSL_set_verify(net.stream->get_device(), SSL_VERIFY_NONE, nullptr);
 
-			TryHandshake(std::move(Callback));
+			try_handshake(std::move(callback));
 #else
-			Callback(Core::SystemException("ssl handshake error: unsupported", std::make_error_condition(std::errc::not_supported)));
+			callback(core::system_exception("ssl handshake error: unsupported", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
-		void SocketClient::TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
+		void socket_client::try_handshake(std::function<void(core::expects_system<void>&&)>&& callback)
 		{
 #ifdef VI_OPENSSL
-			int ErrorCode = SSL_connect(Net.Stream->GetDevice());
-			if (ErrorCode != -1)
-				return Callback(Core::Expectation::Met);
+			int error_code = SSL_connect(net.stream->get_device());
+			if (error_code != -1)
+				return callback(core::expectation::met);
 
-			switch (SSL_get_error(Net.Stream->GetDevice(), ErrorCode))
+			switch (SSL_get_error(net.stream->get_device(), error_code))
 			{
 				case SSL_ERROR_WANT_READ:
 				{
-					Multiplexer::Get()->WhenReadable(Net.Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					multiplexer::get()->when_readable(net.stream, [this, callback = std::move(callback)](socket_poll event) mutable
 					{
-						if (!Packet::IsDone(Event))
-							Callback(Core::SystemException(Core::Stringify::Text("ssl connect read error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
+						if (!packet::is_done(event))
+							callback(core::system_exception(core::stringify::text("ssl connect read error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
 						else
-							TryHandshake(std::move(Callback));
+							try_handshake(std::move(callback));
 					});
 					break;
 				}
 				case SSL_ERROR_WANT_CONNECT:
 				case SSL_ERROR_WANT_WRITE:
 				{
-					Multiplexer::Get()->WhenWriteable(Net.Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					multiplexer::get()->when_writeable(net.stream, [this, callback = std::move(callback)](socket_poll event) mutable
 					{
-						if (!Packet::IsDone(Event))
-							Callback(Core::SystemException(Core::Stringify::Text("ssl connect write error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
+						if (!packet::is_done(event))
+							callback(core::system_exception(core::stringify::text("ssl connect write error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
 						else
-							TryHandshake(std::move(Callback));
+							try_handshake(std::move(callback));
 					});
 					break;
 				}
 				default:
 				{
-					Utils::DisplayTransportLog();
-					return Callback(Core::SystemException(Core::Stringify::Text("ssl connection aborted error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::connection_aborted)));
+					utils::display_transport_log();
+					return callback(core::system_exception(core::stringify::text("ssl connection aborted error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::connection_aborted)));
 				}
 			}
 #else
-			Callback(Core::SystemException("ssl connect error: unsupported", std::make_error_condition(std::errc::not_supported)));
+			callback(core::system_exception("ssl connect error: unsupported", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
-		void SocketClient::DispatchConnection(const Core::Option<std::error_condition>& ErrorCode)
+		void socket_client::dispatch_connection(const core::option<std::error_condition>& error_code)
 		{
-			if (ErrorCode)
-				return Report(Core::SystemException(Core::Stringify::Text("connect to %s error", GetAddressIdentification(State.Address).c_str()), std::error_condition(*ErrorCode)));
+			if (error_code)
+				return report(core::system_exception(core::stringify::text("connect to %s error", get_address_identification(state.address).c_str()), std::error_condition(*error_code)));
 #ifdef VI_OPENSSL
-			if (Config.VerifyPeers < 0)
-				return DispatchSimpleHandshake();
+			if (config.verify_peers < 0)
+				return dispatch_simple_handshake();
 
-			if (!Net.Context || (Config.VerifyPeers > 0 && SSL_CTX_get_verify_depth(Net.Context) <= 0))
+			if (!net.context || (config.verify_peers > 0 && SSL_CTX_get_verify_depth(net.context) <= 0))
 			{
-				auto* Transporter = TransportLayer::Get();
-				if (Net.Context != nullptr)
+				auto* transporter = transport_layer::get();
+				if (net.context != nullptr)
 				{
-					Transporter->FreeClientContext(Net.Context);
-					Net.Context = nullptr;
+					transporter->free_client_context(net.context);
+					net.context = nullptr;
 				}
 
-				auto NewContext = Transporter->CreateClientContext((size_t)Config.VerifyPeers);
-				if (!NewContext)
-					return Report(Core::SystemException(Core::Stringify::Text("ssl connect to %s error: initialization failed", GetAddressIdentification(State.Address).c_str()), std::move(NewContext.Error())));
+				auto new_context = transporter->create_client_context((size_t)config.verify_peers);
+				if (!new_context)
+					return report(core::system_exception(core::stringify::text("ssl connect to %s error: initialization failed", get_address_identification(state.address).c_str()), std::move(new_context.error())));
 				else
-					Net.Context = *NewContext;
+					net.context = *new_context;
 			}
 
-			if (!Config.IsAutoHandshake)
-				return DispatchSimpleHandshake();
+			if (!config.is_auto_handshake)
+				return dispatch_simple_handshake();
 
-			auto* Context = this;
-			Handshake([Context](Core::ExpectsSystem<void>&& ErrorCode) mutable
+			auto* context = this;
+			handshake([context](core::expects_system<void>&& error_code) mutable
 			{
-				Context->DispatchSecureHandshake(std::move(ErrorCode));
+				context->dispatch_secure_handshake(std::move(error_code));
 			});
 #else
-			DispatchSimpleHandshake();
+			dispatch_simple_handshake();
 #endif
 		}
-		void SocketClient::DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status)
+		void socket_client::dispatch_secure_handshake(core::expects_system<void>&& status)
 		{
-			if (!Status)
-				Report(std::move(Status));
+			if (!status)
+				report(std::move(status));
 			else
-				DispatchSimpleHandshake();
+				dispatch_simple_handshake();
 		}
-		void SocketClient::DispatchSimpleHandshake()
+		void socket_client::dispatch_simple_handshake()
 		{
-			OnConnect();
+			on_connect();
 		}
-		bool SocketClient::TryReuseStream(const SocketAddress& Address, std::function<void(bool)>&& Callback)
+		bool socket_client::try_reuse_stream(const socket_address& address, std::function<void(bool)>&& callback)
 		{
-			if (!Uplinks::HasInstance())
+			if (!uplinks::has_instance())
 			{
-				CreateStream();
-				Callback(false);
+				create_stream();
+				callback(false);
 				return false;
 			}
-			
-			DestroyStream();
-			return Uplinks::Get()->PopConnectionQueued(Address, [this, Callback = std::move(Callback)](Socket*&& ReusingStream) mutable
+
+			destroy_stream();
+			return uplinks::get()->pop_connection_queued(address, [this, callback = std::move(callback)](socket*&& reusing_stream) mutable
 			{
-				Net.Stream = ReusingStream;
-				if (ReusingStream != nullptr)
+				net.stream = reusing_stream;
+				if (reusing_stream != nullptr)
 				{
-					ConfigureStream();
-					Callback(true);
+					configure_stream();
+					callback(true);
 					return true;
 				}
 
-				CreateStream();
-				Callback(false);
+				create_stream();
+				callback(false);
 				return false;
 			});
 		}
-		bool SocketClient::TryStoreStream()
+		bool socket_client::try_store_stream()
 		{
-			if (!Uplinks::HasInstance() || !Net.Stream)
+			if (!uplinks::has_instance() || !net.stream)
 			{
-				Timeout.Cache = -1;
+				timeout.cache = -1;
 				return false;
 			}
-			else if (!Uplinks::Get()->PushConnection(State.Address, Timeout.Cache > 0 ? Net.Stream : nullptr))
+			else if (!uplinks::get()->push_connection(state.address, timeout.cache > 0 ? net.stream : nullptr))
 			{
-				Timeout.Cache = -1;
+				timeout.cache = -1;
 				return false;
 			}
 
-			Net.Stream = nullptr;
-			Timeout.Cache = -1;
+			net.stream = nullptr;
+			timeout.cache = -1;
 			return true;
 		}
-		void SocketClient::CreateStream()
+		void socket_client::create_stream()
 		{
-			if (!Net.Stream)
-				Net.Stream = new Socket();
+			if (!net.stream)
+				net.stream = new socket();
 		}
-		void SocketClient::ConfigureStream()
+		void socket_client::configure_stream()
 		{
-			if (!Net.Stream)
+			if (!net.stream)
 				return;
 
-			Net.Stream->SetIoTimeout(Timeout.Idle);
-			Net.Stream->SetBlocking(!Config.IsNonBlocking);
-			Net.Stream->SetCloseOnExec();
+			net.stream->set_io_timeout(timeout.idle);
+			net.stream->set_blocking(!config.is_non_blocking);
+			net.stream->set_close_on_exec();
 		}
-		void SocketClient::DestroyStream()
+		void socket_client::destroy_stream()
 		{
-			Core::Memory::Release(Net.Stream);
+			core::memory::release(net.stream);
 		}
-		void SocketClient::ApplyReusability(bool KeepAlive)
+		void socket_client::apply_reusability(bool keep_alive)
 		{
-			Timeout.Cache = KeepAlive ? 0 : 1;
+			timeout.cache = keep_alive ? 0 : 1;
 		}
-		void SocketClient::EnableReusability()
+		void socket_client::enable_reusability()
 		{
-			if (Timeout.Cache < 0)
-				Timeout.Cache = 1;
+			if (timeout.cache < 0)
+				timeout.cache = 1;
 		}
-		void SocketClient::DisableReusability()
+		void socket_client::disable_reusability()
 		{
-			if (Timeout.Cache < 0)
-				Timeout.Cache = 0;
+			if (timeout.cache < 0)
+				timeout.cache = 0;
 		}
-		void SocketClient::Report(Core::ExpectsSystem<void>&& Status)
+		void socket_client::report(core::expects_system<void>&& status)
 		{
-			if (!Status && HasStream())
+			if (!status && has_stream())
 			{
-				Net.Stream->CloseQueued([this, Status = std::move(Status)](const Core::Option<std::error_condition>&) mutable
+				net.stream->close_queued([this, status = std::move(status)](const core::option<std::error_condition>&) mutable
 				{
-					SocketClientCallback Callback(std::move(State.Resolver));
-					if (Callback)
-						Callback(std::move(Status));
+					socket_client_callback callback(std::move(state.resolver));
+					if (callback)
+						callback(std::move(status));
 				});
 			}
 			else
 			{
-				SocketClientCallback Callback(std::move(State.Resolver));
-				if (Callback)
-					Callback(std::move(Status));
+				socket_client_callback callback(std::move(state.resolver));
+				if (callback)
+					callback(std::move(status));
 			}
 		}
-		const SocketAddress& SocketClient::GetPeerAddress() const
+		const socket_address& socket_client::get_peer_address() const
 		{
-			return State.Address;
+			return state.address;
 		}
-		bool SocketClient::HasStream() const
+		bool socket_client::has_stream() const
 		{
-			return Net.Stream != nullptr && Net.Stream->IsValid();
+			return net.stream != nullptr && net.stream->is_valid();
 		}
-		bool SocketClient::IsSecure() const
+		bool socket_client::is_secure() const
 		{
-			return Config.VerifyPeers >= 0;
+			return config.verify_peers >= 0;
 		}
-		bool SocketClient::IsVerified() const
+		bool socket_client::is_verified() const
 		{
-			return Config.VerifyPeers > 0;
+			return config.verify_peers > 0;
 		}
-		Socket* SocketClient::GetStream()
+		socket* socket_client::get_stream()
 		{
-			return Net.Stream;
+			return net.stream;
 		}
 	}
 }

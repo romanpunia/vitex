@@ -1,7 +1,7 @@
 #include "http.h"
 #include "../bindings.h"
 #ifdef VI_MICROSOFT
-#include <WS2tcpip.h>
+#include <ws2tcpip.h>
 #include <io.h>
 #else
 #include <arpa/inet.h>
@@ -37,7 +37,7 @@ extern "C"
 #endif
 }
 #define CSS_DIRECTORY_STYLE "html{background-color:#101010;color:#fff;}th{text-align:left;}a:link{color:#5D80FF;text-decoration:none;}a:visited{color:#F193FF;}a:hover{opacity:0.9; cursor:pointer}a:active{opacity:0.8;cursor:default;}"
-#define CSS_MESSAGE_STYLE "html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;background-color:#101010;color:#fff;}body{display:flex;align-items:center;justify-content:center;height:100%%;}"
+#define CSS_MESSAGE_STYLE "html{font-family:\"Helvetica neue\",helvetica,arial,sans-serif;height:95%%;background-color:#101010;color:#fff;}body{display:flex;align-items:center;justify-content:center;height:100%%;}"
 #define CSS_NORMAL_FONT "div{text-align:center;}"
 #define CSS_SMALL_FONT "h1{font-size:16px;font-weight:normal;}"
 #define HTTP_WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -49,2803 +49,2803 @@ extern "C"
 #pragma warning(push)
 #pragma warning(disable: 4996)
 
-namespace Vitex
+namespace vitex
 {
-	namespace Network
+	namespace network
 	{
-		namespace HTTP
+		namespace http
 		{
-			static bool PathTrailingCheck(const std::string_view& Path)
+			static bool path_trailing_check(const std::string_view& path)
 			{
 #ifdef VI_MICROSOFT
-				return !Path.empty() && (Path.back() == '/' || Path.back() == '\\');
+				return !path.empty() && (path.back() == '/' || path.back() == '\\');
 #else
-				return !Path.empty() && Path.back() == '/';
+				return !path.empty() && path.back() == '/';
 #endif
 			}
-			static bool ConnectionValid(Connection* Target)
+			static bool connection_valid(connection* target)
 			{
-				return Target && Target->Root && Target->Route && Target->Route->Router;
+				return target && target->root && target->route && target->route->router;
 			}
-			static void TextAppend(Core::Vector<char>& Array, const std::string_view& Src)
+			static void text_append(core::vector<char>& array, const std::string_view& src)
 			{
-				Array.insert(Array.end(), Src.begin(), Src.end());
+				array.insert(array.end(), src.begin(), src.end());
 			}
-			static void TextAssign(Core::Vector<char>& Array, const std::string_view& Src)
+			static void text_assign(core::vector<char>& array, const std::string_view& src)
 			{
-				Array.assign(Src.begin(), Src.end());
+				array.assign(src.begin(), src.end());
 			}
-			static Core::String TextSubstring(Core::Vector<char>& Array, size_t Offset, size_t Size)
+			static core::string text_substring(core::vector<char>& array, size_t offset, size_t size)
 			{
-				return Core::String(Array.data() + Offset, Size);
+				return core::string(array.data() + offset, size);
 			}
-			static std::string_view HeaderText(const KimvUnorderedMap& Headers, const std::string_view& Key)
+			static std::string_view header_text(const kimv_unordered_map& headers, const std::string_view& key)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Key));
-				if (It == Headers.end())
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = headers.find(core::key_lookup_cast(key));
+				if (it == headers.end())
 					return "";
 
-				if (It->second.empty())
+				if (it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			static std::string_view HeaderDate(char Buffer[64], time_t Time)
+			static std::string_view header_date(char buffer[64], time_t time)
 			{
-				static const char* Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-				static const char* Days[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+				static const char* months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+				static const char* days[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
-				struct tm Date { };
-				if (!Core::DateTime::MakeGlobalTime(Time, &Date))
+				struct tm date { };
+				if (!core::date_time::make_global_time(time, &date))
 				{
-					*Buffer = '\0';
-					return std::string_view(Buffer, 0);
+					*buffer = '\0';
+					return std::string_view(buffer, 0);
 				}
 
-				char Numeric[Core::NUMSTR_SIZE]; size_t Size = 0;
-				auto AppendText = [&Buffer, &Size](const char* Text, size_t TextSize) { memcpy(Buffer + Size, Text, TextSize); Size += TextSize; };
-				auto AppendView = [&Buffer, &Size](const std::string_view& Text) { memcpy(Buffer + Size, Text.data(), Text.size()); Size += Text.size(); };
-				auto AppendChar = [&Buffer, &Size](char Text) { memcpy(Buffer + Size++, &Text, 1); };
-				AppendText(Days[Date.tm_wday], 3);
-				AppendText(", ", 2);
-				if (Date.tm_mday < 10)
+				char numeric[core::NUMSTR_SIZE]; size_t size = 0;
+				auto append_text = [&buffer, &size](const char* text, size_t text_size) { memcpy(buffer + size, text, text_size); size += text_size; };
+				auto append_view = [&buffer, &size](const std::string_view& text) { memcpy(buffer + size, text.data(), text.size()); size += text.size(); };
+				auto append_char = [&buffer, &size](char text) { memcpy(buffer + size++, &text, 1); };
+				append_text(days[date.tm_wday], 3);
+				append_text(", ", 2);
+				if (date.tm_mday < 10)
 				{
-					AppendChar('0');
-					AppendChar('0' + Date.tm_mday);
+					append_char('0');
+					append_char('0' + date.tm_mday);
 				}
 				else
-					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_mday));
-				AppendChar(' ');
-				AppendText(Months[Date.tm_mon], 3);
-				AppendChar(' ');
-				AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint32_t)(Date.tm_year + 1900)));
-				AppendChar(' ');
-				if (Date.tm_hour < 10)
+					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_mday));
+				append_char(' ');
+				append_text(months[date.tm_mon], 3);
+				append_char(' ');
+				append_view(core::to_string_view(numeric, sizeof(numeric), (uint32_t)(date.tm_year + 1900)));
+				append_char(' ');
+				if (date.tm_hour < 10)
 				{
-					AppendChar('0');
-					AppendChar('0' + Date.tm_hour);
+					append_char('0');
+					append_char('0' + date.tm_hour);
 				}
 				else
-					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_hour));
-				AppendChar(':');
-				if (Date.tm_min < 10)
+					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_hour));
+				append_char(':');
+				if (date.tm_min < 10)
 				{
-					AppendChar('0');
-					AppendChar('0' + Date.tm_min);
+					append_char('0');
+					append_char('0' + date.tm_min);
 				}
 				else
-					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_min));
-				AppendChar(':');
-				if (Date.tm_sec < 10)
+					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_min));
+				append_char(':');
+				if (date.tm_sec < 10)
 				{
-					AppendChar('0');
-					AppendChar('0' + Date.tm_sec);
+					append_char('0');
+					append_char('0' + date.tm_sec);
 				}
 				else
-					AppendView(Core::ToStringView(Numeric, sizeof(Numeric), (uint8_t)Date.tm_sec));
-				AppendText(" GMT\0", 5);
-				return std::string_view(Buffer, Size - 1);
+					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_sec));
+				append_text(" GMT\0", 5);
+				return std::string_view(buffer, size - 1);
 			}
-			static void CleanupHashMap(KimvUnorderedMap& Map)
+			static void cleanup_hash_map(kimv_unordered_map& map)
 			{
-				if (Map.size() <= HTTP_KIMV_LOAD_FACTOR)
+				if (map.size() <= HTTP_KIMV_LOAD_FACTOR)
 				{
-					for (auto& Item : Map)
-						Item.second.clear();
+					for (auto& item : map)
+						item.second.clear();
 				}
 				else
-					Map.clear();
+					map.clear();
 			}
 
-			MimeStatic::MimeStatic(const std::string_view& Ext, const std::string_view& T) : Extension(Ext), Type(T)
+			mime_static::mime_static(const std::string_view& ext, const std::string_view& t) : extension(ext), type(t)
 			{
 			}
 
-			void Cookie::SetExpires(int64_t Time)
+			void cookie::set_expires(int64_t time)
 			{
-				char Date[64];
-				Expires = HeaderDate(Date, Time);
+				char date[64];
+				expires = header_date(date, time);
 			}
-			void Cookie::SetExpired()
+			void cookie::set_expired()
 			{
-				SetExpires(0);
+				set_expires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream, void* NewUserData) : Stream(NewStream), Codec(new WebCodec()), State((uint32_t)WebSocketState::Open), Tunneling((uint32_t)Tunnel::Healthy), Active(true), Deadly(false), Busy(false), UserData(NewUserData)
+			web_socket_frame::web_socket_frame(socket* new_stream, void* new_user_data) : stream(new_stream), codec(new web_codec()), state((uint32_t)web_socket_state::open), tunneling((uint32_t)tunnel::healthy), active(true), deadly(false), busy(false), user_data(new_user_data)
 			{
 			}
-			WebSocketFrame::~WebSocketFrame() noexcept
+			web_socket_frame::~web_socket_frame() noexcept
 			{
-				while (!Messages.empty())
+				while (!messages.empty())
 				{
-					auto& Next = Messages.front();
-					Core::Memory::Deallocate(Next.Buffer);
-					Messages.pop();
+					auto& next = messages.front();
+					core::memory::deallocate(next.buffer);
+					messages.pop();
 				}
 
-				Core::Memory::Release(Codec);
-				if (Lifetime.Destroy)
-					Lifetime.Destroy(this);
+				core::memory::release(codec);
+				if (lifetime.destroy)
+					lifetime.destroy(this);
 			}
-			Core::ExpectsSystem<size_t> WebSocketFrame::Send(const std::string_view& Buffer, WebSocketOp Opcode, WebSocketCallback&& Callback)
+			core::expects_system<size_t> web_socket_frame::send(const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
 			{
-				return Send(0, Buffer, Opcode, std::move(Callback));
+				return send(0, buffer, opcode, std::move(callback));
 			}
-			Core::ExpectsSystem<size_t> WebSocketFrame::Send(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, WebSocketCallback&& Callback)
+			core::expects_system<size_t> web_socket_frame::send(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
 			{
-				Core::UMutex<std::mutex> Unique(Section);
-				if (Enqueue(Mask, Buffer, Opcode, std::move(Callback)))
+				core::umutex<std::mutex> unique(section);
+				if (enqueue(mask, buffer, opcode, std::move(callback)))
 					return (size_t)0;
 
-				Busy = true;
-				Unique.Negate();
+				busy = true;
+				unique.negate();
 
-				uint8_t Header[14];
-				size_t HeaderLength = 1;
-				Header[0] = 0x80 + ((size_t)Opcode & 0xF);
+				uint8_t header[14];
+				size_t header_length = 1;
+				header[0] = 0x80 + ((size_t)opcode & 0xF);
 
-				if (Buffer.size() < 126)
+				if (buffer.size() < 126)
 				{
-					Header[1] = (uint8_t)Buffer.size();
-					HeaderLength = 2;
+					header[1] = (uint8_t)buffer.size();
+					header_length = 2;
 				}
-				else if (Buffer.size() <= 65535)
+				else if (buffer.size() <= 65535)
 				{
-					uint16_t Length = htons((uint16_t)Buffer.size());
-					Header[1] = 126;
-					HeaderLength = 4;
-					memcpy(Header + 2, &Length, 2);
+					uint16_t length = htons((uint16_t)buffer.size());
+					header[1] = 126;
+					header_length = 4;
+					memcpy(header + 2, &length, 2);
 				}
 				else
 				{
-					uint32_t Length1 = htonl((uint64_t)Buffer.size() >> 32);
-					uint32_t Length2 = htonl((uint64_t)Buffer.size() & 0xFFFFFFFF);
-					Header[1] = 127;
-					HeaderLength = 10;
-					memcpy(Header + 2, &Length1, 4);
-					memcpy(Header + 6, &Length2, 4);
+					uint32_t length1 = htonl((uint64_t)buffer.size() >> 32);
+					uint32_t length2 = htonl((uint64_t)buffer.size() & 0xFFFFFFFF);
+					header[1] = 127;
+					header_length = 10;
+					memcpy(header + 2, &length1, 4);
+					memcpy(header + 6, &length2, 4);
 				}
 
-				if (Mask)
+				if (mask)
 				{
-					Header[1] |= 0x80;
-					memcpy(Header + HeaderLength, &Mask, 4);
-					HeaderLength += 4;
+					header[1] |= 0x80;
+					memcpy(header + header_length, &mask, 4);
+					header_length += 4;
 				}
 
-				Core::String Copy = Core::String(Buffer);
-				auto Status = Stream->WriteQueued(Header, HeaderLength, [this, Copy = std::move(Copy), Callback = std::move(Callback)](SocketPoll Event) mutable
+				core::string copy = core::string(buffer);
+				auto status = stream->write_queued(header, header_length, [this, copy = std::move(copy), callback = std::move(callback)](socket_poll event) mutable
 				{
-					if (Packet::IsDone(Event))
+					if (packet::is_done(event))
 					{
-						if (!Copy.empty())
+						if (!copy.empty())
 						{
-							Stream->WriteQueued((uint8_t*)Copy.data(), Copy.size(), [this, Callback = std::move(Callback)](SocketPoll Event)
+							stream->write_queued((uint8_t*)copy.data(), copy.size(), [this, callback = std::move(callback)](socket_poll event)
 							{
-								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
+								if (packet::is_done(event) || packet::is_skip(event))
 								{
-									bool Ignore = IsIgnore();
-									Busy = false;
+									bool ignore = is_ignore();
+									busy = false;
 
-									if (Callback)
-										Callback(this);
+									if (callback)
+										callback(this);
 
-									if (!Ignore)
-										Dequeue();
+									if (!ignore)
+										dequeue();
 								}
-								else if (Packet::IsError(Event))
+								else if (packet::is_error(event))
 								{
-									Tunneling = (uint32_t)Tunnel::Gone;
-									Busy = false;
-									if (Callback)
-										Callback(this);
+									tunneling = (uint32_t)tunnel::gone;
+									busy = false;
+									if (callback)
+										callback(this);
 								}
 							});
 						}
 						else
 						{
-							bool Ignore = IsIgnore();
-							Busy = false;
+							bool ignore = is_ignore();
+							busy = false;
 
-							if (Callback)
-								Callback(this);
+							if (callback)
+								callback(this);
 
-							if (!Ignore)
-								Dequeue();
+							if (!ignore)
+								dequeue();
 						}
 					}
-					else if (Packet::IsError(Event))
+					else if (packet::is_error(event))
 					{
-						Tunneling = (uint32_t)Tunnel::Gone;
-						Busy = false;
-						if (Callback)
-							Callback(this);
+						tunneling = (uint32_t)tunnel::gone;
+						busy = false;
+						if (callback)
+							callback(this);
 					}
-					else if (Packet::IsSkip(Event))
+					else if (packet::is_skip(event))
 					{
-						bool Ignore = IsIgnore();
-						Busy = false;
+						bool ignore = is_ignore();
+						busy = false;
 
-						if (Callback)
-							Callback(this);
+						if (callback)
+							callback(this);
 
-						if (!Ignore)
-							Dequeue();
+						if (!ignore)
+							dequeue();
 					}
 				});
-				if (Status)
-					return *Status;
-				else if (Status.Error() == std::errc::operation_would_block)
+				if (status)
+					return *status;
+				else if (status.error() == std::errc::operation_would_block)
 					return (size_t)0;
 
-				return Core::SystemException("ws send error", std::move(Status.Error()));
+				return core::system_exception("ws send error", std::move(status.error()));
 			}
-			Core::ExpectsSystem<void> WebSocketFrame::SendClose(WebSocketCallback&& Callback)
+			core::expects_system<void> web_socket_frame::send_close(web_socket_callback&& callback)
 			{
-				if (Deadly)
+				if (deadly)
 				{
-					if (Callback)
-						Callback(this);
-					return Core::SystemException("ws connection is closed: fd " + Core::ToString(Stream->GetFd()), std::make_error_condition(std::errc::operation_not_permitted));
+					if (callback)
+						callback(this);
+					return core::system_exception("ws connection is closed: fd " + core::to_string(stream->get_fd()), std::make_error_condition(std::errc::operation_not_permitted));
 				}
 
-				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
+				if (state == (uint32_t)web_socket_state::close || tunneling != (uint32_t)tunnel::healthy)
 				{
-					if (Callback)
-						Callback(this);
-					return Core::Expectation::Met;
+					if (callback)
+						callback(this);
+					return core::expectation::met;
 				}
 
-				if (!Active)
+				if (!active)
 				{
-					if (Callback)
-						Callback(this);
-					return Core::SystemException("ws connection is closing: fd " + Core::ToString(Stream->GetFd()), std::make_error_condition(std::errc::operation_not_permitted));
+					if (callback)
+						callback(this);
+					return core::system_exception("ws connection is closing: fd " + core::to_string(stream->get_fd()), std::make_error_condition(std::errc::operation_not_permitted));
 				}
 
-				Finalize();
-				auto Status = Send("", WebSocketOp::Close, std::move(Callback));
-				if (!Status)
-					return Status.Error();
+				finalize();
+				auto status = send("", web_socket_op::close, std::move(callback));
+				if (!status)
+					return status.error();
 
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
-			void WebSocketFrame::Dequeue()
+			void web_socket_frame::dequeue()
 			{
-				Core::UMutex<std::mutex> Unique(Section);
-				if (!IsWriteable() || Messages.empty())
+				core::umutex<std::mutex> unique(section);
+				if (!is_writeable() || messages.empty())
 					return;
 
-				Message Next = std::move(Messages.front());
-				Messages.pop();
-				Unique.Negate();
+				message next = std::move(messages.front());
+				messages.pop();
+				unique.negate();
 
-				Send(Next.Mask, std::string_view(Next.Buffer, Next.Size), Next.Opcode, std::move(Next.Callback));
-				Core::Memory::Deallocate(Next.Buffer);
+				send(next.mask, std::string_view(next.buffer, next.size), next.opcode, std::move(next.callback));
+				core::memory::deallocate(next.buffer);
 			}
-			void WebSocketFrame::Finalize()
+			void web_socket_frame::finalize()
 			{
-				if (Tunneling == (uint32_t)Tunnel::Healthy)
-					State = (uint32_t)WebSocketState::Close;
+				if (tunneling == (uint32_t)tunnel::healthy)
+					state = (uint32_t)web_socket_state::close;
 			}
-			void WebSocketFrame::Next()
+			void web_socket_frame::next()
 			{
-				Core::Codefer(std::bind(&WebSocketFrame::Update, this));
+				core::codefer(std::bind(&web_socket_frame::update, this));
 			}
-			void WebSocketFrame::Update()
+			void web_socket_frame::update()
 			{
-				Core::UMutex<std::mutex> Unique(Section);
-			Retry:
-				if (State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy)
+				core::umutex<std::mutex> unique(section);
+			retry:
+				if (state == (uint32_t)web_socket_state::close || tunneling != (uint32_t)tunnel::healthy)
 				{
-					if (Tunneling != (uint32_t)Tunnel::Gone)
-						Tunneling = (uint32_t)Tunnel::Closing;
-					
-					if (BeforeDisconnect)
+					if (tunneling != (uint32_t)tunnel::gone)
+						tunneling = (uint32_t)tunnel::closing;
+
+					if (before_disconnect)
 					{
-						WebSocketCallback Callback = std::move(BeforeDisconnect);
-						BeforeDisconnect = nullptr;
-						Unique.Negate();
-						Callback(this);
+						web_socket_callback callback = std::move(before_disconnect);
+						before_disconnect = nullptr;
+						unique.negate();
+						callback(this);
 					}
-					else if (!Disconnect)
+					else if (!disconnect)
 					{
-						bool Successful = (Tunneling == (uint32_t)Tunnel::Closing);
-						Tunneling = (uint32_t)Tunnel::Gone;
-						Active = false;
-						Unique.Negate();
-						if (Lifetime.Close)
-							Lifetime.Close(this, Successful);
+						bool successful = (tunneling == (uint32_t)tunnel::closing);
+						tunneling = (uint32_t)tunnel::gone;
+						active = false;
+						unique.negate();
+						if (lifetime.close)
+							lifetime.close(this, successful);
 					}
 					else
 					{
-						WebSocketCallback Callback = std::move(Disconnect);
-						Disconnect = nullptr;
-						Receive = nullptr;
-						Unique.Negate();
-						Callback(this);
+						web_socket_callback callback = std::move(disconnect);
+						disconnect = nullptr;
+						receive = nullptr;
+						unique.negate();
+						callback(this);
 					}
 				}
-				else if (State == (uint32_t)WebSocketState::Receive)
+				else if (state == (uint32_t)web_socket_state::receive)
 				{
-					if (Lifetime.Dead && Lifetime.Dead(this))
+					if (lifetime.dead && lifetime.dead(this))
 					{
-						Finalize();
-						goto Retry;
+						finalize();
+						goto retry;
 					}
 
-					Multiplexer::Get()->WhenReadable(Stream, [this](SocketPoll Event)
+					multiplexer::get()->when_readable(stream, [this](socket_poll event)
 					{
-						bool IsDone = Packet::IsDone(Event);
-						if (!IsDone && !Packet::IsError(Event))
+						bool is_done = packet::is_done(event);
+						if (!is_done && !packet::is_error(event))
 							return true;
 
-						State = (uint32_t)(IsDone ? WebSocketState::Process : WebSocketState::Close);
-						Next();
+						state = (uint32_t)(is_done ? web_socket_state::process : web_socket_state::close);
+						next();
 						return true;
 					});
 				}
-				else if (State == (uint32_t)WebSocketState::Process)
+				else if (state == (uint32_t)web_socket_state::process)
 				{
-					uint8_t Buffer[Core::BLOB_SIZE];
+					uint8_t buffer[core::BLOB_SIZE];
 					while (true)
 					{
-						auto Size = Stream->Read(Buffer, sizeof(Buffer));
-						if (Size)
+						auto size = stream->read(buffer, sizeof(buffer));
+						if (size)
 						{
-							Codec->ParseFrame(Buffer, *Size);
+							codec->parse_frame(buffer, *size);
 							continue;
 						}
 
-						if (Size.Error() == std::errc::operation_would_block)
+						if (size.error() == std::errc::operation_would_block)
 						{
-							State = (uint32_t)WebSocketState::Receive;
+							state = (uint32_t)web_socket_state::receive;
 							break;
 						}
 						else
 						{
-							Finalize();
-							goto Retry;
+							finalize();
+							goto retry;
 						}
 					}
 
-					WebSocketOp Opcode;
-					if (!Codec->GetFrame(&Opcode, &Codec->Data))
-						goto Retry;
+					web_socket_op opcode;
+					if (!codec->get_frame(&opcode, &codec->data))
+						goto retry;
 
-					State = (uint32_t)WebSocketState::Process;
-					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
+					state = (uint32_t)web_socket_state::process;
+					if (opcode == web_socket_op::text || opcode == web_socket_op::binary)
 					{
-						VI_DEBUG("[websocket] sock %i frame data: %.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
-						if (Receive)
+						VI_DEBUG("[websocket] sock %i frame data: %.*s", (int)stream->get_fd(), (int)codec->data.size(), codec->data.data());
+						if (receive)
 						{
-							Unique.Negate();
-							if (!Receive(this, Opcode, std::string_view(Codec->Data.data(), Codec->Data.size())))
-								Next();
+							unique.negate();
+							if (!receive(this, opcode, std::string_view(codec->data.data(), codec->data.size())))
+								next();
 						}
 					}
-					else if (Opcode == WebSocketOp::Ping)
+					else if (opcode == web_socket_op::ping)
 					{
-						VI_DEBUG("[websocket] sock %i frame ping", (int)Stream->GetFd());
-						Unique.Negate();
-						if (!Receive || !Receive(this, Opcode, ""))
-							Send("", WebSocketOp::Pong, [this](WebSocketFrame*) { Next(); });
+						VI_DEBUG("[websocket] sock %i frame ping", (int)stream->get_fd());
+						unique.negate();
+						if (!receive || !receive(this, opcode, ""))
+							send("", web_socket_op::pong, [this](web_socket_frame*) { next(); });
 					}
-					else if (Opcode == WebSocketOp::Close)
+					else if (opcode == web_socket_op::close)
 					{
-						VI_DEBUG("[websocket] sock %i frame close", (int)Stream->GetFd());
-						Unique.Negate();
-						if (!Receive || !Receive(this, Opcode, ""))
-							SendClose(std::bind(&WebSocketFrame::Next, std::placeholders::_1));
+						VI_DEBUG("[websocket] sock %i frame close", (int)stream->get_fd());
+						unique.negate();
+						if (!receive || !receive(this, opcode, ""))
+							send_close(std::bind(&web_socket_frame::next, std::placeholders::_1));
 					}
-					else if (Receive)
+					else if (receive)
 					{
-						Unique.Negate();
-						if (!Receive(this, Opcode, ""))
-							Next();
+						unique.negate();
+						if (!receive(this, opcode, ""))
+							next();
 					}
 					else
-						goto Retry;
+						goto retry;
 				}
-				else if (State == (uint32_t)WebSocketState::Open)
+				else if (state == (uint32_t)web_socket_state::open)
 				{
-					if (Connect || Receive || Disconnect)
+					if (connect || receive || disconnect)
 					{
-						State = (uint32_t)WebSocketState::Receive;
-						if (!Connect)
-							goto Retry;
+						state = (uint32_t)web_socket_state::receive;
+						if (!connect)
+							goto retry;
 
-						WebSocketCallback Callback = std::move(Connect);
-                        Connect = nullptr;
-						Unique.Negate();
-						Callback(this);
+						web_socket_callback callback = std::move(connect);
+						connect = nullptr;
+						unique.negate();
+						callback(this);
 					}
 					else
 					{
-						Unique.Negate();
-						SendClose(std::bind(&WebSocketFrame::Next, std::placeholders::_1));
+						unique.negate();
+						send_close(std::bind(&web_socket_frame::next, std::placeholders::_1));
 					}
 				}
 			}
-			bool WebSocketFrame::IsFinished()
+			bool web_socket_frame::is_finished()
 			{
-				return !Active;
+				return !active;
 			}
-			bool WebSocketFrame::IsIgnore()
+			bool web_socket_frame::is_ignore()
 			{
-				return Deadly || State == (uint32_t)WebSocketState::Close || Tunneling != (uint32_t)Tunnel::Healthy;
+				return deadly || state == (uint32_t)web_socket_state::close || tunneling != (uint32_t)tunnel::healthy;
 			}
-			bool WebSocketFrame::IsWriteable()
+			bool web_socket_frame::is_writeable()
 			{
-				return !Busy && !Stream->IsAwaitingWriteable();
+				return !busy && !stream->is_awaiting_writeable();
 			}
-			Socket* WebSocketFrame::GetStream()
+			socket* web_socket_frame::get_stream()
 			{
-				return Stream;
+				return stream;
 			}
-			Connection* WebSocketFrame::GetConnection()
+			connection* web_socket_frame::get_connection()
 			{
-				return (Connection*)UserData;
+				return (connection*)user_data;
 			}
-			Client* WebSocketFrame::GetClient()
+			client* web_socket_frame::get_client()
 			{
-				return (Client*)UserData;
+				return (client*)user_data;
 			}
-			bool WebSocketFrame::Enqueue(uint32_t Mask, const std::string_view& Buffer, WebSocketOp Opcode, WebSocketCallback&& Callback)
+			bool web_socket_frame::enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
 			{
-				if (IsWriteable())
+				if (is_writeable())
 					return false;
 
-				Message Next;
-				Next.Mask = Mask;
-				Next.Buffer = (Buffer.empty() ? nullptr : Core::Memory::Allocate<char>(sizeof(char) * Buffer.size()));
-				Next.Size = Buffer.size();
-				Next.Opcode = Opcode;
-				Next.Callback = Callback;
-				if (Next.Buffer != nullptr)
-					memcpy(Next.Buffer, Buffer.data(), sizeof(char) * Buffer.size());
+				message next;
+				next.mask = mask;
+				next.buffer = (buffer.empty() ? nullptr : core::memory::allocate<char>(sizeof(char) * buffer.size()));
+				next.size = buffer.size();
+				next.opcode = opcode;
+				next.callback = callback;
+				if (next.buffer != nullptr)
+					memcpy(next.buffer, buffer.data(), sizeof(char) * buffer.size());
 
-				Messages.emplace(std::move(Next));
+				messages.emplace(std::move(next));
 				return true;
 			}
 
-			RouterGroup::RouterGroup(const std::string_view& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
+			router_group::router_group(const std::string_view& new_match, route_mode new_mode) noexcept : match(new_match), mode(new_mode)
 			{
 			}
-			RouterGroup::~RouterGroup() noexcept
+			router_group::~router_group() noexcept
 			{
-				for (auto* Entry : Routes)
-					Core::Memory::Release(Entry);
-				Routes.clear();
-			}
-
-			RouterEntry* RouterEntry::From(const RouterEntry& Other, const Compute::RegexSource& Source)
-			{
-				RouterEntry* Route = new RouterEntry(Other);
-				Route->Location = Source;
-				return Route;
+				for (auto* entry : routes)
+					core::memory::release(entry);
+				routes.clear();
 			}
 
-			MapRouter::MapRouter() : Base(new RouterEntry())
+			router_entry* router_entry::from(const router_entry& other, const compute::regex_source& source)
 			{
-				Base->Location = Compute::RegexSource("/");
-				Base->Router = this;
+				router_entry* route = new router_entry(other);
+				route->location = source;
+				return route;
 			}
-			MapRouter::~MapRouter()
+
+			map_router::map_router() : base(new router_entry())
 			{
-				if (Callbacks.OnDestroy != nullptr)
-					Callbacks.OnDestroy(this);
-
-				for (auto& Item : Groups)
-					Core::Memory::Release(Item);
-
-				Groups.clear();
-				Core::Memory::Release(Base);
+				base->location = compute::regex_source("/");
+				base->router = this;
 			}
-			void MapRouter::Sort()
+			map_router::~map_router()
 			{
-				VI_SORT(Groups.begin(), Groups.end(), [](const RouterGroup* A, const RouterGroup* B)
+				if (callbacks.on_destroy != nullptr)
+					callbacks.on_destroy(this);
+
+				for (auto& item : groups)
+					core::memory::release(item);
+
+				groups.clear();
+				core::memory::release(base);
+			}
+			void map_router::sort()
+			{
+				VI_SORT(groups.begin(), groups.end(), [](const router_group* a, const router_group* b)
 				{
-					return A->Match.size() > B->Match.size();
+					return a->match.size() > b->match.size();
 				});
 
-				for (auto& Group : Groups)
+				for (auto& group : groups)
 				{
-					static auto Comparator = [](const RouterEntry* A, const RouterEntry* B)
+					static auto comparator = [](const router_entry* a, const router_entry* b)
 					{
-						if (A->Location.GetRegex().empty())
+						if (a->location.get_regex().empty())
 							return false;
 
-						if (B->Location.GetRegex().empty())
+						if (b->location.get_regex().empty())
 							return true;
 
-						if (A->Level > B->Level)
+						if (a->level > b->level)
 							return true;
-						else if (A->Level < B->Level)
+						else if (a->level < b->level)
 							return false;
 
-						bool fA = A->Location.IsSimple(), fB = B->Location.IsSimple();
+						bool fA = a->location.is_simple(), fB = b->location.is_simple();
 						if (fA && !fB)
 							return false;
 						else if (!fA && fB)
 							return true;
 
-						return A->Location.GetRegex().size() > B->Location.GetRegex().size();
+						return a->location.get_regex().size() > b->location.get_regex().size();
 					};
-					VI_SORT(Group->Routes.begin(), Group->Routes.end(), Comparator);
+					VI_SORT(group->routes.begin(), group->routes.end(), comparator);
 				}
 			}
-			RouterGroup* MapRouter::Group(const std::string_view& Match, RouteMode Mode)
+			router_group* map_router::group(const std::string_view& match, route_mode mode)
 			{
-				for (auto& Group : Groups)
+				for (auto& group : groups)
 				{
-					if (Group->Match == Match && Group->Mode == Mode)
-						return Group;
+					if (group->match == match && group->mode == mode)
+						return group;
 				}
 
-				auto* Result = new RouterGroup(Match, Mode);
-				Groups.emplace_back(Result);
+				auto* result = new router_group(match, mode);
+				groups.emplace_back(result);
 
-				return Result;
+				return result;
 			}
-			RouterEntry* MapRouter::Route(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, bool InheritProps)
+			router_entry* map_router::route(const std::string_view& match, route_mode mode, const std::string_view& pattern, bool inherit_props)
 			{
-				if (Pattern.empty() || Pattern == "/")
-					return Base;
+				if (pattern.empty() || pattern == "/")
+					return base;
 
-				HTTP::RouterGroup* Source = nullptr;
-				for (auto& Group : Groups)
+				http::router_group* source = nullptr;
+				for (auto& group : groups)
 				{
-					if (Group->Match != Match || Group->Mode != Mode)
+					if (group->match != match || group->mode != mode)
 						continue;
 
-					Source = Group;
-					for (auto* Entry : Group->Routes)
+					source = group;
+					for (auto* entry : group->routes)
 					{
-						if (Entry->Location.GetRegex() == Pattern)
-							return Entry;
+						if (entry->location.get_regex() == pattern)
+							return entry;
 					}
 				}
 
-				if (!Source)
+				if (!source)
 				{
-					auto* Result = new RouterGroup(Match, Mode);
-					Groups.emplace_back(Result);
-					Source = Groups.back();
+					auto* result = new router_group(match, mode);
+					groups.emplace_back(result);
+					source = groups.back();
 				}
 
-				if (!InheritProps)
-					return Route(Pattern, Source, nullptr);
+				if (!inherit_props)
+					return route(pattern, source, nullptr);
 
-				HTTP::RouterEntry* From = Base;
-				Compute::RegexResult Result;
-				Core::String Src(Pattern);
-				Core::Stringify::ToLower(Src);
+				http::router_entry* from = base;
+				compute::regex_result result;
+				core::string src(pattern);
+				core::stringify::to_lower(src);
 
-				for (auto& Group : Groups)
+				for (auto& group : groups)
 				{
-					for (auto* Entry : Group->Routes)
+					for (auto* entry : group->routes)
 					{
-						Core::String Dest(Entry->Location.GetRegex());
-						Core::Stringify::ToLower(Dest);
+						core::string dest(entry->location.get_regex());
+						core::stringify::to_lower(dest);
 
-						if (Core::Stringify::StartsWith(Dest, "...") && Core::Stringify::EndsWith(Dest, "..."))
+						if (core::stringify::starts_with(dest, "...") && core::stringify::ends_with(dest, "..."))
 							continue;
 
-						if (Core::Stringify::Find(Src, Dest).Found || Compute::Regex::Match(&Entry->Location, Result, Src))
+						if (core::stringify::find(src, dest).found || compute::regex::match(&entry->location, result, src))
 						{
-							From = Entry;
+							from = entry;
 							break;
 						}
 					}
 				}
 
-				return Route(Pattern, Source, From);
+				return route(pattern, source, from);
 			}
-			RouterEntry* MapRouter::Route(const std::string_view& Pattern, RouterGroup* Group, RouterEntry* From)
+			router_entry* map_router::route(const std::string_view& pattern, router_group* group, router_entry* from)
 			{
-				VI_ASSERT(Group != nullptr, "group should be set");
-				if (From != nullptr)
+				VI_ASSERT(group != nullptr, "group should be set");
+				if (from != nullptr)
 				{
-					HTTP::RouterEntry* Result = HTTP::RouterEntry::From(*From, Compute::RegexSource(Pattern));
-					Group->Routes.push_back(Result);
-					return Result;
+					http::router_entry* result = http::router_entry::from(*from, compute::regex_source(pattern));
+					group->routes.push_back(result);
+					return result;
 				}
 
-				HTTP::RouterEntry* Result = new HTTP::RouterEntry();
-				Result->Location = Compute::RegexSource(Pattern);
-				Result->Router = this;
-				Group->Routes.push_back(Result);
-				return Result;
+				http::router_entry* result = new http::router_entry();
+				result->location = compute::regex_source(pattern);
+				result->router = this;
+				group->routes.push_back(result);
+				return result;
 			}
-			bool MapRouter::Remove(RouterEntry* Source)
+			bool map_router::remove(router_entry* source)
 			{
-				VI_ASSERT(Source != nullptr, "source should be set");
-				for (auto& Group : Groups)
+				VI_ASSERT(source != nullptr, "source should be set");
+				for (auto& group : groups)
 				{
-					auto It = std::find(Group->Routes.begin(), Group->Routes.end(), Source);
-					if (It != Group->Routes.end())
+					auto it = std::find(group->routes.begin(), group->routes.end(), source);
+					if (it != group->routes.end())
 					{
-						Core::Memory::Release(*It);
-						Group->Routes.erase(It);
+						core::memory::release(*it);
+						group->routes.erase(it);
 						return true;
 					}
 				}
 
 				return false;
 			}
-			bool MapRouter::Get(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::get(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Get("", RouteMode::Start, Pattern, std::move(Callback));
+				return get("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Get(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::get(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Get = std::move(Callback);
+				value->callbacks.get = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Post(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::post(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Post("", RouteMode::Start, Pattern, std::move(Callback));
+				return post("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Post(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::post(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Post = std::move(Callback);
+				value->callbacks.post = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Put(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::put(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Put("", RouteMode::Start, Pattern, std::move(Callback));
+				return put("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Put(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::put(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Put = std::move(Callback);
+				value->callbacks.put = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Patch(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::patch(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Patch("", RouteMode::Start, Pattern, std::move(Callback));
+				return patch("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Patch(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::patch(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Patch = std::move(Callback);
+				value->callbacks.patch = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Delete(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::deinit(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Delete("", RouteMode::Start, Pattern, std::move(Callback));
+				return deinit("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Delete(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::deinit(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Delete = std::move(Callback);
+				value->callbacks.deinit = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Options(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::options(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Options("", RouteMode::Start, Pattern, std::move(Callback));
+				return options("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Options(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::options(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Options = std::move(Callback);
+				value->callbacks.options = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Access(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::access(const std::string_view& pattern, success_callback&& callback)
 			{
-				return Access("", RouteMode::Start, Pattern, std::move(Callback));
+				return access("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Access(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::access(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Access = std::move(Callback);
+				value->callbacks.access = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Headers(const std::string_view& Pattern, HeaderCallback&& Callback)
+			bool map_router::headers(const std::string_view& pattern, header_callback&& callback)
 			{
-				return Headers("", RouteMode::Start, Pattern, std::move(Callback));
+				return headers("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Headers(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, HeaderCallback&& Callback)
+			bool map_router::headers(const std::string_view& match, route_mode mode, const std::string_view& pattern, header_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Headers = std::move(Callback);
+				value->callbacks.headers = std::move(callback);
 				return true;
 			}
-			bool MapRouter::Authorize(const std::string_view& Pattern, AuthorizeCallback&& Callback)
+			bool map_router::authorize(const std::string_view& pattern, authorize_callback&& callback)
 			{
-				return Authorize("", RouteMode::Start, Pattern, std::move(Callback));
+				return authorize("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::Authorize(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, AuthorizeCallback&& Callback)
+			bool map_router::authorize(const std::string_view& match, route_mode mode, const std::string_view& pattern, authorize_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.Authorize = std::move(Callback);
+				value->callbacks.authorize = std::move(callback);
 				return true;
 			}
-			bool MapRouter::WebSocketInitiate(const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::web_socket_initiate(const std::string_view& pattern, success_callback&& callback)
 			{
-				return WebSocketInitiate("", RouteMode::Start, Pattern, std::move(Callback));
+				return web_socket_initiate("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::WebSocketInitiate(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback)
+			bool map_router::web_socket_initiate(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.WebSocket.Initiate = std::move(Callback);
+				value->callbacks.web_socket.initiate = std::move(callback);
 				return true;
 			}
-			bool MapRouter::WebSocketConnect(const std::string_view& Pattern, WebSocketCallback&& Callback)
+			bool map_router::web_socket_connect(const std::string_view& pattern, web_socket_callback&& callback)
 			{
-				return WebSocketConnect("", RouteMode::Start, Pattern, std::move(Callback));
+				return web_socket_connect("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::WebSocketConnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketCallback&& Callback)
+			bool map_router::web_socket_connect(const std::string_view& match, route_mode mode, const std::string_view& pattern, web_socket_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.WebSocket.Connect = std::move(Callback);
+				value->callbacks.web_socket.connect = std::move(callback);
 				return true;
 			}
-			bool MapRouter::WebSocketDisconnect(const std::string_view& Pattern, WebSocketCallback&& Callback)
+			bool map_router::web_socket_disconnect(const std::string_view& pattern, web_socket_callback&& callback)
 			{
-				return WebSocketDisconnect("", RouteMode::Start, Pattern, std::move(Callback));
+				return web_socket_disconnect("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::WebSocketDisconnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketCallback&& Callback)
+			bool map_router::web_socket_disconnect(const std::string_view& match, route_mode mode, const std::string_view& pattern, web_socket_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.WebSocket.Disconnect = std::move(Callback);
+				value->callbacks.web_socket.disconnect = std::move(callback);
 				return true;
 			}
-			bool MapRouter::WebSocketReceive(const std::string_view& Pattern, WebSocketReadCallback&& Callback)
+			bool map_router::web_socket_receive(const std::string_view& pattern, web_socket_read_callback&& callback)
 			{
-				return WebSocketReceive("", RouteMode::Start, Pattern, std::move(Callback));
+				return web_socket_receive("", route_mode::start, pattern, std::move(callback));
 			}
-			bool MapRouter::WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketReadCallback&& Callback)
+			bool map_router::web_socket_receive(const std::string_view& match, route_mode mode, const std::string_view& pattern, web_socket_read_callback&& callback)
 			{
-				HTTP::RouterEntry* Value = Route(Match, Mode, Pattern, true);
-				if (!Value)
+				http::router_entry* value = route(match, mode, pattern, true);
+				if (!value)
 					return false;
 
-				Value->Callbacks.WebSocket.Receive = std::move(Callback);
+				value->callbacks.web_socket.receive = std::move(callback);
 				return true;
 			}
 
-			Core::String& Resource::PutHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& resource::put_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String& Resource::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& resource::set_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->clear();
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->clear();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String Resource::ComposeHeader(const std::string_view& Label) const
+			core::string resource::compose_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return Core::String();
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end())
+					return core::string();
 
-				Core::String Result;
-				for (auto& Item : It->second)
+				core::string result;
+				for (auto& item : it->second)
 				{
-					Result.append(Item);
-					Result.append(1, ',');
+					result.append(item);
+					result.append(1, ',');
 				}
 
-				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
+				return (result.empty() ? result : result.substr(0, result.size() - 1));
 			}
-			Core::Vector<Core::String>* Resource::GetHeaderRanges(const std::string_view& Label)
+			core::vector<core::string>* resource::get_header_ranges(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				return it != headers.end() ? &it->second : &headers[core::string(label)];
 			}
-			Core::String* Resource::GetHeaderBlob(const std::string_view& Label)
+			core::string* resource::get_header_blob(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return nullptr;
 
-				auto& Result = It->second.back();
-				return &Result;
+				auto& result = it->second.back();
+				return &result;
 			}
-			std::string_view Resource::GetHeader(const std::string_view& Label) const
+			std::string_view resource::get_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			const Core::String& Resource::GetInMemoryContents() const
+			const core::string& resource::get_in_memory_contents() const
 			{
-				return Path;
+				return path;
 			}
 
-			RequestFrame::RequestFrame()
+			request_frame::request_frame()
 			{
-				memset(Method, 0, sizeof(Method));
-				memset(Version, 0, sizeof(Version));
-				strcpy(Method, "GET");
-				strcpy(Version, "HTTP/1.1");
+				memset(method, 0, sizeof(method));
+				memset(version, 0, sizeof(version));
+				strcpy(method, "GET");
+				strcpy(version, "http/1.1");
 			}
-			void RequestFrame::SetMethod(const std::string_view& Value)
+			void request_frame::set_method(const std::string_view& value)
 			{
-				memset(Method, 0, sizeof(Method));
-				memcpy((void*)Method, (void*)Value.data(), std::min<size_t>(Value.size(), sizeof(Method)));
+				memset(method, 0, sizeof(method));
+				memcpy((void*)method, (void*)value.data(), std::min<size_t>(value.size(), sizeof(method)));
 			}
-			void RequestFrame::SetVersion(uint32_t Major, uint32_t Minor)
+			void request_frame::set_version(uint32_t major, uint32_t minor)
 			{
-				Core::String Value = "HTTP/" + Core::ToString(Major) + '.' + Core::ToString(Minor);
-				memset(Version, 0, sizeof(Version));
-				memcpy((void*)Version, (void*)Value.c_str(), std::min<size_t>(Value.size(), sizeof(Version)));
+				core::string value = "http/" + core::to_string(major) + '.' + core::to_string(minor);
+				memset(version, 0, sizeof(version));
+				memcpy((void*)version, (void*)value.c_str(), std::min<size_t>(value.size(), sizeof(version)));
 			}
-			void RequestFrame::Cleanup()
+			void request_frame::cleanup()
 			{
-				memset(Method, 0, sizeof(Method));
-				memset(Version, 0, sizeof(Version));
-				CleanupHashMap(Headers);
-				CleanupHashMap(Cookies);
-				User.Type = Auth::Unverified;
-				User.Token.clear();
-				Content.Cleanup();
-				Query.clear();
-				Path.clear();
-				Location.clear();
-				Referrer.clear();
+				memset(method, 0, sizeof(method));
+				memset(version, 0, sizeof(version));
+				cleanup_hash_map(headers);
+				cleanup_hash_map(cookies);
+				user.type = auth::unverified;
+				user.token.clear();
+				content.cleanup();
+				query.clear();
+				path.clear();
+				location.clear();
+				referrer.clear();
 			}
-			Core::String& RequestFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& request_frame::put_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String& RequestFrame::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& request_frame::set_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->clear();
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->clear();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String RequestFrame::ComposeHeader(const std::string_view& Label) const
+			core::string request_frame::compose_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return Core::String();
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end())
+					return core::string();
 
-				Core::String Result;
-				for (auto& Item : It->second)
+				core::string result;
+				for (auto& item : it->second)
 				{
-					Result.append(Item);
-					Result.append(1, ',');
+					result.append(item);
+					result.append(1, ',');
 				}
 
-				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
+				return (result.empty() ? result : result.substr(0, result.size() - 1));
 			}
-			Core::Vector<Core::String>* RequestFrame::GetHeaderRanges(const std::string_view& Label)
+			core::vector<core::string>* request_frame::get_header_ranges(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				return it != headers.end() ? &it->second : &headers[core::string(label)];
 			}
-			Core::String* RequestFrame::GetHeaderBlob(const std::string_view& Label)
+			core::string* request_frame::get_header_blob(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return nullptr;
 
-				auto& Result = It->second.back();
-				return &Result;
+				auto& result = it->second.back();
+				return &result;
 			}
-			std::string_view RequestFrame::GetHeader(const std::string_view& Label) const
+			std::string_view request_frame::get_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			Core::Vector<Core::String>* RequestFrame::GetCookieRanges(const std::string_view& Key)
+			core::vector<core::string>* request_frame::get_cookie_ranges(const std::string_view& key)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				return It != Cookies.end() ? &It->second : &Cookies[Core::String(Key)];
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = cookies.find(core::key_lookup_cast(key));
+				return it != cookies.end() ? &it->second : &cookies[core::string(key)];
 			}
-			Core::String* RequestFrame::GetCookieBlob(const std::string_view& Key)
+			core::string* request_frame::get_cookie_blob(const std::string_view& key)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end() || It->second.empty())
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = cookies.find(core::key_lookup_cast(key));
+				if (it == cookies.end() || it->second.empty())
 					return nullptr;
 
-				auto& Result = It->second.back();
-				return &Result;
+				auto& result = it->second.back();
+				return &result;
 			}
-			std::string_view RequestFrame::GetCookie(const std::string_view& Key) const
+			std::string_view request_frame::get_cookie(const std::string_view& key) const
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end() || It->second.empty())
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = cookies.find(core::key_lookup_cast(key));
+				if (it == cookies.end() || it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			Core::Vector<std::pair<size_t, size_t>> RequestFrame::GetRanges() const
+			core::vector<std::pair<size_t, size_t>> request_frame::get_ranges() const
 			{
-				auto It = Headers.find("Range");
-				if (It == Headers.end())
-					return Core::Vector<std::pair<size_t, size_t>>();
+				auto it = headers.find("Range");
+				if (it == headers.end())
+					return core::vector<std::pair<size_t, size_t>>();
 
-				Core::Vector<std::pair<size_t, size_t>> Ranges;
-				for (auto& Item : It->second)
+				core::vector<std::pair<size_t, size_t>> ranges;
+				for (auto& item : it->second)
 				{
-					Core::TextSettle Result = Core::Stringify::Find(Item, '-');
-					if (!Result.Found)
+					core::text_settle result = core::stringify::find(item, '-');
+					if (!result.found)
 						continue;
 
-					size_t ContentStart = -1, ContentEnd = -1;
-					if (Result.Start > 0)
+					size_t content_start = -1, content_end = -1;
+					if (result.start > 0)
 					{
-						const char* Left = Item.c_str() + Result.Start - 1;
-						size_t LeftSize = (size_t)(isdigit(*Left) > 0);
-						if (LeftSize > 0)
+						const char* left = item.c_str() + result.start - 1;
+						size_t left_size = (size_t)(isdigit(*left) > 0);
+						if (left_size > 0)
 						{
-							while (isdigit(*(Left - 1)) && LeftSize <= Result.Start - 1)
+							while (isdigit(*(left - 1)) && left_size <= result.start - 1)
 							{
-								--Left;
-								++LeftSize;
+								--left;
+								++left_size;
 							}
 
-							if (LeftSize > 0)
+							if (left_size > 0)
 							{
-								auto From = Core::FromString<size_t>(Core::String(Left, LeftSize));
-								if (From)
-									ContentStart = *From;
+								auto from = core::from_string<size_t>(core::string(left, left_size));
+								if (from)
+									content_start = *from;
 							}
 						}
 					}
 
-					if (Result.End < Item.size())
+					if (result.end < item.size())
 					{
-						size_t RightSize = 0;
-						const char* Right = Item.c_str() + Result.Start + 1;
-						while (Right[RightSize] != '\0' && isdigit(Right[RightSize]))
-							++RightSize;
+						size_t right_size = 0;
+						const char* right = item.c_str() + result.start + 1;
+						while (right[right_size] != '\0' && isdigit(right[right_size]))
+							++right_size;
 
-						if (RightSize > 0)
+						if (right_size > 0)
 						{
-							auto To = Core::FromString<size_t>(Core::String(Right, RightSize));
-							if (To)
-								ContentEnd = *To;
+							auto to = core::from_string<size_t>(core::string(right, right_size));
+							if (to)
+								content_end = *to;
 						}
 					}
 
-					if (ContentStart != -1 || ContentEnd != -1)
-						Ranges.emplace_back(std::make_pair(ContentStart, ContentEnd));
+					if (content_start != -1 || content_end != -1)
+						ranges.emplace_back(std::make_pair(content_start, content_end));
 				}
 
-				return Ranges;
+				return ranges;
 			}
-			std::pair<size_t, size_t> RequestFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const
+			std::pair<size_t, size_t> request_frame::get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const
 			{
-				if (Range->first == -1 && Range->second == -1)
-					return std::make_pair(0, ContentLength);
+				if (range->first == -1 && range->second == -1)
+					return std::make_pair(0, content_length);
 
-				if (Range->first == -1)
+				if (range->first == -1)
 				{
-					if (Range->second > ContentLength)
-						Range->second = 0;
+					if (range->second > content_length)
+						range->second = 0;
 
-					Range->first = ContentLength - Range->second;
-					Range->second = ContentLength;
+					range->first = content_length - range->second;
+					range->second = content_length;
 				}
-				else if (Range->first > ContentLength)
-					Range->first = ContentLength;
+				else if (range->first > content_length)
+					range->first = content_length;
 
-				if (Range->second == -1)
-					Range->second = ContentLength;
-				else if (Range->second > ContentLength)
-					Range->second = ContentLength;
+				if (range->second == -1)
+					range->second = content_length;
+				else if (range->second > content_length)
+					range->second = content_length;
 
-				if (Range->first > Range->second)
-					Range->first = Range->second;
+				if (range->first > range->second)
+					range->first = range->second;
 
-				return std::make_pair(Range->first, Range->second - Range->first);
+				return std::make_pair(range->first, range->second - range->first);
 			}
 
-			ResponseFrame::ResponseFrame() : StatusCode(-1), Error(false)
+			response_frame::response_frame() : status_code(-1), error(false)
 			{
 			}
-			void ResponseFrame::SetCookie(const Cookie& Value)
+			void response_frame::set_cookie(const cookie& value)
 			{
-				for (auto& Cookie : Cookies)
+				for (auto& cookie : cookies)
 				{
-					if (Core::Stringify::CaseEquals(Cookie.Name.c_str(), Value.Name.c_str()))
+					if (core::stringify::case_equals(cookie.name.c_str(), value.name.c_str()))
 					{
-						Cookie = Value;
+						cookie = value;
 						return;
 					}
 				}
 
-				Cookies.push_back(Value);
+				cookies.push_back(value);
 			}
-			void ResponseFrame::SetCookie(Cookie&& Value)
+			void response_frame::set_cookie(cookie&& value)
 			{
-				for (auto& Cookie : Cookies)
+				for (auto& cookie : cookies)
 				{
-					if (Core::Stringify::CaseEquals(Cookie.Name.c_str(), Value.Name.c_str()))
+					if (core::stringify::case_equals(cookie.name.c_str(), value.name.c_str()))
 					{
-						Cookie = std::move(Value);
+						cookie = std::move(value);
 						return;
 					}
 				}
 
-				Cookies.emplace_back(std::move(Value));
+				cookies.emplace_back(std::move(value));
 			}
-			void ResponseFrame::Cleanup()
+			void response_frame::cleanup()
 			{
-				CleanupHashMap(Headers);
-				StatusCode = -1;
-				Error = false;
-				Cookies.clear();
-				Content.Cleanup();
+				cleanup_hash_map(headers);
+				status_code = -1;
+				error = false;
+				cookies.clear();
+				content.cleanup();
 			}
-			Core::String& ResponseFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& response_frame::put_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String& ResponseFrame::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& response_frame::set_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->clear();
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->clear();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String ResponseFrame::ComposeHeader(const std::string_view& Label) const
+			core::string response_frame::compose_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return Core::String();
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end())
+					return core::string();
 
-				Core::String Result;
-				for (auto& Item : It->second)
+				core::string result;
+				for (auto& item : it->second)
 				{
-					Result.append(Item);
-					Result.append(1, ',');
+					result.append(item);
+					result.append(1, ',');
 				}
 
-				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
+				return (result.empty() ? result : result.substr(0, result.size() - 1));
 			}
-			Core::Vector<Core::String>* ResponseFrame::GetHeaderRanges(const std::string_view& Label)
+			core::vector<core::string>* response_frame::get_header_ranges(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				return it != headers.end() ? &it->second : &headers[core::string(label)];
 			}
-			Core::String* ResponseFrame::GetHeaderBlob(const std::string_view& Label)
+			core::string* response_frame::get_header_blob(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return nullptr;
 
-				auto& Result = It->second.back();
-				return &Result;
+				auto& result = it->second.back();
+				return &result;
 			}
-			std::string_view ResponseFrame::GetHeader(const std::string_view& Label) const
+			std::string_view response_frame::get_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			Cookie* ResponseFrame::GetCookie(const std::string_view& Key)
+			cookie* response_frame::get_cookie(const std::string_view& key)
 			{
-				for (size_t i = 0; i < Cookies.size(); i++)
+				for (size_t i = 0; i < cookies.size(); i++)
 				{
-					Cookie* Result = &Cookies[i];
-					if (Core::Stringify::CaseEquals(Result->Name.c_str(), Key))
-						return Result;
+					cookie* result = &cookies[i];
+					if (core::stringify::case_equals(result->name.c_str(), key))
+						return result;
 				}
 
 				return nullptr;
 			}
-			bool ResponseFrame::IsUndefined() const
+			bool response_frame::is_undefined() const
 			{
-				return StatusCode <= 0;
+				return status_code <= 0;
 			}
-			bool ResponseFrame::IsOK() const
+			bool response_frame::is_ok() const
 			{
-				return StatusCode >= 200 && StatusCode < 400;
+				return status_code >= 200 && status_code < 400;
 			}
 
-			ContentFrame::ContentFrame() : Length(0), Offset(0), Prefetch(0), Exceeds(false), Limited(false)
+			content_frame::content_frame() : length(0), offset(0), prefetch(0), exceeds(false), limited(false)
 			{
 			}
-			void ContentFrame::Append(const std::string_view& Text)
+			void content_frame::append(const std::string_view& text)
 			{
-				TextAppend(Data, Text);
+				text_append(data, text);
 			}
-			void ContentFrame::Assign(const std::string_view& Text)
+			void content_frame::assign(const std::string_view& text)
 			{
-				TextAssign(Data, Text);
+				text_assign(data, text);
 			}
-			void ContentFrame::Prepare(const KimvUnorderedMap& Headers, const uint8_t* Buffer, size_t Size)
+			void content_frame::prepare(const kimv_unordered_map& headers, const uint8_t* buffer, size_t size)
 			{
-				auto ContentLength = HeaderText(Headers, "Content-Length");
-				Limited = !ContentLength.empty();
-				if (Limited)
-					Length = strtoull(ContentLength.data(), nullptr, 10);
+				auto content_length = header_text(headers, "Content-Length");
+				limited = !content_length.empty();
+				if (limited)
+					length = strtoull(content_length.data(), nullptr, 10);
 
-				Offset = Prefetch = Buffer ? Size : 0;
-				if (Offset > 0)
-					TextAssign(Data, std::string_view((char*)Buffer, Size));
+				offset = prefetch = buffer ? size : 0;
+				if (offset > 0)
+					text_assign(data, std::string_view((char*)buffer, size));
 				else
-					Data.clear();
+					data.clear();
 
-				if (Limited)
+				if (limited)
 					return;
 
-				auto TransferEncoding = HeaderText(Headers, "Transfer-Encoding");
-				if (!Core::Stringify::CaseEquals(TransferEncoding, "chunked"))
-					Limited = true;
+				auto transfer_encoding = header_text(headers, "Transfer-Encoding");
+				if (!core::stringify::case_equals(transfer_encoding, "chunked"))
+					limited = true;
 			}
-			void ContentFrame::Finalize()
+			void content_frame::finalize()
 			{
-				Length = Offset;
-				Limited = true;
+				length = offset;
+				limited = true;
 			}
-			void ContentFrame::Cleanup()
+			void content_frame::cleanup()
 			{
-				if (!Resources.empty())
+				if (!resources.empty())
 				{
-					Core::Vector<Core::String> Paths;
-					Paths.reserve(Resources.size());
-					for (auto& Item : Resources)
+					core::vector<core::string> paths;
+					paths.reserve(resources.size());
+					for (auto& item : resources)
 					{
-						if (!Item.IsInMemory)
-							Paths.push_back(Item.Path);
+						if (!item.is_in_memory)
+							paths.push_back(item.path);
 					}
 
-					if (!Paths.empty())
+					if (!paths.empty())
 					{
-						Core::Cospawn([Paths = std::move(Paths)]() mutable
+						core::cospawn([paths = std::move(paths)]() mutable
 						{
-							for (auto& Path : Paths)
-								Core::OS::File::Remove(Path.c_str());
+							for (auto& path : paths)
+								core::os::file::remove(path.c_str());
 						});
 					}
 				}
 
-				Data.clear();
-				Resources.clear();
-				Length = 0;
-				Offset = 0;
-				Prefetch = 0;
-				Limited = false;
-				Exceeds = false;
+				data.clear();
+				resources.clear();
+				length = 0;
+				offset = 0;
+				prefetch = 0;
+				limited = false;
+				exceeds = false;
 			}
-			Core::ExpectsParser<Core::Schema*> ContentFrame::GetJSON() const
+			core::expects_parser<core::schema*> content_frame::get_json() const
 			{
-				return Core::Schema::FromJSON(GetText());
+				return core::schema::from_json(get_text());
 			}
-			Core::ExpectsParser<Core::Schema*> ContentFrame::GetXML() const
+			core::expects_parser<core::schema*> content_frame::get_xml() const
 			{
-				return Core::Schema::FromXML(GetText());
+				return core::schema::from_xml(get_text());
 			}
-			Core::String ContentFrame::GetText() const
+			core::string content_frame::get_text() const
 			{
-				return Core::String(Data.data(), Data.size());
+				return core::string(data.data(), data.size());
 			}
-			bool ContentFrame::IsFinalized() const
+			bool content_frame::is_finalized() const
 			{
-				if (Prefetch > 0)
+				if (prefetch > 0)
 					return false;
 
-				if (!Limited)
-					return Offset >= Length && Length > 0;
+				if (!limited)
+					return offset >= length && length > 0;
 
-				return Offset >= Length || Data.size() >= Length;
+				return offset >= length || data.size() >= length;
 			}
 
-			FetchFrame::FetchFrame() : Timeout(10000), MaxSize(PAYLOAD_SIZE), VerifyPeers(9)
+			fetch_frame::fetch_frame() : timeout(10000), max_size(PAYLOAD_SIZE), verify_peers(9)
 			{
 			}
-			void FetchFrame::Cleanup()
+			void fetch_frame::cleanup()
 			{
-				CleanupHashMap(Headers);
-				CleanupHashMap(Cookies);
-				Content.Cleanup();
+				cleanup_hash_map(headers);
+				cleanup_hash_map(cookies);
+				content.cleanup();
 			}
-			Core::String& FetchFrame::PutHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& fetch_frame::put_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String& FetchFrame::SetHeader(const std::string_view& Label, const std::string_view& Value)
+			core::string& fetch_frame::set_header(const std::string_view& label, const std::string_view& value)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				Core::Vector<Core::String>* Range;
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It != Headers.end())
-					Range = &It->second;
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				core::vector<core::string>* range;
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it != headers.end())
+					range = &it->second;
 				else
-					Range = &Headers[Core::String(Label)];
+					range = &headers[core::string(label)];
 
-				Range->clear();
-				Range->push_back(Core::String(Value));
-				return Range->back();
+				range->clear();
+				range->push_back(core::string(value));
+				return range->back();
 			}
-			Core::String FetchFrame::ComposeHeader(const std::string_view& Label) const
+			core::string fetch_frame::compose_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end())
-					return Core::String();
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end())
+					return core::string();
 
-				Core::String Result;
-				for (auto& Item : It->second)
+				core::string result;
+				for (auto& item : it->second)
 				{
-					Result.append(Item);
-					Result.append(1, ',');
+					result.append(item);
+					result.append(1, ',');
 				}
 
-				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
+				return (result.empty() ? result : result.substr(0, result.size() - 1));
 			}
-			Core::Vector<Core::String>* FetchFrame::GetHeaderRanges(const std::string_view& Label)
+			core::vector<core::string>* fetch_frame::get_header_ranges(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				return It != Headers.end() ? &It->second : &Headers[Core::String(Label)];
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				return it != headers.end() ? &it->second : &headers[core::string(label)];
 			}
-			Core::String* FetchFrame::GetHeaderBlob(const std::string_view& Label)
+			core::string* fetch_frame::get_header_blob(const std::string_view& label)
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return nullptr;
 
-				auto& Result = It->second.back();
-				return &Result;
+				auto& result = it->second.back();
+				return &result;
 			}
-			std::string_view FetchFrame::GetHeader(const std::string_view& Label) const
+			std::string_view fetch_frame::get_header(const std::string_view& label) const
 			{
-				VI_ASSERT(!Label.empty(), "label should not be empty");
-				auto It = Headers.find(Core::KeyLookupCast(Label));
-				if (It == Headers.end() || It->second.empty())
+				VI_ASSERT(!label.empty(), "label should not be empty");
+				auto it = headers.find(core::key_lookup_cast(label));
+				if (it == headers.end() || it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			Core::Vector<Core::String>* FetchFrame::GetCookieRanges(const std::string_view& Key)
+			core::vector<core::string>* fetch_frame::get_cookie_ranges(const std::string_view& key)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				return It != Cookies.end() ? &It->second : &Cookies[Core::String(Key)];
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = cookies.find(core::key_lookup_cast(key));
+				return it != cookies.end() ? &it->second : &cookies[core::string(key)];
 			}
-			Core::String* FetchFrame::GetCookieBlob(const std::string_view& Key)
+			core::string* fetch_frame::get_cookie_blob(const std::string_view& key)
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end() || It->second.empty())
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = cookies.find(core::key_lookup_cast(key));
+				if (it == cookies.end() || it->second.empty())
 					return nullptr;
 
-				auto& Result = It->second.back();
-				return &Result;
+				auto& result = it->second.back();
+				return &result;
 			}
-			std::string_view FetchFrame::GetCookie(const std::string_view& Key) const
+			std::string_view fetch_frame::get_cookie(const std::string_view& key) const
 			{
-				VI_ASSERT(!Key.empty(), "key should not be empty");
-				auto It = Cookies.find(Core::KeyLookupCast(Key));
-				if (It == Cookies.end())
+				VI_ASSERT(!key.empty(), "key should not be empty");
+				auto it = cookies.find(core::key_lookup_cast(key));
+				if (it == cookies.end())
 					return "";
 
-				if (It->second.empty())
+				if (it->second.empty())
 					return "";
 
-				return It->second.back();
+				return it->second.back();
 			}
-			Core::Vector<std::pair<size_t, size_t>> FetchFrame::GetRanges() const
+			core::vector<std::pair<size_t, size_t>> fetch_frame::get_ranges() const
 			{
-				auto It = Headers.find("Range");
-				if (It == Headers.end())
-					return Core::Vector<std::pair<size_t, size_t>>();
+				auto it = headers.find("Range");
+				if (it == headers.end())
+					return core::vector<std::pair<size_t, size_t>>();
 
-				Core::Vector<std::pair<size_t, size_t>> Ranges;
-				for (auto& Item : It->second)
+				core::vector<std::pair<size_t, size_t>> ranges;
+				for (auto& item : it->second)
 				{
-					Core::TextSettle Result = Core::Stringify::Find(Item, '-');
-					if (!Result.Found)
+					core::text_settle result = core::stringify::find(item, '-');
+					if (!result.found)
 						continue;
 
-					size_t ContentStart = -1, ContentEnd = -1;
-					if (Result.Start > 0)
+					size_t content_start = -1, content_end = -1;
+					if (result.start > 0)
 					{
-						const char* Left = Item.c_str() + Result.Start - 1;
-						size_t LeftSize = (size_t)(isdigit(*Left) > 0);
-						if (LeftSize > 0)
+						const char* left = item.c_str() + result.start - 1;
+						size_t left_size = (size_t)(isdigit(*left) > 0);
+						if (left_size > 0)
 						{
-							while (isdigit(*(Left - 1)) && LeftSize <= Result.Start - 1)
+							while (isdigit(*(left - 1)) && left_size <= result.start - 1)
 							{
-								--Left;
-								++LeftSize;
+								--left;
+								++left_size;
 							}
 
-							if (LeftSize > 0)
+							if (left_size > 0)
 							{
-								auto From = Core::FromString<size_t>(Core::String(Left, LeftSize));
-								if (From)
-									ContentStart = *From;
+								auto from = core::from_string<size_t>(core::string(left, left_size));
+								if (from)
+									content_start = *from;
 							}
 						}
 					}
 
-					if (Result.End < Item.size())
+					if (result.end < item.size())
 					{
-						size_t RightSize = 0;
-						const char* Right = Item.c_str() + Result.Start + 1;
-						while (Right[RightSize] != '\0' && isdigit(Right[RightSize]))
-							++RightSize;
+						size_t right_size = 0;
+						const char* right = item.c_str() + result.start + 1;
+						while (right[right_size] != '\0' && isdigit(right[right_size]))
+							++right_size;
 
-						if (RightSize > 0)
+						if (right_size > 0)
 						{
-							auto To = Core::FromString<size_t>(Core::String(Right, RightSize));
-							if (To)
-								ContentEnd = *To;
+							auto to = core::from_string<size_t>(core::string(right, right_size));
+							if (to)
+								content_end = *to;
 						}
 					}
 
-					if (ContentStart != -1 || ContentEnd != -1)
-						Ranges.emplace_back(std::make_pair(ContentStart, ContentEnd));
+					if (content_start != -1 || content_end != -1)
+						ranges.emplace_back(std::make_pair(content_start, content_end));
 				}
 
-				return Ranges;
+				return ranges;
 			}
-			std::pair<size_t, size_t> FetchFrame::GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const
+			std::pair<size_t, size_t> fetch_frame::get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const
 			{
-				if (Range->first == -1 && Range->second == -1)
-					return std::make_pair(0, ContentLength);
+				if (range->first == -1 && range->second == -1)
+					return std::make_pair(0, content_length);
 
-				if (Range->first == -1)
+				if (range->first == -1)
 				{
-					if (Range->second > ContentLength)
-						Range->second = 0;
+					if (range->second > content_length)
+						range->second = 0;
 
-					Range->first = ContentLength - Range->second;
-					Range->second = ContentLength;
+					range->first = content_length - range->second;
+					range->second = content_length;
 				}
-				else if (Range->first > ContentLength)
-					Range->first = ContentLength;
+				else if (range->first > content_length)
+					range->first = content_length;
 
-				if (Range->second == -1)
-					Range->second = ContentLength;
-				else if (Range->second > ContentLength)
-					Range->second = ContentLength;
+				if (range->second == -1)
+					range->second = content_length;
+				else if (range->second > content_length)
+					range->second = content_length;
 
-				if (Range->first > Range->second)
-					Range->first = Range->second;
+				if (range->first > range->second)
+					range->first = range->second;
 
-				return std::make_pair(Range->first, Range->second - Range->first);
+				return std::make_pair(range->first, range->second - range->first);
 			}
 
-			Connection::Connection(Server* Source) noexcept : Resolver(new HTTP::Parser()), Root(Source)
+			connection::connection(server* source) noexcept : resolver(new http::parser()), root(source)
 			{
 			}
-			Connection::~Connection() noexcept
+			connection::~connection() noexcept
 			{
-				Core::Memory::Release(Resolver);
-				Core::Memory::Release(WebSocket);
+				core::memory::release(resolver);
+				core::memory::release(web_socket);
 			}
-			void Connection::Reset(bool Fully)
+			void connection::reset(bool fully)
 			{
-				VI_ASSERT(!Route || (Route->Router && Route->Router->Base), "router should be valid");
-				if (!Fully)
-					Info.Abort = (Info.Abort || Response.StatusCode <= 0);
-				if (Route != nullptr)
-					Route = Route->Router->Base;
-				Request.Cleanup();
-				Response.Cleanup();
-				SocketConnection::Reset(Fully);
+				VI_ASSERT(!route || (route->router && route->router->base), "router should be valid");
+				if (!fully)
+					info.abort = (info.abort || response.status_code <= 0);
+				if (route != nullptr)
+					route = route->router->base;
+				request.cleanup();
+				response.cleanup();
+				socket_connection::reset(fully);
 			}
-			bool Connection::ComposeResponse(bool ApplyErrorResponse, bool ApplyBodyInlining, HeadersCallback&& Callback)
+			bool connection::compose_response(bool apply_error_response, bool apply_body_inlining, headers_callback&& callback)
 			{
-				VI_ASSERT(ConnectionValid(this), "connection should be valid");
-				VI_ASSERT(Callback != nullptr, "callback should be set");
-			Retry:
-				auto* Content = HrmCache::Get()->Pop();
-				auto StatusText = Utils::StatusMessage(Response.StatusCode);
-				Content->append(Request.Version).append(" ");
-				Content->append(Core::ToString(Response.StatusCode)).append(" ");
-				Content->append(StatusText).append("\r\n");
+				VI_ASSERT(connection_valid(this), "connection should be valid");
+				VI_ASSERT(callback != nullptr, "callback should be set");
+			retry:
+				auto* content = hrm_cache::get()->pop();
+				auto status_text = utils::status_message(response.status_code);
+				content->append(request.version).append(" ");
+				content->append(core::to_string(response.status_code)).append(" ");
+				content->append(status_text).append("\r\n");
 
-				std::string_view ContentType;
-				if (ApplyErrorResponse)
+				std::string_view content_type;
+				if (apply_error_response)
 				{
-					char Buffer[Core::BLOB_SIZE];
-					int Size = snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText.data(), Info.Message.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Info.Message.empty() ? StatusText.data() : Info.Message.c_str());
-					if (Size >= 0)
+					char buffer[core::BLOB_SIZE];
+					int size = snprintf(buffer, sizeof(buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", response.status_code, status_text.data(), info.message.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, response.status_code, info.message.empty() ? status_text.data() : info.message.c_str());
+					if (size >= 0)
 					{
-						Response.Content.Assign(std::string_view(Buffer, (size_t)Size));
-						Response.SetHeader("Content-Length", Core::ToString(Size));
-						ContentType = Response.GetHeader("Content-Type");
-						if (ContentType.empty())
-							ContentType = Response.SetHeader("Content-Type", "text/html; charset=" + Route->CharSet).c_str();
+						response.content.assign(std::string_view(buffer, (size_t)size));
+						response.set_header("Content-Length", core::to_string(size));
+						content_type = response.get_header("Content-Type");
+						if (content_type.empty())
+							content_type = response.set_header("Content-Type", "text/html; charset=" + route->char_set).c_str();
 					}
 				}
 
-				if (Response.GetHeader("Date").empty())
+				if (response.get_header("Date").empty())
 				{
-					char Date[64];
-					Content->append("Date: ");
-					Content->append(HeaderDate(Date, Info.Start / 1000));
-					Content->append("\r\n");
+					char date[64];
+					content->append("Date: ");
+					content->append(header_date(date, info.start / 1000));
+					content->append("\r\n");
 				}
 
-				if (Response.GetHeader("Connection").empty())
-					Utils::UpdateKeepAliveHeaders(this, *Content);
+				if (response.get_header("Connection").empty())
+					utils::update_keep_alive_headers(this, *content);
 
-				if (Response.GetHeader("Accept-Ranges").empty())
-					Content->append("Accept-Ranges: bytes\r\n", 22);
+				if (response.get_header("Accept-Ranges").empty())
+					content->append("Accept-ranges: bytes\r\n", 22);
 
-				Core::Option<Core::String> Boundary = Core::Optional::None;
-				if (ContentType.empty())
+				core::option<core::string> boundary = core::optional::none;
+				if (content_type.empty())
 				{
-					ContentType = Response.GetHeader("Content-Type");
-					if (ContentType.empty())
+					content_type = response.get_header("Content-Type");
+					if (content_type.empty())
 					{
-						ContentType = Utils::ContentType(Request.Path, &Route->MimeTypes);
-						if (!Request.GetHeader("Range").empty())
+						content_type = utils::content_type(request.path, &route->mime_types);
+						if (!request.get_header("Range").empty())
 						{
-							Boundary = Parsing::ParseMultipartDataBoundary();
-							Content->append("Content-Type: multipart/byteranges; boundary=").append(*Boundary).append("; charset=").append(Route->CharSet).append("\r\n");
+							boundary = parsing::parse_multipart_data_boundary();
+							content->append("Content-type: multipart/byteranges; boundary=").append(*boundary).append("; charset=").append(route->char_set).append("\r\n");
 						}
 						else
-							Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Route->CharSet).append("\r\n");
+							content->append("Content-type: ").append(content_type).append("; charset=").append(route->char_set).append("\r\n");
 					}
 				}
 
-				if (!Response.Content.Data.empty())
+				if (!response.content.data.empty())
 				{
 #ifdef VI_ZLIB
-					bool Deflate = false, Gzip = false;
-					if (Resources::ResourceCompressed(this, Response.Content.Data.size()))
+					bool deflate = false, gzip = false;
+					if (resources::resource_compressed(this, response.content.data.size()))
 					{
-						auto AcceptEncoding = Request.GetHeader("Accept-Encoding");
-						if (!AcceptEncoding.empty())
+						auto accept_encoding = request.get_header("Accept-Encoding");
+						if (!accept_encoding.empty())
 						{
-							Deflate = AcceptEncoding.find("deflate") != std::string::npos;
-							Gzip = AcceptEncoding.find("gzip") != std::string::npos;
+							deflate = accept_encoding.find("deflate") != std::string::npos;
+							gzip = accept_encoding.find("gzip") != std::string::npos;
 						}
 
-						if (!AcceptEncoding.empty() && (Deflate || Gzip))
+						if (!accept_encoding.empty() && (deflate || gzip))
 						{
 							z_stream fStream;
 							fStream.zalloc = Z_NULL;
 							fStream.zfree = Z_NULL;
 							fStream.opaque = Z_NULL;
-							fStream.avail_in = (uInt)Response.Content.Data.size();
-							fStream.next_in = (Bytef*)Response.Content.Data.data();
+							fStream.avail_in = (uInt)response.content.data.size();
+							fStream.next_in = (Bytef*)response.content.data.data();
 
-							if (deflateInit2(&fStream, Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Route->Compression.MemoryLevel, (int)Route->Compression.Tune) == Z_OK)
+							if (deflateInit2(&fStream, route->compression.quality_level, Z_DEFLATED, (gzip ? 15 | 16 : 15), route->compression.memory_level, (int)route->compression.tune) == Z_OK)
 							{
-								Core::String Buffer(Response.Content.Data.size(), '\0');
-								fStream.avail_out = (uInt)Buffer.size();
-								fStream.next_out = (Bytef*)Buffer.c_str();
-								bool Compress = (deflate(&fStream, Z_FINISH) == Z_STREAM_END);
-								bool Flush = (deflateEnd(&fStream) == Z_OK);
+								core::string buffer(response.content.data.size(), '\0');
+								fStream.avail_out = (uInt)buffer.size();
+								fStream.next_out = (Bytef*)buffer.c_str();
+								bool compress = (::deflate(&fStream, Z_FINISH) == Z_STREAM_END);
+								bool flush = (deflateEnd(&fStream) == Z_OK);
 
-								if (Compress && Flush)
+								if (compress && flush)
 								{
-									Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)fStream.total_out));
-									if (Response.GetHeader("Content-Encoding").empty())
+									response.content.assign(std::string_view(buffer.c_str(), (size_t)fStream.total_out));
+									if (response.get_header("Content-Encoding").empty())
 									{
-										if (Gzip)
-											Content->append("Content-Encoding: gzip\r\n", 24);
+										if (gzip)
+											content->append("Content-encoding: gzip\r\n", 24);
 										else
-											Content->append("Content-Encoding: deflate\r\n", 27);
+											content->append("Content-encoding: deflate\r\n", 27);
 									}
 								}
 							}
 						}
 					}
 #endif
-					if (Response.StatusCode != 413 && !Request.GetHeader("Range").empty())
+					if (response.status_code != 413 && !request.get_header("Range").empty())
 					{
-						Core::Vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
-						if (Ranges.size() > 1)
+						core::vector<std::pair<size_t, size_t>> ranges = request.get_ranges();
+						if (ranges.size() > 1)
 						{
-							Core::String Data;
-							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
+							core::string data;
+							for (auto it = ranges.begin(); it != ranges.end(); ++it)
 							{
-								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Content.Data.size());
-								Core::String ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
-								if (Data.size() > Root->Router->MaxHeapBuffer)
+								std::pair<size_t, size_t> offset = request.get_range(it, response.content.data.size());
+								core::string content_range = paths::construct_content_range(offset.first, offset.second, response.content.data.size());
+								if (data.size() > root->router->max_heap_buffer)
 								{
-									Info.Message.assign("Content range produced too much data.");
-									Response.StatusCode = 413;
-									Response.Content.Data.clear();
-									HrmCache::Get()->Push(Content);
-									goto Retry;
+									info.message.assign("Content range produced too much data.");
+									response.status_code = 413;
+									response.content.data.clear();
+									hrm_cache::get()->push(content);
+									goto retry;
 								}
 
-								Data.append("--", 2);
-								if (Boundary)
-									Data.append(*Boundary);
-								Data.append("\r\n", 2);
+								data.append("--", 2);
+								if (boundary)
+									data.append(*boundary);
+								data.append("\r\n", 2);
 
-								if (!ContentType.empty())
+								if (!content_type.empty())
 								{
-									Data.append("Content-Type: ", 14);
-									Data.append(ContentType);
-									Data.append("\r\n", 2);
+									data.append("Content-type: ", 14);
+									data.append(content_type);
+									data.append("\r\n", 2);
 								}
 
-								Data.append("Content-Range: ", 15);
-								Data.append(ContentRange.c_str(), ContentRange.size());
-								Data.append("\r\n", 2);
-								Data.append("\r\n", 2);
-								if (Offset.second > 0)
-									Data.append(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
-								Data.append("\r\n", 2);
+								data.append("Content-range: ", 15);
+								data.append(content_range.c_str(), content_range.size());
+								data.append("\r\n", 2);
+								data.append("\r\n", 2);
+								if (offset.second > 0)
+									data.append(text_substring(response.content.data, offset.first, offset.second));
+								data.append("\r\n", 2);
 							}
 
-							Data.append("--", 2);
-							if (Boundary)
-								Data.append(*Boundary);
-							Data.append("--\r\n", 4);
-							Response.Content.Assign(Data);
+							data.append("--", 2);
+							if (boundary)
+								data.append(*boundary);
+							data.append("--\r\n", 4);
+							response.content.assign(data);
 						}
-						else if (!Ranges.empty())
+						else if (!ranges.empty())
 						{
-							auto Range = Ranges.begin();
-							bool IsFullLength = (Range->first == -1 && Range->second == -1);
-							std::pair<size_t, size_t> Offset = Request.GetRange(Range, Response.Content.Data.size());
-							if (Response.GetHeader("Content-Range").empty())
-								Content->append("Content-Range: ").append(Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size())).append("\r\n");
-							if (!Offset.second)
-								Response.Content.Data.clear();
-							else if (!IsFullLength)
-								Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
+							auto range = ranges.begin();
+							bool is_full_length = (range->first == -1 && range->second == -1);
+							std::pair<size_t, size_t> offset = request.get_range(range, response.content.data.size());
+							if (response.get_header("Content-Range").empty())
+								content->append("Content-range: ").append(paths::construct_content_range(offset.first, offset.second, response.content.data.size())).append("\r\n");
+							if (!offset.second)
+								response.content.data.clear();
+							else if (!is_full_length)
+								response.content.assign(text_substring(response.content.data, offset.first, offset.second));
 						}
 					}
 
-					if (Response.GetHeader("Content-Length").empty())
-						Content->append("Content-Length: ").append(Core::ToString(Response.Content.Data.size())).append("\r\n");
+					if (response.get_header("Content-Length").empty())
+						content->append("Content-length: ").append(core::to_string(response.content.data.size())).append("\r\n");
 				}
-				else if (Response.GetHeader("Content-Length").empty())
-					Content->append("Content-Length: 0\r\n", 19);
+				else if (response.get_header("Content-Length").empty())
+					content->append("Content-length: 0\r\n", 19);
 
-				if (Request.User.Type == Auth::Denied && Response.GetHeader("WWW-Authenticate").empty())
-					Content->append("WWW-Authenticate: " + Route->Auth.Type + " realm=\"" + Route->Auth.Realm + "\"\r\n");
+				if (request.user.type == auth::denied && response.get_header("WWW-Authenticate").empty())
+					content->append("WWW-authenticate: " + route->auth.type + " realm=\"" + route->auth.realm + "\"\r\n");
 
-				Paths::ConstructHeadFull(&Request, &Response, false, *Content);
-				if (Route->Callbacks.Headers)
-					Route->Callbacks.Headers(this, *Content);
+				paths::construct_head_full(&request, &response, false, *content);
+				if (route->callbacks.headers)
+					route->callbacks.headers(this, *content);
 
-				Content->append("\r\n", 2);
-				if (ApplyBodyInlining)
-					Content->append(Response.Content.Data.begin(), Response.Content.Data.end());
+				content->append("\r\n", 2);
+				if (apply_body_inlining)
+					content->append(response.content.data.begin(), response.content.data.end());
 
-				auto Status = Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [this, Content, Callback = std::move(Callback)](SocketPoll Event) mutable
+				auto status = stream->write_queued((uint8_t*)content->c_str(), content->size(), [this, content, callback = std::move(callback)](socket_poll event) mutable
 				{
-					HrmCache::Get()->Push(Content);
-					Callback(this, Event);
+					hrm_cache::get()->push(content);
+					callback(this, event);
 				}, false);
-				return Status || Status.Error() == std::errc::operation_would_block;
+				return status || status.error() == std::errc::operation_would_block;
 			}
-			bool Connection::ErrorResponseRequested()
+			bool connection::error_response_requested()
 			{
-				return Response.StatusCode >= 400 && !Response.Error && Response.Content.Data.empty();
+				return response.status_code >= 400 && !response.error && response.content.data.empty();
 			}
-			bool Connection::BodyInliningRequested()
+			bool connection::body_inlining_requested()
 			{
-				return !Response.Content.Data.empty() && Response.Content.Data.size() <= INLINING_SIZE;
+				return !response.content.data.empty() && response.content.data.size() <= INLINING_SIZE;
 			}
-			bool Connection::WaitingForWebSocket()
+			bool connection::waiting_for_web_socket()
 			{
-				if (WebSocket != nullptr && !WebSocket->IsFinished())
+				if (web_socket != nullptr && !web_socket->is_finished())
 				{
-					WebSocket->SendClose([](WebSocketFrame* Frame) { Frame->Next(); });
+					web_socket->send_close([](web_socket_frame* frame) { frame->next(); });
 					return true;
 				}
 
-				Core::Memory::Release(WebSocket);
+				core::memory::release(web_socket);
 				return false;
 			}
-			bool Connection::SendHeaders(int StatusCode, bool SpecifyTransferEncoding, HeadersCallback&& Callback)
+			bool connection::send_headers(int status_code, bool specify_transfer_encoding, headers_callback&& callback)
 			{
-				Response.StatusCode = StatusCode;
-				if (Response.StatusCode <= 0 || Stream->Outcome > 0 || !Response.Content.Data.empty())
+				response.status_code = status_code;
+				if (response.status_code <= 0 || stream->outcome > 0 || !response.content.data.empty())
 					return false;
 
-				if (SpecifyTransferEncoding && Response.GetHeader("Transfer-Encoding").empty())
-					Response.SetHeader("Transfer-Encoding", "chunked");
+				if (specify_transfer_encoding && response.get_header("Transfer-Encoding").empty())
+					response.set_header("Transfer-Encoding", "chunked");
 
-				ComposeResponse(ErrorResponseRequested(), false, std::move(Callback));
+				compose_response(error_response_requested(), false, std::move(callback));
 				return true;
 			}
-			bool Connection::SendChunk(const std::string_view& Chunk, HeadersCallback&& Callback)
+			bool connection::send_chunk(const std::string_view& chunk, headers_callback&& callback)
 			{
-				if (Response.StatusCode <= 0 || !Stream->Outcome || !Response.Content.Data.empty())
+				if (response.status_code <= 0 || !stream->outcome || !response.content.data.empty())
 					return false;
 
-				auto TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				bool IsTransferEncodingChunked = Core::Stringify::CaseEquals(TransferEncoding, "chunked");
-				if (IsTransferEncodingChunked)
+				auto transfer_encoding = response.get_header("Transfer-Encoding");
+				bool is_transfer_encoding_chunked = core::stringify::case_equals(transfer_encoding, "chunked");
+				if (is_transfer_encoding_chunked)
 				{
-					if (!Chunk.empty())
+					if (!chunk.empty())
 					{
-						Core::String Content = Core::Stringify::Text("%X\r\n", (uint32_t)Chunk.size());
-						Content.append(Chunk);
-						Content.append("\r\n");
-						Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), std::bind(Callback, this, std::placeholders::_1));
+						core::string content = core::stringify::text("%x\r\n", (uint32_t)chunk.size());
+						content.append(chunk);
+						content.append("\r\n");
+						stream->write_queued((uint8_t*)content.c_str(), content.size(), std::bind(callback, this, std::placeholders::_1));
 					}
 					else
-						Stream->WriteQueued((uint8_t*)"0\r\n\r\n", 5, std::bind(Callback, this, std::placeholders::_1), false);
+						stream->write_queued((uint8_t*)"0\r\n\r\n", 5, std::bind(callback, this, std::placeholders::_1), false);
 				}
 				else
 				{
-					if (Chunk.empty())
+					if (chunk.empty())
 						return false;
 
-					Stream->WriteQueued((uint8_t*)Chunk.data(), Chunk.size(), std::bind(Callback, this, std::placeholders::_1));
+					stream->write_queued((uint8_t*)chunk.data(), chunk.size(), std::bind(callback, this, std::placeholders::_1));
 				}
 
 				return true;
 			}
-			bool Connection::Fetch(ContentCallback&& Callback, bool Eat)
+			bool connection::fetch(content_callback&& callback, bool eat)
 			{
-				VI_ASSERT(ConnectionValid(this), "connection should be valid");
-				if (!Request.Content.Resources.empty())
+				VI_ASSERT(connection_valid(this), "connection should be valid");
+				if (!request.content.resources.empty())
 				{
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, "");
+					if (callback)
+						callback(this, socket_poll::finish_sync, "");
 					return false;
 				}
-				else if (Request.Content.IsFinalized())
+				else if (request.content.is_finalized())
 				{
-					if (!Eat && Callback && !Request.Content.Data.empty())
-						Callback(this, SocketPoll::Next, std::string_view(Request.Content.Data.data(), Request.Content.Data.size()));
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, "");
+					if (!eat && callback && !request.content.data.empty())
+						callback(this, socket_poll::next, std::string_view(request.content.data.data(), request.content.data.size()));
+					if (callback)
+						callback(this, socket_poll::finish_sync, "");
 					return true;
 				}
-				else if (Request.Content.Exceeds)
+				else if (request.content.exceeds)
 				{
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, "");
+					if (callback)
+						callback(this, socket_poll::finish_sync, "");
 					return false;
 				}
-				else if (!Stream->IsValid())
+				else if (!stream->is_valid())
 				{
-					if (Callback)
-						Callback(this, SocketPoll::Reset, "");
-					return false;
-				}
-
-				auto ContentType = Request.GetHeader("Content-Type");
-				if (ContentType == std::string_view("multipart/form-data", 19))
-				{
-					Request.Content.Exceeds = true;
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, "");
+					if (callback)
+						callback(this, socket_poll::reset, "");
 					return false;
 				}
 
-				auto TransferEncoding = Request.GetHeader("Transfer-Encoding");
-				bool IsTransferEncodingChunked = (!Request.Content.Limited && Core::Stringify::CaseEquals(TransferEncoding, "chunked"));
-				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
-				if (IsTransferEncodingChunked)
-					Resolver->PrepareForChunkedParsing();
-
-				if (Request.Content.Prefetch > 0)
+				auto content_type = request.get_header("Content-Type");
+				if (content_type == std::string_view("multipart/form-data", 19))
 				{
-					Request.Content.Prefetch = 0;
-					if (IsTransferEncodingChunked)
+					request.content.exceeds = true;
+					if (callback)
+						callback(this, socket_poll::finish_sync, "");
+					return false;
+				}
+
+				auto transfer_encoding = request.get_header("Transfer-Encoding");
+				bool is_transfer_encoding_chunked = (!request.content.limited && core::stringify::case_equals(transfer_encoding, "chunked"));
+				size_t content_length = request.content.length >= request.content.prefetch ? request.content.length - request.content.prefetch : request.content.length;
+				if (is_transfer_encoding_chunked)
+					resolver->prepare_for_chunked_parsing();
+
+				if (request.content.prefetch > 0)
+				{
+					request.content.prefetch = 0;
+					if (is_transfer_encoding_chunked)
 					{
-						size_t DecodedSize = Request.Content.Data.size();
-						int64_t Subresult = Resolver->ParseDecodeChunked((uint8_t*)Request.Content.Data.data(), &DecodedSize);
-						Request.Content.Data.resize(DecodedSize);
-						if (!Eat && Callback && !Request.Content.Data.empty())
-							Callback(this, SocketPoll::Next, std::string_view(Request.Content.Data.data(), Request.Content.Data.size()));
+						size_t decoded_size = request.content.data.size();
+						int64_t subresult = resolver->parse_decode_chunked((uint8_t*)request.content.data.data(), &decoded_size);
+						request.content.data.resize(decoded_size);
+						if (!eat && callback && !request.content.data.empty())
+							callback(this, socket_poll::next, std::string_view(request.content.data.data(), request.content.data.size()));
 
-						if (Subresult == -1 || Subresult == 0)
+						if (subresult == -1 || subresult == 0)
 						{
-							Request.Content.Finalize();
-							if (Callback)
-								Callback(this, SocketPoll::FinishSync, "");
-							return Subresult == 0;
+							request.content.finalize();
+							if (callback)
+								callback(this, socket_poll::finish_sync, "");
+							return subresult == 0;
 						}
 					}
-					else if (!Eat && Callback)
-						Callback(this, SocketPoll::Next, std::string_view(Request.Content.Data.data(), Request.Content.Data.size()));
+					else if (!eat && callback)
+						callback(this, socket_poll::next, std::string_view(request.content.data.data(), request.content.data.size()));
 				}
 
-				if (IsTransferEncodingChunked)
+				if (is_transfer_encoding_chunked)
 				{
-					return !!Stream->ReadQueued(Root->Router->MaxNetBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					return !!stream->read_queued(root->router->max_net_buffer, [this, eat, callback = std::move(callback)](socket_poll event, const uint8_t* buffer, size_t recv)
 					{
-						if (Packet::IsData(Event))
+						if (packet::is_data(event))
 						{
-							int64_t Result = Resolver->ParseDecodeChunked((uint8_t*)Buffer, &Recv);
-							if (Result == -1)
+							int64_t result = resolver->parse_decode_chunked((uint8_t*)buffer, &recv);
+							if (result == -1)
 								return false;
 
-							Request.Content.Offset += Recv;
-							if (Eat)
-								return Result == -2;
-							else if (Callback)
-								Callback(this, SocketPoll::Next, std::string_view((char*)Buffer, Recv));
+							request.content.offset += recv;
+							if (eat)
+								return result == -2;
+							else if (callback)
+								callback(this, socket_poll::next, std::string_view((char*)buffer, recv));
 
-							if (Request.Content.Data.size() < Root->Router->MaxNetBuffer)
-								Request.Content.Append(std::string_view((char*)Buffer, Recv));
-							return Result == -2;
+							if (request.content.data.size() < root->router->max_net_buffer)
+								request.content.append(std::string_view((char*)buffer, recv));
+							return result == -2;
 						}
-						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
-							Request.Content.Finalize();
-							if (Callback)
-								Callback(this, Event, "");
+							request.content.finalize();
+							if (callback)
+								callback(this, event, "");
 						}
 
 						return true;
 					});
 				}
-				else if (ContentLength > Root->Router->MaxHeapBuffer || ContentLength > Root->Router->MaxNetBuffer)
+				else if (content_length > root->router->max_heap_buffer || content_length > root->router->max_net_buffer)
 				{
-					Request.Content.Exceeds = true;
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, "");
+					request.content.exceeds = true;
+					if (callback)
+						callback(this, socket_poll::finish_sync, "");
 					return true;
 				}
-				else if (Request.Content.Limited && !ContentLength)
+				else if (request.content.limited && !content_length)
 				{
-					Request.Content.Finalize();
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, "");
+					request.content.finalize();
+					if (callback)
+						callback(this, socket_poll::finish_sync, "");
 					return true;
 				}
 
-				return !!Stream->ReadQueued(Request.Content.Limited ? ContentLength : Root->Router->MaxHeapBuffer, [this, Eat, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				return !!stream->read_queued(request.content.limited ? content_length : root->router->max_heap_buffer, [this, eat, callback = std::move(callback)](socket_poll event, const uint8_t* buffer, size_t recv)
 				{
-					if (Packet::IsData(Event))
+					if (packet::is_data(event))
 					{
-						Request.Content.Offset += Recv;
-						if (Eat)
+						request.content.offset += recv;
+						if (eat)
 							return true;
 
-						if (Callback)
-							Callback(this, SocketPoll::Next, std::string_view((char*)Buffer, Recv));
+						if (callback)
+							callback(this, socket_poll::next, std::string_view((char*)buffer, recv));
 
-						if (Request.Content.Data.size() < Root->Router->MaxHeapBuffer)
-							Request.Content.Append(std::string_view((char*)Buffer, Recv));
+						if (request.content.data.size() < root->router->max_heap_buffer)
+							request.content.append(std::string_view((char*)buffer, recv));
 					}
-					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+					else if (packet::is_done(event) || packet::is_error_or_skip(event))
 					{
-						Request.Content.Finalize();
-						if (Callback)
-							Callback(this, Event, "");
+						request.content.finalize();
+						if (callback)
+							callback(this, event, "");
 					}
 
 					return true;
 				});
 			}
-			bool Connection::Store(ResourceCallback&& Callback, bool Eat)
+			bool connection::store(resource_callback&& callback, bool eat)
 			{
-				VI_ASSERT(ConnectionValid(this), "connection should be valid");
-				if (!Request.Content.Resources.empty())
+				VI_ASSERT(connection_valid(this), "connection should be valid");
+				if (!request.content.resources.empty())
 				{
-					if (!Callback)
+					if (!callback)
 						return true;
 
-					if (!Eat)
+					if (!eat)
 					{
-						for (auto& Item : Request.Content.Resources)
-							Callback(&Item);
+						for (auto& item : request.content.resources)
+							callback(&item);
 					}
 
-					Callback(nullptr);
+					callback(nullptr);
 					return true;
 				}
-				else if (Request.Content.IsFinalized())
+				else if (request.content.is_finalized())
 				{
-					if (Callback)
-						Callback(nullptr);
+					if (callback)
+						callback(nullptr);
 					return true;
 				}
-				else if (!Request.Content.Limited)
+				else if (!request.content.limited)
 				{
-					if (Callback)
-						Callback(nullptr);
+					if (callback)
+						callback(nullptr);
 					return false;
 				}
 
-				auto ContentType = Request.GetHeader("Content-Type");
-				const char* BoundaryName = (ContentType.empty() ? nullptr : strstr(ContentType.data(), "boundary="));
-				Request.Content.Exceeds = true;
+				auto content_type = request.get_header("Content-Type");
+				const char* boundary_name = (content_type.empty() ? nullptr : strstr(content_type.data(), "boundary="));
+				request.content.exceeds = true;
 
-				size_t ContentLength = Request.Content.Length >= Request.Content.Prefetch ? Request.Content.Length - Request.Content.Prefetch : Request.Content.Length;
-				if (!ContentType.empty() && BoundaryName != nullptr)
+				size_t content_length = request.content.length >= request.content.prefetch ? request.content.length - request.content.prefetch : request.content.length;
+				if (!content_type.empty() && boundary_name != nullptr)
 				{
-					if (Route->Router->TemporaryDirectory.empty())
-						Eat = true;
+					if (route->router->temporary_directory.empty())
+						eat = true;
 
-					Core::String Boundary("--");
-					Boundary.append(BoundaryName + 9);
+					core::string boundary("--");
+					boundary.append(boundary_name + 9);
 
-					Resolver->PrepareForMultipartParsing(&Response.Content, &Route->Router->TemporaryDirectory, Route->Router->MaxUploadableResources, Eat, std::move(Callback));
-					if (Request.Content.Prefetch > 0)
+					resolver->prepare_for_multipart_parsing(&response.content, &route->router->temporary_directory, route->router->max_uploadable_resources, eat, std::move(callback));
+					if (request.content.prefetch > 0)
 					{
-						Request.Content.Prefetch = 0;
-						if (Resolver->MultipartParse(Boundary.c_str(), (uint8_t*)Request.Content.Data.data(), Request.Content.Data.size()) == -1 || Resolver->Multipart.Finish || !ContentLength)
+						request.content.prefetch = 0;
+						if (resolver->multipart_parse(boundary.c_str(), (uint8_t*)request.content.data.data(), request.content.data.size()) == -1 || resolver->multipart.finish || !content_length)
 						{
-							Request.Content.Finalize();
-							if (Resolver->Multipart.Callback)
-								Resolver->Multipart.Callback(nullptr);
+							request.content.finalize();
+							if (resolver->multipart.callback)
+								resolver->multipart.callback(nullptr);
 							return false;
 						}
 					}
 
-					return !!Stream->ReadQueued(ContentLength, [this, Boundary](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					return !!stream->read_queued(content_length, [this, boundary](socket_poll event, const uint8_t* buffer, size_t recv)
 					{
-						if (Packet::IsData(Event))
+						if (packet::is_data(event))
 						{
-							Request.Content.Offset += Recv;
-							if (Resolver->MultipartParse(Boundary.c_str(), Buffer, Recv) != -1 && !Resolver->Multipart.Finish)
+							request.content.offset += recv;
+							if (resolver->multipart_parse(boundary.c_str(), buffer, recv) != -1 && !resolver->multipart.finish)
 								return true;
 
-							if (Resolver->Multipart.Callback)
-								Resolver->Multipart.Callback(nullptr);
+							if (resolver->multipart.callback)
+								resolver->multipart.callback(nullptr);
 
 							return false;
 						}
-						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
-							Request.Content.Finalize();
-							if (Resolver->Multipart.Callback)
-								Resolver->Multipart.Callback(nullptr);
+							request.content.finalize();
+							if (resolver->multipart.callback)
+								resolver->multipart.callback(nullptr);
 						}
 
 						return true;
 					});
 				}
-				else if (!ContentLength)
+				else if (!content_length)
 				{
-					if (Callback)
-						Callback(nullptr);
+					if (callback)
+						callback(nullptr);
 					return true;
 				}
-				
-				if (Eat)
+
+				if (eat)
 				{
-					return !!Stream->ReadQueued(ContentLength, [this, Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					return !!stream->read_queued(content_length, [this, callback = std::move(callback)](socket_poll event, const uint8_t* buffer, size_t recv)
 					{
-						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
-							Request.Content.Finalize();
-							if (Callback)
-								Callback(nullptr);
+							request.content.finalize();
+							if (callback)
+								callback(nullptr);
 						}
 						else
-							Request.Content.Offset += Recv;
+							request.content.offset += recv;
 						return true;
 					});
 				}
 
-				HTTP::Resource Subresource;
-				Subresource.Length = Request.Content.Length;
-				Subresource.Type = (ContentType.empty() ? "application/octet-stream" : ContentType);
+				http::resource subresource;
+				subresource.length = request.content.length;
+				subresource.type = (content_type.empty() ? "application/octet-stream" : content_type);
 
-				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Compute::Crypto::RandomBytes(16));
-				Subresource.Path = *Core::OS::Directory::GetWorking() + *Hash;
-				FILE* File = Core::OS::File::Open(Subresource.Path.c_str(), "wb").Or(nullptr);
-				if (!File || (Request.Content.Prefetch > 0 && fwrite(Request.Content.Data.data(), 1, Request.Content.Data.size(), File) != Request.Content.Data.size()))
+				auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *compute::crypto::random_bytes(16));
+				subresource.path = *core::os::directory::get_working() + *hash;
+				FILE* file = core::os::file::open(subresource.path.c_str(), "wb").otherwise(nullptr);
+				if (!file || (request.content.prefetch > 0 && fwrite(request.content.data.data(), 1, request.content.data.size(), file) != request.content.data.size()))
 				{
-					if (File != nullptr)
-						Core::OS::File::Close(File);
-					if (Callback)
-						Callback(nullptr);
+					if (file != nullptr)
+						core::os::file::close(file);
+					if (callback)
+						callback(nullptr);
 					return false;
 				}
 
-				Request.Content.Prefetch = 0;
-				return !!Stream->ReadQueued(ContentLength, [this, File, Subresource = std::move(Subresource), Callback = std::move(Callback)](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				request.content.prefetch = 0;
+				return !!stream->read_queued(content_length, [this, file, subresource = std::move(subresource), callback = std::move(callback)](socket_poll event, const uint8_t* buffer, size_t recv)
 				{
-					if (Packet::IsData(Event))
+					if (packet::is_data(event))
 					{
-						Request.Content.Offset += Recv;
-						if (fwrite(Buffer, 1, Recv, File) == Recv)
+						request.content.offset += recv;
+						if (fwrite(buffer, 1, recv, file) == recv)
 							return true;
 
-						Core::OS::File::Close(File);
-						if (Callback)
-							Callback(nullptr);
+						core::os::file::close(file);
+						if (callback)
+							callback(nullptr);
 
 						return false;
 					}
-					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+					else if (packet::is_done(event) || packet::is_error_or_skip(event))
 					{
-						Request.Content.Finalize();
-						if (Packet::IsDone(Event))
+						request.content.finalize();
+						if (packet::is_done(event))
 						{
-							Request.Content.Resources.push_back(Subresource);
-							if (Callback)
-								Callback(&Request.Content.Resources.back());
+							request.content.resources.push_back(subresource);
+							if (callback)
+								callback(&request.content.resources.back());
 						}
 
-						if (Callback)
-							Callback(nullptr);
+						if (callback)
+							callback(nullptr);
 
-						Core::OS::File::Close(File);
+						core::os::file::close(file);
 						return false;
 					}
 
 					return true;
 				});
 			}
-			bool Connection::Skip(SuccessCallback&& Callback)
+			bool connection::skip(success_callback&& callback)
 			{
-				VI_ASSERT(Callback != nullptr, "callback should be set");
-				Fetch([Callback = std::move(Callback)](HTTP::Connection* Base, SocketPoll Event, const std::string_view&) mutable
+				VI_ASSERT(callback != nullptr, "callback should be set");
+				fetch([callback = std::move(callback)](http::connection* base, socket_poll event, const std::string_view&) mutable
 				{
-					if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
+					if (!packet::is_done(event) && !packet::is_error_or_skip(event))
 						return true;
 
-					if (!Base->Request.Content.Exceeds)
+					if (!base->request.content.exceeds)
 					{
-						Callback(Base);
+						callback(base);
 						return true;
 					}
 
-					return Base->Store([Base, Callback = std::move(Callback)](HTTP::Resource* Resource)
+					return base->store([base, callback = std::move(callback)](http::resource* resource)
 					{
-						Callback(Base);
+						callback(base);
 						return true;
 					}, true);
 				}, true);
 				return false;
 			}
-			bool Connection::Next()
+			bool connection::next()
 			{
-				VI_ASSERT(ConnectionValid(this), "connection should be valid");
-				if (WaitingForWebSocket())
+				VI_ASSERT(connection_valid(this), "connection should be valid");
+				if (waiting_for_web_socket())
 					return false;
 
-				if (Response.StatusCode <= 0 || Stream->Outcome > 0)
-					return !!Root->Continue(this);
+				if (response.status_code <= 0 || stream->outcome > 0)
+					return !!root->next(this);
 
-				bool ApplyErrorResponse = ErrorResponseRequested();
-				if (ApplyErrorResponse)
+				bool apply_error_response = error_response_requested();
+				if (apply_error_response)
 				{
-					Response.Error = true;
-					for (auto& Page : Route->ErrorFiles)
+					response.error = true;
+					for (auto& page : route->error_files)
 					{
-						if (Page.StatusCode != Response.StatusCode && Page.StatusCode != 0)
+						if (page.status_code != response.status_code && page.status_code != 0)
 							continue;
 
-						Request.Path = Page.Pattern;
-						Response.SetHeader("X-Error", Info.Message);
-						return Routing::RouteGet(this);
+						request.path = page.pattern;
+						response.set_header("X-Error", info.message);
+						return routing::route_get(this);
 					}
 				}
 
-				bool ResponseBodyInlined = BodyInliningRequested();
-				return ComposeResponse(ApplyErrorResponse, ResponseBodyInlined, [ResponseBodyInlined](Connection* Base, SocketPoll Event)
+				bool response_body_inlined = body_inlining_requested();
+				return compose_response(apply_error_response, response_body_inlined, [response_body_inlined](connection* base, socket_poll event)
 				{
-					auto& Content = Base->Response.Content.Data;
-					if (Packet::IsDone(Event) && !ResponseBodyInlined && !Content.empty() && memcmp(Base->Request.Method, "HEAD", 4) != 0)
-						Base->Stream->WriteQueued((uint8_t*)Content.data(), Content.size(), [Base](SocketPoll) { Base->Root->Continue(Base); }, false);
+					auto& content = base->response.content.data;
+					if (packet::is_done(event) && !response_body_inlined && !content.empty() && memcmp(base->request.method, "HEAD", 4) != 0)
+						base->stream->write_queued((uint8_t*)content.data(), content.size(), [base](socket_poll) { base->root->next(base); }, false);
 					else
-						Base->Root->Continue(Base);
+						base->root->next(base);
 				});
 			}
-			bool Connection::Next(int StatusCode)
+			bool connection::next(int status_code)
 			{
-				Response.StatusCode = StatusCode;
-				return Next();
+				response.status_code = status_code;
+				return next();
 			}
-			bool Connection::IsSkipRequired() const
+			bool connection::is_skip_required() const
 			{
-				if (!Request.Content.Resources.empty() || Request.Content.IsFinalized() || Request.Content.Exceeds || !Stream->IsValid())
+				if (!request.content.resources.empty() || request.content.is_finalized() || request.content.exceeds || !stream->is_valid())
 					return false;
 
 				return true;
 			}
-			Core::ExpectsIO<Core::String> Connection::GetPeerIpAddress() const
+			core::expects_io<core::string> connection::get_peer_ip_address() const
 			{
-				if (!Route->ProxyIpAddress.empty())
+				if (!route->proxy_ip_address.empty())
 				{
-					auto ProxyAddress = Request.GetHeader(Route->ProxyIpAddress.c_str());
-					if (!ProxyAddress.empty())
-						return Core::String(ProxyAddress);
+					auto proxy_address = request.get_header(route->proxy_ip_address.c_str());
+					if (!proxy_address.empty())
+						return core::string(proxy_address);
 				}
 
-				auto Address = Stream->GetPeerAddress();
-				if (!Address)
-					return Address.Error();
+				auto address = stream->get_peer_address();
+				if (!address)
+					return address.error();
 
-				return Address->GetIpAddress();
+				return address->get_ip_address();
 			}
 
-			Query::Query() : Object(Core::Var::Set::Object())
+			query::query() : object(core::var::set::object())
 			{
 			}
-			Query::~Query() noexcept
+			query::~query() noexcept
 			{
-				Core::Memory::Release(Object);
+				core::memory::release(object);
 			}
-			void Query::Clear()
+			void query::clear()
 			{
-				if (Object != nullptr)
-					Object->Clear();
+				if (object != nullptr)
+					object->clear();
 			}
-			void Query::Steal(Core::Schema** Output)
+			void query::steal(core::schema** output)
 			{
-				if (!Output)
+				if (!output)
 					return;
 
-				Core::Memory::Release(*Output);
-				*Output = Object;
-				Object = nullptr;
+				core::memory::release(*output);
+				*output = object;
+				object = nullptr;
 			}
-			void Query::NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
+			void query::new_parameter(core::vector<query_token>* tokens, const query_token& name, const query_token& value)
 			{
-				Core::String Body = Compute::Codec::URLDecode(std::string_view(Name.Value, Name.Length));
-				size_t Offset = 0, Length = Body.size();
-				char* Data = (char*)Body.c_str();
+				core::string body = compute::codec::url_decode(std::string_view(name.value, name.length));
+				size_t offset = 0, length = body.size();
+				char* data = (char*)body.c_str();
 
-				for (size_t i = 0; i < Length; i++)
+				for (size_t i = 0; i < length; i++)
 				{
-					if (Data[i] != '[')
+					if (data[i] != '[')
 					{
-						if (Tokens->empty() && i + 1 >= Length)
+						if (tokens->empty() && i + 1 >= length)
 						{
-							QueryToken Token;
-							Token.Value = Data + Offset;
-							Token.Length = i - Offset + 1;
-							Tokens->push_back(Token);
+							query_token token;
+							token.value = data + offset;
+							token.length = i - offset + 1;
+							tokens->push_back(token);
 						}
 
 						continue;
 					}
 
-					if (Tokens->empty())
+					if (tokens->empty())
 					{
-						QueryToken Token;
-						Token.Value = Data + Offset;
-						Token.Length = i - Offset;
-						Tokens->push_back(Token);
+						query_token token;
+						token.value = data + offset;
+						token.length = i - offset;
+						tokens->push_back(token);
 					}
 
-					Offset = i;
-					while (i + 1 < Length && Data[i + 1] != ']')
+					offset = i;
+					while (i + 1 < length && data[i + 1] != ']')
 						i++;
 
-					QueryToken Token;
-					Token.Value = Data + Offset + 1;
-					Token.Length = i - Offset;
-					Tokens->push_back(Token);
+					query_token token;
+					token.value = data + offset + 1;
+					token.length = i - offset;
+					tokens->push_back(token);
 
-					if (i + 1 >= Length)
+					if (i + 1 >= length)
 						break;
 
-					Offset = i + 1;
+					offset = i + 1;
 				}
 
-				if (!Value.Value || !Value.Length)
+				if (!value.value || !value.length)
 					return;
 
-				Core::Schema* Parameter = nullptr;
-				for (auto& Item : *Tokens)
+				core::schema* parameter = nullptr;
+				for (auto& item : *tokens)
 				{
-					if (Parameter != nullptr)
-						Parameter = FindParameter(Parameter, &Item);
+					if (parameter != nullptr)
+						parameter = find_parameter(parameter, &item);
 					else
-						Parameter = GetParameter(&Item);
+						parameter = get_parameter(&item);
 				}
 
-				if (Parameter != nullptr)
-					Parameter->Value.Deserialize(Compute::Codec::URLDecode(std::string_view(Value.Value, Value.Length)));
+				if (parameter != nullptr)
+					parameter->value.deserialize(compute::codec::url_decode(std::string_view(value.value, value.length)));
 			}
-			void Query::Decode(const std::string_view& Type, const std::string_view& Body)
+			void query::decode(const std::string_view& type, const std::string_view& body)
 			{
-				if (Type.empty() || Body.empty())
+				if (type.empty() || body.empty())
 					return;
 
-				if (Core::Stringify::CaseEquals(Type, "application/x-www-form-urlencoded"))
-					DecodeAXWFD(Body);
-				else if (Core::Stringify::CaseEquals(Type, "application/json"))
-					DecodeAJSON(Body);
+				if (core::stringify::case_equals(type, "application/x-www-form-urlencoded"))
+					decode_axwfd(body);
+				else if (core::stringify::case_equals(type, "application/json"))
+					decode_ajson(body);
 			}
-			void Query::DecodeAXWFD(const std::string_view& Body)
+			void query::decode_axwfd(const std::string_view& body)
 			{
-				Core::Vector<QueryToken> Tokens;
-				size_t Offset = 0, Length = Body.size();
-				char* Data = (char*)Body.data();
+				core::vector<query_token> tokens;
+				size_t offset = 0, length = body.size();
+				char* data = (char*)body.data();
 
-				for (size_t i = 0; i < Length; i++)
+				for (size_t i = 0; i < length; i++)
 				{
-					if (Data[i] != '&' && Data[i] != '=' && i + 1 < Length)
+					if (data[i] != '&' && data[i] != '=' && i + 1 < length)
 						continue;
 
-					QueryToken Name;
-					Name.Value = Data + Offset;
-					Name.Length = i - Offset;
-					Offset = i;
+					query_token name;
+					name.value = data + offset;
+					name.length = i - offset;
+					offset = i;
 
-					if (Data[i] == '=')
+					if (data[i] == '=')
 					{
-						while (i + 1 < Length && Data[i + 1] != '&')
+						while (i + 1 < length && data[i + 1] != '&')
 							i++;
 					}
 
-					QueryToken Value;
-					Value.Value = Data + Offset + 1;
-					Value.Length = i - Offset;
+					query_token value;
+					value.value = data + offset + 1;
+					value.length = i - offset;
 
-					NewParameter(&Tokens, Name, Value);
-					Tokens.clear();
-					Offset = i + 2;
+					new_parameter(&tokens, name, value);
+					tokens.clear();
+					offset = i + 2;
 					i++;
 				}
 			}
-			void Query::DecodeAJSON(const std::string_view& Body)
+			void query::decode_ajson(const std::string_view& body)
 			{
-				Core::Memory::Release(Object);
-				auto Result = Core::Schema::ConvertFromJSON(Body);
-				if (Result)
-					Object = *Result;
+				core::memory::release(object);
+				auto result = core::schema::convert_from_json(body);
+				if (result)
+					object = *result;
 			}
-			Core::String Query::Encode(const std::string_view& Type) const
+			core::string query::encode(const std::string_view& type) const
 			{
-				if (Core::Stringify::CaseEquals(Type, "application/x-www-form-urlencoded"))
-					return EncodeAXWFD();
+				if (core::stringify::case_equals(type, "application/x-www-form-urlencoded"))
+					return encode_axwfd();
 
-				if (Core::Stringify::CaseEquals(Type, "application/json"))
-					return EncodeAJSON();
+				if (core::stringify::case_equals(type, "application/json"))
+					return encode_ajson();
 
 				return "";
 			}
-			Core::String Query::EncodeAXWFD() const
+			core::string query::encode_axwfd() const
 			{
-				Core::String Output; auto& Nodes = Object->GetChilds();
-				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+				core::string output; auto& nodes = object->get_childs();
+				for (auto it = nodes.begin(); it != nodes.end(); ++it)
 				{
-					Output.append(BuildFromBase(*It));
-					if (It + 1 < Nodes.end())
-						Output.append(1, '&');
+					output.append(build_from_base(*it));
+					if (it + 1 < nodes.end())
+						output.append(1, '&');
 				}
 
-				return Output;
+				return output;
 			}
-			Core::String Query::EncodeAJSON() const
+			core::string query::encode_ajson() const
 			{
-				Core::String Stream;
-				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const std::string_view& Buffer) { Stream.append(Buffer); });
-				return Stream;
+				core::string stream;
+				core::schema::convert_to_json(object, [&stream](core::var_form, const std::string_view& buffer) { stream.append(buffer); });
+				return stream;
 			}
-			Core::Schema* Query::Get(const std::string_view& Name) const
+			core::schema* query::get(const std::string_view& name) const
 			{
-				return (Core::Schema*)Object->Get(Name);
+				return (core::schema*)object->get(name);
 			}
-			Core::Schema* Query::Set(const std::string_view& Name)
+			core::schema* query::set(const std::string_view& name)
 			{
-				return (Core::Schema*)Object->Set(Name, Core::Var::String(""));
+				return (core::schema*)object->set(name, core::var::string(""));
 			}
-			Core::Schema* Query::Set(const std::string_view& Name, const std::string_view& Value)
+			core::schema* query::set(const std::string_view& name, const std::string_view& value)
 			{
-				return (Core::Schema*)Object->Set(Name, Core::Var::String(Value));
+				return (core::schema*)object->set(name, core::var::string(value));
 			}
-			Core::Schema* Query::GetParameter(QueryToken* Name)
+			core::schema* query::get_parameter(query_token* name)
 			{
-				VI_ASSERT(Name != nullptr, "token should be set");
-				if (Name->Value && Name->Length > 0)
+				VI_ASSERT(name != nullptr, "token should be set");
+				if (name->value && name->length > 0)
 				{
-					for (auto* Item : Object->GetChilds())
+					for (auto* item : object->get_childs())
 					{
-						if (Item->Key.size() != Name->Length)
+						if (item->key.size() != name->length)
 							continue;
 
-						if (!strncmp(Item->Key.c_str(), Name->Value, (size_t)Name->Length))
-							return (Core::Schema*)Item;
+						if (!strncmp(item->key.c_str(), name->value, (size_t)name->length))
+							return (core::schema*)item;
 					}
 				}
 
-				Core::Schema* New = Core::Var::Set::Object();
-				if (Name->Value && Name->Length > 0)
+				core::schema* init = core::var::set::object();
+				if (name->value && name->length > 0)
 				{
-					New->Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::Stringify::HasInteger(New->Key))
-						Object->Value = Core::Var::Object();
+					init->key.assign(name->value, (size_t)name->length);
+					if (!core::stringify::has_integer(init->key))
+						object->value = core::var::object();
 					else
-						Object->Value = Core::Var::Array();
+						object->value = core::var::array();
 				}
 				else
 				{
-					New->Key.assign(Core::ToString(Object->Size()));
-					Object->Value = Core::Var::Array();
+					init->key.assign(core::to_string(object->size()));
+					object->value = core::var::array();
 				}
 
-				New->Value = Core::Var::String("");
-				Object->Push(New);
+				init->value = core::var::string("");
+				object->push(init);
 
-				return New;
+				return init;
 			}
-			Core::String Query::Build(Core::Schema* Base)
+			core::string query::build(core::schema* base)
 			{
-				Core::String Output, Label = Compute::Codec::URLEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
-				if (!Base->Empty())
+				core::string output, label = compute::codec::url_encode(base->get_parent() != nullptr ? ('[' + base->key + ']') : base->key);
+				if (!base->empty())
 				{
-					auto& Childs = Base->GetChilds();
-					for (auto It = Childs.begin(); It != Childs.end(); ++It)
+					auto& childs = base->get_childs();
+					for (auto it = childs.begin(); it != childs.end(); ++it)
 					{
-						Output.append(Label).append(Build(*It));
-						if (It + 1 < Childs.end())
-							Output += '&';
+						output.append(label).append(build(*it));
+						if (it + 1 < childs.end())
+							output += '&';
 					}
 				}
 				else
 				{
-					Core::String V = Base->Value.Serialize();
-					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Codec::URLEncode(V));
+					core::string v = base->value.serialize();
+					if (!v.empty())
+						output.append(label).append(1, '=').append(compute::codec::url_encode(v));
 					else
-						Output.append(Label);
+						output.append(label);
 				}
 
-				return Output;
+				return output;
 			}
-			Core::String Query::BuildFromBase(Core::Schema* Base)
+			core::string query::build_from_base(core::schema* base)
 			{
-				Core::String Output, Label = Compute::Codec::URLEncode(Base->Key);
-				if (!Base->Empty())
+				core::string output, label = compute::codec::url_encode(base->key);
+				if (!base->empty())
 				{
-					auto& Childs = Base->GetChilds();
-					for (auto It = Childs.begin(); It != Childs.end(); ++It)
+					auto& childs = base->get_childs();
+					for (auto it = childs.begin(); it != childs.end(); ++it)
 					{
-						Output.append(Label).append(Build(*It));
-						if (It + 1 < Childs.end())
-							Output += '&';
+						output.append(label).append(build(*it));
+						if (it + 1 < childs.end())
+							output += '&';
 					}
 				}
 				else
 				{
-					Core::String V = Base->Value.Serialize();
-					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Codec::URLEncode(V));
+					core::string v = base->value.serialize();
+					if (!v.empty())
+						output.append(label).append(1, '=').append(compute::codec::url_encode(v));
 					else
-						Output.append(Label);
+						output.append(label);
 				}
 
-				return Output;
+				return output;
 			}
-			Core::Schema* Query::FindParameter(Core::Schema* Base, QueryToken* Name)
+			core::schema* query::find_parameter(core::schema* base, query_token* name)
 			{
-				VI_ASSERT(Name != nullptr, "token should be set");
-				if (!Base->Empty() && Name->Value && Name->Length > 0)
+				VI_ASSERT(name != nullptr, "token should be set");
+				if (!base->empty() && name->value && name->length > 0)
 				{
-					for (auto* Item : Base->GetChilds())
+					for (auto* item : base->get_childs())
 					{
-						if (!strncmp(Item->Key.c_str(), Name->Value, (size_t)Name->Length))
-							return (Core::Schema*)Item;
+						if (!strncmp(item->key.c_str(), name->value, (size_t)name->length))
+							return (core::schema*)item;
 					}
 				}
 
-				Core::String Key;
-				if (Name->Value && Name->Length > 0)
+				core::string key;
+				if (name->value && name->length > 0)
 				{
-					Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::Stringify::HasInteger(Key))
-						Base->Value = Core::Var::Object();
+					key.assign(name->value, (size_t)name->length);
+					if (!core::stringify::has_integer(key))
+						base->value = core::var::object();
 					else
-						Base->Value = Core::Var::Array();
+						base->value = core::var::array();
 				}
 				else
 				{
-					Key.assign(Core::ToString(Base->Size()));
-					Base->Value = Core::Var::Array();
+					key.assign(core::to_string(base->size()));
+					base->value = core::var::array();
 				}
 
-				return Base->Set(Key, Core::Var::String(""));
+				return base->set(key, core::var::string(""));
 			}
 
-			Session::Session()
+			session::session()
 			{
-				Query = Core::Var::Set::Object();
+				query = core::var::set::object();
 			}
-			Session::~Session() noexcept
+			session::~session() noexcept
 			{
-				Core::Memory::Release(Query);
+				core::memory::release(query);
 			}
-			Core::ExpectsSystem<void> Session::Write(Connection* Base)
+			core::expects_system<void> session::write(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto* Router = Base->Route->Router;
-				Core::String Path = Router->Session.Directory + FindSessionId(Base);
-				auto Stream = Core::OS::File::Open(Path.c_str(), "wb");
-				if (!Stream)
-					return Core::SystemException("session write error", std::move(Stream.Error()));
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto* router = base->route->router;
+				core::string path = router->session.directory + find_session_id(base);
+				auto stream = core::os::file::open(path.c_str(), "wb");
+				if (!stream)
+					return core::system_exception("session write error", std::move(stream.error()));
 
-				SessionExpires = time(nullptr) + Router->Session.Expires;
-				fwrite(&SessionExpires, sizeof(int64_t), 1, *Stream);
-				Query->ConvertToJSONB(Query, [&Stream](Core::VarForm, const std::string_view& Buffer)
+				session_expires = time(nullptr) + router->session.expires;
+				fwrite(&session_expires, sizeof(int64_t), 1, *stream);
+				query->convert_to_jsonb(query, [&stream](core::var_form, const std::string_view& buffer)
 				{
-					if (!Buffer.empty())
-						fwrite(Buffer.data(), Buffer.size(), 1, *Stream);
+					if (!buffer.empty())
+						fwrite(buffer.data(), buffer.size(), 1, *stream);
 				});
-				Core::OS::File::Close(*Stream);
-				return Core::Expectation::Met;
+				core::os::file::close(*stream);
+				return core::expectation::met;
 			}
-			Core::ExpectsSystem<void> Session::Read(Connection* Base)
+			core::expects_system<void> session::read(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				Core::String Path = Base->Route->Router->Session.Directory + FindSessionId(Base);
-				auto Stream = Core::OS::File::Open(Path.c_str(), "rb");
-				if (!Stream)
-					return Core::SystemException("session read error", std::move(Stream.Error()));
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				core::string path = base->route->router->session.directory + find_session_id(base);
+				auto stream = core::os::file::open(path.c_str(), "rb");
+				if (!stream)
+					return core::system_exception("session read error", std::move(stream.error()));
 
-				if (fread(&SessionExpires, 1, sizeof(int64_t), *Stream) != sizeof(int64_t))
+				if (fread(&session_expires, 1, sizeof(int64_t), *stream) != sizeof(int64_t))
 				{
-					Core::OS::File::Close(*Stream);
-					return Core::SystemException("session read error: invalid format", std::make_error_condition(std::errc::bad_message));
+					core::os::file::close(*stream);
+					return core::system_exception("session read error: invalid format", std::make_error_condition(std::errc::bad_message));
 				}
 
-				if (SessionExpires <= time(nullptr))
+				if (session_expires <= time(nullptr))
 				{
-					SessionId.clear();
-					Core::OS::File::Close(*Stream);
-					Core::OS::File::Remove(Path.c_str());
-					return Core::SystemException("session read error: expired", std::make_error_condition(std::errc::timed_out));
+					session_id.clear();
+					core::os::file::close(*stream);
+					core::os::file::remove(path.c_str());
+					return core::system_exception("session read error: expired", std::make_error_condition(std::errc::timed_out));
 				}
 
-				Core::Memory::Release(Query);
-				auto Result = Core::Schema::ConvertFromJSONB([&Stream](uint8_t* Buffer, size_t Size) { return fread(Buffer, sizeof(uint8_t), Size, *Stream) == Size; });
-				Core::OS::File::Close(*Stream);
-				if (!Result)
-					return Core::SystemException(Result.Error().message(), std::make_error_condition(std::errc::bad_message));
+				core::memory::release(query);
+				auto result = core::schema::convert_from_jsonb([&stream](uint8_t* buffer, size_t size) { return fread(buffer, sizeof(uint8_t), size, *stream) == size; });
+				core::os::file::close(*stream);
+				if (!result)
+					return core::system_exception(result.error().message(), std::make_error_condition(std::errc::bad_message));
 
-				Query = *Result;
-				return Core::Expectation::Met;
+				query = *result;
+				return core::expectation::met;
 			}
-			void Session::Clear()
+			void session::clear()
 			{
-				if (Query != nullptr)
-					Query->Clear();
+				if (query != nullptr)
+					query->clear();
 			}
-			Core::String& Session::FindSessionId(Connection* Base)
+			core::string& session::find_session_id(connection* base)
 			{
-				if (!SessionId.empty())
-					return SessionId;
+				if (!session_id.empty())
+					return session_id;
 
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto Value = Base->Request.GetCookie(Base->Route->Router->Session.Cookie.Name.c_str());
-				if (Value.empty())
-					return GenerateSessionId(Base);
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto value = base->request.get_cookie(base->route->router->session.cookie.name.c_str());
+				if (value.empty())
+					return generate_session_id(base);
 
-				return SessionId.assign(Value);
+				return session_id.assign(value);
 			}
-			Core::String& Session::GenerateSessionId(Connection* Base)
+			core::string& session::generate_session_id(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				int64_t Time = time(nullptr);
-				auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), Base->Request.Location + Core::ToString(Time));
-				if (Hash)
-					SessionId = *Hash;
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				int64_t time = ::time(nullptr);
+				auto hash = compute::crypto::hash_hex(compute::digests::MD5(), base->request.location + core::to_string(time));
+				if (hash)
+					session_id = *hash;
 				else
-					SessionId = Core::ToString(Time);
+					session_id = core::to_string(time);
 
-				auto* Router = Base->Route->Router;
-				if (SessionExpires == 0)
-					SessionExpires = Time + Router->Session.Expires;
+				auto* router = base->route->router;
+				if (session_expires == 0)
+					session_expires = time + router->session.expires;
 
-				Cookie Result;
-				Result.Value = SessionId;
-				Result.Name = Router->Session.Cookie.Name;
-				Result.Domain = Router->Session.Cookie.Domain;
-				Result.Path = Router->Session.Cookie.Path;
-				Result.SameSite = Router->Session.Cookie.SameSite;
-				Result.Secure = Router->Session.Cookie.Secure;
-				Result.HttpOnly = Router->Session.Cookie.HttpOnly;
-				Result.SetExpires(Time + (int64_t)Router->Session.Cookie.Expires);
-				Base->Response.SetCookie(std::move(Result));
+				cookie result;
+				result.value = session_id;
+				result.name = router->session.cookie.name;
+				result.domain = router->session.cookie.domain;
+				result.path = router->session.cookie.path;
+				result.same_site = router->session.cookie.same_site;
+				result.secure = router->session.cookie.secure;
+				result.http_only = router->session.cookie.http_only;
+				result.set_expires(time + (int64_t)router->session.cookie.expires);
+				base->response.set_cookie(std::move(result));
 
-				return SessionId;
+				return session_id;
 			}
-			Core::ExpectsSystem<void> Session::InvalidateCache(const std::string_view& Path)
+			core::expects_system<void> session::invalidate_cache(const std::string_view& path)
 			{
-				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				auto Status = Core::OS::Directory::Scan(Path, Entries);
-				if (!Status)
-					return Core::SystemException("session invalidation scan error", std::move(Status.Error()));
+				core::vector<std::pair<core::string, core::file_entry>> entries;
+				auto status = core::os::directory::scan(path, entries);
+				if (!status)
+					return core::system_exception("session invalidation scan error", std::move(status.error()));
 
-				bool Split = (Path.back() != '\\' && Path.back() != '/');
-				for (auto& Item : Entries)
+				bool split = (path.back() != '\\' && path.back() != '/');
+				for (auto& item : entries)
 				{
-					if (Item.second.IsDirectory)
+					if (item.second.is_directory)
 						continue;
 
-					Core::String Filename = Core::String(Path);
-					if (Split)
-						Filename.append(1, VI_SPLITTER);
-					Filename.append(Item.first);
-					Status = Core::OS::File::Remove(Filename);
-					if (!Status)
-						return Core::SystemException("session invalidation remove error: " + Item.first, std::move(Status.Error()));
+					core::string filename = core::string(path);
+					if (split)
+						filename.append(1, VI_SPLITTER);
+					filename.append(item.first);
+					status = core::os::file::remove(filename);
+					if (!status)
+						return core::system_exception("session invalidation remove error: " + item.first, std::move(status.error()));
 				}
 
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
 
-			Parser::Parser()
+			parser::parser()
 			{
 			}
-			Parser::~Parser() noexcept
+			parser::~parser() noexcept
 			{
-				Core::Memory::Deallocate(Multipart.Boundary);
+				core::memory::deallocate(multipart.boundary);
 			}
-			void Parser::PrepareForRequestParsing(RequestFrame* Request)
+			void parser::prepare_for_request_parsing(request_frame* request)
 			{
-				Message.Header.clear();
-				Message.Version = Request->Version;
-				Message.Method = Request->Method;
-				Message.StatusCode = nullptr;
-				Message.Location = &Request->Location;
-				Message.Query = &Request->Query;
-				Message.Cookies = &Request->Cookies;
-				Message.Headers = &Request->Headers;
-				Message.Content = &Request->Content;
+				message.header.clear();
+				message.version = request->version;
+				message.method = request->method;
+				message.status_code = nullptr;
+				message.location = &request->location;
+				message.query = &request->query;
+				message.cookies = &request->cookies;
+				message.headers = &request->headers;
+				message.content = &request->content;
 			}
-			void Parser::PrepareForResponseParsing(ResponseFrame* Response)
+			void parser::prepare_for_response_parsing(response_frame* response)
 			{
-				Message.Header.clear();
-				Message.Version = nullptr;
-				Message.Method = nullptr;
-				Message.StatusCode = &Response->StatusCode;
-				Message.Location = nullptr;
-				Message.Query = nullptr;
-				Message.Cookies = nullptr;
-				Message.Headers = &Response->Headers;
-				Message.Content = &Response->Content;
+				message.header.clear();
+				message.version = nullptr;
+				message.method = nullptr;
+				message.status_code = &response->status_code;
+				message.location = nullptr;
+				message.query = nullptr;
+				message.cookies = nullptr;
+				message.headers = &response->headers;
+				message.content = &response->content;
 			}
-			void Parser::PrepareForChunkedParsing()
+			void parser::prepare_for_chunked_parsing()
 			{
-				Chunked = ChunkedState();
+				chunked = chunked_state();
 			}
-			void Parser::PrepareForMultipartParsing(ContentFrame* Content, Core::String* TemporaryDirectory, size_t MaxResources, bool Skip, ResourceCallback&& Callback)
+			void parser::prepare_for_multipart_parsing(content_frame* content, core::string* temporary_directory, size_t max_resources, bool skip, resource_callback&& callback)
 			{
-				Core::Memory::Deallocate(Multipart.Boundary);
-				Multipart = MultipartState();
-				Multipart.Skip = Skip;
-				Multipart.MaxResources = MaxResources;
-				Multipart.TemporaryDirectory = TemporaryDirectory;
-				Multipart.Callback = std::move(Callback);
-				Message.Header.clear();
-				Message.Content = Content;
+				core::memory::deallocate(multipart.boundary);
+				multipart = multipart_state();
+				multipart.skip = skip;
+				multipart.max_resources = max_resources;
+				multipart.temporary_directory = temporary_directory;
+				multipart.callback = std::move(callback);
+				message.header.clear();
+				message.content = content;
 			}
-			int64_t Parser::MultipartParse(const std::string_view& Boundary, const uint8_t* Buffer, size_t Length)
+			int64_t parser::multipart_parse(const std::string_view& boundary, const uint8_t* buffer, size_t length)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				if (!Multipart.Boundary || !Multipart.LookBehind)
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				if (!multipart.boundary || !multipart.look_behind)
 				{
-					Core::Memory::Deallocate(Multipart.Boundary);
-					Multipart.Length = Boundary.size();
-					Multipart.Boundary = Core::Memory::Allocate<uint8_t>(sizeof(uint8_t) * (size_t)(Multipart.Length * 2 + 9));
-					memcpy(Multipart.Boundary, Boundary.data(), sizeof(uint8_t) * (size_t)Multipart.Length);
-					Multipart.Boundary[Multipart.Length] = '\0';
-					Multipart.LookBehind = (Multipart.Boundary + Multipart.Length + 1);
-					Multipart.State = MultipartStatus::Start;
-					Multipart.Index = 0;
+					core::memory::deallocate(multipart.boundary);
+					multipart.length = boundary.size();
+					multipart.boundary = core::memory::allocate<uint8_t>(sizeof(uint8_t) * (size_t)(multipart.length * 2 + 9));
+					memcpy(multipart.boundary, boundary.data(), sizeof(uint8_t) * (size_t)multipart.length);
+					multipart.boundary[multipart.length] = '\0';
+					multipart.look_behind = (multipart.boundary + multipart.length + 1);
+					multipart.state = multipart_status::start;
+					multipart.index = 0;
 				}
 
-				char Value, Lower;
+				char value, lower;
 				char LF = 10, CR = 13;
-				size_t i = 0, Mark = 0;
-				int Last = 0;
+				size_t i = 0, mark = 0;
+				int last = 0;
 
-				while (i < Length)
+				while (i < length)
 				{
-					Value = Buffer[i];
-					Last = (i == (Length - 1));
+					value = buffer[i];
+					last = (i == (length - 1));
 
-					switch (Multipart.State)
+					switch (multipart.state)
 					{
-						case MultipartStatus::Start:
-							Multipart.Index = 0;
-							Multipart.State = MultipartStatus::Start_Boundary;
-						case MultipartStatus::Start_Boundary:
-							if (Multipart.Index == Multipart.Length)
+						case multipart_status::start:
+							multipart.index = 0;
+							multipart.state = multipart_status::start_boundary;
+						case multipart_status::start_boundary:
+							if (multipart.index == multipart.length)
 							{
-								if (Value != CR)
+								if (value != CR)
 									return i;
 
-								Multipart.Index++;
+								multipart.index++;
 								break;
 							}
-							else if (Multipart.Index == (Multipart.Length + 1))
+							else if (multipart.index == (multipart.length + 1))
 							{
-								if (Value != LF)
+								if (value != LF)
 									return i;
 
-								Multipart.Index = 0;
-								if (!Parsing::ParseMultipartResourceBegin(this))
+								multipart.index = 0;
+								if (!parsing::parse_multipart_resource_begin(this))
 									return i;
 
-								Multipart.State = MultipartStatus::Header_Field_Start;
+								multipart.state = multipart_status::header_field_start;
 								break;
 							}
 
-							if (Value != Multipart.Boundary[Multipart.Index])
+							if (value != multipart.boundary[multipart.index])
 								return i;
 
-							Multipart.Index++;
+							multipart.index++;
 							break;
-						case MultipartStatus::Header_Field_Start:
-							Mark = i;
-							Multipart.State = MultipartStatus::Header_Field;
-						case MultipartStatus::Header_Field:
-							if (Value == CR)
+						case multipart_status::header_field_start:
+							mark = i;
+							multipart.state = multipart_status::header_field;
+						case multipart_status::header_field:
+							if (value == CR)
 							{
-								Multipart.State = MultipartStatus::Header_Field_Waiting;
+								multipart.state = multipart_status::header_field_waiting;
 								break;
 							}
 
-							if (Value == ':')
+							if (value == ':')
 							{
-								if (!Parsing::ParseMultipartHeaderField(this, Buffer + Mark, i - Mark))
+								if (!parsing::parse_multipart_header_field(this, buffer + mark, i - mark))
 									return i;
 
-								Multipart.State = MultipartStatus::Header_Value_Start;
+								multipart.state = multipart_status::header_value_start;
 								break;
 							}
 
-							Lower = tolower(Value);
-							if ((Value != '-') && (Lower < 'a' || Lower > 'z'))
+							lower = tolower(value);
+							if ((value != '-') && (lower < 'a' || lower > 'z'))
 								return i;
 
-							if (Last && !Parsing::ParseMultipartHeaderField(this, Buffer + Mark, (i - Mark) + 1))
-								return i;
-
-							break;
-						case MultipartStatus::Header_Field_Waiting:
-							if (Value != LF)
-								return i;
-
-							Multipart.State = MultipartStatus::Resource_Start;
-							break;
-						case MultipartStatus::Header_Value_Start:
-							if (Value == ' ')
-								break;
-
-							Mark = i;
-							Multipart.State = MultipartStatus::Header_Value;
-						case MultipartStatus::Header_Value:
-							if (Value == CR)
-							{
-								if (!Parsing::ParseMultipartHeaderValue(this, Buffer + Mark, i - Mark))
-									return i;
-
-								Multipart.State = MultipartStatus::Header_Value_Waiting;
-								break;
-							}
-
-							if (Last && !Parsing::ParseMultipartHeaderValue(this, Buffer + Mark, (i - Mark) + 1))
+							if (last && !parsing::parse_multipart_header_field(this, buffer + mark, (i - mark) + 1))
 								return i;
 
 							break;
-						case MultipartStatus::Header_Value_Waiting:
-							if (Value != LF)
+						case multipart_status::header_field_waiting:
+							if (value != LF)
 								return i;
 
-							Multipart.State = MultipartStatus::Header_Field_Start;
+							multipart.state = multipart_status::resource_start;
 							break;
-						case MultipartStatus::Resource_Start:
-							Mark = i;
-							Multipart.State = MultipartStatus::Resource;
-						case MultipartStatus::Resource:
-							if (Value == CR)
+						case multipart_status::header_value_start:
+							if (value == ' ')
+								break;
+
+							mark = i;
+							multipart.state = multipart_status::header_value;
+						case multipart_status::header_value:
+							if (value == CR)
 							{
-								if (!Parsing::ParseMultipartContentData(this, Buffer + Mark, i - Mark))
+								if (!parsing::parse_multipart_header_value(this, buffer + mark, i - mark))
 									return i;
 
-								Mark = i;
-								Multipart.State = MultipartStatus::Resource_Boundary_Waiting;
-								Multipart.LookBehind[0] = CR;
+								multipart.state = multipart_status::header_value_waiting;
 								break;
 							}
 
-							if (Last && !Parsing::ParseMultipartContentData(this, Buffer + Mark, (i - Mark) + 1))
+							if (last && !parsing::parse_multipart_header_value(this, buffer + mark, (i - mark) + 1))
 								return i;
 
 							break;
-						case MultipartStatus::Resource_Boundary_Waiting:
-							if (Value == LF)
-							{
-								Multipart.State = MultipartStatus::Resource_Boundary;
-								Multipart.LookBehind[1] = LF;
-								Multipart.Index = 0;
-								break;
-							}
-
-							if (!Parsing::ParseMultipartContentData(this, Multipart.LookBehind, 1))
+						case multipart_status::header_value_waiting:
+							if (value != LF)
 								return i;
 
-							Multipart.State = MultipartStatus::Resource;
-							Mark = i--;
+							multipart.state = multipart_status::header_field_start;
 							break;
-						case MultipartStatus::Resource_Boundary:
-							if (Multipart.Boundary[Multipart.Index] != Value)
+						case multipart_status::resource_start:
+							mark = i;
+							multipart.state = multipart_status::resource;
+						case multipart_status::resource:
+							if (value == CR)
 							{
-								if (!Parsing::ParseMultipartContentData(this, Multipart.LookBehind, 2 + (size_t)Multipart.Index))
+								if (!parsing::parse_multipart_content_data(this, buffer + mark, i - mark))
 									return i;
 
-								Multipart.State = MultipartStatus::Resource;
-								Mark = i--;
+								mark = i;
+								multipart.state = multipart_status::resource_boundary_waiting;
+								multipart.look_behind[0] = CR;
 								break;
 							}
 
-							Multipart.LookBehind[2 + Multipart.Index] = Value;
-							if ((++Multipart.Index) == Multipart.Length)
-							{
-								if (!Parsing::ParseMultipartResourceEnd(this))
-									return i;
+							if (last && !parsing::parse_multipart_content_data(this, buffer + mark, (i - mark) + 1))
+								return i;
 
-								Multipart.State = MultipartStatus::Resource_Waiting;
-							}
 							break;
-						case MultipartStatus::Resource_Waiting:
-							if (Value == '-')
+						case multipart_status::resource_boundary_waiting:
+							if (value == LF)
 							{
-								Multipart.State = MultipartStatus::Resource_Hyphen;
+								multipart.state = multipart_status::resource_boundary;
+								multipart.look_behind[1] = LF;
+								multipart.index = 0;
 								break;
 							}
 
-							if (Value == CR)
+							if (!parsing::parse_multipart_content_data(this, multipart.look_behind, 1))
+								return i;
+
+							multipart.state = multipart_status::resource;
+							mark = i--;
+							break;
+						case multipart_status::resource_boundary:
+							if (multipart.boundary[multipart.index] != value)
 							{
-								Multipart.State = MultipartStatus::Resource_End;
+								if (!parsing::parse_multipart_content_data(this, multipart.look_behind, 2 + (size_t)multipart.index))
+									return i;
+
+								multipart.state = multipart_status::resource;
+								mark = i--;
+								break;
+							}
+
+							multipart.look_behind[2 + multipart.index] = value;
+							if ((++multipart.index) == multipart.length)
+							{
+								if (!parsing::parse_multipart_resource_end(this))
+									return i;
+
+								multipart.state = multipart_status::resource_waiting;
+							}
+							break;
+						case multipart_status::resource_waiting:
+							if (value == '-')
+							{
+								multipart.state = multipart_status::resource_hyphen;
+								break;
+							}
+
+							if (value == CR)
+							{
+								multipart.state = multipart_status::resource_end;
 								break;
 							}
 
 							return i;
-						case MultipartStatus::Resource_Hyphen:
-							if (Value == '-')
+						case multipart_status::resource_hyphen:
+							if (value == '-')
 							{
-								Multipart.State = MultipartStatus::End;
+								multipart.state = multipart_status::end;
 								break;
 							}
 
 							return i;
-						case MultipartStatus::Resource_End:
-							if (Value == LF)
+						case multipart_status::resource_end:
+							if (value == LF)
 							{
-								Multipart.State = MultipartStatus::Header_Field_Start;
-								if (!Parsing::ParseMultipartResourceBegin(this))
+								multipart.state = multipart_status::header_field_start;
+								if (!parsing::parse_multipart_resource_begin(this))
 									return i;
 
 								break;
 							}
 
 							return i;
-						case MultipartStatus::End:
+						case multipart_status::end:
 							break;
 						default:
 							return -1;
@@ -2854,390 +2854,390 @@ namespace Vitex
 					++i;
 				}
 
-				return Length;
+				return length;
 			}
-			int64_t Parser::ParseRequest(const uint8_t* BufferStart, size_t Length, size_t Offset)
+			int64_t parser::parse_request(const uint8_t* buffer_start, size_t length, size_t offset)
 			{
-				VI_ASSERT(BufferStart != nullptr, "buffer start should be set");
-				const uint8_t* Buffer = BufferStart;
-				const uint8_t* BufferEnd = BufferStart + Length;
-				int Result;
-				
-				if (IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
-					return (int64_t)Result;
+				VI_ASSERT(buffer_start != nullptr, "buffer start should be set");
+				const uint8_t* buffer = buffer_start;
+				const uint8_t* buffer_end = buffer_start + length;
+				int result;
 
-				if ((Buffer = ProcessRequest(Buffer, BufferEnd, &Result)) == nullptr)
-					return (int64_t)Result;
+				if (is_completed(buffer, buffer_end, offset, &result) == nullptr)
+					return (int64_t)result;
 
-				return (int64_t)(Buffer - BufferStart);
+				if ((buffer = process_request(buffer, buffer_end, &result)) == nullptr)
+					return (int64_t)result;
+
+				return (int64_t)(buffer - buffer_start);
 			}
-			int64_t Parser::ParseResponse(const uint8_t* BufferStart, size_t Length, size_t Offset)
+			int64_t parser::parse_response(const uint8_t* buffer_start, size_t length, size_t offset)
 			{
-				VI_ASSERT(BufferStart != nullptr, "buffer start should be set");
-				const uint8_t* Buffer = BufferStart;
-				const uint8_t* BufferEnd = Buffer + Length;
-				int Result;
+				VI_ASSERT(buffer_start != nullptr, "buffer start should be set");
+				const uint8_t* buffer = buffer_start;
+				const uint8_t* buffer_end = buffer + length;
+				int result;
 
-				if (IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
-					return (int64_t)Result;
+				if (is_completed(buffer, buffer_end, offset, &result) == nullptr)
+					return (int64_t)result;
 
-				if ((Buffer = ProcessResponse(Buffer, BufferEnd, &Result)) == nullptr)
-					return (int64_t)Result;
+				if ((buffer = process_response(buffer, buffer_end, &result)) == nullptr)
+					return (int64_t)result;
 
-				return (int64_t)(Buffer - BufferStart);
+				return (int64_t)(buffer - buffer_start);
 			}
-			int64_t Parser::ParseDecodeChunked(uint8_t* Buffer, size_t* Length)
+			int64_t parser::parse_decode_chunked(uint8_t* buffer, size_t* length)
 			{
-				VI_ASSERT(Buffer != nullptr && Length != nullptr, "buffer should be set");
-				size_t Dest = 0, Src = 0, Size = *Length;
-				int64_t Result = -2;
+				VI_ASSERT(buffer != nullptr && length != nullptr, "buffer should be set");
+				size_t dest = 0, src = 0, size = *length;
+				int64_t result = -2;
 
 				while (true)
 				{
-					switch (Chunked.State)
+					switch (chunked.state)
 					{
-						case ChunkedStatus::Size:
-							for (;; ++Src)
+						case chunked_status::size:
+							for (;; ++src)
 							{
-								if (Src == Size)
-									goto Exit;
+								if (src == size)
+									goto exit;
 
-								int V = Buffer[Src];
-								if ('0' <= V && V <= '9')
-									V = V - '0';
-								else if ('A' <= V && V <= 'F')
-									V = V - 'A' + 0xa;
-								else if ('a' <= V && V <= 'f')
-									V = V - 'a' + 0xa;
+								int v = buffer[src];
+								if ('0' <= v && v <= '9')
+									v = v - '0';
+								else if ('A' <= v && v <= 'F')
+									v = v - 'A' + 0xa;
+								else if ('a' <= v && v <= 'f')
+									v = v - 'a' + 0xa;
 								else
-									V = -1;
+									v = -1;
 
-								if (V == -1)
+								if (v == -1)
 								{
-									if (Chunked.HexCount == 0)
+									if (chunked.hex_count == 0)
 									{
-										Result = -1;
-										goto Exit;
+										result = -1;
+										goto exit;
 									}
 									break;
 								}
 
-								if (Chunked.HexCount == sizeof(size_t) * 2)
+								if (chunked.hex_count == sizeof(size_t) * 2)
 								{
-									Result = -1;
-									goto Exit;
+									result = -1;
+									goto exit;
 								}
 
-								Chunked.Length = Chunked.Length * 16 + V;
-								++Chunked.HexCount;
+								chunked.length = chunked.length * 16 + v;
+								++chunked.hex_count;
 							}
 
-							Chunked.HexCount = 0;
-							Chunked.State = ChunkedStatus::Ext;
-						case ChunkedStatus::Ext:
-							for (;; ++Src)
+							chunked.hex_count = 0;
+							chunked.state = chunked_status::ext;
+						case chunked_status::ext:
+							for (;; ++src)
 							{
-								if (Src == Size)
-									goto Exit;
-								if (Buffer[Src] == '\012')
+								if (src == size)
+									goto exit;
+								if (buffer[src] == '\012')
 									break;
 							}
 
-							++Src;
-							if (Chunked.Length == 0)
+							++src;
+							if (chunked.length == 0)
 							{
-								if (Chunked.ConsumeTrailer)
+								if (chunked.consume_trailer)
 								{
-									Chunked.State = ChunkedStatus::Head;
+									chunked.state = chunked_status::head;
 									break;
 								}
 								else
-									goto Complete;
+									goto complete;
 							}
 
-							Chunked.State = ChunkedStatus::Data;
-						case ChunkedStatus::Data:
+							chunked.state = chunked_status::data;
+						case chunked_status::data:
 						{
-							size_t avail = Size - Src;
-							if (avail < Chunked.Length)
+							size_t avail = size - src;
+							if (avail < chunked.length)
 							{
-								if (Dest != Src)
-									memmove(Buffer + Dest, Buffer + Src, avail);
+								if (dest != src)
+									memmove(buffer + dest, buffer + src, avail);
 
-								Src += avail;
-								Dest += avail;
-								Chunked.Length -= avail;
-								goto Exit;
+								src += avail;
+								dest += avail;
+								chunked.length -= avail;
+								goto exit;
 							}
 
-							if (Dest != Src)
-								memmove(Buffer + Dest, Buffer + Src, Chunked.Length);
+							if (dest != src)
+								memmove(buffer + dest, buffer + src, chunked.length);
 
-							Src += Chunked.Length;
-							Dest += Chunked.Length;
-							Chunked.Length = 0;
-							Chunked.State = ChunkedStatus::End;
+							src += chunked.length;
+							dest += chunked.length;
+							chunked.length = 0;
+							chunked.state = chunked_status::end;
 						}
-						case ChunkedStatus::End:
-							for (;; ++Src)
+						case chunked_status::end:
+							for (;; ++src)
 							{
-								if (Src == Size)
-									goto Exit;
+								if (src == size)
+									goto exit;
 
-								if (Buffer[Src] != '\015')
+								if (buffer[src] != '\015')
 									break;
 							}
 
-							if (Buffer[Src] != '\012')
+							if (buffer[src] != '\012')
 							{
-								Result = -1;
-								goto Exit;
+								result = -1;
+								goto exit;
 							}
 
-							++Src;
-							Chunked.State = ChunkedStatus::Size;
+							++src;
+							chunked.state = chunked_status::size;
 							break;
-						case ChunkedStatus::Head:
-							for (;; ++Src)
+						case chunked_status::head:
+							for (;; ++src)
 							{
-								if (Src == Size)
-									goto Exit;
+								if (src == size)
+									goto exit;
 
-								if (Buffer[Src] != '\015')
+								if (buffer[src] != '\015')
 									break;
 							}
 
-							if (Buffer[Src++] == '\012')
-								goto Complete;
+							if (buffer[src++] == '\012')
+								goto complete;
 
-							Chunked.State = ChunkedStatus::Middle;
-						case ChunkedStatus::Middle:
-							for (;; ++Src)
+							chunked.state = chunked_status::middle;
+						case chunked_status::middle:
+							for (;; ++src)
 							{
-								if (Src == Size)
-									goto Exit;
+								if (src == size)
+									goto exit;
 
-								if (Buffer[Src] == '\012')
+								if (buffer[src] == '\012')
 									break;
 							}
 
-							++Src;
-							Chunked.State = ChunkedStatus::Head;
+							++src;
+							chunked.state = chunked_status::head;
 							break;
 						default:
 							return -1;
 					}
 				}
 
-			Complete:
-				Result = Size - Src;
+			complete:
+				result = size - src;
 
-			Exit:
-				if (Dest != Src)
-					memmove(Buffer + Dest, Buffer + Src, Size - Src);
+			exit:
+				if (dest != src)
+					memmove(buffer + dest, buffer + src, size - src);
 
-				*Length = Dest;
-				return Result;
+				*length = dest;
+				return result;
 			}
-			const uint8_t* Parser::Tokenize(const uint8_t* Buffer, const uint8_t* BufferEnd, const uint8_t** Token, size_t* TokenLength, int* Out)
+			const uint8_t* parser::tokenize(const uint8_t* buffer, const uint8_t* buffer_end, const uint8_t** token, size_t* token_length, int* out)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
-				VI_ASSERT(Token != nullptr, "token should be set");
-				VI_ASSERT(TokenLength != nullptr, "token length should be set");
-				VI_ASSERT(Out != nullptr, "output should be set");
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				VI_ASSERT(buffer_end != nullptr, "buffer end should be set");
+				VI_ASSERT(token != nullptr, "token should be set");
+				VI_ASSERT(token_length != nullptr, "token length should be set");
+				VI_ASSERT(out != nullptr, "output should be set");
 
-				const uint8_t* TokenStart = Buffer;
-				while (BufferEnd - Buffer >= 8)
+				const uint8_t* token_start = buffer;
+				while (buffer_end - buffer >= 8)
 				{
 					for (int i = 0; i < 8; i++)
 					{
-						if (!((uint8_t)(*Buffer) - 040u < 0137u))
-							goto NonPrintable;
-						++Buffer;
+						if (!((uint8_t)(*buffer) - 040u < 0137u))
+							goto non_printable;
+						++buffer;
 					}
 
 					continue;
-				NonPrintable:
-					if (((uint8_t)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
-						goto FoundControl;
-					++Buffer;
+				non_printable:
+					if (((uint8_t)*buffer < '\040' && *buffer != '\011') || *buffer == '\177')
+						goto found_control;
+					++buffer;
 				}
 
-				for (;; ++Buffer)
+				for (;; ++buffer)
 				{
-					if (Buffer == BufferEnd)
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 
-					if (!((uint8_t)(*Buffer) - 040u < 0137u))
+					if (!((uint8_t)(*buffer) - 040u < 0137u))
 					{
-						if (((uint8_t)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
-							goto FoundControl;
+						if (((uint8_t)*buffer < '\040' && *buffer != '\011') || *buffer == '\177')
+							goto found_control;
 					}
 				}
 
-			FoundControl:
-				if (*Buffer == '\015')
+			found_control:
+				if (*buffer == '\015')
 				{
-					++Buffer;
-					if (Buffer == BufferEnd)
+					++buffer;
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 
-					if (*Buffer++ != '\012')
+					if (*buffer++ != '\012')
 					{
-						*Out = -1;
+						*out = -1;
 						return nullptr;
 					}
 
-					*TokenLength = Buffer - 2 - TokenStart;
+					*token_length = buffer - 2 - token_start;
 				}
-				else if (*Buffer == '\012')
+				else if (*buffer == '\012')
 				{
-					*TokenLength = Buffer - TokenStart;
-					++Buffer;
+					*token_length = buffer - token_start;
+					++buffer;
 				}
 				else
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				*Token = TokenStart;
-				return Buffer;
+				*token = token_start;
+				return buffer;
 			}
-			const uint8_t* Parser::IsCompleted(const uint8_t* Buffer, const uint8_t* BufferEnd, size_t Offset, int* Out)
+			const uint8_t* parser::is_completed(const uint8_t* buffer, const uint8_t* buffer_end, size_t offset, int* out)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, "output should be set");
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				VI_ASSERT(buffer_end != nullptr, "buffer end should be set");
+				VI_ASSERT(out != nullptr, "output should be set");
 
-				int Result = 0;
-				Buffer = Offset < 3 ? Buffer : Buffer + Offset - 3;
+				int result = 0;
+				buffer = offset < 3 ? buffer : buffer + offset - 3;
 
 				while (true)
 				{
-					if (Buffer == BufferEnd)
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 
-					if (*Buffer == '\015')
+					if (*buffer == '\015')
 					{
-						++Buffer;
-						if (Buffer == BufferEnd)
+						++buffer;
+						if (buffer == buffer_end)
 						{
-							*Out = -2;
+							*out = -2;
 							return nullptr;
 						}
 
-						if (*Buffer++ != '\012')
+						if (*buffer++ != '\012')
 						{
-							*Out = -1;
+							*out = -1;
 							return nullptr;
 						}
-						++Result;
+						++result;
 					}
-					else if (*Buffer == '\012')
+					else if (*buffer == '\012')
 					{
-						++Buffer;
-						++Result;
+						++buffer;
+						++result;
 					}
 					else
 					{
-						++Buffer;
-						Result = 0;
+						++buffer;
+						result = 0;
 					}
 
-					if (Result == 2)
-						return Buffer;
+					if (result == 2)
+						return buffer;
 				}
 
 				return nullptr;
 			}
-			const uint8_t* Parser::ProcessVersion(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
+			const uint8_t* parser::process_version(const uint8_t* buffer, const uint8_t* buffer_end, int* out)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, "output should be set");
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				VI_ASSERT(buffer_end != nullptr, "buffer end should be set");
+				VI_ASSERT(out != nullptr, "output should be set");
 
-				if (BufferEnd - Buffer < 9)
+				if (buffer_end - buffer < 9)
 				{
-					*Out = -2;
+					*out = -2;
 					return nullptr;
 				}
 
-				const uint8_t* Version = Buffer;
-				if (*(Buffer++) != 'H')
+				const uint8_t* version = buffer;
+				if (*(buffer++) != 'H')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*(Buffer++) != 'T')
+				if (*(buffer++) != 'T')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*(Buffer++) != 'T')
+				if (*(buffer++) != 'T')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*(Buffer++) != 'P')
+				if (*(buffer++) != 'P')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*(Buffer++) != '/')
+				if (*(buffer++) != '/')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*(Buffer++) != '1')
+				if (*(buffer++) != '1')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*(Buffer++) != '.')
+				if (*(buffer++) != '.')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				if (*Buffer < '0' || '9' < *Buffer)
+				if (*buffer < '0' || '9' < *buffer)
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				Buffer++;
-				if (!Parsing::ParseVersion(this, Version, Buffer - Version))
+				buffer++;
+				if (!parsing::parse_version(this, version, buffer - version))
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				return Buffer;
+				return buffer;
 			}
-			const uint8_t* Parser::ProcessHeaders(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
+			const uint8_t* parser::process_headers(const uint8_t* buffer, const uint8_t* buffer_end, int* out)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, "output should be set");
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				VI_ASSERT(buffer_end != nullptr, "buffer end should be set");
+				VI_ASSERT(out != nullptr, "output should be set");
 
-				static const char* Mapping =
+				static const char* mapping =
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 					"\0\1\0\1\1\1\1\1\0\0\1\1\0\1\1\0\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0"
 					"\0\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\0\0\1\1"
@@ -3247,777 +3247,777 @@ namespace Vitex
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
-				if (Message.Headers != nullptr)
-					Message.Headers->clear();
-				if (Message.Cookies != nullptr)
-					Message.Cookies->clear();
+				if (message.headers != nullptr)
+					message.headers->clear();
+				if (message.cookies != nullptr)
+					message.cookies->clear();
 
 				while (true)
 				{
-					if (Buffer == BufferEnd)
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 
-					if (*Buffer == '\015')
+					if (*buffer == '\015')
 					{
-						++Buffer;
-						if (Buffer == BufferEnd)
+						++buffer;
+						if (buffer == buffer_end)
 						{
-							*Out = -2;
+							*out = -2;
 							return nullptr;
 						}
 
-						if (*Buffer++ != '\012')
+						if (*buffer++ != '\012')
 						{
-							*Out = -1;
+							*out = -1;
 							return nullptr;
 						}
 
 						break;
 					}
-					else if (*Buffer == '\012')
+					else if (*buffer == '\012')
 					{
-						++Buffer;
+						++buffer;
 						break;
 					}
 
-					if (!(*Buffer == ' ' || *Buffer == '\t'))
+					if (!(*buffer == ' ' || *buffer == '\t'))
 					{
-						const uint8_t* Name = Buffer;
+						const uint8_t* name = buffer;
 						while (true)
 						{
-							if (*Buffer == ':')
+							if (*buffer == ':')
 								break;
 
-							if (!Mapping[(uint8_t)*Buffer])
+							if (!mapping[(uint8_t)*buffer])
 							{
-								*Out = -1;
+								*out = -1;
 								return nullptr;
 							}
 
-							++Buffer;
-							if (Buffer == BufferEnd)
+							++buffer;
+							if (buffer == buffer_end)
 							{
-								*Out = -2;
+								*out = -2;
 								return nullptr;
 							}
 						}
 
-						int64_t Length = Buffer - Name;
-						if (Length == 0)
+						int64_t length = buffer - name;
+						if (length == 0)
 						{
-							*Out = -1;
+							*out = -1;
 							return nullptr;
 						}
 
-						if (!Parsing::ParseHeaderField(this, Name, (size_t)Length))
+						if (!parsing::parse_header_field(this, name, (size_t)length))
 						{
-							*Out = -1;
+							*out = -1;
 							return nullptr;
 						}
 
-						++Buffer;
-						for (;; ++Buffer)
+						++buffer;
+						for (;; ++buffer)
 						{
-							if (Buffer == BufferEnd)
+							if (buffer == buffer_end)
 							{
-								if (!Parsing::ParseHeaderValue(this, (uint8_t*)"", 0))
+								if (!parsing::parse_header_value(this, (uint8_t*)"", 0))
 								{
-									*Out = -1;
+									*out = -1;
 									return nullptr;
 								}
 
-								*Out = -2;
+								*out = -2;
 								return nullptr;
 							}
 
-							if (!(*Buffer == ' ' || *Buffer == '\t'))
+							if (!(*buffer == ' ' || *buffer == '\t'))
 								break;
 						}
 					}
-					else if (!Parsing::ParseHeaderField(this, (uint8_t*)"", 0))
+					else if (!parsing::parse_header_field(this, (uint8_t*)"", 0))
 					{
-						*Out = -1;
+						*out = -1;
 						return nullptr;
 					}
 
-					const uint8_t* Value; size_t ValueLength;
-					if ((Buffer = Tokenize(Buffer, BufferEnd, &Value, &ValueLength, Out)) == nullptr)
+					const uint8_t* value; size_t value_length;
+					if ((buffer = tokenize(buffer, buffer_end, &value, &value_length, out)) == nullptr)
 					{
-						Parsing::ParseHeaderValue(this, (uint8_t*)"", 0);
+						parsing::parse_header_value(this, (uint8_t*)"", 0);
 						return nullptr;
 					}
 
-					const uint8_t* ValueEnd = Value + ValueLength;
-					for (; ValueEnd != Value; --ValueEnd)
+					const uint8_t* value_end = value + value_length;
+					for (; value_end != value; --value_end)
 					{
-						const uint8_t c = *(ValueEnd - 1);
+						const uint8_t c = *(value_end - 1);
 						if (!(c == ' ' || c == '\t'))
 							break;
 					}
 
-					if (!Parsing::ParseHeaderValue(this, Value, ValueEnd - Value))
+					if (!parsing::parse_header_value(this, value, value_end - value))
 					{
-						*Out = -1;
+						*out = -1;
 						return nullptr;
 					}
 				}
 
-				return Buffer;
+				return buffer;
 			}
-			const uint8_t* Parser::ProcessRequest(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
+			const uint8_t* parser::process_request(const uint8_t* buffer, const uint8_t* buffer_end, int* out)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, "output should be set");
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				VI_ASSERT(buffer_end != nullptr, "buffer end should be set");
+				VI_ASSERT(out != nullptr, "output should be set");
 
-				if (Buffer == BufferEnd)
+				if (buffer == buffer_end)
 				{
-					*Out = -2;
+					*out = -2;
 					return nullptr;
 				}
 
-				if (*Buffer == '\015')
+				if (*buffer == '\015')
 				{
-					++Buffer;
-					if (Buffer == BufferEnd)
+					++buffer;
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 
-					if (*Buffer++ != '\012')
+					if (*buffer++ != '\012')
 					{
-						*Out = -1;
+						*out = -1;
 						return nullptr;
 					}
 				}
-				else if (*Buffer == '\012')
-					++Buffer;
+				else if (*buffer == '\012')
+					++buffer;
 
-				const uint8_t* TokenStart = Buffer;
-				if (Buffer == BufferEnd)
+				const uint8_t* token_start = buffer;
+				if (buffer == buffer_end)
 				{
-					*Out = -2;
+					*out = -2;
 					return nullptr;
 				}
 
 				while (true)
 				{
-					if (*Buffer == ' ')
+					if (*buffer == ' ')
 						break;
 
-					if (!((uint8_t)(*Buffer) - 040u < 0137u))
+					if (!((uint8_t)(*buffer) - 040u < 0137u))
 					{
-						if ((uint8_t)*Buffer < '\040' || *Buffer == '\177')
+						if ((uint8_t)*buffer < '\040' || *buffer == '\177')
 						{
-							*Out = -1;
+							*out = -1;
 							return nullptr;
 						}
 					}
 
-					++Buffer;
-					if (Buffer == BufferEnd)
+					++buffer;
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 				}
 
-				if (Buffer - TokenStart == 0)
+				if (buffer - token_start == 0)
 					return nullptr;
 
-				if (!Parsing::ParseMethodValue(this, TokenStart, Buffer - TokenStart))
+				if (!parsing::parse_method_value(this, token_start, buffer - token_start))
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
 				do
 				{
-					++Buffer;
-				} while (*Buffer == ' ');
+					++buffer;
+				} while (*buffer == ' ');
 
-				TokenStart = Buffer;
-				if (Buffer == BufferEnd)
+				token_start = buffer;
+				if (buffer == buffer_end)
 				{
-					*Out = -2;
+					*out = -2;
 					return nullptr;
 				}
 
 				while (true)
 				{
-					if (*Buffer == ' ')
+					if (*buffer == ' ')
 						break;
 
-					if (!((uint8_t)(*Buffer) - 040u < 0137u))
+					if (!((uint8_t)(*buffer) - 040u < 0137u))
 					{
-						if ((uint8_t)*Buffer < '\040' || *Buffer == '\177')
+						if ((uint8_t)*buffer < '\040' || *buffer == '\177')
 						{
-							*Out = -1;
+							*out = -1;
 							return nullptr;
 						}
 					}
 
-					++Buffer;
-					if (Buffer == BufferEnd)
+					++buffer;
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 				}
 
-				if (Buffer - TokenStart == 0)
+				if (buffer - token_start == 0)
 					return nullptr;
 
-				uint8_t* Path = (uint8_t*)TokenStart;
-				int64_t PL = Buffer - TokenStart, QL = 0;
-				while (QL < PL && Path[QL] != '?')
+				uint8_t* path = (uint8_t*)token_start;
+				int64_t PL = buffer - token_start, QL = 0;
+				while (QL < PL && path[QL] != '?')
 					QL++;
 
 				if (QL > 0 && QL < PL)
 				{
 					QL = PL - QL - 1;
 					PL -= QL + 1;
-					if (!Parsing::ParseQueryValue(this, Path + PL + 1, (size_t)QL))
+					if (!parsing::parse_query_value(this, path + PL + 1, (size_t)QL))
 					{
-						*Out = -1;
+						*out = -1;
 						return nullptr;
 					}
 				}
 
-				if (!Parsing::ParsePathValue(this, Path, (size_t)PL))
+				if (!parsing::parse_path_value(this, path, (size_t)PL))
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
 				do
 				{
-					++Buffer;
-				} while (*Buffer == ' ');
-				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
+					++buffer;
+				} while (*buffer == ' ');
+				if ((buffer = process_version(buffer, buffer_end, out)) == nullptr)
 					return nullptr;
 
-				if (*Buffer == '\015')
+				if (*buffer == '\015')
 				{
-					++Buffer;
-					if (Buffer == BufferEnd)
+					++buffer;
+					if (buffer == buffer_end)
 					{
-						*Out = -2;
+						*out = -2;
 						return nullptr;
 					}
 
-					if (*Buffer++ != '\012')
+					if (*buffer++ != '\012')
 					{
-						*Out = -1;
+						*out = -1;
 						return nullptr;
 					}
 				}
-				else if (*Buffer != '\012')
+				else if (*buffer != '\012')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 				else
-					++Buffer;
+					++buffer;
 
-				return ProcessHeaders(Buffer, BufferEnd, Out);
+				return process_headers(buffer, buffer_end, out);
 			}
-			const uint8_t* Parser::ProcessResponse(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out)
+			const uint8_t* parser::process_response(const uint8_t* buffer, const uint8_t* buffer_end, int* out)
 			{
-				VI_ASSERT(Buffer != nullptr, "buffer should be set");
-				VI_ASSERT(BufferEnd != nullptr, "buffer end should be set");
-				VI_ASSERT(Out != nullptr, "output should be set");
+				VI_ASSERT(buffer != nullptr, "buffer should be set");
+				VI_ASSERT(buffer_end != nullptr, "buffer end should be set");
+				VI_ASSERT(out != nullptr, "output should be set");
 
-				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
+				if ((buffer = process_version(buffer, buffer_end, out)) == nullptr)
 					return nullptr;
 
-				if (*Buffer != ' ')
+				if (*buffer != ' ')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
 				do
 				{
-					++Buffer;
-				} while (*Buffer == ' ');
-				if (BufferEnd - Buffer < 4)
+					++buffer;
+				} while (*buffer == ' ');
+				if (buffer_end - buffer < 4)
 				{
-					*Out = -2;
+					*out = -2;
 					return nullptr;
 				}
 
-				int Result = 0, Status = 0;
-				if (*Buffer < '0' || '9' < *Buffer)
+				int result = 0, status = 0;
+				if (*buffer < '0' || '9' < *buffer)
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				*(&Result) = 100 * (*Buffer++ - '0');
-				Status = Result;
-				if (*Buffer < '0' || '9' < *Buffer)
+				*(&result) = 100 * (*buffer++ - '0');
+				status = result;
+				if (*buffer < '0' || '9' < *buffer)
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				*(&Result) = 10 * (*Buffer++ - '0');
-				Status += Result;
-				if (*Buffer < '0' || '9' < *Buffer)
+				*(&result) = 10 * (*buffer++ - '0');
+				status += result;
+				if (*buffer < '0' || '9' < *buffer)
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				*(&Result) = (*Buffer++ - '0');
-				Status += Result;
-				if (!Parsing::ParseStatusCode(this, Status))
+				*(&result) = (*buffer++ - '0');
+				status += result;
+				if (!parsing::parse_status_code(this, status))
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				const uint8_t* Message; size_t MessageLength;
-				if ((Buffer = Tokenize(Buffer, BufferEnd, &Message, &MessageLength, Out)) == nullptr)
+				const uint8_t* message; size_t message_length;
+				if ((buffer = tokenize(buffer, buffer_end, &message, &message_length, out)) == nullptr)
 					return nullptr;
 
-				if (MessageLength == 0)
-					return ProcessHeaders(Buffer, BufferEnd, Out);
+				if (message_length == 0)
+					return process_headers(buffer, buffer_end, out);
 
-				if (*Message != ' ')
+				if (*message != ' ')
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
 				do
 				{
-					++Message;
-					--MessageLength;
-				} while (*Message == ' ');
-				if (!Parsing::ParseStatusMessage(this, Message, MessageLength))
+					++message;
+					--message_length;
+				} while (*message == ' ');
+				if (!parsing::parse_status_message(this, message, message_length))
 				{
-					*Out = -1;
+					*out = -1;
 					return nullptr;
 				}
 
-				return ProcessHeaders(Buffer, BufferEnd, Out);
+				return process_headers(buffer, buffer_end, out);
 			}
 
-			WebCodec::WebCodec() : State(Bytecode::Begin), Fragment(0)
+			web_codec::web_codec() : state(bytecode::begin), fragment(0)
 			{
 			}
-			bool WebCodec::ParseFrame(const uint8_t* Buffer, size_t Size)
+			bool web_codec::parse_frame(const uint8_t* buffer, size_t size)
 			{
-				if (!Buffer || !Size)
-					return !Queue.empty();
+				if (!buffer || !size)
+					return !queue.empty();
 
-				if (Payload.capacity() <= Size)
-					Payload.resize(Size);
+				if (payload.capacity() <= size)
+					payload.resize(size);
 
-				memcpy(Payload.data(), Buffer, sizeof(char) * Size);
-				char* Data = Payload.data();
-			ParsePayload:
-				while (Size)
+				memcpy(payload.data(), buffer, sizeof(char) * size);
+				char* data = payload.data();
+			parse_payload:
+				while (size)
 				{
-					uint8_t Index = *Data;
-					switch (State)
+					uint8_t index = *data;
+					switch (state)
 					{
-						case Bytecode::Begin:
+						case bytecode::begin:
 						{
-							uint8_t Op = Index & 0x0f;
-							if (Index & 0x70)
-								return !Queue.empty();
+							uint8_t op = index & 0x0f;
+							if (index & 0x70)
+								return !queue.empty();
 
-							Final = (Index & 0x80) ? 1 : 0;
-							if (Op == 0)
+							final = (index & 0x80) ? 1 : 0;
+							if (op == 0)
 							{
-								if (!Fragment)
-									return !Queue.empty();
+								if (!fragment)
+									return !queue.empty();
 
-								Control = 0;
+								control = 0;
 							}
-							else if (Op & 0x8)
+							else if (op & 0x8)
 							{
-								if (Op != (uint8_t)WebSocketOp::Ping && Op != (uint8_t)WebSocketOp::Pong && Op != (uint8_t)WebSocketOp::Close)
-									return !Queue.empty();
+								if (op != (uint8_t)web_socket_op::ping && op != (uint8_t)web_socket_op::pong && op != (uint8_t)web_socket_op::close)
+									return !queue.empty();
 
-								if (!Final)
-									return !Queue.empty();
+								if (!final)
+									return !queue.empty();
 
-								Control = 1;
-								Opcode = (WebSocketOp)Op;
+								control = 1;
+								opcode = (web_socket_op)op;
 							}
 							else
 							{
-								if (Op != (uint8_t)WebSocketOp::Text && Op != (uint8_t)WebSocketOp::Binary)
-									return !Queue.empty();
+								if (op != (uint8_t)web_socket_op::text && op != (uint8_t)web_socket_op::binary)
+									return !queue.empty();
 
-								Control = 0;
-								Fragment = !Final;
-								Opcode = (WebSocketOp)Op;
+								control = 0;
+								fragment = !final;
+								opcode = (web_socket_op)op;
 							}
 
-							State = Bytecode::Length;
-							Data++; Size--;
+							state = bytecode::length;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length:
+						case bytecode::length:
 						{
-							uint8_t Length = Index & 0x7f;
-							Masked = (Index & 0x80) ? 1 : 0;
-							Masks = 0;
+							uint8_t length = index & 0x7f;
+							masked = (index & 0x80) ? 1 : 0;
+							masks = 0;
 
-							if (Control)
+							if (control)
 							{
-								if (Length > 125)
-									return !Queue.empty();
+								if (length > 125)
+									return !queue.empty();
 
-								Remains = Length;
-								State = Masked ? Bytecode::Mask_0 : Bytecode::End;
+								remains = length;
+								state = masked ? bytecode::mask0 : bytecode::end;
 							}
-							else if (Length < 126)
+							else if (length < 126)
 							{
-								Remains = Length;
-								State = Masked ? Bytecode::Mask_0 : Bytecode::End;
+								remains = length;
+								state = masked ? bytecode::mask0 : bytecode::end;
 							}
-							else if (Length == 126)
-								State = Bytecode::Length_16_0;
+							else if (length == 126)
+								state = bytecode::length160;
 							else
-								State = Bytecode::Length_64_0;
+								state = bytecode::length640;
 
-							Data++; Size--;
-							if (State == Bytecode::End && Remains == 0)
+							data++; size--;
+							if (state == bytecode::end && remains == 0)
 							{
-								Queue.emplace(std::make_pair(Opcode, Core::Vector<char>()));
-								goto FetchPayload;
+								queue.emplace(std::make_pair(opcode, core::vector<char>()));
+								goto fetch_payload;
 							}
 							break;
 						}
-						case Bytecode::Length_16_0:
+						case bytecode::length160:
 						{
-							Remains = (uint64_t)Index << 8;
-							State = Bytecode::Length_16_1;
-							Data++; Size--;
+							remains = (uint64_t)index << 8;
+							state = bytecode::length161;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_16_1:
+						case bytecode::length161:
 						{
-							Remains |= (uint64_t)Index << 0;
-							State = Masked ? Bytecode::Mask_0 : Bytecode::End;
-							if (Remains < 126)
-								return !Queue.empty();
+							remains |= (uint64_t)index << 0;
+							state = masked ? bytecode::mask0 : bytecode::end;
+							if (remains < 126)
+								return !queue.empty();
 
-							Data++; Size--;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_0:
+						case bytecode::length640:
 						{
-							Remains = (uint64_t)Index << 56;
-							State = Bytecode::Length_64_1;
-							Data++; Size--;
+							remains = (uint64_t)index << 56;
+							state = bytecode::length641;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_1:
+						case bytecode::length641:
 						{
-							Remains |= (uint64_t)Index << 48;
-							State = Bytecode::Length_64_2;
-							Data++; Size--;
+							remains |= (uint64_t)index << 48;
+							state = bytecode::length642;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_2:
+						case bytecode::length642:
 						{
-							Remains |= (uint64_t)Index << 40;
-							State = Bytecode::Length_64_3;
-							Data++; Size--;
+							remains |= (uint64_t)index << 40;
+							state = bytecode::length643;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_3:
+						case bytecode::length643:
 						{
-							Remains |= (uint64_t)Index << 32;
-							State = Bytecode::Length_64_4;
-							Data++; Size--;
+							remains |= (uint64_t)index << 32;
+							state = bytecode::length644;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_4:
+						case bytecode::length644:
 						{
-							Remains |= (uint64_t)Index << 24;
-							State = Bytecode::Length_64_5;
-							Data++; Size--;
+							remains |= (uint64_t)index << 24;
+							state = bytecode::length645;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_5:
+						case bytecode::length645:
 						{
-							Remains |= (uint64_t)Index << 16;
-							State = Bytecode::Length_64_6;
-							Data++; Size--;
+							remains |= (uint64_t)index << 16;
+							state = bytecode::length646;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_6:
+						case bytecode::length646:
 						{
-							Remains |= (uint64_t)Index << 8;
-							State = Bytecode::Length_64_7;
-							Data++; Size--;
+							remains |= (uint64_t)index << 8;
+							state = bytecode::length647;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Length_64_7:
+						case bytecode::length647:
 						{
-							Remains |= (uint64_t)Index << 0;
-							State = Masked ? Bytecode::Mask_0 : Bytecode::End;
-							if (Remains < 65536)
-								return !Queue.empty();
+							remains |= (uint64_t)index << 0;
+							state = masked ? bytecode::mask0 : bytecode::end;
+							if (remains < 65536)
+								return !queue.empty();
 
-							Data++; Size--;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Mask_0:
+						case bytecode::mask0:
 						{
-							Mask[0] = Index;
-							State = Bytecode::Mask_1;
-							Data++; Size--;
+							mask[0] = index;
+							state = bytecode::mask1;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Mask_1:
+						case bytecode::mask1:
 						{
-							Mask[1] = Index;
-							State = Bytecode::Mask_2;
-							Data++; Size--;
+							mask[1] = index;
+							state = bytecode::mask2;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Mask_2:
+						case bytecode::mask2:
 						{
-							Mask[2] = Index;
-							State = Bytecode::Mask_3;
-							Data++; Size--;
+							mask[2] = index;
+							state = bytecode::mask3;
+							data++; size--;
 							break;
 						}
-						case Bytecode::Mask_3:
+						case bytecode::mask3:
 						{
-							Mask[3] = Index;
-							State = Bytecode::End;
-							Data++; Size--;
-							if (Remains == 0)
+							mask[3] = index;
+							state = bytecode::end;
+							data++; size--;
+							if (remains == 0)
 							{
-								Queue.emplace(std::make_pair(Opcode, Core::Vector<char>()));
-								goto FetchPayload;
+								queue.emplace(std::make_pair(opcode, core::vector<char>()));
+								goto fetch_payload;
 							}
 							break;
 						}
-						case Bytecode::End:
+						case bytecode::end:
 						{
-							size_t Length = Size;
-							if (Length > (size_t)Remains)
-								Length = (size_t)Remains;
+							size_t length = size;
+							if (length > (size_t)remains)
+								length = (size_t)remains;
 
-							if (Masked)
+							if (masked)
 							{
-								for (size_t i = 0; i < Length; i++)
-									Data[i] ^= Mask[Masks++ % 4];
+								for (size_t i = 0; i < length; i++)
+									data[i] ^= mask[masks++ % 4];
 							}
 
-							Core::Vector<char> Message;
-							TextAssign(Message, std::string_view(Data, Length));
-							Queue.emplace(std::make_pair(Opcode, std::move(Message)));
-							Opcode = WebSocketOp::Continue;
+							core::vector<char> message;
+							text_assign(message, std::string_view(data, length));
+							queue.emplace(std::make_pair(opcode, std::move(message)));
+							opcode = web_socket_op::next;
 
-							Data += Length;
-							Size -= Length;
-							Remains -= Length;
-							if (Remains == 0)
-								goto FetchPayload;
+							data += length;
+							size -= length;
+							remains -= length;
+							if (remains == 0)
+								goto fetch_payload;
 							break;
 						}
 					}
 				}
 
-				return !Queue.empty();
-			FetchPayload:
-				if (!Control && !Final)
-					return !Queue.empty();
+				return !queue.empty();
+			fetch_payload:
+				if (!control && !final)
+					return !queue.empty();
 
-				State = Bytecode::Begin;
-				if (Size > 0)
-					goto ParsePayload;
+				state = bytecode::begin;
+				if (size > 0)
+					goto parse_payload;
 
 				return true;
 			}
-			bool WebCodec::GetFrame(WebSocketOp* Op, Core::Vector<char>* Message)
+			bool web_codec::get_frame(web_socket_op* op, core::vector<char>* message)
 			{
-				VI_ASSERT(Op != nullptr, "op should be set");
-				VI_ASSERT(Message != nullptr, "message should be set");
+				VI_ASSERT(op != nullptr, "op should be set");
+				VI_ASSERT(message != nullptr, "message should be set");
 
-				if (Queue.empty())
+				if (queue.empty())
 					return false;
 
-				auto& Base = Queue.front();
-				*Message = std::move(Base.second);
-				*Op = Base.first;
-				Queue.pop();
+				auto& base = queue.front();
+				*message = std::move(base.second);
+				*op = base.first;
+				queue.pop();
 
 				return true;
 			}
 
-			HrmCache::HrmCache() noexcept : HrmCache(HTTP_HRM_SIZE)
+			hrm_cache::hrm_cache() noexcept : hrm_cache(HTTP_HRM_SIZE)
 			{
 			}
-			HrmCache::HrmCache(size_t MaxBytesStorage) noexcept : Capacity(MaxBytesStorage), Size(0)
+			hrm_cache::hrm_cache(size_t max_bytes_storage) noexcept : capacity(max_bytes_storage), size(0)
 			{
 			}
-			HrmCache::~HrmCache() noexcept
+			hrm_cache::~hrm_cache() noexcept
 			{
-				Size = Capacity = 0;
-				while (!Queue.empty())
+				size = capacity = 0;
+				while (!queue.empty())
 				{
-					auto* Item = Queue.front();
-					Core::Memory::Delete(Item);
-					Queue.pop();
+					auto* item = queue.front();
+					core::memory::deinit(item);
+					queue.pop();
 				}
 			}
-			void HrmCache::ShrinkToFit() noexcept
+			void hrm_cache::shrink_to_fit() noexcept
 			{
-				size_t Freed = 0;
-				while (!Queue.empty() && Size > Capacity)
+				size_t freed = 0;
+				while (!queue.empty() && size > capacity)
 				{
-					auto* Item = Queue.front();
-					size_t Bytes = Item->capacity();
-					Size -= std::min<size_t>(Size, Bytes);
-					Freed += Bytes;
-					Core::Memory::Delete(Item);
-					Queue.pop();
+					auto* item = queue.front();
+					size_t bytes = item->capacity();
+					size -= std::min<size_t>(size, bytes);
+					freed += bytes;
+					core::memory::deinit(item);
+					queue.pop();
 				}
-				if (Freed > 0)
-					VI_DEBUG("[http] freed up %" PRIu64 " bytes from hrm cache", (uint64_t)Freed);
+				if (freed > 0)
+					VI_DEBUG("[http] freed up %" PRIu64 " bytes from hrm cache", (uint64_t)freed);
 			}
-			void HrmCache::Shrink() noexcept
+			void hrm_cache::shrink() noexcept
 			{
-				Core::UMutex<std::mutex> Unique(Mutex);
-				ShrinkToFit();
+				core::umutex<std::mutex> unique(mutex);
+				shrink_to_fit();
 			}
-			void HrmCache::Rescale(size_t MaxBytesStorage) noexcept
+			void hrm_cache::rescale(size_t max_bytes_storage) noexcept
 			{
-				Core::UMutex<std::mutex> Unique(Mutex);
-				Capacity = MaxBytesStorage;
-				ShrinkToFit();
+				core::umutex<std::mutex> unique(mutex);
+				capacity = max_bytes_storage;
+				shrink_to_fit();
 			}
-			void HrmCache::Push(Core::String* Entry)
+			void hrm_cache::push(core::string* entry)
 			{
-				Entry->clear();
-				Core::UMutex<std::mutex> Unique(Mutex);
-				Size += Entry->capacity();
-				Queue.push(Entry);
-				ShrinkToFit();
+				entry->clear();
+				core::umutex<std::mutex> unique(mutex);
+				size += entry->capacity();
+				queue.push(entry);
+				shrink_to_fit();
 			}
-			Core::String* HrmCache::Pop() noexcept
+			core::string* hrm_cache::pop() noexcept
 			{
-				Core::UMutex<std::mutex> Unique(Mutex);
-				if (Queue.empty())
-					return Core::Memory::New<Core::String>();
+				core::umutex<std::mutex> unique(mutex);
+				if (queue.empty())
+					return core::memory::init<core::string>();
 
-				auto* Item = Queue.front();
-				Size -= std::min<size_t>(Size, Item->capacity());
-				Queue.pop();
-				return Item;
+				auto* item = queue.front();
+				size -= std::min<size_t>(size, item->capacity());
+				queue.pop();
+				return item;
 			}
 
-			void Utils::UpdateKeepAliveHeaders(Connection* Base, Core::String& Content)
+			void utils::update_keep_alive_headers(connection* base, core::string& content)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto* Router = Base->Root->Router;
-				if (Router->KeepAliveMaxCount < 0)
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto* router = base->root->router;
+				if (router->keep_alive_max_count < 0)
 				{
-					Content.append("Connection: Close\r\n");
+					content.append("Connection: close\r\n");
 					return;
 				}
 
-				auto Connection = Base->Request.GetHeader("Connection");
-				if ((!Connection.empty() && !Core::Stringify::CaseEquals(Connection, "keep-alive")) || (Connection.empty() && strcmp(Base->Request.Version, "1.1") != 0))
+				auto connection = base->request.get_header("Connection");
+				if ((!connection.empty() && !core::stringify::case_equals(connection, "keep-alive")) || (connection.empty() && strcmp(base->request.version, "1.1") != 0))
 				{
-					Base->Info.Reuses = 1;
-					Content.append("Connection: Close\r\n");
+					base->info.reuses = 1;
+					content.append("Connection: close\r\n");
 					return;
 				}
 
-				if (Router->KeepAliveMaxCount == 0)
+				if (router->keep_alive_max_count == 0)
 				{
-					Content.append("Connection: Keep-Alive\r\n");
-					if (Router->SocketTimeout > 0)
+					content.append("Connection: keep-alive\r\n");
+					if (router->socket_timeout > 0)
 					{
-						char Timeout[Core::NUMSTR_SIZE];
-						Content.append("Keep-Alive: timeout=");
-						Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->SocketTimeout / 1000));
-						Content.append("\r\n");
+						char timeout[core::NUMSTR_SIZE];
+						content.append("Keep-alive: timeout=");
+						content.append(core::to_string_view(timeout, sizeof(timeout), router->socket_timeout / 1000));
+						content.append("\r\n");
 					}
 					return;
 				}
 
-				if (Base->Info.Reuses <= 1)
+				if (base->info.reuses <= 1)
 				{
-					Content.append("Connection: Close\r\n");
+					content.append("Connection: close\r\n");
 					return;
 				}
 
-				char Timeout[Core::NUMSTR_SIZE];
-				Content.append("Connection: Keep-Alive\r\nKeep-Alive: ");
-				if (Router->SocketTimeout > 0)
+				char timeout[core::NUMSTR_SIZE];
+				content.append("Connection: keep-alive\r\nKeep-alive: ");
+				if (router->socket_timeout > 0)
 				{
-					Content.append("timeout=");
-					Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->SocketTimeout / 1000));
-					Content.append(", ");
+					content.append("timeout=");
+					content.append(core::to_string_view(timeout, sizeof(timeout), router->socket_timeout / 1000));
+					content.append(", ");
 				}
-				Content.append("max=");
-				Content.append(Core::ToStringView(Timeout, sizeof(Timeout), Router->KeepAliveMaxCount));
-				Content.append("\r\n");
+				content.append("max=");
+				content.append(core::to_string_view(timeout, sizeof(timeout), router->keep_alive_max_count));
+				content.append("\r\n");
 			}
-			std::string_view Utils::ContentType(const std::string_view& Path, Core::Vector<MimeType>* Types)
+			std::string_view utils::content_type(const std::string_view& path, core::vector<mime_type>* types)
 			{
-				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".webp", "image/webp"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
+				static mime_static mime_types[] = { mime_static(".3dm", "x-world/x-3dmf"), mime_static(".3dmf", "x-world/x-3dmf"), mime_static(".a", "application/octet-stream"), mime_static(".aab", "application/x-authorware-bin"), mime_static(".aac", "audio/aac"), mime_static(".aam", "application/x-authorware-map"), mime_static(".aas", "application/x-authorware-seg"), mime_static(".aat", "application/font-sfnt"), mime_static(".abc", "text/vnd.abc"), mime_static(".acgi", "text/html"), mime_static(".afl", "video/animaflex"), mime_static(".ai", "application/postscript"), mime_static(".aif", "audio/x-aiff"), mime_static(".aifc", "audio/x-aiff"), mime_static(".aiff", "audio/x-aiff"), mime_static(".aim", "application/x-aim"), mime_static(".aip", "text/x-audiosoft-intra"), mime_static(".ani", "application/x-navi-animation"), mime_static(".aos", "application/x-nokia-9000-communicator-add-on-software"), mime_static(".aps", "application/mime"), mime_static(".arc", "application/octet-stream"), mime_static(".arj", "application/arj"), mime_static(".art", "image/x-jg"), mime_static(".asf", "video/x-ms-asf"), mime_static(".asm", "text/x-asm"), mime_static(".asp", "text/asp"), mime_static(".asx", "video/x-ms-asf"), mime_static(".au", "audio/x-au"), mime_static(".avi", "video/x-msvideo"), mime_static(".avs", "video/avs-video"), mime_static(".bcpio", "application/x-bcpio"), mime_static(".bin", "application/x-binary"), mime_static(".bm", "image/bmp"), mime_static(".bmp", "image/bmp"), mime_static(".boo", "application/book"), mime_static(".book", "application/book"), mime_static(".boz", "application/x-bzip2"), mime_static(".bsh", "application/x-bsh"), mime_static(".bz", "application/x-bzip"), mime_static(".bz2", "application/x-bzip2"), mime_static(".c", "text/x-c"), mime_static(".c++", "text/x-c"), mime_static(".cat", "application/vnd.ms-pki.seccat"), mime_static(".cc", "text/x-c"), mime_static(".ccad", "application/clariscad"), mime_static(".cco", "application/x-cocoa"), mime_static(".cdf", "application/x-cdf"), mime_static(".cer", "application/pkix-cert"), mime_static(".cff", "application/font-sfnt"), mime_static(".cha", "application/x-chat"), mime_static(".chat", "application/x-chat"), mime_static(".class", "application/x-java-class"), mime_static(".com", "application/octet-stream"), mime_static(".conf", "text/plain"), mime_static(".cpio", "application/x-cpio"), mime_static(".cpp", "text/x-c"), mime_static(".cpt", "application/x-compactpro"), mime_static(".crl", "application/pkcs-crl"), mime_static(".crt", "application/x-x509-user-cert"), mime_static(".csh", "text/x-script.csh"), mime_static(".css", "text/css"), mime_static(".csv", "text/csv"), mime_static(".cxx", "text/plain"), mime_static(".dcr", "application/x-director"), mime_static(".deepv", "application/x-deepv"), mime_static(".def", "text/plain"), mime_static(".der", "application/x-x509-ca-cert"), mime_static(".dif", "video/x-dv"), mime_static(".dir", "application/x-director"), mime_static(".dl", "video/x-dl"), mime_static(".dll", "application/octet-stream"), mime_static(".doc", "application/msword"), mime_static(".dot", "application/msword"), mime_static(".dp", "application/commonground"), mime_static(".drw", "application/drafting"), mime_static(".dump", "application/octet-stream"), mime_static(".dv", "video/x-dv"), mime_static(".dvi", "application/x-dvi"), mime_static(".dwf", "model/vnd.dwf"), mime_static(".dwg", "image/vnd.dwg"), mime_static(".dxf", "image/vnd.dwg"), mime_static(".dxr", "application/x-director"), mime_static(".el", "text/x-script.elisp"), mime_static(".elc", "application/x-bytecode.elisp"), mime_static(".env", "application/x-envoy"), mime_static(".eps", "application/postscript"), mime_static(".es", "application/x-esrehber"), mime_static(".etx", "text/x-setext"), mime_static(".evy", "application/x-envoy"), mime_static(".exe", "application/octet-stream"), mime_static(".f", "text/x-fortran"), mime_static(".f77", "text/x-fortran"), mime_static(".f90", "text/x-fortran"), mime_static(".fdf", "application/vnd.fdf"), mime_static(".fif", "image/fif"), mime_static(".fli", "video/x-fli"), mime_static(".flo", "image/florian"), mime_static(".flx", "text/vnd.fmi.flexstor"), mime_static(".fmf", "video/x-atomic3d-feature"), mime_static(".for", "text/x-fortran"), mime_static(".fpx", "image/vnd.fpx"), mime_static(".frl", "application/freeloader"), mime_static(".funk", "audio/make"), mime_static(".g", "text/plain"), mime_static(".g3", "image/g3fax"), mime_static(".gif", "image/gif"), mime_static(".gl", "video/x-gl"), mime_static(".gsd", "audio/x-gsm"), mime_static(".gsm", "audio/x-gsm"), mime_static(".gsp", "application/x-gsp"), mime_static(".gss", "application/x-gss"), mime_static(".gtar", "application/x-gtar"), mime_static(".gz", "application/x-gzip"), mime_static(".h", "text/x-h"), mime_static(".hdf", "application/x-hdf"), mime_static(".help", "application/x-helpfile"), mime_static(".hgl", "application/vnd.hp-hpgl"), mime_static(".hh", "text/x-h"), mime_static(".hlb", "text/x-script"), mime_static(".hlp", "application/x-helpfile"), mime_static(".hpg", "application/vnd.hp-hpgl"), mime_static(".hpgl", "application/vnd.hp-hpgl"), mime_static(".hqx", "application/binhex"), mime_static(".hta", "application/hta"), mime_static(".htc", "text/x-component"), mime_static(".htm", "text/html"), mime_static(".html", "text/html"), mime_static(".htmls", "text/html"), mime_static(".htt", "text/webviewhtml"), mime_static(".htx", "text/html"), mime_static(".ice", "x-conference/x-cooltalk"), mime_static(".ico", "image/x-icon"), mime_static(".idc", "text/plain"), mime_static(".ief", "image/ief"), mime_static(".iefs", "image/ief"), mime_static(".iges", "model/iges"), mime_static(".igs", "model/iges"), mime_static(".ima", "application/x-ima"), mime_static(".imap", "application/x-httpd-imap"), mime_static(".inf", "application/inf"), mime_static(".ins", "application/x-internett-signup"), mime_static(".ip", "application/x-ip2"), mime_static(".isu", "video/x-isvideo"), mime_static(".it", "audio/it"), mime_static(".iv", "application/x-inventor"), mime_static(".ivr", "i-world/i-vrml"), mime_static(".ivy", "application/x-livescreen"), mime_static(".jam", "audio/x-jam"), mime_static(".jav", "text/x-java-source"), mime_static(".java", "text/x-java-source"), mime_static(".jcm", "application/x-java-commerce"), mime_static(".jfif", "image/jpeg"), mime_static(".jfif-tbnl", "image/jpeg"), mime_static(".jpe", "image/jpeg"), mime_static(".jpeg", "image/jpeg"), mime_static(".jpg", "image/jpeg"), mime_static(".jpm", "image/jpm"), mime_static(".jps", "image/x-jps"), mime_static(".jpx", "image/jpx"), mime_static(".js", "application/x-javascript"), mime_static(".json", "application/json"), mime_static(".jut", "image/jutvision"), mime_static(".kar", "music/x-karaoke"), mime_static(".kml", "application/vnd.google-earth.kml+xml"), mime_static(".kmz", "application/vnd.google-earth.kmz"), mime_static(".ksh", "text/x-script.ksh"), mime_static(".la", "audio/x-nspaudio"), mime_static(".lam", "audio/x-liveaudio"), mime_static(".latex", "application/x-latex"), mime_static(".lha", "application/x-lha"), mime_static(".lhx", "application/octet-stream"), mime_static(".lib", "application/octet-stream"), mime_static(".list", "text/plain"), mime_static(".lma", "audio/x-nspaudio"), mime_static(".log", "text/plain"), mime_static(".lsp", "text/x-script.lisp"), mime_static(".lst", "text/plain"), mime_static(".lsx", "text/x-la-asf"), mime_static(".ltx", "application/x-latex"), mime_static(".lzh", "application/x-lzh"), mime_static(".lzx", "application/x-lzx"), mime_static(".m", "text/x-m"), mime_static(".m1v", "video/mpeg"), mime_static(".m2a", "audio/mpeg"), mime_static(".m2v", "video/mpeg"), mime_static(".m3u", "audio/x-mpegurl"), mime_static(".m4v", "video/x-m4v"), mime_static(".man", "application/x-troff-man"), mime_static(".map", "application/x-navimap"), mime_static(".mar", "text/plain"), mime_static(".mbd", "application/mbedlet"), mime_static(".mc$", "application/x-magic-cap-package-1.0"), mime_static(".mcd", "application/x-mathcad"), mime_static(".mcf", "text/mcf"), mime_static(".mcp", "application/netmc"), mime_static(".me", "application/x-troff-me"), mime_static(".mht", "message/rfc822"), mime_static(".mhtml", "message/rfc822"), mime_static(".mid", "audio/x-midi"), mime_static(".midi", "audio/x-midi"), mime_static(".mif", "application/x-mif"), mime_static(".mime", "www/mime"), mime_static(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), mime_static(".mjpg", "video/x-motion-jpeg"), mime_static(".mm", "application/base64"), mime_static(".mme", "application/base64"), mime_static(".mod", "audio/x-mod"), mime_static(".moov", "video/quicktime"), mime_static(".mov", "video/quicktime"), mime_static(".movie", "video/x-sgi-movie"), mime_static(".mp2", "video/x-mpeg"), mime_static(".mp3", "audio/x-mpeg-3"), mime_static(".mp4", "video/mp4"), mime_static(".mpa", "audio/mpeg"), mime_static(".mpc", "application/x-project"), mime_static(".mpeg", "video/mpeg"), mime_static(".mpg", "video/mpeg"), mime_static(".mpga", "audio/mpeg"), mime_static(".mpp", "application/vnd.ms-project"), mime_static(".mpt", "application/x-project"), mime_static(".mpv", "application/x-project"), mime_static(".mpx", "application/x-project"), mime_static(".mrc", "application/marc"), mime_static(".ms", "application/x-troff-ms"), mime_static(".mv", "video/x-sgi-movie"), mime_static(".my", "audio/make"), mime_static(".mzz", "application/x-vnd.audioexplosion.mzz"), mime_static(".nap", "image/naplps"), mime_static(".naplps", "image/naplps"), mime_static(".nc", "application/x-netcdf"), mime_static(".ncm", "application/vnd.nokia.configuration-message"), mime_static(".nif", "image/x-niff"), mime_static(".niff", "image/x-niff"), mime_static(".nix", "application/x-mix-transfer"), mime_static(".nsc", "application/x-conference"), mime_static(".nvd", "application/x-navidoc"), mime_static(".o", "application/octet-stream"), mime_static(".obj", "application/octet-stream"), mime_static(".oda", "application/oda"), mime_static(".oga", "audio/ogg"), mime_static(".ogg", "audio/ogg"), mime_static(".ogv", "video/ogg"), mime_static(".omc", "application/x-omc"), mime_static(".omcd", "application/x-omcdatamaker"), mime_static(".omcr", "application/x-omcregerator"), mime_static(".otf", "application/font-sfnt"), mime_static(".p", "text/x-pascal"), mime_static(".p10", "application/x-pkcs10"), mime_static(".p12", "application/x-pkcs12"), mime_static(".p7a", "application/x-pkcs7-signature"), mime_static(".p7c", "application/x-pkcs7-mime"), mime_static(".p7m", "application/x-pkcs7-mime"), mime_static(".p7r", "application/x-pkcs7-certreqresp"), mime_static(".p7s", "application/pkcs7-signature"), mime_static(".part", "application/pro_eng"), mime_static(".pas", "text/x-pascal"), mime_static(".pbm", "image/x-portable-bitmap"), mime_static(".pcl", "application/vnd.hp-pcl"), mime_static(".pct", "image/x-pct"), mime_static(".pcx", "image/x-pcx"), mime_static(".pq", "chemical/x-pq"), mime_static(".pdf", "application/pdf"), mime_static(".pfr", "application/font-tdpfr"), mime_static(".pfunk", "audio/make"), mime_static(".pgm", "image/x-portable-greymap"), mime_static(".pic", "image/pict"), mime_static(".pict", "image/pict"), mime_static(".pkg", "application/x-newton-compatible-pkg"), mime_static(".pko", "application/vnd.ms-pki.pko"), mime_static(".pl", "text/x-script.perl"), mime_static(".plx", "application/x-pixelscript"), mime_static(".pm", "text/x-script.perl-module"), mime_static(".pm4", "application/x-pagemaker"), mime_static(".pm5", "application/x-pagemaker"), mime_static(".png", "image/png"), mime_static(".pnm", "image/x-portable-anymap"), mime_static(".pot", "application/vnd.ms-powerpoint"), mime_static(".pov", "model/x-pov"), mime_static(".ppa", "application/vnd.ms-powerpoint"), mime_static(".ppm", "image/x-portable-pixmap"), mime_static(".pps", "application/vnd.ms-powerpoint"), mime_static(".ppt", "application/vnd.ms-powerpoint"), mime_static(".ppz", "application/vnd.ms-powerpoint"), mime_static(".pre", "application/x-freelance"), mime_static(".prt", "application/pro_eng"), mime_static(".ps", "application/postscript"), mime_static(".psd", "application/octet-stream"), mime_static(".pvu", "paleovu/x-pv"), mime_static(".pwz", "application/vnd.ms-powerpoint"), mime_static(".py", "text/x-script.python"), mime_static(".pyc", "application/x-bytecode.python"), mime_static(".qcp", "audio/vnd.qcelp"), mime_static(".qd3", "x-world/x-3dmf"), mime_static(".qd3d", "x-world/x-3dmf"), mime_static(".qif", "image/x-quicktime"), mime_static(".qt", "video/quicktime"), mime_static(".qtc", "video/x-qtc"), mime_static(".qti", "image/x-quicktime"), mime_static(".qtif", "image/x-quicktime"), mime_static(".ra", "audio/x-pn-realaudio"), mime_static(".ram", "audio/x-pn-realaudio"), mime_static(".rar", "application/x-arj-compressed"), mime_static(".ras", "image/x-cmu-raster"), mime_static(".rast", "image/cmu-raster"), mime_static(".rexx", "text/x-script.rexx"), mime_static(".rf", "image/vnd.rn-realflash"), mime_static(".rgb", "image/x-rgb"), mime_static(".rm", "audio/x-pn-realaudio"), mime_static(".rmi", "audio/mid"), mime_static(".rmm", "audio/x-pn-realaudio"), mime_static(".rmp", "audio/x-pn-realaudio"), mime_static(".rng", "application/vnd.nokia.ringing-tone"), mime_static(".rnx", "application/vnd.rn-realplayer"), mime_static(".roff", "application/x-troff"), mime_static(".rp", "image/vnd.rn-realpix"), mime_static(".rpm", "audio/x-pn-realaudio-plugin"), mime_static(".rt", "text/vnd.rn-realtext"), mime_static(".rtf", "application/x-rtf"), mime_static(".rtx", "application/x-rtf"), mime_static(".rv", "video/vnd.rn-realvideo"), mime_static(".s", "text/x-asm"), mime_static(".s3m", "audio/s3m"), mime_static(".saveme", "application/octet-stream"), mime_static(".sbk", "application/x-tbook"), mime_static(".scm", "text/x-script.scheme"), mime_static(".sdml", "text/plain"), mime_static(".sdp", "application/x-sdp"), mime_static(".sdr", "application/sounder"), mime_static(".sea", "application/x-sea"), mime_static(".set", "application/set"), mime_static(".sgm", "text/x-sgml"), mime_static(".sgml", "text/x-sgml"), mime_static(".sh", "text/x-script.sh"), mime_static(".shar", "application/x-shar"), mime_static(".shtm", "text/html"), mime_static(".shtml", "text/html"), mime_static(".sid", "audio/x-psid"), mime_static(".sil", "application/font-sfnt"), mime_static(".sit", "application/x-sit"), mime_static(".skd", "application/x-koan"), mime_static(".skm", "application/x-koan"), mime_static(".skp", "application/x-koan"), mime_static(".skt", "application/x-koan"), mime_static(".sl", "application/x-seelogo"), mime_static(".smi", "application/smil"), mime_static(".smil", "application/smil"), mime_static(".snd", "audio/x-adpcm"), mime_static(".so", "application/octet-stream"), mime_static(".sol", "application/solids"), mime_static(".spc", "text/x-speech"), mime_static(".spl", "application/futuresplash"), mime_static(".spr", "application/x-sprite"), mime_static(".sprite", "application/x-sprite"), mime_static(".src", "application/x-wais-source"), mime_static(".ssi", "text/x-server-parsed-html"), mime_static(".ssm", "application/streamingmedia"), mime_static(".sst", "application/vnd.ms-pki.certstore"), mime_static(".step", "application/step"), mime_static(".stl", "application/vnd.ms-pki.stl"), mime_static(".stp", "application/step"), mime_static(".sv4cpio", "application/x-sv4cpio"), mime_static(".sv4crc", "application/x-sv4crc"), mime_static(".svf", "image/x-dwg"), mime_static(".svg", "image/svg+xml"), mime_static(".svr", "x-world/x-svr"), mime_static(".swf", "application/x-shockwave-flash"), mime_static(".t", "application/x-troff"), mime_static(".talk", "text/x-speech"), mime_static(".tar", "application/x-tar"), mime_static(".tbk", "application/x-tbook"), mime_static(".tcl", "text/x-script.tcl"), mime_static(".tcsh", "text/x-script.tcsh"), mime_static(".tex", "application/x-tex"), mime_static(".texi", "application/x-texinfo"), mime_static(".texinfo", "application/x-texinfo"), mime_static(".text", "text/plain"), mime_static(".tgz", "application/x-compressed"), mime_static(".tif", "image/x-tiff"), mime_static(".tiff", "image/x-tiff"), mime_static(".torrent", "application/x-bittorrent"), mime_static(".tr", "application/x-troff"), mime_static(".tsi", "audio/tsp-audio"), mime_static(".tsp", "audio/tsplayer"), mime_static(".tsv", "text/tab-separated-values"), mime_static(".ttf", "application/font-sfnt"), mime_static(".turbot", "image/florian"), mime_static(".txt", "text/plain"), mime_static(".uil", "text/x-uil"), mime_static(".uni", "text/uri-list"), mime_static(".unis", "text/uri-list"), mime_static(".unv", "application/i-deas"), mime_static(".uri", "text/uri-list"), mime_static(".uris", "text/uri-list"), mime_static(".ustar", "application/x-ustar"), mime_static(".uu", "text/x-uuencode"), mime_static(".uue", "text/x-uuencode"), mime_static(".vcd", "application/x-cdlink"), mime_static(".vcs", "text/x-vcalendar"), mime_static(".vda", "application/vda"), mime_static(".vdo", "video/vdo"), mime_static(".vew", "application/groupwise"), mime_static(".viv", "video/vnd.vivo"), mime_static(".vivo", "video/vnd.vivo"), mime_static(".vmd", "application/vocaltec-media-desc"), mime_static(".vmf", "application/vocaltec-media-resource"), mime_static(".voc", "audio/x-voc"), mime_static(".vos", "video/vosaic"), mime_static(".vox", "audio/voxware"), mime_static(".vqe", "audio/x-twinvq-plugin"), mime_static(".vqf", "audio/x-twinvq"), mime_static(".vql", "audio/x-twinvq-plugin"), mime_static(".vrml", "model/vrml"), mime_static(".vrt", "x-world/x-vrt"), mime_static(".vsd", "application/x-visio"), mime_static(".vst", "application/x-visio"), mime_static(".vsw", "application/x-visio"), mime_static(".w60", "application/wordperfect6.0"), mime_static(".w61", "application/wordperfect6.1"), mime_static(".w6w", "application/msword"), mime_static(".wav", "audio/x-wav"), mime_static(".wb1", "application/x-qpro"), mime_static(".wbmp", "image/vnd.wap.wbmp"), mime_static(".web", "application/vnd.xara"), mime_static(".webm", "video/webm"), mime_static(".webp", "image/webp"), mime_static(".wiz", "application/msword"), mime_static(".wk1", "application/x-123"), mime_static(".wmf", "windows/metafile"), mime_static(".wml", "text/vnd.wap.wml"), mime_static(".wmlc", "application/vnd.wap.wmlc"), mime_static(".wmls", "text/vnd.wap.wmlscript"), mime_static(".wmlsc", "application/vnd.wap.wmlscriptc"), mime_static(".woff", "application/font-woff"), mime_static(".word", "application/msword"), mime_static(".wp", "application/wordperfect"), mime_static(".wp5", "application/wordperfect"), mime_static(".wp6", "application/wordperfect"), mime_static(".wpd", "application/wordperfect"), mime_static(".wq1", "application/x-lotus"), mime_static(".wri", "application/x-wri"), mime_static(".wrl", "model/vrml"), mime_static(".wrz", "model/vrml"), mime_static(".wsc", "text/scriplet"), mime_static(".wsrc", "application/x-wais-source"), mime_static(".wtk", "application/x-wintalk"), mime_static(".x-png", "image/png"), mime_static(".xbm", "image/x-xbm"), mime_static(".xdr", "video/x-amt-demorun"), mime_static(".xgz", "xgl/drawing"), mime_static(".xhtml", "application/xhtml+xml"), mime_static(".xif", "image/vnd.xiff"), mime_static(".xl", "application/vnd.ms-excel"), mime_static(".xla", "application/vnd.ms-excel"), mime_static(".xlb", "application/vnd.ms-excel"), mime_static(".xlc", "application/vnd.ms-excel"), mime_static(".xld", "application/vnd.ms-excel"), mime_static(".xlk", "application/vnd.ms-excel"), mime_static(".xll", "application/vnd.ms-excel"), mime_static(".xlm", "application/vnd.ms-excel"), mime_static(".xls", "application/vnd.ms-excel"), mime_static(".xlt", "application/vnd.ms-excel"), mime_static(".xlv", "application/vnd.ms-excel"), mime_static(".xlw", "application/vnd.ms-excel"), mime_static(".xm", "audio/xm"), mime_static(".xml", "text/xml"), mime_static(".xmz", "xgl/movie"), mime_static(".xpix", "application/x-vnd.ls-xpix"), mime_static(".xpm", "image/x-xpixmap"), mime_static(".xsl", "application/xml"), mime_static(".xslt", "application/xml"), mime_static(".xsr", "video/x-amt-showrun"), mime_static(".xwd", "image/x-xwd"), mime_static(".xyz", "chemical/x-pq"), mime_static(".z", "application/x-compressed"), mime_static(".zip", "application/x-zip-compressed"), mime_static(".zoo", "application/octet-stream"), mime_static(".zsh", "text/x-script.zsh") };
 
-				size_t PathLength = Path.size();
-				while (PathLength >= 1 && Path[PathLength - 1] != '.')
-					PathLength--;
+				size_t path_length = path.size();
+				while (path_length >= 1 && path[path_length - 1] != '.')
+					path_length--;
 
-				if (!PathLength)
+				if (!path_length)
 					return "application/octet-stream";
 
-				const char* Ptr = Path.data();
-				const char* Ext = &Ptr[PathLength - 1];
-				int End = ((int)(sizeof(MimeTypes) / sizeof(MimeTypes[0])));
-				int Start = 0, Result, Index;
+				const char* ptr = path.data();
+				const char* ext = &ptr[path_length - 1];
+				int end = ((int)(sizeof(mime_types) / sizeof(mime_types[0])));
+				int start = 0, result, index;
 
-				while (End - Start > 1)
+				while (end - start > 1)
 				{
-					Index = (Start + End) >> 1;
-					Result = Core::Stringify::CaseCompare(Ext, MimeTypes[Index].Extension);
-					if (Result == 0)
-						return MimeTypes[Index].Type;
-					else if (Result < 0)
-						End = Index;
+					index = (start + end) >> 1;
+					result = core::stringify::case_compare(ext, mime_types[index].extension);
+					if (result == 0)
+						return mime_types[index].type;
+					else if (result < 0)
+						end = index;
 					else
-						Start = Index;
+						start = index;
 				}
 
-				if (Core::Stringify::CaseEquals(Ext, MimeTypes[Start].Extension))
-					return MimeTypes[Start].Type;
+				if (core::stringify::case_equals(ext, mime_types[start].extension))
+					return mime_types[start].type;
 
-				if (Types != nullptr && !Types->empty())
+				if (types != nullptr && !types->empty())
 				{
-					for (auto& Item : *Types)
+					for (auto& item : *types)
 					{
-						if (Core::Stringify::CaseEquals(Ext, Item.Extension.c_str()))
-							return Item.Type.c_str();
+						if (core::stringify::case_equals(ext, item.extension.c_str()))
+							return item.type.c_str();
 					}
 				}
 
 				return "application/octet-stream";
 			}
-			std::string_view Utils::StatusMessage(int StatusCode)
+			std::string_view utils::status_message(int status_code)
 			{
-				switch (StatusCode)
+				switch (status_code)
 				{
 					case 100:
 						return "Continue";
@@ -4032,7 +4032,7 @@ namespace Vitex
 					case 202:
 						return "Accepted";
 					case 203:
-						return "Non-Authoritative Information";
+						return "Non-authoritative Information";
 					case 204:
 						return "No Content";
 					case 205:
@@ -4074,13 +4074,13 @@ namespace Vitex
 					case 404:
 						return "Not Found";
 					case 405:
-						return "Method Not Allowed";
+						return "Method not Allowed";
 					case 406:
 						return "Not Acceptable";
 					case 407:
-						return "Proxy Authentication Required";
+						return "Proxy authentication Required";
 					case 408:
-						return "Request Time-out";
+						return "Request time-out";
 					case 409:
 						return "Conflict";
 					case 410:
@@ -4090,13 +4090,13 @@ namespace Vitex
 					case 412:
 						return "Precondition Failed";
 					case 413:
-						return "Request Entity Too Large";
+						return "Request entity too Large";
 					case 414:
-						return "Request URL Too Large";
+						return "Request URL too Large";
 					case 415:
-						return "Unsupported Media Type";
+						return "Unsupported media Type";
 					case 416:
-						return "Requested Range Not Satisfiable";
+						return "Requested range not Satisfiable";
 					case 417:
 						return "Expectation Failed";
 					case 418:
@@ -4104,7 +4104,7 @@ namespace Vitex
 					case 419:
 						return "Authentication Timeout";
 					case 420:
-						return "Enhance Your Calm";
+						return "Enhance your Calm";
 					case 421:
 						return "Misdirected Request";
 					case 422:
@@ -4118,15 +4118,15 @@ namespace Vitex
 					case 428:
 						return "Precondition Required";
 					case 429:
-						return "Too Many Requests";
+						return "Too many Requests";
 					case 431:
-						return "Request Header Fields Too Large";
+						return "Request header fields too Large";
 					case 440:
 						return "Login Timeout";
 					case 451:
-						return "Unavailable For Legal Reasons";
+						return "Unavailable destination legal Reasons";
 					case 500:
-						return "Internal Server Error";
+						return "Internal server Error";
 					case 501:
 						return "Not Implemented";
 					case 502:
@@ -4136,33 +4136,33 @@ namespace Vitex
 					case 504:
 						return "Gateway Timeout";
 					case 505:
-						return "Version Not Supported";
+						return "Version not Supported";
 					case 506:
-						return "Variant Also Negotiates";
+						return "Variant also Negotiates";
 					case 507:
 						return "Insufficient Storage";
 					case 508:
 						return "Loop Detected";
 					case 509:
-						return "Bandwidth Limit Exceeded";
+						return "Bandwidth limit Exceeded";
 					case 510:
 						return "Not Extended";
 					case 511:
-						return "Network Authentication Required";
+						return "Network authentication Required";
 					default:
-						if (StatusCode >= 100 && StatusCode < 200)
+						if (status_code >= 100 && status_code < 200)
 							return "Informational";
 
-						if (StatusCode >= 200 && StatusCode < 300)
+						if (status_code >= 200 && status_code < 300)
 							return "Success";
 
-						if (StatusCode >= 300 && StatusCode < 400)
+						if (status_code >= 300 && status_code < 400)
 							return "Redirection";
 
-						if (StatusCode >= 400 && StatusCode < 500)
+						if (status_code >= 400 && status_code < 500)
 							return "Client Error";
 
-						if (StatusCode >= 500 && StatusCode < 600)
+						if (status_code >= 500 && status_code < 600)
 							return "Server Error";
 						break;
 				}
@@ -4170,762 +4170,762 @@ namespace Vitex
 				return "Unknown";
 			}
 
-			void Paths::ConstructPath(Connection* Base)
+			void paths::construct_path(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto* Route = Base->Route;
-				if (!Route->Alias.empty())
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto* route = base->route;
+				if (!route->alias.empty())
 				{
-					Base->Request.Path.assign(Route->Alias);
-					if (Route->Router->Callbacks.OnLocation)
-						Route->Router->Callbacks.OnLocation(Base);
+					base->request.path.assign(route->alias);
+					if (route->router->callbacks.on_location)
+						route->router->callbacks.on_location(base);
 					return;
 				}
-				else if (Route->FilesDirectory.empty())
+				else if (route->files_directory.empty())
 					return;
 
-				for (size_t i = 0; i < Base->Request.Location.size(); i++)
+				for (size_t i = 0; i < base->request.location.size(); i++)
 				{
-					if (Base->Request.Location[i] == '%' && i + 1 < Base->Request.Location.size())
+					if (base->request.location[i] == '%' && i + 1 < base->request.location.size())
 					{
-						if (Base->Request.Location[i + 1] == 'u')
+						if (base->request.location[i + 1] == 'u')
 						{
-							int Value = 0;
-							if (Compute::Codec::HexToDecimal(Base->Request.Location, i + 2, 4, Value))
+							int value = 0;
+							if (compute::codec::hex_to_decimal(base->request.location, i + 2, 4, value))
 							{
-								char Buffer[4];
-								size_t LCount = Compute::Codec::Utf8(Value, Buffer);
-								if (LCount > 0)
-									Base->Request.Path.append(Buffer, LCount);
+								char buffer[4];
+								size_t lcount = compute::codec::utf8(value, buffer);
+								if (lcount > 0)
+									base->request.path.append(buffer, lcount);
 								i += 5;
 							}
 							else
-								Base->Request.Path += Base->Request.Location[i];
+								base->request.path += base->request.location[i];
 						}
 						else
 						{
-							int Value = 0;
-							if (Compute::Codec::HexToDecimal(Base->Request.Location, i + 1, 2, Value))
+							int value = 0;
+							if (compute::codec::hex_to_decimal(base->request.location, i + 1, 2, value))
 							{
-								Base->Request.Path += Value;
+								base->request.path += value;
 								i += 2;
 							}
 							else
-								Base->Request.Path += Base->Request.Location[i];
+								base->request.path += base->request.location[i];
 						}
 					}
-					else if (Base->Request.Location[i] == '+')
-						Base->Request.Path += ' ';
+					else if (base->request.location[i] == '+')
+						base->request.path += ' ';
 					else
-						Base->Request.Path += Base->Request.Location[i];
+						base->request.path += base->request.location[i];
 				}
 
-				char* Buffer = (char*)Base->Request.Path.c_str();
-				char* Next = Buffer;
-				while (Buffer[0] == '.' && Buffer[1] == '.')
-					Buffer++;
+				char* buffer = (char*)base->request.path.c_str();
+				char* next = buffer;
+				while (buffer[0] == '.' && buffer[1] == '.')
+					buffer++;
 
-				while (*Buffer != '\0')
+				while (*buffer != '\0')
 				{
-					*Next++ = *Buffer++;
-					if (Buffer[-1] != '/' && Buffer[-1] != '\\')
+					*next++ = *buffer++;
+					if (buffer[-1] != '/' && buffer[-1] != '\\')
 						continue;
 
-					while (Buffer[0] != '\0')
+					while (buffer[0] != '\0')
 					{
-						if (Buffer[0] == '/' || Buffer[0] == '\\')
-							Buffer++;
-						else if (Buffer[0] == '.' && Buffer[1] == '.')
-							Buffer += 2;
+						if (buffer[0] == '/' || buffer[0] == '\\')
+							buffer++;
+						else if (buffer[0] == '.' && buffer[1] == '.')
+							buffer += 2;
 						else
 							break;
 					}
 				}
 
-				int64_t Size = Buffer - Next;
-				if (Size > 0 && Size != (int64_t)Base->Request.Path.size())
-					Base->Request.Path.resize(Base->Request.Path.size() - (size_t)Size);
+				int64_t size = buffer - next;
+				if (size > 0 && size != (int64_t)base->request.path.size())
+					base->request.path.resize(base->request.path.size() - (size_t)size);
 
-				if (Base->Request.Path.size() > 1 && !Base->Request.Match.Empty())
+				if (base->request.path.size() > 1 && !base->request.match.empty())
 				{
-					auto& Match = Base->Request.Match.Get()[0];
-					size_t Start = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.Start);
-					size_t End = std::min<size_t>(Base->Request.Path.size(), (size_t)Match.End);
-					Core::Stringify::RemovePart(Base->Request.Path, Start, End);
+					auto& match = base->request.match.get()[0];
+					size_t start = std::min<size_t>(base->request.path.size(), (size_t)match.start);
+					size_t end = std::min<size_t>(base->request.path.size(), (size_t)match.end);
+					core::stringify::remove_part(base->request.path, start, end);
 				}
 #ifdef VI_MICROSOFT
-				Core::Stringify::Replace(Base->Request.Path, '/', '\\');
+				core::stringify::replace(base->request.path, '/', '\\');
 #endif
-				Base->Request.Path = Route->FilesDirectory + Base->Request.Path;
-				auto Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
-				if (Path)
-					Base->Request.Path = *Path;
+				base->request.path = route->files_directory + base->request.path;
+				auto path = core::os::path::resolve(base->request.path.c_str());
+				if (path)
+					base->request.path = *path;
 
-				bool PathTrailing = PathTrailingCheck(Base->Request.Path);
-				bool LocationTrailing = PathTrailingCheck(Base->Request.Location);
-				if (PathTrailing != LocationTrailing)
+				bool path_trailing = path_trailing_check(base->request.path);
+				bool location_trailing = path_trailing_check(base->request.location);
+				if (path_trailing != location_trailing)
 				{
-					if (LocationTrailing)
-						Base->Request.Path.append(1, VI_SPLITTER);
+					if (location_trailing)
+						base->request.path.append(1, VI_SPLITTER);
 					else
-						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
+						base->request.path.erase(base->request.path.size() - 1, 1);
 				}
 
-				if (Route->Router->Callbacks.OnLocation)
-					Route->Router->Callbacks.OnLocation(Base);
+				if (route->router->callbacks.on_location)
+					route->router->callbacks.on_location(base);
 			}
-			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String& Buffer)
+			void paths::construct_head_full(request_frame* request, response_frame* response, bool is_request, core::string& buffer)
 			{
-				VI_ASSERT(Request != nullptr, "connection should be set");
-				VI_ASSERT(Response != nullptr, "response should be set");
+				VI_ASSERT(request != nullptr, "connection should be set");
+				VI_ASSERT(response != nullptr, "response should be set");
 
-				KimvUnorderedMap& Headers = (IsRequest ? Request->Headers : Response->Headers);
-				for (auto& Item : Headers)
+				kimv_unordered_map& headers = (is_request ? request->headers : response->headers);
+				for (auto& item : headers)
 				{
-					for (auto& Payload : Item.second)
-						Buffer.append(Item.first).append(": ").append(Payload).append("\r\n");
+					for (auto& payload : item.second)
+						buffer.append(item.first).append(": ").append(payload).append("\r\n");
 				}
 
-				if (IsRequest)
+				if (is_request)
 					return;
 
-				for (auto& Item : Response->Cookies)
+				for (auto& item : response->cookies)
 				{
-					if (Item.Name.empty())
+					if (item.name.empty())
 						continue;
 
-					Buffer.append("Set-Cookie: ").append(Item.Name).append("=").append(Item.Value);
-					if (!Item.Expires.empty())
-						Buffer.append("; Expires=").append(Item.Expires);
-					if (!Item.Domain.empty())
-						Buffer.append("; Domain=").append(Item.Domain);
-					if (!Item.Path.empty())
-						Buffer.append("; Path=").append(Item.Path);
-					if (!Item.SameSite.empty())
-						Buffer.append("; SameSite=").append(Item.SameSite);
-					if (Item.Secure)
-						Buffer.append("; SameSite");
-					if (Item.HttpOnly)
-						Buffer.append("; HttpOnly");
-					Buffer.append("\r\n");
+					buffer.append("Set-cookie: ").append(item.name).append("=").append(item.value);
+					if (!item.expires.empty())
+						buffer.append("; expires=").append(item.expires);
+					if (!item.domain.empty())
+						buffer.append("; domain=").append(item.domain);
+					if (!item.path.empty())
+						buffer.append("; path=").append(item.path);
+					if (!item.same_site.empty())
+						buffer.append("; same_site=").append(item.same_site);
+					if (item.secure)
+						buffer.append("; SameSite");
+					if (item.http_only)
+						buffer.append("; HttpOnly");
+					buffer.append("\r\n");
 				}
 			}
-			void Paths::ConstructHeadCache(Connection* Base, Core::String& Buffer)
+			void paths::construct_head_cache(connection* base, core::string& buffer)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (!Base->Route->StaticFileMaxAge)
-					return ConstructHeadUncache(Buffer);
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (!base->route->static_file_max_age)
+					return construct_head_uncache(buffer);
 
-				Buffer.append("Cache-Control: max-age=");
-				Buffer.append(Core::ToString(Base->Route->StaticFileMaxAge));
-				Buffer.append("\r\n");
+				buffer.append("Cache-control: max-age=");
+				buffer.append(core::to_string(base->route->static_file_max_age));
+				buffer.append("\r\n");
 			}
-			void Paths::ConstructHeadUncache(Core::String& Buffer)
+			void paths::construct_head_uncache(core::string& buffer)
 			{
-				Buffer.append(
-					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
+				buffer.append(
+					"Cache-control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
 					"Pragma: no-cache\r\n"
 					"Expires: 0\r\n", 102);
 			}
-			bool Paths::ConstructRoute(MapRouter* Router, Connection* Base)
+			bool paths::construct_route(map_router* router, connection* base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				VI_ASSERT(Router != nullptr && Router->Base != nullptr, "router should be valid");
-				if (Base->Request.Location.empty() || Base->Request.Location.front() != '/')
+				VI_ASSERT(base != nullptr, "connection should be set");
+				VI_ASSERT(router != nullptr && router->base != nullptr, "router should be valid");
+				if (base->request.location.empty() || base->request.location.front() != '/')
 					return false;
 
-				if (Router->Listeners.size() > 1)
+				if (router->listeners.size() > 1)
 				{
-					auto* Host = Base->Request.GetHeaderBlob("Host");
-					if (!Host)
+					auto* host = base->request.get_header_blob("Host");
+					if (!host)
 						return false;
 
-					auto Listen = Router->Listeners.find(*Host);
-					if (Listen == Router->Listeners.end() && Router->Listeners.find("*") == Router->Listeners.end())
+					auto listen = router->listeners.find(*host);
+					if (listen == router->listeners.end() && router->listeners.find("*") == router->listeners.end())
 						return false;
 				}
 				else
 				{
-					auto Listen = Router->Listeners.begin();
-					if (Listen->first.size() != 1 || Listen->first.front() != '*')
+					auto listen = router->listeners.begin();
+					if (listen->first.size() != 1 || listen->first.front() != '*')
 					{
-						auto* Host = Base->Request.GetHeaderBlob("Host");
-						if (!Host || Listen->first != *Host)
+						auto* host = base->request.get_header_blob("Host");
+						if (!host || listen->first != *host)
 							return false;
 					}
 				}
 
-				Base->Request.Referrer = Base->Request.Location;
-				if (Base->Request.Location.size() == 1)
+				base->request.referrer = base->request.location;
+				if (base->request.location.size() == 1)
 				{
-					Base->Route = Router->Base;
+					base->route = router->base;
 					return true;
 				}
 
-				for (auto& Group : Router->Groups)
+				for (auto& group : router->groups)
 				{
-					Core::String& Location = Base->Request.Location;
-					if (!Group->Match.empty())
+					core::string& location = base->request.location;
+					if (!group->match.empty())
 					{
-						if (Group->Mode == RouteMode::Exact)
+						if (group->mode == route_mode::exact)
 						{
-							if (Location != Group->Match)
+							if (location != group->match)
 								continue;
 
-							Location.clear();
+							location.clear();
 						}
-						else if (Group->Mode == RouteMode::Start)
+						else if (group->mode == route_mode::start)
 						{
-							if (!Core::Stringify::StartsWith(Location, Group->Match))
+							if (!core::stringify::starts_with(location, group->match))
 								continue;
 
-							Location.erase(Location.begin(), Location.begin() + Group->Match.size());
+							location.erase(location.begin(), location.begin() + group->match.size());
 						}
-						else if (Group->Mode == RouteMode::Match)
+						else if (group->mode == route_mode::match)
 						{
-							if (!Core::Stringify::Find(Location, Group->Match).Found)
+							if (!core::stringify::find(location, group->match).found)
 								continue;
 						}
-						else if (Group->Mode == RouteMode::End)
+						else if (group->mode == route_mode::end)
 						{
-							if (!Core::Stringify::EndsWith(Location, Group->Match))
+							if (!core::stringify::ends_with(location, group->match))
 								continue;
 
-							Location.erase(Location.end() - Group->Match.size(), Location.end());
+							location.erase(location.end() - group->match.size(), location.end());
 						}
 
-						if (Location.empty())
-							Location.append(1, '/');
-						else if (Location.front() != '/')
-							Location.insert(Location.begin(), '/');
+						if (location.empty())
+							location.append(1, '/');
+						else if (location.front() != '/')
+							location.insert(location.begin(), '/');
 
-						for (auto* Next : Group->Routes)
+						for (auto* next : group->routes)
 						{
-							VI_ASSERT(Next != nullptr, "route should be set");
-							if (Compute::Regex::Match(&Next->Location, Base->Request.Match, Location))
+							VI_ASSERT(next != nullptr, "route should be set");
+							if (compute::regex::match(&next->location, base->request.match, location))
 							{
-								Base->Route = Next;
+								base->route = next;
 								return true;
 							}
 						}
 
-						Location.assign(Base->Request.Referrer);
+						location.assign(base->request.referrer);
 					}
 					else
 					{
-						for (auto* Next : Group->Routes)
+						for (auto* next : group->routes)
 						{
-							VI_ASSERT(Next != nullptr, "route should be set");
-							if (Compute::Regex::Match(&Next->Location, Base->Request.Match, Location))
+							VI_ASSERT(next != nullptr, "route should be set");
+							if (compute::regex::match(&next->location, base->request.match, location))
 							{
-								Base->Route = Next;
+								base->route = next;
 								return true;
 							}
 						}
 					}
 				}
 
-				Base->Route = Router->Base;
+				base->route = router->base;
 				return true;
 			}
-			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::String& NameA, const Core::FileEntry& A, const Core::String& NameB, const Core::FileEntry& B)
+			bool paths::construct_directory_entries(connection* base, const core::string& name_a, const core::file_entry& a, const core::string& name_b, const core::file_entry& b)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				if (A.IsDirectory && !B.IsDirectory)
+				VI_ASSERT(base != nullptr, "connection should be set");
+				if (a.is_directory && !b.is_directory)
 					return true;
 
-				if (!A.IsDirectory && B.IsDirectory)
+				if (!a.is_directory && b.is_directory)
 					return false;
 
-				const char* Query = (Base->Request.Query.empty() ? nullptr : Base->Request.Query.c_str());
-				if (Query != nullptr)
+				const char* query = (base->request.query.empty() ? nullptr : base->request.query.c_str());
+				if (query != nullptr)
 				{
-					int Result = 0;
-					if (*Query == 'n')
-						Result = strcmp(NameA.c_str(), NameB.c_str());
-					else if (*Query == 's')
-						Result = (A.Size == B.Size) ? 0 : ((A.Size > B.Size) ? 1 : -1);
-					else if (*Query == 'd')
-						Result = (A.LastModified == B.LastModified) ? 0 : ((A.LastModified > B.LastModified) ? 1 : -1);
+					int result = 0;
+					if (*query == 'n')
+						result = strcmp(name_a.c_str(), name_b.c_str());
+					else if (*query == 's')
+						result = (a.size == b.size) ? 0 : ((a.size > b.size) ? 1 : -1);
+					else if (*query == 'd')
+						result = (a.last_modified == b.last_modified) ? 0 : ((a.last_modified > b.last_modified) ? 1 : -1);
 
-					if (Query[1] == 'a')
-						return Result < 0;
-					else if (Query[1] == 'd')
-						return Result > 0;
+					if (query[1] == 'a')
+						return result < 0;
+					else if (query[1] == 'd')
+						return result > 0;
 
-					return Result < 0;
+					return result < 0;
 				}
 
-				return strcmp(NameA.c_str(), NameB.c_str()) < 0;
+				return strcmp(name_a.c_str(), name_b.c_str()) < 0;
 			}
-			Core::String Paths::ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength)
+			core::string paths::construct_content_range(size_t offset, size_t length, size_t content_length)
 			{
-				Core::String Field = "bytes ";
-				Field += Core::ToString(Offset);
-				Field += '-';
-				Field += Core::ToString(Offset + Length);
-				Field += '/';
-				Field += Core::ToString(ContentLength);
+				core::string field = "bytes ";
+				field += core::to_string(offset);
+				field += '-';
+				field += core::to_string(offset + length);
+				field += '/';
+				field += core::to_string(content_length);
 
-				return Field;
+				return field;
 			}
 
-			bool Parsing::ParseMultipartHeaderField(Parser* Parser, const uint8_t* Name, size_t Length)
+			bool parsing::parse_multipart_header_field(parser* parser, const uint8_t* name, size_t length)
 			{
-				return ParseHeaderField(Parser, Name, Length);
+				return parse_header_field(parser, name, length);
 			}
-			bool Parsing::ParseMultipartHeaderValue(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_multipart_header_value(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
 
-				if (!Length || Parser->Multipart.Skip)
+				if (!length || parser->multipart.skip)
 					return true;
 
-				if (Parser->Message.Header.empty())
+				if (parser->message.header.empty())
 					return true;
 
-				std::string_view Value = std::string_view((char*)Data, Length);
-				if (Parser->Message.Header == "Content-Disposition")
+				std::string_view value = std::string_view((char*)data, length);
+				if (parser->message.header == "Content-Disposition")
 				{
-					Core::TextSettle Start = Core::Stringify::Find(Value, "name=\"");
-					if (Start.Found)
+					core::text_settle start = core::stringify::find(value, "name=\"");
+					if (start.found)
 					{
-						Core::TextSettle End = Core::Stringify::Find(Value, '\"', Start.End);
-						if (End.Found)
-							Parser->Multipart.Data.Key = Value.substr(Start.End, End.End - Start.End - 1);
+						core::text_settle end = core::stringify::find(value, '\"', start.end);
+						if (end.found)
+							parser->multipart.data.key = value.substr(start.end, end.end - start.end - 1);
 					}
 
-					Start = Core::Stringify::Find(Value, "filename=\"");
-					if (Start.Found)
+					start = core::stringify::find(value, "filename=\"");
+					if (start.found)
 					{
-						Core::TextSettle End = Core::Stringify::Find(Value, '\"', Start.End);
-						if (End.Found)
+						core::text_settle end = core::stringify::find(value, '\"', start.end);
+						if (end.found)
 						{
-							auto Name = Value.substr(Start.End, End.End - Start.End - 1);
-							Parser->Multipart.Data.Name = Core::OS::Path::GetFilename(Name);
+							auto name = value.substr(start.end, end.end - start.end - 1);
+							parser->multipart.data.name = core::os::path::get_filename(name);
 						}
 					}
 				}
-				else if (Parser->Message.Header == "Content-Type")
-					Parser->Multipart.Data.Type = Value;
+				else if (parser->message.header == "Content-Type")
+					parser->multipart.data.type = value;
 
-				Parser->Multipart.Data.SetHeader(Parser->Message.Header.c_str(), Value);
-				Parser->Message.Header.clear();
+				parser->multipart.data.set_header(parser->message.header.c_str(), value);
+				parser->message.header.clear();
 				return true;
 			}
-			bool Parsing::ParseMultipartContentData(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_multipart_content_data(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-				if (!Length)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
+				if (!length)
 					return true;
 
-				if (Parser->Multipart.Skip || !Parser->Multipart.Stream)
+				if (parser->multipart.skip || !parser->multipart.stream)
 					return false;
 
-				if (fwrite(Data, 1, (size_t)Length, Parser->Multipart.Stream) != (size_t)Length)
+				if (fwrite(data, 1, (size_t)length, parser->multipart.stream) != (size_t)length)
 					return false;
 
-				Parser->Multipart.Data.Length += Length;
+				parser->multipart.data.length += length;
 				return true;
 			}
-			bool Parsing::ParseMultipartResourceBegin(Parser* Parser)
+			bool parsing::parse_multipart_resource_begin(parser* parser)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Multipart.Skip || !Parser->Message.Content)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				if (parser->multipart.skip || !parser->message.content)
 					return true;
 
-				if (Parser->Multipart.Stream != nullptr)
+				if (parser->multipart.stream != nullptr)
 				{
-					Core::OS::File::Close(Parser->Multipart.Stream);
-					Parser->Multipart.Stream = nullptr;
+					core::os::file::close(parser->multipart.stream);
+					parser->multipart.stream = nullptr;
 					return false;
 				}
 
-				if (Parser->Message.Content->Resources.size() >= Parser->Multipart.MaxResources)
+				if (parser->message.content->resources.size() >= parser->multipart.max_resources)
 				{
-					Parser->Multipart.Finish = true;
+					parser->multipart.finish = true;
 					return false;
 				}
 
-				Parser->Message.Header.clear();
-				Parser->Multipart.Data.Headers.clear();
-				Parser->Multipart.Data.Name.clear();
-				Parser->Multipart.Data.Type = "application/octet-stream";
-				Parser->Multipart.Data.IsInMemory = false;
-				Parser->Multipart.Data.Length = 0;
+				parser->message.header.clear();
+				parser->multipart.data.headers.clear();
+				parser->multipart.data.name.clear();
+				parser->multipart.data.type = "application/octet-stream";
+				parser->multipart.data.is_in_memory = false;
+				parser->multipart.data.length = 0;
 
-				if (Parser->Multipart.TemporaryDirectory != nullptr)
+				if (parser->multipart.temporary_directory != nullptr)
 				{
-					Parser->Multipart.Data.Path = *Parser->Multipart.TemporaryDirectory;
-					if (Parser->Multipart.Data.Path.back() != '/' && Parser->Multipart.Data.Path.back() != '\\')
-						Parser->Multipart.Data.Path.append(1, VI_SPLITTER);
+					parser->multipart.data.path = *parser->multipart.temporary_directory;
+					if (parser->multipart.data.path.back() != '/' && parser->multipart.data.path.back() != '\\')
+						parser->multipart.data.path.append(1, VI_SPLITTER);
 
-					auto Random = Compute::Crypto::RandomBytes(16);
-					if (Random)
+					auto random = compute::crypto::random_bytes(16);
+					if (random)
 					{
-						auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Random);
-						if (Hash)
-							Parser->Multipart.Data.Path.append(*Hash);
+						auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *random);
+						if (hash)
+							parser->multipart.data.path.append(*hash);
 					}
 				}
 
-				auto File = Core::OS::File::Open(Parser->Multipart.Data.Path.c_str(), "wb");
-				if (!File)
+				auto file = core::os::file::open(parser->multipart.data.path.c_str(), "wb");
+				if (!file)
 					return false;
 
-				Parser->Multipart.Stream = *File;
+				parser->multipart.stream = *file;
 				return true;
 			}
-			bool Parsing::ParseMultipartResourceEnd(Parser* Parser)
+			bool parsing::parse_multipart_resource_end(parser* parser)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Multipart.Skip || !Parser->Multipart.Stream || !Parser->Message.Content)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				if (parser->multipart.skip || !parser->multipart.stream || !parser->message.content)
 					return true;
 
-				Core::OS::File::Close(Parser->Multipart.Stream);
-				Parser->Multipart.Stream = nullptr;
-				Parser->Message.Content->Resources.push_back(Parser->Multipart.Data);
+				core::os::file::close(parser->multipart.stream);
+				parser->multipart.stream = nullptr;
+				parser->message.content->resources.push_back(parser->multipart.data);
 
-				if (Parser->Multipart.Callback)
-					Parser->Multipart.Callback(&Parser->Message.Content->Resources.back());
+				if (parser->multipart.callback)
+					parser->multipart.callback(&parser->message.content->resources.back());
 
 				return true;
 			}
-			bool Parsing::ParseHeaderField(Parser* Parser, const uint8_t* Name, size_t Length)
+			bool parsing::parse_header_field(parser* parser, const uint8_t* name, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Name != nullptr, "name should be set");
-				if (Length > 0)
-					Parser->Message.Header.assign((char*)Name, Length);
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(name != nullptr, "name should be set");
+				if (length > 0)
+					parser->message.header.assign((char*)name, length);
 				return true;
 			}
-			bool Parsing::ParseHeaderValue(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_header_value(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-				if (!Length || Parser->Message.Header.empty())
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
+				if (!length || parser->message.header.empty())
 					return true;
 
-				if (Core::Stringify::CaseEquals(Parser->Message.Header.c_str(), "cookie"))
+				if (core::stringify::case_equals(parser->message.header.c_str(), "cookie"))
 				{
-					if (!Parser->Message.Cookies)
-						goto Success;
+					if (!parser->message.cookies)
+						goto success;
 
-					Core::Vector<std::pair<Core::String, Core::String>> Cookies;
-					const uint8_t* Offset = Data;
+					core::vector<std::pair<core::string, core::string>> cookies;
+					const uint8_t* offset = data;
 
-					for (size_t i = 0; i < Length; i++)
+					for (size_t i = 0; i < length; i++)
 					{
-						if (Data[i] != '=')
+						if (data[i] != '=')
 							continue;
 
-						Core::String Name((char*)Offset, (size_t)((Data + i) - Offset));
-						size_t Set = i;
+						core::string name((char*)offset, (size_t)((data + i) - offset));
+						size_t set = i;
 
-						while (i + 1 < Length && Data[i] != ';')
+						while (i + 1 < length && data[i] != ';')
 							i++;
 
-						if (Data[i] == ';')
+						if (data[i] == ';')
 							i--;
 
-						Cookies.emplace_back(std::make_pair(std::move(Name), Core::String((char*)Data + Set + 1, i - Set)));
-						Offset = Data + (i + 3);
+						cookies.emplace_back(std::make_pair(std::move(name), core::string((char*)data + set + 1, i - set)));
+						offset = data + (i + 3);
 					}
 
-					for (auto&& Item : Cookies)
+					for (auto&& item : cookies)
 					{
-						auto& Cookie = (*Parser->Message.Cookies)[Item.first];
-						Cookie.emplace_back(std::move(Item.second));
+						auto& cookie = (*parser->message.cookies)[item.first];
+						cookie.emplace_back(std::move(item.second));
 					}
 				}
-				else if (Parser->Message.Headers != nullptr)
+				else if (parser->message.headers != nullptr)
 				{
-					auto& Source = (*Parser->Message.Headers)[Parser->Message.Header]; bool AppendField = true;
-					if (!Core::Stringify::CaseEquals(Parser->Message.Header.c_str(), "user-agent"))
+					auto& source = (*parser->message.headers)[parser->message.header]; bool append_field = true;
+					if (!core::stringify::case_equals(parser->message.header.c_str(), "user-agent"))
 					{
-						if (Parser->Message.Header.find(',') != std::string::npos)
+						if (parser->message.header.find(',') != std::string::npos)
 						{
-							AppendField = false;
-							Core::Stringify::PmSplit(Source, std::string_view((char*)Data, Length), ',');
-							for (auto& Item : Source)
-								Core::Stringify::Trim(Item);
+							append_field = false;
+							core::stringify::pm_split(source, std::string_view((char*)data, length), ',');
+							for (auto& item : source)
+								core::stringify::trim(item);
 						}
 					}
-					
-					if (AppendField)
-						Source.emplace_back((char*)Data, Length);
+
+					if (append_field)
+						source.emplace_back((char*)data, length);
 				}
 
-			Success:
-				Parser->Message.Header.clear();
+			success:
+				parser->message.header.clear();
 				return true;
 			}
-			bool Parsing::ParseVersion(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_version(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-				if (!Length || !Parser->Message.Version)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
+				if (!length || !parser->message.version)
 					return true;
 
-				memset(Parser->Message.Version, 0, LABEL_SIZE);
-				memcpy((void*)Parser->Message.Version, (void*)Data, std::min<size_t>(Length, LABEL_SIZE));
+				memset(parser->message.version, 0, LABEL_SIZE);
+				memcpy((void*)parser->message.version, (void*)data, std::min<size_t>(length, LABEL_SIZE));
 				return true;
 			}
-			bool Parsing::ParseStatusCode(Parser* Parser, size_t Value)
+			bool parsing::parse_status_code(parser* parser, size_t value)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				if (Parser->Message.StatusCode != nullptr)
-					*Parser->Message.StatusCode = (int)Value;
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				if (parser->message.status_code != nullptr)
+					*parser->message.status_code = (int)value;
 				return true;
 			}
-			bool Parsing::ParseStatusMessage(Parser* Parser, const uint8_t* Name, size_t Length)
+			bool parsing::parse_status_message(parser* parser, const uint8_t* name, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
+				VI_ASSERT(parser != nullptr, "parser should be set");
 				return true;
 			}
-			bool Parsing::ParseMethodValue(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_method_value(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-				if (!Length || !Parser->Message.Method)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
+				if (!length || !parser->message.method)
 					return true;
 
-				memset(Parser->Message.Method, 0, LABEL_SIZE);
-				memcpy((void*)Parser->Message.Method, (void*)Data, std::min<size_t>(Length, LABEL_SIZE));
+				memset(parser->message.method, 0, LABEL_SIZE);
+				memcpy((void*)parser->message.method, (void*)data, std::min<size_t>(length, LABEL_SIZE));
 				return true;
 			}
-			bool Parsing::ParsePathValue(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_path_value(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-				if (!Length || !Parser->Message.Location)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
+				if (!length || !parser->message.location)
 					return true;
 
-				Parser->Message.Location->assign((char*)Data, Length);
+				parser->message.location->assign((char*)data, length);
 				return true;
 			}
-			bool Parsing::ParseQueryValue(Parser* Parser, const uint8_t* Data, size_t Length)
+			bool parsing::parse_query_value(parser* parser, const uint8_t* data, size_t length)
 			{
-				VI_ASSERT(Parser != nullptr, "parser should be set");
-				VI_ASSERT(Data != nullptr, "data should be set");
-				if (!Length || !Parser->Message.Query)
+				VI_ASSERT(parser != nullptr, "parser should be set");
+				VI_ASSERT(data != nullptr, "data should be set");
+				if (!length || !parser->message.query)
 					return true;
 
-				Parser->Message.Query->assign((char*)Data, Length);
+				parser->message.query->assign((char*)data, length);
 				return true;
 			}
-			int Parsing::ParseContentRange(const std::string_view& ContentRange, int64_t* Range1, int64_t* Range2)
+			int parsing::parse_content_range(const std::string_view& content_range, int64_t* range1, int64_t* range2)
 			{
-				VI_ASSERT(Core::Stringify::IsCString(ContentRange), "content range should be set");
-				VI_ASSERT(Range1 != nullptr, "range 1 should be set");
-				VI_ASSERT(Range2 != nullptr, "range 2 should be set");
-				return sscanf(ContentRange.data(), "bytes=%" PRId64 "-%" PRId64, Range1, Range2);
+				VI_ASSERT(core::stringify::is_cstring(content_range), "content range should be set");
+				VI_ASSERT(range1 != nullptr, "range 1 should be set");
+				VI_ASSERT(range2 != nullptr, "range 2 should be set");
+				return sscanf(content_range.data(), "bytes=%" PRId64 "-%" PRId64, range1, range2);
 			}
-			Core::String Parsing::ParseMultipartDataBoundary()
+			core::string parsing::parse_multipart_data_boundary()
 			{
-				static const char Data[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-				std::random_device SeedGenerator;
-				std::mt19937 Engine(SeedGenerator());
-				Core::String Result = "--sha1-digest-multipart-data-";
+				static const char data[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+				std::random_device seed_generator;
+				std::mt19937 engine(seed_generator());
+				core::string result = "--sha1-digest-multipart-data-";
 				for (int i = 0; i < 16; i++)
-					Result += Data[Engine() % (sizeof(Data) - 1)];
+					result += data[engine() % (sizeof(data) - 1)];
 
-				return Result;
+				return result;
 			}
 
-			Core::String Permissions::Authorize(const std::string_view& Username, const std::string_view& Password, const std::string_view& Type)
+			core::string permissions::authorize(const std::string_view& username, const std::string_view& password, const std::string_view& type)
 			{
-				Core::String Body = Core::String(Username);
-				Body.append(1, ':');
-				Body.append(Password);
+				core::string body = core::string(username);
+				body.append(1, ':');
+				body.append(password);
 
-				Core::String Result = Core::String(Type);
-				Result.append(1, ' ');
-				Result.append(Compute::Codec::Base64Encode(Body));
-				return Result;
+				core::string result = core::string(type);
+				result.append(1, ' ');
+				result.append(compute::codec::base64_encode(body));
+				return result;
 			}
-			bool Permissions::Authorize(Connection* Base)
+			bool permissions::authorize(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto* Route = Base->Route;
-				if (!Route->Callbacks.Authorize || Route->Auth.Type.empty())
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto* route = base->route;
+				if (!route->callbacks.authorize || route->auth.type.empty())
 					return true;
 
-				bool IsSupported = false;
-				for (auto& Item : Route->Auth.Methods)
+				bool is_supported = false;
+				for (auto& item : route->auth.methods)
 				{
-					if (Item == Base->Request.Method)
+					if (item == base->request.method)
 					{
-						IsSupported = true;
+						is_supported = true;
 						break;
 					}
 				}
 
-				if (!IsSupported && !Route->Auth.Methods.empty())
+				if (!is_supported && !route->auth.methods.empty())
 				{
-					Base->Request.User.Type = Auth::Denied;
-					Base->Abort(401, "Authorization method is not allowed");
+					base->request.user.type = auth::denied;
+					base->abort(401, "Authorization method is not allowed");
 					return false;
 				}
 
-				auto Authorization = Base->Request.GetHeader("Authorization");
-				if (Authorization.empty())
+				auto authorization = base->request.get_header("Authorization");
+				if (authorization.empty())
 				{
-					Base->Request.User.Type = Auth::Denied;
-					Base->Abort(401, "Provide authorization header to continue.");
+					base->request.user.type = auth::denied;
+					base->abort(401, "Provide authorization header to continue.");
 					return false;
 				}
 
-				size_t Index = 0;
-				while (Authorization[Index] != ' ' && Authorization[Index] != '\0')
-					Index++;
+				size_t index = 0;
+				while (authorization[index] != ' ' && authorization[index] != '\0')
+					index++;
 
-				Core::String Type(Authorization.data(), Index);
-				if (Type != Route->Auth.Type)
+				core::string type(authorization.data(), index);
+				if (type != route->auth.type)
 				{
-					Base->Request.User.Type = Auth::Denied;
-					Base->Abort(401, "Authorization type \"%s\" is not allowed.", Type.c_str());
+					base->request.user.type = auth::denied;
+					base->abort(401, "Authorization type \"%s\" is not allowed.", type.c_str());
 					return false;
 				}
 
-				Base->Request.User.Token = Authorization.substr(Index + 1);
-				if (Route->Callbacks.Authorize(Base, &Base->Request.User))
+				base->request.user.token = authorization.substr(index + 1);
+				if (route->callbacks.authorize(base, &base->request.user))
 				{
-					Base->Request.User.Type = Auth::Granted;
+					base->request.user.type = auth::granted;
 					return true;
 				}
 
-				Base->Request.User.Type = Auth::Denied;
-				Base->Abort(401, "Invalid user access credentials were provided. Access denied.");
+				base->request.user.type = auth::denied;
+				base->abort(401, "Invalid user access credentials were provided. access denied.");
 				return false;
 			}
-			bool Permissions::MethodAllowed(Connection* Base)
+			bool permissions::method_allowed(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				for (auto& Item : Base->Route->DisallowedMethods)
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				for (auto& item : base->route->disallowed_methods)
 				{
-					if (Item == Base->Request.Method)
+					if (item == base->request.method)
 						return false;
 				}
 
 				return true;
 			}
-			bool Permissions::WebSocketUpgradeAllowed(Connection* Base)
+			bool permissions::web_socket_upgrade_allowed(connection* base)
 			{
-				VI_ASSERT(Base != nullptr, "connection should be set");
-				auto Upgrade = Base->Request.GetHeader("Upgrade");
-				if (Upgrade.empty() || !Core::Stringify::CaseEquals(Upgrade, "websocket"))
+				VI_ASSERT(base != nullptr, "connection should be set");
+				auto upgrade = base->request.get_header("Upgrade");
+				if (upgrade.empty() || !core::stringify::case_equals(upgrade, "websocket"))
 					return false;
 
-				auto Connection = Base->Request.GetHeader("Connection");
-				if (Connection.empty() || !Core::Stringify::CaseEquals(Connection, "upgrade"))
+				auto connection = base->request.get_header("Connection");
+				if (connection.empty() || !core::stringify::case_equals(connection, "upgrade"))
 					return false;
 
 				return true;
 			}
 
-			bool Resources::ResourceHasAlternative(Connection* Base)
+			bool resources::resource_has_alternative(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->TryFiles.empty())
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->try_files.empty())
 					return false;
 
-				for (auto& Item : Base->Route->TryFiles)
+				for (auto& item : base->route->try_files)
 				{
-					if (Core::OS::File::GetState(Item, &Base->Resource))
+					if (core::os::file::get_state(item, &base->resource))
 					{
-						Base->Request.Path = Item;
+						base->request.path = item;
 						return true;
 					}
 				}
 
 				return false;
 			}
-			bool Resources::ResourceHidden(Connection* Base, Core::String* Path)
+			bool resources::resource_hidden(connection* base, core::string* path)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->HiddenFiles.empty())
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->hidden_files.empty())
 					return false;
 
-				Compute::RegexResult Result;
-				const auto& Value = (Path ? *Path : Base->Request.Path);
-				for (auto& Item : Base->Route->HiddenFiles)
+				compute::regex_result result;
+				const auto& value = (path ? *path : base->request.path);
+				for (auto& item : base->route->hidden_files)
 				{
-					if (Compute::Regex::Match(&Item, Result, Value))
+					if (compute::regex::match(&item, result, value))
 						return true;
 				}
 
 				return false;
 			}
-			bool Resources::ResourceIndexed(Connection* Base, Core::FileEntry* Resource)
+			bool resources::resource_indexed(connection* base, core::file_entry* resource)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Resource != nullptr, "resource should be set");
-				if (Base->Route->IndexFiles.empty())
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(resource != nullptr, "resource should be set");
+				if (base->route->index_files.empty())
 					return false;
 
-				Core::String Path = Base->Request.Path;
-				if (!Core::Stringify::EndsOf(Path, "/\\"))
-					Path.append(1, VI_SPLITTER);
+				core::string path = base->request.path;
+				if (!core::stringify::ends_of(path, "/\\"))
+					path.append(1, VI_SPLITTER);
 
-				for (auto& Item : Base->Route->IndexFiles)
+				for (auto& item : base->route->index_files)
 				{
-					if (Core::OS::File::GetState(Item, Resource))
+					if (core::os::file::get_state(item, resource))
 					{
-						Base->Request.Path.assign(Item);
+						base->request.path.assign(item);
 						return true;
 					}
-					else if (Core::OS::File::GetState(Path + Item, Resource))
+					else if (core::os::file::get_state(path + item, resource))
 					{
-						Base->Request.Path.assign(Path.append(Item));
+						base->request.path.assign(path.append(item));
 						return true;
 					}
 				}
 
 				return false;
 			}
-			bool Resources::ResourceModified(Connection* Base, Core::FileEntry* Resource)
+			bool resources::resource_modified(connection* base, core::file_entry* resource)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Resource != nullptr, "resource should be set");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(resource != nullptr, "resource should be set");
 
-				auto CacheControl = Base->Request.GetHeader("Cache-Control");
-				if (!CacheControl.empty() && (Core::Stringify::CaseEquals(CacheControl, "no-cache") || Core::Stringify::CaseEquals(CacheControl, "max-age=0")))
+				auto cache_control = base->request.get_header("Cache-Control");
+				if (!cache_control.empty() && (core::stringify::case_equals(cache_control, "no-cache") || core::stringify::case_equals(cache_control, "max-age=0")))
 					return true;
 
-				auto IfNoneMatch = Base->Request.GetHeader("If-None-Match");
-				if (!IfNoneMatch.empty())
+				auto if_none_match = base->request.get_header("If-none-Match");
+				if (!if_none_match.empty())
 				{
-					char ETag[64];
-					Core::OS::Net::GetETag(ETag, sizeof(ETag), Resource);
-					if (Core::Stringify::CaseEquals(ETag, IfNoneMatch))
+					char etag[64];
+					core::os::net::get_etag(etag, sizeof(etag), resource);
+					if (core::stringify::case_equals(etag, if_none_match))
 						return false;
 				}
 
-				auto IfModifiedSince = Base->Request.GetHeader("If-Modified-Since");
-				if (IfModifiedSince.empty())
+				auto if_modified_since = base->request.get_header("If-modified-Since");
+				if (if_modified_since.empty())
 					return false;
 
-				return Resource->LastModified > Core::DateTime::SecondsFromSerialized(IfModifiedSince, Core::DateTime::FormatWebTime());
+				return resource->last_modified > core::date_time::seconds_from_serialized(if_modified_since, core::date_time::format_web_time());
 
 			}
-			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
+			bool resources::resource_compressed(connection* base, size_t size)
 			{
 #ifdef VI_ZLIB
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto* Route = Base->Route;
-				if (!Route->Compression.Enabled || Size < Route->Compression.MinLength)
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto* route = base->route;
+				if (!route->compression.enabled || size < route->compression.min_length)
 					return false;
 
-				if (Route->Compression.Files.empty())
+				if (route->compression.files.empty())
 					return true;
 
-				Compute::RegexResult Result;
-				for (auto& Item : Route->Compression.Files)
+				compute::regex_result result;
+				for (auto& item : route->compression.files)
 				{
-					if (Compute::Regex::Match(&Item, Result, Base->Request.Path))
+					if (compute::regex::match(&item, result, base->request.path))
 						return true;
 				}
 
@@ -4935,1950 +4935,1950 @@ namespace Vitex
 #endif
 			}
 
-			bool Routing::RouteWebSocket(Connection* Base)
+			bool routing::route_web_socket(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (!Base->Route->AllowWebSocket)
-					return Base->Abort(404, "Websocket protocol is not allowed on this server.");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (!base->route->allow_web_socket)
+					return base->abort(404, "Websocket protocol is not allowed on this server.");
 
-				auto* WebSocketKey = Base->Request.GetHeaderBlob("Sec-WebSocket-Key");
-				if (WebSocketKey != nullptr)
-					return Logical::ProcessWebSocket(Base, (uint8_t*)WebSocketKey->c_str(), WebSocketKey->size());
+				auto* web_socket_key = base->request.get_header_blob("Sec-web_socket-Key");
+				if (web_socket_key != nullptr)
+					return logical::process_web_socket(base, (uint8_t*)web_socket_key->c_str(), web_socket_key->size());
 
-				auto WebSocketKey1 = Base->Request.GetHeader("Sec-WebSocket-Key1");
-				if (WebSocketKey1.empty())
-					return Base->Abort(400, "Malformed websocket request. Provide first key.");
+				auto web_socket_key1 = base->request.get_header("Sec-web_socket-Key1");
+				if (web_socket_key1.empty())
+					return base->abort(400, "Malformed websocket request. provide first key.");
 
-				auto WebSocketKey2 = Base->Request.GetHeader("Sec-WebSocket-Key2");
-				if (WebSocketKey2.empty())
-					return Base->Abort(400, "Malformed websocket request. Provide second key.");
+				auto web_socket_key2 = base->request.get_header("Sec-web_socket-Key2");
+				if (web_socket_key2.empty())
+					return base->abort(400, "Malformed websocket request. provide second key.");
 
-				auto ResolveConnection = [Base](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+				auto resolve_connection = [base](socket_poll event, const uint8_t* buffer, size_t recv)
 				{
-					if (Packet::IsData(Event))
-						Base->Request.Content.Append(std::string_view((char*)Buffer, Recv));
-					else if (Packet::IsDone(Event))
-						Logical::ProcessWebSocket(Base, (uint8_t*)Base->Request.Content.Data.data(), HTTP_WEBSOCKET_LEGACY_KEY_SIZE);
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					if (packet::is_data(event))
+						base->request.content.append(std::string_view((char*)buffer, recv));
+					else if (packet::is_done(event))
+						logical::process_web_socket(base, (uint8_t*)base->request.content.data.data(), HTTP_WEBSOCKET_LEGACY_KEY_SIZE);
+					else if (packet::is_error(event))
+						base->abort();
 					return true;
 				};
-				if (Base->Request.Content.Prefetch >= HTTP_WEBSOCKET_LEGACY_KEY_SIZE)
-					return ResolveConnection(SocketPoll::FinishSync, (uint8_t*)"", 0);
+				if (base->request.content.prefetch >= HTTP_WEBSOCKET_LEGACY_KEY_SIZE)
+					return resolve_connection(socket_poll::finish_sync, (uint8_t*)"", 0);
 
-				return !!Base->Stream->ReadQueued(HTTP_WEBSOCKET_LEGACY_KEY_SIZE - Base->Request.Content.Prefetch, ResolveConnection);
+				return !!base->stream->read_queued(HTTP_WEBSOCKET_LEGACY_KEY_SIZE - base->request.content.prefetch, resolve_connection);
 			}
-			bool Routing::RouteGet(Connection* Base)
+			bool routing::route_get(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->FilesDirectory.empty() || !Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->files_directory.empty() || !core::os::file::get_state(base->request.path, &base->resource))
 				{
-					if (Permissions::WebSocketUpgradeAllowed(Base))
-						return RouteWebSocket(Base);
+					if (permissions::web_socket_upgrade_allowed(base))
+						return route_web_socket(base);
 
-					if (!Resources::ResourceHasAlternative(Base))
-						return Base->Abort(404, "Requested resource was not found.");
+					if (!resources::resource_has_alternative(base))
+						return base->abort(404, "Requested resource was not found.");
 				}
 
-				if (Permissions::WebSocketUpgradeAllowed(Base))
-					return RouteWebSocket(Base);
+				if (permissions::web_socket_upgrade_allowed(base))
+					return route_web_socket(base);
 
-				if (Resources::ResourceHidden(Base, nullptr))
-					return Base->Abort(404, "Requested resource was not found.");
+				if (resources::resource_hidden(base, nullptr))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
+				if (base->resource.is_directory && !resources::resource_indexed(base, &base->resource))
 				{
-					if (Base->Route->AllowDirectoryListing)
+					if (base->route->allow_directory_listing)
 					{
-						Core::Cospawn([Base]() { Logical::ProcessDirectory(Base); });
+						core::cospawn([base]() { logical::process_directory(base); });
 						return true;
 					}
 
-					return Base->Abort(403, "Directory listing denied.");
+					return base->abort(403, "Directory listing denied.");
 				}
 
-				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-					return Logical::ProcessResourceCache(Base);
+				if (base->route->static_file_max_age > 0 && !resources::resource_modified(base, &base->resource))
+					return logical::process_resource_cache(base);
 
-				return Logical::ProcessResource(Base);
+				return logical::process_resource(base);
 			}
-			bool Routing::RoutePost(Connection* Base)
+			bool routing::route_post(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Abort(404, "Requested resource was not found.");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->files_directory.empty() || resources::resource_hidden(base, nullptr))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Abort(404, "Requested resource was not found.");
+				if (!core::os::file::get_state(base->request.path, &base->resource))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
-					return Base->Abort(404, "Requested resource was not found.");
+				if (base->resource.is_directory && !resources::resource_indexed(base, &base->resource))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
-					return Logical::ProcessResourceCache(Base);
+				if (base->route->static_file_max_age > 0 && !resources::resource_modified(base, &base->resource))
+					return logical::process_resource_cache(base);
 
-				return Logical::ProcessResource(Base);
+				return logical::process_resource(base);
 			}
-			bool Routing::RoutePut(Connection* Base)
+			bool routing::route_put(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Abort(403, "Resource overwrite denied.");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->files_directory.empty() || resources::resource_hidden(base, nullptr))
+					return base->abort(403, "Resource overwrite denied.");
 
-				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Abort(403, "Directory overwrite denied.");
+				if (!core::os::file::get_state(base->request.path, &base->resource))
+					return base->abort(403, "Directory overwrite denied.");
 
-				if (!Base->Resource.IsDirectory)
-					return Base->Abort(403, "Directory overwrite denied.");
+				if (!base->resource.is_directory)
+					return base->abort(403, "Directory overwrite denied.");
 
-				auto Range = Base->Request.GetHeader("Range");
-				int64_t Range1 = 0, Range2 = 0;
+				auto range = base->request.get_header("Range");
+				int64_t range1 = 0, range2 = 0;
 
-				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "wb");
-				if (!File)
-					return Base->Abort(422, "Resource stream cannot be opened.");
+				auto file = core::os::file::open(base->request.path.c_str(), "wb");
+				if (!file)
+					return base->abort(422, "Resource stream cannot be opened.");
 
-				FILE* Stream = *File;
-				if (!Range.empty() && HTTP::Parsing::ParseContentRange(Range, &Range1, &Range2))
+				FILE* stream = *file;
+				if (!range.empty() && http::parsing::parse_content_range(range, &range1, &range2))
 				{
-					if (Base->Response.StatusCode <= 0)
-						Base->Response.StatusCode = 206;
+					if (base->response.status_code <= 0)
+						base->response.status_code = 206;
 
-					if (!Core::OS::File::Seek64(Stream, Range1, Core::FileSeek::Begin))
-						return Base->Abort(416, "Invalid content range offset (%" PRId64 ") was specified.", Range1);
+					if (!core::os::file::seek64(stream, range1, core::file_seek::begin))
+						return base->abort(416, "Invalid content range offset (%" PRId64 ") was specified.", range1);
 				}
 				else
-					Base->Response.StatusCode = 204;
+					base->response.status_code = 204;
 
-				return Base->Fetch([Stream](Connection* Base, SocketPoll Event, const std::string_view& Buffer)
+				return base->fetch([stream](connection* base, socket_poll event, const std::string_view& buffer)
 				{
-					if (Packet::IsData(Event))
+					if (packet::is_data(event))
 					{
-						fwrite(Buffer.data(), sizeof(char) * Buffer.size(), 1, Stream);
+						fwrite(buffer.data(), sizeof(char) * buffer.size(), 1, stream);
 						return true;
 					}
-					else if (Packet::IsDone(Event))
+					else if (packet::is_done(event))
 					{
-						char Date[64];
-						auto* Content = HrmCache::Get()->Pop();
-						Content->append(Base->Request.Version);
-						Content->append(" 204 No Content\r\nDate: ");
-						Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-						Content->append("\r\n");
-						Content->append("Content-Location: ").append(Base->Request.Location).append("\r\n");
-						Core::OS::File::Close(Stream);
+						char date[64];
+						auto* content = hrm_cache::get()->pop();
+						content->append(base->request.version);
+						content->append(" 204 no content\r\nDate: ");
+						content->append(header_date(date, base->info.start / 1000));
+						content->append("\r\n");
+						content->append("Content-location: ").append(base->request.location).append("\r\n");
+						core::os::file::close(stream);
 
-						Utils::UpdateKeepAliveHeaders(Base, *Content);
-						if (Base->Route->Callbacks.Headers)
-							Base->Route->Callbacks.Headers(Base, *Content);
+						utils::update_keep_alive_headers(base, *content);
+						if (base->route->callbacks.headers)
+							base->route->callbacks.headers(base, *content);
 
-						Content->append("\r\n", 2);
-						return !Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+						content->append("\r\n", 2);
+						return !base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 						{
-							HrmCache::Get()->Push(Content);
-							if (Packet::IsDone(Event))
-								Base->Next();
-							else if (Packet::IsError(Event))
-								Base->Abort();
+							hrm_cache::get()->push(content);
+							if (packet::is_done(event))
+								base->next();
+							else if (packet::is_error(event))
+								base->abort();
 						}, false);
 					}
-					else if (Packet::IsError(Event))
+					else if (packet::is_error(event))
 					{
-						Core::OS::File::Close(Stream);
-						return Base->Abort();
+						core::os::file::close(stream);
+						return base->abort();
 					}
-					else if (Packet::IsSkip(Event))
-						Core::OS::File::Close(Stream);
+					else if (packet::is_skip(event))
+						core::os::file::close(stream);
 
 					return true;
 				});
 			}
-			bool Routing::RoutePatch(Connection* Base)
+			bool routing::route_patch(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Abort(404, "Requested resource was not found.");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->files_directory.empty() || resources::resource_hidden(base, nullptr))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Abort(404, "Requested resource was not found.");
+				if (!core::os::file::get_state(base->request.path, &base->resource))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
-					return Base->Abort(404, "Requested resource cannot be directory.");
+				if (base->resource.is_directory && !resources::resource_indexed(base, &base->resource))
+					return base->abort(404, "Requested resource cannot be directory.");
 
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version);
-				Content->append(" 204 No Content\r\nDate: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
-				Content->append("Content-Location: ").append(Base->Request.Location).append("\r\n");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version);
+				content->append(" 204 no content\r\nDate: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
+				content->append("Content-location: ").append(base->request.location).append("\r\n");
 
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				content->append("\r\n", 2);
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
-					HrmCache::Get()->Push(Content);
-					if (Packet::IsDone(Event))
-						Base->Next(204);
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					hrm_cache::get()->push(content);
+					if (packet::is_done(event))
+						base->next(204);
+					else if (packet::is_error(event))
+						base->abort();
 				}, false);
 			}
-			bool Routing::RouteDelete(Connection* Base)
+			bool routing::route_delete(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				if (Base->Route->FilesDirectory.empty() || Resources::ResourceHidden(Base, nullptr))
-					return Base->Abort(404, "Requested resource was not found.");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				if (base->route->files_directory.empty() || resources::resource_hidden(base, nullptr))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (!Core::OS::File::GetState(Base->Request.Path, &Base->Resource))
-					return Base->Abort(404, "Requested resource was not found.");
+				if (!core::os::file::get_state(base->request.path, &base->resource))
+					return base->abort(404, "Requested resource was not found.");
 
-				if (!Base->Resource.IsDirectory)
+				if (!base->resource.is_directory)
 				{
-					if (!Core::OS::File::Remove(Base->Request.Path.c_str()))
-						return Base->Abort(403, "Operation denied by system.");
+					if (!core::os::file::remove(base->request.path.c_str()))
+						return base->abort(403, "Operation denied by system.");
 				}
-				else if (!Core::OS::Directory::Remove(Base->Request.Path.c_str()))
-					return Base->Abort(403, "Operation denied by system.");
+				else if (!core::os::directory::remove(base->request.path.c_str()))
+					return base->abort(403, "Operation denied by system.");
 
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version);
-				Content->append(" 204 No Content\r\nDate: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version);
+				content->append(" 204 no content\r\nDate: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
 
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				content->append("\r\n", 2);
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
-					HrmCache::Get()->Push(Content);
-					if (Packet::IsDone(Event))
-						Base->Next(204);
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					hrm_cache::get()->push(content);
+					if (packet::is_done(event))
+						base->next(204);
+					else if (packet::is_error(event))
+						base->abort();
 				}, false);
 			}
-			bool Routing::RouteOptions(Connection* Base)
+			bool routing::route_options(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version);
-				Content->append(" 204 No Content\r\nDate: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
-				Content->append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version);
+				content->append(" 204 no content\r\nDate: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
+				content->append("Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n");
 
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route && Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route && base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				content->append("\r\n", 2);
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
-					HrmCache::Get()->Push(Content);
-					if (Packet::IsDone(Event))
-						Base->Next(204);
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					hrm_cache::get()->push(content);
+					if (packet::is_done(event))
+						base->next(204);
+					else if (packet::is_error(event))
+						base->abort();
 				}, false);
 			}
 
-			bool Logical::ProcessDirectory(Connection* Base)
+			bool logical::process_directory(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_MEASURE(Core::Timings::FileSystem);
-				Core::Vector<std::pair<Core::String, Core::FileEntry>> Entries;
-				if (!Core::OS::Directory::Scan(Base->Request.Path, Entries))
-					return Base->Abort(500, "System denied to directory listing.");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_MEASURE(core::timings::file_system);
+				core::vector<std::pair<core::string, core::file_entry>> entries;
+				if (!core::os::directory::scan(base->request.path, entries))
+					return base->abort(500, "System denied to directory listing.");
 
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version);
-				Content->append(" 200 OK\r\nDate: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
-				Content->append("Content-Type: text/html; charset=").append(Base->Route->CharSet);
-				Content->append("\r\nAccept-Ranges: bytes\r\n");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version);
+				content->append(" 200 OK\r\nDate: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
+				content->append("Content-type: text/html; charset=").append(base->route->char_set);
+				content->append("\r\nAccept-ranges: bytes\r\n");
 
-				Paths::ConstructHeadCache(Base, *Content);
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				paths::construct_head_cache(base, *content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				auto Message = Base->Response.GetHeader("X-Error");
-				if (!Message.empty())
-					Content->append("X-Error: ").append(Message).append("\r\n");
+				auto message = base->response.get_header("X-Error");
+				if (!message.empty())
+					content->append("X-error: ").append(message).append("\r\n");
 
-				size_t Size = Base->Request.Location.size() - 1;
-				while (Base->Request.Location[Size] != '/')
-					Size--;
+				size_t size = base->request.location.size() - 1;
+				while (base->request.location[size] != '/')
+					size--;
 
-				char Direction = (!Base->Request.Query.empty() && Base->Request.Query[1] == 'd') ? 'a' : 'd';
-				Core::String Parent(1, '/');
-				if (Base->Request.Location.size() > 1)
+				char direction = (!base->request.query.empty() && base->request.query[1] == 'd') ? 'a' : 'd';
+				core::string parent(1, '/');
+				if (base->request.location.size() > 1)
 				{
-					Parent = Base->Request.Location.substr(0, Base->Request.Location.size() - 1);
-					Parent = Core::OS::Path::GetDirectory(Parent.c_str());
+					parent = base->request.location.substr(0, base->request.location.size() - 1);
+					parent = core::os::path::get_directory(parent.c_str());
 				}
 
-				Base->Response.Content.Assign(
-					"<html><head><title>Index of " + Base->Request.Location + "</title>"
+				base->response.content.assign(
+					"<html><head><title>index of " + base->request.location + "</title>"
 					"<style>" CSS_DIRECTORY_STYLE "</style></head>"
-					"<body><h1>Index of " + Base->Request.Location + "</h1><pre><table cellpadding=\"0\">"
-					"<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
-					"<th><a href=\"?d" + Direction + "\">Modified</a></th>"
-					"<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
+					"<body><h1>index of " + base->request.location + "</h1><pre><table cellpadding=\"0\">"
+					"<tr><th><a href=\"?n" + direction + "\">name</a></th>"
+					"<th><a href=\"?d" + direction + "\">modified</a></th>"
+					"<th><a href=\"?s" + direction + "\">size</a></th></tr>"
 					"<tr><td colspan=\"3\"><hr></td></tr>"
-					"<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
+					"<tr><td><a href=\"" + parent + "\">parent directory</a></td>"
 					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>");
-				VI_SORT(Entries.begin(), Entries.end(), [&Base](const std::pair<Core::String, Core::FileEntry>& A, const std::pair<Core::String, Core::FileEntry>& B)
+				VI_SORT(entries.begin(), entries.end(), [&base](const std::pair<core::string, core::file_entry>& a, const std::pair<core::string, core::file_entry>& b)
 				{
-					return Paths::ConstructDirectoryEntries(Base, A.first, A.second, B.first, B.second);
+					return paths::construct_directory_entries(base, a.first, a.second, b.first, b.second);
 				});
 
-				for (auto& Item : Entries)
+				for (auto& item : entries)
 				{
-					if (Resources::ResourceHidden(Base, &Item.first))
+					if (resources::resource_hidden(base, &item.first))
 						continue;
 
-					char FileSize[64];
-					if (!Item.second.IsDirectory)
+					char file_size[64];
+					if (!item.second.is_directory)
 					{
-						if (Item.second.Size < 1024)
-							snprintf(FileSize, sizeof(FileSize), "%d bytes", (int)Item.second.Size);
-						else if (Item.second.Size < 0x100000)
-							snprintf(FileSize, sizeof(FileSize), "%.1f kb", ((double)Item.second.Size) / 1024.0);
-						else if (Item.second.Size < 0x40000000)
-							snprintf(FileSize, sizeof(Size), "%.1f mb", ((double)Item.second.Size) / 1048576.0);
+						if (item.second.size < 1024)
+							snprintf(file_size, sizeof(file_size), "%d bytes", (int)item.second.size);
+						else if (item.second.size < 0x100000)
+							snprintf(file_size, sizeof(file_size), "%.1f kb", ((double)item.second.size) / 1024.0);
+						else if (item.second.size < 0x40000000)
+							snprintf(file_size, sizeof(size), "%.1f mb", ((double)item.second.size) / 1048576.0);
 						else
-							snprintf(FileSize, sizeof(FileSize), "%.1f gb", ((double)Item.second.Size) / 1073741824.0);
+							snprintf(file_size, sizeof(file_size), "%.1f gb", ((double)item.second.size) / 1073741824.0);
 					}
 					else
-						strncpy(FileSize, "[DIRECTORY]", sizeof(FileSize));
+						strncpy(file_size, "[DIRECTORY]", sizeof(file_size));
 
-					char LastModified[64];
-					std::string_view FileDate = HeaderDate(LastModified, Item.second.LastModified);
-					Core::String Location = Compute::Codec::URLEncode(Item.first);
-					Core::String Link = (Base->Request.Location + ((*(Base->Request.Location.c_str() + 1) != '\0' && Base->Request.Location[Base->Request.Location.size() - 1] != '/') ? "/" : "") + Location);
-					if (Item.second.IsDirectory && !Core::Stringify::EndsOf(Link, "/\\"))
-						Link.append(1, '/');
+					char last_modified[64];
+					std::string_view file_date = header_date(last_modified, item.second.last_modified);
+					core::string location = compute::codec::url_encode(item.first);
+					core::string link = (base->request.location + ((*(base->request.location.c_str() + 1) != '\0' && base->request.location[base->request.location.size() - 1] != '/') ? "/" : "") + location);
+					if (item.second.is_directory && !core::stringify::ends_of(link, "/\\"))
+						link.append(1, '/');
 
-					Base->Response.Content.Append("<tr><td><a href=\"");
-					Base->Response.Content.Append(Link);
-					Base->Response.Content.Append("\">");
-					Base->Response.Content.Append(Item.first);
-					Base->Response.Content.Append("</a></td><td>&nbsp;");
-					Base->Response.Content.Append(FileDate);
-					Base->Response.Content.Append("</td><td>&nbsp;&nbsp;");
-					Base->Response.Content.Append(FileSize);
-					Base->Response.Content.Append("</td></tr>\n");
+					base->response.content.append("<tr><td><a href=\"");
+					base->response.content.append(link);
+					base->response.content.append("\">");
+					base->response.content.append(item.first);
+					base->response.content.append("</a></td><td>&nbsp;");
+					base->response.content.append(file_date);
+					base->response.content.append("</td><td>&nbsp;&nbsp;");
+					base->response.content.append(file_size);
+					base->response.content.append("</td></tr>\n");
 				}
-				Base->Response.Content.Append("</table></pre></body></html>");
+				base->response.content.append("</table></pre></body></html>");
 #ifdef VI_ZLIB
-				bool Deflate = false, Gzip = false;
-				if (Resources::ResourceCompressed(Base, Base->Response.Content.Data.size()))
+				bool deflate = false, gzip = false;
+				if (resources::resource_compressed(base, base->response.content.data.size()))
 				{
-					auto AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
-					if (!AcceptEncoding.empty())
+					auto accept_encoding = base->request.get_header("Accept-Encoding");
+					if (!accept_encoding.empty())
 					{
-						Deflate = AcceptEncoding.find("deflate") != std::string::npos;
-						Gzip = AcceptEncoding.find("gzip") != std::string::npos;
+						deflate = accept_encoding.find("deflate") != std::string::npos;
+						gzip = accept_encoding.find("gzip") != std::string::npos;
 					}
 
-					if (!AcceptEncoding.empty() && (Deflate || Gzip))
+					if (!accept_encoding.empty() && (deflate || gzip))
 					{
-						z_stream Stream;
-						Stream.zalloc = Z_NULL;
-						Stream.zfree = Z_NULL;
-						Stream.opaque = Z_NULL;
-						Stream.avail_in = (uInt)Base->Response.Content.Data.size();
-						Stream.next_in = (Bytef*)Base->Response.Content.Data.data();
+						z_stream stream;
+						stream.zalloc = Z_NULL;
+						stream.zfree = Z_NULL;
+						stream.opaque = Z_NULL;
+						stream.avail_in = (uInt)base->response.content.data.size();
+						stream.next_in = (Bytef*)base->response.content.data.data();
 
-						if (deflateInit2(&Stream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
+						if (deflateInit2(&stream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 15 | 16 : 15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
 						{
-							Core::String Buffer(Base->Response.Content.Data.size(), '\0');
-							Stream.avail_out = (uInt)Buffer.size();
-							Stream.next_out = (Bytef*)Buffer.c_str();
-							bool Compress = (deflate(&Stream, Z_FINISH) == Z_STREAM_END);
-							bool Flush = (deflateEnd(&Stream) == Z_OK);
+							core::string buffer(base->response.content.data.size(), '\0');
+							stream.avail_out = (uInt)buffer.size();
+							stream.next_out = (Bytef*)buffer.c_str();
+							bool compress = (::deflate(&stream, Z_FINISH) == Z_STREAM_END);
+							bool flush = (deflateEnd(&stream) == Z_OK);
 
-							if (Compress && Flush)
+							if (compress && flush)
 							{
-								Base->Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)Stream.total_out));
-								if (Base->Response.GetHeader("Content-Encoding").empty())
+								base->response.content.assign(std::string_view(buffer.c_str(), (size_t)stream.total_out));
+								if (base->response.get_header("Content-Encoding").empty())
 								{
-									if (Gzip)
-										Content->append("Content-Encoding: gzip\r\n", 24);
+									if (gzip)
+										content->append("Content-encoding: gzip\r\n", 24);
 									else
-										Content->append("Content-Encoding: deflate\r\n", 27);
+										content->append("Content-encoding: deflate\r\n", 27);
 								}
 							}
 						}
 					}
 				}
 #endif
-				Content->append("Content-Length: ").append(Core::ToString(Base->Response.Content.Data.size())).append("\r\n\r\n");
-				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				content->append("Content-length: ").append(core::to_string(base->response.content.data.size())).append("\r\n\r\n");
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
-					HrmCache::Get()->Push(Content);
-					if (Packet::IsDone(Event))
+					hrm_cache::get()->push(content);
+					if (packet::is_done(event))
 					{
-						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
-							return (void)Base->Next(200);
+						if (memcmp(base->request.method, "HEAD", 4) == 0)
+							return (void)base->next(200);
 
-						Base->Stream->WriteQueued((uint8_t*)Base->Response.Content.Data.data(), Base->Response.Content.Data.size(), [Base](SocketPoll Event)
+						base->stream->write_queued((uint8_t*)base->response.content.data.data(), base->response.content.data.size(), [base](socket_poll event)
 						{
-							if (Packet::IsDone(Event))
-								Base->Next(200);
-							else if (Packet::IsError(Event))
-								Base->Abort();
+							if (packet::is_done(event))
+								base->next(200);
+							else if (packet::is_error(event))
+								base->abort();
 						}, false);
 					}
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					else if (packet::is_error(event))
+						base->abort();
 				}, false);
 			}
-			bool Logical::ProcessResource(Connection* Base)
+			bool logical::process_resource(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				auto ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
-				auto Range = Base->Request.GetHeader("Range");
-				auto StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
-				int64_t Range1 = 0, Range2 = 0, Count = 0;
-				int64_t ContentLength = (int64_t)Base->Resource.Size;
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				auto content_type = utils::content_type(base->request.path, &base->route->mime_types);
+				auto range = base->request.get_header("Range");
+				auto status_message = utils::status_message(base->response.status_code = (base->response.error && base->response.status_code > 0 ? base->response.status_code : 200));
+				int64_t range1 = 0, range2 = 0, count = 0;
+				int64_t content_length = (int64_t)base->resource.size;
 
-				char ContentRange[128] = { };
-				if (!Range.empty() && (Count = Parsing::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
+				char content_range[128] = { };
+				if (!range.empty() && (count = parsing::parse_content_range(range, &range1, &range2)) > 0 && range1 >= 0 && range2 >= 0)
 				{
-					if (Count == 2)
-						ContentLength = (int64_t)(((Range2 > ContentLength) ? ContentLength : Range2) - Range1 + 1);
+					if (count == 2)
+						content_length = (int64_t)(((range2 > content_length) ? content_length : range2) - range1 + 1);
 					else
-						ContentLength -= Range1;
+						content_length -= range1;
 
-					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %" PRId64 "-%" PRId64 "/%" PRId64 "\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
-					StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
+					snprintf(content_range, sizeof(content_range), "Content-range: bytes %" PRId64 "-%" PRId64 "/%" PRId64 "\r\n", range1, range1 + content_length - 1, (int64_t)base->resource.size);
+					status_message = utils::status_message(base->response.status_code = (base->response.error ? base->response.status_code : 206));
 				}
 #ifdef VI_ZLIB
-				if (Resources::ResourceCompressed(Base, (size_t)ContentLength))
+				if (resources::resource_compressed(base, (size_t)content_length))
 				{
-					auto AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
-					if (!AcceptEncoding.empty())
+					auto accept_encoding = base->request.get_header("Accept-Encoding");
+					if (!accept_encoding.empty())
 					{
-						bool Deflate = AcceptEncoding.find("deflate") != std::string::npos;
-						bool Gzip = AcceptEncoding.find("gzip") != std::string::npos;
-						if (Deflate || Gzip)
-							return ProcessResourceCompress(Base, Deflate, Gzip, ContentRange, (size_t)Range1);
+						bool deflate = accept_encoding.find("deflate") != std::string::npos;
+						bool gzip = accept_encoding.find("gzip") != std::string::npos;
+						if (deflate || gzip)
+							return process_resource_compress(base, deflate, gzip, content_range, (size_t)range1);
 					}
 				}
 #endif
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version).append(" ");
-				Content->append(Core::ToString(Base->Response.StatusCode)).append(" ");
-				Content->append(StatusMessage).append("\r\n");
-				Content->append("Date: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version).append(" ");
+				content->append(core::to_string(base->response.status_code)).append(" ");
+				content->append(status_message).append("\r\n");
+				content->append("Date: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
 
-				auto Origin = Base->Request.GetHeader("Origin");
-				if (!Origin.empty())
-					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
+				auto origin = base->request.get_header("Origin");
+				if (!origin.empty())
+					content->append("Access-control-allow-origin: ").append(base->route->access_control_allow_origin).append("\r\n");
 
-				Paths::ConstructHeadCache(Base, *Content);
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				paths::construct_head_cache(base, *content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				auto Message = Base->Response.GetHeader("X-Error");
-				if (!Message.empty())
-					Content->append("X-Error: ").append(Message).append("\r\n");
+				auto message = base->response.get_header("X-Error");
+				if (!message.empty())
+					content->append("X-error: ").append(message).append("\r\n");
 
-				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ");
-				Content->append(HeaderDate(Date, Base->Resource.LastModified));
-				Content->append("\r\n");
+				content->append("Accept-ranges: bytes\r\nLast-modified: ");
+				content->append(header_date(date, base->resource.last_modified));
+				content->append("\r\n");
 
-				Core::OS::Net::GetETag(Date, sizeof(Date), &Base->Resource);
-				Content->append("Etag: ").append(Date, strnlen(Date, sizeof(Date))).append("\r\n");
-				Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
-				Content->append("Content-Length: ").append(Core::ToString(ContentLength)).append("\r\n");
-				Content->append(ContentRange).append("\r\n");
+				core::os::net::get_etag(date, sizeof(date), &base->resource);
+				content->append("Etag: ").append(date, strnlen(date, sizeof(date))).append("\r\n");
+				content->append("Content-type: ").append(content_type).append("; charset=").append(base->route->char_set).append("\r\n");
+				content->append("Content-length: ").append(core::to_string(content_length)).append("\r\n");
+				content->append(content_range).append("\r\n");
 
-				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
+				if (content_length > 0 && strcmp(base->request.method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base, ContentLength, Range1](SocketPoll Event)
+					return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base, content_length, range1](socket_poll event)
 					{
-						HrmCache::Get()->Push(Content);
-						if (Packet::IsDone(Event))
-							Core::Cospawn([Base, ContentLength, Range1]() { Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1); });
-						else if (Packet::IsError(Event))
-							Base->Abort();
+						hrm_cache::get()->push(content);
+						if (packet::is_done(event))
+							core::cospawn([base, content_length, range1]() { logical::process_file(base, (size_t)content_length, (size_t)range1); });
+						else if (packet::is_error(event))
+							base->abort();
 					}, false);
 				}
 				else
 				{
-					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 					{
-						HrmCache::Get()->Push(Content);
-						if (Packet::IsDone(Event))
-							Base->Next(200);
-						else if (Packet::IsError(Event))
-							Base->Abort();
+						hrm_cache::get()->push(content);
+						if (packet::is_done(event))
+							base->next(200);
+						else if (packet::is_error(event))
+							base->abort();
 					}, false);
 				}
 			}
-			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const std::string_view& ContentRange, size_t Range)
+			bool logical::process_resource_compress(connection* base, bool deflate, bool gzip, const std::string_view& content_range, size_t range)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Deflate || Gzip, "uncompressable resource");
-				auto ContentType = Utils::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
-				auto StatusMessage = Utils::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
-				int64_t ContentLength = (int64_t)Base->Resource.Size;
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(deflate || gzip, "uncompressable resource");
+				auto content_type = utils::content_type(base->request.path, &base->route->mime_types);
+				auto status_message = utils::status_message(base->response.status_code = (base->response.error && base->response.status_code > 0 ? base->response.status_code : 200));
+				int64_t content_length = (int64_t)base->resource.size;
 
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version).append(" ");
-				Content->append(Core::ToString(Base->Response.StatusCode)).append(" ");
-				Content->append(StatusMessage).append("\r\n");
-				Content->append("Date: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version).append(" ");
+				content->append(core::to_string(base->response.status_code)).append(" ");
+				content->append(status_message).append("\r\n");
+				content->append("Date: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
 
-				auto Origin = Base->Request.GetHeader("Origin");
-				if (!Origin.empty())
-					Content->append("Access-Control-Allow-Origin: ").append(Base->Route->AccessControlAllowOrigin).append("\r\n");
+				auto origin = base->request.get_header("Origin");
+				if (!origin.empty())
+					content->append("Access-control-allow-origin: ").append(base->route->access_control_allow_origin).append("\r\n");
 
-				Paths::ConstructHeadCache(Base, *Content);
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				paths::construct_head_cache(base, *content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				auto Message = Base->Response.GetHeader("X-Error");
-				if (!Message.empty())
-					Content->append("X-Error: ").append(Message).append("\r\n");
+				auto message = base->response.get_header("X-Error");
+				if (!message.empty())
+					content->append("X-error: ").append(message).append("\r\n");
 
-				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ");
-				Content->append(HeaderDate(Date,Base->Resource.LastModified));
-				Content->append("\r\n");
+				content->append("Accept-ranges: bytes\r\nLast-modified: ");
+				content->append(header_date(date, base->resource.last_modified));
+				content->append("\r\n");
 
-				Core::OS::Net::GetETag(Date, sizeof(Date), &Base->Resource);
-				Content->append("Etag: ").append(Date, strnlen(Date, sizeof(Date))).append("\r\n");
-				Content->append("Content-Type: ").append(ContentType).append("; charset=").append(Base->Route->CharSet).append("\r\n");
-				Content->append("Content-Encoding: ").append(Gzip ? "gzip" : "deflate").append("\r\n");
-				Content->append("Transfer-Encoding: chunked\r\n");
-				Content->append(ContentRange).append("\r\n");
+				core::os::net::get_etag(date, sizeof(date), &base->resource);
+				content->append("Etag: ").append(date, strnlen(date, sizeof(date))).append("\r\n");
+				content->append("Content-type: ").append(content_type).append("; charset=").append(base->route->char_set).append("\r\n");
+				content->append("Content-encoding: ").append(gzip ? "gzip" : "deflate").append("\r\n");
+				content->append("Transfer-encoding: chunked\r\n");
+				content->append(content_range).append("\r\n");
 
-				if (ContentLength > 0 && strcmp(Base->Request.Method, "HEAD") != 0)
+				if (content_length > 0 && strcmp(base->request.method, "HEAD") != 0)
 				{
-					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base, Range, ContentLength, Gzip](SocketPoll Event)
+					return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base, range, content_length, gzip](socket_poll event)
 					{
-						HrmCache::Get()->Push(Content);
-						if (Packet::IsDone(Event))
-							Core::Cospawn([Base, Range, ContentLength, Gzip]() { Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip); });
-						else if (Packet::IsError(Event))
-							Base->Abort();
+						hrm_cache::get()->push(content);
+						if (packet::is_done(event))
+							core::cospawn([base, range, content_length, gzip]() { logical::process_file_compress(base, (size_t)content_length, (size_t)range, gzip); });
+						else if (packet::is_error(event))
+							base->abort();
 					}, false);
 				}
 				else
 				{
-					return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+					return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 					{
-						HrmCache::Get()->Push(Content);
-						if (Packet::IsDone(Event))
-							Base->Next();
-						else if (Packet::IsError(Event))
-							Base->Abort();
+						hrm_cache::get()->push(content);
+						if (packet::is_done(event))
+							base->next();
+						else if (packet::is_error(event))
+							base->abort();
 					}, false);
 				}
 			}
-			bool Logical::ProcessResourceCache(Connection* Base)
+			bool logical::process_resource_cache(connection* base)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				char Date[64];
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(Base->Request.Version);
-				Content->append(" 304 Not Modified\r\nDate: ");
-				Content->append(HeaderDate(Date, Base->Info.Start / 1000));
-				Content->append("\r\n");
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				char date[64];
+				auto* content = hrm_cache::get()->pop();
+				content->append(base->request.version);
+				content->append(" 304 not modified\r\nDate: ");
+				content->append(header_date(date, base->info.start / 1000));
+				content->append("\r\n");
 
-				Paths::ConstructHeadCache(Base, *Content);
-				Utils::UpdateKeepAliveHeaders(Base, *Content);
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				paths::construct_head_cache(base, *content);
+				utils::update_keep_alive_headers(base, *content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				Content->append("Accept-Ranges: bytes\r\nLast-Modified: ");
-				Content->append(HeaderDate(Date, Base->Resource.LastModified));
-				Content->append("\r\n");
+				content->append("Accept-ranges: bytes\r\nLast-modified: ");
+				content->append(header_date(date, base->resource.last_modified));
+				content->append("\r\n");
 
-				Core::OS::Net::GetETag(Date, sizeof(Date), &Base->Resource);
-				Content->append("Etag: ").append(Date, strnlen(Date, sizeof(Date))).append("\r\n\r\n");
-				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				core::os::net::get_etag(date, sizeof(date), &base->resource);
+				content->append("Etag: ").append(date, strnlen(date, sizeof(date))).append("\r\n\r\n");
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
-					HrmCache::Get()->Push(Content);
-					if (Packet::IsDone(Event))
-						Base->Next(304);
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					hrm_cache::get()->push(content);
+					if (packet::is_done(event))
+						base->next(304);
+					else if (packet::is_error(event))
+						base->abort();
 				}, false);
 			}
-			bool Logical::ProcessFile(Connection* Base, size_t ContentLength, size_t Range)
+			bool logical::process_file(connection* base, size_t content_length, size_t range)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_MEASURE(Core::Timings::FileSystem);
-				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
-				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_MEASURE(core::timings::file_system);
+				range = (range > base->resource.size ? base->resource.size : range);
+				if (content_length > 0 && base->resource.is_referenced && base->resource.size > 0)
 				{
-					size_t Limit = Base->Resource.Size - Range;
-					if (ContentLength > Limit)
-						ContentLength = Limit;
+					size_t limit = base->resource.size - range;
+					if (content_length > limit)
+						content_length = limit;
 
-					if (Base->Response.Content.Data.size() >= ContentLength)
+					if (base->response.content.data.size() >= content_length)
 					{
-						return !!Base->Stream->WriteQueued((uint8_t*)Base->Response.Content.Data.data() + Range, ContentLength, [Base](SocketPoll Event)
+						return !!base->stream->write_queued((uint8_t*)base->response.content.data.data() + range, content_length, [base](socket_poll event)
 						{
-							if (Packet::IsDone(Event))
-								Base->Next();
-							else if (Packet::IsError(Event))
-								Base->Abort();
+							if (packet::is_done(event))
+								base->next();
+							else if (packet::is_error(event))
+								base->abort();
 						}, false);
 					}
 				}
 
-				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
-				if (!File)
-					return Base->Abort(500, "System denied to open resource stream.");
+				auto file = core::os::file::open(base->request.path.c_str(), "rb");
+				if (!file)
+					return base->abort(500, "System denied to open resource stream.");
 
-				FILE* Stream = *File;
-                if (Base->Route->AllowSendFile)
-                {
-                    auto Result = Base->Stream->WriteFileQueued(Stream, Range, ContentLength, [Base, Stream, ContentLength, Range](SocketPoll Event)
-                    {
-                        if (Packet::IsDone(Event))
-                        {
-                            Core::OS::File::Close(Stream);
-                            Base->Next();
-                        }
-                        else if (Packet::IsError(Event))
-							ProcessFileStream(Base, Stream, ContentLength, Range);
-                        else if (Packet::IsSkip(Event))
-                            Core::OS::File::Close(Stream);
-                    });
-                    if (Result || Result.Error() != std::errc::not_supported)
-                        return true;
-                }
-
-				return ProcessFileStream(Base, Stream, ContentLength, Range);
-			}
-			bool Logical::ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range)
-			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Stream != nullptr, "stream should be set");
-				if (!Core::OS::File::Seek64(Stream, Range, Core::FileSeek::Begin))
+				FILE* stream = *file;
+				if (base->route->allow_send_file)
 				{
-					Core::OS::File::Close(Stream);
-					return Base->Abort(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
-				}
-
-                return ProcessFileChunk(Base, Stream, ContentLength);
-			}
-			bool Logical::ProcessFileChunk(Connection* Base, FILE* Stream, size_t ContentLength)
-			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Stream != nullptr, "stream should be set");
-				VI_MEASURE(Core::Timings::FileSystem);
-            Retry:
-                uint8_t Buffer[Core::BLOB_SIZE];
-				if (!ContentLength || Base->Root->State != ServerState::Working)
-				{
-				Cleanup:
-					Core::OS::File::Close(Stream);
-					if (Base->Root->State != ServerState::Working)
-						return Base->Abort();
-
-					return Base->Next() || true;
-				}
-                
-				size_t Read = sizeof(Buffer);
-				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, Stream)) <= 0)
-					goto Cleanup;
-                
-				ContentLength -= Read;
-                auto Written = Base->Stream->WriteQueued(Buffer, Read, [Base, Stream, ContentLength](SocketPoll Event)
-				{
-					if (Packet::IsDoneAsync(Event))
+					auto result = base->stream->write_file_queued(stream, range, content_length, [base, stream, content_length, range](socket_poll event)
 					{
-						Core::Cospawn([Base, Stream, ContentLength]()
+						if (packet::is_done(event))
 						{
-							ProcessFileChunk(Base, Stream, ContentLength);
+							core::os::file::close(stream);
+							base->next();
+						}
+						else if (packet::is_error(event))
+							process_file_stream(base, stream, content_length, range);
+						else if (packet::is_skip(event))
+							core::os::file::close(stream);
+					});
+					if (result || result.error() != std::errc::not_supported)
+						return true;
+				}
+
+				return process_file_stream(base, stream, content_length, range);
+			}
+			bool logical::process_file_stream(connection* base, FILE* stream, size_t content_length, size_t range)
+			{
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(stream != nullptr, "stream should be set");
+				if (!core::os::file::seek64(stream, range, core::file_seek::begin))
+				{
+					core::os::file::close(stream);
+					return base->abort(400, "Provided content range offset (%" PRIu64 ") is invalid", range);
+				}
+
+				return process_file_chunk(base, stream, content_length);
+			}
+			bool logical::process_file_chunk(connection* base, FILE* stream, size_t content_length)
+			{
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(stream != nullptr, "stream should be set");
+				VI_MEASURE(core::timings::file_system);
+			retry:
+				uint8_t buffer[core::BLOB_SIZE];
+				if (!content_length || base->root->state != server_state::working)
+				{
+				cleanup:
+					core::os::file::close(stream);
+					if (base->root->state != server_state::working)
+						return base->abort();
+
+					return base->next() || true;
+				}
+
+				size_t read = sizeof(buffer);
+				if ((read = (size_t)fread(buffer, 1, read > content_length ? content_length : read, stream)) <= 0)
+					goto cleanup;
+
+				content_length -= read;
+				auto written = base->stream->write_queued(buffer, read, [base, stream, content_length](socket_poll event)
+				{
+					if (packet::is_done_async(event))
+					{
+						core::cospawn([base, stream, content_length]()
+						{
+							process_file_chunk(base, stream, content_length);
 						});
 					}
-					else if (Packet::IsError(Event))
+					else if (packet::is_error(event))
 					{
-						Core::OS::File::Close(Stream);
-						Base->Abort();
+						core::os::file::close(stream);
+						base->abort();
 					}
-					else if (Packet::IsSkip(Event))
-                        Core::OS::File::Close(Stream);
+					else if (packet::is_skip(event))
+						core::os::file::close(stream);
 				});
 
-				if (Written && *Written > 0)
-                    goto Retry;
-                
+				if (written && *written > 0)
+					goto retry;
+
 				return false;
 			}
-			bool Logical::ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip)
+			bool logical::process_file_compress(connection* base, size_t content_length, size_t range, bool gzip)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_MEASURE(Core::Timings::FileSystem);
-				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
-				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_MEASURE(core::timings::file_system);
+				range = (range > base->resource.size ? base->resource.size : range);
+				if (content_length > 0 && base->resource.is_referenced && base->resource.size > 0)
 				{
-					if (Base->Response.Content.Data.size() >= ContentLength)
+					if (base->response.content.data.size() >= content_length)
 					{
 #ifdef VI_ZLIB
-						z_stream ZStream;
-						ZStream.zalloc = Z_NULL;
-						ZStream.zfree = Z_NULL;
-						ZStream.opaque = Z_NULL;
-						ZStream.avail_in = (uInt)Base->Response.Content.Data.size();
-						ZStream.next_in = (Bytef*)Base->Response.Content.Data.data();
+						z_stream zstream;
+						zstream.zalloc = Z_NULL;
+						zstream.zfree = Z_NULL;
+						zstream.opaque = Z_NULL;
+						zstream.avail_in = (uInt)base->response.content.data.size();
+						zstream.next_in = (Bytef*)base->response.content.data.data();
 
-						if (deflateInit2(&ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
+						if (deflateInit2(&zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 15 | 16 : 15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
 						{
-							Core::String Buffer(Base->Response.Content.Data.size(), '\0');
-							ZStream.avail_out = (uInt)Buffer.size();
-							ZStream.next_out = (Bytef*)Buffer.c_str();
-							bool Compress = (deflate(&ZStream, Z_FINISH) == Z_STREAM_END);
-							bool Flush = (deflateEnd(&ZStream) == Z_OK);
+							core::string buffer(base->response.content.data.size(), '\0');
+							zstream.avail_out = (uInt)buffer.size();
+							zstream.next_out = (Bytef*)buffer.c_str();
+							bool compress = (deflate(&zstream, Z_FINISH) == Z_STREAM_END);
+							bool flush = (deflateEnd(&zstream) == Z_OK);
 
-							if (Compress && Flush)
-								Base->Response.Content.Assign(std::string_view(Buffer.c_str(), (size_t)ZStream.total_out));
+							if (compress && flush)
+								base->response.content.assign(std::string_view(buffer.c_str(), (size_t)zstream.total_out));
 						}
 #endif
-						return !!Base->Stream->WriteQueued((uint8_t*)Base->Response.Content.Data.data(), ContentLength, [Base](SocketPoll Event)
+						return !!base->stream->write_queued((uint8_t*)base->response.content.data.data(), content_length, [base](socket_poll event)
 						{
-							if (Packet::IsDone(Event))
-								Base->Next();
-							else if (Packet::IsError(Event))
-								Base->Abort();
+							if (packet::is_done(event))
+								base->next();
+							else if (packet::is_error(event))
+								base->abort();
 						}, false);
 					}
 				}
 
-				auto File = Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
-				if (!File)
-					return Base->Abort(500, "System denied to open resource stream.");
+				auto file = core::os::file::open(base->request.path.c_str(), "rb");
+				if (!file)
+					return base->abort(500, "System denied to open resource stream.");
 
-				FILE* Stream = *File;
-				if (Range > 0 && !Core::OS::File::Seek64(Stream, Range, Core::FileSeek::Begin))
+				FILE* stream = *file;
+				if (range > 0 && !core::os::file::seek64(stream, range, core::file_seek::begin))
 				{
-					Core::OS::File::Close(Stream);
-					return Base->Abort(400, "Provided content range offset (%" PRIu64 ") is invalid", Range);
+					core::os::file::close(stream);
+					return base->abort(400, "Provided content range offset (%" PRIu64 ") is invalid", range);
 				}
 #ifdef VI_ZLIB
-				z_stream* ZStream = Core::Memory::Allocate<z_stream>(sizeof(z_stream));
-				ZStream->zalloc = Z_NULL;
-				ZStream->zfree = Z_NULL;
-				ZStream->opaque = Z_NULL;
+				z_stream* zstream = core::memory::allocate<z_stream>(sizeof(z_stream));
+				zstream->zalloc = Z_NULL;
+				zstream->zfree = Z_NULL;
+				zstream->opaque = Z_NULL;
 
-				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
+				if (deflateInit2(zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? MAX_WBITS + 16 : MAX_WBITS), base->route->compression.memory_level, (int)base->route->compression.tune) != Z_OK)
 				{
-					Core::OS::File::Close(Stream);
-					Core::Memory::Deallocate(ZStream);
-					return Base->Abort();
+					core::os::file::close(stream);
+					core::memory::deallocate(zstream);
+					return base->abort();
 				}
 
-				return ProcessFileCompressChunk(Base, Stream, ZStream, ContentLength);
+				return process_file_compress_chunk(base, stream, zstream, content_length);
 #else
-				Core::OS::File::Close(Stream);
-				return Base->Abort(500, "Cannot process gzip stream.");
+				core::os::file::close(stream);
+				return base->abort(500, "Cannot process gzip stream.");
 #endif
 			}
-			bool Logical::ProcessFileCompressChunk(Connection* Base, FILE* Stream, void* CStream, size_t ContentLength)
+			bool logical::process_file_compress_chunk(connection* base, FILE* stream, void* cstream, size_t content_length)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Stream != nullptr, "stream should be set");
-				VI_ASSERT(CStream != nullptr, "cstream should be set");
-				VI_MEASURE(Core::Timings::FileSystem);
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(stream != nullptr, "stream should be set");
+				VI_ASSERT(cstream != nullptr, "cstream should be set");
+				VI_MEASURE(core::timings::file_system);
 #ifdef VI_ZLIB
-#define FREE_STREAMING { Core::OS::File::Close(Stream); deflateEnd(ZStream); Core::Memory::Deallocate(ZStream); }
-				z_stream* ZStream = (z_stream*)CStream;
-            Retry:
-                uint8_t Buffer[Core::BLOB_SIZE + GZ_HEADER_SIZE], Deflate[Core::BLOB_SIZE];
-				if (!ContentLength || Base->Root->State != ServerState::Working)
+#define FREE_STREAMING { core::os::file::close(stream); deflateEnd(zstream); core::memory::deallocate(zstream); }
+				z_stream* zstream = (z_stream*)cstream;
+			retry:
+				uint8_t buffer[core::BLOB_SIZE + GZ_HEADER_SIZE], deflate[core::BLOB_SIZE];
+				if (!content_length || base->root->state != server_state::working)
 				{
-				Cleanup:
+				cleanup:
 					FREE_STREAMING;
-					if (Base->Root->State != ServerState::Working)
-						return Base->Abort();
+					if (base->root->state != server_state::working)
+						return base->abort();
 
-					return !!Base->Stream->WriteQueued((uint8_t*)"0\r\n\r\n", 5, [Base](SocketPoll Event)
+					return !!base->stream->write_queued((uint8_t*)"0\r\n\r\n", 5, [base](socket_poll event)
 					{
-						if (Packet::IsDone(Event))
-							Base->Next();
-						else if (Packet::IsError(Event))
-							Base->Abort();
+						if (packet::is_done(event))
+							base->next();
+						else if (packet::is_error(event))
+							base->abort();
 					}, false);
 				}
-                
-				size_t Read = sizeof(Buffer) - GZ_HEADER_SIZE;
-				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, Stream)) <= 0)
-					goto Cleanup;
 
-				ContentLength -= Read;
-				ZStream->avail_in = (uInt)Read;
-				ZStream->next_in = (Bytef*)Buffer;
-				ZStream->avail_out = (uInt)sizeof(Deflate);
-				ZStream->next_out = (Bytef*)Deflate;
-				deflate(ZStream, Z_SYNC_FLUSH);
-				Read = (int)sizeof(Deflate) - (int)ZStream->avail_out;
+				size_t read = sizeof(buffer) - GZ_HEADER_SIZE;
+				if ((read = (size_t)fread(buffer, 1, read > content_length ? content_length : read, stream)) <= 0)
+					goto cleanup;
 
-				int Next = snprintf((char*)Buffer, sizeof(Buffer), "%X\r\n", (uint32_t)Read);
-				memcpy(Buffer + Next, Deflate, Read);
-				Read += Next;
+				content_length -= read;
+				zstream->avail_in = (uInt)read;
+				zstream->next_in = (Bytef*)buffer;
+				zstream->avail_out = (uInt)sizeof(deflate);
+				zstream->next_out = (Bytef*)deflate;
+				::deflate(zstream, Z_SYNC_FLUSH);
+				read = (int)sizeof(deflate) - (int)zstream->avail_out;
 
-				if (!ContentLength)
+				int next = snprintf((char*)buffer, sizeof(buffer), "%x\r\n", (uint32_t)read);
+				memcpy(buffer + next, deflate, read);
+				read += next;
+
+				if (!content_length)
 				{
-					memcpy(Buffer + Read, "\r\n0\r\n\r\n", sizeof(char) * 7);
-					Read += sizeof(char) * 7;
+					memcpy(buffer + read, "\r\n0\r\n\r\n", sizeof(char) * 7);
+					read += sizeof(char) * 7;
 				}
 				else
 				{
-					memcpy(Buffer + Read, "\r\n", sizeof(char) * 2);
-					Read += sizeof(char) * 2;
+					memcpy(buffer + read, "\r\n", sizeof(char) * 2);
+					read += sizeof(char) * 2;
 				}
 
-				auto Written = Base->Stream->WriteQueued(Buffer, Read, [Base, Stream, ZStream, ContentLength](SocketPoll Event)
+				auto written = base->stream->write_queued(buffer, read, [base, stream, zstream, content_length](socket_poll event)
 				{
-					if (Packet::IsDoneAsync(Event))
+					if (packet::is_done_async(event))
 					{
-						if (ContentLength > 0)
+						if (content_length > 0)
 						{
-							Core::Cospawn([Base, Stream, ZStream, ContentLength]()
-                            {
-                                ProcessFileCompressChunk(Base, Stream, ZStream, ContentLength);
-                            });
+							core::cospawn([base, stream, zstream, content_length]()
+							{
+								process_file_compress_chunk(base, stream, zstream, content_length);
+							});
 						}
 						else
 						{
 							FREE_STREAMING;
-							Base->Next();
+							base->next();
 						}
 					}
-					else if (Packet::IsError(Event))
+					else if (packet::is_error(event))
 					{
 						FREE_STREAMING;
-						Base->Abort();
+						base->abort();
 					}
-					else if (Packet::IsSkip(Event))
+					else if (packet::is_skip(event))
 						FREE_STREAMING;
 				});
-                if (Written && *Written > 0)
-                    goto Retry;
-                
+				if (written && *written > 0)
+					goto retry;
+
 				return false;
 #undef FREE_STREAMING
 #else
-				return Base->Next();
+				return base->next();
 #endif
 			}
-			bool Logical::ProcessWebSocket(Connection* Base, const uint8_t* Key, size_t KeySize)
+			bool logical::process_web_socket(connection* base, const uint8_t* key, size_t key_size)
 			{
-				VI_ASSERT(ConnectionValid(Base), "connection should be valid");
-				VI_ASSERT(Key != nullptr, "key should be set");
-				auto Version = Base->Request.GetHeader("Sec-WebSocket-Version");
-				if (Version.empty() || Version != "13")
-					return Base->Abort(426, "Protocol upgrade required. Version \"%s\" is not allowed", Version);
+				VI_ASSERT(connection_valid(base), "connection should be valid");
+				VI_ASSERT(key != nullptr, "key should be set");
+				auto version = base->request.get_header("Sec-web_socket-Version");
+				if (version.empty() || version != "13")
+					return base->abort(426, "Protocol upgrade required. version \"%s\" is not allowed", version);
 
-				char Buffer[128];
-				if (KeySize + sizeof(HTTP_WEBSOCKET_KEY) >= sizeof(Buffer))
-					return Base->Abort(426, "Protocol upgrade required. Supplied key is invalid", Version);
+				char buffer[128];
+				if (key_size + sizeof(HTTP_WEBSOCKET_KEY) >= sizeof(buffer))
+					return base->abort(426, "Protocol upgrade required. supplied key is invalid", version);
 
-				snprintf(Buffer, sizeof(Buffer), "%.*s%s", (int)KeySize, Key, HTTP_WEBSOCKET_KEY);
-				Base->Request.Content.Data.clear();
+				snprintf(buffer, sizeof(buffer), "%.*s%s", (int)key_size, key, HTTP_WEBSOCKET_KEY);
+				base->request.content.data.clear();
 
-				char Encoded20[20];
-				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
-				if (Base->Response.StatusCode <= 0)
-					Base->Response.StatusCode = 101;
+				char encoded20[20];
+				compute::crypto::sha1_compute(buffer, (int)strlen(buffer), encoded20);
+				if (base->response.status_code <= 0)
+					base->response.status_code = 101;
 
-				auto* Content = HrmCache::Get()->Pop();
-				Content->append(
-					"HTTP/1.1 101 Switching Protocols\r\n"
+				auto* content = hrm_cache::get()->pop();
+				content->append(
+					"http/1.1 101 switching protocols\r\n"
 					"Upgrade: websocket\r\n"
-					"Connection: Upgrade\r\n"
-					"Sec-WebSocket-Accept: ");
-				Content->append(Compute::Codec::Base64Encode(std::string_view(Encoded20, 20)));
-				Content->append("\r\n");
+					"Connection: upgrade\r\n"
+					"Sec-web_socket-accept: ");
+				content->append(compute::codec::base64_encode(std::string_view(encoded20, 20)));
+				content->append("\r\n");
 
-				auto Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
-				if (!Protocol.empty())
+				auto protocol = base->request.get_header("Sec-web_socket-Protocol");
+				if (!protocol.empty())
 				{
-					const char* Offset = strchr(Protocol.data(), ',');
-					if (Offset != nullptr)
-						Content->append("Sec-WebSocket-Protocol: ").append(Protocol, (size_t)(Offset - Protocol.data())).append("\r\n");
+					const char* offset = strchr(protocol.data(), ',');
+					if (offset != nullptr)
+						content->append("Sec-web_socket-protocol: ").append(protocol, (size_t)(offset - protocol.data())).append("\r\n");
 					else
-						Content->append("Sec-WebSocket-Protocol: ").append(Protocol).append("\r\n");
+						content->append("Sec-web_socket-protocol: ").append(protocol).append("\r\n");
 				}
 
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, *Content);
+				if (base->route->callbacks.headers)
+					base->route->callbacks.headers(base, *content);
 
-				Content->append("\r\n", 2);
-				return !!Base->Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [Content, Base](SocketPoll Event)
+				content->append("\r\n", 2);
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
 				{
-					HrmCache::Get()->Push(Content);
-					if (Packet::IsDone(Event))
+					hrm_cache::get()->push(content);
+					if (packet::is_done(event))
 					{
-						Base->WebSocket = new WebSocketFrame(Base->Stream, Base);
-						Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
-						Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
-						Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
-						Base->WebSocket->Lifetime.Dead = [Base](WebSocketFrame*)
+						base->web_socket = new web_socket_frame(base->stream, base);
+						base->web_socket->connect = base->route->callbacks.web_socket.connect;
+						base->web_socket->receive = base->route->callbacks.web_socket.receive;
+						base->web_socket->disconnect = base->route->callbacks.web_socket.disconnect;
+						base->web_socket->lifetime.dead = [base](web_socket_frame*)
 						{
-							return Base->Info.Abort;
+							return base->info.abort;
 						};
-						Base->WebSocket->Lifetime.Close = [Base](WebSocketFrame*, bool Successful)
+						base->web_socket->lifetime.close = [base](web_socket_frame*, bool successful)
 						{
-							if (Successful)
-								Base->Next();
+							if (successful)
+								base->next();
 							else
-								Base->Abort();
+								base->abort();
 						};
 
-						Base->Stream->SetIoTimeout(Base->Route->WebSocketTimeout);
-						if (!Base->Route->Callbacks.WebSocket.Initiate || !Base->Route->Callbacks.WebSocket.Initiate(Base))
-							Base->WebSocket->Next();
+						base->stream->set_io_timeout(base->route->web_socket_timeout);
+						if (!base->route->callbacks.web_socket.initiate || !base->route->callbacks.web_socket.initiate(base))
+							base->web_socket->next();
 					}
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					else if (packet::is_error(event))
+						base->abort();
 				}, false);
 			}
 
-			Server::Server() : SocketServer()
+			server::server() : socket_server()
 			{
-				HrmCache::LinkInstance();
+				hrm_cache::link_instance();
 			}
-			Server::~Server()
+			server::~server()
 			{
-				Unlisten(false);
+				unlisten(false);
 			}
-			Core::ExpectsSystem<void> Server::Update()
+			core::expects_system<void> server::update()
 			{
-				auto* Target = (MapRouter*)Router;
-				if (!Target->Session.Directory.empty())
+				auto* target = (map_router*)router;
+				if (!target->session.directory.empty())
 				{
-					auto Directory = Core::OS::Path::Resolve(Target->Session.Directory);
-					if (Directory)
-						Target->Session.Directory = *Directory;
+					auto directory = core::os::path::resolve(target->session.directory);
+					if (directory)
+						target->session.directory = *directory;
 
-					auto Status = Core::OS::Directory::Patch(Target->Session.Directory);
-					if (!Status)
-						return Core::SystemException("session directory: invalid path", std::move(Status.Error()));
+					auto status = core::os::directory::patch(target->session.directory);
+					if (!status)
+						return core::system_exception("session directory: invalid path", std::move(status.error()));
 				}
 
-				if (!Target->TemporaryDirectory.empty())
+				if (!target->temporary_directory.empty())
 				{
-					auto Directory = Core::OS::Path::Resolve(Target->TemporaryDirectory);
-					if (Directory)
-						Target->TemporaryDirectory = *Directory;
+					auto directory = core::os::path::resolve(target->temporary_directory);
+					if (directory)
+						target->temporary_directory = *directory;
 
-					auto Status = Core::OS::Directory::Patch(Target->TemporaryDirectory);
-					if (!Status)
-						return Core::SystemException("temporary directory: invalid path", std::move(Status.Error()));
+					auto status = core::os::directory::patch(target->temporary_directory);
+					if (!status)
+						return core::system_exception("temporary directory: invalid path", std::move(status.error()));
 				}
 
-				auto Status = UpdateRoute(Target->Base);
-				if (!Status)
-					return Status;
+				auto status = update_route(target->base);
+				if (!status)
+					return status;
 
-				for (auto& Group : Target->Groups)
+				for (auto& group : target->groups)
 				{
-					for (auto* Route : Group->Routes)
+					for (auto* route : group->routes)
 					{
-						Status = UpdateRoute(Route);
-						if (!Status)
-							return Status;
+						status = update_route(route);
+						if (!status)
+							return status;
 					}
 				}
 
-				Target->Sort();
-				return Core::Expectation::Met;
+				target->sort();
+				return core::expectation::met;
 			}
-			Core::ExpectsSystem<void> Server::UpdateRoute(RouterEntry* Route)
+			core::expects_system<void> server::update_route(router_entry* route)
 			{
-				Route->Router = (MapRouter*)Router;
-				if (!Route->FilesDirectory.empty())
+				route->router = (map_router*)router;
+				if (!route->files_directory.empty())
 				{
-					auto Directory = Core::OS::Path::Resolve(Route->FilesDirectory.c_str());
-					if (Directory)
-						Route->FilesDirectory = *Directory;
+					auto directory = core::os::path::resolve(route->files_directory.c_str());
+					if (directory)
+						route->files_directory = *directory;
 				}
 
-				if (!Route->Alias.empty())
+				if (!route->alias.empty())
 				{
-					auto Directory = Core::OS::Path::Resolve(Route->Alias, Route->FilesDirectory.empty() ? *Core::OS::Directory::GetWorking() : Route->FilesDirectory, true);
-					if (Directory)
-						Route->Alias = *Directory;
+					auto directory = core::os::path::resolve(route->alias, route->files_directory.empty() ? *core::os::directory::get_working() : route->files_directory, true);
+					if (directory)
+						route->alias = *directory;
 				}
 
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
-			Core::ExpectsSystem<void> Server::OnConfigure(SocketRouter* NewRouter)
+			core::expects_system<void> server::on_configure(socket_router* new_router)
 			{
-				VI_ASSERT(NewRouter != nullptr, "router should be set");
-				return Update();
+				VI_ASSERT(new_router != nullptr, "router should be set");
+				return update();
 			}
-			Core::ExpectsSystem<void> Server::OnUnlisten()
+			core::expects_system<void> server::on_unlisten()
 			{
-				VI_ASSERT(Router != nullptr, "router should be set");
-				MapRouter* Target = (MapRouter*)Router;
-				if (!Target->TemporaryDirectory.empty())
+				VI_ASSERT(router != nullptr, "router should be set");
+				map_router* target = (map_router*)router;
+				if (!target->temporary_directory.empty())
 				{
-					auto Status = Core::OS::Directory::Remove(Target->TemporaryDirectory.c_str());
-					if (!Status)
-						return Core::SystemException("temporary directory remove error: " + Target->TemporaryDirectory, std::move(Status.Error()));
+					auto status = core::os::directory::remove(target->temporary_directory.c_str());
+					if (!status)
+						return core::system_exception("temporary directory remove error: " + target->temporary_directory, std::move(status.error()));
 				}
 
-				if (!Target->Session.Directory.empty())
+				if (!target->session.directory.empty())
 				{
-					auto Status = Session::InvalidateCache(Target->Session.Directory);
-					if (!Status)
-						return Status;
+					auto status = session::invalidate_cache(target->session.directory);
+					if (!status)
+						return status;
 				}
 
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
-			void Server::OnRequestOpen(SocketConnection* Source)
+			void server::on_request_open(socket_connection* source)
 			{
-				VI_ASSERT(Source != nullptr, "connection should be set");
-				auto* Conf = (MapRouter*)Router;
-				auto* Base = (Connection*)Source;
+				VI_ASSERT(source != nullptr, "connection should be set");
+				auto* conf = (map_router*)router;
+				auto* base = (connection*)source;
 
-				Base->Resolver->PrepareForRequestParsing(&Base->Request);
-				Base->Stream->ReadUntilChunkedQueued("\r\n\r\n", [Base, Conf](SocketPoll Event, const uint8_t* Buffer, size_t Size)
+				base->resolver->prepare_for_request_parsing(&base->request);
+				base->stream->read_until_chunked_queued("\r\n\r\n", [base, conf](socket_poll event, const uint8_t* buffer, size_t size)
 				{
-					if (Packet::IsData(Event))
+					if (packet::is_data(event))
 					{
-						size_t LastLength = Base->Request.Content.Data.size();
-						Base->Request.Content.Append(std::string_view((char*)Buffer, Size));
-						if (Base->Request.Content.Data.size() > Conf->MaxHeapBuffer)
+						size_t last_length = base->request.content.data.size();
+						base->request.content.append(std::string_view((char*)buffer, size));
+						if (base->request.content.data.size() > conf->max_heap_buffer)
 						{
-							Base->Abort(431, "Request containts too much data in headers");
+							base->abort(431, "Request containts too much data in headers");
 							return false;
 						}
 
-						int64_t Offset = Base->Resolver->ParseRequest((uint8_t*)Base->Request.Content.Data.data(), Base->Request.Content.Data.size(), LastLength);
-						if (Offset >= 0 || Offset == -2)
+						int64_t offset = base->resolver->parse_request((uint8_t*)base->request.content.data.data(), base->request.content.data.size(), last_length);
+						if (offset >= 0 || offset == -2)
 							return true;
 
-						Base->Abort(400, "Invalid request was provided by client");
+						base->abort(400, "Invalid request was provided by client");
 						return false;
 					}
-					else if (Packet::IsDone(Event))
+					else if (packet::is_done(event))
 					{
-						uint32_t Redirects = 0;
-						Base->Info.Start = Network::Utils::Clock();
-						Base->Request.Content.Prepare(Base->Request.Headers, Buffer, Size);
-					Redirect:
-						if (!Paths::ConstructRoute(Conf, Base))
-							return Base->Abort(400, "Request cannot be resolved");
+						uint32_t redirects = 0;
+						base->info.start = network::utils::clock();
+						base->request.content.prepare(base->request.headers, buffer, size);
+					redirect:
+						if (!paths::construct_route(conf, base))
+							return base->abort(400, "Request cannot be resolved");
 
-						auto* Route = Base->Route;
-						if (!Route->Redirect.empty())
+						auto* route = base->route;
+						if (!route->redirect.empty())
 						{
-							if (Redirects++ > HTTP_MAX_REDIRECTS)
-								return Base->Abort(500, "Infinite redirects loop detected");
+							if (redirects++ > HTTP_MAX_REDIRECTS)
+								return base->abort(500, "Infinite redirects loop detected");
 
-							Base->Request.Location = Route->Redirect;
-							goto Redirect;
+							base->request.location = route->redirect;
+							goto redirect;
 						}
 
-						Paths::ConstructPath(Base);
-						if (!Permissions::MethodAllowed(Base))
-							return Base->Abort(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
+						paths::construct_path(base);
+						if (!permissions::method_allowed(base))
+							return base->abort(405, "Requested method \"%s\" is not allowed on this server", base->request.method);
 
-						if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
+						if (!memcmp(base->request.method, "GET", 3) || !memcmp(base->request.method, "HEAD", 4))
 						{
-							if (!Permissions::Authorize(Base))
+							if (!permissions::authorize(base))
 								return false;
 
-							if (Route->Callbacks.Get && Route->Callbacks.Get(Base))
+							if (route->callbacks.get && route->callbacks.get(base))
 								return true;
 
-							return Routing::RouteGet(Base);
+							return routing::route_get(base);
 						}
-						else if (!memcmp(Base->Request.Method, "POST", 4))
+						else if (!memcmp(base->request.method, "POST", 4))
 						{
-							if (!Permissions::Authorize(Base))
+							if (!permissions::authorize(base))
 								return false;
 
-							if (Route->Callbacks.Post && Route->Callbacks.Post(Base))
+							if (route->callbacks.post && route->callbacks.post(base))
 								return true;
 
-							return Routing::RoutePost(Base);
+							return routing::route_post(base);
 						}
-						else if (!memcmp(Base->Request.Method, "PUT", 3))
+						else if (!memcmp(base->request.method, "PUT", 3))
 						{
-							if (!Permissions::Authorize(Base))
+							if (!permissions::authorize(base))
 								return false;
 
-							if (Route->Callbacks.Put && Route->Callbacks.Put(Base))
+							if (route->callbacks.put && route->callbacks.put(base))
 								return true;
 
-							return Routing::RoutePut(Base);
+							return routing::route_put(base);
 						}
-						else if (!memcmp(Base->Request.Method, "PATCH", 5))
+						else if (!memcmp(base->request.method, "PATCH", 5))
 						{
-							if (!Permissions::Authorize(Base))
+							if (!permissions::authorize(base))
 								return false;
 
-							if (Route->Callbacks.Patch && Route->Callbacks.Patch(Base))
+							if (route->callbacks.patch && route->callbacks.patch(base))
 								return true;
 
-							return Routing::RoutePatch(Base);
+							return routing::route_patch(base);
 						}
-						else if (!memcmp(Base->Request.Method, "DELETE", 6))
+						else if (!memcmp(base->request.method, "DELETE", 6))
 						{
-							if (!Permissions::Authorize(Base))
+							if (!permissions::authorize(base))
 								return false;
 
-							if (Route->Callbacks.Delete && Route->Callbacks.Delete(Base))
+							if (route->callbacks.deinit && route->callbacks.deinit(base))
 								return true;
 
-							return Routing::RouteDelete(Base);
+							return routing::route_delete(base);
 						}
-						else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
+						else if (!memcmp(base->request.method, "OPTIONS", 7))
 						{
-							if (Route->Callbacks.Options && Route->Callbacks.Options(Base))
+							if (route->callbacks.options && route->callbacks.options(base))
 								return true;
 
-							return Routing::RouteOptions(Base);
+							return routing::route_options(base);
 						}
 
-						if (!Permissions::Authorize(Base))
+						if (!permissions::authorize(base))
 							return false;
 
-						return Base->Abort(405, "Request method \"%s\" is not allowed", Base->Request.Method);
+						return base->abort(405, "Request method \"%s\" is not allowed", base->request.method);
 					}
-					else if (Packet::IsError(Event))
-						Base->Abort();
+					else if (packet::is_error(event))
+						base->abort();
 
 					return true;
 				});
 			}
-			bool Server::OnRequestCleanup(SocketConnection* Target)
+			bool server::on_request_cleanup(socket_connection* target)
 			{
-				VI_ASSERT(Target != nullptr, "connection should be set");
-				auto Base = (HTTP::Connection*)Target;
-				if (!Base->IsSkipRequired())
+				VI_ASSERT(target != nullptr, "connection should be set");
+				auto base = (http::connection*)target;
+				if (!base->is_skip_required())
 					return true;
 
-				return Base->Skip([](HTTP::Connection* Base)
+				return base->skip([](http::connection* base)
 				{
-					Base->Root->Finalize(Base);
+					base->root->finalize(base);
 					return true;
 				});
 			}
-			void Server::OnRequestStall(SocketConnection* Target)
+			void server::on_request_stall(socket_connection* target)
 			{
-				auto Base = (HTTP::Connection*)Target;
-				Core::String Status = ", pathname: " + Base->Request.Location;
-				if (Base->WebSocket != nullptr)
-					Status += ", websocket: " + Core::String(Base->WebSocket->IsFinished() ? "alive" : "dead");
-				VI_DEBUG("[stall] connection on fd %i%s", (int)Base->Stream->GetFd(), Status.c_str());
+				auto base = (http::connection*)target;
+				core::string status = ", pathname: " + base->request.location;
+				if (base->web_socket != nullptr)
+					status += ", websocket: " + core::string(base->web_socket->is_finished() ? "alive" : "dead");
+				VI_DEBUG("[stall] connection on fd %i%s", (int)base->stream->get_fd(), status.c_str());
 			}
-			void Server::OnRequestClose(SocketConnection* Target)
+			void server::on_request_close(socket_connection* target)
 			{
-				VI_ASSERT(Target != nullptr, "connection should be set");
-				auto Base = (HTTP::Connection*)Target;
-				if (Base->Response.StatusCode > 0 && Base->Route && Base->Route->Callbacks.Access)
-					Base->Route->Callbacks.Access(Base);
-				Base->Reset(false);
+				VI_ASSERT(target != nullptr, "connection should be set");
+				auto base = (http::connection*)target;
+				if (base->response.status_code > 0 && base->route && base->route->callbacks.access)
+					base->route->callbacks.access(base);
+				base->reset(false);
 			}
-			SocketConnection* Server::OnAllocate(SocketListener* Host)
+			socket_connection* server::on_allocate(socket_listener* host)
 			{
-				VI_ASSERT(Host != nullptr, "host should be set");
-				auto* Base = new HTTP::Connection(this);
-				auto* Target = (MapRouter*)Router;
-				Base->Route = Target->Base;
-				Base->Root = this;
-				return Base;
+				VI_ASSERT(host != nullptr, "host should be set");
+				auto* base = new http::connection(this);
+				auto* target = (map_router*)router;
+				base->route = target->base;
+				base->root = this;
+				return base;
 			}
-			SocketRouter* Server::OnAllocateRouter()
+			socket_router* server::on_allocate_router()
 			{
-				return new MapRouter();
+				return new map_router();
 			}
 
-			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), Resolver(new HTTP::Parser()), WebSocket(nullptr), Future(Core::ExpectsPromiseSystem<void>::Null())
+			client::client(int64_t read_timeout) : socket_client(read_timeout), resolver(new http::parser()), web_socket(nullptr), future(core::expects_promise_system<void>::null())
 			{
-				Response.Content.Finalize();
-				HrmCache::LinkInstance();
+				response.content.finalize();
+				hrm_cache::link_instance();
 			}
-			Client::~Client()
+			client::~client()
 			{
-				Core::Memory::Release(Resolver);
-				Core::Memory::Release(WebSocket);
+				core::memory::release(resolver);
+				core::memory::release(web_socket);
 			}
-			Core::ExpectsPromiseSystem<void> Client::Skip()
+			core::expects_promise_system<void> client::skip()
 			{
-				return Fetch(PAYLOAD_SIZE, true);
+				return fetch(PAYLOAD_SIZE, true);
 			}
-			Core::ExpectsPromiseSystem<void> Client::Fetch(size_t MaxSize, bool Eat)
+			core::expects_promise_system<void> client::fetch(size_t max_size, bool eat)
 			{
-				VI_ASSERT(!WebSocket, "cannot read http over websocket");
-				if (Response.Content.IsFinalized())
-					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
-				else if (Response.Content.Exceeds)
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: payload too large", std::make_error_condition(std::errc::value_too_large)));
-				else if (!HasStream())
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+				VI_ASSERT(!web_socket, "cannot read http over websocket");
+				if (response.content.is_finalized())
+					return core::expects_promise_system<void>(core::expectation::met);
+				else if (response.content.exceeds)
+					return core::expects_promise_system<void>(core::system_exception("download content error: payload too large", std::make_error_condition(std::errc::value_too_large)));
+				else if (!has_stream())
+					return core::expects_promise_system<void>(core::system_exception("download content error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				auto ContentType = Response.GetHeader("Content-Type");
-				if (ContentType == std::string_view("multipart/form-data", 19))
+				auto content_type = response.get_header("Content-Type");
+				if (content_type == std::string_view("multipart/form-data", 19))
 				{
-					Response.Content.Exceeds = true;
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: requires file saving", std::make_error_condition(std::errc::value_too_large)));
+					response.content.exceeds = true;
+					return core::expects_promise_system<void>(core::system_exception("download content error: requires file saving", std::make_error_condition(std::errc::value_too_large)));
 				}
-				else if (Eat)
-					MaxSize = std::numeric_limits<size_t>::max();
+				else if (eat)
+					max_size = std::numeric_limits<size_t>::max();
 
-				size_t LeftoverSize = Response.Content.Data.size() - Response.Content.Prefetch;
-				if (!Response.Content.Data.empty() && LeftoverSize > 0 && LeftoverSize <= Response.Content.Data.size())
-					Response.Content.Data.erase(Response.Content.Data.begin(), Response.Content.Data.begin() + LeftoverSize);
+				size_t leftover_size = response.content.data.size() - response.content.prefetch;
+				if (!response.content.data.empty() && leftover_size > 0 && leftover_size <= response.content.data.size())
+					response.content.data.erase(response.content.data.begin(), response.content.data.begin() + leftover_size);
 
-				auto TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				bool IsTransferEncodingChunked = (!Response.Content.Limited && Core::Stringify::CaseEquals(TransferEncoding, "chunked"));
-				if (IsTransferEncodingChunked)
-					Resolver->PrepareForChunkedParsing();
+				auto transfer_encoding = response.get_header("Transfer-Encoding");
+				bool is_transfer_encoding_chunked = (!response.content.limited && core::stringify::case_equals(transfer_encoding, "chunked"));
+				if (is_transfer_encoding_chunked)
+					resolver->prepare_for_chunked_parsing();
 
-				if (Response.Content.Prefetch > 0)
+				if (response.content.prefetch > 0)
 				{
-					LeftoverSize = std::min(MaxSize, Response.Content.Prefetch);
-					Response.Content.Prefetch -= LeftoverSize;
-					MaxSize -= LeftoverSize;
-					if (IsTransferEncodingChunked)
+					leftover_size = std::min(max_size, response.content.prefetch);
+					response.content.prefetch -= leftover_size;
+					max_size -= leftover_size;
+					if (is_transfer_encoding_chunked)
 					{
-						size_t DecodedSize = LeftoverSize;
-						int64_t Subresult = Resolver->ParseDecodeChunked((uint8_t*)Response.Content.Data.data(), &DecodedSize);
-						if (Subresult >= 0 || Subresult == -2)
+						size_t decoded_size = leftover_size;
+						int64_t subresult = resolver->parse_decode_chunked((uint8_t*)response.content.data.data(), &decoded_size);
+						if (subresult >= 0 || subresult == -2)
 						{
-							LeftoverSize -= DecodedSize;
-							if (LeftoverSize > 0)
-								Response.Content.Data.erase(Response.Content.Data.begin() + DecodedSize, Response.Content.Data.begin() + DecodedSize + LeftoverSize);
-							if (Subresult == 0)
+							leftover_size -= decoded_size;
+							if (leftover_size > 0)
+								response.content.data.erase(response.content.data.begin() + decoded_size, response.content.data.begin() + decoded_size + leftover_size);
+							if (subresult == 0)
 							{
-								Response.Content.Finalize();
-								return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+								response.content.finalize();
+								return core::expects_promise_system<void>(core::expectation::met);
 							}
 						}
-						else if (Subresult == -1)
-							return Core::ExpectsPromiseSystem<void>(Core::SystemException("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
+						else if (subresult == -1)
+							return core::expects_promise_system<void>(core::system_exception("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
 					}
-					else if (Response.Content.Prefetch > 0)
-						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+					else if (response.content.prefetch > 0)
+						return core::expects_promise_system<void>(core::expectation::met);
 				}
 				else
-					Response.Content.Data.clear();
+					response.content.data.clear();
 
-				if (IsTransferEncodingChunked)
+				if (is_transfer_encoding_chunked)
 				{
-					if (!MaxSize)
-						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+					if (!max_size)
+						return core::expects_promise_system<void>(core::expectation::met);
 
-					int64_t Subresult = -1;
-					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadQueued(MaxSize, [this, Result, Subresult, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+					int64_t subresult = -1;
+					core::expects_promise_system<void> result;
+					net.stream->read_queued(max_size, [this, result, subresult, eat](socket_poll event, const uint8_t* buffer, size_t recv) mutable
 					{
-						if (Packet::IsData(Event))
+						if (packet::is_data(event))
 						{
-							Subresult = Resolver->ParseDecodeChunked((uint8_t*)Buffer, &Recv);
-							if (Subresult == -1)
+							subresult = resolver->parse_decode_chunked((uint8_t*)buffer, &recv);
+							if (subresult == -1)
 								return false;
 
-							Response.Content.Offset += Recv;
-							if (!Eat)
-								Response.Content.Append(std::string_view((char*)Buffer, Recv));
-							return Subresult == -2;
+							response.content.offset += recv;
+							if (!eat)
+								response.content.append(std::string_view((char*)buffer, recv));
+							return subresult == -2;
 						}
-						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
-							if (Subresult != -2)
+							if (subresult != -2)
 							{
-								Response.Content.Finalize();
-								if (!Response.Content.Data.empty())
-									VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+								response.content.finalize();
+								if (!response.content.data.empty())
+									VI_DEBUG("[http] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 							}
 
-							if (Packet::IsErrorOrSkip(Event))
-								Result.Set(Core::SystemException("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
+							if (packet::is_error_or_skip(event))
+								result.set(core::system_exception("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
 							else
-								Result.Set(Core::Expectation::Met);
+								result.set(core::expectation::met);
 						}
 
 						return true;
 					});
-					return Result;
+					return result;
 				}
-				else if (!Response.Content.Limited)
+				else if (!response.content.limited)
 				{
-					if (!MaxSize)
-						return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
+					if (!max_size)
+						return core::expects_promise_system<void>(core::expectation::met);
 
-					Core::ExpectsPromiseSystem<void> Result;
-					Net.Stream->ReadQueued(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+					core::expects_promise_system<void> result;
+					net.stream->read_queued(max_size, [this, result, eat](socket_poll event, const uint8_t* buffer, size_t recv) mutable
 					{
-						if (Packet::IsData(Event))
+						if (packet::is_data(event))
 						{
-							Response.Content.Offset += Recv;
-							if (!Eat)
-								Response.Content.Append(std::string_view((char*)Buffer, Recv));
+							response.content.offset += recv;
+							if (!eat)
+								response.content.append(std::string_view((char*)buffer, recv));
 							return true;
 						}
-						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
-							Response.Content.Finalize();
-							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+							response.content.finalize();
+							if (!response.content.data.empty())
+								VI_DEBUG("[http] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 
-							if (Packet::IsErrorOrSkip(Event))
-								Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
+							if (packet::is_error_or_skip(event))
+								result.set(core::system_exception("download content network error", packet::to_condition(event)));
 							else
-								Result.Set(Core::Expectation::Met);
+								result.set(core::expectation::met);
 						}
 
 						return true;
 					});
-					return Result;
+					return result;
 				}
-                
-				MaxSize = std::min(MaxSize, Response.Content.Length - Response.Content.Offset);
-				if (!MaxSize)
-				{
-					Response.Content.Finalize();
-					return Core::ExpectsPromiseSystem<void>(Core::Expectation::Met);
-				}
-				else if (Response.Content.Offset > Response.Content.Length)
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
-				Core::ExpectsPromiseSystem<void> Result;
-				Net.Stream->ReadQueued(MaxSize, [this, Result, Eat](SocketPoll Event, const uint8_t* Buffer, size_t Recv) mutable
+				max_size = std::min(max_size, response.content.length - response.content.offset);
+				if (!max_size)
 				{
-					if (Packet::IsData(Event))
+					response.content.finalize();
+					return core::expects_promise_system<void>(core::expectation::met);
+				}
+				else if (response.content.offset > response.content.length)
+					return core::expects_promise_system<void>(core::system_exception("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
+
+				core::expects_promise_system<void> result;
+				net.stream->read_queued(max_size, [this, result, eat](socket_poll event, const uint8_t* buffer, size_t recv) mutable
+				{
+					if (packet::is_data(event))
 					{
-						Response.Content.Offset += Recv;
-						if (!Eat)
-							Response.Content.Append(std::string_view((char*)Buffer, Recv));
+						response.content.offset += recv;
+						if (!eat)
+							response.content.append(std::string_view((char*)buffer, recv));
 						return true;
 					}
-					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+					else if (packet::is_done(event) || packet::is_error_or_skip(event))
 					{
-						if (Response.Content.Length <= Response.Content.Offset)
+						if (response.content.length <= response.content.offset)
 						{
-							Response.Content.Finalize();
-							if (!Response.Content.Data.empty())
-								VI_DEBUG("[http] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+							response.content.finalize();
+							if (!response.content.data.empty())
+								VI_DEBUG("[http] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 						}
 
-						if (Packet::IsErrorOrSkip(Event))
-							Result.Set(Core::SystemException("download content network error", Packet::ToCondition(Event)));
+						if (packet::is_error_or_skip(event))
+							result.set(core::system_exception("download content network error", packet::to_condition(event)));
 						else
-							Result.Set(Core::Expectation::Met);
+							result.set(core::expectation::met);
 					}
 
 					return true;
 				});
-				return Result;
+				return result;
 			}
-			Core::ExpectsPromiseSystem<void> Client::Upgrade(HTTP::RequestFrame&& Target)
+			core::expects_promise_system<void> client::upgrade(http::request_frame&& target)
 			{
-				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
-				if (!HasStream())
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+				VI_ASSERT(web_socket != nullptr, "websocket should be opened");
+				if (!has_stream())
+					return core::expects_promise_system<void>(core::system_exception("upgrade error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				Target.SetHeader("Pragma", "no-cache");
-				Target.SetHeader("Upgrade", "WebSocket");
-				Target.SetHeader("Connection", "Upgrade");
-				Target.SetHeader("Sec-WebSocket-Version", "13");
+				target.set_header("Pragma", "no-cache");
+				target.set_header("Upgrade", "WebSocket");
+				target.set_header("Connection", "Upgrade");
+				target.set_header("Sec-web_socket-Version", "13");
 
-				auto Random = Compute::Crypto::RandomBytes(16);
-				if (Random)
-					Target.SetHeader("Sec-WebSocket-Key", Compute::Codec::Base64Encode(*Random));
+				auto random = compute::crypto::random_bytes(16);
+				if (random)
+					target.set_header("Sec-web_socket-Key", compute::codec::base64_encode(*random));
 				else
-					Target.SetHeader("Sec-WebSocket-Key", HTTP_WEBSOCKET_KEY);
-	
-				return Send(std::move(Target)).Then<Core::ExpectsPromiseSystem<void>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<void>
+					target.set_header("Sec-web_socket-Key", HTTP_WEBSOCKET_KEY);
+
+				return send(std::move(target)).then<core::expects_promise_system<void>>([this](core::expects_system<void>&& status) -> core::expects_promise_system<void>
 				{
-					VI_DEBUG("[ws] handshake %s", Request.Location.c_str());
-					if (!Status)
-						return Core::ExpectsPromiseSystem<void>(Status.Error());
+					VI_DEBUG("[ws] handshake %s", request.location.c_str());
+					if (!status)
+						return core::expects_promise_system<void>(status.error());
 
-					if (Response.StatusCode != 101)
-						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
+					if (response.status_code != 101)
+						return core::expects_promise_system<void>(core::system_exception("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
 
-					if (Response.GetHeader("Sec-WebSocket-Accept").empty())
-						return Core::ExpectsPromiseSystem<void>(Core::SystemException("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
+					if (response.get_header("Sec-web_socket-Accept").empty())
+						return core::expects_promise_system<void>(core::system_exception("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
 
-					Future = Core::ExpectsPromiseSystem<void>();
-					WebSocket->Next();
-					return Future;
+					future = core::expects_promise_system<void>();
+					web_socket->next();
+					return future;
 				});
 			}
-			Core::ExpectsPromiseSystem<void> Client::Send(HTTP::RequestFrame&& Target)
+			core::expects_promise_system<void> client::send(http::request_frame&& target)
 			{
-				VI_ASSERT(!WebSocket || !Target.GetHeader("Sec-WebSocket-Key").empty(), "cannot send http request over websocket");
-				if (!HasStream())
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+				VI_ASSERT(!web_socket || !target.get_header("Sec-web_socket-Key").empty(), "cannot send http request over websocket");
+				if (!has_stream())
+					return core::expects_promise_system<void>(core::system_exception("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				VI_DEBUG("[http] %s %s", Target.Method, Target.Location.c_str());
-				if (!Response.Content.IsFinalized() || Response.Content.Exceeds)
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("content error: response body was not read", std::make_error_condition(std::errc::broken_pipe)));
+				VI_DEBUG("[http] %s %s", target.method, target.location.c_str());
+				if (!response.content.is_finalized() || response.content.exceeds)
+					return core::expects_promise_system<void>(core::system_exception("content error: response body was not read", std::make_error_condition(std::errc::broken_pipe)));
 
-				Core::ExpectsPromiseSystem<void> Result;
-				Request = std::move(Target);
-				Response.Cleanup();
-				State.Resolver = [this, Result](Core::ExpectsSystem<void>&& Status) mutable
+				core::expects_promise_system<void> result;
+				request = std::move(target);
+				response.cleanup();
+				state.resolver = [this, result](core::expects_system<void>&& status) mutable
 				{
-					if (!Status)
-						Response.StatusCode = -1;
-					Result.Set(std::move(Status));
+					if (!status)
+						response.status_code = -1;
+					result.set(std::move(status));
 				};
 
-				if (Request.GetHeader("Host").empty())
+				if (request.get_header("Host").empty())
 				{
-					auto Hostname = State.Address.GetHostname();
-					if (Hostname)
+					auto hostname = state.address.get_hostname();
+					if (hostname)
 					{
-						auto Port = State.Address.GetIpPort();
-						if (Port && *Port != (Net.Stream->IsSecure() ? 443 : 80))
-							Request.SetHeader("Host", (*Hostname + ':' + Core::ToString(*Port)));
+						auto port = state.address.get_ip_port();
+						if (port && *port != (net.stream->is_secure() ? 443 : 80))
+							request.set_header("Host", (*hostname + ':' + core::to_string(*port)));
 						else
-							Request.SetHeader("Host", *Hostname);
+							request.set_header("Host", *hostname);
 					}
 				}
 
-				if (Request.GetHeader("Accept").empty())
-					Request.SetHeader("Accept", "*/*");
+				if (request.get_header("Accept").empty())
+					request.set_header("Accept", "*/*");
 
-				if (Request.GetHeader("Content-Length").empty())
+				if (request.get_header("Content-Length").empty())
 				{
-					Request.Content.Length = Request.Content.Data.size();
-					Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()));
+					request.content.length = request.content.data.size();
+					request.set_header("Content-Length", core::to_string(request.content.data.size()));
 				}
 
-				if (Request.GetHeader("Connection").empty())
-					Request.SetHeader("Connection", "Keep-Alive");
+				if (request.get_header("Connection").empty())
+					request.set_header("Connection", "Keep-Alive");
 
-				auto* Content = HrmCache::Get()->Pop();
-				if (Request.Location.empty())
-					Request.Location.assign("/");
+				auto* content = hrm_cache::get()->pop();
+				if (request.location.empty())
+					request.location.assign("/");
 
-				if (!Request.Query.empty())
+				if (!request.query.empty())
 				{
-					Content->append(Request.Method).append(" ");
-					Content->append(Request.Location).append("?");
-					Content->append(Request.Query).append(" ");
-					Content->append(Request.Version).append("\r\n");
+					content->append(request.method).append(" ");
+					content->append(request.location).append("?");
+					content->append(request.query).append(" ");
+					content->append(request.version).append("\r\n");
 				}
 				else
 				{
-					Content->append(Request.Method).append(" ");
-					Content->append(Request.Location).append(" ");
-					Content->append(Request.Version).append("\r\n");
+					content->append(request.method).append(" ");
+					content->append(request.location).append(" ");
+					content->append(request.version).append("\r\n");
 				}
 
-				if (Request.Content.Resources.empty())
+				if (request.content.resources.empty())
 				{
-					if (!Request.Content.Data.empty())
+					if (!request.content.data.empty())
 					{
-						if (Request.GetHeader("Content-Type").empty())
-							Request.SetHeader("Content-Type", "application/octet-stream");
+						if (request.get_header("Content-Type").empty())
+							request.set_header("Content-Type", "application/octet-stream");
 
-						if (Request.GetHeader("Content-Length").empty())
-							Request.SetHeader("Content-Length", Core::ToString(Request.Content.Data.size()).c_str());
+						if (request.get_header("Content-Length").empty())
+							request.set_header("Content-Length", core::to_string(request.content.data.size()).c_str());
 					}
-					else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
-						Request.SetHeader("Content-Length", "0");
+					else if (!memcmp(request.method, "POST", 4) || !memcmp(request.method, "PUT", 3) || !memcmp(request.method, "PATCH", 5))
+						request.set_header("Content-Length", "0");
 
-					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
-					Content->append("\r\n");
+					paths::construct_head_full(&request, &response, true, *content);
+					content->append("\r\n");
 
-					Net.Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
+					net.stream->write_queued((uint8_t*)content->c_str(), content->size(), [this, content](socket_poll event)
 					{
-						HrmCache::Get()->Push(Content);
-						if (Packet::IsDone(Event))
+						hrm_cache::get()->push(content);
+						if (packet::is_done(event))
 						{
-							if (!Request.Content.Data.empty())
+							if (!request.content.data.empty())
 							{
-								Net.Stream->WriteQueued((uint8_t*)Request.Content.Data.data(), Request.Content.Data.size(), [this](SocketPoll Event)
+								net.stream->write_queued((uint8_t*)request.content.data.data(), request.content.data.size(), [this](socket_poll event)
 								{
-									if (Packet::IsDone(Event))
+									if (packet::is_done(event))
 									{
-										Net.Stream->ReadUntilChunkedQueued("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+										net.stream->read_until_chunked_queued("\r\n\r\n", [this](socket_poll event, const uint8_t* buffer, size_t recv)
 										{
-											if (Packet::IsData(Event))
-												Response.Content.Append(std::string_view((char*)Buffer, Recv));
-											else if (Packet::IsDone(Event))
-												Receive(Buffer, Recv);
-											else if (Packet::IsErrorOrSkip(Event))
-												Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+											if (packet::is_data(event))
+												response.content.append(std::string_view((char*)buffer, recv));
+											else if (packet::is_done(event))
+												receive(buffer, recv);
+											else if (packet::is_error_or_skip(event))
+												report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
 											return true;
 										});
 									}
-									else if (Packet::IsErrorOrSkip(Event))
-										Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+									else if (packet::is_error_or_skip(event))
+										report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 								}, false);
 							}
 							else
 							{
-								Net.Stream->ReadUntilChunkedQueued("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+								net.stream->read_until_chunked_queued("\r\n\r\n", [this](socket_poll event, const uint8_t* buffer, size_t recv)
 								{
-									if (Packet::IsData(Event))
-										Response.Content.Append(std::string_view((char*)Buffer, Recv));
-									else if (Packet::IsDone(Event))
-										Receive(Buffer, Recv);
-									else if (Packet::IsErrorOrSkip(Event))
-										Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+									if (packet::is_data(event))
+										response.content.append(std::string_view((char*)buffer, recv));
+									else if (packet::is_done(event))
+										receive(buffer, recv);
+									else if (packet::is_error_or_skip(event))
+										report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
 									return true;
 								});
 							}
 						}
-						else if (Packet::IsErrorOrSkip(Event))
-							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						else if (packet::is_error_or_skip(event))
+							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					}, false);
 				}
 				else
 				{
-					auto RandomBytes = Compute::Crypto::RandomBytes(24);
-					if (!RandomBytes)
+					auto random_bytes = compute::crypto::random_bytes(24);
+					if (!random_bytes)
 					{
-						Report(Core::SystemException("send boundary error: " + RandomBytes.Error().message(), std::make_error_condition(std::errc::operation_canceled)));
-						HrmCache::Get()->Push(Content);
-						return Result;
+						report(core::system_exception("send boundary error: " + random_bytes.error().message(), std::make_error_condition(std::errc::operation_canceled)));
+						hrm_cache::get()->push(content);
+						return result;
 					}
 
-					Core::String Boundary = "----0x" + Compute::Codec::HexEncode(*RandomBytes);
-					Request.SetHeader("Content-Type", "multipart/form-data; boundary=" + Boundary);
-					Boundary.insert(0, "--");
+					core::string boundary = "----0x" + compute::codec::hex_encode(*random_bytes);
+					request.set_header("Content-Type", "multipart/form-data; boundary=" + boundary);
+					boundary.insert(0, "--");
 
-					Boundaries.clear();
-					Boundaries.reserve(Request.Content.Resources.size());
+					boundaries.clear();
+					boundaries.reserve(request.content.resources.size());
 
-					size_t ContentSize = 0;
-					for (auto& Item : Request.Content.Resources)
+					size_t content_size = 0;
+					for (auto& item : request.content.resources)
 					{
-						if (!Item.IsInMemory && Item.Name.empty())
-							Item.Name = Core::OS::Path::GetFilename(Item.Path.c_str());
-						if (Item.Type.empty())
-							Item.Type = "application/octet-stream";
-						if (Item.Key.empty())
-							Item.Key = "file" + Core::ToString(Boundaries.size() + 1);
+						if (!item.is_in_memory && item.name.empty())
+							item.name = core::os::path::get_filename(item.path.c_str());
+						if (item.type.empty())
+							item.type = "application/octet-stream";
+						if (item.key.empty())
+							item.key = "file" + core::to_string(boundaries.size() + 1);
 
-						BoundaryBlock Block;
-						Block.Finish = "\r\n";
-						Block.File = &Item;
-						Block.IsFinal = (Boundaries.size() + 1 == Request.Content.Resources.size());
+						boundary_block block;
+						block.finish = "\r\n";
+						block.file = &item;
+						block.is_final = (boundaries.size() + 1 == request.content.resources.size());
 
-						for (auto& Header : Item.Headers)
+						for (auto& header : item.headers)
 						{
-							Block.Data.append(Boundary).append("\r\n");
-							Block.Data.append("Content-Disposition: form-data; name=\"").append(Header.first).append("\"\r\n\r\n");
-							for (auto& Value : Header.second)
-								Block.Data.append(Value);
-							Block.Data.append("\r\n\r\n").append(Boundary).append("\r\n");
+							block.data.append(boundary).append("\r\n");
+							block.data.append("Content-disposition: form-data; name=\"").append(header.first).append("\"\r\n\r\n");
+							for (auto& value : header.second)
+								block.data.append(value);
+							block.data.append("\r\n\r\n").append(boundary).append("\r\n");
 						}
 
-						Block.Finish.append(Boundary);
-						if (Block.IsFinal)
-							Block.Finish.append("--\r\n");
+						block.finish.append(boundary);
+						if (block.is_final)
+							block.finish.append("--\r\n");
 						else
-							Block.Finish.append("\r\n");
+							block.finish.append("\r\n");
 
-						Block.Data.append(Boundary).append("\r\n");
-						Block.Data.append("Content-Disposition: form-data; name=\"").append(Item.Key).append("\"; filename=\"").append(Item.Name).append("\"\r\n");
-						Block.Data.append("Content-Type: ").append(Item.Type).append("\r\n\r\n");
+						block.data.append(boundary).append("\r\n");
+						block.data.append("Content-disposition: form-data; name=\"").append(item.key).append("\"; filename=\"").append(item.name).append("\"\r\n");
+						block.data.append("Content-type: ").append(item.type).append("\r\n\r\n");
 
-						if (!Item.IsInMemory)
+						if (!item.is_in_memory)
 						{
-							auto State = Core::OS::File::GetState(Item.Path);
-							if (State && !State->IsDirectory)
-								Item.Length = State->Size;
+							auto state = core::os::file::get_state(item.path);
+							if (state && !state->is_directory)
+								item.length = state->size;
 							else
-								Item.Length = 0;
-							ContentSize += Block.Data.size() + Item.Length + Block.Finish.size();
+								item.length = 0;
+							content_size += block.data.size() + item.length + block.finish.size();
 						}
 						else
 						{
-							Item.Length = Item.GetInMemoryContents().size();
-							Block.Data.append(Item.GetInMemoryContents());
-							Block.Data.append(Block.Finish);
-							Item.Path.clear();
-							Item.Path.shrink_to_fit();
-							ContentSize += Block.Data.size();
+							item.length = item.get_in_memory_contents().size();
+							block.data.append(item.get_in_memory_contents());
+							block.data.append(block.finish);
+							item.path.clear();
+							item.path.shrink_to_fit();
+							content_size += block.data.size();
 						}
 
-						Boundaries.emplace_back(std::move(Block));
+						boundaries.emplace_back(std::move(block));
 					}
 
-					Request.SetHeader("Content-Length", Core::ToString(ContentSize));
-					Paths::ConstructHeadFull(&Request, &Response, true, *Content);
-					Content->append("\r\n");
+					request.set_header("Content-Length", core::to_string(content_size));
+					paths::construct_head_full(&request, &response, true, *content);
+					content->append("\r\n");
 
-					Net.Stream->WriteQueued((uint8_t*)Content->c_str(), Content->size(), [this, Content](SocketPoll Event)
+					net.stream->write_queued((uint8_t*)content->c_str(), content->size(), [this, content](socket_poll event)
 					{
-						HrmCache::Get()->Push(Content);
-						if (Packet::IsDone(Event))
-							Upload(0);
-						else if (Packet::IsErrorOrSkip(Event))
-							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						hrm_cache::get()->push(content);
+						if (packet::is_done(event))
+							upload(0);
+						else if (packet::is_error_or_skip(event))
+							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					}, false);
 				}
 
-				return Result;
+				return result;
 			}
-			Core::ExpectsPromiseSystem<void> Client::SendFetch(HTTP::RequestFrame&& Target, size_t MaxSize)
+			core::expects_promise_system<void> client::send_fetch(http::request_frame&& target, size_t max_size)
 			{
-				return Send(std::move(Target)).Then<Core::ExpectsPromiseSystem<void>>([this, MaxSize](Core::ExpectsSystem<void>&& Response) -> Core::ExpectsPromiseSystem<void>
+				return send(std::move(target)).then<core::expects_promise_system<void>>([this, max_size](core::expects_system<void>&& response) -> core::expects_promise_system<void>
 				{
-					if (!Response)
-						return Response;
+					if (!response)
+						return response;
 
-					return Fetch(MaxSize);
+					return fetch(max_size);
 				});
 			}
-			Core::ExpectsPromiseSystem<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Target, size_t MaxSize)
+			core::expects_promise_system<core::schema*> client::json(http::request_frame&& target, size_t max_size)
 			{
-				return SendFetch(std::move(Target), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
+				return send_fetch(std::move(target), max_size).then<core::expects_system<core::schema*>>([this](core::expects_system<void>&& status) -> core::expects_system<core::schema*>
 				{
-					if (!Status)
-						return Status.Error();
+					if (!status)
+						return status.error();
 
-					auto Data = Core::Schema::ConvertFromJSON(std::string_view(Response.Content.Data.data(), Response.Content.Data.size()));
-					if (!Data)
-						return Core::SystemException(Data.Error().message(), std::make_error_condition(std::errc::bad_message));
+					auto data = core::schema::convert_from_json(std::string_view(response.content.data.data(), response.content.data.size()));
+					if (!data)
+						return core::system_exception(data.error().message(), std::make_error_condition(std::errc::bad_message));
 
-					return *Data;
+					return *data;
 				});
 			}
-			Core::ExpectsPromiseSystem<Core::Schema*> Client::XML(HTTP::RequestFrame&& Target, size_t MaxSize)
+			core::expects_promise_system<core::schema*> client::xml(http::request_frame&& target, size_t max_size)
 			{
-				return SendFetch(std::move(Target), MaxSize).Then<Core::ExpectsSystem<Core::Schema*>>([this](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsSystem<Core::Schema*>
+				return send_fetch(std::move(target), max_size).then<core::expects_system<core::schema*>>([this](core::expects_system<void>&& status) -> core::expects_system<core::schema*>
 				{
-					if (!Status)
-						return Status.Error();
+					if (!status)
+						return status.error();
 
-					auto Data = Core::Schema::ConvertFromXML(std::string_view(Response.Content.Data.data(), Response.Content.Data.size()));
-					if (!Data)
-						return Core::SystemException(Data.Error().message(), std::make_error_condition(std::errc::bad_message));
+					auto data = core::schema::convert_from_xml(std::string_view(response.content.data.data(), response.content.data.size()));
+					if (!data)
+						return core::system_exception(data.error().message(), std::make_error_condition(std::errc::bad_message));
 
-					return *Data;
+					return *data;
 				});
 			}
-			Core::ExpectsSystem<void> Client::OnReuse()
+			core::expects_system<void> client::on_reuse()
 			{
-				Response.Content.Cleanup();
-				Response.Content.Finalize();
-				Report(Core::Expectation::Met);
-				return Core::Expectation::Met;
+				response.content.cleanup();
+				response.content.finalize();
+				report(core::expectation::met);
+				return core::expectation::met;
 			}
-			Core::ExpectsSystem<void> Client::OnDisconnect()
+			core::expects_system<void> client::on_disconnect()
 			{
-				Response.Content.Cleanup();
-				Response.Content.Finalize();
-				Report(Core::Expectation::Met);
-				return Core::Expectation::Met;
+				response.content.cleanup();
+				response.content.finalize();
+				report(core::expectation::met);
+				return core::expectation::met;
 			}
-			void Client::Downgrade()
+			void client::downgrade()
 			{
-				VI_ASSERT(WebSocket != nullptr, "websocket should be opened");
-				VI_ASSERT(WebSocket->IsFinished(), "websocket connection should be finished");
-				Core::Memory::Release(WebSocket);
+				VI_ASSERT(web_socket != nullptr, "websocket should be opened");
+				VI_ASSERT(web_socket->is_finished(), "websocket connection should be finished");
+				core::memory::release(web_socket);
 			}
-			WebSocketFrame* Client::GetWebSocket()
+			web_socket_frame* client::get_web_socket()
 			{
-				if (WebSocket != nullptr)
-					return WebSocket;
+				if (web_socket != nullptr)
+					return web_socket;
 
-				WebSocket = new WebSocketFrame(Net.Stream, this);
-				WebSocket->Lifetime.Dead = [](WebSocketFrame*)
+				web_socket = new web_socket_frame(net.stream, this);
+				web_socket->lifetime.dead = [](web_socket_frame*)
 				{
 					return false;
 				};
-				WebSocket->Lifetime.Close = [this](WebSocketFrame*, bool Successful)
+				web_socket->lifetime.close = [this](web_socket_frame*, bool successful)
 				{
-					if (!Successful)
+					if (!successful)
 					{
-						Net.Stream->Shutdown();
-						Future.Set(Core::SystemException("ws connection abort error", std::make_error_condition(std::errc::connection_reset)));
+						net.stream->shutdown();
+						future.set(core::system_exception("ws connection abort error", std::make_error_condition(std::errc::connection_reset)));
 					}
 					else
-						Future.Set(Core::Expectation::Met);
+						future.set(core::expectation::met);
 				};
 
-				return WebSocket;
+				return web_socket;
 			}
-			RequestFrame* Client::GetRequest()
+			request_frame* client::get_request()
 			{
-				return &Request;
+				return &request;
 			}
-			ResponseFrame* Client::GetResponse()
+			response_frame* client::get_response()
 			{
-				return &Response;
+				return &response;
 			}
-			void Client::UploadFile(BoundaryBlock* Boundary, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
+			void client::upload_file(boundary_block* boundary, std::function<void(core::expects_system<void>&&)>&& callback)
 			{
-				auto File = Core::OS::File::Open(Boundary->File->Path.c_str(), "rb");
-				if (!File)
-					return Callback(Core::SystemException("upload file error", std::move(File.Error())));
+				auto file = core::os::file::open(boundary->file->path.c_str(), "rb");
+				if (!file)
+					return callback(core::system_exception("upload file error", std::move(file.error())));
 
-				FILE* FileStream = *File;
-                auto Result = Net.Stream->WriteFileQueued(FileStream, 0, Boundary->File->Length, [FileStream, Callback](SocketPoll Event)
-                {
-                    if (Packet::IsDone(Event))
-                    {
-                        Core::OS::File::Close(FileStream);
-						Callback(Core::Expectation::Met);
-                    }
-                    else if (Packet::IsErrorOrSkip(Event))
+				FILE* file_stream = *file;
+				auto result = net.stream->write_file_queued(file_stream, 0, boundary->file->length, [file_stream, callback](socket_poll event)
+				{
+					if (packet::is_done(event))
 					{
-						Core::OS::File::Close(FileStream);
-						Callback(Core::SystemException("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
+						core::os::file::close(file_stream);
+						callback(core::expectation::met);
 					}
-				});         
-                if (Result || Result.Error() != std::errc::not_supported)
-					return Callback(Core::Expectation::Met);
+					else if (packet::is_error_or_skip(event))
+					{
+						core::os::file::close(file_stream);
+						callback(core::system_exception("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
+					}
+				});
+				if (result || result.error() != std::errc::not_supported)
+					return callback(core::expectation::met);
 
-				if (Config.IsNonBlocking)
-					return UploadFileChunkQueued(FileStream, Boundary->File->Length, std::move(Callback));
+				if (config.is_non_blocking)
+					return upload_file_chunk_queued(file_stream, boundary->file->length, std::move(callback));
 
-				return UploadFileChunk(FileStream, Boundary->File->Length, std::move(Callback));
+				return upload_file_chunk(file_stream, boundary->file->length, std::move(callback));
 			}
-			void Client::UploadFileChunk(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
+			void client::upload_file_chunk(FILE* file_stream, size_t content_length, std::function<void(core::expects_system<void>&&)>&& callback)
 			{
-				if (!ContentLength)
+				if (!content_length)
 				{
-					Core::OS::File::Close(FileStream);
-					return Callback(Core::Expectation::Met);
+					core::os::file::close(file_stream);
+					return callback(core::expectation::met);
 				}
 
-				uint8_t Buffer[Core::BLOB_SIZE];
-				while (ContentLength > 0)
+				uint8_t buffer[core::BLOB_SIZE];
+				while (content_length > 0)
 				{
-					size_t Read = sizeof(Buffer);
-					if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
+					size_t read = sizeof(buffer);
+					if ((read = (size_t)fread(buffer, 1, read > content_length ? content_length : read, file_stream)) <= 0)
 					{
-						Core::OS::File::Close(FileStream);
-						return Callback(Core::SystemException("upload file io error", Core::OS::Error::GetCondition()));
+						core::os::file::close(file_stream);
+						return callback(core::system_exception("upload file io error", core::os::error::get_condition()));
 					}
 
-					ContentLength -= Read;
-					auto Written = Net.Stream->Write(Buffer, Read);
-					if (!Written || !*Written)
+					content_length -= read;
+					auto written = net.stream->write(buffer, read);
+					if (!written || !*written)
 					{
-						Core::OS::File::Close(FileStream);
-						if (!Written)
-							return Callback(Core::SystemException("upload file network error", std::move(Written.Error())));
+						core::os::file::close(file_stream);
+						if (!written)
+							return callback(core::system_exception("upload file network error", std::move(written.error())));
 
-						return Callback(Core::Expectation::Met);
+						return callback(core::expectation::met);
 					}
 				}
 			}
-			void Client::UploadFileChunkQueued(FILE* FileStream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback)
+			void client::upload_file_chunk_queued(FILE* file_stream, size_t content_length, std::function<void(core::expects_system<void>&&)>&& callback)
 			{
-			Retry:
-				if (!ContentLength)
+			retry:
+				if (!content_length)
 				{
-					Core::OS::File::Close(FileStream);
-					return Callback(Core::Expectation::Met);
+					core::os::file::close(file_stream);
+					return callback(core::expectation::met);
 				}
 
-				uint8_t Buffer[Core::BLOB_SIZE];
-				size_t Read = sizeof(Buffer);
-				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, FileStream)) <= 0)
+				uint8_t buffer[core::BLOB_SIZE];
+				size_t read = sizeof(buffer);
+				if ((read = (size_t)fread(buffer, 1, read > content_length ? content_length : read, file_stream)) <= 0)
 				{
-					Core::OS::File::Close(FileStream);
-					return Callback(Core::SystemException("upload file io error", Core::OS::Error::GetCondition()));
+					core::os::file::close(file_stream);
+					return callback(core::system_exception("upload file io error", core::os::error::get_condition()));
 				}
 
-				ContentLength -= Read;
-				auto Written = Net.Stream->WriteQueued(Buffer, Read, [this, FileStream, ContentLength, Callback](SocketPoll Event) mutable
+				content_length -= read;
+				auto written = net.stream->write_queued(buffer, read, [this, file_stream, content_length, callback](socket_poll event) mutable
 				{
-					if (Packet::IsDoneAsync(Event))
+					if (packet::is_done_async(event))
 					{
-						Core::Cospawn([this, FileStream, ContentLength, Callback = std::move(Callback)]() mutable
+						core::cospawn([this, file_stream, content_length, callback = std::move(callback)]() mutable
 						{
-							UploadFileChunkQueued(FileStream, ContentLength, std::move(Callback));
+							upload_file_chunk_queued(file_stream, content_length, std::move(callback));
 						});
 					}
-					else if (Packet::IsErrorOrSkip(Event))
+					else if (packet::is_error_or_skip(event))
 					{
-						Core::OS::File::Close(FileStream);
-						return Callback(Core::SystemException("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
+						core::os::file::close(file_stream);
+						return callback(core::system_exception("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
 					}
 				});
 
-				if (Written && *Written > 0)
-					goto Retry;
+				if (written && *written > 0)
+					goto retry;
 			}
-			void Client::Upload(size_t FileId)
+			void client::upload(size_t file_id)
 			{
-				if (FileId < Boundaries.size())
+				if (file_id < boundaries.size())
 				{
-					BoundaryBlock* Boundary = &Boundaries[FileId];
-					Net.Stream->WriteQueued((uint8_t*)Boundary->Data.c_str(), Boundary->Data.size(), [this, Boundary, FileId](SocketPoll Event)
+					boundary_block* boundary = &boundaries[file_id];
+					net.stream->write_queued((uint8_t*)boundary->data.c_str(), boundary->data.size(), [this, boundary, file_id](socket_poll event)
 					{
-						if (Packet::IsDone(Event))
+						if (packet::is_done(event))
 						{
-							if (!Boundary->File->IsInMemory)
+							if (!boundary->file->is_in_memory)
 							{
-								BoundaryBlock& Block = *Boundary;
-								UploadFile(&Block, [this, Boundary, FileId](Core::ExpectsSystem<void>&& Status)
+								boundary_block& block = *boundary;
+								upload_file(&block, [this, boundary, file_id](core::expects_system<void>&& status)
 								{
-									if (Status)
+									if (status)
 									{
-										Net.Stream->WriteQueued((uint8_t*)Boundary->Finish.c_str(), Boundary->Finish.size(), [this, FileId](SocketPoll Event)
+										net.stream->write_queued((uint8_t*)boundary->finish.c_str(), boundary->finish.size(), [this, file_id](socket_poll event)
 										{
-											if (Packet::IsDone(Event))
-												Upload(FileId + 1);
-											else if (Packet::IsErrorOrSkip(Event))
-												Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+											if (packet::is_done(event))
+												upload(file_id + 1);
+											else if (packet::is_error_or_skip(event))
+												report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 										}, false);
 									}
 									else
-										Report(std::move(Status));
+										report(std::move(status));
 								});
 							}
 							else
-								Upload(FileId + 1);
+								upload(file_id + 1);
 						}
-						else if (Packet::IsErrorOrSkip(Event))
-							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						else if (packet::is_error_or_skip(event))
+							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					}, false);
 				}
 				else
 				{
-					Net.Stream->ReadUntilChunkedQueued("\r\n\r\n", [this](SocketPoll Event, const uint8_t* Buffer, size_t Recv)
+					net.stream->read_until_chunked_queued("\r\n\r\n", [this](socket_poll event, const uint8_t* buffer, size_t recv)
 					{
-						if (Packet::IsData(Event))
-							Response.Content.Append(std::string_view((char*)Buffer, Recv));
-						else if (Packet::IsDone(Event))
-							Receive(Buffer, Recv);
-						else if (Packet::IsErrorOrSkip(Event))
-							Report(Core::SystemException(Event == SocketPoll::Timeout ? "read timeout error" : "read abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						if (packet::is_data(event))
+							response.content.append(std::string_view((char*)buffer, recv));
+						else if (packet::is_done(event))
+							receive(buffer, recv);
+						else if (packet::is_error_or_skip(event))
+							report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 
 						return true;
 					});
 				}
 			}
-			void Client::ManageKeepAlive()
+			void client::manage_keep_alive()
 			{
-				auto Connection = Response.Headers.find("Connection");
-				if (Connection == Response.Headers.end())
-					return EnableReusability();
+				auto connection = response.headers.find("Connection");
+				if (connection == response.headers.end())
+					return enable_reusability();
 
-				if (Connection->second.size() != 1 || !Core::Stringify::CaseEquals(Connection->second.front(), "keep-alive"))
-					return DisableReusability();
+				if (connection->second.size() != 1 || !core::stringify::case_equals(connection->second.front(), "keep-alive"))
+					return disable_reusability();
 
-				auto AltSvc = Response.Headers.find("Alt-Svc");
-				if (AltSvc == Response.Headers.end())
-					return EnableReusability();
+				auto alt_svc = response.headers.find("Alt-Svc");
+				if (alt_svc == response.headers.end())
+					return enable_reusability();
 
-				const char Prefix[] = "=\":";
-				char Hostname[sizeof(Prefix) + Core::NUMSTR_SIZE];
-				memcpy(Hostname, Prefix, sizeof(Prefix) - 1);
+				const char prefix[] = "=\":";
+				char hostname[sizeof(prefix) + core::NUMSTR_SIZE];
+				memcpy(hostname, prefix, sizeof(prefix) - 1);
 
-				auto Port = State.Address.GetIpPort();
-				auto Service = Port ? Core::ToStringView<uint16_t>(Hostname + (sizeof(Prefix) - 1), sizeof(Hostname) - (sizeof(Prefix) - 1), *Port) : std::string_view();
-				Service = std::string_view(Hostname, (sizeof(Prefix) - 1) + Service.size());
-					
-				for (auto& Command : AltSvc->second)
+				auto port = state.address.get_ip_port();
+				auto service = port ? core::to_string_view<uint16_t>(hostname + (sizeof(prefix) - 1), sizeof(hostname) - (sizeof(prefix) - 1), *port) : std::string_view();
+				service = std::string_view(hostname, (sizeof(prefix) - 1) + service.size());
+
+				for (auto& command : alt_svc->second)
 				{
-					size_t PrefixIndex = Command.find('h');
-					if (PrefixIndex == std::string::npos || ++PrefixIndex + 1 >= Command.size())
+					size_t prefix_index = command.find('h');
+					if (prefix_index == std::string::npos || ++prefix_index + 1 >= command.size())
 						continue;
-					else if (Command[PrefixIndex] != '2' && Command[PrefixIndex] != '3')
+					else if (command[prefix_index] != '2' && command[prefix_index] != '3')
 						continue;
-					else if (Command[PrefixIndex + 1] == '-')
-						while (++PrefixIndex < Command.size() && Core::Stringify::IsNumeric(Command[PrefixIndex]));
-					if (Command.find(Service, PrefixIndex) != std::string::npos)
-						return EnableReusability();
+					else if (command[prefix_index + 1] == '-')
+						while (++prefix_index < command.size() && core::stringify::is_numeric(command[prefix_index]));
+					if (command.find(service, prefix_index) != std::string::npos)
+						return enable_reusability();
 				}
 
-				return DisableReusability();
+				return disable_reusability();
 			}
-			void Client::Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize)
+			void client::receive(const uint8_t* leftover_buffer, size_t leftover_size)
 			{
-				Resolver->PrepareForResponseParsing(&Response);
-				if (Resolver->ParseResponse((uint8_t*)Response.Content.Data.data(), Response.Content.Data.size(), 0) >= 0)
+				resolver->prepare_for_response_parsing(&response);
+				if (resolver->parse_response((uint8_t*)response.content.data.data(), response.content.data.size(), 0) >= 0)
 				{
-					Response.Content.Prepare(Response.Headers, LeftoverBuffer, LeftoverSize);
-					ManageKeepAlive();
-					Report(Core::Expectation::Met);
+					response.content.prepare(response.headers, leftover_buffer, leftover_size);
+					manage_keep_alive();
+					report(core::expectation::met);
 				}
 				else
-					Report(Core::SystemException(Core::Stringify::Text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, Response.Content.Data.size()), Response.Content.Data.data()), std::make_error_condition(std::errc::bad_message)));
+					report(core::system_exception(core::stringify::text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, response.content.data.size()), response.content.data.data()), std::make_error_condition(std::errc::bad_message)));
 			}
 
-			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const std::string_view& Location, const std::string_view& Method, const FetchFrame& Options)
+			core::expects_promise_system<response_frame> fetch(const std::string_view& location, const std::string_view& method, const fetch_frame& options)
 			{
-				Network::Location Origin(Location);
-				if (Origin.Protocol != "http" && Origin.Protocol != "https")
-					return Core::ExpectsPromiseSystem<ResponseFrame>(Core::SystemException("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported)));
+				network::location origin(location);
+				if (origin.protocol != "http" && origin.protocol != "https")
+					return core::expects_promise_system<response_frame>(core::system_exception("http fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported)));
 
-				HTTP::RequestFrame Request;
-				Request.Cookies = Options.Cookies;
-				Request.Headers = Options.Headers;
-				Request.Content = Options.Content;
-				Request.Location.assign(Origin.Path);
-				Request.SetMethod(Method);
-				if (!Origin.Username.empty() || !Origin.Password.empty())
-					Request.SetHeader("Authorization", Permissions::Authorize(Origin.Username, Origin.Password));
+				http::request_frame request;
+				request.cookies = options.cookies;
+				request.headers = options.headers;
+				request.content = options.content;
+				request.location.assign(origin.path);
+				request.set_method(method);
+				if (!origin.username.empty() || !origin.password.empty())
+					request.set_header("Authorization", permissions::authorize(origin.username, origin.password));
 
-				for (auto& Item : Origin.Query)
-					Request.Query += Item.first + "=" + Item.second + "&";
-				if (!Request.Query.empty())
-					Request.Query.pop_back();
+				for (auto& item : origin.query)
+					request.query += item.first + "=" + item.second + "&";
+				if (!request.query.empty())
+					request.query.pop_back();
 
-				size_t MaxSize = Options.MaxSize;
-				uint64_t Timeout = Options.Timeout;
-				bool Secure = Origin.Protocol == "https";
-				Core::String Hostname = Origin.Hostname;
-				Core::String Port = Origin.Port > 0 ? Core::ToString(Origin.Port) : Core::String(Secure ? "443" : "80");
-				int32_t VerifyPeers = (Secure ? (Options.VerifyPeers >= 0 ? Options.VerifyPeers : PEER_NOT_VERIFIED) : PEER_NOT_SECURE);
-				return DNS::Get()->LookupDeferred(Hostname, Port, DNSType::Connect, SocketProtocol::TCP, SocketType::Stream).Then<Core::ExpectsPromiseSystem<ResponseFrame>>([MaxSize, Timeout, VerifyPeers, Request = std::move(Request), Origin = std::move(Origin)](Core::ExpectsSystem<SocketAddress>&& Address) mutable -> Core::ExpectsPromiseSystem<ResponseFrame>
+				size_t max_size = options.max_size;
+				uint64_t timeout = options.timeout;
+				bool secure = origin.protocol == "https";
+				core::string hostname = origin.hostname;
+				core::string port = origin.port > 0 ? core::to_string(origin.port) : core::string(secure ? "443" : "80");
+				int32_t verify_peers = (secure ? (options.verify_peers >= 0 ? options.verify_peers : PEER_NOT_VERIFIED) : PEER_NOT_SECURE);
+				return dns::get()->lookup_deferred(hostname, port, dns_type::connect, socket_protocol::TCP, socket_type::stream).then<core::expects_promise_system<response_frame>>([max_size, timeout, verify_peers, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<response_frame>
 				{
-					if (!Address)
-						return Core::ExpectsPromiseSystem<ResponseFrame>(Address.Error());
+					if (!address)
+						return core::expects_promise_system<response_frame>(address.error());
 
-					HTTP::Client* Client = new HTTP::Client(Timeout);
-					return Client->ConnectAsync(*Address, VerifyPeers).Then<Core::ExpectsPromiseSystem<void>>([Client, MaxSize, Request = std::move(Request)](Core::ExpectsSystem<void>&& Status) mutable -> Core::ExpectsPromiseSystem<void>
+					http::client* client = new http::client(timeout);
+					return client->connect_async(*address, verify_peers).then<core::expects_promise_system<void>>([client, max_size, request = std::move(request)](core::expects_system<void>&& status) mutable -> core::expects_promise_system<void>
 					{
-						if (!Status)
-							return Core::ExpectsPromiseSystem<void>(Status);
+						if (!status)
+							return core::expects_promise_system<void>(status);
 
-						return Client->SendFetch(std::move(Request), MaxSize);
-					}).Then<Core::ExpectsPromiseSystem<ResponseFrame>>([Client](Core::ExpectsSystem<void>&& Status) -> Core::ExpectsPromiseSystem<ResponseFrame>
+						return client->send_fetch(std::move(request), max_size);
+					}).then<core::expects_promise_system<response_frame>>([client](core::expects_system<void>&& status) -> core::expects_promise_system<response_frame>
 					{
-						if (!Status)
+						if (!status)
 						{
-							Client->Release();
-							return Core::ExpectsPromiseSystem<ResponseFrame>(Status.Error());
+							client->release();
+							return core::expects_promise_system<response_frame>(status.error());
 						}
 
-						auto Response = std::move(*Client->GetResponse());
-						return Client->Disconnect().Then<Core::ExpectsSystem<ResponseFrame>>([Client, Response = std::move(Response)](Core::ExpectsSystem<void>&&) mutable -> Core::ExpectsSystem<ResponseFrame>
+						auto response = std::move(*client->get_response());
+						return client->disconnect().then<core::expects_system<response_frame>>([client, response = std::move(response)](core::expects_system<void>&&) mutable -> core::expects_system<response_frame>
 						{
-							Client->Release();
-							return std::move(Response);
+							client->release();
+							return std::move(response);
 						});
 					});
 				});

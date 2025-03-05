@@ -1,29 +1,28 @@
-#ifndef VI_BINDINGS_H
 #define VI_BINDINGS_H
 #include "scripting.h"
 #include "layer.h"
 #include <tuple>
-#define VI_TYPEREF(Name, TypeName) static const uint64_t Name = Vitex::Core::OS::File::GetIndex<sizeof(TypeName)>(TypeName); Vitex::Scripting::TypeCache::Set(Name, TypeName)
-#define VI_PROMISIFY(MemberFunction, TypeId) Vitex::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define VI_PROMISIFY_REF(MemberFunction, TypeRef) Vitex::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
-#define VI_SPROMISIFY(Function, TypeId) Vitex::Scripting::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
-#define VI_SPROMISIFY_REF(Function, TypeRef) Vitex::Scripting::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
-#define VI_ARRAYIFY(MemberFunction, TypeId) Vitex::Scripting::Bindings::Array::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define VI_ARRAYIFY_REF(MemberFunction, TypeRef) Vitex::Scripting::Bindings::Array::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
-#define VI_SARRAYIFY(Function, TypeId) Vitex::Scripting::Bindings::Array::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
-#define VI_SARRAYIFY_REF(Function, TypeRef) Vitex::Scripting::Bindings::Array::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
-#define VI_ANYIFY(MemberFunction, TypeId) Vitex::Scripting::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define VI_ANYIFY_REF(MemberFunction, TypeRef) Vitex::Scripting::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
-#define VI_SANYIFY(Function, TypeId) Vitex::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
-#define VI_SANYIFY_REF(Function, TypeRef) Vitex::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
-#define VI_EXPECTIFY(MemberFunction) Vitex::Scripting::Bindings::ExpectsWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::Throws
-#define VI_EXPECTIFY_VOID(MemberFunction) Vitex::Scripting::Bindings::ExpectsWrapper::IfyVoid<decltype(&MemberFunction), &MemberFunction>::Throws
-#define VI_SEXPECTIFY(Function) Vitex::Scripting::Bindings::ExpectsWrapper::IfyStatic<decltype(&Function), &Function>::Throws
-#define VI_SEXPECTIFY_VOID(Function) Vitex::Scripting::Bindings::ExpectsWrapper::IfyStaticVoid<decltype(&Function), &Function>::Throws
-#define VI_OPTIONIFY(MemberFunction) Vitex::Scripting::Bindings::OptionWrapper::Ify<decltype(&MemberFunction), &MemberFunction>::Throws
-#define VI_OPTIONIFY_VOID(MemberFunction) Vitex::Scripting::Bindings::OptionWrapper::IfyVoid<decltype(&MemberFunction), &MemberFunction>::Throws
-#define VI_SOPTIONIFY(Function) Vitex::Scripting::Bindings::OptionWrapper::IfyStatic<decltype(&Function), &Function>::Throws
-#define VI_SOPTIONIFY_VOID(Function) Vitex::Scripting::Bindings::OptionWrapper::IfyStaticVoid<decltype(&Function), &Function>::Throws
+#define VI_TYPEREF(name, type_name) static const uint64_t name = vitex::core::os::file::get_index<sizeof(type_name)>(type_name); vitex::scripting::type_cache::set(name, type_name)
+#define VI_PROMISIFY(member_function, type_id) vitex::scripting::bindings::promise::ify<decltype(&member_function), &member_function>::id<type_id>
+#define VI_PROMISIFY_REF(member_function, type_ref) vitex::scripting::bindings::promise::ify<decltype(&member_function), &member_function>::decl<type_ref>
+#define VI_SPROMISIFY(function, type_id) vitex::scripting::bindings::promise::ify_static<decltype(&function), &function>::id<type_id>
+#define VI_SPROMISIFY_REF(function, type_ref) vitex::scripting::bindings::promise::ify_static<decltype(&function), &function>::decl<type_ref>
+#define VI_ARRAYIFY(member_function, type_id) vitex::scripting::bindings::array::ify<decltype(&member_function), &member_function>::id<type_id>
+#define VI_ARRAYIFY_REF(member_function, type_ref) vitex::scripting::bindings::array::ify<decltype(&member_function), &member_function>::decl<type_ref>
+#define VI_SARRAYIFY(function, type_id) vitex::scripting::bindings::array::ify_static<decltype(&function), &function>::id<type_id>
+#define VI_SARRAYIFY_REF(function, type_ref) vitex::scripting::bindings::array::ify_static<decltype(&function), &function>::decl<type_ref>
+#define VI_ANYIFY(member_function, type_id) vitex::scripting::bindings::any::ify<decltype(&member_function), &member_function>::id<type_id>
+#define VI_ANYIFY_REF(member_function, type_ref) vitex::scripting::bindings::any::ify<decltype(&member_function), &member_function>::decl<type_ref>
+#define VI_SANYIFY(function, type_id) vitex::scripting::bindings::any::ify_static<decltype(&function), &function>::id<type_id>
+#define VI_SANYIFY_REF(function, type_ref) vitex::scripting::bindings::any::ify_static<decltype(&function), &function>::decl<type_ref>
+#define VI_EXPECTIFY(member_function) vitex::scripting::bindings::expects_wrapper::ify<decltype(&member_function), &member_function>::throws
+#define VI_EXPECTIFY_VOID(member_function) vitex::scripting::bindings::expects_wrapper::ify_void<decltype(&member_function), &member_function>::throws
+#define VI_SEXPECTIFY(function) vitex::scripting::bindings::expects_wrapper::ify_static<decltype(&function), &function>::throws
+#define VI_SEXPECTIFY_VOID(function) vitex::scripting::bindings::expects_wrapper::ify_static_void<decltype(&function), &function>::throws
+#define VI_OPTIONIFY(member_function) vitex::scripting::bindings::option_wrapper::ify<decltype(&member_function), &member_function>::throws
+#define VI_OPTIONIFY_VOID(member_function) vitex::scripting::bindings::option_wrapper::ify_void<decltype(&member_function), &member_function>::throws
+#define VI_SOPTIONIFY(function) vitex::scripting::bindings::option_wrapper::ify_static<decltype(&function), &function>::throws
+#define VI_SOPTIONIFY_VOID(function) vitex::scripting::bindings::option_wrapper::ify_static_void<decltype(&function), &function>::throws
 #ifdef __LP64__
 typedef unsigned int as_uint32_t;
 typedef unsigned long as_uint64_t;
@@ -40,64 +39,64 @@ typedef __int64 as_int64_t;
 #endif
 typedef unsigned int as_size_t;
 
-namespace Vitex
+namespace vitex
 {
-	namespace Scripting
+	namespace scripting
 	{
-		namespace Bindings
+		namespace bindings
 		{
-			class Promise;
+			class promise;
 
-			class Array;
+			class array;
 
-			struct Dynamic
+			struct dynamic
 			{
 				union
 				{
-					as_int64_t Integer;
-					double Number;
-					void* Object;
+					as_int64_t integer;
+					double number;
+					void* object;
 				};
 
-				int TypeId;
+				int type_id;
 
-				Dynamic()
+				dynamic()
 				{
-					Clean();
+					clean();
 				}
-				Dynamic(int NewTypeId)
+				dynamic(int new_type_id)
 				{
-					Clean();
-					TypeId = NewTypeId;
+					clean();
+					type_id = new_type_id;
 				}
-				void Clean()
+				void clean()
 				{
 					memset((void*)this, 0, sizeof(*this));
 				}
 			};
 
-			class Utils
+			class utils
 			{
 			public:
-				template <typename F, typename Tuple, std::size_t... I>
-				static constexpr decltype(auto) ApplyPack(F&& f, Tuple&& t, std::index_sequence<I...>)
+				template <typename function, typename tuple, std::size_t... i>
+				static constexpr decltype(auto) apply_pack(function&& f, tuple&& t, std::index_sequence<i...>)
 				{
-					return static_cast<F&&>(f)(std::get<I>(static_cast<Tuple&&>(t))...);
+					return static_cast<function&&>(f)(std::get<i>(static_cast<tuple&&>(t))...);
 				}
-				template <typename F, typename Tuple>
-				static constexpr decltype(auto) Apply(F&& f, Tuple&& t)
+				template <typename function, typename tuple>
+				static constexpr decltype(auto) apply(function&& f, tuple&& t)
 				{
-					return Utils::ApplyPack(static_cast<F&&>(f), static_cast<Tuple&&>(t), std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+					return utils::apply_pack(static_cast<function&&>(f), static_cast<tuple&&>(t), std::make_index_sequence<std::tuple_size<std::remove_reference_t<tuple>>::value>{});
 				}
-				template <typename Lambda, typename... Args>
-				static auto CaptureCall(Lambda&& lambda, Args&&... args)
+				template <typename lambda_type, typename... args_type>
+				static auto capture_call(lambda_type&& lambda, args_type&&... args)
 				{
-					return [lambda = std::forward<Lambda>(lambda), capture_args = std::forward_as_tuple(args...)](auto&&... original_args) mutable
+					return [lambda = std::forward<lambda>(lambda), capture_args = std::forward_as_tuple(args...)](auto&&... original_args) mutable
 					{
-						return Utils::Apply([&lambda](auto&&... args)
+						return utils::apply([&lambda](auto&&... args)
 						{
 							lambda(std::forward<decltype(args)>(args)...);
-						}, std::tuple_cat(std::forward_as_tuple(original_args...), Utils::Apply([](auto&&... args)
+						}, std::tuple_cat(std::forward_as_tuple(original_args...), utils::apply([](auto&&... args)
 						{
 							return std::forward_as_tuple(std::move(args)...);
 						}, std::move(capture_args))));
@@ -105,1196 +104,1195 @@ namespace Vitex
 				}
 			};
 
-			class Imports
+			class imports
 			{
 			public:
-				static void BindSyntax(VirtualMachine* VM, bool Enabled, const std::string_view& Syntax);
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, const std::string_view& Syntax);
+				static void bind_syntax(virtual_machine* vm, bool enabled, const std::string_view& syntax);
+				static expects_vm<void> generator_callback(compute::preprocessor* base, const std::string_view& path, core::string& code, const std::string_view& syntax);
 			};
 
-			class Tags
+			class tags
 			{
 			public:
-				enum class TagType
+				enum class tag_type
 				{
-					Unknown,
-					Type,
-					Function,
-					PropertyFunction,
-					Variable,
-					NotType
+					unknown,
+					type,
+					function,
+					property_function,
+					variable,
+					not_type
 				};
 
-				struct TagDirective
+				struct tag_directive
 				{
-					Core::UnorderedMap<Core::String, Core::String> Args;
-					Core::String Name;
+					core::unordered_map<core::string, core::string> args;
+					core::string name;
 				};
 
-				struct TagDeclaration
+				struct tag_declaration
 				{
-					std::string_view Class;
-					std::string_view Name;
-					Core::String Declaration;
-					Core::String Namespace;
-					Core::Vector<TagDirective> Directives;
-					TagType Type = TagType::Unknown;
+					std::string_view class_name;
+					std::string_view name;
+					core::string declaration;
+					core::string name_space;
+					core::vector<tag_directive> directives;
+					tag_type type = tag_type::unknown;
 				};
 
 			public:
-				typedef Core::Vector<TagDeclaration> TagInfo;
-				typedef std::function<void(VirtualMachine*, TagInfo&&)> TagCallback;
+				typedef core::vector<tag_declaration> tag_info;
+				typedef std::function<void(virtual_machine*, tag_info&&)> tag_callback;
 
 			public:
-				static void BindSyntax(VirtualMachine* VM, bool Enabled, const TagCallback& Callback);
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code, VirtualMachine* VM, const TagCallback& Callback);
+				static void bind_syntax(virtual_machine* vm, bool enabled, const tag_callback& callback);
+				static expects_vm<void> generator_callback(compute::preprocessor* base, const std::string_view& path, core::string& code, virtual_machine* vm, const tag_callback& callback);
 
 			private:
-				static size_t ExtractField(VirtualMachine* VM, Core::String& Code, size_t Offset, TagDeclaration& Tag);
-				static void ExtractDeclaration(VirtualMachine* VM, Core::String& Code, size_t Offset, TagDeclaration& Tag);
-				static void AppendDirective(TagDeclaration& Tag, Core::String& Directive);
+				static size_t extract_field(virtual_machine* vm, core::string& code, size_t offset, tag_declaration& tag);
+				static void extract_declaration(virtual_machine* vm, core::string& code, size_t offset, tag_declaration& tag);
+				static void append_directive(tag_declaration& tag, core::string& directive);
 			};
 
-			class Exception
+			class exception
 			{
 			public:
-				struct Pointer
+				struct pointer
 				{
-					Core::String Type;
-					Core::String Text;
-					Core::String Origin;
-					ImmediateContext* Context;
+					core::string type;
+					core::string text;
+					core::string origin;
+					immediate_context* context;
 
-					Pointer();
-					Pointer(ImmediateContext* Context);
-					Pointer(const std::string_view& Data);
-					Pointer(const std::string_view& Type, const std::string_view& Text);
-					void LoadExceptionData(const std::string_view& Data);
-					const Core::String& GetType() const;
-					const Core::String& GetText() const;
-					Core::String ToExceptionString() const;
-					Core::String What() const;
-					Core::String LoadStackHere() const;
-					bool Empty() const;
+					pointer();
+					pointer(immediate_context* context);
+					pointer(const std::string_view& data);
+					pointer(const std::string_view& type, const std::string_view& text);
+					void load_exception_data(const std::string_view& data);
+					const core::string& get_type() const;
+					const core::string& get_text() const;
+					core::string to_exception_string() const;
+					core::string what() const;
+					core::string load_stack_here() const;
+					bool empty() const;
 				};
 
 			public:
-				static void ThrowAt(ImmediateContext* Context, const Pointer& Data);
-				static void Throw(const Pointer& Data);
-				static void RethrowAt(ImmediateContext* Context);
-				static void Rethrow();
-				static bool HasExceptionAt(ImmediateContext* Context);
-				static bool HasException();
-				static Pointer GetExceptionAt(ImmediateContext* Context);
-				static Pointer GetException();
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code);
+				static void throw_ptr_at(immediate_context* context, const pointer& data);
+				static void throw_ptr(const pointer& data);
+				static void rethrow_at(immediate_context* context);
+				static void rethrow();
+				static bool has_exception_at(immediate_context* context);
+				static bool has_exception();
+				static pointer get_exception_at(immediate_context* context);
+				static pointer get_exception();
+				static expects_vm<void> generator_callback(compute::preprocessor* base, const std::string_view& path, core::string& code);
 			};
 
-			class ExpectsWrapper
+			class expects_wrapper
 			{
 			public:
-				static Exception::Pointer TranslateThrow(const std::exception& Error);
-				static Exception::Pointer TranslateThrow(const std::error_code& Error);
-				static Exception::Pointer TranslateThrow(const std::string_view& Error);
-				static Exception::Pointer TranslateThrow(const std::error_condition& Error);
-				static Exception::Pointer TranslateThrow(const Core::BasicException& Error);
-				static Exception::Pointer TranslateThrow(const Core::String& Error);
+				static exception::pointer translate_throw(const std::exception& error);
+				static exception::pointer translate_throw(const std::error_code& error);
+				static exception::pointer translate_throw(const std::string_view& error);
+				static exception::pointer translate_throw(const std::error_condition& error);
+				static exception::pointer translate_throw(const core::basic_exception& error);
+				static exception::pointer translate_throw(const core::string& error);
 
 			public:
-				template <typename V, typename E>
-				static V&& Unwrap(Core::Expects<V, E>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
+				template <typename v, typename e>
+				static v&& unwrap(core::expects<v, e>&& subresult, v&& placeholder, immediate_context* context = immediate_context::get())
 				{
-					if (Subresult)
-						return std::move(*Subresult);
+					if (subresult)
+						return std::move(*subresult);
 
-					Exception::ThrowAt(Context, TranslateThrow(Subresult.Error()));
-					return std::move(Default);
+					exception::throw_ptr_at(context, translate_throw(subresult.error()));
+					return std::move(placeholder);
 				}
-				template <typename V, typename E>
-				static bool UnwrapVoid(Core::Expects<V, E>&& Subresult, ImmediateContext* Context = ImmediateContext::Get())
+				template <typename v, typename e>
+				static bool unwrap_void(core::expects<v, e>&& subresult, immediate_context* context = immediate_context::get())
 				{
-					if (!Subresult)
-						Exception::ThrowAt(Context, TranslateThrow(Subresult.Error()));
-					return !!Subresult;
+					if (!subresult)
+						exception::throw_ptr_at(context, translate_throw(subresult.error()));
+					return !!subresult;
 				}
 
 			public:
-				template <typename T, T>
-				struct Ify;
+				template <typename t, t>
+				struct ify;
 
-				template <typename T, T>
-				struct IfyVoid;
+				template <typename t, t>
+				struct ify_void;
 
-				template <typename T, T>
-				struct IfyStatic;
+				template <typename t, t>
+				struct ify_static;
 
-				template <typename T, T>
-				struct IfyStaticVoid;
+				template <typename t, t>
+				struct ify_static_void;
 
-				template <typename T, typename V, typename E, typename ...Args, Core::Expects<V, E>(T::* F)(Args...)>
-				struct Ify<Core::Expects<V, E>(T::*)(Args...), F>
+				template <typename t, typename v, typename e, typename ...args, core::expects<v, e>(t::* f)(args...)>
+				struct ify<core::expects<v, e>(t::*)(args...), f>
 				{
-					static V Throws(T* Base, Args... Data)
+					static v throws(t* base, args... data)
 					{
-						Core::Expects<V, E> Subresult((Base->*F)(Data...));
-						if (Subresult)
-							return *Subresult;
-						
-						Exception::Throw(TranslateThrow(Subresult.Error()));
+						core::expects<v, e> subresult((base->*f)(data...));
+						if (subresult)
+							return *subresult;
+
+						exception::throw_ptr(translate_throw(subresult.error()));
 						throw false;
 					}
 				};
 
-				template <typename T, typename V, typename E, typename ...Args, Core::Expects<V, E>(T::* F)(Args...)>
-				struct IfyVoid<Core::Expects<V, E>(T::*)(Args...), F>
+				template <typename t, typename v, typename e, typename ...args, core::expects<v, e>(t::* f)(args...)>
+				struct ify_void<core::expects<v, e>(t::*)(args...), f>
 				{
-					static bool Throws(T* Base, Args... Data)
+					static bool throws(t* base, args... data)
 					{
-						Core::Expects<V, E> Subresult((Base->*F)(Data...));
-						if (!Subresult)
-							Exception::Throw(TranslateThrow(Subresult.Error()));
-						return !!Subresult;
+						core::expects<v, e> subresult((base->*f)(data...));
+						if (!subresult)
+							exception::throw_ptr(translate_throw(subresult.error()));
+						return !!subresult;
 					}
 				};
 
-				template <typename V, typename E, typename ...Args, Core::Expects<V, E>(*F)(Args...)>
-				struct IfyStatic<Core::Expects<V, E>(*)(Args...), F>
+				template <typename v, typename e, typename ...args, core::expects<v, e>(*f)(args...)>
+				struct ify_static<core::expects<v, e>(*)(args...), f>
 				{
-					static V Throws(Args... Data)
+					static v throws(args... data)
 					{
-						Core::Expects<V, E> Subresult((*F)(Data...));
-						if (Subresult)
-							return *Subresult;
+						core::expects<v, e> subresult((*f)(data...));
+						if (subresult)
+							return *subresult;
 
-						Exception::Throw(TranslateThrow(Subresult.Error()));
+						exception::throw_ptr(translate_throw(subresult.error()));
 						throw false;
 					}
 				};
 
-				template <typename V, typename E, typename ...Args, Core::Expects<V, E>(*F)(Args...)>
-				struct IfyStaticVoid<Core::Expects<V, E>(*)(Args...), F>
+				template <typename v, typename e, typename ...args, core::expects<v, e>(*f)(args...)>
+				struct ify_static_void<core::expects<v, e>(*)(args...), f>
 				{
-					static bool Throws(Args... Data)
+					static bool throws(args... data)
 					{
-						Core::Expects<V, E> Subresult((*F)(Data...));
-						if (!Subresult)
-							Exception::Throw(TranslateThrow(Subresult.Error()));
-						return !!Subresult;
+						core::expects<v, e> subresult((*f)(data...));
+						if (!subresult)
+							exception::throw_ptr(translate_throw(subresult.error()));
+						return !!subresult;
 					}
 				};
 			};
 
-			class OptionWrapper
+			class option_wrapper
 			{
 			public:
-				static Exception::Pointer TranslateThrow();
+				static exception::pointer translate_throw();
 
 			public:
-				template <typename V>
-				static V&& Unwrap(Core::Option<V>&& Subresult, V&& Default, ImmediateContext* Context = ImmediateContext::Get())
+				template <typename v>
+				static v&& unwrap(core::option<v>&& subresult, v&& placeholder, immediate_context* context = immediate_context::get())
 				{
-					if (Subresult)
-						return std::move(*Subresult);
+					if (subresult)
+						return std::move(*subresult);
 
-					Exception::ThrowAt(Context, TranslateThrow());
-					return std::move(Default);
+					exception::throw_ptr_at(context, translate_throw());
+					return std::move(placeholder);
 				}
-				template <typename V>
-				static bool UnwrapVoid(Core::Option<V>&& Subresult, ImmediateContext* Context = ImmediateContext::Get())
+				template <typename v>
+				static bool unwrap_void(core::option<v>&& subresult, immediate_context* context = immediate_context::get())
 				{
-					if (!Subresult)
-						Exception::ThrowAt(Context, TranslateThrow());
-					return !!Subresult;
+					if (!subresult)
+						exception::throw_ptr_at(context, translate_throw());
+					return !!subresult;
 				}
 
 			public:
-				template <typename T, T>
-				struct Ify;
+				template <typename t, t>
+				struct ify;
 
-				template <typename T, T>
-				struct IfyVoid;
+				template <typename t, t>
+				struct ify_void;
 
-				template <typename T, T>
-				struct IfyStatic;
+				template <typename t, t>
+				struct ify_static;
 
-				template <typename T, T>
-				struct IfyStaticVoid;
+				template <typename t, t>
+				struct ify_static_void;
 
-				template <typename T, typename V, typename ...Args, Core::Option<V>(T::* F)(Args...)>
-				struct Ify<Core::Option<V>(T::*)(Args...), F>
+				template <typename t, typename v, typename ...args, core::option<v>(t::* f)(args...)>
+				struct ify<core::option<v>(t::*)(args...), f>
 				{
-					static V Throws(T* Base, Args... Data)
+					static v throws(t* base, args... data)
 					{
-						Core::Option<V> Subresult((Base->*F)(Data...));
-						if (Subresult)
-							return *Subresult;
+						core::option<v> subresult((base->*f)(data...));
+						if (subresult)
+							return *subresult;
 
-						Exception::Throw(TranslateThrow());
+						exception::throw_ptr(translate_throw());
 						throw false;
 					}
 				};
 
-				template <typename T, typename V, typename ...Args, Core::Option<V>(T::* F)(Args...)>
-				struct IfyVoid<Core::Option<V>(T::*)(Args...), F>
+				template <typename t, typename v, typename ...args, core::option<v>(t::* f)(args...)>
+				struct ify_void<core::option<v>(t::*)(args...), f>
 				{
-					static bool Throws(T* Base, Args... Data)
+					static bool throws(t* base, args... data)
 					{
-						Core::Option<V> Subresult((Base->*F)(Data...));
-						if (!Subresult)
-							Exception::Throw(TranslateThrow());
-						return !!Subresult;
+						core::option<v> subresult((base->*f)(data...));
+						if (!subresult)
+							exception::throw_ptr(translate_throw());
+						return !!subresult;
 					}
 				};
 
-				template <typename V, typename ...Args, Core::Option<V>(*F)(Args...)>
-				struct IfyStatic<Core::Option<V>(*)(Args...), F>
+				template <typename v, typename ...args, core::option<v>(*f)(args...)>
+				struct ify_static<core::option<v>(*)(args...), f>
 				{
-					static V Throws(Args... Data)
+					static v throws(args... data)
 					{
-						Core::Option<V> Subresult((*F)(Data...));
-						if (Subresult)
-							return *Subresult;
+						core::option<v> subresult((*f)(data...));
+						if (subresult)
+							return *subresult;
 
-						Exception::Throw(TranslateThrow());
+						exception::throw_ptr(translate_throw());
 						throw false;
 					}
 				};
 
-				template <typename V, typename ...Args, Core::Option<V>(*F)(Args...)>
-				struct IfyStaticVoid<Core::Option<V>(*)(Args...), F>
+				template <typename v, typename ...args, core::option<v>(*f)(args...)>
+				struct ify_static_void<core::option<v>(*)(args...), f>
 				{
-					static bool Throws(Args... Data)
+					static bool throws(args... data)
 					{
-						Core::Option<V> Subresult((*F)(Data...));
-						if (!Subresult)
-							Exception::Throw(TranslateThrow());
-						return !!Subresult;
+						core::option<v> subresult((*f)(data...));
+						if (!subresult)
+							exception::throw_ptr(translate_throw());
+						return !!subresult;
 					}
 				};
 			};
 
-			class String
+			class string
 			{
 			public:
-				static std::string_view ImplCastStringView(Core::String& Base);
-				static void Create(Core::String* Base);
-				static void CreateCopy1(Core::String* Base, const Core::String& Other);
-				static void CreateCopy2(Core::String* Base, const std::string_view& Other);
-				static void Destroy(Core::String* Base);
-				static void PopBack(Core::String& Base);
-				static Core::String& Replace1(Core::String& Other, const Core::String& From, const Core::String& To, size_t Start);
-				static Core::String& ReplacePart1(Core::String& Other, size_t Start, size_t End, const Core::String& To);
-				static bool StartsWith1(const Core::String& Other, const Core::String& Value, size_t Offset);
-				static bool EndsWith1(const Core::String& Other, const Core::String& Value);
-				static Core::String& Replace2(Core::String& Other, const std::string_view& From, const std::string_view& To, size_t Start);
-				static Core::String& ReplacePart2(Core::String& Other, size_t Start, size_t End, const std::string_view& To);
-				static bool StartsWith2(const Core::String& Other, const std::string_view& Value, size_t Offset);
-				static bool EndsWith2(const Core::String& Other, const std::string_view& Value);
-				static Core::String Substring1(Core::String& Base, size_t Offset);
-				static Core::String Substring2(Core::String& Base, size_t Offset, size_t Size);
-				static Core::String FromPointer(void* Pointer);
-				static Core::String FromBuffer(const char* Buffer, size_t MaxSize);
-				static char* Index(Core::String& Base, size_t Offset);
-				static char* Front(Core::String& Base);
-				static char* Back(Core::String& Base);
-				static Array* Split(Core::String& Base, const std::string_view& Delimiter);
+				static std::string_view impl_cast_string_view(core::string& base);
+				static void create(core::string* base);
+				static void create_copy1(core::string* base, const core::string& other);
+				static void create_copy2(core::string* base, const std::string_view& other);
+				static void destroy(core::string* base);
+				static void pop_back(core::string& base);
+				static core::string& replace1(core::string& other, const core::string& from, const core::string& to, size_t start);
+				static core::string& replace_part1(core::string& other, size_t start, size_t end, const core::string& to);
+				static bool starts_with1(const core::string& other, const core::string& value, size_t offset);
+				static bool ends_with1(const core::string& other, const core::string& value);
+				static core::string& replace2(core::string& other, const std::string_view& from, const std::string_view& to, size_t start);
+				static core::string& replace_part2(core::string& other, size_t start, size_t end, const std::string_view& to);
+				static bool starts_with2(const core::string& other, const std::string_view& value, size_t offset);
+				static bool ends_with2(const core::string& other, const std::string_view& value);
+				static core::string substring1(core::string& base, size_t offset);
+				static core::string substring2(core::string& base, size_t offset, size_t size);
+				static core::string from_pointer(void* pointer);
+				static core::string from_buffer(const char* buffer, size_t max_size);
+				static char* index(core::string& base, size_t offset);
+				static char* front(core::string& base);
+				static char* back(core::string& base);
+				static array* split(core::string& base, const std::string_view& delimiter);
 
 			public:
-				template <typename T>
-				static T FromString(const Core::String& Text, int Base = 10)
+				template <typename t>
+				static t from_string(const core::string& text, int base = 10)
 				{
-					auto Value = Core::FromString<T>(Text, Base);
-					return Value ? *Value : (T)0;
+					auto value = core::from_string<t>(text, base);
+					return value ? *value : (t)0;
 				}
 			};
 
-			class StringView
+			class string_view
 			{
 			public:
-				static Core::String ImplCastString(std::string_view& Base);
-				static void Create(std::string_view* Base);
-				static void CreateCopy(std::string_view* Base, Core::String& Other);
-				static void Assign(std::string_view* Base, Core::String& Other);
-				static void Destroy(std::string_view* Base);
-				static bool StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset);
-				static bool EndsWith(const std::string_view& Other, const std::string_view& Value);
-				static int Compare1(std::string_view& Base, const Core::String& Other);
-				static int Compare2(std::string_view& Base, const std::string_view& Other);
-				static Core::String Append1(const std::string_view& Base, const std::string_view& Other);
-				static Core::String Append2(const std::string_view& Base, const Core::String& Other);
-				static Core::String Append3(const Core::String& Other, const std::string_view& Base);
-				static Core::String Append4(const std::string_view& Base, char Other);
-				static Core::String Append5(char Other, const std::string_view& Base);
-				static Core::String Substring1(std::string_view& Base, size_t Offset);
-				static Core::String Substring2(std::string_view& Base, size_t Offset, size_t Size);
-				static size_t ReverseFind1(std::string_view& Base, const std::string_view& Other, size_t Offset);
-				static size_t ReverseFind2(std::string_view& Base, char Other, size_t Offset);
-				static size_t Find1(std::string_view& Base, const std::string_view& Other, size_t Offset);
-				static size_t Find2(std::string_view& Base, char Other, size_t Offset);
-				static size_t FindFirstOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
-				static size_t FindFirstNotOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
-				static size_t FindLastOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
-				static size_t FindLastNotOf(std::string_view& Base, const std::string_view& Other, size_t Offset);
-				static std::string_view FromBuffer(const char* Buffer, size_t MaxSize);
-				static char* Index(std::string_view& Base, size_t Offset);
-				static char* Front(std::string_view& Base);
-				static char* Back(std::string_view& Base);
-				static Array* Split(std::string_view& Base, const std::string_view& Delimiter);
+				static core::string impl_cast_string(std::string_view& base);
+				static void create(std::string_view* base);
+				static void create_copy(std::string_view* base, core::string& other);
+				static void assign(std::string_view* base, core::string& other);
+				static void destroy(std::string_view* base);
+				static bool starts_with(const std::string_view& other, const std::string_view& value, size_t offset);
+				static bool ends_with(const std::string_view& other, const std::string_view& value);
+				static int compare1(std::string_view& base, const core::string& other);
+				static int compare2(std::string_view& base, const std::string_view& other);
+				static core::string append1(const std::string_view& base, const std::string_view& other);
+				static core::string append2(const std::string_view& base, const core::string& other);
+				static core::string append3(const core::string& other, const std::string_view& base);
+				static core::string append4(const std::string_view& base, char other);
+				static core::string append5(char other, const std::string_view& base);
+				static core::string substring1(std::string_view& base, size_t offset);
+				static core::string substring2(std::string_view& base, size_t offset, size_t size);
+				static size_t reverse_find1(std::string_view& base, const std::string_view& other, size_t offset);
+				static size_t reverse_find2(std::string_view& base, char other, size_t offset);
+				static size_t find1(std::string_view& base, const std::string_view& other, size_t offset);
+				static size_t find2(std::string_view& base, char other, size_t offset);
+				static size_t find_first_of(std::string_view& base, const std::string_view& other, size_t offset);
+				static size_t find_first_not_of(std::string_view& base, const std::string_view& other, size_t offset);
+				static size_t find_last_of(std::string_view& base, const std::string_view& other, size_t offset);
+				static size_t find_last_not_of(std::string_view& base, const std::string_view& other, size_t offset);
+				static std::string_view from_buffer(const char* buffer, size_t max_size);
+				static char* index(std::string_view& base, size_t offset);
+				static char* front(std::string_view& base);
+				static char* back(std::string_view& base);
+				static array* split(std::string_view& base, const std::string_view& delimiter);
 
 			public:
-				template <typename T>
-				static T FromString(const std::string_view& Text, int Base = 10)
+				template <typename t>
+				static t from_string(const std::string_view& text, int base = 10)
 				{
-					auto Value = Core::FromString<T>(Text, Base);
-					return Value ? *Value : (T)0;
+					auto value = core::from_string<t>(text, base);
+					return value ? *value : (t)0;
 				}
 			};
 
-			class Math
+			class math
 			{
 			public:
-				static float FpFromIEEE(uint32_t raw);
-				static uint32_t FpToIEEE(float fp);
-				static double FpFromIEEE(as_uint64_t raw);
-				static as_uint64_t FpToIEEE(double fp);
-				static bool CloseTo(float a, float b, float epsilon);
-				static bool CloseTo(double a, double b, double epsilon);
+				static float fp_from_ieee(uint32_t raw);
+				static uint32_t fp_to_ieee(float fp);
+				static double fp_from_ieee(as_uint64_t raw);
+				static as_uint64_t fp_to_ieee(double fp);
+				static bool close_to(float a, float b, float epsilon);
+				static bool close_to(double a, double b, double epsilon);
 			};
 
-			class Storable
+			class storable
 			{
 			private:
-				friend class Dictionary;
+				friend class dictionary;
 
 			private:
-				Dynamic Value;
+				dynamic value;
 
 			public:
-				Storable() noexcept;
-				Storable(VirtualMachine* Engine, void* Pointer, int TypeId) noexcept;
-				~Storable() noexcept;
-				void Set(VirtualMachine* Engine, void* Pointer, int TypeId);
-				void Set(VirtualMachine* Engine, Storable& Other);
-				bool Get(VirtualMachine* Engine, void* Pointer, int TypeId) const;
-				const void* GetAddressOfValue() const;
-				int GetTypeId() const;
-				void ReleaseReferences(asIScriptEngine* Engine);
-				void EnumReferences(asIScriptEngine* Engine);
+				storable() noexcept;
+				storable(virtual_machine* engine, void* pointer, int type_id) noexcept;
+				~storable() noexcept;
+				void set(virtual_machine* engine, void* pointer, int type_id);
+				void set(virtual_machine* engine, storable& other);
+				bool get(virtual_machine* engine, void* pointer, int type_id) const;
+				const void* get_address_of_value() const;
+				int get_type_id() const;
+				void release_references(asIScriptEngine* engine);
+				void enum_references(asIScriptEngine* engine);
 			};
 
-			class Random
+			class random
 			{
 			public:
-				static Core::String Getb(uint64_t Size);
-				static double Betweend(double Min, double Max);
-				static double Magd();
-				static double Getd();
-				static float Betweenf(float Min, float Max);
-				static float Magf();
-				static float Getf();
-				static uint64_t Betweeni(uint64_t Min, uint64_t Max);
+				static core::string getb(uint64_t size);
+				static double betweend(double min, double max);
+				static double magd();
+				static double getd();
+				static float betweenf(float min, float max);
+				static float magf();
+				static float getf();
+				static uint64_t betweeni(uint64_t min, uint64_t max);
 			};
 
-			class Any : public Core::Reference<Any>
+			class any : public core::reference<any>
 			{
-				friend Promise;
+				friend promise;
 
 			private:
-				VirtualMachine* Engine;
-				Dynamic Value;
+				virtual_machine* engine;
+				dynamic value;
 
 			public:
-				Any(VirtualMachine* Engine) noexcept;
-				Any(void* Ref, int RefTypeId, VirtualMachine* Engine) noexcept;
-				Any(const Any&) noexcept;
-				~Any() noexcept;
-				Any& operator= (const Any&) noexcept;
-				int CopyFrom(const Any* Other);
-				void Store(void* Ref, int RefTypeId);
-				bool Retrieve(void* Ref, int RefTypeId) const;
-				void* GetAddressOfObject();
-				int GetTypeId() const;
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseReferences(asIScriptEngine* Engine);
+				any(virtual_machine* engine) noexcept;
+				any(void* ref, int ref_type_id, virtual_machine* engine) noexcept;
+				any(const any&) noexcept;
+				~any() noexcept;
+				any& operator= (const any&) noexcept;
+				int copy_from(const any* other);
+				void store(void* ref, int ref_type_id);
+				bool retrieve(void* ref, int ref_type_id) const;
+				void* get_address_of_object();
+				int get_type_id() const;
+				void enum_references(asIScriptEngine* engine);
+				void release_references(asIScriptEngine* engine);
 
 			private:
-				void FreeObject();
+				void free_object();
 
 			public:
-				static Core::Unique<Any> Create();
-				static Core::Unique<Any> Create(int TypeId, void* Ref);
-				static Core::Unique<Any> Create(const char* Decl, void* Ref);
-				static Core::Unique<Any> Factory1();
-				static void Factory2(asIScriptGeneric* Generic);
-				static Any& Assignment(Any* Base, Any* Other);
+				static core::unique<any> create();
+				static core::unique<any> create(int type_id, void* ref);
+				static core::unique<any> create(const char* decl, void* ref);
+				static core::unique<any> factory1();
+				static void factory2(asIScriptGeneric* genericf);
+				static any& assignment(any* base, any* other);
 
 			public:
-				template <typename T, T>
-				struct Ify;
+				template <typename t, t>
+				struct ify;
 
-				template <typename T, T>
-				struct IfyStatic;
+				template <typename t, t>
+				struct ify_static;
 
-				template <typename T, typename R, typename ...Args, R(T::* F)(Args...)>
-				struct Ify<R(T::*)(Args...), F>
+				template <typename t, typename r, typename ...args, r(t::* f)(args...)>
+				struct ify<r(t::*)(args...), f>
 				{
-					template <TypeId TypeId>
-					static Any* Id(T* Base, Args... Data)
+					template <type_id type_id>
+					static any* id(t* base, args... data)
 					{
-						R Subresult((Base->*F)(Data...));
-						return Any::Create((int)TypeId, &Subresult);
+						r subresult((base->*f)(data...));
+						return any::create((int)type_id, &subresult);
 					}
-					template <uint64_t TypeRef>
-					static Any* Decl(T* Base, Args... Data)
+					template <uint64_t type_ref>
+					static any* decl(t* base, args... data)
 					{
-						R Subresult((Base->*F)(Data...));
-						return Any::Create(TypeCache::GetTypeId(TypeRef), &Subresult);
+						r subresult((base->*f)(data...));
+						return any::create(type_cache::get_type_id(type_ref), &subresult);
 					}
 				};
 
-				template <typename R, typename ...Args, R(*F)(Args...)>
-				struct IfyStatic<R(*)(Args...), F>
+				template <typename r, typename ...args, r(*f)(args...)>
+				struct ify_static<r(*)(args...), f>
 				{
-					template <TypeId TypeId>
-					static Any* Id(Args... Data)
+					template <type_id type_id>
+					static any* id(args... data)
 					{
-						R Subresult((*F)(Data...));
-						return Any::Create((int)TypeId, &Subresult);
+						r subresult((*f)(data...));
+						return any::create((int)type_id, &subresult);
 					}
-					template <uint64_t TypeRef>
-					static Any* Decl(Args... Data)
+					template <uint64_t type_ref>
+					static any* decl(args... data)
 					{
-						R Subresult((*F)(Data...));
-						return Any::Create(TypeCache::GetTypeId(TypeRef), &Subresult);
+						r subresult((*f)(data...));
+						return any::create(type_cache::get_type_id(type_ref), &subresult);
 					}
 				};
 			};
 
-			class Array : public Core::Reference<Array>
+			class array : public core::reference<array>
 			{
 			public:
-				struct SBuffer
+				struct sbuffer
 				{
-					size_t MaxElements;
-					size_t NumElements;
-					unsigned char Data[1];
+					size_t max_elements;
+					size_t num_elements;
+					unsigned char data[1];
 				};
 
-				struct SCache
+				struct scache
 				{
-					asIScriptFunction* Comparator;
-					asIScriptFunction* Equals;
-					int ComparatorReturnCode;
-					int EqualsReturnCode;
+					asIScriptFunction* comparator;
+					asIScriptFunction* equals;
+					int comparator_return_code;
+					int equals_return_code;
 				};
 
 			private:
-				static int ArrayId;
+				static int array_id;
 
 			private:
-				TypeInfo ObjType;
-				SBuffer* Buffer;
-				size_t ElementSize;
-				int SubTypeId;
+				typeinfo obj_type;
+				sbuffer* buffer;
+				size_t element_size;
+				int sub_type_id;
 
 			public:
-				Array(asITypeInfo* T, void* InitBuf) noexcept;
-				Array(size_t Length, asITypeInfo* T) noexcept;
-				Array(size_t Length, void* DefVal, asITypeInfo* T) noexcept;
-				Array(const Array& Other) noexcept;
-				~Array() noexcept;
-				asITypeInfo* GetArrayObjectType() const;
-				int GetArrayTypeId() const;
-				int GetElementTypeId() const;
-				size_t Size() const;
-				size_t Capacity() const;
-				bool Empty() const;
-				void Reserve(size_t MaxElements);
-				void Resize(size_t NumElements);
-				void* Front();
-				const void* Front() const;
-				void* Back();
-				const void* Back() const;
-				void* At(size_t Index);
-				const void* At(size_t Index) const;
-				void SetValue(size_t Index, void* Value);
-				Array& operator= (const Array&) noexcept;
-				bool operator== (const Array&) const;
-				void InsertAt(size_t Index, void* Value);
-				void InsertAt(size_t Index, const Array& Other);
-				void InsertLast(void* Value);
-				void RemoveAt(size_t Index);
-				void RemoveLast();
-				void RemoveRange(size_t start, size_t Count);
-				void Swap(size_t Index1, size_t Index2);
-				void Sort(asIScriptFunction* Callback);
-				void Reverse();
-				void Clear();
-				size_t Find(void* Value, size_t StartAt) const;
-				size_t FindByRef(void* Value, size_t StartAt) const;
-				void* GetBuffer();
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseReferences(asIScriptEngine* Engine);
+				array(asITypeInfo* t, void* init_buf) noexcept;
+				array(size_t length, asITypeInfo* t) noexcept;
+				array(size_t length, void* def_val, asITypeInfo* t) noexcept;
+				array(const array& other) noexcept;
+				~array() noexcept;
+				asITypeInfo* get_array_object_type() const;
+				int get_array_type_id() const;
+				int get_element_type_id() const;
+				size_t size() const;
+				size_t capacity() const;
+				bool empty() const;
+				void reserve(size_t max_elements);
+				void resize(size_t num_elements);
+				void* front();
+				const void* front() const;
+				void* back();
+				const void* back() const;
+				void* at(size_t index);
+				const void* at(size_t index) const;
+				void set_value(size_t index, void* value);
+				array& operator= (const array&) noexcept;
+				bool operator== (const array&) const;
+				void insert_at(size_t index, void* value);
+				void insert_at(size_t index, const array& other);
+				void insert_last(void* value);
+				void remove_at(size_t index);
+				void remove_last();
+				void remove_range(size_t start, size_t count);
+				void swap(size_t index1, size_t index2);
+				void sort(asIScriptFunction* callback);
+				void reverse();
+				void clear();
+				size_t find(void* value, size_t start_at) const;
+				size_t find_by_ref(void* value, size_t start_at) const;
+				void* get_buffer();
+				void enum_references(asIScriptEngine* engine);
+				void release_references(asIScriptEngine* engine);
 
 			private:
-				void* GetArrayItemPointer(size_t Index);
-				void* GetDataPointer(void* Buffer);
-				void Copy(void* Dst, void* Src);
-				void Precache();
-				bool CheckMaxSize(size_t NumElements);
-				void Resize(int64_t Delta, size_t At);
-				void CreateBuffer(SBuffer** Buf, size_t NumElements);
-				void DeleteBuffer(SBuffer* Buf);
-				void CopyBuffer(SBuffer* Dst, SBuffer* Src);
-				void Create(SBuffer* Buf, size_t Start, size_t End);
-				void Destroy(SBuffer* Buf, size_t Start, size_t End);
-				bool Less(const void* A, const void* B, ImmediateContext* Ctx, SCache* Cache);
-				bool Equals(const void* A, const void* B, ImmediateContext* Ctx, SCache* Cache) const;
-				bool IsEligibleForFind(SCache** Output) const;
-				bool IsEligibleForSort(SCache** Output) const;
+				void* get_array_item_pointer(size_t index);
+				void* get_data_pointer(void* buffer);
+				void copy(void* dst, void* src);
+				void precache();
+				bool check_max_size(size_t num_elements);
+				void resize(int64_t delta, size_t at);
+				void create_buffer(sbuffer** buf, size_t num_elements);
+				void delete_buffer(sbuffer* buf);
+				void copy_buffer(sbuffer* dst, sbuffer* src);
+				void create(sbuffer* buf, size_t start, size_t end);
+				void destroy(sbuffer* buf, size_t start, size_t end);
+				bool less(const void* a, const void* b, immediate_context* ctx, scache* cache);
+				bool equals(const void* a, const void* b, immediate_context* ctx, scache* cache) const;
+				bool is_eligible_for_find(scache** output) const;
+				bool is_eligible_for_sort(scache** output) const;
 
 			public:
-				static Core::Unique<Array> Create(asITypeInfo* T);
-				static Core::Unique<Array> Create(asITypeInfo* T, size_t Length);
-				static Core::Unique<Array> Create(asITypeInfo* T, size_t Length, void* DefaultValue);
-				static Core::Unique<Array> Factory(asITypeInfo* T, void* ListBuffer);
-				static void CleanupTypeInfoCache(asITypeInfo* Type);
-				static bool TemplateCallback(asITypeInfo* T, bool& DontGarbageCollect);
-				static int GetId();
+				static core::unique<array> create(asITypeInfo* t);
+				static core::unique<array> create(asITypeInfo* t, size_t length);
+				static core::unique<array> create(asITypeInfo* t, size_t length, void* default_value);
+				static core::unique<array> factory(asITypeInfo* t, void* list_buffer);
+				static void cleanup_type_info_cache(asITypeInfo* type);
+				static bool template_callback(asITypeInfo* t, bool& dont_garbage_collect);
+				static int get_id();
 
 			public:
-				template <typename T>
-				static Array* Compose(const TypeInfo& ArrayType, const Core::Vector<T>& Objects)
+				template <typename t>
+				static array* compose(const typeinfo& array_type, const core::vector<t>& objects)
 				{
-					Array* Array = Create(ArrayType.GetTypeInfo(), Objects.size());
-					for (size_t i = 0; i < Objects.size(); i++)
-						Array->SetValue((size_t)i, (void*)&Objects[i]);
+					array* array = create(array_type.get_type_info(), objects.size());
+					for (size_t i = 0; i < objects.size(); i++)
+						array->set_value((size_t)i, (void*)&objects[i]);
 
-					return Array;
+					return array;
 				}
-				template <typename T>
-				static typename std::enable_if<std::is_pointer<T>::value, Core::Vector<T>>::type Decompose(Array* Array)
+				template <typename t>
+				static typename std::enable_if<std::is_pointer<t>::value, core::vector<t>>::type decompose(array* array)
 				{
-					Core::Vector<T> Result;
-					if (!Array)
-						return Result;
+					core::vector<t> result;
+					if (!array)
+						return result;
 
-					size_t Size = Array->Size();
-					Result.reserve(Size);
+					size_t size = array->size();
+					result.reserve(size);
 
-					for (size_t i = 0; i < Size; i++)
-						Result.push_back((T)Array->At(i));
+					for (size_t i = 0; i < size; i++)
+						result.push_back((t)array->at(i));
 
-					return Result;
+					return result;
 				}
-				template <typename T>
-				static typename std::enable_if<!std::is_pointer<T>::value, Core::Vector<T>>::type Decompose(Array* Array)
+				template <typename t>
+				static typename std::enable_if<!std::is_pointer<t>::value, core::vector<t>>::type decompose(array* array)
 				{
-					Core::Vector<T> Result;
-					if (!Array)
-						return Result;
+					core::vector<t> result;
+					if (!array)
+						return result;
 
-					size_t Size = Array->Size();
-					Result.reserve(Size);
+					size_t size = array->size();
+					result.reserve(size);
 
-					for (size_t i = 0; i < Size; i++)
-						Result.push_back(*((T*)Array->At(i)));
+					for (size_t i = 0; i < size; i++)
+						result.push_back(*((t*)array->at(i)));
 
-					return Result;
+					return result;
 				}
 
 			public:
-				template <typename T, T>
-				struct Ify;
+				template <typename t, t>
+				struct ify;
 
-				template <typename T, T>
-				struct IfyStatic;
+				template <typename t, t>
+				struct ify_static;
 
-				template <typename T, typename R, typename ...Args, Core::Vector<R>(T::* F)(Args...)>
-				struct Ify<Core::Vector<R>(T::*)(Args...), F>
+				template <typename t, typename r, typename ...args, core::vector<r>(t::* f)(args...)>
+				struct ify<core::vector<r>(t::*)(args...), f>
 				{
-					template <TypeId TypeId>
-					static Array* Id(T* Base, Args... Data)
+					template <type_id type_id>
+					static array* id(t* base, args... data)
 					{
-						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, "manager should be present");
+						virtual_machine* vm = virtual_machine::get();
+						VI_ASSERT(vm != nullptr, "manager should be present");
 
-						auto Info = VM->GetTypeInfoById((int)TypeId);
-						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
+						auto info = vm->get_type_info_by_id((int)type_id);
+						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
 
-						Core::Vector<R> Source((Base->*F)(Data...));
-						return Array::Compose(Info, Source);
+						core::vector<r> source((base->*f)(data...));
+						return array::compose(info, source);
 					}
-					template <uint64_t TypeRef>
-					static Array* Decl(T* Base, Args... Data)
+					template <uint64_t type_ref>
+					static array* decl(t* base, args... data)
 					{
-						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, "manager should be present");
+						virtual_machine* vm = virtual_machine::get();
+						VI_ASSERT(vm != nullptr, "manager should be present");
 
-						auto Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef));
-						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
+						auto info = vm->get_type_info_by_id(type_cache::get_type_id(type_ref));
+						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
 
-						Core::Vector<R> Source((Base->*F)(Data...));
-						return Array::Compose(Info, Source);
+						core::vector<r> source((base->*f)(data...));
+						return array::compose(info, source);
 					}
 				};
 
-				template <typename R, typename ...Args, Core::Vector<R>(*F)(Args...)>
-				struct IfyStatic<Core::Vector<R>(*)(Args...), F>
+				template <typename r, typename ...args, core::vector<r>(*f)(args...)>
+				struct ify_static<core::vector<r>(*)(args...), f>
 				{
-					template <TypeId TypeId>
-					static Array* Id(Args... Data)
+					template <type_id type_id>
+					static array* id(args... data)
 					{
-						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, "manager should be present");
+						virtual_machine* vm = virtual_machine::get();
+						VI_ASSERT(vm != nullptr, "manager should be present");
 
-						auto Info = VM->GetTypeInfoById((int)TypeId);
-						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
+						auto info = vm->get_type_info_by_id((int)type_id);
+						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
 
-						Core::Vector<R> Source((*F)(Data...));
-						return Array::Compose(Info, Source);
+						core::vector<r> source((*f)(data...));
+						return array::compose(info, source);
 					}
-					template <uint64_t TypeRef>
-					static Array* Decl(Args... Data)
+					template <uint64_t type_ref>
+					static array* decl(args... data)
 					{
-						VirtualMachine* VM = VirtualMachine::Get();
-						VI_ASSERT(VM != nullptr, "manager should be present");
+						virtual_machine* vm = virtual_machine::get();
+						VI_ASSERT(vm != nullptr, "manager should be present");
 
-						auto Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef));
-						VI_ASSERT(Info.IsValid(), "typeinfo should be valid");
+						auto info = vm->get_type_info_by_id(type_cache::get_type_id(type_ref));
+						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
 
-						Core::Vector<R> Source((*F)(Data...));
-						return Array::Compose(Info, Source);
+						core::vector<r> source((*f)(data...));
+						return array::compose(info, source);
 					}
 				};
 			};
 
-			class Dictionary : public Core::Reference<Dictionary>
+			class dictionary : public core::reference<dictionary>
 			{
 			public:
-				typedef Core::UnorderedMap<Core::String, Storable> InternalMap;
+				typedef core::unordered_map<core::string, storable> internal_map;
 
 			public:
-				class LocalIterator
+				class local_iterator
 				{
 				private:
-					friend class Dictionary;
+					friend class dictionary;
 
 				private:
-					InternalMap::const_iterator It;
-					const Dictionary& Base;
+					internal_map::const_iterator it;
+					const dictionary& base;
 
 				public:
 					void operator++();
 					void operator++(int);
-					LocalIterator& operator*();
-					bool operator==(const LocalIterator& Other) const;
-					bool operator!=(const LocalIterator& Other) const;
-					const Core::String& GetKey() const;
-					int GetTypeId() const;
-					bool GetValue(void* Value, int TypeId) const;
-					const void* GetAddressOfValue() const;
+					local_iterator& operator*();
+					bool operator==(const local_iterator& other) const;
+					bool operator!=(const local_iterator& other) const;
+					const core::string& get_key() const;
+					int get_type_id() const;
+					bool get_value(void* value, int type_id) const;
+					const void* get_address_of_value() const;
 
 				private:
-					LocalIterator() noexcept;
-					LocalIterator(const Dictionary& From, InternalMap::const_iterator It) noexcept;
-					LocalIterator& operator= (const LocalIterator&) noexcept
+					local_iterator() noexcept;
+					local_iterator(const dictionary& from, internal_map::const_iterator it) noexcept;
+					local_iterator& operator= (const local_iterator&) noexcept
 					{
 						return *this;
 					}
 				};
 
-				struct SCache
+				struct scache
 				{
-					TypeInfo DictionaryType = TypeInfo(nullptr);
-					TypeInfo ArrayType = TypeInfo(nullptr);
-					TypeInfo KeyType = TypeInfo(nullptr);
+					typeinfo dictionary_type = typeinfo(nullptr);
+					typeinfo array_type = typeinfo(nullptr);
+					typeinfo key_type = typeinfo(nullptr);
 				};
 
 			private:
-				static int DictionaryId;
+				static int dictionary_id;
 
 			private:
-				VirtualMachine* Engine;
-				InternalMap Data;
+				virtual_machine* engine;
+				internal_map data;
 
 			public:
-				Dictionary(VirtualMachine* Engine) noexcept;
-				Dictionary(unsigned char* Buffer) noexcept;
-				Dictionary(const Dictionary&) noexcept;
-				~Dictionary() noexcept;
-				Dictionary& operator= (const Dictionary& Other) noexcept;
-				void Set(const std::string_view& Key, void* Value, int TypeId);
-				bool Get(const std::string_view& Key, void* Value, int TypeId) const;
-				bool GetIndex(size_t Index, Core::String* Key, void** Value, int* TypeId) const;
-				bool TryGetIndex(size_t Index, Core::String* Key, void* Value, int TypeId) const;
-				Storable* operator[](const std::string_view& Key);
-				const Storable* operator[](const std::string_view& Key) const;
-				Storable* operator[](size_t);
-				const Storable* operator[](size_t) const;
-				int GetTypeId(const std::string_view& Key) const;
-				bool Exists(const std::string_view& Key) const;
-				bool Empty() const;
-				size_t Size() const;
-				bool Erase(const std::string_view& Key);
-				void Clear();
-				Array* GetKeys() const;
-				LocalIterator Begin() const;
-				LocalIterator End() const;
-				LocalIterator Find(const std::string_view& Key) const;
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseReferences(asIScriptEngine* Engine);
+				dictionary(virtual_machine* engine) noexcept;
+				dictionary(unsigned char* buffer) noexcept;
+				dictionary(const dictionary&) noexcept;
+				~dictionary() noexcept;
+				dictionary& operator= (const dictionary& other) noexcept;
+				void set(const std::string_view& key, void* value, int type_id);
+				bool get(const std::string_view& key, void* value, int type_id) const;
+				bool get_index(size_t index, core::string* key, void** value, int* type_id) const;
+				bool try_get_index(size_t index, core::string* key, void* value, int type_id) const;
+				storable* operator[](const std::string_view& key);
+				const storable* operator[](const std::string_view& key) const;
+				storable* operator[](size_t);
+				const storable* operator[](size_t) const;
+				int get_type_id(const std::string_view& key) const;
+				bool exists(const std::string_view& key) const;
+				bool empty() const;
+				size_t size() const;
+				bool erase(const std::string_view& key);
+				void clear();
+				array* get_keys() const;
+				local_iterator begin() const;
+				local_iterator end() const;
+				local_iterator find(const std::string_view& key) const;
+				void enum_references(asIScriptEngine* engine);
+				void release_references(asIScriptEngine* engine);
 
 			public:
-				static Core::Unique<Dictionary> Create(VirtualMachine* Engine);
-				static Core::Unique<Dictionary> Create(unsigned char* Buffer);
-				static void Setup(VirtualMachine* VM);
-				static void Factory(asIScriptGeneric* Generic);
-				static void ListFactory(asIScriptGeneric* Generic);
-				static void KeyCreate(void* Memory);
-				static void KeyDestroy(Storable* Base);
-				static Storable& KeyopAssign(Storable* Base, void* Ref, int TypeId);
-				static Storable& KeyopAssign(Storable* Base, const Storable& Other);
-				static Storable& KeyopAssign(Storable* Base, double Value);
-				static Storable& KeyopAssign(Storable* Base, as_int64_t Value);
-				static void KeyopCast(Storable* Base, void* Ref, int TypeId);
-				static as_int64_t KeyopConvInt(Storable* Base);
-				static double KeyopConvDouble(Storable* Base);
+				static core::unique<dictionary> create(virtual_machine* engine);
+				static core::unique<dictionary> create(unsigned char* buffer);
+				static void setup(virtual_machine* vm);
+				static void factory(asIScriptGeneric* genericf);
+				static void list_factory(asIScriptGeneric* genericf);
+				static void key_create(void* memory);
+				static void key_destroy(storable* base);
+				static storable& keyop_assign(storable* base, void* ref, int type_id);
+				static storable& keyop_assign(storable* base, const storable& other);
+				static storable& keyop_assign(storable* base, double value);
+				static storable& keyop_assign(storable* base, as_int64_t value);
+				static void keyop_cast(storable* base, void* ref, int type_id);
+				static as_int64_t keyop_conv_int(storable* base);
+				static double keyop_conv_double(storable* base);
 
 			public:
-				template <typename T>
-				static Dictionary* Compose(int TypeId, const Core::UnorderedMap<Core::String, T>& Objects)
+				template <typename t>
+				static dictionary* compose(int type_id, const core::unordered_map<core::string, t>& objects)
 				{
-					auto* Engine = VirtualMachine::Get();
-					Dictionary* Data = Create(Engine);
-					for (auto& Item : Objects)
-						Data->Set(Item.first, (void*)&Item.second, TypeId);
+					auto* engine = virtual_machine::get();
+					dictionary* data = create(engine);
+					for (auto& item : objects)
+						data->set(item.first, (void*)&item.second, type_id);
 
-					return Data;
+					return data;
 				}
-				template <typename T>
-				static typename std::enable_if<std::is_pointer<T>::value, Core::UnorderedMap<Core::String, T>>::type Decompose(int TypeId, Dictionary* Array)
+				template <typename t>
+				static typename std::enable_if<std::is_pointer<t>::value, core::unordered_map<core::string, t>>::type decompose(int type_id, dictionary* array)
 				{
-					Core::UnorderedMap<Core::String, T> Result;
-					Result.reserve(Array->Size());
+					core::unordered_map<core::string, t> result;
+					result.reserve(array->size());
 
-					int SubTypeId = 0;
-					size_t Size = Array->Size();
-					for (size_t i = 0; i < Size; i++)
+					int sub_type_id = 0;
+					size_t size = array->size();
+					for (size_t i = 0; i < size; i++)
 					{
-						Core::String Key; void* Value = nullptr;
-						if (Array->GetIndex(i, &Key, &Value, &SubTypeId) && SubTypeId == TypeId)
-							Result[Key] = (T*)Value;
+						core::string key; void* value = nullptr;
+						if (array->get_index(i, &key, &value, &sub_type_id) && sub_type_id == type_id)
+							result[key] = (t*)value;
 					}
 
-					return Result;
+					return result;
 				}
-				template <typename T>
-				static typename std::enable_if<!std::is_pointer<T>::value, Core::UnorderedMap<Core::String, T>>::type Decompose(int TypeId, Dictionary* Array)
+				template <typename t>
+				static typename std::enable_if<!std::is_pointer<t>::value, core::unordered_map<core::string, t>>::type decompose(int type_id, dictionary* array)
 				{
-					Core::UnorderedMap<Core::String, T> Result;
-					Result.reserve(Array->Size());
+					core::unordered_map<core::string, t> result;
+					result.reserve(array->size());
 
-					int SubTypeId = 0;
-					size_t Size = Array->Size();
-					for (size_t i = 0; i < Size; i++)
+					int sub_type_id = 0;
+					size_t size = array->size();
+					for (size_t i = 0; i < size; i++)
 					{
-						Core::String Key; void* Value = nullptr;
-						if (Array->GetIndex(i, &Key, &Value, &SubTypeId) && SubTypeId == TypeId)
-							Result[Key] = *(T*)Value;
+						core::string key; void* value = nullptr;
+						if (array->get_index(i, &key, &value, &sub_type_id) && sub_type_id == type_id)
+							result[key] = *(t*)value;
 					}
 
-					return Result;
+					return result;
 				}
 			};
 
-			class Promise : public Core::Reference<Promise>
+			class promise : public core::reference<promise>
 			{
 			private:
-				static int PromiseNULL;
-				static int PromiseUD;
+				static int promise_null;
+				static int promise_ud;
 
 			private:
-				VirtualMachine* Engine;
-				ImmediateContext* Context;
-				FunctionDelegate Delegate;
-				std::function<void(Promise*)> Bounce;
-				std::mutex Update;
-				Dynamic Value;
+				virtual_machine* engine;
+				immediate_context* context;
+				function_delegate delegatef;
+				std::function<void(promise*)> bounce;
+				std::mutex update;
+				dynamic value;
 
 			public:
-				Promise(ImmediateContext* NewContext) noexcept;
-				~Promise() noexcept;
-				void EnumReferences(asIScriptEngine* OtherEngine);
-				void ReleaseReferences(asIScriptEngine*);
-				int GetTypeId();
-				void* GetAddressOfObject();
-				void When(asIScriptFunction* NewCallback);
-				void When(std::function<void(Promise*)>&& NewCallback);
-				void Store(void* RefPointer, int RefTypeId);
-				void Store(void* RefPointer, const char* TypeName);
-				void StoreException(const Exception::Pointer& RefValue);
-				void StoreVoid();
-				bool Retrieve(void* RefPointer, int RefTypeId);
-				void RetrieveVoid();
-				void* Retrieve();
-				bool IsPending();
-				Promise* YieldIf();
+				promise(immediate_context* new_context) noexcept;
+				~promise() noexcept;
+				void enum_references(asIScriptEngine* other_engine);
+				void release_references(asIScriptEngine*);
+				int get_type_id();
+				void* get_address_of_object();
+				void when(asIScriptFunction* new_callback);
+				void when(std::function<void(promise*)>&& new_callback);
+				void store(void* ref_pointer, int ref_type_id);
+				void store(void* ref_pointer, const char* type_name);
+				void store_exception(const exception::pointer& ref_value);
+				void store_void();
+				bool retrieve(void* ref_pointer, int ref_type_id);
+				void retrieve_void();
+				void* retrieve();
+				bool is_pending();
+				promise* yield_if();
 
 			public:
-				static Promise* CreateFactory(void* _Ref, int TypeId);
-				static Promise* CreateFactoryType(asITypeInfo* Type);
-				static Promise* CreateFactoryVoid();
-				static bool TemplateCallback(asITypeInfo* Info, bool& DontGarbageCollect);
-				static ExpectsVM<void> GeneratorCallback(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Code);
-				static bool IsContextPending(ImmediateContext* Context);
-				static bool IsContextBusy(ImmediateContext* Context);
+				static promise* create_factory(void* _Ref, int type_id);
+				static promise* create_factory_type(asITypeInfo* type);
+				static promise* create_factory_void();
+				static bool template_callback(asITypeInfo* info, bool& dont_garbage_collect);
+				static expects_vm<void> generator_callback(compute::preprocessor* base, const std::string_view& path, core::string& code);
+				static bool is_context_pending(immediate_context* context);
+				static bool is_context_busy(immediate_context* context);
 
 			public:
-				template <typename T>
-				static void DispatchAwaitable(Promise* Future, int TypeId, Core::Promise<T>&& Awaitable)
+				template <typename t>
+				static void dispatch_awaitable(promise* future, int type_id, core::promise<t>&& awaitable)
 				{
-					Future->AddRef();
-					Future->Context->AppendStopExecutionCallback([Future, TypeId, Awaitable]()
+					future->add_ref();
+					future->context->append_stop_execution_callback([future, type_id, awaitable]()
 					{
-						Awaitable.When([Future, TypeId](T&& Result)
+						awaitable.when([future, type_id](t&& result)
 						{
-							Future->Store((void*)&Result, TypeId);
-							Future->Release();
+							future->store((void*)&result, type_id);
+							future->release();
 						});
 					});
 				}
-				template <typename T>
-				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, TypeId Id)
+				template <typename t>
+				static core::unique<promise> compose(core::promise<t>&& value, type_id id)
 				{
-					Promise* Future = Promise::CreateFactoryVoid();
-					return Promise::DispatchAwaitable<T>(Future, (int)Id, std::move(Value));
+					promise* future = promise::create_factory_void();
+					return promise::dispatch_awaitable<t>(future, (int)id, std::move(value));
 				}
-				template <typename T>
-				static Core::Unique<Promise> Compose(Core::Promise<T>&& Value, const char* TypeName)
+				template <typename t>
+				static core::unique<promise> compose(core::promise<t>&& value, const char* type_name)
 				{
-					VirtualMachine* Engine = VirtualMachine::Get();
-					VI_ASSERT(Engine != nullptr, "engine should be set");
-					Promise* Future = Promise::CreateFactoryVoid();
-					int TypeId = Engine->GetTypeIdByDecl(TypeName);
-					return Promise::DispatchAwaitable<T>(TypeId, TypeId, std::move(Value));
+					virtual_machine* engine = virtual_machine::get();
+					VI_ASSERT(engine != nullptr, "engine should be set");
+					promise* future = promise::create_factory_void();
+					int type_id = engine->get_type_id_by_decl(type_name);
+					return promise::dispatch_awaitable<t>(type_id, type_id, std::move(value));
 				}
 
 			public:
-				template <typename T, T>
-				struct Ify;
+				template <typename t, t>
+				struct ify;
 
-				template <typename T, T>
-				struct IfyStatic;
+				template <typename t, t>
+				struct ify_static;
 
-				template <typename T, typename R, typename ...Args, Core::Promise<R>(T::* F)(Args...)>
-				struct Ify<Core::Promise<R>(T::*)(Args...), F>
+				template <typename t, typename r, typename ...args, core::promise<r>(t::* f)(args...)>
+				struct ify<core::promise<r>(t::*)(args...), f>
 				{
-					template <TypeId TypeID>
-					static Promise* Id(T* Base, Args... Data)
+					template <type_id type_id>
+					static promise* id(t* base, args... data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid();
-						if (!Future)
-							return Future;
+						promise* future = promise::create_factory_void();
+						if (!future)
+							return future;
 
-						Future->Context->EnableDeferredExceptions();
-						Promise::DispatchAwaitable<R>(Future, (int)TypeID, ((Base->*F)(Data...)));
-						Future->Context->DisableDeferredExceptions();
-						return Future;
+						future->context->enable_deferred_exceptions();
+						promise::dispatch_awaitable<r>(future, (int)type_id, ((base->*f)(data...)));
+						future->context->disable_deferred_exceptions();
+						return future;
 					}
-					template <uint64_t TypeRef>
-					static Promise* Decl(T* Base, Args... Data)
+					template <uint64_t type_ref>
+					static promise* decl(t* base, args... data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid();
-						if (!Future)
-							return Future;
+						promise* future = promise::create_factory_void();
+						if (!future)
+							return future;
 
-						int TypeId = TypeCache::GetTypeId(TypeRef);
-						Future->Context->EnableDeferredExceptions();
-						Promise::DispatchAwaitable<R>(Future, TypeId, ((Base->*F)(Data...)));
-						Future->Context->DisableDeferredExceptions();
-						return Future;
+						int type_id = type_cache::get_type_id(type_ref);
+						future->context->enable_deferred_exceptions();
+						promise::dispatch_awaitable<r>(future, type_id, ((base->*f)(data...)));
+						future->context->disable_deferred_exceptions();
+						return future;
 					}
 				};
 
-				template <typename R, typename ...Args, Core::Promise<R>(*F)(Args...)>
-				struct IfyStatic<Core::Promise<R>(*)(Args...), F>
+				template <typename r, typename ...args, core::promise<r>(*f)(args...)>
+				struct ify_static<core::promise<r>(*)(args...), f>
 				{
-					template <TypeId TypeID>
-					static Promise* Id(Args... Data)
+					template <type_id type_id>
+					static promise* id(args... data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid();
-						if (!Future)
-							return Future;
+						promise* future = promise::create_factory_void();
+						if (!future)
+							return future;
 
-						Future->Context->EnableDeferredExceptions();
-						Promise::DispatchAwaitable<R>(Future, (int)TypeID, ((*F)(Data...)));
-						Future->Context->DisableDeferredExceptions();
-						return Future;
+						future->context->enable_deferred_exceptions();
+						promise::dispatch_awaitable<r>(future, (int)type_id, ((*f)(data...)));
+						future->context->disable_deferred_exceptions();
+						return future;
 					}
-					template <uint64_t TypeRef>
-					static Promise* Decl(Args... Data)
+					template <uint64_t type_ref>
+					static promise* decl(args... data)
 					{
-						Promise* Future = Promise::CreateFactoryVoid();
-						if (!Future)
-							return Future;
+						promise* future = promise::create_factory_void();
+						if (!future)
+							return future;
 
-						int TypeId = TypeCache::GetTypeId(TypeRef);
-						Future->Context->EnableDeferredExceptions();
-						Promise::DispatchAwaitable<R>(Future, TypeId, ((*F)(Data...)));
-						Future->Context->DisableDeferredExceptions();
-						return Future;
+						int type_id = type_cache::get_type_id(type_ref);
+						future->context->enable_deferred_exceptions();
+						promise::dispatch_awaitable<r>(future, type_id, ((*f)(data...)));
+						future->context->disable_deferred_exceptions();
+						return future;
 					}
 				};
 			};
 #ifdef VI_BINDINGS
-			class Complex
+			class complex
 			{
 			public:
-				float R;
-				float I;
+				float r;
+				float i;
 
 			public:
-				Complex() noexcept;
-				Complex(const Complex& Other) noexcept;
-				Complex(float R, float I = 0) noexcept;
-				Complex& operator= (const Complex& Other) noexcept;
-				Complex& operator+= (const Complex& Other);
-				Complex& operator-= (const Complex& Other);
-				Complex& operator*= (const Complex& Other);
-				Complex& operator/= (const Complex& Other);
-				float Length() const;
-				float SquaredLength() const;
-				Complex GetRI() const;
-				void SetRI(const Complex& In);
-				Complex GetIR() const;
-				void SetIR(const Complex& In);
-				bool operator== (const Complex& Other) const;
-				bool operator!= (const Complex& Other) const;
-				Complex operator+ (const Complex& Other) const;
-				Complex operator- (const Complex& Other) const;
-				Complex operator* (const Complex& Other) const;
-				Complex operator/ (const Complex& Other) const;
+				complex() noexcept;
+				complex(const complex& other) noexcept;
+				complex(float r, float i = 0) noexcept;
+				complex& operator= (const complex& other) noexcept;
+				complex& operator+= (const complex& other);
+				complex& operator-= (const complex& other);
+				complex& operator*= (const complex& other);
+				complex& operator/= (const complex& other);
+				float length() const;
+				float squared_length() const;
+				complex get_ri() const;
+				void set_ri(const complex& in);
+				complex get_ir() const;
+				void set_ir(const complex& in);
+				bool operator== (const complex& other) const;
+				bool operator!= (const complex& other) const;
+				complex operator+ (const complex& other) const;
+				complex operator- (const complex& other) const;
+				complex operator* (const complex& other) const;
+				complex operator/ (const complex& other) const;
 
 			public:
-				static void DefaultConstructor(Complex* Base);
-				static void CopyConstructor(Complex* Base, const Complex& Other);
-				static void ConvConstructor(Complex* Base, float NewR);
-				static void InitConstructor(Complex* Base, float NewR, float NewI);
-				static void ListConstructor(Complex* Base, float* List);
+				static void default_constructor(complex* base);
+				static void copy_constructor(complex* base, const complex& other);
+				static void conv_constructor(complex* base, float new_r);
+				static void init_constructor(complex* base, float new_r, float new_i);
+				static void list_constructor(complex* base, float* list);
 			};
 
-			class Mutex : public Core::Reference<Mutex>
+			class mutex : public core::reference<mutex>
 			{
 			private:
-				static int MutexUD;
+				static int mutex_ud;
 
 			private:
-				std::recursive_mutex Base;
+				std::recursive_mutex base;
 
 			public:
-				Mutex() noexcept;
-				~Mutex() = default;
-				bool TryLock();
-				void Lock();
-				void Unlock();
+				mutex() noexcept;
+				~mutex() = default;
+				bool try_lock();
+				void lock();
+				void unlock();
 
 			public:
-				static Mutex* Factory();
-				static bool IsAnyLocked(ImmediateContext* Context);
+				static mutex* factory();
+				static bool is_any_locked(immediate_context* context);
 			};
 
-			class Thread : public Core::Reference<Thread>
+			class thread : public core::reference<thread>
 			{
 			private:
-				static int ThreadUD;
+				static int thread_ud;
 
 			private:
 				struct
 				{
-					Core::Vector<Any*> Queue;
+					core::vector<any*> queue;
 					std::condition_variable CV;
-					std::mutex Mutex;
-				} Pipe[2];
+					std::mutex mutex;
+				} pipe[2];
 
 			private:
-				std::thread Procedure;
-				std::recursive_mutex Mutex;
-				Exception::Pointer Raise;
-				VirtualMachine* VM;
-				EventLoop* Loop;
-				FunctionDelegate Function;
+				std::thread procedure;
+				std::recursive_mutex mutex;
+				exception::pointer raise;
+				virtual_machine* vm;
+				event_loop* loop;
+				function_delegate function;
 
 			public:
-				Thread(VirtualMachine* Engine, asIScriptFunction* Function) noexcept;
-				~Thread() noexcept;
-				void EnumReferences(asIScriptEngine* Engine);
-				void ReleaseReferences(asIScriptEngine* Engine);
-				bool Suspend();
-				bool Resume();
-				void Push(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId);
-				bool Pop(void* Ref, int TypeId, uint64_t Timeout);
-				bool IsActive();
-				bool Start();
-				int Join(uint64_t Timeout);
-				int Join();
-				Core::String GetId() const;
+				thread(virtual_machine* engine, asIScriptFunction* function) noexcept;
+				~thread() noexcept;
+				void enum_references(asIScriptEngine* engine);
+				void release_references(asIScriptEngine* engine);
+				bool suspend();
+				bool resume();
+				void push(void* ref, int type_id);
+				bool pop(void* ref, int type_id);
+				bool pop(void* ref, int type_id, uint64_t timeout);
+				bool is_active();
+				bool start();
+				int join(uint64_t timeout);
+				int join();
+				core::string get_id() const;
 
 			private:
-				void ExecutionLoop();
+				void execution_loop();
 
 			public:
-				static Thread* Create(asIScriptFunction* Callback);
-				static Thread* GetThread();
-				static Core::String GetThreadId();
-				static void ThreadSleep(uint64_t Mills);
-				static bool ThreadSuspend();
+				static thread* create(asIScriptFunction* callback);
+				static thread* get_thread();
+				static core::string get_thread_id();
+				static void thread_sleep(uint64_t mills);
+				static bool thread_suspend();
 			};
 
-			class CharBuffer : public Core::Reference<CharBuffer>
+			class char_buffer : public core::reference<char_buffer>
 			{
 			private:
-				char* Buffer;
-				size_t Length;
+				char* buffer;
+				size_t length;
 
 			public:
-				CharBuffer() noexcept;
-				CharBuffer(size_t Size) noexcept;
-				CharBuffer(char* Pointer) noexcept;
-				~CharBuffer() noexcept;
-				bool Allocate(size_t Size);
-				void Deallocate();
-				bool SetInt8(size_t Offset, int8_t Value, size_t Size);
-				bool SetUint8(size_t Offset, uint8_t Value, size_t Size);
-				bool StoreBytes(size_t Offset, const std::string_view& Value);
-				bool StoreInt8(size_t Offset, int8_t Value);
-				bool StoreUint8(size_t Offset, uint8_t Value);
-				bool StoreInt16(size_t Offset, int16_t Value);
-				bool StoreUint16(size_t Offset, uint16_t Value);
-				bool StoreInt32(size_t Offset, int32_t Value);
-				bool StoreUint32(size_t Offset, uint32_t Value);
-				bool StoreInt64(size_t Offset, int64_t Value);
-				bool StoreUint64(size_t Offset, uint64_t Value);
-				bool StoreFloat(size_t Offset, float Value);
-				bool StoreDouble(size_t Offset, double Value);
-				bool Interpret(size_t Offset, Core::String& Value, size_t MaxSize) const;
-				bool LoadBytes(size_t Offset, Core::String& Value, size_t Size) const;
-				bool LoadInt8(size_t Offset, int8_t& Value) const;
-				bool LoadUint8(size_t Offset, uint8_t& Value) const;
-				bool LoadInt16(size_t Offset, int16_t& Value) const;
-				bool LoadUint16(size_t Offset, uint16_t& Value) const;
-				bool LoadInt32(size_t Offset, int32_t& Value) const;
-				bool LoadUint32(size_t Offset, uint32_t& Value) const;
-				bool LoadInt64(size_t Offset, int64_t& Value) const;
-				bool LoadUint64(size_t Offset, uint64_t& Value) const;
-				bool LoadFloat(size_t Offset, float& Value) const;
-				bool LoadDouble(size_t Offset, double& Value) const;
-				void* GetPointer(size_t Offset) const;
-				bool Exists(size_t Offset) const;
-				bool Empty() const;
-				size_t Size() const;
-				Core::String ToString(size_t MaxSize) const;
+				char_buffer() noexcept;
+				char_buffer(size_t size) noexcept;
+				char_buffer(char* pointer) noexcept;
+				~char_buffer() noexcept;
+				bool allocate(size_t size);
+				void deallocate();
+				bool set_int8(size_t offset, int8_t value, size_t size);
+				bool set_uint8(size_t offset, uint8_t value, size_t size);
+				bool store_bytes(size_t offset, const std::string_view& value);
+				bool store_int8(size_t offset, int8_t value);
+				bool store_uint8(size_t offset, uint8_t value);
+				bool store_int16(size_t offset, int16_t value);
+				bool store_uint16(size_t offset, uint16_t value);
+				bool store_int32(size_t offset, int32_t value);
+				bool store_uint32(size_t offset, uint32_t value);
+				bool store_int64(size_t offset, int64_t value);
+				bool store_uint64(size_t offset, uint64_t value);
+				bool store_float(size_t offset, float value);
+				bool store_double(size_t offset, double value);
+				bool interpret(size_t offset, core::string& value, size_t max_size) const;
+				bool load_bytes(size_t offset, core::string& value, size_t size) const;
+				bool load_int8(size_t offset, int8_t& value) const;
+				bool load_uint8(size_t offset, uint8_t& value) const;
+				bool load_int16(size_t offset, int16_t& value) const;
+				bool load_uint16(size_t offset, uint16_t& value) const;
+				bool load_int32(size_t offset, int32_t& value) const;
+				bool load_uint32(size_t offset, uint32_t& value) const;
+				bool load_int64(size_t offset, int64_t& value) const;
+				bool load_uint64(size_t offset, uint64_t& value) const;
+				bool load_float(size_t offset, float& value) const;
+				bool load_double(size_t offset, double& value) const;
+				void* get_pointer(size_t offset) const;
+				bool exists(size_t offset) const;
+				bool empty() const;
+				size_t size() const;
+				core::string to_string(size_t max_size) const;
 
 			private:
-				bool Store(size_t Offset, const char* Data, size_t Size);
-				bool Load(size_t Offset, char* Data, size_t Size) const;
+				bool store(size_t offset, const char* data, size_t size);
+				bool load(size_t offset, char* data, size_t size) const;
 
 			public:
-				static CharBuffer* Create();
-				static CharBuffer* Create(size_t Size);
-				static CharBuffer* Create(char* Pointer);
+				static char_buffer* create();
+				static char_buffer* create(size_t size);
+				static char_buffer* create(char* pointer);
 			};
 
-			class Application final : public Layer::Application
+			class application final : public layer::application
 			{
 			public:
-				FunctionDelegate OnDispatch;
-				FunctionDelegate OnPublish;
-				FunctionDelegate OnComposition;
-				FunctionDelegate OnScriptHook;
-				FunctionDelegate OnInitialize;
-				FunctionDelegate OnStartup;
-				FunctionDelegate OnShutdown;
+				function_delegate on_dispatch;
+				function_delegate on_publish;
+				function_delegate on_composition;
+				function_delegate on_script_hook;
+				function_delegate on_initialize;
+				function_delegate on_startup;
+				function_delegate on_shutdown;
 
 			private:
-				size_t ProcessedEvents;
-				asITypeInfo* InitiatorType;
-				void* InitiatorObject;
+				size_t processed_events;
+				asITypeInfo* initiator_type;
+				void* initiator_object;
 
 			public:
-				Application(Desc& I, void* Object, int TypeId) noexcept;
-				virtual ~Application() noexcept override;
-				void SetOnDispatch(asIScriptFunction* Callback);
-				void SetOnPublish(asIScriptFunction* Callback);
-				void SetOnComposition(asIScriptFunction* Callback);
-				void SetOnScriptHook(asIScriptFunction* Callback);
-				void SetOnInitialize(asIScriptFunction* Callback);
-				void SetOnStartup(asIScriptFunction* Callback);
-				void SetOnShutdown(asIScriptFunction* Callback);
-				void Dispatch(Core::Timer* Time) override;
-				void Publish(Core::Timer* Time) override;
-				void Composition() override;
-				void ScriptHook() override;
-				void Initialize() override;
-				Core::Promise<void> Startup() override;
-				Core::Promise<void> Shutdown() override;
-				size_t GetProcessedEvents() const;
-				bool HasProcessedEvents() const;
-				bool RetrieveInitiatorObject(void* RefPointer, int RefTypeId) const;
-				void* GetInitiatorObject() const;
+				application(desc& i, void* object, int type_id) noexcept;
+				virtual ~application() noexcept override;
+				void set_on_dispatch(asIScriptFunction* callback);
+				void set_on_publish(asIScriptFunction* callback);
+				void set_on_composition(asIScriptFunction* callback);
+				void set_on_script_hook(asIScriptFunction* callback);
+				void set_on_initialize(asIScriptFunction* callback);
+				void set_on_startup(asIScriptFunction* callback);
+				void set_on_shutdown(asIScriptFunction* callback);
+				void dispatch(core::timer* time) override;
+				void publish(core::timer* time) override;
+				void composition() override;
+				void script_hook() override;
+				void initialize() override;
+				core::promise<void> startup() override;
+				core::promise<void> shutdown() override;
+				size_t get_processed_events() const;
+				bool has_processed_events() const;
+				bool retrieve_initiator_object(void* ref_pointer, int ref_type_id) const;
+				void* get_initiator_object() const;
 
 			public:
-				static bool WantsRestart(int ExitCode);
+				static bool wants_restart(int exit_code);
 			};
 #endif
-			class Registry
+			class registry
 			{
 			public:
-				Registry() = default;
-				virtual void* FetchStringFactory() noexcept;
-				virtual bool Cleanup() noexcept;
-				virtual bool BindAddons(VirtualMachine* VM) noexcept;
-				virtual bool BindStringifiers(DebuggerContext* Context) noexcept;
-				static bool ImportCTypes(VirtualMachine* VM) noexcept;
-				static bool ImportAny(VirtualMachine* VM) noexcept;
-				static bool ImportArray(VirtualMachine* VM) noexcept;
-				static bool ImportComplex(VirtualMachine* VM) noexcept;
-				static bool ImportDictionary(VirtualMachine* VM) noexcept;
-				static bool ImportMath(VirtualMachine* VM) noexcept;
-				static bool ImportString(VirtualMachine* VM) noexcept;
-				static bool ImportSafeString(VirtualMachine* VM) noexcept;
-				static bool ImportException(VirtualMachine* VM) noexcept;
-				static bool ImportMutex(VirtualMachine* VM) noexcept;
-				static bool ImportThread(VirtualMachine* VM) noexcept;
-				static bool ImportBuffers(VirtualMachine* VM) noexcept;
-				static bool ImportRandom(VirtualMachine* VM) noexcept;
-				static bool ImportPromise(VirtualMachine* VM) noexcept;
-				static bool ImportDecimal(VirtualMachine* VM) noexcept;
-				static bool ImportUInt128(VirtualMachine* VM) noexcept;
-				static bool ImportUInt256(VirtualMachine* VM) noexcept;
-				static bool ImportVariant(VirtualMachine* VM) noexcept;
-				static bool ImportTimestamp(VirtualMachine* VM) noexcept;
-				static bool ImportConsole(VirtualMachine* VM) noexcept;
-				static bool ImportSchema(VirtualMachine* VM) noexcept;
-				static bool ImportClockTimer(VirtualMachine* VM) noexcept;
-				static bool ImportFileSystem(VirtualMachine* VM) noexcept;
-				static bool ImportOS(VirtualMachine* VM) noexcept;
-				static bool ImportSchedule(VirtualMachine* VM) noexcept;
-				static bool ImportRegex(VirtualMachine* VM) noexcept;
-				static bool ImportCrypto(VirtualMachine* VM) noexcept;
-				static bool ImportCodec(VirtualMachine* VM) noexcept;
-				static bool ImportPreprocessor(VirtualMachine* VM) noexcept;
-				static bool ImportNetwork(VirtualMachine* VM) noexcept;
-				static bool ImportHTTP(VirtualMachine* VM) noexcept;
-				static bool ImportSMTP(VirtualMachine* VM) noexcept;
-				static bool ImportSQLite(VirtualMachine* VM) noexcept;
-				static bool ImportPostgreSQL(VirtualMachine* VM) noexcept;
-				static bool ImportMongoDB(VirtualMachine* VM) noexcept;
-				static bool ImportVM(VirtualMachine* VM) noexcept;
-				static bool ImportLayer(VirtualMachine* VM) noexcept;
+				registry() = default;
+				virtual void* fetch_string_factory() noexcept;
+				virtual bool cleanup() noexcept;
+				virtual bool bind_addons(virtual_machine* vm) noexcept;
+				virtual bool bind_stringifiers(debugger_context* context) noexcept;
+				static bool import_ctypes(virtual_machine* vm) noexcept;
+				static bool import_any(virtual_machine* vm) noexcept;
+				static bool import_array(virtual_machine* vm) noexcept;
+				static bool import_complex(virtual_machine* vm) noexcept;
+				static bool import_dictionary(virtual_machine* vm) noexcept;
+				static bool import_math(virtual_machine* vm) noexcept;
+				static bool import_string(virtual_machine* vm) noexcept;
+				static bool import_safe_string(virtual_machine* vm) noexcept;
+				static bool import_exception(virtual_machine* vm) noexcept;
+				static bool import_mutex(virtual_machine* vm) noexcept;
+				static bool import_thread(virtual_machine* vm) noexcept;
+				static bool import_buffers(virtual_machine* vm) noexcept;
+				static bool import_random(virtual_machine* vm) noexcept;
+				static bool import_promise(virtual_machine* vm) noexcept;
+				static bool import_decimal(virtual_machine* vm) noexcept;
+				static bool import_uint128(virtual_machine* vm) noexcept;
+				static bool import_uint256(virtual_machine* vm) noexcept;
+				static bool import_variant(virtual_machine* vm) noexcept;
+				static bool import_timestamp(virtual_machine* vm) noexcept;
+				static bool import_console(virtual_machine* vm) noexcept;
+				static bool import_schema(virtual_machine* vm) noexcept;
+				static bool import_clock_timer(virtual_machine* vm) noexcept;
+				static bool import_file_system(virtual_machine* vm) noexcept;
+				static bool import_os(virtual_machine* vm) noexcept;
+				static bool import_schedule(virtual_machine* vm) noexcept;
+				static bool import_regex(virtual_machine* vm) noexcept;
+				static bool import_crypto(virtual_machine* vm) noexcept;
+				static bool import_codec(virtual_machine* vm) noexcept;
+				static bool import_preprocessor(virtual_machine* vm) noexcept;
+				static bool import_network(virtual_machine* vm) noexcept;
+				static bool import_http(virtual_machine* vm) noexcept;
+				static bool import_smtp(virtual_machine* vm) noexcept;
+				static bool import_sqlite(virtual_machine* vm) noexcept;
+				static bool import_pq(virtual_machine* vm) noexcept;
+				static bool import_mongo(virtual_machine* vm) noexcept;
+				static bool import_vm(virtual_machine* vm) noexcept;
+				static bool import_layer(virtual_machine* vm) noexcept;
 			};
 		}
 	}
 }
-#endif

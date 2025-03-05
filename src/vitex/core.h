@@ -26,177 +26,177 @@
 #endif
 #endif
 
-namespace Vitex
+namespace vitex
 {
-	namespace Core
+	namespace core
 	{
-		struct ConcurrentAsyncQueue;
+		struct concurrent_async_queue;
 
-		struct ConcurrentSyncQueue;
+		struct concurrent_sync_queue;
 
-		struct Decimal;
+		struct decimal;
 
-		struct Cocontext;
+		struct cocontext;
 
-		class Console;
+		class console;
 
-		class Costate;
+		class costate;
 
-		class Schema;
+		class schema;
 
-		class Stream;
+		class stream;
 
-		class ProcessStream;
+		class process_stream;
 
-		class Var;
+		class var;
 
-		typedef uint64_t TaskId;
+		typedef uint64_t task_id;
 
 		enum
 		{
-			INVALID_TASK_ID = (TaskId)0,
+			INVALID_TASK_ID = (task_id)0,
 			NUMSTR_SIZE = (size_t)32,
 			CHUNK_SIZE = (size_t)2048,
 			BLOB_SIZE = (size_t)8192,
 			STACK_SIZE = (size_t)(512 * 1024)
 		};
 
-		enum class Timings : uint64_t
+		enum class timings : uint64_t
 		{
-			Atomic = 1,
-			Pass = 5,
-			Frame = 16,
-			Mixed = 50,
-			FileSystem = 50,
-			Networking = 150,
-			Intensive = 350,
-			Hangup = 5000,
-			Infinite = 0
+			atomic = 1,
+			pass = 5,
+			frame = 16,
+			mixed = 50,
+			file_system = 50,
+			networking = 150,
+			intensive = 350,
+			hangup = 5000,
+			infinite = 0
 		};
 
-		enum class Deferred : uint8_t
+		enum class deferred : uint8_t
 		{
-			Pending = 0,
-			Waiting = 1,
-			Ready = 2
+			pending = 0,
+			waiting = 1,
+			ready = 2
 		};
 
-		enum class StdColor
+		enum class std_color
 		{
-			Black = 0,
-			DarkBlue = 1,
-			DarkGreen = 2,
-			LightBlue = 3,
-			DarkRed = 4,
-			Magenta = 5,
-			Orange = 6,
-			LightGray = 7,
-			Gray = 8,
-			Blue = 9,
-			Green = 10,
-			Cyan = 11,
-			Red = 12,
-			Pink = 13,
-			Yellow = 14,
-			White = 15,
-			Zero = 16
+			black = 0,
+			dark_blue = 1,
+			dark_green = 2,
+			light_blue = 3,
+			dark_red = 4,
+			magenta = 5,
+			orange = 6,
+			light_gray = 7,
+			gray = 8,
+			blue = 9,
+			green = 10,
+			cyan = 11,
+			red = 12,
+			pink = 13,
+			yellow = 14,
+			white = 15,
+			zero = 16
 		};
 
-		enum class FileMode
+		enum class file_mode
 		{
-			Read_Only,
-			Write_Only,
-			Append_Only,
-			Read_Write,
-			Write_Read,
-			Read_Append_Write,
-			Binary_Read_Only,
-			Binary_Write_Only,
-			Binary_Append_Only,
-			Binary_Read_Write,
-			Binary_Write_Read,
-			Binary_Read_Append_Write
+			read_only,
+			write_only,
+			append_only,
+			read_write,
+			write_read,
+			read_append_write,
+			binary_read_only,
+			binary_write_only,
+			binary_append_only,
+			binary_read_write,
+			binary_write_read,
+			binary_read_append_write
 		};
 
-		enum class FileSeek
+		enum class file_seek
 		{
-			Begin,
-			Current,
-			End
+			begin,
+			current,
+			end
 		};
 
-		enum class VarType : uint8_t
+		enum class var_type : uint8_t
 		{
-			Null,
-			Undefined,
-			Object,
-			Array,
-			Pointer,
-			String,
-			Binary,
-			Integer,
-			Number,
-			Decimal,
-			Boolean
+			null,
+			undefined,
+			object,
+			array,
+			pointer,
+			string,
+			binary,
+			integer,
+			number,
+			decimal,
+			boolean
 		};
 
-		enum class VarForm
+		enum class var_form
 		{
-			Dummy,
-			Tab_Decrease,
-			Tab_Increase,
-			Write_Space,
-			Write_Line,
-			Write_Tab,
+			dummy,
+			tab_decrease,
+			tab_increase,
+			write_space,
+			write_line,
+			write_tab,
 		};
 
-		enum class Coexecution
+		enum class coexecution
 		{
-			Active,
-			Suspended,
-			Resumable,
-			Finished
+			active,
+			suspended,
+			resumable,
+			finished
 		};
 
-		enum class Difficulty
+		enum class difficulty
 		{
-			Async,
-			Sync,
-			Timeout,
-			Count
+			async,
+			sync,
+			timeout,
+			count
 		};
 
-		enum class LogLevel
+		enum class log_level
 		{
-			Error = 1,
-			Warning = 2,
-			Info = 3,
-			Debug = 4,
-			Trace = 5
+			error = 1,
+			warning = 2,
+			info = 3,
+			debug = 4,
+			trace = 5
 		};
 
-		enum class LogOption
+		enum class log_option
 		{
-			Active = 1 << 0,
-			Pretty = 1 << 1,
-			Async = 1 << 2,
-			Dated = 1 << 3,
-			ReportSysErrors = 1 << 4
+			active = 1 << 0,
+			pretty = 1 << 1,
+			async = 1 << 2,
+			dated = 1 << 3,
+			report_sys_errors = 1 << 4
 		};
 
-		enum class Optional : int8_t
+		enum class optional : int8_t
 		{
-			None = 0,
-			Value = 1
+			none = 0,
+			value = 1
 		};
 
-		enum class Expectation : int8_t
+		enum class expectation : int8_t
 		{
-			Error = -1,
-			Met = 1
+			error = -1,
+			met = 1
 		};
 
-		enum class Signal
+		enum class signal_code
 		{
 			SIG_INT,
 			SIG_ILL,
@@ -218,939 +218,939 @@ namespace Vitex
 			SIG_USR2
 		};
 
-		enum class AccessOption : uint64_t
+		enum class access_option : uint64_t
 		{
-			Mem = (1 << 0),
-			Fs = (1 << 1),
-			Gz = (1 << 2),
-			Net = (1 << 3),
-			Lib = (1 << 4),
-			Http = (1 << 5),
-			Https = (1 << 6),
-			Shell = (1 << 7),
-			Env = (1 << 8),
-			Addons = (1 << 9),
-			All = (uint64_t)(Mem | Fs | Gz | Net | Lib | Http | Https | Shell | Env | Addons)
+			mem = (1 << 0),
+			fs = (1 << 1),
+			gz = (1 << 2),
+			net = (1 << 3),
+			lib = (1 << 4),
+			http = (1 << 5),
+			https = (1 << 6),
+			shell = (1 << 7),
+			env = (1 << 8),
+			addons = (1 << 9),
+			all = (uint64_t)(mem | fs | gz | net | lib | http | https | shell | env | addons)
 		};
 
-		enum class ArgsFormat
+		enum class args_format
 		{
-			KeyValue = (1 << 0),
-			FlagValue = (1 << 1),
-			Key = (1 << 2),
-			Flag = (1 << 3),
-			StopIfNoMatch = (1 << 4)
+			key_value = (1 << 0),
+			flag_value = (1 << 1),
+			key = (1 << 2),
+			flag = (1 << 3),
+			stop_if_no_match = (1 << 4)
 		};
 
-		enum class ParserError
+		enum class parser_error
 		{
-			NotSupported,
-			BadVersion,
-			BadDictionary,
-			BadNameIndex,
-			BadName,
-			BadKeyName,
-			BadKeyType,
-			BadValue,
-			BadString,
-			BadInteger,
-			BadDouble,
-			BadBoolean,
-			XMLOutOfMemory,
-			XMLInternalError,
-			XMLUnrecognizedTag,
-			XMLBadPi,
-			XMLBadComment,
-			XMLBadCData,
-			XMLBadDocType,
-			XMLBadPCData,
-			XMLBadStartElement,
-			XMLBadAttribute,
-			XMLBadEndElement,
-			XMLEndElementMismatch,
-			XMLAppendInvalidRoot,
-			XMLNoDocumentElement,
-			JSONDocumentEmpty,
-			JSONDocumentRootNotSingular,
-			JSONValueInvalid,
-			JSONObjectMissName,
-			JSONObjectMissColon,
-			JSONObjectMissCommaOrCurlyBracket,
-			JSONArrayMissCommaOrSquareBracket,
-			JSONStringUnicodeEscapeInvalidHex,
-			JSONStringUnicodeSurrogateInvalid,
-			JSONStringEscapeInvalid,
-			JSONStringMissQuotationMark,
-			JSONStringInvalidEncoding,
-			JSONNumberTooBig,
-			JSONNumberMissFraction,
-			JSONNumberMissExponent,
-			JSONTermination,
-			JSONUnspecificSyntaxError
+			not_supported,
+			bad_version,
+			bad_dictionary,
+			bad_name_index,
+			bad_name,
+			bad_key_name,
+			bad_key_type,
+			bad_value,
+			bad_string,
+			bad_integer,
+			bad_double,
+			bad_boolean,
+			xml_out_of_memory,
+			xml_internal_error,
+			xml_unrecognized_tag,
+			xml_bad_pi,
+			xml_bad_comment,
+			xml_bad_cdata,
+			xml_bad_doc_type,
+			xml_bad_pc_data,
+			xml_bad_start_element,
+			xml_bad_attribute,
+			xml_bad_end_element,
+			xml_end_element_mismatch,
+			xml_append_invalid_root,
+			xml_no_document_element,
+			json_document_empty,
+			json_document_root_not_singular,
+			json_value_invalid,
+			json_object_miss_name,
+			json_object_miss_colon,
+			json_object_miss_comma_or_curly_bracket,
+			json_array_miss_comma_or_square_bracket,
+			json_string_unicode_escape_invalid_hex,
+			json_string_unicode_surrogate_invalid,
+			json_string_escape_invalid,
+			json_string_miss_quotation_mark,
+			json_string_invalid_encoding,
+			json_number_too_big,
+			json_number_miss_fraction,
+			json_number_miss_exponent,
+			json_termination,
+			json_unspecific_syntax_error
 		};
 
-		inline AccessOption operator |(AccessOption A, AccessOption B)
+		inline access_option operator |(access_option a, access_option b)
 		{
-			return static_cast<AccessOption>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<access_option>(static_cast<uint64_t>(a) | static_cast<uint64_t>(b));
 		}
 
-		template <typename T, typename = void>
-		struct IsIterable : std::false_type { };
+		template <typename t, typename = void>
+		struct is_iterable : std::false_type { };
 
-		template <typename T>
-		struct IsIterable<T, std::void_t<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>> : std::true_type { };
+		template <typename t>
+		struct is_iterable<t, std::void_t<decltype(std::begin(std::declval<t&>())), decltype(std::end(std::declval<t&>()))>> : std::true_type { };
 
-		template <typename T>
-		struct IsAddRefer
+		template <typename t>
+		struct is_add_refer
 		{
-			template <typename U>
-			static constexpr std::conditional_t<false, decltype(std::declval<U>().AddRef()), std::true_type> Signature(int);
+			template <typename u>
+			static constexpr std::conditional_t<false, decltype(std::declval<u>().add_ref()), std::true_type> signature(int);
 
-			template <typename U>
-			static constexpr std::false_type Signature(char);
+			template <typename u>
+			static constexpr std::false_type signature(char);
 
-			static constexpr bool value = decltype(Signature<T>(0))::value;
+			static constexpr bool value = decltype(signature<t>(0))::value;
 		};
 
-		template <typename T>
-		struct IsReleaser
+		template <typename t>
+		struct is_releaser
 		{
-			template <typename U>
-			static constexpr std::conditional_t<false, decltype(std::declval<U>().Release()), std::true_type> Signature(int);
+			template <typename u>
+			static constexpr std::conditional_t<false, decltype(std::declval<u>().release()), std::true_type> signature(int);
 
-			template <typename U>
-			static constexpr std::false_type Signature(char);
+			template <typename u>
+			static constexpr std::false_type signature(char);
 
-			static constexpr bool value = decltype(Signature<T>(0))::value;
+			static constexpr bool value = decltype(signature<t>(0))::value;
 		};
 
-		template <typename T>
-		using Unique = T*;
+		template <typename t>
+		using unique = t*;
 
-		struct Singletonish { };
+		struct singletonish { };
 
-		struct MemoryLocation
+		struct memory_location
 		{
-			const char* Source;
-			const char* Function;
-			const char* TypeName;
-			int Line;
+			const char* source;
+			const char* function;
+			const char* type_name;
+			int line;
 
-			MemoryLocation();
-			MemoryLocation(const char* NewSource, const char* NewFunction, const char* NewTypeName, int NewLine);
+			memory_location();
+			memory_location(const char* new_source, const char* new_function, const char* new_type_name, int new_line);
 		};
 
-		class GlobalAllocator
-		{
-		public:
-			virtual ~GlobalAllocator() = default;
-			virtual Unique<void> Allocate(size_t Size) noexcept = 0;
-			virtual Unique<void> Allocate(MemoryLocation&& Location, size_t Size) noexcept = 0;
-			virtual void Transfer(Unique<void> Address, size_t Size) noexcept = 0;
-			virtual void Transfer(Unique<void> Address, MemoryLocation&& Location, size_t Size) noexcept = 0;
-			virtual void Free(Unique<void> Address) noexcept = 0;
-			virtual void Watch(MemoryLocation&& Location, void* Address) noexcept = 0;
-			virtual void Unwatch(void* Address) noexcept = 0;
-			virtual void Finalize() noexcept = 0;
-			virtual bool IsValid(void* Address) noexcept = 0;
-			virtual bool IsFinalizable() noexcept = 0;
-		};
-
-		class LocalAllocator
+		class global_allocator
 		{
 		public:
-			virtual ~LocalAllocator() = default;
-			virtual Unique<void> Allocate(size_t Size) noexcept = 0;
-			virtual void Free(Unique<void> Address) noexcept = 0;
-			virtual void Reset() noexcept = 0;
-			virtual bool IsValid(void* Address) noexcept = 0;
+			virtual ~global_allocator() = default;
+			virtual unique<void> allocate(size_t size) noexcept = 0;
+			virtual unique<void> allocate(memory_location&& location, size_t size) noexcept = 0;
+			virtual void transfer(unique<void> address, size_t size) noexcept = 0;
+			virtual void transfer(unique<void> address, memory_location&& location, size_t size) noexcept = 0;
+			virtual void free(unique<void> address) noexcept = 0;
+			virtual void watch(memory_location&& location, void* address) noexcept = 0;
+			virtual void unwatch(void* address) noexcept = 0;
+			virtual void finalize() noexcept = 0;
+			virtual bool is_valid(void* address) noexcept = 0;
+			virtual bool is_finalizable() noexcept = 0;
 		};
 
-		class Memory final : public Singletonish
+		class local_allocator
+		{
+		public:
+			virtual ~local_allocator() = default;
+			virtual unique<void> allocate(size_t size) noexcept = 0;
+			virtual void free(unique<void> address) noexcept = 0;
+			virtual void reset() noexcept = 0;
+			virtual bool is_valid(void* address) noexcept = 0;
+		};
+
+		class memory final : public singletonish
 		{
 		private:
-			struct State
+			struct state
 			{
-				std::unordered_map<void*, std::pair<MemoryLocation, size_t>> Allocations;
-				std::mutex Mutex;
+				std::unordered_map<void*, std::pair<memory_location, size_t>> allocations;
+				std::mutex mutex;
 			};
 
 		private:
-			static GlobalAllocator* Global;
-			static State* Context;
+			static global_allocator* global;
+			static state* context;
 
 		public:
-			static Unique<void> DefaultAllocate(size_t Size) noexcept;
-			static Unique<void> TracingAllocate(size_t Size, MemoryLocation&& Location) noexcept;
-			static void DefaultDeallocate(Unique<void> Address) noexcept;
-			static void Watch(void* Address, MemoryLocation&& Location) noexcept;
-			static void Unwatch(void* Address) noexcept;
-			static void Cleanup() noexcept;
-			static void SetGlobalAllocator(GlobalAllocator* NewAllocator) noexcept;
-			static void SetLocalAllocator(LocalAllocator* NewAllocator) noexcept;
-			static bool IsValidAddress(void* Address) noexcept;
-			static GlobalAllocator* GetGlobalAllocator() noexcept;
-			static LocalAllocator* GetLocalAllocator() noexcept;
+			static unique<void> default_allocate(size_t size) noexcept;
+			static unique<void> tracing_allocate(size_t size, memory_location&& location) noexcept;
+			static void default_deallocate(unique<void> address) noexcept;
+			static void watch(void* address, memory_location&& location) noexcept;
+			static void unwatch(void* address) noexcept;
+			static void cleanup() noexcept;
+			static void set_global_allocator(global_allocator* new_allocator) noexcept;
+			static void set_local_allocator(local_allocator* new_allocator) noexcept;
+			static bool is_valid_address(void* address) noexcept;
+			static global_allocator* get_global_allocator() noexcept;
+			static local_allocator* get_local_allocator() noexcept;
 
 		public:
-			template <typename T>
-			static inline void Delete(T*& Value)
+			template <typename t>
+			static inline void deinit(t*& value)
 			{
-				if (Value != nullptr)
+				if (value != nullptr)
 				{
-					Value->~T();
-					DefaultDeallocate(static_cast<void*>(Value));
-					Value = nullptr;
+					value->~t();
+					default_deallocate(static_cast<void*>(value));
+					value = nullptr;
 				}
 			}
-			template <typename T>
-			static inline void Delete(T* const& Value)
+			template <typename t>
+			static inline void deinit(t* const& value)
 			{
-				if (Value != nullptr)
+				if (value != nullptr)
 				{
-					Value->~T();
-					DefaultDeallocate(static_cast<void*>(Value));
+					value->~t();
+					default_deallocate(static_cast<void*>(value));
 				}
 			}
-			template <typename T>
-			static inline void Deallocate(T*& Value)
+			template <typename t>
+			static inline void deallocate(t*& value)
 			{
-				if (Value != nullptr)
+				if (value != nullptr)
 				{
-					DefaultDeallocate(static_cast<void*>(Value));
-					Value = nullptr;
+					default_deallocate(static_cast<void*>(value));
+					value = nullptr;
 				}
 			}
-			template <typename T>
-			static inline void Deallocate(T* const& Value)
+			template <typename t>
+			static inline void deallocate(t* const& value)
 			{
-				DefaultDeallocate(static_cast<void*>(Value));
+				default_deallocate(static_cast<void*>(value));
 			}
-			template <typename T>
-			static inline void Release(T*& Value)
+			template <typename t>
+			static inline void release(t*& value)
 			{
-				if (Value != nullptr)
+				if (value != nullptr)
 				{
-					Value->Release();
-					Value = nullptr;
+					value->release();
+					value = nullptr;
 				}
 			}
-			template <typename T>
-			static inline void Release(T* const& Value)
+			template <typename t>
+			static inline void release(t* const& value)
 			{
-				if (Value != nullptr)
-					Value->Release();
+				if (value != nullptr)
+					value->release();
 			}
 
 		public:
 #ifndef NDEBUG
 #ifdef VI_CXX20
-			template <typename T>
-			static T* Allocate(size_t Size, const std::source_location& Location = std::source_location::current())
+			template <typename t>
+			static t* allocate(size_t size, const std::source_location& location = std::source_location::current())
 			{
-				return static_cast<T*>(TracingAllocate(Size, MemoryLocation(Location.file_name(), Location.function_name(), typeid(T).name(), Location.line())));
+				return static_cast<t*>(tracing_allocate(size, memory_location(location.file_name(), location.function_name(), typeid(t).name(), location.line())));
 			}
-			template <typename T>
-			static T* New(const std::source_location& Location = std::source_location::current())
+			template <typename t>
+			static t* init(const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T();
+				return new(allocate<t>(sizeof(t), location)) t();
 			}
-			template <typename T, typename P1>
-			static T* New(P1&& Ph1, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1>
+			static t* init(P1&& ph1, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1));
 			}
-			template <typename T, typename P1, typename P2>
-			static T* New(P1&& Ph1, P2&& Ph2, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1, typename P2>
+			static t* init(P1&& ph1, P2&& ph2, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1), std::forward<P2>(ph2));
 			}
-			template <typename T, typename P1, typename P2, typename P3>
-			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1, typename P2, typename P3>
+			static t* init(P1&& ph1, P2&& ph2, P3&& ph3, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1), std::forward<P2>(ph2), std::forward<P3>(ph3));
 			}
-			template <typename T, typename P1, typename P2, typename P3, typename P4>
-			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1, typename P2, typename P3, typename P4>
+			static t* init(P1&& ph1, P2&& ph2, P3&& ph3, P4&& ph4, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1), std::forward<P2>(ph2), std::forward<P3>(ph3), std::forward<P4>(ph4));
 			}
-			template <typename T, typename P1, typename P2, typename P3, typename P4, typename P5>
-			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, P5&& Ph5, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1, typename P2, typename P3, typename P4, typename P5>
+			static t* init(P1&& ph1, P2&& ph2, P3&& ph3, P4&& ph4, P5&& ph5, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4), std::forward<P5>(Ph5));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1), std::forward<P2>(ph2), std::forward<P3>(ph3), std::forward<P4>(ph4), std::forward<P5>(ph5));
 			}
-			template <typename T, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
-			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, P5&& Ph5, P6&& Ph6, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+			static t* init(P1&& ph1, P2&& ph2, P3&& ph3, P4&& ph4, P5&& ph5, P6&& ph6, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4), std::forward<P5>(Ph5), std::forward<P6>(Ph6));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1), std::forward<P2>(ph2), std::forward<P3>(ph3), std::forward<P4>(ph4), std::forward<P5>(ph5), std::forward<P6>(ph6));
 			}
-			template <typename T, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7>
-			static T* New(P1&& Ph1, P2&& Ph2, P3&& Ph3, P4&& Ph4, P5&& Ph5, P6&& Ph6, P7&& Ph7, const std::source_location& Location = std::source_location::current())
+			template <typename t, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7>
+			static t* init(P1&& ph1, P2&& ph2, P3&& ph3, P4&& ph4, P5&& ph5, P6&& ph6, P7&& ph7, const std::source_location& location = std::source_location::current())
 			{
-				return new(Allocate<T>(sizeof(T), Location)) T(std::forward<P1>(Ph1), std::forward<P2>(Ph2), std::forward<P3>(Ph3), std::forward<P4>(Ph4), std::forward<P5>(Ph5), std::forward<P6>(Ph6), std::forward<P7>(Ph7));
+				return new(allocate<t>(sizeof(t), location)) t(std::forward<P1>(ph1), std::forward<P2>(ph2), std::forward<P3>(ph3), std::forward<P4>(ph4), std::forward<P5>(ph5), std::forward<P6>(ph6), std::forward<P7>(ph7));
 			}
 #else
-			template <typename T>
-			static T* Allocate(size_t Size)
+			template <typename t>
+			static t* allocate(size_t size)
 			{
-				return static_cast<T*>(TracingAllocate(Size, MemoryLocation(__FILE__, __func__, typeid(T).name(), __LINE__)));
+				return static_cast<t*>(tracing_allocate(size, memory_location(__FILE__, __func__, typeid(t).name(), __LINE__)));
 			}
-			template <typename T, typename... Args>
-			static T* New(Args&&... Values)
+			template <typename t, typename... args>
+			static t* init(args&&... values)
 			{
-				void* Address = static_cast<T*>(TracingAllocate(sizeof(T), MemoryLocation(__FILE__, __func__, typeid(T).name(), __LINE__)));
-				return new(Address) T(std::forward<Args>(Values)...);
+				void* address = static_cast<t*>(tracing_allocate(sizeof(t), memory_location(__FILE__, __func__, typeid(t).name(), __LINE__)));
+				return new(address) t(std::forward<args>(values)...);
 			}
 #endif
 #else
-			template <typename T>
-			static T* Allocate(size_t Size)
+			template <typename t>
+			static t* allocate(size_t size)
 			{
-				return static_cast<T*>(DefaultAllocate(Size));
+				return static_cast<t*>(default_allocate(size));
 			}
-			template <typename T, typename... Args>
-			static T* New(Args&&... Values)
+			template <typename t, typename... args>
+			static t* init(args&&... values)
 			{
-				return new(Allocate<T>(sizeof(T))) T(std::forward<Args>(Values)...);
+				return new(allocate<t>(sizeof(t))) t(std::forward<args>(values)...);
 			}
 #endif
 		};
 
-		template <typename T>
-		class StandardAllocator
+		template <typename t>
+		class standard_allocator
 		{
 		public:
-			typedef T value_type;
+			typedef t value_type;
 
 		public:
-			template <typename U>
+			template <typename u>
 			struct rebind
 			{
-				typedef StandardAllocator<U> other;
+				typedef standard_allocator<u> other;
 			};
 
 		public:
-			StandardAllocator() = default;
-			~StandardAllocator() = default;
-			StandardAllocator(const StandardAllocator&) = default;
-			value_type* allocate(size_t Count)
+			standard_allocator() = default;
+			~standard_allocator() = default;
+			standard_allocator(const standard_allocator&) = default;
+			value_type* allocate(size_t count)
 			{
-				return Memory::Allocate<T>(Count * sizeof(T));
+				return memory::allocate<t>(count * sizeof(t));
 			}
-			value_type* allocate(size_t Count, const void*)
+			value_type* allocate(size_t count, const void*)
 			{
-				return Memory::Allocate<T>(Count * sizeof(T));
+				return memory::allocate<t>(count * sizeof(t));
 			}
-			void deallocate(value_type* Address, size_t Count)
+			void deallocate(value_type* address, size_t count)
 			{
-				Memory::Deallocate<value_type>(Address);
+				memory::deallocate<value_type>(address);
 			}
 			size_t max_size() const
 			{
-				return std::numeric_limits<size_t>::max() / sizeof(T);
+				return std::numeric_limits<size_t>::max() / sizeof(t);
 			}
-			bool operator== (const StandardAllocator&)
+			bool operator== (const standard_allocator&)
 			{
 				return true;
 			}
-			bool operator!=(const StandardAllocator&)
+			bool operator!=(const standard_allocator&)
 			{
 				return false;
 			}
 
 		public:
-			template <typename U>
-			StandardAllocator(const StandardAllocator<U>&)
+			template <typename u>
+			standard_allocator(const standard_allocator<u>&)
 			{
 			}
 		};
 
-		template <class A, class B>
-		bool operator== (const StandardAllocator<A>&, const StandardAllocator<B>&) noexcept
+		template <class a, class b>
+		bool operator== (const standard_allocator<a>&, const standard_allocator<b>&) noexcept
 		{
 			return true;
 		}
 
-		template <typename T>
-		struct AllocationType
+		template <typename t>
+		struct allocation_type
 		{
 #ifdef VI_ALLOCATOR
-			using type = StandardAllocator<T>;
+			using type = standard_allocator<t>;
 #else
-			using type = std::allocator<T>;
+			using type = std::allocator<t>;
 #endif
 		};
 
-		template <typename T, T OffsetBasis, T Prime>
-		struct FNV1AHash
+		template <typename t, t offset_basis, t prime>
+		struct fnv1a_hash
 		{
-			static_assert(std::is_unsigned<T>::value, "Q needs to be uint32_teger");
+			static_assert(std::is_unsigned<t>::value, "Q needs to be uint32_teger");
 
-			inline T operator()(const void* Address, size_t Size) const noexcept
+			inline t operator()(const void* address, size_t size) const noexcept
 			{
-				const auto Data = static_cast<const uint8_t*>(Address);
-				auto State = OffsetBasis;
-				for (size_t i = 0; i < Size; ++i)
-					State = (State ^ (size_t)Data[i]) * Prime;
-				return State;
+				const auto data = static_cast<const uint8_t*>(address);
+				auto state = offset_basis;
+				for (size_t i = 0; i < size; ++i)
+					state = (state ^ (size_t)data[i]) * prime;
+				return state;
 			}
 		};
 
-		template <size_t Bits>
-		struct FNV1ABits;
+		template <size_t bits>
+		struct fnv1a_bits;
 
 		template <>
-		struct FNV1ABits<32> { using type = FNV1AHash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>; };
+		struct fnv1a_bits<32> { using type = fnv1a_hash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>; };
 
 		template <>
-		struct FNV1ABits<64> { using type = FNV1AHash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>; };
+		struct fnv1a_bits<64> { using type = fnv1a_hash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>; };
 
-		template <size_t Bits>
-		using FNV1A = typename FNV1ABits<Bits>::type;
+		template <size_t bits>
+		using FNV1A = typename fnv1a_bits<bits>::type;
 
-		template <typename T>
-		struct KeyHasher
+		template <typename t>
+		struct key_hasher
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
 
-			inline result_type operator()(const T& Value) const noexcept
+			inline result_type operator()(const t& value) const noexcept
 			{
-				return std::hash<T>()(Value);
+				return std::hash<t>()(value);
 			}
 		};
 
-		template <typename T>
-		struct EqualTo
+		template <typename t>
+		struct equal_to
 		{
-			typedef T first_argument_type;
-			typedef T second_argument_type;
+			typedef t first_argument_type;
+			typedef t second_argument_type;
 			typedef bool result_type;
 
-			inline result_type operator()(const T& Left, const T& Right) const noexcept
+			inline result_type operator()(const t& left, const t& right) const noexcept
 			{
-				return std::equal_to<T>()(Left, Right);
+				return std::equal_to<t>()(left, right);
 			}
 		};
 
-		using String = std::basic_string<std::string::value_type, std::string::traits_type, typename AllocationType<typename std::string::value_type>::type>;
-		using WideString = std::basic_string<std::wstring::value_type, std::wstring::traits_type, typename AllocationType<typename std::wstring::value_type>::type>;
-		using StringStream = std::basic_stringstream<std::string::value_type, std::string::traits_type, typename AllocationType<typename std::string::value_type>::type>;
-		using WideStringStream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, typename AllocationType<typename std::wstring::value_type>::type>;
+		using string = std::basic_string<std::string::value_type, std::string::traits_type, typename allocation_type<typename std::string::value_type>::type>;
+		using wide_string = std::basic_string<std::wstring::value_type, std::wstring::traits_type, typename allocation_type<typename std::wstring::value_type>::type>;
+		using string_stream = std::basic_stringstream<std::string::value_type, std::string::traits_type, typename allocation_type<typename std::string::value_type>::type>;
+		using wide_string_stream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, typename allocation_type<typename std::wstring::value_type>::type>;
 
 		template <>
-		struct EqualTo<String>
+		struct equal_to<string>
 		{
-			typedef String first_argument_type;
-			typedef String second_argument_type;
+			typedef string first_argument_type;
+			typedef string second_argument_type;
 			typedef bool result_type;
 			using is_transparent = void;
 
-			inline result_type operator()(const String& Left, const String& Right) const noexcept
+			inline result_type operator()(const string& left, const string& right) const noexcept
 			{
-				return Left == Right;
+				return left == right;
 			}
-			inline result_type operator()(const String& Left, const char* Right) const noexcept
+			inline result_type operator()(const string& left, const char* right) const noexcept
 			{
-				return Left.compare(Right) == 0;
+				return left.compare(right) == 0;
 			}
-			inline result_type operator()(const String& Left, const std::string_view& Right) const noexcept
+			inline result_type operator()(const string& left, const std::string_view& right) const noexcept
 			{
-				return Left == Right;
+				return left == right;
 			}
-			inline result_type operator()(const char* Left, const String& Right) const noexcept
+			inline result_type operator()(const char* left, const string& right) const noexcept
 			{
-				return Right.compare(Left) == 0;
+				return right.compare(left) == 0;
 			}
-			inline result_type operator()(const std::string_view& Left, const String& Right) const noexcept
+			inline result_type operator()(const std::string_view& left, const string& right) const noexcept
 			{
-				return Left == Right;
+				return left == right;
 			}
 		};
 
 		template <>
-		struct KeyHasher<String>
+		struct key_hasher<string>
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
 			using is_transparent = void;
 
-			inline result_type operator()(const char* Value) const noexcept
+			inline result_type operator()(const char* value) const noexcept
 			{
-				return FNV1A<8 * sizeof(size_t)>()(Value, strlen(Value));
+				return FNV1A<8 * sizeof(size_t)>()(value, strlen(value));
 			}
-			inline result_type operator()(const std::string_view& Value) const noexcept
+			inline result_type operator()(const std::string_view& value) const noexcept
 			{
-				return FNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
+				return FNV1A<8 * sizeof(size_t)>()(value.data(), value.size());
 			}
-			inline result_type operator()(const String& Value) const noexcept
+			inline result_type operator()(const string& value) const noexcept
 			{
-				return FNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
+				return FNV1A<8 * sizeof(size_t)>()(value.data(), value.size());
 			}
 		};
 
 		template <>
-		struct KeyHasher<WideString>
+		struct key_hasher<wide_string>
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
 
-			inline result_type operator()(const WideString& Value) const noexcept
+			inline result_type operator()(const wide_string& value) const noexcept
 			{
-				return FNV1A<8 * sizeof(std::size_t)>()(Value.c_str(), Value.size());
+				return FNV1A<8 * sizeof(std::size_t)>()(value.c_str(), value.size());
 			}
-			inline result_type operator()(const std::wstring_view& Value) const noexcept
+			inline result_type operator()(const std::wstring_view& value) const noexcept
 			{
-				return FNV1A<8 * sizeof(std::size_t)>()(Value.data(), Value.size());
+				return FNV1A<8 * sizeof(std::size_t)>()(value.data(), value.size());
 			}
 		};
 
-		template <typename T>
-		using Vector = std::vector<T, typename AllocationType<T>::type>;
+		template <typename t>
+		using vector = std::vector<t, typename allocation_type<t>::type>;
 
-		template <typename T>
-		using LinkedList = std::list<T, typename AllocationType<T>::type>;
+		template <typename t>
+		using linked_list = std::list<t, typename allocation_type<t>::type>;
 
-		template <typename T>
-		using SingleQueue = std::queue<T, std::deque<T, typename AllocationType<T>::type>>;
+		template <typename t>
+		using single_queue = std::queue<t, std::deque<t, typename allocation_type<t>::type>>;
 
-		template <typename T>
-		using DoubleQueue = std::deque<T, typename AllocationType<T>::type>;
+		template <typename t>
+		using double_queue = std::deque<t, typename allocation_type<t>::type>;
 
-		template <typename K, typename V, typename Comparator = typename std::map<K, V>::key_compare>
-		using OrderedMap = std::map<K, V, Comparator, typename AllocationType<typename std::map<K, V>::value_type>::type>;
+		template <typename k, typename v, typename comparator = typename std::map<k, v>::key_compare>
+		using ordered_map = std::map<k, v, comparator, typename allocation_type<typename std::map<k, v>::value_type>::type>;
 
-		template <typename K, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
-		using UnorderedSet = std::unordered_set<K, Hash, KeyEqual, typename AllocationType<typename std::unordered_set<K>::value_type>::type>;
+		template <typename k, typename hash = key_hasher<k>, typename key_equal = equal_to<k>>
+		using unordered_set = std::unordered_set<k, hash, key_equal, typename allocation_type<typename std::unordered_set<k>::value_type>::type>;
 
-		template <typename K, typename V, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
-		using UnorderedMap = std::unordered_map<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_map<K, V>::value_type>::type>;
+		template <typename k, typename v, typename hash = key_hasher<k>, typename key_equal = equal_to<k>>
+		using unordered_map = std::unordered_map<k, v, hash, key_equal, typename allocation_type<typename std::unordered_map<k, v>::value_type>::type>;
 
-		template <typename K, typename V, typename Hash = KeyHasher<K>, typename KeyEqual = EqualTo<K>>
-		using UnorderedMultiMap = std::unordered_multimap<K, V, Hash, KeyEqual, typename AllocationType<typename std::unordered_multimap<K, V>::value_type>::type>;
+		template <typename k, typename v, typename hash = key_hasher<k>, typename key_equal = equal_to<k>>
+		using unordered_multi_map = std::unordered_multimap<k, v, hash, key_equal, typename allocation_type<typename std::unordered_multimap<k, v>::value_type>::type>;
 
-		typedef std::function<void()> TaskCallback;
-		typedef std::function<bool(const std::string_view&)> ProcessCallback;
-		typedef std::function<String(const std::string_view&)> SchemaNameCallback;
-		typedef std::function<void(VarForm, const std::string_view&)> SchemaWriteCallback;
-		typedef std::function<bool(uint8_t*, size_t)> SchemaReadCallback;
-		typedef std::function<bool()> ActivityCallback;
-		typedef std::function<void(TaskCallback&&)> SpawnerCallback;
-		typedef void(*SignalCallback)(int);
+		typedef std::function<void()> task_callback;
+		typedef std::function<bool(const std::string_view&)> process_callback;
+		typedef std::function<string(const std::string_view&)> schema_name_callback;
+		typedef std::function<void(var_form, const std::string_view&)> schema_write_callback;
+		typedef std::function<bool(uint8_t*, size_t)> schema_read_callback;
+		typedef std::function<bool()> activity_callback;
+		typedef std::function<void(task_callback&&)> spawner_callback;
+		typedef void(*signal_callback)(int);
 
-		namespace Allocators
+		namespace allocators
 		{
-			class DebugAllocator final : public GlobalAllocator
+			class debug_allocator final : public global_allocator
 			{
 			public:
-				struct TracingInfo
+				struct tracing_info
 				{
-					std::thread::id Thread;
-					std::string TypeName;
-					MemoryLocation Location;
-					time_t Time;
-					size_t Size;
-					bool Active;
-					bool Static;
+					std::thread::id thread;
+					std::string type_name;
+					memory_location location;
+					time_t time;
+					size_t size;
+					bool active;
+					bool constant;
 
-					TracingInfo();
-					TracingInfo(const char* NewTypeName, MemoryLocation&& NewLocation, time_t NewTime, size_t NewSize, bool IsActive, bool IsStatic);
+					tracing_info();
+					tracing_info(const char* new_type_name, memory_location&& new_location, time_t new_time, size_t new_size, bool is_active, bool is_static);
 				};
 
 			private:
-				std::unordered_map<void*, TracingInfo> Blocks;
-				std::unordered_map<void*, TracingInfo> Watchers;
-				std::recursive_mutex Mutex;
+				std::unordered_map<void*, tracing_info> blocks;
+				std::unordered_map<void*, tracing_info> watchers;
+				std::recursive_mutex mutex;
 
 			public:
-				~DebugAllocator() override = default;
-				Unique<void> Allocate(size_t Size) noexcept override;
-				Unique<void> Allocate(MemoryLocation&& Origin, size_t Size) noexcept override;
-				void Free(Unique<void> Address) noexcept override;
-				void Transfer(Unique<void> Address, size_t Size) noexcept override;
-				void Transfer(Unique<void> Address, MemoryLocation&& Origin, size_t Size) noexcept override;
-				void Watch(MemoryLocation&& Origin, void* Address) noexcept override;
-				void Unwatch(void* Address) noexcept override;
-				void Finalize() noexcept override;
-				bool IsValid(void* Address) noexcept override;
-				bool IsFinalizable() noexcept override;
-				bool Dump(void* Address);
-				bool FindBlock(void* Address, TracingInfo* Output);
-				const std::unordered_map<void*, TracingInfo>& GetBlocks() const;
-				const std::unordered_map<void*, TracingInfo>& GetWatchers() const;
+				~debug_allocator() override = default;
+				unique<void> allocate(size_t size) noexcept override;
+				unique<void> allocate(memory_location&& origin, size_t size) noexcept override;
+				void free(unique<void> address) noexcept override;
+				void transfer(unique<void> address, size_t size) noexcept override;
+				void transfer(unique<void> address, memory_location&& origin, size_t size) noexcept override;
+				void watch(memory_location&& origin, void* address) noexcept override;
+				void unwatch(void* address) noexcept override;
+				void finalize() noexcept override;
+				bool is_valid(void* address) noexcept override;
+				bool is_finalizable() noexcept override;
+				bool dump(void* address);
+				bool find_block(void* address, tracing_info* output);
+				const std::unordered_map<void*, tracing_info>& get_blocks() const;
+				const std::unordered_map<void*, tracing_info>& get_watchers() const;
 			};
 
-			class DefaultAllocator final : public GlobalAllocator
+			class default_allocator final : public global_allocator
 			{
 			public:
-				~DefaultAllocator() override = default;
-				Unique<void> Allocate(size_t Size) noexcept override;
-				Unique<void> Allocate(MemoryLocation&& Origin, size_t Size) noexcept override;
-				void Free(Unique<void> Address) noexcept override;
-				void Transfer(Unique<void> Address, size_t Size) noexcept override;
-				void Transfer(Unique<void> Address, MemoryLocation&& Origin, size_t Size) noexcept override;
-				void Watch(MemoryLocation&& Origin, void* Address) noexcept override;
-				void Unwatch(void* Address) noexcept override;
-				void Finalize() noexcept override;
-				bool IsValid(void* Address) noexcept override;
-				bool IsFinalizable() noexcept override;
+				~default_allocator() override = default;
+				unique<void> allocate(size_t size) noexcept override;
+				unique<void> allocate(memory_location&& origin, size_t size) noexcept override;
+				void free(unique<void> address) noexcept override;
+				void transfer(unique<void> address, size_t size) noexcept override;
+				void transfer(unique<void> address, memory_location&& origin, size_t size) noexcept override;
+				void watch(memory_location&& origin, void* address) noexcept override;
+				void unwatch(void* address) noexcept override;
+				void finalize() noexcept override;
+				bool is_valid(void* address) noexcept override;
+				bool is_finalizable() noexcept override;
 			};
 
-			class CachedAllocator final : public GlobalAllocator
+			class cached_allocator final : public global_allocator
 			{
 			private:
-				struct PageCache;
+				struct page_cache;
 
-				using PageGroup = std::vector<PageCache*>;
+				using page_group = std::vector<page_cache*>;
 
-				struct PageAddress
+				struct page_address
 				{
-					PageCache* Cache;
-					void* Address;
+					page_cache* cache;
+					void* address;
 				};
 
-				struct PageCache
+				struct page_cache
 				{
-					std::vector<PageAddress*> Addresses;
-					PageGroup& Page;
-					int64_t Timing;
-					size_t Capacity;
+					std::vector<page_address*> addresses;
+					page_group& page;
+					int64_t timing;
+					size_t capacity;
 
-					inline PageCache(PageGroup& NewPage, int64_t Time, size_t Size) : Page(NewPage), Timing(Time), Capacity(Size)
+					inline page_cache(page_group& new_page, int64_t time, size_t size) : page(new_page), timing(time), capacity(size)
 					{
-						Addresses.resize(Capacity);
+						addresses.resize(capacity);
 					}
-					~PageCache() = default;
+					~page_cache() = default;
 				};
 
 			private:
-				std::unordered_map<size_t, PageGroup> Pages;
-				std::recursive_mutex Mutex;
-				uint64_t MinimalLifeTime;
-				double ElementsReducingFactor;
-				size_t ElementsReducingBase;
-				size_t ElementsPerAllocation;
+				std::unordered_map<size_t, page_group> pages;
+				std::recursive_mutex mutex;
+				uint64_t minimal_life_time;
+				double elements_reducing_factor;
+				size_t elements_reducing_base;
+				size_t elements_per_allocation;
 
 			public:
-				CachedAllocator(uint64_t MinimalLifeTimeMs = 2000, size_t MaxElementsPerAllocation = 1024, size_t ElementsReducingBaseBytes = 300, double ElementsReducingFactorRate = 5.0);
-				~CachedAllocator() noexcept override;
-				Unique<void> Allocate(size_t Size) noexcept override;
-				Unique<void> Allocate(MemoryLocation&& Origin, size_t Size) noexcept override;
-				void Free(Unique<void> Address) noexcept override;
-				void Transfer(Unique<void> Address, size_t Size) noexcept override;
-				void Transfer(Unique<void> Address, MemoryLocation&& Origin, size_t Size) noexcept override;
-				void Watch(MemoryLocation&& Origin, void* Address) noexcept override;
-				void Unwatch(void* Address) noexcept override;
-				void Finalize() noexcept override;
-				bool IsValid(void* Address) noexcept override;
-				bool IsFinalizable() noexcept override;
+				cached_allocator(uint64_t minimal_life_time_ms = 2000, size_t max_elements_per_allocation = 1024, size_t elements_reducing_base_bytes = 300, double elements_reducing_factor_rate = 5.0);
+				~cached_allocator() noexcept override;
+				unique<void> allocate(size_t size) noexcept override;
+				unique<void> allocate(memory_location&& origin, size_t size) noexcept override;
+				void free(unique<void> address) noexcept override;
+				void transfer(unique<void> address, size_t size) noexcept override;
+				void transfer(unique<void> address, memory_location&& origin, size_t size) noexcept override;
+				void watch(memory_location&& origin, void* address) noexcept override;
+				void unwatch(void* address) noexcept override;
+				void finalize() noexcept override;
+				bool is_valid(void* address) noexcept override;
+				bool is_finalizable() noexcept override;
 
 			private:
-				PageCache* GetPageCache(size_t Size);
-				int64_t GetClock();
-				size_t GetElementsCount(PageGroup& Page, size_t Size);
+				page_cache* get_page_cache(size_t size);
+				int64_t get_clock();
+				size_t get_elements_count(page_group& page, size_t size);
 			};
 
-			class LinearAllocator final : public LocalAllocator
+			class linear_allocator final : public local_allocator
 			{
 			private:
-				struct Region
+				struct region
 				{
-					char* FreeAddress;
-					char* BaseAddress;
-					Region* UpperAddress;
-					Region* LowerAddress;
-					size_t Size;
+					char* free_address;
+					char* base_address;
+					region* upper_address;
+					region* lower_address;
+					size_t size;
 				};
 
 			private:
-				Region* Top;
-				Region* Bottom;
-				size_t LatestSize;
-				size_t Sizing;
+				region* top;
+				region* bottom;
+				size_t latest_size;
+				size_t sizing;
 
 			public:
-				LinearAllocator(size_t Size);
-				~LinearAllocator() noexcept override;
-				Unique<void> Allocate(size_t Size) noexcept override;
-				void Free(Unique<void> Address) noexcept override;
-				void Reset() noexcept override;
-				bool IsValid(void* Address) noexcept override;
-				size_t GetLeftovers() const noexcept;
+				linear_allocator(size_t size);
+				~linear_allocator() noexcept override;
+				unique<void> allocate(size_t size) noexcept override;
+				void free(unique<void> address) noexcept override;
+				void reset() noexcept override;
+				bool is_valid(void* address) noexcept override;
+				size_t get_leftovers() const noexcept;
 
 			private:
-				void NextRegion(size_t Size) noexcept;
-				void FlushRegions() noexcept;
+				void next_region(size_t size) noexcept;
+				void flush_regions() noexcept;
 			};
 
-			class StackAllocator final : public LocalAllocator
+			class stack_allocator final : public local_allocator
 			{
 			private:
-				struct Region
+				struct region
 				{
-					char* FreeAddress;
-					char* BaseAddress;
-					Region* UpperAddress;
-					Region* LowerAddress;
-					size_t Size;
+					char* free_address;
+					char* base_address;
+					region* upper_address;
+					region* lower_address;
+					size_t size;
 				};
 
 			private:
-				Region* Top;
-				Region* Bottom;
-				size_t Sizing;
+				region* top;
+				region* bottom;
+				size_t sizing;
 
 			public:
-				StackAllocator(size_t Size);
-				~StackAllocator() noexcept override;
-				Unique<void> Allocate(size_t Size) noexcept override;
-				void Free(Unique<void> Address) noexcept override;
-				void Reset() noexcept override;
-				bool IsValid(void* Address) noexcept override;
-				size_t GetLeftovers() const noexcept;
+				stack_allocator(size_t size);
+				~stack_allocator() noexcept override;
+				unique<void> allocate(size_t size) noexcept override;
+				void free(unique<void> address) noexcept override;
+				void reset() noexcept override;
+				bool is_valid(void* address) noexcept override;
+				size_t get_leftovers() const noexcept;
 
 			private:
-				void NextRegion(size_t Size) noexcept;
-				void FlushRegions() noexcept;
+				void next_region(size_t size) noexcept;
+				void flush_regions() noexcept;
 			};
 		}
 
-		class StackTrace
+		class stack_trace
 		{
 		public:
-			struct Frame
+			struct frame
 			{
-				String Code;
-				String Function;
-				String File;
-				uint32_t Line;
-				uint32_t Column;
-				void* Handle;
-				bool Native;
+				string code;
+				string function;
+				string file;
+				uint32_t line;
+				uint32_t column;
+				void* handle;
+				bool native;
 			};
 
 		public:
-			typedef Vector<Frame> StackPtr;
+			typedef vector<frame> stack_ptr;
 
 		private:
-			StackPtr Frames;
+			stack_ptr frames;
 
 		public:
-			StackTrace(size_t Skips = 0, size_t MaxDepth = 64);
-			StackPtr::const_iterator begin() const;
-			StackPtr::const_iterator end() const;
-			StackPtr::const_reverse_iterator rbegin() const;
-			StackPtr::const_reverse_iterator rend() const;
+			stack_trace(size_t skips = 0, size_t max_depth = 64);
+			stack_ptr::const_iterator begin() const;
+			stack_ptr::const_iterator end() const;
+			stack_ptr::const_reverse_iterator rbegin() const;
+			stack_ptr::const_reverse_iterator rend() const;
 			explicit operator bool() const;
-			const StackPtr& Range() const;
-			bool Empty() const;
-			size_t Size() const;
+			const stack_ptr& range() const;
+			bool empty() const;
+			size_t size() const;
 		};
 
-		class ErrorHandling final : public Singletonish
+		class error_handling final : public singletonish
 		{
 		public:
-			struct Details
+			struct details
 			{
 				struct
 				{
-					const char* File = nullptr;
-					int Line = 0;
-				} Origin;
+					const char* file = nullptr;
+					int line = 0;
+				} origin;
 
 				struct
 				{
-					LogLevel Level = LogLevel::Info;
-					bool Fatal = false;
-				} Type;
+					log_level level = log_level::info;
+					bool fatal = false;
+				} type;
 
 				struct
 				{
-					char Data[BLOB_SIZE] = { '\0' };
-					char Date[64] = { '\0' };
-					size_t Size = 0;
-				} Message;
+					char data[BLOB_SIZE] = { '\0' };
+					char date[64] = { '\0' };
+					size_t size = 0;
+				} message;
 			};
 
-			struct Tick
+			struct tick
 			{
-				bool IsCounting;
+				bool is_counting;
 
-				Tick(bool Active) noexcept;
-				Tick(const Tick& Other) = delete;
-				Tick(Tick&& Other) noexcept;
-				~Tick() noexcept;
-				Tick& operator =(const Tick& Other) = delete;
-				Tick& operator =(Tick&& Other) noexcept;
-			};
-
-		private:
-			struct State
-			{
-				std::function<void(Details&)> Callback;
-				uint32_t Flags = (uint32_t)LogOption::Pretty;
+				tick(bool active) noexcept;
+				tick(const tick& other) = delete;
+				tick(tick&& other) noexcept;
+				~tick() noexcept;
+				tick& operator =(const tick& other) = delete;
+				tick& operator =(tick&& other) noexcept;
 			};
 
 		private:
-			static State* Context;
+			struct state
+			{
+				std::function<void(details&)> callback;
+				uint32_t flags = (uint32_t)log_option::pretty;
+			};
+
+		private:
+			static state* context;
 
 		public:
-			static void Panic(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept;
-			static void Assert(int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...) noexcept;
-			static void Message(LogLevel Level, int Line, const char* Source, const char* Format, ...) noexcept;
-			static void Pause() noexcept;
-			static void Cleanup() noexcept;
-			static void SetCallback(std::function<void(Details&)>&& Callback) noexcept;
-			static void SetFlag(LogOption Option, bool Active) noexcept;
-			static bool HasFlag(LogOption Option) noexcept;
-			static bool HasCallback() noexcept;
-			static String GetStackTrace(size_t Skips, size_t MaxFrames = 64) noexcept;
-			static String GetMeasureTrace() noexcept;
-			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS) noexcept;
-			static void MeasureLoop() noexcept;
-			static std::string_view GetMessageType(const Details& Base) noexcept;
-			static StdColor GetMessageColor(const Details& Base) noexcept;
-			static String GetMessageText(const Details& Base) noexcept;
+			static void panic(int line, const char* source, const char* function, const char* condition, const char* format, ...) noexcept;
+			static void assertion(int line, const char* source, const char* function, const char* condition, const char* format, ...) noexcept;
+			static void message(log_level level, int line, const char* source, const char* format, ...) noexcept;
+			static void pause() noexcept;
+			static void cleanup() noexcept;
+			static void set_callback(std::function<void(details&)>&& callback) noexcept;
+			static void set_flag(log_option option, bool active) noexcept;
+			static bool has_flag(log_option option) noexcept;
+			static bool has_callback() noexcept;
+			static string get_stack_trace(size_t skips, size_t max_frames = 64) noexcept;
+			static string get_measure_trace() noexcept;
+			static tick measure(const char* file, const char* function, int line, uint64_t threshold_ms) noexcept;
+			static void measure_loop() noexcept;
+			static std::string_view get_message_type(const details& base) noexcept;
+			static std_color get_message_color(const details& base) noexcept;
+			static string get_message_text(const details& base) noexcept;
 
 		private:
-			static void Enqueue(Details&& Data) noexcept;
-			static void Dispatch(Details& Data) noexcept;
-			static void Colorify(Console* Terminal, Details& Data) noexcept;
+			static void enqueue(details&& data) noexcept;
+			static void dispatch(details& data) noexcept;
+			static void colorify(console* terminal, details& data) noexcept;
 		};
 
-		class OptionUtils
+		class option_utils
 		{
 		public:
-			template <typename Q>
-			static typename std::enable_if<std::is_trivial<Q>::value, void>::type MoveBuffer(char* Dest, char* Src, size_t Size)
+			template <typename q>
+			static typename std::enable_if<std::is_trivial<q>::value, void>::type move_buffer(char* dest, char* src, size_t size)
 			{
-				memcpy(Dest, Src, Size);
+				memcpy(dest, src, size);
 			}
-			template <typename Q>
-			static typename std::enable_if<!std::is_trivial<Q>::value, void>::type MoveBuffer(char* Dest, char* Src, size_t)
+			template <typename q>
+			static typename std::enable_if<!std::is_trivial<q>::value, void>::type move_buffer(char* dest, char* src, size_t)
 			{
-				new(Dest) Q(std::move(*(Q*)Src));
+				new(dest) q(std::move(*(q*)src));
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_trivial<Q>::value, void>::type CopyBuffer(char* Dest, const char* Src, size_t Size)
+			template <typename q>
+			static typename std::enable_if<std::is_trivial<q>::value, void>::type copy_buffer(char* dest, const char* src, size_t size)
 			{
-				memcpy(Dest, Src, Size);
+				memcpy(dest, src, size);
 			}
-			template <typename Q>
-			static typename std::enable_if<!std::is_trivial<Q>::value, void>::type CopyBuffer(char* Dest, const char* Src, size_t)
+			template <typename q>
+			static typename std::enable_if<!std::is_trivial<q>::value, void>::type copy_buffer(char* dest, const char* src, size_t)
 			{
-				new(Dest) Q(*(Q*)Src);
+				new(dest) q(*(q*)src);
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_pointer<Q>::value, const Q>::type ToConstPointer(const char* Src)
+			template <typename q>
+			static typename std::enable_if<std::is_pointer<q>::value, const q>::type to_const_pointer(const char* src)
 			{
-				Q& Reference = *(Q*)Src;
-				return Reference;
+				q& reference = *(q*)src;
+				return reference;
 			}
-			template <typename Q>
-			static typename std::enable_if<!std::is_pointer<Q>::value, const Q*>::type ToConstPointer(const char* Src)
+			template <typename q>
+			static typename std::enable_if<!std::is_pointer<q>::value, const q*>::type to_const_pointer(const char* src)
 			{
-				Q& Reference = *(Q*)Src;
-				return &Reference;
+				q& reference = *(q*)src;
+				return &reference;
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_pointer<Q>::value, Q>::type ToPointer(char* Src)
+			template <typename q>
+			static typename std::enable_if<std::is_pointer<q>::value, q>::type to_pointer(char* src)
 			{
-				Q& Reference = *(Q*)Src;
-				return Reference;
+				q& reference = *(q*)src;
+				return reference;
 			}
-			template <typename Q>
-			static typename std::enable_if<!std::is_pointer<Q>::value, Q*>::type ToPointer(char* Src)
+			template <typename q>
+			static typename std::enable_if<!std::is_pointer<q>::value, q*>::type to_pointer(char* src)
 			{
-				Q& Reference = *(Q*)Src;
-				return &Reference;
+				q& reference = *(q*)src;
+				return &reference;
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_base_of<std::exception, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<std::is_base_of<std::exception, q>::value, string>::type to_error_text(const char* src, bool is_error)
 			{
-				return String(IsError ? ((Q*)Src)->what() : "accessing a none value");
+				return string(is_error ? ((q*)src)->what() : "accessing a none value");
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_same<std::error_code, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<std::is_same<std::error_code, q>::value, std::string>::type to_error_text(const char* src, bool is_error)
 			{
-				return IsError ? ((Q*)Src)->message() : std::string("accessing a none value");
+				return is_error ? ((q*)src)->message() : std::string("accessing a none value");
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_same<std::error_condition, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<std::is_same<std::error_condition, q>::value, std::string>::type to_error_text(const char* src, bool is_error)
 			{
-				return IsError ? ((Q*)Src)->message() : std::string("accessing a none value");
+				return is_error ? ((q*)src)->message() : std::string("accessing a none value");
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_same<std::string_view, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<std::is_same<std::string_view, q>::value, string>::type to_error_text(const char* src, bool is_error)
 			{
-				return String(IsError ? *(Q*)Src : Q("accessing a none value"));
+				return string(is_error ? *(q*)src : q("accessing a none value"));
 			}
-			template <typename Q>
-			static typename std::enable_if<std::is_same<std::string, Q>::value, std::string>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<std::is_same<std::string, q>::value, std::string>::type to_error_text(const char* src, bool is_error)
 			{
-				return IsError ? *(Q*)Src : Q("accessing a none value");
+				return is_error ? *(q*)src : q("accessing a none value");
 			}
 #ifdef VI_ALLOCATOR
-			template <typename Q>
-			static typename std::enable_if<std::is_same<String, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<std::is_same<string, q>::value, string>::type to_error_text(const char* src, bool is_error)
 			{
-				return IsError ? *(Q*)Src : Q("accessing a none value");
+				return is_error ? *(q*)src : q("accessing a none value");
 			}
 #endif
-			template <typename Q>
-			static typename std::enable_if<!std::is_base_of<std::exception, Q>::value && !std::is_same<std::error_code, Q>::value && !std::is_same<std::error_condition, Q>::value && !std::is_same<std::string, Q>::value && !std::is_same<String, Q>::value, String>::type ToErrorText(const char* Src, bool IsError)
+			template <typename q>
+			static typename std::enable_if<!std::is_base_of<std::exception, q>::value && !std::is_same<std::error_code, q>::value && !std::is_same<std::error_condition, q>::value && !std::is_same<std::string, q>::value && !std::is_same<string, q>::value, string>::type to_error_text(const char* src, bool is_error)
 			{
-				return String(IsError ? "*unknown error value*" : "accessing a none value");
+				return string(is_error ? "*unknown error value*" : "accessing a none value");
 			}
 		};
 
-		class BasicException : public std::exception
+		class basic_exception : public std::exception
 		{
 		protected:
-			String Message;
+			string error_message;
 
 		public:
-			BasicException() = default;
-			BasicException(const std::string_view& NewMessage) noexcept;
-			BasicException(String&& NewMessage) noexcept;
-			BasicException(const BasicException&) = default;
-			BasicException(BasicException&&) = default;
-			BasicException& operator= (const BasicException&) = default;
-			BasicException& operator= (BasicException&&) = default;
-			virtual ~BasicException() = default;
+			basic_exception() = default;
+			basic_exception(const std::string_view& new_message) noexcept;
+			basic_exception(string&& new_message) noexcept;
+			basic_exception(const basic_exception&) = default;
+			basic_exception(basic_exception&&) = default;
+			basic_exception& operator= (const basic_exception&) = default;
+			basic_exception& operator= (basic_exception&&) = default;
+			virtual ~basic_exception() = default;
 			virtual const char* type() const noexcept = 0;
 			virtual const char* what() const noexcept;
-			virtual const String& message() const& noexcept;
-			virtual const String&& message() const&& noexcept;
-			virtual String& message() & noexcept;
-			virtual String&& message() && noexcept;
+			virtual const string& message() const& noexcept;
+			virtual const string&& message() const&& noexcept;
+			virtual string& message() & noexcept;
+			virtual string&& message() && noexcept;
 		};
 
-		class ParserException final : public BasicException
+		class parser_exception final : public basic_exception
 		{
 		private:
-			ParserError Type;
-			size_t Offset;
+			parser_error error_type;
+			size_t error_offset;
 
 		public:
-			ParserException(ParserError NewType);
-			ParserException(ParserError NewType, size_t NewOffset);
-			ParserException(ParserError NewType, size_t NewOffset, const std::string_view& NewMessage);
+			parser_exception(parser_error new_type);
+			parser_exception(parser_error new_type, size_t new_offset);
+			parser_exception(parser_error new_type, size_t new_offset, const std::string_view& new_message);
 			const char* type() const noexcept override;
-			ParserError status() const noexcept;
+			parser_error status() const noexcept;
 			size_t offset() const noexcept;
 		};
 
-		class SystemException : public BasicException
+		class system_exception : public basic_exception
 		{
 		private:
-			std::error_condition Error;
+			std::error_condition error_condition;
 
 		public:
-			SystemException();
-			SystemException(const std::string_view& Message);
-			SystemException(const std::string_view& Message, std::error_condition&& Condition);
+			system_exception();
+			system_exception(const std::string_view& message);
+			system_exception(const std::string_view& message, std::error_condition&& condition);
 			virtual const char* type() const noexcept override;
 			virtual const std::error_condition& error() const& noexcept;
 			virtual const std::error_condition&& error() const&& noexcept;
@@ -1158,1605 +1158,1605 @@ namespace Vitex
 			virtual std::error_condition&& error() && noexcept;
 		};
 
-		template <typename T>
-		class Bitmask
+		template <typename t>
+		class bitmask
 		{
-			static_assert(std::is_integral<T>::value, "value should be of integral type to have bitmask applications");
+			static_assert(std::is_integral<t>::value, "value should be of integral type to have bitmask applications");
 
 		public:
-			static T Mark(T Other)
+			static t mark(t other)
 			{
-				return Other | (T)Highbit<T>();
+				return other | (t)highbit<t>();
 			}
-			static T Unmark(T Other)
+			static t unmark(t other)
 			{
-				return Other & (T)Lowbit<T>();
+				return other & (t)lowbit<t>();
 			}
-			static T Value(T Other)
+			static t value(t other)
 			{
-				return Other & (T)Lowbit<T>();
+				return other & (t)lowbit<t>();
 			}
-			static bool IsMarked(T Other)
+			static bool is_marked(t other)
 			{
-				return (bool)(Other & (T)Highbit<T>());
+				return (bool)(other & (t)highbit<t>());
 			}
 
 		private:
-			template <typename Q>
-			static typename std::enable_if<sizeof(Q) == sizeof(uint64_t), uint64_t>::type Highbit()
+			template <typename q>
+			static typename std::enable_if<sizeof(q) == sizeof(uint64_t), uint64_t>::type highbit()
 			{
 				return 0x8000000000000000;
 			}
-			template <typename Q>
-			static typename std::enable_if < sizeof(Q) < sizeof(uint64_t), uint32_t > ::type Highbit()
+			template <typename q>
+			static typename std::enable_if < sizeof(q) < sizeof(uint64_t), uint32_t > ::type highbit()
 			{
 				return 0x80000000;
 			}
-			template <typename Q>
-			static typename std::enable_if<sizeof(Q) == sizeof(uint64_t), uint64_t>::type Lowbit()
+			template <typename q>
+			static typename std::enable_if<sizeof(q) == sizeof(uint64_t), uint64_t>::type lowbit()
 			{
 				return 0x7FFFFFFFFFFFFFFF;
 			}
-			template <typename Q>
-			static typename std::enable_if < sizeof(Q) < sizeof(uint64_t), uint32_t > ::type Lowbit()
+			template <typename q>
+			static typename std::enable_if < sizeof(q) < sizeof(uint64_t), uint32_t > ::type lowbit()
 			{
 				return 0x7FFFFFFF;
 			}
 		};
 
-		template <typename V>
-		class Option
+		template <typename v>
+		class option
 		{
-			static_assert(!std::is_same<V, void>::value, "value type should not be void");
+			static_assert(!std::is_same<v, void>::value, "value type should not be void");
 
 		private:
-			alignas(V) char Value[sizeof(V)];
-			int8_t Status;
+			alignas(v) char value[sizeof(v)];
+			int8_t status;
 #ifndef NDEBUG
-			const V* HiddenValue = (const V*)Value;
+			const v* hidden_value = (const v*)value;
 #endif
 		public:
-			Option(Optional Type) : Status((int8_t)Type)
+			option(optional type) : status((int8_t)type)
 			{
-				VI_ASSERT(Type == Optional::None, "only none is accepted for this constructor");
+				VI_ASSERT(type == optional::none, "only none is accepted for this constructor");
 			}
-			Option(const V& Other) : Status(1)
+			option(const v& other) : status(1)
 			{
-				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(V));
+				option_utils::copy_buffer<v>(value, (const char*)&other, sizeof(v));
 			}
-			Option(V&& Other) noexcept : Status(1)
+			option(v&& other) noexcept : status(1)
 			{
-				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(V));
+				option_utils::move_buffer<v>(value, (char*)&other, sizeof(v));
 			}
-			Option(const Option& Other) : Status(Other.Status)
+			option(const option& other) : status(other.status)
 			{
-				if (Status > 0)
-					OptionUtils::CopyBuffer<V>(Value, Other.Value, sizeof(Value));
+				if (status > 0)
+					option_utils::copy_buffer<v>(value, other.value, sizeof(value));
 			}
-			Option(Option&& Other) noexcept : Status(Other.Status)
+			option(option&& other) noexcept : status(other.status)
 			{
-				if (Status > 0)
-					OptionUtils::MoveBuffer<V>(Value, Other.Value, sizeof(Value));
+				if (status > 0)
+					option_utils::move_buffer<v>(value, other.value, sizeof(value));
 			}
-			~Option()
+			~option()
 			{
-				if (Status > 0)
-					((V*)Value)->~V();
-				Status = 0;
+				if (status > 0)
+					((v*)value)->~v();
+				status = 0;
 			}
-			Option& operator= (Optional Type)
+			option& operator= (optional type)
 			{
-				VI_ASSERT(Type == Optional::None, "only none is accepted for this operator");
-				this->~Option();
-				Status = (int8_t)Type;
+				VI_ASSERT(type == optional::none, "only none is accepted for this operator");
+				this->~option();
+				status = (int8_t)type;
 				return *this;
 			}
-			Option& operator= (const V& Other)
+			option& operator= (const v& other)
 			{
-				this->~Option();
-				OptionUtils::CopyBuffer<V>(Value, (const char*)&Other, sizeof(V));
-				Status = 1;
+				this->~option();
+				option_utils::copy_buffer<v>(value, (const char*)&other, sizeof(v));
+				status = 1;
 				return *this;
 			}
-			Option& operator= (V&& Other) noexcept
+			option& operator= (v&& other) noexcept
 			{
-				this->~Option();
-				OptionUtils::MoveBuffer<V>(Value, (char*)&Other, sizeof(V));
-				Status = 1;
+				this->~option();
+				option_utils::move_buffer<v>(value, (char*)&other, sizeof(v));
+				status = 1;
 				return *this;
 			}
-			Option& operator= (const Option& Other)
+			option& operator= (const option& other)
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~Option();
-				Status = Other.Status;
-				if (Status > 0)
-					OptionUtils::CopyBuffer<V>(Value, Other.Value, sizeof(Value));
+				this->~option();
+				status = other.status;
+				if (status > 0)
+					option_utils::copy_buffer<v>(value, other.value, sizeof(value));
 
 				return *this;
 			}
-			Option& operator= (Option&& Other) noexcept
+			option& operator= (option&& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~Option();
-				Status = Other.Status;
-				if (Status > 0)
-					OptionUtils::MoveBuffer<V>(Value, Other.Value, sizeof(Value));
+				this->~option();
+				status = other.status;
+				if (status > 0)
+					option_utils::move_buffer<v>(value, other.value, sizeof(value));
 
 				return *this;
 			}
-			const V& Expect(const std::string_view& Message) const&
+			const v& expect(const std::string_view& message) const&
 			{
-				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
-				const V& Reference = *(V*)Value;
-				return Reference;
+				VI_PANIC(is_value(), "%.*s CAUSING unwrapping an empty value", (int)message.size(), message.data());
+				const v& reference = *(v*)value;
+				return reference;
 			}
-			const V&& Expect(const std::string_view& Message) const&&
+			const v&& expect(const std::string_view& message) const&&
 			{
-				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%.*s CAUSING unwrapping an empty value", (int)message.size(), message.data());
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			V& Expect(const std::string_view& Message)&
+			v& expect(const std::string_view& message)&
 			{
-				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
-				V& Reference = *(V*)Value;
-				return Reference;
+				VI_PANIC(is_value(), "%.*s CAUSING unwrapping an empty value", (int)message.size(), message.data());
+				v& reference = *(v*)value;
+				return reference;
 			}
-			V&& Expect(const std::string_view& Message)&&
+			v&& expect(const std::string_view& message)&&
 			{
-				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%.*s CAUSING unwrapping an empty value", (int)message.size(), message.data());
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			const V& Or(const V& IfNone) const&
+			const v& otherwise(const v & if_none) const&
 			{
-				if (!IsValue())
-					return IfNone;
+				if (!is_value())
+					return if_none;
 
-				const V& Reference = *(V*)Value;
-				return Reference;
+				const v& reference = *(v*)value;
+				return reference;
 			}
-			const V&& Or(const V&& IfNone) const&&
+			const v&& otherwise(const v && if_none) const&&
 			{
-				if (!IsValue())
-					return std::move(IfNone);
+				if (!is_value())
+					return std::move(if_none);
 
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			V& Or(V& IfNone)&
+			v& otherwise(v & if_none)&
 			{
-				if (!IsValue())
-					return IfNone;
+				if (!is_value())
+					return if_none;
 
-				V& Reference = *(V*)Value;
-				return Reference;
+				v& reference = *(v*)value;
+				return reference;
 			}
-			V&& Or(V&& IfNone)&&
+			v&& otherwise(v && if_none)&&
 			{
-				if (!IsValue())
-					return std::move(IfNone);
+				if (!is_value())
+					return std::move(if_none);
 
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			const V& Unwrap() const&
+			const v& unwrap() const&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				const V& Reference = *(V*)Value;
-				return Reference;
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				const v& reference = *(v*)value;
+				return reference;
 			}
-			const V&& Unwrap() const&&
+			const v&& unwrap() const&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			V& Unwrap()&
+			v& unwrap()&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				V& Reference = *(V*)Value;
-				return Reference;
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				v& reference = *(v*)value;
+				return reference;
 			}
-			V&& Unwrap()&&
+			v&& unwrap()&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			const V* Address() const
+			const v* address() const
 			{
-				const V* Reference = IsValue() ? (V*)Value : nullptr;
-				return Reference;
+				const v* reference = is_value() ? (v*)value : nullptr;
+				return reference;
 			}
-			V* Address()
+			v* address()
 			{
-				V* Reference = IsValue() ? (V*)Value : nullptr;
-				return Reference;
+				v* reference = is_value() ? (v*)value : nullptr;
+				return reference;
 			}
-			void Reset()
+			void reset()
 			{
-				this->~Option();
-				Status = 0;
+				this->~option();
+				status = 0;
 			}
-			bool IsNone() const
+			bool is_none() const
 			{
-				return Status == 0;
+				return status == 0;
 			}
-			bool IsValue() const
+			bool is_value() const
 			{
-				return Status > 0;
+				return status > 0;
 			}
 			explicit operator bool() const
 			{
-				return IsValue();
+				return is_value();
 			}
-			explicit operator Optional() const
+			explicit operator optional() const
 			{
-				return (Optional)Status;
+				return (optional)status;
 			}
-			const V& operator* () const&
+			const v& operator* () const&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				const V& Reference = *(V*)Value;
-				return Reference;
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				const v& reference = *(v*)value;
+				return reference;
 			}
-			const V&& operator* () const&&
+			const v&& operator* () const&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			V& operator* ()&
+			v& operator* ()&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				V& Reference = *(V*)Value;
-				return Reference;
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				v& reference = *(v*)value;
+				return reference;
 			}
-			V&& operator* ()&&
+			v&& operator* ()&&
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
-				V& Reference = *(V*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "unwrapping an empty value");
+				v& reference = *(v*)value;
+				return std::move(reference);
 			}
-			const typename std::remove_pointer<V>::type* operator-> () const
+			const typename std::remove_pointer<v>::type* operator-> () const
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value");
-				const auto* Reference = OptionUtils::ToConstPointer<V>(Value);
-				return Reference;
+				VI_ASSERT(is_value(), "unwrapping an empty value");
+				const auto* reference = option_utils::to_const_pointer<v>(value);
+				return reference;
 			}
-			typename std::remove_pointer<V>::type* operator-> ()
+			typename std::remove_pointer<v>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "unwrapping an empty value");
-				auto* Reference = OptionUtils::ToPointer<V>(Value);
-				return Reference;
+				VI_ASSERT(is_value(), "unwrapping an empty value");
+				auto* reference = option_utils::to_pointer<v>(value);
+				return reference;
 			}
 		};
 
 		template <>
-		class Option<void>
+		class option<void>
 		{
 		private:
-			int8_t Status;
+			int8_t status;
 
 		public:
-			Option(Optional Type) : Status((int8_t)Type)
+			option(optional type) : status((int8_t)type)
 			{
 			}
-			Option(const Option&) = default;
-			Option(Option&&) = default;
-			~Option() = default;
-			Option& operator= (Optional Type)
+			option(const option&) = default;
+			option(option&&) = default;
+			~option() = default;
+			option& operator= (optional type)
 			{
-				Status = (int8_t)Type;
+				status = (int8_t)type;
 				return *this;
 			}
-			Option& operator= (const Option&) = default;
-			Option& operator= (Option&&) = default;
-			void Expect(const std::string_view& Message) const
+			option& operator= (const option&) = default;
+			option& operator= (option&&) = default;
+			void expect(const std::string_view& message) const
 			{
-				VI_PANIC(IsValue(), "%.*s CAUSING unwrapping an empty value", (int)Message.size(), Message.data());
+				VI_PANIC(is_value(), "%.*s CAUSING unwrapping an empty value", (int)message.size(), message.data());
 			}
-			void Unwrap() const
+			void unwrap() const
 			{
-				VI_PANIC(IsValue(), "unwrapping an empty value");
+				VI_PANIC(is_value(), "unwrapping an empty value");
 			}
-			void Address() const
+			void address() const
 			{
 			}
-			void Reset()
+			void reset()
 			{
-				Status = 0;
+				status = 0;
 			}
-			bool IsNone() const
+			bool is_none() const
 			{
-				return Status == 0;
+				return status == 0;
 			}
-			bool IsValue() const
+			bool is_value() const
 			{
-				return Status > 0;
+				return status > 0;
 			}
 			explicit operator bool() const
 			{
-				return IsValue();
+				return is_value();
 			}
-			explicit operator Optional() const
+			explicit operator optional() const
 			{
-				return (Optional)Status;
+				return (optional)status;
 			}
 		};
 
-		template <typename V, typename E>
-		class Expects
+		template <typename v, typename e>
+		class expects
 		{
-			static_assert(!std::is_same<E, void>::value, "error type should not be void");
-			static_assert(!std::is_same<E, V>::value, "error type should not be value type");
+			static_assert(!std::is_same<e, void>::value, "error type should not be void");
+			static_assert(!std::is_same<e, v>::value, "error type should not be value type");
 
 		private:
-			template <typename... Types>
-			struct Storage
+			template <typename... types>
+			struct storage
 			{
-				alignas(Types...) char Buffer[std::max({ sizeof(Types)... })];
+				alignas(types...) char buffer[std::max({ sizeof(types)... })];
 			};
 
 		private:
-			Storage<V, E> Value;
-			int8_t Status;
+			storage<v, e> value;
+			int8_t status;
 #ifndef NDEBUG
-			const V* HiddenValue = (const V*)&Value;
-			const E* HiddenError = (const E*)&Value;
+			const v* hidden_value = (const v*)&value;
+			const e* hidden_error = (const e*)&value;
 #endif
 		public:
-			Expects(const V& Other) : Status(1)
+			expects(const v& other) : status(1)
 			{
-				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(V));
+				option_utils::copy_buffer<v>(value.buffer, (const char*)&other, sizeof(v));
 			}
-			Expects(V&& Other) noexcept : Status(1)
+			expects(v&& other) noexcept : status(1)
 			{
-				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(V));
+				option_utils::move_buffer<v>(value.buffer, (char*)&other, sizeof(v));
 			}
-			Expects(const E& Other) noexcept : Status(-1)
+			expects(const e& other) noexcept : status(-1)
 			{
-				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(E));
+				option_utils::copy_buffer<e>(value.buffer, (const char*)&other, sizeof(e));
 			}
-			Expects(E&& Other) noexcept : Status(-1)
+			expects(e&& other) noexcept : status(-1)
 			{
-				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(E));
+				option_utils::move_buffer<e>(value.buffer, (char*)&other, sizeof(e));
 			}
-			Expects(const Expects& Other) : Status(Other.Status)
+			expects(const expects& other) : status(other.status)
 			{
-				if (Status > 0)
-					OptionUtils::CopyBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
-				else if (Status < 0)
-					OptionUtils::CopyBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
+				if (status > 0)
+					option_utils::copy_buffer<v>(value.buffer, other.value.buffer, sizeof(value.buffer));
+				else if (status < 0)
+					option_utils::copy_buffer<e>(value.buffer, other.value.buffer, sizeof(value.buffer));
 			}
-			Expects(Expects&& Other) noexcept : Status(Other.Status)
+			expects(expects&& other) noexcept : status(other.status)
 			{
-				if (Status > 0)
-					OptionUtils::MoveBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
-				else if (Status < 0)
-					OptionUtils::MoveBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
+				if (status > 0)
+					option_utils::move_buffer<v>(value.buffer, other.value.buffer, sizeof(value.buffer));
+				else if (status < 0)
+					option_utils::move_buffer<e>(value.buffer, other.value.buffer, sizeof(value.buffer));
 			}
-			~Expects()
+			~expects()
 			{
-				if (Status > 0)
-					((V*)Value.Buffer)->~V();
-				else if (Status < 0)
-					((E*)Value.Buffer)->~E();
-				Status = 0;
+				if (status > 0)
+					((v*)value.buffer)->~v();
+				else if (status < 0)
+					((e*)value.buffer)->~e();
+				status = 0;
 			}
-			Expects& operator= (const V& Other)
+			expects& operator= (const v& other)
 			{
-				this->~Expects();
-				OptionUtils::CopyBuffer<V>(Value.Buffer, (const char*)&Other, sizeof(V));
-				Status = 1;
+				this->~expects();
+				option_utils::copy_buffer<v>(value.buffer, (const char*)&other, sizeof(v));
+				status = 1;
 				return *this;
 			}
-			Expects& operator= (V&& Other) noexcept
+			expects& operator= (v&& other) noexcept
 			{
-				this->~Expects();
-				OptionUtils::MoveBuffer<V>(Value.Buffer, (char*)&Other, sizeof(V));
-				Status = 1;
+				this->~expects();
+				option_utils::move_buffer<v>(value.buffer, (char*)&other, sizeof(v));
+				status = 1;
 				return *this;
 			}
-			Expects& operator= (const E& Other)
+			expects& operator= (const e& other)
 			{
-				this->~Expects();
-				OptionUtils::CopyBuffer<E>(Value.Buffer, (const char*)&Other, sizeof(E));
-				Status = -1;
+				this->~expects();
+				option_utils::copy_buffer<e>(value.buffer, (const char*)&other, sizeof(e));
+				status = -1;
 				return *this;
 			}
-			Expects& operator= (E&& Other) noexcept
+			expects& operator= (e&& other) noexcept
 			{
-				this->~Expects();
-				OptionUtils::MoveBuffer<E>(Value.Buffer, (char*)&Other, sizeof(E));
-				Status = -1;
+				this->~expects();
+				option_utils::move_buffer<e>(value.buffer, (char*)&other, sizeof(e));
+				status = -1;
 				return *this;
 			}
-			Expects& operator= (const Expects& Other)
+			expects& operator= (const expects& other)
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~Expects();
-				Status = Other.Status;
-				if (Status > 0)
-					OptionUtils::CopyBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
-				else if (Status < 0)
-					OptionUtils::CopyBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
+				this->~expects();
+				status = other.status;
+				if (status > 0)
+					option_utils::copy_buffer<v>(value.buffer, other.value.buffer, sizeof(value.buffer));
+				else if (status < 0)
+					option_utils::copy_buffer<e>(value.buffer, other.value.buffer, sizeof(value.buffer));
 
 				return *this;
 			}
-			Expects& operator= (Expects&& Other) noexcept
+			expects& operator= (expects&& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~Expects();
-				Status = Other.Status;
-				if (Status > 0)
-					OptionUtils::MoveBuffer<V>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
-				else if (Status < 0)
-					OptionUtils::MoveBuffer<E>(Value.Buffer, Other.Value.Buffer, sizeof(Value.Buffer));
+				this->~expects();
+				status = other.status;
+				if (status > 0)
+					option_utils::move_buffer<v>(value.buffer, other.value.buffer, sizeof(value.buffer));
+				else if (status < 0)
+					option_utils::move_buffer<e>(value.buffer, other.value.buffer, sizeof(value.buffer));
 
 				return *this;
 			}
-			const V& Expect(const std::string_view& Message) const&
+			const v& expect(const std::string_view& message) const&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
-				const V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_value(), "%s CAUSING %.*s", option_utils::to_error_text<e>(value.buffer, is_error()).c_str(), (int)message.size(), message.data());
+				const v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			const V&& Expect(const std::string_view& Message) const&&
+			const v&& expect(const std::string_view& message) const&&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%s CAUSING %.*s", option_utils::to_error_text<e>(value.buffer, is_error()).c_str(), (int)message.size(), message.data());
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			V& Expect(const std::string_view& Message)&
+			v& expect(const std::string_view& message)&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
-				V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_value(), "%s CAUSING %.*s", option_utils::to_error_text<e>(value.buffer, is_error()).c_str(), (int)message.size(), message.data());
+				v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			V&& Expect(const std::string_view& Message)&&
+			v&& expect(const std::string_view& message)&&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%s CAUSING %.*s", option_utils::to_error_text<e>(value.buffer, is_error()).c_str(), (int)message.size(), message.data());
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			const V& Or(const V& IfNone) const&
+			const v& otherwise(const v & if_none) const&
 			{
-				if (!IsValue())
-					return IfNone;
+				if (!is_value())
+					return if_none;
 
-				const V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				const v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			const V&& Or(const V&& IfNone) const&&
+			const v&& otherwise(const v && if_none) const&&
 			{
-				if (!IsValue())
-					return std::move(IfNone);
+				if (!is_value())
+					return std::move(if_none);
 
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			V& Or(V& IfNone)&
+			v& otherwise(v & if_none)&
 			{
-				if (!IsValue())
-					return IfNone;
+				if (!is_value())
+					return if_none;
 
-				V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			V&& Or(V&& IfNone)&&
+			v&& otherwise(v && if_none)&&
 			{
-				if (!IsValue())
-					return std::move(IfNone);
+				if (!is_value())
+					return std::move(if_none);
 
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			const V& Unwrap() const&
+			const v& unwrap() const&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				const V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				const v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			const V&& Unwrap() const&&
+			const v&& unwrap() const&&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			V& Unwrap()&
+			v& unwrap()&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			V&& Unwrap()&&
+			v&& unwrap()&&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			const V* Address() const
+			const v* address() const
 			{
-				const V* Reference = IsValue() ? (V*)Value.Buffer : nullptr;
-				return Reference;
+				const v* reference = is_value() ? (v*)value.buffer : nullptr;
+				return reference;
 			}
-			V* Address()
+			v* address()
 			{
-				V* Reference = IsValue() ? (V*)Value.Buffer : nullptr;
-				return Reference;
+				v* reference = is_value() ? (v*)value.buffer : nullptr;
+				return reference;
 			}
-			const E& Error() const&
+			const e& error() const&
 			{
-				VI_PANIC(IsError(), "value does not contain any errors");
-				const E& Reference = *(E*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_error(), "value does not contain any errors");
+				const e& reference = *(e*)value.buffer;
+				return reference;
 			}
-			const E&& Error() const&&
+			const e&& error() const&&
 			{
-				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_error(), "value does not contain an error");
+				e& reference = *(e*)value.buffer;
+				return std::move(reference);
 			}
-			E& Error()&
+			e& error()&
 			{
-				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_error(), "value does not contain an error");
+				e& reference = *(e*)value.buffer;
+				return reference;
 			}
-			E&& Error()&&
+			e&& error()&&
 			{
-				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_error(), "value does not contain an error");
+				e& reference = *(e*)value.buffer;
+				return std::move(reference);
 			}
-			String What() const
+			string what() const
 			{
-				VI_ASSERT(!IsValue(), "value does not contain an error");
-				auto Reason = OptionUtils::ToErrorText<E>(Value.Buffer, IsError());
-				return String(Reason.begin(), Reason.end());
+				VI_ASSERT(!is_value(), "value does not contain an error");
+				auto reason = option_utils::to_error_text<e>(value.buffer, is_error());
+				return string(reason.begin(), reason.end());
 			}
-			void Report(const std::string_view& Message) const
+			void report(const std::string_view& message) const
 			{
-				if (IsError())
-					VI_ERR("%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str(), (int)Message.size(), Message.data());
+				if (is_error())
+					VI_ERR("%s CAUSING %.*s", option_utils::to_error_text<e>(value.buffer, is_error()).c_str(), (int)message.size(), message.data());
 			}
-			void Reset()
+			void reset()
 			{
-				this->~Expects();
-				Status = 0;
+				this->~expects();
+				status = 0;
 			}
-			bool IsNone() const
+			bool is_none() const
 			{
-				return Status == 0;
+				return status == 0;
 			}
-			bool IsValue() const
+			bool is_value() const
 			{
-				return Status > 0;
+				return status > 0;
 			}
-			bool IsError() const
+			bool is_error() const
 			{
-				return Status < 0;
+				return status < 0;
 			}
 			explicit operator bool() const
 			{
-				return IsValue();
+				return is_value();
 			}
-			explicit operator Expectation() const
+			explicit operator expectation() const
 			{
-				return (Expectation)Status;
+				return (expectation)status;
 			}
-			const V& operator* () const&
+			const v& operator* () const&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				const V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				const v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			const V&& operator* () const&&
+			const v&& operator* () const&&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			V& operator* ()&
+			v& operator* ()&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				V& Reference = *(V*)Value.Buffer;
-				return Reference;
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				v& reference = *(v*)value.buffer;
+				return reference;
 			}
-			V&& operator* ()&&
+			v&& operator* ()&&
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				V& Reference = *(V*)Value.Buffer;
-				return std::move(Reference);
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				v& reference = *(v*)value.buffer;
+				return std::move(reference);
 			}
-			const typename std::remove_pointer<V>::type* operator-> () const
+			const typename std::remove_pointer<v>::type* operator-> () const
 			{
-				VI_ASSERT(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				auto* Reference = OptionUtils::ToConstPointer<V>(Value.Buffer);
-				return Reference;
+				VI_ASSERT(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				auto* reference = option_utils::to_const_pointer<v>(value.buffer);
+				return reference;
 			}
-			typename std::remove_pointer<V>::type* operator-> ()
+			typename std::remove_pointer<v>::type* operator-> ()
 			{
-				VI_ASSERT(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value.Buffer, IsError()).c_str());
-				auto* Reference = OptionUtils::ToPointer<V>(Value.Buffer);
-				return Reference;
+				VI_ASSERT(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value.buffer, is_error()).c_str());
+				auto* reference = option_utils::to_pointer<v>(value.buffer);
+				return reference;
 			}
 		};
 
-		template <typename E>
-		class Expects<void, E>
+		template <typename e>
+		class expects<void, e>
 		{
-			static_assert(!std::is_same<E, void>::value, "error type should not be void");
+			static_assert(!std::is_same<e, void>::value, "error type should not be void");
 
 		private:
-			alignas(E) char Value[sizeof(E)];
-			int8_t Status;
+			alignas(e) char value[sizeof(e)];
+			int8_t status;
 #ifndef NDEBUG
-			const E* HiddenError = (const E*)&Value;
+			const e* hidden_error = (const e*)&value;
 #endif
 		public:
-			Expects(Expectation Type) : Status((int8_t)Type)
+			expects(expectation type) : status((int8_t)type)
 			{
-				VI_ASSERT(Type == Expectation::Met, "only met is accepted for this constructor");
+				VI_ASSERT(type == expectation::met, "only met is accepted for this constructor");
 			}
-			Expects(const E& Other) noexcept : Status(-1)
+			expects(const e& other) noexcept : status(-1)
 			{
-				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(E));
+				option_utils::copy_buffer<e>(value, (const char*)&other, sizeof(e));
 			}
-			Expects(E&& Other) noexcept : Status(-1)
+			expects(e&& other) noexcept : status(-1)
 			{
-				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(E));
+				option_utils::move_buffer<e>(value, (char*)&other, sizeof(e));
 			}
-			Expects(const Expects& Other) : Status(Other.Status)
+			expects(const expects& other) : status(other.status)
 			{
-				if (Status < 0)
-					OptionUtils::CopyBuffer<E>(Value, Other.Value, sizeof(Value));
+				if (status < 0)
+					option_utils::copy_buffer<e>(value, other.value, sizeof(value));
 			}
-			Expects(Expects&& Other) noexcept : Status(Other.Status)
+			expects(expects&& other) noexcept : status(other.status)
 			{
-				if (Status < 0)
-					OptionUtils::MoveBuffer<E>(Value, Other.Value, sizeof(Value));
+				if (status < 0)
+					option_utils::move_buffer<e>(value, other.value, sizeof(value));
 			}
-			~Expects()
+			~expects()
 			{
-				if (Status < 0)
-					((E*)Value)->~E();
-				Status = 0;
+				if (status < 0)
+					((e*)value)->~e();
+				status = 0;
 			}
-			Expects& operator= (Expectation Type)
+			expects& operator= (expectation type)
 			{
-				VI_ASSERT(Type == Expectation::Met, "only met is accepted for this constructor");
-				this->~Expects();
-				Status = (int8_t)Type;
+				VI_ASSERT(type == expectation::met, "only met is accepted for this constructor");
+				this->~expects();
+				status = (int8_t)type;
 				return *this;
 			}
-			Expects& operator= (const E& Other)
+			expects& operator= (const e& other)
 			{
-				this->~Expects();
-				OptionUtils::CopyBuffer<E>(Value, (const char*)&Other, sizeof(E));
-				Status = -1;
+				this->~expects();
+				option_utils::copy_buffer<e>(value, (const char*)&other, sizeof(e));
+				status = -1;
 				return *this;
 			}
-			Expects& operator= (E&& Other) noexcept
+			expects& operator= (e&& other) noexcept
 			{
-				this->~Expects();
-				OptionUtils::MoveBuffer<E>(Value, (char*)&Other, sizeof(E));
-				Status = -1;
+				this->~expects();
+				option_utils::move_buffer<e>(value, (char*)&other, sizeof(e));
+				status = -1;
 				return *this;
 			}
-			Expects& operator= (const Expects& Other)
+			expects& operator= (const expects& other)
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~Expects();
-				Status = Other.Status;
-				if (Status < 0)
-					OptionUtils::CopyBuffer<E>(Value, Other.Value, sizeof(Value));
+				this->~expects();
+				status = other.status;
+				if (status < 0)
+					option_utils::copy_buffer<e>(value, other.value, sizeof(value));
 
 				return *this;
 			}
-			Expects& operator= (Expects&& Other) noexcept
+			expects& operator= (expects&& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~Expects();
-				Status = Other.Status;
-				if (Status < 0)
-					OptionUtils::MoveBuffer<E>(Value, Other.Value, sizeof(Value));
+				this->~expects();
+				status = other.status;
+				if (status < 0)
+					option_utils::move_buffer<e>(value, other.value, sizeof(value));
 
 				return *this;
 			}
-			void Expect(const std::string_view& Message) const
+			void expect(const std::string_view& message) const
 			{
-				VI_PANIC(IsValue(), "%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
+				VI_PANIC(is_value(), "%s CAUSING %.*s", option_utils::to_error_text<e>(value, is_error()).c_str(), (int)message.size(), message.data());
 			}
-			void Unwrap() const
+			void unwrap() const
 			{
-				VI_PANIC(IsValue(), "%s CAUSING unwrapping an empty value", OptionUtils::ToErrorText<E>(Value, IsError()).c_str());
+				VI_PANIC(is_value(), "%s CAUSING unwrapping an empty value", option_utils::to_error_text<e>(value, is_error()).c_str());
 			}
-			void Address() const
+			void address() const
 			{
 			}
-			const E& Error() const&
+			const e& error() const&
 			{
-				VI_PANIC(IsError(), "value does not contain any errors");
-				const E& Reference = *(E*)Value;
-				return Reference;
+				VI_PANIC(is_error(), "value does not contain any errors");
+				const e& reference = *(e*)value;
+				return reference;
 			}
-			const E&& Error() const&&
+			const e&& error() const&&
 			{
-				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_error(), "value does not contain an error");
+				e& reference = *(e*)value;
+				return std::move(reference);
 			}
-			E& Error()&
+			e& error()&
 			{
-				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value;
-				return Reference;
+				VI_PANIC(is_error(), "value does not contain an error");
+				e& reference = *(e*)value;
+				return reference;
 			}
-			E&& Error()&&
+			e&& error()&&
 			{
-				VI_PANIC(IsError(), "value does not contain an error");
-				E& Reference = *(E*)Value;
-				return std::move(Reference);
+				VI_PANIC(is_error(), "value does not contain an error");
+				e& reference = *(e*)value;
+				return std::move(reference);
 			}
-			String What() const
+			string what() const
 			{
-				VI_ASSERT(!IsValue(), "value does not contain an error");
-				auto Reason = OptionUtils::ToErrorText<E>(Value, IsError());
-				return String(Reason.begin(), Reason.end());
+				VI_ASSERT(!is_value(), "value does not contain an error");
+				auto reason = option_utils::to_error_text<e>(value, is_error());
+				return string(reason.begin(), reason.end());
 			}
-			void Report(const std::string_view& Message) const
+			void report(const std::string_view& message) const
 			{
-				if (IsError())
-					VI_ERR("%s CAUSING %.*s", OptionUtils::ToErrorText<E>(Value, IsError()).c_str(), (int)Message.size(), Message.data());
+				if (is_error())
+					VI_ERR("%s CAUSING %.*s", option_utils::to_error_text<e>(value, is_error()).c_str(), (int)message.size(), message.data());
 			}
-			void Reset()
+			void reset()
 			{
-				this->~Expects();
-				Status = 0;
+				this->~expects();
+				status = 0;
 			}
-			bool IsNone() const
+			bool is_none() const
 			{
-				return Status == 0;
+				return status == 0;
 			}
-			bool IsValue() const
+			bool is_value() const
 			{
-				return Status > 0;
+				return status > 0;
 			}
-			bool IsError() const
+			bool is_error() const
 			{
-				return Status < 0;
+				return status < 0;
 			}
 			explicit operator bool() const
 			{
-				return !IsError();
+				return !is_error();
 			}
-			explicit operator Expectation() const
+			explicit operator expectation() const
 			{
-				return (Expectation)Status;
+				return (expectation)status;
 			}
 		};
 
-		template <typename V>
-		using ExpectsIO = Expects<V, std::error_condition>;
+		template <typename v>
+		using expects_io = expects<v, std::error_condition>;
 
-		template <typename V>
-		using ExpectsParser = Expects<V, ParserException>;
+		template <typename v>
+		using expects_parser = expects<v, parser_exception>;
 
-		template <typename V>
-		using ExpectsSystem = Expects<V, SystemException>;
+		template <typename v>
+		using expects_system = expects<v, system_exception>;
 
-		struct Coroutine
+		struct coroutine
 		{
-			friend Costate;
+			friend costate;
 
 		private:
-			std::atomic<Coexecution> State;
-			TaskCallback Callback;
-			Cocontext* Slave;
-			Costate* Master;
+			std::atomic<coexecution> state;
+			task_callback callback;
+			cocontext* slave;
+			costate* master;
 
 		public:
-			TaskCallback Return;
-			void* UserData;
+			task_callback defer;
+			void* user_data;
 
 		public:
-			Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept;
-			~Coroutine() noexcept;
+			coroutine(costate* base, task_callback&& procedure) noexcept;
+			~coroutine() noexcept;
 		};
 
-		struct Decimal
+		struct decimal
 		{
 		private:
-			String Source;
-			int32_t Length;
-			int8_t Sign;
+			string source;
+			int32_t length;
+			int8_t sign;
 
 		public:
-			Decimal() noexcept;
-			Decimal(const std::string_view& Value) noexcept;
-			Decimal(const Decimal& Value) noexcept;
-			Decimal(Decimal&& Value) noexcept;
-			Decimal& Truncate(uint32_t Value);
-			Decimal& Round(uint32_t Value);
-			Decimal& Trim();
-			Decimal& Unlead();
-			Decimal& Untrail();
-			bool IsNaN() const;
-			bool IsZero() const;
-			bool IsZeroOrNaN() const;
-			bool IsPositive() const;
-			bool IsNegative() const;
-			bool IsInteger() const;
-			bool IsFractional() const;
-			bool IsSafeNumber() const;
-			double ToDouble() const;
-			float ToFloat() const;
-			int8_t ToInt8() const;
-			uint8_t ToUInt8() const;
-			int16_t ToInt16() const;
-			uint16_t ToUInt16() const;
-			int32_t ToInt32() const;
-			uint32_t ToUInt32() const;
-			int64_t ToInt64() const;
-			uint64_t ToUInt64() const;
-			String ToString() const;
-			String ToExponent() const;
-			const String& Numeric() const;
-			uint32_t DecimalPlaces() const;
-			uint32_t IntegerPlaces() const;
-			uint32_t Size() const;
-			int8_t Position() const;
-			Decimal operator -() const;
-			Decimal& operator *=(const Decimal& V);
-			Decimal& operator /=(const Decimal& V);
-			Decimal& operator +=(const Decimal& V);
-			Decimal& operator -=(const Decimal& V);
-			Decimal& operator= (const Decimal& Value) noexcept;
-			Decimal& operator= (Decimal&& Value) noexcept;
-			Decimal& operator++ (int);
-			Decimal& operator++ ();
-			Decimal& operator-- (int);
-			Decimal& operator-- ();
-			bool operator== (const Decimal& Right) const;
-			bool operator!= (const Decimal& Right) const;
-			bool operator> (const Decimal& Right) const;
-			bool operator>= (const Decimal& Right) const;
-			bool operator< (const Decimal& Right) const;
-			bool operator<= (const Decimal& Right) const;
+			decimal() noexcept;
+			decimal(const std::string_view& value) noexcept;
+			decimal(const decimal& value) noexcept;
+			decimal(decimal&& value) noexcept;
+			decimal& truncate(uint32_t value);
+			decimal& round(uint32_t value);
+			decimal& trim();
+			decimal& unlead();
+			decimal& untrail();
+			bool is_nan() const;
+			bool is_zero() const;
+			bool is_zero_or_nan() const;
+			bool is_positive() const;
+			bool is_negative() const;
+			bool is_integer() const;
+			bool is_fractional() const;
+			bool is_safe_number() const;
+			double to_double() const;
+			float to_float() const;
+			int8_t to_int8() const;
+			uint8_t to_uint8() const;
+			int16_t to_int16() const;
+			uint16_t to_uint16() const;
+			int32_t to_int32() const;
+			uint32_t to_uint32() const;
+			int64_t to_int64() const;
+			uint64_t to_uint64() const;
+			string to_string() const;
+			string to_exponent() const;
+			const string& numeric() const;
+			uint32_t decimal_places() const;
+			uint32_t integer_places() const;
+			uint32_t size() const;
+			int8_t position() const;
+			decimal operator -() const;
+			decimal& operator *=(const decimal& v);
+			decimal& operator /=(const decimal& v);
+			decimal& operator +=(const decimal& v);
+			decimal& operator -=(const decimal& v);
+			decimal& operator= (const decimal& value) noexcept;
+			decimal& operator= (decimal&& value) noexcept;
+			decimal& operator++ (int);
+			decimal& operator++ ();
+			decimal& operator-- (int);
+			decimal& operator-- ();
+			bool operator== (const decimal& right) const;
+			bool operator!= (const decimal& right) const;
+			bool operator> (const decimal& right) const;
+			bool operator>= (const decimal& right) const;
+			bool operator< (const decimal& right) const;
+			bool operator<= (const decimal& right) const;
 			explicit operator double() const
 			{
-				return ToDouble();
+				return to_double();
 			}
 			explicit operator float() const
 			{
-				return ToFloat();
+				return to_float();
 			}
 			explicit operator int64_t() const
 			{
-				return ToInt64();
+				return to_int64();
 			}
 			explicit operator uint64_t() const
 			{
-				return ToUInt64();
+				return to_uint64();
 			}
 
 		private:
-			void ApplyBase10(const std::string_view& Text);
-			void ApplyZero();
+			void apply_base10(const std::string_view& text);
+			void apply_zero();
 
 		public:
-			template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-			Decimal(const T& Right) noexcept : Decimal()
+			template <typename t, typename = typename std::enable_if<std::is_arithmetic<t>::value, t>::type>
+			decimal(const t& right) noexcept : decimal()
 			{
-				if (Right != T(0))
-					ApplyBase10(std::to_string(Right));
+				if (right != t(0))
+					apply_base10(std::to_string(right));
 				else
-					ApplyZero();
+					apply_zero();
 			}
 
 		public:
-			friend Decimal operator + (const Decimal& Left, const Decimal& Right);
-			friend Decimal operator - (const Decimal& Left, const Decimal& Right);
-			friend Decimal operator * (const Decimal& Left, const Decimal& Right);
-			friend Decimal operator / (const Decimal& Left, const Decimal& Right);
-			friend Decimal operator % (const Decimal& Left, const Decimal& Right);
+			friend decimal operator + (const decimal& left, const decimal& right);
+			friend decimal operator - (const decimal& left, const decimal& right);
+			friend decimal operator * (const decimal& left, const decimal& right);
+			friend decimal operator / (const decimal& left, const decimal& right);
+			friend decimal operator % (const decimal& left, const decimal& right);
 
 		public:
-			static Decimal From(const std::string_view& Data, uint8_t Base);
-			static Decimal Zero();
-			static Decimal NaN();
+			static decimal from(const std::string_view& data, uint8_t base);
+			static decimal zero();
+			static decimal nan();
 
 		private:
-			static Decimal Sum(const Decimal& Left, const Decimal& Right);
-			static Decimal Subtract(const Decimal& Left, const Decimal& Right);
-			static Decimal Multiply(const Decimal& Left, const Decimal& Right);
-			static int CompareNum(const Decimal& Left, const Decimal& Right);
-			static int CharToInt(char Value);
-			static char IntToChar(const int& Value);
+			static decimal sum(const decimal& left, const decimal& right);
+			static decimal subtract(const decimal& left, const decimal& right);
+			static decimal multiply(const decimal& left, const decimal& right);
+			static int compare_num(const decimal& left, const decimal& right);
+			static int char_to_int(char value);
+			static char int_to_char(const int& value);
 		};
 
-		struct Variant
+		struct variant
 		{
-			friend Schema;
-			friend Var;
+			friend schema;
+			friend var;
 
 		private:
-			union Tag
+			union tag
 			{
-				char String[32];
-				char* Pointer;
-				int64_t Integer;
-				double Number;
-				bool Boolean;
-			} Value;
+				char string[32];
+				char* pointer;
+				int64_t integer;
+				double number;
+				bool boolean;
+			} value;
 
 		private:
-			VarType Type;
-			uint32_t Length;
+			var_type type;
+			uint32_t length;
 
 		public:
-			Variant() noexcept;
-			Variant(const Variant& Other) noexcept;
-			Variant(Variant&& Other) noexcept;
-			~Variant() noexcept;
-			bool Deserialize(const std::string_view& Value, bool Strict = false);
-			String Serialize() const;
-			String GetBlob() const;
-			Decimal GetDecimal() const;
-			void* GetPointer() const;
-			void* GetContainer();
-			std::string_view GetString() const;
-			uint8_t* GetBinary() const;
-			int64_t GetInteger() const;
-			double GetNumber() const;
-			bool GetBoolean() const;
-			VarType GetType() const;
-			size_t Size() const;
-			Variant& operator= (const Variant& Other) noexcept;
-			Variant& operator= (Variant&& Other) noexcept;
-			bool operator== (const Variant& Other) const;
-			bool operator!= (const Variant& Other) const;
+			variant() noexcept;
+			variant(const variant& other) noexcept;
+			variant(variant&& other) noexcept;
+			~variant() noexcept;
+			bool deserialize(const std::string_view& value, bool strict = false);
+			string serialize() const;
+			string get_blob() const;
+			decimal get_decimal() const;
+			void* get_pointer() const;
+			void* get_container();
+			std::string_view get_string() const;
+			uint8_t* get_binary() const;
+			int64_t get_integer() const;
+			double get_number() const;
+			bool get_boolean() const;
+			var_type get_type() const;
+			size_t size() const;
+			variant& operator= (const variant& other) noexcept;
+			variant& operator= (variant&& other) noexcept;
+			bool operator== (const variant& other) const;
+			bool operator!= (const variant& other) const;
 			explicit operator bool() const;
-			bool IsString(const std::string_view& Value) const;
-			bool IsObject() const;
-			bool Empty() const;
-			bool Is(VarType Value) const;
+			bool is_string(const std::string_view& value) const;
+			bool is_object() const;
+			bool empty() const;
+			bool is(var_type value) const;
 
 		private:
-			Variant(VarType NewType) noexcept;
-			bool Same(const Variant& Value) const;
-			void Copy(const Variant& Other);
-			void Move(Variant&& Other);
-			void Free();
+			variant(var_type new_type) noexcept;
+			bool same(const variant& value) const;
+			void copy(const variant& other);
+			void move(variant&& other);
+			void free();
 
 		private:
-			static size_t GetMaxSmallStringSize();
+			static size_t get_max_small_string_size();
 		};
 
-		typedef Vector<Variant> VariantList;
-		typedef UnorderedMap<String, Variant> VariantArgs;
+		typedef vector<variant> variant_list;
+		typedef unordered_map<string, variant> variant_args;
 
-		struct TextSettle
+		struct text_settle
 		{
-			size_t Start = 0;
-			size_t End = 0;
-			bool Found = false;
+			size_t start = 0;
+			size_t end = 0;
+			bool found = false;
 		};
 
-		struct FileState
+		struct file_state
 		{
-			size_t Size = 0;
-			size_t Links = 0;
-			size_t Permissions = 0;
-			size_t Document = 0;
-			size_t Device = 0;
-			size_t UserId = 0;
-			size_t GroupId = 0;
-			int64_t LastAccess = 0;
-			int64_t LastPermissionChange = 0;
-			int64_t LastModified = 0;
-			bool Exists = false;
+			size_t size = 0;
+			size_t links = 0;
+			size_t permissions = 0;
+			size_t document = 0;
+			size_t device = 0;
+			size_t user_id = 0;
+			size_t group_id = 0;
+			int64_t last_access = 0;
+			int64_t last_permission_change = 0;
+			int64_t last_modified = 0;
+			bool exists = false;
 		};
 
-		struct Timeout
+		struct timeout
 		{
-			std::chrono::microseconds Expires;
-			TaskCallback Callback;
-			TaskId Id;
-			bool Alive;
+			std::chrono::microseconds expires;
+			task_callback callback;
+			task_id id;
+			bool alive;
 
-			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive) noexcept;
-			Timeout(const Timeout& Other) noexcept;
-			Timeout(Timeout&& Other) noexcept;
-			Timeout& operator= (const Timeout& Other) noexcept;
-			Timeout& operator= (Timeout&& Other) noexcept;
+			timeout(task_callback&& new_callback, const std::chrono::microseconds& new_timeout, task_id new_id, bool new_alive) noexcept;
+			timeout(const timeout& other) noexcept;
+			timeout(timeout&& other) noexcept;
+			timeout& operator= (const timeout& other) noexcept;
+			timeout& operator= (timeout&& other) noexcept;
 		};
 
-		struct FileEntry
+		struct file_entry
 		{
-			size_t Size = 0;
-			int64_t LastModified = 0;
-			int64_t CreationTime = 0;
-			bool IsReferenced = false;
-			bool IsDirectory = false;
-			bool IsExists = false;
+			size_t size = 0;
+			int64_t last_modified = 0;
+			int64_t creation_time = 0;
+			bool is_referenced = false;
+			bool is_directory = false;
+			bool is_exists = false;
 		};
 
-		struct DateTime
+		struct date_time
 		{
 		private:
-			std::chrono::system_clock::duration Offset;
-			struct tm Timepoint;
-			bool Synchronized;
-			bool Globalized;
+			std::chrono::system_clock::duration offset;
+			struct tm timepoint;
+			bool synchronized;
+			bool globalized;
 
 		public:
-			DateTime() noexcept;
-			DateTime(const struct tm& Duration) noexcept;
-			DateTime(std::chrono::system_clock::duration&& Duration) noexcept;
-			DateTime(const DateTime&) = default;
-			DateTime(DateTime&&) noexcept = default;
-			DateTime& operator= (const DateTime&) = default;
-			DateTime& operator= (DateTime&&) noexcept = default;
-			DateTime& operator +=(const DateTime& Right);
-			DateTime& operator -=(const DateTime& Right);
-			bool operator >=(const DateTime& Right);
-			bool operator <=(const DateTime& Right);
-			bool operator >(const DateTime& Right);
-			bool operator <(const DateTime& Right);
-			bool operator ==(const DateTime& Right);
-			DateTime operator +(const DateTime& Right) const;
-			DateTime operator -(const DateTime& Right) const;
-			DateTime& ApplyOffset(bool Always = false);
-			DateTime& ApplyTimepoint(bool Always = false);
-			DateTime& UseGlobalTime();
-			DateTime& UseLocalTime();
-			DateTime& SetSecond(uint8_t Value);
-			DateTime& SetMinute(uint8_t Value);
-			DateTime& SetHour(uint8_t Value);
-			DateTime& SetDay(uint8_t Value);
-			DateTime& SetWeek(uint8_t Value);
-			DateTime& SetMonth(uint8_t Value);
-			DateTime& SetYear(uint32_t Value);
-			String Serialize(const std::string_view& Format) const;
-			uint8_t Second() const;
-			uint8_t Minute() const;
-			uint8_t Hour() const;
-			uint8_t Day() const;
-			uint8_t Week() const;
-			uint8_t Month() const;
-			uint32_t Year() const;
-			int64_t Nanoseconds() const;
-			int64_t Microseconds() const;
-			int64_t Milliseconds() const;
-			int64_t Seconds() const;
-			const struct tm& CurrentTimepoint() const;
-			const std::chrono::system_clock::duration& CurrentOffset() const;
+			date_time() noexcept;
+			date_time(const struct tm& duration) noexcept;
+			date_time(std::chrono::system_clock::duration&& duration) noexcept;
+			date_time(const date_time&) = default;
+			date_time(date_time&&) noexcept = default;
+			date_time& operator= (const date_time&) = default;
+			date_time& operator= (date_time&&) noexcept = default;
+			date_time& operator +=(const date_time& right);
+			date_time& operator -=(const date_time& right);
+			bool operator >=(const date_time& right);
+			bool operator <=(const date_time& right);
+			bool operator >(const date_time& right);
+			bool operator <(const date_time& right);
+			bool operator ==(const date_time& right);
+			date_time operator +(const date_time& right) const;
+			date_time operator -(const date_time& right) const;
+			date_time& apply_offset(bool always = false);
+			date_time& apply_timepoint(bool always = false);
+			date_time& use_global_time();
+			date_time& use_local_time();
+			date_time& set_second(uint8_t value);
+			date_time& set_minute(uint8_t value);
+			date_time& set_hour(uint8_t value);
+			date_time& set_day(uint8_t value);
+			date_time& set_week(uint8_t value);
+			date_time& set_month(uint8_t value);
+			date_time& set_year(uint32_t value);
+			string serialize(const std::string_view& format) const;
+			uint8_t second() const;
+			uint8_t minute() const;
+			uint8_t hour() const;
+			uint8_t day() const;
+			uint8_t week() const;
+			uint8_t month() const;
+			uint32_t year() const;
+			int64_t nanoseconds() const;
+			int64_t microseconds() const;
+			int64_t milliseconds() const;
+			int64_t seconds() const;
+			const struct tm& current_timepoint() const;
+			const std::chrono::system_clock::duration& current_offset() const;
 
 		public:
-			template <typename Rep, typename Period>
-			DateTime(const std::chrono::duration<Rep, Period>& Duration) noexcept : DateTime(std::chrono::duration_cast<std::chrono::system_clock::duration>(Duration))
+			template <typename rep, typename period>
+			date_time(const std::chrono::duration<rep, period>& duration) noexcept : date_time(std::chrono::duration_cast<std::chrono::system_clock::duration>(duration))
 			{
 			}
 
 		public:
-			static std::chrono::system_clock::duration Now();
-			static DateTime FromNanoseconds(int64_t Value);
-			static DateTime FromMicroseconds(int64_t Value);
-			static DateTime FromMilliseconds(int64_t Value);
-			static DateTime FromSeconds(int64_t Value);
-			static DateTime FromSerialized(const std::string_view& Text, const std::string_view& Format);
-			static String SerializeGlobal(const std::chrono::system_clock::duration& Time, const std::string_view& Format);
-			static String SerializeLocal(const std::chrono::system_clock::duration& Time, const std::string_view& Format);
-			static std::string_view SerializeGlobal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Duration, const std::string_view& Format);
-			static std::string_view SerializeLocal(char* Buffer, size_t Length, const std::chrono::system_clock::duration& Duration, const std::string_view& Format);
-			static std::string_view FormatIso8601Time();
-			static std::string_view FormatWebTime();
-			static std::string_view FormatWebLocalTime();
-			static std::string_view FormatCompactTime();
-			static int64_t SecondsFromSerialized(const std::string_view& Text, const std::string_view& Format);
-			static bool MakeGlobalTime(time_t Time, struct tm* Timepoint);
-			static bool MakeLocalTime(time_t Time, struct tm* Timepoint);
+			static std::chrono::system_clock::duration now();
+			static date_time from_nanoseconds(int64_t value);
+			static date_time from_microseconds(int64_t value);
+			static date_time from_milliseconds(int64_t value);
+			static date_time from_seconds(int64_t value);
+			static date_time from_serialized(const std::string_view& text, const std::string_view& format);
+			static string serialize_global(const std::chrono::system_clock::duration& time, const std::string_view& format);
+			static string serialize_local(const std::chrono::system_clock::duration& time, const std::string_view& format);
+			static std::string_view serialize_global(char* buffer, size_t length, const std::chrono::system_clock::duration& duration, const std::string_view& format);
+			static std::string_view serialize_local(char* buffer, size_t length, const std::chrono::system_clock::duration& duration, const std::string_view& format);
+			static std::string_view format_iso8601_time();
+			static std::string_view format_web_time();
+			static std::string_view format_web_local_time();
+			static std::string_view format_compact_time();
+			static int64_t seconds_from_serialized(const std::string_view& text, const std::string_view& format);
+			static bool make_global_time(time_t time, struct tm* timepoint);
+			static bool make_local_time(time_t time, struct tm* timepoint);
 		};
 
-		struct Stringify
+		struct stringify
 		{
 		public:
-			static String& EscapePrint(String& Other);
-			static String& Escape(String& Other);
-			static String& Unescape(String& Other);
-			static String& ToUpper(String& Other);
-			static String& ToLower(String& Other);
-			static String& Clip(String& Other, size_t Length);
-			static String& Compress(String& Other, const std::string_view& SpaceIfNotFollowedOrPrecededByOf, const std::string_view& NotInBetweenOf, size_t Start = 0U);
-			static String& ReplaceOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start = 0U);
-			static String& ReplaceNotOf(String& Other, const std::string_view& Chars, const std::string_view& To, size_t Start = 0U);
-			static String& ReplaceGroups(String& Other, const std::string_view& FromRegex, const std::string_view& To);
-			static String& Replace(String& Other, const std::string_view& From, const std::string_view& To, size_t Start = 0U);
-			static String& Replace(String& Other, char From, char To, size_t Position = 0U);
-			static String& Replace(String& Other, char From, char To, size_t Position, size_t Count);
-			static String& ReplacePart(String& Other, size_t Start, size_t End, const std::string_view& Value);
-			static String& ReplaceStartsWithEndsOf(String& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& With, size_t Start = 0U);
-			static String& ReplaceInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start = 0U);
-			static String& ReplaceNotInBetween(String& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& With, bool Recursive, size_t Start = 0U);
-			static String& ReplaceParts(String& Other, Vector<std::pair<String, TextSettle>>& Inout, const std::string_view& With, const std::function<char(const std::string_view&, char, int)>& Surrounding = nullptr);
-			static String& ReplaceParts(String& Other, Vector<TextSettle>& Inout, const std::string_view& With, const std::function<char(char, int)>& Surrounding = nullptr);
-			static String& RemovePart(String& Other, size_t Start, size_t End);
-			static String& Reverse(String& Other);
-			static String& Reverse(String& Other, size_t Start, size_t End);
-			static String& Substring(String& Other, const TextSettle& Result);
-			static String& Splice(String& Other, size_t Start, size_t End);
-			static String& Trim(String& Other);
-			static String& TrimStart(String& Other);
-			static String& TrimEnd(String& Other);
-			static String& Fill(String& Other, char Char);
-			static String& Fill(String& Other, char Char, size_t Count);
-			static String& Fill(String& Other, char Char, size_t Start, size_t Count);
-			static String& Append(String& Other, const char* Format, ...);
-			static String& Erase(String& Other, size_t Position);
-			static String& Erase(String& Other, size_t Position, size_t Count);
-			static String& EraseOffsets(String& Other, size_t Start, size_t End);
-			static ExpectsSystem<void> EvalEnvs(String& Other, const std::string_view& Directory, const Vector<String>& Tokens, const std::string_view& Token = ":net");
-			static Vector<std::pair<String, TextSettle>> FindInBetween(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
-			static Vector<std::pair<String, TextSettle>> FindInBetweenInCode(const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset = 0U);
-			static Vector<std::pair<String, TextSettle>> FindStartsWithEndsOf(const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
-			static void PmFindInBetween(Vector<std::pair<String, TextSettle>>& Data, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
-			static void PmFindInBetweenInCode(Vector<std::pair<String, TextSettle>>& Data, const std::string_view& Other, const std::string_view& Begins, const std::string_view& Ends, size_t Offset = 0U);
-			static void PmFindStartsWithEndsOf(Vector<std::pair<String, TextSettle>>& Data, const std::string_view& Other, const std::string_view& Begins, const std::string_view& EndsOf, const std::string_view& NotInSubBetweenOf, size_t Offset = 0U);
-			static TextSettle ReverseFind(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
-			static TextSettle ReverseFind(const std::string_view& Other, char Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindUnescaped(const std::string_view& Other, char Needle, size_t Offset = 0U);
-			static TextSettle ReverseFindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
-			static TextSettle Find(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
-			static TextSettle Find(const std::string_view& Other, char Needle, size_t Offset = 0U);
-			static TextSettle FindUnescaped(const std::string_view& Other, char Needle, size_t Offset = 0U);
-			static TextSettle FindOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
-			static TextSettle FindNotOf(const std::string_view& Other, const std::string_view& Needle, size_t Offset = 0U);
-			static size_t CountLines(const std::string_view& Other);
-			static bool IsCString(const std::string_view& Other);
-			static bool IsNotPrecededByEscape(const std::string_view& Other, size_t Offset, char Escape = '\\');
-			static bool IsEmptyOrWhitespace(const std::string_view& Other);
-			static bool IsPrecededBy(const std::string_view& Other, size_t At, const std::string_view& Of);
-			static bool IsFollowedBy(const std::string_view& Other, size_t At, const std::string_view& Of);
-			static bool StartsWith(const std::string_view& Other, const std::string_view& Value, size_t Offset = 0U);
-			static bool StartsOf(const std::string_view& Other, const std::string_view& Value, size_t Offset = 0U);
-			static bool StartsNotOf(const std::string_view& Other, const std::string_view& Value, size_t Offset = 0U);
-			static bool EndsWith(const std::string_view& Other, const std::string_view& Value);
-			static bool EndsWith(const std::string_view& Other, char Value);
-			static bool EndsOf(const std::string_view& Other, const std::string_view& Value);
-			static bool EndsNotOf(const std::string_view& Other, const std::string_view& Value);
-			static bool HasInteger(const std::string_view& Other);
-			static bool HasNumber(const std::string_view& Other);
-			static bool HasDecimal(const std::string_view& Other);
-			static String Text(const char* Format, ...);
-			static WideString ToWide(const std::string_view& Other);
-			static Vector<String> Split(const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
-			static Vector<String> Split(const std::string_view& Other, char With, size_t Start = 0U);
-			static Vector<String> SplitMax(const std::string_view& Other, char With, size_t MaxCount, size_t Start = 0U);
-			static Vector<String> SplitOf(const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
-			static Vector<String> SplitNotOf(const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
-			static void PmSplit(Vector<String>& Data, const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
-			static void PmSplit(Vector<String>& Data, const std::string_view& Other, char With, size_t Start = 0U);
-			static void PmSplitMax(Vector<String>& Data, const std::string_view& Other, char With, size_t MaxCount, size_t Start = 0U);
-			static void PmSplitOf(Vector<String>& Data, const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
-			static void PmSplitNotOf(Vector<String>& Data, const std::string_view& Other, const std::string_view& With, size_t Start = 0U);
-			static bool IsNumericOrDot(char Char);
-			static bool IsNumericOrDotOrWhitespace(char Char);
-			static bool IsHex(char Char);
-			static bool IsHexOrDot(char Char);
-			static bool IsHexOrDotOrWhitespace(char Char);
-			static bool IsAlphabetic(char Char);
-			static bool IsNumeric(char Char);
-			static bool IsAlphanum(char Char);
-			static bool IsWhitespace(char Char);
-			static char ToLowerLiteral(char Char);
-			static char ToUpperLiteral(char Char);
-			static bool CaseEquals(const std::string_view& Value1, const std::string_view& Value2);
-			static int CaseCompare(const std::string_view& Value1, const std::string_view& Value2);
-			static int Match(const char* Pattern, const std::string_view& Text);
-			static int Match(const char* Pattern, size_t Length, const std::string_view& Text);
-			static void ConvertToWide(const std::string_view& Input, wchar_t* Output, size_t OutputSize);
+			static string& escape_print(string& other);
+			static string& escape(string& other);
+			static string& unescape(string& other);
+			static string& to_upper(string& other);
+			static string& to_lower(string& other);
+			static string& clip(string& other, size_t length);
+			static string& compress(string& other, const std::string_view& space_if_not_followed_or_preceded_by_of, const std::string_view& not_in_between_of, size_t start = 0U);
+			static string& replace_of(string& other, const std::string_view& chars, const std::string_view& to, size_t start = 0U);
+			static string& replace_not_of(string& other, const std::string_view& chars, const std::string_view& to, size_t start = 0U);
+			static string& replace_groups(string& other, const std::string_view& from_regex, const std::string_view& to);
+			static string& replace(string& other, const std::string_view& from, const std::string_view& to, size_t start = 0U);
+			static string& replace(string& other, char from, char to, size_t position = 0U);
+			static string& replace(string& other, char from, char to, size_t position, size_t count);
+			static string& replace_part(string& other, size_t start, size_t end, const std::string_view& value);
+			static string& replace_starts_with_ends_of(string& other, const std::string_view& begins, const std::string_view& ends_of, const std::string_view& with, size_t start = 0U);
+			static string& replace_in_between(string& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& with, bool recursive, size_t start = 0U);
+			static string& replace_not_in_between(string& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& with, bool recursive, size_t start = 0U);
+			static string& replace_parts(string& other, vector<std::pair<string, text_settle>>& inout, const std::string_view& with, const std::function<char(const std::string_view&, char, int)>& surrounding = nullptr);
+			static string& replace_parts(string& other, vector<text_settle>& inout, const std::string_view& with, const std::function<char(char, int)>& surrounding = nullptr);
+			static string& remove_part(string& other, size_t start, size_t end);
+			static string& reverse(string& other);
+			static string& reverse(string& other, size_t start, size_t end);
+			static string& substring(string& other, const text_settle& result);
+			static string& splice(string& other, size_t start, size_t end);
+			static string& trim(string& other);
+			static string& trim_start(string& other);
+			static string& trim_end(string& other);
+			static string& fill(string& other, char symbol);
+			static string& fill(string& other, char symbol, size_t count);
+			static string& fill(string& other, char symbol, size_t start, size_t count);
+			static string& append(string& other, const char* format, ...);
+			static string& erase(string& other, size_t position);
+			static string& erase(string& other, size_t position, size_t count);
+			static string& erase_offsets(string& other, size_t start, size_t end);
+			static expects_system<void> eval_envs(string& other, const std::string_view& directory, const vector<string>& tokens, const std::string_view& token = ":net");
+			static vector<std::pair<string, text_settle>> find_in_between(const std::string_view& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& not_in_sub_between_of, size_t offset = 0U);
+			static vector<std::pair<string, text_settle>> find_in_between_in_code(const std::string_view& other, const std::string_view& begins, const std::string_view& ends, size_t offset = 0U);
+			static vector<std::pair<string, text_settle>> find_starts_with_ends_of(const std::string_view& other, const std::string_view& begins, const std::string_view& ends_of, const std::string_view& not_in_sub_between_of, size_t offset = 0U);
+			static void pm_find_in_between(vector<std::pair<string, text_settle>>& data, const std::string_view& other, const std::string_view& begins, const std::string_view& ends, const std::string_view& not_in_sub_between_of, size_t offset = 0U);
+			static void pm_find_in_between_in_code(vector<std::pair<string, text_settle>>& data, const std::string_view& other, const std::string_view& begins, const std::string_view& ends, size_t offset = 0U);
+			static void pm_find_starts_with_ends_of(vector<std::pair<string, text_settle>>& data, const std::string_view& other, const std::string_view& begins, const std::string_view& ends_of, const std::string_view& not_in_sub_between_of, size_t offset = 0U);
+			static text_settle reverse_find(const std::string_view& other, const std::string_view& needle, size_t offset = 0U);
+			static text_settle reverse_find(const std::string_view& other, char needle, size_t offset = 0U);
+			static text_settle reverse_find_unescaped(const std::string_view& other, char needle, size_t offset = 0U);
+			static text_settle reverse_find_of(const std::string_view& other, const std::string_view& needle, size_t offset = 0U);
+			static text_settle find(const std::string_view& other, const std::string_view& needle, size_t offset = 0U);
+			static text_settle find(const std::string_view& other, char needle, size_t offset = 0U);
+			static text_settle find_unescaped(const std::string_view& other, char needle, size_t offset = 0U);
+			static text_settle find_of(const std::string_view& other, const std::string_view& needle, size_t offset = 0U);
+			static text_settle find_not_of(const std::string_view& other, const std::string_view& needle, size_t offset = 0U);
+			static size_t count_lines(const std::string_view& other);
+			static bool is_cstring(const std::string_view& other);
+			static bool is_not_preceded_by_escape(const std::string_view& other, size_t offset, char escape = '\\');
+			static bool is_empty_or_whitespace(const std::string_view& other);
+			static bool is_preceded_by(const std::string_view& other, size_t at, const std::string_view& of);
+			static bool is_followed_by(const std::string_view& other, size_t at, const std::string_view& of);
+			static bool starts_with(const std::string_view& other, const std::string_view& value, size_t offset = 0U);
+			static bool starts_of(const std::string_view& other, const std::string_view& value, size_t offset = 0U);
+			static bool starts_not_of(const std::string_view& other, const std::string_view& value, size_t offset = 0U);
+			static bool ends_with(const std::string_view& other, const std::string_view& value);
+			static bool ends_with(const std::string_view& other, char value);
+			static bool ends_of(const std::string_view& other, const std::string_view& value);
+			static bool ends_not_of(const std::string_view& other, const std::string_view& value);
+			static bool has_integer(const std::string_view& other);
+			static bool has_number(const std::string_view& other);
+			static bool has_decimal(const std::string_view& other);
+			static string text(const char* format, ...);
+			static wide_string to_wide(const std::string_view& other);
+			static vector<string> split(const std::string_view& other, const std::string_view& with, size_t start = 0U);
+			static vector<string> split(const std::string_view& other, char with, size_t start = 0U);
+			static vector<string> split_max(const std::string_view& other, char with, size_t max_count, size_t start = 0U);
+			static vector<string> split_of(const std::string_view& other, const std::string_view& with, size_t start = 0U);
+			static vector<string> split_not_of(const std::string_view& other, const std::string_view& with, size_t start = 0U);
+			static void pm_split(vector<string>& data, const std::string_view& other, const std::string_view& with, size_t start = 0U);
+			static void pm_split(vector<string>& data, const std::string_view& other, char with, size_t start = 0U);
+			static void pm_split_max(vector<string>& data, const std::string_view& other, char with, size_t max_count, size_t start = 0U);
+			static void pm_split_of(vector<string>& data, const std::string_view& other, const std::string_view& with, size_t start = 0U);
+			static void pm_split_not_of(vector<string>& data, const std::string_view& other, const std::string_view& with, size_t start = 0U);
+			static bool is_numeric_or_dot(char symbol);
+			static bool is_numeric_or_dot_or_whitespace(char symbol);
+			static bool is_hex(char symbol);
+			static bool is_hex_or_dot(char symbol);
+			static bool is_hex_or_dot_or_whitespace(char symbol);
+			static bool is_alphabetic(char symbol);
+			static bool is_numeric(char symbol);
+			static bool is_alphanum(char symbol);
+			static bool is_whitespace(char symbol);
+			static char to_lower_literal(char symbol);
+			static char to_upper_literal(char symbol);
+			static bool case_equals(const std::string_view& value1, const std::string_view& value2);
+			static int case_compare(const std::string_view& value1, const std::string_view& value2);
+			static int match(const char* pattern, const std::string_view& text);
+			static int match(const char* pattern, size_t length, const std::string_view& text);
+			static void convert_to_wide(const std::string_view& input, wchar_t* output, size_t output_size);
 		};
 
-		struct ConcurrentTimeoutQueue
+		struct concurrent_timeout_queue
 		{
-			OrderedMap<std::chrono::microseconds, Timeout> Queue;
-			std::condition_variable Notify;
-			std::mutex Update;
-			bool Resync = true;
+			ordered_map<std::chrono::microseconds, timeout> queue;
+			std::condition_variable notify;
+			std::mutex update;
+			bool resync = true;
 		};
 
-		struct InlineArgs
+		struct inline_args
 		{
 		public:
-			UnorderedMap<String, String> Args;
-			Vector<String> Params;
-			String Path;
+			unordered_map<string, string> args;
+			vector<string> params;
+			string path;
 
 		public:
-			InlineArgs() noexcept;
-			bool IsEnabled(const std::string_view& Option, const std::string_view& Shortcut = "") const;
-			bool IsDisabled(const std::string_view& Option, const std::string_view& Shortcut = "") const;
-			bool Has(const std::string_view& Option, const std::string_view& Shortcut = "") const;
-			String& Get(const std::string_view& Option, const std::string_view& Shortcut = "");
-			String& GetIf(const std::string_view& Option, const std::string_view& Shortcut, const std::string_view& WhenEmpty);
+			inline_args() noexcept;
+			bool is_enabled(const std::string_view& option, const std::string_view& shortcut = "") const;
+			bool is_disabled(const std::string_view& option, const std::string_view& shortcut = "") const;
+			bool has(const std::string_view& option, const std::string_view& shortcut = "") const;
+			string& get(const std::string_view& option, const std::string_view& shortcut = "");
+			string& get_if(const std::string_view& option, const std::string_view& shortcut, const std::string_view& when_empty);
 
 		private:
-			bool IsTrue(const std::string_view& Value) const;
-			bool IsFalse(const std::string_view& Value) const;
+			bool is_true(const std::string_view& value) const;
+			bool is_false(const std::string_view& value) const;
 		};
 
-		class Var
+		class var
 		{
 		public:
-			class Set
+			class set
 			{
 			public:
-				static Unique<Schema> Auto(Variant&& Value);
-				static Unique<Schema> Auto(const Variant& Value);
-				static Unique<Schema> Auto(const std::string_view& Value, bool Strict = false);
-				static Unique<Schema> Null();
-				static Unique<Schema> Undefined();
-				static Unique<Schema> Object();
-				static Unique<Schema> Array();
-				static Unique<Schema> Pointer(void* Value);
-				static Unique<Schema> String(const std::string_view& Value);
-				static Unique<Schema> Binary(const std::string_view& Value);
-				static Unique<Schema> Binary(const uint8_t* Value, size_t Size);
-				static Unique<Schema> Integer(int64_t Value);
-				static Unique<Schema> Number(double Value);
-				static Unique<Schema> Decimal(const Core::Decimal& Value);
-				static Unique<Schema> Decimal(Core::Decimal&& Value);
-				static Unique<Schema> DecimalString(const std::string_view& Value);
-				static Unique<Schema> Boolean(bool Value);
+				static unique<schema> any(variant&& value);
+				static unique<schema> any(const variant& value);
+				static unique<schema> any(const std::string_view& value, bool strict = false);
+				static unique<schema> null();
+				static unique<schema> undefined();
+				static unique<schema> object();
+				static unique<schema> array();
+				static unique<schema> pointer(void* value);
+				static unique<schema> string(const std::string_view& value);
+				static unique<schema> binary(const std::string_view& value);
+				static unique<schema> binary(const uint8_t* value, size_t size);
+				static unique<schema> integer(int64_t value);
+				static unique<schema> number(double value);
+				static unique<schema> decimal(const core::decimal& value);
+				static unique<schema> decimal(core::decimal&& value);
+				static unique<schema> decimal_string(const std::string_view& value);
+				static unique<schema> boolean(bool value);
 			};
 
 		public:
-			static Variant Auto(const std::string_view& Value, bool Strict = false);
-			static Variant Null();
-			static Variant Undefined();
-			static Variant Object();
-			static Variant Array();
-			static Variant Pointer(void* Value);
-			static Variant String(const std::string_view& Value);
-			static Variant Binary(const std::string_view& Value);
-			static Variant Binary(const uint8_t* Value, size_t Size);
-			static Variant Integer(int64_t Value);
-			static Variant Number(double Value);
-			static Variant Decimal(const Core::Decimal& Value);
-			static Variant Decimal(Core::Decimal&& Value);
-			static Variant DecimalString(const std::string_view& Value);
-			static Variant Boolean(bool Value);
+			static variant any(const std::string_view& value, bool strict = false);
+			static variant null();
+			static variant undefined();
+			static variant object();
+			static variant array();
+			static variant pointer(void* value);
+			static variant string(const std::string_view& value);
+			static variant binary(const std::string_view& value);
+			static variant binary(const uint8_t* value, size_t size);
+			static variant integer(int64_t value);
+			static variant number(double value);
+			static variant decimal(const core::decimal& value);
+			static variant decimal(core::decimal&& value);
+			static variant decimal_string(const std::string_view& value);
+			static variant boolean(bool value);
 		};
 
-		class OS
+		class os
 		{
 		public:
-			class CPU
+			class hw
 			{
 			public:
-				enum class Arch
+				enum class arch
 				{
-					X64,
-					ARM,
-					Itanium,
-					X86,
-					Unknown,
+					x64,
+					arm,
+					itanium,
+					x86,
+					unknown,
 				};
 
-				enum class Endian
+				enum class endian
 				{
-					Little,
-					Big,
+					little,
+					big,
 				};
 
-				enum class Cache
+				enum class cache
 				{
-					Unified,
-					Instruction,
-					Data,
-					Trace,
+					unified,
+					instruction,
+					data,
+					trace,
 				};
 
-				struct QuantityInfo
+				struct quantity_info
 				{
-					uint32_t Logical;
-					uint32_t Physical;
-					uint32_t Packages;
+					uint32_t logical;
+					uint32_t physical;
+					uint32_t packages;
 				};
 
-				struct CacheInfo
+				struct cache_info
 				{
-					size_t Size;
-					size_t LineSize;
-					uint8_t Associativity;
-					Cache Type;
+					size_t size;
+					size_t line_size;
+					uint8_t associativity;
+					cache type;
 				};
 
 			public:
-				static QuantityInfo GetQuantityInfo();
-				static CacheInfo GetCacheInfo(uint32_t level);
-				static Arch GetArch() noexcept;
-				static Endian GetEndianness() noexcept;
-				static size_t GetFrequency() noexcept;
+				static quantity_info get_quantity_info();
+				static cache_info get_cache_info(uint32_t level);
+				static arch get_arch() noexcept;
+				static endian get_endianness() noexcept;
+				static size_t get_frequency() noexcept;
 
 			public:
-				template <typename T>
-				static typename std::enable_if<std::is_arithmetic<T>::value, T>::type SwapEndianness(T Value)
+				template <typename t>
+				static typename std::enable_if<std::is_arithmetic<t>::value, t>::type swap_endianness(t value)
 				{
-					union U
+					union u
 					{
-						T Numeric;
-						uint8_t Buffer[sizeof(T)];
-					} From, To;
+						t numeric;
+						uint8_t buffer[sizeof(t)];
+					} from, to;
 
-					From.Numeric = Value;
-					std::reverse_copy(std::begin(From.Buffer), std::end(From.Buffer), std::begin(To.Buffer));
-					return To.Numeric;
+					from.numeric = value;
+					std::reverse_copy(std::begin(from.buffer), std::end(from.buffer), std::begin(to.buffer));
+					return to.numeric;
 				}
-				template <typename T>
-				static typename std::enable_if<std::is_arithmetic<T>::value, T>::type ToEndianness(Endian Type, T Value)
+				template <typename t>
+				static typename std::enable_if<std::is_arithmetic<t>::value, t>::type to_endianness(endian type, t value)
 				{
-					return GetEndianness() == Type ? Value : SwapEndianness(Value);
+					return get_endianness() == type ? value : swap_endianness(value);
 				}
 			};
 
-			class Directory
+			class directory
 			{
 			public:
-				static bool IsExists(const std::string_view& Path);
-				static bool IsEmpty(const std::string_view& Path);
-				static ExpectsIO<void> SetWorking(const std::string_view& Path);
-				static ExpectsIO<void> Patch(const std::string_view& Path);
-				static ExpectsIO<void> Scan(const std::string_view& Path, Vector<std::pair<String, FileEntry>>& Entries);
-				static ExpectsIO<void> Create(const std::string_view& Path);
-				static ExpectsIO<void> Remove(const std::string_view& Path);
-				static ExpectsIO<String> GetModule();
-				static ExpectsIO<String> GetWorking();
-				static Vector<String> GetMounts();
+				static bool is_exists(const std::string_view& path);
+				static bool is_empty(const std::string_view& path);
+				static expects_io<void> set_working(const std::string_view& path);
+				static expects_io<void> patch(const std::string_view& path);
+				static expects_io<void> scan(const std::string_view& path, vector<std::pair<string, file_entry>>& entries);
+				static expects_io<void> create(const std::string_view& path);
+				static expects_io<void> remove(const std::string_view& path);
+				static expects_io<string> get_module();
+				static expects_io<string> get_working();
+				static vector<string> get_mounts();
 			};
 
-			class File
+			class file
 			{
 			public:
-				static bool IsExists(const std::string_view& Path);
-				static int Compare(const std::string_view& FirstPath, const std::string_view& SecondPath);
-				static uint64_t GetHash(const std::string_view& Data);
-				static uint64_t GetIndex(const std::string_view& Data);
-				static ExpectsIO<size_t> Write(const std::string_view& Path, const uint8_t* Data, size_t Size);
-				static ExpectsIO<void> Move(const std::string_view& From, const std::string_view& To);
-				static ExpectsIO<void> Copy(const std::string_view& From, const std::string_view& To);
-				static ExpectsIO<void> Remove(const std::string_view& Path);
-				static ExpectsIO<void> Close(Unique<FILE> Stream);
-				static ExpectsIO<void> GetState(const std::string_view& Path, FileEntry* Output);
-				static ExpectsIO<void> Seek64(FILE* Stream, int64_t Offset, FileSeek Mode);
-				static ExpectsIO<size_t> Tell64(FILE* Stream);
-				static ExpectsIO<size_t> Join(const std::string_view& To, const Vector<String>& Paths);
-				static ExpectsIO<FileState> GetProperties(const std::string_view& Path);
-				static ExpectsIO<FileEntry> GetState(const std::string_view& Path);
-				static ExpectsIO<Unique<Stream>> OpenJoin(const std::string_view& Path, const Vector<String>& Paths);
-				static ExpectsIO<Unique<Stream>> OpenArchive(const std::string_view& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
-				static ExpectsIO<Unique<Stream>> Open(const std::string_view& Path, FileMode Mode, bool Async = false);
-				static ExpectsIO<Unique<FILE>> Open(const std::string_view& Path, const std::string_view& Mode);
-				static ExpectsIO<Unique<uint8_t>> ReadChunk(Stream* Stream, size_t Length);
-				static ExpectsIO<Unique<uint8_t>> ReadAll(const std::string_view& Path, size_t* ByteLength);
-				static ExpectsIO<Unique<uint8_t>> ReadAll(Stream* Stream, size_t* ByteLength);
-				static ExpectsIO<String> ReadAsString(const std::string_view& Path);
-				static ExpectsIO<Vector<String>> ReadAsArray(const std::string_view& Path);
+				static bool is_exists(const std::string_view& path);
+				static int compare(const std::string_view& first_path, const std::string_view& second_path);
+				static uint64_t get_hash(const std::string_view& data);
+				static uint64_t get_index(const std::string_view& data);
+				static expects_io<size_t> write(const std::string_view& path, const uint8_t* data, size_t size);
+				static expects_io<void> move(const std::string_view& from, const std::string_view& to);
+				static expects_io<void> copy(const std::string_view& from, const std::string_view& to);
+				static expects_io<void> remove(const std::string_view& path);
+				static expects_io<void> close(unique<FILE> stream);
+				static expects_io<void> get_state(const std::string_view& path, file_entry* output);
+				static expects_io<void> seek64(FILE* stream, int64_t offset, file_seek mode);
+				static expects_io<size_t> tell64(FILE* stream);
+				static expects_io<size_t> join(const std::string_view& to, const vector<string>& paths);
+				static expects_io<file_state> get_properties(const std::string_view& path);
+				static expects_io<file_entry> get_state(const std::string_view& path);
+				static expects_io<unique<stream>> open_join(const std::string_view& path, const vector<string>& paths);
+				static expects_io<unique<stream>> open_archive(const std::string_view& path, size_t unarchived_max_size = 128 * 1024 * 1024);
+				static expects_io<unique<stream>> open(const std::string_view& path, file_mode mode, bool async = false);
+				static expects_io<unique<FILE>> open(const std::string_view& path, const std::string_view& mode);
+				static expects_io<unique<uint8_t>> read_chunk(stream* stream, size_t length);
+				static expects_io<unique<uint8_t>> read_all(const std::string_view& path, size_t* byte_length);
+				static expects_io<unique<uint8_t>> read_all(stream* stream, size_t* byte_length);
+				static expects_io<string> read_as_string(const std::string_view& path);
+				static expects_io<vector<string>> read_as_array(const std::string_view& path);
 
 			public:
-				template <size_t Size>
-				static constexpr uint64_t GetIndex(const char Source[Size]) noexcept
+				template <size_t size>
+				static constexpr uint64_t get_index(const char source[size]) noexcept
 				{
-					uint64_t Result = 0xcbf29ce484222325;
-					for (size_t i = 0; i < Size; i++)
+					uint64_t result = 0xcbf29ce484222325;
+					for (size_t i = 0; i < size; i++)
 					{
-						Result ^= Source[i];
-						Result *= 1099511628211;
+						result ^= source[i];
+						result *= 1099511628211;
 					}
 
-					return Result;
+					return result;
 				}
 			};
 
-			class Path
+			class path
 			{
 			public:
-				static bool IsRemote(const std::string_view& Path);
-				static bool IsRelative(const std::string_view& Path);
-				static bool IsAbsolute(const std::string_view& Path);
-				static std::string_view GetFilename(const std::string_view& Path);
-				static std::string_view GetExtension(const std::string_view& Path);
-				static String GetDirectory(const std::string_view& Path, size_t Level = 0);
-				static String GetNonExistant(const std::string_view& Path);
-				static ExpectsIO<String> Resolve(const std::string_view& Path);
-				static ExpectsIO<String> Resolve(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists);
-				static ExpectsIO<String> ResolveDirectory(const std::string_view& Path);
-				static ExpectsIO<String> ResolveDirectory(const std::string_view& Path, const std::string_view& Directory, bool EvenIfExists);
+				static bool is_remote(const std::string_view& path);
+				static bool is_relative(const std::string_view& path);
+				static bool is_absolute(const std::string_view& path);
+				static std::string_view get_filename(const std::string_view& path);
+				static std::string_view get_extension(const std::string_view& path);
+				static string get_directory(const std::string_view& path, size_t level = 0);
+				static string get_non_existant(const std::string_view& path);
+				static expects_io<string> resolve(const std::string_view& path);
+				static expects_io<string> resolve(const std::string_view& path, const std::string_view& directory, bool even_if_exists);
+				static expects_io<string> resolve_directory(const std::string_view& path);
+				static expects_io<string> resolve_directory(const std::string_view& path, const std::string_view& directory, bool even_if_exists);
 			};
 
-			class Net
+			class net
 			{
 			public:
-				static bool GetETag(char* Buffer, size_t Length, FileEntry* Resource);
-				static bool GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength);
-				static socket_t GetFd(FILE* Stream);
+				static bool get_etag(char* buffer, size_t length, file_entry* resource);
+				static bool get_etag(char* buffer, size_t length, int64_t last_modified, size_t content_length);
+				static socket_t get_fd(FILE* stream);
 			};
 
-			class Process
+			class process
 			{
 			public:
-				static void Abort();
-				static void Interrupt();
-				static void Exit(int Code);
-				static bool RaiseSignal(Signal Type);
-				static bool BindSignal(Signal Type, SignalCallback Callback);
-				static bool RebindSignal(Signal Type);
-				static bool HasDebugger();
-				static int GetSignalId(Signal Type);
-				static ExpectsIO<int> Execute(const std::string_view& Command, FileMode Mode, ProcessCallback&& Callback);
-				static ExpectsIO<Unique<ProcessStream>> Spawn(const std::string_view& Command, FileMode Mode);
-				static ExpectsIO<String> GetEnv(const std::string_view& Name);
-				static ExpectsIO<String> GetShell();
-				static String GetThreadId(const std::thread::id& Id);
-				static InlineArgs ParseArgs(int Argc, char** Argv, size_t FormatOpts, const UnorderedSet<String>& Flags = { });
+				static void abort();
+				static void interrupt();
+				static void exit(int code);
+				static bool raise_signal(signal_code type);
+				static bool bind_signal(signal_code type, signal_callback callback);
+				static bool rebind_signal(signal_code type);
+				static bool has_debugger();
+				static int get_signal_id(signal_code type);
+				static expects_io<int> execute(const std::string_view& command, file_mode mode, process_callback&& callback);
+				static expects_io<unique<process_stream>> spawn(const std::string_view& command, file_mode mode);
+				static expects_io<string> get_env(const std::string_view& name);
+				static expects_io<string> get_shell();
+				static string get_thread_id(const std::thread::id& id);
+				static inline_args parse_args(int argc, char** argv, size_t format_opts, const unordered_set<string>& flags = { });
 			};
 
-			class Symbol
+			class symbol
 			{
 			public:
-				static ExpectsIO<Unique<void>> Load(const std::string_view& Path = "");
-				static ExpectsIO<Unique<void>> LoadFunction(void* Handle, const std::string_view& Name);
-				static ExpectsIO<void> Unload(void* Handle);
+				static expects_io<unique<void>> load(const std::string_view& path = "");
+				static expects_io<unique<void>> load_function(void* handle, const std::string_view& name);
+				static expects_io<void> unload(void* handle);
 			};
 
-			class Error
+			class error
 			{
 			public:
-				static int Get(bool Clear = true);
-				static void Clear();
-				static bool Occurred();
-				static bool IsError(int Code);
-				static std::error_condition GetCondition();
-				static std::error_condition GetCondition(int Code);
-				static std::error_condition GetConditionOr(std::errc Code = std::errc::invalid_argument);
-				static String GetName(int Code);
+				static int get(bool clear = true);
+				static void clear();
+				static bool occurred();
+				static bool is_error(int code);
+				static std::error_condition get_condition();
+				static std::error_condition get_condition(int code);
+				static std::error_condition get_condition_or(std::errc code = std::errc::invalid_argument);
+				static string get_name(int code);
 			};
 
-			class Control
+			class control
 			{
 			private:
-				static std::atomic<uint64_t> Options;
+				static std::atomic<uint64_t> options;
 
 			public:
-				static void Set(AccessOption Option, bool Enabled);
-				static bool Has(AccessOption Option);
-				static Option<AccessOption> ToOption(const std::string_view& Option);
-				static std::string_view ToString(AccessOption Option);
-				static std::string_view ToOptions();
+				static void set(access_option option, bool enabled);
+				static bool has(access_option option);
+				static option<access_option> to_option(const std::string_view& option);
+				static std::string_view to_string(access_option option);
+				static std::string_view to_options();
 			};
 		};
 
-		class Composer : public Singletonish
+		class composer : public singletonish
 		{
 		private:
-			struct State
+			struct state
 			{
-				UnorderedMap<uint64_t, std::pair<uint64_t, void*>> Factory;
-				std::mutex Mutex;
+				unordered_map<uint64_t, std::pair<uint64_t, void*>> factory;
+				std::mutex mutex;
 			};
 
 		private:
-			static State* Context;
+			static state* context;
 
 		public:
-			static UnorderedSet<uint64_t> Fetch(uint64_t Id) noexcept;
-			static bool Pop(const std::string_view& Hash) noexcept;
-			static void Cleanup() noexcept;
+			static unordered_set<uint64_t> fetch(uint64_t id) noexcept;
+			static bool pop(const std::string_view& hash) noexcept;
+			static void cleanup() noexcept;
 
 		private:
-			static void Push(uint64_t TypeId, uint64_t Tag, void* Callback) noexcept;
-			static void* Find(uint64_t TypeId) noexcept;
+			static void push(uint64_t type_id, uint64_t tag, void* callback) noexcept;
+			static void* find(uint64_t type_id) noexcept;
 
 		public:
-			template <typename T, typename... Args>
-			static Unique<T> Create(const std::string_view& Hash, Args... Data) noexcept
+			template <typename t, typename... args>
+			static unique<t> create(const std::string_view& hash, args... data) noexcept
 			{
-				return Create<T, Args...>(VI_HASH(Hash), Data...);
+				return create<t, args...>(VI_HASH(hash), data...);
 			}
-			template <typename T, typename... Args>
-			static Unique<T> Create(uint64_t Id, Args... Data) noexcept
+			template <typename t, typename... args>
+			static unique<t> create(uint64_t id, args... data) noexcept
 			{
-				void* (*Callable)(Args...) = nullptr;
-				reinterpret_cast<void*&>(Callable) = Find(Id);
+				void* (*callable)(args...) = nullptr;
+				reinterpret_cast<void*&>(callable) = find(id);
 
-				if (!Callable)
+				if (!callable)
 					return nullptr;
 
-				return (T*)Callable(Data...);
+				return (t*)callable(data...);
 			}
-			template <typename T, typename... Args>
-			static void Push(uint64_t Tag) noexcept
+			template <typename t, typename... args>
+			static void push(uint64_t tag) noexcept
 			{
-				auto Callable = &Composer::Callee<T, Args...>;
-				void* Result = reinterpret_cast<void*&>(Callable);
-				Push(T::GetTypeId(), Tag, Result);
+				auto callable = &composer::callee<t, args...>;
+				void* result = reinterpret_cast<void*&>(callable);
+				push(t::get_type_id(), tag, result);
 			}
 
 		private:
-			template <typename T, typename... Args>
-			static Unique<void> Callee(Args... Data) noexcept
+			template <typename t, typename... args>
+			static unique<void> callee(args... data) noexcept
 			{
-				return (void*)new T(Data...);
+				return (void*)new t(data...);
 			}
 		};
 
-		template <typename T>
-		class Reference
+		template <typename t>
+		class reference
 		{
 		private:
 			std::atomic<uint32_t> __vcnt;
 			std::atomic<uint32_t> __vmrk;
 
 		public:
-			Reference() noexcept : __vcnt(1), __vmrk(0)
+			reference() noexcept : __vcnt(1), __vmrk(0)
 			{
 			}
-			Reference(const Reference&) noexcept : Reference()
+			reference(const reference&) noexcept : reference()
 			{
 			}
-			Reference(Reference&&) noexcept : Reference()
+			reference(reference&&) noexcept : reference()
 			{
 			}
-			Reference& operator=(const Reference&) noexcept
-			{
-				return *this;
-			}
-			Reference& operator=(Reference&&) noexcept
+			reference& operator=(const reference&) noexcept
 			{
 				return *this;
 			}
-			~Reference() = default;
-			bool IsMarkedRef() const noexcept
+			reference& operator=(reference&&) noexcept
+			{
+				return *this;
+			}
+			~reference() = default;
+			bool is_marked_ref() const noexcept
 			{
 				return __vmrk.load() > 0;
 			}
-			uint32_t GetRefCount() const noexcept
+			uint32_t get_ref_count() const noexcept
 			{
 				return __vcnt.load();
 			}
-			void MarkRef() noexcept
+			void mark_ref() noexcept
 			{
 				__vmrk = 1;
 			}
-			void AddRef() noexcept
+			void add_ref() noexcept
 			{
-				VI_ASSERT(__vcnt < std::numeric_limits<uint32_t>::max(), "too many references to an object at address 0x%" PRIXPTR " as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				VI_ASSERT(__vcnt < std::numeric_limits<uint32_t>::max(), "too many references to an object at address 0x%" PRIXPTR " as %s at %s()", (void*)this, typeid(t).name(), __func__);
 				++__vcnt;
 			}
-			void Release() noexcept
+			void release() noexcept
 			{
-				VI_ASSERT(__vcnt > 0, "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				VI_ASSERT(__vcnt > 0, "address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(t).name(), __func__);
 				if (!--__vcnt)
 				{
-					VI_ASSERT(Memory::IsValidAddress((void*)(T*)this), "address at 0x%" PRIXPTR " is not a valid heap address as %s at %s()", (void*)this, typeid(T).name(), __func__);
-					delete (T*)this;
+					VI_ASSERT(memory::is_valid_address((void*)(t*)this), "address at 0x%" PRIXPTR " is not a valid heap address as %s at %s()", (void*)this, typeid(t).name(), __func__);
+					delete (t*)this;
 				}
 				else
 					__vmrk = 0;
@@ -2765,120 +2765,120 @@ namespace Vitex
 		public:
 #ifndef NDEBUG
 #ifdef VI_CXX20
-			void* operator new(size_t Size, const std::source_location& Location = std::source_location::current()) noexcept
+			void* operator new(size_t size, const std::source_location& location = std::source_location::current()) noexcept
 			{
-				return static_cast<void*>(Memory::Allocate<T>(Size, Location));
+				return static_cast<void*>(memory::allocate<t>(size, location));
 			}
-			void operator delete(void* Address, const std::source_location& Location) noexcept
+			void operator delete(void* address, const std::source_location& location) noexcept
 			{
 				VI_ASSERT(false, "illegal usage of no-op delete operator usable only by compiler");
 			}
 #else
-			void* operator new(size_t Size) noexcept
+			void* operator new(size_t size) noexcept
 			{
-				return Memory::TracingAllocate(Size, MemoryLocation(__FILE__, __func__, typeid(T).name(), __LINE__));
+				return memory::tracing_allocate(size, memory_location(__FILE__, __func__, typeid(t).name(), __LINE__));
 			}
 #endif
-			void operator delete(void* Address) noexcept
+			void operator delete(void* address) noexcept
 			{
-				auto* Handle = static_cast<T*>(Address);
-				VI_ASSERT(!Handle || Handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Address, typeid(T).name(), __func__);
-				Memory::Deallocate<T>(Handle);
+				auto* handle = static_cast<t*>(address);
+				VI_ASSERT(!handle || handle->__vcnt <= 1, "address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", address, typeid(t).name(), __func__);
+				memory::deallocate<t>(handle);
 			}
 #else
-			void* operator new(size_t Size) noexcept
+			void* operator new(size_t size) noexcept
 			{
-				return Memory::DefaultAllocate(Size);
+				return memory::default_allocate(size);
 			}
-			void operator delete(void* Address) noexcept
+			void operator delete(void* address) noexcept
 			{
-				Memory::Deallocate<T>(static_cast<T*>(Address));
+				memory::deallocate<t>(static_cast<t*>(address));
 			}
 #endif
 		};
 
-		template <typename T>
-		class Singleton : public Reference<T>
+		template <typename t>
+		class singleton : public reference<t>
 		{
 		private:
-			enum class Action
+			enum class action
 			{
-				Destroy,
-				Restore,
-				Create,
-				Store,
-				Fetch
+				destroy,
+				restore,
+				create,
+				store,
+				fetch
 			};
 
 		public:
-			Singleton() noexcept
+			singleton() noexcept
 			{
-				UpdateInstance((T*)this, Action::Store);
+				update_instance((t*)this, action::store);
 			}
-			virtual ~Singleton() noexcept
+			virtual ~singleton() noexcept
 			{
-				if (UpdateInstance(nullptr, Action::Fetch) == (T*)this)
-					UpdateInstance(nullptr, Action::Restore);
+				if (update_instance(nullptr, action::fetch) == (t*)this)
+					update_instance(nullptr, action::restore);
 			}
 
 		public:
-			static bool UnlinkInstance(T* Unlinkable) noexcept
+			static bool unlink_instance(t* unlinkable) noexcept
 			{
-				return (UpdateInstance(nullptr, Action::Fetch) == Unlinkable) && !UpdateInstance(nullptr, Action::Restore);
+				return (update_instance(nullptr, action::fetch) == unlinkable) && !update_instance(nullptr, action::restore);
 			}
-			static bool LinkInstance()
+			static bool link_instance()
 			{
-				return UpdateInstance(nullptr, Action::Create) != nullptr;
+				return update_instance(nullptr, action::create) != nullptr;
 			}
-			static bool CleanupInstance() noexcept
+			static bool cleanup_instance() noexcept
 			{
-				return !UpdateInstance(nullptr, Action::Destroy);
+				return !update_instance(nullptr, action::destroy);
 			}
-			static bool HasInstance() noexcept
+			static bool has_instance() noexcept
 			{
-				return UpdateInstance(nullptr, Action::Fetch) != nullptr;
+				return update_instance(nullptr, action::fetch) != nullptr;
 			}
-			static T* Get() noexcept
+			static t* get() noexcept
 			{
-				return UpdateInstance(nullptr, Action::Create);
+				return update_instance(nullptr, action::create);
 			}
 
 		private:
-			template <typename Q>
-			static typename std::enable_if<std::is_default_constructible<Q>::value, void>::type CreateInstance(Q*& Instance) noexcept
+			template <typename q>
+			static typename std::enable_if<std::is_default_constructible<q>::value, void>::type create_instance(q*& instance) noexcept
 			{
-				if (!Instance)
-					Instance = new Q();
+				if (!instance)
+					instance = new q();
 			}
-			template <typename Q>
-			static typename std::enable_if<!std::is_default_constructible<Q>::value, void>::type CreateInstance(Q*& Instance) noexcept
+			template <typename q>
+			static typename std::enable_if<!std::is_default_constructible<q>::value, void>::type create_instance(q*& instance) noexcept
 			{
 			}
-			static T* UpdateInstance(T* Other, Action Type) noexcept
+			static t* update_instance(t* other, action type) noexcept
 			{
-				static T* Instance = nullptr;
-				switch (Type)
+				static t* instance = nullptr;
+				switch (type)
 				{
-					case Action::Destroy:
+					case action::destroy:
 					{
-						Memory::Release(Instance);
-						Instance = Other;
+						memory::release(instance);
+						instance = other;
 						return nullptr;
 					}
-					case Action::Restore:
-						Instance = nullptr;
+					case action::restore:
+						instance = nullptr;
 						return nullptr;
-					case Action::Create:
-						CreateInstance<T>(Instance);
-						return Instance;
-					case Action::Fetch:
-						return Instance;
-					case Action::Store:
+					case action::create:
+						create_instance<t>(instance);
+						return instance;
+					case action::fetch:
+						return instance;
+					case action::store:
 					{
-						if (Instance != Other)
-							Memory::Release(Instance);
-						Instance = Other;
-						return Instance;
+						if (instance != other)
+							memory::release(instance);
+						instance = other;
+						return instance;
 					}
 					default:
 						return nullptr;
@@ -2886,1619 +2886,1611 @@ namespace Vitex
 			}
 		};
 
-		template <typename T>
-		class UPtr
+		template <typename t>
+		class uptr
 		{
 		private:
-			T* Address;
+			t* address;
 
 		public:
-			UPtr() noexcept : Address(nullptr)
+			uptr() noexcept : address(nullptr)
 			{
 			}
-			UPtr(T* NewAddress) noexcept : Address(NewAddress)
+			uptr(t* new_address) noexcept : address(new_address)
 			{
 			}
-			template <typename E>
-			explicit UPtr(const Expects<T*, E>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			template <typename e>
+			explicit uptr(const expects<t*, e>& may_be_address) noexcept : address(may_be_address ? *may_be_address : nullptr)
 			{
 			}
-			explicit UPtr(const Option<T*>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			explicit uptr(const option<t*>& may_be_address) noexcept : address(may_be_address ? *may_be_address : nullptr)
 			{
 			}
-			UPtr(const UPtr&) noexcept = delete;
-			UPtr(UPtr&& Other) noexcept : Address(Other.Address)
+			uptr(const uptr&) noexcept = delete;
+			uptr(uptr&& other) noexcept : address(other.address)
 			{
-				Other.Address = nullptr;
+				other.address = nullptr;
 			}
-			~UPtr()
+			~uptr()
 			{
-				Destroy();
+				destroy();
 			}
-			UPtr& operator= (const UPtr&) noexcept = delete;
-			UPtr& operator= (UPtr&& Other) noexcept
+			uptr& operator= (const uptr&) noexcept = delete;
+			uptr& operator= (uptr&& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				Destroy();
-				Address = Other.Address;
-				Other.Address = nullptr;
+				destroy();
+				address = other.address;
+				other.address = nullptr;
 				return *this;
 			}
 			explicit operator bool() const
 			{
-				return Address != nullptr;
+				return address != nullptr;
 			}
-			inline T* operator-> ()
+			inline t* operator-> ()
 			{
-				VI_ASSERT(Address != nullptr, "unique null pointer access");
-				return Address;
+				VI_ASSERT(address != nullptr, "unique null pointer access");
+				return address;
 			}
-			inline T* operator-> () const
+			inline t* operator-> () const
 			{
-				VI_ASSERT(Address != nullptr, "unique null pointer access");
-				return Address;
+				VI_ASSERT(address != nullptr, "unique null pointer access");
+				return address;
 			}
-			inline T* operator* ()
+			inline t* operator* ()
 			{
-				return Address;
+				return address;
 			}
-			inline T* operator* () const
+			inline t* operator* () const
 			{
-				return Address;
+				return address;
 			}
-			inline T** Out()
+			inline t** out()
 			{
-				VI_ASSERT(!Address, "pointer should be null when performing output update");
-				return &Address;
+				VI_ASSERT(!address, "pointer should be null when performing output update");
+				return &address;
 			}
-			inline T* const* In() const
+			inline t* const* in() const
 			{
-				return &Address;
+				return &address;
 			}
-			inline T* Expect(const std::string_view& Message)
+			inline t* expect(const std::string_view& message)
 			{
-				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
-				return Address;
+				VI_PANIC(address != nullptr, "%.*s CAUSING panic", (int)message.size(), message.data());
+				return address;
 			}
-			inline T* Expect(const std::string_view& Message) const
+			inline t* expect(const std::string_view& message) const
 			{
-				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
-				return Address;
+				VI_PANIC(address != nullptr, "%.*s CAUSING panic", (int)message.size(), message.data());
+				return address;
 			}
-			inline Unique<T> Reset()
+			inline unique<t> reset()
 			{
-				T* Result = Address;
-				Address = nullptr;
-				return Result;
+				t* result = address;
+				address = nullptr;
+				return result;
 			}
-			inline void Destroy()
+			inline void destroy()
 			{
-				if constexpr (!IsReleaser<T>::value)
+				if constexpr (!is_releaser<t>::value)
 				{
-					if constexpr (std::is_trivially_default_constructible<T>::value)
-						Memory::Deallocate<T>(Address);
+					if constexpr (std::is_trivially_default_constructible<t>::value)
+						memory::deallocate<t>(address);
 					else
-						Memory::Delete<T>(Address);
+						memory::deinit<t>(address);
 				}
 				else
-					Memory::Release<T>(Address);
+					memory::release<t>(address);
 			}
 		};
 
-		template <typename T>
-		class URef
+		template <typename t>
+		class uref
 		{
-			static_assert(IsAddRefer<T>::value, "unique reference type should have AddRef() method");
-			static_assert(IsReleaser<T>::value, "unique reference type should have Release() method");
+			static_assert(is_add_refer<t>::value, "unique reference type should have add_ref() method");
+			static_assert(is_releaser<t>::value, "unique reference type should have release() method");
 
 		private:
-			T* Address;
+			t* address;
 
 		public:
-			URef() noexcept : Address(nullptr)
+			uref() noexcept : address(nullptr)
 			{
 			}
-			URef(T* NewAddress) noexcept : Address(NewAddress)
+			uref(t* new_address) noexcept : address(new_address)
 			{
 			}
-			template <typename E>
-			explicit URef(const Expects<T*, E>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			template <typename e>
+			explicit uref(const expects<t*, e>& may_be_address) noexcept : address(may_be_address ? *may_be_address : nullptr)
 			{
 			}
-			explicit URef(const Option<T*>& MayBeAddress) noexcept : Address(MayBeAddress ? *MayBeAddress : nullptr)
+			explicit uref(const option<t*>& may_be_address) noexcept : address(may_be_address ? *may_be_address : nullptr)
 			{
 			}
-			URef(const URef& Other) noexcept : Address(Other.Address)
+			uref(const uref& other) noexcept : address(other.address)
 			{
-				if (Address != nullptr)
-					Address->AddRef();
+				if (address != nullptr)
+					address->add_ref();
 			}
-			URef(URef&& Other) noexcept : Address(Other.Address)
+			uref(uref&& other) noexcept : address(other.address)
 			{
-				Other.Address = nullptr;
+				other.address = nullptr;
 			}
-			~URef()
+			~uref()
 			{
-				Destroy();
+				destroy();
 			}
-			URef& operator= (const URef& Other) noexcept
+			uref& operator= (const uref& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				Destroy();
-				Address = Other.Address;
-				if (Address != nullptr)
-					Address->AddRef();
+				destroy();
+				address = other.address;
+				if (address != nullptr)
+					address->add_ref();
 				return *this;
 			}
-			URef& operator= (URef&& Other) noexcept
+			uref& operator= (uref&& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				Destroy();
-				Address = Other.Address;
-				Other.Address = nullptr;
+				destroy();
+				address = other.address;
+				other.address = nullptr;
 				return *this;
 			}
 			explicit operator bool() const
 			{
-				return Address != nullptr;
+				return address != nullptr;
 			}
-			inline T* operator-> ()
+			inline t* operator-> ()
 			{
-				VI_ASSERT(Address != nullptr, "unique null pointer access");
-				return Address;
+				VI_ASSERT(address != nullptr, "unique null pointer access");
+				return address;
 			}
-			inline T* operator-> () const
+			inline t* operator-> () const
 			{
-				VI_ASSERT(Address != nullptr, "unique null pointer access");
-				return Address;
+				VI_ASSERT(address != nullptr, "unique null pointer access");
+				return address;
 			}
-			inline T* operator* ()
+			inline t* operator* ()
 			{
-				return Address;
+				return address;
 			}
-			inline T* operator* () const
+			inline t* operator* () const
 			{
-				return Address;
+				return address;
 			}
-			inline T** Out()
+			inline t** out()
 			{
-				VI_ASSERT(!Address, "pointer should be null when performing output update");
-				return &Address;
+				VI_ASSERT(!address, "pointer should be null when performing output update");
+				return &address;
 			}
-			inline T* const* In() const
+			inline t* const* in() const
 			{
-				return &Address;
+				return &address;
 			}
-			inline T* Expect(const std::string_view& Message)
+			inline t* expect(const std::string_view& message)
 			{
-				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
-				return Address;
+				VI_PANIC(address != nullptr, "%.*s CAUSING panic", (int)message.size(), message.data());
+				return address;
 			}
-			inline T* Expect(const std::string_view& Message) const
+			inline t* expect(const std::string_view& message) const
 			{
-				VI_PANIC(Address != nullptr, "%.*s CAUSING panic", (int)Message.size(), Message.data());
-				return Address;
+				VI_PANIC(address != nullptr, "%.*s CAUSING panic", (int)message.size(), message.data());
+				return address;
 			}
-			inline Unique<T> Reset()
+			inline unique<t> reset()
 			{
-				T* Result = Address;
-				Address = nullptr;
-				return Result;
+				t* result = address;
+				address = nullptr;
+				return result;
 			}
-			inline void Destroy()
+			inline void destroy()
 			{
-				Memory::Release<T>(Address);
+				memory::release<t>(address);
 			}
 		};
 
-		template <typename T>
-		class UMutex
+		template <typename t>
+		class umutex
 		{
 		private:
 #ifndef NDEBUG
 #ifdef VI_CXX20
-			std::source_location Location;
+			std::source_location location;
 #endif
-			int64_t Diff;
+			int64_t diff;
 #endif
-			T& Mutex;
-			bool Owns;
+			t& mutex;
+			bool owns;
 
 		public:
-			UMutex(const UMutex&) noexcept = delete;
-			UMutex(UMutex&&) noexcept = delete;
-			~UMutex()
+			umutex(const umutex&) noexcept = delete;
+			umutex(umutex&&) noexcept = delete;
+			~umutex()
 			{
 #ifndef NDEBUG
-				Unlock();
+				unlock();
 #else
-				if (Owns)
-					Mutex.unlock();
+				if (owns)
+					mutex.unlock();
 #endif
 			}
-			UMutex& operator= (const UMutex&) noexcept = delete;
-			UMutex& operator= (UMutex&&) noexcept = delete;
+			umutex& operator= (const umutex&) noexcept = delete;
+			umutex& operator= (umutex&&) noexcept = delete;
 #ifndef NDEBUG
 #ifdef VI_CXX20
-			UMutex(T& NewMutex, std::source_location&& NewLocation = std::source_location::current()) noexcept : Location(std::move(NewLocation)), Diff(0), Mutex(NewMutex), Owns(false)
+			umutex(t& new_mutex, std::source_location&& new_location = std::source_location::current()) noexcept : location(std::move(new_location)), diff(0), mutex(new_mutex), owns(false)
 			{
-				Lock();
+				lock();
 			}
 #else
-			UMutex(T& NewMutex) noexcept : Diff(0), Mutex(NewMutex), Owns(false)
+			umutex(t& new_mutex) noexcept : diff(0), mutex(new_mutex), owns(false)
 			{
-				Lock();
+				lock();
 			}
 #endif
-			inline void Negate()
+			inline void negate()
 			{
-				if (Owns)
-					Unlock();
+				if (owns)
+					unlock();
 				else
-					Lock();
+					lock();
 			}
-			inline void Lock()
+			inline void lock()
 			{
-				if (Owns)
+				if (owns)
 					return;
 
-				auto Time = std::chrono::system_clock::now().time_since_epoch();
-				Owns = true;
-				Mutex.lock();
-				Diff = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch() - Time).count();
+				auto time = std::chrono::system_clock::now().time_since_epoch();
+				owns = true;
+				mutex.lock();
+				diff = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch() - time).count();
 			}
-			inline void Unlock()
+			inline void unlock()
 			{
-				if (!Owns)
+				if (!owns)
 					return;
 
-				Mutex.unlock();
-				Owns = false;
-				if (Diff <= (int64_t)Timings::Pass * 1000000)
+				mutex.unlock();
+				owns = false;
+				if (diff <= (int64_t)timings::pass * 1000000)
 					return;
 #ifdef VI_CXX20
-				VI_WARN("[stall] %s:%i mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", OS::Path::GetFilename(Location.file_name()).data(), (int)Location.line(), Diff / 1000000, Diff, (uint64_t)Timings::Pass);
+				VI_WARN("[stall] %s:%i mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", os::path::get_filename(location.file_name()).data(), (int)location.line(), diff / 1000000, diff, (uint64_t)timings::pass);
 #else
-				VI_WARN("[stall] mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", Diff / 1000000, Diff, (uint64_t)Timings::Pass);
+				VI_WARN("[stall] mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", diff / 1000000, diff, (uint64_t)timings::pass);
 #endif
 			}
 #else
-			UMutex(T& NewMutex) noexcept : Mutex(NewMutex), Owns(true)
+			umutex(t& new_mutex) noexcept : mutex(new_mutex), owns(true)
 			{
-				Mutex.lock();
+				mutex.lock();
 			}
-			inline void Negate()
+			inline void negate()
 			{
-				Owns = !Owns;
-				if (Owns)
-					Mutex.lock();
+				owns = !owns;
+				if (owns)
+					mutex.lock();
 				else
-					Mutex.unlock();
+					mutex.unlock();
 			}
-			inline void Lock()
+			inline void lock()
 			{
-				if (!Owns)
+				if (!owns)
 				{
-					Owns = true;
-					Mutex.lock();
+					owns = true;
+					mutex.lock();
 				}
 			}
-			inline void Unlock()
+			inline void unlock()
 			{
-				if (Owns)
+				if (owns)
 				{
-					Mutex.unlock();
-					Owns = false;
+					mutex.unlock();
+					owns = false;
 				}
 			}
 #endif
 		};
 
-		template <typename T>
-		class UAlloc
+		template <typename t>
+		class ualloc
 		{
-			static_assert(std::is_base_of<LocalAllocator, T>::value, "unique allocator type should be based on local allocator");
+			static_assert(std::is_base_of<local_allocator, t>::value, "unique allocator type should be based on local allocator");
 
 		private:
-			T& Allocator;
+			t& allocator;
 
 		public:
-			UAlloc(T& NewAllocator) noexcept : Allocator(NewAllocator)
+			ualloc(t& new_allocator) noexcept : allocator(new_allocator)
 			{
-				Memory::SetLocalAllocator(&NewAllocator);
+				memory::set_local_allocator(&new_allocator);
 			}
-			UAlloc(const UAlloc&) noexcept = delete;
-			UAlloc(UAlloc&&) noexcept = delete;
-			~UAlloc()
+			ualloc(const ualloc&) noexcept = delete;
+			ualloc(ualloc&&) noexcept = delete;
+			~ualloc()
 			{
-				Memory::SetLocalAllocator(nullptr);
-				Allocator.Reset();
+				memory::set_local_allocator(nullptr);
+				allocator.reset();
 			}
-			UAlloc& operator= (const UAlloc&) noexcept = delete;
-			UAlloc& operator= (UAlloc&&) noexcept = delete;
+			ualloc& operator= (const ualloc&) noexcept = delete;
+			ualloc& operator= (ualloc&&) noexcept = delete;
 		};
 
-		class Console final : public Singleton<Console>
+		class console final : public singleton<console>
 		{
 		public:
-			struct ColorToken
+			struct color_token
 			{
-				std::string_view Text;
-				StdColor Background;
-				StdColor Foreground;
+				std::string_view text;
+				std_color background;
+				std_color foreground;
 
-				ColorToken(const std::string_view& Name, StdColor ForegroundColor, StdColor BackgroundColor = StdColor::Zero) : Text(Name), Foreground(ForegroundColor), Background(BackgroundColor)
+				color_token(const std::string_view& name, std_color foreground_color, std_color background_color = std_color::zero) : text(name), foreground(foreground_color), background(background_color)
 				{
 				}
 			};
 
 		private:
-			enum class Mode
+			enum class mode
 			{
-				Attached,
-				Allocated,
-				Detached
+				attached,
+				allocated,
+				detached
 			};
 
-			struct ElementState
+			struct element_state
 			{
-				uint64_t State;
-				uint32_t X, Y;
+				uint64_t state;
+				uint32_t x, y;
 			};
 
-			struct WindowState
+			struct window_state
 			{
-				Vector<std::pair<uint64_t, String>> Elements;
-				size_t Position = 0;
+				vector<std::pair<uint64_t, string>> elements;
+				size_t position = 0;
 			};
 
 		private:
 			struct
 			{
-				FILE* Input = nullptr;
-				FILE* Output = nullptr;
-				FILE* Errors = nullptr;
-			} Streams;
+				FILE* input = nullptr;
+				FILE* output = nullptr;
+				FILE* errors = nullptr;
+			} streams;
 
 			struct
 			{
-				UnorderedMap<uint64_t, ElementState> Elements;
-				UnorderedMap<uint64_t, WindowState> Windows;
-				std::recursive_mutex Session;
-				unsigned short Attributes = 0;
-				Mode Status = Mode::Detached;
-				bool Colors = true;
-				double Time = 0.0;
-				uint64_t Id = 0;
-			} State;
+				unordered_map<uint64_t, element_state> elements;
+				unordered_map<uint64_t, window_state> windows;
+				std::recursive_mutex session;
+				unsigned short attributes = 0;
+				mode status = mode::detached;
+				bool colors = true;
+				double time = 0.0;
+				uint64_t id = 0;
+			} state;
 
 		private:
-			Vector<ColorToken> ColorTokens;
+			vector<color_token> color_tokens;
 
 		public:
-			Console() noexcept;
-			virtual ~Console() noexcept override;
-			void Hide();
-			void Show();
-			void Clear();
-			void Attach();
-			void Detach();
-			void Allocate();
-			void Deallocate();
-			void Trace(uint32_t MaxFrames = 32);
-			void SetColoring(bool Enabled);
-			void AddColorTokens(const Vector<ColorToken>& AdditionalTokens);
-			void ClearColorTokens();
-			void ColorBegin(StdColor Text, StdColor Background = StdColor::Zero);
-			void ColorEnd();
-			void ColorPrint(StdColor BaseColor, const std::string_view& Buffer);
-			void CaptureTime();
-			uint64_t CaptureWindow(uint32_t Height);
-			void FreeWindow(uint64_t Id, bool RestorePosition);
-			void EmplaceWindow(uint64_t Id, const std::string_view& Text);
-			uint64_t CaptureElement();
-			void ResizeElement(uint64_t Id, uint32_t X);
-			void MoveElement(uint64_t Id, uint32_t Y);
-			void ReadElement(uint64_t Id, uint32_t* X, uint32_t* Y);
-			void FreeElement(uint64_t Id);
-			void ReplaceElement(uint64_t Id, const std::string_view& Text);
-			void SpinningElement(uint64_t Id, const std::string_view& Label);
-			void ProgressElement(uint64_t Id, double Value, double Coverage = 0.8);
-			void SpinningProgressElement(uint64_t Id, double Value, double Coverage = 0.8);
-			void ClearElement(uint64_t Id);
-			void Flush();
-			void FlushWrite();
-			void WriteSize(uint32_t Width, uint32_t Height);
-			void WritePosition(uint32_t X, uint32_t Y);
-			void WriteLine(const std::string_view& Line);
-			void WriteChar(char Value);
-			void Write(const std::string_view& Text);
-			void jWrite(Schema* Data);
-			void jWriteLine(Schema* Data);
-			void fWriteLine(const char* Format, ...);
-			void fWrite(const char* Format, ...);
-			double GetCapturedTime() const;
-			bool ReadScreen(uint32_t* Width, uint32_t* Height, uint32_t* X, uint32_t* Y);
-			bool ReadLine(String& Data, size_t Size);
-			String Read(size_t Size);
-			char ReadChar();
+			console() noexcept;
+			virtual ~console() noexcept override;
+			void hide();
+			void show();
+			void clear();
+			void attach();
+			void detach();
+			void allocate();
+			void deallocate();
+			void trace(uint32_t max_frames = 32);
+			void set_coloring(bool enabled);
+			void add_color_tokens(const vector<color_token>& additional_tokens);
+			void clear_color_tokens();
+			void color_begin(std_color text, std_color background = std_color::zero);
+			void color_end();
+			void color_print(std_color base_color, const std::string_view& buffer);
+			void capture_time();
+			uint64_t capture_window(uint32_t height);
+			void free_window(uint64_t id, bool restore_position);
+			void emplace_window(uint64_t id, const std::string_view& text);
+			uint64_t capture_element();
+			void resize_element(uint64_t id, uint32_t x);
+			void move_element(uint64_t id, uint32_t y);
+			void read_element(uint64_t id, uint32_t* x, uint32_t* y);
+			void free_element(uint64_t id);
+			void replace_element(uint64_t id, const std::string_view& text);
+			void spinning_element(uint64_t id, const std::string_view& label);
+			void progress_element(uint64_t id, double value, double coverage = 0.8);
+			void spinning_progress_element(uint64_t id, double value, double coverage = 0.8);
+			void clear_element(uint64_t id);
+			void flush();
+			void flush_write();
+			void write_size(uint32_t width, uint32_t height);
+			void write_position(uint32_t x, uint32_t y);
+			void write_line(const std::string_view& line);
+			void write_char(char value);
+			void write(const std::string_view& text);
+			void jwrite(schema* data);
+			void jwrite_line(schema* data);
+			void fwrite_line(const char* format, ...);
+			void fwrite(const char* format, ...);
+			double get_captured_time() const;
+			bool read_screen(uint32_t* width, uint32_t* height, uint32_t* x, uint32_t* y);
+			bool read_line(string& data, size_t size);
+			string read(size_t size);
+			char read_char();
 
 		public:
-			template <typename F>
-			void Synced(F&& Callback)
+			template <typename f>
+			void synced(f&& callback)
 			{
-				UMutex<std::recursive_mutex> Unique(State.Session);
-				Callback(this);
+				umutex<std::recursive_mutex> unique(state.session);
+				callback(this);
 			}
 
 		public:
-			static bool IsAvailable();
+			static bool is_available();
 		};
 
-		class Timer final : public Reference<Timer>
+		class timer final : public reference<timer>
 		{
 		public:
-			typedef std::chrono::microseconds Units;
+			typedef std::chrono::microseconds units;
 
 		public:
-			struct Capture
+			struct capture
 			{
-				const char* Name;
-				Units Begin = Units(0);
-				Units End = Units(0);
-				Units Delta = Units(0);
-				float Step = 0.0;
+				const char* name;
+				units begin = units(0);
+				units end = units(0);
+				units delta = units(0);
+				float step = 0.0;
 			};
 
 		private:
 			struct
 			{
-				Units Begin = Units(0);
-				Units When = Units(0);
-				Units Delta = Units(0);
-				size_t Frame = 0;
-			} Timing;
+				units begin = units(0);
+				units when = units(0);
+				units delta = units(0);
+				size_t frame = 0;
+			} timing;
 
 			struct
 			{
-				Units When = Units(0);
-				Units Delta = Units(0);
-				Units Sum = Units(0);
-				size_t Frame = 0;
-				bool InFrame = false;
-			} Fixed;
+				units when = units(0);
+				units delta = units(0);
+				units sum = units(0);
+				size_t frame = 0;
+				bool in_frame = false;
+			} fixed;
 
 		private:
-			SingleQueue<Capture> Captures;
-			Units MinDelta = Units(0);
-			Units MaxDelta = Units(0);
-			float FixedFrames = 0.0f;
-			float MaxFrames = 0.0f;
+			single_queue<capture> captures;
+			units min_delta = units(0);
+			units max_delta = units(0);
+			float fixed_frames = 0.0f;
+			float max_frames = 0.0f;
 
 		public:
-			Timer() noexcept;
-			~Timer() noexcept = default;
-			void SetFixedFrames(float Value);
-			void SetMaxFrames(float Value);
-			void Reset();
-			void Begin();
-			void Finish();
-			void Push(const char* Name = nullptr);
-			bool PopIf(float GreaterThan, Capture* Out = nullptr);
-			Capture Pop();
-			size_t GetFrameIndex() const;
-			size_t GetFixedFrameIndex() const;
-			float GetMaxFrames() const;
-			float GetMinStep() const;
-			float GetFrames() const;
-			float GetElapsed() const;
-			float GetElapsedMills() const;
-			float GetStep() const;
-			float GetFixedStep() const;
-			float GetFixedFrames() const;
-			bool IsFixed() const;
+			timer() noexcept;
+			~timer() noexcept = default;
+			void set_fixed_frames(float value);
+			void set_max_frames(float value);
+			void reset();
+			void begin();
+			void finish();
+			void push(const char* name = nullptr);
+			bool pop_if(float greater_than, capture* out = nullptr);
+			capture pop();
+			size_t get_frame_index() const;
+			size_t get_fixed_frame_index() const;
+			float get_max_frames() const;
+			float get_min_step() const;
+			float get_frames() const;
+			float get_elapsed() const;
+			float get_elapsed_mills() const;
+			float get_step() const;
+			float get_fixed_step() const;
+			float get_fixed_frames() const;
+			bool is_fixed() const;
 
 		public:
-			static float ToSeconds(const Units& Value);
-			static float ToMills(const Units& Value);
-			static Units ToUnits(float Value);
-			static Units Clock();
+			static float to_seconds(const units& value);
+			static float to_mills(const units& value);
+			static units to_units(float value);
+			static units clock();
 		};
 
-		class Stream : public Reference<Stream>
+		class stream : public reference<stream>
 		{
 		private:
-			String VName;
-			size_t VSize;
+			string vname;
+			size_t vsize;
 
 		public:
-			Stream() noexcept;
-			virtual ~Stream() noexcept = default;
-			virtual ExpectsIO<void> Clear() = 0;
-			virtual ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) = 0;
-			virtual ExpectsIO<void> Close() = 0;
-			virtual ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) = 0;
-			virtual ExpectsIO<void> Move(int64_t Offset);
-			virtual ExpectsIO<void> Flush() = 0;
-			virtual ExpectsIO<size_t> ReadScan(const char* Format, ...) = 0;
-			virtual ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) = 0;
-			virtual ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) = 0;
-			virtual ExpectsIO<size_t> WriteFormat(const char* Format, ...) = 0;
-			virtual ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) = 0;
-			virtual ExpectsIO<size_t> Tell() = 0;
-			virtual socket_t GetReadableFd() const = 0;
-			virtual socket_t GetWriteableFd() const = 0;
-			virtual void* GetReadable() const = 0;
-			virtual void* GetWriteable() const = 0;
-			virtual bool IsSized() const = 0;
-			void SetVirtualSize(size_t Size);
-			void SetVirtualName(const std::string_view& File);
-			ExpectsIO<size_t> ReadAll(const std::function<void(uint8_t*, size_t)>& Callback);
-			ExpectsIO<size_t> Size();
-			size_t VirtualSize() const;
-			std::string_view VirtualName() const;
+			stream() noexcept;
+			virtual ~stream() noexcept = default;
+			virtual expects_io<void> clear() = 0;
+			virtual expects_io<void> open(const std::string_view& file, file_mode mode) = 0;
+			virtual expects_io<void> close() = 0;
+			virtual expects_io<void> seek(file_seek mode, int64_t offset) = 0;
+			virtual expects_io<void> move(int64_t offset);
+			virtual expects_io<void> flush() = 0;
+			virtual expects_io<size_t> read_scan(const char* format, ...) = 0;
+			virtual expects_io<size_t> read_line(char* buffer, size_t length) = 0;
+			virtual expects_io<size_t> read(uint8_t* buffer, size_t length) = 0;
+			virtual expects_io<size_t> write_format(const char* format, ...) = 0;
+			virtual expects_io<size_t> write(const uint8_t* buffer, size_t length) = 0;
+			virtual expects_io<size_t> tell() = 0;
+			virtual socket_t get_readable_fd() const = 0;
+			virtual socket_t get_writeable_fd() const = 0;
+			virtual void* get_readable() const = 0;
+			virtual void* get_writeable() const = 0;
+			virtual bool is_sized() const = 0;
+			void set_virtual_size(size_t size);
+			void set_virtual_name(const std::string_view& file);
+			expects_io<size_t> read_all(const std::function<void(uint8_t*, size_t)>& callback);
+			expects_io<size_t> size();
+			size_t virtual_size() const;
+			std::string_view virtual_name() const;
 
 		protected:
-			void OpenVirtual(String&& Path);
-			void CloseVirtual();
+			void open_virtual(string&& path);
+			void close_virtual();
 		};
 
-		class MemoryStream final : public Stream
+		class memory_stream final : public stream
 		{
 		protected:
-			Vector<char> Buffer;
-			size_t Offset;
-			bool Readable;
-			bool Writeable;
+			vector<char> buffer;
+			size_t offset;
+			bool readable;
+			bool writeable;
 
 		public:
-			MemoryStream() noexcept;
-			~MemoryStream() noexcept override;
-			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
-			ExpectsIO<void> Close() override;
-			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
-			ExpectsIO<void> Flush() override;
-			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
-			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Tell() override;
-			socket_t GetReadableFd() const override;
-			socket_t GetWriteableFd() const override;
-			void* GetReadable() const override;
-			void* GetWriteable() const override;
-			bool IsSized() const override;
+			memory_stream() noexcept;
+			~memory_stream() noexcept override;
+			expects_io<void> clear() override;
+			expects_io<void> open(const std::string_view& file, file_mode mode) override;
+			expects_io<void> close() override;
+			expects_io<void> seek(file_seek mode, int64_t offset) override;
+			expects_io<void> flush() override;
+			expects_io<size_t> read_scan(const char* format, ...) override;
+			expects_io<size_t> read_line(char* buffer, size_t length) override;
+			expects_io<size_t> read(uint8_t* buffer, size_t length) override;
+			expects_io<size_t> write_format(const char* format, ...) override;
+			expects_io<size_t> write(const uint8_t* buffer, size_t length) override;
+			expects_io<size_t> tell() override;
+			socket_t get_readable_fd() const override;
+			socket_t get_writeable_fd() const override;
+			void* get_readable() const override;
+			void* get_writeable() const override;
+			bool is_sized() const override;
 
 		private:
-			char* PrepareBuffer(size_t Size);
+			char* prepare_buffer(size_t size);
 		};
 
-		class FileStream final : public Stream
+		class file_stream final : public stream
 		{
 		protected:
-			FILE* IoStream;
+			FILE* io_stream;
 
 		public:
-			FileStream() noexcept;
-			~FileStream() noexcept override;
-			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
-			ExpectsIO<void> Close() override;
-			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
-			ExpectsIO<void> Flush() override;
-			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
-			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Tell() override;
-			socket_t GetReadableFd() const override;
-			socket_t GetWriteableFd() const override;
-			void* GetReadable() const override;
-			void* GetWriteable() const override;
-			bool IsSized() const override;
+			file_stream() noexcept;
+			~file_stream() noexcept override;
+			expects_io<void> clear() override;
+			expects_io<void> open(const std::string_view& file, file_mode mode) override;
+			expects_io<void> close() override;
+			expects_io<void> seek(file_seek mode, int64_t offset) override;
+			expects_io<void> flush() override;
+			expects_io<size_t> read_scan(const char* format, ...) override;
+			expects_io<size_t> read_line(char* buffer, size_t length) override;
+			expects_io<size_t> read(uint8_t* buffer, size_t length) override;
+			expects_io<size_t> write_format(const char* format, ...) override;
+			expects_io<size_t> write(const uint8_t* buffer, size_t length) override;
+			expects_io<size_t> tell() override;
+			socket_t get_readable_fd() const override;
+			socket_t get_writeable_fd() const override;
+			void* get_readable() const override;
+			void* get_writeable() const override;
+			bool is_sized() const override;
 		};
 
-		class GzStream final : public Stream
+		class gz_stream final : public stream
 		{
 		protected:
-			void* IoStream;
+			void* io_stream;
 
 		public:
-			GzStream() noexcept;
-			~GzStream() noexcept override;
-			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
-			ExpectsIO<void> Close() override;
-			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
-			ExpectsIO<void> Flush() override;
-			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
-			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Tell() override;
-			socket_t GetReadableFd() const override;
-			socket_t GetWriteableFd() const override;
-			void* GetReadable() const override;
-			void* GetWriteable() const override;
-			bool IsSized() const override;
+			gz_stream() noexcept;
+			~gz_stream() noexcept override;
+			expects_io<void> clear() override;
+			expects_io<void> open(const std::string_view& file, file_mode mode) override;
+			expects_io<void> close() override;
+			expects_io<void> seek(file_seek mode, int64_t offset) override;
+			expects_io<void> flush() override;
+			expects_io<size_t> read_scan(const char* format, ...) override;
+			expects_io<size_t> read_line(char* buffer, size_t length) override;
+			expects_io<size_t> read(uint8_t* buffer, size_t length) override;
+			expects_io<size_t> write_format(const char* format, ...) override;
+			expects_io<size_t> write(const uint8_t* buffer, size_t length) override;
+			expects_io<size_t> tell() override;
+			socket_t get_readable_fd() const override;
+			socket_t get_writeable_fd() const override;
+			void* get_readable() const override;
+			void* get_writeable() const override;
+			bool is_sized() const override;
 		};
 
-		class WebStream final : public Stream
+		class web_stream final : public stream
 		{
 		protected:
-			UnorderedMap<String, String> Headers;
-			Vector<char> Chunk;
-			void* OutputStream;
-			size_t Offset;
-			size_t Length;
-			bool Async;
+			unordered_map<string, string> headers;
+			vector<char> chunk;
+			void* output_stream;
+			size_t offset;
+			size_t length;
+			bool async;
 
 		public:
-			WebStream(bool IsAsync) noexcept;
-			WebStream(bool IsAsync, UnorderedMap<String, String>&& NewHeaders) noexcept;
-			~WebStream() noexcept override;
-			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
-			ExpectsIO<void> Close() override;
-			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
-			ExpectsIO<void> Flush() override;
-			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
-			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Tell() override;
-			socket_t GetReadableFd() const override;
-			socket_t GetWriteableFd() const override;
-			void* GetReadable() const override;
-			void* GetWriteable() const override;
-			bool IsSized() const override;
+			web_stream(bool is_async) noexcept;
+			web_stream(bool is_async, unordered_map<string, string>&& new_headers) noexcept;
+			~web_stream() noexcept override;
+			expects_io<void> clear() override;
+			expects_io<void> open(const std::string_view& file, file_mode mode) override;
+			expects_io<void> close() override;
+			expects_io<void> seek(file_seek mode, int64_t offset) override;
+			expects_io<void> flush() override;
+			expects_io<size_t> read_scan(const char* format, ...) override;
+			expects_io<size_t> read_line(char* buffer, size_t length) override;
+			expects_io<size_t> read(uint8_t* buffer, size_t length) override;
+			expects_io<size_t> write_format(const char* format, ...) override;
+			expects_io<size_t> write(const uint8_t* buffer, size_t length) override;
+			expects_io<size_t> tell() override;
+			socket_t get_readable_fd() const override;
+			socket_t get_writeable_fd() const override;
+			void* get_readable() const override;
+			void* get_writeable() const override;
+			bool is_sized() const override;
 		};
 
-		class ProcessStream final : public Stream
+		class process_stream final : public stream
 		{
 		private:
 			struct
 			{
-				void* OutputPipe = nullptr;
-				void* InputPipe = nullptr;
-				void* Process = nullptr;
-				void* Thread = nullptr;
-				socket_t ProcessId = 0;
-				socket_t ThreadId = 0;
-				int ErrorExitCode = 0;
-			} Internal;
+				void* output_pipe = nullptr;
+				void* input_pipe = nullptr;
+				void* process = nullptr;
+				void* thread = nullptr;
+				socket_t process_id = 0;
+				socket_t thread_id = 0;
+				int error_exit_code = 0;
+			} internal;
 
 		private:
-			FILE* OutputStream;
-			int InputFd;
-			int ExitCode;
+			FILE* output_stream;
+			int input_fd;
+			int exit_code;
 
 		public:
-			ProcessStream() noexcept;
-			~ProcessStream() noexcept override;
-			ExpectsIO<void> Clear() override;
-			ExpectsIO<void> Open(const std::string_view& File, FileMode Mode) override;
-			ExpectsIO<void> Close() override;
-			ExpectsIO<void> Seek(FileSeek Mode, int64_t Offset) override;
-			ExpectsIO<void> Flush() override;
-			ExpectsIO<size_t> ReadLine(char* Buffer, size_t Length) override;
-			ExpectsIO<size_t> ReadScan(const char* Format, ...) override;
-			ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> WriteFormat(const char* Format, ...) override;
-			ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Length) override;
-			ExpectsIO<size_t> Tell() override;
-			socket_t GetProcessId() const;
-			socket_t GetThreadId() const;
-			socket_t GetReadableFd() const override;
-			socket_t GetWriteableFd() const override;
-			void* GetReadable() const override;
-			void* GetWriteable() const override;
-			bool IsSized() const override;
-			bool IsAlive();
-			int GetExitCode() const;
+			process_stream() noexcept;
+			~process_stream() noexcept override;
+			expects_io<void> clear() override;
+			expects_io<void> open(const std::string_view& file, file_mode mode) override;
+			expects_io<void> close() override;
+			expects_io<void> seek(file_seek mode, int64_t offset) override;
+			expects_io<void> flush() override;
+			expects_io<size_t> read_line(char* buffer, size_t length) override;
+			expects_io<size_t> read_scan(const char* format, ...) override;
+			expects_io<size_t> read(uint8_t* buffer, size_t length) override;
+			expects_io<size_t> write_format(const char* format, ...) override;
+			expects_io<size_t> write(const uint8_t* buffer, size_t length) override;
+			expects_io<size_t> tell() override;
+			socket_t get_process_id() const;
+			socket_t get_thread_id() const;
+			socket_t get_readable_fd() const override;
+			socket_t get_writeable_fd() const override;
+			void* get_readable() const override;
+			void* get_writeable() const override;
+			bool is_sized() const override;
+			bool is_alive();
+			int get_exit_code() const;
 		};
 
-		class FileTree final : public Reference<FileTree>
+		class file_tree final : public reference<file_tree>
 		{
 		public:
-			Vector<FileTree*> Directories;
-			Vector<String> Files;
-			String Path;
+			vector<file_tree*> directories;
+			vector<string> files;
+			string path;
 
 		public:
-			FileTree(const std::string_view& Path) noexcept;
-			~FileTree() noexcept;
-			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
-			const FileTree* Find(const std::string_view& Path) const;
-			size_t GetFiles() const;
+			file_tree(const std::string_view& path) noexcept;
+			~file_tree() noexcept;
+			void loop(const std::function<bool(const file_tree*)>& callback) const;
+			const file_tree* find(const std::string_view& path) const;
+			size_t get_files() const;
 		};
 
-		class Costate final : public Reference<Costate>
+		class costate final : public reference<costate>
 		{
-			friend Cocontext;
+			friend cocontext;
 
 		private:
-			UnorderedSet<Coroutine*> Cached;
-			UnorderedSet<Coroutine*> Used;
-			std::thread::id Thread;
-			Coroutine* Current;
-			Cocontext* Master;
-			size_t Size;
+			unordered_set<coroutine*> cached;
+			unordered_set<coroutine*> used;
+			std::thread::id thread;
+			coroutine* current;
+			cocontext* master;
+			size_t size;
 
 		public:
-			std::condition_variable* ExternalCondition;
-			std::mutex* ExternalMutex;
+			std::condition_variable* external_condition;
+			std::mutex* external_mutex;
 
 		public:
-			Costate(size_t StackSize = STACK_SIZE) noexcept;
-			~Costate() noexcept;
-			Costate(const Costate&) = delete;
-			Costate(Costate&&) = delete;
-			Costate& operator= (const Costate&) = delete;
-			Costate& operator= (Costate&&) = delete;
-			Coroutine* Pop(TaskCallback&& Procedure);
-			Coexecution Resume(Coroutine* Routine);
-			void Reuse(Coroutine* Routine);
-			void Push(Coroutine* Routine);
-			void Activate(Coroutine* Routine);
-			void Deactivate(Coroutine* Routine);
-			void Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend);
-			void Clear();
-			bool Dispatch();
-			bool Suspend();
-			bool HasResumableCoroutines() const;
-			bool HasAliveCoroutines() const;
-			bool HasCoroutines() const;
-			Coroutine* GetCurrent() const;
-			size_t GetCount() const;
+			costate(size_t stack_size = STACK_SIZE) noexcept;
+			~costate() noexcept;
+			costate(const costate&) = delete;
+			costate(costate&&) = delete;
+			costate& operator= (const costate&) = delete;
+			costate& operator= (costate&&) = delete;
+			coroutine* pop(task_callback&& procedure);
+			coexecution resume(coroutine* routine);
+			void reuse(coroutine* routine);
+			void push(coroutine* routine);
+			void activate(coroutine* routine);
+			void deactivate(coroutine* routine);
+			void deactivate(coroutine* routine, task_callback&& after_suspend);
+			void clear();
+			bool dispatch();
+			bool suspend();
+			bool has_resumable_coroutines() const;
+			bool has_alive_coroutines() const;
+			bool has_coroutines() const;
+			coroutine* get_current() const;
+			size_t get_count() const;
 
 		private:
-			Coexecution Execute(Coroutine* Routine);
+			coexecution execute(coroutine* routine);
 
 		public:
-			static Costate* Get();
-			static Coroutine* GetCoroutine();
-			static bool GetState(Costate** State, Coroutine** Routine);
-			static bool IsCoroutine();
+			static costate* get();
+			static coroutine* get_coroutine();
+			static bool get_state(costate** state, coroutine** routine);
+			static bool is_coroutine();
 
 		public:
-			static void VI_COCALL ExecutionEntry(VI_CODATA);
+			static void VI_COCALL execution_entry(VI_CODATA);
 		};
 
-		class Schema final : public Reference<Schema>
+		class schema final : public reference<schema>
 		{
 		protected:
-			Vector<Schema*>* Nodes;
-			Schema* Parent;
-			bool Saved;
+			vector<schema*>* nodes;
+			schema* parent;
+			bool saved;
 
 		public:
-			String Key;
-			Variant Value;
+			string key;
+			variant value;
 
 		public:
-			Schema(const Variant& Base) noexcept;
-			Schema(Variant&& Base) noexcept;
-			~Schema() noexcept;
-			UnorderedMap<String, size_t> GetNames() const;
-			Vector<Schema*> FindCollection(const std::string_view& Name, bool Deep = false) const;
-			Vector<Schema*> FetchCollection(const std::string_view& Notation, bool Deep = false) const;
-			Vector<Schema*> GetAttributes() const;
-			Vector<Schema*>& GetChilds();
-			Schema* Find(const std::string_view& Name, bool Deep = false) const;
-			Schema* Fetch(const std::string_view& Notation, bool Deep = false) const;
-			Variant FetchVar(const std::string_view& Key, bool Deep = false) const;
-			Variant GetVar(size_t Index) const;
-			Variant GetVar(const std::string_view& Key) const;
-			Variant GetAttributeVar(const std::string_view& Key) const;
-			Schema* GetParent() const;
-			Schema* GetAttribute(const std::string_view& Key) const;
-			Schema* Get(size_t Index) const;
-			Schema* Get(const std::string_view& Key) const;
-			Schema* Set(const std::string_view& Key);
-			Schema* Set(const std::string_view& Key, const Variant& Value);
-			Schema* Set(const std::string_view& Key, Variant&& Value);
-			Schema* Set(const std::string_view& Key, Unique<Schema> Value);
-			Schema* SetAttribute(const std::string_view& Key, const Variant& Value);
-			Schema* SetAttribute(const std::string_view& Key, Variant&& Value);
-			Schema* Push(const Variant& Value);
-			Schema* Push(Variant&& Value);
-			Schema* Push(Unique<Schema> Value);
-			Schema* Pop(size_t Index);
-			Schema* Pop(const std::string_view& Name);
-			Unique<Schema> Copy() const;
-			bool Rename(const std::string_view& Name, const std::string_view& NewName);
-			bool Has(const std::string_view& Name) const;
-			bool HasAttribute(const std::string_view& Name) const;
-			bool Empty() const;
-			bool IsAttribute() const;
-			bool IsSaved() const;
-			size_t Size() const;
-			String GetName() const;
-			void Join(Schema* Other, bool AppendOnly);
-			void Reserve(size_t Size);
-			void Unlink();
-			void Clear();
-			void Save();
+			schema(const variant& base) noexcept;
+			schema(variant&& base) noexcept;
+			~schema() noexcept;
+			unordered_map<string, size_t> get_names() const;
+			vector<schema*> find_collection(const std::string_view& name, bool deep = false) const;
+			vector<schema*> fetch_collection(const std::string_view& notation, bool deep = false) const;
+			vector<schema*> get_attributes() const;
+			vector<schema*>& get_childs();
+			schema* find(const std::string_view& name, bool deep = false) const;
+			schema* fetch(const std::string_view& notation, bool deep = false) const;
+			variant fetch_var(const std::string_view& key, bool deep = false) const;
+			variant get_var(size_t index) const;
+			variant get_var(const std::string_view& key) const;
+			variant get_attribute_var(const std::string_view& key) const;
+			schema* get_parent() const;
+			schema* get_attribute(const std::string_view& key) const;
+			schema* get(size_t index) const;
+			schema* get(const std::string_view& key) const;
+			schema* set(const std::string_view& key);
+			schema* set(const std::string_view& key, const variant& value);
+			schema* set(const std::string_view& key, variant&& value);
+			schema* set(const std::string_view& key, unique<schema> value);
+			schema* set_attribute(const std::string_view& key, const variant& value);
+			schema* set_attribute(const std::string_view& key, variant&& value);
+			schema* push(const variant& value);
+			schema* push(variant&& value);
+			schema* push(unique<schema> value);
+			schema* pop(size_t index);
+			schema* pop(const std::string_view& name);
+			unique<schema> copy() const;
+			bool rename(const std::string_view& name, const std::string_view& new_name);
+			bool has(const std::string_view& name) const;
+			bool has_attribute(const std::string_view& name) const;
+			bool empty() const;
+			bool is_attribute() const;
+			bool is_saved() const;
+			size_t size() const;
+			string get_name() const;
+			void join(schema* other, bool append_only);
+			void reserve(size_t size);
+			void unlink();
+			void clear();
+			void save();
 
 		protected:
-			void Allocate();
-			void Allocate(const Vector<Schema*>& Other);
+			void allocate();
+			void allocate(const vector<schema*>& other);
 
 		private:
-			void Attach(Schema* Root);
+			void attach(schema* root);
 
 		public:
-			static void Transform(Schema* Value, const SchemaNameCallback& Callback);
-			static void ConvertToXML(Schema* Value, const SchemaWriteCallback& Callback);
-			static void ConvertToJSON(Schema* Value, const SchemaWriteCallback& Callback);
-			static void ConvertToJSONB(Schema* Value, const SchemaWriteCallback& Callback);
-			static String ToXML(Schema* Value);
-			static String ToJSON(Schema* Value);
-			static Vector<char> ToJSONB(Schema* Value);
-			static ExpectsParser<Unique<Schema>> ConvertFromXML(const std::string_view& Buffer);
-			static ExpectsParser<Unique<Schema>> ConvertFromJSON(const std::string_view& Buffer);
-			static ExpectsParser<Unique<Schema>> ConvertFromJSONB(const SchemaReadCallback& Callback);
-			static ExpectsParser<Unique<Schema>> FromXML(const std::string_view& Text);
-			static ExpectsParser<Unique<Schema>> FromJSON(const std::string_view& Text);
-			static ExpectsParser<Unique<Schema>> FromJSONB(const std::string_view& Binary);
+			static void transform(schema* value, const schema_name_callback& callback);
+			static void convert_to_xml(schema* value, const schema_write_callback& callback);
+			static void convert_to_json(schema* value, const schema_write_callback& callback);
+			static void convert_to_jsonb(schema* value, const schema_write_callback& callback);
+			static string to_xml(schema* value);
+			static string to_json(schema* value);
+			static vector<char> to_jsonb(schema* value);
+			static expects_parser<unique<schema>> convert_from_xml(const std::string_view& buffer);
+			static expects_parser<unique<schema>> convert_from_json(const std::string_view& buffer);
+			static expects_parser<unique<schema>> convert_from_jsonb(const schema_read_callback& callback);
+			static expects_parser<unique<schema>> from_xml(const std::string_view& text);
+			static expects_parser<unique<schema>> from_json(const std::string_view& text);
+			static expects_parser<unique<schema>> from_jsonb(const std::string_view& binary);
 
 		private:
-			static ExpectsParser<void> ProcessConvertionFromJSONB(Schema* Current, UnorderedMap<size_t, String>* Map, const SchemaReadCallback& Callback);
-			static Schema* ProcessConversionFromJSONStringOrNumber(void* Base, bool IsDocument);
-			static void ProcessConvertionFromXML(void* Base, Schema* Current);
-			static void ProcessConvertionFromJSON(void* Base, Schema* Current);
-			static void ProcessConvertionToJSONB(Schema* Current, UnorderedMap<String, size_t>* Map, const SchemaWriteCallback& Callback);
-			static void GenerateNamingTable(const Schema* Current, UnorderedMap<String, size_t>* Map, size_t& Index);
+			static expects_parser<void> process_convertion_from_jsonb(schema* current, unordered_map<size_t, string>* map, const schema_read_callback& callback);
+			static schema* process_conversion_from_json_string_or_number(void* base, bool is_document);
+			static void process_convertion_from_xml(void* base, schema* current);
+			static void process_convertion_from_json(void* base, schema* current);
+			static void process_convertion_to_jsonb(schema* current, unordered_map<string, size_t>* map, const schema_write_callback& callback);
+			static void generate_naming_table(const schema* current, unordered_map<string, size_t>* map, size_t& index);
 		};
 
-		class Schedule final : public Singleton<Schedule>
+		class schedule final : public singleton<schedule>
 		{
 		public:
-			enum class ThreadTask
+			enum class thread_task
 			{
-				Spawn,
-				EnqueueTimer,
-				EnqueueCoroutine,
-				EnqueueTask,
-				ConsumeCoroutine,
-				ProcessTimer,
-				ProcessCoroutine,
-				ProcessTask,
-				Awake,
-				Sleep,
-				Despawn
+				spawn,
+				enqueue_timer,
+				enqueue_coroutine,
+				enqueue_task,
+				consume_coroutine,
+				process_timer,
+				process_coroutine,
+				process_task,
+				awake,
+				sleep,
+				despawn
 			};
 
-			struct ThreadData
+			struct thread_data
 			{
-				SingleQueue<TaskCallback> Queue;
-				std::condition_variable Notify;
-				std::mutex Update;
-				std::thread Handle;
-				std::thread::id Id;
-				Allocators::LinearAllocator Allocator;
-				Difficulty Type;
-				size_t GlobalIndex;
-				size_t LocalIndex;
-				bool Daemon;
+				single_queue<task_callback> queue;
+				std::condition_variable notify;
+				std::mutex update;
+				std::thread handle;
+				std::thread::id id;
+				allocators::linear_allocator allocator;
+				difficulty type;
+				size_t global_index;
+				size_t local_index;
+				bool daemon;
 
-				ThreadData(Difficulty NewType, size_t PreallocatedSize, size_t NewGlobalIndex, size_t NewLocalIndex, bool IsDaemon) : Allocator(PreallocatedSize), Type(NewType), GlobalIndex(NewGlobalIndex), LocalIndex(NewLocalIndex), Daemon(IsDaemon)
+				thread_data(difficulty new_type, size_t preallocated_size, size_t new_global_index, size_t new_local_index, bool is_daemon) : allocator(preallocated_size), type(new_type), global_index(new_global_index), local_index(new_local_index), daemon(is_daemon)
 				{
 				}
-				~ThreadData() = default;
+				~thread_data() = default;
 			};
 
-			struct ThreadMessage
+			struct thread_message
 			{
-				const ThreadData* Thread;
-				ThreadTask State;
-				size_t Tasks;
+				const thread_data* thread;
+				thread_task state;
+				size_t tasks;
 
-				ThreadMessage() : Thread(nullptr), State(ThreadTask::Sleep), Tasks(0)
+				thread_message() : thread(nullptr), state(thread_task::sleep), tasks(0)
 				{
 				}
-				ThreadMessage(const ThreadData* NewThread, ThreadTask NewState, size_t NewTasks) : Thread(NewThread), State(NewState), Tasks(NewTasks)
+				thread_message(const thread_data* new_thread, thread_task new_state, size_t new_tasks) : thread(new_thread), state(new_state), tasks(new_tasks)
 				{
 				}
 			};
 
-			struct Desc
+			struct desc
 			{
-				size_t Threads[(size_t)Difficulty::Count];
-				size_t PreallocatedSize;
-				size_t StackSize;
-				size_t MaxCoroutines;
-				size_t MaxRecycles;
-				std::chrono::milliseconds IdleTimeout;
-				std::chrono::milliseconds ClockTimeout;
-				SpawnerCallback Initialize;
-				ActivityCallback Ping;
-				bool Parallel;
+				size_t threads[(size_t)difficulty::count];
+				size_t preallocated_size;
+				size_t stack_size;
+				size_t max_coroutines;
+				size_t max_recycles;
+				std::chrono::milliseconds idle_timeout;
+				std::chrono::milliseconds clock_timeout;
+				spawner_callback initialize;
+				activity_callback ping;
+				bool parallel;
 
-				Desc();
-				Desc(size_t Cores);
+				desc();
+				desc(size_t cores);
 			};
 
 		public:
-			typedef std::function<void(const ThreadMessage&)> ThreadDebugCallback;
+			typedef std::function<void(const thread_message&)> thread_debug_callback;
 
 		private:
 			struct
 			{
-				TaskCallback Event;
-				Costate* State = nullptr;
-			} Dispatcher;
+				task_callback event;
+				costate* state = nullptr;
+			} dispatcher;
 
 		private:
-			Vector<ThreadData*> Threads[(size_t)Difficulty::Count];
-			ConcurrentTimeoutQueue* Timeouts = nullptr;
-			ConcurrentAsyncQueue* Async = nullptr;
-			ConcurrentSyncQueue* Sync = nullptr;
-			std::atomic<TaskId> Generation;
-			std::mutex Exclusive;
-			ThreadDebugCallback Debug;
-			Desc Policy;
-			bool Terminate;
-			bool Enqueue;
-			bool Suspended;
-			bool Active;
+			vector<thread_data*> threads[(size_t)difficulty::count];
+			concurrent_timeout_queue* timeouts = nullptr;
+			concurrent_async_queue* async = nullptr;
+			concurrent_sync_queue* sync = nullptr;
+			std::atomic<task_id> generation;
+			std::mutex exclusive;
+			thread_debug_callback debug;
+			desc policy;
+			bool terminate;
+			bool enqueue;
+			bool suspended;
+			bool active;
 
 		public:
-			Schedule() noexcept;
-			virtual ~Schedule() noexcept override;
-			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
-			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
-			bool SetTask(TaskCallback&& Callback, bool Recyclable = true);
-			bool SetCoroutine(TaskCallback&& Callback, bool Recyclable = true);
-			bool SetDebugCallback(ThreadDebugCallback&& Callback);
-			bool ClearTimeout(TaskId WorkId);
-			bool TriggerTimers();
-			bool Trigger(Difficulty Type);
-			bool Start(const Desc& NewPolicy);
-			bool Stop();
-			bool Wakeup();
-			bool Dispatch();
-			bool IsActive() const;
-			bool CanEnqueue() const;
-			bool HasTasks(Difficulty Type) const;
-			bool HasAnyTasks() const;
-			bool IsSuspended() const;
-			void Suspend();
-			void Resume();
-			size_t GetThreadGlobalIndex();
-			size_t GetThreadLocalIndex();
-			size_t GetTotalThreads() const;
-			size_t GetThreads(Difficulty Type) const;
-			bool HasParallelThreads(Difficulty Type) const;
-			const ThreadData* GetThread() const;
-			const Desc& GetPolicy() const;
+			schedule() noexcept;
+			virtual ~schedule() noexcept override;
+			task_id set_interval(uint64_t milliseconds, task_callback&& callback);
+			task_id set_timeout(uint64_t milliseconds, task_callback&& callback);
+			bool set_task(task_callback&& callback, bool recyclable = true);
+			bool set_coroutine(task_callback&& callback, bool recyclable = true);
+			bool set_debug_callback(thread_debug_callback&& callback);
+			bool clear_timeout(task_id work_id);
+			bool trigger_timers();
+			bool trigger(difficulty type);
+			bool start(const desc& new_policy);
+			bool stop();
+			bool wakeup();
+			bool dispatch();
+			bool is_active() const;
+			bool can_enqueue() const;
+			bool has_tasks(difficulty type) const;
+			bool has_any_tasks() const;
+			bool is_suspended() const;
+			void suspend();
+			void resume();
+			size_t get_thread_global_index();
+			size_t get_thread_local_index();
+			size_t get_total_threads() const;
+			size_t get_threads(difficulty type) const;
+			bool has_parallel_threads(difficulty type) const;
+			const thread_data* get_thread() const;
+			const desc& get_policy() const;
 
 		private:
-			const ThreadData* InitializeThread(ThreadData* Source, bool Update) const;
-			void InitializeSpawnTrigger();
-			bool FastBypassEnqueue(Difficulty Type, TaskCallback&& Callback);
-			bool ReportThread(ThreadTask State, size_t Tasks, const ThreadData* Thread);
-			bool TriggerThread(Difficulty Type, ThreadData* Thread);
-			bool SleepThread(Difficulty Type, ThreadData* Thread);
-			bool ThreadActive(ThreadData* Thread);
-			bool ChunkCleanup();
-			bool PushThread(Difficulty Type, size_t GlobalIndex, size_t LocalIndex, bool IsDaemon);
-			bool PopThread(ThreadData* Thread);
-			std::chrono::microseconds GetTimeout(std::chrono::microseconds Clock);
-			TaskId GetTaskId();
+			const thread_data* initialize_thread(thread_data* source, bool update) const;
+			void initialize_spawn_trigger();
+			bool fast_bypass_enqueue(difficulty type, task_callback&& callback);
+			bool report_thread(thread_task state, size_t tasks, const thread_data* thread);
+			bool trigger_thread(difficulty type, thread_data* thread);
+			bool sleep_thread(difficulty type, thread_data* thread);
+			bool thread_active(thread_data* thread);
+			bool chunk_cleanup();
+			bool push_thread(difficulty type, size_t global_index, size_t local_index, bool is_daemon);
+			bool pop_thread(thread_data* thread);
+			std::chrono::microseconds get_timeout(std::chrono::microseconds clock);
+			task_id get_task_id();
 
 		public:
-			static bool IsAvailable(Difficulty Type = Difficulty::Count);
-			static std::chrono::microseconds GetClock();
+			static bool is_available(difficulty type = difficulty::count);
+			static std::chrono::microseconds get_clock();
 		};
 
-		typedef Vector<UPtr<Schema>> SchemaList;
-		typedef UnorderedMap<String, UPtr<Schema>> SchemaArgs;
+		typedef vector<uptr<schema>> schema_list;
+		typedef unordered_map<string, uptr<schema>> schema_args;
 
 		template <>
-		class UAlloc<Schedule>
+		class ualloc<schedule>
 		{
 		private:
-			Schedule::ThreadData* Thread;
+			schedule::thread_data* thread;
 
 		public:
-			UAlloc() noexcept : Thread((Schedule::ThreadData*)Schedule::Get()->GetThread())
+			ualloc() noexcept : thread((schedule::thread_data*)schedule::get()->get_thread())
 			{
-				VI_PANIC(!Thread, "this thread is not a scheduler thread");
-				Memory::SetLocalAllocator(&Thread->Allocator);
+				VI_PANIC(!thread, "this thread is not a scheduler thread");
+				memory::set_local_allocator(&thread->allocator);
 			}
-			UAlloc(const UAlloc& Other) noexcept = delete;
-			UAlloc(UAlloc&& Other) noexcept = delete;
-			~UAlloc()
+			ualloc(const ualloc& other) noexcept = delete;
+			ualloc(ualloc&& other) noexcept = delete;
+			~ualloc()
 			{
-				Memory::SetLocalAllocator(nullptr);
-				Thread->Allocator.Reset();
+				memory::set_local_allocator(nullptr);
+				thread->allocator.reset();
 			}
-			UAlloc& operator= (const UAlloc& Other) noexcept = delete;
-			UAlloc& operator= (UAlloc&& Other) noexcept = delete;
+			ualloc& operator= (const ualloc& other) noexcept = delete;
+			ualloc& operator= (ualloc&& other) noexcept = delete;
 		};
 
-		template <typename T>
-		class Pool
+		template <typename t>
+		class pool
 		{
-			static_assert(std::is_pointer<T>::value, "pool can be used only for pointer types");
+			static_assert(std::is_pointer<t>::value, "pool can be used only for pointer types");
 
 		public:
-			typedef T* Iterator;
+			typedef t* iterator;
 
 		protected:
-			size_t Count, Volume;
-			T* Data;
+			size_t count, volume;
+			t* data;
 
 		public:
-			Pool() noexcept : Count(0), Volume(0), Data(nullptr)
+			pool() noexcept : count(0), volume(0), data(nullptr)
 			{
 			}
-			Pool(const Pool<T>& Ref) noexcept : Count(0), Volume(0), Data(nullptr)
+			pool(const pool<t>& ref) noexcept : count(0), volume(0), data(nullptr)
 			{
-				if (Ref.Data != nullptr)
-					Copy(Ref);
+				if (ref.data != nullptr)
+					copy(ref);
 			}
-			Pool(Pool<T>&& Ref) noexcept : Count(Ref.Count), Volume(Ref.Volume), Data(Ref.Data)
+			pool(pool<t>&& ref) noexcept : count(ref.count), volume(ref.volume), data(ref.data)
 			{
-				Ref.Count = 0;
-				Ref.Volume = 0;
-				Ref.Data = nullptr;
+				ref.count = 0;
+				ref.volume = 0;
+				ref.data = nullptr;
 			}
-			~Pool() noexcept
+			~pool() noexcept
 			{
-				Release();
+				release();
 			}
-			void Release()
+			void release()
 			{
-				Memory::Deallocate(Data);
-				Data = nullptr;
-				Count = 0;
-				Volume = 0;
+				memory::deallocate(data);
+				data = nullptr;
+				count = 0;
+				volume = 0;
 			}
-			void Reserve(size_t Capacity)
+			void reserve(size_t capacity)
 			{
-				if (Capacity <= Volume)
+				if (capacity <= volume)
 					return;
 
-				size_t Size = Capacity * sizeof(T);
-				T* NewData = Memory::Allocate<T>(Size);
-				memset(NewData, 0, Size);
+				size_t size = capacity * sizeof(t);
+				t* new_data = memory::allocate<t>(size);
+				memset(new_data, 0, size);
 
-				if (Data != nullptr)
+				if (data != nullptr)
 				{
-					memcpy(NewData, Data, Count * sizeof(T));
-					Memory::Deallocate(Data);
+					memcpy(new_data, data, count * sizeof(t));
+					memory::deallocate(data);
 				}
 
-				Volume = Capacity;
-				Data = NewData;
+				volume = capacity;
+				data = new_data;
 			}
-			void Resize(size_t NewSize)
+			void resize(size_t new_size)
 			{
-				if (NewSize > Volume)
-					Reserve(IncreaseCapacity(NewSize));
+				if (new_size > volume)
+					reserve(increase_capacity(new_size));
 
-				Count = NewSize;
+				count = new_size;
 			}
-			void Copy(const Pool<T>& Ref)
+			void copy(const pool<t>& ref)
 			{
-				if (!Ref.Data)
+				if (!ref.data)
 					return;
 
-				if (!Data || Ref.Count > Count)
+				if (!data || ref.count > count)
 				{
-					Memory::Deallocate<T>(Data);
-					Data = Memory::Allocate<T>(Ref.Volume * sizeof(T));
-					memset(Data, 0, Ref.Volume * sizeof(T));
+					memory::deallocate<t>(data);
+					data = memory::allocate<t>(ref.volume * sizeof(t));
+					memset(data, 0, ref.volume * sizeof(t));
 				}
 
-				memcpy(Data, Ref.Data, (size_t)(Ref.Count * sizeof(T)));
-				Count = Ref.Count;
-				Volume = Ref.Volume;
+				memcpy(data, ref.data, (size_t)(ref.count * sizeof(t)));
+				count = ref.count;
+				volume = ref.volume;
 			}
-			void Clear()
+			void clear()
 			{
-				Count = 0;
+				count = 0;
 			}
-			Iterator Add(const T& Ref)
+			iterator add(const t& ref)
 			{
-				VI_ASSERT(Count < Volume, "pool capacity overflow");
-				Data[Count++] = Ref;
-				return End() - 1;
+				VI_ASSERT(count < volume, "pool capacity overflow");
+				data[count++] = ref;
+				return end() - 1;
 			}
-			Iterator AddUnbounded(const T& Ref)
+			iterator add_unbounded(const t& ref)
 			{
-				if (Count + 1 >= Volume)
-					Reserve(IncreaseCapacity(Count + 1));
+				if (count + 1 >= volume)
+					reserve(increase_capacity(count + 1));
 
-				return Add(Ref);
+				return add(ref);
 			}
-			Iterator AddIfNotExists(const T& Ref)
+			iterator add_if_not_exists(const t& ref)
 			{
-				Iterator It = Find(Ref);
-				if (It != End())
-					return It;
+				iterator it = find(ref);
+				if (it != end())
+					return it;
 
-				return Add(Ref);
+				return add(ref);
 			}
-			Iterator RemoveAt(Iterator It)
+			iterator remove_at(iterator it)
 			{
-				VI_ASSERT(Count > 0, "pool is empty");
-				VI_ASSERT((size_t)(It - Data) >= 0 && (size_t)(It - Data) < Count, "iterator ranges out of pool");
+				VI_ASSERT(count > 0, "pool is empty");
+				VI_ASSERT((size_t)(it - data) >= 0 && (size_t)(it - data) < count, "iterator ranges out of pool");
 
-				Count--;
-				Data[It - Data] = Data[Count];
-				return It;
+				count--;
+				data[it - data] = data[count];
+				return it;
 			}
-			Iterator Remove(const T& Value)
+			iterator remove(const t& value)
 			{
-				Iterator It = Find(Value);
-				if (It != End())
-					RemoveAt(It);
+				iterator it = find(value);
+				if (it != end())
+					remove_at(it);
 
-				return It;
+				return it;
 			}
-			Iterator At(size_t Index) const
+			iterator at(size_t index) const
 			{
-				VI_ASSERT(Index < Count, "index ranges out of pool");
-				return Data + Index;
+				VI_ASSERT(index < count, "index ranges out of pool");
+				return data + index;
 			}
-			Iterator Find(const T& Ref)
+			iterator find(const t& ref)
 			{
-				auto End = Data + Count;
-				for (auto It = Data; It != End; ++It)
+				auto end = data + count;
+				for (auto it = data; it != end; ++it)
 				{
-					if (*It == Ref)
-						return It;
+					if (*it == ref)
+						return it;
 				}
 
-				return End;
+				return end;
 			}
-			Iterator Begin() const
+			iterator begin() const
 			{
-				return Data;
+				return data;
 			}
-			Iterator End() const
+			iterator end() const
 			{
-				return Data + Count;
+				return data + count;
 			}
-			Iterator begin() const
+			size_t size() const
 			{
-				return Data;
+				return count;
 			}
-			Iterator end() const
+			size_t capacity() const
 			{
-				return Data + Count;
+				return volume;
 			}
-			size_t Size() const
+			bool empty() const
 			{
-				return Count;
+				return !count;
 			}
-			size_t Capacity() const
+			t* get() const
 			{
-				return Volume;
+				return data;
 			}
-			bool Empty() const
+			t& front() const
 			{
-				return !Count;
+				return *begin();
 			}
-			T* Get() const
+			t& back() const
 			{
-				return Data;
+				return *(end() - 1);
 			}
-			T& Front() const
+			t& operator [](size_t index) const
 			{
-				return *Begin();
+				return *(data + index);
 			}
-			T& Back() const
+			t& operator [](size_t index)
 			{
-				return *(End() - 1);
+				return *(data + index);
 			}
-			T& operator [](size_t Index) const
+			pool<t>& operator =(const pool<t>& ref) noexcept
 			{
-				return *(Data + Index);
-			}
-			T& operator [](size_t Index)
-			{
-				return *(Data + Index);
-			}
-			Pool<T>& operator =(const Pool<T>& Ref) noexcept
-			{
-				if (this == &Ref)
+				if (this == &ref)
 					return *this;
 
-				Copy(Ref);
+				copy(ref);
 				return *this;
 			}
-			Pool<T>& operator =(Pool<T>&& Ref) noexcept
+			pool<t>& operator =(pool<t>&& ref) noexcept
 			{
-				if (this == &Ref)
+				if (this == &ref)
 					return *this;
 
-				Release();
-				Count = Ref.Count;
-				Volume = Ref.Volume;
-				Data = Ref.Data;
-				Ref.Count = 0;
-				Ref.Volume = 0;
-				Ref.Data = nullptr;
+				release();
+				count = ref.count;
+				volume = ref.volume;
+				data = ref.data;
+				ref.count = 0;
+				ref.volume = 0;
+				ref.data = nullptr;
 				return *this;
 			}
-			bool operator ==(const Pool<T>& Raw)
+			bool operator ==(const pool<t>& raw)
 			{
-				return Compare(Raw) == 0;
+				return compare(raw) == 0;
 			}
-			bool operator !=(const Pool<T>& Raw)
+			bool operator !=(const pool<t>& raw)
 			{
-				return Compare(Raw) != 0;
+				return compare(raw) != 0;
 			}
-			bool operator <(const Pool<T>& Raw)
+			bool operator <(const pool<t>& raw)
 			{
-				return Compare(Raw) < 0;
+				return compare(raw) < 0;
 			}
-			bool operator <=(const Pool<T>& Raw)
+			bool operator <=(const pool<t>& raw)
 			{
-				return Compare(Raw) <= 0;
+				return compare(raw) <= 0;
 			}
-			bool operator >(const Pool<T>& Raw)
+			bool operator >(const pool<t>& raw)
 			{
-				return Compare(Raw) > 0;
+				return compare(raw) > 0;
 			}
-			bool operator >=(const Pool<T>& Raw)
+			bool operator >=(const pool<t>& raw)
 			{
-				return Compare(Raw) >= 0;
+				return compare(raw) >= 0;
 			}
 
 		private:
-			size_t IncreaseCapacity(size_t NewSize)
+			size_t increase_capacity(size_t new_size)
 			{
-				size_t Alpha = Volume > 4 ? (Volume + Volume / 2) : 8;
-				return Alpha > NewSize ? Alpha : NewSize;
+				size_t alpha = volume > 4 ? (volume + volume / 2) : 8;
+				return alpha > new_size ? alpha : new_size;
 			}
 		};
 
-		struct ParallelExecutor
+		struct parallel_executor
 		{
-			inline void operator()(TaskCallback&& Callback, bool Async)
+			inline void operator()(task_callback&& callback, bool async)
 			{
-				if (Async && Schedule::IsAvailable())
-					Schedule::Get()->SetTask(std::move(Callback));
+				if (async && schedule::is_available())
+					schedule::get()->set_task(std::move(callback));
 				else
-					Callback();
+					callback();
 			}
 		};
 
-		template <typename T>
-		struct PromiseState
+		template <typename t>
+		struct promise_state
 		{
-			std::mutex Update;
-			TaskCallback Event;
-			alignas(T) char Value[sizeof(T)];
-			std::atomic<uint32_t> Count;
-			std::atomic<Deferred> Code;
+			std::mutex update;
+			task_callback event;
+			alignas(t) char value[sizeof(t)];
+			std::atomic<uint32_t> count;
+			std::atomic<deferred> code;
 #ifndef NDEBUG
-			const T* HiddenValue = (const T*)Value;
+			const t* hidden_value = (const t*)value;
 #endif
-			PromiseState() noexcept : Count(1), Code(Deferred::Pending)
+			promise_state() noexcept : count(1), code(deferred::pending)
 			{
 			}
-			PromiseState(const T& NewValue) noexcept : Count(1), Code(Deferred::Ready)
+			promise_state(const t& new_value) noexcept : count(1), code(deferred::ready)
 			{
-				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(T));
+				option_utils::copy_buffer<t>(value, (const char*)&new_value, sizeof(t));
 			}
-			PromiseState(T&& NewValue) noexcept : Count(1), Code(Deferred::Ready)
+			promise_state(t&& new_value) noexcept : count(1), code(deferred::ready)
 			{
-				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(T));
+				option_utils::move_buffer<t>(value, (char*)&new_value, sizeof(t));
 			}
-			~PromiseState()
+			~promise_state()
 			{
-				if (Code == Deferred::Ready)
-					((T*)Value)->~T();
+				if (code == deferred::ready)
+					((t*)value)->~t();
 			}
-			void Emplace(const T& NewValue)
+			void emplace(const t& new_value)
 			{
-				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
-				OptionUtils::CopyBuffer<T>(Value, (const char*)&NewValue, sizeof(T));
+				VI_ASSERT(code != deferred::ready, "emplacing to already initialized memory is not desired");
+				option_utils::copy_buffer<t>(value, (const char*)&new_value, sizeof(t));
 			}
-			void Emplace(T&& NewValue)
+			void emplace(t&& new_value)
 			{
-				VI_ASSERT(Code != Deferred::Ready, "emplacing to already initialized memory is not desired");
-				OptionUtils::MoveBuffer<T>(Value, (char*)&NewValue, sizeof(T));
+				VI_ASSERT(code != deferred::ready, "emplacing to already initialized memory is not desired");
+				option_utils::move_buffer<t>(value, (char*)&new_value, sizeof(t));
 			}
-			T& Unwrap()
+			t& unwrap()
 			{
-				VI_PANIC(Code == Deferred::Ready, "unwrapping uninitialized memory will result in an undefined behaviour");
-				return *(T*)Value;
+				VI_PANIC(code == deferred::ready, "unwrapping uninitialized memory will result in an undefined behaviour");
+				return *(t*)value;
 			}
 		};
 
 		template <>
-		struct PromiseState<void>
+		struct promise_state<void>
 		{
-			std::mutex Update;
-			TaskCallback Event;
-			std::atomic<uint32_t> Count;
-			std::atomic<Deferred> Code;
+			std::mutex update;
+			task_callback event;
+			std::atomic<uint32_t> count;
+			std::atomic<deferred> code;
 
-			PromiseState() noexcept : Count(1), Code(Deferred::Pending)
+			promise_state() noexcept : count(1), code(deferred::pending)
 			{
 			}
 		};
 
-		template <typename T, typename Executor>
-		class BasicPromise
+		template <typename t, typename executor>
+		class basic_promise
 		{
 		public:
-			typedef PromiseState<T> Status;
-			typedef T Type;
+			typedef promise_state<t> status;
+			typedef t type;
 
 		private:
-			template <typename F>
-			struct Unwrap
+			template <typename f>
+			struct unwrap
 			{
-				typedef typename std::remove_reference<F>::type type;
+				typedef typename std::remove_reference<f>::type type;
 			};
 
-			template <typename F>
-			struct Unwrap<BasicPromise<F, Executor>>
+			template <typename f>
+			struct unwrap<basic_promise<f, executor>>
 			{
-				typedef typename std::remove_reference<F>::type type;
+				typedef typename std::remove_reference<f>::type type;
 			};
 
 		private:
-			Status* Data;
+			status* data;
 
 		public:
-			BasicPromise() noexcept : Data(Memory::New<Status>())
+			basic_promise() noexcept : data(memory::init<status>())
 			{
 			}
-			BasicPromise(const T& Value) noexcept : Data(Memory::New<Status>(Value))
+			basic_promise(const t& value) noexcept : data(memory::init<status>(value))
 			{
 			}
-			BasicPromise(T&& Value) noexcept : Data(Memory::New<Status>(std::move(Value)))
+			basic_promise(t&& value) noexcept : data(memory::init<status>(std::move(value)))
 			{
 			}
-			BasicPromise(const BasicPromise& Other) noexcept : Data(Other.Data)
+			basic_promise(const basic_promise& other) noexcept : data(other.data)
 			{
-				AddRef();
+				add_ref();
 			}
-			BasicPromise(BasicPromise&& Other) noexcept : Data(Other.Data)
+			basic_promise(basic_promise&& other) noexcept : data(other.data)
 			{
-				Other.Data = nullptr;
+				other.data = nullptr;
 			}
-			~BasicPromise() noexcept
+			~basic_promise() noexcept
 			{
-				Release(Data);
+				release(data);
 			}
-			BasicPromise& operator= (const BasicPromise& Other) = delete;
-			BasicPromise& operator= (BasicPromise&& Other) noexcept
+			basic_promise& operator= (const basic_promise& other) = delete;
+			basic_promise& operator= (basic_promise&& other) noexcept
 			{
-				if (&Other == this)
+				if (&other == this)
 					return *this;
 
-				Release(Data);
-				Data = Other.Data;
-				Other.Data = nullptr;
+				release(data);
+				data = other.data;
+				other.data = nullptr;
 				return *this;
 			}
-			void Set(const T& Other) noexcept
+			void set(const t& other) noexcept
 			{
-				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				UMutex<std::mutex> Unique(Data->Update);
-				bool Async = (Data->Code != Deferred::Waiting);
-				Data->Emplace(Other);
-				Data->Code = Deferred::Ready;
-				Execute(Data, Unique, Async);
+				VI_ASSERT(data != nullptr && data->code != deferred::ready, "async should be pending");
+				umutex<std::mutex> unique(data->update);
+				bool async = (data->code != deferred::waiting);
+				data->emplace(other);
+				data->code = deferred::ready;
+				execute(data, unique, async);
 			}
-			void Set(T&& Other) noexcept
+			void set(t&& other) noexcept
 			{
-				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				UMutex<std::mutex> Unique(Data->Update);
-				bool Async = (Data->Code != Deferred::Waiting);
-				Data->Emplace(std::move(Other));
-				Data->Code = Deferred::Ready;
-				Execute(Data, Unique, Async);
+				VI_ASSERT(data != nullptr && data->code != deferred::ready, "async should be pending");
+				umutex<std::mutex> unique(data->update);
+				bool async = (data->code != deferred::waiting);
+				data->emplace(std::move(other));
+				data->code = deferred::ready;
+				execute(data, unique, async);
 			}
-			void Set(const BasicPromise& Other) noexcept
+			void set(const basic_promise& other) noexcept
 			{
-				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				Status* Copy = AddRef();
-				Other.When([Copy](T&& Value) mutable
+				VI_ASSERT(data != nullptr && data->code != deferred::ready, "async should be pending");
+				status* copy = add_ref();
+				other.when([copy](t&& value) mutable
 				{
 					{
-						UMutex<std::mutex> Unique(Copy->Update);
-						bool Async = (Copy->Code != Deferred::Waiting);
-						Copy->Emplace(std::move(Value));
-						Copy->Code = Deferred::Ready;
-						Execute(Copy, Unique, Async);
+						umutex<std::mutex> unique(copy->update);
+						bool async = (copy->code != deferred::waiting);
+						copy->emplace(std::move(value));
+						copy->code = deferred::ready;
+						execute(copy, unique, async);
 					}
-					Release(Copy);
+					release(copy);
 				});
 			}
-			void When(std::function<void(T&&)>&& Callback) const noexcept
+			void when(std::function<void(t&&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Data != nullptr && Callback, "callback should be set");
-				if (!IsPending())
-					return Callback(std::move(Data->Unwrap()));
+				VI_ASSERT(data != nullptr && callback, "callback should be set");
+				if (!is_pending())
+					return callback(std::move(data->unwrap()));
 
-				Status* Copy = AddRef();
-				Store([Copy, Callback = std::move(Callback)]() mutable
+				status* copy = add_ref();
+				store([copy, callback = std::move(callback)]() mutable
 				{
-					Callback(std::move(Copy->Unwrap()));
-					Release(Copy);
+					callback(std::move(copy->unwrap()));
+					release(copy);
 				});
 			}
-			void Wait() noexcept
+			void wait() noexcept
 			{
-				if (!IsPending())
+				if (!is_pending())
 					return;
 
-				Status* Copy;
+				status* copy;
 				{
-					std::unique_lock<std::mutex> Unique(Data->Update);
-					if (Data->Code == Deferred::Ready)
+					std::unique_lock<std::mutex> unique(data->update);
+					if (data->code == deferred::ready)
 						return;
 
-					std::condition_variable Ready;
-					Copy = AddRef();
-					Copy->Code = Deferred::Waiting;
-					Copy->Event = [&Ready]()
+					std::condition_variable ready;
+					copy = add_ref();
+					copy->code = deferred::waiting;
+					copy->event = [&ready]()
 					{
-						Ready.notify_all();
+						ready.notify_all();
 					};
-					Ready.wait(Unique, [this]()
+					ready.wait(unique, [this]()
 					{
-						return !IsPending();
+						return !is_pending();
 					});
 				}
-				Release(Copy);
+				release(copy);
 			}
-			T&& Get() noexcept
+			t&& get() noexcept
 			{
-				Wait();
-				return Load();
+				wait();
+				return load();
 			}
-			Deferred GetStatus() const noexcept
+			deferred get_status() const noexcept
 			{
-				return Data ? Data->Code.load() : Deferred::Ready;
+				return data ? data->code.load() : deferred::ready;
 			}
-			bool IsPending() const noexcept
+			bool is_pending() const noexcept
 			{
-				return Data ? Data->Code != Deferred::Ready : false;
+				return data ? data->code != deferred::ready : false;
 			}
-			bool IsNull() const noexcept
+			bool is_null() const noexcept
 			{
-				return !Data;
+				return !data;
 			}
-			template <typename R>
-			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&, T&&)>&& Callback) const noexcept
+			template <typename r>
+			basic_promise<r, executor> then(std::function<void(basic_promise<r, executor>&, t&&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
-				BasicPromise<R, Executor> Result; Status* Copy = AddRef();
-				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				VI_ASSERT(data != nullptr && callback, "async should be pending");
+				basic_promise<r, executor> result; status* copy = add_ref();
+				store([copy, result, callback = std::move(callback)]() mutable
 				{
-					Callback(Result, std::move(Copy->Unwrap()));
-					Release(Copy);
+					callback(result, std::move(copy->unwrap()));
+					release(copy);
 				});
 
-				return Result;
+				return result;
 			}
-			BasicPromise<void, Executor> Then(std::function<void(BasicPromise<void, Executor>&, T&&)>&& Callback) const noexcept
+			basic_promise<void, executor> then(std::function<void(basic_promise<void, executor>&, t&&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
-				BasicPromise<void, Executor> Result; Status* Copy = AddRef();
-				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				VI_ASSERT(data != nullptr && callback, "async should be pending");
+				basic_promise<void, executor> result; status* copy = add_ref();
+				store([copy, result, callback = std::move(callback)]() mutable
 				{
-					Callback(Result, std::move(Copy->Unwrap()));
-					Release(Copy);
+					callback(result, std::move(copy->unwrap()));
+					release(copy);
 				});
 
-				return Result;
+				return result;
 			}
-			template <typename R>
-			BasicPromise<typename Unwrap<R>::type, Executor> Then(std::function<R(T&&)>&& Callback) const noexcept
+			template <typename r>
+			basic_promise<typename unwrap<r>::type, executor> then(std::function<r(t&&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Data != nullptr && Callback, "async should be pending");
-				BasicPromise<typename Unwrap<R>::type, Executor> Result; Status* Copy = AddRef();
-				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				VI_ASSERT(data != nullptr && callback, "async should be pending");
+				basic_promise<typename unwrap<r>::type, executor> result; status* copy = add_ref();
+				store([copy, result, callback = std::move(callback)]() mutable
 				{
-					Result.Set(std::move(Callback(std::move(Copy->Unwrap()))));
-					Release(Copy);
+					result.set(std::move(callback(std::move(copy->unwrap()))));
+					release(copy);
 				});
 
-				return Result;
+				return result;
 			}
-			BasicPromise<void, Executor> Then(std::function<void(T&&)>&& Callback) const noexcept
+			basic_promise<void, executor> then(std::function<void(t&&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Data != nullptr, "async should be pending");
-				BasicPromise<void, Executor> Result; Status* Copy = AddRef();
-				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				VI_ASSERT(data != nullptr, "async should be pending");
+				basic_promise<void, executor> result; status* copy = add_ref();
+				store([copy, result, callback = std::move(callback)]() mutable
 				{
-					if (Callback)
-						Callback(std::move(Copy->Unwrap()));
-					Result.Set();
-					Release(Copy);
+					if (callback)
+						callback(std::move(copy->unwrap()));
+					result.set();
+					release(copy);
 				});
 
-				return Result;
+				return result;
 			}
 
 		private:
-			BasicPromise(Status* Context, bool) noexcept : Data(Context)
+			basic_promise(status* context, bool) noexcept : data(context)
 			{
 			}
-			Status* AddRef() const noexcept
+			status* add_ref() const noexcept
 			{
-				if (Data != nullptr)
-					++Data->Count;
-				return Data;
+				if (data != nullptr)
+					++data->count;
+				return data;
 			}
-			T&& Load() noexcept
+			t&& load() noexcept
 			{
-				if (!Data)
-					Data = Memory::New<Status>();
+				if (!data)
+					data = memory::init<status>();
 
-				return std::move(Data->Unwrap());
+				return std::move(data->unwrap());
 			}
-			void Store(TaskCallback&& Callback) const noexcept
+			void store(task_callback&& callback) const noexcept
 			{
-				UMutex<std::mutex> Unique(Data->Update);
-				Data->Event = std::move(Callback);
-				if (Data->Code == Deferred::Ready)
-					Execute(Data, Unique, false);
+				umutex<std::mutex> unique(data->update);
+				data->event = std::move(callback);
+				if (data->code == deferred::ready)
+					execute(data, unique, false);
 			}
 
 		public:
-			static BasicPromise Null() noexcept
+			static basic_promise null() noexcept
 			{
-				return BasicPromise((Status*)nullptr, false);
+				return basic_promise((status*)nullptr, false);
 			}
 
 		private:
-			static void Execute(Status* State, UMutex<std::mutex>& Unique, bool Async) noexcept
+			static void execute(status* state, umutex<std::mutex>& unique, bool async) noexcept
 			{
-				if (State->Event)
+				if (state->event)
 				{
-					TaskCallback Callback = std::move(State->Event);
-					Unique.Negate();
-					Executor()(std::move(Callback), Async);
+					task_callback callback = std::move(state->event);
+					unique.negate();
+					executor()(std::move(callback), async);
 				}
 			}
-			static void Release(Status* State) noexcept
+			static void release(status* state) noexcept
 			{
-				if (State != nullptr && !--State->Count)
-					Memory::Delete(State);
+				if (state != nullptr && !--state->count)
+					memory::deinit(state);
 			}
 #ifdef VI_CXX20
 		public:
 			struct promise_type
 			{
-				BasicPromise State;
+				basic_promise state;
 
-				void return_value(const BasicPromise& NewValue) noexcept
+				void return_value(const basic_promise& new_value) noexcept
 				{
-					State.Set(NewValue);
+					state.set(new_value);
 				}
-				void return_value(const T& NewValue) noexcept
+				void return_value(const t& new_value) noexcept
 				{
-					State.Set(NewValue);
+					state.set(new_value);
 				}
-				void return_value(T&& NewValue) noexcept
+				void return_value(t&& new_value) noexcept
 				{
-					State.Set(std::move(NewValue));
+					state.set(std::move(new_value));
 				}
 				void unhandled_exception() noexcept
 				{
@@ -4506,7 +4498,7 @@ namespace Vitex
 				}
 				auto get_return_object() noexcept
 				{
-					return State;
+					return state;
 				}
 				std::suspend_never initial_suspend() const noexcept
 				{
@@ -4517,319 +4509,319 @@ namespace Vitex
 					return { };
 				}
 #if !defined(_MSC_VER) || defined(NDEBUG)
-				void* operator new(size_t Size) noexcept
+				void* operator new(size_t size) noexcept
 				{
-					return Memory::Allocate<promise_type>(Size);
+					return memory::allocate<promise_type>(size);
 				}
-				void operator delete(void* Address) noexcept
+				void operator delete(void* address) noexcept
 				{
-					Memory::Deallocate<void>(Address);
+					memory::deallocate<void>(address);
 				}
 				static auto get_return_object_on_allocation_failure() noexcept
 				{
-					return BasicPromise::Null();
+					return basic_promise::null();
 				}
-#endif // E3394 Intellisense false positive
+#endif // E3394 intellisense false positive
 			};
 
 		public:
 			bool await_ready() const noexcept
 			{
-				return !IsPending();
+				return !is_pending();
 			}
-			T&& await_resume() noexcept
+			t&& await_resume() noexcept
 			{
-				return Load();
+				return load();
 			}
-			void await_suspend(std::coroutine_handle<> Handle) noexcept
+			void await_suspend(std::coroutine_handle<> handle) noexcept
 			{
-				if (!IsPending())
-					return Handle.resume();
+				if (!is_pending())
+					return handle.resume();
 
-				Status* Copy = AddRef();
+				status* copy = add_ref();
 #ifndef NDEBUG
-				std::chrono::microseconds Time = Schedule::GetClock();
-				VI_WATCH(Handle.address(), typeid(Handle).name());
-				Store([Copy, Time, Handle]()
+				std::chrono::microseconds time = schedule::get_clock();
+				VI_WATCH(handle.address(), typeid(handle).name());
+				store([copy, time, handle]()
 				{
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+					int64_t diff = (schedule::get_clock() - time).count();
+					if (diff > (int64_t)timings::hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", diff / 1000, diff, (uint64_t)timings::hangup);
 
-					VI_UNWATCH(Handle.address());
-					Handle.resume();
-					Release(Copy);
+					VI_UNWATCH(handle.address());
+					handle.resume();
+					release(copy);
 				});
 #else
-				Store([Copy, Handle]()
+				store([copy, handle]()
 				{
-					Handle.resume();
-					Release(Copy);
+					handle.resume();
+					release(copy);
 				});
 #endif
 			}
 #endif
 		};
 
-		template <typename Executor>
-		class BasicPromise<void, Executor>
+		template <typename executor>
+		class basic_promise<void, executor>
 		{
 		public:
-			typedef PromiseState<void> Status;
-			typedef void Type;
+			typedef promise_state<void> status;
+			typedef void type;
 
 		private:
-			template <typename F>
-			struct Unwrap
+			template <typename f>
+			struct unwrap
 			{
-				typedef F type;
+				typedef f type;
 			};
 
-			template <typename F>
-			struct Unwrap<BasicPromise<F, Executor>>
+			template <typename f>
+			struct unwrap<basic_promise<f, executor>>
 			{
-				typedef F type;
+				typedef f type;
 			};
 
 		private:
-			Status* Data;
+			status* data;
 
 		public:
-			BasicPromise() noexcept : Data(Memory::New<Status>())
+			basic_promise() noexcept : data(memory::init<status>())
 			{
 			}
-			BasicPromise(const BasicPromise& Other) noexcept : Data(Other.Data)
+			basic_promise(const basic_promise& other) noexcept : data(other.data)
 			{
-				AddRef();
+				add_ref();
 			}
-			BasicPromise(BasicPromise&& Other) noexcept : Data(Other.Data)
+			basic_promise(basic_promise&& other) noexcept : data(other.data)
 			{
-				Other.Data = nullptr;
+				other.data = nullptr;
 			}
-			~BasicPromise() noexcept
+			~basic_promise() noexcept
 			{
-				Release(Data);
+				release(data);
 			}
-			BasicPromise& operator= (const BasicPromise& Other) = delete;
-			BasicPromise& operator= (BasicPromise&& Other) noexcept
+			basic_promise& operator= (const basic_promise& other) = delete;
+			basic_promise& operator= (basic_promise&& other) noexcept
 			{
-				if (&Other == this)
+				if (&other == this)
 					return *this;
 
-				Release(Data);
-				Data = Other.Data;
-				Other.Data = nullptr;
+				release(data);
+				data = other.data;
+				other.data = nullptr;
 				return *this;
 			}
-			void Set() noexcept
+			void set() noexcept
 			{
-				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				UMutex<std::mutex> Unique(Data->Update);
-				bool Async = (Data->Code != Deferred::Waiting);
-				Data->Code = Deferred::Ready;
-				Execute(Data, Unique, Async);
+				VI_ASSERT(data != nullptr && data->code != deferred::ready, "async should be pending");
+				umutex<std::mutex> unique(data->update);
+				bool async = (data->code != deferred::waiting);
+				data->code = deferred::ready;
+				execute(data, unique, async);
 			}
-			void Set(const BasicPromise& Other) noexcept
+			void set(const basic_promise& other) noexcept
 			{
-				VI_ASSERT(Data != nullptr && Data->Code != Deferred::Ready, "async should be pending");
-				Status* Copy = AddRef();
-				Other.When([Copy]() mutable
+				VI_ASSERT(data != nullptr && data->code != deferred::ready, "async should be pending");
+				status* copy = add_ref();
+				other.when([copy]() mutable
 				{
 					{
-						UMutex<std::mutex> Unique(Copy->Update);
-						bool Async = (Copy->Code != Deferred::Waiting);
-						Copy->Code = Deferred::Ready;
-						Execute(Copy, Unique, Async);
+						umutex<std::mutex> unique(copy->update);
+						bool async = (copy->code != deferred::waiting);
+						copy->code = deferred::ready;
+						execute(copy, unique, async);
 					}
-					Release(Copy);
+					release(copy);
 				});
 			}
-			void When(std::function<void()>&& Callback) const noexcept
+			void when(std::function<void()>&& callback) const noexcept
 			{
-				VI_ASSERT(Callback, "callback should be set");
-				if (!IsPending())
-					return Callback();
+				VI_ASSERT(callback, "callback should be set");
+				if (!is_pending())
+					return callback();
 
-				Status* Copy = AddRef();
-				Store([Copy, Callback = std::move(Callback)]() mutable
+				status* copy = add_ref();
+				store([copy, callback = std::move(callback)]() mutable
 				{
-					Callback();
-					Release(Copy);
+					callback();
+					release(copy);
 				});
 			}
-			void Wait() noexcept
+			void wait() noexcept
 			{
-				if (!IsPending())
+				if (!is_pending())
 					return;
 
-				Status* Copy;
+				status* copy;
 				{
-					std::unique_lock<std::mutex> Lock(Data->Update);
-					if (Data->Code == Deferred::Ready)
+					std::unique_lock<std::mutex> lock(data->update);
+					if (data->code == deferred::ready)
 						return;
 
-					std::condition_variable Ready;
-					Copy = AddRef();
-					Copy->Code = Deferred::Waiting;
-					Copy->Event = [&Ready]()
+					std::condition_variable ready;
+					copy = add_ref();
+					copy->code = deferred::waiting;
+					copy->event = [&ready]()
 					{
-						Ready.notify_all();
+						ready.notify_all();
 					};
-					Ready.wait(Lock, [this]()
+					ready.wait(lock, [this]()
 					{
-						return !IsPending();
+						return !is_pending();
 					});
 				}
-				Release(Copy);
+				release(copy);
 			}
-			void Get() noexcept
+			void get() noexcept
 			{
-				Wait();
+				wait();
 			}
-			Deferred GetStatus() const noexcept
+			deferred get_status() const noexcept
 			{
-				return Data ? Data->Code.load() : Deferred::Ready;
+				return data ? data->code.load() : deferred::ready;
 			}
-			bool IsPending() const noexcept
+			bool is_pending() const noexcept
 			{
-				return Data ? Data->Code != Deferred::Ready : false;
+				return data ? data->code != deferred::ready : false;
 			}
-			bool IsNull() const noexcept
+			bool is_null() const noexcept
 			{
-				return !Data;
+				return !data;
 			}
-			template <typename R>
-			BasicPromise<R, Executor> Then(std::function<void(BasicPromise<R, Executor>&)>&& Callback) const noexcept
+			template <typename r>
+			basic_promise<r, executor> then(std::function<void(basic_promise<r, executor>&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Callback, "callback should be set");
-				BasicPromise<R, Executor> Result;
-				if (Data != nullptr)
+				VI_ASSERT(callback, "callback should be set");
+				basic_promise<r, executor> result;
+				if (data != nullptr)
 				{
-					Status* Copy = AddRef();
-					Store([Copy, Result, Callback = std::move(Callback)]() mutable
+					status* copy = add_ref();
+					store([copy, result, callback = std::move(callback)]() mutable
 					{
-						Callback(Result);
-						Release(Copy);
-					});
-				}
-				else
-					Callback(Result);
-
-				return Result;
-			}
-			BasicPromise<void, Executor> Then(std::function<void(BasicPromise<void, Executor>&)>&& Callback) const noexcept
-			{
-				VI_ASSERT(Callback, "callback should be set");
-				BasicPromise<void, Executor> Result;
-				if (Data != nullptr)
-				{
-					Status* Copy = AddRef();
-					Store([Copy, Result, Callback = std::move(Callback)]() mutable
-					{
-						Callback(Result);
-						Release(Copy);
+						callback(result);
+						release(copy);
 					});
 				}
 				else
-					Callback(Result);
+					callback(result);
 
-				return Result;
+				return result;
 			}
-			template <typename R>
-			BasicPromise<typename Unwrap<R>::type, Executor> Then(std::function<R()>&& Callback) const noexcept
+			basic_promise<void, executor> then(std::function<void(basic_promise<void, executor>&)>&& callback) const noexcept
 			{
-				VI_ASSERT(Callback, "callback should be set");
-				BasicPromise<typename Unwrap<R>::type, Executor> Result;
-				if (Data != nullptr)
+				VI_ASSERT(callback, "callback should be set");
+				basic_promise<void, executor> result;
+				if (data != nullptr)
 				{
-					Status* Copy = AddRef();
-					Store([Copy, Result, Callback = std::move(Callback)]() mutable
+					status* copy = add_ref();
+					store([copy, result, callback = std::move(callback)]() mutable
 					{
-						Result.Set(std::move(Callback()));
-						Release(Copy);
+						callback(result);
+						release(copy);
 					});
 				}
 				else
-					Result.Set(std::move(Callback()));
+					callback(result);
 
-				return Result;
+				return result;
 			}
-			BasicPromise<void, Executor> Then(std::function<void()>&& Callback) const noexcept
+			template <typename r>
+			basic_promise<typename unwrap<r>::type, executor> then(std::function<r()>&& callback) const noexcept
 			{
-				BasicPromise<void, Executor> Result;
-				if (!IsPending())
+				VI_ASSERT(callback, "callback should be set");
+				basic_promise<typename unwrap<r>::type, executor> result;
+				if (data != nullptr)
 				{
-					if (Callback)
-						Callback();
-					Result.Set();
-					return Result;
+					status* copy = add_ref();
+					store([copy, result, callback = std::move(callback)]() mutable
+					{
+						result.set(std::move(callback()));
+						release(copy);
+					});
+				}
+				else
+					result.set(std::move(callback()));
+
+				return result;
+			}
+			basic_promise<void, executor> then(std::function<void()>&& callback) const noexcept
+			{
+				basic_promise<void, executor> result;
+				if (!is_pending())
+				{
+					if (callback)
+						callback();
+					result.set();
+					return result;
 				}
 
-				Status* Copy = AddRef();
-				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				status* copy = add_ref();
+				store([copy, result, callback = std::move(callback)]() mutable
 				{
-					if (Callback)
-						Callback();
-					Result.Set();
-					Release(Copy);
+					if (callback)
+						callback();
+					result.set();
+					release(copy);
 				});
 
-				return Result;
+				return result;
 			}
 
 		private:
-			BasicPromise(Status* Context, bool) noexcept : Data(Context)
+			basic_promise(status* context, bool) noexcept : data(context)
 			{
 			}
-			Status* AddRef() const noexcept
+			status* add_ref() const noexcept
 			{
-				if (Data != nullptr)
-					++Data->Count;
-				return Data;
+				if (data != nullptr)
+					++data->count;
+				return data;
 			}
-			void Load() noexcept
+			void load() noexcept
 			{
-				if (!Data)
-					Data = Memory::New<Status>();
+				if (!data)
+					data = memory::init<status>();
 			}
-			void Store(TaskCallback&& Callback) const noexcept
+			void store(task_callback&& callback) const noexcept
 			{
-				UMutex<std::mutex> Unique(Data->Update);
-				Data->Event = std::move(Callback);
-				if (Data->Code == Deferred::Ready)
-					Execute(Data, Unique, false);
+				umutex<std::mutex> unique(data->update);
+				data->event = std::move(callback);
+				if (data->code == deferred::ready)
+					execute(data, unique, false);
 			}
 
 		public:
-			static BasicPromise Null() noexcept
+			static basic_promise null() noexcept
 			{
-				return BasicPromise((Status*)nullptr, false);
+				return basic_promise((status*)nullptr, false);
 			}
 
 		private:
-			static void Execute(Status* State, UMutex<std::mutex>& Unique, bool Async) noexcept
+			static void execute(status* state, umutex<std::mutex>& unique, bool async) noexcept
 			{
-				if (State->Event)
+				if (state->event)
 				{
-					TaskCallback Callback = std::move(State->Event);
-					Unique.Negate();
-					Executor()(std::move(Callback), Async);
+					task_callback callback = std::move(state->event);
+					unique.negate();
+					executor()(std::move(callback), async);
 				}
 			}
-			static void Release(Status* State) noexcept
+			static void release(status* state) noexcept
 			{
-				if (State != nullptr && !--State->Count)
-					Memory::Delete(State);
+				if (state != nullptr && !--state->count)
+					memory::deinit(state);
 			}
 #ifdef VI_CXX20
 		public:
 			struct promise_type
 			{
-				BasicPromise State;
+				basic_promise state;
 
 				void return_void() noexcept
 				{
-					State.Set();
+					state.set();
 				}
 				void unhandled_exception() noexcept
 				{
@@ -4837,7 +4829,7 @@ namespace Vitex
 				}
 				auto get_return_object() noexcept
 				{
-					return State;
+					return state;
 				}
 				std::suspend_never initial_suspend() const noexcept
 				{
@@ -4848,475 +4840,473 @@ namespace Vitex
 					return { };
 				}
 #if !defined(_MSC_VER) || defined(NDEBUG)
-				void* operator new(size_t Size) noexcept
+				void* operator new(size_t size) noexcept
 				{
-					return Memory::Allocate<BasicPromise>(Size);
+					return memory::allocate<basic_promise>(size);
 				}
-				void operator delete(void* Address) noexcept
+				void operator delete(void* address) noexcept
 				{
-					Memory::Deallocate<void>(Address);
+					memory::deallocate<void>(address);
 				}
 				static auto get_return_object_on_allocation_failure() noexcept
 				{
-					return BasicPromise::Null();
+					return basic_promise::null();
 				}
-#endif // E3394 Intellisense false positive
+#endif // E3394 intellisense false positive
 			};
 
 		public:
 			bool await_ready() const noexcept
 			{
-				return !IsPending();
+				return !is_pending();
 			}
 			void await_resume() noexcept
 			{
 			}
-			void await_suspend(std::coroutine_handle<> Handle) noexcept
+			void await_suspend(std::coroutine_handle<> handle) noexcept
 			{
-				if (!IsPending())
-					return Handle.resume();
+				if (!is_pending())
+					return handle.resume();
 
-				Status* Copy = AddRef();
+				status* copy = add_ref();
 #ifndef NDEBUG
-				std::chrono::microseconds Time = Schedule::GetClock();
-				VI_WATCH(Handle.address(), typeid(Handle).name());
-				Store([Copy, Time, Handle]()
+				std::chrono::microseconds time = schedule::get_clock();
+				VI_WATCH(handle.address(), typeid(handle).name());
+				store([copy, time, handle]()
 				{
-					int64_t Diff = (Schedule::GetClock() - Time).count();
-					if (Diff > (int64_t)Timings::Hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Diff / 1000, Diff, (uint64_t)Timings::Hangup);
+					int64_t diff = (schedule::get_clock() - time).count();
+					if (diff > (int64_t)timings::hangup * 1000)
+						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", diff / 1000, diff, (uint64_t)timings::hangup);
 
-					VI_UNWATCH(Handle.address());
-					Handle.resume();
-					Release(Copy);
+					VI_UNWATCH(handle.address());
+					handle.resume();
+					release(copy);
 				});
 #else
-				Store([Copy, Handle]()
+				store([copy, handle]()
 				{
-					Handle.resume();
-					Release(Copy);
+					handle.resume();
+					release(copy);
 				});
 #endif
 			}
 #endif
 		};
 
-		template <typename T, typename Executor>
-		class BasicGenerator
+		template <typename t, typename executor>
+		class basic_generator
 		{
-			static_assert(!std::is_same<T, void>::value, "value type should not be void");
+			static_assert(!std::is_same<t, void>::value, "value type should not be void");
 
 		public:
-			typedef std::function<BasicPromise<void, Executor>(BasicGenerator&)> ExecutorCallback;
+			typedef std::function<basic_promise<void, executor>(basic_generator&)> executor_callback;
 
 		public:
-			struct State
+			struct state
 			{
-				alignas(T) char Value[sizeof(T)];
-				BasicPromise<void, Executor> Input = BasicPromise<void, Executor>::Null();
-				BasicPromise<void, Executor> Output = BasicPromise<void, Executor>::Null();
-				ExecutorCallback Callback = nullptr;
-				std::atomic<uint32_t> Count = 1;
-				std::atomic<bool> Exit = false;
-				std::atomic<bool> Next = false;
+				alignas(t) char value[sizeof(t)];
+				basic_promise<void, executor> input = basic_promise<void, executor>::null();
+				basic_promise<void, executor> output = basic_promise<void, executor>::null();
+				executor_callback callback = nullptr;
+				std::atomic<uint32_t> count = 1;
+				std::atomic<bool> exit = false;
+				std::atomic<bool> next = false;
 #ifndef NDEBUG
-				const T* HiddenValue = (const T*)Value;
+				const t* hidden_value = (const t*)value;
 #endif
 			};
 
 		private:
-			State* Status;
+			state* status;
 
 		public:
-			BasicGenerator(ExecutorCallback&& Callback) noexcept : Status(Memory::New<State>())
+			basic_generator(executor_callback&& callback) noexcept : status(memory::init<state>())
 			{
-				Status->Callback = std::move(Callback);
+				status->callback = std::move(callback);
 			}
-			BasicGenerator(const BasicGenerator& Other) noexcept : Status(Other.Status)
+			basic_generator(const basic_generator& other) noexcept : status(other.status)
 			{
-				if (Status != nullptr)
-					++Status->Count;
+				if (status != nullptr)
+					++status->count;
 			}
-			BasicGenerator(BasicGenerator&& Other) noexcept : Status(Other.Status)
+			basic_generator(basic_generator&& other) noexcept : status(other.status)
 			{
-				Other.Status = nullptr;
+				other.status = nullptr;
 			}
-			~BasicGenerator() noexcept
+			~basic_generator() noexcept
 			{
-				if (Status != nullptr && !--Status->Count)
-					Memory::Delete(Status);
+				if (status != nullptr && !--status->count)
+					memory::deinit(status);
 			}
-			BasicGenerator& operator= (const BasicGenerator& Other) noexcept
+			basic_generator& operator= (const basic_generator& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~BasicGenerator();
-				Status = Other.Status;
-				if (Status != nullptr)
-					++Status->Count;
+				this->~basic_generator();
+				status = other.status;
+				if (status != nullptr)
+					++status->count;
 
 				return *this;
 			}
-			BasicGenerator& operator= (BasicGenerator&& Other) noexcept
+			basic_generator& operator= (basic_generator&& other) noexcept
 			{
-				if (this == &Other)
+				if (this == &other)
 					return *this;
 
-				this->~BasicGenerator();
-				Status = Other.Status;
-				Other.Status = nullptr;
+				this->~basic_generator();
+				status = other.status;
+				other.status = nullptr;
 
 				return *this;
 			}
-			BasicPromise<bool, Executor> Next()
+			basic_promise<bool, executor> next()
 			{
-				VI_ASSERT(Status != nullptr, "generator is not valid");
-				bool IsEntrypoint = Entrypoint();
-				if (Status->Output.IsNull())
-					return BasicPromise<bool, Executor>(false);
+				VI_ASSERT(status != nullptr, "generator is not valid");
+				bool is_entrypoint = entrypoint();
+				if (status->output.is_null())
+					return basic_promise<bool, executor>(false);
 
-				if (!IsEntrypoint && Status->Next)
+				if (!is_entrypoint && status->next)
 				{
-					Status->Next = false;
-					Status->Output = BasicPromise<void, Executor>();
-					Status->Input.Set();
+					status->next = false;
+					status->output = basic_promise<void, executor>();
+					status->input.set();
 				}
 
-				return Status->Output.template Then<bool>([this]() -> bool
+				return status->output.template then<bool>([this]() -> bool
 				{
-					return !Status->Exit.load() && Status->Next.load();
+					return !status->exit.load() && status->next.load();
 				});
 			}
-			T&& operator()()
+			t&& operator()()
 			{
-				VI_ASSERT(Status != nullptr, "generator is not valid");
-				VI_ASSERT(!Status->Exit.load() && Status->Next.load(), "generator does not have a value");
-				T& Value = *(T*)Status->Value;
-				return std::move(Value);
+				VI_ASSERT(status != nullptr, "generator is not valid");
+				VI_ASSERT(!status->exit.load() && status->next.load(), "generator does not have a value");
+				t& value = *(t*)status->value;
+				return std::move(value);
 			}
-			BasicPromise<void, Executor> operator<< (const T& Value)
+			basic_promise<void, executor> operator<< (const t& value)
 			{
-				VI_ASSERT(Status != nullptr, "generator is not valid");
-				VI_ASSERT(!Status->Next, "generator already has a value");
-				OptionUtils::CopyBuffer<T>(Status->Value, (const char*)&Value, sizeof(T));
-				Status->Next = true;
-				Status->Input = BasicPromise<void, Executor>();
-				Status->Output.Set();
-				return Status->Input;
+				VI_ASSERT(status != nullptr, "generator is not valid");
+				VI_ASSERT(!status->next, "generator already has a value");
+				option_utils::copy_buffer<t>(status->value, (const char*)&value, sizeof(t));
+				status->next = true;
+				status->input = basic_promise<void, executor>();
+				status->output.set();
+				return status->input;
 			}
-			BasicPromise<void, Executor> operator<< (T&& Value)
+			basic_promise<void, executor> operator<< (t&& value)
 			{
-				VI_ASSERT(Status != nullptr, "generator is not valid");
-				VI_ASSERT(!Status->Next, "generator already has a value");
-				OptionUtils::MoveBuffer<T>(Status->Value, (char*)&Value, sizeof(T));
-				Status->Next = true;
-				Status->Input = BasicPromise<void, Executor>();
-				Status->Output.Set();
-				return Status->Input;
+				VI_ASSERT(status != nullptr, "generator is not valid");
+				VI_ASSERT(!status->next, "generator already has a value");
+				option_utils::move_buffer<t>(status->value, (char*)&value, sizeof(t));
+				status->next = true;
+				status->input = basic_promise<void, executor>();
+				status->output.set();
+				return status->input;
 			}
 
 		private:
-			bool Entrypoint()
+			bool entrypoint()
 			{
-				if (!Status->Callback)
+				if (!status->callback)
 					return false;
 
-				Status->Output = BasicPromise<void, Executor>();
-				auto Generate = [this]()
+				status->output = basic_promise<void, executor>();
+				auto generate = [this]()
 				{
-					ExecutorCallback Callback = std::move(Status->Callback);
-					Callback(*this).When([this]()
+					executor_callback callback = std::move(status->callback);
+					callback(*this).when([this]()
 					{
-						Status->Exit = true;
-						if (Status->Output.IsPending())
-							Status->Output.Set();
+						status->exit = true;
+						if (status->output.is_pending())
+							status->output.set();
 					});
 				};
-				if (Schedule::IsAvailable())
-					Schedule::Get()->SetTask(Generate);
+				if (schedule::is_available())
+					schedule::get()->set_task(generate);
 				else
-					Generate();
+					generate();
 				return true;
 			}
 		};
 
-		template <typename T, typename Executor = ParallelExecutor>
-		using Generator = BasicGenerator<T, Executor>;
+		template <typename t, typename executor = parallel_executor>
+		using generator = basic_generator<t, executor>;
 
-		template <typename T, typename Executor = ParallelExecutor>
-		using Promise = BasicPromise<T, Executor>;
+		template <typename t, typename executor = parallel_executor>
+		using promise = basic_promise<t, executor>;
 
-		template <typename T, typename E, typename Executor = ParallelExecutor>
-		using ExpectsPromise = BasicPromise<Expects<T, E>, Executor>;
+		template <typename t, typename e, typename executor = parallel_executor>
+		using expects_promise = basic_promise<expects<t, e>, executor>;
 
-		template <typename T, typename Executor = ParallelExecutor>
-		using ExpectsPromiseIO = BasicPromise<ExpectsIO<T>, Executor>;
+		template <typename t, typename executor = parallel_executor>
+		using expects_promise_io = basic_promise<expects_io<t>, executor>;
 
-		template <typename T, typename Executor = ParallelExecutor>
-		using ExpectsPromiseSystem = BasicPromise<ExpectsSystem<T>, Executor>;
+		template <typename t, typename executor = parallel_executor>
+		using expects_promise_system = basic_promise<expects_system<t>, executor>;
 
-		template <typename T>
-		inline Promise<T> Cotask(std::function<T()>&& Callback, bool Recyclable = true) noexcept
+		template <typename t>
+		inline promise<t> cotask(std::function<t()>&& callback, bool recyclable = true) noexcept
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Schedule::IsAvailable(Difficulty::Sync))
-				return Promise<T>(std::move(Callback()));
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!schedule::is_available(difficulty::sync))
+				return promise<t>(std::move(callback()));
 
-			Promise<T> Result;
-			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable { Result.Set(std::move(Callback())); }, Recyclable);
-			return Result;
+			promise<t> result;
+			schedule::get()->set_task([result, callback = std::move(callback)]() mutable { result.set(std::move(callback())); }, recyclable);
+			return result;
 		}
 		template <>
-		inline Promise<void> Cotask(std::function<void()>&& Callback, bool Recyclable) noexcept
+		inline promise<void> cotask(std::function<void()>&& callback, bool recyclable) noexcept
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!Schedule::IsAvailable(Difficulty::Sync))
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!schedule::is_available(difficulty::sync))
 			{
-				Callback();
-				return Promise<void>::Null();
+				callback();
+				return promise<void>::null();
 			}
 
-			Promise<void> Result;
-			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
+			promise<void> result;
+			schedule::get()->set_task([result, callback = std::move(callback)]() mutable
 			{
-				Callback();
-				Result.Set();
-			}, Recyclable);
-			return Result;
+				callback();
+				result.set();
+			}, recyclable);
+			return result;
 		}
-		inline void Codefer(TaskCallback&& Callback, bool AlwaysExecute = true) noexcept
+		inline void codefer(task_callback&& callback, bool always_execute = true) noexcept
 		{
-			VI_ASSERT(Callback, "callback should be set");
-			if (Schedule::IsAvailable())
-				Schedule::Get()->SetTask(std::move(Callback), true);
-			else if (AlwaysExecute)
-				Callback();
+			VI_ASSERT(callback, "callback should be set");
+			if (schedule::is_available())
+				schedule::get()->set_task(std::move(callback), true);
+			else if (always_execute)
+				callback();
 		}
-		inline void Cospawn(TaskCallback&& Callback, bool AlwaysExecute = true) noexcept
+		inline void cospawn(task_callback&& callback, bool always_execute = true) noexcept
 		{
-			VI_ASSERT(Callback, "callback should be set");
-			if (Schedule::IsAvailable())
-				Schedule::Get()->SetTask(std::move(Callback), false);
-			else if (AlwaysExecute)
-				Callback();
+			VI_ASSERT(callback, "callback should be set");
+			if (schedule::is_available())
+				schedule::get()->set_task(std::move(callback), false);
+			else if (always_execute)
+				callback();
 		}
 #ifdef VI_CXX20
-		template <typename T>
-		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		template <typename t>
+		inline promise<t> coasync(std::function<promise<t>()>&& callback, bool always_enqueue = false) noexcept
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			auto* Callable = Memory::New<std::function<Promise<T>()>>(std::move(Callback));
-			auto Finalize = [Callable](T&& Temp) -> T&& { Memory::Delete(Callable); return std::move(Temp); };
-			if (!AlwaysEnqueue)
-				return (*Callable)().template Then<T>(Finalize);
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			auto* callable = memory::init<std::function<promise<t>()>>(std::move(callback));
+			auto finalize = [callable](t&& temp) -> t&& { memory::deinit(callable); return std::move(temp); };
+			if (!always_enqueue)
+				return (*callable)().template then<t>(finalize);
 
-			Promise<T> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, !AlwaysEnqueue);
-			return Value.template Then<T>(Finalize);
+			promise<t> value;
+			schedule::get()->set_task([value, callable]() mutable { value.set((*callable)()); }, !always_enqueue);
+			return value.template then<t>(finalize);
 		}
 		template <>
-		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
+		inline promise<void> coasync(std::function<promise<void>()>&& callback, bool always_enqueue) noexcept
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			auto* Callable = Memory::New<std::function<Promise<void>()>>(std::move(Callback));
-			auto Finalize = [Callable]() { Memory::Delete(Callable); };
-			if (!AlwaysEnqueue)
-				return (*Callable)().Then(Finalize);
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			auto* callable = memory::init<std::function<promise<void>()>>(std::move(callback));
+			auto finalize = [callable]() { memory::deinit(callable); };
+			if (!always_enqueue)
+				return (*callable)().then(finalize);
 
-			Promise<void> Value;
-			Schedule::Get()->SetTask([Value, Callable]() mutable { Value.Set((*Callable)()); }, !AlwaysEnqueue);
-			return Value.Then(Finalize);
+			promise<void> value;
+			schedule::get()->set_task([value, callable]() mutable { value.set((*callable)()); }, !always_enqueue);
+			return value.then(finalize);
 		}
 #else
-		template <typename T>
-		inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
+		template <typename t>
+		inline t&& coawait(promise<t>&& future, const char* function = nullptr, const char* expression = nullptr) noexcept
 		{
-			if (!Future.IsPending())
-				return Future.Get();
+			if (!future.is_pending())
+				return future.get();
 
-			Costate* State; Coroutine* Base;
-			Costate::GetState(&State, &Base);
-			VI_ASSERT(State != nullptr && Base != nullptr, "cannot call await outside coroutine");
+			costate* state; coroutine* base;
+			costate::get_state(&state, &base);
+			VI_ASSERT(state != nullptr && base != nullptr, "cannot call await outside coroutine");
 #ifndef NDEBUG
-			std::chrono::microseconds Time = Schedule::GetClock();
-			if (Function != nullptr && Expression != nullptr)
-				VI_WATCH_AT((void*)&Future, Function, Expression);
+			std::chrono::microseconds time = schedule::get_clock();
+			if (function != nullptr && expression != nullptr)
+				VI_WATCH_AT((void*)&future, function, expression);
 #endif
-			State->Deactivate(Base, [&Future, &State, &Base]()
+			state->deactivate(base, [&future, &state, &base]()
 			{
-				Future.When([&State, &Base](T&&) { State->Activate(Base); });
+				future.when([&state, &base](t&&) { state->activate(base); });
 			});
 #ifndef NDEBUG
-			if (Function != nullptr && Expression != nullptr)
+			if (function != nullptr && expression != nullptr)
 			{
-				int64_t Diff = (Schedule::GetClock() - Time).count();
-				if (Diff > (int64_t)Timings::Hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-				VI_UNWATCH((void*)&Future);
+				int64_t diff = (schedule::get_clock() - time).count();
+				if (diff > (int64_t)timings::hangup * 1000)
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", function, expression, diff / 1000, diff, (uint64_t)timings::hangup);
+				VI_UNWATCH((void*)&future);
 			}
 #endif
-			return Future.Get();
+			return future.get();
 		}
-		inline void Coawait(Promise<void>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
+		inline void coawait(promise<void>&& future, const char* function = nullptr, const char* expression = nullptr) noexcept
 		{
-			if (!Future.IsPending())
-				return Future.Get();
+			if (!future.is_pending())
+				return future.get();
 
-			Costate* State; Coroutine* Base;
-			Costate::GetState(&State, &Base);
-			VI_ASSERT(State != nullptr && Base != nullptr, "cannot call await outside coroutine");
+			costate* state; coroutine* base;
+			costate::get_state(&state, &base);
+			VI_ASSERT(state != nullptr && base != nullptr, "cannot call await outside coroutine");
 #ifndef NDEBUG
-			std::chrono::microseconds Time = Schedule::GetClock();
-			if (Function != nullptr && Expression != nullptr)
-				VI_WATCH_AT((void*)&Future, Function, Expression);
+			std::chrono::microseconds time = schedule::get_clock();
+			if (function != nullptr && expression != nullptr)
+				VI_WATCH_AT((void*)&future, function, expression);
 #endif
-			State->Deactivate(Base, [&Future, &State, &Base]()
+			state->deactivate(base, [&future, &state, &base]()
 			{
-				Future.When([&State, &Base]() { State->Activate(Base); });
+				future.when([&state, &base]() { state->activate(base); });
 			});
 #ifndef NDEBUG
-			if (Function != nullptr && Expression != nullptr)
+			if (function != nullptr && expression != nullptr)
 			{
-				int64_t Diff = (Schedule::GetClock() - Time).count();
-				if (Diff > (int64_t)Timings::Hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", Function, Expression, Diff / 1000, Diff, (uint64_t)Timings::Hangup);
-				VI_UNWATCH((void*)&Future);
+				int64_t diff = (schedule::get_clock() - time).count();
+				if (diff > (int64_t)timings::hangup * 1000)
+					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", function, expression, diff / 1000, diff, (uint64_t)timings::hangup);
+				VI_UNWATCH((void*)&future);
 			}
 #endif
-			return Future.Get();
+			return future.get();
 		}
-		template <typename T>
-		inline Promise<T> Coasync(std::function<Promise<T>()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		template <typename t>
+		inline promise<t> coasync(std::function<promise<t>()>&& callback, bool always_enqueue = false) noexcept
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
-				return Callback();
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!always_enqueue && costate::is_coroutine())
+				return callback();
 
-			Promise<T> Result;
-			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
+			promise<t> result;
+			schedule::get()->set_coroutine([result, callback = std::move(callback)]() mutable
 			{
-				Callback().When([Result](T&& Value) mutable { Result.Set(std::move(Value)); });
-			}, !AlwaysEnqueue);
-			return Result;
+				callback().when([result](t&& value) mutable { result.set(std::move(value)); });
+			}, !always_enqueue);
+			return result;
 		}
 		template <>
-		inline Promise<void> Coasync(std::function<Promise<void>()>&& Callback, bool AlwaysEnqueue) noexcept
+		inline promise<void> coasync(std::function<promise<void>()>&& callback, bool always_enqueue) noexcept
 		{
-			VI_ASSERT(Callback, "callback should not be empty");
-			if (!AlwaysEnqueue && Costate::IsCoroutine())
-				return Callback();
+			VI_ASSERT(callback, "callback should not be empty");
+			if (!always_enqueue && costate::is_coroutine())
+				return callback();
 
-			Promise<void> Result;
-			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
+			promise<void> result;
+			schedule::get()->set_coroutine([result, callback = std::move(callback)]() mutable
 			{
-				Callback().When([Result]() mutable { Result.Set(); });
-			}, !AlwaysEnqueue);
-			return Result;
+				callback().when([result]() mutable { result.set(); });
+			}, !always_enqueue);
+			return result;
 		}
 #endif
-		template <typename T>
-		inline Generator<T> Cogenerate(std::function<Promise<void>(Generator<T>&)>&& Callback)
+		template <typename t>
+		inline generator<t> cogenerate(std::function<promise<void>(generator<t>&)>&& callback)
 		{
-			return Generator<T>([Callback = std::move(Callback)](Generator<T>& Results) mutable -> Promise<void>
+			return generator<t>([callback = std::move(callback)](generator<t>& results) mutable -> promise<void>
 			{
-				return Coasync<void>([Results, Callback = std::move(Callback)]() mutable -> Promise<void> { return Callback(Results); });
+				return coasync<void>([results, callback = std::move(callback)]() mutable -> promise<void> { return callback(results); });
 			});
 		}
 #ifdef VI_ALLOCATOR
-		template <typename O, typename I>
-		inline O Copy(const I& Other)
+		template <typename o, typename i>
+		inline o copy(const i& other)
 		{
-			static_assert(!std::is_same<I, O>::value, "copy should be used to copy object of the same type with different allocator");
-			static_assert(IsIterable<I>::value, "input type should be iterable");
-			static_assert(IsIterable<O>::value, "output type should be iterable");
-			return O(Other.begin(), Other.end());
+			static_assert(!std::is_same<i, o>::value, "copy should be used to copy object of the same type with different allocator");
+			static_assert(is_iterable<i>::value, "input type should be iterable");
+			static_assert(is_iterable<o>::value, "output type should be iterable");
+			return o(other.begin(), other.end());
 		}
 #else
-		template <typename O, typename I>
-		inline O&& Copy(I&& Other)
+		template <typename o, typename i>
+		inline o&& copy(i&& other)
 		{
-			static_assert(IsIterable<I>::value, "input type should be iterable");
-			static_assert(IsIterable<O>::value, "output type should be iterable");
-			return std::move(Other);
+			static_assert(is_iterable<i>::value, "input type should be iterable");
+			static_assert(is_iterable<o>::value, "output type should be iterable");
+			return std::move(other);
 		}
-		template <typename O, typename I>
-		inline const O& Copy(const I& Other)
+		template <typename o, typename i>
+		inline const o& copy(const i& other)
 		{
-			static_assert(IsIterable<I>::value, "input type should be iterable");
-			static_assert(IsIterable<O>::value, "output type should be iterable");
-			return Other;
+			static_assert(is_iterable<i>::value, "input type should be iterable");
+			static_assert(is_iterable<o>::value, "output type should be iterable");
+			return other;
 		}
 #endif
 #ifdef VI_CXX20
-		inline const std::string_view& KeyLookupCast(const std::string_view& Value)
+		inline const std::string_view& key_lookup_cast(const std::string_view& value)
 		{
-			return Value;
+			return value;
 		}
 #else
-		inline String KeyLookupCast(const std::string_view& Value)
+		inline string key_lookup_cast(const std::string_view& value)
 		{
-			return String(Value);
+			return string(value);
 		}
 #endif
-		template <typename T>
-		inline ExpectsIO<T> FromString(const std::string_view& Other, int Base = 10)
+		template <typename t>
+		inline expects_io<t> from_string(const std::string_view& other, int base = 10)
 		{
-			static_assert(std::is_arithmetic<T>::value, "conversion can be done only to arithmetic types");
-			T Value;
-			if constexpr (!std::is_integral<T>::value)
+			static_assert(std::is_arithmetic<t>::value, "conversion can be done only to arithmetic types");
+			t value;
+			if constexpr (!std::is_integral<t>::value)
 			{
 #if defined(__clang__) && (!defined(VI_CXX20) || defined(VI_APPLE))
-				OS::Error::Clear();
-				char* End = nullptr;
-				if constexpr (!std::is_same<T, long double>::value)
+				os::error::clear();
+				char* end = nullptr;
+				if constexpr (!std::is_same<t, long double>::value)
 				{
-					if constexpr (!std::is_same<T, float>::value)
-						Value = strtod(Other.data(), &End);
+					if constexpr (!std::is_same<t, float>::value)
+						value = strtod(other.data(), &end);
 					else
-						Value = strtof(Other.data(), &End);
+						value = strtof(other.data(), &end);
 				}
 				else
-					Value = strtold(Other.data(), &End);
-				if (Other.data() == End || OS::Error::Occurred())
-					return OS::Error::GetConditionOr();
+					value = strtold(other.data(), &end);
+				if (other.data() == end || os::error::occurred())
+					return os::error::get_condition_or();
 #else
-				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base == 16 ? std::chars_format::hex : std::chars_format::general);
-				if (Result.ec != std::errc())
-					return std::make_error_condition(Result.ec);
+				std::from_chars_result result = std::from_chars(other.data(), other.data() + other.size(), value, base == 16 ? std::chars_format::hex : std::chars_format::general);
+				if (result.ec != std::errc())
+					return std::make_error_condition(result.ec);
 #endif
 			}
 			else
 			{
-				std::from_chars_result Result = std::from_chars(Other.data(), Other.data() + Other.size(), Value, Base);
-				if (Result.ec != std::errc())
-					return std::make_error_condition(Result.ec);
+				std::from_chars_result result = std::from_chars(other.data(), other.data() + other.size(), value, base);
+				if (result.ec != std::errc())
+					return std::make_error_condition(result.ec);
 			}
-			return Value;
+			return value;
 		}
-		template <typename T>
-		inline std::string_view ToStringView(char* Buffer, size_t Size, T Other, int Base = 10)
+		template <typename t>
+		inline std::string_view to_string_view(char* buffer, size_t size, t other, int base = 10)
 		{
-			static_assert(std::is_arithmetic<T>::value, "conversion can be done only from arithmetic types");
-			if constexpr (std::is_integral<T>::value)
+			static_assert(std::is_arithmetic<t>::value, "conversion can be done only from arithmetic types");
+			if constexpr (std::is_integral<t>::value)
 			{
-				std::to_chars_result Result = std::to_chars(Buffer, Buffer + Size, Other, Base);
-				return Result.ec == std::errc() ? std::string_view(Buffer, Result.ptr - Buffer) : std::string_view();
+				std::to_chars_result result = std::to_chars(buffer, buffer + size, other, base);
+				return result.ec == std::errc() ? std::string_view(buffer, result.ptr - buffer) : std::string_view();
 			}
 			else
 			{
-				std::to_chars_result Result = std::to_chars(Buffer, Buffer + Size, Other, Base == 16 ? std::chars_format::hex : std::chars_format::fixed);
-				return Result.ec == std::errc() ? std::string_view(Buffer, Result.ptr - Buffer) : std::string_view();
+				std::to_chars_result result = std::to_chars(buffer, buffer + size, other, base == 16 ? std::chars_format::hex : std::chars_format::fixed);
+				return result.ec == std::errc() ? std::string_view(buffer, result.ptr - buffer) : std::string_view();
 			}
 		}
-		template <typename T>
-		inline String ToString(T Other, int Base = 10)
+		template <typename t>
+		inline string to_string(t other, int base = 10)
 		{
-			char Buffer[32];
-			return String(ToStringView<T>(Buffer, sizeof(Buffer), Other, Base));
+			char buffer[32];
+			return string(to_string_view<t>(buffer, sizeof(buffer), other, base));
 		}
 	}
 }
-
-using decimal_t = Vitex::Core::Decimal;
 #endif

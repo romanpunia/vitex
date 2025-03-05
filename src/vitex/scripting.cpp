@@ -11,3668 +11,3673 @@
 
 namespace
 {
-	class CByteCodeStream : public asIBinaryStream
+	class cbyte_code_stream : public asIBinaryStream
 	{
 	private:
-		Vitex::Core::Vector<asBYTE> Code;
-		int ReadPos, WritePos;
+		vitex::core::vector<asBYTE> code;
+		int read_pos, write_pos;
 
 	public:
-		CByteCodeStream() : ReadPos(0), WritePos(0)
+		cbyte_code_stream() : read_pos(0), write_pos(0)
 		{
 		}
-		CByteCodeStream(const Vitex::Core::Vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
+		cbyte_code_stream(const vitex::core::vector<asBYTE>& data) : code(data), read_pos(0), write_pos(0)
 		{
 		}
-		int Read(void* Ptr, asUINT Size)
+		int Read(void* ptr, asUINT size) override
 		{
-			VI_ASSERT(Ptr && Size, "corrupted read");
-			memcpy(Ptr, &Code[ReadPos], Size);
-			ReadPos += Size;
+			VI_ASSERT(ptr && size, "corrupted read");
+			memcpy(ptr, &code[read_pos], size);
+			read_pos += size;
 
 			return 0;
 		}
-		int Write(const void* Ptr, asUINT Size)
+		int Write(const void* ptr, asUINT size) override
 		{
-			VI_ASSERT(Ptr && Size, "corrupted write");
-			Code.resize(Code.size() + Size);
-			memcpy(&Code[WritePos], Ptr, Size);
-			WritePos += Size;
+			VI_ASSERT(ptr && size, "corrupted write");
+			code.resize(code.size() + size);
+			memcpy(&code[write_pos], ptr, size);
+			write_pos += size;
 
 			return 0;
 		}
-		Vitex::Core::Vector<asBYTE>& GetCode()
+		vitex::core::vector<asBYTE>& GetCode()
 		{
-			return Code;
+			return code;
 		}
 		asUINT GetSize()
 		{
-			return (asUINT)Code.size();
+			return (asUINT)code.size();
 		}
 	};
 
-	struct DEnum
+	struct denum
 	{
-		Vitex::Core::Vector<Vitex::Core::String> Values;
+		vitex::core::vector<vitex::core::string> values;
 	};
 
-	struct DClass
+	struct dclass
 	{
-		Vitex::Core::Vector<Vitex::Core::String> Props;
-		Vitex::Core::Vector<Vitex::Core::String> Interfaces;
-		Vitex::Core::Vector<Vitex::Core::String> Types;
-		Vitex::Core::Vector<Vitex::Core::String> Funcdefs;
-		Vitex::Core::Vector<Vitex::Core::String> Methods;
-		Vitex::Core::Vector<Vitex::Core::String> Functions;
+		vitex::core::vector<vitex::core::string> props;
+		vitex::core::vector<vitex::core::string> interfaces;
+		vitex::core::vector<vitex::core::string> types;
+		vitex::core::vector<vitex::core::string> funcdefs;
+		vitex::core::vector<vitex::core::string> methods;
+		vitex::core::vector<vitex::core::string> functions;
 	};
 
-	struct DNamespace
+	struct dnamespace
 	{
-		Vitex::Core::UnorderedMap<Vitex::Core::String, DEnum> Enums;
-		Vitex::Core::UnorderedMap<Vitex::Core::String, DClass> Classes;
-		Vitex::Core::Vector<Vitex::Core::String> Funcdefs;
-		Vitex::Core::Vector<Vitex::Core::String> Functions;
+		vitex::core::unordered_map<vitex::core::string, denum> enums;
+		vitex::core::unordered_map<vitex::core::string, dclass> classes;
+		vitex::core::vector<vitex::core::string> funcdefs;
+		vitex::core::vector<vitex::core::string> functions;
 	};
 
-	Vitex::Core::String GetCombination(const Vitex::Core::Vector<Vitex::Core::String>& Names, const Vitex::Core::String& By)
+	vitex::core::string get_combination(const vitex::core::vector<vitex::core::string>& names, const vitex::core::string& by)
 	{
-		Vitex::Core::String Result;
-		for (size_t i = 0; i < Names.size(); i++)
+		vitex::core::string result;
+		for (size_t i = 0; i < names.size(); i++)
 		{
-			Result.append(Names[i]);
-			if (i + 1 < Names.size())
-				Result.append(By);
+			result.append(names[i]);
+			if (i + 1 < names.size())
+				result.append(by);
 		}
 
-		return Result;
+		return result;
 	}
-	Vitex::Core::String GetCombinationAll(const Vitex::Core::Vector<Vitex::Core::String>& Names, const Vitex::Core::String& By, const Vitex::Core::String& EndBy)
+	vitex::core::string get_combination_all(const vitex::core::vector<vitex::core::string>& names, const vitex::core::string& by, const vitex::core::string& end_by)
 	{
-		Vitex::Core::String Result;
-		for (size_t i = 0; i < Names.size(); i++)
+		vitex::core::string result;
+		for (size_t i = 0; i < names.size(); i++)
 		{
-			Result.append(Names[i]);
-			if (i + 1 < Names.size())
-				Result.append(By);
+			result.append(names[i]);
+			if (i + 1 < names.size())
+				result.append(by);
 			else
-				Result.append(EndBy);
+				result.append(end_by);
 		}
 
-		return Result;
+		return result;
 	}
-	Vitex::Core::String GetTypeNaming(asITypeInfo* Type)
+	vitex::core::string get_type_naming(asITypeInfo* type)
 	{
-		const char* Namespace = Type->GetNamespace();
-		return (Namespace ? Namespace + Vitex::Core::String("::") : Vitex::Core::String("")) + Type->GetName();
+		const char* name_space = type->GetNamespace();
+		return (name_space ? name_space + vitex::core::string("::") : vitex::core::string("")) + type->GetName();
 	}
-	asITypeInfo* GetTypeNamespacing(asIScriptEngine* Engine, const Vitex::Core::String& Name)
+	asITypeInfo* get_type_namespacing(asIScriptEngine* engine, const vitex::core::string& name)
 	{
-		asITypeInfo* Result = Engine->GetTypeInfoByName(Name.c_str());
-		if (Result != nullptr)
-			return Result;
+		asITypeInfo* result = engine->GetTypeInfoByName(name.c_str());
+		if (result != nullptr)
+			return result;
 
-		return Engine->GetTypeInfoByName((Name + "@").c_str());
+		return engine->GetTypeInfoByName((name + "@").c_str());
 	}
-	void DumpNamespace(Vitex::Core::String& Source, const Vitex::Core::String& Naming, DNamespace& Namespace, Vitex::Core::String& Offset)
+	void dump_namespace(vitex::core::string& source, const vitex::core::string& naming, dnamespace& name_space, vitex::core::string& offset)
 	{
-		if (!Naming.empty())
+		if (!naming.empty())
 		{
-			Offset.append("\t");
-			Source += Vitex::Core::Stringify::Text("namespace %s\n{\n", Naming.c_str());
+			offset.append("\t");
+			source += vitex::core::stringify::text("namespace %s\n{\n", naming.c_str());
 		}
 
-		for (auto It = Namespace.Enums.begin(); It != Namespace.Enums.end(); It++)
+		for (auto it = name_space.enums.begin(); it != name_space.enums.end(); it++)
 		{
-			auto Copy = It;
-			Source += Vitex::Core::Stringify::Text("%senum %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
-			Source += Vitex::Core::Stringify::Text("%s", GetCombination(It->second.Values, ",\n\t" + Offset).c_str());
-			Source += Vitex::Core::Stringify::Text("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Enums.end() ? "\n" : "");
+			auto copy = it;
+			source += vitex::core::stringify::text("%senum %s\n%s{\n\t%s", offset.c_str(), it->first.c_str(), offset.c_str(), offset.c_str());
+			source += vitex::core::stringify::text("%s", get_combination(it->second.values, ",\n\t" + offset).c_str());
+			source += vitex::core::stringify::text("\n%s}\n%s", offset.c_str(), ++copy != name_space.enums.end() ? "\n" : "");
 		}
 
-		if (!Namespace.Enums.empty() && (!Namespace.Classes.empty() || !Namespace.Funcdefs.empty() || !Namespace.Functions.empty()))
-			Source += Vitex::Core::Stringify::Text("\n");
+		if (!name_space.enums.empty() && (!name_space.classes.empty() || !name_space.funcdefs.empty() || !name_space.functions.empty()))
+			source += vitex::core::stringify::text("\n");
 
-		for (auto It = Namespace.Classes.begin(); It != Namespace.Classes.end(); It++)
+		for (auto it = name_space.classes.begin(); it != name_space.classes.end(); it++)
 		{
-			auto Copy = It;
-			Source += Vitex::Core::Stringify::Text("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
-				Offset.c_str(),
-				It->first.c_str(),
-				It->second.Types.empty() ? "" : "<",
-				It->second.Types.empty() ? "" : GetCombination(It->second.Types, ", ").c_str(),
-				It->second.Types.empty() ? "" : ">",
-				It->second.Interfaces.empty() ? "" : " : ",
-				It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
-				Offset.c_str(), Offset.c_str());
-			Source += Vitex::Core::Stringify::Text("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
-			Source += Vitex::Core::Stringify::Text("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
-			Source += Vitex::Core::Stringify::Text("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str());
-			Source += Vitex::Core::Stringify::Text("\n%s}\n%s", Offset.c_str(), !It->second.Functions.empty() || ++Copy != Namespace.Classes.end() ? "\n" : "");
+			auto copy = it;
+			source += vitex::core::stringify::text("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
+				offset.c_str(),
+				it->first.c_str(),
+				it->second.types.empty() ? "" : "<",
+				it->second.types.empty() ? "" : get_combination(it->second.types, ", ").c_str(),
+				it->second.types.empty() ? "" : ">",
+				it->second.interfaces.empty() ? "" : " : ",
+				it->second.interfaces.empty() ? "" : get_combination(it->second.interfaces, ", ").c_str(),
+				offset.c_str(), offset.c_str());
+			source += vitex::core::stringify::text("%s", get_combination_all(it->second.funcdefs, ";\n\t" + offset, it->second.props.empty() && it->second.methods.empty() ? ";" : ";\n\n\t" + offset).c_str());
+			source += vitex::core::stringify::text("%s", get_combination_all(it->second.props, ";\n\t" + offset, it->second.methods.empty() ? ";" : ";\n\n\t" + offset).c_str());
+			source += vitex::core::stringify::text("%s", get_combination_all(it->second.methods, ";\n\t" + offset, ";").c_str());
+			source += vitex::core::stringify::text("\n%s}\n%s", offset.c_str(), !it->second.functions.empty() || ++copy != name_space.classes.end() ? "\n" : "");
 
-			if (It->second.Functions.empty())
+			if (it->second.functions.empty())
 				continue;
 
-			Source += Vitex::Core::Stringify::Text("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
-			Source += Vitex::Core::Stringify::Text("%s", GetCombinationAll(It->second.Functions, ";\n\t" + Offset, ";").c_str());
-			Source += Vitex::Core::Stringify::Text("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "");
+			source += vitex::core::stringify::text("%snamespace %s\n%s{\n\t%s", offset.c_str(), it->first.c_str(), offset.c_str(), offset.c_str());
+			source += vitex::core::stringify::text("%s", get_combination_all(it->second.functions, ";\n\t" + offset, ";").c_str());
+			source += vitex::core::stringify::text("\n%s}\n%s", offset.c_str(), ++copy != name_space.classes.end() ? "\n" : "");
 		}
 
-		if (!Namespace.Funcdefs.empty())
+		if (!name_space.funcdefs.empty())
 		{
-			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
-				Source += Vitex::Core::Stringify::Text("\n%s", Offset.c_str());
+			if (!name_space.enums.empty() || !name_space.classes.empty())
+				source += vitex::core::stringify::text("\n%s", offset.c_str());
 			else
-				Source += Vitex::Core::Stringify::Text("%s", Offset.c_str());
+				source += vitex::core::stringify::text("%s", offset.c_str());
 		}
 
-		Source += Vitex::Core::Stringify::Text("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";\n" : "\n\n" + Offset).c_str());
-		if (!Namespace.Functions.empty() && Namespace.Funcdefs.empty())
+		source += vitex::core::stringify::text("%s", get_combination_all(name_space.funcdefs, ";\n" + offset, name_space.functions.empty() ? ";\n" : "\n\n" + offset).c_str());
+		if (!name_space.functions.empty() && name_space.funcdefs.empty())
 		{
-			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
-				Source += Vitex::Core::Stringify::Text("\n");
+			if (!name_space.enums.empty() || !name_space.classes.empty())
+				source += vitex::core::stringify::text("\n");
 			else
-				Source += Vitex::Core::Stringify::Text("%s", Offset.c_str());
+				source += vitex::core::stringify::text("%s", offset.c_str());
 		}
 
-		Source += Vitex::Core::Stringify::Text("%s", GetCombinationAll(Namespace.Functions, ";\n" + Offset, ";\n").c_str());
-		if (!Naming.empty())
+		source += vitex::core::stringify::text("%s", get_combination_all(name_space.functions, ";\n" + offset, ";\n").c_str());
+		if (!naming.empty())
 		{
-			Source += Vitex::Core::Stringify::Text("}");
-			Offset.erase(Offset.begin());
+			source += vitex::core::stringify::text("}");
+			offset.erase(offset.begin());
 		}
 		else
-			Source.erase(Source.end() - 1);
+			source.erase(source.end() - 1);
 	}
 }
 #endif
 
-namespace Vitex
+namespace vitex
 {
-	namespace Scripting
+	namespace scripting
 	{
-		static Core::Vector<Core::String> ExtractLinesOfCode(const std::string_view& Code, int Line, int Max)
+		static core::vector<core::string> extract_lines_of_code(const std::string_view& code, int line, int max)
 		{
-			Core::Vector<Core::String> Total;
-			size_t Start = 0, Size = Code.size();
-			size_t Offset = 0, Lines = 0;
-			size_t LeftSide = (Max - 1) / 2;
-			size_t RightSide = (Max - 1) - LeftSide;
-			size_t BaseRightSide = (RightSide > 0 ? RightSide - 1 : 0);
+			core::vector<core::string> total;
+			size_t start = 0, size = code.size();
+			size_t offset = 0, lines = 0;
+			size_t left_side = (max - 1) / 2;
+			size_t right_side = (max - 1) - left_side;
+			size_t base_right_side = (right_side > 0 ? right_side - 1 : 0);
 
-			VI_ASSERT(Max > 0, "max lines count should be at least one");
-			while (Offset < Size)
+			VI_ASSERT(max > 0, "max lines count should be at least one");
+			while (offset < size)
 			{
-				if (Code[Offset++] != '\n')
+				if (code[offset++] != '\n')
 				{
-					if (Offset != Size)
+					if (offset != size)
 						continue;
 				}
 
-				++Lines;
-				if (Lines >= Line - LeftSide && LeftSide > 0)
+				++lines;
+				if (lines >= line - left_side && left_side > 0)
 				{
-					Core::String Copy = Core::String(Code.substr(Start, Offset - Start));
-					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
-					Total.push_back(std::move(Copy));
-					--LeftSide; --Max;
+					core::string copy = core::string(code.substr(start, offset - start));
+					core::stringify::replace_of(copy, "\r\n\t\v", " ");
+					total.push_back(std::move(copy));
+					--left_side; --max;
 				}
-				else if (Lines == Line)
+				else if (lines == line)
 				{
-					Core::String Copy = Core::String(Code.substr(Start, Offset - Start));
-					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
-					Total.insert(Total.begin(), std::move(Copy));
-					--Max;
+					core::string copy = core::string(code.substr(start, offset - start));
+					core::stringify::replace_of(copy, "\r\n\t\v", " ");
+					total.insert(total.begin(), std::move(copy));
+					--max;
 				}
-				else if (Lines >= Line + (RightSide - BaseRightSide) && RightSide > 0)
+				else if (lines >= line + (right_side - base_right_side) && right_side > 0)
 				{
-					Core::String Copy = Core::String(Code.substr(Start, Offset - Start));
-					Core::Stringify::ReplaceOf(Copy, "\r\n\t\v", " ");
-					Total.push_back(std::move(Copy));
-					--RightSide; --Max;
+					core::string copy = core::string(code.substr(start, offset - start));
+					core::stringify::replace_of(copy, "\r\n\t\v", " ");
+					total.push_back(std::move(copy));
+					--right_side; --max;
 				}
 
-				Start = Offset;
-				if (!Max)
+				start = offset;
+				if (!max)
 					break;
 			}
 
-			for (auto& Item : Total)
+			for (auto& item : total)
 			{
-				if (!Core::Stringify::IsEmptyOrWhitespace(Item))
-					return Total;
+				if (!core::stringify::is_empty_or_whitespace(item))
+					return total;
 			}
 
-			Total.clear();
-			return Total;
+			total.clear();
+			return total;
 		}
-		static Core::String CharTrimEnd(const std::string_view& Value)
+		static core::string char_trim_end(const std::string_view& value)
 		{
-			Core::String Copy = Core::String(Value);
-			Core::Stringify::TrimEnd(Copy);
-			return Copy;
+			core::string copy = core::string(value);
+			core::stringify::trim_end(copy);
+			return copy;
 		}
-		static const char* OrEmpty(const char* Value)
+		static const char* or_empty(const char* value)
 		{
-			return Value ? Value : "";
+			return value ? value : "";
 		}
 
-		VirtualException::VirtualException(VirtualError NewErrorCode) : ErrorCode(NewErrorCode)
+		virtual_exception::virtual_exception(virtual_error new_error_code) : error_code(new_error_code)
 		{
-			if (ErrorCode != VirtualError::SUCCESS)
-				Message += VirtualMachine::GetErrorNameInfo(ErrorCode);
+			if (error_code != virtual_error::success)
+				error_message += virtual_machine::get_error_name_info(error_code);
 		}
-		VirtualException::VirtualException(VirtualError NewErrorCode, Core::String&& NewMessage) : ErrorCode(NewErrorCode)
+		virtual_exception::virtual_exception(virtual_error new_error_code, core::string&& new_message) : error_code(new_error_code)
 		{
-			Message = std::move(NewMessage);
-			if (ErrorCode == VirtualError::SUCCESS)
+			error_message = std::move(new_message);
+			if (error_code == virtual_error::success)
 				return;
 
-			Message += " CAUSING ";
-			Message += VirtualMachine::GetErrorNameInfo(ErrorCode);
+			error_message += " CAUSING ";
+			error_message += virtual_machine::get_error_name_info(error_code);
 		}
-		VirtualException::VirtualException(Core::String&& NewMessage)
+		virtual_exception::virtual_exception(core::string&& new_message)
 		{
-			Message = std::move(NewMessage);
+			error_message = std::move(new_message);
 		}
-		const char* VirtualException::type() const noexcept
+		const char* virtual_exception::type() const noexcept
 		{
 			return "virtual_error";
 		}
-		VirtualError VirtualException::error_code() const noexcept
+		virtual_error virtual_exception::code() const noexcept
 		{
-			return ErrorCode;
+			return error_code;
 		}
 
-		uint64_t TypeCache::Set(uint64_t Id, const std::string_view& Name)
+		uint64_t type_cache::set(uint64_t id, const std::string_view& name)
 		{
-			VI_ASSERT(Id > 0 && !Name.empty(), "id should be greater than zero and name should not be empty");
+			VI_ASSERT(id > 0 && !name.empty(), "id should be greater than zero and name should not be empty");
 
-			using Map = Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>;
-			if (!Names)
-				Names = Core::Memory::New<Map>();
+			using map = core::unordered_map<uint64_t, std::pair<core::string, int>>;
+			if (!names)
+				names = core::memory::init<map>();
 
-			(*Names)[Id] = std::make_pair(Name, (int)-1);
-			return Id;
+			(*names)[id] = std::make_pair(name, (int)-1);
+			return id;
 		}
-		int TypeCache::GetTypeId(uint64_t Id)
+		int type_cache::get_type_id(uint64_t id)
 		{
-			auto It = Names->find(Id);
-			if (It == Names->end())
+			auto it = names->find(id);
+			if (it == names->end())
 				return -1;
 
-			if (It->second.second < 0)
+			if (it->second.second < 0)
 			{
-				VirtualMachine* Engine = VirtualMachine::Get();
-				VI_ASSERT(Engine != nullptr, "engine should be set");
-				It->second.second = Engine->GetTypeIdByDecl(It->second.first.c_str());
+				virtual_machine* engine = virtual_machine::get();
+				VI_ASSERT(engine != nullptr, "engine should be set");
+				it->second.second = engine->get_type_id_by_decl(it->second.first.c_str());
 			}
 
-			return It->second.second;
+			return it->second.second;
 		}
-		void TypeCache::Cleanup()
+		void type_cache::cleanup()
 		{
-			Core::Memory::Delete(Names);
+			core::memory::deinit(names);
 		}
-		Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>* TypeCache::Names = nullptr;
+		core::unordered_map<uint64_t, std::pair<core::string, int>>* type_cache::names = nullptr;
 
-		ExpectsVM<void> Parser::ReplaceInlinePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
+		expects_vm<void> parser::replace_inline_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer)
 		{
-			return ReplacePreconditions(false, Core::String(Keyword) + ' ', Data, Replacer);
+			return replace_preconditions(false, core::string(keyword) + ' ', data, replacer);
 		}
-		ExpectsVM<void> Parser::ReplaceDirectivePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
+		expects_vm<void> parser::replace_directive_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer)
 		{
-			return ReplacePreconditions(true, Keyword, Data, Replacer);
+			return replace_preconditions(true, keyword, data, replacer);
 		}
-		ExpectsVM<void> Parser::ReplacePreconditions(bool IsDirective, const std::string_view& Match, Core::String& Code, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer)
+		expects_vm<void> parser::replace_preconditions(bool is_directive, const std::string_view& match, core::string& code, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer)
 		{
-			VI_ASSERT(!Match.empty(), "keyword should not be empty");
-			VI_ASSERT(Replacer != nullptr, "replacer callback should not be empty");
-			size_t MatchSize = Match.size();
-			size_t Offset = 0;
+			VI_ASSERT(!match.empty(), "keyword should not be empty");
+			VI_ASSERT(replacer != nullptr, "replacer callback should not be empty");
+			size_t match_size = match.size();
+			size_t offset = 0;
 
-			while (Offset < Code.size())
+			while (offset < code.size())
 			{
-				char U = Code[Offset];
-				if (U == '/' && Offset + 1 < Code.size() && (Code[Offset + 1] == '/' || Code[Offset + 1] == '*'))
+				char u = code[offset];
+				if (u == '/' && offset + 1 < code.size() && (code[offset + 1] == '/' || code[offset + 1] == '*'))
 				{
-					if (Code[++Offset] == '*')
+					if (code[++offset] == '*')
 					{
-						while (Offset + 1 < Code.size())
+						while (offset + 1 < code.size())
 						{
-							char N = Code[Offset++];
-							if (N == '*' && Code[Offset++] == '/')
+							char n = code[offset++];
+							if (n == '*' && code[offset++] == '/')
 								break;
 						}
 					}
 					else
 					{
-						while (Offset < Code.size())
+						while (offset < code.size())
 						{
-							char N = Code[Offset++];
-							if (N == '\r' || N == '\n')
+							char n = code[offset++];
+							if (n == '\r' || n == '\n')
 								break;
 						}
 					}
 
 					continue;
 				}
-				else if (U == '\"' || U == '\'')
+				else if (u == '\"' || u == '\'')
 				{
-					++Offset;
-					while (Offset < Code.size())
+					++offset;
+					while (offset < code.size())
 					{
-						if (Code[Offset++] == U && Core::Stringify::IsNotPrecededByEscape(Code, Offset - 1))
+						if (code[offset++] == u && core::stringify::is_not_preceded_by_escape(code, offset - 1))
 							break;
 					}
 
 					continue;
 				}
-				else if (Code.size() - Offset < MatchSize || memcmp(Code.c_str() + Offset, Match.data(), MatchSize) != 0)
+				else if (code.size() - offset < match_size || memcmp(code.c_str() + offset, match.data(), match_size) != 0)
 				{
-					++Offset;
+					++offset;
 					continue;
 				}
 
-				size_t Start = Offset + MatchSize;
-				while (Start < Code.size())
+				size_t start = offset + match_size;
+				while (start < code.size())
 				{
-					if (!Core::Stringify::IsWhitespace(Code[Start]))
+					if (!core::stringify::is_whitespace(code[start]))
 						break;
-					++Start;
+					++start;
 				}
 
-				int32_t Brackets = 0;
-				size_t End = Start;
-				while (End < Code.size())
+				int32_t brackets = 0;
+				size_t end = start;
+				while (end < code.size())
 				{
-					char V = Code[End];
-					if (V == ')')
+					char v = code[end];
+					if (v == ')')
 					{
-						if (--Brackets < 0)
+						if (--brackets < 0)
 							break;
 					}
-					else if (V == '"' || V == '\'')
+					else if (v == '"' || v == '\'')
 					{
-						++End;
-						while (End < Code.size() && (Code[End++] != V || !Core::Stringify::IsNotPrecededByEscape(Code, End - 1)));
-						--End;
+						++end;
+						while (end < code.size() && (code[end++] != v || !core::stringify::is_not_preceded_by_escape(code, end - 1)));
+						--end;
 					}
-					else if (V == ';')
+					else if (v == ';')
 					{
-						if (IsDirective)
-							++End;
+						if (is_directive)
+							++end;
 						break;
 					}
-					else if (V == '(')
-						++Brackets;
-					End++;
+					else if (v == '(')
+						++brackets;
+					end++;
 				}
 
-				if (Brackets > 0)
-					return VirtualException(Core::Stringify::Text("unexpected end of file, expected closing ')' symbol, offset %" PRIu64 ":\n%.*s <<<", (uint64_t)End, (int)(End - Start), Code.c_str() + Start));
-				
-				if (End == Start)
+				if (brackets > 0)
+					return virtual_exception(core::stringify::text("unexpected end of file, expected closing ')' symbol, offset %" PRIu64 ":\n%.*s <<<", (uint64_t)end, (int)(end - start), code.c_str() + start));
+
+				if (end == start)
 				{
-					Offset = End;
+					offset = end;
 					continue;
 				}
 
-				auto Expression = Replacer(Code.substr(Start, End - Start));
-				if (!Expression)
-					return Expression.Error();
+				auto expression = replacer(code.substr(start, end - start));
+				if (!expression)
+					return expression.error();
 
-				Core::Stringify::ReplacePart(Code, Offset, End, *Expression);
-				if (Expression->find(Match) == std::string::npos)
-					Offset += Expression->size();
+				core::stringify::replace_part(code, offset, end, *expression);
+				if (expression->find(match) == std::string::npos)
+					offset += expression->size();
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
 
-		ExpectsVM<void> FunctionFactory::AtomicNotifyGC(const std::string_view& TypeName, void* Object)
+		expects_vm<void> function_factory::atomic_notify_gc(const std::string_view& type_name, void* object)
 		{
-			VI_ASSERT(Object != nullptr, "object should be set");
+			VI_ASSERT(object != nullptr, "object should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Context = asGetActiveContext();
-			VI_ASSERT(Context != nullptr, "context should be set");
+			asIScriptContext* context = asGetActiveContext();
+			VI_ASSERT(context != nullptr, "context should be set");
 
-			VirtualMachine* Engine = VirtualMachine::Get(Context->GetEngine());
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			virtual_machine* engine = virtual_machine::get(context->GetEngine());
+			VI_ASSERT(engine != nullptr, "engine should be set");
 
-			TypeInfo Type = Engine->GetTypeInfoByName(TypeName);
-			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
+			typeinfo type = engine->get_type_info_by_name(type_name);
+			return engine->notify_of_new_object(object, type.get_type_info());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> FunctionFactory::AtomicNotifyGCById(int TypeId, void* Object)
+		expects_vm<void> function_factory::atomic_notify_gc_by_id(int type_id, void* object)
 		{
-			VI_ASSERT(Object != nullptr, "object should be set");
+			VI_ASSERT(object != nullptr, "object should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Context = asGetActiveContext();
-			VI_ASSERT(Context != nullptr, "context should be set");
+			asIScriptContext* context = asGetActiveContext();
+			VI_ASSERT(context != nullptr, "context should be set");
 
-			VirtualMachine* Engine = VirtualMachine::Get(Context->GetEngine());
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			virtual_machine* engine = virtual_machine::get(context->GetEngine());
+			VI_ASSERT(engine != nullptr, "engine should be set");
 
-			TypeInfo Type = Engine->GetTypeInfoById(TypeId);
-			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
+			typeinfo type = engine->get_type_info_by_id(type_id);
+			return engine->notify_of_new_object(object, type.get_type_info());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		asSFuncPtr* FunctionFactory::CreateFunctionBase(void(*Base)(), int Type)
+		asSFuncPtr* function_factory::create_function_base(void(*base)(), int type)
 		{
-			VI_ASSERT(Base != nullptr, "function pointer should be set");
+			VI_ASSERT(base != nullptr, "function pointer should be set");
 #ifdef VI_ANGELSCRIPT
-			asSFuncPtr* Ptr = Core::Memory::New<asSFuncPtr>(Type);
-			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
-			return Ptr;
-#else
-			return nullptr;
-#endif
-		}
-		asSFuncPtr* FunctionFactory::CreateMethodBase(const void* Base, size_t Size, int Type)
-		{
-			VI_ASSERT(Base != nullptr, "function pointer should be set");
-#ifdef VI_ANGELSCRIPT
-			asSFuncPtr* Ptr = Core::Memory::New<asSFuncPtr>(Type);
-			Ptr->CopyMethodPtr(Base, Size);
-			return Ptr;
+			asSFuncPtr* ptr = core::memory::init<asSFuncPtr>(type);
+			ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(base);
+			return ptr;
 #else
 			return nullptr;
 #endif
 		}
-		asSFuncPtr* FunctionFactory::CreateDummyBase()
+		asSFuncPtr* function_factory::create_method_base(const void* base, size_t size, int type)
 		{
+			VI_ASSERT(base != nullptr, "function pointer should be set");
 #ifdef VI_ANGELSCRIPT
-			return Core::Memory::New<asSFuncPtr>(0);
+			asSFuncPtr* ptr = core::memory::init<asSFuncPtr>(type);
+			ptr->CopyMethodPtr(base, size);
+			return ptr;
 #else
 			return nullptr;
 #endif
 		}
-		void FunctionFactory::ReleaseFunctor(asSFuncPtr** Ptr)
+		asSFuncPtr* function_factory::create_dummy_base()
 		{
-			if (!Ptr || !*Ptr)
+#ifdef VI_ANGELSCRIPT
+			return core::memory::init<asSFuncPtr>(0);
+#else
+			return nullptr;
+#endif
+		}
+		void function_factory::release_functor(asSFuncPtr** ptr)
+		{
+			if (!ptr || !*ptr)
 				return;
 #ifdef VI_ANGELSCRIPT
-			Core::Memory::Delete(*Ptr);
+			core::memory::deinit(*ptr);
 #endif
 		}
-		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, void* Reference)
+		void function_factory::gc_enum_callback(asIScriptEngine* engine, void* reference)
 		{
 #ifdef VI_ANGELSCRIPT
-			if (Reference != nullptr)
-				Engine->GCEnumCallback(Reference);
+			if (reference != nullptr)
+				engine->GCEnumCallback(reference);
 #endif
 		}
-		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, asIScriptFunction* Reference)
+		void function_factory::gc_enum_callback(asIScriptEngine* engine, asIScriptFunction* reference)
 		{
-			if (!Reference)
+			if (!reference)
 				return;
 #ifdef VI_ANGELSCRIPT
-			Engine->GCEnumCallback(Reference);
-			GCEnumCallback(Engine, Reference->GetDelegateFunction());
-			GCEnumCallback(Engine, Reference->GetDelegateObject());
-			GCEnumCallback(Engine, Reference->GetDelegateObjectType());
+			engine->GCEnumCallback(reference);
+			gc_enum_callback(engine, reference->GetDelegateFunction());
+			gc_enum_callback(engine, reference->GetDelegateObject());
+			gc_enum_callback(engine, reference->GetDelegateObjectType());
 #endif
 		}
-		void FunctionFactory::GCEnumCallback(asIScriptEngine* Engine, FunctionDelegate* Reference)
+		void function_factory::gc_enum_callback(asIScriptEngine* engine, function_delegate* reference)
 		{
-			if (Reference && Reference->IsValid())
-				GCEnumCallback(Engine, Reference->Callback);
+			if (reference && reference->is_valid())
+				gc_enum_callback(engine, reference->callback);
 		}
 
-		MessageInfo::MessageInfo(asSMessageInfo* Msg) noexcept : Info(Msg)
+		message_info::message_info(asSMessageInfo* msg) noexcept : info(msg)
 		{
 		}
-		std::string_view MessageInfo::GetSection() const
+		std::string_view message_info::get_section() const
 		{
-			VI_ASSERT(IsValid(), "message should be valid");
+			VI_ASSERT(is_valid(), "message should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->section);
+			return or_empty(info->section);
 #else
-			return OrEmpty("");
+			return or_empty("");
 #endif
 		}
-		std::string_view MessageInfo::GetText() const
+		std::string_view message_info::get_text() const
 		{
-			VI_ASSERT(IsValid(), "message should be valid");
+			VI_ASSERT(is_valid(), "message should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->message);
+			return or_empty(info->message);
 #else
 			return "";
 #endif
 		}
-		LogCategory MessageInfo::GetType() const
+		log_category message_info::get_type() const
 		{
-			VI_ASSERT(IsValid(), "message should be valid");
+			VI_ASSERT(is_valid(), "message should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (LogCategory)Info->type;
+			return (log_category)info->type;
 #else
-			return LogCategory::ERR;
+			return log_category::err;
 #endif
 		}
-		int MessageInfo::GetRow() const
+		int message_info::get_row() const
 		{
-			VI_ASSERT(IsValid(), "message should be valid");
+			VI_ASSERT(is_valid(), "message should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->row;
-#else
-			return 0;
-#endif
-		}
-		int MessageInfo::GetColumn() const
-		{
-			VI_ASSERT(IsValid(), "message should be valid");
-#ifdef VI_ANGELSCRIPT
-			return Info->col;
+			return info->row;
 #else
 			return 0;
 #endif
 		}
-		asSMessageInfo* MessageInfo::GetMessageInfo() const
+		int message_info::get_column() const
 		{
-			return Info;
+			VI_ASSERT(is_valid(), "message should be valid");
+#ifdef VI_ANGELSCRIPT
+			return info->col;
+#else
+			return 0;
+#endif
 		}
-		bool MessageInfo::IsValid() const
+		asSMessageInfo* message_info::get_message_info() const
 		{
-			return Info != nullptr;
+			return info;
+		}
+		bool message_info::is_valid() const
+		{
+			return info != nullptr;
 		}
 
-		TypeInfo::TypeInfo(asITypeInfo* TypeInfo) noexcept : Info(TypeInfo)
+		typeinfo::typeinfo(asITypeInfo* typeinfo) noexcept : info(typeinfo)
 		{
 #ifdef VI_ANGELSCRIPT
-			VM = (Info ? VirtualMachine::Get(Info->GetEngine()) : nullptr);
+			vm = (info ? virtual_machine::get(info->GetEngine()) : nullptr);
 #endif
 		}
-		void TypeInfo::ForEachProperty(const PropertyCallback& Callback)
+		void typeinfo::for_each_property(const property_callback& callback)
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-			VI_ASSERT(Callback, "typeinfo should not be empty");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(callback, "typeinfo should not be empty");
 #ifdef VI_ANGELSCRIPT
-			unsigned int Count = Info->GetPropertyCount();
-			for (unsigned int i = 0; i < Count; i++)
+			unsigned int count = info->GetPropertyCount();
+			for (unsigned int i = 0; i < count; i++)
 			{
-				FunctionInfo Prop;
-				if (GetProperty(i, &Prop))
-					Callback(this, &Prop);
+				function_info prop;
+				if (get_property(i, &prop))
+					callback(this, &prop);
 			}
 #endif
 		}
-		void TypeInfo::ForEachMethod(const MethodCallback& Callback)
+		void typeinfo::for_each_method(const method_callback& callback)
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-			VI_ASSERT(Callback, "typeinfo should not be empty");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(callback, "typeinfo should not be empty");
 #ifdef VI_ANGELSCRIPT
-			unsigned int Count = Info->GetMethodCount();
-			for (unsigned int i = 0; i < Count; i++)
+			unsigned int count = info->GetMethodCount();
+			for (unsigned int i = 0; i < count; i++)
 			{
-				Function Method = Info->GetMethodByIndex(i);
-				if (Method.IsValid())
-					Callback(this, &Method);
+				function method = info->GetMethodByIndex(i);
+				if (method.is_valid())
+					callback(this, &method);
 			}
 #endif
 		}
-		std::string_view TypeInfo::GetGroup() const
+		std::string_view typeinfo::get_group() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->GetConfigGroup());
+			return or_empty(info->GetConfigGroup());
 #else
 			return "";
 #endif
 		}
-		size_t TypeInfo::GetAccessMask() const
+		size_t typeinfo::get_access_mask() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetAccessMask();
+			return info->GetAccessMask();
 #else
 			return 0;
 #endif
 		}
-		Module TypeInfo::GetModule() const
+		library typeinfo::get_module() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetModule();
+			return info->GetModule();
 #else
-			return Module(nullptr);
+			return library(nullptr);
 #endif
 		}
-		void TypeInfo::AddRef() const
+		void typeinfo::add_ref() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			Info->AddRef();
+			info->AddRef();
 #endif
 		}
-		void TypeInfo::Release()
+		void typeinfo::release()
 		{
-			if (!IsValid())
+			if (!is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			Core::Memory::Release(Info);
+			info->Release();
 #endif
 		}
-		std::string_view TypeInfo::GetName() const
+		std::string_view typeinfo::get_name() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->GetName());
+			return or_empty(info->GetName());
 #else
 			return "";
 #endif
 		}
-		std::string_view TypeInfo::GetNamespace() const
+		std::string_view typeinfo::get_namespace() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->GetNamespace());
+			return or_empty(info->GetNamespace());
 #else
 			return "";
 #endif
 		}
-		TypeInfo TypeInfo::GetBaseType() const
+		typeinfo typeinfo::get_base_type() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetBaseType();
+			return info->GetBaseType();
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		bool TypeInfo::DerivesFrom(const TypeInfo& Type) const
+		bool typeinfo::derives_from(const typeinfo& type) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->DerivesFrom(Type.GetTypeInfo());
+			return info->DerivesFrom(type.get_type_info());
 #else
 			return false;
 #endif
 		}
-		size_t TypeInfo::Flags() const
+		size_t typeinfo::flags() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetFlags();
+			return info->GetFlags();
 #else
 			return 0;
 #endif
 		}
-		size_t TypeInfo::Size() const
+		size_t typeinfo::size() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetSize();
+			return (size_t)info->GetSize();
 #else
 			return 0;
 #endif
 		}
-		int TypeInfo::GetTypeId() const
+		int typeinfo::get_type_id() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetTypeId();
+			return info->GetTypeId();
 #else
 			return -1;
 #endif
 		}
-		int TypeInfo::GetSubTypeId(size_t SubTypeIndex) const
+		int typeinfo::get_sub_type_id(size_t sub_type_index) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetSubTypeId((asUINT)SubTypeIndex);
+			return info->GetSubTypeId((asUINT)sub_type_index);
 #else
 			return -1;
 #endif
 		}
-		TypeInfo TypeInfo::GetSubType(size_t SubTypeIndex) const
+		typeinfo typeinfo::get_sub_type(size_t sub_type_index) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetSubType((asUINT)SubTypeIndex);
+			return info->GetSubType((asUINT)sub_type_index);
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		size_t TypeInfo::GetSubTypeCount() const
+		size_t typeinfo::get_sub_type_count() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetSubTypeCount();
-#else
-			return 0;
-#endif
-		}
-		size_t TypeInfo::GetInterfaceCount() const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetInterfaceCount();
+			return (size_t)info->GetSubTypeCount();
 #else
 			return 0;
 #endif
 		}
-		TypeInfo TypeInfo::GetInterface(size_t Index) const
+		size_t typeinfo::get_interface_count() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetInterface((asUINT)Index);
+			return (size_t)info->GetInterfaceCount();
 #else
-			return TypeInfo(nullptr);
+			return 0;
 #endif
 		}
-		bool TypeInfo::Implements(const TypeInfo& Type) const
+		typeinfo typeinfo::get_interface(size_t index) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->Implements(Type.GetTypeInfo());
+			return info->GetInterface((asUINT)index);
+#else
+			return typeinfo(nullptr);
+#endif
+		}
+		bool typeinfo::implements(const typeinfo& type) const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return info->Implements(type.get_type_info());
 #else
 			return false;
 #endif
 		}
-		size_t TypeInfo::GetFactoriesCount() const
+		size_t typeinfo::get_factories_count() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetFactoryCount();
+			return (size_t)info->GetFactoryCount();
 #else
 			return 0;
 #endif
 		}
-		Function TypeInfo::GetFactoryByIndex(size_t Index) const
+		function typeinfo::get_factory_by_index(size_t index) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetFactoryByIndex((asUINT)Index);
+			return info->GetFactoryByIndex((asUINT)index);
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		Function TypeInfo::GetFactoryByDecl(const std::string_view& Decl) const
+		function typeinfo::get_factory_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetFactoryByDecl(Decl.data());
+			return info->GetFactoryByDecl(decl.data());
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		size_t TypeInfo::GetMethodsCount() const
+		size_t typeinfo::get_methods_count() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetMethodCount();
-#else
-			return 0;
-#endif
-		}
-		Function TypeInfo::GetMethodByIndex(size_t Index, bool GetVirtual) const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return Info->GetMethodByIndex((asUINT)Index, GetVirtual);
-#else
-			return Function(nullptr);
-#endif
-		}
-		Function TypeInfo::GetMethodByName(const std::string_view& Name, bool GetVirtual) const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-#ifdef VI_ANGELSCRIPT
-			return Info->GetMethodByName(Name.data(), GetVirtual);
-#else
-			return Function(nullptr);
-#endif
-		}
-		Function TypeInfo::GetMethodByDecl(const std::string_view& Decl, bool GetVirtual) const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-#ifdef VI_ANGELSCRIPT
-			return Info->GetMethodByDecl(Decl.data(), GetVirtual);
-#else
-			return Function(nullptr);
-#endif
-		}
-		size_t TypeInfo::GetPropertiesCount() const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetPropertyCount();
+			return (size_t)info->GetMethodCount();
 #else
 			return 0;
 #endif
 		}
-		ExpectsVM<void> TypeInfo::GetProperty(size_t Index, FunctionInfo* Out) const
+		function typeinfo::get_method_by_index(size_t index, bool get_virtual) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			const char* Name;
-			asDWORD AccessMask;
-			int TypeId, Offset;
-			bool IsPrivate;
-			bool IsProtected;
-			bool IsReference;
-			int R = Info->GetProperty((asUINT)Index, &Name, &TypeId, &IsPrivate, &IsProtected, &Offset, &IsReference, &AccessMask);
-			if (Out != nullptr)
+			return info->GetMethodByIndex((asUINT)index, get_virtual);
+#else
+			return function(nullptr);
+#endif
+		}
+		function typeinfo::get_method_by_name(const std::string_view& name, bool get_virtual) const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+#ifdef VI_ANGELSCRIPT
+			return info->GetMethodByName(name.data(), get_virtual);
+#else
+			return function(nullptr);
+#endif
+		}
+		function typeinfo::get_method_by_decl(const std::string_view& decl, bool get_virtual) const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+#ifdef VI_ANGELSCRIPT
+			return info->GetMethodByDecl(decl.data(), get_virtual);
+#else
+			return function(nullptr);
+#endif
+		}
+		size_t typeinfo::get_properties_count() const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return (size_t)info->GetPropertyCount();
+#else
+			return 0;
+#endif
+		}
+		expects_vm<void> typeinfo::get_property(size_t index, function_info* out) const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			const char* name;
+			asDWORD access_mask;
+			int type_id, offset;
+			bool is_private;
+			bool is_protected;
+			bool is_reference;
+			int r = info->GetProperty((asUINT)index, &name, &type_id, &is_private, &is_protected, &offset, &is_reference, &access_mask);
+			if (out != nullptr)
 			{
-				Out->Name = Name;
-				Out->AccessMask = (size_t)AccessMask;
-				Out->TypeId = TypeId;
-				Out->Offset = Offset;
-				Out->IsPrivate = IsPrivate;
-				Out->IsProtected = IsProtected;
-				Out->IsReference = IsReference;
+				out->name = name;
+				out->access_mask = (size_t)access_mask;
+				out->type_id = type_id;
+				out->offset = offset;
+				out->is_private = is_private;
+				out->is_protected = is_protected;
+				out->is_reference = is_reference;
 			}
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		std::string_view TypeInfo::GetPropertyDeclaration(size_t Index, bool IncludeNamespace) const
+		std::string_view typeinfo::get_property_declaration(size_t index, bool include_namespace) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->GetPropertyDeclaration((asUINT)Index, IncludeNamespace));
-#else
-			return "";
-#endif
-		}
-		size_t TypeInfo::GetBehaviourCount() const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetBehaviourCount();
-#else
-			return 0;
-#endif
-		}
-		Function TypeInfo::GetBehaviourByIndex(size_t Index, Behaviours* OutBehaviour) const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			asEBehaviours Out;
-			asIScriptFunction* Result = Info->GetBehaviourByIndex((asUINT)Index, &Out);
-			if (OutBehaviour != nullptr)
-				*OutBehaviour = (Behaviours)Out;
-
-			return Result;
-#else
-			return Function(nullptr);
-#endif
-		}
-		size_t TypeInfo::GetChildFunctionDefCount() const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetChildFuncdefCount();
-#else
-			return 0;
-#endif
-		}
-		TypeInfo TypeInfo::GetChildFunctionDef(size_t Index) const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return Info->GetChildFuncdef((asUINT)Index);
-#else
-			return TypeInfo(nullptr);
-#endif
-		}
-		TypeInfo TypeInfo::GetParentType() const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return Info->GetParentType();
-#else
-			return TypeInfo(nullptr);
-#endif
-		}
-		size_t TypeInfo::GetEnumValueCount() const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return (size_t)Info->GetEnumValueCount();
-#else
-			return 0;
-#endif
-		}
-		std::string_view TypeInfo::GetEnumValueByIndex(size_t Index, int* OutValue) const
-		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
-#ifdef VI_ANGELSCRIPT
-			return OrEmpty(Info->GetEnumValueByIndex((asUINT)Index, OutValue));
+			return or_empty(info->GetPropertyDeclaration((asUINT)index, include_namespace));
 #else
 			return "";
 #endif
 		}
-		Function TypeInfo::GetFunctionDefSignature() const
+		size_t typeinfo::get_behaviour_count() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetFuncdefSignature();
+			return (size_t)info->GetBehaviourCount();
 #else
-			return Function(nullptr);
+			return 0;
 #endif
 		}
-		void* TypeInfo::SetUserData(void* Data, size_t Type)
+		function typeinfo::get_behaviour_by_index(size_t index, behaviours* out_behaviour) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->SetUserData(Data, Type);
+			asEBehaviours out;
+			asIScriptFunction* result = info->GetBehaviourByIndex((asUINT)index, &out);
+			if (out_behaviour != nullptr)
+				*out_behaviour = (behaviours)out;
+
+			return result;
+#else
+			return function(nullptr);
+#endif
+		}
+		size_t typeinfo::get_child_function_def_count() const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return (size_t)info->GetChildFuncdefCount();
+#else
+			return 0;
+#endif
+		}
+		typeinfo typeinfo::get_child_function_def(size_t index) const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return info->GetChildFuncdef((asUINT)index);
+#else
+			return typeinfo(nullptr);
+#endif
+		}
+		typeinfo typeinfo::get_parent_type() const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return info->GetParentType();
+#else
+			return typeinfo(nullptr);
+#endif
+		}
+		size_t typeinfo::get_enum_value_count() const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return (size_t)info->GetEnumValueCount();
+#else
+			return 0;
+#endif
+		}
+		std::string_view typeinfo::get_enum_value_by_index(size_t index, int* out_value) const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return or_empty(info->GetEnumValueByIndex((asUINT)index, out_value));
+#else
+			return "";
+#endif
+		}
+		function typeinfo::get_function_def_signature() const
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return info->GetFuncdefSignature();
+#else
+			return function(nullptr);
+#endif
+		}
+		void* typeinfo::set_user_data(void* data, size_t type)
+		{
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
+#ifdef VI_ANGELSCRIPT
+			return info->SetUserData(data, type);
 #else
 			return nullptr;
 #endif
 		}
-		void* TypeInfo::GetUserData(size_t Type) const
+		void* typeinfo::get_user_data(size_t type) const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Info->GetUserData(Type);
+			return info->GetUserData(type);
 #else
 			return nullptr;
 #endif
 		}
-		bool TypeInfo::IsHandle() const
+		bool typeinfo::is_handle() const
 		{
-			VI_ASSERT(IsValid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "typeinfo should be valid");
 #ifdef VI_ANGELSCRIPT
-			return IsHandle(Info->GetTypeId());
+			return is_handle(info->GetTypeId());
 #else
 			return false;
 #endif
 		}
-		bool TypeInfo::IsValid() const
+		bool typeinfo::is_valid() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM != nullptr && Info != nullptr;
+			return vm != nullptr && info != nullptr;
 #else
 			return false;
 #endif
 		}
-		asITypeInfo* TypeInfo::GetTypeInfo() const
+		asITypeInfo* typeinfo::get_type_info() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Info;
+			return info;
 #else
 			return nullptr;
 #endif
 		}
-		VirtualMachine* TypeInfo::GetVM() const
+		virtual_machine* typeinfo::get_vm() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM;
+			return vm;
 #else
 			return nullptr;
 #endif
 		}
-		bool TypeInfo::IsHandle(int TypeId)
+		bool typeinfo::is_handle(int type_id)
 		{
 #ifdef VI_ANGELSCRIPT
-			return (TypeId & asTYPEID_OBJHANDLE || TypeId & asTYPEID_HANDLETOCONST);
+			return (type_id & asTYPEID_OBJHANDLE || type_id & asTYPEID_HANDLETOCONST);
 #else
 			return false;
 #endif
 		}
-		bool TypeInfo::IsScriptObject(int TypeId)
+		bool typeinfo::is_script_object(int type_id)
 		{
 #ifdef VI_ANGELSCRIPT
-			return (TypeId & asTYPEID_SCRIPTOBJECT);
+			return (type_id & asTYPEID_SCRIPTOBJECT);
 #else
 			return false;
 #endif
 		}
 
-		Function::Function(asIScriptFunction* Base) noexcept : Ptr(Base)
+		function::function(asIScriptFunction* base) noexcept : ptr(base)
 		{
 #ifdef VI_ANGELSCRIPT
-			VM = (Base ? VirtualMachine::Get(Base->GetEngine()) : nullptr);
+			vm = (base ? virtual_machine::get(base->GetEngine()) : nullptr);
 #endif
 		}
-		Function::Function(const Function& Base) noexcept : VM(Base.VM), Ptr(Base.Ptr)
+		function::function(const function& base) noexcept : vm(base.vm), ptr(base.ptr)
 		{
 		}
-		void Function::AddRef() const
+		void function::add_ref() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			Ptr->AddRef();
+			ptr->AddRef();
 #endif
 		}
-		void Function::Release()
+		void function::release()
 		{
-			if (!IsValid())
+			if (!is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			Core::Memory::Release(Ptr);
+			ptr->Release();
 #endif
 		}
-		int Function::GetId() const
+		int function::get_id() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetId();
+			return ptr->GetId();
 #else
 			return -1;
 #endif
 		}
-		FunctionType Function::GetType() const
+		function_type function::get_type() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (FunctionType)Ptr->GetFuncType();
+			return (function_type)ptr->GetFuncType();
 #else
-			return FunctionType::DUMMY;
+			return function_type::dummy;
 #endif
 		}
-		uint32_t* Function::GetByteCode(size_t* Size) const
+		uint32_t* function::get_byte_code(size_t* size) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			asUINT DataSize = 0;
-			asDWORD* Data = Ptr->GetByteCode(&DataSize);
-			if (Size != nullptr)
-				*Size = DataSize;
-			return (uint32_t*)Data;
+			asUINT data_size = 0;
+			asDWORD* data = ptr->GetByteCode(&data_size);
+			if (size != nullptr)
+				*size = data_size;
+			return (uint32_t*)data;
 #else
 			return nullptr;
 #endif
 		}
-		std::string_view Function::GetModuleName() const
+		std::string_view function::get_module_name() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetModuleName());
+			return or_empty(ptr->GetModuleName());
 #else
 			return "";
 #endif
 		}
-		Module Function::GetModule() const
+		library function::get_module() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetModule();
+			return ptr->GetModule();
 #else
-			return Module(nullptr);
+			return library(nullptr);
 #endif
 		}
-		std::string_view Function::GetSectionName() const
+		std::string_view function::get_section_name() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetScriptSectionName());
-#else
-			return "";
-#endif
-		}
-		std::string_view Function::GetGroup() const
-		{
-			VI_ASSERT(IsValid(), "function should be valid");
-#ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetConfigGroup());
+			return or_empty(ptr->GetScriptSectionName());
 #else
 			return "";
 #endif
 		}
-		size_t Function::GetAccessMask() const
+		std::string_view function::get_group() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetAccessMask();
+			return or_empty(ptr->GetConfigGroup());
+#else
+			return "";
+#endif
+		}
+		size_t function::get_access_mask() const
+		{
+			VI_ASSERT(is_valid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
+			return ptr->GetAccessMask();
 #else
 			return 0;
 #endif
 		}
-		TypeInfo Function::GetObjectType() const
+		typeinfo function::get_object_type() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetObjectType();
+			return ptr->GetObjectType();
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		std::string_view Function::GetObjectName() const
+		std::string_view function::get_object_name() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetObjectName());
-#else
-			return "";
-#endif
-		}
-		std::string_view Function::GetName() const
-		{
-			VI_ASSERT(IsValid(), "function should be valid");
-#ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetName());
+			return or_empty(ptr->GetObjectName());
 #else
 			return "";
 #endif
 		}
-		std::string_view Function::GetNamespace() const
+		std::string_view function::get_name() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetNamespace());
+			return or_empty(ptr->GetName());
 #else
 			return "";
 #endif
 		}
-		std::string_view Function::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
+		std::string_view function::get_namespace() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames));
+			return or_empty(ptr->GetNamespace());
 #else
 			return "";
 #endif
 		}
-		bool Function::IsReadOnly() const
+		std::string_view function::get_decl(bool include_object_name, bool include_namespace, bool include_arg_names) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsReadOnly();
+			return or_empty(ptr->GetDeclaration(include_object_name, include_namespace, include_arg_names));
+#else
+			return "";
+#endif
+		}
+		bool function::is_read_only() const
+		{
+			VI_ASSERT(is_valid(), "function should be valid");
+#ifdef VI_ANGELSCRIPT
+			return ptr->IsReadOnly();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsPrivate() const
+		bool function::is_private() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsPrivate();
+			return ptr->IsPrivate();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsProtected() const
+		bool function::is_protected() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsProtected();
+			return ptr->IsProtected();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsFinal() const
+		bool function::is_final() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsFinal();
+			return ptr->IsFinal();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsOverride() const
+		bool function::is_override() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsOverride();
+			return ptr->IsOverride();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsShared() const
+		bool function::is_shared() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsShared();
+			return ptr->IsShared();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsExplicit() const
+		bool function::is_explicit() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsExplicit();
+			return ptr->IsExplicit();
 #else
 			return false;
 #endif
 		}
-		bool Function::IsProperty() const
+		bool function::is_property() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsProperty();
+			return ptr->IsProperty();
 #else
 			return false;
 #endif
 		}
-		size_t Function::GetArgsCount() const
+		size_t function::get_args_count() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Ptr->GetParamCount();
+			return (size_t)ptr->GetParamCount();
 #else
 			return 0;
 #endif
 		}
-		ExpectsVM<void> Function::GetArg(size_t Index, int* TypeId, size_t* Flags, std::string_view* Name, std::string_view* DefaultArg) const
+		expects_vm<void> function::get_arg(size_t index, int* type_id, size_t* flags, std::string_view* name, std::string_view* default_arg) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
 			const char* asName = "";
 			const char* asDefaultArg = "";
-			int R = Ptr->GetParam((asUINT)Index, TypeId, &asFlags, &asName, &asDefaultArg);
-			if (Flags != nullptr)
-				*Flags = (size_t)asFlags;
-			if (Name != nullptr)
-				*Name = asName;
-			if (DefaultArg != nullptr)
-				*DefaultArg = asDefaultArg;
-			return FunctionFactory::ToReturn(R);
+			int r = ptr->GetParam((asUINT)index, type_id, &asFlags, &asName, &asDefaultArg);
+			if (flags != nullptr)
+				*flags = (size_t)asFlags;
+			if (name != nullptr)
+				*name = asName;
+			if (default_arg != nullptr)
+				*default_arg = asDefaultArg;
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		int Function::GetReturnTypeId(size_t* Flags) const
+		int function::get_return_type_id(size_t* flags) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
-			int R = Ptr->GetReturnTypeId(&asFlags);
-			if (Flags != nullptr)
-				*Flags = (size_t)asFlags;
+			int r = ptr->GetReturnTypeId(&asFlags);
+			if (flags != nullptr)
+				*flags = (size_t)asFlags;
 
-			return R;
+			return r;
 #else
 			return -1;
 #endif
 		}
-		int Function::GetTypeId() const
+		int function::get_type_id() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetTypeId();
+			return ptr->GetTypeId();
 #else
 			return -1;
 #endif
 		}
-		bool Function::IsCompatibleWithTypeId(int TypeId) const
+		bool function::is_compatible_with_type_id(int type_id) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->IsCompatibleWithTypeId(TypeId);
+			return ptr->IsCompatibleWithTypeId(type_id);
 #else
 			return false;
 #endif
 		}
-		void* Function::GetDelegateObject() const
+		void* function::get_delegate_object() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetDelegateObject();
+			return ptr->GetDelegateObject();
 #else
 			return nullptr;
 #endif
 		}
-		TypeInfo Function::GetDelegateObjectType() const
+		typeinfo function::get_delegate_object_type() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetDelegateObjectType();
+			return ptr->GetDelegateObjectType();
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		Function Function::GetDelegateFunction() const
+		function function::get_delegate_function() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetDelegateFunction();
+			return ptr->GetDelegateFunction();
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		size_t Function::GetPropertiesCount() const
+		size_t function::get_properties_count() const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Ptr->GetVarCount();
+			return (size_t)ptr->GetVarCount();
 #else
 			return 0;
 #endif
 		}
-		ExpectsVM<void> Function::GetProperty(size_t Index, std::string_view* Name, int* TypeId) const
+		expects_vm<void> function::get_property(size_t index, std::string_view* name, int* type_id) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
 			const char* asName = "";
-			auto Result = Ptr->GetVar((asUINT)Index, &asName, TypeId);
-			if (Name != nullptr)
-				*Name = asName;
-			return FunctionFactory::ToReturn(Result);
+			auto result = ptr->GetVar((asUINT)index, &asName, type_id);
+			if (name != nullptr)
+				*name = asName;
+			return function_factory::to_return(result);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		std::string_view Function::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
+		std::string_view function::get_property_decl(size_t index, bool include_namespace) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Ptr->GetVarDecl((asUINT)Index, IncludeNamespace));
+			return or_empty(ptr->GetVarDecl((asUINT)index, include_namespace));
 #else
 			return "";
 #endif
 		}
-		int Function::FindNextLineWithCode(int Line) const
+		int function::find_next_line_with_code(int line) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->FindNextLineWithCode(Line);
+			return ptr->FindNextLineWithCode(line);
 #else
 			return -1;
 #endif
 		}
-		void* Function::SetUserData(void* UserData, size_t Type)
+		void* function::set_user_data(void* user_data, size_t type)
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->SetUserData(UserData, Type);
+			return ptr->SetUserData(user_data, type);
 #else
 			return nullptr;
 #endif
 		}
-		void* Function::GetUserData(size_t Type) const
+		void* function::get_user_data(size_t type) const
 		{
-			VI_ASSERT(IsValid(), "function should be valid");
+			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Ptr->GetUserData(Type);
+			return ptr->GetUserData(type);
 #else
 			return nullptr;
 #endif
 		}
-		bool Function::IsValid() const
+		bool function::is_valid() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM != nullptr && Ptr != nullptr;
+			return vm != nullptr && ptr != nullptr;
 #else
 			return false;
 #endif
 		}
-		asIScriptFunction* Function::GetFunction() const
+		asIScriptFunction* function::get_function() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Ptr;
+			return ptr;
 #else
 			return nullptr;
 #endif
 		}
-		VirtualMachine* Function::GetVM() const
+		virtual_machine* function::get_vm() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM;
+			return vm;
 #else
 			return nullptr;
 #endif
 		}
 
-		ScriptObject::ScriptObject(asIScriptObject* Base) noexcept : Object(Base)
+		script_object::script_object(asIScriptObject* base) noexcept : object(base)
 		{
 		}
-		void ScriptObject::AddRef() const
+		void script_object::add_ref() const
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			Object->AddRef();
+			object->AddRef();
 #endif
 		}
-		void ScriptObject::Release()
+		void script_object::release()
 		{
-			if (!IsValid())
+			if (!is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			Core::Memory::Release(Object);
+			object->Release();
 #endif
 		}
-		TypeInfo ScriptObject::GetObjectType()
+		typeinfo script_object::get_object_type()
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->GetObjectType();
+			return object->GetObjectType();
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		int ScriptObject::GetTypeId()
+		int script_object::get_type_id()
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->GetTypeId();
-#else
-			return -1;
-#endif
-		}
-		int ScriptObject::GetPropertyTypeId(size_t Id) const
-		{
-			VI_ASSERT(IsValid(), "object should be valid");
-#ifdef VI_ANGELSCRIPT
-			return Object->GetPropertyTypeId((asUINT)Id);
+			return object->GetTypeId();
 #else
 			return -1;
 #endif
 		}
-		size_t ScriptObject::GetPropertiesCount() const
+		int script_object::get_property_type_id(size_t id) const
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Object->GetPropertyCount();
+			return object->GetPropertyTypeId((asUINT)id);
+#else
+			return -1;
+#endif
+		}
+		size_t script_object::get_properties_count() const
+		{
+			VI_ASSERT(is_valid(), "object should be valid");
+#ifdef VI_ANGELSCRIPT
+			return (size_t)object->GetPropertyCount();
 #else
 			return 0;
 #endif
 		}
-		std::string_view ScriptObject::GetPropertyName(size_t Id) const
+		std::string_view script_object::get_property_name(size_t id) const
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Object->GetPropertyName((asUINT)Id));
+			return or_empty(object->GetPropertyName((asUINT)id));
 #else
 			return "";
 #endif
 		}
-		void* ScriptObject::GetAddressOfProperty(size_t Id)
+		void* script_object::get_address_of_property(size_t id)
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->GetAddressOfProperty((asUINT)Id);
+			return object->GetAddressOfProperty((asUINT)id);
 #else
 			return nullptr;
 #endif
 		}
-		VirtualMachine* ScriptObject::GetVM() const
+		virtual_machine* script_object::get_vm() const
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return VirtualMachine::Get(Object->GetEngine());
+			return virtual_machine::get(object->GetEngine());
 #else
 			return nullptr;
 #endif
 		}
-		int ScriptObject::CopyFrom(const ScriptObject& Other)
+		int script_object::copy_from(const script_object& other)
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->CopyFrom(Other.GetObject());
+			return object->CopyFrom(other.get_object());
 #else
 			return -1;
 #endif
 		}
-		void* ScriptObject::SetUserData(void* Data, size_t Type)
+		void* script_object::set_user_data(void* data, size_t type)
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->SetUserData(Data, (asPWORD)Type);
+			return object->SetUserData(data, (asPWORD)type);
 #else
 			return nullptr;
 #endif
 		}
-		void* ScriptObject::GetUserData(size_t Type) const
+		void* script_object::get_user_data(size_t type) const
 		{
-			VI_ASSERT(IsValid(), "object should be valid");
+			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Object->GetUserData((asPWORD)Type);
+			return object->GetUserData((asPWORD)type);
 #else
 			return nullptr;
 #endif
 		}
-		bool ScriptObject::IsValid() const
+		bool script_object::is_valid() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Object != nullptr;
+			return object != nullptr;
 #else
 			return false;
 #endif
 		}
-		asIScriptObject* ScriptObject::GetObject() const
+		asIScriptObject* script_object::get_object() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Object;
+			return object;
 #else
 			return nullptr;
 #endif
 		}
 
-		GenericContext::GenericContext(asIScriptGeneric* Base) noexcept : Generic(Base)
+		generic_context::generic_context(asIScriptGeneric* base) noexcept : genericf(base)
 		{
 #ifdef VI_ANGELSCRIPT
-			VM = (Generic ? VirtualMachine::Get(Generic->GetEngine()) : nullptr);
+			vm = (genericf ? virtual_machine::get(genericf->GetEngine()) : nullptr);
 #endif
 		}
-		void* GenericContext::GetObjectAddress()
+		void* generic_context::get_object_address()
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetObject();
+			return genericf->GetObject();
 #else
 			return nullptr;
 #endif
 		}
-		int GenericContext::GetObjectTypeId() const
+		int generic_context::get_object_type_id() const
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetObjectTypeId();
+			return genericf->GetObjectTypeId();
 #else
 			return -1;
 #endif
 		}
-		size_t GenericContext::GetArgsCount() const
+		size_t generic_context::get_args_count() const
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Generic->GetArgCount();
+			return (size_t)genericf->GetArgCount();
 #else
 			return 0;
 #endif
 		}
-		int GenericContext::GetArgTypeId(size_t Argument, size_t* Flags) const
+		int generic_context::get_arg_type_id(size_t argument, size_t* flags) const
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
-			int R = Generic->GetArgTypeId((asUINT)Argument, &asFlags);
-			if (Flags != nullptr)
-				*Flags = (size_t)asFlags;
-			return R;
+			int r = genericf->GetArgTypeId((asUINT)argument, &asFlags);
+			if (flags != nullptr)
+				*flags = (size_t)asFlags;
+			return r;
 #else
 			return -1;
 #endif
 		}
-		unsigned char GenericContext::GetArgByte(size_t Argument)
+		unsigned char generic_context::get_arg_byte(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgByte((asUINT)Argument);
+			return genericf->GetArgByte((asUINT)argument);
 #else
 			return 0;
 #endif
 		}
-		unsigned short GenericContext::GetArgWord(size_t Argument)
+		unsigned short generic_context::get_arg_word(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgWord((asUINT)Argument);
+			return genericf->GetArgWord((asUINT)argument);
 #else
 			return 0;
 #endif
 		}
-		size_t GenericContext::GetArgDWord(size_t Argument)
+		size_t generic_context::get_arg_dword(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgDWord((asUINT)Argument);
+			return genericf->GetArgDWord((asUINT)argument);
 #else
 			return 0;
 #endif
 		}
-		uint64_t GenericContext::GetArgQWord(size_t Argument)
+		uint64_t generic_context::get_arg_qword(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgQWord((asUINT)Argument);
+			return genericf->GetArgQWord((asUINT)argument);
 #else
 			return 0;
 #endif
 		}
-		float GenericContext::GetArgFloat(size_t Argument)
+		float generic_context::get_arg_float(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgFloat((asUINT)Argument);
+			return genericf->GetArgFloat((asUINT)argument);
 #else
 			return 0.0f;
 #endif
 		}
-		double GenericContext::GetArgDouble(size_t Argument)
+		double generic_context::get_arg_double(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgDouble((asUINT)Argument);
+			return genericf->GetArgDouble((asUINT)argument);
 #else
 			return 0.0;
 #endif
 		}
-		void* GenericContext::GetArgAddress(size_t Argument)
+		void* generic_context::get_arg_address(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgAddress((asUINT)Argument);
+			return genericf->GetArgAddress((asUINT)argument);
 #else
 			return nullptr;
 #endif
 		}
-		void* GenericContext::GetArgObjectAddress(size_t Argument)
+		void* generic_context::get_arg_object_address(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetArgObject((asUINT)Argument);
+			return genericf->GetArgObject((asUINT)argument);
 #else
 			return nullptr;
 #endif
 		}
-		void* GenericContext::GetAddressOfArg(size_t Argument)
+		void* generic_context::get_address_of_arg(size_t argument)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetAddressOfArg((asUINT)Argument);
+			return genericf->GetAddressOfArg((asUINT)argument);
 #else
 			return nullptr;
 #endif
 		}
-		int GenericContext::GetReturnTypeId(size_t* Flags) const
+		int generic_context::get_return_type_id(size_t* flags) const
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
 			asDWORD asFlags;
-			int TypeId = Generic->GetReturnTypeId(&asFlags);
-			if (Flags != nullptr)
-				*Flags = (size_t)asFlags;
+			int type_id = genericf->GetReturnTypeId(&asFlags);
+			if (flags != nullptr)
+				*flags = (size_t)asFlags;
 
-			return TypeId;
+			return type_id;
 #else
 			return -1;
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnByte(unsigned char Value)
+		expects_vm<void> generic_context::set_return_byte(unsigned char value)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnByte(Value));
+			return function_factory::to_return(genericf->SetReturnByte(value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnWord(unsigned short Value)
+		expects_vm<void> generic_context::set_return_word(unsigned short value)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnWord(Value));
+			return function_factory::to_return(genericf->SetReturnWord(value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnDWord(size_t Value)
+		expects_vm<void> generic_context::set_return_dword(size_t value)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnDWord((asDWORD)Value));
+			return function_factory::to_return(genericf->SetReturnDWord((asDWORD)value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnQWord(uint64_t Value)
+		expects_vm<void> generic_context::set_return_qword(uint64_t value)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnQWord(Value));
+			return function_factory::to_return(genericf->SetReturnQWord(value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnFloat(float Value)
+		expects_vm<void> generic_context::set_return_float(float value)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnFloat(Value));
+			return function_factory::to_return(genericf->SetReturnFloat(value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnDouble(double Value)
+		expects_vm<void> generic_context::set_return_double(double value)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnDouble(Value));
+			return function_factory::to_return(genericf->SetReturnDouble(value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnAddress(void* Address)
+		expects_vm<void> generic_context::set_return_address(void* address)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnAddress(Address));
+			return function_factory::to_return(genericf->SetReturnAddress(address));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> GenericContext::SetReturnObjectAddress(void* Object)
+		expects_vm<void> generic_context::set_return_object_address(void* object)
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Generic->SetReturnObject(Object));
+			return function_factory::to_return(genericf->SetReturnObject(object));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		void* GenericContext::GetAddressOfReturnLocation()
+		void* generic_context::get_address_of_return_location()
 		{
-			VI_ASSERT(IsValid(), "generic should be valid");
+			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Generic->GetAddressOfReturnLocation();
+			return genericf->GetAddressOfReturnLocation();
 #else
 			return nullptr;
 #endif
 		}
-		bool GenericContext::IsValid() const
+		bool generic_context::is_valid() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM != nullptr && Generic != nullptr;
+			return vm != nullptr && genericf != nullptr;
 #else
 			return false;
 #endif
 		}
-		asIScriptGeneric* GenericContext::GetGeneric() const
+		asIScriptGeneric* generic_context::get_generic() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Generic;
+			return genericf;
 #else
 			return nullptr;
 #endif
 		}
-		VirtualMachine* GenericContext::GetVM() const
+		virtual_machine* generic_context::get_vm() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM;
+			return vm;
 #else
 			return nullptr;
 #endif
 		}
 
-		BaseClass::BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
+		base_class::base_class(virtual_machine* engine, asITypeInfo* source, int type) noexcept : vm(engine), type(source), type_id(type)
 		{
 		}
-		ExpectsVM<void> BaseClass::SetFunctionDef(const std::string_view& Decl)
+		expects_vm<void> base_class::set_function_def(const std::string_view& decl)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)Decl.size());
-			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl.data()));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)decl.size());
+			return function_factory::to_return(engine->RegisterFuncdef(decl.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_operator_copy_address(asSFuncPtr* value, function_call type)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
 
-			Core::String Decl = Core::Stringify::Text("%s& opAssign(const %s &in)", GetTypeName().data(), GetTypeName().data());
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName().data(), Decl.c_str(), *Value, (asECallConvTypes)Type));
+			core::string decl = core::stringify::text("%s& opAssign(const %s &in)", get_type_name().data(), get_type_name().data());
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.c_str(), *value, (asECallConvTypes)type));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetBehaviourAddress(const std::string_view& Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, function_call type)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), (asEBehaviours)Behave, Decl.data(), *Value, (asECallConvTypes)Type));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), (asEBehaviours)behave, decl.data(), *value, (asECallConvTypes)type));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetPropertyAddress(const std::string_view& Decl, int Offset)
+		expects_vm<void> base_class::set_property_address(const std::string_view& decl, int offset)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)Decl.size(), Offset);
-			return FunctionFactory::ToReturn(Engine->RegisterObjectProperty(GetTypeName().data(), Decl.data(), Offset));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)decl.size(), offset);
+			return function_factory::to_return(engine->RegisterObjectProperty(get_type_name().data(), decl.data(), offset));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetPropertyStaticAddress(const std::string_view& Decl, void* Value)
+		expects_vm<void> base_class::set_property_static_address(const std::string_view& decl, void* value)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)Decl.size(), (void*)Value);
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			const char* Namespace = Engine->GetDefaultNamespace();
-			const char* Scope = Type->GetNamespace();
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			const char* name_space = engine->GetDefaultNamespace();
+			const char* scope = type->GetNamespace();
 
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName().data() : Core::String(Scope).append("::").append(GetName()).c_str());
-			int R = Engine->RegisterGlobalProperty(Decl.data(), Value);
-			Engine->SetDefaultNamespace(Namespace);
+			engine->SetDefaultNamespace(scope[0] == '\0' ? get_type_name().data() : core::string(scope).append("::").append(get_name()).c_str());
+			int r = engine->RegisterGlobalProperty(decl.data(), value);
+			engine->SetDefaultNamespace(name_space);
 
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetOperatorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_operator_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
 		{
-			return SetMethodAddress(Decl, Value, Type);
+			return set_method_address(decl, value, type);
 		}
-		ExpectsVM<void> BaseClass::SetMethodAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_method_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
-			return FunctionFactory::ToReturn(Engine->RegisterObjectMethod(GetTypeName().data(), Decl.data(), *Value, (asECallConvTypes)Type));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.data(), *value, (asECallConvTypes)type));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetMethodStaticAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_method_static_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 
-			const char* Namespace = Engine->GetDefaultNamespace();
-			const char* Scope = this->Type->GetNamespace();
-			Engine->SetDefaultNamespace(Scope[0] == '\0' ? GetTypeName().data() : Core::String(Scope).append("::").append(GetName()).c_str());
-			int R = Engine->RegisterGlobalFunction(Decl.data(), *Value, (asECallConvTypes)Type);
-			Engine->SetDefaultNamespace(Namespace);
+			const char* name_space = engine->GetDefaultNamespace();
+			const char* scope = this->type->GetNamespace();
+			engine->SetDefaultNamespace(scope[0] == '\0' ? get_type_name().data() : core::string(scope).append("::").append(get_name()).c_str());
+			int r = engine->RegisterGlobalFunction(decl.data(), *value, (asECallConvTypes)type);
+			engine->SetDefaultNamespace(name_space);
 
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetConstructorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_constructor_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_CONSTRUCT, Decl.data(), *Value, (asECallConvTypes)Type));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_CONSTRUCT, decl.data(), *value, (asECallConvTypes)type));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetConstructorListAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
+		expects_vm<void> base_class::set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)Type, (int)Decl.size(), (void*)Value);
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_LIST_CONSTRUCT, Decl.data(), *Value, (asECallConvTypes)Type));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_LIST_CONSTRUCT, decl.data(), *value, (asECallConvTypes)type));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> BaseClass::SetDestructorAddress(const std::string_view& Decl, asSFuncPtr* Value)
+		expects_vm<void> base_class::set_destructor_address(const std::string_view& decl, asSFuncPtr* value)
 		{
-			VI_ASSERT(IsValid(), "class should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)Decl.size(), (void*)Value);
+			VI_ASSERT(is_valid(), "class should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			return FunctionFactory::ToReturn(Engine->RegisterObjectBehaviour(GetTypeName().data(), asBEHAVE_DESTRUCT, Decl.data(), *Value, asCALL_CDECL_OBJFIRST));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_DESTRUCT, decl.data(), *value, asCALL_CDECL_OBJFIRST));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		asITypeInfo* BaseClass::GetTypeInfo() const
+		asITypeInfo* base_class::get_type_info() const
 		{
-			return Type;
+			return type;
 		}
-		int BaseClass::GetTypeId() const
+		int base_class::get_type_id() const
 		{
-			return TypeId;
+			return type_id;
 		}
-		bool BaseClass::IsValid() const
+		bool base_class::is_valid() const
 		{
-			return VM != nullptr && TypeId >= 0 && Type != nullptr;
+			return vm != nullptr && type_id >= 0 && type != nullptr;
 		}
-		std::string_view BaseClass::GetTypeName() const
+		std::string_view base_class::get_type_name() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Type->GetName());
+			return or_empty(type->GetName());
 #else
 			return "";
 #endif
 		}
-		Core::String BaseClass::GetName() const
+		core::string base_class::get_name() const
 		{
-			return Core::String(GetTypeName());
+			return core::string(get_type_name());
 		}
-		VirtualMachine* BaseClass::GetVM() const
+		virtual_machine* base_class::get_vm() const
 		{
-			return VM;
+			return vm;
 		}
-		Core::String BaseClass::GetOperator(Operators Op, const std::string_view& Out, const std::string_view& Args, bool Const, bool Right)
+		core::string base_class::get_operator(operators op, const std::string_view& out, const std::string_view& args, bool constant, bool right)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Out), "out should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Args), "args should be set");
-			switch (Op)
+			VI_ASSERT(core::stringify::is_cstring(out), "out should be set");
+			VI_ASSERT(core::stringify::is_cstring(args), "args should be set");
+			switch (op)
 			{
-				case Operators::Neg:
-					if (Right)
+				case operators::neg:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opNeg()%s", Out.data(), Const ? " const" : "");
-				case Operators::Com:
-					if (Right)
+					return core::stringify::text("%s opNeg()%s", out.data(), constant ? " const" : "");
+				case operators::com:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opCom()%s", Out.data(), Const ? " const" : "");
-				case Operators::PreInc:
-					if (Right)
+					return core::stringify::text("%s opCom()%s", out.data(), constant ? " const" : "");
+				case operators::pre_inc:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opPreInc()%s", Out.data(), Const ? " const" : "");
-				case Operators::PreDec:
-					if (Right)
+					return core::stringify::text("%s opPreInc()%s", out.data(), constant ? " const" : "");
+				case operators::pre_dec:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opPreDec()%s", Out.data(), Const ? " const" : "");
-				case Operators::PostInc:
-					if (Right)
+					return core::stringify::text("%s opPreDec()%s", out.data(), constant ? " const" : "");
+				case operators::post_inc:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opPostInc()%s", Out.data(), Const ? " const" : "");
-				case Operators::PostDec:
-					if (Right)
+					return core::stringify::text("%s opPostInc()%s", out.data(), constant ? " const" : "");
+				case operators::post_dec:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opPostDec()%s", Out.data(), Const ? " const" : "");
-				case Operators::Equals:
-					if (Right)
+					return core::stringify::text("%s opPostDec()%s", out.data(), constant ? " const" : "");
+				case operators::equals:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opEquals(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Cmp:
-					if (Right)
+					return core::stringify::text("%s opEquals(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::cmp:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opCmp(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Assign:
-					if (Right)
+					return core::stringify::text("%s opCmp(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::AddAssign:
-					if (Right)
+					return core::stringify::text("%s opAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::add_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opAddAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::SubAssign:
-					if (Right)
+					return core::stringify::text("%s opAddAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::sub_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opSubAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::MulAssign:
-					if (Right)
+					return core::stringify::text("%s opSubAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::mul_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opMulAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::DivAssign:
-					if (Right)
+					return core::stringify::text("%s opMulAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::div_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opDivAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::ModAssign:
-					if (Right)
+					return core::stringify::text("%s opDivAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::mod_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opModAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::PowAssign:
-					if (Right)
+					return core::stringify::text("%s opModAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::pow_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opPowAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::AndAssign:
-					if (Right)
+					return core::stringify::text("%s opPowAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::and_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opAndAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::OrAssign:
-					if (Right)
+					return core::stringify::text("%s opAndAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::or_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opOrAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::XOrAssign:
-					if (Right)
+					return core::stringify::text("%s opOrAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::xor_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opXorAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::ShlAssign:
-					if (Right)
+					return core::stringify::text("%s opXorAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::shl_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opShlAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::ShrAssign:
-					if (Right)
+					return core::stringify::text("%s opShlAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::shr_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opShrAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::UshrAssign:
-					if (Right)
+					return core::stringify::text("%s opShrAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::ushr_assign:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opUshrAssign(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Add:
-					return Core::Stringify::Text("%s opAdd%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Sub:
-					return Core::Stringify::Text("%s opSub%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Mul:
-					return Core::Stringify::Text("%s opMul%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Div:
-					return Core::Stringify::Text("%s opDiv%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Mod:
-					return Core::Stringify::Text("%s opMod%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Pow:
-					return Core::Stringify::Text("%s opPow%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::And:
-					return Core::Stringify::Text("%s opAnd%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Or:
-					return Core::Stringify::Text("%s opOr%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::XOr:
-					return Core::Stringify::Text("%s opXor%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Shl:
-					return Core::Stringify::Text("%s opShl%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Shr:
-					return Core::Stringify::Text("%s opShr%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Ushr:
-					return Core::Stringify::Text("%s opUshr%s(%s)%s", Out.data(), Right ? "_r" : "", Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Index:
-					if (Right)
+					return core::stringify::text("%s opUshrAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::add:
+					return core::stringify::text("%s opAdd%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::sub:
+					return core::stringify::text("%s opSub%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::mul:
+					return core::stringify::text("%s opMul%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::div:
+					return core::stringify::text("%s opDiv%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::mod:
+					return core::stringify::text("%s opMod%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::pow:
+					return core::stringify::text("%s opPow%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::andf:
+					return core::stringify::text("%s opAnd%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::otherwise:
+					return core::stringify::text("%s opOr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::xorf:
+					return core::stringify::text("%s opXor%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::shl:
+					return core::stringify::text("%s opShl%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::shr:
+					return core::stringify::text("%s opShr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::ushr:
+					return core::stringify::text("%s opUshr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::index:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opIndex(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Call:
-					if (Right)
+					return core::stringify::text("%s opIndex(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::call:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opCall(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::Cast:
-					if (Right)
+					return core::stringify::text("%s opCall(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::cast:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opCast(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
-				case Operators::ImplCast:
-					if (Right)
+					return core::stringify::text("%s opCast(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
+				case operators::impl_cast:
+					if (right)
 						return "";
 
-					return Core::Stringify::Text("%s opImplCast(%s)%s", Out.data(), Args.empty() ? "" : Args.data(), Const ? " const" : "");
+					return core::stringify::text("%s opImplCast(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
 				default:
 					return "";
 			}
 		}
 
-		TypeInterface::TypeInterface(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
+		type_interface::type_interface(virtual_machine* engine, asITypeInfo* source, int type) noexcept : vm(engine), type(source), type_id(type)
 		{
 		}
-		ExpectsVM<void> TypeInterface::SetMethod(const std::string_view& Decl)
+		expects_vm<void> type_interface::set_method(const std::string_view& decl)
 		{
-			VI_ASSERT(IsValid(), "interface should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
+			VI_ASSERT(is_valid(), "interface should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)Decl.size());
-			return FunctionFactory::ToReturn(Engine->RegisterInterfaceMethod(GetTypeName().data(), Decl.data()));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)decl.size());
+			return function_factory::to_return(engine->RegisterInterfaceMethod(get_type_name().data(), decl.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		asITypeInfo* TypeInterface::GetTypeInfo() const
+		asITypeInfo* type_interface::get_type_info() const
 		{
-			return Type;
+			return type;
 		}
-		int TypeInterface::GetTypeId() const
+		int type_interface::get_type_id() const
 		{
-			return TypeId;
+			return type_id;
 		}
-		bool TypeInterface::IsValid() const
+		bool type_interface::is_valid() const
 		{
-			return VM != nullptr && TypeId >= 0 && Type != nullptr;
+			return vm != nullptr && type_id >= 0 && type != nullptr;
 		}
-		std::string_view TypeInterface::GetTypeName() const
+		std::string_view type_interface::get_type_name() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Type->GetName());
-#else
-			return "";
-#endif
-		}
-		Core::String TypeInterface::GetName() const
-		{
-			return Core::String(GetTypeName());
-		}
-		VirtualMachine* TypeInterface::GetVM() const
-		{
-			return VM;
-		}
-
-		Enumeration::Enumeration(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : VM(Engine), Type(Source), TypeId(Type)
-		{
-		}
-		ExpectsVM<void> Enumeration::SetValue(const std::string_view& Name, int Value)
-		{
-			VI_ASSERT(IsValid(), "enum should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Core::Stringify::IsCString(GetTypeName()), "typename should be set");
-#ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)Name.size(), Value);
-			return FunctionFactory::ToReturn(Engine->RegisterEnumValue(GetTypeName().data(), Name.data(), Value));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		asITypeInfo* Enumeration::GetTypeInfo() const
-		{
-			return Type;
-		}
-		int Enumeration::GetTypeId() const
-		{
-			return TypeId;
-		}
-		bool Enumeration::IsValid() const
-		{
-			return VM != nullptr && TypeId >= 0 && Type != nullptr;
-		}
-		std::string_view Enumeration::GetTypeName() const
-		{
-#ifdef VI_ANGELSCRIPT
-			return OrEmpty(Type->GetName());
+			return or_empty(type->GetName());
 #else
 			return "";
 #endif
 		}
-		Core::String Enumeration::GetName() const
+		core::string type_interface::get_name() const
 		{
-			return Core::String(GetTypeName());
+			return core::string(get_type_name());
 		}
-		VirtualMachine* Enumeration::GetVM() const
+		virtual_machine* type_interface::get_vm() const
 		{
-			return VM;
+			return vm;
 		}
 
-		Module::Module(asIScriptModule* Type) noexcept : Mod(Type)
+		enumeration::enumeration(virtual_machine* engine, asITypeInfo* source, int type) noexcept : vm(engine), type(source), type_id(type)
 		{
-#ifdef VI_ANGELSCRIPT
-			VM = (Mod ? VirtualMachine::Get(Mod->GetEngine()) : nullptr);
-#endif
 		}
-		void Module::SetName(const std::string_view& Name)
+		expects_vm<void> enumeration::set_value(const std::string_view& name, int value)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(is_valid(), "enum should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 #ifdef VI_ANGELSCRIPT
-			Mod->SetName(Name.data());
-#endif
-		}
-		ExpectsVM<void> Module::AddSection(const std::string_view& Name, const std::string_view& Code, int LineOffset)
-		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			return VM->AddScriptSection(Mod, Name, Code, LineOffset);
-		}
-		ExpectsVM<void> Module::RemoveFunction(const Function& Function)
-		{
-			VI_ASSERT(IsValid(), "module should be valid");
-#ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->RemoveFunction(Function.GetFunction()));
+			asIScriptEngine* engine = vm->get_engine();
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)name.size(), value);
+			return function_factory::to_return(engine->RegisterEnumValue(get_type_name().data(), name.data(), value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::ResetProperties(asIScriptContext* Context)
+		asITypeInfo* enumeration::get_type_info() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Context != nullptr, "context should be set");
+			return type;
+		}
+		int enumeration::get_type_id() const
+		{
+			return type_id;
+		}
+		bool enumeration::is_valid() const
+		{
+			return vm != nullptr && type_id >= 0 && type != nullptr;
+		}
+		std::string_view enumeration::get_type_name() const
+		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->ResetGlobalVars(Context));
+			return or_empty(type->GetName());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return "";
 #endif
 		}
-		ExpectsVM<void> Module::Build()
+		core::string enumeration::get_name() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			return core::string(get_type_name());
+		}
+		virtual_machine* enumeration::get_vm() const
+		{
+			return vm;
+		}
+
+		library::library(asIScriptModule* type) noexcept : mod(type)
+		{
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->Build();
-			if (R != asBUILD_IN_PROGRESS)
-				VM->ClearSections();
-			return FunctionFactory::ToReturn(R);
+			vm = (mod ? virtual_machine::get(mod->GetEngine()) : nullptr);
+#endif
+		}
+		void library::set_name(const std::string_view& name)
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+#ifdef VI_ANGELSCRIPT
+			mod->SetName(name.data());
+#endif
+		}
+		expects_vm<void> library::add_section(const std::string_view& name, const std::string_view& code, int line_offset)
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+			return vm->add_script_section(mod, name, code, line_offset);
+		}
+		expects_vm<void> library::remove_function(const function& function)
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
+			return function_factory::to_return(mod->RemoveFunction(function.get_function()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::LoadByteCode(ByteCodeInfo* Info)
+		expects_vm<void> library::reset_properties(asIScriptContext* context)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>(Info->Data);
-			int R = Mod->LoadByteCode(Stream, &Info->Debug);
-			Core::Memory::Delete(Stream);
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(mod->ResetGlobalVars(context));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::BindImportedFunction(size_t ImportIndex, const Function& Function)
+		expects_vm<void> library::build()
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->BindImportedFunction((asUINT)ImportIndex, Function.GetFunction()));
+			int r = mod->Build();
+			if (r != asBUILD_IN_PROGRESS)
+				vm->clear_sections();
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::UnbindImportedFunction(size_t ImportIndex)
+		expects_vm<void> library::load_byte_code(byte_code_info* info)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->UnbindImportedFunction((asUINT)ImportIndex));
+			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>(info->data);
+			int r = mod->LoadByteCode(stream, &info->debug);
+			core::memory::deinit(stream);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::BindAllImportedFunctions()
+		expects_vm<void> library::bind_imported_function(size_t import_index, const function& function)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->BindAllImportedFunctions());
+			return function_factory::to_return(mod->BindImportedFunction((asUINT)import_index, function.get_function()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::UnbindAllImportedFunctions()
+		expects_vm<void> library::unbind_imported_function(size_t import_index)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->UnbindAllImportedFunctions());
+			return function_factory::to_return(mod->UnbindImportedFunction((asUINT)import_index));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::CompileFunction(const std::string_view& SectionName, const std::string_view& Code, int LineOffset, size_t CompileFlags, Function* OutFunction)
+		expects_vm<void> library::bind_all_imported_functions()
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Code), "code should be set");
-			VI_ASSERT(Core::Stringify::IsCString(SectionName), "section name should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			asIScriptFunction* OutFunc = nullptr;
-			int R = Mod->CompileFunction(SectionName.data(), Code.data(), LineOffset, (asDWORD)CompileFlags, &OutFunc);
-			if (OutFunction != nullptr)
-				*OutFunction = Function(OutFunc);
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(mod->BindAllImportedFunctions());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::CompileProperty(const std::string_view& SectionName, const std::string_view& Code, int LineOffset)
+		expects_vm<void> library::unbind_all_imported_functions()
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Code), "code should be set");
-			VI_ASSERT(Core::Stringify::IsCString(SectionName), "section name should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->CompileGlobalVar(SectionName.data(), Code.data(), LineOffset));
+			return function_factory::to_return(mod->UnbindAllImportedFunctions());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::SetDefaultNamespace(const std::string_view& Namespace)
+		expects_vm<void> library::compile_function(const std::string_view& section_name, const std::string_view& code, int line_offset, size_t compile_flags, function* out_function)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Namespace), "namespace should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(code), "code should be set");
+			VI_ASSERT(core::stringify::is_cstring(section_name), "section name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->SetDefaultNamespace(Namespace.data()));
+			asIScriptFunction* out_func = nullptr;
+			int r = mod->CompileFunction(section_name.data(), code.data(), line_offset, (asDWORD)compile_flags, &out_func);
+			if (out_function != nullptr)
+				*out_function = function(out_func);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::RemoveProperty(size_t Index)
+		expects_vm<void> library::compile_property(const std::string_view& section_name, const std::string_view& code, int line_offset)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(code), "code should be set");
+			VI_ASSERT(core::stringify::is_cstring(section_name), "section name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Mod->RemoveGlobalVar((asUINT)Index));
+			return function_factory::to_return(mod->CompileGlobalVar(section_name.data(), code.data(), line_offset));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		void Module::Discard()
+		expects_vm<void> library::set_default_namespace(const std::string_view& name_space)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name_space), "namespace should be set");
 #ifdef VI_ANGELSCRIPT
-			Mod->Discard();
-			Mod = nullptr;
+			return function_factory::to_return(mod->SetDefaultNamespace(name_space.data()));
+#else
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		void* Module::GetAddressOfProperty(size_t Index)
+		expects_vm<void> library::remove_property(size_t index)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetAddressOfGlobalVar((asUINT)Index);
+			return function_factory::to_return(mod->RemoveGlobalVar((asUINT)index));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		void library::discard()
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
+			mod->Discard();
+			mod = nullptr;
+#endif
+		}
+		void* library::get_address_of_property(size_t index)
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
+			return mod->GetAddressOfGlobalVar((asUINT)index);
 #else
 			return nullptr;
 #endif
 		}
-		size_t Module::SetAccessMask(size_t AccessMask)
+		size_t library::set_access_mask(size_t access_mask)
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->SetAccessMask((asDWORD)AccessMask);
+			return mod->SetAccessMask((asDWORD)access_mask);
 #else
 			return 0;
 #endif
 		}
-		size_t Module::GetFunctionCount() const
+		size_t library::get_function_count() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetFunctionCount();
+			return mod->GetFunctionCount();
 #else
 			return 0;
 #endif
 		}
-		Function Module::GetFunctionByIndex(size_t Index) const
+		function library::get_function_by_index(size_t index) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetFunctionByIndex((asUINT)Index);
+			return mod->GetFunctionByIndex((asUINT)index);
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		Function Module::GetFunctionByDecl(const std::string_view& Decl) const
+		function library::get_function_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetFunctionByDecl(Decl.data());
+			return mod->GetFunctionByDecl(decl.data());
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		Function Module::GetFunctionByName(const std::string_view& Name) const
+		function library::get_function_by_name(const std::string_view& name) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetFunctionByName(Name.data());
+			return mod->GetFunctionByName(name.data());
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		int Module::GetTypeIdByDecl(const std::string_view& Decl) const
+		int library::get_type_id_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetTypeIdByDecl(Decl.data());
+			return mod->GetTypeIdByDecl(decl.data());
 #else
 			return -1;
 #endif
 		}
-		ExpectsVM<size_t> Module::GetImportedFunctionIndexByDecl(const std::string_view& Decl) const
+		expects_vm<size_t> library::get_imported_function_index_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->GetImportedFunctionIndexByDecl(Decl.data());
-			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+			int r = mod->GetImportedFunctionIndexByDecl(decl.data());
+			return function_factory::to_return<size_t>(r, (size_t)r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::SaveByteCode(ByteCodeInfo* Info) const
+		expects_vm<void> library::save_byte_code(byte_code_info* info) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>();
-			int R = Mod->SaveByteCode(Stream, Info->Debug);
-			Info->Data = Stream->GetCode();
-			Core::Memory::Delete(Stream);
-			return FunctionFactory::ToReturn(R);
+			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>();
+			int r = mod->SaveByteCode(stream, info->debug);
+			info->data = stream->GetCode();
+			core::memory::deinit(stream);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> Module::GetPropertyIndexByName(const std::string_view& Name) const
+		expects_vm<size_t> library::get_property_index_by_name(const std::string_view& name) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->GetGlobalVarIndexByName(Name.data());
-			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+			int r = mod->GetGlobalVarIndexByName(name.data());
+			return function_factory::to_return<size_t>(r, (size_t)r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> Module::GetPropertyIndexByDecl(const std::string_view& Decl) const
+		expects_vm<size_t> library::get_property_index_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Mod->GetGlobalVarIndexByDecl(Decl.data());
-			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+			int r = mod->GetGlobalVarIndexByDecl(decl.data());
+			return function_factory::to_return<size_t>(r, (size_t)r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Module::GetProperty(size_t Index, PropertyInfo* Info) const
+		expects_vm<void> library::get_property(size_t index, property_info* info) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			const char* Name = "";
-			const char* Namespace = "";
-			bool IsConst = false;
-			int TypeId = 0;
-			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &Namespace, &TypeId, &IsConst);
+			const char* name = "";
+			const char* name_space = "";
+			bool is_const = false;
+			int type_id = 0;
+			int result = mod->GetGlobalVar((asUINT)index, &name, &name_space, &type_id, &is_const);
 
-			if (Info != nullptr)
+			if (info != nullptr)
 			{
-				Info->Name = OrEmpty(Name);
-				Info->Namespace = OrEmpty(Namespace);
-				Info->TypeId = TypeId;
-				Info->IsConst = IsConst;
-				Info->ConfigGroup = "";
-				Info->Pointer = Mod->GetAddressOfGlobalVar((asUINT)Index);
-				Info->AccessMask = GetAccessMask();
+				info->name = or_empty(name);
+				info->name_space = or_empty(name_space);
+				info->type_id = type_id;
+				info->is_const = is_const;
+				info->config_group = "";
+				info->pointer = mod->GetAddressOfGlobalVar((asUINT)index);
+				info->access_mask = get_access_mask();
 			}
 
-			return FunctionFactory::ToReturn(Result);
+			return function_factory::to_return(result);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		size_t Module::GetAccessMask() const
+		size_t library::get_access_mask() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			asDWORD AccessMask = Mod->SetAccessMask(0);
-			Mod->SetAccessMask(AccessMask);
-			return (size_t)AccessMask;
-#else
-			return 0;
-#endif
-		}
-		size_t Module::GetObjectsCount() const
-		{
-			VI_ASSERT(IsValid(), "module should be valid");
-#ifdef VI_ANGELSCRIPT
-			return Mod->GetObjectTypeCount();
+			asDWORD access_mask = mod->SetAccessMask(0);
+			mod->SetAccessMask(access_mask);
+			return (size_t)access_mask;
 #else
 			return 0;
 #endif
 		}
-		size_t Module::GetPropertiesCount() const
+		size_t library::get_objects_count() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetGlobalVarCount();
+			return mod->GetObjectTypeCount();
 #else
 			return 0;
 #endif
 		}
-		size_t Module::GetEnumsCount() const
+		size_t library::get_properties_count() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetEnumCount();
+			return mod->GetGlobalVarCount();
 #else
 			return 0;
 #endif
 		}
-		size_t Module::GetImportedFunctionCount() const
+		size_t library::get_enums_count() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetImportedFunctionCount();
+			return mod->GetEnumCount();
 #else
 			return 0;
 #endif
 		}
-		TypeInfo Module::GetObjectByIndex(size_t Index) const
+		size_t library::get_imported_function_count() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetObjectTypeByIndex((asUINT)Index);
+			return mod->GetImportedFunctionCount();
 #else
-			return TypeInfo(nullptr);
+			return 0;
 #endif
 		}
-		TypeInfo Module::GetTypeInfoByName(const std::string_view& Name) const
+		typeinfo library::get_object_by_index(size_t index) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			std::string_view TypeName = Name;
-			std::string_view Namespace = "";
-			if (!VM->GetTypeNameScope(&TypeName, &Namespace))
-				return Mod->GetTypeInfoByName(Name.data());
+			return mod->GetObjectTypeByIndex((asUINT)index);
+#else
+			return typeinfo(nullptr);
+#endif
+		}
+		typeinfo library::get_type_info_by_name(const std::string_view& name) const
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+#ifdef VI_ANGELSCRIPT
+			std::string_view type_name = name;
+			std::string_view name_space = "";
+			if (!vm->get_type_name_scope(&type_name, &name_space))
+				return mod->GetTypeInfoByName(name.data());
 
-			VI_ASSERT(Core::Stringify::IsCString(TypeName), "typename should be set");
-			VM->BeginNamespace(Core::String(Namespace));
-			asITypeInfo* Info = Mod->GetTypeInfoByName(TypeName.data());
-			VM->EndNamespace();
+			VI_ASSERT(core::stringify::is_cstring(type_name), "typename should be set");
+			vm->begin_namespace(core::string(name_space));
+			asITypeInfo* info = mod->GetTypeInfoByName(type_name.data());
+			vm->end_namespace();
 
-			return Info;
+			return info;
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		TypeInfo Module::GetTypeInfoByDecl(const std::string_view& Decl) const
+		typeinfo library::get_type_info_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(is_valid(), "module should be valid");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetTypeInfoByDecl(Decl.data());
+			return mod->GetTypeInfoByDecl(decl.data());
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		TypeInfo Module::GetEnumByIndex(size_t Index) const
+		typeinfo library::get_enum_by_index(size_t index) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return Mod->GetEnumByIndex((asUINT)Index);
+			return mod->GetEnumByIndex((asUINT)index);
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		std::string_view Module::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
+		std::string_view library::get_property_decl(size_t index, bool include_namespace) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace));
-#else
-			return "";
-#endif
-		}
-		std::string_view Module::GetDefaultNamespace() const
-		{
-			VI_ASSERT(IsValid(), "module should be valid");
-#ifdef VI_ANGELSCRIPT
-			return OrEmpty(Mod->GetDefaultNamespace());
+			return or_empty(mod->GetGlobalVarDeclaration((asUINT)index, include_namespace));
 #else
 			return "";
 #endif
 		}
-		std::string_view Module::GetImportedFunctionDecl(size_t ImportIndex) const
+		std::string_view library::get_default_namespace() const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex));
+			return or_empty(mod->GetDefaultNamespace());
 #else
 			return "";
 #endif
 		}
-		std::string_view Module::GetImportedFunctionModule(size_t ImportIndex) const
+		std::string_view library::get_imported_function_decl(size_t import_index) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex));
+			return or_empty(mod->GetImportedFunctionDeclaration((asUINT)import_index));
 #else
 			return "";
 #endif
 		}
-		std::string_view Module::GetName() const
+		std::string_view library::get_imported_function_module(size_t import_index) const
 		{
-			VI_ASSERT(IsValid(), "module should be valid");
+			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Mod->GetName());
+			return or_empty(mod->GetImportedFunctionSourceModule((asUINT)import_index));
 #else
 			return "";
 #endif
 		}
-		bool Module::IsValid() const
+		std::string_view library::get_name() const
+		{
+			VI_ASSERT(is_valid(), "module should be valid");
+#ifdef VI_ANGELSCRIPT
+			return or_empty(mod->GetName());
+#else
+			return "";
+#endif
+		}
+		bool library::is_valid() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM != nullptr && Mod != nullptr;
+			return vm != nullptr && mod != nullptr;
 #else
 			return false;
 #endif
 		}
-		asIScriptModule* Module::GetModule() const
+		asIScriptModule* library::get_module() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Mod;
+			return mod;
 #else
 			return nullptr;
 #endif
 		}
-		VirtualMachine* Module::GetVM() const
+		virtual_machine* library::get_vm() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return VM;
+			return vm;
 #else
 			return nullptr;
 #endif
 		}
 
-		FunctionDelegate::FunctionDelegate() : Context(nullptr), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
+		function_delegate::function_delegate() : context(nullptr), callback(nullptr), delegate_type(nullptr), delegate_object(nullptr)
 		{
 		}
-		FunctionDelegate::FunctionDelegate(const Function& Function) : Context(nullptr), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
+		function_delegate::function_delegate(const function& function) : context(nullptr), callback(nullptr), delegate_type(nullptr), delegate_object(nullptr)
 		{
-			if (!Function.IsValid())
+			if (!function.is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			Context = ImmediateContext::Get();
-			Callback = Function.GetFunction();
-			DelegateType = Callback->GetDelegateObjectType();
-			DelegateObject = Callback->GetDelegateObject();
-			AddRefAndInitialize(true);
+			context = immediate_context::get();
+			callback = function.get_function();
+			delegate_type = callback->GetDelegateObjectType();
+			delegate_object = callback->GetDelegateObject();
+			add_ref_and_initialize(true);
 #endif
 		}
-		FunctionDelegate::FunctionDelegate(const Function& Function, ImmediateContext* WantedContext) : Context(WantedContext), Callback(nullptr), DelegateType(nullptr), DelegateObject(nullptr)
+		function_delegate::function_delegate(const function& function, immediate_context* wanted_context) : context(wanted_context), callback(nullptr), delegate_type(nullptr), delegate_object(nullptr)
 		{
-			if (!Function.IsValid())
+			if (!function.is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			if (!Context)
-				Context = ImmediateContext::Get();
+			if (!context)
+				context = immediate_context::get();
 
-			Callback = Function.GetFunction();
-			DelegateType = Callback->GetDelegateObjectType();
-			DelegateObject = Callback->GetDelegateObject();
-			AddRefAndInitialize(true);
+			callback = function.get_function();
+			delegate_type = callback->GetDelegateObjectType();
+			delegate_object = callback->GetDelegateObject();
+			add_ref_and_initialize(true);
 #endif
 		}
-		FunctionDelegate::FunctionDelegate(const FunctionDelegate& Other) : Context(Other.Context), Callback(Other.Callback), DelegateType(Other.DelegateType), DelegateObject(Other.DelegateObject)
+		function_delegate::function_delegate(const function_delegate& other) : context(other.context), callback(other.callback), delegate_type(other.delegate_type), delegate_object(other.delegate_object)
 		{
-			AddRef();
+			add_ref();
 		}
-		FunctionDelegate::FunctionDelegate(FunctionDelegate&& Other) : Context(Other.Context), Callback(Other.Callback), DelegateType(Other.DelegateType), DelegateObject(Other.DelegateObject)
+		function_delegate::function_delegate(function_delegate&& other) : context(other.context), callback(other.callback), delegate_type(other.delegate_type), delegate_object(other.delegate_object)
 		{
-			Other.Context = nullptr;
-			Other.Callback = nullptr;
-			Other.DelegateType = nullptr;
-			Other.DelegateObject = nullptr;
+			other.context = nullptr;
+			other.callback = nullptr;
+			other.delegate_type = nullptr;
+			other.delegate_object = nullptr;
 		}
-		FunctionDelegate::~FunctionDelegate()
+		function_delegate::~function_delegate()
 		{
-			Release();
+			release();
 		}
-		FunctionDelegate& FunctionDelegate::operator= (const FunctionDelegate& Other)
+		function_delegate& function_delegate::operator= (const function_delegate& other)
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			Release();
-			Context = Other.Context;
-			Callback = Other.Callback;
-			DelegateType = Other.DelegateType;
-			DelegateObject = Other.DelegateObject;
-			AddRef();
+			release();
+			context = other.context;
+			callback = other.callback;
+			delegate_type = other.delegate_type;
+			delegate_object = other.delegate_object;
+			add_ref();
 
 			return *this;
 		}
-		FunctionDelegate& FunctionDelegate::operator= (FunctionDelegate&& Other)
+		function_delegate& function_delegate::operator= (function_delegate&& other)
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			Context = Other.Context;
-			Callback = Other.Callback;
-			DelegateType = Other.DelegateType;
-			DelegateObject = Other.DelegateObject;
-			Other.Context = nullptr;
-			Other.Callback = nullptr;
-			Other.DelegateType = nullptr;
-			Other.DelegateObject = nullptr;
+			context = other.context;
+			callback = other.callback;
+			delegate_type = other.delegate_type;
+			delegate_object = other.delegate_object;
+			other.context = nullptr;
+			other.callback = nullptr;
+			other.delegate_type = nullptr;
+			other.delegate_object = nullptr;
 			return *this;
 		}
-		ExpectsPromiseVM<Execution> FunctionDelegate::operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		expects_promise_vm<execution> function_delegate::operator()(args_callback&& on_args, args_callback&& on_return)
 		{
-			if (!IsValid())
-				return ExpectsVM<Execution>(VirtualError::INVALID_CONFIGURATION);
+			if (!is_valid())
+				return expects_vm<execution>(virtual_error::invalid_configuration);
 
-			FunctionDelegate Copy = *this;
-			return Context->ResolveCallback(std::move(Copy), std::move(OnArgs), std::move(OnReturn));
+			function_delegate copy = *this;
+			return context->resolve_callback(std::move(copy), std::move(on_args), std::move(on_return));
 		}
-		void FunctionDelegate::AddRefAndInitialize(bool IsFirstTime)
+		void function_delegate::add_ref_and_initialize(bool is_first_time)
 		{
-			if (!IsValid())
+			if (!is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			if (DelegateObject != nullptr)
-				Context->GetVM()->AddRefObject(DelegateObject, DelegateType);
+			if (delegate_object != nullptr)
+				context->get_vm()->add_ref_object(delegate_object, delegate_type);
 
-			if (!IsFirstTime)
-				Callback->AddRef();
-			Context->AddRef();
+			if (!is_first_time)
+				callback->AddRef();
+			context->add_ref();
 #endif
 		}
-		void FunctionDelegate::AddRef()
+		void function_delegate::add_ref()
 		{
-			AddRefAndInitialize(false);
+			add_ref_and_initialize(false);
 		}
-		void FunctionDelegate::Release()
+		void function_delegate::release()
 		{
-			if (!IsValid())
+			if (!is_valid())
 				return;
 #ifdef VI_ANGELSCRIPT
-			if (DelegateObject != nullptr)
-				Context->GetVM()->ReleaseObject(DelegateObject, DelegateType);
+			if (delegate_object != nullptr)
+				context->get_vm()->release_object(delegate_object, delegate_type);
 
-			DelegateObject = nullptr;
-			DelegateType = nullptr;
-			Core::Memory::Release(Callback);
-			Core::Memory::Release(Context);
+			delegate_object = nullptr;
+			delegate_type = nullptr;
+			if (callback != nullptr)
+				callback->Release();
+			core::memory::release(context);
 #endif
 		}
-		bool FunctionDelegate::IsValid() const
+		bool function_delegate::is_valid() const
 		{
-			return Context && Callback;
+			return context && callback;
 		}
-		Function FunctionDelegate::Callable() const
+		function function_delegate::callable() const
 		{
-			return Callback;
+			return callback;
 		}
 
-		Compiler::Compiler(VirtualMachine* Engine) noexcept : Scope(nullptr), VM(Engine), Built(false)
+		compiler::compiler(virtual_machine* engine) noexcept : scope(nullptr), vm(engine), built(false)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
 
-			Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this](Compute::Preprocessor* Processor, const Compute::IncludeResult& File, Core::String& Output) -> Compute::ExpectsPreprocessor<Compute::IncludeType>
+			processor = new compute::preprocessor();
+			processor->set_include_callback([this](compute::preprocessor* processor, const compute::include_result& file, core::string& output) -> compute::expects_preprocessor<compute::include_type>
 			{
-				VI_ASSERT(VM != nullptr, "engine should be set");
-				if (Include)
+				VI_ASSERT(vm != nullptr, "engine should be set");
+				if (include)
 				{
-					auto Status = Include(Processor, File, Output);
-					switch (Status.Or(Compute::IncludeType::Unchanged))
+					auto status = include(processor, file, output);
+					switch (status.otherwise(compute::include_type::unchanged))
 					{
-						case Compute::IncludeType::Preprocess:
-							goto Preprocess;
-						case Compute::IncludeType::Virtual:
-							return Compute::IncludeType::Virtual;
-						case Compute::IncludeType::Error:
-							return Compute::IncludeType::Error;
-						case Compute::IncludeType::Unchanged:
+						case compute::include_type::preprocess:
+							goto preprocess;
+						case compute::include_type::computed:
+							return compute::include_type::computed;
+						case compute::include_type::error:
+							return compute::include_type::error;
+						case compute::include_type::unchanged:
 						default:
 							break;
 					}
 				}
 
-				if (File.Module.empty() || !Scope)
-					return Compute::IncludeType::Error;
+				if (file.library.empty() || !scope)
+					return compute::include_type::error;
 
-				if (!File.IsFile && File.IsAbstract)
-					return VM->ImportSystemAddon(File.Module) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
+				if (!file.is_file && file.is_abstract)
+					return vm->import_system_addon(file.library) ? compute::include_type::computed : compute::include_type::error;
 
-				if (!VM->ImportFile(File.Module, File.IsRemote, Output))
-					return Compute::IncludeType::Error;
+				if (!vm->import_file(file.library, file.is_remote, output))
+					return compute::include_type::error;
 
-			Preprocess:
-				if (Output.empty())
-					return Compute::IncludeType::Virtual;
+			preprocess:
+				if (output.empty())
+					return compute::include_type::computed;
 
-				auto Status = VM->GenerateCode(Processor, File.Module, Output);
-				if (!Status)
-					return Status.Error();
-				else if (Output.empty())
-					return Compute::IncludeType::Virtual;
+				auto status = vm->generate_code(processor, file.library, output);
+				if (!status)
+					return status.error();
+				else if (output.empty())
+					return compute::include_type::computed;
 
-				return VM->AddScriptSection(Scope, File.Module, Output) ? Compute::IncludeType::Virtual : Compute::IncludeType::Error;
+				return vm->add_script_section(scope, file.library, output) ? compute::include_type::computed : compute::include_type::error;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* Processor, const std::string_view& Name, const Core::Vector<Core::String>& Args) -> Compute::ExpectsPreprocessor<void>
+			processor->set_pragma_callback([this](compute::preprocessor* processor, const std::string_view& name, const core::vector<core::string>& args) -> compute::expects_preprocessor<void>
 			{
-				VI_ASSERT(VM != nullptr, "engine should be set");
-				if (Pragma)
+				VI_ASSERT(vm != nullptr, "engine should be set");
+				if (pragma)
 				{
-					auto Status = Pragma(Processor, Name, Args);
-					if (Status)
-						return Status;
+					auto status = pragma(processor, name, args);
+					if (status)
+						return status;
 				}
 
-				if (Name == "compile" && Args.size() == 2)
+				if (name == "compile" && args.size() == 2)
 				{
-					const Core::String& Key = Args[0];
-					const Core::String& Value = Args[1];
-					auto Numeric = Core::FromString<uint64_t>(Value);
-					size_t Result = Numeric ? (size_t)*Numeric : 0;
-					if (Key == "ALLOW_UNSAFE_REFERENCES")
-						VM->SetProperty(Features::ALLOW_UNSAFE_REFERENCES, Result);
-					else if (Key == "OPTIMIZE_BYTECODE")
-						VM->SetProperty(Features::OPTIMIZE_BYTECODE, Result);
-					else if (Key == "COPY_SCRIPT_SECTIONS")
-						VM->SetProperty(Features::COPY_SCRIPT_SECTIONS, Result);
-					else if (Key == "MAX_STACK_SIZE")
-						VM->SetProperty(Features::MAX_STACK_SIZE, Result);
-					else if (Key == "USE_CHARACTER_LITERALS")
-						VM->SetProperty(Features::USE_CHARACTER_LITERALS, Result);
-					else if (Key == "ALLOW_MULTILINE_STRINGS")
-						VM->SetProperty(Features::ALLOW_MULTILINE_STRINGS, Result);
-					else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
-						VM->SetProperty(Features::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
-					else if (Key == "BUILD_WITHOUT_LINE_CUES")
-						VM->SetProperty(Features::BUILD_WITHOUT_LINE_CUES, Result);
-					else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
-						VM->SetProperty(Features::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
-					else if (Key == "REQUIRE_ENUM_SCOPE")
-						VM->SetProperty(Features::REQUIRE_ENUM_SCOPE, Result);
-					else if (Key == "SCRIPT_SCANNER")
-						VM->SetProperty(Features::SCRIPT_SCANNER, Result);
-					else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
-						VM->SetProperty(Features::INCLUDE_JIT_INSTRUCTIONS, Result);
-					else if (Key == "STRING_ENCODING")
-						VM->SetProperty(Features::STRING_ENCODING, Result);
-					else if (Key == "PROPERTY_ACCESSOR_MODE")
-						VM->SetProperty(Features::PROPERTY_ACCESSOR_MODE, Result);
-					else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
-						VM->SetProperty(Features::EXPAND_DEF_ARRAY_TO_TMPL, Result);
-					else if (Key == "AUTO_GARBAGE_COLLECT")
-						VM->SetProperty(Features::AUTO_GARBAGE_COLLECT, Result);
-					else if (Key == "DISALLOW_GLOBAL_VARS")
-						VM->SetProperty(Features::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-					else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
-						VM->SetProperty(Features::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-					else if (Key == "COMPILER_WARNINGS")
-						VM->SetProperty(Features::COMPILER_WARNINGS, Result);
-					else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
-						VM->SetProperty(Features::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
-					else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
-						VM->SetProperty(Features::ALTER_SYNTAX_NAMED_ARGS, Result);
-					else if (Key == "DISABLE_INTEGER_DIVISION")
-						VM->SetProperty(Features::DISABLE_INTEGER_DIVISION, Result);
-					else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
-						VM->SetProperty(Features::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
-					else if (Key == "PRIVATE_PROP_AS_PROTECTED")
-						VM->SetProperty(Features::PRIVATE_PROP_AS_PROTECTED, Result);
-					else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
-						VM->SetProperty(Features::ALLOW_UNICODE_IDENTIFIERS, Result);
-					else if (Key == "HEREDOC_TRIM_MODE")
-						VM->SetProperty(Features::HEREDOC_TRIM_MODE, Result);
-					else if (Key == "MAX_NESTED_CALLS")
-						VM->SetProperty(Features::MAX_NESTED_CALLS, Result);
-					else if (Key == "GENERIC_CALL_MODE")
-						VM->SetProperty(Features::GENERIC_CALL_MODE, Result);
-					else if (Key == "INIT_STACK_SIZE")
-						VM->SetProperty(Features::INIT_STACK_SIZE, Result);
-					else if (Key == "INIT_CALL_STACK_SIZE")
-						VM->SetProperty(Features::INIT_CALL_STACK_SIZE, Result);
-					else if (Key == "MAX_CALL_STACK_SIZE")
-						VM->SetProperty(Features::MAX_CALL_STACK_SIZE, Result);
-					else if (Key == "IGNORE_DUPLICATE_SHARED_INTF")
-						VM->SetProperty(Features::IGNORE_DUPLICATE_SHARED_INTF, Result);
-					else if (Key == "NO_DEBUG_OUTPUT")
-						VM->SetProperty(Features::NO_DEBUG_OUTPUT, Result);
+					const core::string& key = args[0];
+					const core::string& value = args[1];
+					auto numeric = core::from_string<uint64_t>(value);
+					size_t result = numeric ? (size_t)*numeric : 0;
+					if (key == "ALLOW_UNSAFE_REFERENCES")
+						vm->set_property(features::allow_unsafe_references, result);
+					else if (key == "OPTIMIZE_BYTECODE")
+						vm->set_property(features::optimize_bytecode, result);
+					else if (key == "COPY_SCRIPT_SECTIONS")
+						vm->set_property(features::copy_script_sections, result);
+					else if (key == "MAX_STACK_SIZE")
+						vm->set_property(features::max_stack_size, result);
+					else if (key == "USE_CHARACTER_LITERALS")
+						vm->set_property(features::use_character_literals, result);
+					else if (key == "ALLOW_MULTILINE_STRINGS")
+						vm->set_property(features::allow_multiline_strings, result);
+					else if (key == "ALLOW_IMPLICIT_HANDLE_TYPES")
+						vm->set_property(features::allow_implicit_handle_types, result);
+					else if (key == "BUILD_WITHOUT_LINE_CUES")
+						vm->set_property(features::build_without_line_cues, result);
+					else if (key == "INIT_GLOBAL_VARS_AFTER_BUILD")
+						vm->set_property(features::init_global_vars_after_build, result);
+					else if (key == "REQUIRE_ENUM_SCOPE")
+						vm->set_property(features::require_enum_scope, result);
+					else if (key == "SCRIPT_SCANNER")
+						vm->set_property(features::script_scanner, result);
+					else if (key == "INCLUDE_JIT_INSTRUCTIONS")
+						vm->set_property(features::include_jit_instructions, result);
+					else if (key == "STRING_ENCODING")
+						vm->set_property(features::string_encoding, result);
+					else if (key == "PROPERTY_ACCESSOR_MODE")
+						vm->set_property(features::property_accessor_mode, result);
+					else if (key == "EXPAND_DEF_ARRAY_TO_TMPL")
+						vm->set_property(features::expand_def_array_to_tmpl, result);
+					else if (key == "AUTO_GARBAGE_COLLECT")
+						vm->set_property(features::auto_garbage_collect, result);
+					else if (key == "DISALLOW_GLOBAL_VARS")
+						vm->set_property(features::always_impl_default_construct, result);
+					else if (key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
+						vm->set_property(features::always_impl_default_construct, result);
+					else if (key == "COMPILER_WARNINGS")
+						vm->set_property(features::compiler_warnings, result);
+					else if (key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
+						vm->set_property(features::disallow_value_assign_for_ref_type, result);
+					else if (key == "ALTER_SYNTAX_NAMED_ARGS")
+						vm->set_property(features::alter_syntax_named_args, result);
+					else if (key == "DISABLE_INTEGER_DIVISION")
+						vm->set_property(features::disable_integer_division, result);
+					else if (key == "DISALLOW_EMPTY_LIST_ELEMENTS")
+						vm->set_property(features::disallow_empty_list_elements, result);
+					else if (key == "PRIVATE_PROP_AS_PROTECTED")
+						vm->set_property(features::private_prop_as_protected, result);
+					else if (key == "ALLOW_UNICODE_IDENTIFIERS")
+						vm->set_property(features::allow_unicode_identifiers, result);
+					else if (key == "HEREDOC_TRIM_MODE")
+						vm->set_property(features::heredoc_trim_mode, result);
+					else if (key == "MAX_NESTED_CALLS")
+						vm->set_property(features::max_nested_calls, result);
+					else if (key == "GENERIC_CALL_MODE")
+						vm->set_property(features::generic_call_mode, result);
+					else if (key == "INIT_STACK_SIZE")
+						vm->set_property(features::init_stack_size, result);
+					else if (key == "INIT_CALL_STACK_SIZE")
+						vm->set_property(features::init_call_stack_size, result);
+					else if (key == "MAX_CALL_STACK_SIZE")
+						vm->set_property(features::max_call_stack_size, result);
+					else if (key == "IGNORE_DUPLICATE_SHARED_INTF")
+						vm->set_property(features::ignore_duplicate_shared_intf, result);
+					else if (key == "NO_DEBUG_OUTPUT")
+						vm->set_property(features::no_debug_output, result);
 				}
-				else if (Name == "comment" && Args.size() == 2)
+				else if (name == "comment" && args.size() == 2)
 				{
-					const Core::String& Key = Args[0];
-					if (Key == "INFO")
-						VI_INFO("[asc] %s", Args[1].c_str());
-					else if (Key == "TRACE")
-						VI_DEBUG("[asc] %s", Args[1].c_str());
-					else if (Key == "WARN")
-						VI_WARN("[asc] %s", Args[1].c_str());
-					else if (Key == "ERR")
-						VI_ERR("[asc] %s", Args[1].c_str());
+					const core::string& key = args[0];
+					if (key == "INFO")
+						VI_INFO("[asc] %s", args[1].c_str());
+					else if (key == "TRACE")
+						VI_DEBUG("[asc] %s", args[1].c_str());
+					else if (key == "WARN")
+						VI_WARN("[asc] %s", args[1].c_str());
+					else if (key == "ERR")
+						VI_ERR("[asc] %s", args[1].c_str());
 				}
-				else if (Name == "modify" && Args.size() == 2)
+				else if (name == "modify" && args.size() == 2)
 				{
 #ifdef VI_ANGELSCRIPT
-					const Core::String& Key = Args[0];
-					const Core::String& Value = Args[1];
-					auto Numeric = Core::FromString<uint64_t>(Value);
-					size_t Result = Numeric ? (size_t)*Numeric : 0;
-					if (Key == "NAME")
-						Scope->SetName(Value.c_str());
-					else if (Key == "NAMESPACE")
-						Scope->SetDefaultNamespace(Value.c_str());
-					else if (Key == "ACCESS_MASK")
-						Scope->SetAccessMask((asDWORD)Result);
+					const core::string& key = args[0];
+					const core::string& value = args[1];
+					auto numeric = core::from_string<uint64_t>(value);
+					size_t result = numeric ? (size_t)*numeric : 0;
+					if (key == "NAME")
+						scope->SetName(value.c_str());
+					else if (key == "NAMESPACE")
+						scope->SetDefaultNamespace(value.c_str());
+					else if (key == "ACCESS_MASK")
+						scope->SetAccessMask((asDWORD)result);
 #endif
 				}
-				else if (Name == "cimport" && Args.size() >= 2)
+				else if (name == "cimport" && args.size() >= 2)
 				{
-					if (Args.size() == 3)
+					if (args.size() == 3)
 					{
-						auto Status = VM->ImportCLibrary(Args[0]);
-						if (Status)
+						auto status = vm->import_clibrary(args[0]);
+						if (status)
 						{
-							Status = VM->ImportCFunction({ Args[0] }, Args[1], Args[2]);
-							if (Status)
-								Define("SOF_" + Args[1]);
+							status = vm->import_cfunction({ args[0] }, args[1], args[2]);
+							if (status)
+								define("SOF_" + args[1]);
 							else
-								VI_ERR("[asc] %s", Status.Error().what());
+								VI_ERR("[asc] %s", status.error().what());
 						}
 						else
-							VI_ERR("[asc] %s", Status.Error().what());
+							VI_ERR("[asc] %s", status.error().what());
 					}
 					else
 					{
-						auto Status = VM->ImportCFunction({ }, Args[0], Args[1]);
-						if (Status)
-							Define("SOF_" + Args[1]);
+						auto status = vm->import_cfunction({ }, args[0], args[1]);
+						if (status)
+							define("SOF_" + args[1]);
 						else
-							VI_ERR("[asc] %s", Status.Error().what());
+							VI_ERR("[asc] %s", status.error().what());
 					}
 				}
-				else if (Name == "clibrary" && Args.size() >= 1)
+				else if (name == "clibrary" && args.size() >= 1)
 				{
-					Core::String Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
-					if (Directory.empty())
+					core::string directory = core::os::path::get_directory(processor->get_current_file_path().c_str());
+					if (directory.empty())
 					{
-						auto Working = Core::OS::Directory::GetWorking();
-						if (Working)
-							Directory = *Working;
+						auto working = core::os::directory::get_working();
+						if (working)
+							directory = *working;
 					}
 
-					if (!VM->ImportCLibrary(Args[0]))
+					if (!vm->import_clibrary(args[0]))
 					{
-						auto Path = Core::OS::Path::Resolve(Args[0], Directory, false);
-						if (Path && VM->ImportCLibrary(*Path))
+						auto path = core::os::path::resolve(args[0], directory, false);
+						if (path && vm->import_clibrary(*path))
 						{
-							if (Args.size() == 2 && !Args[1].empty())
-								Define("SOL_" + Args[1]);
+							if (args.size() == 2 && !args[1].empty())
+								define("SOL_" + args[1]);
 						}
 					}
-					else if (Args.size() == 2 && !Args[1].empty())
-						Define("SOL_" + Args[1]);
+					else if (args.size() == 2 && !args[1].empty())
+						define("SOL_" + args[1]);
 
 				}
-				else if (Name == "define" && Args.size() == 1)
-					Define(Args[0]);
+				else if (name == "define" && args.size() == 1)
+					define(args[0]);
 
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			});
-			Processor->Define("VI_VERSION " + Core::ToString((size_t)VERSION));
+			processor->define("VI_VERSION " + core::to_string((size_t)vitex::version));
 #ifdef VI_MICROSOFT
-			Processor->Define("OS_MICROSOFT");
+			processor->define("OS_MICROSOFT");
 #elif defined(VI_ANDROID)
-			Processor->Define("OS_ANDROID");
-			Processor->Define("OS_LINUX");
+			processor->define("OS_ANDROID");
+			processor->define("OS_LINUX");
 #elif defined(VI_APPLE)
-			Processor->Define("OS_APPLE");
-			Processor->Define("OS_LINUX");
+			processor->define("OS_APPLE");
+			processor->define("OS_LINUX");
 #ifdef VI_IOS
-			Processor->Define("OS_IOS");
+			processor->define("OS_IOS");
 #elif defined(VI_OSX)
-			Processor->Define("OS_OSX");
+			processor->define("OS_OSX");
 #endif
 #elif defined(VI_LINUX)
-			Processor->Define("OS_LINUX");
+			processor->define("OS_LINUX");
 #endif
-			VM->SetProcessorOptions(Processor);
+			vm->set_processor_options(processor);
 		}
-		Compiler::~Compiler() noexcept
+		compiler::~compiler() noexcept
 		{
 #ifdef VI_ANGELSCRIPT
-			if (Scope != nullptr)
-				Scope->Discard();
+			if (scope != nullptr)
+				scope->Discard();
 #endif
-			Core::Memory::Release(Processor);
+			core::memory::release(processor);
 		}
-		void Compiler::SetIncludeCallback(Compute::ProcIncludeCallback&& Callback)
+		void compiler::set_include_callback(compute::proc_include_callback&& callback)
 		{
-			Include = std::move(Callback);
+			include = std::move(callback);
 		}
-		void Compiler::SetPragmaCallback(Compute::ProcPragmaCallback&& Callback)
+		void compiler::set_pragma_callback(compute::proc_pragma_callback&& callback)
 		{
-			Pragma = std::move(Callback);
+			pragma = std::move(callback);
 		}
-		void Compiler::Define(const std::string_view& Word)
+		void compiler::define(const std::string_view& word)
 		{
-			Processor->Define(Word);
+			processor->define(word);
 		}
-		void Compiler::Undefine(const std::string_view& Word)
+		void compiler::undefine(const std::string_view& word)
 		{
-			Processor->Undefine(Word);
+			processor->undefine(word);
 		}
-		Module Compiler::UnlinkModule()
+		library compiler::unlink_module()
 		{
-			Module Result(Scope);
-			Scope = nullptr;
-			return Result;
+			library result(scope);
+			scope = nullptr;
+			return result;
 		}
-		bool Compiler::Clear()
+		bool compiler::clear()
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			if (Scope != nullptr)
-				Scope->Discard();
+			if (scope != nullptr)
+				scope->Discard();
 #endif
-			if (Processor != nullptr)
-				Processor->Clear();
+			if (processor != nullptr)
+				processor->clear();
 
-			Scope = nullptr;
-			Built = false;
+			scope = nullptr;
+			built = false;
 			return true;
 		}
-		bool Compiler::IsDefined(const std::string_view& Word) const
+		bool compiler::is_defined(const std::string_view& word) const
 		{
-			return Processor->IsDefined(Word);
+			return processor->is_defined(word);
 		}
-		bool Compiler::IsBuilt() const
+		bool compiler::is_built() const
 		{
-			return Built;
+			return built;
 		}
-		bool Compiler::IsCached() const
+		bool compiler::is_cached() const
 		{
-			return VCache.Valid;
+			return vcache.valid;
 		}
-		ExpectsVM<void> Compiler::Prepare(ByteCodeInfo* Info)
+		expects_vm<void> compiler::prepare(byte_code_info* info)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			if (!Info->Valid || Info->Data.empty())
-				return VirtualException(VirtualError::INVALID_ARG);
+			if (!info->valid || info->data.empty())
+				return virtual_exception(virtual_error::invalid_arg);
 
-			auto Result = Prepare(Info->Name, true);
-			if (Result)
-				VCache = *Info;
-			return Result;
+			auto result = prepare(info->name, true);
+			if (result)
+				vcache = *info;
+			return result;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::Prepare(const Module& Info)
+		expects_vm<void> compiler::prepare(const library& info)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Info.IsValid(), "module should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(info.is_valid(), "module should be set");
 #ifdef VI_ANGELSCRIPT
-			if (!Info.IsValid())
-				return VirtualException(VirtualError::INVALID_ARG);
+			if (!info.is_valid())
+				return virtual_exception(virtual_error::invalid_arg);
 
-			Built = true;
-			VCache.Valid = false;
-			VCache.Name.clear();
-			if (Scope != nullptr)
-				Scope->Discard();
+			built = true;
+			vcache.valid = false;
+			vcache.name.clear();
+			if (scope != nullptr)
+				scope->Discard();
 
-			Scope = Info.GetModule();
-			VM->SetProcessorOptions(Processor);
-			return Core::Expectation::Met;
+			scope = info.get_module();
+			vm->set_processor_options(processor);
+			return core::expectation::met;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::Prepare(const std::string_view& ModuleName, bool Scoped)
+		expects_vm<void> compiler::prepare(const std::string_view& module_name, bool scoped)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(!ModuleName.empty(), "module name should not be empty");
-			VI_DEBUG("[vm] prepare %.*s on 0x%" PRIXPTR, (int)ModuleName.size(), ModuleName.data(), (uintptr_t)this);
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(!module_name.empty(), "module name should not be empty");
+			VI_DEBUG("[vm] prepare %.*s on 0x%" PRIXPTR, (int)module_name.size(), module_name.data(), (uintptr_t)this);
 #ifdef VI_ANGELSCRIPT
-			Built = false;
-			VCache.Valid = false;
-			VCache.Name.clear();
-			if (Scope != nullptr)
-				Scope->Discard();
+			built = false;
+			vcache.valid = false;
+			vcache.name.clear();
+			if (scope != nullptr)
+				scope->Discard();
 
-			Scope = Scoped ? VM->CreateScopedModule(ModuleName) : VM->CreateModule(ModuleName);
-			if (!Scope)
-				return VirtualException(VirtualError::INVALID_NAME);
+			scope = scoped ? vm->create_scoped_module(module_name) : vm->create_module(module_name);
+			if (!scope)
+				return virtual_exception(virtual_error::invalid_name);
 
-			VM->SetProcessorOptions(Processor);
-			return Core::Expectation::Met;
+			vm->set_processor_options(processor);
+			return core::expectation::met;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::Prepare(const std::string_view& ModuleName, const std::string_view& Name, bool Debug, bool Scoped)
+		expects_vm<void> compiler::prepare(const std::string_view& module_name, const std::string_view& name, bool debug, bool scoped)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			auto Result = Prepare(ModuleName, Scoped);
-			if (!Result)
-				return Result;
+			auto result = prepare(module_name, scoped);
+			if (!result)
+				return result;
 
-			VCache.Name = Name;
-			if (!VM->GetByteCodeCache(&VCache))
+			vcache.name = name;
+			if (!vm->get_byte_code_cache(&vcache))
 			{
-				VCache.Data.clear();
-				VCache.Debug = Debug;
-				VCache.Valid = false;
+				vcache.data.clear();
+				vcache.debug = debug;
+				vcache.valid = false;
 			}
 
-			return Result;
+			return result;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::SaveByteCode(ByteCodeInfo* Info)
+		expects_vm<void> compiler::save_byte_code(byte_code_info* info)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
-			VI_ASSERT(Built, "module should be built");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
+			VI_ASSERT(info != nullptr, "bytecode should be set");
+			VI_ASSERT(built, "module should be built");
 #ifdef VI_ANGELSCRIPT
-			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>();
-			int R = Scope->SaveByteCode(Stream, !Info->Debug);
-			Info->Data = Stream->GetCode();
-			Core::Memory::Delete(Stream);
-			if (R >= 0)
+			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>();
+			int r = scope->SaveByteCode(stream, !info->debug);
+			info->data = stream->GetCode();
+			core::memory::deinit(stream);
+			if (r >= 0)
 				VI_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::LoadFile(const std::string_view& Path)
+		expects_vm<void> compiler::load_file(const std::string_view& path)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
-			if (VCache.Valid)
-				return Core::Expectation::Met;
+			if (vcache.valid)
+				return core::expectation::met;
 
-			auto Source = Core::OS::Path::Resolve(Path);
-			if (!Source)
-				return VirtualException("path not found: " + Core::String(Path));
+			auto source = core::os::path::resolve(path);
+			if (!source)
+				return virtual_exception("path not found: " + core::string(path));
 
-			if (!Core::OS::File::IsExists(Source->c_str()))
-				return VirtualException("file not found: " + Core::String(Path));
+			if (!core::os::file::is_exists(source->c_str()))
+				return virtual_exception("file not found: " + core::string(path));
 
-			auto Buffer = Core::OS::File::ReadAsString(*Source);
-			if (!Buffer)
-				return VirtualException("open file error: " + Core::String(Path));
+			auto buffer = core::os::file::read_as_string(*source);
+			if (!buffer)
+				return virtual_exception("open file error: " + core::string(path));
 
-			Core::String Code = *Buffer;
-			auto Status = VM->GenerateCode(Processor, *Source, Code);
-			if (!Status)
-				return VirtualException(std::move(Status.Error().message()));
-			else if (Code.empty())
-				return Core::Expectation::Met;
-			
-			auto Result = VM->AddScriptSection(Scope, *Source, Code);
-			if (Result)
+			core::string code = *buffer;
+			auto status = vm->generate_code(processor, *source, code);
+			if (!status)
+				return virtual_exception(std::move(status.error().message()));
+			else if (code.empty())
+				return core::expectation::met;
+
+			auto result = vm->add_script_section(scope, *source, code);
+			if (result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
-			return Result;
+			return result;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::LoadCode(const std::string_view& Name, const std::string_view& Data)
+		expects_vm<void> compiler::load_code(const std::string_view& name, const std::string_view& data)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			if (VCache.Valid)
-				return Core::Expectation::Met;
+			if (vcache.valid)
+				return core::expectation::met;
 
-			Core::String Buffer(Data);
-			auto Status = VM->GenerateCode(Processor, Name, Buffer);
-			if (!Status)
-				return VirtualException(std::move(Status.Error().message()));
-			else if (Buffer.empty())
-				return Core::Expectation::Met;
+			core::string buffer(data);
+			auto status = vm->generate_code(processor, name, buffer);
+			if (!status)
+				return virtual_exception(std::move(status.error().message()));
+			else if (buffer.empty())
+				return core::expectation::met;
 
-			auto Result = VM->AddScriptSection(Scope, Name, Buffer);
-			if (Result)
+			auto result = vm->add_script_section(scope, name, buffer);
+			if (result)
 				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
-			return Result;
+			return result;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::LoadByteCodeSync(ByteCodeInfo* Info)
+		expects_vm<void> compiler::load_byte_code_sync(byte_code_info* info)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
+			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = 0;
-			CByteCodeStream* Stream = Core::Memory::New<CByteCodeStream>(Info->Data);
-			while ((R = Scope->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
+			int r = 0;
+			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>(info->data);
+			while ((r = scope->LoadByteCode(stream, &info->debug)) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
-			Core::Memory::Delete(Stream);
-			if (R >= 0)
+			core::memory::deinit(stream);
+			if (r >= 0)
 				VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
-			return FunctionFactory::ToReturn(R);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> Compiler::CompileSync()
+		expects_vm<void> compiler::compile_sync()
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
-			if (VCache.Valid)
-				return LoadByteCodeSync(&VCache);
+			if (vcache.valid)
+				return load_byte_code_sync(&vcache);
 
-			int R = 0;
-			while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
+			int r = 0;
+			while ((r = scope->Build()) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 
-			VM->ClearSections();
-			Built = (R >= 0);
-			if (!Built)
-				return FunctionFactory::ToReturn(R);
+			vm->clear_sections();
+			built = (r >= 0);
+			if (!built)
+				return function_factory::to_return(r);
 
 			VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
-			if (VCache.Name.empty())
-				return FunctionFactory::ToReturn(R);
+			if (vcache.name.empty())
+				return function_factory::to_return(r);
 
-			auto Status = SaveByteCode(&VCache);
-			if (Status)
-				VM->SetByteCodeCache(&VCache);
-			return Status;
+			auto status = save_byte_code(&vcache);
+			if (status)
+				vm->set_byte_code_cache(&vcache);
+			return status;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsPromiseVM<void> Compiler::LoadByteCode(ByteCodeInfo* Info)
+		expects_promise_vm<void> compiler::load_byte_code(byte_code_info* info)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
+			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			return Core::Cotask<ExpectsVM<void>>(std::bind(&Compiler::LoadByteCodeSync, this, Info));
+			return core::cotask<expects_vm<void>>(std::bind(&compiler::load_byte_code_sync, this, info));
 #else
-			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<void>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		ExpectsPromiseVM<void> Compiler::Compile()
+		expects_promise_vm<void> compiler::compile()
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
 #ifdef VI_ANGELSCRIPT
-			return Core::Cotask<ExpectsVM<void>>(std::bind(&Compiler::CompileSync, this));
+			return core::cotask<expects_vm<void>>(std::bind(&compiler::compile_sync, this));
 #else
-			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<void>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		ExpectsPromiseVM<void> Compiler::CompileFile(const std::string_view& Name, const std::string_view& ModuleName, const std::string_view& EntryName)
+		expects_promise_vm<void> compiler::compile_file(const std::string_view& name, const std::string_view& module_name, const std::string_view& entry_name)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			auto Status = Prepare(ModuleName, Name);
-			if (!Status)
-				return ExpectsPromiseVM<void>(Status);
+			auto status = prepare(module_name, name);
+			if (!status)
+				return expects_promise_vm<void>(status);
 
-			Status = LoadFile(Name);
-			if (!Status)
-				return ExpectsPromiseVM<void>(Status);
+			status = load_file(name);
+			if (!status)
+				return expects_promise_vm<void>(status);
 
-			return Compile();
+			return compile();
 #else
-			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<void>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		ExpectsPromiseVM<void> Compiler::CompileMemory(const std::string_view& Buffer, const std::string_view& ModuleName, const std::string_view& EntryName)
+		expects_promise_vm<void> compiler::compile_memory(const std::string_view& buffer, const std::string_view& module_name, const std::string_view& entry_name)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(!buffer.empty(), "buffer should not be empty");
 #ifdef VI_ANGELSCRIPT
-			Core::String Name = "anonymous:" + Core::ToString(Counter++);
-			auto Status = Prepare(ModuleName, "anonymous");
-			if (!Status)
-				return ExpectsPromiseVM<void>(Status);
+			core::string name = "anonymous:" + core::to_string(counter++);
+			auto status = prepare(module_name, "anonymous");
+			if (!status)
+				return expects_promise_vm<void>(status);
 
-			Status = LoadCode("anonymous", Buffer);
-			if (!Status)
-				return ExpectsPromiseVM<void>(Status);
+			status = load_code("anonymous", buffer);
+			if (!status)
+				return expects_promise_vm<void>(status);
 
-			return Compile();
+			return compile();
 #else
-			return ExpectsPromiseVM<void>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<void>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		ExpectsPromiseVM<Function> Compiler::CompileFunction(const std::string_view& Buffer, const std::string_view& Returns, const std::string_view& Args, Core::Option<size_t>&& FunctionId)
+		expects_promise_vm<function> compiler::compile_function(const std::string_view& buffer, const std::string_view& returns, const std::string_view& args, core::option<size_t>&& function_id)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(!Buffer.empty(), "buffer should not be empty");
-			VI_ASSERT(Scope != nullptr, "module should not be empty");
-			VI_ASSERT(Built, "module should be built");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(!buffer.empty(), "buffer should not be empty");
+			VI_ASSERT(scope != nullptr, "module should not be empty");
+			VI_ASSERT(built, "module should be built");
 #ifdef VI_ANGELSCRIPT
-			Core::String Code = Core::String(Buffer);
-			Core::String Name = " __vfunc" + Core::ToString(FunctionId ? *FunctionId : (Counter + 1));
-			auto Status = VM->GenerateCode(Processor, Name, Code);
-			if (!Status)
-				return ExpectsPromiseVM<Function>(VirtualException(std::move(Status.Error().message())));
+			core::string code = core::string(buffer);
+			core::string name = " __vfunc" + core::to_string(function_id ? *function_id : (counter + 1));
+			auto status = vm->generate_code(processor, name, code);
+			if (!status)
+				return expects_promise_vm<function>(virtual_exception(std::move(status.error().message())));
 
-			Core::String Eval;
-			Eval.append(Returns.empty() ? "void" : Returns);
-			Eval.append(Name);
-			Eval.append("(");
-			Eval.append(Args);
-			Eval.append("){");
+			core::string eval;
+			eval.append(returns.empty() ? "void" : returns);
+			eval.append(name);
+			eval.append("(");
+			eval.append(args);
+			eval.append("){");
 
-			if (!FunctionId)
-				++Counter;
+			if (!function_id)
+				++counter;
 
-			if (!Returns.empty() && Returns != "void")
+			if (!returns.empty() && returns != "void")
 			{
-				size_t Offset = Buffer.size();
-				while (Offset > 0)
+				size_t offset = buffer.size();
+				while (offset > 0)
 				{
-					char U = Buffer[Offset - 1];
-					if (U == '\"' || U == '\'')
+					char u = buffer[offset - 1];
+					if (u == '\"' || u == '\'')
 					{
-						--Offset;
-						while (Offset > 0)
+						--offset;
+						while (offset > 0)
 						{
-							if (Buffer[--Offset] == U)
+							if (buffer[--offset] == u)
 								break;
 						}
 
 						continue;
 					}
-					else if (U == ';' && Offset < Buffer.size())
+					else if (u == ';' && offset < buffer.size())
 						break;
-					--Offset;
+					--offset;
 				}
 
-				if (Offset > 0)
-					Eval.append(Buffer.substr(0, Offset));
+				if (offset > 0)
+					eval.append(buffer.substr(0, offset));
 
-				size_t Size = Returns.size();
-				Eval.append("return ");
-				if (Returns[Size - 1] == '@')
+				size_t size = returns.size();
+				eval.append("return ");
+				if (returns[size - 1] == '@')
 				{
-					Eval.append("@");
-					Eval.append(Returns.data(), Size - 1);
+					eval.append("@");
+					eval.append(returns.data(), size - 1);
 				}
 				else
-					Eval.append(Returns);
-				
-				Eval.append("(");
-				Eval.append(Buffer.substr(Offset));
-				if (Eval.back() == ';')
-					Eval.erase(Eval.end() - 1);
-				Eval.append(");}");
+					eval.append(returns);
+
+				eval.append("(");
+				eval.append(buffer.substr(offset));
+				if (eval.back() == ';')
+					eval.erase(eval.end() - 1);
+				eval.append(");}");
 			}
 			else
 			{
-				Eval.append(Buffer);
-				if (Eval.back() == ';')
-					Eval.erase(Eval.end() - 1);
-				Eval.append(";}");
+				eval.append(buffer);
+				if (eval.back() == ';')
+					eval.erase(eval.end() - 1);
+				eval.append(";}");
 			}
 
-			asIScriptModule* Source = GetModule().GetModule();
-			return Core::Cotask<ExpectsVM<Function>>([Source, Eval = std::move(Eval)]() mutable
+			asIScriptModule* source = get_module().get_module();
+			return core::cotask<expects_vm<function>>([source, eval = std::move(eval)]() mutable
 			{
-				asIScriptFunction* FunctionPointer = nullptr; int R = 0;
-				while ((R = Source->CompileFunction("__vfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &FunctionPointer)) == asBUILD_IN_PROGRESS)
+				asIScriptFunction* function_pointer = nullptr; int r = 0;
+				while ((r = source->CompileFunction("__vfunc", eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &function_pointer)) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
-				return FunctionFactory::ToReturn<Function>(R, Function(FunctionPointer));
+				return function_factory::to_return<function>(r, function(function_pointer));
 			});
 #else
-			return ExpectsPromiseVM<Function>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<function>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		VirtualMachine* Compiler::GetVM() const
+		virtual_machine* compiler::get_vm() const
 		{
-			return VM;
+			return vm;
 		}
-		Module Compiler::GetModule() const
+		library compiler::get_module() const
 		{
-			return Scope;
+			return scope;
 		}
-		Compute::Preprocessor* Compiler::GetProcessor() const
+		compute::preprocessor* compiler::get_processor() const
 		{
-			return Processor;
+			return processor;
 		}
 
-		DebuggerContext::DebuggerContext(DebugType Type) noexcept : LastContext(nullptr), ForceSwitchThreads(0), LastFunction(nullptr), VM(nullptr), Action(Type == DebugType::Suspended ? DebugAction::Trigger : DebugAction::Continue), InputError(false), Attachable(Type != DebugType::Detach)
+		debugger_context::debugger_context(debug_type type) noexcept : last_context(nullptr), force_switch_threads(0), last_function(nullptr), vm(nullptr), action(type == debug_type::suspended ? debug_action::trigger : debug_action::next), input_error(false), attachable(type != debug_type::detach)
 		{
-			LastCommandAtStackLevel = 0;
-			AddDefaultCommands();
+			last_command_at_stack_level = 0;
+			add_default_commands();
 		}
-		DebuggerContext::~DebuggerContext() noexcept
+		debugger_context::~debugger_context() noexcept
 		{
 #ifdef VI_ANGELSCRIPT
-			if (VM != nullptr)
-				Core::Memory::Release(VM->GetEngine());
+			if (vm != nullptr)
+			{
+				auto engine = vm->get_engine();
+				if (engine != nullptr)
+					engine->Release();
+			}
 #endif
 		}
-		void DebuggerContext::AddDefaultCommands()
+		void debugger_context::add_default_commands()
 		{
-			AddCommand("h, help", "show debugger commands", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("h, help", "show debugger commands", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				size_t Max = 0;
-				for (auto& Next : Descriptions)
+				size_t max = 0;
+				for (auto& next : descriptions)
 				{
-					if (Next.first.size() > Max)
-						Max = Next.first.size();
+					if (next.first.size() > max)
+						max = next.first.size();
 				}
 
-				for (auto& Next : Descriptions)
+				for (auto& next : descriptions)
 				{
-					size_t Spaces = Max - Next.first.size();
-					Output("  ");
-					Output(Next.first);
-					for (size_t i = 0; i < Spaces; i++)
-						Output(" ");
-					Output(" - ");
-					Output(Next.second);
-					Output("\n");
+					size_t spaces = max - next.first.size();
+					output("  ");
+					output(next.first);
+					for (size_t i = 0; i < spaces; i++)
+						output(" ");
+					output(" - ");
+					output(next.second);
+					output("\n");
 				}
 				return false;
 			});
-			AddCommand("ls, loadsys", "load global system addon", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("ls, loadsys", "load global system addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (!Args.empty() && !Args[0].empty())
-					VM->ImportSystemAddon(Args[0]);
+				if (!args.empty() && !args[0].empty())
+					vm->import_system_addon(args[0]);
 				return false;
 			});
-			AddCommand("le, loadext", "load global external addon", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("le, loadext", "load global external addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (!Args.empty() && !Args[0].empty())
-					VM->ImportAddon(Args[0]);
+				if (!args.empty() && !args[0].empty())
+					vm->import_addon(args[0]);
 				return false;
 			});
-			AddCommand("e, eval", "evaluate script expression", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("e, eval", "evaluate script expression", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (!Args.empty() && !Args[0].empty())
-					ExecuteExpression(Context, Args[0], Core::String(), nullptr);
+				if (!args.empty() && !args[0].empty())
+					execute_expression(context, args[0], core::string(), nullptr);
 
 				return false;
 			});
-			AddCommand("b, break", "add a break point", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("b, break", "add a break point", args_type::array, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (Args.size() > 1)
+				if (args.size() > 1)
 				{
-					if (Args[0].empty())
-						goto BreakFailure;
+					if (args[0].empty())
+						goto break_failure;
 
-					auto Numeric = Core::FromString<int>(Args[1]);
-					if (!Numeric)
-						goto BreakFailure;
+					auto numeric = core::from_string<int>(args[1]);
+					if (!numeric)
+						goto break_failure;
 
-					AddFileBreakPoint(Args[0], *Numeric);
+					add_file_break_point(args[0], *numeric);
 					return false;
 				}
-				else if (Args.size() == 1)
+				else if (args.size() == 1)
 				{
-					if (Args[0].empty())
-						goto BreakFailure;
+					if (args[0].empty())
+						goto break_failure;
 
-					auto Numeric = Core::FromString<int>(Args[0]);
-					if (!Numeric)
+					auto numeric = core::from_string<int>(args[0]);
+					if (!numeric)
 					{
-						AddFuncBreakPoint(Args[0]);
+						add_func_break_point(args[0]);
 						return false;
 					}
 
-					std::string_view File = "";
-					Context->GetLineNumber(0, 0, &File);
-					if (File.empty())
-						goto BreakFailure;
+					std::string_view file = "";
+					context->get_line_number(0, 0, &file);
+					if (file.empty())
+						goto break_failure;
 
-					AddFileBreakPoint(File, *Numeric);
+					add_file_break_point(file, *numeric);
 					return false;
 				}
 
-			BreakFailure:
-				Output(
+			break_failure:
+				output(
 					"  break <file name> <line number>\n"
 					"  break <function name | line number>\n");
 				return false;
 			});
-			AddCommand("del, clear", "remove a break point", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("del, clear", "remove a break point", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (Args.empty())
+				if (args.empty())
 				{
-				ClearFailure:
-					Output("  clear <all | breakpoint number>\n");
+				clear_failure:
+					output("  clear <all | breakpoint number>\n");
 					return false;
 				}
 
-				if (Args[0] == "all")
+				if (args[0] == "all")
 				{
-					BreakPoints.clear();
-					Output("  all break points have been removed\n");
+					break_points.clear();
+					output("  all break points have been removed\n");
 					return false;
 				}
 
-				auto Numeric = Core::FromString<uint64_t>(Args[0]);
-				if (!Numeric)
-					goto ClearFailure;
+				auto numeric = core::from_string<uint64_t>(args[0]);
+				if (!numeric)
+					goto clear_failure;
 
-				size_t Offset = (size_t)*Numeric;
-				if (Offset >= BreakPoints.size())
-					goto ClearFailure;
+				size_t offset = (size_t)*numeric;
+				if (offset >= break_points.size())
+					goto clear_failure;
 
-				BreakPoints.erase(BreakPoints.begin() + Offset);
-				ListBreakPoints();
+				break_points.erase(break_points.begin() + offset);
+				list_break_points();
 				return false;
 			});
-			AddCommand("p, print", "print variable value", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("p, print", "print variable value", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (Args[0].empty())
+				if (args[0].empty())
 				{
-					Output("  print <expression>\n");
+					output("  print <expression>\n");
 					return false;
 				}
 
-				PrintValue(Args[0], Context);
+				print_value(args[0], context);
 				return false;
 			});
-			AddCommand("d, dump", "dump compiled function bytecode by name or declaration", ArgsType::Expression, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("d, dump", "dump compiled function bytecode by name or declaration", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (Args[0].empty())
+				if (args[0].empty())
 				{
-					Output("  dump <function declaration | function name>\n");
+					output("  dump <function declaration | function name>\n");
 					return false;
 				}
 
-				PrintByteCode(Args[0], Context);
+				print_byte_code(args[0], context);
 				return false;
 			});
-			AddCommand("i, info", "show info about of specific topic", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("i, info", "show info about of specific topic", args_type::array, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (Args.empty())
-					goto InfoFailure;
+				if (args.empty())
+					goto info_failure;
 
-				if (Args[0] == "b" || Args[0] == "break")
+				if (args[0] == "b" || args[0] == "break")
 				{
-					ListBreakPoints();
+					list_break_points();
 					return false;
 				}
-				if (Args[0] == "e" || Args[0] == "exception")
+				if (args[0] == "e" || args[0] == "exception")
 				{
-					ShowException(Context);
+					show_exception(context);
 					return false;
 				}
-				else if (Args[0] == "s" || Args[0] == "stack")
+				else if (args[0] == "s" || args[0] == "stack")
 				{
-					if (Args.size() > 1)
+					if (args.size() > 1)
 					{
-						auto Numeric = Core::FromString<uint32_t>(Args[1]);
-						if (Numeric)
-							ListStackRegisters(Context, *Numeric);
+						auto numeric = core::from_string<uint32_t>(args[1]);
+						if (numeric)
+							list_stack_registers(context, *numeric);
 						else
-							Output("  invalid stack level");
+							output("  invalid stack level");
 					}
 					else
-						ListStackRegisters(Context, 0);
+						list_stack_registers(context, 0);
 
 					return false;
 				}
-				else if (Args[0] == "l" || Args[0] == "locals")
+				else if (args[0] == "l" || args[0] == "locals")
 				{
-					ListLocalVariables(Context);
+					list_local_variables(context);
 					return false;
 				}
-				else if (Args[0] == "g" || Args[0] == "globals")
+				else if (args[0] == "g" || args[0] == "globals")
 				{
-					ListGlobalVariables(Context);
+					list_global_variables(context);
 					return false;
 				}
-				else if (Args[0] == "m" || Args[0] == "members")
+				else if (args[0] == "m" || args[0] == "members")
 				{
-					ListMemberProperties(Context);
+					list_member_properties(context);
 					return false;
 				}
-				else if (Args[0] == "t" || Args[0] == "threads")
+				else if (args[0] == "t" || args[0] == "threads")
 				{
-					ListThreads();
+					list_threads();
 					return false;
 				}
-				else if (Args[0] == "c" || Args[0] == "code")
+				else if (args[0] == "c" || args[0] == "code")
 				{
-					ListSourceCode(Context);
+					list_source_code(context);
 					return false;
 				}
-				else if (Args[0] == "a" || Args[0] == "addons")
+				else if (args[0] == "a" || args[0] == "addons")
 				{
-					ListAddons();
+					list_addons();
 					return false;
 				}
-				else if (Args[0] == "ri" || Args[0] == "interfaces")
+				else if (args[0] == "ri" || args[0] == "interfaces")
 				{
-					ListInterfaces(Context);
+					list_interfaces(context);
 					return false;
 				}
-				else if (Args[0] == "gc" || Args[0] == "garbage")
+				else if (args[0] == "gc" || args[0] == "garbage")
 				{
-					ListStatistics(Context);
+					list_statistics(context);
 					return false;
 				}
 
-			InfoFailure:
-				Output(
+			info_failure:
+				output(
 					"  info b, info break - show breakpoints\n"
 					"  info s, info stack <level?> - show stack registers\n"
 					"  info e, info exception - show current exception\n"
@@ -3686,1385 +3691,1389 @@ namespace Vitex
 					"  info gc, info garbage - show gc statistics\n");
 				return false;
 			});
-			AddCommand("t, thread", "switch to thread by it's number", ArgsType::Array, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("t, thread", "switch to thread by it's number", args_type::array, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (Args.empty())
+				if (args.empty())
 				{
-				ThreadFailure:
-					Output("  thread <thread number>\n");
+				thread_failure:
+					output("  thread <thread number>\n");
 					return false;
 				}
 
-				auto Numeric = Core::FromString<uint64_t>(Args[0]);
-				if (!Numeric)
-					goto ThreadFailure;
+				auto numeric = core::from_string<uint64_t>(args[0]);
+				if (!numeric)
+					goto thread_failure;
 
-				size_t Index = (size_t)*Numeric;
-				if (Index >= Threads.size())
-					goto ThreadFailure;
+				size_t index = (size_t)*numeric;
+				if (index >= threads.size())
+					goto thread_failure;
 
-				auto& Thread = Threads[Index];
-				if (Thread.Context == Context)
+				auto& thread = threads[index];
+				if (thread.context == context)
 					return false;
 
-				Action = DebugAction::Switch;
-				LastContext = Thread.Context;
+				action = debug_action::match;
+				last_context = thread.context;
 				return true;
 			});
-			AddCommand("c, continue", "continue execution", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("c, continue", "continue execution", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				Action = DebugAction::Continue;
+				action = debug_action::next;
 				return true;
 			});
-			AddCommand("s, step", "step into subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("s, step", "step into subroutine", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				Action = DebugAction::StepInto;
+				action = debug_action::step_into;
 				return true;
 			});
-			AddCommand("n, next", "step over subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("n, next", "step over subroutine", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				Action = DebugAction::StepOver;
-				LastCommandAtStackLevel = (unsigned int)Context->GetCallstackSize();
+				action = debug_action::step_over;
+				last_command_at_stack_level = (unsigned int)context->get_callstack_size();
 				return true;
 			});
-			AddCommand("fin, finish", "step out of subroutine", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("fin, finish", "step out of subroutine", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				Action = DebugAction::StepOut;
-				LastCommandAtStackLevel = (unsigned int)Context->GetCallstackSize();
+				action = debug_action::step_out;
+				last_command_at_stack_level = (unsigned int)context->get_callstack_size();
 				return true;
 			});
-			AddCommand("a, abort", "abort current execution", ArgsType::NoArgs, [](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("a, abort", "abort current execution", args_type::no_args, [](immediate_context* context, const core::vector<core::string>& args)
 			{
-				Context->Abort();
+				context->abort();
 				return false;
 			});
-			AddCommand("bt, backtrace", "show current callstack", ArgsType::NoArgs, [this](ImmediateContext* Context, const Core::Vector<Core::String>& Args)
+			add_command("bt, backtrace", "show current callstack", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				PrintCallstack(Context);
+				print_callstack(context);
 				return false;
 			});
 		}
-		void DebuggerContext::AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback)
+		void debugger_context::add_command(const std::string_view& name, const std::string_view& description, args_type type, command_callback&& callback)
 		{
-			Descriptions[Core::String(Name)] = Description;
-			for (auto& Command : Core::Stringify::Split(Name, ','))
+			descriptions[core::string(name)] = description;
+			for (auto& command : core::stringify::split(name, ','))
 			{
-				Core::Stringify::Trim(Command);
-				auto& Data = Commands[Command];
-				Data.Callback = std::move(Callback);
-				Data.Description = Description;
-				Data.Arguments = Type;
+				core::stringify::trim(command);
+				auto& data = commands[command];
+				data.callback = std::move(callback);
+				data.description = description;
+				data.arguments = type;
 			}
 		}
-		void DebuggerContext::SetInterruptCallback(InterruptCallback&& Callback)
+		void debugger_context::set_interrupt_callback(interrupt_callback&& callback)
 		{
-			OnInterrupt = std::move(Callback);
+			on_interrupt = std::move(callback);
 		}
-		void DebuggerContext::SetOutputCallback(OutputCallback&& Callback)
+		void debugger_context::set_output_callback(output_callback&& callback)
 		{
-			OnOutput = std::move(Callback);
+			on_output = std::move(callback);
 		}
-		void DebuggerContext::SetInputCallback(InputCallback&& Callback)
+		void debugger_context::set_input_callback(input_callback&& callback)
 		{
-			OnInput = std::move(Callback);
+			on_input = std::move(callback);
 		}
-		void DebuggerContext::SetExitCallback(ExitCallback&& Callback)
+		void debugger_context::set_exit_callback(exit_callback&& callback)
 		{
-			OnExit = std::move(Callback);
+			on_exit = std::move(callback);
 		}
-		void DebuggerContext::AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback)
+		void debugger_context::add_to_string_callback(const typeinfo& type, to_string_callback&& callback)
 		{
-			FastToStringCallbacks[Type.GetTypeInfo()] = std::move(Callback);
+			fast_to_string_callbacks[type.get_type_info()] = std::move(callback);
 		}
-		void DebuggerContext::AddToStringCallback(const std::string_view& Type, ToStringTypeCallback&& Callback)
+		void debugger_context::add_to_string_callback(const std::string_view& type, to_string_type_callback&& callback)
 		{
-			for (auto& Item : Core::Stringify::Split(Type, ','))
+			for (auto& item : core::stringify::split(type, ','))
 			{
-				Core::Stringify::Trim(Item);
-				SlowToStringCallbacks[Item] = std::move(Callback);
+				core::stringify::trim(item);
+				slow_to_string_callbacks[item] = std::move(callback);
 			}
 		}
-		void DebuggerContext::LineCallback(asIScriptContext* Base)
+		void debugger_context::line_callback(asIScriptContext* base)
 		{
 #ifdef VI_ANGELSCRIPT
-			ImmediateContext* Context = ImmediateContext::Get(Base);
-			VI_ASSERT(Context != nullptr, "context should be set");
-			auto State = Base->GetState();
-			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_EXCEPTION)
+			immediate_context* context = immediate_context::get(base);
+			VI_ASSERT(context != nullptr, "context should be set");
+			auto state = base->GetState();
+			if (state != asEXECUTION_ACTIVE && state != asEXECUTION_EXCEPTION)
 			{
-				if (State != asEXECUTION_SUSPENDED)
-					ClearThread(Context);
+				if (state != asEXECUTION_SUSPENDED)
+					clear_thread(context);
 				return;
 			}
 
-			ThreadData Thread = GetThread(Context);
-			if (State == asEXECUTION_EXCEPTION)
-				ForceSwitchThreads = 1;
+			thread_data thread = get_thread(context);
+			if (state == asEXECUTION_EXCEPTION)
+				force_switch_threads = 1;
 
-		Retry:
-			Core::UMutex<std::recursive_mutex> Unique(ThreadBarrier);
-			if (ForceSwitchThreads > 0)
+		retry:
+			core::umutex<std::recursive_mutex> unique(thread_barrier);
+			if (force_switch_threads > 0)
 			{
-				if (State == asEXECUTION_EXCEPTION)
+				if (state == asEXECUTION_EXCEPTION)
 				{
-					Action = DebugAction::Trigger;
-					ForceSwitchThreads = 0;
-					if (LastContext != Thread.Context)
+					action = debug_action::trigger;
+					force_switch_threads = 0;
+					if (last_context != thread.context)
 					{
-						LastContext = Context;
-						Output("  exception handler caused switch to thread " + Core::OS::Process::GetThreadId(Thread.Id) + " after last continuation\n");
+						last_context = context;
+						output("  exception handler caused switch to thread " + core::os::process::get_thread_id(thread.id) + " after last continuation\n");
 					}
-					ShowException(Context);
+					show_exception(context);
 				}
 				else
 				{
-					Unique.Negate();
+					unique.negate();
 					std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_BLOCKED_WAIT_MS));
-					goto Retry;
+					goto retry;
 				}
 			}
-			else if (Action == DebugAction::Continue)
+			else if (action == debug_action::next)
 			{
-				LastContext = Context;
-				if (!CheckBreakPoint(Context))
+				last_context = context;
+				if (!check_break_point(context))
 					return;
 			}
-			else if (Action == DebugAction::Switch)
+			else if (action == debug_action::match)
 			{
-				if (LastContext != Thread.Context)
+				if (last_context != thread.context)
 				{
-					Unique.Negate();
+					unique.negate();
 					std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_BLOCKED_WAIT_MS));
-					goto Retry;
+					goto retry;
 				}
 				else
 				{
-					LastContext = Context;
-					Action = DebugAction::Trigger;
-					Output("  switched to thread " + Core::OS::Process::GetThreadId(Thread.Id) + "\n");
+					last_context = context;
+					action = debug_action::trigger;
+					output("  switched to thread " + core::os::process::get_thread_id(thread.id) + "\n");
 				}
 			}
-			else if (Action == DebugAction::StepOver)
+			else if (action == debug_action::step_over)
 			{
-				LastContext = Context;
-				if (Base->GetCallstackSize() > LastCommandAtStackLevel && !CheckBreakPoint(Context))
+				last_context = context;
+				if (base->GetCallstackSize() > last_command_at_stack_level && !check_break_point(context))
 					return;
 			}
-			else if (Action == DebugAction::StepOut)
+			else if (action == debug_action::step_out)
 			{
-				LastContext = Context;
-				if (Base->GetCallstackSize() >= LastCommandAtStackLevel && !CheckBreakPoint(Context))
+				last_context = context;
+				if (base->GetCallstackSize() >= last_command_at_stack_level && !check_break_point(context))
 					return;
 			}
-			else if (Action == DebugAction::StepInto)
+			else if (action == debug_action::step_into)
 			{
-				LastContext = Context;
-				CheckBreakPoint(Context);
+				last_context = context;
+				check_break_point(context);
 			}
-			else if (Action == DebugAction::Interrupt)
+			else if (action == debug_action::interrupt)
 			{
-				if (OnInterrupt)
-					OnInterrupt(true);
+				if (on_interrupt)
+					on_interrupt(true);
 
-				LastContext = Context;
-				Action = DebugAction::Trigger;
-				Output("  execution interrupt signal has been raised, moving to input trigger\n");
-				PrintCallstack(Context);
+				last_context = context;
+				action = debug_action::trigger;
+				output("  execution interrupt signal has been raised, moving to input trigger\n");
+				print_callstack(context);
 			}
-			else if (Action == DebugAction::Trigger)
-				LastContext = Context;
+			else if (action == debug_action::trigger)
+				last_context = context;
 
-			Input(Context);
-			if (Action == DebugAction::Switch || ForceSwitchThreads > 0)
+			input(context);
+			if (action == debug_action::match || force_switch_threads > 0)
 			{
-				Unique.Negate();
+				unique.negate();
 				std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_BLOCKED_WAIT_MS));
-				goto Retry;
+				goto retry;
 			}
 
-			if (OnInterrupt)
-				OnInterrupt(false);
+			if (on_interrupt)
+				on_interrupt(false);
 #endif
 		}
-		void DebuggerContext::ExceptionCallback(asIScriptContext* Base)
+		void debugger_context::exception_callback(asIScriptContext* base)
 		{
 #ifdef VI_ANGELSCRIPT
-			if (!Base->WillExceptionBeCaught())
-				LineCallback(Base);
+			if (!base->WillExceptionBeCaught())
+				line_callback(base);
 #endif
 		}
-		void DebuggerContext::Trigger(ImmediateContext* Context, uint64_t TimeoutMs)
+		void debugger_context::trigger(immediate_context* context, uint64_t timeout_ms)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			LineCallback(Context->GetContext());
-			if (TimeoutMs > 0)
-				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
+			VI_ASSERT(context != nullptr, "context should be set");
+			line_callback(context->get_context());
+			if (timeout_ms > 0)
+				std::this_thread::sleep_for(std::chrono::milliseconds(timeout_ms));
 		}
-		void DebuggerContext::ThrowInternalException(const std::string_view& Message)
+		void debugger_context::throw_internal_exception(const std::string_view& message)
 		{
-			if (Message.empty())
+			if (message.empty())
 				return;
 
-			auto Exception = Bindings::Exception::Pointer(Core::String(Message));
-			Output("  " + Exception.GetType() + ": " + Exception.GetText() + "\n");
+			auto exception = bindings::exception::pointer(core::string(message));
+			output("  " + exception.get_type() + ": " + exception.get_text() + "\n");
 		}
-		void DebuggerContext::AllowInputAfterFailure()
+		void debugger_context::allow_input_after_failure()
 		{
-			InputError = false;
+			input_error = false;
 		}
-		void DebuggerContext::Input(ImmediateContext* Context)
+		void debugger_context::input(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Context->GetContext() != nullptr, "context should be set");
-			if (InputError)
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(context->get_context() != nullptr, "context should be set");
+			if (input_error)
 				return;
 
 
 			for (;;)
 			{
-				Core::String Data;
-				Output("(dbg) ");
-				if (OnInput)
+				core::string data;
+				output("(dbg) ");
+				if (on_input)
 				{
-					if (!OnInput(Data))
+					if (!on_input(data))
 					{
-						InputError = true;
+						input_error = true;
 						break;
 					}
 				}
-				else if (!Core::Console::Get()->ReadLine(Data, 1024))
+				else if (!core::console::get()->read_line(data, 1024))
 				{
-					InputError = true;
+					input_error = true;
 					break;
 				}
-				
-				if (InterpretCommand(Data, Context))
+
+				if (interpret_command(data, context))
 					break;
 			}
-			if (!InputError)
+			if (!input_error)
 				return;
 
-			for (auto& Thread : Threads)
-				Thread.Context->Abort();
+			for (auto& thread : threads)
+				thread.context->abort();
 		}
-		void DebuggerContext::PrintValue(const std::string_view& Expression, ImmediateContext* Context)
+		void debugger_context::print_value(const std::string_view& expression, immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Context->GetFunction().IsValid(), "context current function should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(context->get_function().is_valid(), "context current function should be set");
 #ifdef VI_ANGELSCRIPT
-			auto IsGlobalSearchOnly = [](const Core::String& Name) -> bool
+			auto is_global_search_only = [](const core::string& name) -> bool
 			{
-				return Core::Stringify::StartsWith(Name, "::");
+				return core::stringify::starts_with(name, "::");
 			};
-			auto GetIndexInvocation = [](const Core::String& Name) -> Core::Option<Core::String>
+			auto get_index_invocation = [](const core::string& name) -> core::option<core::string>
 			{
-				if (Name.empty() || Name.front() != '[' || Name.back() != ']')
-					return Core::Optional::None;
+				if (name.empty() || name.front() != '[' || name.back() != ']')
+					return core::optional::none;
 
-				return Name.substr(1, Name.size() - 2);
+				return name.substr(1, name.size() - 2);
 			};
-			auto GetMethodInvocation = [](const Core::String& Name) -> Core::Option<Core::String>
+			auto get_method_invocation = [](const core::string& name) -> core::option<core::string>
 			{
-				if (Name.empty() || Name.front() != '(' || Name.back() != ')')
-					return Core::Optional::None;
+				if (name.empty() || name.front() != '(' || name.back() != ')')
+					return core::optional::none;
 
-				return Name.substr(1, Name.size() - 2);
+				return name.substr(1, name.size() - 2);
 			};
-			auto GetNamespaceScope = [](Core::String& Name) -> Core::String
+			auto get_namespace_scope = [](core::string& name) -> core::string
 			{
-				size_t Position = Name.rfind("::");
-				if (Position == std::string::npos)
-					return Core::String();
+				size_t position = name.rfind("::");
+				if (position == std::string::npos)
+					return core::string();
 
-				auto Namespace = Name.substr(0, Position);
-				Name.erase(0, Namespace.size() + 2);
-				return Namespace;
+				auto name_space = name.substr(0, position);
+				name.erase(0, name_space.size() + 2);
+				return name_space;
 			};
-			auto ParseExpression = [](const std::string_view& Expression) -> Core::Vector<Core::String>
+			auto parse_expression = [](const std::string_view& expression) -> core::vector<core::string>
 			{
-				Core::Vector<Core::String> Stack;
-				size_t Start = 0, End = 0;
-				while (End < Expression.size())
+				core::vector<core::string> stack;
+				size_t start = 0, end = 0;
+				while (end < expression.size())
 				{
-					char V = Expression[End];
-					if (V == '(' || V == '[')
+					char v = expression[end];
+					if (v == '(' || v == '[')
 					{
-						size_t Offset = End + 1, Nesting = 1;
-						while (Nesting > 0 && Offset < Expression.size())
+						size_t offset = end + 1, nesting = 1;
+						while (nesting > 0 && offset < expression.size())
 						{
-							char N = Expression[Offset++];
-							if (N == (V == '(' ? ')' : ']'))
-								--Nesting;
-							else if (N == V)
-								++Nesting;
+							char n = expression[offset++];
+							if (n == (v == '(' ? ')' : ']'))
+								--nesting;
+							else if (n == v)
+								++nesting;
 						}
-						End = Offset;
+						end = offset;
 					}
-					else if (V == '.')
+					else if (v == '.')
 					{
-						Stack.push_back(Core::String(Expression.substr(Start, End - Start)));
-						Start = ++End;
+						stack.push_back(core::string(expression.substr(start, end - start)));
+						start = ++end;
 					}
 					else
-						++End;
+						++end;
 				}
 
-				if (Start < End)
-					Stack.push_back(Core::String(Expression.substr(Start, End - Start)));
+				if (start < end)
+					stack.push_back(core::string(expression.substr(start, end - start)));
 
-				return Stack;
+				return stack;
 			};
-			auto SparsifyStack = [](Core::Vector<Core::String>& Stack) -> bool
+			auto sparsify_stack = [](core::vector<core::string>& stack) -> bool
 			{
-			Retry:
-				size_t Offset = 0;
-				for (auto& Item : Stack)
+			retry:
+				size_t offset = 0;
+				for (auto& item : stack)
 				{
-					auto& Name = Core::Stringify::Trim(Item);
-					if (Name.empty() || Name.front() == '[' || Name.front() == '(')
+					auto& name = core::stringify::trim(item);
+					if (name.empty() || name.front() == '[' || name.front() == '(')
 					{
-					Next:
-						++Offset;
+					next:
+						++offset;
 						continue;
 					}
 
-					if (Name.back() == ']')
+					if (name.back() == ']')
 					{
-						size_t Position = Name.find('[');
-						if (Position == std::string::npos)
-							goto Next;
+						size_t position = name.find('[');
+						if (position == std::string::npos)
+							goto next;
 
-						Core::String Index = Name.substr(Position);
-						Name.erase(Position);
-						Stack.insert(Stack.begin() + Offset + 1, std::move(Index));
-						goto Retry;
+						core::string index = name.substr(position);
+						name.erase(position);
+						stack.insert(stack.begin() + offset + 1, std::move(index));
+						goto retry;
 					}
-					else if (Name.back() == ')')
+					else if (name.back() == ')')
 					{
-						size_t Position = Name.find('(');
-						if (Position == std::string::npos)
-							goto Next;
+						size_t position = name.find('(');
+						if (position == std::string::npos)
+							goto next;
 
-						Core::String Index = Name.substr(Position);
-						Name.erase(Position);
-						Stack.insert(Stack.begin() + Offset + 1, std::move(Index));
-						goto Retry;
+						core::string index = name.substr(position);
+						name.erase(position);
+						stack.insert(stack.begin() + offset + 1, std::move(index));
+						goto retry;
 					}
-					goto Next;
+					goto next;
 				}
 
 				return true;
 			};
 
-			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptEngine* engine = context->get_vm()->get_engine();
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			auto Stack = ParseExpression(Expression);
-			if (Stack.empty() || !SparsifyStack(Stack))
-				return Output("  no tokens found in the expression");
+			auto stack = parse_expression(expression);
+			if (stack.empty() || !sparsify_stack(stack))
+				return output("  no tokens found in the expression");
 
-			int TopTypeId = asTYPEID_VOID;
-			asIScriptFunction* ThisFunction = nullptr;
-			void* ThisPointer = nullptr;
-			int ThisTypeId = asTYPEID_VOID;
-			Core::String Callable;
-			Core::String Last;
-			size_t Top = 0;
+			int top_type_id = asTYPEID_VOID;
+			asIScriptFunction* this_function = nullptr;
+			void* this_pointer = nullptr;
+			int this_type_id = asTYPEID_VOID;
+			core::string callable;
+			core::string last;
+			size_t top = 0;
 
-			while (!Stack.empty())
+			while (!stack.empty())
 			{
-				auto& Name = Stack.front();
-				if (Top > 0)
+				auto& name = stack.front();
+				if (top > 0)
 				{
-					auto Index = GetIndexInvocation(Name);
-					auto Method = GetMethodInvocation(Name);
-					if (Index)
+					auto index = get_index_invocation(name);
+					auto method = get_method_invocation(name);
+					if (index)
 					{
-						asITypeInfo* Type = Engine->GetTypeInfoById(ThisTypeId);
-						if (!Type)
-							return Output("  symbol <" + Last + "> type is not iterable\n");
+						asITypeInfo* type = engine->GetTypeInfoById(this_type_id);
+						if (!type)
+							return output("  symbol <" + last + "> type is not iterable\n");
 
-						asIScriptFunction* IndexOperator = nullptr;
-						for (asUINT i = 0; i < Type->GetMethodCount(); i++)
+						asIScriptFunction* index_operator = nullptr;
+						for (asUINT i = 0; i < type->GetMethodCount(); i++)
 						{
-							asIScriptFunction* Next = Type->GetMethodByIndex(i);
-							if (!strcmp(Next->GetName(), "opIndex"))
+							asIScriptFunction* next = type->GetMethodByIndex(i);
+							if (!strcmp(next->GetName(), "opIndex"))
 							{
-								IndexOperator = Next;
+								index_operator = next;
 								break;
 							}
 						}
 
-						if (!IndexOperator)
-							return Output("  symbol <" + Last + "> does not have opIndex method\n");
+						if (!index_operator)
+							return output("  symbol <" + last + "> does not have opIndex method\n");
 
-						const char* TypeDeclaration = nullptr;
-						asITypeInfo* TopType = Engine->GetTypeInfoById(TopTypeId);
-						if (TopType != nullptr)
+						const char* type_declaration = nullptr;
+						asITypeInfo* top_type = engine->GetTypeInfoById(top_type_id);
+						if (top_type != nullptr)
 						{
-							for (asUINT i = 0; i < TopType->GetPropertyCount(); i++)
+							for (asUINT i = 0; i < top_type->GetPropertyCount(); i++)
 							{
-								const char* VarName = nullptr;
-								TopType->GetProperty(i, &VarName);
-								if (Last == VarName)
+								const char* var_name = nullptr;
+								top_type->GetProperty(i, &var_name);
+								if (last == var_name)
 								{
-									TypeDeclaration = TopType->GetPropertyDeclaration(i, true);
+									type_declaration = top_type->GetPropertyDeclaration(i, true);
 									break;
 								}
 							}
 						}
 
-						if (!TypeDeclaration)
+						if (!type_declaration)
 						{
-							asIScriptModule* Module = Base->GetFunction()->GetModule();
-							for (asUINT i = 0; i < Module->GetGlobalVarCount(); i++)
+							asIScriptModule* library = base->GetFunction()->GetModule();
+							for (asUINT i = 0; i < library->GetGlobalVarCount(); i++)
 							{
-								const char* VarName = nullptr;
-								Module->GetGlobalVar(i, &VarName);
-								if (Last == VarName)
+								const char* var_name = nullptr;
+								library->GetGlobalVar(i, &var_name);
+								if (last == var_name)
 								{
-									TypeDeclaration = Module->GetGlobalVarDeclaration(i, true);
+									type_declaration = library->GetGlobalVarDeclaration(i, true);
 									break;
 								}
 							}
 						}
 
-						if (!TypeDeclaration)
+						if (!type_declaration)
 						{
-							int VarCount = Base->GetVarCount();
-							if (VarCount > 0)
+							int var_count = base->GetVarCount();
+							if (var_count > 0)
 							{
-								for (asUINT n = 0; n < (asUINT)VarCount; n++)
+								for (asUINT n = 0; n < (asUINT)var_count; n++)
 								{
-									const char* VarName = nullptr;
-									Base->GetVar(n, 0, &VarName);
-									if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+									const char* var_name = nullptr;
+									base->GetVar(n, 0, &var_name);
+									if (base->IsVarInScope(n) && var_name != 0 && name == var_name)
 									{
-										TypeDeclaration = Base->GetVarDeclaration(n, 0, true);
+										type_declaration = base->GetVarDeclaration(n, 0, true);
 										break;
 									}
 								}
 							}
 						}
 
-						if (!TypeDeclaration)
-							return Output("  symbol <" + Last + "> does not have type decl for <" + Name + "> to call operator method\n");
+						if (!type_declaration)
+							return output("  symbol <" + last + "> does not have type decl for <" + name + "> to call operator method\n");
 
-						Core::String Args = TypeDeclaration;
-						if (ThisTypeId & asTYPEID_OBJHANDLE)
+						core::string args = type_declaration;
+						if (this_type_id & asTYPEID_OBJHANDLE)
 						{
-							ThisPointer = *(void**)ThisPointer;
-							Core::Stringify::Replace(Args, "& ", "@ ");
+							this_pointer = *(void**)this_pointer;
+							core::stringify::replace(args, "& ", "@ ");
 						}
 						else
-							Core::Stringify::Replace(Args, "& ", "&in ");
-						ExecuteExpression(Context, Last + Name, Args, [ThisPointer](ImmediateContext* Context)
+							core::stringify::replace(args, "& ", "&in ");
+						execute_expression(context, last + name, args, [this_pointer](immediate_context* context)
 						{
-							Context->SetArgObject(0, ThisPointer);
+							context->set_arg_object(0, this_pointer);
 						});
 						return;
 					}
-					else if (Method)
+					else if (method)
 					{
-						if (!ThisFunction)
-							return Output("  symbol <" + Last + "> is not a function\n");
+						if (!this_function)
+							return output("  symbol <" + last + "> is not a function\n");
 
-						Core::String Call = ThisFunction->GetName();
-						if (!ThisPointer)
+						core::string call = this_function->GetName();
+						if (!this_pointer)
 						{
-							ExecuteExpression(Context, Core::Stringify::Text("%s(%s)", Call.c_str(), Method->c_str()), Core::String(), nullptr);
+							execute_expression(context, core::stringify::text("%s(%s)", call.c_str(), method->c_str()), core::string(), nullptr);
 							return;
 						}
 
-						const char* TypeDeclaration = nullptr;
-						asITypeInfo* TopType = Engine->GetTypeInfoById(TopTypeId);
-						if (TopType != nullptr)
+						const char* type_declaration = nullptr;
+						asITypeInfo* top_type = engine->GetTypeInfoById(top_type_id);
+						if (top_type != nullptr)
 						{
-							for (asUINT i = 0; i < TopType->GetPropertyCount(); i++)
+							for (asUINT i = 0; i < top_type->GetPropertyCount(); i++)
 							{
-								const char* VarName = nullptr;
-								TopType->GetProperty(i, &VarName);
-								if (Callable == VarName)
+								const char* var_name = nullptr;
+								top_type->GetProperty(i, &var_name);
+								if (callable == var_name)
 								{
-									TypeDeclaration = TopType->GetPropertyDeclaration(i, true);
+									type_declaration = top_type->GetPropertyDeclaration(i, true);
 									break;
 								}
 							}
 						}
 
-						if (!TypeDeclaration)
+						if (!type_declaration)
 						{
-							asIScriptModule* Module = Base->GetFunction()->GetModule();
-							for (asUINT i = 0; i < Module->GetGlobalVarCount(); i++)
+							asIScriptModule* library = base->GetFunction()->GetModule();
+							for (asUINT i = 0; i < library->GetGlobalVarCount(); i++)
 							{
-								const char* VarName = nullptr;
-								Module->GetGlobalVar(i, &VarName);
-								if (Callable == VarName)
+								const char* var_name = nullptr;
+								library->GetGlobalVar(i, &var_name);
+								if (callable == var_name)
 								{
-									TypeDeclaration = Module->GetGlobalVarDeclaration(i, true);
+									type_declaration = library->GetGlobalVarDeclaration(i, true);
 									break;
 								}
 							}
 						}
 
-						if (!TypeDeclaration)
+						if (!type_declaration)
 						{
-							int VarCount = Base->GetVarCount();
-							if (VarCount > 0)
+							int var_count = base->GetVarCount();
+							if (var_count > 0)
 							{
-								for (asUINT n = 0; n < (asUINT)VarCount; n++)
+								for (asUINT n = 0; n < (asUINT)var_count; n++)
 								{
-									const char* VarName = nullptr;
-									Base->GetVar(n, 0, &VarName);
-									if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+									const char* var_name = nullptr;
+									base->GetVar(n, 0, &var_name);
+									if (base->IsVarInScope(n) && var_name != 0 && name == var_name)
 									{
-										TypeDeclaration = Base->GetVarDeclaration(n, 0, true);
+										type_declaration = base->GetVarDeclaration(n, 0, true);
 										break;
 									}
 								}
 							}
 						}
 
-						if (!TypeDeclaration)
-							return Output("  symbol <" + Callable + "> does not have type decl for <" + Last + "> to call method\n");
+						if (!type_declaration)
+							return output("  symbol <" + callable + "> does not have type decl for <" + last + "> to call method\n");
 
-						Core::String Args = TypeDeclaration;
-						if (ThisTypeId & asTYPEID_OBJHANDLE)
+						core::string args = type_declaration;
+						if (this_type_id & asTYPEID_OBJHANDLE)
 						{
-							ThisPointer = *(void**)ThisPointer;
-							Core::Stringify::Replace(Args, "& ", "@ ");
+							this_pointer = *(void**)this_pointer;
+							core::stringify::replace(args, "& ", "@ ");
 						}
 						else
-							Core::Stringify::Replace(Args, "& ", "&in ");
-						ExecuteExpression(Context, Core::Stringify::Text("%s.%s(%s)", Callable.c_str(), Call.c_str(), Method->c_str()), Args, [ThisPointer](ImmediateContext* Context)
+							core::stringify::replace(args, "& ", "&in ");
+						execute_expression(context, core::stringify::text("%s.%s(%s)", callable.c_str(), call.c_str(), method->c_str()), args, [this_pointer](immediate_context* context)
 						{
-							Context->SetArgObject(0, ThisPointer);
+							context->set_arg_object(0, this_pointer);
 						});
 						return;
 					}
 					else
 					{
-						asITypeInfo* Type = Engine->GetTypeInfoById(ThisTypeId);
-						if (!Type)
-							return Output("  symbol <" + Last + "> type is not iterable\n");
+						asITypeInfo* type = engine->GetTypeInfoById(this_type_id);
+						if (!type)
+							return output("  symbol <" + last + "> type is not iterable\n");
 
-						for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
+						for (asUINT n = 0; n < type->GetPropertyCount(); n++)
 						{
-							const char* PropName = 0;
-							int Offset = 0;
-							bool IsReference = 0;
-							int CompositeOffset = 0;
-							bool IsCompositeIndirect = false;
-							int TypeId = 0;
+							const char* prop_name = 0;
+							int offset = 0;
+							bool is_reference = 0;
+							int composite_offset = 0;
+							bool is_composite_indirect = false;
+							int type_id = 0;
 
-							Type->GetProperty(n, &PropName, &TypeId, 0, 0, &Offset, &IsReference, 0, &CompositeOffset, &IsCompositeIndirect);
-							if (Name != PropName)
+							type->GetProperty(n, &prop_name, &type_id, 0, 0, &offset, &is_reference, 0, &composite_offset, &is_composite_indirect);
+							if (name != prop_name)
 								continue;
 
-							if (ThisTypeId & asTYPEID_OBJHANDLE)
-								ThisPointer = *(void**)ThisPointer;
+							if (this_type_id & asTYPEID_OBJHANDLE)
+								this_pointer = *(void**)this_pointer;
 
-							ThisPointer = (void*)(((asBYTE*)ThisPointer) + CompositeOffset);
-							if (IsCompositeIndirect)
-								ThisPointer = *(void**)ThisPointer;
+							this_pointer = (void*)(((asBYTE*)this_pointer) + composite_offset);
+							if (is_composite_indirect)
+								this_pointer = *(void**)this_pointer;
 
-							ThisPointer = (void*)(((asBYTE*)ThisPointer) + Offset);
-							if (IsReference)
-								ThisPointer = *(void**)ThisPointer;
+							this_pointer = (void*)(((asBYTE*)this_pointer) + offset);
+							if (is_reference)
+								this_pointer = *(void**)this_pointer;
 
-							ThisTypeId = TypeId;
-							goto NextIteration;
+							this_type_id = type_id;
+							goto next_iteration;
 						}
 
-						for (asUINT n = 0; n < Type->GetMethodCount(); n++)
+						for (asUINT n = 0; n < type->GetMethodCount(); n++)
 						{
-							asIScriptFunction* MethodFunction = Type->GetMethodByIndex(n);
-							if (!strcmp(MethodFunction->GetName(), Name.c_str()))
+							asIScriptFunction* method_function = type->GetMethodByIndex(n);
+							if (!strcmp(method_function->GetName(), name.c_str()))
 							{
-								ThisFunction = MethodFunction;
-								Callable = Last;
-								goto NextIteration;
+								this_function = method_function;
+								callable = last;
+								goto next_iteration;
 							}
 						}
 
-						return Output("  symbol <" + Name + "> was not found in <" + Last + ">\n");
+						return output("  symbol <" + name + "> was not found in <" + last + ">\n");
 					}
 				}
 				else
 				{
-					if (Name == "this")
+					if (name == "this")
 					{
-						asIScriptFunction* Function = Base->GetFunction();
-						if (!Function)
-							return Output("  no function to be observed\n");
+						asIScriptFunction* function = base->GetFunction();
+						if (!function)
+							return output("  no function to be observed\n");
 
-						ThisPointer = Base->GetThisPointer();
-						ThisTypeId = Base->GetThisTypeId();
-						if (ThisPointer != nullptr && ThisTypeId > 0 && Function->GetObjectType() != nullptr)
-							goto NextIteration;
+						this_pointer = base->GetThisPointer();
+						this_type_id = base->GetThisTypeId();
+						if (this_pointer != nullptr && this_type_id > 0 && function->GetObjectType() != nullptr)
+							goto next_iteration;
 
-						return Output("  this function is not a method\n");
+						return output("  this function is not a method\n");
 					}
 
-					bool GlobalOnly = IsGlobalSearchOnly(Name);
-					if (!GlobalOnly)
+					bool global_only = is_global_search_only(name);
+					if (!global_only)
 					{
-						int VarCount = Base->GetVarCount();
-						if (VarCount > 0)
+						int var_count = base->GetVarCount();
+						if (var_count > 0)
 						{
-							for (asUINT n = 0; n < (asUINT)VarCount; n++)
+							for (asUINT n = 0; n < (asUINT)var_count; n++)
 							{
-								const char* VarName = nullptr;
-								Base->GetVar(n, 0, &VarName, &ThisTypeId);
-								if (Base->IsVarInScope(n) && VarName != 0 && Name == VarName)
+								const char* var_name = nullptr;
+								base->GetVar(n, 0, &var_name, &this_type_id);
+								if (base->IsVarInScope(n) && var_name != 0 && name == var_name)
 								{
-									ThisPointer = Base->GetAddressOfVar(n);
-									goto NextIteration;
+									this_pointer = base->GetAddressOfVar(n);
+									goto next_iteration;
 								}
 							}
 						}
 					}
 
-					asIScriptFunction* Function = Base->GetFunction();
-					if (!Function)
-						return Output("  no function to be observed\n");
+					asIScriptFunction* function = base->GetFunction();
+					if (!function)
+						return output("  no function to be observed\n");
 
-					asIScriptModule* Module = Function->GetModule();
-					if (!Module)
-						return Output("  no module to be observed\n");
+					asIScriptModule* library = function->GetModule();
+					if (!library)
+						return output("  no module to be observed\n");
 
-					auto Namespace = GetNamespaceScope(Name);
-					for (asUINT n = 0; n < Module->GetGlobalVarCount(); n++)
+					auto name_space = get_namespace_scope(name);
+					for (asUINT n = 0; n < library->GetGlobalVarCount(); n++)
 					{
-						const char* VarName = nullptr, *VarNamespace = nullptr;
-						Module->GetGlobalVar(n, &VarName, &VarNamespace, &ThisTypeId);
-						if (Name == VarName && Namespace == VarNamespace)
+						const char* var_name = nullptr, * var_namespace = nullptr;
+						library->GetGlobalVar(n, &var_name, &var_namespace, &this_type_id);
+						if (name == var_name && name_space == var_namespace)
 						{
-							ThisPointer = Module->GetAddressOfGlobalVar(n);
-							goto NextIteration;
+							this_pointer = library->GetAddressOfGlobalVar(n);
+							goto next_iteration;
 						}
 					}
 
-					for (asUINT n = 0; n < Engine->GetGlobalFunctionCount(); n++)
+					for (asUINT n = 0; n < engine->GetGlobalFunctionCount(); n++)
 					{
-						asIScriptFunction* GlobalFunction = Engine->GetGlobalFunctionByIndex(n);
-						if (!strcmp(GlobalFunction->GetName(), Name.c_str()) && (!GlobalFunction->GetNamespace() || Namespace == GlobalFunction->GetNamespace()))
+						asIScriptFunction* global_function = engine->GetGlobalFunctionByIndex(n);
+						if (!strcmp(global_function->GetName(), name.c_str()) && (!global_function->GetNamespace() || name_space == global_function->GetNamespace()))
 						{
-							ThisFunction = GlobalFunction;
-							Callable = Last;
-							goto NextIteration;
+							this_function = global_function;
+							callable = last;
+							goto next_iteration;
 						}
 					}
 
-					Namespace = (Namespace.empty() ? "" : Namespace + "::");
-					return Output("  symbol <" + Namespace + Name + "> was not found in " + Core::String(GlobalOnly ? "global" : "global or local") + " scope\n");
+					name_space = (name_space.empty() ? "" : name_space + "::");
+					return output("  symbol <" + name_space + name + "> was not found in " + core::string(global_only ? "global" : "global or local") + " scope\n");
 				}
-			NextIteration:
-				Last = Name;
-				Stack.erase(Stack.begin());
-				if (Top % 2 == 0)
-					TopTypeId = ThisTypeId;
-				++Top;
+			next_iteration:
+				last = name;
+				stack.erase(stack.begin());
+				if (top % 2 == 0)
+					top_type_id = this_type_id;
+				++top;
 			}
 
-			if (ThisFunction != nullptr)
+			if (this_function != nullptr)
 			{
-				Output("  ");
-				Output(ThisFunction->GetDeclaration(true, true, true));
-				Output("\n");
+				output("  ");
+				output(this_function->GetDeclaration(true, true, true));
+				output("\n");
 			}
-			else if (ThisPointer != nullptr)
+			else if (this_pointer != nullptr)
 			{
-				Core::String Indent = "  ";
-				Core::StringStream Stream;
-				Stream << Indent << ToString(Indent, 3, ThisPointer, ThisTypeId) << std::endl;
-				Output(Stream.str());
+				core::string indent = "  ";
+				core::string_stream stream;
+				stream << indent << to_string(indent, 3, this_pointer, this_type_id) << std::endl;
+				output(stream.str());
 			}
 #endif
 		}
-		void DebuggerContext::PrintByteCode(const std::string_view& FunctionDecl, ImmediateContext* Context)
+		void debugger_context::print_byte_code(const std::string_view& function_decl, immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Core::Stringify::IsCString(FunctionDecl), "fndecl should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(core::stringify::is_cstring(function_decl), "fndecl should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			asIScriptFunction* Function = Context->GetContext()->GetFunction();
-			if (!Function)
-				return Output("  context was not found\n");
+			asIScriptFunction* function = context->get_context()->GetFunction();
+			if (!function)
+				return output("  context was not found\n");
 
-			asIScriptModule* Module = Function->GetModule();
-			if (!Module)
-				return Output("  module was not found\n");
+			asIScriptModule* library = function->GetModule();
+			if (!library)
+				return output("  module was not found\n");
 
-			Function = Module->GetFunctionByName(FunctionDecl.data());
-			if (!Function)
+			function = library->GetFunctionByName(function_decl.data());
+			if (!function)
 			{
-				Function = Module->GetFunctionByDecl(FunctionDecl.data());
-				if (!Function)
+				function = library->GetFunctionByDecl(function_decl.data());
+				if (!function)
 				{
-					auto Keys = Core::Stringify::Split(FunctionDecl, "::");
-					if (Keys.size() >= 2)
+					auto keys = core::stringify::split(function_decl, "::");
+					if (keys.size() >= 2)
 					{
-						size_t Length = Keys.size() - 1;
-						Core::String TypeName = Keys.front();
-						for (size_t i = 1; i < Length; i++)
+						size_t length = keys.size() - 1;
+						core::string type_name = keys.front();
+						for (size_t i = 1; i < length; i++)
 						{
-							TypeName += "::";
-							TypeName += Keys[i];
+							type_name += "::";
+							type_name += keys[i];
 						}
 
-						auto* Type = Module->GetTypeInfoByName(TypeName.c_str());
-						if (Type != nullptr)
+						auto* type = library->GetTypeInfoByName(type_name.c_str());
+						if (type != nullptr)
 						{
-							Function = Type->GetMethodByName(Keys.back().c_str());
-							if (!Function)
-								Function = Type->GetMethodByDecl(Keys.back().c_str());
+							function = type->GetMethodByName(keys.back().c_str());
+							if (!function)
+								function = type->GetMethodByDecl(keys.back().c_str());
 						}
 					}
 				}
 			}
 
-			if (!Function)
-				return Output("  function was not found\n");
+			if (!function)
+				return output("  function was not found\n");
 
-			Core::StringStream Stream;
-			Stream << "  function <" << Function->GetName() << "> disassembly:\n";
+			core::string_stream stream;
+			stream << "  function <" << function->GetName() << "> disassembly:\n";
 
-			asUINT Offset = 0, Size = 0, Instructions = 0;
-			asDWORD* ByteCode = Function->GetByteCode(&Size);
-			while (Offset < Size)
+			asUINT offset = 0, size = 0, instructions = 0;
+			asDWORD* byte_code = function->GetByteCode(&size);
+			while (offset < size)
 			{
-				Stream << "  ";
-				Offset = (asUINT)ByteCodeLabelToText(Stream, VM, ByteCode, Offset, false, false);
-				++Instructions;
+				stream << "  ";
+				offset = (asUINT)byte_code_label_to_text(stream, vm, byte_code, offset, false, false);
+				++instructions;
 			}
 
-			Stream << "  " << Instructions << " instructions (" << Size << " bytes)\n";
-			Output(Stream.str());
+			stream << "  " << instructions << " instructions (" << size << " bytes)\n";
+			output(stream.str());
 #endif
 		}
-		void DebuggerContext::ShowException(ImmediateContext* Context)
+		void debugger_context::show_exception(immediate_context* context)
 		{
-			Core::StringStream Stream;
-			auto Exception = Bindings::Exception::GetException();
-			if (Exception.Empty())
+			core::string_stream stream;
+			auto exception = bindings::exception::get_exception();
+			if (exception.empty())
 				return;
 
-			Core::String Data = Exception.What();
-			auto ExceptionLines = Core::Stringify::Split(Data, '\n');
-			if (!Context->WillExceptionBeCaught() && !ExceptionLines.empty())
-				ExceptionLines[0] = "uncaught " + ExceptionLines[0];
+			core::string data = exception.what();
+			auto exception_lines = core::stringify::split(data, '\n');
+			if (!context->will_exception_be_caught() && !exception_lines.empty())
+				exception_lines[0] = "uncaught " + exception_lines[0];
 
-			for (auto& Line : ExceptionLines)
+			for (auto& line : exception_lines)
 			{
-				if (Line.empty())
+				if (line.empty())
 					continue;
 
-				if (Line.front() == '#')
-					Stream << "    " << Line << "\n";
+				if (line.front() == '#')
+					stream << "    " << line << "\n";
 				else
-					Stream << "  " << Line << "\n";
+					stream << "  " << line << "\n";
 			}
 
-			std::string_view File = "";
-			int ColumnNumber = 0;
-			int LineNumber = Context->GetExceptionLineNumber(&ColumnNumber, &File);
-			if (!File.empty() && LineNumber > 0)
+			std::string_view file = "";
+			int column_number = 0;
+			int line_number = context->get_exception_line_number(&column_number, &file);
+			if (!file.empty() && line_number > 0)
 			{
-				auto Code = VM->GetSourceCodeAppendixByPath("exception origin", File, LineNumber, ColumnNumber, 5);
-				if (Code)
-					Stream << *Code << "\n";
+				auto code = vm->get_source_code_appendix_by_path("exception origin", file, line_number, column_number, 5);
+				if (code)
+					stream << *code << "\n";
 			}
-			Output(Stream.str());
+			output(stream.str());
 		}
-		void DebuggerContext::ListBreakPoints()
+		void debugger_context::list_break_points()
 		{
-			Core::StringStream Stream;
-			for (size_t b = 0; b < BreakPoints.size(); b++)
+			core::string_stream stream;
+			for (size_t b = 0; b < break_points.size(); b++)
 			{
-				if (BreakPoints[b].Function)
-					Stream << "  " << b << " - " << BreakPoints[b].Name << std::endl;
+				if (break_points[b].function)
+					stream << "  " << b << " - " << break_points[b].name << std::endl;
 				else
-					Stream << "  " << b << " - " << BreakPoints[b].Name << ":" << BreakPoints[b].Line << std::endl;
+					stream << "  " << b << " - " << break_points[b].name << ":" << break_points[b].line << std::endl;
 			}
-			Output(Stream.str());
+			output(stream.str());
 		}
-		void DebuggerContext::ListThreads()
+		void debugger_context::list_threads()
 		{
 #ifdef VI_ANGELSCRIPT
-			Core::UnorderedSet<Core::String> Ids;
-			Core::StringStream Stream;
-			size_t Index = 0;
-			for (auto& Item : Threads)
+			core::unordered_set<core::string> ids;
+			core::string_stream stream;
+			size_t index = 0;
+			for (auto& item : threads)
 			{
-				asIScriptContext* Context = Item.Context->GetContext();
-				asIScriptFunction* Function = Context->GetFunction();
-				if (LastContext == Item.Context)
-					Stream << "  * ";
+				asIScriptContext* context = item.context->get_context();
+				asIScriptFunction* function = context->GetFunction();
+				if (last_context == item.context)
+					stream << "  * ";
 				else
-					Stream << "  ";
+					stream << "  ";
 
-				Core::String ThreadId = Core::OS::Process::GetThreadId(Item.Id);
-				Stream << "#" << Index++ << " " << (Ids.find(ThreadId) != Ids.end() ? "coroutine" : "thread") << " " << ThreadId << ", ";
-				Ids.insert(ThreadId);
+				core::string thread_id = core::os::process::get_thread_id(item.id);
+				stream << "#" << index++ << " " << (ids.find(thread_id) != ids.end() ? "coroutine" : "thread") << " " << thread_id << ", ";
+				ids.insert(thread_id);
 
-				if (Function != nullptr)
+				if (function != nullptr)
 				{
-					if (Function->GetFuncType() == asFUNC_SCRIPT)
-						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber() << ", in " << Function->GetDeclaration();
+					if (function->GetFuncType() == asFUNC_SCRIPT)
+						stream << "source \"" << (function->GetScriptSectionName() ? function->GetScriptSectionName() : "") << "\", line " << context->GetLineNumber() << ", in " << function->GetDeclaration();
 					else
-						Stream << "source { native code }, in " << Function->GetDeclaration();
-					Stream << " 0x" << Function;
+						stream << "source { native code }, in " << function->GetDeclaration();
+					stream << " 0x" << function;
 				}
 				else
-					Stream << "source { native code } [nullptr]";
-				Stream << "\n";
+					stream << "source { native code } [nullptr]";
+				stream << "\n";
 			}
-			Output(Stream.str());
+			output(stream.str());
 #endif
 		}
-		void DebuggerContext::ListAddons()
+		void debugger_context::list_addons()
 		{
-			for (auto& Name : VM->GetExposedAddons())
-				Output("  " + Name + "\n");
+			for (auto& name : vm->get_exposed_addons())
+				output("  " + name + "\n");
 		}
-		void DebuggerContext::ListStackRegisters(ImmediateContext* Context, uint32_t Level)
+		void debugger_context::list_stack_registers(immediate_context* context, uint32_t level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			asUINT StackSize = Base->GetCallstackSize();
-			if (Level >= StackSize)
-				return Output("  there are only " + Core::ToString(StackSize) + " stack frames\n");
+			asUINT stack_size = base->GetCallstackSize();
+			if (level >= stack_size)
+				return output("  there are only " + core::to_string(stack_size) + " stack frames\n");
 
-			Core::StringStream Stream;
-			Stream << "  stack frame #" << Level << " values:\n";
-			int PropertiesCount = Base->GetVarCount(Level);
-			if (PropertiesCount > 0)
+			core::string_stream stream;
+			stream << "  stack frame #" << level << " values:\n";
+			int properties_count = base->GetVarCount(level);
+			if (properties_count > 0)
 			{
-				Core::String Indent = "    ";
-				for (asUINT n = PropertiesCount; n != (asUINT)-1; n--)
+				core::string indent = "    ";
+				for (asUINT n = properties_count; n != (asUINT)-1; n--)
 				{
-					int TypeId, Offset; bool Heap, Active = Base->IsVarInScope(n, Level);
-					if (Base->GetVar(n, Level, nullptr, &TypeId, nullptr, &Heap, &Offset) < 0)
+					int type_id, offset; bool heap, active = base->IsVarInScope(n, level);
+					if (base->GetVar(n, level, nullptr, &type_id, nullptr, &heap, &offset) < 0)
 						continue;
 
-					Stream << Indent << "#" << n << " [sp:" << Offset << ";hp:" << Heap << "] " << CharTrimEnd(Base->GetVarDeclaration(n, Level)) << ": ";
-					if (Active)
-						Stream << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
+					stream << indent << "#" << n << " [sp:" << offset << ";hp:" << heap << "] " << char_trim_end(base->GetVarDeclaration(n, level)) << ": ";
+					if (active)
+						stream << to_string(indent, 3, base->GetAddressOfVar(n), type_id) << std::endl;
 					else
-						Stream << "<uninitialized>" << std::endl;
+						stream << "<uninitialized>" << std::endl;
 				}
 			}
 
-			bool HasBaseCallState = false;
-			if (PropertiesCount <= 0)
-				Stream << "  stack arguments are empty\n";
+			bool has_base_call_state = false;
+			if (properties_count <= 0)
+				stream << "  stack arguments are empty\n";
 
-			Stream << "  stack frame #" << Level << " registers:\n";
-			asIScriptFunction* CurrentFunction = nullptr;
-			asDWORD StackFramePointer, ProgramPointer, StackPointer, StackIndex;
-			if (Base->GetCallStateRegisters(Level, &StackFramePointer, &CurrentFunction, &ProgramPointer, &StackPointer, &StackIndex) >= 0)
+			stream << "  stack frame #" << level << " registers:\n";
+			asIScriptFunction* current_function = nullptr;
+			asDWORD stack_frame_pointer, program_pointer, stack_pointer, stack_index;
+			if (base->GetCallStateRegisters(level, &stack_frame_pointer, &current_function, &program_pointer, &stack_pointer, &stack_index) >= 0)
 			{
-				void* ThisPointer = Base->GetThisPointer(Level);
-				asITypeInfo* ThisType = VM->GetEngine()->GetTypeInfoById(Base->GetThisTypeId(Level));
-				const char* SectionName = ""; int ColumnNumber = 0;
-				int LineNumber = Base->GetLineNumber(Level, &ColumnNumber, &SectionName);
-				Stream << "    [sfp] stack frame pointer: " << StackFramePointer << "\n";
-				Stream << "    [pp] program pointer: " << ProgramPointer << "\n";
-				Stream << "    [sp] stack pointer: " << StackPointer << "\n";
-				Stream << "    [si] stack index: " << StackIndex << "\n";
-				Stream << "    [sd] stack depth: " << StackSize - (Level + 1) << "\n";
-				Stream << "    [tp] this pointer: 0x" << ThisPointer << "\n";
-				Stream << "    [ttp] this type pointer: 0x" << ThisType << " (" << (ThisType ? ThisType->GetName() : "null") << ")" << "\n";
-				Stream << "    [sn] section name: " << (SectionName ? SectionName : "?") << "\n";
-				Stream << "    [ln] line number: " << LineNumber << "\n";
-				Stream << "    [cn] column number: " << ColumnNumber << "\n";
-				Stream << "    [ces] context execution state: ";
-				switch (Base->GetState())
+				void* this_pointer = base->GetThisPointer(level);
+				asITypeInfo* this_type = vm->get_engine()->GetTypeInfoById(base->GetThisTypeId(level));
+				const char* section_name = ""; int column_number = 0;
+				int line_number = base->GetLineNumber(level, &column_number, &section_name);
+				stream << "    [sfp] stack frame pointer: " << stack_frame_pointer << "\n";
+				stream << "    [pp] program pointer: " << program_pointer << "\n";
+				stream << "    [sp] stack pointer: " << stack_pointer << "\n";
+				stream << "    [si] stack index: " << stack_index << "\n";
+				stream << "    [sd] stack depth: " << stack_size - (level + 1) << "\n";
+				stream << "    [tp] this pointer: 0x" << this_pointer << "\n";
+				stream << "    [ttp] this type pointer: 0x" << this_type << " (" << (this_type ? this_type->GetName() : "null") << ")" << "\n";
+				stream << "    [sn] section name: " << (section_name ? section_name : "?") << "\n";
+				stream << "    [ln] line number: " << line_number << "\n";
+				stream << "    [cn] column number: " << column_number << "\n";
+				stream << "    [ces] context execution state: ";
+				switch (base->GetState())
 				{
 					case asEXECUTION_FINISHED:
-						Stream << "finished\n";
+						stream << "finished\n";
 						break;
 					case asEXECUTION_SUSPENDED:
-						Stream << "suspended\n";
+						stream << "suspended\n";
 						break;
 					case asEXECUTION_ABORTED:
-						Stream << "aborted\n";
+						stream << "aborted\n";
 						break;
 					case asEXECUTION_EXCEPTION:
-						Stream << "exception\n";
+						stream << "exception\n";
 						break;
 					case asEXECUTION_PREPARED:
-						Stream << "prepared\n";
+						stream << "prepared\n";
 						break;
 					case asEXECUTION_UNINITIALIZED:
-						Stream << "uninitialized\n";
+						stream << "uninitialized\n";
 						break;
 					case asEXECUTION_ACTIVE:
-						Stream << "active\n";
+						stream << "active\n";
 						break;
 					case asEXECUTION_ERROR:
-						Stream << "error\n";
+						stream << "error\n";
 						break;
 					case asEXECUTION_DESERIALIZATION:
-						Stream << "deserialization\n";
+						stream << "deserialization\n";
 						break;
 					default:
-						Stream << "invalid\n";
+						stream << "invalid\n";
 						break;
 				}
-				HasBaseCallState = true;
+				has_base_call_state = true;
 			}
 
-			void* ObjectRegister = nullptr; asITypeInfo* ObjectTypeRegister = nullptr;
-			asIScriptFunction* CallingSystemFunction = nullptr, * InitialFunction = nullptr;
-			asDWORD OriginalStackPointer, InitialArgumentsSize; asQWORD ValueRegister;
-			if (Base->GetStateRegisters(Level, &CallingSystemFunction, &InitialFunction, &OriginalStackPointer, &InitialArgumentsSize, &ValueRegister, &ObjectRegister, &ObjectTypeRegister) >= 0)
+			void* object_register = nullptr; asITypeInfo* object_type_register = nullptr;
+			asIScriptFunction* calling_system_function = nullptr, * initial_function = nullptr;
+			asDWORD original_stack_pointer, initial_arguments_size; asQWORD value_register;
+			if (base->GetStateRegisters(level, &calling_system_function, &initial_function, &original_stack_pointer, &initial_arguments_size, &value_register, &object_register, &object_type_register) >= 0)
 			{
-				Stream << "    [osp] original stack pointer: " << OriginalStackPointer << "\n";
-				Stream << "    [vc] value content: " << ValueRegister << "\n";
-				Stream << "    [op] object pointer: 0x" << ObjectRegister << "\n";
-				Stream << "    [otp] object type pointer: 0x" << ObjectTypeRegister << " (" << (ObjectTypeRegister ? ObjectTypeRegister->GetName() : "null") << ")" << "\n";
-				Stream << "    [ias] initial arguments size: " << InitialArgumentsSize << "\n";
+				stream << "    [osp] original stack pointer: " << original_stack_pointer << "\n";
+				stream << "    [vc] value content: " << value_register << "\n";
+				stream << "    [op] object pointer: 0x" << object_register << "\n";
+				stream << "    [otp] object type pointer: 0x" << object_type_register << " (" << (object_type_register ? object_type_register->GetName() : "null") << ")" << "\n";
+				stream << "    [ias] initial arguments size: " << initial_arguments_size << "\n";
 
-				if (InitialFunction != nullptr)
-					Stream << "    [if] initial function: " << InitialFunction->GetDeclaration(true, true, true) << "\n";
+				if (initial_function != nullptr)
+					stream << "    [if] initial function: " << initial_function->GetDeclaration(true, true, true) << "\n";
 
-				if (CallingSystemFunction != nullptr)
-					Stream << "    [csf] calling system function: " << CallingSystemFunction->GetDeclaration(true, true, true) << "\n";
+				if (calling_system_function != nullptr)
+					stream << "    [csf] calling system function: " << calling_system_function->GetDeclaration(true, true, true) << "\n";
 			}
-			else if (!HasBaseCallState)
-				Stream << "  stack registers are empty\n";
+			else if (!has_base_call_state)
+				stream << "  stack registers are empty\n";
 
-			if (HasBaseCallState && CurrentFunction != nullptr)
+			if (has_base_call_state && current_function != nullptr)
 			{
-				asUINT Size = 0; size_t PreviewSize = 40;
-				asDWORD* ByteCode = CurrentFunction->GetByteCode(&Size);
-				Stream << "    [cf] current function: " << CurrentFunction->GetDeclaration(true, true, true) << "\n";
-				if (ByteCode != nullptr && ProgramPointer < Size)
+				asUINT size = 0; size_t preview_size = 40;
+				asDWORD* byte_code = current_function->GetByteCode(&size);
+				stream << "    [cf] current function: " << current_function->GetDeclaration(true, true, true) << "\n";
+				if (byte_code != nullptr && program_pointer < size)
 				{
-					asUINT PreviewProgramPointerBegin = ProgramPointer - std::min<asUINT>((asUINT)PreviewSize, (asUINT)ProgramPointer);
-					asUINT PreviewProgramPointerEnd = ProgramPointer + std::min<asUINT>((asUINT)PreviewSize, (asUINT)Size - (asUINT)ProgramPointer);
-					Stream << "  stack frame #" << Level << " disassembly:\n";
-					if (PreviewProgramPointerBegin < ProgramPointer)
-						Stream << "    ... " << ProgramPointer - PreviewProgramPointerBegin << " bytes of assembly data skipped\n";
-					
-					while (PreviewProgramPointerBegin < PreviewProgramPointerEnd)
+					asUINT preview_program_pointer_begin = program_pointer - std::min<asUINT>((asUINT)preview_size, (asUINT)program_pointer);
+					asUINT preview_program_pointer_end = program_pointer + std::min<asUINT>((asUINT)preview_size, (asUINT)size - (asUINT)program_pointer);
+					stream << "  stack frame #" << level << " disassembly:\n";
+					if (preview_program_pointer_begin < program_pointer)
+						stream << "    ... " << program_pointer - preview_program_pointer_begin << " bytes of assembly data skipped\n";
+
+					while (preview_program_pointer_begin < preview_program_pointer_end)
 					{
-						Stream << "  ";
-						PreviewProgramPointerBegin = (asUINT)ByteCodeLabelToText(Stream, VM, ByteCode, PreviewProgramPointerBegin, PreviewProgramPointerBegin == ProgramPointer, false);
+						stream << "  ";
+						preview_program_pointer_begin = (asUINT)byte_code_label_to_text(stream, vm, byte_code, preview_program_pointer_begin, preview_program_pointer_begin == program_pointer, false);
 					}
 
-					if (ProgramPointer < PreviewProgramPointerEnd)
-						Stream << "    ... " << PreviewProgramPointerEnd - ProgramPointer << " more bytes of assembly data\n";
+					if (program_pointer < preview_program_pointer_end)
+						stream << "    ... " << preview_program_pointer_end - program_pointer << " more bytes of assembly data\n";
 				}
 				else
-					Stream << "  stack frame #" << Level << " disassembly:\n    ... assembly data is empty\n";
+					stream << "  stack frame #" << level << " disassembly:\n    ... assembly data is empty\n";
 			}
 			else
-				Stream << "  stack frame #" << Level << " disassembly:\n    ... assembly data is empty\n";
+				stream << "  stack frame #" << level << " disassembly:\n    ... assembly data is empty\n";
 
-			Output(Stream.str());
+			output(stream.str());
 #endif
 		}
-		void DebuggerContext::ListMemberProperties(ImmediateContext* Context)
+		void debugger_context::list_member_properties(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			void* Pointer = Base->GetThisPointer();
-			if (Pointer != nullptr)
+			void* pointer = base->GetThisPointer();
+			if (pointer != nullptr)
 			{
-				Core::String Indent = "  ";
-				Core::StringStream Stream;
-				Stream << Indent << "this = " << ToString(Indent, 3, Pointer, Base->GetThisTypeId()) << std::endl;
-				Output(Stream.str());
+				core::string indent = "  ";
+				core::string_stream stream;
+				stream << indent << "this = " << to_string(indent, 3, pointer, base->GetThisTypeId()) << std::endl;
+				output(stream.str());
 			}
 #endif
 		}
-		void DebuggerContext::ListLocalVariables(ImmediateContext* Context)
+		void debugger_context::list_local_variables(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			asIScriptFunction* Function = Base->GetFunction();
-			if (!Function)
+			asIScriptFunction* function = base->GetFunction();
+			if (!function)
 				return;
 
-			Core::String Indent = "  ";
-			Core::StringStream Stream;
-			for (asUINT n = 0; n < Function->GetVarCount(); n++)
+			core::string indent = "  ";
+			core::string_stream stream;
+			for (asUINT n = 0; n < function->GetVarCount(); n++)
 			{
-				if (!Base->IsVarInScope(n))
+				if (!base->IsVarInScope(n))
 					continue;
 
-				int TypeId;
-				Base->GetVar(n, 0, 0, &TypeId);
-				Stream << Indent << CharTrimEnd(Function->GetVarDecl(n)) << ": " << ToString(Indent, 3, Base->GetAddressOfVar(n), TypeId) << std::endl;
+				int type_id;
+				base->GetVar(n, 0, 0, &type_id);
+				stream << indent << char_trim_end(function->GetVarDecl(n)) << ": " << to_string(indent, 3, base->GetAddressOfVar(n), type_id) << std::endl;
 			}
-			Output(Stream.str());
+			output(stream.str());
 #endif
 		}
-		void DebuggerContext::ListGlobalVariables(ImmediateContext* Context)
+		void debugger_context::list_global_variables(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			asIScriptFunction* Function = Base->GetFunction();
-			if (!Function)
+			asIScriptFunction* function = base->GetFunction();
+			if (!function)
 				return;
 
-			asIScriptModule* Mod = Function->GetModule();
-			if (!Mod)
+			asIScriptModule* mod = function->GetModule();
+			if (!mod)
 				return;
 
-			Core::String Indent = "  ";
-			Core::StringStream Stream;
-			for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
+			core::string indent = "  ";
+			core::string_stream stream;
+			for (asUINT n = 0; n < mod->GetGlobalVarCount(); n++)
 			{
-				int TypeId = 0;
-				Mod->GetGlobalVar(n, nullptr, nullptr, &TypeId);
-				Stream << Indent << CharTrimEnd(Mod->GetGlobalVarDeclaration(n)) << ": " << ToString(Indent, 3, Mod->GetAddressOfGlobalVar(n), TypeId) << std::endl;
+				int type_id = 0;
+				mod->GetGlobalVar(n, nullptr, nullptr, &type_id);
+				stream << indent << char_trim_end(mod->GetGlobalVarDeclaration(n)) << ": " << to_string(indent, 3, mod->GetAddressOfGlobalVar(n), type_id) << std::endl;
 			}
-			Output(Stream.str());
+			output(stream.str());
 #endif
 		}
-		void DebuggerContext::ListSourceCode(ImmediateContext* Context)
+		void debugger_context::list_source_code(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			std::string_view File = "";
-			Context->GetLineNumber(0, 0, &File);
-			if (File.empty())
-				return Output("source code is not available");
-			
-			auto Code = VM->GetScriptSection(File);
-			if (!Code)
-				return Output("source code is not available");
+			VI_ASSERT(context != nullptr, "context should be set");
+			std::string_view file = "";
+			context->get_line_number(0, 0, &file);
+			if (file.empty())
+				return output("source code is not available");
 
-			auto Lines = Core::Stringify::Split(*Code, '\n');
-			size_t MaxLineSize = Core::ToString(Lines.size()).size(), LineNumber = 0;
-			for (auto& Line : Lines)
+			auto code = vm->get_script_section(file);
+			if (!code)
+				return output("source code is not available");
+
+			auto lines = core::stringify::split(*code, '\n');
+			size_t max_line_size = core::to_string(lines.size()).size(), line_number = 0;
+			for (auto& line : lines)
 			{
-				size_t LineSize = Core::ToString(++LineNumber).size();
-				size_t Spaces = 1 + (MaxLineSize - LineSize);
-				Output("  ");
-				Output(Core::ToString(LineNumber));
-				for (size_t i = 0; i < Spaces; i++)
-					Output(" ");
-				Output(Line + '\n');
+				size_t line_size = core::to_string(++line_number).size();
+				size_t spaces = 1 + (max_line_size - line_size);
+				output("  ");
+				output(core::to_string(line_number));
+				for (size_t i = 0; i < spaces; i++)
+					output(" ");
+				output(line + '\n');
 			}
 		}
-		void DebuggerContext::ListInterfaces(ImmediateContext* Context)
+		void debugger_context::list_interfaces(immediate_context* context)
 		{
-			for (auto& Interface : VM->DumpRegisteredInterfaces(Context))
+			for (auto& interfacef : vm->dump_registered_interfaces(context))
 			{
-				Output("  listing generated <" + Interface.first + ">:\n");
-				Core::Stringify::Replace(Interface.second, "\t", "  ");
-				for (auto& Line : Core::Stringify::Split(Interface.second, '\n'))
-					Output("    " + Line + "\n");
-				Output("\n");
+				output("  listing generated <" + interfacef.first + ">:\n");
+				core::stringify::replace(interfacef.second, "\t", "  ");
+				for (auto& line : core::stringify::split(interfacef.second, '\n'))
+					output("    " + line + "\n");
+				output("\n");
 			}
 		}
-		void DebuggerContext::ListStatistics(ImmediateContext* Context)
+		void debugger_context::list_statistics(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			asIScriptEngine* Engine = Base->GetEngine();
-			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
-			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
+			asIScriptEngine* engine = base->GetEngine();
+			asUINT gc_curr_size, gc_total_destr, gc_total_det, gc_new_objects, gc_total_new_destr;
+			engine->GetGCStatistics(&gc_curr_size, &gc_total_destr, &gc_total_det, &gc_new_objects, &gc_total_new_destr);
 
-			Core::StringStream Stream;
-			Stream << "  garbage collector" << std::endl;
-			Stream << "    current size:          " << GCCurrSize << std::endl;
-			Stream << "    total destroyed:       " << GCTotalDestr << std::endl;
-			Stream << "    total detected:        " << GCTotalDet << std::endl;
-			Stream << "    new objects:           " << GCNewObjects << std::endl;
-			Stream << "    new objects destroyed: " << GCTotalNewDestr << std::endl;
-			Output(Stream.str());
+			core::string_stream stream;
+			stream << "  garbage collector" << std::endl;
+			stream << "    current size:          " << gc_curr_size << std::endl;
+			stream << "    total destroyed:       " << gc_total_destr << std::endl;
+			stream << "    total detected:        " << gc_total_det << std::endl;
+			stream << "    new objects:           " << gc_new_objects << std::endl;
+			stream << "    new objects destroyed: " << gc_total_new_destr << std::endl;
+			output(stream.str());
 #endif
 		}
-		void DebuggerContext::PrintCallstack(ImmediateContext* Context)
+		void debugger_context::print_callstack(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Context->GetContext() != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(context->get_context() != nullptr, "context should be set");
 
-			Core::StringStream Stream;
-			Stream << Core::ErrorHandling::GetStackTrace(1) << "\n";
-			Output(Stream.str());
+			core::string_stream stream;
+			stream << core::error_handling::get_stack_trace(1) << "\n";
+			output(stream.str());
 		}
-		void DebuggerContext::AddFuncBreakPoint(const std::string_view& Function)
+		void debugger_context::add_func_break_point(const std::string_view& function)
 		{
-			size_t B = Function.find_first_not_of(" \t"), E = Function.find_last_not_of(" \t");
-			Core::String Actual = Core::String(Function.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos));
+			size_t b = function.find_first_not_of(" \t"), e = function.find_last_not_of(" \t");
+			core::string actual = core::string(function.substr(b, e != core::string::npos ? e - b + 1 : core::string::npos));
 
-			Core::StringStream Stream;
-			Stream << "  adding deferred break point for function '" << Actual << "'" << std::endl;
-			Output(Stream.str());
+			core::string_stream stream;
+			stream << "  adding deferred break point for function '" << actual << "'" << std::endl;
+			output(stream.str());
 
-			BreakPoint Point(Actual, 0, true);
-			BreakPoints.push_back(Point);
+			break_point point(actual, 0, true);
+			break_points.push_back(point);
 		}
-		void DebuggerContext::AddFileBreakPoint(const std::string_view& File, int LineNumber)
+		void debugger_context::add_file_break_point(const std::string_view& file, int line_number)
 		{
-			size_t R = File.find_last_of("\\/");
-			Core::String Actual;
+			size_t r = file.find_last_of("\\/");
+			core::string actual;
 
-			if (R != Core::String::npos)
-				Actual = File.substr(R + 1);
+			if (r != core::string::npos)
+				actual = file.substr(r + 1);
 			else
-				Actual = File;
+				actual = file;
 
-			size_t B = Actual.find_first_not_of(" \t");
-			size_t E = Actual.find_last_not_of(" \t");
-			Actual = Actual.substr(B, E != Core::String::npos ? E - B + 1 : Core::String::npos);
+			size_t b = actual.find_first_not_of(" \t");
+			size_t e = actual.find_last_not_of(" \t");
+			actual = actual.substr(b, e != core::string::npos ? e - b + 1 : core::string::npos);
 
-			Core::StringStream Stream;
-			Stream << "  setting break point in file '" << Actual << "' at line " << LineNumber << std::endl;
-			Output(Stream.str());
+			core::string_stream stream;
+			stream << "  setting break point in file '" << actual << "' at line " << line_number << std::endl;
+			output(stream.str());
 
-			BreakPoint Point(Actual, LineNumber, false);
-			BreakPoints.push_back(Point);
+			break_point point(actual, line_number, false);
+			break_points.push_back(point);
 		}
-		void DebuggerContext::Output(const std::string_view& Data)
+		void debugger_context::output(const std::string_view& data)
 		{
-			if (OnOutput)
-				OnOutput(Data);
+			if (on_output)
+				on_output(data);
 			else
-				Core::Console::Get()->Write(Data);
+				core::console::get()->write(data);
 		}
-		void DebuggerContext::SetEngine(VirtualMachine* Engine)
+		void debugger_context::set_engine(virtual_machine* engine)
 		{
 #ifdef VI_ANGELSCRIPT
-			if (Engine != nullptr && Engine != VM)
+			if (engine != nullptr && engine != vm)
 			{
-				if (VM != nullptr)
-					Core::Memory::Release(VM->GetEngine());
-
-				VM = Engine;
-				VM->GetEngine()->AddRef();
-			}
-#endif
-		}
-		bool DebuggerContext::CheckBreakPoint(ImmediateContext* Context)
-		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-#ifdef VI_ANGELSCRIPT
-			asIScriptContext* Base = Context->GetContext();
-			VI_ASSERT(Base != nullptr, "context should be set");
-
-			const char* Temp = 0;
-			int Line = Base->GetLineNumber(0, 0, &Temp);
-
-			Core::String File = Temp ? Temp : "";
-			size_t R = File.find_last_of("\\/");
-			if (R != Core::String::npos)
-				File = File.substr(R + 1);
-
-			asIScriptFunction* Function = Base->GetFunction();
-			if (LastFunction != Function)
-			{
-				for (size_t n = 0; n < BreakPoints.size(); n++)
+				if (vm != nullptr)
 				{
-					if (BreakPoints[n].Function)
-					{
-						if (BreakPoints[n].Name == Function->GetName())
-						{
-							Core::StringStream Stream;
-							Stream << "  entering function '" << BreakPoints[n].Name << "', transforming it into break point" << std::endl;
-							Output(Stream.str());
+					auto* engine = vm->get_engine();
+					if (engine != nullptr)
+						engine->Release();
+				}
 
-							BreakPoints[n].Name = File;
-							BreakPoints[n].Line = Line;
-							BreakPoints[n].Function = false;
-							BreakPoints[n].NeedsAdjusting = false;
+				vm = engine;
+				vm->get_engine()->AddRef();
+			}
+#endif
+		}
+		bool debugger_context::check_break_point(immediate_context* context)
+		{
+			VI_ASSERT(context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
+			asIScriptContext* base = context->get_context();
+			VI_ASSERT(base != nullptr, "context should be set");
+
+			const char* temp = 0;
+			int line = base->GetLineNumber(0, 0, &temp);
+
+			core::string file = temp ? temp : "";
+			size_t r = file.find_last_of("\\/");
+			if (r != core::string::npos)
+				file = file.substr(r + 1);
+
+			asIScriptFunction* function = base->GetFunction();
+			if (last_function != function)
+			{
+				for (size_t n = 0; n < break_points.size(); n++)
+				{
+					if (break_points[n].function)
+					{
+						if (break_points[n].name == function->GetName())
+						{
+							core::string_stream stream;
+							stream << "  entering function '" << break_points[n].name << "', transforming it into break point" << std::endl;
+							output(stream.str());
+
+							break_points[n].name = file;
+							break_points[n].line = line;
+							break_points[n].function = false;
+							break_points[n].needs_adjusting = false;
 						}
 					}
-					else if (BreakPoints[n].NeedsAdjusting && BreakPoints[n].Name == File)
+					else if (break_points[n].needs_adjusting && break_points[n].name == file)
 					{
-						int Number = Function->FindNextLineWithCode(BreakPoints[n].Line);
-						if (Number >= 0)
+						int number = function->FindNextLineWithCode(break_points[n].line);
+						if (number >= 0)
 						{
-							BreakPoints[n].NeedsAdjusting = false;
-							if (Number != BreakPoints[n].Line)
+							break_points[n].needs_adjusting = false;
+							if (number != break_points[n].line)
 							{
-								Core::StringStream Stream;
-								Stream << "  moving break point " << n << " in file '" << File << "' to next line with code at line " << Number << std::endl;
-								Output(Stream.str());
+								core::string_stream stream;
+								stream << "  moving break point " << n << " in file '" << file << "' to next line with code at line " << number << std::endl;
+								output(stream.str());
 
-								BreakPoints[n].Line = Number;
+								break_points[n].line = number;
 							}
 						}
 					}
 				}
 			}
 
-			LastFunction = Function;
-			for (size_t n = 0; n < BreakPoints.size(); n++)
+			last_function = function;
+			for (size_t n = 0; n < break_points.size(); n++)
 			{
-				if (!BreakPoints[n].Function && BreakPoints[n].Line == Line && BreakPoints[n].Name == File)
+				if (!break_points[n].function && break_points[n].line == line && break_points[n].name == file)
 				{
-					Core::StringStream Stream;
-					Stream << "  reached break point " << n << " in file '" << File << "' at line " << Line << std::endl;
-					Output(Stream.str());
+					core::string_stream stream;
+					stream << "  reached break point " << n << " in file '" << file << "' at line " << line << std::endl;
+					output(stream.str());
 					return true;
 				}
 			}
 #endif
 			return false;
 		}
-		bool DebuggerContext::Interrupt()
+		bool debugger_context::interrupt()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(ThreadBarrier);
-			if (Action != DebugAction::Continue && Action != DebugAction::StepInto && Action != DebugAction::StepOut)
+			core::umutex<std::recursive_mutex> unique(thread_barrier);
+			if (action != debug_action::next && action != debug_action::step_into && action != debug_action::step_out)
 				return false;
 
-			Action = DebugAction::Interrupt;
+			action = debug_action::interrupt;
 			return true;
 		}
-		bool DebuggerContext::InterpretCommand(const std::string_view& Command, ImmediateContext* Context)
+		bool debugger_context::interpret_command(const std::string_view& command, immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Context->GetContext() != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(context->get_context() != nullptr, "context should be set");
 
-			for (auto& Item : Core::Stringify::Split(Command, "&&"))
+			for (auto& item : core::stringify::split(command, "&&"))
 			{
-				Core::Stringify::Trim(Item);
-				Core::String Name = Item.substr(0, Item.find(' '));
-				auto It = Commands.find(Name);
-				if (It == Commands.end())
+				core::stringify::trim(item);
+				core::string name = item.substr(0, item.find(' '));
+				auto it = commands.find(name);
+				if (it == commands.end())
 				{
-					Output("  command <" + Name + "> is not a known operation\n");
+					output("  command <" + name + "> is not a known operation\n");
 					return false;
 				}
 
-				Core::String Data = (Name.size() == Item.size() ? Core::String() : Item.substr(Name.size()));
-				Core::Vector<Core::String> Args;
-				switch (It->second.Arguments)
+				core::string data = (name.size() == item.size() ? core::string() : item.substr(name.size()));
+				core::vector<core::string> args;
+				switch (it->second.arguments)
 				{
-					case ArgsType::Array:
+					case args_type::array:
 					{
-						size_t Offset = 0;
-						while (Offset < Data.size())
+						size_t offset = 0;
+						while (offset < data.size())
 						{
-							char V = Data[Offset];
-							if (Core::Stringify::IsWhitespace(V))
+							char v = data[offset];
+							if (core::stringify::is_whitespace(v))
 							{
-								size_t Start = Offset;
-								while (++Start < Data.size() && Core::Stringify::IsWhitespace(Data[Start]));
+								size_t start = offset;
+								while (++start < data.size() && core::stringify::is_whitespace(data[start]));
 
-								size_t End = Start;
-								while (++End < Data.size() && !Core::Stringify::IsWhitespace(Data[End]) && Data[End] != '\"' && Data[End] != '\'');
+								size_t end = start;
+								while (++end < data.size() && !core::stringify::is_whitespace(data[end]) && data[end] != '\"' && data[end] != '\'');
 
-								auto Value = Data.substr(Start, End - Start);
-								Core::Stringify::Trim(Value);
+								auto value = data.substr(start, end - start);
+								core::stringify::trim(value);
 
-								if (!Value.empty())
-									Args.push_back(Value);
-								Offset = End;
+								if (!value.empty())
+									args.push_back(value);
+								offset = end;
 							}
-							else if (V == '\"' || V == '\'')
-								while (++Offset < Data.size() && Data[Offset] != V);
+							else if (v == '\"' || v == '\'')
+								while (++offset < data.size() && data[offset] != v);
 							else
-								++Offset;
+								++offset;
 						}
 						break;
 					}
-					case ArgsType::Expression:
+					case args_type::expression:
 					{
-						Core::Stringify::Trim(Data);
-						Args.emplace_back(Data);
+						core::stringify::trim(data);
+						args.emplace_back(data);
 						break;
 					}
-					case ArgsType::NoArgs:
+					case args_type::no_args:
 					default:
-						if (Data.empty())
+						if (data.empty())
 							break;
 
-						Output("  command <" + Name + "> requires no arguments\n");
+						output("  command <" + name + "> requires no arguments\n");
 						return false;
 				}
 
-				if (It->second.Callback(Context, Args))
+				if (it->second.callback(context, args))
 					return true;
 			}
 
 			return false;
 		}
-		bool DebuggerContext::IsError()
+		bool debugger_context::is_error()
 		{
-			return InputError;
+			return input_error;
 		}
-		bool DebuggerContext::IsAttached()
+		bool debugger_context::is_attached()
 		{
-			return Attachable;
+			return attachable;
 		}
-		DebuggerContext::DebugAction DebuggerContext::GetState()
+		debugger_context::debug_action debugger_context::get_state()
 		{
-			return Action;
+			return action;
 		}
-		size_t DebuggerContext::ByteCodeLabelToText(Core::StringStream& Stream, VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, bool Uppercase)
+		size_t debugger_context::byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool uppercase)
 		{
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM ? VM->GetEngine() : nullptr;
-			asDWORD* ByteCode = ((asDWORD*)Program) + ProgramPointer;
-			asBYTE* BaseCode = (asBYTE*)ByteCode;
-			ByteCodeLabel Label = VirtualMachine::GetByteCodeInfo((uint8_t)*BaseCode);
-			auto PrintArgument = [&Stream](asBYTE* Offset, uint8_t Size, bool Last)
+			asIScriptEngine* engine = vm ? vm->get_engine() : nullptr;
+			asDWORD* byte_code = ((asDWORD*)program) + program_pointer;
+			asBYTE* base_code = (asBYTE*)byte_code;
+			byte_code_label label = virtual_machine::get_byte_code_info((uint8_t)*base_code);
+			auto print_argument = [&stream](asBYTE* offset, uint8_t size, bool last)
 			{
-				switch (Size)
+				switch (size)
 				{
-					case sizeof(asBYTE):
-						Stream << " %spl:" << *(asBYTE*)Offset;
-						if (!Last)
-							Stream << ",";
+					case sizeof(asBYTE) :
+						stream << " %spl:" << *(asBYTE*)offset;
+						if (!last)
+							stream << ",";
 						break;
-					case sizeof(asWORD):
-						Stream << " %sp:" << *(asWORD*)Offset;
-						if (!Last)
-							Stream << ",";
-						break;
-					case sizeof(asDWORD):
-						Stream << " %esp:" << *(asDWORD*)Offset;
-						if (!Last)
-							Stream << ",";
-						break;
-					case sizeof(asQWORD):
-						Stream << " %rdx:" << *(asQWORD*)Offset;
-						if (!Last)
-							Stream << ",";
-						break;
-					default:
-						break;
+						case sizeof(asWORD) :
+							stream << " %sp:" << *(asWORD*)offset;
+							if (!last)
+								stream << ",";
+							break;
+							case sizeof(asDWORD) :
+								stream << " %esp:" << *(asDWORD*)offset;
+								if (!last)
+									stream << ",";
+								break;
+								case sizeof(asQWORD) :
+									stream << " %rdx:" << *(asQWORD*)offset;
+									if (!last)
+										stream << ",";
+									break;
+								default:
+									break;
 				}
 			};
 
-			Stream << (Selection ? "> 0x" : "  0x") << (void*)(uintptr_t)ProgramPointer << ": ";
-			if (Uppercase)
+			stream << (selection ? "> 0x" : "  0x") << (void*)(uintptr_t)program_pointer << ": ";
+			if (uppercase)
 			{
-				Core::String Name = Core::String(Label.Name);
-				Stream << Core::Stringify::ToUpper(Name);
+				core::string name = core::string(label.name);
+				stream << core::stringify::to_upper(name);
 			}
 			else
-				Stream << Label.Name;
-			if (!VM)
-				goto DefaultPrint;
+				stream << label.name;
+			if (!vm)
+				goto default_print;
 
-			switch (*BaseCode)
+			switch (*base_code)
 			{
 				case asBC_CALL:
 				case asBC_CALLSYS:
@@ -5072,3479 +5081,3486 @@ namespace Vitex
 				case asBC_CALLINTF:
 				case asBC_Thiscall1:
 				{
-					auto* Function = Engine->GetFunctionById(asBC_INTARG(ByteCode));
-					if (!Function)
-						goto DefaultPrint;
+					auto* function = engine->GetFunctionById(asBC_INTARG(byte_code));
+					if (!function)
+						goto default_print;
 
-					auto* Declaration = Function->GetDeclaration();
-					if (!Declaration)
-						goto DefaultPrint;
+					auto* declaration = function->GetDeclaration();
+					if (!declaration)
+						goto default_print;
 
-					Stream << " %edi:[" << Declaration << "]";
+					stream << " %edi:[" << declaration << "]";
 					break;
 				}
 				default:
-				DefaultPrint:
-					PrintArgument(BaseCode + Label.OffsetOfArg0, Label.SizeOfArg0, !Label.SizeOfArg1);
-					PrintArgument(BaseCode + Label.OffsetOfArg1, Label.SizeOfArg1, !Label.SizeOfArg2);
-					PrintArgument(BaseCode + Label.OffsetOfArg2, Label.SizeOfArg2, true);
+				default_print:
+					print_argument(base_code + label.offset_of_arg0, label.size_of_arg0, !label.size_of_arg1);
+					print_argument(base_code + label.offset_of_arg1, label.size_of_arg1, !label.size_of_arg2);
+					print_argument(base_code + label.offset_of_arg2, label.size_of_arg2, true);
 					break;
 			}
 
-			Stream << "\n";
-			return ProgramPointer + Label.Size;
+			stream << "\n";
+			return program_pointer + label.size;
 #else
-			return ProgramPointer + 1;
+			return program_pointer + 1;
 #endif
 		}
-		Core::String DebuggerContext::ToString(int Depth, void* Value, unsigned int TypeId)
+		core::string debugger_context::to_string(int depth, void* value, unsigned int type_id)
 		{
-			Core::String Indent;
-			return ToString(Indent, Depth, Value, TypeId);
+			core::string indent;
+			return to_string(indent, depth, value, type_id);
 		}
-		Core::String DebuggerContext::ToString(Core::String& Indent, int Depth, void* Value, unsigned int TypeId)
+		core::string debugger_context::to_string(core::string& indent, int depth, void* value, unsigned int type_id)
 		{
 #ifdef VI_ANGELSCRIPT
-			if (Value == 0 || !VM)
+			if (value == 0 || !vm)
 				return "null";
 
-			asIScriptEngine* Base = VM->GetEngine();
-			if (!Base)
+			asIScriptEngine* base = vm->get_engine();
+			if (!base)
 				return "null";
 
-			Core::StringStream Stream;
-			if (TypeId == asTYPEID_VOID)
+			core::string_stream stream;
+			if (type_id == asTYPEID_VOID)
 				return "void";
-			else if (TypeId == asTYPEID_BOOL)
-				return *(bool*)Value ? "true" : "false";
-			else if (TypeId == asTYPEID_INT8)
-				Stream << (int)*(signed char*)Value;
-			else if (TypeId == asTYPEID_INT16)
-				Stream << (int)*(signed short*)Value;
-			else if (TypeId == asTYPEID_INT32)
-				Stream << *(signed int*)Value;
-			else if (TypeId == asTYPEID_INT64)
-				Stream << *(asINT64*)Value;
-			else if (TypeId == asTYPEID_UINT8)
-				Stream << (unsigned int)*(unsigned char*)Value;
-			else if (TypeId == asTYPEID_UINT16)
-				Stream << (unsigned int)*(unsigned short*)Value;
-			else if (TypeId == asTYPEID_UINT32)
-				Stream << *(unsigned int*)Value;
-			else if (TypeId == asTYPEID_UINT64)
-				Stream << *(asQWORD*)Value;
-			else if (TypeId == asTYPEID_FLOAT)
-				Stream << *(float*)Value;
-			else if (TypeId == asTYPEID_DOUBLE)
-				Stream << *(double*)Value;
-			else if ((TypeId & asTYPEID_MASK_OBJECT) == 0)
+			else if (type_id == asTYPEID_BOOL)
+				return *(bool*)value ? "true" : "false";
+			else if (type_id == asTYPEID_INT8)
+				stream << (int)*(signed char*)value;
+			else if (type_id == asTYPEID_INT16)
+				stream << (int)*(signed short*)value;
+			else if (type_id == asTYPEID_INT32)
+				stream << *(signed int*)value;
+			else if (type_id == asTYPEID_INT64)
+				stream << *(asINT64*)value;
+			else if (type_id == asTYPEID_UINT8)
+				stream << (unsigned int)*(unsigned char*)value;
+			else if (type_id == asTYPEID_UINT16)
+				stream << (unsigned int)*(unsigned short*)value;
+			else if (type_id == asTYPEID_UINT32)
+				stream << *(unsigned int*)value;
+			else if (type_id == asTYPEID_UINT64)
+				stream << *(asQWORD*)value;
+			else if (type_id == asTYPEID_FLOAT)
+				stream << *(float*)value;
+			else if (type_id == asTYPEID_DOUBLE)
+				stream << *(double*)value;
+			else if ((type_id & asTYPEID_MASK_OBJECT) == 0)
 			{
-				asITypeInfo* T = Base->GetTypeInfoById(TypeId);
-				Stream << *(asUINT*)Value;
+				asITypeInfo* t = base->GetTypeInfoById(type_id);
+				stream << *(asUINT*)value;
 
-				for (int n = T->GetEnumValueCount(); n-- > 0;)
+				for (int n = t->GetEnumValueCount(); n-- > 0;)
 				{
-					int EnumVal;
-					const char* EnumName = T->GetEnumValueByIndex(n, &EnumVal);
-					if (EnumVal == *(int*)Value)
+					int enum_val;
+					const char* enum_name = t->GetEnumValueByIndex(n, &enum_val);
+					if (enum_val == *(int*)value)
 					{
-						Stream << " (" << EnumName <<  ")";
+						stream << " (" << enum_name << ")";
 						break;
 					}
 				}
 			}
-			else if (TypeId & asTYPEID_SCRIPTOBJECT)
+			else if (type_id & asTYPEID_SCRIPTOBJECT)
 			{
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Value = *(void**)Value;
+				if (type_id & asTYPEID_OBJHANDLE)
+					value = *(void**)value;
 
-				if (!Value || !Depth)
+				if (!value || !depth)
 				{
-					if (Value != nullptr)
-						Stream << "0x" << Value;
+					if (value != nullptr)
+						stream << "0x" << value;
 					else
-						Stream << "null";
-					goto Finalize;
+						stream << "null";
+					goto finalize;
 				}
 
-				asIScriptObject* Object = (asIScriptObject*)Value;
-				asITypeInfo* Type = Object->GetObjectType();
-				size_t Size = Object->GetPropertyCount();
-				Stream << "0x" << Value << " (" << Type->GetName() << ")";
-				if (!Size)
+				asIScriptObject* object = (asIScriptObject*)value;
+				asITypeInfo* type = object->GetObjectType();
+				size_t size = object->GetPropertyCount();
+				stream << "0x" << value << " (" << type->GetName() << ")";
+				if (!size)
 				{
-					Stream << " { }";
-					goto Finalize;
+					stream << " { }";
+					goto finalize;
 				}
 
-				Stream << "\n";
-				Indent.append("  ");
-				for (asUINT n = 0; n < Size; n++)
+				stream << "\n";
+				indent.append("  ");
+				for (asUINT n = 0; n < size; n++)
 				{
-					Stream << Indent << CharTrimEnd(Type->GetPropertyDeclaration(n)) << ": " << ToString(Indent, Depth - 1, Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n));
-					if (n + 1 < Size)
-						Stream << "\n";
+					stream << indent << char_trim_end(type->GetPropertyDeclaration(n)) << ": " << to_string(indent, depth - 1, object->GetAddressOfProperty(n), object->GetPropertyTypeId(n));
+					if (n + 1 < size)
+						stream << "\n";
 				}
-				Indent.erase(Indent.end() - 2, Indent.end());
+				indent.erase(indent.end() - 2, indent.end());
 			}
 			else
 			{
-				if (TypeId & asTYPEID_OBJHANDLE)
-					Value = *(void**)Value;
+				if (type_id & asTYPEID_OBJHANDLE)
+					value = *(void**)value;
 
-				asITypeInfo* Type = Base->GetTypeInfoById(TypeId);
-				if (!Value || !Depth)
+				asITypeInfo* type = base->GetTypeInfoById(type_id);
+				if (!value || !depth)
 				{
-					if (Value != nullptr)
-						Stream << "0x" << Value << " (" << Type->GetName() << ")";
+					if (value != nullptr)
+						stream << "0x" << value << " (" << type->GetName() << ")";
 					else
-						Stream << "null (" << Type->GetName() << ")";
-					goto Finalize;
+						stream << "null (" << type->GetName() << ")";
+					goto finalize;
 				}
 
-				auto It1 = FastToStringCallbacks.find(Type);
-				if (It1 == FastToStringCallbacks.end())
+				auto it1 = fast_to_string_callbacks.find(type);
+				if (it1 == fast_to_string_callbacks.end())
 				{
-					if (Type->GetFlags() & asOBJ_TEMPLATE)
-						It1 = FastToStringCallbacks.find(Base->GetTypeInfoByName(Type->GetName()));
+					if (type->GetFlags() & asOBJ_TEMPLATE)
+						it1 = fast_to_string_callbacks.find(base->GetTypeInfoByName(type->GetName()));
 				}
 
-				if (It1 != FastToStringCallbacks.end())
+				if (it1 != fast_to_string_callbacks.end())
 				{
-					Indent.append("  ");
-					Stream << It1->second(Indent, Depth, Value);
-					Indent.erase(Indent.end() - 2, Indent.end());
-					goto Finalize;
+					indent.append("  ");
+					stream << it1->second(indent, depth, value);
+					indent.erase(indent.end() - 2, indent.end());
+					goto finalize;
 				}
 
-				auto It2 = SlowToStringCallbacks.find(Type->GetName());
-				if (It2 != SlowToStringCallbacks.end())
+				auto it2 = slow_to_string_callbacks.find(type->GetName());
+				if (it2 != slow_to_string_callbacks.end())
 				{
-					Indent.append("  ");
-					Stream << It2->second(Indent, Depth, Value, TypeId);
-					Indent.erase(Indent.end() - 2, Indent.end());
-					goto Finalize;
+					indent.append("  ");
+					stream << it2->second(indent, depth, value, type_id);
+					indent.erase(indent.end() - 2, indent.end());
+					goto finalize;
 				}
 
-				size_t Size = Type->GetPropertyCount();
-				Stream << "0x" << Value << " (" << Type->GetName() << ")";
-				if (!Size)
+				size_t size = type->GetPropertyCount();
+				stream << "0x" << value << " (" << type->GetName() << ")";
+				if (!size)
 				{
-					Stream << " { }";
-					goto Finalize;
+					stream << " { }";
+					goto finalize;
 				}
 
-				Stream << "\n";
-				Indent.append("  ");
-				for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
+				stream << "\n";
+				indent.append("  ");
+				for (asUINT n = 0; n < type->GetPropertyCount(); n++)
 				{
-					int PropTypeId, PropOffset;
-					if (Type->GetProperty(n, nullptr, &PropTypeId, nullptr, nullptr, &PropOffset, nullptr, nullptr, nullptr, nullptr) != 0)
+					int prop_type_id, prop_offset;
+					if (type->GetProperty(n, nullptr, &prop_type_id, nullptr, nullptr, &prop_offset, nullptr, nullptr, nullptr, nullptr) != 0)
 						continue;
 
-					Stream << Indent << CharTrimEnd(Type->GetPropertyDeclaration(n)) << ": " << ToString(Indent, Depth - 1, (char*)Value + PropOffset, PropTypeId);
-					if (n + 1 < Size)
-						Stream << "\n";
+					stream << indent << char_trim_end(type->GetPropertyDeclaration(n)) << ": " << to_string(indent, depth - 1, (char*)value + prop_offset, prop_type_id);
+					if (n + 1 < size)
+						stream << "\n";
 				}
-				Indent.erase(Indent.end() - 2, Indent.end());
+				indent.erase(indent.end() - 2, indent.end());
 			}
 
-		Finalize:
-			return Stream.str();
+		finalize:
+			return stream.str();
 #else
 			return "null";
 #endif
 		}
-		void DebuggerContext::ClearThread(ImmediateContext* Context)
+		void debugger_context::clear_thread(immediate_context* context)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Mutex);
-			for (auto It = Threads.begin(); It != Threads.end(); It++)
+			core::umutex<std::recursive_mutex> unique(mutex);
+			for (auto it = threads.begin(); it != threads.end(); it++)
 			{
-				if (It->Context == Context)
+				if (it->context == context)
 				{
-					Threads.erase(It);
+					threads.erase(it);
 					break;
 				}
 			}
 		}
-		ExpectsVM<void> DebuggerContext::ExecuteExpression(ImmediateContext* Context, const std::string_view& Code, const std::string_view& Args, ArgsCallback&& OnArgs)
+		expects_vm<void> debugger_context::execute_expression(immediate_context* context, const std::string_view& code, const std::string_view& args, args_callback&& on_args)
 		{
-			VI_ASSERT(VM != nullptr, "engine should be set");
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(vm != nullptr, "engine should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			Core::String Indent = "  ";
-			Core::String Eval = "any@ __vfdbgfunc(" + Core::String(Args) + "){return any(" + Core::String(Code.empty() || Code.back() != ';' ? Code : Code.substr(0, Code.size() - 1)) + ");}";
-			asIScriptModule* Module = Context->GetFunction().GetModule().GetModule();
-			asIScriptFunction* Function = nullptr;
-			Bindings::Any* Data = nullptr;
-			VM->DetachDebuggerFromContext(Context->GetContext());
-			VM->ImportSystemAddon(ADDON_ANY);
+			core::string indent = "  ";
+			core::string eval = "any@ __vfdbgfunc(" + core::string(args) + "){return any(" + core::string(code.empty() || code.back() != ';' ? code : code.substr(0, code.size() - 1)) + ");}";
+			asIScriptModule* library = context->get_function().get_module().get_module();
+			asIScriptFunction* function = nullptr;
+			bindings::any* data = nullptr;
+			vm->detach_debugger_from_context(context->get_context());
+			vm->import_system_addon(ADDON_ANY);
 
-			int Result = 0;
-			while ((Result = Module->CompileFunction("__vfdbgfunc", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
+			int result = 0;
+			while ((result = library->CompileFunction("__vfdbgfunc", eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &function)) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 
-			if (Result < 0)
+			if (result < 0)
 			{
-				VM->AttachDebuggerToContext(Context->GetContext());
-				Core::Memory::Release(Function);
-				return VirtualException((VirtualError)Result);
+				vm->attach_debugger_to_context(context->get_context());
+				if (function != nullptr)
+					function->Release();
+				return virtual_exception((virtual_error)result);
 			}
 
-			Context->DisableSuspends();
-			Context->PushState();
-			auto Status1 = Context->Prepare(Function);
-			if (!Status1)
+			context->disable_suspends();
+			context->push_state();
+			auto status1 = context->prepare(function);
+			if (!status1)
 			{
-				Context->PopState();
-				Context->EnableSuspends();
-				VM->AttachDebuggerToContext(Context->GetContext());
-				Core::Memory::Release(Function);
-				return Status1;
+				context->pop_state();
+				context->enable_suspends();
+				vm->attach_debugger_to_context(context->get_context());
+				if (function != nullptr)
+					function->Release();
+				return status1;
 			}
 
-			if (OnArgs)
-				OnArgs(Context);
+			if (on_args)
+				on_args(context);
 
-			auto Status2 = Context->ExecuteNext();
-			if (Status2 && *Status2 == Execution::Finished)
+			auto status2 = context->execute_next();
+			if (status2 && *status2 == execution::finished)
 			{
-				Data = Context->GetReturnObject<Bindings::Any>();
-				Output(Indent + ToString(Indent, 3, Data, VM->GetTypeInfoByName("any").GetTypeId()) + "\n");
+				data = context->get_return_object<bindings::any>();
+				output(indent + to_string(indent, 3, data, vm->get_type_info_by_name("any").get_type_id()) + "\n");
 			}
 
-			Context->PopState();
-			Context->EnableSuspends();
-			VM->AttachDebuggerToContext(Context->GetContext());
-			Core::Memory::Release(Function);
-			if (!Status2)
-				return Status2.Error();
+			context->pop_state();
+			context->enable_suspends();
+			vm->attach_debugger_to_context(context->get_context());
+			if (function != nullptr)
+				function->Release();
 
-			return Core::Expectation::Met;
+			if (!status2)
+				return status2.error();
+
+			return core::expectation::met;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		DebuggerContext::ThreadData DebuggerContext::GetThread(ImmediateContext* Context)
+		debugger_context::thread_data debugger_context::get_thread(immediate_context* context)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Mutex);
-			for (auto& Thread : Threads)
+			core::umutex<std::recursive_mutex> unique(mutex);
+			for (auto& thread : threads)
 			{
-				if (Thread.Context == Context)
+				if (thread.context == context)
 				{
-					Thread.Id = std::this_thread::get_id();
-					return Thread;
+					thread.id = std::this_thread::get_id();
+					return thread;
 				}
 			}
 
-			ThreadData Thread;
-			Thread.Context = Context;
-			Thread.Id = std::this_thread::get_id();
-			Threads.push_back(Thread);
-			return Thread;
+			thread_data thread;
+			thread.context = context;
+			thread.id = std::this_thread::get_id();
+			threads.push_back(thread);
+			return thread;
 		}
-		VirtualMachine* DebuggerContext::GetEngine()
+		virtual_machine* debugger_context::get_engine()
 		{
-			return VM;
+			return vm;
 		}
 
-		ImmediateContext::ImmediateContext(asIScriptContext* Base) noexcept : Context(Base), VM(nullptr)
+		immediate_context::immediate_context(asIScriptContext* base) noexcept : context(base), vm(nullptr)
 		{
-			VI_ASSERT(Base != nullptr, "context should be set");
+			VI_ASSERT(base != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			Context->SetUserData(this, ContextUD);
-			VM = VirtualMachine::Get(Base->GetEngine());
+			context->SetUserData(this, context_ud);
+			vm = virtual_machine::get(base->GetEngine());
 #endif
 		}
-		ImmediateContext::~ImmediateContext() noexcept
+		immediate_context::~immediate_context() noexcept
 		{
-			if (Executor.Future.IsPending())
-				Executor.Future.Set(VirtualException(VirtualError::CONTEXT_NOT_PREPARED));
+			if (executor.future.is_pending())
+				executor.future.set(virtual_exception(virtual_error::context_not_prepared));
 #ifdef VI_ANGELSCRIPT
-			VM->GetEngine()->ReturnContext(Context);
+			vm->get_engine()->ReturnContext(context);
 #endif
 		}
-		ExpectsPromiseVM<Execution> ImmediateContext::ExecuteCall(const Function& Function, ArgsCallback&& OnArgs)
+		expects_promise_vm<execution> immediate_context::execute_call(const function& function, args_callback&& on_args)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Function.IsValid(), "function should be set");
-			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(function.is_valid(), "function should be set");
+			VI_ASSERT(!core::costate::is_coroutine(), "cannot safely execute in coroutine");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			if (!CanExecuteCall())
-				return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::CONTEXT_ACTIVE));
+			core::umutex<std::recursive_mutex> unique(exchange);
+			if (!can_execute_call())
+				return expects_promise_vm<execution>(virtual_exception(virtual_error::context_active));
 
-			int Result = Context->Prepare(Function.GetFunction());
-			if (Result < 0)
-				return ExpectsPromiseVM<Execution>(VirtualException((VirtualError)Result));
+			int result = context->Prepare(function.get_function());
+			if (result < 0)
+				return expects_promise_vm<execution>(virtual_exception((virtual_error)result));
 
-			if (OnArgs)
-				OnArgs(this);
+			if (on_args)
+				on_args(this);
 
-			Executor.Future = ExpectsPromiseVM<Execution>();
-			Resume();
-			return Executor.Future;
+			executor.future = expects_promise_vm<execution>();
+			resume();
+			return executor.future;
 #else
-			return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<execution>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::ExecuteInlineCall(const Function& Function, ArgsCallback&& OnArgs)
+		expects_vm<execution> immediate_context::execute_inline_call(const function& function, args_callback&& on_args)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Function.IsValid(), "function should be set");
-			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(function.is_valid(), "function should be set");
+			VI_ASSERT(!core::costate::is_coroutine(), "cannot safely execute in coroutine");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			if (!CanExecuteCall())
-				return VirtualException(VirtualError::CONTEXT_ACTIVE);
+			core::umutex<std::recursive_mutex> unique(exchange);
+			if (!can_execute_call())
+				return virtual_exception(virtual_error::context_active);
 
-			DisableSuspends();
-			int Result = Context->Prepare(Function.GetFunction());
-			if (Result < 0)
+			disable_suspends();
+			int result = context->Prepare(function.get_function());
+			if (result < 0)
 			{
-				EnableSuspends();
-				return VirtualException((VirtualError)Result);
+				enable_suspends();
+				return virtual_exception((virtual_error)result);
 			}
-			else if (OnArgs)
-				OnArgs(this);
+			else if (on_args)
+				on_args(this);
 
-			auto Status = ExecuteNext();
-			EnableSuspends();
-			return Status;
+			auto status = execute_next();
+			enable_suspends();
+			return status;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		expects_vm<execution> immediate_context::execute_subcall(const function& function, args_callback&& on_args, args_callback&& on_return)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Function.IsValid(), "function should be set");
-			VI_ASSERT(!Core::Costate::IsCoroutine(), "cannot safely execute in coroutine");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(function.is_valid(), "function should be set");
+			VI_ASSERT(!core::costate::is_coroutine(), "cannot safely execute in coroutine");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			if (!CanExecuteSubcall())
+			core::umutex<std::recursive_mutex> unique(exchange);
+			if (!can_execute_subcall())
 			{
 				VI_ASSERT(false, "context should be active");
-				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
+				return virtual_exception(virtual_error::context_not_prepared);
 			}
 
-			DisableSuspends();
-			Context->PushState();
-			int Result = Context->Prepare(Function.GetFunction());
-			if (Result < 0)
+			disable_suspends();
+			context->PushState();
+			int result = context->Prepare(function.get_function());
+			if (result < 0)
 			{
-				Context->PopState();
-				EnableSuspends();
-				return VirtualException((VirtualError)Result);
+				context->PopState();
+				enable_suspends();
+				return virtual_exception((virtual_error)result);
 			}
-			else if (OnArgs)
-				OnArgs(this);
-			
-			auto Status = ExecuteNext();
-			if (OnReturn)
-				OnReturn(this);
-			Context->PopState();
-			EnableSuspends();
-			return Status;
+			else if (on_args)
+				on_args(this);
+
+			auto status = execute_next();
+			if (on_return)
+				on_return(this);
+			context->PopState();
+			enable_suspends();
+			return status;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::ExecuteNext()
+		expects_vm<execution> immediate_context::execute_next()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Context->Execute();
-			if (Callbacks.StopExecutions.empty())
-				return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
+			int r = context->Execute();
+			if (callbacks.stop_executions.empty())
+				return function_factory::to_return<execution>(r, (execution)r);
 
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			Core::Vector<StopExecutionCallback> Queue;
-			Queue.swap(Callbacks.StopExecutions);
-			Unique.Negate();
-			for (auto& Callback : Queue)
-				Callback();
+			core::umutex<std::recursive_mutex> unique(exchange);
+			core::vector<stop_execution_callback> queue;
+			queue.swap(callbacks.stop_executions);
+			unique.negate();
+			for (auto& callback : queue)
+				callback();
 
-			return FunctionFactory::ToReturn<Execution>(R, (Execution)R);
+			return function_factory::to_return<execution>(r, (execution)r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::Resume()
+		expects_vm<execution> immediate_context::resume()
 		{
 #ifdef VI_ANGELSCRIPT
-			auto Status = ExecuteNext();
-			if (Status && *Status == Execution::Suspended)
-				return Status;
+			auto status = execute_next();
+			if (status && *status == execution::suspended)
+				return status;
 
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			if (!Executor.Future.IsPending())
-				return Status;
+			core::umutex<std::recursive_mutex> unique(exchange);
+			if (!executor.future.is_pending())
+				return status;
 
-			if (Status)
-				Executor.Future.Set(*Status);
+			if (status)
+				executor.future.set(*status);
 			else
-				Executor.Future.Set(Status.Error());
-			return Status;
+				executor.future.set(status.error());
+			return status;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsPromiseVM<Execution> ImmediateContext::ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		expects_promise_vm<execution> immediate_context::resolve_callback(function_delegate&& delegatef, args_callback&& on_args, args_callback&& on_return)
 		{
-			VI_ASSERT(Delegate.IsValid(), "callback should be valid");
+			VI_ASSERT(delegatef.is_valid(), "callback should be valid");
 #ifdef VI_ANGELSCRIPT
-			if (Callbacks.CallbackResolver)
+			if (callbacks.callback_resolver)
 			{
-				Callbacks.CallbackResolver(this, std::move(Delegate), std::move(OnArgs), std::move(OnReturn));
-				return ExpectsPromiseVM<Execution>(Execution::Active);
+				callbacks.callback_resolver(this, std::move(delegatef), std::move(on_args), std::move(on_return));
+				return expects_promise_vm<execution>(execution::active);
 			}
 
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			if (CanExecuteCall())
+			core::umutex<std::recursive_mutex> unique(exchange);
+			if (can_execute_call())
 			{
-				return ExecuteCall(Delegate.Callable(), std::move(OnArgs)).Then<ExpectsVM<Execution>>([this, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Result) mutable
+				return execute_call(delegatef.callable(), std::move(on_args)).then<expects_vm<execution>>([this, on_return = std::move(on_return)](expects_vm<execution>&& result) mutable
 				{
-					if (OnReturn)
-						OnReturn(this);
-					return Result;
+					if (on_return)
+						on_return(this);
+					return result;
 				});
 			}
 
-			ImmediateContext* Target = VM->RequestContext();
-			return Target->ExecuteCall(Delegate.Callable(), std::move(OnArgs)).Then<ExpectsVM<Execution>>([Target, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Result) mutable
+			immediate_context* target = vm->request_context();
+			return target->execute_call(delegatef.callable(), std::move(on_args)).then<expects_vm<execution>>([target, on_return = std::move(on_return)](expects_vm<execution>&& result) mutable
 			{
-				if (OnReturn)
-					OnReturn(Target);
+				if (on_return)
+					on_return(target);
 
-				Target->VM->ReturnContext(Target);
-				return Result;
+				target->vm->return_context(target);
+				return result;
 			});
 #else
-			return ExpectsPromiseVM<Execution>(VirtualException(VirtualError::NOT_SUPPORTED));
+			return expects_promise_vm<execution>(virtual_exception(virtual_error::not_supported));
 #endif
 		}
-		ExpectsVM<Execution> ImmediateContext::ResolveNotification()
+		expects_vm<execution> immediate_context::resolve_notification()
 		{
 #ifdef VI_ANGELSCRIPT
-			if (Callbacks.NotificationResolver)
+			if (callbacks.notification_resolver)
 			{
-				Callbacks.NotificationResolver(this);
-				return Execution::Active;
+				callbacks.notification_resolver(this);
+				return execution::active;
 			}
 
-			ImmediateContext* Context = this;
-			Core::Codefer([Context]()
+			immediate_context* context = this;
+			core::codefer([context]()
 			{
-				if (Context->IsSuspended())
-					Context->Resume();
+				if (context->is_suspended())
+					context->resume();
 			});
-			return Execution::Active;
+			return execution::active;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::Prepare(const Function& Function)
+		expects_vm<void> immediate_context::prepare(const function& function)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->Prepare(Function.GetFunction()));
+			return function_factory::to_return(context->Prepare(function.get_function()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::Unprepare()
+		expects_vm<void> immediate_context::unprepare()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->Unprepare());
+			return function_factory::to_return(context->Unprepare());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::Abort()
+		expects_vm<void> immediate_context::abort()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->Abort());
+			return function_factory::to_return(context->Abort());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::Suspend()
+		expects_vm<void> immediate_context::suspend()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			if (!IsSuspendable())
+			if (!is_suspendable())
 			{
-				Bindings::Exception::ThrowAt(this, Bindings::Exception::Pointer("async_error", "yield is not allowed in this function call"));
-				return VirtualException(VirtualError::CONTEXT_NOT_PREPARED);
+				bindings::exception::throw_ptr_at(this, bindings::exception::pointer("async_error", "yield is not allowed in this function call"));
+				return virtual_exception(virtual_error::context_not_prepared);
 			}
 
-			return FunctionFactory::ToReturn(Context->Suspend());
+			return function_factory::to_return(context->Suspend());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::PushState()
+		expects_vm<void> immediate_context::push_state()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->PushState());
+			return function_factory::to_return(context->PushState());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::PopState()
+		expects_vm<void> immediate_context::pop_state()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->PopState());
+			return function_factory::to_return(context->PopState());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetObject(void* Object)
+		expects_vm<void> immediate_context::set_object(void* object)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetObject(Object));
+			return function_factory::to_return(context->SetObject(object));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArg8(size_t Arg, unsigned char Value)
+		expects_vm<void> immediate_context::set_arg8(size_t arg, unsigned char value)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgByte((asUINT)Arg, Value));
+			return function_factory::to_return(context->SetArgByte((asUINT)arg, value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArg16(size_t Arg, unsigned short Value)
+		expects_vm<void> immediate_context::set_arg16(size_t arg, unsigned short value)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgWord((asUINT)Arg, Value));
+			return function_factory::to_return(context->SetArgWord((asUINT)arg, value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArg32(size_t Arg, int Value)
+		expects_vm<void> immediate_context::set_arg32(size_t arg, int value)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgDWord((asUINT)Arg, Value));
+			return function_factory::to_return(context->SetArgDWord((asUINT)arg, value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArg64(size_t Arg, int64_t Value)
+		expects_vm<void> immediate_context::set_arg64(size_t arg, int64_t value)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgQWord((asUINT)Arg, Value));
+			return function_factory::to_return(context->SetArgQWord((asUINT)arg, value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArgFloat(size_t Arg, float Value)
+		expects_vm<void> immediate_context::set_arg_float(size_t arg, float value)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgFloat((asUINT)Arg, Value));
+			return function_factory::to_return(context->SetArgFloat((asUINT)arg, value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArgDouble(size_t Arg, double Value)
+		expects_vm<void> immediate_context::set_arg_double(size_t arg, double value)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgDouble((asUINT)Arg, Value));
+			return function_factory::to_return(context->SetArgDouble((asUINT)arg, value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArgAddress(size_t Arg, void* Address)
+		expects_vm<void> immediate_context::set_arg_address(size_t arg, void* address)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgAddress((asUINT)Arg, Address));
+			return function_factory::to_return(context->SetArgAddress((asUINT)arg, address));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArgObject(size_t Arg, void* Object)
+		expects_vm<void> immediate_context::set_arg_object(size_t arg, void* object)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgObject((asUINT)Arg, Object));
+			return function_factory::to_return(context->SetArgObject((asUINT)arg, object));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetArgAny(size_t Arg, void* Ptr, int TypeId)
+		expects_vm<void> immediate_context::set_arg_any(size_t arg, void* ptr, int type_id)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetArgVarType((asUINT)Arg, Ptr, TypeId));
+			return function_factory::to_return(context->SetArgVarType((asUINT)arg, ptr, type_id));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetReturnableByType(void* Return, asITypeInfo* ReturnTypeInfo)
+		expects_vm<void> immediate_context::get_returnable_by_type(void* defer, asITypeInfo* return_type_info)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Return != nullptr, "return value should be set");
-			VI_ASSERT(ReturnTypeInfo != nullptr, "return type info should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(defer != nullptr, "return value should be set");
+			VI_ASSERT(return_type_info != nullptr, "return type info should be set");
 #ifdef VI_ANGELSCRIPT
-			VI_ASSERT(ReturnTypeInfo->GetTypeId() != (int)TypeId::VOIDF, "return value type should not be void");
-			void* Address = Context->GetAddressOfReturnValue();
-			if (!Address)
-				return VirtualException(VirtualError::INVALID_OBJECT);
+			VI_ASSERT(return_type_info->GetTypeId() != (int)type_id::voidf, "return value type should not be void");
+			void* address = context->GetAddressOfReturnValue();
+			if (!address)
+				return virtual_exception(virtual_error::invalid_object);
 
-			int TypeId = ReturnTypeInfo->GetTypeId();
-			asIScriptEngine* Engine = VM->GetEngine();
-			if (TypeId & asTYPEID_OBJHANDLE)
+			int type_id = return_type_info->GetTypeId();
+			asIScriptEngine* engine = vm->get_engine();
+			if (type_id & asTYPEID_OBJHANDLE)
 			{
-				if (*reinterpret_cast<void**>(Return) == nullptr)
+				if (*reinterpret_cast<void**>(defer) == nullptr)
 				{
-					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Address);
-					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), ReturnTypeInfo);
-					return Core::Expectation::Met;
+					*reinterpret_cast<void**>(defer) = *reinterpret_cast<void**>(address);
+					engine->AddRefScriptObject(*reinterpret_cast<void**>(defer), return_type_info);
+					return core::expectation::met;
 				}
 			}
-			else if (TypeId & asTYPEID_MASK_OBJECT)
-				return FunctionFactory::ToReturn(Engine->AssignScriptObject(Return, Address, ReturnTypeInfo));
+			else if (type_id & asTYPEID_MASK_OBJECT)
+				return function_factory::to_return(engine->AssignScriptObject(defer, address, return_type_info));
 
-			size_t Size = Engine->GetSizeOfPrimitiveType(ReturnTypeInfo->GetTypeId());
-			if (!Size)
-				return VirtualException(VirtualError::INVALID_TYPE);
+			size_t size = engine->GetSizeOfPrimitiveType(return_type_info->GetTypeId());
+			if (!size)
+				return virtual_exception(virtual_error::invalid_type);
 
-			memcpy(Return, Address, Size);
-			return Core::Expectation::Met;
+			memcpy(defer, address, size);
+			return core::expectation::met;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetReturnableByDecl(void* Return, const std::string_view& ReturnTypeDecl)
+		expects_vm<void> immediate_context::get_returnable_by_decl(void* defer, const std::string_view& return_type_decl)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(ReturnTypeDecl), "rtdecl should be set");
+			VI_ASSERT(core::stringify::is_cstring(return_type_decl), "rtdecl should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl.data()));
+			asIScriptEngine* engine = vm->get_engine();
+			return get_returnable_by_type(defer, engine->GetTypeInfoByDecl(return_type_decl.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetReturnableById(void* Return, int ReturnTypeId)
+		expects_vm<void> immediate_context::get_returnable_by_id(void* defer, int return_type_id)
 		{
-			VI_ASSERT(ReturnTypeId != (int)TypeId::VOIDF, "return value type should not be void");
+			VI_ASSERT(return_type_id != (int)type_id::voidf, "return value type should not be void");
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* Engine = VM->GetEngine();
-			return GetReturnableByType(Return, Engine->GetTypeInfoById(ReturnTypeId));
+			asIScriptEngine* engine = vm->get_engine();
+			return get_returnable_by_type(defer, engine->GetTypeInfoById(return_type_id));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetException(const std::string_view& Info, bool AllowCatch)
+		expects_vm<void> immediate_context::set_exception(const std::string_view& info, bool allow_catch)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Info), "info should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(core::stringify::is_cstring(info), "info should be set");
 #ifdef VI_ANGELSCRIPT
-			if (!IsSuspended() && !Executor.DeferredExceptions)
-				return FunctionFactory::ToReturn(Context->SetException(Info.data(), AllowCatch));
+			if (!is_suspended() && !executor.deferred_exceptions)
+				return function_factory::to_return(context->SetException(info.data(), allow_catch));
 
-			Executor.DeferredException.Info = Info;
-			Executor.DeferredException.AllowCatch = AllowCatch;
-			return Core::Expectation::Met;
+			executor.deferred_exception.info = info;
+			executor.deferred_exception.allow_catch = allow_catch;
+			return core::expectation::met;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetExceptionCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
+		expects_vm<void> immediate_context::set_exception_callback(void(*callback)(asIScriptContext* context, void* object), void* object)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
+			return function_factory::to_return(context->SetExceptionCallback(asFUNCTION(callback), object, asCALL_CDECL));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
+		expects_vm<void> immediate_context::set_line_callback(void(*callback)(asIScriptContext* context, void* object), void* object)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Callback != nullptr, "callback should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(callback != nullptr, "callback should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetLineCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
+			return function_factory::to_return(context->SetLineCallback(asFUNCTION(callback), object, asCALL_CDECL));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::StartDeserialization()
+		expects_vm<void> immediate_context::start_deserialization()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->StartDeserialization());
+			return function_factory::to_return(context->StartDeserialization());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::FinishDeserialization()
+		expects_vm<void> immediate_context::finish_deserialization()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->FinishDeserialization());
+			return function_factory::to_return(context->FinishDeserialization());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::PushFunction(const Function& Func, void* Object)
+		expects_vm<void> immediate_context::push_function(const function& func, void* object)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->PushFunction(Func.GetFunction(), Object));
+			return function_factory::to_return(context->PushFunction(func.get_function(), object));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister)
+		expects_vm<void> immediate_context::get_state_registers(size_t stack_level, function* calling_system_function, function* initial_function, uint32_t* orig_stack_pointer, uint32_t* arguments_size, uint64_t* value_register, void** object_register, typeinfo* object_type_register)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asITypeInfo* ObjectTypeRegister1 = nullptr;
-			asIScriptFunction* CallingSystemFunction1 = nullptr, * InitialFunction1 = nullptr;
-			asDWORD OrigStackPointer1 = 0, ArgumentsSize1 = 0; asQWORD ValueRegister1 = 0;
-			int R = Context->GetStateRegisters((asUINT)StackLevel, &CallingSystemFunction1, &InitialFunction1, &OrigStackPointer1, &ArgumentsSize1, &ValueRegister1, ObjectRegister, &ObjectTypeRegister1);
-			if (CallingSystemFunction != nullptr) *CallingSystemFunction = CallingSystemFunction1;
-			if (InitialFunction != nullptr) *InitialFunction = InitialFunction1;
-			if (OrigStackPointer != nullptr) *OrigStackPointer = (uint32_t)OrigStackPointer1;
-			if (ArgumentsSize != nullptr) *ArgumentsSize = (uint32_t)ArgumentsSize1;
-			if (ValueRegister != nullptr) *ValueRegister = (uint64_t)ValueRegister1;
-			if (ObjectTypeRegister != nullptr) *ObjectTypeRegister = ObjectTypeRegister1;
-			return FunctionFactory::ToReturn(R);
+			asITypeInfo* object_type_register1 = nullptr;
+			asIScriptFunction* calling_system_function1 = nullptr, * initial_function1 = nullptr;
+			asDWORD orig_stack_pointer1 = 0, arguments_size1 = 0; asQWORD value_register1 = 0;
+			int r = context->GetStateRegisters((asUINT)stack_level, &calling_system_function1, &initial_function1, &orig_stack_pointer1, &arguments_size1, &value_register1, object_register, &object_type_register1);
+			if (calling_system_function != nullptr) *calling_system_function = calling_system_function1;
+			if (initial_function != nullptr) *initial_function = initial_function1;
+			if (orig_stack_pointer != nullptr) *orig_stack_pointer = (uint32_t)orig_stack_pointer1;
+			if (arguments_size != nullptr) *arguments_size = (uint32_t)arguments_size1;
+			if (value_register != nullptr) *value_register = (uint64_t)value_register1;
+			if (object_type_register != nullptr) *object_type_register = object_type_register1;
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex)
+		expects_vm<void> immediate_context::get_call_state_registers(size_t stack_level, uint32_t* stack_frame_pointer, function* current_function, uint32_t* program_pointer, uint32_t* stack_pointer, uint32_t* stack_index)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asIScriptFunction* CurrentFunction1 = nullptr;
-			asDWORD StackFramePointer1 = 0, ProgramPointer1 = 0, StackPointer1 = 0, StackIndex1 = 0;
-			int R = Context->GetCallStateRegisters((asUINT)StackLevel, &StackFramePointer1, &CurrentFunction1, &ProgramPointer1, &StackPointer1, &StackIndex1);
-			if (CurrentFunction != nullptr) *CurrentFunction = CurrentFunction1;
-			if (StackFramePointer != nullptr) *StackFramePointer = (uint32_t)StackFramePointer1;
-			if (ProgramPointer != nullptr) *ProgramPointer = (uint32_t)ProgramPointer1;
-			if (StackPointer != nullptr) *StackPointer = (uint32_t)StackPointer1;
-			if (StackIndex != nullptr) *StackIndex = (uint32_t)StackIndex1;
-			return FunctionFactory::ToReturn(R);
+			asIScriptFunction* current_function1 = nullptr;
+			asDWORD stack_frame_pointer1 = 0, program_pointer1 = 0, stack_pointer1 = 0, stack_index1 = 0;
+			int r = context->GetCallStateRegisters((asUINT)stack_level, &stack_frame_pointer1, &current_function1, &program_pointer1, &stack_pointer1, &stack_index1);
+			if (current_function != nullptr) *current_function = current_function1;
+			if (stack_frame_pointer != nullptr) *stack_frame_pointer = (uint32_t)stack_frame_pointer1;
+			if (program_pointer != nullptr) *program_pointer = (uint32_t)program_pointer1;
+			if (stack_pointer != nullptr) *stack_pointer = (uint32_t)stack_pointer1;
+			if (stack_index != nullptr) *stack_index = (uint32_t)stack_index1;
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister)
+		expects_vm<void> immediate_context::set_state_registers(size_t stack_level, function calling_system_function, const function& initial_function, uint32_t orig_stack_pointer, uint32_t arguments_size, uint64_t value_register, void* object_register, const typeinfo& object_type_register)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetStateRegisters((asUINT)StackLevel, CallingSystemFunction.GetFunction(), InitialFunction.GetFunction(), (asDWORD)OrigStackPointer, (asDWORD)ArgumentsSize, (asQWORD)ValueRegister, ObjectRegister, ObjectTypeRegister.GetTypeInfo()));
+			return function_factory::to_return(context->SetStateRegisters((asUINT)stack_level, calling_system_function.get_function(), initial_function.get_function(), (asDWORD)orig_stack_pointer, (asDWORD)arguments_size, (asQWORD)value_register, object_register, object_type_register.get_type_info()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex)
+		expects_vm<void> immediate_context::set_call_state_registers(size_t stack_level, uint32_t stack_frame_pointer, const function& current_function, uint32_t program_pointer, uint32_t stack_pointer, uint32_t stack_index)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Context->SetCallStateRegisters((asUINT)StackLevel, (asDWORD)StackFramePointer, CurrentFunction.GetFunction(), (asDWORD)ProgramPointer, (asDWORD)StackPointer, (asDWORD)StackIndex));
+			return function_factory::to_return(context->SetCallStateRegisters((asUINT)stack_level, (asDWORD)stack_frame_pointer, current_function.get_function(), (asDWORD)program_pointer, (asDWORD)stack_pointer, (asDWORD)stack_index));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> ImmediateContext::GetArgsOnStackCount(size_t StackLevel)
+		expects_vm<size_t> immediate_context::get_args_on_stack_count(size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			int Result = Context->GetArgsOnStackCount((asUINT)StackLevel);
-			return FunctionFactory::ToReturn<size_t>(Result, (size_t)Result);
+			int result = context->GetArgsOnStackCount((asUINT)stack_level);
+			return function_factory::to_return<size_t>(result, (size_t)result);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> ImmediateContext::GetPropertiesCount(size_t StackLevel)
+		expects_vm<size_t> immediate_context::get_properties_count(size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			int Result = Context->GetVarCount((asUINT)StackLevel);
-			return FunctionFactory::ToReturn<size_t>(Result, (size_t)Result);
+			int result = context->GetVarCount((asUINT)stack_level);
+			return function_factory::to_return<size_t>(result, (size_t)result);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> ImmediateContext::GetProperty(size_t Index, size_t StackLevel, std::string_view* Name, int* TypeId, Modifiers* TypeModifiers, bool* IsVarOnHeap, int* StackOffset)
+		expects_vm<void> immediate_context::get_property(size_t index, size_t stack_level, std::string_view* name, int* type_id, modifiers* type_modifiers, bool* is_var_on_heap, int* stack_offset)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			const char* asName = "";
-			asETypeModifiers TypeModifiers1 = asTM_NONE;
-			int R = Context->GetVar((asUINT)Index, (asUINT)StackLevel, &asName, TypeId, &TypeModifiers1, IsVarOnHeap, StackOffset);
-			if (TypeModifiers != nullptr)
-				*TypeModifiers = (Modifiers)TypeModifiers1;
-			if (Name != nullptr)
-				*Name = asName;
-			return FunctionFactory::ToReturn(R);
+			asETypeModifiers type_modifiers1 = asTM_NONE;
+			int r = context->GetVar((asUINT)index, (asUINT)stack_level, &asName, type_id, &type_modifiers1, is_var_on_heap, stack_offset);
+			if (type_modifiers != nullptr)
+				*type_modifiers = (modifiers)type_modifiers1;
+			if (name != nullptr)
+				*name = asName;
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		Function ImmediateContext::GetFunction(size_t StackLevel)
+		function immediate_context::get_function(size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetFunction((asUINT)StackLevel);
+			return context->GetFunction((asUINT)stack_level);
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		int ImmediateContext::GetLineNumber(size_t StackLevel, int* Column, std::string_view* SectionName)
+		int immediate_context::get_line_number(size_t stack_level, int* column, std::string_view* section_name)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			const char* asSectionName = "";
-			int R = Context->GetLineNumber((asUINT)StackLevel, Column, &asSectionName);
-			if (SectionName != nullptr)
-				*SectionName = asSectionName;
-			return R;
+			int r = context->GetLineNumber((asUINT)stack_level, column, &asSectionName);
+			if (section_name != nullptr)
+				*section_name = asSectionName;
+			return r;
 #else
 			return 0;
 #endif
 		}
-		void ImmediateContext::SetNotificationResolverCallback(std::function<void(ImmediateContext*)>&& Callback)
+		void immediate_context::set_notification_resolver_callback(std::function<void(immediate_context*)>&& callback)
 		{
-			Callbacks.NotificationResolver = std::move(Callback);
+			callbacks.notification_resolver = std::move(callback);
 		}
-		void ImmediateContext::SetCallbackResolverCallback(std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>&& Callback)
+		void immediate_context::set_callback_resolver_callback(std::function<void(immediate_context*, function_delegate&&, args_callback&&, args_callback&&)>&& callback)
 		{
-			Callbacks.CallbackResolver = std::move(Callback);
+			callbacks.callback_resolver = std::move(callback);
 		}
-		void ImmediateContext::SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback)
+		void immediate_context::set_exception_callback(std::function<void(immediate_context*)>&& callback)
 		{
-			Callbacks.Exception = std::move(Callback);
+			callbacks.exception = std::move(callback);
 		}
-		void ImmediateContext::SetLineCallback(std::function<void(ImmediateContext*)>&& Callback)
+		void immediate_context::set_line_callback(std::function<void(immediate_context*)>&& callback)
 		{
-			Callbacks.Line = std::move(Callback);
-			SetLineCallback(&VirtualMachine::LineHandler, this);
+			callbacks.line = std::move(callback);
+			set_line_callback(&virtual_machine::line_handler, this);
 		}
-		void ImmediateContext::AppendStopExecutionCallback(StopExecutionCallback&& Callback)
+		void immediate_context::append_stop_execution_callback(stop_execution_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			Callbacks.StopExecutions.push_back(std::move(Callback));
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			core::umutex<std::recursive_mutex> unique(exchange);
+			callbacks.stop_executions.push_back(std::move(callback));
 		}
-		void ImmediateContext::Reset()
+		void immediate_context::reset()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			Context->Unprepare();
-			Callbacks = Events();
-			Executor = Frame();
-			InvalidateStrings();
+			context->Unprepare();
+			callbacks = events();
+			executor = frame();
+			invalidate_strings();
 #endif
 		}
-		Core::String& ImmediateContext::CopyString(Core::String& Value)
+		core::string& immediate_context::copy_string(core::string& value)
 		{
-			auto& Copy = Strings.emplace_front(Value);
-			return Copy;
+			auto& copy = strings.emplace_front(value);
+			return copy;
 		}
-		void ImmediateContext::InvalidateString(const std::string_view& Value)
+		void immediate_context::invalidate_string(const std::string_view& value)
 		{
-			auto It = Strings.begin();
-			while (It != Strings.end())
+			auto it = strings.begin();
+			while (it != strings.end())
 			{
-				if (It->data() == Value.data())
+				if (it->data() == value.data())
 				{
-					Strings.erase(It);
+					strings.erase(it);
 					break;
 				}
-				++It;
+				++it;
 			}
 		}
-		void ImmediateContext::InvalidateStrings()
+		void immediate_context::invalidate_strings()
 		{
-			Strings.clear();
+			strings.clear();
 		}
-		void ImmediateContext::DisableSuspends()
+		void immediate_context::disable_suspends()
 		{
-			++Executor.DenySuspends;
+			++executor.deny_suspends;
 		}
-		void ImmediateContext::EnableSuspends()
+		void immediate_context::enable_suspends()
 		{
-			VI_ASSERT(Executor.DenySuspends > 0, "suspends are already enabled");
-			--Executor.DenySuspends;
+			VI_ASSERT(executor.deny_suspends > 0, "suspends are already enabled");
+			--executor.deny_suspends;
 		}
-		void ImmediateContext::EnableDeferredExceptions()
+		void immediate_context::enable_deferred_exceptions()
 		{
-			++Executor.DeferredExceptions;
+			++executor.deferred_exceptions;
 		}
-		void ImmediateContext::DisableDeferredExceptions()
+		void immediate_context::disable_deferred_exceptions()
 		{
-			VI_ASSERT(Executor.DeferredExceptions > 0, "deferred exceptions are already disabled");
-			--Executor.DeferredExceptions;
+			VI_ASSERT(executor.deferred_exceptions > 0, "deferred exceptions are already disabled");
+			--executor.deferred_exceptions;
 		}
-		bool ImmediateContext::IsNested(size_t* NestCount) const
+		bool immediate_context::is_nested(size_t* nest_count) const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			asUINT NestCount1 = 0;
-			bool Value = Context->IsNested(&NestCount1);
-			if (NestCount != nullptr) *NestCount = (size_t)NestCount1;
-			return Value;
+			asUINT nest_count1 = 0;
+			bool value = context->IsNested(&nest_count1);
+			if (nest_count != nullptr) *nest_count = (size_t)nest_count1;
+			return value;
 #else
 			return false;
 #endif
 		}
-		bool ImmediateContext::IsThrown() const
+		bool immediate_context::is_thrown() const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* Message = Context->GetExceptionString();
-			return Message != nullptr && Message[0] != '\0';
+			const char* message = context->GetExceptionString();
+			return message != nullptr && message[0] != '\0';
 #else
 			return false;
 #endif
 		}
-		bool ImmediateContext::IsPending()
+		bool immediate_context::is_pending()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			return Executor.Future.IsPending();
+			core::umutex<std::recursive_mutex> unique(exchange);
+			return executor.future.is_pending();
 		}
-		Execution ImmediateContext::GetState() const
+		execution immediate_context::get_state() const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return (Execution)Context->GetState();
+			return (execution)context->GetState();
 #else
-			return Execution::Uninitialized;
+			return execution::uninitialized;
 #endif
 		}
-		void* ImmediateContext::GetAddressOfArg(size_t Arg)
+		void* immediate_context::get_address_of_arg(size_t arg)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetAddressOfArg((asUINT)Arg);
+			return context->GetAddressOfArg((asUINT)arg);
 #else
 			return nullptr;
 #endif
 		}
-		unsigned char ImmediateContext::GetReturnByte()
+		unsigned char immediate_context::get_return_byte()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnByte();
+			return context->GetReturnByte();
 #else
 			return 0;
 #endif
 		}
-		unsigned short ImmediateContext::GetReturnWord()
+		unsigned short immediate_context::get_return_word()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnWord();
+			return context->GetReturnWord();
 #else
 			return 0;
 #endif
 		}
-		size_t ImmediateContext::GetReturnDWord()
+		size_t immediate_context::get_return_dword()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnDWord();
+			return context->GetReturnDWord();
 #else
 			return 0;
 #endif
 		}
-		uint64_t ImmediateContext::GetReturnQWord()
+		uint64_t immediate_context::get_return_qword()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnQWord();
+			return context->GetReturnQWord();
 #else
 			return 0;
 #endif
 		}
-		float ImmediateContext::GetReturnFloat()
+		float immediate_context::get_return_float()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnFloat();
+			return context->GetReturnFloat();
 #else
 			return 0.0f;
 #endif
 		}
-		double ImmediateContext::GetReturnDouble()
+		double immediate_context::get_return_double()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnDouble();
+			return context->GetReturnDouble();
 #else
 			return 0.0;
 #endif
 		}
-		void* ImmediateContext::GetReturnAddress()
+		void* immediate_context::get_return_address()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnAddress();
+			return context->GetReturnAddress();
 #else
 			return nullptr;
 #endif
 		}
-		void* ImmediateContext::GetReturnObjectAddress()
+		void* immediate_context::get_return_object_address()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetReturnObject();
+			return context->GetReturnObject();
 #else
 			return nullptr;
 #endif
 		}
-		void* ImmediateContext::GetAddressOfReturnValue()
+		void* immediate_context::get_address_of_return_value()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetAddressOfReturnValue();
+			return context->GetAddressOfReturnValue();
 #else
 			return nullptr;
 #endif
 		}
-		int ImmediateContext::GetExceptionLineNumber(int* Column, std::string_view* SectionName)
+		int immediate_context::get_exception_line_number(int* column, std::string_view* section_name)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
 			const char* asSectionName = "";
-			int R = Context->GetExceptionLineNumber(Column, &asSectionName);
-			if (SectionName != nullptr)
-				*SectionName = asSectionName;
-			return R;
+			int r = context->GetExceptionLineNumber(column, &asSectionName);
+			if (section_name != nullptr)
+				*section_name = asSectionName;
+			return r;
 #else
 			return 0;
 #endif
 		}
-		Function ImmediateContext::GetExceptionFunction()
+		function immediate_context::get_exception_function()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetExceptionFunction();
+			return context->GetExceptionFunction();
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		std::string_view ImmediateContext::GetExceptionString()
+		std::string_view immediate_context::get_exception_string()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Context->GetExceptionString());
+			return or_empty(context->GetExceptionString());
 #else
 			return "";
 #endif
 		}
-		bool ImmediateContext::WillExceptionBeCaught()
+		bool immediate_context::will_exception_be_caught()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->WillExceptionBeCaught();
+			return context->WillExceptionBeCaught();
 #else
 			return false;
 #endif
 		}
-		bool ImmediateContext::HasDeferredException()
+		bool immediate_context::has_deferred_exception()
 		{
-			return !Executor.DeferredException.Info.empty();
+			return !executor.deferred_exception.info.empty();
 		}
-		bool ImmediateContext::RethrowDeferredException()
+		bool immediate_context::rethrow_deferred_exception()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			if (!HasDeferredException())
+			VI_ASSERT(context != nullptr, "context should be set");
+			if (!has_deferred_exception())
 				return false;
 #ifdef VI_ANGELSCRIPT
-			if (Context->SetException(Executor.DeferredException.Info.c_str(), Executor.DeferredException.AllowCatch) != 0)
+			if (context->SetException(executor.deferred_exception.info.c_str(), executor.deferred_exception.allow_catch) != 0)
 				return false;
 
-			Executor.DeferredException.Info.clear();
+			executor.deferred_exception.info.clear();
 			return true;
 #else
 			return false;
 #endif
 		}
-		void ImmediateContext::ClearLineCallback()
+		void immediate_context::clear_line_callback()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			Context->ClearLineCallback();
+			context->ClearExceptionCallback();
 #endif
-			Callbacks.Line = nullptr;
+			callbacks.line = nullptr;
 		}
-		void ImmediateContext::ClearExceptionCallback()
+		void immediate_context::clear_exception_callback()
 		{
-			Callbacks.Exception = nullptr;
+			callbacks.exception = nullptr;
 		}
-		size_t ImmediateContext::GetCallstackSize() const
+		size_t immediate_context::get_callstack_size() const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Context->GetCallstackSize();
+			return (size_t)context->GetCallstackSize();
 #else
 			return 0;
 #endif
 		}
-		std::string_view ImmediateContext::GetPropertyName(size_t Index, size_t StackLevel)
+		std::string_view immediate_context::get_property_name(size_t index, size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* Name = "";
-			Context->GetVar((asUINT)Index, (asUINT)StackLevel, &Name);
-			return OrEmpty(Name);
+			const char* name = "";
+			context->GetVar((asUINT)index, (asUINT)stack_level, &name);
+			return or_empty(name);
 #else
 			return "";
 #endif
 		}
-		std::string_view ImmediateContext::GetPropertyDecl(size_t Index, size_t StackLevel, bool IncludeNamespace)
+		std::string_view immediate_context::get_property_decl(size_t index, size_t stack_level, bool include_namespace)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Context->GetVarDeclaration((asUINT)Index, (asUINT)StackLevel, IncludeNamespace));
+			return or_empty(context->GetVarDeclaration((asUINT)index, (asUINT)stack_level, include_namespace));
 #else
 			return "";
 #endif
 		}
-		int ImmediateContext::GetPropertyTypeId(size_t Index, size_t StackLevel)
+		int immediate_context::get_property_type_id(size_t index, size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			int TypeId = -1;
-			Context->GetVar((asUINT)Index, (asUINT)StackLevel, nullptr, &TypeId);
-			return TypeId;
+			int type_id = -1;
+			context->GetVar((asUINT)index, (asUINT)stack_level, nullptr, &type_id);
+			return type_id;
 #else
 			return -1;
 #endif
 		}
-		void* ImmediateContext::GetAddressOfProperty(size_t Index, size_t StackLevel, bool DontDereference, bool ReturnAddressOfUnitializedObjects)
+		void* immediate_context::get_address_of_property(size_t index, size_t stack_level, bool dont_dereference, bool return_address_of_unitialized_objects)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetAddressOfVar((asUINT)Index, (asUINT)StackLevel, DontDereference, ReturnAddressOfUnitializedObjects);
+			return context->GetAddressOfVar((asUINT)index, (asUINT)stack_level, dont_dereference, return_address_of_unitialized_objects);
 #else
 			return nullptr;
 #endif
 		}
-		bool ImmediateContext::IsPropertyInScope(size_t Index, size_t StackLevel)
+		bool immediate_context::is_property_in_scope(size_t index, size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->IsVarInScope((asUINT)Index, (asUINT)StackLevel);
+			return context->IsVarInScope((asUINT)index, (asUINT)stack_level);
 #else
 			return false;
 #endif
 		}
-		int ImmediateContext::GetThisTypeId(size_t StackLevel)
+		int immediate_context::get_this_type_id(size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetThisTypeId((asUINT)StackLevel);
+			return context->GetThisTypeId((asUINT)stack_level);
 #else
 			return -1;
 #endif
 		}
-		void* ImmediateContext::GetThisPointer(size_t StackLevel)
+		void* immediate_context::get_this_pointer(size_t stack_level)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetThisPointer((asUINT)StackLevel);
+			return context->GetThisPointer((asUINT)stack_level);
 #else
 			return nullptr;
 #endif
 		}
-		Core::Option<Core::String> ImmediateContext::GetExceptionStackTrace()
+		core::option<core::string> immediate_context::get_exception_stack_trace()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Exchange);
-			if (Executor.Stacktrace.empty())
-				return Core::Optional::None;
+			core::umutex<std::recursive_mutex> unique(exchange);
+			if (executor.stacktrace.empty())
+				return core::optional::none;
 
-			return Executor.Stacktrace;
+			return executor.stacktrace;
 		}
-		Function ImmediateContext::GetSystemFunction()
+		function immediate_context::get_system_function()
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetSystemFunction();
+			return context->GetSystemFunction();
 #else
-			return Function(nullptr);
+			return function(nullptr);
 #endif
 		}
-		bool ImmediateContext::IsSuspended() const
+		bool immediate_context::is_suspended() const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetState() == asEXECUTION_SUSPENDED;
+			return context->GetState() == asEXECUTION_SUSPENDED;
 #else
 			return false;
 #endif
 		}
-		bool ImmediateContext::IsSuspendable() const
+		bool immediate_context::is_suspendable() const
 		{
-			return !IsSuspended() && !IsSyncLocked() && !Executor.DenySuspends;
+			return !is_suspended() && !is_sync_locked() && !executor.deny_suspends;
 		}
-		bool ImmediateContext::IsSyncLocked() const
+		bool immediate_context::is_sync_locked() const
 		{
 #ifdef VI_BINDINGS
-			VI_ASSERT(Context != nullptr, "context should be set");
-			return Bindings::Mutex::IsAnyLocked((ImmediateContext*)this);
+			VI_ASSERT(context != nullptr, "context should be set");
+			return bindings::mutex::is_any_locked((immediate_context*)this);
 #else
 			return false;
 #endif
 		}
-		bool ImmediateContext::CanExecuteCall() const
+		bool immediate_context::can_execute_call() const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			auto State = Context->GetState();
-			return State != asEXECUTION_SUSPENDED && State != asEXECUTION_ACTIVE && !Context->IsNested() && !Executor.Future.IsPending();
+			auto state = context->GetState();
+			return state != asEXECUTION_SUSPENDED && state != asEXECUTION_ACTIVE && !context->IsNested() && !executor.future.is_pending();
 #else
 			return false;
 #endif
 		}
-		bool ImmediateContext::CanExecuteSubcall() const
+		bool immediate_context::can_execute_subcall() const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetState() == asEXECUTION_ACTIVE;
+			return context->GetState() == asEXECUTION_ACTIVE;
 #else
 			return false;
 #endif
 		}
-		void* ImmediateContext::SetUserData(void* Data, size_t Type)
+		void* immediate_context::set_user_data(void* data, size_t type)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->SetUserData(Data, Type);
+			return context->SetUserData(data, type);
 #else
 			return nullptr;
 #endif
 		}
-		void* ImmediateContext::GetUserData(size_t Type) const
+		void* immediate_context::get_user_data(size_t type) const
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return Context->GetUserData(Type);
+			return context->GetUserData(type);
 #else
 			return nullptr;
 #endif
 		}
-		asIScriptContext* ImmediateContext::GetContext()
+		asIScriptContext* immediate_context::get_context()
 		{
-			return Context;
+			return context;
 		}
-		VirtualMachine* ImmediateContext::GetVM()
+		virtual_machine* immediate_context::get_vm()
 		{
-			return VM;
+			return vm;
 		}
-		ImmediateContext* ImmediateContext::Get(asIScriptContext* Context)
+		immediate_context* immediate_context::get(asIScriptContext* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			void* VM = Context->GetUserData(ContextUD);
-			VI_ASSERT(VM != nullptr, "context should be created by virtual machine");
-			return (ImmediateContext*)VM;
+			void* vm = context->GetUserData(context_ud);
+			VI_ASSERT(vm != nullptr, "context should be created by virtual machine");
+			return (immediate_context*)vm;
 #else
 			return nullptr;
 #endif
 		}
-		ImmediateContext* ImmediateContext::Get()
+		immediate_context* immediate_context::get()
 		{
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Context = asGetActiveContext();
-			if (!Context)
+			asIScriptContext* context = asGetActiveContext();
+			if (!context)
 				return nullptr;
 
-			return Get(Context);
+			return get(context);
 #else
 			return nullptr;
 #endif
 		}
-		int ImmediateContext::ContextUD = 151;
+		int immediate_context::context_ud = 151;
 
-		VirtualMachine::VirtualMachine() noexcept : LastMajorGC(0), Scope(0), Debugger(nullptr), Engine(nullptr), SaveSources(false), SaveCache(true)
+		virtual_machine::virtual_machine() noexcept : last_major_gc(0), scope(0), debugger(nullptr), engine(nullptr), save_sources(false), save_cache(true)
 		{
-			auto Directory = Core::OS::Directory::GetWorking();
-			if (Directory)
-				Include.Root = *Directory;
+			auto directory = core::os::directory::get_working();
+			if (directory)
+				include.root = *directory;
 
-			Include.Exts.push_back(".as");
-			Include.Exts.push_back(".so");
-			Include.Exts.push_back(".dylib");
-			Include.Exts.push_back(".dll");
+			include.exts.push_back(".as");
+			include.exts.push_back(".so");
+			include.exts.push_back(".dylib");
+			include.exts.push_back(".dll");
 #ifdef VI_ANGELSCRIPT
-			Engine = asCreateScriptEngine();
-			Engine->SetUserData(this, ManagerUD);
-			Engine->SetContextCallbacks(RequestRawContext, ReturnRawContext, nullptr);
-			Engine->SetMessageCallback(asFUNCTION(MessageLogger), this, asCALL_CDECL);
-			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 1);
-			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
-			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
-			Engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
-			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
-			Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 0);
+			engine = asCreateScriptEngine();
+			engine->SetUserData(this, manager_ud);
+			engine->SetContextCallbacks(request_raw_context, return_raw_context, nullptr);
+			engine->SetMessageCallback(asFUNCTION(message_logger), this, asCALL_CDECL);
+			engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 1);
+			engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
+			engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
+			engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
+			engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
+			engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 0);
 #endif
-			SetTsImports(true);
+			set_ts_imports(true);
 		}
-		VirtualMachine::~VirtualMachine() noexcept
+		virtual_machine::~virtual_machine() noexcept
 		{
-			for (auto& Next : CLibraries)
+			for (auto& next : clibraries)
 			{
-				if (Next.second.IsAddon)
-					UninitializeAddon(Next.first, Next.second);
-				Core::OS::Symbol::Unload(Next.second.Handle);
+				if (next.second.is_addon)
+					uninitialize_addon(next.first, next.second);
+				core::os::symbol::unload(next.second.handle);
 			}
 
-			for (auto& Context : Threads)
-				Core::Memory::Release(Context);
+			for (auto& context : threads)
+				core::memory::release(context);
 #ifdef VI_ANGELSCRIPT
-			for (auto& Context : Stacks)
-				Core::Memory::Release(Context);
-#endif
-			Core::Memory::Release(Debugger);
-			CleanupThisThread();
-#ifdef VI_ANGELSCRIPT
-			if (Engine != nullptr)
+			for (auto& context : stacks)
 			{
-				Engine->ShutDownAndRelease();
-				Engine = nullptr;
+				if (context != nullptr)
+					context->Release();
 			}
 #endif
-			ClearCache();
-		}
-		ExpectsVM<TypeInterface> VirtualMachine::SetInterface(const std::string_view& Name)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register interface %i bytes", (int)Name.size());
+			core::memory::release(debugger);
+			cleanup_this_thread();
 #ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterInterface(Name.data());
-			return FunctionFactory::ToReturn<TypeInterface>(TypeId, TypeInterface(this, Engine->GetTypeInfoById(TypeId), TypeId));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<TypeClass> VirtualMachine::SetStructAddress(const std::string_view& Name, size_t Size, uint64_t Flags)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)Flags, (int)Name.size(), (int)Size);
-#ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterObjectType(Name.data(), (asUINT)Size, (asDWORD)Flags);
-			return FunctionFactory::ToReturn<TypeClass>(TypeId, TypeClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<TypeClass> VirtualMachine::SetPodAddress(const std::string_view& Name, size_t Size, uint64_t Flags)
-		{
-			return SetStructAddress(Name, Size, Flags);
-		}
-		ExpectsVM<RefClass> VirtualMachine::SetClassAddress(const std::string_view& Name, size_t Size, uint64_t Flags)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)Name.size());
-#ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterObjectType(Name.data(), (asUINT)Size, (asDWORD)Flags);
-			return FunctionFactory::ToReturn<RefClass>(TypeId, RefClass(this, Engine->GetTypeInfoById(TypeId), TypeId));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<TemplateClass> VirtualMachine::SetTemplateClassAddress(const std::string_view& Decl, const std::string_view& Name, size_t Size, uint64_t Flags)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class(%i) %i bytes", (int)Flags, (int)Decl.size());
-#ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterObjectType(Decl.data(), (asUINT)Size, (asDWORD)Flags);
-			return FunctionFactory::ToReturn<TemplateClass>(TypeId, TemplateClass(this, Name));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<Enumeration> VirtualMachine::SetEnum(const std::string_view& Name)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register enum %i bytes", (int)Name.size());
-#ifdef VI_ANGELSCRIPT
-			int TypeId = Engine->RegisterEnum(Name.data());
-			return FunctionFactory::ToReturn<Enumeration>(TypeId, Enumeration(this, Engine->GetTypeInfoById(TypeId), TypeId));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> VirtualMachine::SetFunctionDef(const std::string_view& Decl)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcdef %i bytes", (int)Decl.size());
-#ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterFuncdef(Decl.data()));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> VirtualMachine::SetTypeDef(const std::string_view& Type, const std::string_view& Decl)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Type), "type should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcdef %i bytes", (int)Decl.size());
-#ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterTypedef(Type.data(), Decl.data()));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> VirtualMachine::SetFunctionAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)Type, (int)Decl.size(), (void*)Value);
-#ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterGlobalFunction(Decl.data(), *Value, (asECallConvTypes)Type));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> VirtualMachine::SetPropertyAddress(const std::string_view& Decl, void* Value)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)Decl.size(), (void*)Value);
-#ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterGlobalProperty(Decl.data(), Value));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> VirtualMachine::SetStringFactoryAddress(const std::string_view& Type, asIStringFactory* Factory)
-		{
-			VI_ASSERT(Core::Stringify::IsCString(Type), "typename should be set");
-#ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RegisterStringFactory(Type.data(), Factory));
-#else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
-#endif
-		}
-		ExpectsVM<void> VirtualMachine::GetPropertyByIndex(size_t Index, PropertyInfo* Info) const
-		{
-#ifdef VI_ANGELSCRIPT
-			const char* Name = "", * Namespace = "";
-			const char* ConfigGroup = "";
-			void* Pointer = nullptr;
-			bool IsConst = false;
-			asDWORD AccessMask = 0;
-			int TypeId = 0;
-			int Result = Engine->GetGlobalPropertyByIndex((asUINT)Index, &Name, &Namespace, &TypeId, &IsConst, &ConfigGroup, &Pointer, &AccessMask);
-			if (Info != nullptr)
+			if (engine != nullptr)
 			{
-				Info->Name = OrEmpty(Name);
-				Info->Namespace = OrEmpty(Namespace);
-				Info->TypeId = TypeId;
-				Info->IsConst = IsConst;
-				Info->ConfigGroup = OrEmpty(ConfigGroup);
-				Info->Pointer = Pointer;
-				Info->AccessMask = AccessMask;
+				engine->ShutDownAndRelease();
+				engine = nullptr;
 			}
-			return FunctionFactory::ToReturn(Result);
+#endif
+			clear_cache();
+		}
+		expects_vm<type_interface> virtual_machine::set_interface(const std::string_view& name)
+		{
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register interface %i bytes", (int)name.size());
+#ifdef VI_ANGELSCRIPT
+			int type_id = engine->RegisterInterface(name.data());
+			return function_factory::to_return<type_interface>(type_id, type_interface(this, engine->GetTypeInfoById(type_id), type_id));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByName(const std::string_view& Name) const
+		expects_vm<type_class> virtual_machine::set_struct_address(const std::string_view& name, size_t size, uint64_t flags)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)flags, (int)name.size(), (int)size);
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GetGlobalPropertyIndexByName(Name.data());
-			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+			int type_id = engine->RegisterObjectType(name.data(), (asUINT)size, (asDWORD)flags);
+			return function_factory::to_return<type_class>(type_id, type_class(this, engine->GetTypeInfoById(type_id), type_id));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> VirtualMachine::GetPropertyIndexByDecl(const std::string_view& Decl) const
+		expects_vm<type_class> virtual_machine::set_pod_address(const std::string_view& name, size_t size, uint64_t flags)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			return set_struct_address(name, size, flags);
+		}
+		expects_vm<ref_class> virtual_machine::set_class_address(const std::string_view& name, size_t size, uint64_t flags)
+		{
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class(%i) %i bytes", (int)flags, (int)name.size());
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GetGlobalPropertyIndexByDecl(Decl.data());
-			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+			int type_id = engine->RegisterObjectType(name.data(), (asUINT)size, (asDWORD)flags);
+			return function_factory::to_return<ref_class>(type_id, ref_class(this, engine->GetTypeInfoById(type_id), type_id));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
+		expects_vm<template_class> virtual_machine::set_template_class_address(const std::string_view& decl, const std::string_view& name, size_t size, uint64_t flags)
+		{
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register class(%i) %i bytes", (int)flags, (int)decl.size());
+#ifdef VI_ANGELSCRIPT
+			int type_id = engine->RegisterObjectType(decl.data(), (asUINT)size, (asDWORD)flags);
+			return function_factory::to_return<template_class>(type_id, template_class(this, name));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<enumeration> virtual_machine::set_enum(const std::string_view& name)
+		{
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register enum %i bytes", (int)name.size());
+#ifdef VI_ANGELSCRIPT
+			int type_id = engine->RegisterEnum(name.data());
+			return function_factory::to_return<enumeration>(type_id, enumeration(this, engine->GetTypeInfoById(type_id), type_id));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::set_function_def(const std::string_view& decl)
+		{
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register funcdef %i bytes", (int)decl.size());
+#ifdef VI_ANGELSCRIPT
+			return function_factory::to_return(engine->RegisterFuncdef(decl.data()));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::set_type_def(const std::string_view& type, const std::string_view& decl)
+		{
+			VI_ASSERT(core::stringify::is_cstring(type), "type should be set");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register funcdef %i bytes", (int)decl.size());
+#ifdef VI_ANGELSCRIPT
+			return function_factory::to_return(engine->RegisterTypedef(type.data(), decl.data()));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::set_function_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		{
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)type, (int)decl.size(), (void*)value);
+#ifdef VI_ANGELSCRIPT
+			return function_factory::to_return(engine->RegisterGlobalFunction(decl.data(), *value, (asECallConvTypes)type));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::set_property_address(const std::string_view& decl, void* value)
+		{
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)decl.size(), (void*)value);
+#ifdef VI_ANGELSCRIPT
+			return function_factory::to_return(engine->RegisterGlobalProperty(decl.data(), value));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::set_string_factory_address(const std::string_view& type, asIStringFactory* factory)
+		{
+			VI_ASSERT(core::stringify::is_cstring(type), "typename should be set");
+#ifdef VI_ANGELSCRIPT
+			return function_factory::to_return(engine->RegisterStringFactory(type.data(), factory));
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::get_property_by_index(size_t index, property_info* info) const
 		{
 #ifdef VI_ANGELSCRIPT
-			if (!Callback)
-				return FunctionFactory::ToReturn(Engine->ClearMessageCallback());
+			const char* name = "", * name_space = "";
+			const char* config_group = "";
+			void* pointer = nullptr;
+			bool is_const = false;
+			asDWORD access_mask = 0;
+			int type_id = 0;
+			int result = engine->GetGlobalPropertyByIndex((asUINT)index, &name, &name_space, &type_id, &is_const, &config_group, &pointer, &access_mask);
+			if (info != nullptr)
+			{
+				info->name = or_empty(name);
+				info->name_space = or_empty(name_space);
+				info->type_id = type_id;
+				info->is_const = is_const;
+				info->config_group = or_empty(config_group);
+				info->pointer = pointer;
+				info->access_mask = access_mask;
+			}
+			return function_factory::to_return(result);
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<size_t> virtual_machine::get_property_index_by_name(const std::string_view& name) const
+		{
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+#ifdef VI_ANGELSCRIPT
+			int r = engine->GetGlobalPropertyIndexByName(name.data());
+			return function_factory::to_return<size_t>(r, (size_t)r);
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<size_t> virtual_machine::get_property_index_by_decl(const std::string_view& decl) const
+		{
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+#ifdef VI_ANGELSCRIPT
+			int r = engine->GetGlobalPropertyIndexByDecl(decl.data());
+			return function_factory::to_return<size_t>(r, (size_t)r);
+#else
+			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		expects_vm<void> virtual_machine::set_log_callback(void(*callback)(const asSMessageInfo* message, void* object), void* object)
+		{
+#ifdef VI_ANGELSCRIPT
+			if (!callback)
+				return function_factory::to_return(engine->ClearMessageCallback());
 
-			return FunctionFactory::ToReturn(Engine->SetMessageCallback(asFUNCTION(Callback), Object, asCALL_CDECL));
+			return function_factory::to_return(engine->SetMessageCallback(asFUNCTION(callback), object, asCALL_CDECL));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::Log(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message)
+		expects_vm<void> virtual_machine::log(const std::string_view& section, int row, int column, log_category type, const std::string_view& message)
 		{
 #ifdef VI_ANGELSCRIPT
-			VI_ASSERT(Core::Stringify::IsCString(Section), "section should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Message), "message should be set");
-			return FunctionFactory::ToReturn(Engine->WriteMessage(Section.data(), Row, Column, (asEMsgType)Type, Message.data()));
+			VI_ASSERT(core::stringify::is_cstring(section), "section should be set");
+			VI_ASSERT(core::stringify::is_cstring(message), "message should be set");
+			return function_factory::to_return(engine->WriteMessage(section.data(), row, column, (asEMsgType)type, message.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type)
+		expects_vm<void> virtual_machine::assign_object(void* dest_object, void* src_object, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->AssignScriptObject(DestObject, SrcObject, Type.GetTypeInfo()));
+			return function_factory::to_return(engine->AssignScriptObject(dest_object, src_object, type.get_type_info()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
+		expects_vm<void> virtual_machine::ref_cast_object(void* object, const typeinfo& from_type, const typeinfo& to_type, void** new_ptr, bool use_only_implicit_cast)
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RefCastObject(Object, FromType.GetTypeInfo(), ToType.GetTypeInfo(), NewPtr, UseOnlyImplicitCast));
+			return function_factory::to_return(engine->RefCastObject(object, from_type.get_type_info(), to_type.get_type_info(), new_ptr, use_only_implicit_cast));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::WriteMessage(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message)
+		expects_vm<void> virtual_machine::write_message(const std::string_view& section, int row, int column, log_category type, const std::string_view& message)
 		{
 #ifdef VI_ANGELSCRIPT
-			VI_ASSERT(Core::Stringify::IsCString(Section), "section should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Message), "message should be set");
-			return FunctionFactory::ToReturn(Engine->WriteMessage(Section.data(), Row, Column, (asEMsgType)Type, Message.data()));
+			VI_ASSERT(core::stringify::is_cstring(section), "section should be set");
+			VI_ASSERT(core::stringify::is_cstring(message), "message should be set");
+			return function_factory::to_return(engine->WriteMessage(section.data(), row, column, (asEMsgType)type, message.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::GarbageCollect(GarbageCollector Flags, size_t NumIterations)
+		expects_vm<void> virtual_machine::garbage_collect(garbage_collector flags, size_t num_iterations)
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->GarbageCollect((asDWORD)Flags, (asUINT)NumIterations));
+			return function_factory::to_return(engine->GarbageCollect((asDWORD)flags, (asUINT)num_iterations));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::PerformPeriodicGarbageCollection(uint64_t IntervalMs)
+		expects_vm<void> virtual_machine::perform_periodic_garbage_collection(uint64_t interval_ms)
 		{
-			int64_t Time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			if (LastMajorGC + (int64_t)IntervalMs > Time)
-				return Core::Expectation::Met;
+			int64_t time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			if (last_major_gc + (int64_t)interval_ms > time)
+				return core::expectation::met;
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			int64_t PrevTime = LastMajorGC.load() + (int64_t)IntervalMs;
-			if (PrevTime > Time)
-				return Core::Expectation::Met;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			int64_t prev_time = last_major_gc.load() + (int64_t)interval_ms;
+			if (prev_time > time)
+				return core::expectation::met;
 
-			LastMajorGC = Time;
-			return PerformFullGarbageCollection();
+			last_major_gc = time;
+			return perform_full_garbage_collection();
 		}
-		ExpectsVM<void> VirtualMachine::PerformFullGarbageCollection()
+		expects_vm<void> virtual_machine::perform_full_garbage_collection()
 		{
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DESTROY_GARBAGE | asGC_DETECT_GARBAGE, 1);
-			return FunctionFactory::ToReturn(R);
+			int r = engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DESTROY_GARBAGE | asGC_DETECT_GARBAGE, 1);
+			return function_factory::to_return(r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::NotifyOfNewObject(void* Object, const TypeInfo& Type)
+		expects_vm<void> virtual_machine::notify_of_new_object(void* object, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->NotifyGarbageCollectorOfNewObject(Object, Type.GetTypeInfo()));
+			return function_factory::to_return(engine->NotifyGarbageCollectorOfNewObject(object, type.get_type_info()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, TypeInfo* Type)
+		expects_vm<void> virtual_machine::get_object_address(size_t index, size_t* sequence_number, void** object, typeinfo* type)
 		{
 #ifdef VI_ANGELSCRIPT
 			asUINT asSequenceNumber;
-			asITypeInfo* OutType = nullptr;
-			int Result = Engine->GetObjectInGC((asUINT)Index, &asSequenceNumber, Object, &OutType);
-			if (SequenceNumber != nullptr)
-				*SequenceNumber = (size_t)asSequenceNumber;
-			if (Type != nullptr)
-				*Type = TypeInfo(OutType);
-			return FunctionFactory::ToReturn(Result);
+			asITypeInfo* out_type = nullptr;
+			int result = engine->GetObjectInGC((asUINT)index, &asSequenceNumber, object, &out_type);
+			if (sequence_number != nullptr)
+				*sequence_number = (size_t)asSequenceNumber;
+			if (type != nullptr)
+				*type = typeinfo(out_type);
+			return function_factory::to_return(result);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::AddScriptSection(asIScriptModule* Module, const std::string_view& Name, const std::string_view& Code, int LineOffset)
+		expects_vm<void> virtual_machine::add_script_section(asIScriptModule* library, const std::string_view& name, const std::string_view& code, int line_offset)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Code), "code should be set");
-			VI_ASSERT(Module != nullptr, "module should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+			VI_ASSERT(core::stringify::is_cstring(code), "code should be set");
+			VI_ASSERT(library != nullptr, "module should be set");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Sections[Core::String(Name)] = Core::String(Code);
-			Unique.Negate();
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			sections[core::string(name)] = core::string(code);
+			unique.negate();
 
-			return FunctionFactory::ToReturn(Module->AddScriptSection(Name.data(), Code.data(), Code.size(), LineOffset));
+			return function_factory::to_return(library->AddScriptSection(name.data(), code.data(), code.size(), line_offset));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::GetTypeNameScope(std::string_view* TypeName, std::string_view* Namespace) const
+		expects_vm<void> virtual_machine::get_type_name_scope(std::string_view* type_name, std::string_view* name_space) const
 		{
-			VI_ASSERT(TypeName != nullptr && Core::Stringify::IsCString(*TypeName), "typename should be set");
+			VI_ASSERT(type_name != nullptr && core::stringify::is_cstring(*type_name), "typename should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* Value = TypeName->data();
-			size_t Size = strlen(Value);
-			size_t Index = Size - 1;
+			const char* value = type_name->data();
+			size_t size = strlen(value);
+			size_t index = size - 1;
 
-			while (Index > 0 && Value[Index] != ':' && Value[Index - 1] != ':')
-				Index--;
+			while (index > 0 && value[index] != ':' && value[index - 1] != ':')
+				index--;
 
-			if (Index < 1)
+			if (index < 1)
 			{
-				if (Namespace != nullptr)
-					*Namespace = "";
-				return VirtualException(VirtualError::ALREADY_REGISTERED);
+				if (name_space != nullptr)
+					*name_space = "";
+				return virtual_exception(virtual_error::already_registered);
 			}
 
-			if (Namespace != nullptr)
-				*Namespace = std::string_view(Value, Index - 1);
+			if (name_space != nullptr)
+				*name_space = std::string_view(value, index - 1);
 
-			*TypeName = std::string_view(Value + Index + 1);
-			return Core::Expectation::Met;
+			*type_name = std::string_view(value + index + 1);
+			return core::expectation::met;
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::BeginGroup(const std::string_view& GroupName)
+		expects_vm<void> virtual_machine::begin_group(const std::string_view& group_name)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(GroupName), "group name should be set");
+			VI_ASSERT(core::stringify::is_cstring(group_name), "group name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->BeginConfigGroup(GroupName.data()));
+			return function_factory::to_return(engine->BeginConfigGroup(group_name.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::EndGroup()
+		expects_vm<void> virtual_machine::end_group()
 		{
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->EndConfigGroup());
+			return function_factory::to_return(engine->EndConfigGroup());
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::RemoveGroup(const std::string_view& GroupName)
+		expects_vm<void> virtual_machine::remove_group(const std::string_view& group_name)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(GroupName), "group name should be set");
+			VI_ASSERT(core::stringify::is_cstring(group_name), "group name should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->RemoveConfigGroup(GroupName.data()));
+			return function_factory::to_return(engine->RemoveConfigGroup(group_name.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::BeginNamespace(const std::string_view& Namespace)
+		expects_vm<void> virtual_machine::begin_namespace(const std::string_view& name_space)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Namespace), "namespace should be set");
+			VI_ASSERT(core::stringify::is_cstring(name_space), "namespace should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* Prev = Engine->GetDefaultNamespace();
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			if (Prev != nullptr)
-				DefaultNamespace = Prev;
+			const char* prev = engine->GetDefaultNamespace();
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			if (prev != nullptr)
+				default_namespace = prev;
 			else
-				DefaultNamespace.clear();
+				default_namespace.clear();
 
-			Unique.Negate();
-			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(Namespace.data()));
+			unique.negate();
+			return function_factory::to_return(engine->SetDefaultNamespace(name_space.data()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::BeginNamespaceIsolated(const std::string_view& Namespace, size_t DefaultMask)
+		expects_vm<void> virtual_machine::begin_namespace_isolated(const std::string_view& name_space, size_t default_mask)
 		{
-			BeginAccessMask(DefaultMask);
-			return BeginNamespace(Namespace);
+			begin_access_mask(default_mask);
+			return begin_namespace(name_space);
 		}
-		ExpectsVM<void> VirtualMachine::EndNamespaceIsolated()
+		expects_vm<void> virtual_machine::end_namespace_isolated()
 		{
-			EndAccessMask();
-			return EndNamespace();
+			end_access_mask();
+			return end_namespace();
 		}
-		ExpectsVM<void> VirtualMachine::EndNamespace()
+		expects_vm<void> virtual_machine::end_namespace()
 		{
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			return FunctionFactory::ToReturn(Engine->SetDefaultNamespace(DefaultNamespace.c_str()));
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			return function_factory::to_return(engine->SetDefaultNamespace(default_namespace.c_str()));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<void> VirtualMachine::SetProperty(Features Property, size_t Value)
+		expects_vm<void> virtual_machine::set_property(features property, size_t value)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return FunctionFactory::ToReturn(Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value));
+			return function_factory::to_return(engine->SetEngineProperty((asEEngineProp)property, (asPWORD)value));
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		ExpectsVM<size_t> VirtualMachine::GetSizeOfPrimitiveType(int TypeId) const
+		expects_vm<size_t> virtual_machine::get_size_of_primitive_type(int type_id) const
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			int R = Engine->GetSizeOfPrimitiveType(TypeId);
-			return FunctionFactory::ToReturn<size_t>(R, (size_t)R);
+			int r = engine->GetSizeOfPrimitiveType(type_id);
+			return function_factory::to_return<size_t>(r, (size_t)r);
 #else
-			return VirtualException(VirtualError::NOT_SUPPORTED);
+			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		size_t VirtualMachine::GetFunctionsCount() const
+		size_t virtual_machine::get_functions_count() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetGlobalFunctionCount();
-#else
-			return 0;
-#endif
-		}
-		Function VirtualMachine::GetFunctionById(int Id) const
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->GetFunctionById(Id);
-#else
-			return Function(nullptr);
-#endif
-		}
-		Function VirtualMachine::GetFunctionByIndex(size_t Index) const
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->GetGlobalFunctionByIndex((asUINT)Index);
-#else
-			return Function(nullptr);
-#endif
-		}
-		Function VirtualMachine::GetFunctionByDecl(const std::string_view& Decl) const
-		{
-#ifdef VI_ANGELSCRIPT
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			return Engine->GetGlobalFunctionByDecl(Decl.data());
-#else
-			return Function(nullptr);
-#endif
-		}
-		size_t VirtualMachine::GetPropertiesCount() const
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->GetGlobalPropertyCount();
+			return engine->GetGlobalFunctionCount();
 #else
 			return 0;
 #endif
 		}
-		size_t VirtualMachine::GetObjectsCount() const
+		function virtual_machine::get_function_by_id(int id) const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetObjectTypeCount();
+			return engine->GetFunctionById(id);
+#else
+			return function(nullptr);
+#endif
+		}
+		function virtual_machine::get_function_by_index(size_t index) const
+		{
+#ifdef VI_ANGELSCRIPT
+			return engine->GetGlobalFunctionByIndex((asUINT)index);
+#else
+			return function(nullptr);
+#endif
+		}
+		function virtual_machine::get_function_by_decl(const std::string_view& decl) const
+		{
+#ifdef VI_ANGELSCRIPT
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			return engine->GetGlobalFunctionByDecl(decl.data());
+#else
+			return function(nullptr);
+#endif
+		}
+		size_t virtual_machine::get_properties_count() const
+		{
+#ifdef VI_ANGELSCRIPT
+			return engine->GetGlobalPropertyCount();
 #else
 			return 0;
 #endif
 		}
-		TypeInfo VirtualMachine::GetObjectByIndex(size_t Index) const
+		size_t virtual_machine::get_objects_count() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetObjectTypeByIndex((asUINT)Index);
-#else
-			return TypeInfo(nullptr);
-#endif
-		}
-		size_t VirtualMachine::GetEnumCount() const
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->GetEnumCount();
+			return engine->GetObjectTypeCount();
 #else
 			return 0;
 #endif
 		}
-		TypeInfo VirtualMachine::GetEnumByIndex(size_t Index) const
+		typeinfo virtual_machine::get_object_by_index(size_t index) const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetEnumByIndex((asUINT)Index);
+			return engine->GetObjectTypeByIndex((asUINT)index);
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		size_t VirtualMachine::GetFunctionDefsCount() const
+		size_t virtual_machine::get_enum_count() const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetFuncdefCount();
-#else
-			return 0;
-#endif
-		}
-		TypeInfo VirtualMachine::GetFunctionDefByIndex(size_t Index) const
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->GetFuncdefByIndex((asUINT)Index);
-#else
-			return TypeInfo(nullptr);
-#endif
-		}
-		size_t VirtualMachine::GetModulesCount() const
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->GetModuleCount();
+			return engine->GetEnumCount();
 #else
 			return 0;
 #endif
 		}
-		asIScriptModule* VirtualMachine::GetModuleById(int Id) const
+		typeinfo virtual_machine::get_enum_by_index(size_t index) const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetModuleByIndex(Id);
+			return engine->GetEnumByIndex((asUINT)index);
+#else
+			return typeinfo(nullptr);
+#endif
+		}
+		size_t virtual_machine::get_function_defs_count() const
+		{
+#ifdef VI_ANGELSCRIPT
+			return engine->GetFuncdefCount();
+#else
+			return 0;
+#endif
+		}
+		typeinfo virtual_machine::get_function_def_by_index(size_t index) const
+		{
+#ifdef VI_ANGELSCRIPT
+			return engine->GetFuncdefByIndex((asUINT)index);
+#else
+			return typeinfo(nullptr);
+#endif
+		}
+		size_t virtual_machine::get_modules_count() const
+		{
+#ifdef VI_ANGELSCRIPT
+			return engine->GetModuleCount();
+#else
+			return 0;
+#endif
+		}
+		asIScriptModule* virtual_machine::get_module_by_id(int id) const
+		{
+#ifdef VI_ANGELSCRIPT
+			return engine->GetModuleByIndex(id);
 #else
 			return nullptr;
 #endif
 		}
-		int VirtualMachine::GetTypeIdByDecl(const std::string_view& Decl) const
+		int virtual_machine::get_type_id_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetTypeIdByDecl(Decl.data());
+			return engine->GetTypeIdByDecl(decl.data());
 #else
 			return -1;
 #endif
 		}
-		std::string_view VirtualMachine::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
+		std::string_view virtual_machine::get_type_id_decl(int type_id, bool include_namespace) const
 		{
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Engine->GetTypeDeclaration(TypeId, IncludeNamespace));
+			return or_empty(engine->GetTypeDeclaration(type_id, include_namespace));
 #else
 			return "";
 #endif
 		}
-		Core::Option<Core::String> VirtualMachine::GetScriptSection(const std::string_view& Section)
+		core::option<core::string> virtual_machine::get_script_section(const std::string_view& section)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Sections.find(Core::KeyLookupCast(Section));
-			if (It == Sections.end())
-				return Core::Optional::None;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = sections.find(core::key_lookup_cast(section));
+			if (it == sections.end())
+				return core::optional::none;
 
-			return It->second;
+			return it->second;
 		}
-		TypeInfo VirtualMachine::GetTypeInfoById(int TypeId) const
+		typeinfo virtual_machine::get_type_info_by_id(int type_id) const
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetTypeInfoById(TypeId);
+			return engine->GetTypeInfoById(type_id);
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		TypeInfo VirtualMachine::GetTypeInfoByName(const std::string_view& Name)
+		typeinfo virtual_machine::get_type_info_by_name(const std::string_view& name)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			std::string_view TypeName = Name;
-			std::string_view Namespace = "";
-			if (!GetTypeNameScope(&TypeName, &Namespace))
-				return Engine->GetTypeInfoByName(Name.data());
+			std::string_view type_name = name;
+			std::string_view name_space = "";
+			if (!get_type_name_scope(&type_name, &name_space))
+				return engine->GetTypeInfoByName(name.data());
 
-			BeginNamespace(Core::String(Namespace));
-			asITypeInfo* Info = Engine->GetTypeInfoByName(TypeName.data());
-			EndNamespace();
+			begin_namespace(core::string(name_space));
+			asITypeInfo* info = engine->GetTypeInfoByName(type_name.data());
+			end_namespace();
 
-			return Info;
+			return info;
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		TypeInfo VirtualMachine::GetTypeInfoByDecl(const std::string_view& Decl) const
+		typeinfo virtual_machine::get_type_info_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetTypeInfoByDecl(Decl.data());
+			return engine->GetTypeInfoByDecl(decl.data());
 #else
-			return TypeInfo(nullptr);
+			return typeinfo(nullptr);
 #endif
 		}
-		void VirtualMachine::SetLibraryProperty(LibraryFeatures Property, size_t Value)
+		void virtual_machine::set_library_property(library_features property, size_t value)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			LibrarySettings[Property] = Value;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			library_settings[property] = value;
 		}
-		void VirtualMachine::SetCodeGenerator(const std::string_view& Name, GeneratorCallback&& Callback)
+		void virtual_machine::set_code_generator(const std::string_view& name, generator_callback&& callback)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Generators.find(Core::KeyLookupCast(Name));
-			if (It != Generators.end())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = generators.find(core::key_lookup_cast(name));
+			if (it != generators.end())
 			{
-				if (Callback != nullptr)
-					It->second = std::move(Callback);
+				if (callback != nullptr)
+					it->second = std::move(callback);
 				else
-					Generators.erase(It);
+					generators.erase(it);
 			}
-			else if (Callback != nullptr)
-				Generators[Core::String(Name)] = std::move(Callback);
+			else if (callback != nullptr)
+				generators[core::string(name)] = std::move(callback);
 			else
-				Generators.erase(Core::String(Name));
+				generators.erase(core::string(name));
 		}
-		void VirtualMachine::SetPreserveSourceCode(bool Enabled)
+		void virtual_machine::set_preserve_source_code(bool enabled)
 		{
-			SaveSources = Enabled;
+			save_sources = enabled;
 		}
-		void VirtualMachine::SetTsImports(bool Enabled, const std::string_view& ImportSyntax)
+		void virtual_machine::set_ts_imports(bool enabled, const std::string_view& import_syntax)
 		{
-			Bindings::Imports::BindSyntax(this, Enabled, ImportSyntax);
+			bindings::imports::bind_syntax(this, enabled, import_syntax);
 		}
-		void VirtualMachine::SetCache(bool Enabled)
+		void virtual_machine::set_cache(bool enabled)
 		{
-			SaveCache = Enabled;
+			save_cache = enabled;
 		}
-		void VirtualMachine::SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback)
+		void virtual_machine::set_exception_callback(std::function<void(immediate_context*)>&& callback)
 		{
-			GlobalException = std::move(Callback);
+			global_exception = std::move(callback);
 		}
-		void VirtualMachine::SetDebugger(DebuggerContext* Context)
+		void virtual_machine::set_debugger(debugger_context* context)
 		{
-			Core::UMutex<std::recursive_mutex> Unique1(Sync.General);
-			Core::Memory::Release(Debugger);
-			Debugger = Context;
-			if (Debugger != nullptr)
-				Debugger->SetEngine(this);
+			core::umutex<std::recursive_mutex> unique1(sync.general);
+			core::memory::release(debugger);
+			debugger = context;
+			if (debugger != nullptr)
+				debugger->set_engine(this);
 
-			Core::UMutex<std::recursive_mutex> Unique2(Sync.Pool);
-			for (auto* Next : Stacks)
+			core::umutex<std::recursive_mutex> unique2(sync.pool);
+			for (auto* next : stacks)
 			{
-				if (Debugger != nullptr)
-					AttachDebuggerToContext(Next);
+				if (debugger != nullptr)
+					attach_debugger_to_context(next);
 				else
-					DetachDebuggerFromContext(Next);
+					detach_debugger_from_context(next);
 			}
 		}
-		void VirtualMachine::SetDefaultArrayType(const std::string_view& Type)
+		void virtual_machine::set_default_array_type(const std::string_view& type)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Type), "type should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_ASSERT(core::stringify::is_cstring(type), "type should be set");
 #ifdef VI_ANGELSCRIPT
-			Engine->RegisterDefaultArrayType(Type.data());
+			engine->RegisterDefaultArrayType(type.data());
 #endif
 		}
-		void VirtualMachine::SetTypeInfoUserDataCleanupCallback(void(*Callback)(asITypeInfo*), size_t Type)
+		void virtual_machine::set_type_info_user_data_cleanup_callback(void(*callback)(asITypeInfo*), size_t type)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			Engine->SetTypeInfoUserDataCleanupCallback(Callback, (asPWORD)Type);
+			engine->SetTypeInfoUserDataCleanupCallback(callback, (asPWORD)type);
 #endif
 		}
-		void VirtualMachine::SetEngineUserDataCleanupCallback(void(*Callback)(asIScriptEngine*), size_t Type)
+		void virtual_machine::set_engine_user_data_cleanup_callback(void(*callback)(asIScriptEngine*), size_t type)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			Engine->SetEngineUserDataCleanupCallback(Callback, (asPWORD)Type);
+			engine->SetEngineUserDataCleanupCallback(callback, (asPWORD)type);
 #endif
 		}
-		void* VirtualMachine::SetUserData(void* Data, size_t Type)
+		void* virtual_machine::set_user_data(void* data, size_t type)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return Engine->SetUserData(Data, (asPWORD)Type);
+			return engine->SetUserData(data, (asPWORD)type);
 #else
 			return nullptr;
 #endif
 		}
-		void* VirtualMachine::GetUserData(size_t Type) const
+		void* virtual_machine::get_user_data(size_t type) const
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return Engine->GetUserData((asPWORD)Type);
+			return engine->GetUserData((asPWORD)type);
 #else
 			return nullptr;
 #endif
 		}
-		void VirtualMachine::ClearCache()
+		void virtual_machine::clear_cache()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			for (auto Data : Datas)
-				Core::Memory::Release(Data.second);
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			for (auto data : datas)
+				core::memory::release(data.second);
 
-			Opcodes.clear();
-			Datas.clear();
-			Files.clear();
+			opcodes.clear();
+			datas.clear();
+			files.clear();
 		}
-		void VirtualMachine::ClearSections()
+		void virtual_machine::clear_sections()
 		{
-			if (Debugger != nullptr || SaveSources)
+			if (debugger != nullptr || save_sources)
 				return;
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Sections.clear();
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			sections.clear();
 		}
-		void VirtualMachine::SetCompilerErrorCallback(WhenErrorCallback&& Callback)
+		void virtual_machine::set_compiler_error_callback(when_error_callback&& callback)
 		{
-			WhenError = std::move(Callback);
+			when_error = std::move(callback);
 		}
-		void VirtualMachine::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
+		void virtual_machine::set_compiler_include_options(const compute::include_desc& new_desc)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Include = NewDesc;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			include = new_desc;
 		}
-		void VirtualMachine::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
+		void virtual_machine::set_compiler_features(const compute::preprocessor::desc& new_desc)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Proc = NewDesc;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			proc = new_desc;
 		}
-		void VirtualMachine::SetProcessorOptions(Compute::Preprocessor* Processor)
+		void virtual_machine::set_processor_options(compute::preprocessor* processor)
 		{
-			VI_ASSERT(Processor != nullptr, "preprocessor should be set");
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Processor->SetIncludeOptions(Include);
-			Processor->SetFeatures(Proc);
+			VI_ASSERT(processor != nullptr, "preprocessor should be set");
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			processor->set_include_options(include);
+			processor->set_features(proc);
 		}
-		void VirtualMachine::SetCompileCallback(const std::string_view& Section, CompileCallback&& Callback)
+		void virtual_machine::set_compile_callback(const std::string_view& section, compile_callback&& callback)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Callbacks.find(Core::KeyLookupCast(Section));
-			if (It != Callbacks.end())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = callbacks.find(core::key_lookup_cast(section));
+			if (it != callbacks.end())
 			{
-				if (Callback != nullptr)
-					It->second = std::move(Callback);
+				if (callback != nullptr)
+					it->second = std::move(callback);
 				else
-					Callbacks.erase(It);
+					callbacks.erase(it);
 			}
-			else if (Callback != nullptr)
-				Callbacks[Core::String(Section)] = std::move(Callback);
+			else if (callback != nullptr)
+				callbacks[core::string(section)] = std::move(callback);
 			else
-				Callbacks.erase(Core::String(Section));
+				callbacks.erase(core::string(section));
 		}
-		void VirtualMachine::AttachDebuggerToContext(asIScriptContext* Context)
+		void virtual_machine::attach_debugger_to_context(asIScriptContext* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			if (!Debugger || !Debugger->IsAttached())
-				return DetachDebuggerFromContext(Context);
+			VI_ASSERT(context != nullptr, "context should be set");
+			if (!debugger || !debugger->is_attached())
+				return detach_debugger_from_context(context);
 #ifdef VI_ANGELSCRIPT
-			Context->SetLineCallback(asMETHOD(DebuggerContext, LineCallback), Debugger, asCALL_THISCALL);
-			Context->SetExceptionCallback(asMETHOD(DebuggerContext, ExceptionCallback), Debugger, asCALL_THISCALL);
+			context->SetLineCallback(asMETHOD(debugger_context, line_callback), debugger, asCALL_THISCALL);
+			context->SetExceptionCallback(asMETHOD(debugger_context, exception_callback), debugger, asCALL_THISCALL);
 #endif
 		}
-		void VirtualMachine::DetachDebuggerFromContext(asIScriptContext* Context)
+		void virtual_machine::detach_debugger_from_context(asIScriptContext* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
+			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			Context->ClearLineCallback();
-			Context->SetExceptionCallback(asFUNCTION(VirtualMachine::ExceptionHandler), Context, asCALL_CDECL);
+			context->ClearLineCallback();
+			context->SetExceptionCallback(asFUNCTION(virtual_machine::exception_handler), context, asCALL_CDECL);
 #endif
 		}
-		bool VirtualMachine::GetByteCodeCache(ByteCodeInfo* Info)
+		bool virtual_machine::get_byte_code_cache(byte_code_info* info)
 		{
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
-			if (!SaveCache)
+			VI_ASSERT(info != nullptr, "bytecode should be set");
+			if (!save_cache)
 				return false;
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Opcodes.find(Info->Name);
-			if (It == Opcodes.end())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = opcodes.find(info->name);
+			if (it == opcodes.end())
 				return false;
 
-			Info->Data = It->second.Data;
-			Info->Debug = It->second.Debug;
-			Info->Valid = true;
+			info->data = it->second.data;
+			info->debug = it->second.debug;
+			info->valid = true;
 			return true;
 		}
-		void VirtualMachine::SetByteCodeCache(ByteCodeInfo* Info)
+		void virtual_machine::set_byte_code_cache(byte_code_info* info)
 		{
-			VI_ASSERT(Info != nullptr, "bytecode should be set");
-			Info->Valid = true;
-			if (!SaveCache)
+			VI_ASSERT(info != nullptr, "bytecode should be set");
+			info->valid = true;
+			if (!save_cache)
 				return;
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Opcodes[Info->Name] = *Info;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			opcodes[info->name] = *info;
 		}
-		ImmediateContext* VirtualMachine::CreateContext()
+		immediate_context* virtual_machine::create_context()
 		{
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Context = Engine->RequestContext();
-			VI_ASSERT(Context != nullptr, "cannot create script context");
-			AttachDebuggerToContext(Context);
-			return new ImmediateContext(Context);
+			asIScriptContext* context = engine->RequestContext();
+			VI_ASSERT(context != nullptr, "cannot create script context");
+			attach_debugger_to_context(context);
+			return new immediate_context(context);
 #else
 			return nullptr;
 #endif
 		}
-		Compiler* VirtualMachine::CreateCompiler()
+		compiler* virtual_machine::create_compiler()
 		{
-			return new Compiler(this);
+			return new compiler(this);
 		}
-		asIScriptModule* VirtualMachine::CreateScopedModule(const std::string_view& Name)
+		asIScriptModule* virtual_machine::create_scoped_module(const std::string_view& name)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			if (!Engine->GetModule(Name.data()))
-				return Engine->GetModule(Name.data(), asGM_ALWAYS_CREATE);
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			if (!engine->GetModule(name.data()))
+				return engine->GetModule(name.data(), asGM_ALWAYS_CREATE);
 
-			Core::String Result;
-			while (Result.size() < 1024)
+			core::string result;
+			while (result.size() < 1024)
 			{
-				Result.assign(Name);
-				Result.append(Core::ToString(Scope++));
-				if (!Engine->GetModule(Result.c_str()))
-					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
+				result.assign(name);
+				result.append(core::to_string(scope++));
+				if (!engine->GetModule(result.c_str()))
+					return engine->GetModule(result.c_str(), asGM_ALWAYS_CREATE);
 			}
 #endif
 			return nullptr;
 		}
-		asIScriptModule* VirtualMachine::CreateModule(const std::string_view& Name)
+		asIScriptModule* virtual_machine::create_module(const std::string_view& name)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			return Engine->GetModule(Name.data(), asGM_ALWAYS_CREATE);
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			return engine->GetModule(name.data(), asGM_ALWAYS_CREATE);
 #else
 			return nullptr;
 #endif
 		}
-		void* VirtualMachine::CreateObject(const TypeInfo& Type)
+		void* virtual_machine::create_object(const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->CreateScriptObject(Type.GetTypeInfo());
+			return engine->CreateScriptObject(type.get_type_info());
 #else
 			return nullptr;
 #endif
 		}
-		void* VirtualMachine::CreateObjectCopy(void* Object, const TypeInfo& Type)
+		void* virtual_machine::create_object_copy(void* object, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->CreateScriptObjectCopy(Object, Type.GetTypeInfo());
+			return engine->CreateScriptObjectCopy(object, type.get_type_info());
 #else
 			return nullptr;
 #endif
 		}
-		void* VirtualMachine::CreateEmptyObject(const TypeInfo& Type)
+		void* virtual_machine::create_empty_object(const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->CreateUninitializedScriptObject(Type.GetTypeInfo());
+			return engine->CreateUninitializedScriptObject(type.get_type_info());
 #else
 			return nullptr;
 #endif
 		}
-		Function VirtualMachine::CreateDelegate(const Function& Function, void* Object)
+		function virtual_machine::create_delegate(const function& function, void* object)
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->CreateDelegate(Function.GetFunction(), Object);
+			return engine->CreateDelegate(function.get_function(), object);
 #else
-			return Function;
+			return function;
 #endif
 		}
-		void VirtualMachine::ReleaseObject(void* Object, const TypeInfo& Type)
+		void virtual_machine::release_object(void* object, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			Engine->ReleaseScriptObject(Object, Type.GetTypeInfo());
+			engine->ReleaseScriptObject(object, type.get_type_info());
 #endif
 		}
-		void VirtualMachine::AddRefObject(void* Object, const TypeInfo& Type)
+		void virtual_machine::add_ref_object(void* object, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			Engine->AddRefScriptObject(Object, Type.GetTypeInfo());
+			engine->AddRefScriptObject(object, type.get_type_info());
 #endif
 		}
-		void VirtualMachine::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
+		void virtual_machine::get_statistics(unsigned int* current_size, unsigned int* total_destroyed, unsigned int* total_detected, unsigned int* new_objects, unsigned int* total_new_destroyed) const
 		{
 #ifdef VI_ANGELSCRIPT
 			unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
-			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
-			if (CurrentSize != nullptr)
-				*CurrentSize = (unsigned int)asCurrentSize;
+			engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
+			if (current_size != nullptr)
+				*current_size = (unsigned int)asCurrentSize;
 
-			if (TotalDestroyed != nullptr)
-				*TotalDestroyed = (unsigned int)asTotalDestroyed;
+			if (total_destroyed != nullptr)
+				*total_destroyed = (unsigned int)asTotalDestroyed;
 
-			if (TotalDetected != nullptr)
-				*TotalDetected = (unsigned int)asTotalDetected;
+			if (total_detected != nullptr)
+				*total_detected = (unsigned int)asTotalDetected;
 
-			if (NewObjects != nullptr)
-				*NewObjects = (unsigned int)asNewObjects;
+			if (new_objects != nullptr)
+				*new_objects = (unsigned int)asNewObjects;
 
-			if (TotalNewDestroyed != nullptr)
-				*TotalNewDestroyed = (unsigned int)asTotalNewDestroyed;
+			if (total_new_destroyed != nullptr)
+				*total_new_destroyed = (unsigned int)asTotalNewDestroyed;
 #endif
 		}
-		void VirtualMachine::ForwardEnumReferences(void* Reference, const TypeInfo& Type)
+		void virtual_machine::forward_enum_references(void* reference, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			Engine->ForwardGCEnumReferences(Reference, Type.GetTypeInfo());
+			engine->ForwardGCEnumReferences(reference, type.get_type_info());
 #endif
 		}
-		void VirtualMachine::ForwardReleaseReferences(void* Reference, const TypeInfo& Type)
+		void virtual_machine::forward_release_references(void* reference, const typeinfo& type)
 		{
 #ifdef VI_ANGELSCRIPT
-			Engine->ForwardGCReleaseReferences(Reference, Type.GetTypeInfo());
+			engine->ForwardGCReleaseReferences(reference, type.get_type_info());
 #endif
 		}
-		void VirtualMachine::GCEnumCallback(void* Reference)
+		void virtual_machine::gc_enum_callback(void* reference)
 		{
-			FunctionFactory::GCEnumCallback(Engine, Reference);
+			function_factory::gc_enum_callback(engine, reference);
 		}
-		void VirtualMachine::GCEnumCallback(asIScriptFunction* Reference)
+		void virtual_machine::gc_enum_callback(asIScriptFunction* reference)
 		{
-			FunctionFactory::GCEnumCallback(Engine, Reference);
+			function_factory::gc_enum_callback(engine, reference);
 		}
-		void VirtualMachine::GCEnumCallback(FunctionDelegate* Reference)
+		void virtual_machine::gc_enum_callback(function_delegate* reference)
 		{
-			FunctionFactory::GCEnumCallback(Engine, Reference);
+			function_factory::gc_enum_callback(engine, reference);
 		}
-		bool VirtualMachine::TriggerDebugger(ImmediateContext* Context, uint64_t TimeoutMs)
+		bool virtual_machine::trigger_debugger(immediate_context* context, uint64_t timeout_ms)
 		{
-			if (!Debugger)
+			if (!debugger)
 				return false;
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Target = (Context ? Context->GetContext() : asGetActiveContext());
-			if (!Target)
+			asIScriptContext* target = (context ? context->get_context() : asGetActiveContext());
+			if (!target)
 				return false;
 
-			Debugger->LineCallback(Target);
-			if (TimeoutMs > 0)
-				std::this_thread::sleep_for(std::chrono::milliseconds(TimeoutMs));
+			debugger->line_callback(target);
+			if (timeout_ms > 0)
+				std::this_thread::sleep_for(std::chrono::milliseconds(timeout_ms));
 
 			return true;
 #else
 			return false;
 #endif
 		}
-		Compute::ExpectsPreprocessor<void> VirtualMachine::GenerateCode(Compute::Preprocessor* Processor, const std::string_view& Path, Core::String& InoutBuffer)
+		compute::expects_preprocessor<void> virtual_machine::generate_code(compute::preprocessor* processor, const std::string_view& path, core::string& inout_buffer)
 		{
-			VI_ASSERT(Processor != nullptr, "preprocessor should be set");
-			if (InoutBuffer.empty())
-				return Core::Expectation::Met;
+			VI_ASSERT(processor != nullptr, "preprocessor should be set");
+			if (inout_buffer.empty())
+				return core::expectation::met;
 
-			auto Status = Processor->Process(Path, InoutBuffer);
-			if (!Status)
-				return Status;
+			auto status = processor->process(path, inout_buffer);
+			if (!status)
+				return status;
 
-			std::string_view TargetPath = Path.empty() ? "<anonymous>" : Path;
-			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size(), (uint64_t)Generators.size());
+			std::string_view target_path = path.empty() ? "<anonymous>" : path;
+			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size(), (uint64_t)generators.size());
 			{
-				Core::UnorderedSet<Core::String> AppliedGenerators;
-				Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Retry:
-				size_t CurrentGenerators = Generators.size();
-				for (auto& Item : Generators)
+				core::unordered_set<core::string> applied_generators;
+				core::umutex<std::recursive_mutex> unique(sync.general);
+			retry:
+				size_t current_generators = generators.size();
+				for (auto& item : generators)
 				{
-					if (AppliedGenerators.find(Item.first) != AppliedGenerators.end())
+					if (applied_generators.find(item.first) != applied_generators.end())
 						continue;
 
-					VI_TRACE("[vm] generate source code for %s generator at %.*s (%" PRIu64 " bytes)", Item.first.c_str(), (int)TargetPath.size(), TargetPath.data(), (uint64_t)InoutBuffer.size());
-					auto Status = Item.second(Processor, Path, InoutBuffer);
-					if (!Status)
-						return Compute::PreprocessorException(Compute::PreprocessorError::ExtensionError, 0, Status.Error().message());
+					VI_TRACE("[vm] generate source code for %s generator at %.*s (%" PRIu64 " bytes)", item.first.c_str(), (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size());
+					auto status = item.second(processor, path, inout_buffer);
+					if (!status)
+						return compute::preprocessor_exception(compute::preprocessor_error::extension_error, 0, status.error().message());
 
-					AppliedGenerators.insert(Item.first);
-					if (Generators.size() != CurrentGenerators)
-						goto Retry;
+					applied_generators.insert(item.first);
+					if (generators.size() != current_generators)
+						goto retry;
 				}
 			}
 
-			(void)TargetPath;
-			return Status;
+			(void)target_path;
+			return status;
 		}
-		Core::UnorderedMap<Core::String, Core::String> VirtualMachine::DumpRegisteredInterfaces(ImmediateContext* Context)
+		core::unordered_map<core::string, core::string> virtual_machine::dump_registered_interfaces(immediate_context* context)
 		{
 #ifdef VI_ANGELSCRIPT
-			Core::UnorderedSet<Core::String> Grouping;
-			Core::UnorderedMap<Core::String, Core::String> Sources;
-			Core::UnorderedMap<Core::String, DNamespace> Namespaces;
-			Core::UnorderedMap<Core::String, Core::Vector<std::pair<Core::String, DNamespace*>>> Groups;
-			auto AddGroup = [&Grouping , &Namespaces, &Groups](const Core::String& CurrentName)
+			core::unordered_set<core::string> grouping;
+			core::unordered_map<core::string, core::string> sources;
+			core::unordered_map<core::string, dnamespace> namespaces;
+			core::unordered_map<core::string, core::vector<std::pair<core::string, dnamespace*>>> groups;
+			auto add_group = [&grouping, &namespaces, &groups](const core::string& current_name)
 			{
-				auto& Group = Groups[CurrentName];
-				for (auto& Namespace : Namespaces)
+				auto& group = groups[current_name];
+				for (auto& name_space : namespaces)
 				{
-					if (Grouping.find(Namespace.first) == Grouping.end())
+					if (grouping.find(name_space.first) == grouping.end())
 					{
-						Group.push_back(std::make_pair(Namespace.first, &Namespace.second));
-						Grouping.insert(Namespace.first);
+						group.push_back(std::make_pair(name_space.first, &name_space.second));
+						grouping.insert(name_space.first);
 					}
 				}
 			};
-			auto AddEnum = [&Namespaces](asITypeInfo* EType)
+			auto add_enum = [&namespaces](asITypeInfo* etype)
 			{
-				const char* ENamespace = EType->GetNamespace();
-				DNamespace& Namespace = Namespaces[ENamespace ? ENamespace : ""];
-				DEnum& Enum = Namespace.Enums[EType->GetName()];
-				asUINT ValuesCount = EType->GetEnumValueCount();
+				const char* enamespace = etype->GetNamespace();
+				dnamespace& name_space = namespaces[enamespace ? enamespace : ""];
+				denum& enumerator = name_space.enums[etype->GetName()];
+				asUINT values_count = etype->GetEnumValueCount();
 
-				for (asUINT j = 0; j < ValuesCount; j++)
+				for (asUINT j = 0; j < values_count; j++)
 				{
-					int EValue;
-					const char* EName = EType->GetEnumValueByIndex(j, &EValue);
-					Enum.Values.push_back(Core::Stringify::Text("%s = %i", EName ? EName : Core::ToString(j).c_str(), EValue));
+					int evalue;
+					const char* ename = etype->GetEnumValueByIndex(j, &evalue);
+					enumerator.values.push_back(core::stringify::text("%s = %i", ename ? ename : core::to_string(j).c_str(), evalue));
 				}
 			};
-			auto AddObject = [this, &Namespaces](asITypeInfo* EType)
+			auto add_object = [this, &namespaces](asITypeInfo* etype)
 			{
-				asITypeInfo* EBase = EType->GetBaseType();
-				const char* CNamespace = EType->GetNamespace();
-				const char* CName = EType->GetName();
-				DNamespace& Namespace = Namespaces[CNamespace ? CNamespace : ""];
-				DClass& Class = Namespace.Classes[CName];
-				asUINT TypesCount = EType->GetSubTypeCount();
-				asUINT InterfacesCount = EType->GetInterfaceCount();
-				asUINT FuncdefsCount = EType->GetChildFuncdefCount();
-				asUINT PropsCount = EType->GetPropertyCount();
-				asUINT FactoriesCount = EType->GetFactoryCount();
-				asUINT MethodsCount = EType->GetMethodCount();
+				asITypeInfo* ebase = etype->GetBaseType();
+				const char* cnamespace = etype->GetNamespace();
+				const char* cname = etype->GetName();
+				dnamespace& name_space = namespaces[cnamespace ? cnamespace : ""];
+				dclass& data_class = name_space.classes[cname];
+				asUINT types_count = etype->GetSubTypeCount();
+				asUINT interfaces_count = etype->GetInterfaceCount();
+				asUINT funcdefs_count = etype->GetChildFuncdefCount();
+				asUINT props_count = etype->GetPropertyCount();
+				asUINT factories_count = etype->GetFactoryCount();
+				asUINT methods_count = etype->GetMethodCount();
 
-				if (EBase != nullptr)
-					Class.Interfaces.push_back(GetTypeNaming(EBase));
+				if (ebase != nullptr)
+					data_class.interfaces.push_back(get_type_naming(ebase));
 
-				for (asUINT j = 0; j < InterfacesCount; j++)
+				for (asUINT j = 0; j < interfaces_count; j++)
 				{
-					asITypeInfo* IType = EType->GetInterface(j);
-					Class.Interfaces.push_back(GetTypeNaming(IType));
+					asITypeInfo* itype = etype->GetInterface(j);
+					data_class.interfaces.push_back(get_type_naming(itype));
 				}
 
-				for (asUINT j = 0; j < TypesCount; j++)
+				for (asUINT j = 0; j < types_count; j++)
 				{
-					int STypeId = EType->GetSubTypeId(j);
-					const char* SDecl = Engine->GetTypeDeclaration(STypeId, true);
-					Class.Types.push_back(Core::String("class ") + (SDecl ? SDecl : "__type__"));
+					int stype_id = etype->GetSubTypeId(j);
+					const char* sdecl = engine->GetTypeDeclaration(stype_id, true);
+					data_class.types.push_back(core::string("class ") + (sdecl ? sdecl : "__type__"));
 				}
 
-				for (asUINT j = 0; j < FuncdefsCount; j++)
+				for (asUINT j = 0; j < funcdefs_count; j++)
 				{
-					asITypeInfo* FType = EType->GetChildFuncdef(j);
-					asIScriptFunction* FFunction = FType->GetFuncdefSignature();
-					const char* FDecl = FFunction->GetDeclaration(false, false, true);
-					Class.Funcdefs.push_back(Core::String("funcdef ") + (FDecl ? FDecl : "void __unnamed" + Core::ToString(j) + "__()"));
+					asITypeInfo* ftype = etype->GetChildFuncdef(j);
+					asIScriptFunction* ffunction = ftype->GetFuncdefSignature();
+					const char* fdecl = ffunction->GetDeclaration(false, false, true);
+					data_class.funcdefs.push_back(core::string("funcdef ") + (fdecl ? fdecl : "void __unnamed" + core::to_string(j) + "__()"));
 				}
 
-				for (asUINT j = 0; j < PropsCount; j++)
+				for (asUINT j = 0; j < props_count; j++)
 				{
-					const char* PName; int PTypeId; bool PPrivate, PProtected;
-					if (EType->GetProperty(j, &PName, &PTypeId, &PPrivate, &PProtected) != 0)
+					const char* pname; int ptype_id; bool pprivate, pprotected;
+					if (etype->GetProperty(j, &pname, &ptype_id, &pprivate, &pprotected) != 0)
 						continue;
 
-					const char* PDecl = Engine->GetTypeDeclaration(PTypeId, true);
-					const char* PMod = (PPrivate ? "private " : (PProtected ? "protected " : nullptr));
-					Class.Props.push_back(Core::Stringify::Text("%s%s %s", PMod ? PMod : "", PDecl ? PDecl : "__type__", PName ? PName : ("__unnamed" + Core::ToString(j) + "__").c_str()));
+					const char* pdecl = engine->GetTypeDeclaration(ptype_id, true);
+					const char* pmod = (pprivate ? "private " : (pprotected ? "protected " : nullptr));
+					data_class.props.push_back(core::stringify::text("%s%s %s", pmod ? pmod : "", pdecl ? pdecl : "__type__", pname ? pname : ("__unnamed" + core::to_string(j) + "__").c_str()));
 				}
 
-				for (asUINT j = 0; j < FactoriesCount; j++)
+				for (asUINT j = 0; j < factories_count; j++)
 				{
-					asIScriptFunction* FFunction = EType->GetFactoryByIndex(j);
-					const char* FDecl = FFunction->GetDeclaration(false, false, true);
-					Class.Methods.push_back(FDecl ? Core::String(FDecl) : "void " + Core::String(CName) + "()");
+					asIScriptFunction* ffunction = etype->GetFactoryByIndex(j);
+					const char* fdecl = ffunction->GetDeclaration(false, false, true);
+					data_class.methods.push_back(fdecl ? core::string(fdecl) : "void " + core::string(cname) + "()");
 				}
 
-				for (asUINT j = 0; j < MethodsCount; j++)
+				for (asUINT j = 0; j < methods_count; j++)
 				{
-					asIScriptFunction* FFunction = EType->GetMethodByIndex(j);
-					const char* FDecl = FFunction->GetDeclaration(false, false, true);
-					Class.Methods.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(j) + "__()");
+					asIScriptFunction* ffunction = etype->GetMethodByIndex(j);
+					const char* fdecl = ffunction->GetDeclaration(false, false, true);
+					data_class.methods.push_back(fdecl ? fdecl : "void __unnamed" + core::to_string(j) + "__()");
 				}
 			};
-			auto AddFunction = [this, &Namespaces](asIScriptFunction* FFunction, asUINT Index)
+			auto add_function = [this, &namespaces](asIScriptFunction* ffunction, asUINT index)
 			{
-				const char* FNamespace = FFunction->GetNamespace();
-				const char* FDecl = FFunction->GetDeclaration(false, false, true);
+				const char* fnamespace = ffunction->GetNamespace();
+				const char* fdecl = ffunction->GetDeclaration(false, false, true);
 
-				if (FNamespace != nullptr && *FNamespace != '\0')
+				if (fnamespace != nullptr && *fnamespace != '\0')
 				{
-					asITypeInfo* FType = GetTypeNamespacing(Engine, FNamespace);
-					if (FType != nullptr)
+					asITypeInfo* ftype = get_type_namespacing(engine, fnamespace);
+					if (ftype != nullptr)
 					{
-						const char* CNamespace = FType->GetNamespace();
-						const char* CName = FType->GetName();
-						DNamespace& Namespace = Namespaces[CNamespace ? CNamespace : ""];
-						DClass& Class = Namespace.Classes[CName];
-						const char* FDecl = FFunction->GetDeclaration(false, false, true);
-						Class.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()");
+						const char* cnamespace = ftype->GetNamespace();
+						const char* cname = ftype->GetName();
+						dnamespace& name_space = namespaces[cnamespace ? cnamespace : ""];
+						dclass& data_class = name_space.classes[cname];
+						const char* fdecl = ffunction->GetDeclaration(false, false, true);
+						data_class.functions.push_back(fdecl ? fdecl : "void __unnamed" + core::to_string(index) + "__()");
 						return;
 					}
 				}
 
-				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
-				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()");
+				dnamespace& name_space = namespaces[fnamespace ? fnamespace : ""];
+				name_space.functions.push_back(fdecl ? fdecl : "void __unnamed" + core::to_string(index) + "__()");
 			};
-			auto AddFuncdef = [&Namespaces](asITypeInfo* FType, asUINT Index)
+			auto add_funcdef = [&namespaces](asITypeInfo* ftype, asUINT index)
 			{
-				if (FType->GetParentType() != nullptr)
+				if (ftype->GetParentType() != nullptr)
 					return;
 
-				asIScriptFunction* FFunction = FType->GetFuncdefSignature();
-				const char* FNamespace = FType->GetNamespace();
-				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
-				const char* FDecl = FFunction->GetDeclaration(false, false, true);
-				Namespace.Funcdefs.push_back(Core::String("funcdef ") + (FDecl ? FDecl : "void __unnamed" + Core::ToString(Index) + "__()"));
+				asIScriptFunction* ffunction = ftype->GetFuncdefSignature();
+				const char* fnamespace = ftype->GetNamespace();
+				dnamespace& name_space = namespaces[fnamespace ? fnamespace : ""];
+				const char* fdecl = ffunction->GetDeclaration(false, false, true);
+				name_space.funcdefs.push_back(core::string("funcdef ") + (fdecl ? fdecl : "void __unnamed" + core::to_string(index) + "__()"));
 			};
-			
-			asUINT EnumsCount = Engine->GetEnumCount();
-			for (asUINT i = 0; i < EnumsCount; i++)
-				AddEnum(Engine->GetEnumByIndex(i));
 
-			asUINT ObjectsCount = Engine->GetObjectTypeCount();
-			for (asUINT i = 0; i < ObjectsCount; i++)
-				AddObject(Engine->GetObjectTypeByIndex(i));
+			asUINT enums_count = engine->GetEnumCount();
+			for (asUINT i = 0; i < enums_count; i++)
+				add_enum(engine->GetEnumByIndex(i));
 
-			asUINT FunctionsCount = Engine->GetGlobalFunctionCount();
-			for (asUINT i = 0; i < FunctionsCount; i++)
-				AddFunction(Engine->GetGlobalFunctionByIndex(i), i);
+			asUINT objects_count = engine->GetObjectTypeCount();
+			for (asUINT i = 0; i < objects_count; i++)
+				add_object(engine->GetObjectTypeByIndex(i));
 
-			asUINT FuncdefsCount = Engine->GetFuncdefCount();
-			for (asUINT i = 0; i < FuncdefsCount; i++)
-				AddFuncdef(Engine->GetFuncdefByIndex(i), i);
+			asUINT functions_count = engine->GetGlobalFunctionCount();
+			for (asUINT i = 0; i < functions_count; i++)
+				add_function(engine->GetGlobalFunctionByIndex(i), i);
 
-			Core::String ModuleName = "__vfinterface.as";
-			if (Context != nullptr)
+			asUINT funcdefs_count = engine->GetFuncdefCount();
+			for (asUINT i = 0; i < funcdefs_count; i++)
+				add_funcdef(engine->GetFuncdefByIndex(i), i);
+
+			core::string module_name = "__vfinterface.as";
+			if (context != nullptr)
 			{
-				asIScriptFunction* Function = Context->GetFunction().GetFunction();
-				if (Function != nullptr)
+				asIScriptFunction* function = context->get_function().get_function();
+				if (function != nullptr)
 				{
-					asIScriptModule* Module = Function->GetModule();
-					if (Module != nullptr)
+					asIScriptModule* library = function->GetModule();
+					if (library != nullptr)
 					{
-						asUINT EnumsCount = Module->GetEnumCount();
-						for (asUINT i = 0; i < EnumsCount; i++)
-							AddEnum(Module->GetEnumByIndex(i));
+						asUINT enums_count = library->GetEnumCount();
+						for (asUINT i = 0; i < enums_count; i++)
+							add_enum(library->GetEnumByIndex(i));
 
-						asUINT ObjectsCount = Module->GetObjectTypeCount();
-						for (asUINT i = 0; i < ObjectsCount; i++)
-							AddObject(Module->GetObjectTypeByIndex(i));
+						asUINT objects_count = library->GetObjectTypeCount();
+						for (asUINT i = 0; i < objects_count; i++)
+							add_object(library->GetObjectTypeByIndex(i));
 
-						asUINT FunctionsCount = Module->GetFunctionCount();
-						for (asUINT i = 0; i < FunctionsCount; i++)
-							AddFunction(Module->GetFunctionByIndex(i), i);
+						asUINT functions_count = library->GetFunctionCount();
+						for (asUINT i = 0; i < functions_count; i++)
+							add_function(library->GetFunctionByIndex(i), i);
 
-						ModuleName = Module->GetName();
+						module_name = library->GetName();
 					}
 				}
 			}
 
-			AddGroup(ModuleName);
-			for (auto& Group : Groups)
+			add_group(module_name);
+			for (auto& group : groups)
 			{
-				Core::String Offset;
-				VI_SORT(Group.second.begin(), Group.second.end(), [](const auto& A, const auto& B)
+				core::string offset;
+				VI_SORT(group.second.begin(), group.second.end(), [](const auto& a, const auto& b)
 				{
-					return A.first.size() < B.first.size();
+					return a.first.size() < b.first.size();
 				});
 
-				auto& Source = Sources[Group.first];
-				auto& List = Group.second;
-				for (auto It = List.begin(); It != List.end(); It++)
+				auto& source = sources[group.first];
+				auto& list = group.second;
+				for (auto it = list.begin(); it != list.end(); it++)
 				{
-					auto Copy = It;
-					DumpNamespace(Source, It->first, *It->second, Offset);
-					if (++Copy != List.end())
-						Source += "\n\n";
+					auto copy = it;
+					dump_namespace(source, it->first, *it->second, offset);
+					if (++copy != list.end())
+						source += "\n\n";
 				}
 			}
 
-			return Sources;
+			return sources;
 #else
-			return Core::UnorderedMap<Core::String, Core::String>();
+			return core::unordered_map<core::string, core::string>();
 #endif
 		}
-		size_t VirtualMachine::BeginAccessMask(size_t DefaultMask)
+		size_t virtual_machine::begin_access_mask(size_t default_mask)
 		{
 #ifdef VI_ANGELSCRIPT
-			return Engine->SetDefaultAccessMask((asDWORD)DefaultMask);
-#else
-			return 0;
-#endif
-		}
-		size_t VirtualMachine::EndAccessMask()
-		{
-#ifdef VI_ANGELSCRIPT
-			return Engine->SetDefaultAccessMask((asDWORD)VirtualMachine::GetDefaultAccessMask());
+			return engine->SetDefaultAccessMask((asDWORD)default_mask);
 #else
 			return 0;
 #endif
 		}
-		std::string_view VirtualMachine::GetNamespace() const
+		size_t virtual_machine::end_access_mask()
 		{
 #ifdef VI_ANGELSCRIPT
-			return OrEmpty(Engine->GetDefaultNamespace());
+			return engine->SetDefaultAccessMask((asDWORD)virtual_machine::get_default_access_mask());
+#else
+			return 0;
+#endif
+		}
+		std::string_view virtual_machine::get_namespace() const
+		{
+#ifdef VI_ANGELSCRIPT
+			return or_empty(engine->GetDefaultNamespace());
 #else
 			return "";
 #endif
 		}
-		Module VirtualMachine::GetModule(const std::string_view& Name)
+		library virtual_machine::get_module(const std::string_view& name)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Name), "name should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
+			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
-			return Module(Engine->GetModule(Name.data(), asGM_CREATE_IF_NOT_EXISTS));
+			return library(engine->GetModule(name.data(), asGM_CREATE_IF_NOT_EXISTS));
 #else
-			return Module(nullptr);
+			return library(nullptr);
 #endif
 		}
-		size_t VirtualMachine::GetLibraryProperty(LibraryFeatures Property)
+		size_t virtual_machine::get_library_property(library_features property)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			return LibrarySettings[Property];
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			return library_settings[property];
 		}
-		size_t VirtualMachine::GetProperty(Features Property)
+		size_t virtual_machine::get_property(features property)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
+			return (size_t)engine->GetEngineProperty((asEEngineProp)property);
 #else
 			return 0;
 #endif
 		}
-		void VirtualMachine::SetModuleDirectory(const std::string_view& Value)
+		void virtual_machine::set_module_directory(const std::string_view& value)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Include.Root = Value;
-			if (Include.Root.empty())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			include.root = value;
+			if (include.root.empty())
 				return;
 
-			if (!Core::Stringify::EndsOf(Include.Root, "/\\"))
-				Include.Root.append(1, VI_SPLITTER);
+			if (!core::stringify::ends_of(include.root, "/\\"))
+				include.root.append(1, VI_SPLITTER);
 		}
-		const Core::String& VirtualMachine::GetModuleDirectory() const
+		const core::string& virtual_machine::get_module_directory() const
 		{
-			return Include.Root;
+			return include.root;
 		}
-		Core::Vector<Core::String> VirtualMachine::GetExposedAddons()
+		core::vector<core::string> virtual_machine::get_exposed_addons()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			Core::Vector<Core::String> Result;
-			Result.reserve(Addons.size() + CLibraries.size());
-			for (auto& Module : Addons)
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			core::vector<core::string> result;
+			result.reserve(addons.size() + clibraries.size());
+			for (auto& library : addons)
 			{
-				if (Module.second.Exposed)
-					Result.push_back(Core::Stringify::Text("system(0x%" PRIXPTR "):%s", (void*)&Module.second, Module.first.c_str()));
+				if (library.second.exposed)
+					result.push_back(core::stringify::text("system(0x%" PRIXPTR "):%s", (void*)&library.second, library.first.c_str()));
 			}
 
-			for (auto& Module : CLibraries)
-				Result.push_back(Core::Stringify::Text("%s(0x%" PRIXPTR "):%s", Module.second.IsAddon ? "addon" : "clibrary", Module.second.Handle, Module.first.c_str()));
+			for (auto& library : clibraries)
+				result.push_back(core::stringify::text("%s(0x%" PRIXPTR "):%s", library.second.is_addon ? "addon" : "clibrary", library.second.handle, library.first.c_str()));
 
-			return Result;
+			return result;
 		}
-		const Core::UnorderedMap<Core::String, VirtualMachine::Addon>& VirtualMachine::GetSystemAddons() const
+		const core::unordered_map<core::string, virtual_machine::addon>& virtual_machine::get_system_addons() const
 		{
-			return Addons;
+			return addons;
 		}
-		const Core::UnorderedMap<Core::String, VirtualMachine::CLibrary>& VirtualMachine::GetCLibraries() const
+		const core::unordered_map<core::string, virtual_machine::clibrary>& virtual_machine::get_clibraries() const
 		{
-			return CLibraries;
+			return clibraries;
 		}
-		const Compute::IncludeDesc& VirtualMachine::GetCompileIncludeOptions() const
+		const compute::include_desc& virtual_machine::get_compile_include_options() const
 		{
-			return Include;
+			return include;
 		}
-		bool VirtualMachine::HasLibrary(const std::string_view& Name, bool IsAddon)
+		bool virtual_machine::has_library(const std::string_view& name, bool is_addon)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = CLibraries.find(Core::KeyLookupCast(Name));
-			if (It == CLibraries.end())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = clibraries.find(core::key_lookup_cast(name));
+			if (it == clibraries.end())
 				return false;
 
-			return It->second.IsAddon == IsAddon;
+			return it->second.is_addon == is_addon;
 		}
-		bool VirtualMachine::HasSystemAddon(const std::string_view& Name)
+		bool virtual_machine::has_system_addon(const std::string_view& name)
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Core::KeyLookupCast(Name));
-			if (It == Addons.end())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = addons.find(core::key_lookup_cast(name));
+			if (it == addons.end())
 				return false;
 
-			return It->second.Exposed;
+			return it->second.exposed;
 		}
-		bool VirtualMachine::HasAddon(const std::string_view& Name)
+		bool virtual_machine::has_addon(const std::string_view& name)
 		{
-			return HasLibrary(Name, true);
+			return has_library(name, true);
 		}
-		bool VirtualMachine::IsNullable(int TypeId)
+		bool virtual_machine::is_nullable(int type_id)
 		{
-			return TypeId == 0;
+			return type_id == 0;
 		}
-		bool VirtualMachine::HasDebugger()
+		bool virtual_machine::has_debugger()
 		{
-			return Debugger != nullptr;
+			return debugger != nullptr;
 		}
-		bool VirtualMachine::AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, AddonCallback&& Callback)
+		bool virtual_machine::add_system_addon(const std::string_view& name, const core::vector<core::string>& dependencies, addon_callback&& callback)
 		{
-			VI_ASSERT(!Name.empty(), "name should not be empty");
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Core::KeyLookupCast(Name));
-			if (It != Addons.end())
+			VI_ASSERT(!name.empty(), "name should not be empty");
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = addons.find(core::key_lookup_cast(name));
+			if (it != addons.end())
 			{
-				if (Callback || !Dependencies.empty())
+				if (callback || !dependencies.empty())
 				{
-					It->second.Dependencies = Dependencies;
-					It->second.Callback = std::move(Callback);
-					It->second.Exposed = false;
+					it->second.dependencies = dependencies;
+					it->second.callback = std::move(callback);
+					it->second.exposed = false;
 				}
 				else
-					Addons.erase(It);
+					addons.erase(it);
 			}
 			else
 			{
-				Addon Result;
-				Result.Dependencies = Dependencies;
-				Result.Callback = std::move(Callback);
-				Addons.insert({ Core::String(Name), std::move(Result) });
+				addon result;
+				result.dependencies = dependencies;
+				result.callback = std::move(callback);
+				addons.insert({ core::string(name), std::move(result) });
 			}
 
-			if (Name == "*")
+			if (name == "*")
 				return true;
 
-			auto& Lists = Addons["*"];
-			Lists.Dependencies.push_back(Core::String(Name));
-			Lists.Exposed = false;
+			auto& lists = addons["*"];
+			lists.dependencies.push_back(core::string(name));
+			lists.exposed = false;
 			return true;
 		}
-		ExpectsVM<void> VirtualMachine::ImportFile(const std::string_view& Path, bool IsRemote, Core::String& Output)
+		expects_vm<void> virtual_machine::import_file(const std::string_view& path, bool is_remote, core::string& output)
 		{
-			if (!IsRemote)
+			if (!is_remote)
 			{
-				if (!Core::OS::File::IsExists(Path))
-					return VirtualException("file not found: " + Core::String(Path));
+				if (!core::os::file::is_exists(path))
+					return virtual_exception("file not found: " + core::string(path));
 
-				if (!Core::Stringify::EndsWith(Path, ".as"))
-					return ImportAddon(Path);
+				if (!core::stringify::ends_with(path, ".as"))
+					return import_addon(path);
 			}
 
-			if (!SaveCache)
+			if (!save_cache)
 			{
-				auto Data = Core::OS::File::ReadAsString(Path);
-				if (!Data)
-					return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Core::String(Path));
+				auto data = core::os::file::read_as_string(path);
+				if (!data)
+					return virtual_exception(core::copy<core::string>(data.error().message()) + ": " + core::string(path));
 
-				Output.assign(*Data);
-				return Core::Expectation::Met;
+				output.assign(*data);
+				return core::expectation::met;
 			}
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Files.find(Core::KeyLookupCast(Path));
-			if (It != Files.end())
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = files.find(core::key_lookup_cast(path));
+			if (it != files.end())
 			{
-				Output.assign(It->second);
-				return Core::Expectation::Met;
+				output.assign(it->second);
+				return core::expectation::met;
 			}
 
-			Unique.Negate();
-			auto Data = Core::OS::File::ReadAsString(Path);
-			if (!Data)
-				return VirtualException(Core::Copy<Core::String>(Data.Error().message()) + ": " + Core::String(Path));
+			unique.negate();
+			auto data = core::os::file::read_as_string(path);
+			if (!data)
+				return virtual_exception(core::copy<core::string>(data.error().message()) + ": " + core::string(path));
 
-			Output.assign(*Data);
-			Unique.Negate();
-			Files.insert(std::make_pair(Path, Output));
-			return Core::Expectation::Met;
+			output.assign(*data);
+			unique.negate();
+			files.insert(std::make_pair(path, output));
+			return core::expectation::met;
 		}
-		ExpectsVM<void> VirtualMachine::ImportCFunction(const Core::Vector<Core::String>& Sources, const std::string_view& Func, const std::string_view& Decl)
+		expects_vm<void> virtual_machine::import_cfunction(const core::vector<core::string>& sources, const std::string_view& func, const std::string_view& decl)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Func), "func should be set");
-			VI_ASSERT(Core::Stringify::IsCString(Decl), "decl should be set");
-			if (!Engine || Decl.empty() || Func.empty())
-				return VirtualException("import cfunction: invalid argument");
+			VI_ASSERT(core::stringify::is_cstring(func), "func should be set");
+			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
+			if (!engine || decl.empty() || func.empty())
+				return virtual_exception("import cfunction: invalid argument");
 
-			auto LoadFunction = [this, &Func, &Decl](CLibrary& Context) -> ExpectsVM<void>
+			auto load_function = [this, &func, &decl](clibrary& context) -> expects_vm<void>
 			{
-				auto Handle = Context.Functions.find(Core::KeyLookupCast(Func));
-				if (Handle != Context.Functions.end())
-					return Core::Expectation::Met;
+				auto handle = context.functions.find(core::key_lookup_cast(func));
+				if (handle != context.functions.end())
+					return core::expectation::met;
 
-				auto FunctionHandle = Core::OS::Symbol::LoadFunction(Context.Handle, Func);
-				if (!FunctionHandle)
-					return VirtualException(Core::Copy<Core::String>(FunctionHandle.Error().message()) + ": " + Core::String(Func));
+				auto function_handle = core::os::symbol::load_function(context.handle, func);
+				if (!function_handle)
+					return virtual_exception(core::copy<core::string>(function_handle.error().message()) + ": " + core::string(func));
 
-				FunctionPtr Function = (FunctionPtr)*FunctionHandle;
-				if (!Function)
-					return VirtualException("cfunction not found: " + Core::String(Func));
+				function_ptr function = (function_ptr)*function_handle;
+				if (!function)
+					return virtual_exception("cfunction not found: " + core::string(func));
 #ifdef VI_ANGELSCRIPT
-				VI_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)Decl.size(), (void*)Function);
-				int Result = Engine->RegisterGlobalFunction(Decl.data(), asFUNCTION(Function), asCALL_CDECL);
-				if (Result < 0)
-					return VirtualException((VirtualError)Result, "register cfunction error: " + Core::String(Func));
+				VI_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)decl.size(), (void*)function);
+				int result = engine->RegisterGlobalFunction(decl.data(), asFUNCTION(function), asCALL_CDECL);
+				if (result < 0)
+					return virtual_exception((virtual_error)result, "register cfunction error: " + core::string(func));
 
-				Context.Functions.insert({ Core::String(Func), { Core::String(Decl), (void*)Function } });
-				VI_DEBUG("[vm] load function %.*s", (int)Func.size(), Func.data());
-				return Core::Expectation::Met;
+				context.functions.insert({ core::string(func), { core::string(decl), (void*)function } });
+				VI_DEBUG("[vm] load function %.*s", (int)func.size(), func.data());
+				return core::expectation::met;
 #else
 				(void)this;
-				(void)Decl;
-				return VirtualException("cfunction not found: not supported");
+				(void)decl;
+				return virtual_exception("cfunction not found: not supported");
 #endif
 			};
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = CLibraries.end();
-			for (auto& Item : Sources)
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = clibraries.end();
+			for (auto& item : sources)
 			{
-				It = CLibraries.find(Item);
-				if (It != CLibraries.end())
+				it = clibraries.find(item);
+				if (it != clibraries.end())
 					break;
 			}
 
-			if (It != CLibraries.end())
-				return LoadFunction(It->second);
+			if (it != clibraries.end())
+				return load_function(it->second);
 
-			for (auto& Item : CLibraries)
+			for (auto& item : clibraries)
 			{
-				auto Status = LoadFunction(Item.second);
-				if (Status)
-					return Status;
+				auto status = load_function(item.second);
+				if (status)
+					return status;
 			}
 
-			return VirtualException("cfunction not found: " + Core::String(Func));
+			return virtual_exception("cfunction not found: " + core::string(func));
 		}
-		ExpectsVM<void> VirtualMachine::ImportCLibrary(const std::string_view& Path, bool IsAddon)
+		expects_vm<void> virtual_machine::import_clibrary(const std::string_view& path, bool is_addon)
 		{
-			auto Name = GetLibraryName(Path);
-			if (!Engine)
-				return VirtualException("import clibrary: invalid argument");
+			auto name = get_library_name(path);
+			if (!engine)
+				return virtual_exception("import clibrary: invalid argument");
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto Core = CLibraries.find(Core::KeyLookupCast(Name));
-			if (Core != CLibraries.end())
-				return Core::Expectation::Met;
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto core = clibraries.find(core::key_lookup_cast(name));
+			if (core != clibraries.end())
+				return core::expectation::met;
 
-			Unique.Negate();
-			auto Handle = Core::OS::Symbol::Load(Path);
-			if (!Handle)
-				return VirtualException(Core::Copy<Core::String>(Handle.Error().message()) + ": " + Core::String(Path));
+			unique.negate();
+			auto handle = core::os::symbol::load(path);
+			if (!handle)
+				return virtual_exception(core::copy<core::string>(handle.error().message()) + ": " + core::string(path));
 
-			CLibrary Library;
-			Library.Handle = *Handle;
-			Library.IsAddon = IsAddon;
+			clibrary library;
+			library.handle = *handle;
+			library.is_addon = is_addon;
 
-			if (Library.IsAddon)
+			if (library.is_addon)
 			{
-				auto Status = InitializeAddon(Name, Library);
-				if (!Status)
+				auto status = initialize_addon(name, library);
+				if (!status)
 				{
-					UninitializeAddon(Name, Library);
-					Core::OS::Symbol::Unload(*Handle);
-					return Status;
+					uninitialize_addon(name, library);
+					core::os::symbol::unload(*handle);
+					return status;
 				}
 			}
 
-			Unique.Negate();
-			CLibraries.insert({ Core::String(Name), std::move(Library) });
-			VI_DEBUG("[vm] load library %.*s", (int)Path.size(), Path.data());
-			return Core::Expectation::Met;
+			unique.negate();
+			clibraries.insert({ core::string(name), std::move(library) });
+			VI_DEBUG("[vm] load library %.*s", (int)path.size(), path.data());
+			return core::expectation::met;
 		}
-		ExpectsVM<void> VirtualMachine::ImportSystemAddon(const std::string_view& Name)
+		expects_vm<void> virtual_machine::import_system_addon(const std::string_view& name)
 		{
-			if (!Core::OS::Control::Has(Core::AccessOption::Addons))
-				return VirtualException("import system addon: denied");
+			if (!core::os::control::has(core::access_option::addons))
+				return virtual_exception("import system addon: denied");
 
-			Core::String Target = Core::String(Name);
-			if (Core::Stringify::EndsWith(Target, ".as"))
-				Target = Target.substr(0, Target.size() - 3);
+			core::string target = core::string(name);
+			if (core::stringify::ends_with(target, ".as"))
+				target = target.substr(0, target.size() - 3);
 
-			Core::UMutex<std::recursive_mutex> Unique(Sync.General);
-			auto It = Addons.find(Target);
-			if (It == Addons.end())
-				return VirtualException("system addon not found: " + Core::String(Name));
+			core::umutex<std::recursive_mutex> unique(sync.general);
+			auto it = addons.find(target);
+			if (it == addons.end())
+				return virtual_exception("system addon not found: " + core::string(name));
 
-			if (It->second.Exposed)
-				return Core::Expectation::Met;
+			if (it->second.exposed)
+				return core::expectation::met;
 
-			Addon Base = It->second;
-			It->second.Exposed = true;
-			Unique.Negate();
+			addon base = it->second;
+			it->second.exposed = true;
+			unique.negate();
 
-			for (auto& Item : Base.Dependencies)
+			for (auto& item : base.dependencies)
 			{
-				auto Status = ImportSystemAddon(Item);
-				if (!Status)
-					return Status;
+				auto status = import_system_addon(item);
+				if (!status)
+					return status;
 			}
 
-			if (Base.Callback)
-				Base.Callback(this);
+			if (base.callback)
+				base.callback(this);
 
-			VI_DEBUG("[vm] load system addon %.*s", (int)Name.size(), Name.data());
-			return Core::Expectation::Met;
+			VI_DEBUG("[vm] load system addon %.*s", (int)name.size(), name.data());
+			return core::expectation::met;
 		}
-		ExpectsVM<void> VirtualMachine::ImportAddon(const std::string_view& Name)
+		expects_vm<void> virtual_machine::import_addon(const std::string_view& name)
 		{
-			return ImportCLibrary(Name, true);
+			return import_clibrary(name, true);
 		}
-		ExpectsVM<void> VirtualMachine::InitializeAddon(const std::string_view& Path, CLibrary& Library)
+		expects_vm<void> virtual_machine::initialize_addon(const std::string_view& path, clibrary& library)
 		{
-			auto ViInitializeHandle = Core::OS::Symbol::LoadFunction(Library.Handle, "ViInitialize");
-			if (!ViInitializeHandle)
-				return VirtualException("import user addon: no initialization routine (path = " + Core::String(Path) + ")");
+			auto vi_initialize_handle = core::os::symbol::load_function(library.handle, "vi_initialize");
+			if (!vi_initialize_handle)
+				return virtual_exception("import user addon: no initialization routine (path = " + core::string(path) + ")");
 
-			auto ViInitialize = (int(*)(VirtualMachine*))*ViInitializeHandle;
-			if (!ViInitialize)
-				return VirtualException("import user addon: no initialization routine (path = " + Core::String(Path) + ")");
+			auto vi_initialize = (int(*)(virtual_machine*)) * vi_initialize_handle;
+			if (!vi_initialize)
+				return virtual_exception("import user addon: no initialization routine (path = " + core::string(path) + ")");
 
-			int Code = ViInitialize(this);
-			if (Code != 0)
-				return VirtualException("import user addon: initialization failed (path = " + Core::String(Path) + ", exit = " + Core::ToString(Code) + ")");
+			int code = vi_initialize(this);
+			if (code != 0)
+				return virtual_exception("import user addon: initialization failed (path = " + core::string(path) + ", exit = " + core::to_string(code) + ")");
 
-			VI_DEBUG("[vm] addon library %.*s initializated", (int)Path.size(), Path.data());
-			Library.Functions.insert({ "ViInitialize", { Core::String(), (void*)ViInitialize } });
-			return Core::Expectation::Met;
+			VI_DEBUG("[vm] addon library %.*s initializated", (int)path.size(), path.data());
+			library.functions.insert({ "vi_initialize", { core::string(), (void*)vi_initialize } });
+			return core::expectation::met;
 		}
-		void VirtualMachine::UninitializeAddon(const std::string_view& Name, CLibrary& Library)
+		void virtual_machine::uninitialize_addon(const std::string_view& name, clibrary& library)
 		{
-			auto ViUninitializeHandle = Core::OS::Symbol::LoadFunction(Library.Handle, "ViUninitialize");
-			if (!ViUninitializeHandle)
+			auto vi_uninitialize_handle = core::os::symbol::load_function(library.handle, "vi_uninitialize");
+			if (!vi_uninitialize_handle)
 				return;
 
-			auto ViUninitialize = (void(*)(VirtualMachine*))*ViUninitializeHandle;
-			if (ViUninitialize != nullptr)
+			auto vi_uninitialize = (void(*)(virtual_machine*)) * vi_uninitialize_handle;
+			if (vi_uninitialize != nullptr)
 			{
-				Library.Functions.insert({ "ViUninitialize", { Core::String(), (void*)ViUninitialize } });
-				ViUninitialize(this);
+				library.functions.insert({ "vi_uninitialize", { core::string(), (void*)vi_uninitialize } });
+				vi_uninitialize(this);
 			}
 		}
-		Core::Option<Core::String> VirtualMachine::GetSourceCodeAppendix(const std::string_view& Label, const std::string_view& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
+		core::option<core::string> virtual_machine::get_source_code_appendix(const std::string_view& label, const std::string_view& code, uint32_t line_number, uint32_t column_number, size_t max_lines)
 		{
-			if (MaxLines % 2 == 0)
-				++MaxLines;
+			if (max_lines % 2 == 0)
+				++max_lines;
 
-			Core::Vector<Core::String> Lines = ExtractLinesOfCode(Code, (int)LineNumber, (int)MaxLines);
-			if (Lines.empty())
-				return Core::Optional::None;
+			core::vector<core::string> lines = extract_lines_of_code(code, (int)line_number, (int)max_lines);
+			if (lines.empty())
+				return core::optional::none;
 
-			Core::String Line = Lines.front();
-			Lines.erase(Lines.begin());
-			if (Line.empty())
-				return Core::Optional::None;
+			core::string line = lines.front();
+			lines.erase(lines.begin());
+			if (line.empty())
+				return core::optional::none;
 
-			Core::StringStream Stream;
-			size_t TopLines = (Lines.size() % 2 != 0 ? 1 : 0) + Lines.size() / 2;
-			size_t TopLine = TopLines < LineNumber ? LineNumber - TopLines - 1 : LineNumber;
-			Stream << "\n  last " << (Lines.size() + 1) << " lines of " << Label << " code\n";
+			core::string_stream stream;
+			size_t top_lines = (lines.size() % 2 != 0 ? 1 : 0) + lines.size() / 2;
+			size_t top_line = top_lines < line_number ? line_number - top_lines - 1 : line_number;
+			stream << "\n  last " << (lines.size() + 1) << " lines of " << label << " code\n";
 
-			for (size_t i = 0; i < TopLines; i++)
-				Stream << "  " << TopLine++ << "  " << Core::Stringify::TrimEnd(Lines[i]) << "\n";
-			Stream << "  " << TopLine++ << "  " << Core::Stringify::TrimEnd(Line) << "\n  ";
+			for (size_t i = 0; i < top_lines; i++)
+				stream << "  " << top_line++ << "  " << core::stringify::trim_end(lines[i]) << "\n";
+			stream << "  " << top_line++ << "  " << core::stringify::trim_end(line) << "\n  ";
 
-			ColumnNumber += 1 + (uint32_t)Core::ToString(LineNumber).size();
-			for (uint32_t i = 0; i < ColumnNumber; i++)
-				Stream << " ";
-			Stream << "^";
+			column_number += 1 + (uint32_t)core::to_string(line_number).size();
+			for (uint32_t i = 0; i < column_number; i++)
+				stream << " ";
+			stream << "^";
 
-			for (size_t i = TopLines; i < Lines.size(); i++)
-				Stream << "\n  " << TopLine++ << "  " << Core::Stringify::TrimEnd(Lines[i]);
+			for (size_t i = top_lines; i < lines.size(); i++)
+				stream << "\n  " << top_line++ << "  " << core::stringify::trim_end(lines[i]);
 
-			return Stream.str();
+			return stream.str();
 		}
-		Core::Option<Core::String> VirtualMachine::GetSourceCodeAppendixByPath(const std::string_view& Label, const std::string_view& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines)
+		core::option<core::string> virtual_machine::get_source_code_appendix_by_path(const std::string_view& label, const std::string_view& path, uint32_t line_number, uint32_t column_number, size_t max_lines)
 		{
-			auto Code = GetScriptSection(Path);
-			if (!Code)
-				return Code;
+			auto code = get_script_section(path);
+			if (!code)
+				return code;
 
-			return GetSourceCodeAppendix(Label, *Code, LineNumber, ColumnNumber, MaxLines);
+			return get_source_code_appendix(label, *code, line_number, column_number, max_lines);
 		}
-		size_t VirtualMachine::GetProperty(Features Property) const
+		size_t virtual_machine::get_property(features property) const
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
+			return (size_t)engine->GetEngineProperty((asEEngineProp)property);
 #else
 			return 0;
 #endif
 		}
-		asIScriptEngine* VirtualMachine::GetEngine() const
+		asIScriptEngine* virtual_machine::get_engine() const
 		{
-			return Engine;
+			return engine;
 		}
-		DebuggerContext* VirtualMachine::GetDebugger() const
+		debugger_context* virtual_machine::get_debugger() const
 		{
-			return Debugger;
+			return debugger;
 		}
-		void VirtualMachine::Cleanup()
+		void virtual_machine::cleanup()
 		{
-			TypeCache::Cleanup();
-			CleanupThisThread();
+			type_cache::cleanup();
+			cleanup_this_thread();
 		}
-		VirtualMachine* VirtualMachine::Get(asIScriptEngine* Engine)
+		virtual_machine* virtual_machine::get(asIScriptEngine* engine)
 		{
-			VI_ASSERT(Engine != nullptr, "engine should be set");
+			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
-			void* VM = Engine->GetUserData(ManagerUD);
-			VI_ASSERT(VM != nullptr, "engine should be created by virtual machine");
-			return (VirtualMachine*)VM;
+			void* vm = engine->GetUserData(manager_ud);
+			VI_ASSERT(vm != nullptr, "engine should be created by virtual machine");
+			return (virtual_machine*)vm;
 #else
 			return nullptr;
 #endif
 		}
-		VirtualMachine* VirtualMachine::Get()
+		virtual_machine* virtual_machine::get()
 		{
 #ifdef VI_ANGELSCRIPT
-			asIScriptContext* Context = asGetActiveContext();
-			if (!Context)
+			asIScriptContext* context = asGetActiveContext();
+			if (!context)
 				return nullptr;
 
-			return Get(Context->GetEngine());
+			return get(context->GetEngine());
 #else
 			return nullptr;
 #endif
 		}
-		std::string_view VirtualMachine::GetLibraryName(const std::string_view& Path)
+		std::string_view virtual_machine::get_library_name(const std::string_view& path)
 		{
-			if (Path.empty())
-				return Path;
+			if (path.empty())
+				return path;
 
-			Core::TextSettle Start = Core::Stringify::ReverseFindOf(Path, "\\/");
-			if (!Start.Found)
-				return Path;
+			core::text_settle start = core::stringify::reverse_find_of(path, "\\/");
+			if (!start.found)
+				return path;
 
-			return Path.substr(Start.End);
+			return path.substr(start.end);
 		}
-		ImmediateContext* VirtualMachine::RequestContext()
+		immediate_context* virtual_machine::request_context()
 		{
-			Core::UMutex<std::recursive_mutex> Unique(Sync.Pool);
-			if (Threads.empty())
+			core::umutex<std::recursive_mutex> unique(sync.pool);
+			if (threads.empty())
 			{
-				Unique.Negate();
-				return CreateContext();
+				unique.negate();
+				return create_context();
 			}
 
-			ImmediateContext* Context = *Threads.rbegin();
-			Threads.pop_back();
-			return Context;
+			immediate_context* context = *threads.rbegin();
+			threads.pop_back();
+			return context;
 		}
-		void VirtualMachine::ReturnContext(ImmediateContext* Context)
+		void virtual_machine::return_context(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			Core::UMutex<std::recursive_mutex> Unique(Sync.Pool);
-			Threads.push_back(Context);
-			Context->Reset();
+			VI_ASSERT(context != nullptr, "context should be set");
+			core::umutex<std::recursive_mutex> unique(sync.pool);
+			threads.push_back(context);
+			context->reset();
 		}
-		asIScriptContext* VirtualMachine::RequestRawContext(asIScriptEngine* Engine, void* Data)
+		asIScriptContext* virtual_machine::request_raw_context(asIScriptEngine* engine, void* data)
 		{
 #ifdef VI_ANGELSCRIPT
-			VirtualMachine* VM = VirtualMachine::Get(Engine);
-			if (!VM || VM->Stacks.empty())
-				return Engine->CreateContext();
+			virtual_machine* vm = virtual_machine::get(engine);
+			if (!vm || vm->stacks.empty())
+				return engine->CreateContext();
 
-			Core::UMutex<std::recursive_mutex> Unique(VM->Sync.Pool);
-			if (VM->Stacks.empty())
+			core::umutex<std::recursive_mutex> unique(vm->sync.pool);
+			if (vm->stacks.empty())
 			{
-				Unique.Negate();
-				return Engine->CreateContext();
+				unique.negate();
+				return engine->CreateContext();
 			}
 
-			asIScriptContext* Context = *VM->Stacks.rbegin();
-			VM->Stacks.pop_back();
-			return Context;
+			asIScriptContext* context = *vm->stacks.rbegin();
+			vm->stacks.pop_back();
+			return context;
 #else
 			return nullptr;
 #endif
 		}
-		void VirtualMachine::ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
+		void virtual_machine::return_raw_context(asIScriptEngine* engine, asIScriptContext* context, void* data)
 		{
 #ifdef VI_ANGELSCRIPT
-			VirtualMachine* VM = VirtualMachine::Get(Engine);
-			VI_ASSERT(VM != nullptr, "engine should be set");
+			virtual_machine* vm = virtual_machine::get(engine);
+			VI_ASSERT(vm != nullptr, "engine should be set");
 
-			Core::UMutex<std::recursive_mutex> Unique(VM->Sync.Pool);
-			VM->Stacks.push_back(Context);
-			Context->Unprepare();
+			core::umutex<std::recursive_mutex> unique(vm->sync.pool);
+			vm->stacks.push_back(context);
+			context->Unprepare();
 #endif
 		}
-		void VirtualMachine::LineHandler(asIScriptContext* Context, void*)
+		void virtual_machine::line_handler(asIScriptContext* context, void*)
 		{
-			ImmediateContext* Base = ImmediateContext::Get(Context);
-			VI_ASSERT(Base != nullptr, "context should be set");
-			VI_ASSERT(Base->Callbacks.Line != nullptr, "callback should be set");
-			Base->Callbacks.Line(Base);
+			immediate_context* base = immediate_context::get(context);
+			VI_ASSERT(base != nullptr, "context should be set");
+			VI_ASSERT(base->callbacks.line != nullptr, "callback should be set");
+			base->callbacks.line(base);
 		}
-		void VirtualMachine::ExceptionHandler(asIScriptContext* Context, void*)
+		void virtual_machine::exception_handler(asIScriptContext* context, void*)
 		{
 #ifdef VI_ANGELSCRIPT
-			ImmediateContext* Base = ImmediateContext::Get(Context);
-			VI_ASSERT(Base != nullptr, "context should be set");
+			immediate_context* base = immediate_context::get(context);
+			VI_ASSERT(base != nullptr, "context should be set");
 
-			VirtualMachine* VM = Base->GetVM();
-			if (VM->Debugger != nullptr)
-				return VM->Debugger->ThrowInternalException(Context->GetExceptionString());
+			virtual_machine* vm = base->get_vm();
+			if (vm->debugger != nullptr)
+				return vm->debugger->throw_internal_exception(context->GetExceptionString());
 
-			const char* Message = Context->GetExceptionString();
-			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
+			const char* message = context->GetExceptionString();
+			if (message && message[0] != '\0' && !context->WillExceptionBeCaught())
 			{
-				Core::String Details = Bindings::Exception::Pointer(Core::String(Message)).What();
-				Core::String Trace = Core::ErrorHandling::GetStackTrace(1, 64);
-				VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", Details.empty() ? "unknown" : Details.c_str(), (int)Trace.size(), Trace.c_str());
-				Core::UMutex<std::recursive_mutex> Unique(Base->Exchange);
-				Base->Executor.Stacktrace = Trace;
-				Unique.Negate();
+				core::string details = bindings::exception::pointer(core::string(message)).what();
+				core::string trace = core::error_handling::get_stack_trace(1, 64);
+				VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", details.empty() ? "unknown" : details.c_str(), (int)trace.size(), trace.c_str());
+				core::umutex<std::recursive_mutex> unique(base->exchange);
+				base->executor.stacktrace = trace;
+				unique.negate();
 
-				if (Base->Callbacks.Exception)
-					Base->Callbacks.Exception(Base);
-				else if (VM->GlobalException)
-					VM->GlobalException(Base);
+				if (base->callbacks.exception)
+					base->callbacks.exception(base);
+				else if (vm->global_exception)
+					vm->global_exception(base);
 			}
-			else if (Base->Callbacks.Exception)
-				Base->Callbacks.Exception(Base);
-			else if (VM->GlobalException)
-				VM->GlobalException(Base);
+			else if (base->callbacks.exception)
+				base->callbacks.exception(base);
+			else if (vm->global_exception)
+				vm->global_exception(base);
 #endif
 		}
-		void VirtualMachine::SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*))
+		void virtual_machine::set_memory_functions(void* (*alloc)(size_t), void(*free)(void*))
 		{
 #ifdef VI_ANGELSCRIPT
-			asSetGlobalMemoryFunctions(Alloc, Free);
+			asSetGlobalMemoryFunctions(alloc, free);
 #endif
 		}
-		void VirtualMachine::CleanupThisThread()
+		void virtual_machine::cleanup_this_thread()
 		{
 #ifdef VI_ANGELSCRIPT
 			asThreadCleanup();
 #endif
 		}
-		std::string_view VirtualMachine::GetErrorNameInfo(VirtualError Code)
+		std::string_view virtual_machine::get_error_name_info(virtual_error code)
 		{
-			switch (Code)
+			switch (code)
 			{
-				case VirtualError::SUCCESS:
+				case virtual_error::success:
 					return "OK";
-				case VirtualError::ERR:
+				case virtual_error::err:
 					return "invalid operation";
-				case VirtualError::CONTEXT_ACTIVE:
+				case virtual_error::context_active:
 					return "context is in use";
-				case VirtualError::CONTEXT_NOT_FINISHED:
+				case virtual_error::context_not_finished:
 					return "context is not finished";
-				case VirtualError::CONTEXT_NOT_PREPARED:
+				case virtual_error::context_not_prepared:
 					return "context is not prepared";
-				case VirtualError::INVALID_ARG:
+				case virtual_error::invalid_arg:
 					return "invalid argument";
-				case VirtualError::NO_FUNCTION:
+				case virtual_error::no_function:
 					return "function not found";
-				case VirtualError::NOT_SUPPORTED:
+				case virtual_error::not_supported:
 					return "operation not supported";
-				case VirtualError::INVALID_NAME:
+				case virtual_error::invalid_name:
 					return "invalid name argument";
-				case VirtualError::NAME_TAKEN:
+				case virtual_error::name_taken:
 					return "name is in use";
-				case VirtualError::INVALID_DECLARATION:
+				case virtual_error::invalid_declaration:
 					return "invalid code declaration";
-				case VirtualError::INVALID_OBJECT:
+				case virtual_error::invalid_object:
 					return "invalid object argument";
-				case VirtualError::INVALID_TYPE:
+				case virtual_error::invalid_type:
 					return "invalid type argument";
-				case VirtualError::ALREADY_REGISTERED:
+				case virtual_error::already_registered:
 					return "type is already registered";
-				case VirtualError::MULTIPLE_FUNCTIONS:
+				case virtual_error::multiple_functions:
 					return "function overload is not deducible";
-				case VirtualError::NO_MODULE:
+				case virtual_error::no_module:
 					return "module not found";
-				case VirtualError::NO_GLOBAL_VAR:
+				case virtual_error::no_global_var:
 					return "global variable not found";
-				case VirtualError::INVALID_CONFIGURATION:
+				case virtual_error::invalid_configuration:
 					return "invalid configuration state";
-				case VirtualError::INVALID_INTERFACE:
+				case virtual_error::invalid_interface:
 					return "invalid interface type";
-				case VirtualError::CANT_BIND_ALL_FUNCTIONS:
+				case virtual_error::cant_bind_all_functions:
 					return "function binding failed";
-				case VirtualError::LOWER_ARRAY_DIMENSION_NOT_REGISTERED:
+				case virtual_error::lower_array_dimension_not_registered:
 					return "lower array dimension not registered";
-				case VirtualError::WRONG_CONFIG_GROUP:
+				case virtual_error::wrong_config_group:
 					return "invalid configuration group";
-				case VirtualError::CONFIG_GROUP_IS_IN_USE:
+				case virtual_error::config_group_is_in_use:
 					return "configuration group is in use";
-				case VirtualError::ILLEGAL_BEHAVIOUR_FOR_TYPE:
+				case virtual_error::illegal_behaviour_for_type:
 					return "illegal type behaviour configuration";
-				case VirtualError::WRONG_CALLING_CONV:
+				case virtual_error::wrong_calling_conv:
 					return "illegal function calling convention";
-				case VirtualError::BUILD_IN_PROGRESS:
+				case virtual_error::build_in_progress:
 					return "program compiler is in use";
-				case VirtualError::INIT_GLOBAL_VARS_FAILED:
+				case virtual_error::init_global_vars_failed:
 					return "global variable initialization failed";
-				case VirtualError::OUT_OF_MEMORY:
+				case virtual_error::out_of_memory:
 					return "out of memory";
-				case VirtualError::MODULE_IS_IN_USE:
+				case virtual_error::module_is_in_use:
 					return "module is in use";
 				default:
 					return "internal operation failed";
 			}
 		}
-		ByteCodeLabel VirtualMachine::GetByteCodeInfo(uint8_t Code)
+		byte_code_label virtual_machine::get_byte_code_info(uint8_t code)
 		{
 #ifdef VI_ANGELSCRIPT
-			auto& Source = asBCInfo[Code];
-			ByteCodeLabel Label;
-			Label.Name = Source.name;
-			Label.Code = (uint8_t)Source.bc;
-			Label.Size = asBCTypeSize[Source.type];
-			Label.OffsetOfStack = Source.stackInc;
-			Label.SizeOfArg0 = 0;
-			Label.SizeOfArg1 = 0;
-			Label.SizeOfArg2 = 0;
+			auto& source = asBCInfo[code];
+			byte_code_label label;
+			label.name = source.name;
+			label.code = (uint8_t)source.bc;
+			label.size = asBCTypeSize[source.type];
+			label.offset_of_stack = source.stackInc;
+			label.size_of_arg0 = 0;
+			label.size_of_arg1 = 0;
+			label.size_of_arg2 = 0;
 
-			switch (Source.type)
+			switch (source.type)
 			{
 				case asBCTYPE_W_ARG:
 				case asBCTYPE_wW_ARG:
 				case asBCTYPE_rW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asWORD);
 					break;
 				case asBCTYPE_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asDWORD);
+					label.size_of_arg0 = sizeof(asDWORD);
 					break;
 				case asBCTYPE_wW_DW_ARG:
 				case asBCTYPE_rW_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asDWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asDWORD);
 					break;
 				case asBCTYPE_QW_ARG:
-					Label.SizeOfArg0 = sizeof(asQWORD);
+					label.size_of_arg0 = sizeof(asQWORD);
 					break;
 				case asBCTYPE_DW_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asDWORD);
-					Label.SizeOfArg1 = sizeof(asDWORD);
+					label.size_of_arg0 = sizeof(asDWORD);
+					label.size_of_arg1 = sizeof(asDWORD);
 					break;
 				case asBCTYPE_wW_rW_rW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asWORD);
-					Label.SizeOfArg2 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asWORD);
+					label.size_of_arg2 = sizeof(asWORD);
 					break;
 				case asBCTYPE_wW_QW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asQWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asQWORD);
 					break;
 				case asBCTYPE_wW_rW_ARG:
 				case asBCTYPE_rW_rW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg0 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asWORD);
 					break;
 				case asBCTYPE_wW_rW_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asWORD);
-					Label.SizeOfArg2 = sizeof(asDWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asWORD);
+					label.size_of_arg2 = sizeof(asDWORD);
 					break;
 				case asBCTYPE_QW_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asQWORD);
-					Label.SizeOfArg1 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asQWORD);
+					label.size_of_arg1 = sizeof(asWORD);
 					break;
 				case asBCTYPE_rW_QW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asQWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asQWORD);
 					break;
 				case asBCTYPE_W_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asWORD);
 					break;
 				case asBCTYPE_rW_W_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asWORD);
 					break;
 				case asBCTYPE_rW_DW_DW_ARG:
-					Label.SizeOfArg0 = sizeof(asWORD);
-					Label.SizeOfArg1 = sizeof(asDWORD);
-					Label.SizeOfArg2 = sizeof(asDWORD);
+					label.size_of_arg0 = sizeof(asWORD);
+					label.size_of_arg1 = sizeof(asDWORD);
+					label.size_of_arg2 = sizeof(asDWORD);
 					break;
 				default:
 					break;
 			}
 
-			Label.OffsetOfArg0 = 1;
-			Label.OffsetOfArg1 = Label.OffsetOfArg0 + Label.SizeOfArg0;
-			Label.OffsetOfArg2 = Label.OffsetOfArg1 + Label.SizeOfArg1;
-			return Label;
+			label.offset_of_arg0 = 1;
+			label.offset_of_arg1 = label.offset_of_arg0 + label.size_of_arg0;
+			label.offset_of_arg2 = label.offset_of_arg1 + label.size_of_arg1;
+			return label;
 #else
-			return ByteCodeLabel();
+			return byte_code_label();
 #endif
 		}
-		void VirtualMachine::MessageLogger(asSMessageInfo* Info, void* This)
+		void virtual_machine::message_logger(asSMessageInfo* info, void* this_engine)
 		{
 #ifdef VI_ANGELSCRIPT
-			VirtualMachine* Engine = (VirtualMachine*)This;
-			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "?");
-			if (Engine->WhenError)
-				Engine->WhenError();
+			virtual_machine* engine = (virtual_machine*)this_engine;
+			const char* section = (info->section && info->section[0] != '\0' ? info->section : "?");
+			if (engine->when_error)
+				engine->when_error();
 
-			auto SourceCode = Engine->GetSourceCodeAppendixByPath("error", Section, Info->row, Info->col, 5);
-			if (Engine != nullptr && !Engine->Callbacks.empty())
+			auto source_code = engine->get_source_code_appendix_by_path("error", section, info->row, info->col, 5);
+			if (engine != nullptr && !engine->callbacks.empty())
 			{
-				auto It = Engine->Callbacks.find(Section);
-				if (It != Engine->Callbacks.end())
+				auto it = engine->callbacks.find(section);
+				if (it != engine->callbacks.end())
 				{
-					if (Info->type == asMSGTYPE_WARNING)
-						return It->second(Core::Stringify::Text("WARN %i: %s%s", Info->row, Info->message, SourceCode ? SourceCode->c_str() : ""));
-					else if (Info->type == asMSGTYPE_INFORMATION)
-						return It->second(Core::Stringify::Text("INFO %s", Info->message));
+					if (info->type == asMSGTYPE_WARNING)
+						return it->second(core::stringify::text("WARN %i: %s%s", info->row, info->message, source_code ? source_code->c_str() : ""));
+					else if (info->type == asMSGTYPE_INFORMATION)
+						return it->second(core::stringify::text("INFO %s", info->message));
 
-					return It->second(Core::Stringify::Text("ERR %i: %s%s", Info->row, Info->message, SourceCode ? SourceCode->c_str() : ""));
+					return it->second(core::stringify::text("ERR %i: %s%s", info->row, info->message, source_code ? source_code->c_str() : ""));
 				}
 			}
 
-			if (Info->type == asMSGTYPE_WARNING)
-				VI_WARN("[asc] %s:%i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
-			else if (Info->type == asMSGTYPE_INFORMATION)
-				VI_INFO("[asc] %s", Info->message);
-			else if (Info->type == asMSGTYPE_ERROR)
-				VI_ERR("[asc] %s: %i: %s%s", Section, Info->row, Info->message, SourceCode ? SourceCode->c_str() : "");
+			if (info->type == asMSGTYPE_WARNING)
+				VI_WARN("[asc] %s:%i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
+			else if (info->type == asMSGTYPE_INFORMATION)
+				VI_INFO("[asc] %s", info->message);
+			else if (info->type == asMSGTYPE_ERROR)
+				VI_ERR("[asc] %s: %i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
 #endif
 		}
-		size_t VirtualMachine::GetDefaultAccessMask()
+		size_t virtual_machine::get_default_access_mask()
 		{
 			return 0xFFFFFFFF;
 		}
-		void* VirtualMachine::GetNullable()
+		void* virtual_machine::get_nullable()
 		{
 			return nullptr;
 		}
-		int VirtualMachine::ManagerUD = 553;
+		int virtual_machine::manager_ud = 553;
 
-		EventLoop::Callable::Callable(ImmediateContext* NewContext) noexcept : Context(NewContext)
+		event_loop::callable::callable(immediate_context* new_context) noexcept : context(new_context)
 		{
 		}
-		EventLoop::Callable::Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept : Delegate(std::move(NewDelegate)), OnArgs(std::move(NewOnArgs)), OnReturn(std::move(NewOnReturn)), Context(NewContext)
+		event_loop::callable::callable(immediate_context* new_context, function_delegate&& new_delegate, args_callback&& new_on_args, args_callback&& new_on_return) noexcept : delegatef(std::move(new_delegate)), on_args(std::move(new_on_args)), on_return(std::move(new_on_return)), context(new_context)
 		{
 		}
-		EventLoop::Callable::Callable(const Callable& Other) noexcept : Delegate(Other.Delegate), OnArgs(Other.OnArgs), OnReturn(Other.OnReturn), Context(Other.Context)
+		event_loop::callable::callable(const callable& other) noexcept : delegatef(other.delegatef), on_args(other.on_args), on_return(other.on_return), context(other.context)
 		{
 		}
-		EventLoop::Callable::Callable(Callable&& Other) noexcept : Delegate(std::move(Other.Delegate)), OnArgs(std::move(Other.OnArgs)), OnReturn(std::move(Other.OnReturn)), Context(Other.Context)
+		event_loop::callable::callable(callable&& other) noexcept : delegatef(std::move(other.delegatef)), on_args(std::move(other.on_args)), on_return(std::move(other.on_return)), context(other.context)
 		{
-			Other.Context = nullptr;
+			other.context = nullptr;
 		}
-		EventLoop::Callable& EventLoop::Callable::operator= (const Callable& Other) noexcept
+		event_loop::callable& event_loop::callable::operator= (const callable& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			Delegate = Other.Delegate;
-			OnArgs = Other.OnArgs;
-			OnReturn = Other.OnReturn;
-			Context = Other.Context;
+			delegatef = other.delegatef;
+			on_args = other.on_args;
+			on_return = other.on_return;
+			context = other.context;
 			return *this;
 		}
-		EventLoop::Callable& EventLoop::Callable::operator= (Callable&& Other) noexcept
+		event_loop::callable& event_loop::callable::operator= (callable&& other) noexcept
 		{
-			if (this == &Other)
+			if (this == &other)
 				return *this;
 
-			Delegate = std::move(Other.Delegate);
-			OnArgs = std::move(Other.OnArgs);
-			OnReturn = std::move(Other.OnReturn);
-			Context = Other.Context;
-			Other.Context = nullptr;
+			delegatef = std::move(other.delegatef);
+			on_args = std::move(other.on_args);
+			on_return = std::move(other.on_return);
+			context = other.context;
+			other.context = nullptr;
 			return *this;
 		}
-		bool EventLoop::Callable::IsNotification() const
+		bool event_loop::callable::is_notification() const
 		{
-			return !Delegate.IsValid();
+			return !delegatef.is_valid();
 		}
-		bool EventLoop::Callable::IsCallback() const
+		bool event_loop::callable::is_callback() const
 		{
-			return Delegate.IsValid();
+			return delegatef.is_valid();
 		}
 
-		static thread_local EventLoop* InternalLoop = nullptr;
-		EventLoop::EventLoop() noexcept : Aborts(false), Wake(false)
+		static thread_local event_loop* internal_loop = nullptr;
+		event_loop::event_loop() noexcept : aborts(false), wake(false)
 		{
 		}
-		void EventLoop::OnNotification(ImmediateContext* Context)
+		void event_loop::on_notification(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Queue.push(Callable(Context));
-			Waitable.notify_one();
+			VI_ASSERT(context != nullptr, "context should be set");
+			core::umutex<std::mutex> unique(mutex);
+			queue.push(callable(context));
+			waitable.notify_one();
 
-			auto Ready = std::move(OnEnqueue);
-			Unique.Negate();
-			if (Ready)
-				Ready(Context);
+			auto ready = std::move(on_enqueue);
+			unique.negate();
+			if (ready)
+				ready(context);
 		}
-		void EventLoop::OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		void event_loop::on_callback(immediate_context* context, function_delegate&& delegatef, args_callback&& on_args, args_callback&& on_return)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Queue.push(Callable(Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
-			Waitable.notify_one();
+			VI_ASSERT(context != nullptr, "context should be set");
+			VI_ASSERT(delegatef.is_valid(), "delegate should be valid");
+			core::umutex<std::mutex> unique(mutex);
+			queue.push(callable(context, std::move(delegatef), std::move(on_args), std::move(on_return)));
+			waitable.notify_one();
 
-			auto Ready = std::move(OnEnqueue);
-			Unique.Negate();
-			if (Ready)
-				Ready(Context);
+			auto ready = std::move(on_enqueue);
+			unique.negate();
+			if (ready)
+				ready(context);
 		}
-		void EventLoop::Wakeup()
+		void event_loop::wakeup()
 		{
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Wake = true;
-			Waitable.notify_all();
+			core::umutex<std::mutex> unique(mutex);
+			wake = true;
+			waitable.notify_all();
 		}
-		void EventLoop::Restore()
+		void event_loop::restore()
 		{
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Aborts = false;
+			core::umutex<std::mutex> unique(mutex);
+			aborts = false;
 		}
-		void EventLoop::Abort()
+		void event_loop::abort()
 		{
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Aborts = true;
+			core::umutex<std::mutex> unique(mutex);
+			aborts = true;
 		}
-		void EventLoop::When(ArgsCallback&& Callback)
+		void event_loop::when(args_callback&& callback)
 		{
-			OnEnqueue = std::move(Callback);
+			on_enqueue = std::move(callback);
 		}
-		void EventLoop::Listen(ImmediateContext* Context)
+		void event_loop::listen(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			Context->SetNotificationResolverCallback(std::bind(&EventLoop::OnNotification, this, std::placeholders::_1));
-			Context->SetCallbackResolverCallback(std::bind(&EventLoop::OnCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+			VI_ASSERT(context != nullptr, "context should be set");
+			context->set_notification_resolver_callback(std::bind(&event_loop::on_notification, this, std::placeholders::_1));
+			context->set_callback_resolver_callback(std::bind(&event_loop::on_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
 		}
-		void EventLoop::Unlisten(ImmediateContext* Context)
+		void event_loop::unlisten(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			Context->SetNotificationResolverCallback(nullptr);
-			Context->SetCallbackResolverCallback(nullptr);
+			VI_ASSERT(context != nullptr, "context should be set");
+			context->set_notification_resolver_callback(nullptr);
+			context->set_callback_resolver_callback(nullptr);
 		}
-		void EventLoop::Enqueue(ImmediateContext* Context)
+		void event_loop::enqueue(immediate_context* context)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Queue.push(Callable(Context));
-			Waitable.notify_one();
+			VI_ASSERT(context != nullptr, "context should be set");
+			core::umutex<std::mutex> unique(mutex);
+			queue.push(callable(context));
+			waitable.notify_one();
 
-			auto Ready = std::move(OnEnqueue);
-			Unique.Negate();
-			if (Ready)
-				Ready(Context);
+			auto ready = std::move(on_enqueue);
+			unique.negate();
+			if (ready)
+				ready(context);
 		}
-		void EventLoop::Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn)
+		void event_loop::enqueue(function_delegate&& delegatef, args_callback&& on_args, args_callback&& on_return)
 		{
-			VI_ASSERT(Delegate.IsValid(), "delegate should be valid");
-			ImmediateContext* Context = Delegate.Context;
-			Core::UMutex<std::mutex> Unique(Mutex);
-			Queue.push(Callable(Delegate.Context, std::move(Delegate), std::move(OnArgs), std::move(OnReturn)));
-			Waitable.notify_one();
+			VI_ASSERT(delegatef.is_valid(), "delegate should be valid");
+			immediate_context* context = delegatef.context;
+			core::umutex<std::mutex> unique(mutex);
+			queue.push(callable(delegatef.context, std::move(delegatef), std::move(on_args), std::move(on_return)));
+			waitable.notify_one();
 
-			auto Ready = std::move(OnEnqueue);
-			Unique.Negate();
-			if (Ready)
-				Ready(Context);
+			auto ready = std::move(on_enqueue);
+			unique.negate();
+			if (ready)
+				ready(context);
 		}
-		bool EventLoop::Poll(ImmediateContext* Context, uint64_t TimeoutMs)
+		bool event_loop::poll(immediate_context* context, uint64_t timeout_ms)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			if (!Bindings::Promise::IsContextBusy(Context) && Queue.empty())
+			VI_ASSERT(context != nullptr, "context should be set");
+			if (!bindings::promise::is_context_busy(context) && queue.empty())
 				return false;
-			else if (!TimeoutMs)
+			else if (!timeout_ms)
 				return true;
 
-			std::unique_lock<std::mutex> Unique(Mutex);
-			Waitable.wait_for(Unique, std::chrono::milliseconds(TimeoutMs), [this]() { return !Queue.empty() || Wake; });
-			Wake = false;
+			std::unique_lock<std::mutex> unique(mutex);
+			waitable.wait_for(unique, std::chrono::milliseconds(timeout_ms), [this]() { return !queue.empty() || wake; });
+			wake = false;
 			return true;
 		}
-		bool EventLoop::PollExtended(ImmediateContext* Context, uint64_t TimeoutMs)
+		bool event_loop::poll_extended(immediate_context* context, uint64_t timeout_ms)
 		{
-			VI_ASSERT(Context != nullptr, "context should be set");
-			if (!Bindings::Promise::IsContextBusy(Context) && Queue.empty())
+			VI_ASSERT(context != nullptr, "context should be set");
+			if (!bindings::promise::is_context_busy(context) && queue.empty())
 			{
-				if (!Core::Schedule::IsAvailable() || !Core::Schedule::Get()->GetPolicy().Parallel)
+				if (!core::schedule::is_available() || !core::schedule::get()->get_policy().parallel)
 					return false;
 			}
-			else if (!TimeoutMs)
+			else if (!timeout_ms)
 				return true;
 
-			std::unique_lock<std::mutex> Unique(Mutex);
-			Waitable.wait_for(Unique, std::chrono::milliseconds(TimeoutMs), [this]() { return !Queue.empty() || Wake; });
-			Wake = false;
+			std::unique_lock<std::mutex> unique(mutex);
+			waitable.wait_for(unique, std::chrono::milliseconds(timeout_ms), [this]() { return !queue.empty() || wake; });
+			wake = false;
 			return true;
 		}
-		size_t EventLoop::Dequeue(VirtualMachine* VM, size_t MaxExecutions)
+		size_t event_loop::dequeue(virtual_machine* vm, size_t max_executions)
 		{
-			VI_ASSERT(VM != nullptr, "virtual machine should be set");
-			Core::UMutex<std::mutex> Unique(Mutex);
-			size_t Executions = 0;
+			VI_ASSERT(vm != nullptr, "virtual machine should be set");
+			core::umutex<std::mutex> unique(mutex);
+			size_t executions = 0;
 
-			while (!Queue.empty())
+			while (!queue.empty())
 			{
-				Callable Next = std::move(Queue.front());
-				Queue.pop();
-				if (Aborts)
+				callable next = std::move(queue.front());
+				queue.pop();
+				if (aborts)
 					continue;
 
-				Unique.Negate();
-				ImmediateContext* InitiatorContext = Next.Context;
-				if (Next.IsCallback())
+				unique.negate();
+				immediate_context* initiator_context = next.context;
+				if (next.is_callback())
 				{
-					ImmediateContext* ExecutingContext = Next.Context;
-					if (!Next.Context->CanExecuteCall())
+					immediate_context* executing_context = next.context;
+					if (!next.context->can_execute_call())
 					{
-						ExecutingContext = VM->RequestContext();
-						Listen(ExecutingContext);
+						executing_context = vm->request_context();
+						listen(executing_context);
 					}
 
-					if (Next.OnReturn)
+					if (next.on_return)
 					{
-						ArgsCallback OnReturn = std::move(Next.OnReturn);
-						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([this, VM, InitiatorContext, ExecutingContext, OnReturn = std::move(OnReturn)](ExpectsVM<Execution>&& Status) mutable
+						args_callback on_return = std::move(next.on_return);
+						executing_context->execute_call(next.delegatef.callable(), std::move(next.on_args)).when([this, vm, initiator_context, executing_context, on_return = std::move(on_return)](expects_vm<execution>&& status) mutable
 						{
-							OnReturn(ExecutingContext);
-							if (ExecutingContext != InitiatorContext)
-								VM->ReturnContext(ExecutingContext);
-							AbortIf(std::move(Status));
+							on_return(executing_context);
+							if (executing_context != initiator_context)
+								vm->return_context(executing_context);
+							abort_if(std::move(status));
 						});
 					}
 					else
 					{
-						ExecutingContext->ExecuteCall(Next.Delegate.Callable(), std::move(Next.OnArgs)).When([this, VM, InitiatorContext, ExecutingContext](ExpectsVM<Execution>&& Status) mutable
+						executing_context->execute_call(next.delegatef.callable(), std::move(next.on_args)).when([this, vm, initiator_context, executing_context](expects_vm<execution>&& status) mutable
 						{
-							if (ExecutingContext != InitiatorContext)
-								VM->ReturnContext(ExecutingContext);
-							AbortIf(std::move(Status));
+							if (executing_context != initiator_context)
+								vm->return_context(executing_context);
+							abort_if(std::move(status));
 						});
 					}
-					++Executions;
+					++executions;
 				}
-				else if (Next.IsNotification())
+				else if (next.is_notification())
 				{
-					if (InitiatorContext->IsSuspended())
-						AbortIf(InitiatorContext->Resume());
-					++Executions;
+					if (initiator_context->is_suspended())
+						abort_if(initiator_context->resume());
+					++executions;
 				}
-				Unique.Negate();
-				if (MaxExecutions > 0 && Executions >= MaxExecutions)
+				unique.negate();
+				if (max_executions > 0 && executions >= max_executions)
 					break;
 			}
 
-			if (Executions > 0)
-				VI_TRACE("[vm] loop process %" PRIu64 " events", (uint64_t)Executions);
-			return Executions;
+			if (executions > 0)
+				VI_TRACE("[vm] loop process %" PRIu64 " events", (uint64_t)executions);
+			return executions;
 		}
-		void EventLoop::AbortIf(ExpectsVM<Execution>&& Status)
+		void event_loop::abort_if(expects_vm<execution>&& status)
 		{
-			if (Status && *Status == Execution::Aborted)
-				Abort();
+			if (status && *status == execution::aborted)
+				abort();
 		}
-		bool EventLoop::IsAborted()
+		bool event_loop::is_aborted()
 		{
-			return Aborts;
+			return aborts;
 		}
-		void EventLoop::Set(EventLoop* ForCurrentThread)
+		void event_loop::set(event_loop* for_current_thread)
 		{
-			InternalLoop = ForCurrentThread;
+			internal_loop = for_current_thread;
 		}
-		EventLoop* EventLoop::Get()
+		event_loop* event_loop::get()
 		{
-			return InternalLoop;
+			return internal_loop;
 		}
 	}
 }

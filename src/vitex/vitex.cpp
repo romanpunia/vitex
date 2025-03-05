@@ -4,14 +4,14 @@
 #include "scripting.h"
 #include "bindings.h"
 #include "network/http.h"
-#include "network/ldb.h"
-#include "network/pdb.h"
-#include "network/mdb.h"
+#include "network/sqlite.h"
+#include "network/pq.h"
+#include "network/mongo.h"
 #include "layer.h"
 #include <clocale>
 #include <sstream>
 #ifdef VI_MICROSOFT
-#include <WS2tcpip.h>
+#include <ws2tcpip.h>
 #include <io.h>
 #else
 #include <arpa/inet.h>
@@ -45,118 +45,118 @@ extern "C"
 }
 #endif
 
-namespace Vitex
+namespace vitex
 {
-	Runtime::Runtime(size_t Modules, Core::GlobalAllocator* Allocator) noexcept : Crypto(nullptr), Modes(Modules)
+	runtime::runtime(size_t modules, core::global_allocator* allocator) noexcept : crypto(nullptr), modes(modules)
 	{
-		VI_ASSERT(!Instance, "vitex runtime should not be already initialized");
-		Instance = this;
+		VI_ASSERT(!instance, "vitex runtime should not be already initialized");
+		instance = this;
 
-		InitializeAllocator(&Allocator);
-		if (Modes & LOAD_NETWORKING)
-			InitializeNetwork();
+		initialize_allocator(&allocator);
+		if (modes & load_networking)
+			initialize_network();
 
-		if (Modes & LOAD_CRYPTOGRAPHY)
-			InitializeCryptography(&Crypto, Modes & LOAD_PROVIDERS);
+		if (modes & load_cryptography)
+			initialize_cryptography(&crypto, modes & load_providers);
 
-		if (Modes & LOAD_LOCALE)
-			InitializeLocale();
+		if (modes & load_locale)
+			initialize_locale();
 
-		if (Modes & LOAD_CRYPTOGRAPHY)
-			InitializeRandom();
+		if (modes & load_cryptography)
+			initialize_random();
 
-		InitializeScripting();
+		initialize_scripting();
 #ifndef VI_MICROSOFT
 		signal(SIGPIPE, SIG_IGN);
 #endif
 	}
-	Runtime::~Runtime() noexcept
+	runtime::~runtime() noexcept
 	{
-		auto* Allocator = Core::Memory::GetGlobalAllocator();
-		Core::ErrorHandling::SetFlag(Core::LogOption::Async, false);
-		CleanupInstances();
-		if (Modes & LOAD_CRYPTOGRAPHY)
-			CleanupCryptography(&Crypto);
+		auto* allocator = core::memory::get_global_allocator();
+		core::error_handling::set_flag(core::log_option::async, false);
+		cleanup_instances();
+		if (modes & load_cryptography)
+			cleanup_cryptography(&crypto);
 
-		if (Modes & LOAD_NETWORKING)
-			CleanupNetwork();
-		CleanupScripting();
-		CleanupComposer();
-		CleanupErrorHandling();
-		CleanupMemory();
-		CleanupAllocator(&Allocator);
-		if (Instance == this)
-			Instance = nullptr;
+		if (modes & load_networking)
+			cleanup_network();
+		cleanup_scripting();
+		cleanup_composer();
+		cleanup_error_handling();
+		cleanup_memory();
+		cleanup_allocator(&allocator);
+		if (instance == this)
+			instance = nullptr;
 	}
-	bool Runtime::InitializeAllocator(Core::GlobalAllocator** InoutAllocator) noexcept
+	bool runtime::initialize_allocator(core::global_allocator** inout_allocator) noexcept
 	{
-		if (!InoutAllocator)
+		if (!inout_allocator)
 			return false;
 #ifndef NDEBUG
-		Core::ErrorHandling::SetFlag(Core::LogOption::Active, true);
-		if (!*InoutAllocator)
+		core::error_handling::set_flag(core::log_option::active, true);
+		if (!*inout_allocator)
 		{
-			*InoutAllocator = new Core::Allocators::DebugAllocator();
+			*inout_allocator = new core::allocators::debug_allocator();
 			VI_TRACE("[lib] initialize global debug allocator");
 		}
 #else
-		if (!*InoutAllocator)
+		if (!*inout_allocator)
 		{
-			*InoutAllocator = new Core::Allocators::DefaultAllocator();
+			*inout_allocator = new core::allocators::default_allocator();
 			VI_TRACE("[lib] initialize global default allocator");
 		}
 #endif
-		Core::Memory::SetGlobalAllocator(*InoutAllocator);
-		return *InoutAllocator != nullptr;
+		core::memory::set_global_allocator(*inout_allocator);
+		return *inout_allocator != nullptr;
 	}
-	bool Runtime::InitializeNetwork() noexcept
+	bool runtime::initialize_network() noexcept
 	{
 #ifdef VI_MICROSOFT
-		WSADATA WSAData;
-		WORD VersionRequested = MAKEWORD(2, 2);
-		int Code = WSAStartup(VersionRequested, &WSAData);
-		VI_PANIC(Code == 0, "WSA initialization failed code:%i", Code);
+		WSADATA wsa_data;
+		WORD version_requested = MAKEWORD(2, 2);
+		int code = WSAStartup(version_requested, &wsa_data);
+		VI_PANIC(code == 0, "WSA initialization failed code:%i", code);
 		VI_TRACE("[lib] initialize windows networking library");
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::InitializeProviders(CryptographyState* Crypto) noexcept
+	bool runtime::initialize_providers(cryptography_state* crypto) noexcept
 	{
 #ifdef VI_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
-		if (!Crypto)
+		if (!crypto)
 			return false;
 
 		VI_TRACE("[lib] load openssl providers from: *");
-		Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
-		Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
-		if (Crypto->LegacyProvider != nullptr && Crypto->DefaultProvider != nullptr)
+		crypto->default_provider = OSSL_PROVIDER_load(nullptr, "default");
+		crypto->legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
+		if (crypto->legacy_provider != nullptr && crypto->default_provider != nullptr)
 			return true;
 
-		auto Path = Core::OS::Directory::GetModule();
-		bool IsModuleDirectory = true;
-	Retry:
-		VI_TRACE("[lib] load openssl providers from: %s", Path ? Path->c_str() : "no path");
-		if (Path)
-			OSSL_PROVIDER_set_default_search_path(nullptr, Path->c_str());
+		auto path = core::os::directory::get_module();
+		bool is_module_directory = true;
+	retry:
+		VI_TRACE("[lib] load openssl providers from: %s", path ? path->c_str() : "no path");
+		if (path)
+			OSSL_PROVIDER_set_default_search_path(nullptr, path->c_str());
 
-		if (!Crypto->DefaultProvider)
-			Crypto->DefaultProvider = OSSL_PROVIDER_load(nullptr, "default");
+		if (!crypto->default_provider)
+			crypto->default_provider = OSSL_PROVIDER_load(nullptr, "default");
 
-		if (!Crypto->LegacyProvider)
-			Crypto->LegacyProvider = OSSL_PROVIDER_load(nullptr, "legacy");
+		if (!crypto->legacy_provider)
+			crypto->legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
 
-		if (!Crypto->LegacyProvider || !Crypto->DefaultProvider)
+		if (!crypto->legacy_provider || !crypto->default_provider)
 		{
-			if (IsModuleDirectory)
+			if (is_module_directory)
 			{
-				Path = Core::OS::Directory::GetWorking();
-				IsModuleDirectory = false;
-				goto Retry;
+				path = core::os::directory::get_working();
+				is_module_directory = false;
+				goto retry;
 			}
-			Compute::Crypto::DisplayCryptoLog();
+			compute::crypto::display_crypto_log();
 		}
 		else
 			ERR_clear_error();
@@ -169,44 +169,44 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::InitializeCryptography(CryptographyState** OutputCrypto, bool InitProviders) noexcept
+	bool runtime::initialize_cryptography(cryptography_state** output_crypto, bool init_providers) noexcept
 	{
 #ifdef VI_OPENSSL
-		if (!OutputCrypto)
+		if (!output_crypto)
 			return false;
 
 		SSL_library_init();
 		SSL_load_error_strings();
 
-		auto Crypto = Core::Memory::New<CryptographyState>();
-		*OutputCrypto = Crypto;
+		auto crypto = core::memory::init<cryptography_state>();
+		*output_crypto = crypto;
 #if OPENSSL_VERSION_MAJOR >= 3
-		if (InitProviders && !InitializeProviders(Crypto))
+		if (init_providers && !initialize_providers(crypto))
 			return false;
 #else
-		FIPS_mode_set(1);
+		fip_smodeset(1);
 #endif
 		RAND_poll();
 
-		int Count = CRYPTO_num_locks();
-		Crypto->Locks.reserve(Count);
-		for (int i = 0; i < Count; i++)
-			Crypto->Locks.push_back(std::make_shared<std::mutex>());
+		int count = CRYPTO_num_locks();
+		crypto->locks.reserve(count);
+		for (int i = 0; i < count; i++)
+			crypto->locks.push_back(std::make_shared<std::mutex>());
 
 		CRYPTO_set_id_callback([]() -> long unsigned int
 		{
 #ifdef VI_MICROSOFT
 			return (unsigned long)GetCurrentThreadId();
 #else
-			return (unsigned long)syscall(SYS_gettid);
+			return (unsigned long)syscall(sy_sgettid);
 #endif
 		});
-		CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
+		CRYPTO_set_locking_callback([](int mode, int id, const char* file, int line)
 		{
-			if (Mode & CRYPTO_LOCK)
-				Crypto->Locks.at(Id)->lock();
+			if (mode & CRYPTO_LOCK)
+				crypto->locks.at(id)->lock();
 			else
-				Crypto->Locks.at(Id)->unlock();
+				crypto->locks.at(id)->unlock();
 		});
 
 		VI_TRACE("[lib] initialize openssl library");
@@ -219,55 +219,55 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::InitializeLocale() noexcept
+	bool runtime::initialize_locale() noexcept
 	{
 		VI_TRACE("[lib] initialize locale library");
 		setlocale(LC_TIME, "C");
 		return true;
 	}
-	bool Runtime::InitializeRandom() noexcept
+	bool runtime::initialize_random() noexcept
 	{
 #ifdef VI_OPENSSL
-		int64_t Raw = 0;
-		RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
+		int64_t raw = 0;
+		RAND_bytes((unsigned char*)&raw, sizeof(int64_t));
 		VI_TRACE("[lib] initialize random library");
 		return true;
 #else
 		return false;
 #endif
 	}
-	bool Runtime::InitializeScripting() noexcept
+	bool runtime::initialize_scripting() noexcept
 	{
-		Scripting::VirtualMachine::SetMemoryFunctions(Core::Memory::DefaultAllocate, Core::Memory::DefaultDeallocate);
+		scripting::virtual_machine::set_memory_functions(core::memory::default_allocate, core::memory::default_deallocate);
 		return true;
 	}
-	void Runtime::CleanupInstances() noexcept
+	void runtime::cleanup_instances() noexcept
 	{
 		VI_TRACE("[lib] free singleton instances");
-		Layer::Application::CleanupInstance();
-		Network::HTTP::HrmCache::CleanupInstance();
-		Network::LDB::Driver::CleanupInstance();
-		Network::PDB::Driver::CleanupInstance();
-		Network::MDB::Driver::CleanupInstance();
-		Network::Uplinks::CleanupInstance();
-		Network::TransportLayer::CleanupInstance();
-		Network::DNS::CleanupInstance();
-		Network::Multiplexer::CleanupInstance();
-		Core::Schedule::CleanupInstance();
-		Core::Console::CleanupInstance();
+		layer::application::cleanup_instance();
+		network::http::hrm_cache::cleanup_instance();
+		network::sqlite::driver::cleanup_instance();
+		network::pq::driver::cleanup_instance();
+		network::mongo::driver::cleanup_instance();
+		network::uplinks::cleanup_instance();
+		network::transport_layer::cleanup_instance();
+		network::dns::cleanup_instance();
+		network::multiplexer::cleanup_instance();
+		core::schedule::cleanup_instance();
+		core::console::cleanup_instance();
 	}
-	void Runtime::CleanupCryptography(CryptographyState** InCrypto) noexcept
+	void runtime::cleanup_cryptography(cryptography_state** in_crypto) noexcept
 	{
 #ifdef VI_OPENSSL
-		if (!InCrypto)
+		if (!in_crypto)
 			return;
 
-		auto* Crypto = *InCrypto;
-		*InCrypto = nullptr;
+		auto* crypto = *in_crypto;
+		*in_crypto = nullptr;
 #if OPENSSL_VERSION_MAJOR >= 3
 		VI_TRACE("[lib] free openssl providers");
-		OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->LegacyProvider);
-		OSSL_PROVIDER_unload((OSSL_PROVIDER*)Crypto->DefaultProvider);
+		OSSL_PROVIDER_unload((OSSL_PROVIDER*)crypto->legacy_provider);
+		OSSL_PROVIDER_unload((OSSL_PROVIDER*)crypto->default_provider);
 #else
 		FIPS_mode_set(0);
 #endif
@@ -288,52 +288,52 @@ namespace Vitex
 		CRYPTO_cleanup_all_ex_data();
 		CONF_modules_unload(1);
 #endif
-		Core::Memory::Delete(Crypto);
+		core::memory::deinit(crypto);
 		VI_TRACE("[lib] free openssl library");
 #endif
 	}
-	void Runtime::CleanupNetwork() noexcept
+	void runtime::cleanup_network() noexcept
 	{
 #ifdef VI_MICROSOFT
 		WSACleanup();
 		VI_TRACE("[lib] free windows networking library");
 #endif
 	}
-	void Runtime::CleanupScripting() noexcept
+	void runtime::cleanup_scripting() noexcept
 	{
-		Scripting::Bindings::Registry().Cleanup();
+		scripting::bindings::registry().cleanup();
 		VI_TRACE("[lib] free bindings registry");
-		Scripting::VirtualMachine::Cleanup();
+		scripting::virtual_machine::cleanup();
 		VI_TRACE("[lib] free virtual machine");
 	}
-	void Runtime::CleanupComposer() noexcept
+	void runtime::cleanup_composer() noexcept
 	{
-		Core::Composer::Cleanup();
+		core::composer::cleanup();
 		VI_TRACE("[lib] free component composer");
 	}
-	void Runtime::CleanupErrorHandling() noexcept
+	void runtime::cleanup_error_handling() noexcept
 	{
-		Core::ErrorHandling::Cleanup();
+		core::error_handling::cleanup();
 		VI_TRACE("[lib] free error handling");
 	}
-	void Runtime::CleanupMemory() noexcept
+	void runtime::cleanup_memory() noexcept
 	{
-		Core::Memory::Cleanup();
+		core::memory::cleanup();
 		VI_TRACE("[lib] free memory allocators");
 	}
-	void Runtime::CleanupAllocator(Core::GlobalAllocator** InAllocator) noexcept
+	void runtime::cleanup_allocator(core::global_allocator** in_allocator) noexcept
 	{
-		if (!InAllocator)
+		if (!in_allocator)
 			return;
 
-		auto* Allocator = *InAllocator;
-		if (Allocator != nullptr && Allocator->IsFinalizable())
+		auto* allocator = *in_allocator;
+		if (allocator != nullptr && allocator->is_finalizable())
 		{
-			*InAllocator = nullptr;
-			delete Allocator;
+			*in_allocator = nullptr;
+			delete allocator;
 		}
 	}
-	bool Runtime::HasFtAllocator() const noexcept
+	bool runtime::has_ft_allocator() const noexcept
 	{
 #ifdef VI_ALLOCATOR
 		return true;
@@ -341,7 +341,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasFtPessimistic() const noexcept
+	bool runtime::has_ft_pessimistic() const noexcept
 	{
 #ifdef VI_PESSIMISTIC
 		return true;
@@ -349,7 +349,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasFtBindings() const noexcept
+	bool runtime::has_ft_bindings() const noexcept
 	{
 #ifdef VI_BINDINGS
 		return true;
@@ -357,7 +357,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasFtFContext() const noexcept
+	bool runtime::has_ft_fcontext() const noexcept
 	{
 #ifdef VI_FCONTEXT
 		return true;
@@ -365,7 +365,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoOpenSSL() const noexcept
+	bool runtime::has_so_open_ssl() const noexcept
 	{
 #ifdef VI_OPENSSL
 		return true;
@@ -373,7 +373,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoZLib() const noexcept
+	bool runtime::has_so_zlib() const noexcept
 	{
 #ifdef VI_ZLIB
 		return true;
@@ -381,7 +381,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoMongoc() const noexcept
+	bool runtime::has_so_mongoc() const noexcept
 	{
 #ifdef VI_MONGOC
 		return true;
@@ -389,7 +389,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoPostgreSQL() const noexcept
+	bool runtime::has_so_postgresql() const noexcept
 	{
 #ifdef VI_POSTGRESQL
 		return true;
@@ -397,7 +397,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasSoSQLite() const noexcept
+	bool runtime::has_so_sqlite() const noexcept
 	{
 #ifdef VI_SQLITE
 		return true;
@@ -405,7 +405,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdAngelScript() const noexcept
+	bool runtime::has_md_angelscript() const noexcept
 	{
 #ifdef VI_ANGELSCRIPT
 		return true;
@@ -413,7 +413,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdBackwardCpp() const noexcept
+	bool runtime::has_md_backwardcpp() const noexcept
 	{
 #ifdef VI_BACKWARDCPP
 		return true;
@@ -421,7 +421,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdWepoll() const noexcept
+	bool runtime::has_md_wepoll() const noexcept
 	{
 #ifdef VI_WEPOLL
 		return true;
@@ -429,7 +429,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdPugiXml() const noexcept
+	bool runtime::has_md_pugixml() const noexcept
 	{
 #ifdef VI_PUGIXML
 		return true;
@@ -437,7 +437,7 @@ namespace Vitex
 		return false;
 #endif
 	}
-	bool Runtime::HasMdRapidJson() const noexcept
+	bool runtime::has_md_rapidjson() const noexcept
 	{
 #ifdef VI_RAPIDJSON
 		return true;
@@ -445,82 +445,82 @@ namespace Vitex
 		return false;
 #endif
 	}
-	int Runtime::GetMajorVersion() const noexcept
+	int runtime::get_major_version() const noexcept
 	{
-		return (int)MAJOR_VERSION;
+		return (int)major_version;
 	}
-	int Runtime::GetMinorVersion() const noexcept
+	int runtime::get_minor_version() const noexcept
 	{
-		return (int)MINOR_VERSION;
+		return (int)minor_version;
 	}
-	int Runtime::GetPatchVersion() const noexcept
+	int runtime::get_patch_version() const noexcept
 	{
-		return (int)PATCH_VERSION;
+		return (int)patch_version;
 	}
-	int Runtime::GetBuildVersion() const noexcept
+	int runtime::get_build_version() const noexcept
 	{
-		return (int)PATCH_VERSION;
+		return (int)patch_version;
 	}
-	int Runtime::GetVersion() const noexcept
+	int runtime::get_version() const noexcept
 	{
-		return (int)VERSION;
+		return (int)version;
 	}
-	int Runtime::GetDebugLevel() const noexcept
+	int runtime::get_debug_level() const noexcept
 	{
 		return VI_DLEVEL;
 	}
-	int Runtime::GetArchitecture() const noexcept
+	int runtime::get_architecture() const noexcept
 	{
 		return (int)sizeof(size_t);
 	}
-	size_t Runtime::GetModes() const noexcept
+	size_t runtime::get_modes() const noexcept
 	{
-		return Modes;
+		return modes;
 	}
-	Core::String Runtime::GetDetails() const noexcept
+	core::string runtime::get_details() const noexcept
 	{
-		Core::Vector<Core::String> Features;
-		if (HasSoOpenSSL())
-			Features.push_back("so:openssl");
-		if (HasSoZLib())
-			Features.push_back("so:zlib");
-		if (HasSoMongoc())
-			Features.push_back("so:mongoc");
-		if (HasSoPostgreSQL())
-			Features.push_back("so:pq");
-		if (HasSoSQLite())
-			Features.push_back("so:sqlite");
-		if (HasMdAngelScript())
-			Features.push_back("md:angelscript");
-		if (HasMdBackwardCpp())
-			Features.push_back("md:backward-cpp");
-		if (HasMdWepoll())
-			Features.push_back("md:wepoll");
-		if (HasMdPugiXml())
-			Features.push_back("md:pugixml");
-		if (HasMdRapidJson())
-			Features.push_back("md:rapidjson");
-		if (HasFtFContext())
-			Features.push_back("ft:fcontext");
-		if (HasFtAllocator())
-			Features.push_back("ft:allocator");
-		if (HasFtPessimistic())
-			Features.push_back("ft:pessimistic");
-		if (HasFtBindings())
-			Features.push_back("ft:bindings");
+		core::vector<core::string> features;
+		if (has_so_open_ssl())
+			features.push_back("so:openssl");
+		if (has_so_zlib())
+			features.push_back("so:zlib");
+		if (has_so_mongoc())
+			features.push_back("so:mongoc");
+		if (has_so_postgresql())
+			features.push_back("so:pq");
+		if (has_so_sqlite())
+			features.push_back("so:sqlite");
+		if (has_md_angelscript())
+			features.push_back("md:angelscript");
+		if (has_md_backwardcpp())
+			features.push_back("md:backward-cpp");
+		if (has_md_wepoll())
+			features.push_back("md:wepoll");
+		if (has_md_pugixml())
+			features.push_back("md:pugixml");
+		if (has_md_rapidjson())
+			features.push_back("md:rapidjson");
+		if (has_ft_fcontext())
+			features.push_back("ft:fcontext");
+		if (has_ft_allocator())
+			features.push_back("ft:allocator");
+		if (has_ft_pessimistic())
+			features.push_back("ft:pessimistic");
+		if (has_ft_bindings())
+			features.push_back("ft:bindings");
 
-		Core::StringStream Result;
-		Result << "library: " << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION << "." << BUILD_VERSION << " / " << VERSION << "\n";
-		Result << "  platform: " << GetPlatform() << " / " << GetBuild() << "\n";
-		Result << "  compiler: " << GetCompiler() << "\n";
-        Result << "configuration:" << "\n";
-        
-		for (size_t i = 0; i < Features.size(); i++)
-			Result << "  " << Features[i] << "\n";
+		core::string_stream result;
+		result << "library: " << major_version << "." << minor_version << "." << patch_version << "." << build_version << " / " << version << "\n";
+		result << "  platform: " << get_platform() << " / " << get_build() << "\n";
+		result << "  compiler: " << get_compiler() << "\n";
+		result << "configuration:" << "\n";
 
-		return Result.str();
+		for (size_t i = 0; i < features.size(); i++)
+			result << "  " << features[i] << "\n";
+
+		return result.str();
 	}
-	std::string_view Runtime::GetBuild() const noexcept
+	std::string_view runtime::get_build() const noexcept
 	{
 #ifndef NDEBUG
 		return "Debug";
@@ -528,13 +528,13 @@ namespace Vitex
 		return "Release";
 #endif
 	}
-	std::string_view Runtime::GetCompiler() const noexcept
+	std::string_view runtime::get_compiler() const noexcept
 	{
 #ifdef _MSC_VER
 #ifdef VI_64
-		return "Visual C++ 64-bit";
+		return "Visual c++ 64-bit";
 #else
-		return "Visual C++ 32-bit";
+		return "Visual c++ 32-bit";
 #endif
 #endif
 #ifdef __clang__
@@ -564,9 +564,9 @@ namespace Vitex
 		return "GCC 32-bit";
 #endif
 #endif
-		return "C/C++ compiler";
+		return "C/c++ compiler";
 	}
-	std::string_view Runtime::GetPlatform() const noexcept
+	std::string_view runtime::get_platform() const noexcept
 	{
 #ifdef __ANDROID__
 		return "Android";
@@ -595,11 +595,11 @@ namespace Vitex
 #ifdef __Fuchsia__
 		return "Fuschia";
 #endif
-		return "OS with C/C++ support";
+		return "OS with c/c++ support";
 	}
-	Runtime* Runtime::Get() noexcept
+	runtime* runtime::get() noexcept
 	{
-		return Instance;
+		return instance;
 	}
-	Runtime* Runtime::Instance = nullptr;
+	runtime* runtime::instance = nullptr;
 }

@@ -10,21 +10,21 @@ struct sockaddr_in;
 struct sockaddr_in6;
 struct pollfd;
 
-namespace Vitex
+namespace vitex
 {
-	namespace Network
+	namespace network
 	{
 		struct epoll_queue;
 
-		struct SocketAccept;
+		struct socket_accept;
 
-		struct EpollHandle;
+		struct epoll_interface;
 
-		class Multiplexer;
+		class multiplexer;
 
-		class Socket;
+		class socket;
 
-		class SocketConnection;
+		class socket_connection;
 
 		enum
 		{
@@ -34,35 +34,35 @@ namespace Vitex
 			PEER_VERITY_DEFAULT = 100,
 		};
 
-		enum class SecureLayerOptions
+		enum class secure_layer_options
 		{
-			All = 0,
-			NoSSL_V2 = 1 << 1,
-			NoSSL_V3 = 1 << 2,
-			NoTLS_V1 = 1 << 3,
-			NoTLS_V1_1 = 1 << 4,
-			NoTLS_V1_2 = 1 << 5,
-			NoTLS_V1_3 = 1 << 6
+			all = 0,
+			no_sslv2 = 1 << 1,
+			no_sslv3 = 1 << 2,
+			no_tlsv1 = 1 << 3,
+			no_tlsv11 = 1 << 4,
+			no_tlsv12 = 1 << 5,
+			no_tlsv13 = 1 << 6
 		};
 
-		enum class ServerState
+		enum class server_state
 		{
-			Working,
-			Stopping,
-			Idle
+			working,
+			stopping,
+			idle
 		};
 
-		enum class SocketPoll
+		enum class socket_poll
 		{
-			Next = 0,
-			Reset = 1,
-			Timeout = 2,
-			Cancel = 3,
-			Finish = 4,
-            FinishSync = 5
+			next = 0,
+			reset = 1,
+			timeout = 2,
+			cancel = 3,
+			finish = 4,
+			finish_sync = 5
 		};
 
-		enum class SocketProtocol
+		enum class socket_protocol
 		{
 			IP,
 			ICMP,
@@ -71,692 +71,692 @@ namespace Vitex
 			RAW
 		};
 
-		enum class SocketType
+		enum class socket_type
 		{
-			Stream,
-			Datagram,
-			Raw,
-			Reliably_Delivered_Message,
-			Sequence_Packet_Stream
+			stream,
+			datagram,
+			raw,
+			reliably_delivered_message,
+			sequence_packet_stream
 		};
 
-		enum class DNSType
+		enum class dns_type
 		{
-			Connect,
-			Listen
+			connect,
+			listen
 		};
 
-		typedef std::function<void(Core::ExpectsSystem<void>&&)> SocketClientCallback;
-		typedef std::function<void(SocketPoll)> PollEventCallback;
-		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
-		typedef std::function<void(const Core::Option<std::error_condition>&)> SocketStatusCallback;
-		typedef std::function<bool(SocketPoll, const uint8_t*, size_t)> SocketReadCallback;
-		typedef std::function<bool(SocketAccept&)> SocketAcceptedCallback;
+		typedef std::function<void(core::expects_system<void>&&)> socket_client_callback;
+		typedef std::function<void(socket_poll)> poll_event_callback;
+		typedef std::function<void(socket_poll)> socket_written_callback;
+		typedef std::function<void(const core::option<std::error_condition>&)> socket_status_callback;
+		typedef std::function<bool(socket_poll, const uint8_t*, size_t)> socket_read_callback;
+		typedef std::function<bool(socket_accept&)> socket_accepted_callback;
 
-		struct Location
+		struct location
 		{
 		public:
-			Core::UnorderedMap<Core::String, Core::String> Query;
-			Core::String Protocol;
-			Core::String Username;
-			Core::String Password;
-			Core::String Hostname;
-			Core::String Fragment;
-			Core::String Path;
-			Core::String Body;
-			uint16_t Port;
+			core::unordered_map<core::string, core::string> query;
+			core::string protocol;
+			core::string username;
+			core::string password;
+			core::string hostname;
+			core::string fragment;
+			core::string path;
+			core::string body;
+			uint16_t port;
 
 		public:
-			Location(const std::string_view& From) noexcept;
-			Location(const Location&) = default;
-			Location(Location&&) noexcept = default;
-			Location& operator= (const Location&) = default;
-			Location& operator= (Location&&) noexcept = default;
+			location(const std::string_view& from) noexcept;
+			location(const location&) = default;
+			location(location&&) noexcept = default;
+			location& operator= (const location&) = default;
+			location& operator= (location&&) noexcept = default;
 		};
 
-		struct X509Blob
+		struct x509_blob
 		{
-			void* Pointer;
+			void* pointer;
 
-			X509Blob(void* NewPointer) noexcept;
-			X509Blob(const X509Blob& Other) noexcept;
-			X509Blob(X509Blob&& Other) noexcept;
-			~X509Blob() noexcept;
-			X509Blob& operator= (const X509Blob& Other) noexcept;
-			X509Blob& operator= (X509Blob&& Other) noexcept;
+			x509_blob(void* new_pointer) noexcept;
+			x509_blob(const x509_blob& other) noexcept;
+			x509_blob(x509_blob&& other) noexcept;
+			~x509_blob() noexcept;
+			x509_blob& operator= (const x509_blob& other) noexcept;
+			x509_blob& operator= (x509_blob&& other) noexcept;
 		};
 
-		struct CertificateBlob
+		struct certificate_blob
 		{
-			Core::String PrivateKey;
-			Core::String Certificate;
+			core::string private_key;
+			core::string certificate;
 		};
 
-		struct Certificate
+		struct certificate
 		{
-			Core::UnorderedMap<Core::String, Core::String> Extensions;
-			Core::String SubjectName;
-			Core::String IssuerName;
-			Core::String SerialNumber;
-			Core::String Fingerprint;
-			Core::String PublicKey;
-			Core::String NotBeforeDate;
-			Core::String NotAfterDate;
-			int64_t NotBeforeTime = 0;
-			int64_t NotAfterTime = 0;
-			int32_t Version = 0;
-			int32_t Signature = 0;
-			X509Blob Blob = X509Blob(nullptr);
+			core::unordered_map<core::string, core::string> extensions;
+			core::string subject_name;
+			core::string issuer_name;
+			core::string serial_number;
+			core::string fingerprint;
+			core::string public_key;
+			core::string not_before_date;
+			core::string not_after_date;
+			int64_t not_before_time = 0;
+			int64_t not_after_time = 0;
+			int32_t version = 0;
+			int32_t signature = 0;
+			x509_blob blob = x509_blob(nullptr);
 
-			Core::UnorderedMap<Core::String, Core::Vector<Core::String>> GetFullExtensions() const;
+			core::unordered_map<core::string, core::vector<core::string>> get_full_extensions() const;
 		};
 
-		struct DataFrame
+		struct data_frame
 		{
-			Core::String Message;
-			size_t Reuses = 1;
-			int64_t Start = 0;
-			int64_t Finish = 0;
-			int64_t Timeout = 0;
-			bool Abort = false;
+			core::string message;
+			size_t reuses = 1;
+			int64_t start = 0;
+			int64_t finish = 0;
+			int64_t timeout = 0;
+			bool abort = false;
 
-			DataFrame() = default;
-			DataFrame& operator= (const DataFrame& Other);
+			data_frame() = default;
+			data_frame& operator= (const data_frame& other);
 		};
 
-		struct SocketCertificate
+		struct socket_certificate
 		{
-			CertificateBlob Blob;
-			Core::String Ciphers = "ALL";
-			ssl_ctx_st* Context = nullptr;
-			SecureLayerOptions Options = SecureLayerOptions::All;
-			uint32_t VerifyPeers = 100;
+			certificate_blob blob;
+			core::string ciphers = "ALL";
+			ssl_ctx_st* context = nullptr;
+			secure_layer_options options = secure_layer_options::all;
+			uint32_t verify_peers = 100;
 		};
 
-		struct SocketCidr
+		struct socket_cidr
 		{
-			Compute::UInt128 MinValue;
-			Compute::UInt128 MaxValue;
-			Compute::UInt128 Value;
-			uint8_t Mask;
+			compute::uint128 min_value;
+			compute::uint128 max_value;
+			compute::uint128 value;
+			uint8_t mask;
 
-			bool IsMatching(const Compute::UInt128& Value);
+			bool is_matching(const compute::uint128& value);
 		};
 
-		struct SocketAddress
+		struct socket_address
 		{
 		private:
 			struct
 			{
-				Core::String Hostname;
-				uint16_t Port;
-				uint16_t Padding;
-				int32_t Flags;
-				int32_t Family;
-				int32_t Type;
-				int32_t Protocol;
-			} Info;
+				core::string hostname;
+				uint16_t port;
+				uint16_t padding;
+				int32_t flags;
+				int32_t family;
+				int32_t type;
+				int32_t protocol;
+			} info;
 
 		private:
-			char AddressBuffer[ADDRESS_SIZE];
-			size_t AddressSize;
+			char address_buffer[ADDRESS_SIZE];
+			size_t address_size;
 
 		public:
-			SocketAddress() noexcept;
-			SocketAddress(const std::string_view& IpAddress, uint16_t Port) noexcept;
-			SocketAddress(const std::string_view& Hostname, uint16_t Port, addrinfo* AddressInfo) noexcept;
-			SocketAddress(const std::string_view& Hostname, uint16_t Port, sockaddr* Address, size_t AddressSize) noexcept;
-			SocketAddress(SocketAddress&&) = default;
-			SocketAddress(const SocketAddress&) = default;
-			~SocketAddress() = default;
-			SocketAddress& operator= (const SocketAddress&) = default;
-			SocketAddress& operator= (SocketAddress&&) = default;
-			const sockaddr_in* GetAddress4() const noexcept;
-			const sockaddr_in6* GetAddress6() const noexcept;
-			const sockaddr* GetRawAddress() const noexcept;
-			size_t GetAddressSize() const noexcept;
-			int32_t GetFlags() const noexcept;
-			int32_t GetFamily() const noexcept;
-			int32_t GetType() const noexcept;
-			int32_t GetProtocol() const noexcept;
-			DNSType GetResolverType() const noexcept;
-			SocketProtocol GetProtocolType() const noexcept;
-			SocketType GetSocketType() const noexcept;
-			bool IsValid() const noexcept;
-			Core::ExpectsIO<Core::String> GetHostname() const noexcept;
-			Core::ExpectsIO<Core::String> GetIpAddress() const noexcept;
-			Core::ExpectsIO<uint16_t> GetIpPort() const noexcept;
-			Core::ExpectsIO<Compute::UInt128> GetIpValue() const noexcept;
+			socket_address() noexcept;
+			socket_address(const std::string_view& ip_address, uint16_t port) noexcept;
+			socket_address(const std::string_view& hostname, uint16_t port, addrinfo* address_info) noexcept;
+			socket_address(const std::string_view& hostname, uint16_t port, sockaddr* address, size_t address_size) noexcept;
+			socket_address(socket_address&&) = default;
+			socket_address(const socket_address&) = default;
+			~socket_address() = default;
+			socket_address& operator= (const socket_address&) = default;
+			socket_address& operator= (socket_address&&) = default;
+			const sockaddr_in* get_address4() const noexcept;
+			const sockaddr_in6* get_address6() const noexcept;
+			const sockaddr* get_raw_address() const noexcept;
+			size_t get_address_size() const noexcept;
+			int32_t get_flags() const noexcept;
+			int32_t get_family() const noexcept;
+			int32_t get_type() const noexcept;
+			int32_t get_protocol() const noexcept;
+			dns_type get_resolver_type() const noexcept;
+			socket_protocol get_protocol_type() const noexcept;
+			socket_type get_socket_type() const noexcept;
+			bool is_valid() const noexcept;
+			core::expects_io<core::string> get_hostname() const noexcept;
+			core::expects_io<core::string> get_ip_address() const noexcept;
+			core::expects_io<uint16_t> get_ip_port() const noexcept;
+			core::expects_io<compute::uint128> get_ip_value() const noexcept;
 		};
 
-		struct SocketAccept
+		struct socket_accept
 		{
-			SocketAddress Address;
-			socket_t Fd = 0;
-		};
-		
-		struct RouterListener
-		{
-			SocketAddress Address;
-			bool IsSecure;
+			socket_address address;
+			socket_t fd = 0;
 		};
 
-		struct EpollFd
+		struct router_listener
 		{
-			Socket* Base;
-			bool Readable;
-			bool Writeable;
-			bool Closeable;
+			socket_address address;
+			bool is_secure;
 		};
 
-		struct EpollHandle
+		struct epoll_fd
+		{
+			socket* base;
+			bool readable;
+			bool writeable;
+			bool closeable;
+		};
+
+		struct epoll_interface
 		{
 		private:
-			epoll_queue* Queue;
-			epoll_handle Handle;
+			epoll_queue* queue;
+			epoll_handle handle;
 
 		public:
-			EpollHandle(size_t MaxEvents) noexcept;
-			EpollHandle(const EpollHandle&) = delete;
-			EpollHandle(EpollHandle&& Other) noexcept;
-			~EpollHandle() noexcept;
-			EpollHandle& operator= (const EpollHandle&) = delete;
-			EpollHandle& operator= (EpollHandle&& Other) noexcept;
-			bool Add(Socket* Fd, bool Readable, bool Writeable) noexcept;
-			bool Update(Socket* Fd, bool Readable, bool Writeable) noexcept;
-			bool Remove(Socket* Fd) noexcept;
-			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout) noexcept;
-			size_t Capacity() noexcept;
+			epoll_interface(size_t max_events) noexcept;
+			epoll_interface(const epoll_interface&) = delete;
+			epoll_interface(epoll_interface&& other) noexcept;
+			~epoll_interface() noexcept;
+			epoll_interface& operator= (const epoll_interface&) = delete;
+			epoll_interface& operator= (epoll_interface&& other) noexcept;
+			bool add(socket* fd, bool readable, bool writeable) noexcept;
+			bool update(socket* fd, bool readable, bool writeable) noexcept;
+			bool remove(socket* fd) noexcept;
+			int wait(epoll_fd* data, size_t data_size, uint64_t timeout) noexcept;
+			size_t capacity() noexcept;
 		};
 
-		class Packet
+		class packet
 		{
 		public:
-			static bool IsData(SocketPoll Event)
+			static bool is_data(socket_poll event)
 			{
-				return Event == SocketPoll::Next;
+				return event == socket_poll::next;
 			}
-			static bool IsSkip(SocketPoll Event)
+			static bool is_skip(socket_poll event)
 			{
-				return Event == SocketPoll::Cancel;
+				return event == socket_poll::cancel;
 			}
-			static bool IsDone(SocketPoll Event)
+			static bool is_done(socket_poll event)
 			{
-				return Event == SocketPoll::Finish || Event == SocketPoll::FinishSync;
+				return event == socket_poll::finish || event == socket_poll::finish_sync;
 			}
-            static bool IsDoneSync(SocketPoll Event)
-            {
-                return Event == SocketPoll::FinishSync;
-            }
-            static bool IsDoneAsync(SocketPoll Event)
-            {
-                return Event == SocketPoll::Finish;
-            }
-			static bool IsTimeout(SocketPoll Event)
+			static bool is_done_sync(socket_poll event)
 			{
-				return Event == SocketPoll::Timeout;
+				return event == socket_poll::finish_sync;
 			}
-			static bool IsError(SocketPoll Event)
+			static bool is_done_async(socket_poll event)
 			{
-				return Event == SocketPoll::Reset || Event == SocketPoll::Timeout;
+				return event == socket_poll::finish;
 			}
-			static bool IsErrorOrSkip(SocketPoll Event)
+			static bool is_timeout(socket_poll event)
 			{
-				return IsError(Event) || Event == SocketPoll::Cancel;
+				return event == socket_poll::timeout;
 			}
-			static std::error_condition ToCondition(SocketPoll Event)
+			static bool is_error(socket_poll event)
 			{
-				switch (Event)
+				return event == socket_poll::reset || event == socket_poll::timeout;
+			}
+			static bool is_error_or_skip(socket_poll event)
+			{
+				return is_error(event) || event == socket_poll::cancel;
+			}
+			static std::error_condition to_condition(socket_poll event)
+			{
+				switch (event)
 				{
-					case SocketPoll::Next:
+					case socket_poll::next:
 						return std::make_error_condition(std::errc::operation_in_progress);
-					case SocketPoll::Reset:
+					case socket_poll::reset:
 						return std::make_error_condition(std::errc::connection_reset);
-					case SocketPoll::Timeout:
+					case socket_poll::timeout:
 						return std::make_error_condition(std::errc::timed_out);
-					case SocketPoll::Cancel:
+					case socket_poll::cancel:
 						return std::make_error_condition(std::errc::operation_canceled);
-					case SocketPoll::Finish:
-					case SocketPoll::FinishSync:
+					case socket_poll::finish:
+					case socket_poll::finish_sync:
 					default:
 						return std::make_error_condition(std::errc());
 				}
 			}
 		};
 
-		class Utils
+		class utils
 		{
 		public:
-			enum PollEvent : uint32_t
+			enum poll_event : uint32_t
 			{
-				InputNormal = (1 << 0),
-				InputBand = (1 << 1),
-				InputPriority = (1 << 2),
-				Input = (1 << 3),
-				OutputNormal = (1 << 4),
-				OutputBand = (1 << 5),
-				Output = (1 << 6),
-				Error = (1 << 7),
-				Hangup = (1 << 8)
+				input_normal = (1 << 0),
+				input_band = (1 << 1),
+				input_priority = (1 << 2),
+				input = (1 << 3),
+				output_normal = (1 << 4),
+				output_band = (1 << 5),
+				output = (1 << 6),
+				error = (1 << 7),
+				hangup = (1 << 8)
 			};
 
-			struct PollFd
+			struct poll_fd
 			{
-				socket_t Fd = 0;
-				uint32_t Events = 0;
-				uint32_t Returns = 0;
+				socket_t fd = 0;
+				uint32_t events = 0;
+				uint32_t returns = 0;
 			};
 
 		public:
-			static Core::ExpectsIO<CertificateBlob> GenerateSelfSignedCertificate(uint32_t Days = 365 * 4, const std::string_view& AddressesCommaSeparated = "127.0.0.1", const std::string_view& DomainsCommaSeparated = std::string_view()) noexcept;
-			static Core::ExpectsIO<Certificate> GetCertificateFromX509(void* CertificateX509) noexcept;
-			static Core::Vector<Core::String> GetHostIpAddresses() noexcept;
-			static int Poll(pollfd* Fd, int FdCount, int Timeout) noexcept;
-			static int Poll(PollFd* Fd, int FdCount, int Timeout) noexcept;
-			static std::error_condition GetLastError(ssl_st* Device, int ErrorCode) noexcept;
-			static Core::Option<SocketCidr> ParseAddressMask(const std::string_view& Mask) noexcept;
-			static bool IsInvalid(socket_t Fd) noexcept;
-			static int64_t Clock() noexcept;
-			static void DisplayTransportLog() noexcept;
+			static core::expects_io<certificate_blob> generate_self_signed_certificate(uint32_t days = 365 * 4, const std::string_view& addresses_comma_separated = "127.0.0.1", const std::string_view& domains_comma_separated = std::string_view()) noexcept;
+			static core::expects_io<certificate> get_certificate_from_x509(void* certificate_x509) noexcept;
+			static core::vector<core::string> get_host_ip_addresses() noexcept;
+			static int poll(pollfd* fd, int fd_count, int timeout) noexcept;
+			static int poll(poll_fd* fd, int fd_count, int timeout) noexcept;
+			static std::error_condition GetLastError(ssl_st* device, int error_code) noexcept;
+			static core::option<socket_cidr> parse_address_mask(const std::string_view& mask) noexcept;
+			static bool is_invalid(socket_t fd) noexcept;
+			static int64_t clock() noexcept;
+			static void display_transport_log() noexcept;
 		};
 
-		class TransportLayer final : public Core::Singleton<TransportLayer>
+		class transport_layer final : public core::singleton<transport_layer>
 		{
 		private:
-			std::mutex Exclusive;
-			Core::UnorderedSet<ssl_ctx_st*> Servers;
-			Core::UnorderedSet<ssl_ctx_st*> Clients;
-			bool IsInstalled;
+			std::mutex exclusive;
+			core::unordered_set<ssl_ctx_st*> servers;
+			core::unordered_set<ssl_ctx_st*> clients;
+			bool is_installed;
 
 		public:
-			TransportLayer() noexcept;
-			virtual ~TransportLayer() noexcept override;
-			Core::ExpectsIO<ssl_ctx_st*> CreateServerContext(size_t VerifyDepth, SecureLayerOptions Options, const std::string_view& CiphersList) noexcept;
-			Core::ExpectsIO<ssl_ctx_st*> CreateClientContext(size_t VerifyDepth) noexcept;
-			void FreeServerContext(ssl_ctx_st* Context) noexcept;
-			void FreeClientContext(ssl_ctx_st* Context) noexcept;
+			transport_layer() noexcept;
+			virtual ~transport_layer() noexcept override;
+			core::expects_io<ssl_ctx_st*> create_server_context(size_t verify_depth, secure_layer_options options, const std::string_view& ciphers_list) noexcept;
+			core::expects_io<ssl_ctx_st*> create_client_context(size_t verify_depth) noexcept;
+			void free_server_context(ssl_ctx_st* context) noexcept;
+			void free_client_context(ssl_ctx_st* context) noexcept;
 
 		private:
-			Core::ExpectsIO<void> InitializeContext(ssl_ctx_st* Context, bool LoadCertificates) noexcept;
+			core::expects_io<void> initialize_context(ssl_ctx_st* context, bool load_certificates) noexcept;
 		};
 
-		class DNS final : public Core::Singleton<DNS>
+		class dns final : public core::singleton<dns>
 		{
 		private:
-			std::mutex Exclusive;
-			Core::UnorderedMap<size_t, std::pair<int64_t, SocketAddress>> Names;
+			std::mutex exclusive;
+			core::unordered_map<size_t, std::pair<int64_t, socket_address>> names;
 
 		public:
-			DNS() noexcept;
-			virtual ~DNS() noexcept override;
-			Core::ExpectsSystem<Core::String> ReverseLookup(const std::string_view& Hostname, const std::string_view& Service = std::string_view());
-			Core::ExpectsPromiseSystem<Core::String> ReverseLookupDeferred(const std::string_view& Hostname, const std::string_view& Service = std::string_view());
-			Core::ExpectsSystem<Core::String> ReverseAddressLookup(const SocketAddress& Address);
-			Core::ExpectsPromiseSystem<Core::String> ReverseAddressLookupDeferred(const SocketAddress& Address);
-			Core::ExpectsSystem<SocketAddress> Lookup(const std::string_view& Hostname, const std::string_view& Service, DNSType Resolver, SocketProtocol Proto = SocketProtocol::TCP, SocketType Type = SocketType::Stream);
-			Core::ExpectsPromiseSystem<SocketAddress> LookupDeferred(const std::string_view& Hostname, const std::string_view& Service, DNSType Resolver, SocketProtocol Proto = SocketProtocol::TCP, SocketType Type = SocketType::Stream);
+			dns() noexcept;
+			virtual ~dns() noexcept override;
+			core::expects_system<core::string> reverse_lookup(const std::string_view& hostname, const std::string_view& service = std::string_view());
+			core::expects_promise_system<core::string> reverse_lookup_deferred(const std::string_view& hostname, const std::string_view& service = std::string_view());
+			core::expects_system<core::string> reverse_address_lookup(const socket_address& address);
+			core::expects_promise_system<core::string> reverse_address_lookup_deferred(const socket_address& address);
+			core::expects_system<socket_address> lookup(const std::string_view& hostname, const std::string_view& service, dns_type resolver, socket_protocol proto = socket_protocol::TCP, socket_type type = socket_type::stream);
+			core::expects_promise_system<socket_address> lookup_deferred(const std::string_view& hostname, const std::string_view& service, dns_type resolver, socket_protocol proto = socket_protocol::TCP, socket_type type = socket_type::stream);
 		};
 
-		class Multiplexer final : public Core::Singleton<Multiplexer>
+		class multiplexer final : public core::singleton<multiplexer>
 		{
 		private:
-			std::mutex Exclusive;
-			Core::UnorderedSet<Socket*> Trackers;
-			Core::Vector<EpollFd> Fds;
-			Core::OrderedMap<std::chrono::microseconds, Socket*> Timers;
-			EpollHandle Handle;
-			std::atomic<size_t> Activations;
-			uint64_t DefaultTimeout;
+			std::mutex exclusive;
+			core::unordered_set<socket*> trackers;
+			core::vector<epoll_fd> fds;
+			core::ordered_map<std::chrono::microseconds, socket*> timers;
+			epoll_interface handle;
+			std::atomic<size_t> activations;
+			uint64_t default_timeout;
 
 		public:
-			Multiplexer() noexcept;
-			Multiplexer(uint64_t DispatchTimeout, size_t MaxEvents) noexcept;
-			virtual ~Multiplexer() noexcept override;
-			void Rescale(uint64_t DispatchTimeout, size_t MaxEvents) noexcept;
-			void Activate() noexcept;
-			void Deactivate() noexcept;
-			void Shutdown() noexcept;
-			int Dispatch(uint64_t Timeout) noexcept;
-			bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
-			bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady) noexcept;
-			bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel) noexcept;
-			bool ClearEvents(Socket* Value) noexcept;
-			bool IsListening() noexcept;
-			size_t GetActivations() noexcept;
+			multiplexer() noexcept;
+			multiplexer(uint64_t dispatch_timeout, size_t max_events) noexcept;
+			virtual ~multiplexer() noexcept override;
+			void rescale(uint64_t dispatch_timeout, size_t max_events) noexcept;
+			void activate() noexcept;
+			void deactivate() noexcept;
+			void shutdown() noexcept;
+			int dispatch(uint64_t timeout) noexcept;
+			bool when_readable(socket* value, poll_event_callback&& when_ready) noexcept;
+			bool when_writeable(socket* value, poll_event_callback&& when_ready) noexcept;
+			bool cancel_events(socket* value, socket_poll event = socket_poll::cancel) noexcept;
+			bool clear_events(socket* value) noexcept;
+			bool is_listening() noexcept;
+			size_t get_activations() noexcept;
 
 		private:
-			void DispatchTimers(const std::chrono::microseconds& Time) noexcept;
-			bool DispatchEvents(const EpollFd& Fd, const std::chrono::microseconds& Time) noexcept;
-			void TryDispatch() noexcept;
-			void TryEnqueue() noexcept;
-			void TryListen() noexcept;
-			void TryUnlisten() noexcept;
-			void AddTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
-			void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time) noexcept;
-			void RemoveTimeout(Socket* Value) noexcept;
+			void dispatch_timers(const std::chrono::microseconds& time) noexcept;
+			bool dispatch_events(const epoll_fd& fd, const std::chrono::microseconds& time) noexcept;
+			void try_dispatch() noexcept;
+			void try_enqueue() noexcept;
+			void try_listen() noexcept;
+			void try_unlisten() noexcept;
+			void add_timeout(socket* value, const std::chrono::microseconds& time) noexcept;
+			void update_timeout(socket* value, const std::chrono::microseconds& time) noexcept;
+			void remove_timeout(socket* value) noexcept;
 		};
 
-		class Uplinks final : public Core::Singleton<Uplinks>
+		class uplinks final : public core::singleton<uplinks>
 		{
 		public:
-			typedef std::function<void(Socket*)> AcquireCallback;
+			typedef std::function<void(socket*)> acquire_callback;
 
 		private:
-			struct ConnectionQueue
+			struct connection_queue
 			{
-				Core::SingleQueue<AcquireCallback> Requests;
-				Core::UnorderedSet<Socket*> Streams;
-				size_t Duplicates = 0;
+				core::single_queue<acquire_callback> requests;
+				core::unordered_set<socket*> streams;
+				size_t duplicates = 0;
 			};
 
 		private:
-			std::recursive_mutex Exclusive;
-			Core::UnorderedMap<Core::String, ConnectionQueue> Connections;
-			size_t MaxDuplicates;
+			std::recursive_mutex exclusive;
+			core::unordered_map<core::string, connection_queue> connections;
+			size_t max_duplicates;
 
 		public:
-			Uplinks() noexcept;
-			virtual ~Uplinks() noexcept override;
-			void SetMaxDuplicates(size_t Max);
-			bool PushConnection(const SocketAddress& Address, Socket* Target);
-			bool PopConnectionQueued(const SocketAddress& Address, AcquireCallback&& Callback);
-			Core::Promise<Socket*> PopConnection(const SocketAddress& Address);
-			size_t GetMaxDuplicates() const;
-			size_t GetSize();
+			uplinks() noexcept;
+			virtual ~uplinks() noexcept override;
+			void set_max_duplicates(size_t max);
+			bool push_connection(const socket_address& address, socket* target);
+			bool pop_connection_queued(const socket_address& address, acquire_callback&& callback);
+			core::promise<socket*> pop_connection(const socket_address& address);
+			size_t get_max_duplicates() const;
+			size_t get_size();
 
 		private:
-			void ListenConnection(Core::String&& Id, Socket* Target);
+			void listen_connection(core::string&& id, socket* target);
 		};
 
-		class CertificateBuilder final : public Core::Reference<CertificateBuilder>
+		class certificate_builder final : public core::reference<certificate_builder>
 		{
 		private:
-			void* Certificate;
-			void* PrivateKey;
+			void* certificate;
+			void* private_key;
 
 		public:
-			CertificateBuilder() noexcept;
-			~CertificateBuilder() noexcept;
-			Core::ExpectsIO<void> SetSerialNumber(uint32_t Bits = 160);
-			Core::ExpectsIO<void> SetVersion(uint8_t Version);
-			Core::ExpectsIO<void> SetNotAfter(int64_t OffsetSeconds);
-			Core::ExpectsIO<void> SetNotBefore(int64_t OffsetSeconds = 0);
-			Core::ExpectsIO<void> SetPublicKey(uint32_t Bits = 4096);
-			Core::ExpectsIO<void> SetIssuer(const X509Blob& Issuer);
-			Core::ExpectsIO<void> AddCustomExtension(bool Critical, const std::string_view& Key, const std::string_view& Value, const std::string_view& Description = std::string_view());
-			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, int NID, const std::string_view& Value);
-			Core::ExpectsIO<void> AddStandardExtension(const X509Blob& Issuer, const std::string_view& NameOfNID, const std::string_view& Value);
-			Core::ExpectsIO<void> AddSubjectInfo(const std::string_view& Key, const std::string_view& Value);
-			Core::ExpectsIO<void> AddIssuerInfo(const std::string_view& Key, const std::string_view& Value);
-			Core::ExpectsIO<void> Sign(Compute::Digest Algorithm);
-			Core::ExpectsIO<CertificateBlob> Build();
-			void* GetCertificateX509();
-			void* GetPrivateKeyEVP_PKEY();
+			certificate_builder() noexcept;
+			~certificate_builder() noexcept;
+			core::expects_io<void> set_serial_number(uint32_t bits = 160);
+			core::expects_io<void> set_version(uint8_t version);
+			core::expects_io<void> set_not_after(int64_t offset_seconds);
+			core::expects_io<void> set_not_before(int64_t offset_seconds = 0);
+			core::expects_io<void> set_public_key(uint32_t bits = 4096);
+			core::expects_io<void> set_issuer(const x509_blob& issuer);
+			core::expects_io<void> add_custom_extension(bool critical, const std::string_view& key, const std::string_view& value, const std::string_view& description = std::string_view());
+			core::expects_io<void> add_standard_extension(const x509_blob& issuer, int NID, const std::string_view& value);
+			core::expects_io<void> add_standard_extension(const x509_blob& issuer, const std::string_view& name_of_nid, const std::string_view& value);
+			core::expects_io<void> add_subject_info(const std::string_view& key, const std::string_view& value);
+			core::expects_io<void> add_issuer_info(const std::string_view& key, const std::string_view& value);
+			core::expects_io<void> sign(compute::digest algorithm);
+			core::expects_io<certificate_blob> build();
+			void* get_certificate_x509();
+			void* get_private_key_evppkey();
 		};
 
-		class Socket final : public Core::Reference<Socket>
+		class socket final : public core::reference<socket>
 		{
-			friend EpollHandle;
-			friend Multiplexer;
+			friend epoll_interface;
+			friend multiplexer;
 
 		private:
-			struct IEvents
+			struct ievents
 			{
-				std::mutex Mutex;
-				PollEventCallback ReadCallback = nullptr;
-				PollEventCallback WriteCallback = nullptr;
-				std::chrono::microseconds Expiration = std::chrono::microseconds(0);
-				uint64_t Timeout = 0;
+				std::mutex mutex;
+				poll_event_callback read_callback = nullptr;
+				poll_event_callback write_callback = nullptr;
+				std::chrono::microseconds expiration = std::chrono::microseconds(0);
+				uint64_t timeout = 0;
 
-				IEvents() = default;
-				IEvents(IEvents&& Other) noexcept;
-				IEvents& operator=(IEvents&& Other) noexcept;
-				~IEvents() = default;
-			} Events;
-
-		private:
-			ssl_st* Device;
-			socket_t Fd;
-
-		public:
-			size_t Income;
-			size_t Outcome;
-
-		public:
-			Socket() noexcept;
-			Socket(socket_t FromFd) noexcept;
-			Socket(const Socket& Other) = delete;
-			Socket(Socket&& Other) noexcept;
-			~Socket() noexcept;
-			Socket& operator =(const Socket& Other) = delete;
-			Socket& operator =(Socket&& Other) noexcept;
-			Core::ExpectsIO<void> Accept(SocketAccept* Incoming);
-			Core::ExpectsIO<void> AcceptQueued(SocketAcceptedCallback&& Callback);
-			Core::ExpectsPromiseIO<SocketAccept> AcceptDeferred();
-			Core::ExpectsIO<void> Shutdown(bool Gracefully = false);
-			Core::ExpectsIO<void> Close();
-			Core::ExpectsIO<void> CloseQueued(SocketStatusCallback&& Callback);
-			Core::ExpectsPromiseIO<void> CloseDeferred();
-			Core::ExpectsIO<size_t> WriteFile(FILE* Stream, size_t Offset, size_t Size);
-			Core::ExpectsIO<size_t> WriteFileQueued(FILE* Stream, size_t Offset, size_t Size, SocketWrittenCallback&& Callback, size_t TempBuffer = 0);
-			Core::ExpectsPromiseIO<size_t> WriteFileDeferred(FILE* Stream, size_t Offset, size_t Size);
-			Core::ExpectsIO<size_t> Write(const uint8_t* Buffer, size_t Size);
-			Core::ExpectsIO<size_t> WriteQueued(const uint8_t* Buffer, size_t Size, SocketWrittenCallback&& Callback, bool CopyBufferWhenAsync = true, uint8_t* TempBuffer = nullptr, size_t TempOffset = 0);
-			Core::ExpectsPromiseIO<size_t> WriteDeferred(const uint8_t* Buffer, size_t Size, bool CopyBufferWhenAsync = true);
-			Core::ExpectsIO<size_t> Read(uint8_t* Buffer, size_t Size);
-			Core::ExpectsIO<size_t> ReadQueued(size_t Size, SocketReadCallback&& Callback, size_t TempBuffer = 0);
-			Core::ExpectsPromiseIO<Core::String> ReadDeferred(size_t Size);
-			Core::ExpectsIO<size_t> ReadUntil(const std::string_view& Match, SocketReadCallback&& Callback);
-			Core::ExpectsIO<size_t> ReadUntilQueued(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
-			Core::ExpectsPromiseIO<Core::String> ReadUntilDeferred(Core::String&& Match, size_t MaxSize);
-			Core::ExpectsIO<size_t> ReadUntilChunked(const std::string_view& Match, SocketReadCallback&& Callback);
-			Core::ExpectsIO<size_t> ReadUntilChunkedQueued(Core::String&& Match, SocketReadCallback&& Callback, size_t TempIndex = 0, bool TempBuffer = false);
-			Core::ExpectsPromiseIO<Core::String> ReadUntilChunkedDeferred(Core::String&& Match, size_t MaxSize);
-			Core::ExpectsIO<void> Connect(const SocketAddress& Address, uint64_t Timeout);
-			Core::ExpectsIO<void> ConnectQueued(const SocketAddress& Address, SocketStatusCallback&& Callback);
-			Core::ExpectsPromiseIO<void> ConnectDeferred(const SocketAddress& Address);
-			Core::ExpectsIO<void> Open(const SocketAddress& Address);
-			Core::ExpectsIO<void> Secure(ssl_ctx_st* Context, const std::string_view& ServerName);
-			Core::ExpectsIO<void> Bind(const SocketAddress& Address);
-			Core::ExpectsIO<void> Listen(int Backlog);
-			Core::ExpectsIO<void> ClearEvents(bool Gracefully);
-			Core::ExpectsIO<void> MigrateTo(socket_t Fd, bool Gracefully = true);
-			Core::ExpectsIO<void> SetCloseOnExec();
-			Core::ExpectsIO<void> SetTimeWait(int Timeout);
-			Core::ExpectsIO<void> SetSocket(int Option, void* Value, size_t Size);
-			Core::ExpectsIO<void> SetAny(int Level, int Option, void* Value, size_t Size);
-			Core::ExpectsIO<void> SetSocketFlag(int Option, int Value);
-			Core::ExpectsIO<void> SetAnyFlag(int Level, int Option, int Value);
-			Core::ExpectsIO<void> SetBlocking(bool Enabled);
-			Core::ExpectsIO<void> SetNoDelay(bool Enabled);
-			Core::ExpectsIO<void> SetKeepAlive(bool Enabled);
-			Core::ExpectsIO<void> SetTimeout(int Timeout);
-			Core::ExpectsIO<void> GetSocket(int Option, void* Value, size_t* Size);
-			Core::ExpectsIO<void> GetAny(int Level, int Option, void* Value, size_t* Size);
-			Core::ExpectsIO<void> GetSocketFlag(int Option, int* Value);
-			Core::ExpectsIO<void> GetAnyFlag(int Level, int Option, int* Value);
-			Core::ExpectsIO<SocketAddress> GetPeerAddress();
-			Core::ExpectsIO<SocketAddress> GetThisAddress();
-			Core::ExpectsIO<Certificate> GetCertificate();
-			void SetIoTimeout(uint64_t TimeoutMs);
-			socket_t GetFd() const;
-			ssl_st* GetDevice() const;
-			bool IsAwaitingReadable();
-			bool IsAwaitingWriteable();
-			bool IsAwaitingEvents();
-			bool IsSecure() const;
-			bool IsValid() const;
+				ievents() = default;
+				ievents(ievents&& other) noexcept;
+				ievents& operator=(ievents&& other) noexcept;
+				~ievents() = default;
+			} events;
 
 		private:
-			Core::ExpectsIO<void> TryCloseQueued(SocketStatusCallback&& Callback, const std::chrono::microseconds& Time, bool KeepTrying);
+			ssl_st* device;
+			socket_t fd;
+
+		public:
+			size_t income;
+			size_t outcome;
+
+		public:
+			socket() noexcept;
+			socket(socket_t from_fd) noexcept;
+			socket(const socket& other) = delete;
+			socket(socket&& other) noexcept;
+			~socket() noexcept;
+			socket& operator =(const socket& other) = delete;
+			socket& operator =(socket&& other) noexcept;
+			core::expects_io<void> accept(socket_accept* incoming);
+			core::expects_io<void> accept_queued(socket_accepted_callback&& callback);
+			core::expects_promise_io<socket_accept> accept_deferred();
+			core::expects_io<void> shutdown(bool gracefully = false);
+			core::expects_io<void> close();
+			core::expects_io<void> close_queued(socket_status_callback&& callback);
+			core::expects_promise_io<void> close_deferred();
+			core::expects_io<size_t> write_file(FILE* stream, size_t offset, size_t size);
+			core::expects_io<size_t> write_file_queued(FILE* stream, size_t offset, size_t size, socket_written_callback&& callback, size_t temp_buffer = 0);
+			core::expects_promise_io<size_t> write_file_deferred(FILE* stream, size_t offset, size_t size);
+			core::expects_io<size_t> write(const uint8_t* buffer, size_t size);
+			core::expects_io<size_t> write_queued(const uint8_t* buffer, size_t size, socket_written_callback&& callback, bool copy_buffer_when_async = true, uint8_t* temp_buffer = nullptr, size_t temp_offset = 0);
+			core::expects_promise_io<size_t> write_deferred(const uint8_t* buffer, size_t size, bool copy_buffer_when_async = true);
+			core::expects_io<size_t> read(uint8_t* buffer, size_t size);
+			core::expects_io<size_t> read_queued(size_t size, socket_read_callback&& callback, size_t temp_buffer = 0);
+			core::expects_promise_io<core::string> read_deferred(size_t size);
+			core::expects_io<size_t> read_until(const std::string_view& match, socket_read_callback&& callback);
+			core::expects_io<size_t> read_until_queued(core::string&& match, socket_read_callback&& callback, size_t temp_index = 0, bool temp_buffer = false);
+			core::expects_promise_io<core::string> read_until_deferred(core::string&& match, size_t max_size);
+			core::expects_io<size_t> read_until_chunked(const std::string_view& match, socket_read_callback&& callback);
+			core::expects_io<size_t> read_until_chunked_queued(core::string&& match, socket_read_callback&& callback, size_t temp_index = 0, bool temp_buffer = false);
+			core::expects_promise_io<core::string> read_until_chunked_deferred(core::string&& match, size_t max_size);
+			core::expects_io<void> connect(const socket_address& address, uint64_t timeout);
+			core::expects_io<void> connect_queued(const socket_address& address, socket_status_callback&& callback);
+			core::expects_promise_io<void> connect_deferred(const socket_address& address);
+			core::expects_io<void> open(const socket_address& address);
+			core::expects_io<void> secure(ssl_ctx_st* context, const std::string_view& server_name);
+			core::expects_io<void> bind(const socket_address& address);
+			core::expects_io<void> listen(int backlog);
+			core::expects_io<void> clear_events(bool gracefully);
+			core::expects_io<void> migrate_to(socket_t fd, bool gracefully = true);
+			core::expects_io<void> set_close_on_exec();
+			core::expects_io<void> set_time_wait(int timeout);
+			core::expects_io<void> set_socket(int option, void* value, size_t size);
+			core::expects_io<void> set_any(int level, int option, void* value, size_t size);
+			core::expects_io<void> set_socket_flag(int option, int value);
+			core::expects_io<void> set_any_flag(int level, int option, int value);
+			core::expects_io<void> set_blocking(bool enabled);
+			core::expects_io<void> set_no_delay(bool enabled);
+			core::expects_io<void> set_keep_alive(bool enabled);
+			core::expects_io<void> set_timeout(int timeout);
+			core::expects_io<void> get_socket(int option, void* value, size_t* size);
+			core::expects_io<void> get_any(int level, int option, void* value, size_t* size);
+			core::expects_io<void> get_socket_flag(int option, int* value);
+			core::expects_io<void> get_any_flag(int level, int option, int* value);
+			core::expects_io<socket_address> get_peer_address();
+			core::expects_io<socket_address> get_this_address();
+			core::expects_io<certificate> get_certificate();
+			void set_io_timeout(uint64_t timeout_ms);
+			socket_t get_fd() const;
+			ssl_st* get_device() const;
+			bool is_awaiting_readable();
+			bool is_awaiting_writeable();
+			bool is_awaiting_events();
+			bool is_secure() const;
+			bool is_valid() const;
+
+		private:
+			core::expects_io<void> try_close_queued(socket_status_callback&& callback, const std::chrono::microseconds& time, bool keep_trying);
 		};
 
-		class SocketListener final : public Core::Reference<SocketListener>
+		class socket_listener final : public core::reference<socket_listener>
 		{
 		public:
-			Core::String Name;
-			SocketAddress Address;
-			Socket* Stream;
-			bool IsSecure;
+			core::string name;
+			socket_address address;
+			socket* stream;
+			bool is_secure;
 
 		public:
-			SocketListener(const std::string_view& NewName, const SocketAddress& NewAddress, bool Secure);
-			~SocketListener() noexcept;
+			socket_listener(const std::string_view& new_name, const socket_address& new_address, bool secure);
+			~socket_listener() noexcept;
 		};
 
-		class SocketRouter : public Core::Reference<SocketRouter>
+		class socket_router : public core::reference<socket_router>
 		{
 		public:
-			Core::UnorderedMap<Core::String, SocketCertificate> Certificates;
-			Core::UnorderedMap<Core::String, RouterListener> Listeners;
-			size_t MaxHeapBuffer = 1024 * 1024 * 4;
-			size_t MaxNetBuffer = 1024 * 1024 * 32;
-			size_t BacklogQueue = 20;
-			size_t SocketTimeout = 10000;
-			size_t MaxConnections = 0;
-			int64_t KeepAliveMaxCount = 0;
-			int64_t GracefulTimeWait = -1;
-			bool EnableNoDelay = false;
+			core::unordered_map<core::string, socket_certificate> certificates;
+			core::unordered_map<core::string, router_listener> listeners;
+			size_t max_heap_buffer = 1024 * 1024 * 4;
+			size_t max_net_buffer = 1024 * 1024 * 32;
+			size_t backlog_queue = 20;
+			size_t socket_timeout = 10000;
+			size_t max_connections = 0;
+			int64_t keep_alive_max_count = 0;
+			int64_t graceful_time_wait = -1;
+			bool enable_no_delay = false;
 
 		public:
-			SocketRouter() = default;
-			virtual ~SocketRouter() noexcept;
-			Core::ExpectsSystem<RouterListener*> Listen(const std::string_view& Hostname, const std::string_view& Service, bool Secure = false);
-			Core::ExpectsSystem<RouterListener*> Listen(const std::string_view& Pattern, const std::string_view& Hostname, const std::string_view& Service, bool Secure = false);
+			socket_router() = default;
+			virtual ~socket_router() noexcept;
+			core::expects_system<router_listener*> listen(const std::string_view& hostname, const std::string_view& service, bool secure = false);
+			core::expects_system<router_listener*> listen(const std::string_view& pattern, const std::string_view& hostname, const std::string_view& service, bool secure = false);
 		};
 
-		class SocketConnection : public Core::Reference<SocketConnection>
+		class socket_connection : public core::reference<socket_connection>
 		{
 		public:
-			SocketAddress Address;
-			DataFrame Info;
-			Socket* Stream = nullptr;
-			SocketListener* Host = nullptr;
+			socket_address address;
+			data_frame info;
+			socket* stream = nullptr;
+			socket_listener* host = nullptr;
 
 		public:
-			SocketConnection() = default;
-			virtual ~SocketConnection() noexcept;
-			virtual void Reset(bool Fully);
-			virtual bool Abort();
-			virtual bool Abort(int, const char* Format, ...);
-			virtual bool Next();
-			virtual bool Next(int);
-			virtual bool Closable(SocketRouter* Router);
+			socket_connection() = default;
+			virtual ~socket_connection() noexcept;
+			virtual void reset(bool fully);
+			virtual bool abort();
+			virtual bool abort(int, const char* format, ...);
+			virtual bool next();
+			virtual bool next(int);
+			virtual bool closable(socket_router* router);
 		};
 
-		class SocketServer : public Core::Reference<SocketServer>
+		class socket_server : public core::reference<socket_server>
 		{
-			friend SocketConnection;
+			friend socket_connection;
 
 		protected:
-			std::recursive_mutex Exclusive;
-			Core::UnorderedSet<SocketConnection*> Active;
-			Core::UnorderedSet<SocketConnection*> Inactive;
-			Core::Vector<SocketListener*> Listeners;
-			SocketRouter* Router;
-			uint64_t ShutdownTimeout;
-			size_t Backlog;
-			std::atomic<ServerState> State;
-			
+			std::recursive_mutex exclusive;
+			core::unordered_set<socket_connection*> active;
+			core::unordered_set<socket_connection*> inactive;
+			core::vector<socket_listener*> listeners;
+			socket_router* router;
+			uint64_t shutdown_timeout;
+			size_t backlog;
+			std::atomic<server_state> state;
+
 		public:
-			SocketServer() noexcept;
-			virtual ~SocketServer() noexcept;
-			Core::ExpectsSystem<void> Configure(SocketRouter* New);
-			Core::ExpectsSystem<void> Unlisten(bool Gracefully);
-			Core::ExpectsSystem<void> Listen();
-			void SetRouter(SocketRouter* New);
-			void SetBacklog(size_t Value);
-			void SetShutdownTimeout(uint64_t TimeoutMs);
-			size_t GetBacklog() const;
-			uint64_t GetShutdownTimeout() const;
-			ServerState GetState() const;
-			SocketRouter* GetRouter();
-			const Core::UnorderedSet<SocketConnection*>& GetActiveClients();
-			const Core::UnorderedSet<SocketConnection*>& GetPooledClients();
-			const Core::Vector<SocketListener*>& GetListeners();
+			socket_server() noexcept;
+			virtual ~socket_server() noexcept;
+			core::expects_system<void> configure(socket_router* init);
+			core::expects_system<void> unlisten(bool gracefully);
+			core::expects_system<void> listen();
+			void set_router(socket_router* init);
+			void set_backlog(size_t value);
+			void set_shutdown_timeout(uint64_t timeout_ms);
+			size_t get_backlog() const;
+			uint64_t get_shutdown_timeout() const;
+			server_state get_state() const;
+			socket_router* get_router();
+			const core::unordered_set<socket_connection*>& get_active_clients();
+			const core::unordered_set<socket_connection*>& get_pooled_clients();
+			const core::vector<socket_listener*>& get_listeners();
 
 		protected:
-			virtual Core::ExpectsSystem<void> OnConfigure(SocketRouter* New);
-			virtual Core::ExpectsSystem<void> OnListen();
-			virtual Core::ExpectsSystem<void> OnUnlisten();
-			virtual Core::ExpectsSystem<void> OnAfterUnlisten();
-			virtual void OnRequestOpen(SocketConnection* Base);
-			virtual bool OnRequestCleanup(SocketConnection* Base);
-			virtual void OnRequestStall(SocketConnection* Base);
-			virtual void OnRequestClose(SocketConnection* Base);
-			virtual SocketConnection* OnAllocate(SocketListener* Host);
-			virtual SocketRouter* OnAllocateRouter();
-			virtual Core::ExpectsIO<void> TryHandshakeThenBegin(SocketConnection* Base);
-			virtual Core::ExpectsIO<void> Refuse(SocketConnection* Base);
-			virtual Core::ExpectsIO<void> Accept(SocketListener* Host, SocketAccept&& Incoming);
-			virtual Core::ExpectsIO<void> HandshakeThenOpen(SocketConnection* Fd, SocketListener* Host);
-			virtual Core::ExpectsIO<void> Continue(SocketConnection* Base);
-			virtual Core::ExpectsIO<void> Finalize(SocketConnection* Base);
-			virtual SocketConnection* Pop(SocketListener* Host);
-			virtual void Push(SocketConnection* Base);
-			virtual bool FreeAll();
+			virtual core::expects_system<void> on_configure(socket_router* init);
+			virtual core::expects_system<void> on_listen();
+			virtual core::expects_system<void> on_unlisten();
+			virtual core::expects_system<void> on_after_unlisten();
+			virtual void on_request_open(socket_connection* base);
+			virtual bool on_request_cleanup(socket_connection* base);
+			virtual void on_request_stall(socket_connection* base);
+			virtual void on_request_close(socket_connection* base);
+			virtual socket_connection* on_allocate(socket_listener* host);
+			virtual socket_router* on_allocate_router();
+			virtual core::expects_io<void> try_handshake_then_begin(socket_connection* base);
+			virtual core::expects_io<void> refuse(socket_connection* base);
+			virtual core::expects_io<void> accept(socket_listener* host, socket_accept&& incoming);
+			virtual core::expects_io<void> handshake_then_open(socket_connection* fd, socket_listener* host);
+			virtual core::expects_io<void> next(socket_connection* base);
+			virtual core::expects_io<void> finalize(socket_connection* base);
+			virtual socket_connection* pop(socket_listener* host);
+			virtual void push(socket_connection* base);
+			virtual bool free_all();
 		};
 
-		class SocketClient : public Core::Reference<SocketClient>
+		class socket_client : public core::reference<socket_client>
 		{
 		protected:
 			struct
 			{
-				int64_t Idle = 0;
-				int8_t Cache = -1;
-			} Timeout;
+				int64_t idle = 0;
+				int8_t cache = -1;
+			} timeout;
 
 			struct
 			{
-				SocketClientCallback Resolver;
-				SocketAddress Address;
-			} State;
+				socket_client_callback resolver;
+				socket_address address;
+			} state;
 
 			struct
 			{
-				bool IsAutoHandshake = true;
-				bool IsNonBlocking = false;
-				int32_t VerifyPeers = 100;
-			} Config;
+				bool is_auto_handshake = true;
+				bool is_non_blocking = false;
+				int32_t verify_peers = 100;
+			} config;
 
 			struct
 			{
-				ssl_ctx_st* Context = nullptr;
-				Socket* Stream = nullptr;
-			} Net;
+				ssl_ctx_st* context = nullptr;
+				socket* stream = nullptr;
+			} net;
 
 		public:
-			SocketClient(int64_t RequestTimeout) noexcept;
-			virtual ~SocketClient() noexcept;
-			Core::ExpectsSystem<void> ConnectQueued(const SocketAddress& Address, bool AsNonBlocking, int32_t VerifyPeers, SocketClientCallback&& Callback);
-			Core::ExpectsSystem<void> DisconnectQueued(SocketClientCallback&& Callback);
-			Core::ExpectsPromiseSystem<void> ConnectSync(const SocketAddress& Address, int32_t VerifyPeers = PEER_NOT_SECURE);
-			Core::ExpectsPromiseSystem<void> ConnectAsync(const SocketAddress& Address, int32_t VerifyPeers = PEER_NOT_SECURE);
-			Core::ExpectsPromiseSystem<void> Disconnect();
-			void ApplyReusability(bool KeepAlive);
-			const SocketAddress& GetPeerAddress() const;
-			bool HasStream() const;
-			bool IsSecure() const;
-			bool IsVerified() const;
-			Socket* GetStream();
+			socket_client(int64_t request_timeout) noexcept;
+			virtual ~socket_client() noexcept;
+			core::expects_system<void> connect_queued(const socket_address& address, bool as_non_blocking, int32_t verify_peers, socket_client_callback&& callback);
+			core::expects_system<void> disconnect_queued(socket_client_callback&& callback);
+			core::expects_promise_system<void> connect_sync(const socket_address& address, int32_t verify_peers = PEER_NOT_SECURE);
+			core::expects_promise_system<void> connect_async(const socket_address& address, int32_t verify_peers = PEER_NOT_SECURE);
+			core::expects_promise_system<void> disconnect();
+			void apply_reusability(bool keep_alive);
+			const socket_address& get_peer_address() const;
+			bool has_stream() const;
+			bool is_secure() const;
+			bool is_verified() const;
+			socket* get_stream();
 
 		protected:
-			virtual Core::ExpectsSystem<void> OnConnect();
-			virtual Core::ExpectsSystem<void> OnReuse();
-			virtual Core::ExpectsSystem<void> OnDisconnect();
-			virtual bool TryReuseStream(const SocketAddress& Address, std::function<void(bool)>&& Callback);
-			virtual bool TryStoreStream();
-			virtual void TryHandshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-			virtual void DispatchConnection(const Core::Option<std::error_condition>& ErrorCode);
-			virtual void DispatchSecureHandshake(Core::ExpectsSystem<void>&& Status);
-			virtual void DispatchSimpleHandshake();
-			virtual void CreateStream();
-			virtual void ConfigureStream();
-			virtual void DestroyStream();
-			virtual void EnableReusability();
-			virtual void DisableReusability();
-			virtual void Handshake(std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-			virtual void Report(Core::ExpectsSystem<void>&& Status);
+			virtual core::expects_system<void> on_connect();
+			virtual core::expects_system<void> on_reuse();
+			virtual core::expects_system<void> on_disconnect();
+			virtual bool try_reuse_stream(const socket_address& address, std::function<void(bool)>&& callback);
+			virtual bool try_store_stream();
+			virtual void try_handshake(std::function<void(core::expects_system<void>&&)>&& callback);
+			virtual void dispatch_connection(const core::option<std::error_condition>& error_code);
+			virtual void dispatch_secure_handshake(core::expects_system<void>&& status);
+			virtual void dispatch_simple_handshake();
+			virtual void create_stream();
+			virtual void configure_stream();
+			virtual void destroy_stream();
+			virtual void enable_reusability();
+			virtual void disable_reusability();
+			virtual void handshake(std::function<void(core::expects_system<void>&&)>&& callback);
+			virtual void report(core::expects_system<void>&& status);
 		};
 	}
 }

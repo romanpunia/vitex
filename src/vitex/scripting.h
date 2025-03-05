@@ -17,2353 +17,2355 @@ class asITypeInfo;
 struct asSFuncPtr;
 struct asSMessageInfo;
 
-namespace Vitex
+namespace vitex
 {
-	namespace Scripting
+	namespace scripting
 	{
-		struct Module;
+		struct library;
 
-		struct Function;
+		struct function;
 
-		struct FunctionDelegate;
+		struct function_delegate;
 
-		class VirtualMachine;
+		struct typeinfo;
 
-		class ImmediateContext;
+		class virtual_machine;
 
-		class DummyPtr
+		class immediate_context;
+
+		class dummy_ptr
 		{
 		};
 
-		enum class DebugType
+		enum class debug_type
 		{
-			Suspended,
-			Attach,
-			Detach
+			suspended,
+			attach,
+			detach
 		};
 
-		enum class LogCategory
+		enum class log_category
 		{
-			ERR = 0,
-			WARNING = 1,
-			INFORMATION = 2
+			err = 0,
+			warning = 1,
+			information = 2
 		};
 
-		enum class Features
+		enum class features
 		{
-			ALLOW_UNSAFE_REFERENCES = 1,
-			OPTIMIZE_BYTECODE = 2,
-			COPY_SCRIPT_SECTIONS = 3,
-			MAX_STACK_SIZE = 4,
-			USE_CHARACTER_LITERALS = 5,
-			ALLOW_MULTILINE_STRINGS = 6,
-			ALLOW_IMPLICIT_HANDLE_TYPES = 7,
-			BUILD_WITHOUT_LINE_CUES = 8,
-			INIT_GLOBAL_VARS_AFTER_BUILD = 9,
-			REQUIRE_ENUM_SCOPE = 10,
-			SCRIPT_SCANNER = 11,
-			INCLUDE_JIT_INSTRUCTIONS = 12,
-			STRING_ENCODING = 13,
-			PROPERTY_ACCESSOR_MODE = 14,
-			EXPAND_DEF_ARRAY_TO_TMPL = 15,
-			AUTO_GARBAGE_COLLECT = 16,
-			DISALLOW_GLOBAL_VARS = 17,
-			ALWAYS_IMPL_DEFAULT_CONSTRUCT = 18,
-			COMPILER_WARNINGS = 19,
-			DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE = 20,
-			ALTER_SYNTAX_NAMED_ARGS = 21,
-			DISABLE_INTEGER_DIVISION = 22,
-			DISALLOW_EMPTY_LIST_ELEMENTS = 23,
-			PRIVATE_PROP_AS_PROTECTED = 24,
-			ALLOW_UNICODE_IDENTIFIERS = 25,
-			HEREDOC_TRIM_MODE = 26,
-			MAX_NESTED_CALLS = 27,
-			GENERIC_CALL_MODE = 28,
-			INIT_STACK_SIZE = 29,
-			INIT_CALL_STACK_SIZE = 30,
-			MAX_CALL_STACK_SIZE = 31,
-			IGNORE_DUPLICATE_SHARED_INTF = 32,
-			NO_DEBUG_OUTPUT = 33,
+			allow_unsafe_references = 1,
+			optimize_bytecode = 2,
+			copy_script_sections = 3,
+			max_stack_size = 4,
+			use_character_literals = 5,
+			allow_multiline_strings = 6,
+			allow_implicit_handle_types = 7,
+			build_without_line_cues = 8,
+			init_global_vars_after_build = 9,
+			require_enum_scope = 10,
+			script_scanner = 11,
+			include_jit_instructions = 12,
+			string_encoding = 13,
+			property_accessor_mode = 14,
+			expand_def_array_to_tmpl = 15,
+			auto_garbage_collect = 16,
+			disallow_global_vars = 17,
+			always_impl_default_construct = 18,
+			compiler_warnings = 19,
+			disallow_value_assign_for_ref_type = 20,
+			alter_syntax_named_args = 21,
+			disable_integer_division = 22,
+			disallow_empty_list_elements = 23,
+			private_prop_as_protected = 24,
+			allow_unicode_identifiers = 25,
+			heredoc_trim_mode = 26,
+			max_nested_calls = 27,
+			generic_call_mode = 28,
+			init_stack_size = 29,
+			init_call_stack_size = 30,
+			max_call_stack_size = 31,
+			ignore_duplicate_shared_intf = 32,
+			no_debug_output = 33,
 		};
 
-		enum class LibraryFeatures
+		enum class library_features
 		{
-			PromiseNoCallbacks = 0,
-			PromiseNoConstructor = 1,
-			OsExposeControl = 2,
-			CTypesNoPointerCast = 3
+			promise_no_callbacks = 0,
+			promise_no_constructor = 1,
+			os_expose_control = 2,
+			ctypes_no_pointer_cast = 3
 		};
 
-		enum class Modifiers
+		enum class modifiers
 		{
-			NONE = 0,
-			INREF = 1,
-			OUTREF = 2,
-			INOUTREF = 3,
-			CONSTF = 4
+			none = 0,
+			inref = 1,
+			outref = 2,
+			inoutref = 3,
+			constf = 4
 		};
 
-		enum class CompileFlags
+		enum class compile_flags
 		{
-			ADD_TO_MODULE = 1
+			add_to_module = 1
 		};
 
-		enum class FunctionType
+		enum class function_type
 		{
-			DUMMY = -1,
-			SYSTEM = 0,
-			SCRIPT = 1,
-			INTERFACE = 2,
+			dummy = -1,
+			system = 0,
+			script = 1,
+			interfacef = 2,
 			VIRTUAL = 3,
-			FUNCDEF = 4,
-			IMPORTED = 5,
-			DELEGATE = 6
+			funcdef = 4,
+			imported = 5,
+			delegatef = 6
 		};
 
-		enum class Behaviours
+		enum class behaviours
 		{
-			CONSTRUCT,
-			LIST_CONSTRUCT,
-			DESTRUCT,
-			FACTORY,
-			LIST_FACTORY,
-			ADDREF,
-			RELEASE,
-			GET_WEAKREF_FLAG,
-			TEMPLATE_CALLBACK,
-			FIRST_GC,
-			GETREFCOUNT = FIRST_GC,
-			SETGCFLAG,
-			GETGCFLAG,
-			ENUMREFS,
-			RELEASEREFS,
-			LAST_GC = RELEASEREFS,
-			MAX
+			construct,
+			list_construct,
+			destruct,
+			factory,
+			list_factory,
+			addref,
+			release,
+			get_weakref_flag,
+			template_callback,
+			first_gc,
+			getrefcount = first_gc,
+			setgcflag,
+			getgcflag,
+			enumrefs,
+			releaserefs,
+			last_gc = releaserefs,
+			max
 		};
 
-		enum class Execution
+		enum class execution
 		{
-			Finished = 0,
-			Suspended = 1,
-			Aborted = 2,
-			Exception = 3,
-			Prepared = 4,
-			Uninitialized = 5,
-			Active = 6,
-			Error = 7,
-			Deserialization = 8
+			finished = 0,
+			suspended = 1,
+			aborted = 2,
+			exception = 3,
+			prepared = 4,
+			uninitialized = 5,
+			active = 6,
+			error = 7,
+			deserialization = 8
 		};
 
-		enum class FunctionCall
+		enum class function_call
 		{
-			CDECLF = 0,
-			STDCALL = 1,
-			THISCALL_ASGLOBAL = 2,
-			THISCALL = 3,
-			CDECL_OBJLAST = 4,
-			CDECL_OBJFIRST = 5,
-			GENERIC = 6,
-			THISCALL_OBJLAST = 7,
-			THISCALL_OBJFIRST = 8
+			cdeclf = 0,
+			stdcall = 1,
+			thiscall_asglobal = 2,
+			thiscall = 3,
+			cdecl_objlast = 4,
+			cdecl_objfirst = 5,
+			genericf = 6,
+			thiscall_objlast = 7,
+			thiscall_objfirst = 8
 		};
 
-		enum class VirtualError
+		enum class virtual_error
 		{
-			SUCCESS = 0,
-			ERR = -1,
-			CONTEXT_ACTIVE = -2,
-			CONTEXT_NOT_FINISHED = -3,
-			CONTEXT_NOT_PREPARED = -4,
-			INVALID_ARG = -5,
-			NO_FUNCTION = -6,
-			NOT_SUPPORTED = -7,
-			INVALID_NAME = -8,
-			NAME_TAKEN = -9,
-			INVALID_DECLARATION = -10,
-			INVALID_OBJECT = -11,
-			INVALID_TYPE = -12,
-			ALREADY_REGISTERED = -13,
-			MULTIPLE_FUNCTIONS = -14,
-			NO_MODULE = -15,
-			NO_GLOBAL_VAR = -16,
-			INVALID_CONFIGURATION = -17,
-			INVALID_INTERFACE = -18,
-			CANT_BIND_ALL_FUNCTIONS = -19,
-			LOWER_ARRAY_DIMENSION_NOT_REGISTERED = -20,
-			WRONG_CONFIG_GROUP = -21,
-			CONFIG_GROUP_IS_IN_USE = -22,
-			ILLEGAL_BEHAVIOUR_FOR_TYPE = -23,
-			WRONG_CALLING_CONV = -24,
-			BUILD_IN_PROGRESS = -25,
-			INIT_GLOBAL_VARS_FAILED = -26,
-			OUT_OF_MEMORY = -27,
-			MODULE_IS_IN_USE = -28
+			success = 0,
+			err = -1,
+			context_active = -2,
+			context_not_finished = -3,
+			context_not_prepared = -4,
+			invalid_arg = -5,
+			no_function = -6,
+			not_supported = -7,
+			invalid_name = -8,
+			name_taken = -9,
+			invalid_declaration = -10,
+			invalid_object = -11,
+			invalid_type = -12,
+			already_registered = -13,
+			multiple_functions = -14,
+			no_module = -15,
+			no_global_var = -16,
+			invalid_configuration = -17,
+			invalid_interface = -18,
+			cant_bind_all_functions = -19,
+			lower_array_dimension_not_registered = -20,
+			wrong_config_group = -21,
+			config_group_is_in_use = -22,
+			illegal_behaviour_for_type = -23,
+			wrong_calling_conv = -24,
+			build_in_progress = -25,
+			init_global_vars_failed = -26,
+			out_of_memory = -27,
+			module_is_in_use = -28
 		};
 
-		enum class TypeId
+		enum class type_id
 		{
-			VOIDF = 0,
-			BOOL = 1,
-			INT8 = 2,
-			INT16 = 3,
-			INT32 = 4,
-			INT64 = 5,
-			UINT8 = 6,
-			UINT16 = 7,
-			UINT32 = 8,
-			UINT64 = 9,
-			FLOAT = 10,
-			DOUBLE = 11,
-			OBJHANDLE = 0x40000000,
-			HANDLETOCONST = 0x20000000,
-			MASK_OBJECT = 0x1C000000,
-			APPOBJECT = 0x04000000,
-			SCRIPTOBJECT = 0x08000000,
-			TEMPLATE = 0x10000000,
-			MASK_SEQNBR = 0x03FFFFFF
+			voidf = 0,
+			boolf = 1,
+			int8 = 2,
+			int16 = 3,
+			int32 = 4,
+			int64 = 5,
+			uint8 = 6,
+			uint16 = 7,
+			uint32 = 8,
+			uint64 = 9,
+			floatf = 10,
+			doublef = 11,
+			objhandle = 0x40000000,
+			handletoconst = 0x20000000,
+			mask_object = 0x1C000000,
+			appobject = 0x04000000,
+			scriptobject = 0x08000000,
+			pattern = 0x10000000,
+			mask_seqnbr = 0x03FFFFFF
 		};
 
-		enum class ObjectBehaviours
+		enum class object_behaviours
 		{
-			REF = (1 << 0),
-			VALUE = (1 << 1),
-			GC = (1 << 2),
-			POD = (1 << 3),
-			NOHANDLE = (1 << 4),
-			SCOPED = (1 << 5),
-			TEMPLATE = (1 << 6),
-			ASHANDLE = (1 << 7),
-			APP_CLASS = (1 << 8),
-			APP_CLASS_CONSTRUCTOR = (1 << 9),
-			APP_CLASS_DESTRUCTOR = (1 << 10),
-			APP_CLASS_ASSIGNMENT = (1 << 11),
-			APP_CLASS_COPY_CONSTRUCTOR = (1 << 12),
-			APP_CLASS_C = (APP_CLASS + APP_CLASS_CONSTRUCTOR),
-			APP_CLASS_CD = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR),
-			APP_CLASS_CA = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_ASSIGNMENT),
-			APP_CLASS_CK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_CDA = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT),
-			APP_CLASS_CDK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_CAK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_CDAK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_D = (APP_CLASS + APP_CLASS_DESTRUCTOR),
-			APP_CLASS_DA = (APP_CLASS + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT),
-			APP_CLASS_DK = (APP_CLASS + APP_CLASS_DESTRUCTOR + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_DAK = (APP_CLASS + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_A = (APP_CLASS + APP_CLASS_ASSIGNMENT),
-			APP_CLASS_AK = (APP_CLASS + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_CLASS_K = (APP_CLASS + APP_CLASS_COPY_CONSTRUCTOR),
-			APP_PRIMITIVE = (1 << 13),
-			APP_FLOAT = (1 << 14),
-			APP_ARRAY = (1 << 15),
-			APP_CLASS_ALLINTS = (1 << 16),
-			APP_CLASS_ALLFLOATS = (1 << 17),
-			NOCOUNT = (1 << 18),
-			APP_CLASS_ALIGN8 = (1 << 19),
-			IMPLICIT_HANDLE = (1 << 20),
-			MASK_VALID_FLAGS = 0x1FFFFF,
-			SCRIPT_OBJECT = (1 << 21),
-			SHARED = (1 << 22),
-			NOINHERIT = (1 << 23),
-			FUNCDEF = (1 << 24),
-			LIST_PATTERN = (1 << 25),
-			ENUM = (1 << 26),
-			TEMPLATE_SUBTYPE = (1 << 27),
-			TYPEDEF = (1 << 28),
-			ABSTRACT = (1 << 29),
-			APP_ALIGN16 = (1 << 30)
+			ref = (1 << 0),
+			value = (1 << 1),
+			gc = (1 << 2),
+			pod = (1 << 3),
+			nohandle = (1 << 4),
+			scoped = (1 << 5),
+			pattern = (1 << 6),
+			ashandle = (1 << 7),
+			app_class = (1 << 8),
+			app_class_constructor = (1 << 9),
+			app_class_destructor = (1 << 10),
+			app_class_assignment = (1 << 11),
+			app_class_copy_constructor = (1 << 12),
+			app_class_c = (app_class + app_class_constructor),
+			app_class_cd = (app_class + app_class_constructor + app_class_destructor),
+			app_class_ca = (app_class + app_class_constructor + app_class_assignment),
+			app_class_ck = (app_class + app_class_constructor + app_class_copy_constructor),
+			app_class_cda = (app_class + app_class_constructor + app_class_destructor + app_class_assignment),
+			app_class_cdk = (app_class + app_class_constructor + app_class_destructor + app_class_copy_constructor),
+			app_class_cak = (app_class + app_class_constructor + app_class_assignment + app_class_copy_constructor),
+			app_class_cdak = (app_class + app_class_constructor + app_class_destructor + app_class_assignment + app_class_copy_constructor),
+			app_class_d = (app_class + app_class_destructor),
+			app_class_da = (app_class + app_class_destructor + app_class_assignment),
+			app_class_dk = (app_class + app_class_destructor + app_class_copy_constructor),
+			app_class_dak = (app_class + app_class_destructor + app_class_assignment + app_class_copy_constructor),
+			app_class_a = (app_class + app_class_assignment),
+			app_class_ak = (app_class + app_class_assignment + app_class_copy_constructor),
+			app_class_k = (app_class + app_class_copy_constructor),
+			app_primitive = (1 << 13),
+			app_float = (1 << 14),
+			app_array = (1 << 15),
+			app_class_allints = (1 << 16),
+			app_class_allfloats = (1 << 17),
+			nocount = (1 << 18),
+			app_class_align8 = (1 << 19),
+			implicit_handle = (1 << 20),
+			mask_valid_flags = 0x1FFFFF,
+			script_object = (1 << 21),
+			shared = (1 << 22),
+			noinherit = (1 << 23),
+			funcdef = (1 << 24),
+			list_pattern = (1 << 25),
+			enumerator = (1 << 26),
+			template_subtype = (1 << 27),
+			typedeff = (1 << 28),
+			abstractf = (1 << 29),
+			app_align16 = (1 << 30)
 		};
 
-		enum class Operators
+		enum class operators
 		{
-			Neg,
-			Com,
-			PreInc,
-			PreDec,
-			PostInc,
-			PostDec,
-			Equals,
-			Cmp,
-			Assign,
-			AddAssign,
-			SubAssign,
-			MulAssign,
-			DivAssign,
-			ModAssign,
-			PowAssign,
-			AndAssign,
-			OrAssign,
-			XOrAssign,
-			ShlAssign,
-			ShrAssign,
-			UshrAssign,
-			Add,
-			Sub,
-			Mul,
-			Div,
-			Mod,
-			Pow,
-			And,
-			Or,
-			XOr,
-			Shl,
-			Shr,
-			Ushr,
-			Index,
-			Call,
-			Cast,
-			ImplCast
+			neg,
+			com,
+			pre_inc,
+			pre_dec,
+			post_inc,
+			post_dec,
+			equals,
+			cmp,
+			assign,
+			add_assign,
+			sub_assign,
+			mul_assign,
+			div_assign,
+			mod_assign,
+			pow_assign,
+			and_assign,
+			or_assign,
+			xor_assign,
+			shl_assign,
+			shr_assign,
+			ushr_assign,
+			add,
+			sub,
+			mul,
+			div,
+			mod,
+			pow,
+			andf,
+			otherwise,
+			xorf,
+			shl,
+			shr,
+			ushr,
+			index,
+			call,
+			cast,
+			impl_cast
 		};
 
-		enum class Position
+		enum class position
 		{
-			Left = 0,
-			Right = 1,
-			Const = 2
+			left = 0,
+			right = 1,
+			constant = 2
 		};
 
-		enum class GarbageCollector
+		enum class garbage_collector
 		{
-			FULL_CYCLE = 1,
-			ONE_STEP = 2,
-			DESTROY_GARBAGE = 4,
-			DETECT_GARBAGE = 8
+			full_cycle = 1,
+			one_step = 2,
+			destroy_garbage = 4,
+			detect_garbage = 8
 		};
 
-		inline ObjectBehaviours operator |(ObjectBehaviours A, ObjectBehaviours B)
+		inline object_behaviours operator |(object_behaviours a, object_behaviours b)
 		{
-			return static_cast<ObjectBehaviours>(static_cast<size_t>(A) | static_cast<size_t>(B));
+			return static_cast<object_behaviours>(static_cast<size_t>(a) | static_cast<size_t>(b));
 		}
-		inline Position operator |(Position A, Position B)
+		inline position operator |(position a, position b)
 		{
-			return static_cast<Position>(static_cast<size_t>(A) | static_cast<size_t>(B));
+			return static_cast<position>(static_cast<size_t>(a) | static_cast<size_t>(b));
 		}
-		inline GarbageCollector operator |(GarbageCollector A, GarbageCollector B)
+		inline garbage_collector operator |(garbage_collector a, garbage_collector b)
 		{
-			return static_cast<GarbageCollector>(static_cast<size_t>(A) | static_cast<size_t>(B));
+			return static_cast<garbage_collector>(static_cast<size_t>(a) | static_cast<size_t>(b));
 		}
 
-		typedef void(DummyPtr::* DummyMethodPtr)();
-		typedef void(*FunctionPtr)();
-		typedef std::function<void(struct TypeInfo*, struct FunctionInfo*)> PropertyCallback;
-		typedef std::function<void(struct TypeInfo*, struct Function*)> MethodCallback;
-		typedef std::function<void(class VirtualMachine*)> AddonCallback;
-		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
+		typedef void(dummy_ptr::* dummy_method_ptr)();
+		typedef void(*function_ptr)();
+		typedef std::function<void(typeinfo*, struct function_info*)> property_callback;
+		typedef std::function<void(typeinfo*, struct function*)> method_callback;
+		typedef std::function<void(class virtual_machine*)> addon_callback;
+		typedef std::function<void(class immediate_context*)> args_callback;
 
-		class VirtualException final : public Core::BasicException
+		class virtual_exception final : public core::basic_exception
 		{
 		private:
-			VirtualError ErrorCode;
+			virtual_error error_code;
 
 		public:
-			VirtualException(VirtualError ErrorCode);
-			VirtualException(VirtualError ErrorCode, Core::String&& Message);
-			VirtualException(Core::String&& Message);
+			virtual_exception(virtual_error error_code);
+			virtual_exception(virtual_error error_code, core::string&& message);
+			virtual_exception(core::string&& message);
 			const char* type() const noexcept override;
-			VirtualError error_code() const noexcept;
+			virtual_error code() const noexcept;
 		};
 
-		template <typename T>
-		using ExpectsVM = Core::Expects<T, VirtualException>;
+		template <typename t>
+		using expects_vm = core::expects<t, virtual_exception>;
 
-		template <typename T>
-		using ExpectsPromiseVM = Core::Promise<ExpectsVM<T>>;
+		template <typename t>
+		using expects_promise_vm = core::promise<expects_vm<t>>;
 
-		class TypeCache : public Core::Singletonish
+		class type_cache : public core::singletonish
 		{
 		private:
-			static Core::UnorderedMap<uint64_t, std::pair<Core::String, int>>* Names;
+			static core::unordered_map<uint64_t, std::pair<core::string, int>>* names;
 
 		public:
-			static uint64_t Set(uint64_t Id, const std::string_view& Name);
-			static int GetTypeId(uint64_t Id);
-			static void Cleanup();
+			static uint64_t set(uint64_t id, const std::string_view& name);
+			static int get_type_id(uint64_t id);
+			static void cleanup();
 		};
 
-		class Parser
+		class parser
 		{
 		public:
-			static ExpectsVM<void> ReplaceInlinePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
-			static ExpectsVM<void> ReplaceDirectivePreconditions(const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
+			static expects_vm<void> replace_inline_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer);
+			static expects_vm<void> replace_directive_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer);
 
 		private:
-			static ExpectsVM<void> ReplacePreconditions(bool IsDirective, const std::string_view& Keyword, Core::String& Data, const std::function<ExpectsVM<Core::String>(const std::string_view& Expression)>& Replacer);
+			static expects_vm<void> replace_preconditions(bool is_directive, const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer);
 		};
 
-		class FunctionFactory
+		class function_factory
 		{
 		public:
-			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
-			static Core::Unique<asSFuncPtr> CreateMethodBase(const void* Base, size_t Size, int Type);
-			static Core::Unique<asSFuncPtr> CreateDummyBase();
-			static ExpectsVM<void> AtomicNotifyGC(const std::string_view& TypeName, void* Object);
-			static ExpectsVM<void> AtomicNotifyGCById(int TypeId, void* Object);
-			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
-			static void GCEnumCallback(asIScriptEngine* Engine, void* Reference);
-			static void GCEnumCallback(asIScriptEngine* Engine, asIScriptFunction* Reference);
-			static void GCEnumCallback(asIScriptEngine* Engine, FunctionDelegate* Reference);
+			static core::unique<asSFuncPtr> create_function_base(void(*base)(), int type);
+			static core::unique<asSFuncPtr> create_method_base(const void* base, size_t size, int type);
+			static core::unique<asSFuncPtr> create_dummy_base();
+			static expects_vm<void> atomic_notify_gc(const std::string_view& type_name, void* object);
+			static expects_vm<void> atomic_notify_gc_by_id(int type_id, void* object);
+			static void release_functor(core::unique<asSFuncPtr>* ptr);
+			static void gc_enum_callback(asIScriptEngine* engine, void* reference);
+			static void gc_enum_callback(asIScriptEngine* engine, asIScriptFunction* reference);
+			static void gc_enum_callback(asIScriptEngine* engine, function_delegate* reference);
 
 		public:
-			template <typename T>
-			static ExpectsVM<T> ToReturn(int Code, T&& Value)
+			template <typename t>
+			static expects_vm<t> to_return(int code, t&& value)
 			{
-				if (Code < 0)
-					return VirtualException((VirtualError)Code);
+				if (code < 0)
+					return virtual_exception((virtual_error)code);
 
-				return Value;
+				return value;
 			}
-			static ExpectsVM<void> ToReturn(int Code)
+			static expects_vm<void> to_return(int code)
 			{
-				if (Code < 0)
-					return VirtualException((VirtualError)Code);
+				if (code < 0)
+					return virtual_exception((virtual_error)code);
 
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
 		};
 
-		template <int N>
-		struct FunctionBinding
+		template <int n>
+		struct function_binding
 		{
-			template <class M>
-			static Core::Unique<asSFuncPtr> Bind(M Value)
+			template <class m>
+			static core::unique<asSFuncPtr> bind(m value)
 			{
-				return FunctionFactory::CreateDummyBase();
+				return function_factory::create_dummy_base();
 			}
 		};
 
 		template <>
-		struct FunctionBinding<sizeof(DummyMethodPtr)>
+		struct function_binding<sizeof(dummy_method_ptr)>
 		{
-			template <class M>
-			static Core::Unique<asSFuncPtr> Bind(M Value)
+			template <class m>
+			static core::unique<asSFuncPtr> bind(m value)
 			{
-				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr), 3);
+				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr), 3);
 			}
 		};
 #if defined(_MSC_VER) && !defined(__MWERKS__)
 		template <>
-		struct FunctionBinding<sizeof(DummyMethodPtr) + 1 * sizeof(int)>
+		struct function_binding<sizeof(dummy_method_ptr) + 1 * sizeof(int)>
 		{
-			template <class M>
-			static Core::Unique<asSFuncPtr> Bind(M Value)
+			template <class m>
+			static core::unique<asSFuncPtr> bind(m value)
 			{
-				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + sizeof(int), 3);
+				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + sizeof(int), 3);
 			}
 		};
 
 		template <>
-		struct FunctionBinding<sizeof(DummyMethodPtr) + 2 * sizeof(int)>
+		struct function_binding<sizeof(dummy_method_ptr) + 2 * sizeof(int)>
 		{
-			template <class M>
-			static Core::Unique<asSFuncPtr> Bind(M Value)
+			template <class m>
+			static core::unique<asSFuncPtr> bind(m value)
 			{
-				asSFuncPtr* Ptr = FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 2 * sizeof(int), 3);
+				asSFuncPtr* ptr = function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + 2 * sizeof(int), 3);
 #if defined(_MSC_VER) && !defined(VI_64)
-				* (reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
+				* (reinterpret_cast<unsigned long*>(ptr) + 3) = *(reinterpret_cast<unsigned long*>(ptr) + 2);
 #endif
-				return Ptr;
+				return ptr;
 			}
 		};
 
 		template <>
-		struct FunctionBinding<sizeof(DummyMethodPtr) + 3 * sizeof(int)>
+		struct function_binding<sizeof(dummy_method_ptr) + 3 * sizeof(int)>
 		{
-			template <class M>
-			static Core::Unique<asSFuncPtr> Bind(M Value)
+			template <class m>
+			static core::unique<asSFuncPtr> bind(m value)
 			{
-				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 3 * sizeof(int), 3);
+				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + 3 * sizeof(int), 3);
 			}
 		};
 
 		template <>
-		struct FunctionBinding<sizeof(DummyMethodPtr) + 4 * sizeof(int)>
+		struct function_binding<sizeof(dummy_method_ptr) + 4 * sizeof(int)>
 		{
-			template <class M>
-			static Core::Unique<asSFuncPtr> Bind(M Value)
+			template <class m>
+			static core::unique<asSFuncPtr> bind(m value)
 			{
-				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 4 * sizeof(int), 3);
+				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + 4 * sizeof(int), 3);
 			}
 		};
 #endif
-		class GenericContext
+		class generic_context
 		{
 		private:
-			VirtualMachine* VM;
-			asIScriptGeneric* Generic;
+			virtual_machine* vm;
+			asIScriptGeneric* genericf;
 
 		public:
-			GenericContext(asIScriptGeneric* Base) noexcept;
-			void* GetObjectAddress();
-			int GetObjectTypeId() const;
-			size_t GetArgsCount() const;
-			int GetArgTypeId(size_t Argument, size_t* Flags = 0) const;
-			uint8_t GetArgByte(size_t Argument);
-			uint16_t GetArgWord(size_t Argument);
-			size_t GetArgDWord(size_t Argument);
-			uint64_t GetArgQWord(size_t Argument);
-			float GetArgFloat(size_t Argument);
-			double GetArgDouble(size_t Argument);
-			void* GetArgAddress(size_t Argument);
-			void* GetArgObjectAddress(size_t Argument);
-			void* GetAddressOfArg(size_t Argument);
-			int GetReturnTypeId(size_t* Flags = 0) const;
-			ExpectsVM<void> SetReturnByte(uint8_t Value);
-			ExpectsVM<void> SetReturnWord(uint16_t Value);
-			ExpectsVM<void> SetReturnDWord(size_t Value);
-			ExpectsVM<void> SetReturnQWord(uint64_t Value);
-			ExpectsVM<void> SetReturnFloat(float Value);
-			ExpectsVM<void> SetReturnDouble(double Value);
-			ExpectsVM<void> SetReturnAddress(void* Address);
-			ExpectsVM<void> SetReturnObjectAddress(void* Object);
-			void* GetAddressOfReturnLocation();
-			bool IsValid() const;
-			asIScriptGeneric* GetGeneric() const;
-			VirtualMachine* GetVM() const;
+			generic_context(asIScriptGeneric* base) noexcept;
+			void* get_object_address();
+			int get_object_type_id() const;
+			size_t get_args_count() const;
+			int get_arg_type_id(size_t argument, size_t* flags = 0) const;
+			uint8_t get_arg_byte(size_t argument);
+			uint16_t get_arg_word(size_t argument);
+			size_t get_arg_dword(size_t argument);
+			uint64_t get_arg_qword(size_t argument);
+			float get_arg_float(size_t argument);
+			double get_arg_double(size_t argument);
+			void* get_arg_address(size_t argument);
+			void* get_arg_object_address(size_t argument);
+			void* get_address_of_arg(size_t argument);
+			int get_return_type_id(size_t* flags = 0) const;
+			expects_vm<void> set_return_byte(uint8_t value);
+			expects_vm<void> set_return_word(uint16_t value);
+			expects_vm<void> set_return_dword(size_t value);
+			expects_vm<void> set_return_qword(uint64_t value);
+			expects_vm<void> set_return_float(float value);
+			expects_vm<void> set_return_double(double value);
+			expects_vm<void> set_return_address(void* address);
+			expects_vm<void> set_return_object_address(void* object);
+			void* get_address_of_return_location();
+			bool is_valid() const;
+			asIScriptGeneric* get_generic() const;
+			virtual_machine* get_vm() const;
 
 		public:
-			template <typename T>
-			ExpectsVM<void> SetReturnObject(T* Object)
+			template <typename t>
+			expects_vm<void> set_return_object(t* object)
 			{
-				return SetReturnObjectAddress((void*)Object);
+				return set_return_object_address((void*)object);
 			}
-			template <typename T>
-			T* GetArgObject(size_t Arg)
+			template <typename t>
+			t* get_arg_object(size_t arg)
 			{
-				return (T*)GetArgObjectAddress(Arg);
+				return (t*)get_arg_object_address(arg);
 			}
 		};
 
-		class Bridge
+		class bridge
 		{
 		public:
-			template <typename T>
-			static Core::Unique<asSFuncPtr> Function(T Value)
+			template <typename t>
+			static core::unique<asSFuncPtr> function(t value)
 			{
 #ifdef VI_64
-				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
+				void(*address)() = reinterpret_cast<void(*)()>(size_t(value));
 #else
-				void (*Address)() = reinterpret_cast<void (*)()>(Value);
+				void (*address)() = reinterpret_cast<void (*)()>(value);
 #endif
-				return FunctionFactory::CreateFunctionBase(Address, 2);
+				return function_factory::create_function_base(address, 2);
 			}
-			template <typename T>
-			static Core::Unique<asSFuncPtr> FunctionGeneric(T Value)
+			template <typename t>
+			static core::unique<asSFuncPtr> function_generic(t value)
 			{
 #ifdef VI_64
-				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
+				void(*address)() = reinterpret_cast<void(*)()>(size_t(value));
 #else
-				void(*Address)() = reinterpret_cast<void(*)()>(Value);
+				void(*address)() = reinterpret_cast<void(*)()>(value);
 #endif
-				return FunctionFactory::CreateFunctionBase(Address, 1);
+				return function_factory::create_function_base(address, 1);
 			}
-			template <typename T, typename R, typename... Args>
-			static Core::Unique<asSFuncPtr> Method(R(T::* Value)(Args...))
+			template <typename t, typename r, typename... args>
+			static core::unique<asSFuncPtr> method(r(t::* value)(args...))
 			{
-				return FunctionBinding<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
+				return function_binding<sizeof(void (t::*)())>::bind((void (t::*)())(value));
 			}
-			template <typename T, typename R, typename... Args>
-			static Core::Unique<asSFuncPtr> Method(R(T::* Value)(Args...) const)
+			template <typename t, typename r, typename... args>
+			static core::unique<asSFuncPtr> method(r(t::* value)(args...) const)
 			{
-				return FunctionBinding<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
+				return function_binding<sizeof(void (t::*)())>::bind((void (t::*)())(value));
 			}
-			template <typename T, typename R, typename... Args>
-			static Core::Unique<asSFuncPtr> MethodOp(R(T::* Value)(Args...))
+			template <typename t, typename r, typename... args>
+			static core::unique<asSFuncPtr> method_op(r(t::* value)(args...))
 			{
-				return FunctionBinding<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
+				return function_binding<sizeof(void (t::*)())>::bind(static_cast<r(t::*)(args...)>(value));
 			}
-			template <typename T, typename R, typename... Args>
-			static Core::Unique<asSFuncPtr> MethodOp(R(T::* Value)(Args...) const)
+			template <typename t, typename r, typename... args>
+			static core::unique<asSFuncPtr> method_op(r(t::* value)(args...) const)
 			{
-				return FunctionBinding<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
+				return function_binding<sizeof(void (t::*)())>::bind(static_cast<r(t::*)(args...)>(value));
 			}
-			template <typename T, typename... Args>
-			static void GetConstructorCall(void* Memory, Args... Data)
+			template <typename t, typename... args>
+			static void get_constructor_call(void* memory, args... data)
 			{
-				new(Memory) T(Data...);
+				new(memory) t(data...);
 			}
-			template <typename T>
-			static void GetConstructorListCall(asIScriptGeneric* Generic)
+			template <typename t>
+			static void get_constructor_list_call(asIScriptGeneric* genericf)
 			{
-				GenericContext Args(Generic);
-				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((uint8_t*)Args.GetArgAddress(0));
+				generic_context args(genericf);
+				*reinterpret_cast<t**>(args.get_address_of_return_location()) = new t((uint8_t*)args.get_arg_address(0));
 			}
-			template <typename T>
-			static void GetDestructorCall(void* Memory)
+			template <typename t>
+			static void get_destructor_call(void* memory)
 			{
-				((T*)Memory)->~T();
+				((t*)memory)->~t();
 			}
-			template <typename T, uint64_t TypeName, typename... Args>
-			static T* GetManagedCall(Args... Data)
+			template <typename t, uint64_t type_name, typename... args>
+			static t* get_managed_call(args... data)
 			{
-				auto* Result = new T(Data...);
-				FunctionFactory::AtomicNotifyGCById(TypeCache::GetTypeId(TypeName), (void*)Result);
+				auto* result = new t(data...);
+				function_factory::atomic_notify_gc_by_id(type_cache::get_type_id(type_name), (void*)result);
 
-				return Result;
+				return result;
 			}
-			template <typename T, uint64_t TypeName>
-			static void GetManagedListCall(asIScriptGeneric* Generic)
+			template <typename t, uint64_t type_name>
+			static void get_managed_list_call(asIScriptGeneric* genericf)
 			{
-				GenericContext Args(Generic);
-				T* Result = new T((uint8_t*)Args.GetArgAddress(0));
-				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
-				FunctionFactory::AtomicNotifyGCById(TypeCache::GetTypeId(TypeName), (void*)Result);
+				generic_context args(genericf);
+				t* result = new t((uint8_t*)args.get_arg_address(0));
+				*reinterpret_cast<t**>(args.get_address_of_return_location()) = result;
+				function_factory::atomic_notify_gc_by_id(type_cache::get_type_id(type_name), (void*)result);
 			}
-			template <typename T, typename... Args>
-			static Core::Unique<T> GetUnmanagedCall(Args... Data)
+			template <typename t, typename... args>
+			static core::unique<t> get_unmanaged_call(args... data)
 			{
-				return new T(Data...);
+				return new t(data...);
 			}
-			template <typename T>
-			static void GetUnmanagedListCall(asIScriptGeneric* Generic)
+			template <typename t>
+			static void get_unmanaged_list_call(asIScriptGeneric* genericf)
 			{
-				GenericContext Args(Generic);
-				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((uint8_t*)Args.GetArgAddress(0));
+				generic_context args(genericf);
+				*reinterpret_cast<t**>(args.get_address_of_return_location()) = new t((uint8_t*)args.get_arg_address(0));
 			}
-			template <typename T>
-			static size_t GetTypeTraits()
+			template <typename t>
+			static size_t get_type_traits()
 			{
 #if defined(_MSC_VER) || defined(_LIBCPP_TYPE_TRAITS) || (__GNUC__ >= 5) || defined(__clang__)
-				bool HasConstructor = std::is_default_constructible<T>::value && !std::is_trivially_default_constructible<T>::value;
-				bool HasDestructor = std::is_destructible<T>::value && !std::is_trivially_destructible<T>::value;
-				bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::is_trivially_copy_assignable<T>::value;
-				bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::is_trivially_copy_constructible<T>::value;
+				bool has_constructor = std::is_default_constructible<t>::value && !std::is_trivially_default_constructible<t>::value;
+				bool has_destructor = std::is_destructible<t>::value && !std::is_trivially_destructible<t>::value;
+				bool has_assignment_operator = std::is_copy_assignable<t>::value && !std::is_trivially_copy_assignable<t>::value;
+				bool has_copy_constructor = std::is_copy_constructible<t>::value && !std::is_trivially_copy_constructible<t>::value;
 #elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
-				bool HasConstructor = std::is_default_constructible<T>::value && !std::has_trivial_default_constructor<T>::value;
-				bool HasDestructor = std::is_destructible<T>::value && !std::is_trivially_destructible<T>::value;
-				bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::has_trivial_copy_assign<T>::value;
-				bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::has_trivial_copy_constructor<T>::value;
+				bool has_constructor = std::is_default_constructible<t>::value && !std::has_trivial_default_constructor<t>::value;
+				bool has_destructor = std::is_destructible<t>::value && !std::is_trivially_destructible<t>::value;
+				bool has_assignment_operator = std::is_copy_assignable<t>::value && !std::has_trivial_copy_assign<t>::value;
+				bool has_copy_constructor = std::is_copy_constructible<t>::value && !std::has_trivial_copy_constructor<t>::value;
 #else
-				bool HasConstructor = std::is_default_constructible<T>::value && !std::has_trivial_default_constructor<T>::value;
-				bool HasDestructor = std::is_destructible<T>::value && !std::has_trivial_destructor<T>::value;
-				bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::has_trivial_copy_assign<T>::value;
-				bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::has_trivial_copy_constructor<T>::value;
+				bool has_constructor = std::is_default_constructible<t>::value && !std::has_trivial_default_constructor<t>::value;
+				bool has_destructor = std::is_destructible<t>::value && !std::has_trivial_destructor<t>::value;
+				bool has_assignment_operator = std::is_copy_assignable<t>::value && !std::has_trivial_copy_assign<t>::value;
+				bool has_copy_constructor = std::is_copy_constructible<t>::value && !std::has_trivial_copy_constructor<t>::value;
 #endif
-				bool IsFloat = std::is_floating_point<T>::value;
-				bool IsPrimitive = std::is_integral<T>::value || std::is_pointer<T>::value || std::is_enum<T>::value;
-				bool IsClass = std::is_class<T>::value;
-				bool IsArray = std::is_array<T>::value;
+				bool is_float = std::is_floating_point<t>::value;
+				bool is_primitive = std::is_integral<t>::value || std::is_pointer<t>::value || std::is_enum<t>::value;
+				bool is_class = std::is_class<t>::value;
+				bool is_array = std::is_array<t>::value;
 
-				if (IsFloat)
-					return (size_t)ObjectBehaviours::APP_FLOAT;
+				if (is_float)
+					return (size_t)object_behaviours::app_float;
 
-				if (IsPrimitive)
-					return (size_t)ObjectBehaviours::APP_PRIMITIVE;
+				if (is_primitive)
+					return (size_t)object_behaviours::app_primitive;
 
-				if (IsClass)
+				if (is_class)
 				{
-					size_t Flags = (size_t)ObjectBehaviours::APP_CLASS;
-					if (HasConstructor)
-						Flags |= (size_t)ObjectBehaviours::APP_CLASS_CONSTRUCTOR;
+					size_t flags = (size_t)object_behaviours::app_class;
+					if (has_constructor)
+						flags |= (size_t)object_behaviours::app_class_constructor;
 
-					if (HasDestructor)
-						Flags |= (size_t)ObjectBehaviours::APP_CLASS_DESTRUCTOR;
+					if (has_destructor)
+						flags |= (size_t)object_behaviours::app_class_destructor;
 
-					if (HasAssignmentOperator)
-						Flags |= (size_t)ObjectBehaviours::APP_CLASS_ASSIGNMENT;
+					if (has_assignment_operator)
+						flags |= (size_t)object_behaviours::app_class_assignment;
 
-					if (HasCopyConstructor)
-						Flags |= (size_t)ObjectBehaviours::APP_CLASS_COPY_CONSTRUCTOR;
+					if (has_copy_constructor)
+						flags |= (size_t)object_behaviours::app_class_copy_constructor;
 
-					return Flags;
+					return flags;
 				}
 
-				if (IsArray)
-					return (size_t)ObjectBehaviours::APP_ARRAY;
+				if (is_array)
+					return (size_t)object_behaviours::app_array;
 
 				return 0;
 			}
 		};
 
-		struct ByteCodeInfo
+		struct byte_code_info
 		{
-			Core::Vector<uint8_t> Data;
-			Core::String Name;
-			bool Valid = false;
-			bool Debug = true;
+			core::vector<uint8_t> data;
+			core::string name;
+			bool valid = false;
+			bool debug = true;
 		};
 
-		struct ByteCodeLabel
+		struct byte_code_label
 		{
-			std::string_view Name;
-			size_t OffsetOfArg0;
-			size_t OffsetOfArg1;
-			size_t OffsetOfArg2;
-			int32_t OffsetOfStack;
-			uint8_t Code;
-			uint8_t Size;
-			uint8_t SizeOfArg0;
-			uint8_t SizeOfArg1;
-			uint8_t SizeOfArg2;
+			std::string_view name;
+			size_t offset_of_arg0;
+			size_t offset_of_arg1;
+			size_t offset_of_arg2;
+			int32_t offset_of_stack;
+			uint8_t code;
+			uint8_t size;
+			uint8_t size_of_arg0;
+			uint8_t size_of_arg1;
+			uint8_t size_of_arg2;
 		};
 
-		struct PropertyInfo
+		struct property_info
 		{
-			std::string_view Name;
-			std::string_view Namespace;
-			int TypeId;
-			bool IsConst;
-			std::string_view ConfigGroup;
-			void* Pointer;
-			size_t AccessMask;
+			std::string_view name;
+			std::string_view name_space;
+			int type_id;
+			bool is_const;
+			std::string_view config_group;
+			void* pointer;
+			size_t access_mask;
 		};
 
-		struct FunctionInfo
+		struct function_info
 		{
-			std::string_view Name;
-			size_t AccessMask;
-			int TypeId;
-			int Offset;
-			bool IsPrivate;
-			bool IsProtected;
-			bool IsReference;
+			std::string_view name;
+			size_t access_mask;
+			int type_id;
+			int offset;
+			bool is_private;
+			bool is_protected;
+			bool is_reference;
 		};
 
-		struct MessageInfo
+		struct message_info
 		{
 		private:
-			asSMessageInfo* Info;
+			asSMessageInfo* info;
 
 		public:
-			MessageInfo(asSMessageInfo* Info) noexcept;
-			std::string_view GetSection() const;
-			std::string_view GetText() const;
-			LogCategory GetType() const;
-			int GetRow() const;
-			int GetColumn() const;
-			asSMessageInfo* GetMessageInfo() const;
-			bool IsValid() const;
+			message_info(asSMessageInfo* info) noexcept;
+			std::string_view get_section() const;
+			std::string_view get_text() const;
+			log_category get_type() const;
+			int get_row() const;
+			int get_column() const;
+			asSMessageInfo* get_message_info() const;
+			bool is_valid() const;
 		};
 
-		struct TypeInfo
+		struct typeinfo
 		{
 		private:
-			VirtualMachine* VM;
-			asITypeInfo* Info;
+			virtual_machine* vm;
+			asITypeInfo* info;
 
 		public:
-			TypeInfo(asITypeInfo* TypeInfo) noexcept;
-			void ForEachProperty(const PropertyCallback& Callback);
-			void ForEachMethod(const MethodCallback& Callback);
-			std::string_view GetGroup() const;
-			size_t GetAccessMask() const;
-			Module GetModule() const;
-			void AddRef() const;
-			void Release();
-			std::string_view GetName() const;
-			std::string_view GetNamespace() const;
-			TypeInfo GetBaseType() const;
-			bool DerivesFrom(const TypeInfo& Type) const;
-			size_t Flags() const;
-			size_t Size() const;
-			int GetTypeId() const;
-			int GetSubTypeId(size_t SubTypeIndex = 0) const;
-			TypeInfo GetSubType(size_t SubTypeIndex = 0) const;
-			size_t GetSubTypeCount() const;
-			size_t GetInterfaceCount() const;
-			TypeInfo GetInterface(size_t Index) const;
-			bool Implements(const TypeInfo& Type) const;
-			size_t GetFactoriesCount() const;
-			Function GetFactoryByIndex(size_t Index) const;
-			Function GetFactoryByDecl(const std::string_view& Decl) const;
-			size_t GetMethodsCount() const;
-			Function GetMethodByIndex(size_t Index, bool GetVirtual = true) const;
-			Function GetMethodByName(const std::string_view& Name, bool GetVirtual = true) const;
-			Function GetMethodByDecl(const std::string_view& Decl, bool GetVirtual = true) const;
-			size_t GetPropertiesCount() const;
-			ExpectsVM<void> GetProperty(size_t Index, FunctionInfo* Out) const;
-			std::string_view GetPropertyDeclaration(size_t Index, bool IncludeNamespace = false) const;
-			size_t GetBehaviourCount() const;
-			Function GetBehaviourByIndex(size_t Index, Behaviours* OutBehaviour) const;
-			size_t GetChildFunctionDefCount() const;
-			TypeInfo GetChildFunctionDef(size_t Index) const;
-			TypeInfo GetParentType() const;
-			size_t GetEnumValueCount() const;
-			std::string_view GetEnumValueByIndex(size_t Index, int* OutValue) const;
-			Function GetFunctionDefSignature() const;
-			void* SetUserData(void* Data, size_t Type = 0);
-			void* GetUserData(size_t Type = 0) const;
-			bool IsHandle() const;
-			bool IsValid() const;
-			asITypeInfo* GetTypeInfo() const;
-			VirtualMachine* GetVM() const;
+			typeinfo(asITypeInfo* typeinfo) noexcept;
+			void for_each_property(const property_callback& callback);
+			void for_each_method(const method_callback& callback);
+			std::string_view get_group() const;
+			size_t get_access_mask() const;
+			library get_module() const;
+			void add_ref() const;
+			void release();
+			std::string_view get_name() const;
+			std::string_view get_namespace() const;
+			typeinfo get_base_type() const;
+			bool derives_from(const typeinfo& type) const;
+			size_t flags() const;
+			size_t size() const;
+			int get_type_id() const;
+			int get_sub_type_id(size_t sub_type_index = 0) const;
+			typeinfo get_sub_type(size_t sub_type_index = 0) const;
+			size_t get_sub_type_count() const;
+			size_t get_interface_count() const;
+			typeinfo get_interface(size_t index) const;
+			bool implements(const typeinfo& type) const;
+			size_t get_factories_count() const;
+			function get_factory_by_index(size_t index) const;
+			function get_factory_by_decl(const std::string_view& decl) const;
+			size_t get_methods_count() const;
+			function get_method_by_index(size_t index, bool get_virtual = true) const;
+			function get_method_by_name(const std::string_view& name, bool get_virtual = true) const;
+			function get_method_by_decl(const std::string_view& decl, bool get_virtual = true) const;
+			size_t get_properties_count() const;
+			expects_vm<void> get_property(size_t index, function_info* out) const;
+			std::string_view get_property_declaration(size_t index, bool include_namespace = false) const;
+			size_t get_behaviour_count() const;
+			function get_behaviour_by_index(size_t index, behaviours* out_behaviour) const;
+			size_t get_child_function_def_count() const;
+			typeinfo get_child_function_def(size_t index) const;
+			typeinfo get_parent_type() const;
+			size_t get_enum_value_count() const;
+			std::string_view get_enum_value_by_index(size_t index, int* out_value) const;
+			function get_function_def_signature() const;
+			void* set_user_data(void* data, size_t type = 0);
+			void* get_user_data(size_t type = 0) const;
+			bool is_handle() const;
+			bool is_valid() const;
+			asITypeInfo* get_type_info() const;
+			virtual_machine* get_vm() const;
 
 		public:
-			template <typename T>
-			T* GetInstance(void* Object)
+			template <typename t>
+			t* get_instance(void* object)
 			{
-				VI_ASSERT(Object != nullptr, "object should be set");
-				return IsHandle() ? *(T**)Object : (T*)Object;
+				VI_ASSERT(object != nullptr, "object should be set");
+				return is_handle() ? *(t**)object : (t*)object;
 			}
-			template <typename T>
-			T* GetProperty(void* Object, int Offset)
+			template <typename t>
+			t* get_property(void* object, int offset)
 			{
-				VI_ASSERT(Object != nullptr, "object should be set");
-				if (!IsHandle())
-					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
+				VI_ASSERT(object != nullptr, "object should be set");
+				if (!is_handle())
+					return reinterpret_cast<t*>(reinterpret_cast<char*>(object) + offset);
 
-				if (!(*(void**)Object))
+				if (!(*(void**)object))
 					return nullptr;
 
-				return reinterpret_cast<T*>(reinterpret_cast<char*>(*(void**)Object) + Offset);
+				return reinterpret_cast<t*>(reinterpret_cast<char*>(*(void**)object) + offset);
 			}
 
 		public:
-			template <typename T>
-			static T* GetInstance(void* Object, int TypeId)
+			template <typename t>
+			static t* get_instance(void* object, int type_id)
 			{
-				VI_ASSERT(Object != nullptr, "object should be set");
-				return IsHandle(TypeId) ? *(T**)Object : (T*)Object;
+				VI_ASSERT(object != nullptr, "object should be set");
+				return is_handle(type_id) ? *(t**)object : (t*)object;
 			}
-			template <typename T>
-			static T* GetProperty(void* Object, int Offset, int TypeId)
+			template <typename t>
+			static t* get_property(void* object, int offset, int type_id)
 			{
-				VI_ASSERT(Object != nullptr, "object should be set");
-				if (!IsHandle(TypeId))
-					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
+				VI_ASSERT(object != nullptr, "object should be set");
+				if (!is_handle(type_id))
+					return reinterpret_cast<t*>(reinterpret_cast<char*>(object) + offset);
 
-				if (!(*(void**)Object))
+				if (!(*(void**)object))
 					return nullptr;
 
-				return reinterpret_cast<T*>(reinterpret_cast<char*>(*(void**)Object) + Offset);
+				return reinterpret_cast<t*>(reinterpret_cast<char*>(*(void**)object) + offset);
 			}
 
 		public:
-			static bool IsHandle(int TypeId);
-			static bool IsScriptObject(int TypeId);
+			static bool is_handle(int type_id);
+			static bool is_script_object(int type_id);
 		};
 
-		struct Function
+		struct function
 		{
 		private:
-			VirtualMachine* VM;
-			asIScriptFunction* Ptr;
+			virtual_machine* vm;
+			asIScriptFunction* ptr;
 
 		public:
-			Function(asIScriptFunction* Base) noexcept;
-			Function(const Function& Base) noexcept;
-			void AddRef() const;
-			void Release();
-			int GetId() const;
-			FunctionType GetType() const;
-			uint32_t* GetByteCode(size_t* Size = nullptr) const;
-			std::string_view GetModuleName() const;
-			Module GetModule() const;
-			std::string_view GetSectionName() const;
-			std::string_view GetGroup() const;
-			size_t GetAccessMask() const;
-			TypeInfo GetObjectType() const;
-			std::string_view GetObjectName() const;
-			std::string_view GetName() const;
-			std::string_view GetNamespace() const;
-			std::string_view GetDecl(bool IncludeObjectName = true, bool IncludeNamespace = false, bool IncludeArgNames = false) const;
-			bool IsReadOnly() const;
-			bool IsPrivate() const;
-			bool IsProtected() const;
-			bool IsFinal() const;
-			bool IsOverride() const;
-			bool IsShared() const;
-			bool IsExplicit() const;
-			bool IsProperty() const;
-			size_t GetArgsCount() const;
-			ExpectsVM<void> GetArg(size_t Index, int* TypeId, size_t* Flags = nullptr, std::string_view* Name = nullptr, std::string_view* DefaultArg = nullptr) const;
-			int GetReturnTypeId(size_t* Flags = nullptr) const;
-			int GetTypeId() const;
-			bool IsCompatibleWithTypeId(int TypeId) const;
-			void* GetDelegateObject() const;
-			TypeInfo GetDelegateObjectType() const;
-			Function GetDelegateFunction() const;
-			size_t GetPropertiesCount() const;
-			ExpectsVM<void> GetProperty(size_t Index, std::string_view* Name, int* TypeId = nullptr) const;
-			std::string_view GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
-			int FindNextLineWithCode(int Line) const;
-			void* SetUserData(void* UserData, size_t Type = 0);
-			void* GetUserData(size_t Type = 0) const;
-			bool IsValid() const;
-			asIScriptFunction* GetFunction() const;
-			VirtualMachine* GetVM() const;
+			function(asIScriptFunction* base) noexcept;
+			function(const function& base) noexcept;
+			void add_ref() const;
+			void release();
+			int get_id() const;
+			function_type get_type() const;
+			uint32_t* get_byte_code(size_t* size = nullptr) const;
+			std::string_view get_module_name() const;
+			library get_module() const;
+			std::string_view get_section_name() const;
+			std::string_view get_group() const;
+			size_t get_access_mask() const;
+			typeinfo get_object_type() const;
+			std::string_view get_object_name() const;
+			std::string_view get_name() const;
+			std::string_view get_namespace() const;
+			std::string_view get_decl(bool include_object_name = true, bool include_namespace = false, bool include_arg_names = false) const;
+			bool is_read_only() const;
+			bool is_private() const;
+			bool is_protected() const;
+			bool is_final() const;
+			bool is_override() const;
+			bool is_shared() const;
+			bool is_explicit() const;
+			bool is_property() const;
+			size_t get_args_count() const;
+			expects_vm<void> get_arg(size_t index, int* type_id, size_t* flags = nullptr, std::string_view* name = nullptr, std::string_view* default_arg = nullptr) const;
+			int get_return_type_id(size_t* flags = nullptr) const;
+			int get_type_id() const;
+			bool is_compatible_with_type_id(int type_id) const;
+			void* get_delegate_object() const;
+			typeinfo get_delegate_object_type() const;
+			function get_delegate_function() const;
+			size_t get_properties_count() const;
+			expects_vm<void> get_property(size_t index, std::string_view* name, int* type_id = nullptr) const;
+			std::string_view get_property_decl(size_t index, bool include_namespace = false) const;
+			int find_next_line_with_code(int line) const;
+			void* set_user_data(void* user_data, size_t type = 0);
+			void* get_user_data(size_t type = 0) const;
+			bool is_valid() const;
+			asIScriptFunction* get_function() const;
+			virtual_machine* get_vm() const;
 		};
 
-		struct ScriptObject
+		struct script_object
 		{
 		private:
-			asIScriptObject* Object;
+			asIScriptObject* object;
 
 		public:
-			ScriptObject(asIScriptObject* Base) noexcept;
-			void AddRef() const;
-			void Release();
-			TypeInfo GetObjectType();
-			int GetTypeId();
-			int GetPropertyTypeId(size_t Id) const;
-			size_t GetPropertiesCount() const;
-			std::string_view GetPropertyName(size_t Id) const;
-			void* GetAddressOfProperty(size_t Id);
-			VirtualMachine* GetVM() const;
-			int CopyFrom(const ScriptObject& Other);
-			void* SetUserData(void* Data, size_t Type = 0);
-			void* GetUserData(size_t Type = 0) const;
-			bool IsValid() const;
-			asIScriptObject* GetObject() const;
+			script_object(asIScriptObject* base) noexcept;
+			void add_ref() const;
+			void release();
+			typeinfo get_object_type();
+			int get_type_id();
+			int get_property_type_id(size_t id) const;
+			size_t get_properties_count() const;
+			std::string_view get_property_name(size_t id) const;
+			void* get_address_of_property(size_t id);
+			virtual_machine* get_vm() const;
+			int copy_from(const script_object& other);
+			void* set_user_data(void* data, size_t type = 0);
+			void* get_user_data(size_t type = 0) const;
+			bool is_valid() const;
+			asIScriptObject* get_object() const;
 		};
 
-		struct BaseClass
+		struct base_class
 		{
 		protected:
-			VirtualMachine* VM;
-			asITypeInfo* Type;
-			int TypeId;
+			virtual_machine* vm;
+			asITypeInfo* type;
+			int type_id;
 
 		public:
-			BaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
-			BaseClass(const BaseClass&) = default;
-			BaseClass(BaseClass&&) = default;
-			ExpectsVM<void> SetFunctionDef(const std::string_view& Decl);
-			ExpectsVM<void> SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
-			ExpectsVM<void> SetBehaviourAddress(const std::string_view& Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
-			ExpectsVM<void> SetPropertyAddress(const std::string_view& Decl, int Offset);
-			ExpectsVM<void> SetPropertyStaticAddress(const std::string_view& Decl, void* Value);
-			ExpectsVM<void> SetOperatorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
-			ExpectsVM<void> SetMethodAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
-			ExpectsVM<void> SetMethodStaticAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
-			ExpectsVM<void> SetConstructorAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
-			ExpectsVM<void> SetConstructorListAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
-			ExpectsVM<void> SetDestructorAddress(const std::string_view& Decl, asSFuncPtr* Value);
-			asITypeInfo* GetTypeInfo() const;
-			int GetTypeId() const;
-			virtual bool IsValid() const;
-			virtual std::string_view GetTypeName() const;
-			virtual Core::String GetName() const;
-			VirtualMachine* GetVM() const;
+			base_class(virtual_machine* engine, asITypeInfo* source, int type) noexcept;
+			base_class(const base_class&) = default;
+			base_class(base_class&&) = default;
+			expects_vm<void> set_function_def(const std::string_view& decl);
+			expects_vm<void> set_operator_copy_address(asSFuncPtr* value, function_call = function_call::thiscall);
+			expects_vm<void> set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, function_call = function_call::thiscall);
+			expects_vm<void> set_property_address(const std::string_view& decl, int offset);
+			expects_vm<void> set_property_static_address(const std::string_view& decl, void* value);
+			expects_vm<void> set_operator_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::thiscall);
+			expects_vm<void> set_method_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::thiscall);
+			expects_vm<void> set_method_static_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdeclf);
+			expects_vm<void> set_constructor_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdecl_objfirst);
+			expects_vm<void> set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdecl_objfirst);
+			expects_vm<void> set_destructor_address(const std::string_view& decl, asSFuncPtr* value);
+			asITypeInfo* get_type_info() const;
+			int get_type_id() const;
+			virtual bool is_valid() const;
+			virtual std::string_view get_type_name() const;
+			virtual core::string get_name() const;
+			virtual_machine* get_vm() const;
 
 		private:
-			static Core::String GetOperator(Operators Op, const std::string_view& Out, const std::string_view& Args, bool Const, bool Right);
+			static core::string get_operator(operators op, const std::string_view& out, const std::string_view& args, bool constant, bool right);
 
 		public:
-			ExpectsVM<void> SetTemplateCallback(bool(*Value)(asITypeInfo*, bool&))
+			expects_vm<void> set_template_callback(bool(*value)(asITypeInfo*, bool&))
 			{
-				asSFuncPtr* TemplateCallback = Bridge::Function<bool(*)(asITypeInfo*, bool&)>(Value);
-				auto Result = SetBehaviourAddress("bool f(int&in, bool&out)", Behaviours::TEMPLATE_CALLBACK, TemplateCallback, FunctionCall::CDECLF);
-				FunctionFactory::ReleaseFunctor(&TemplateCallback);
-				return Result;
+				asSFuncPtr* template_callback = bridge::function<bool(*)(asITypeInfo*, bool&)>(value);
+				auto result = set_behaviour_address("bool f(int&in, bool&out)", behaviours::template_callback, template_callback, function_call::cdeclf);
+				function_factory::release_functor(&template_callback);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetEnumRefs(void(T::* Value)(asIScriptEngine*))
+			template <typename t>
+			expects_vm<void> set_enum_refs(void(t::* value)(asIScriptEngine*))
 			{
-				asSFuncPtr* EnumRefs = Bridge::Method<T>(Value);
-				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&EnumRefs);
-				return Result;
+				asSFuncPtr* enum_refs = bridge::method<t>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::enumrefs, enum_refs, function_call::thiscall);
+				function_factory::release_functor(&enum_refs);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetReleaseRefs(void(T::* Value)(asIScriptEngine*))
+			template <typename t>
+			expects_vm<void> set_release_refs(void(t::* value)(asIScriptEngine*))
 			{
-				asSFuncPtr* ReleaseRefs = Bridge::Method<T>(Value);
-				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&ReleaseRefs);
-				return Result;
+				asSFuncPtr* release_refs = bridge::method<t>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::releaserefs, release_refs, function_call::thiscall);
+				function_factory::release_functor(&release_refs);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetEnumRefsEx(void(*Value)(T*, asIScriptEngine*))
+			template <typename t>
+			expects_vm<void> set_enum_refs_ex(void(*value)(t*, asIScriptEngine*))
 			{
-				asSFuncPtr* EnumRefs = Bridge::Function<void(*)(T*, asIScriptEngine*)>(Value);
-				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&EnumRefs);
-				return Result;
+				asSFuncPtr* enum_refs = bridge::function<void(*)(t*, asIScriptEngine*)>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::enumrefs, enum_refs, function_call::cdecl_objfirst);
+				function_factory::release_functor(&enum_refs);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetReleaseRefsEx(void(*Value)(T*, asIScriptEngine*))
+			template <typename t>
+			expects_vm<void> set_release_refs_ex(void(*value)(t*, asIScriptEngine*))
 			{
-				asSFuncPtr* ReleaseRefs = Bridge::Function<void(*)(T*, asIScriptEngine*)>(Value);
-				auto Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&ReleaseRefs);
-				return Result;
+				asSFuncPtr* release_refs = bridge::function<void(*)(t*, asIScriptEngine*)>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::releaserefs, release_refs, function_call::cdecl_objfirst);
+				function_factory::release_functor(&release_refs);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetProperty(const std::string_view& Decl, R T::* Value)
+			template <typename t, typename r>
+			expects_vm<void> set_property(const std::string_view& decl, r t::* value)
 			{
-				return SetPropertyAddress(Decl, (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)));
+				return set_property_address(decl, (int)reinterpret_cast<size_t>(&(((t*)0)->*value)));
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetPropertyArray(const std::string_view& Decl, R T::* Value, size_t ElementsCount)
+			template <typename t, typename r>
+			expects_vm<void> set_property_array(const std::string_view& decl, r t::* value, size_t elements_count)
 			{
-				for (size_t i = 0; i < ElementsCount; i++)
+				for (size_t i = 0; i < elements_count; i++)
 				{
-					Core::String ElementDecl = Core::String(Decl) + Core::ToString(i);
-					auto Result = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
-					if (!Result)
-						return Result;
+					core::string element_decl = core::string(decl) + core::to_string(i);
+					auto result = set_property_address(element_decl.c_str(), (int)reinterpret_cast<size_t>(&(((t*)0)->*value)) + (int)(sizeof(r) * i));
+					if (!result)
+						return result;
 				}
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
-			template <typename T>
-			ExpectsVM<void> SetPropertyStatic(const std::string_view& Decl, T* Value)
+			template <typename t>
+			expects_vm<void> set_property_static(const std::string_view& decl, t* value)
 			{
-				return SetPropertyStaticAddress(Decl, (void*)Value);
+				return set_property_static_address(decl, (void*)value);
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetGetter(const std::string_view& Type, const std::string_view& Name, R(T::* Value)())
+			template <typename t, typename r>
+			expects_vm<void> set_getter(const std::string_view& type, const std::string_view& name, r(t::* value)())
 			{
-				asSFuncPtr* Ptr = Bridge::Method<T, R>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method<t, r>(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetGetterEx(const std::string_view& Type, const std::string_view& Name, R(*Value)(T*))
+			template <typename t, typename r>
+			expects_vm<void> set_getter_ex(const std::string_view& type, const std::string_view& name, r(*value)(t*))
 			{
-				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s()", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetSetter(const std::string_view& Type, const std::string_view& Name, void(T::* Value)(R))
+			template <typename t, typename r>
+			expects_vm<void> set_setter(const std::string_view& type, const std::string_view& name, void(t::* value)(r))
 			{
-				asSFuncPtr* Ptr = Bridge::Method<T, void, R>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method<t, void, r>(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetSetterEx(const std::string_view& Type, const std::string_view& Name, void(*Value)(T*, R))
+			template <typename t, typename r>
+			expects_vm<void> set_setter_ex(const std::string_view& type, const std::string_view& name, void(*value)(t*, r))
 			{
-				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(%s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetArrayGetter(const std::string_view& Type, const std::string_view& Name, R(T::* Value)(uint32_t))
+			template <typename t, typename r>
+			expects_vm<void> set_array_getter(const std::string_view& type, const std::string_view& name, r(t::* value)(uint32_t))
 			{
-				asSFuncPtr* Ptr = Bridge::Method<T, R, uint32_t>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method<t, r, uint32_t>(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetArrayGetterEx(const std::string_view& Type, const std::string_view& Name, R(*Value)(T*, uint32_t))
+			template <typename t, typename r>
+			expects_vm<void> set_array_getter_ex(const std::string_view& type, const std::string_view& name, r(*value)(t*, uint32_t))
 			{
-				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("%s get_%s(uint)", (int)Type.size(), Type.data(), (int)Name.size(), Name.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetArraySetter(const std::string_view& Type, const std::string_view& Name, void(T::* Value)(uint32_t, R))
+			template <typename t, typename r>
+			expects_vm<void> set_array_setter(const std::string_view& type, const std::string_view& name, void(t::* value)(uint32_t, r))
 			{
-				asSFuncPtr* Ptr = Bridge::Method<T, void, uint32_t, R>(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method<t, void, uint32_t, r>(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R>
-			ExpectsVM<void> SetArraySetterEx(const std::string_view& Type, const std::string_view& Name, void(*Value)(T*, uint32_t, R))
+			template <typename t, typename r>
+			expects_vm<void> set_array_setter_ex(const std::string_view& type, const std::string_view& name, void(*value)(t*, uint32_t, r))
 			{
-				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetMethodAddress(Core::Stringify::Text("void set_%s(uint, %s)", (int)Name.size(), Name.data(), (int)Type.size(), Type.data()).c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R, typename... A>
-			ExpectsVM<void> SetOperator(Operators Type, uint32_t Opts, const std::string_view& Out, const std::string_view& Args, R(T::* Value)(A...))
+			template <typename t, typename r, typename... a>
+			expects_vm<void> set_operator(operators type, uint32_t opts, const std::string_view& out, const std::string_view& args, r(t::* value)(a...))
 			{
-				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
-				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
-				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
-				auto Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				core::string op = get_operator(type, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
+				VI_ASSERT(!op.empty(), "resulting operator should not be empty");
+				asSFuncPtr* ptr = bridge::method<t, r, a...>(value);
+				auto result = set_operator_address(op.c_str(), ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename R, typename... A>
-			ExpectsVM<void> SetOperatorEx(Operators Type, uint32_t Opts, const std::string_view& Out, const std::string_view& Args, R(*Value)(A...))
+			template <typename r, typename... a>
+			expects_vm<void> set_operator_ex(operators type, uint32_t opts, const std::string_view& out, const std::string_view& args, r(*value)(a...))
 			{
-				Core::String Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
-				VI_ASSERT(!Operator.empty(), "resulting operator should not be empty");
-				asSFuncPtr* Ptr = Bridge::Function(Value);
-				auto Result = SetOperatorAddress(Operator.c_str(), Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				core::string op = get_operator(type, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
+				VI_ASSERT(!op.empty(), "resulting operator should not be empty");
+				asSFuncPtr* ptr = bridge::function(value);
+				auto result = set_operator_address(op.c_str(), ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetOperatorCopy()
+			template <typename t>
+			expects_vm<void> set_operator_copy()
 			{
-				asSFuncPtr* Ptr = Bridge::MethodOp<T, T&, const T&>(&T::operator =);
-				auto Result = SetOperatorCopyAddress(Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method_op<t, t&, const t&>(&t::operator =);
+				auto result = set_operator_copy_address(ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetOperatorMoveCopy()
+			template <typename t>
+			expects_vm<void> set_operator_move_copy()
 			{
-				asSFuncPtr* Ptr = Bridge::MethodOp<T, T&, T&&>(&T::operator =);
-				auto Result = SetOperatorCopyAddress(Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method_op<t, t&, t&&>(&t::operator =);
+				auto result = set_operator_copy_address(ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename R, typename... Args>
-			ExpectsVM<void> SetOperatorCopyStatic(R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
+			template <typename r, typename... args>
+			expects_vm<void> set_operator_copy_static(r(*value)(args...), function_call type = function_call::cdeclf)
 			{
-				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
-				auto Result = SetOperatorCopyAddress(Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = (type == function_call::genericf ? bridge::function_generic<r(*)(args...)>(value) : bridge::function<r(*)(args...)>(value));
+				auto result = set_operator_copy_address(ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R, typename... Args>
-			ExpectsVM<void> SetMethod(const std::string_view& Decl, R(T::* Value)(Args...))
+			template <typename t, typename r, typename... args>
+			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...))
 			{
-				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
-				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method<t, r, args...>(value);
+				auto result = set_method_address(decl, ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename R, typename... Args>
-			ExpectsVM<void> SetMethod(const std::string_view& Decl, R(T::* Value)(Args...) const)
+			template <typename t, typename r, typename... args>
+			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...) const)
 			{
-				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
-				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::method<t, r, args...>(value);
+				auto result = set_method_address(decl, ptr, function_call::thiscall);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename R, typename... Args>
-			ExpectsVM<void> SetMethodEx(const std::string_view& Decl, R(*Value)(Args...))
+			template <typename r, typename... args>
+			expects_vm<void> set_method_ex(const std::string_view& decl, r(*value)(args...))
 			{
-				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
-				auto Result = SetMethodAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function<r(*)(args...)>(value);
+				auto result = set_method_address(decl, ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename R, typename... Args>
-			ExpectsVM<void> SetMethodStatic(const std::string_view& Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
+			template <typename r, typename... args>
+			expects_vm<void> set_method_static(const std::string_view& decl, r(*value)(args...), function_call type = function_call::cdeclf)
 			{
-				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
-				auto Result = SetMethodStaticAddress(Decl, Ptr, Type);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = (type == function_call::genericf ? bridge::function_generic<r(*)(args...)>(value) : bridge::function<r(*)(args...)>(value));
+				auto result = set_method_static_address(decl, ptr, type);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T, typename To>
-			ExpectsVM<void> SetDynamicCast(const std::string_view& ToDecl, bool Implicit = false)
+			template <typename t, typename to>
+			expects_vm<void> set_dynamic_cast(const std::string_view& to_decl, bool implicit = false)
 			{
-				auto Type = Implicit ? Operators::ImplCast : Operators::Cast;
-				auto Result1 = SetOperatorEx(Type, 0, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
-				if (!Result1)
-					return Result1;
+				auto type = implicit ? operators::impl_cast : operators::cast;
+				auto result1 = set_operator_ex(type, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>);
+				if (!result1)
+					return result1;
 
-				auto Result2 = SetOperatorEx(Type, (uint32_t)Position::Const, ToDecl, "", &BaseClass::DynamicCastFunction<T, To>);
-				return Result2;
-			}
-
-		private:
-			template <typename T, typename To>
-			static To* DynamicCastFunction(T* Base)
-			{
-				return dynamic_cast<To*>(Base);
-			}
-		};
-
-		struct RefBaseClass : public BaseClass
-		{
-		public:
-			RefBaseClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
-			{
-			}
-			RefBaseClass(const RefBaseClass&) = default;
-			RefBaseClass(RefBaseClass&&) = default;
-
-		public:
-			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructorEx(const std::string_view& Decl, T* (*Value)(Args...))
-			{
-				asSFuncPtr* Functor = Bridge::Function<T * (*)(Args...)>(Value);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			ExpectsVM<void> SetConstructorEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric<void(*)(asIScriptGeneric*)>(Value);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
-			{
-				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetUnmanagedCall<T, Args...>);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T, asIScriptGeneric*>
-			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedCall<T, asIScriptGeneric*>);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T>
-			ExpectsVM<void> SetConstructorList(const std::string_view& Decl)
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedListCall<T>);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T>
-			ExpectsVM<void> SetConstructorListEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T, uint64_t TypeName, typename... Args>
-			ExpectsVM<void> SetGcConstructor(const std::string_view& Decl)
-			{
-				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetManagedCall<T, TypeName, Args...>);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T, uint64_t TypeName, asIScriptGeneric*>
-			ExpectsVM<void> SetGcConstructor(const std::string_view& Decl)
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedCall<T, TypeName, asIScriptGeneric*>);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T, uint64_t TypeName>
-			ExpectsVM<void> SetGcConstructorList(const std::string_view& Decl)
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetManagedListCall<T, TypeName>);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename T>
-			ExpectsVM<void> SetGcConstructorListEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
-			{
-				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
-			}
-			template <typename F>
-			ExpectsVM<void> SetAddRef()
-			{
-				auto FactoryPtr = &RefBaseClass::GcAddRef<F>;
-				asSFuncPtr* AddRef = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				auto Result = SetBehaviourAddress("void f()", Behaviours::ADDREF, AddRef, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&AddRef);
-				return Result;
-			}
-			template <typename F>
-			ExpectsVM<void> SetRelease()
-			{
-				auto FactoryPtr = &RefBaseClass::GcRelease<F>;
-				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				auto Result = SetBehaviourAddress("void f()", Behaviours::RELEASE, Release, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Release);
-				return Result;
-			}
-			template <typename F>
-			ExpectsVM<void> SetMarkRef()
-			{
-				auto FactoryPtr = &RefBaseClass::GcMarkRef<F>;
-				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				auto Result = SetBehaviourAddress("void f()", Behaviours::SETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Release);
-				return Result;
-			}
-			template <typename F>
-			ExpectsVM<void> SetIsMarkedRef()
-			{
-				auto FactoryPtr = &RefBaseClass::GcIsMarkedRef<F>;
-				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				auto Result = SetBehaviourAddress("bool f()", Behaviours::GETGCFLAG, Release, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Release);
-				return Result;
-			}
-			template <typename F>
-			ExpectsVM<void> SetRefCount()
-			{
-				auto FactoryPtr = &RefBaseClass::GcGetRefCount<F>;
-				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				auto Result = SetBehaviourAddress("int f()", Behaviours::GETREFCOUNT, Release, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Release);
-				return Result;
+				auto result2 = set_operator_ex(type, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>);
+				return result2;
 			}
 
 		private:
-			template <typename U>
-			static void GcAddRef(U* Base)
+			template <typename t, typename to>
+			static to* dynamic_cast_function(t* base)
 			{
-				Base->AddRef();
-			}
-			template <typename U>
-			static void GcRelease(U* Base)
-			{
-				Base->Release();
-			}
-			template <typename U>
-			static void GcMarkRef(U* Base)
-			{
-				Base->MarkRef();
-			}
-			template <typename U>
-			static bool GcIsMarkedRef(U* Base)
-			{
-				return Base->IsMarkedRef();
-			}
-			template <typename U>
-			static int GcGetRefCount(U* Base)
-			{
-				return (int)Base->GetRefCount();
+				return dynamic_cast<to*>(base);
 			}
 		};
 
-		struct RefClass final : public RefBaseClass
+		struct ref_base_class : public base_class
 		{
 		public:
-			RefClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : RefBaseClass(Engine, Source, Type)
+			ref_base_class(virtual_machine* engine, asITypeInfo* source, int type) noexcept : base_class(engine, source, type)
 			{
 			}
-		};
-
-		struct TemplateClass final : public RefBaseClass
-		{
-		private:
-			Core::String Name;
+			ref_base_class(const ref_base_class&) = default;
+			ref_base_class(ref_base_class&&) = default;
 
 		public:
-			TemplateClass(VirtualMachine* Engine, const std::string_view& NewName) noexcept : RefBaseClass(Engine, nullptr, 0), Name(Core::String(NewName))
+			template <typename t, typename... args>
+			expects_vm<void> set_constructor_ex(const std::string_view& decl, t* (*value)(args...))
 			{
+				asSFuncPtr* functor = bridge::function<t * (*)(args...)>(value);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::cdeclf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			TemplateClass(const TemplateClass&) = default;
-			TemplateClass(TemplateClass&&) = default;
-			bool IsValid() const override
+			expects_vm<void> set_constructor_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				return VM && !Name.empty();
+				asSFuncPtr* functor = bridge::function_generic<void(*)(asIScriptGeneric*)>(value);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			std::string_view GetTypeName() const override
+			template <typename t, typename... args>
+			expects_vm<void> set_constructor(const std::string_view& decl)
 			{
-				return Name;
+				asSFuncPtr* functor = bridge::function(&bridge::get_unmanaged_call<t, args...>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::cdeclf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			Core::String GetName() const override
+			template <typename t, asIScriptGeneric*>
+			expects_vm<void> set_constructor(const std::string_view& decl)
 			{
-				return Name;
+				asSFuncPtr* functor = bridge::function_generic(&bridge::get_unmanaged_call<t, asIScriptGeneric*>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-		};
-
-		struct TypeClass final : public BaseClass
-		{
-		public:
-			TypeClass(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept : BaseClass(Engine, Source, Type)
+			template <typename t>
+			expects_vm<void> set_constructor_list(const std::string_view& decl)
 			{
+				asSFuncPtr* functor = bridge::function_generic(&bridge::get_unmanaged_list_call<t>);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			TypeClass(const TypeClass&) = default;
-			TypeClass(TypeClass&&) = default;
-
-		public:
-			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructorEx(const std::string_view& Decl, void(*Value)(T, Args...))
+			template <typename t>
+			expects_vm<void> set_constructor_list_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* Functor = Bridge::Function<void(*)(T, Args...)>(Value);
-				auto Result = SetBehaviourAddress(Decl, Behaviours::CONSTRUCT, Functor, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Functor);
-				return Result;
+				asSFuncPtr* functor = bridge::function_generic(value);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			template <typename T, typename... Args>
-			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
+			template <typename t, uint64_t type_name, typename... args>
+			expects_vm<void> set_gc_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetConstructorCall<T, Args...>);
-				auto Result = SetConstructorAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* functor = bridge::function(&bridge::get_managed_call<t, type_name, args...>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::cdeclf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			template <typename T, asIScriptGeneric*>
-			ExpectsVM<void> SetConstructor(const std::string_view& Decl)
+			template <typename t, uint64_t type_name, asIScriptGeneric*>
+			expects_vm<void> set_gc_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorCall<T, asIScriptGeneric*>);
-				auto Result = SetConstructorAddress(Decl, Ptr, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* functor = bridge::function_generic(&bridge::get_managed_call<t, type_name, asIScriptGeneric*>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetConstructorList(const std::string_view& Decl)
+			template <typename t, uint64_t type_name>
+			expects_vm<void> set_gc_constructor_list(const std::string_view& decl)
 			{
-				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorListCall<T>);
-				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* functor = bridge::function_generic(&bridge::get_managed_list_call<t, type_name>);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetConstructorListEx(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
+			template <typename t>
+			expects_vm<void> set_gc_constructor_list_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* Ptr = Bridge::FunctionGeneric(Value);
-				auto Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* functor = bridge::function_generic(value);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				function_factory::release_functor(&functor);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetDestructor(const std::string_view& Decl)
+			template <typename f>
+			expects_vm<void> set_add_ref()
 			{
-				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetDestructorCall<T>);
-				auto Result = SetDestructorAddress(Decl, Ptr);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				auto factory_ptr = &ref_base_class::gc_add_ref<f>;
+				asSFuncPtr* add_ref = bridge::function<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("void f()", behaviours::addref, add_ref, function_call::cdecl_objfirst);
+				function_factory::release_functor(&add_ref);
+				return result;
 			}
-			template <typename T, typename... Args>
-			ExpectsVM<void> SetDestructorEx(const std::string_view& Decl, void(*Value)(T, Args...))
+			template <typename f>
+			expects_vm<void> set_release()
 			{
-				asSFuncPtr* Ptr = Bridge::Function<void(*)(T, Args...)>(Value);
-				auto Result = SetDestructorAddress(Decl, Ptr);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				auto factory_ptr = &ref_base_class::gc_release<f>;
+				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("void f()", behaviours::release, release, function_call::cdecl_objfirst);
+				function_factory::release_functor(&release);
+				return result;
 			}
-		};
-
-		struct TypeInterface
-		{
-		private:
-			VirtualMachine* VM;
-			asITypeInfo* Type;
-			int TypeId;
-
-		public:
-			TypeInterface(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
-			TypeInterface(const TypeInterface&) = default;
-			TypeInterface(TypeInterface&&) = default;
-			ExpectsVM<void> SetMethod(const std::string_view& Decl);
-			asITypeInfo* GetTypeInfo() const;
-			int GetTypeId() const;
-			bool IsValid() const;
-			std::string_view GetTypeName() const;
-			Core::String GetName() const;
-			VirtualMachine* GetVM() const;
-		};
-
-		struct Enumeration
-		{
-		private:
-			VirtualMachine* VM;
-			asITypeInfo* Type;
-			int TypeId;
-
-		public:
-			Enumeration(VirtualMachine* Engine, asITypeInfo* Source, int Type) noexcept;
-			Enumeration(const Enumeration&) = default;
-			Enumeration(Enumeration&&) = default;
-			ExpectsVM<void> SetValue(const std::string_view& Name, int Value);
-			asITypeInfo* GetTypeInfo() const;
-			int GetTypeId() const;
-			bool IsValid() const;
-			std::string_view GetTypeName() const;
-			Core::String GetName() const;
-			VirtualMachine* GetVM() const;
-		};
-
-		struct Module
-		{
-		private:
-			VirtualMachine* VM;
-			asIScriptModule* Mod;
-
-		public:
-			Module(asIScriptModule* Type) noexcept;
-			void SetName(const std::string_view& Name);
-			ExpectsVM<void> AddSection(const std::string_view& Name, const std::string_view& Code, int LineOffset = 0);
-			ExpectsVM<void> RemoveFunction(const Function& Function);
-			ExpectsVM<void> ResetProperties(asIScriptContext* Context = nullptr);
-			ExpectsVM<void> Build();
-			ExpectsVM<void> LoadByteCode(ByteCodeInfo* Info);
-			ExpectsVM<void> BindImportedFunction(size_t ImportIndex, const Function& Function);
-			ExpectsVM<void> UnbindImportedFunction(size_t ImportIndex);
-			ExpectsVM<void> BindAllImportedFunctions();
-			ExpectsVM<void> UnbindAllImportedFunctions();
-			ExpectsVM<void> CompileFunction(const std::string_view& SectionName, const std::string_view& Code, int LineOffset, size_t CompileFlags, Function* OutFunction);
-			ExpectsVM<void> CompileProperty(const std::string_view& SectionName, const std::string_view& Code, int LineOffset);
-			ExpectsVM<void> SetDefaultNamespace(const std::string_view& Namespace);
-			ExpectsVM<void> RemoveProperty(size_t Index);
-			void Discard();
-			void* GetAddressOfProperty(size_t Index);
-			size_t SetAccessMask(size_t AccessMask);
-			size_t GetFunctionCount() const;
-			Function GetFunctionByIndex(size_t Index) const;
-			Function GetFunctionByDecl(const std::string_view& Decl) const;
-			Function GetFunctionByName(const std::string_view& Name) const;
-			int GetTypeIdByDecl(const std::string_view& Decl) const;
-			ExpectsVM<size_t> GetImportedFunctionIndexByDecl(const std::string_view& Decl) const;
-			ExpectsVM<void> SaveByteCode(ByteCodeInfo* Info) const;
-			ExpectsVM<size_t> GetPropertyIndexByName(const std::string_view& Name) const;
-			ExpectsVM<size_t> GetPropertyIndexByDecl(const std::string_view& Decl) const;
-			ExpectsVM<void> GetProperty(size_t Index, PropertyInfo* Out) const;
-			size_t GetAccessMask() const;
-			size_t GetObjectsCount() const;
-			size_t GetPropertiesCount() const;
-			size_t GetEnumsCount() const;
-			size_t GetImportedFunctionCount() const;
-			TypeInfo GetObjectByIndex(size_t Index) const;
-			TypeInfo GetTypeInfoByName(const std::string_view& Name) const;
-			TypeInfo GetTypeInfoByDecl(const std::string_view& Decl) const;
-			TypeInfo GetEnumByIndex(size_t Index) const;
-			std::string_view GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
-			std::string_view GetDefaultNamespace() const;
-			std::string_view GetImportedFunctionDecl(size_t ImportIndex) const;
-			std::string_view GetImportedFunctionModule(size_t ImportIndex) const;
-			std::string_view GetName() const;
-			bool IsValid() const;
-			asIScriptModule* GetModule() const;
-			VirtualMachine* GetVM() const;
-
-		public:
-			template <typename T>
-			ExpectsVM<void> SetTypeProperty(const std::string_view& Name, T* Value)
+			template <typename f>
+			expects_vm<void> set_mark_ref()
 			{
-				auto Index = GetPropertyIndexByName(Name);
-				if (!Index)
-					return Index.Error();
-
-				T** Address = (T**)GetAddressOfProperty(*Index);
-				if (!Address)
-					return VirtualException(VirtualError::INVALID_OBJECT);
-
-				*Address = Value;
-				return Core::Expectation::Met;
+				auto factory_ptr = &ref_base_class::gc_mark_ref<f>;
+				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("void f()", behaviours::setgcflag, release, function_call::cdecl_objfirst);
+				function_factory::release_functor(&release);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetTypeProperty(const std::string_view& Name, const T& Value)
+			template <typename f>
+			expects_vm<void> set_is_marked_ref()
 			{
-				auto Index = GetPropertyIndexByName(Name);
-				if (!Index)
-					return Index.Error();
-
-				T* Address = (T*)GetAddressOfProperty(*Index);
-				if (!Address)
-					return VirtualException(VirtualError::INVALID_OBJECT);
-
-				*Address = Value;
-				return Core::Expectation::Met;
+				auto factory_ptr = &ref_base_class::gc_is_marked_ref<f>;
+				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("bool f()", behaviours::getgcflag, release, function_call::cdecl_objfirst);
+				function_factory::release_functor(&release);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetRefProperty(const std::string_view& Name, T* Value)
+			template <typename f>
+			expects_vm<void> set_ref_count()
 			{
-				auto Index = GetPropertyIndexByName(Name);
-				if (!Index)
-					return Index.Error();
-
-				T** Address = (T**)GetAddressOfProperty(*Index);
-				if (!Address)
-					return VirtualException(VirtualError::INVALID_OBJECT);
-
-				Core::Memory::Release(*Address);
-				*Address = (T*)Value;
-				if (*Address != nullptr)
-					(*Address)->AddRef();
-				return Core::Expectation::Met;
+				auto factory_ptr = &ref_base_class::gc_get_ref_count<f>;
+				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("int f()", behaviours::getrefcount, release, function_call::cdecl_objfirst);
+				function_factory::release_functor(&release);
+				return result;
 			}
-		};
-
-		struct FunctionDelegate
-		{
-			ImmediateContext* Context;
-			asIScriptFunction* Callback;
-			asITypeInfo* DelegateType;
-			void* DelegateObject;
-
-			FunctionDelegate();
-			FunctionDelegate(const Function& Function);
-			FunctionDelegate(const Function& Function, ImmediateContext* WantedContext);
-			FunctionDelegate(const FunctionDelegate& Other);
-			FunctionDelegate(FunctionDelegate&& Other);
-			~FunctionDelegate();
-			FunctionDelegate& operator= (const FunctionDelegate& Other);
-			FunctionDelegate& operator= (FunctionDelegate&& Other);
-			ExpectsPromiseVM<Execution> operator()(ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
-			Function Callable() const;
-			bool IsValid() const;
-			void AddRef();
-			void Release();
 
 		private:
-			void AddRefAndInitialize(bool IsFirstTime);
+			template <typename u>
+			static void gc_add_ref(u* base)
+			{
+				base->add_ref();
+			}
+			template <typename u>
+			static void gc_release(u* base)
+			{
+				base->release();
+			}
+			template <typename u>
+			static void gc_mark_ref(u* base)
+			{
+				base->mark_ref();
+			}
+			template <typename u>
+			static bool gc_is_marked_ref(u* base)
+			{
+				return base->is_marked_ref();
+			}
+			template <typename u>
+			static int gc_get_ref_count(u* base)
+			{
+				return (int)base->get_ref_count();
+			}
 		};
 
-		class Compiler final : public Core::Reference<Compiler>
+		struct ref_class final : public ref_base_class
+		{
+		public:
+			ref_class(virtual_machine* engine, asITypeInfo* source, int type) noexcept : ref_base_class(engine, source, type)
+			{
+			}
+		};
+
+		struct template_class final : public ref_base_class
 		{
 		private:
-			Compute::ProcIncludeCallback Include;
-			Compute::ProcPragmaCallback Pragma;
-			Compute::Preprocessor* Processor;
-			asIScriptModule* Scope;
-			VirtualMachine* VM;
-			ByteCodeInfo VCache;
-			size_t Counter;
-			bool Built;
+			core::string name;
 
 		public:
-			Compiler(VirtualMachine* Engine) noexcept;
-			~Compiler() noexcept;
-			void SetIncludeCallback(Compute::ProcIncludeCallback&& Callback);
-			void SetPragmaCallback(Compute::ProcPragmaCallback&& Callback);
-			void Define(const std::string_view& Word);
-			void Undefine(const std::string_view& Word);
-			Module UnlinkModule();
-			bool Clear();
-			bool IsDefined(const std::string_view& Word) const;
-			bool IsBuilt() const;
-			bool IsCached() const;
-			ExpectsVM<void> Prepare(ByteCodeInfo* Info);
-			ExpectsVM<void> Prepare(const Module& Info);
-			ExpectsVM<void> Prepare(const std::string_view& ModuleName, bool Scoped = false);
-			ExpectsVM<void> Prepare(const std::string_view& ModuleName, const std::string_view& Cache, bool Debug = true, bool Scoped = false);
-			ExpectsVM<void> SaveByteCode(ByteCodeInfo* Info);
-			ExpectsVM<void> LoadFile(const std::string_view& Path);
-			ExpectsVM<void> LoadCode(const std::string_view& Name, const std::string_view& Buffer);
-			ExpectsVM<void> LoadByteCodeSync(ByteCodeInfo* Info);
-			ExpectsVM<void> CompileSync();
-			ExpectsPromiseVM<void> LoadByteCode(ByteCodeInfo* Info);
-			ExpectsPromiseVM<void> Compile();
-			ExpectsPromiseVM<void> CompileFile(const std::string_view& Name, const std::string_view& ModuleName, const std::string_view& EntryName);
-			ExpectsPromiseVM<void> CompileMemory(const std::string_view& Buffer, const std::string_view& ModuleName, const std::string_view& EntryName);
-			ExpectsPromiseVM<Function> CompileFunction(const std::string_view& Code, const std::string_view& Returns = "", const std::string_view& Args = "", Core::Option<size_t>&& FunctionId = Core::Optional::None);
-			Module GetModule() const;
-			VirtualMachine* GetVM() const;
-			Compute::Preprocessor* GetProcessor() const;
+			template_class(virtual_machine* engine, const std::string_view& new_name) noexcept : ref_base_class(engine, nullptr, 0), name(core::string(new_name))
+			{
+			}
+			template_class(const template_class&) = default;
+			template_class(template_class&&) = default;
+			bool is_valid() const override
+			{
+				return vm && !name.empty();
+			}
+			std::string_view get_type_name() const override
+			{
+				return name;
+			}
+			core::string get_name() const override
+			{
+				return name;
+			}
 		};
 
-		class DebuggerContext final : public Core::Reference<DebuggerContext>
+		struct type_class final : public base_class
 		{
 		public:
-			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object)> ToStringCallback;
-			typedef std::function<Core::String(Core::String& Indent, int Depth, void* Object, int TypeId)> ToStringTypeCallback;
-			typedef std::function<bool(ImmediateContext*, const Core::Vector<Core::String>&)> CommandCallback;
-			typedef std::function<void(const std::string_view&)> OutputCallback;
-			typedef std::function<bool(Core::String&)> InputCallback;
-			typedef std::function<void(bool)> InterruptCallback;
-			typedef std::function<void()> ExitCallback;
+			type_class(virtual_machine* engine, asITypeInfo* source, int type) noexcept : base_class(engine, source, type)
+			{
+			}
+			type_class(const type_class&) = default;
+			type_class(type_class&&) = default;
 
 		public:
-			enum class DebugAction
+			template <typename t, typename... args>
+			expects_vm<void> set_constructor_ex(const std::string_view& decl, void(*value)(t, args...))
 			{
-				Trigger,
-				Interrupt,
-				Switch,
-				Continue,
-				StepInto,
-				StepOver,
-				StepOut
+				asSFuncPtr* functor = bridge::function<void(*)(t, args...)>(value);
+				auto result = set_behaviour_address(decl, behaviours::construct, functor, function_call::cdecl_objfirst);
+				function_factory::release_functor(&functor);
+				return result;
+			}
+			template <typename t, typename... args>
+			expects_vm<void> set_constructor(const std::string_view& decl)
+			{
+				asSFuncPtr* ptr = bridge::function(&bridge::get_constructor_call<t, args...>);
+				auto result = set_constructor_address(decl, ptr, function_call::cdecl_objfirst);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t, asIScriptGeneric*>
+			expects_vm<void> set_constructor(const std::string_view& decl)
+			{
+				asSFuncPtr* ptr = bridge::function_generic(&bridge::get_constructor_call<t, asIScriptGeneric*>);
+				auto result = set_constructor_address(decl, ptr, function_call::genericf);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t>
+			expects_vm<void> set_constructor_list(const std::string_view& decl)
+			{
+				asSFuncPtr* ptr = bridge::function_generic(&bridge::get_constructor_list_call<t>);
+				auto result = set_constructor_list_address(decl, ptr, function_call::genericf);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t>
+			expects_vm<void> set_constructor_list_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
+			{
+				asSFuncPtr* ptr = bridge::function_generic(value);
+				auto result = set_constructor_list_address(decl, ptr, function_call::genericf);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t>
+			expects_vm<void> set_destructor(const std::string_view& decl)
+			{
+				asSFuncPtr* ptr = bridge::function(&bridge::get_destructor_call<t>);
+				auto result = set_destructor_address(decl, ptr);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t, typename... args>
+			expects_vm<void> set_destructor_ex(const std::string_view& decl, void(*value)(t, args...))
+			{
+				asSFuncPtr* ptr = bridge::function<void(*)(t, args...)>(value);
+				auto result = set_destructor_address(decl, ptr);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+		};
+
+		struct type_interface
+		{
+		private:
+			virtual_machine* vm;
+			asITypeInfo* type;
+			int type_id;
+
+		public:
+			type_interface(virtual_machine* engine, asITypeInfo* source, int type) noexcept;
+			type_interface(const type_interface&) = default;
+			type_interface(type_interface&&) = default;
+			expects_vm<void> set_method(const std::string_view& decl);
+			asITypeInfo* get_type_info() const;
+			int get_type_id() const;
+			bool is_valid() const;
+			std::string_view get_type_name() const;
+			core::string get_name() const;
+			virtual_machine* get_vm() const;
+		};
+
+		struct enumeration
+		{
+		private:
+			virtual_machine* vm;
+			asITypeInfo* type;
+			int type_id;
+
+		public:
+			enumeration(virtual_machine* engine, asITypeInfo* source, int type) noexcept;
+			enumeration(const enumeration&) = default;
+			enumeration(enumeration&&) = default;
+			expects_vm<void> set_value(const std::string_view& name, int value);
+			asITypeInfo* get_type_info() const;
+			int get_type_id() const;
+			bool is_valid() const;
+			std::string_view get_type_name() const;
+			core::string get_name() const;
+			virtual_machine* get_vm() const;
+		};
+
+		struct library
+		{
+		private:
+			virtual_machine* vm;
+			asIScriptModule* mod;
+
+		public:
+			library(asIScriptModule* type) noexcept;
+			void set_name(const std::string_view& name);
+			expects_vm<void> add_section(const std::string_view& name, const std::string_view& code, int line_offset = 0);
+			expects_vm<void> remove_function(const function& function);
+			expects_vm<void> reset_properties(asIScriptContext* context = nullptr);
+			expects_vm<void> build();
+			expects_vm<void> load_byte_code(byte_code_info* info);
+			expects_vm<void> bind_imported_function(size_t import_index, const function& function);
+			expects_vm<void> unbind_imported_function(size_t import_index);
+			expects_vm<void> bind_all_imported_functions();
+			expects_vm<void> unbind_all_imported_functions();
+			expects_vm<void> compile_function(const std::string_view& section_name, const std::string_view& code, int line_offset, size_t compile_flags, function* out_function);
+			expects_vm<void> compile_property(const std::string_view& section_name, const std::string_view& code, int line_offset);
+			expects_vm<void> set_default_namespace(const std::string_view& name_space);
+			expects_vm<void> remove_property(size_t index);
+			void discard();
+			void* get_address_of_property(size_t index);
+			size_t set_access_mask(size_t access_mask);
+			size_t get_function_count() const;
+			function get_function_by_index(size_t index) const;
+			function get_function_by_decl(const std::string_view& decl) const;
+			function get_function_by_name(const std::string_view& name) const;
+			int get_type_id_by_decl(const std::string_view& decl) const;
+			expects_vm<size_t> get_imported_function_index_by_decl(const std::string_view& decl) const;
+			expects_vm<void> save_byte_code(byte_code_info* info) const;
+			expects_vm<size_t> get_property_index_by_name(const std::string_view& name) const;
+			expects_vm<size_t> get_property_index_by_decl(const std::string_view& decl) const;
+			expects_vm<void> get_property(size_t index, property_info* out) const;
+			size_t get_access_mask() const;
+			size_t get_objects_count() const;
+			size_t get_properties_count() const;
+			size_t get_enums_count() const;
+			size_t get_imported_function_count() const;
+			typeinfo get_object_by_index(size_t index) const;
+			typeinfo get_type_info_by_name(const std::string_view& name) const;
+			typeinfo get_type_info_by_decl(const std::string_view& decl) const;
+			typeinfo get_enum_by_index(size_t index) const;
+			std::string_view get_property_decl(size_t index, bool include_namespace = false) const;
+			std::string_view get_default_namespace() const;
+			std::string_view get_imported_function_decl(size_t import_index) const;
+			std::string_view get_imported_function_module(size_t import_index) const;
+			std::string_view get_name() const;
+			bool is_valid() const;
+			asIScriptModule* get_module() const;
+			virtual_machine* get_vm() const;
+
+		public:
+			template <typename t>
+			expects_vm<void> set_type_property(const std::string_view& name, t* value)
+			{
+				auto index = get_property_index_by_name(name);
+				if (!index)
+					return index.error();
+
+				t** address = (t**)get_address_of_property(*index);
+				if (!address)
+					return virtual_exception(virtual_error::invalid_object);
+
+				*address = value;
+				return core::expectation::met;
+			}
+			template <typename t>
+			expects_vm<void> set_type_property(const std::string_view& name, const t& value)
+			{
+				auto index = get_property_index_by_name(name);
+				if (!index)
+					return index.error();
+
+				t* address = (t*)get_address_of_property(*index);
+				if (!address)
+					return virtual_exception(virtual_error::invalid_object);
+
+				*address = value;
+				return core::expectation::met;
+			}
+			template <typename t>
+			expects_vm<void> set_ref_property(const std::string_view& name, t* value)
+			{
+				auto index = get_property_index_by_name(name);
+				if (!index)
+					return index.error();
+
+				t** address = (t**)get_address_of_property(*index);
+				if (!address)
+					return virtual_exception(virtual_error::invalid_object);
+
+				core::memory::release(*address);
+				*address = (t*)value;
+				if (*address != nullptr)
+					(*address)->add_ref();
+				return core::expectation::met;
+			}
+		};
+
+		struct function_delegate
+		{
+			immediate_context* context;
+			asIScriptFunction* callback;
+			asITypeInfo* delegate_type;
+			void* delegate_object;
+
+			function_delegate();
+			function_delegate(const function& function);
+			function_delegate(const function& function, immediate_context* wanted_context);
+			function_delegate(const function_delegate& other);
+			function_delegate(function_delegate&& other);
+			~function_delegate();
+			function_delegate& operator= (const function_delegate& other);
+			function_delegate& operator= (function_delegate&& other);
+			expects_promise_vm<execution> operator()(args_callback&& on_args, args_callback&& on_return = nullptr);
+			function callable() const;
+			bool is_valid() const;
+			void add_ref();
+			void release();
+
+		private:
+			void add_ref_and_initialize(bool is_first_time);
+		};
+
+		class compiler final : public core::reference<compiler>
+		{
+		private:
+			compute::proc_include_callback include;
+			compute::proc_pragma_callback pragma;
+			compute::preprocessor* processor;
+			asIScriptModule* scope;
+			virtual_machine* vm;
+			byte_code_info vcache;
+			size_t counter;
+			bool built;
+
+		public:
+			compiler(virtual_machine* engine) noexcept;
+			~compiler() noexcept;
+			void set_include_callback(compute::proc_include_callback&& callback);
+			void set_pragma_callback(compute::proc_pragma_callback&& callback);
+			void define(const std::string_view& word);
+			void undefine(const std::string_view& word);
+			library unlink_module();
+			bool clear();
+			bool is_defined(const std::string_view& word) const;
+			bool is_built() const;
+			bool is_cached() const;
+			expects_vm<void> prepare(byte_code_info* info);
+			expects_vm<void> prepare(const library& info);
+			expects_vm<void> prepare(const std::string_view& module_name, bool scoped = false);
+			expects_vm<void> prepare(const std::string_view& module_name, const std::string_view& cache, bool debug = true, bool scoped = false);
+			expects_vm<void> save_byte_code(byte_code_info* info);
+			expects_vm<void> load_file(const std::string_view& path);
+			expects_vm<void> load_code(const std::string_view& name, const std::string_view& buffer);
+			expects_vm<void> load_byte_code_sync(byte_code_info* info);
+			expects_vm<void> compile_sync();
+			expects_promise_vm<void> load_byte_code(byte_code_info* info);
+			expects_promise_vm<void> compile();
+			expects_promise_vm<void> compile_file(const std::string_view& name, const std::string_view& module_name, const std::string_view& entry_name);
+			expects_promise_vm<void> compile_memory(const std::string_view& buffer, const std::string_view& module_name, const std::string_view& entry_name);
+			expects_promise_vm<function> compile_function(const std::string_view& code, const std::string_view& returns = "", const std::string_view& args = "", core::option<size_t>&& function_id = core::optional::none);
+			library get_module() const;
+			virtual_machine* get_vm() const;
+			compute::preprocessor* get_processor() const;
+		};
+
+		class debugger_context final : public core::reference<debugger_context>
+		{
+		public:
+			typedef std::function<core::string(core::string& indent, int depth, void* object)> to_string_callback;
+			typedef std::function<core::string(core::string& indent, int depth, void* object, int type_id)> to_string_type_callback;
+			typedef std::function<bool(immediate_context*, const core::vector<core::string>&)> command_callback;
+			typedef std::function<void(const std::string_view&)> output_callback;
+			typedef std::function<bool(core::string&)> input_callback;
+			typedef std::function<void(bool)> interrupt_callback;
+			typedef std::function<void()> exit_callback;
+
+		public:
+			enum class debug_action
+			{
+				trigger,
+				interrupt,
+				match,
+				next,
+				step_into,
+				step_over,
+				step_out
 			};
 
 		protected:
-			enum class ArgsType
+			enum class args_type
 			{
-				NoArgs,
-				Expression,
-				Array
+				no_args,
+				expression,
+				array
 			};
 
-			struct BreakPoint
+			struct break_point
 			{
-				Core::String Name;
-				bool NeedsAdjusting;
-				bool Function;
-				int Line;
+				core::string name;
+				bool needs_adjusting;
+				bool function;
+				int line;
 
-				BreakPoint(const std::string_view& N, int L, bool F) noexcept : Name(Core::String(N)), NeedsAdjusting(true), Function(F), Line(L)
+				break_point(const std::string_view& n, int l, bool f) noexcept : name(core::string(n)), needs_adjusting(true), function(f), line(l)
 				{
 				}
 			};
 
-			struct CommandData
+			struct command_data
 			{
-				CommandCallback Callback;
-				Core::String Description;
-				ArgsType Arguments;
+				command_callback callback;
+				core::string description;
+				args_type arguments;
 			};
 
-			struct ThreadData
+			struct thread_data
 			{
-				ImmediateContext* Context;
-				std::thread::id Id;
+				immediate_context* context;
+				std::thread::id id;
 			};
 
 		protected:
-			Core::UnorderedMap<const asITypeInfo*, ToStringCallback> FastToStringCallbacks;
-			Core::UnorderedMap<Core::String, ToStringTypeCallback> SlowToStringCallbacks;
-			Core::UnorderedMap<Core::String, CommandData> Commands;
-			Core::UnorderedMap<Core::String, Core::String> Descriptions;
-			Core::Vector<ThreadData> Threads;
-			Core::Vector<BreakPoint> BreakPoints;
-			std::recursive_mutex ThreadBarrier;
-			std::recursive_mutex Mutex;
-			ImmediateContext* LastContext;
-			uint32_t LastCommandAtStackLevel;
-			std::atomic<int32_t> ForceSwitchThreads;
-			asIScriptFunction* LastFunction;
-			VirtualMachine* VM;
-			InterruptCallback OnInterrupt;
-			OutputCallback OnOutput;
-			InputCallback OnInput;
-			ExitCallback OnExit;
-			DebugAction Action;
-			bool InputError;
-			bool Attachable;
+			core::unordered_map<const asITypeInfo*, to_string_callback> fast_to_string_callbacks;
+			core::unordered_map<core::string, to_string_type_callback> slow_to_string_callbacks;
+			core::unordered_map<core::string, command_data> commands;
+			core::unordered_map<core::string, core::string> descriptions;
+			core::vector<thread_data> threads;
+			core::vector<break_point> break_points;
+			std::recursive_mutex thread_barrier;
+			std::recursive_mutex mutex;
+			immediate_context* last_context;
+			uint32_t last_command_at_stack_level;
+			std::atomic<int32_t> force_switch_threads;
+			asIScriptFunction* last_function;
+			virtual_machine* vm;
+			interrupt_callback on_interrupt;
+			output_callback on_output;
+			input_callback on_input;
+			exit_callback on_exit;
+			debug_action action;
+			bool input_error;
+			bool attachable;
 
 		public:
-			DebuggerContext(DebugType Type = DebugType::Suspended) noexcept;
-			~DebuggerContext() noexcept;
-			ExpectsVM<void> ExecuteExpression(ImmediateContext* Context, const std::string_view& Code, const std::string_view& Args, ArgsCallback&& OnArgs);
-			void SetInterruptCallback(InterruptCallback&& Callback);
-			void SetOutputCallback(OutputCallback&& Callback);
-			void SetInputCallback(InputCallback&& Callback);
-			void SetExitCallback(ExitCallback&& Callback);
-			void AddToStringCallback(const TypeInfo& Type, ToStringCallback&& Callback);
-			void AddToStringCallback(const std::string_view& Type, ToStringTypeCallback&& Callback);
-			void ThrowInternalException(const std::string_view& Message);
-			void AllowInputAfterFailure();
-			void Input(ImmediateContext* Context);
-			void Output(const std::string_view& Data);
-			void LineCallback(asIScriptContext* Context);
-			void ExceptionCallback(asIScriptContext* Context);
-			void Trigger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
-			void AddFileBreakPoint(const std::string_view& File, int LineNumber);
-			void AddFuncBreakPoint(const std::string_view& Function);
-			void ShowException(ImmediateContext* Context);
-			void ListBreakPoints();
-			void ListThreads();
-			void ListAddons();
-			void ListStackRegisters(ImmediateContext* Context, uint32_t Level);
-			void ListLocalVariables(ImmediateContext* Context);
-			void ListGlobalVariables(ImmediateContext* Context);
-			void ListMemberProperties(ImmediateContext* Context);
-			void ListSourceCode(ImmediateContext* Context);
-			void ListInterfaces(ImmediateContext* Context);
-			void ListStatistics(ImmediateContext* Context);
-			void PrintCallstack(ImmediateContext* Context);
-			void PrintValue(const std::string_view& Expression, ImmediateContext* Context);
-			void PrintByteCode(const std::string_view& FunctionDecl, ImmediateContext* Context);
-			void SetEngine(VirtualMachine* Engine);
-			bool InterpretCommand(const std::string_view& Command, ImmediateContext* Context);
-			bool CheckBreakPoint(ImmediateContext* Context);
-			bool Interrupt();
-			bool IsError();
-			bool IsAttached();
-			DebugAction GetState();
-			Core::String ToString(int MaxDepth, void* Value, uint32_t TypeId);
-			Core::String ToString(Core::String& Indent, int MaxDepth, void* Value, uint32_t TypeId);
-			VirtualMachine* GetEngine();
+			debugger_context(debug_type type = debug_type::suspended) noexcept;
+			~debugger_context() noexcept;
+			expects_vm<void> execute_expression(immediate_context* context, const std::string_view& code, const std::string_view& args, args_callback&& on_args);
+			void set_interrupt_callback(interrupt_callback&& callback);
+			void set_output_callback(output_callback&& callback);
+			void set_input_callback(input_callback&& callback);
+			void set_exit_callback(exit_callback&& callback);
+			void add_to_string_callback(const typeinfo& type, to_string_callback&& callback);
+			void add_to_string_callback(const std::string_view& type, to_string_type_callback&& callback);
+			void throw_internal_exception(const std::string_view& message);
+			void allow_input_after_failure();
+			void input(immediate_context* context);
+			void output(const std::string_view& data);
+			void line_callback(asIScriptContext* context);
+			void exception_callback(asIScriptContext* context);
+			void trigger(immediate_context* context, uint64_t timeout_ms = 0);
+			void add_file_break_point(const std::string_view& file, int line_number);
+			void add_func_break_point(const std::string_view& function);
+			void show_exception(immediate_context* context);
+			void list_break_points();
+			void list_threads();
+			void list_addons();
+			void list_stack_registers(immediate_context* context, uint32_t level);
+			void list_local_variables(immediate_context* context);
+			void list_global_variables(immediate_context* context);
+			void list_member_properties(immediate_context* context);
+			void list_source_code(immediate_context* context);
+			void list_interfaces(immediate_context* context);
+			void list_statistics(immediate_context* context);
+			void print_callstack(immediate_context* context);
+			void print_value(const std::string_view& expression, immediate_context* context);
+			void print_byte_code(const std::string_view& function_decl, immediate_context* context);
+			void set_engine(virtual_machine* engine);
+			bool interpret_command(const std::string_view& command, immediate_context* context);
+			bool check_break_point(immediate_context* context);
+			bool interrupt();
+			bool is_error();
+			bool is_attached();
+			debug_action get_state();
+			core::string to_string(int max_depth, void* value, uint32_t type_id);
+			core::string to_string(core::string& indent, int max_depth, void* value, uint32_t type_id);
+			virtual_machine* get_engine();
 
 		public:
-			static size_t ByteCodeLabelToText(Core::StringStream& Stream, VirtualMachine* VM, void* Program, size_t ProgramPointer, bool Selection, bool Uppercase);
+			static size_t byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool uppercase);
 
 		private:
-			void AddCommand(const std::string_view& Name, const std::string_view& Description, ArgsType Type, CommandCallback&& Callback);
-			void AddDefaultCommands();
-			void ClearThread(ImmediateContext* Context);
-			ThreadData GetThread(ImmediateContext* Context);
+			void add_command(const std::string_view& name, const std::string_view& description, args_type type, command_callback&& callback);
+			void add_default_commands();
+			void clear_thread(immediate_context* context);
+			thread_data get_thread(immediate_context* context);
 		};
 
-		class ImmediateContext final : public Core::Reference<ImmediateContext>
+		class immediate_context final : public core::reference<immediate_context>
 		{
-			friend FunctionDelegate;
-			friend VirtualMachine;
+			friend function_delegate;
+			friend virtual_machine;
 
 		public:
-			typedef std::function<void()> StopExecutionCallback;
+			typedef std::function<void()> stop_execution_callback;
 
 		private:
-			static int ContextUD;
+			static int context_ud;
 
 		private:
-			struct Events
+			struct events
 			{
-				Core::Vector<StopExecutionCallback> StopExecutions;
-				std::function<void(ImmediateContext*)> NotificationResolver;
-				std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)> CallbackResolver;
-				std::function<void(ImmediateContext*)> Exception;
-				std::function<void(ImmediateContext*)> Line;
-			} Callbacks;
+				core::vector<stop_execution_callback> stop_executions;
+				std::function<void(immediate_context*)> notification_resolver;
+				std::function<void(immediate_context*, function_delegate&&, args_callback&&, args_callback&&)> callback_resolver;
+				std::function<void(immediate_context*)> exception;
+				std::function<void(immediate_context*)> line;
+			} callbacks;
 
-			struct Frame
+			struct frame
 			{
 				struct
 				{
-					Core::String Info;
-					bool AllowCatch;
-				} DeferredException;
+					core::string info;
+					bool allow_catch;
+				} deferred_exception;
 
-				ExpectsPromiseVM<Execution> Future = ExpectsPromiseVM<Execution>::Null();
-				Core::String Stacktrace;
-				size_t DenySuspends = 0;
-				size_t DeferredExceptions = 0;
-			} Executor;
-
-		private:
-			Core::LinkedList<Core::String> Strings;
-			asIScriptContext* Context;
-			VirtualMachine* VM;
-			std::recursive_mutex Exchange;
-
-		public:
-			~ImmediateContext() noexcept;
-			ExpectsPromiseVM<Execution> ExecuteCall(const Function& Function, ArgsCallback&& OnArgs);
-			ExpectsVM<Execution> ExecuteInlineCall(const Function& Function, ArgsCallback&& OnArgs);
-			ExpectsVM<Execution> ExecuteSubcall(const Function& Function, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn = nullptr);
-			ExpectsVM<Execution> ExecuteNext();
-			ExpectsVM<Execution> Resume();
-			ExpectsPromiseVM<Execution> ResolveCallback(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
-			ExpectsVM<Execution> ResolveNotification();
-			ExpectsVM<void> Prepare(const Function& Function);
-			ExpectsVM<void> Unprepare();
-			ExpectsVM<void> Abort();
-			ExpectsVM<void> Suspend();
-			ExpectsVM<void> PushState();
-			ExpectsVM<void> PopState();
-			ExpectsVM<void> SetObject(void* Object);
-			ExpectsVM<void> SetArg8(size_t Arg, uint8_t Value);
-			ExpectsVM<void> SetArg16(size_t Arg, uint16_t Value);
-			ExpectsVM<void> SetArg32(size_t Arg, int Value);
-			ExpectsVM<void> SetArg64(size_t Arg, int64_t Value);
-			ExpectsVM<void> SetArgFloat(size_t Arg, float Value);
-			ExpectsVM<void> SetArgDouble(size_t Arg, double Value);
-			ExpectsVM<void> SetArgAddress(size_t Arg, void* Address);
-			ExpectsVM<void> SetArgObject(size_t Arg, void* Object);
-			ExpectsVM<void> SetArgAny(size_t Arg, void* Ptr, int TypeId);
-			ExpectsVM<void> GetReturnableByType(void* Return, asITypeInfo* ReturnTypeId);
-			ExpectsVM<void> GetReturnableByDecl(void* Return, const std::string_view& ReturnTypeDecl);
-			ExpectsVM<void> GetReturnableById(void* Return, int ReturnTypeId);
-			ExpectsVM<void> SetException(const std::string_view& Info, bool AllowCatch = true);
-			ExpectsVM<void> SetExceptionCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
-			ExpectsVM<void> SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
-			ExpectsVM<void> StartDeserialization();
-			ExpectsVM<void> FinishDeserialization();
-			ExpectsVM<void> PushFunction(const Function& Func, void* Object);
-			ExpectsVM<void> GetStateRegisters(size_t StackLevel, Function* CallingSystemFunction, Function* InitialFunction, uint32_t* OrigStackPointer, uint32_t* ArgumentsSize, uint64_t* ValueRegister, void** ObjectRegister, TypeInfo* ObjectTypeRegister);
-			ExpectsVM<void> GetCallStateRegisters(size_t StackLevel, uint32_t* StackFramePointer, Function* CurrentFunction, uint32_t* ProgramPointer, uint32_t* StackPointer, uint32_t* StackIndex);
-			ExpectsVM<void> SetStateRegisters(size_t StackLevel, Function CallingSystemFunction, const Function& InitialFunction, uint32_t OrigStackPointer, uint32_t ArgumentsSize, uint64_t ValueRegister, void* ObjectRegister, const TypeInfo& ObjectTypeRegister);
-			ExpectsVM<void> SetCallStateRegisters(size_t StackLevel, uint32_t StackFramePointer, const Function& CurrentFunction, uint32_t ProgramPointer, uint32_t StackPointer, uint32_t StackIndex);
-			ExpectsVM<size_t> GetArgsOnStackCount(size_t StackLevel);
-			ExpectsVM<void> GetArgOnStack(size_t StackLevel, size_t Argument, int* TypeId, size_t* Flags, void** Address);
-			ExpectsVM<size_t> GetPropertiesCount(size_t StackLevel = 0);
-			ExpectsVM<void> GetProperty(size_t Index, size_t StackLevel, std::string_view* Name, int* TypeId = 0, Modifiers* TypeModifiers = 0, bool* IsVarOnHeap = 0, int* StackOffset = 0);
-			Function GetFunction(size_t StackLevel = 0);
-			void SetNotificationResolverCallback(std::function<void(ImmediateContext*)>&& Callback);
-			void SetCallbackResolverCallback(std::function<void(ImmediateContext*, FunctionDelegate&&, ArgsCallback&&, ArgsCallback&&)>&& Callback);
-			void SetLineCallback(std::function<void(ImmediateContext*)>&& Callback);
-			void SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback);
-			void AppendStopExecutionCallback(StopExecutionCallback&& Callback);
-			Core::String& CopyString(Core::String& Value);
-			void InvalidateString(const std::string_view& Value);
-			void InvalidateStrings();
-			void Reset();
-			void DisableSuspends();
-			void EnableSuspends();
-			void EnableDeferredExceptions();
-			void DisableDeferredExceptions();
-			bool IsNested(size_t* NestCount = 0) const;
-			bool IsThrown() const;
-			bool IsPending();
-			Execution GetState() const;
-			void* GetAddressOfArg(size_t Arg);
-			uint8_t GetReturnByte();
-			uint16_t GetReturnWord();
-			size_t GetReturnDWord();
-			uint64_t GetReturnQWord();
-			float GetReturnFloat();
-			double GetReturnDouble();
-			void* GetReturnAddress();
-			void* GetReturnObjectAddress();
-			void* GetAddressOfReturnValue();
-			int GetExceptionLineNumber(int* Column = 0, std::string_view* SectionName = 0);
-			int GetLineNumber(size_t StackLevel = 0, int* Column = 0, std::string_view* SectionName = 0);
-			Function GetExceptionFunction();
-			std::string_view GetExceptionString();
-			bool WillExceptionBeCaught();
-			bool HasDeferredException();
-			bool RethrowDeferredException();
-			void ClearExceptionCallback();
-			void ClearLineCallback();
-			size_t GetCallstackSize() const;
-			Core::Option<Core::String> GetExceptionStackTrace();
-			std::string_view GetPropertyName(size_t Index, size_t StackLevel = 0);
-			std::string_view GetPropertyDecl(size_t Index, size_t StackLevel = 0, bool IncludeNamespace = false);
-			int GetPropertyTypeId(size_t Index, size_t StackLevel = 0);
-			void* GetAddressOfProperty(size_t Index, size_t StackLevel = 0, bool DontDereference = false, bool ReturnAddressOfUnitializedObjects = false);
-			bool IsPropertyInScope(size_t Index, size_t StackLevel = 0);
-			int GetThisTypeId(size_t StackLevel = 0);
-			void* GetThisPointer(size_t StackLevel = 0);
-			Function GetSystemFunction();
-			bool IsSuspended() const;
-			bool IsSuspendable() const;
-			bool IsSyncLocked() const;
-			bool CanExecuteCall() const;
-			bool CanExecuteSubcall() const;
-			void* SetUserData(void* Data, size_t Type = 0);
-			void* GetUserData(size_t Type = 0) const;
-			asIScriptContext* GetContext();
-			VirtualMachine* GetVM();
+				expects_promise_vm<execution> future = expects_promise_vm<execution>::null();
+				core::string stacktrace;
+				size_t deny_suspends = 0;
+				size_t deferred_exceptions = 0;
+			} executor;
 
 		private:
-			ImmediateContext(asIScriptContext* Base) noexcept;
+			core::linked_list<core::string> strings;
+			asIScriptContext* context;
+			virtual_machine* vm;
+			std::recursive_mutex exchange;
 
 		public:
-			template <typename T>
-			T* GetReturnObject()
+			~immediate_context() noexcept;
+			expects_promise_vm<execution> execute_call(const function& function, args_callback&& on_args);
+			expects_vm<execution> execute_inline_call(const function& function, args_callback&& on_args);
+			expects_vm<execution> execute_subcall(const function& function, args_callback&& on_args, args_callback&& on_return = nullptr);
+			expects_vm<execution> execute_next();
+			expects_vm<execution> resume();
+			expects_promise_vm<execution> resolve_callback(function_delegate&& delegatef, args_callback&& on_args, args_callback&& on_return);
+			expects_vm<execution> resolve_notification();
+			expects_vm<void> prepare(const function& function);
+			expects_vm<void> unprepare();
+			expects_vm<void> abort();
+			expects_vm<void> suspend();
+			expects_vm<void> push_state();
+			expects_vm<void> pop_state();
+			expects_vm<void> set_object(void* object);
+			expects_vm<void> set_arg8(size_t arg, uint8_t value);
+			expects_vm<void> set_arg16(size_t arg, uint16_t value);
+			expects_vm<void> set_arg32(size_t arg, int value);
+			expects_vm<void> set_arg64(size_t arg, int64_t value);
+			expects_vm<void> set_arg_float(size_t arg, float value);
+			expects_vm<void> set_arg_double(size_t arg, double value);
+			expects_vm<void> set_arg_address(size_t arg, void* address);
+			expects_vm<void> set_arg_object(size_t arg, void* object);
+			expects_vm<void> set_arg_any(size_t arg, void* ptr, int type_id);
+			expects_vm<void> get_returnable_by_type(void* defer, asITypeInfo* return_type_id);
+			expects_vm<void> get_returnable_by_decl(void* defer, const std::string_view& return_type_decl);
+			expects_vm<void> get_returnable_by_id(void* defer, int return_type_id);
+			expects_vm<void> set_exception(const std::string_view& info, bool allow_catch = true);
+			expects_vm<void> set_exception_callback(void(*callback)(asIScriptContext* context, void* object), void* object);
+			expects_vm<void> set_line_callback(void(*callback)(asIScriptContext* context, void* object), void* object);
+			expects_vm<void> start_deserialization();
+			expects_vm<void> finish_deserialization();
+			expects_vm<void> push_function(const function& func, void* object);
+			expects_vm<void> get_state_registers(size_t stack_level, function* calling_system_function, function* initial_function, uint32_t* orig_stack_pointer, uint32_t* arguments_size, uint64_t* value_register, void** object_register, typeinfo* object_type_register);
+			expects_vm<void> get_call_state_registers(size_t stack_level, uint32_t* stack_frame_pointer, function* current_function, uint32_t* program_pointer, uint32_t* stack_pointer, uint32_t* stack_index);
+			expects_vm<void> set_state_registers(size_t stack_level, function calling_system_function, const function& initial_function, uint32_t orig_stack_pointer, uint32_t arguments_size, uint64_t value_register, void* object_register, const typeinfo& object_type_register);
+			expects_vm<void> set_call_state_registers(size_t stack_level, uint32_t stack_frame_pointer, const function& current_function, uint32_t program_pointer, uint32_t stack_pointer, uint32_t stack_index);
+			expects_vm<size_t> get_args_on_stack_count(size_t stack_level);
+			expects_vm<void> get_arg_on_stack(size_t stack_level, size_t argument, int* type_id, size_t* flags, void** address);
+			expects_vm<size_t> get_properties_count(size_t stack_level = 0);
+			expects_vm<void> get_property(size_t index, size_t stack_level, std::string_view* name, int* type_id = 0, modifiers* type_modifiers = 0, bool* is_var_on_heap = 0, int* stack_offset = 0);
+			function get_function(size_t stack_level = 0);
+			void set_notification_resolver_callback(std::function<void(immediate_context*)>&& callback);
+			void set_callback_resolver_callback(std::function<void(immediate_context*, function_delegate&&, args_callback&&, args_callback&&)>&& callback);
+			void set_line_callback(std::function<void(immediate_context*)>&& callback);
+			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
+			void append_stop_execution_callback(stop_execution_callback&& callback);
+			core::string& copy_string(core::string& value);
+			void invalidate_string(const std::string_view& value);
+			void invalidate_strings();
+			void reset();
+			void disable_suspends();
+			void enable_suspends();
+			void enable_deferred_exceptions();
+			void disable_deferred_exceptions();
+			bool is_nested(size_t* nest_count = 0) const;
+			bool is_thrown() const;
+			bool is_pending();
+			execution get_state() const;
+			void* get_address_of_arg(size_t arg);
+			uint8_t get_return_byte();
+			uint16_t get_return_word();
+			size_t get_return_dword();
+			uint64_t get_return_qword();
+			float get_return_float();
+			double get_return_double();
+			void* get_return_address();
+			void* get_return_object_address();
+			void* get_address_of_return_value();
+			int get_exception_line_number(int* column = 0, std::string_view* section_name = 0);
+			int get_line_number(size_t stack_level = 0, int* column = 0, std::string_view* section_name = 0);
+			function get_exception_function();
+			std::string_view get_exception_string();
+			bool will_exception_be_caught();
+			bool has_deferred_exception();
+			bool rethrow_deferred_exception();
+			void clear_exception_callback();
+			void clear_line_callback();
+			size_t get_callstack_size() const;
+			core::option<core::string> get_exception_stack_trace();
+			std::string_view get_property_name(size_t index, size_t stack_level = 0);
+			std::string_view get_property_decl(size_t index, size_t stack_level = 0, bool include_namespace = false);
+			int get_property_type_id(size_t index, size_t stack_level = 0);
+			void* get_address_of_property(size_t index, size_t stack_level = 0, bool dont_dereference = false, bool return_address_of_unitialized_objects = false);
+			bool is_property_in_scope(size_t index, size_t stack_level = 0);
+			int get_this_type_id(size_t stack_level = 0);
+			void* get_this_pointer(size_t stack_level = 0);
+			function get_system_function();
+			bool is_suspended() const;
+			bool is_suspendable() const;
+			bool is_sync_locked() const;
+			bool can_execute_call() const;
+			bool can_execute_subcall() const;
+			void* set_user_data(void* data, size_t type = 0);
+			void* get_user_data(size_t type = 0) const;
+			asIScriptContext* get_context();
+			virtual_machine* get_vm();
+
+		private:
+			immediate_context(asIScriptContext* base) noexcept;
+
+		public:
+			template <typename t>
+			t* get_return_object()
 			{
-				return (T*)GetReturnObjectAddress();
+				return (t*)get_return_object_address();
 			}
 
 		public:
-			static ImmediateContext* Get(asIScriptContext* Context);
-			static ImmediateContext* Get();
+			static immediate_context* get(asIScriptContext* context);
+			static immediate_context* get();
 		};
 
-		class VirtualMachine final : public Core::Reference<VirtualMachine>
+		class virtual_machine final : public core::reference<virtual_machine>
 		{
 		public:
-			typedef std::function<ExpectsVM<void>(Compute::Preprocessor* Base, const std::string_view& Path, Core::String& Buffer)> GeneratorCallback;
-			typedef std::function<void(const std::string_view&)> CompileCallback;
-			typedef std::function<void()> WhenErrorCallback;
+			typedef std::function<expects_vm<void>(compute::preprocessor* base, const std::string_view& path, core::string& buffer)> generator_callback;
+			typedef std::function<void(const std::string_view&)> compile_callback;
+			typedef std::function<void()> when_error_callback;
 
 		public:
-			struct CFunction
+			struct cfunction
 			{
-				Core::String Declaration;
-				void* Handle;
+				core::string declaration;
+				void* handle;
 			};
 
-			struct CLibrary
+			struct clibrary
 			{
-				Core::UnorderedMap<Core::String, CFunction> Functions;
-				void* Handle;
-				bool IsAddon;
+				core::unordered_map<core::string, cfunction> functions;
+				void* handle;
+				bool is_addon;
 			};
 
-			struct Addon
+			struct addon
 			{
-				Core::Vector<Core::String> Dependencies;
-				AddonCallback Callback;
-				bool Exposed = false;
+				core::vector<core::string> dependencies;
+				addon_callback callback;
+				bool exposed = false;
 			};
 
 		private:
 			struct
 			{
-				std::recursive_mutex General;
-				std::recursive_mutex Pool;
-			} Sync;
+				std::recursive_mutex general;
+				std::recursive_mutex pool;
+			} sync;
 
 		private:
-			static int ManagerUD;
+			static int manager_ud;
 
 		private:
-			Core::UnorderedMap<LibraryFeatures, size_t> LibrarySettings;
-			Core::UnorderedMap<Core::String, Core::String> Files;
-			Core::UnorderedMap<Core::String, Core::String> Sections;
-			Core::UnorderedMap<Core::String, Core::Schema*> Datas;
-			Core::UnorderedMap<Core::String, ByteCodeInfo> Opcodes;
-			Core::UnorderedMap<Core::String, CLibrary> CLibraries;
-			Core::UnorderedMap<Core::String, Addon> Addons;
-			Core::UnorderedMap<Core::String, CompileCallback> Callbacks;
-			Core::UnorderedMap<Core::String, GeneratorCallback> Generators;
-			Core::Vector<ImmediateContext*> Threads;
-			Core::Vector<asIScriptContext*> Stacks;
-			Core::String DefaultNamespace;
-			Compute::Preprocessor::Desc Proc;
-			Compute::IncludeDesc Include;
-			std::function<void(ImmediateContext*)> GlobalException;
-			WhenErrorCallback WhenError;
-			std::atomic<int64_t> LastMajorGC;
-			uint64_t Scope;
-			DebuggerContext* Debugger;
-			asIScriptEngine* Engine;
-			bool SaveSources;
-			bool SaveCache;
+			core::unordered_map<library_features, size_t> library_settings;
+			core::unordered_map<core::string, core::string> files;
+			core::unordered_map<core::string, core::string> sections;
+			core::unordered_map<core::string, core::schema*> datas;
+			core::unordered_map<core::string, byte_code_info> opcodes;
+			core::unordered_map<core::string, clibrary> clibraries;
+			core::unordered_map<core::string, addon> addons;
+			core::unordered_map<core::string, compile_callback> callbacks;
+			core::unordered_map<core::string, generator_callback> generators;
+			core::vector<immediate_context*> threads;
+			core::vector<asIScriptContext*> stacks;
+			core::string default_namespace;
+			compute::preprocessor::desc proc;
+			compute::include_desc include;
+			std::function<void(immediate_context*)> global_exception;
+			when_error_callback when_error;
+			std::atomic<int64_t> last_major_gc;
+			uint64_t scope;
+			debugger_context* debugger;
+			asIScriptEngine* engine;
+			bool save_sources;
+			bool save_cache;
 
 		public:
-			VirtualMachine() noexcept;
-			~VirtualMachine() noexcept;
-			ExpectsVM<void> WriteMessage(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message);
-			ExpectsVM<void> GarbageCollect(GarbageCollector Flags, size_t NumIterations = 1);
-			ExpectsVM<void> PerformPeriodicGarbageCollection(uint64_t IntervalMs);
-			ExpectsVM<void> PerformFullGarbageCollection();
-			ExpectsVM<void> NotifyOfNewObject(void* Object, const TypeInfo& Type);
-			ExpectsVM<void> GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, TypeInfo* Type = nullptr);
-			ExpectsVM<void> AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type);
-			ExpectsVM<void> RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
-			ExpectsVM<void> BeginGroup(const std::string_view& GroupName);
-			ExpectsVM<void> EndGroup();
-			ExpectsVM<void> RemoveGroup(const std::string_view& GroupName);
-			ExpectsVM<void> BeginNamespace(const std::string_view& Namespace);
-			ExpectsVM<void> BeginNamespaceIsolated(const std::string_view& Namespace, size_t DefaultMask);
-			ExpectsVM<void> EndNamespace();
-			ExpectsVM<void> EndNamespaceIsolated();
-			ExpectsVM<void> AddScriptSection(asIScriptModule* Module, const std::string_view& Name, const std::string_view& Code, int LineOffset = 0);
-			ExpectsVM<void> GetTypeNameScope(std::string_view* TypeName, std::string_view* Namespace) const;
-			ExpectsVM<void> SetFunctionDef(const std::string_view& Decl);
-			ExpectsVM<void> SetTypeDef(const std::string_view& Type, const std::string_view& Decl);
-			ExpectsVM<void> SetFunctionAddress(const std::string_view& Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
-			ExpectsVM<void> SetPropertyAddress(const std::string_view& Decl, void* Value);
-			ExpectsVM<void> SetStringFactoryAddress(const std::string_view& Type, asIStringFactory* Factory);
-			ExpectsVM<void> SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
-			ExpectsVM<void> Log(const std::string_view& Section, int Row, int Column, LogCategory Type, const std::string_view& Message);
-			ExpectsVM<void> SetProperty(Features Property, size_t Value);
-			ExpectsVM<void> GetPropertyByIndex(size_t Index, PropertyInfo* Info) const;
-			ExpectsVM<size_t> GetPropertyIndexByName(const std::string_view& Name) const;
-			ExpectsVM<size_t> GetPropertyIndexByDecl(const std::string_view& Decl) const;
-			ExpectsVM<size_t> GetSizeOfPrimitiveType(int TypeId) const;
-			ExpectsVM<TypeClass> SetStructAddress(const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::VALUE);
-			ExpectsVM<TypeClass> SetPodAddress(const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)(ObjectBehaviours::VALUE | ObjectBehaviours::POD));
-			ExpectsVM<RefClass> SetClassAddress(const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
-			ExpectsVM<TemplateClass> SetTemplateClassAddress(const std::string_view& Decl, const std::string_view& Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
-			ExpectsVM<TypeInterface> SetInterface(const std::string_view& Name);
-			ExpectsVM<Enumeration> SetEnum(const std::string_view& Name);
-			void SetCodeGenerator(const std::string_view& Name, GeneratorCallback&& Callback);
-			void SetPreserveSourceCode(bool Enabled);
-			void SetTsImports(bool Enabled, const std::string_view& ImportSyntax = "import from");
-			void SetCache(bool Enabled);
-			void SetExceptionCallback(std::function<void(ImmediateContext*)>&& Callback);
-			void SetDebugger(Core::Unique<DebuggerContext> Context);
-			void SetCompilerErrorCallback(WhenErrorCallback&& Callback);
-			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
-			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
-			void SetProcessorOptions(Compute::Preprocessor* Processor);
-			void SetCompileCallback(const std::string_view& Section, CompileCallback&& Callback);
-			void SetDefaultArrayType(const std::string_view& Type);
-			void SetTypeInfoUserDataCleanupCallback(void(*Callback)(asITypeInfo*), size_t Type = 0);
-			void SetEngineUserDataCleanupCallback(void(*Callback)(asIScriptEngine*), size_t Type = 0);
-			void* SetUserData(void* Data, size_t Type = 0);
-			void* GetUserData(size_t Type = 0) const;
-			void ClearCache();
-			void ClearSections();
-			void AttachDebuggerToContext(asIScriptContext* Context);
-			void DetachDebuggerFromContext(asIScriptContext* Context);
-			void GetStatistics(uint32_t* CurrentSize, uint32_t* TotalDestroyed, uint32_t* TotalDetected, uint32_t* NewObjects, uint32_t* TotalNewDestroyed) const;
-			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
-			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
-			void GCEnumCallback(void* Reference);
-			void GCEnumCallback(asIScriptFunction* Reference);
-			void GCEnumCallback(FunctionDelegate* Reference);
-			bool TriggerDebugger(ImmediateContext* Context, uint64_t TimeoutMs = 0);
-			Compute::ExpectsPreprocessor<void> GenerateCode(Compute::Preprocessor* Processor, const std::string_view& Path, Core::String& InoutBuffer);
-			Core::UnorderedMap<Core::String, Core::String> DumpRegisteredInterfaces(ImmediateContext* Context);
-			Core::Unique<Compiler> CreateCompiler();
-			Core::Unique<asIScriptModule> CreateScopedModule(const std::string_view& Name);
-			Core::Unique<asIScriptModule> CreateModule(const std::string_view& Name);
-			Core::Unique<ImmediateContext> RequestContext();
-			void ReturnContext(ImmediateContext* Context);
-			bool GetByteCodeCache(ByteCodeInfo* Info);
-			void SetByteCodeCache(ByteCodeInfo* Info);
-			void* CreateObject(const TypeInfo& Type);
-			void* CreateObjectCopy(void* Object, const TypeInfo& Type);
-			void* CreateEmptyObject(const TypeInfo& Type);
-			Function CreateDelegate(const Function& Function, void* Object);
-			void ReleaseObject(void* Object, const TypeInfo& Type);
-			void AddRefObject(void* Object, const TypeInfo& Type);
-			size_t BeginAccessMask(size_t DefaultMask);
-			size_t EndAccessMask();
-			std::string_view GetNamespace() const;
-			Module GetModule(const std::string_view& Name);
-			void SetLibraryProperty(LibraryFeatures Property, size_t Value);
-			size_t GetLibraryProperty(LibraryFeatures Property);
-			size_t GetProperty(Features Property);
-			void SetModuleDirectory(const std::string_view& Root);
-			size_t GetProperty(Features Property) const;
-			asIScriptEngine* GetEngine() const;
-			DebuggerContext* GetDebugger() const;
-			const Core::String& GetModuleDirectory() const;
-			Core::Vector<Core::String> GetExposedAddons();
-			const Core::UnorderedMap<Core::String, Addon>& GetSystemAddons() const;
-			const Core::UnorderedMap<Core::String, CLibrary>& GetCLibraries() const;
-			const Compute::IncludeDesc& GetCompileIncludeOptions() const;
-			bool HasLibrary(const std::string_view& Name, bool IsAddon = false);
-			bool HasSystemAddon(const std::string_view& Name);
-			bool HasAddon(const std::string_view& Name);
-			bool IsNullable(int TypeId);
-			bool HasDebugger();
-			bool AddSystemAddon(const std::string_view& Name, const Core::Vector<Core::String>& Dependencies, AddonCallback&& Callback);
-			ExpectsVM<void> ImportFile(const std::string_view& Path, bool IsRemote, Core::String& Output);
-			ExpectsVM<void> ImportCFunction(const Core::Vector<Core::String>& Sources, const std::string_view& Name, const std::string_view& Decl);
-			ExpectsVM<void> ImportCLibrary(const std::string_view& Path, bool IAddon = false);
-			ExpectsVM<void> ImportAddon(const std::string_view& Path);
-			ExpectsVM<void> ImportSystemAddon(const std::string_view& Name);
-			Core::Option<Core::String> GetSourceCodeAppendix(const std::string_view& Label, const std::string_view& Code, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
-			Core::Option<Core::String> GetSourceCodeAppendixByPath(const std::string_view& Label, const std::string_view& Path, uint32_t LineNumber, uint32_t ColumnNumber, size_t MaxLines);
-			Core::Option<Core::String> GetScriptSection(const std::string_view& SectionName);
-			size_t GetFunctionsCount() const;
-			Function GetFunctionById(int Id) const;
-			Function GetFunctionByIndex(size_t Index) const;
-			Function GetFunctionByDecl(const std::string_view& Decl) const;
-			size_t GetPropertiesCount() const;
-			size_t GetObjectsCount() const;
-			TypeInfo GetObjectByIndex(size_t Index) const;
-			size_t GetEnumCount() const;
-			TypeInfo GetEnumByIndex(size_t Index) const;
-			size_t GetFunctionDefsCount() const;
-			TypeInfo GetFunctionDefByIndex(size_t Index) const;
-			size_t GetModulesCount() const;
-			asIScriptModule* GetModuleById(int Id) const;
-			int GetTypeIdByDecl(const std::string_view& Decl) const;
-			std::string_view GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
-			TypeInfo GetTypeInfoById(int TypeId) const;
-			TypeInfo GetTypeInfoByName(const std::string_view& Name);
-			TypeInfo GetTypeInfoByDecl(const std::string_view& Decl) const;
+			virtual_machine() noexcept;
+			~virtual_machine() noexcept;
+			expects_vm<void> write_message(const std::string_view& section, int row, int column, log_category type, const std::string_view& message);
+			expects_vm<void> garbage_collect(garbage_collector flags, size_t num_iterations = 1);
+			expects_vm<void> perform_periodic_garbage_collection(uint64_t interval_ms);
+			expects_vm<void> perform_full_garbage_collection();
+			expects_vm<void> notify_of_new_object(void* object, const typeinfo& type);
+			expects_vm<void> get_object_address(size_t index, size_t* sequence_number = nullptr, void** object = nullptr, typeinfo* type = nullptr);
+			expects_vm<void> assign_object(void* dest_object, void* src_object, const typeinfo& type);
+			expects_vm<void> ref_cast_object(void* object, const typeinfo& from_type, const typeinfo& to_type, void** new_ptr, bool use_only_implicit_cast = false);
+			expects_vm<void> begin_group(const std::string_view& group_name);
+			expects_vm<void> end_group();
+			expects_vm<void> remove_group(const std::string_view& group_name);
+			expects_vm<void> begin_namespace(const std::string_view& name_space);
+			expects_vm<void> begin_namespace_isolated(const std::string_view& name_space, size_t default_mask);
+			expects_vm<void> end_namespace();
+			expects_vm<void> end_namespace_isolated();
+			expects_vm<void> add_script_section(asIScriptModule* library, const std::string_view& name, const std::string_view& code, int line_offset = 0);
+			expects_vm<void> get_type_name_scope(std::string_view* type_name, std::string_view* name_space) const;
+			expects_vm<void> set_function_def(const std::string_view& decl);
+			expects_vm<void> set_type_def(const std::string_view& type, const std::string_view& decl);
+			expects_vm<void> set_function_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdeclf);
+			expects_vm<void> set_property_address(const std::string_view& decl, void* value);
+			expects_vm<void> set_string_factory_address(const std::string_view& type, asIStringFactory* factory);
+			expects_vm<void> set_log_callback(void(*callback)(const asSMessageInfo* message, void* object), void* object);
+			expects_vm<void> log(const std::string_view& section, int row, int column, log_category type, const std::string_view& message);
+			expects_vm<void> set_property(features property, size_t value);
+			expects_vm<void> get_property_by_index(size_t index, property_info* info) const;
+			expects_vm<size_t> get_property_index_by_name(const std::string_view& name) const;
+			expects_vm<size_t> get_property_index_by_decl(const std::string_view& decl) const;
+			expects_vm<size_t> get_size_of_primitive_type(int type_id) const;
+			expects_vm<type_class> set_struct_address(const std::string_view& name, size_t size, uint64_t flags = (uint64_t)object_behaviours::value);
+			expects_vm<type_class> set_pod_address(const std::string_view& name, size_t size, uint64_t flags = (uint64_t)(object_behaviours::value | object_behaviours::pod));
+			expects_vm<ref_class> set_class_address(const std::string_view& name, size_t size, uint64_t flags = (uint64_t)object_behaviours::ref);
+			expects_vm<template_class> set_template_class_address(const std::string_view& decl, const std::string_view& name, size_t size, uint64_t flags = (uint64_t)object_behaviours::ref);
+			expects_vm<type_interface> set_interface(const std::string_view& name);
+			expects_vm<enumeration> set_enum(const std::string_view& name);
+			void set_code_generator(const std::string_view& name, generator_callback&& callback);
+			void set_preserve_source_code(bool enabled);
+			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
+			void set_cache(bool enabled);
+			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
+			void set_debugger(core::unique<debugger_context> context);
+			void set_compiler_error_callback(when_error_callback&& callback);
+			void set_compiler_include_options(const compute::include_desc& new_desc);
+			void set_compiler_features(const compute::preprocessor::desc& new_desc);
+			void set_processor_options(compute::preprocessor* processor);
+			void set_compile_callback(const std::string_view& section, compile_callback&& callback);
+			void set_default_array_type(const std::string_view& type);
+			void set_type_info_user_data_cleanup_callback(void(*callback)(asITypeInfo*), size_t type = 0);
+			void set_engine_user_data_cleanup_callback(void(*callback)(asIScriptEngine*), size_t type = 0);
+			void* set_user_data(void* data, size_t type = 0);
+			void* get_user_data(size_t type = 0) const;
+			void clear_cache();
+			void clear_sections();
+			void attach_debugger_to_context(asIScriptContext* context);
+			void detach_debugger_from_context(asIScriptContext* context);
+			void get_statistics(uint32_t* current_size, uint32_t* total_destroyed, uint32_t* total_detected, uint32_t* new_objects, uint32_t* total_new_destroyed) const;
+			void forward_enum_references(void* reference, const typeinfo& type);
+			void forward_release_references(void* reference, const typeinfo& type);
+			void gc_enum_callback(void* reference);
+			void gc_enum_callback(asIScriptFunction* reference);
+			void gc_enum_callback(function_delegate* reference);
+			bool trigger_debugger(immediate_context* context, uint64_t timeout_ms = 0);
+			compute::expects_preprocessor<void> generate_code(compute::preprocessor* processor, const std::string_view& path, core::string& inout_buffer);
+			core::unordered_map<core::string, core::string> dump_registered_interfaces(immediate_context* context);
+			core::unique<compiler> create_compiler();
+			core::unique<asIScriptModule> create_scoped_module(const std::string_view& name);
+			core::unique<asIScriptModule> create_module(const std::string_view& name);
+			core::unique<immediate_context> request_context();
+			void return_context(immediate_context* context);
+			bool get_byte_code_cache(byte_code_info* info);
+			void set_byte_code_cache(byte_code_info* info);
+			void* create_object(const typeinfo& type);
+			void* create_object_copy(void* object, const typeinfo& type);
+			void* create_empty_object(const typeinfo& type);
+			function create_delegate(const function& function, void* object);
+			void release_object(void* object, const typeinfo& type);
+			void add_ref_object(void* object, const typeinfo& type);
+			size_t begin_access_mask(size_t default_mask);
+			size_t end_access_mask();
+			std::string_view get_namespace() const;
+			library get_module(const std::string_view& name);
+			void set_library_property(library_features property, size_t value);
+			size_t get_library_property(library_features property);
+			size_t get_property(features property);
+			void set_module_directory(const std::string_view& root);
+			size_t get_property(features property) const;
+			asIScriptEngine* get_engine() const;
+			debugger_context* get_debugger() const;
+			const core::string& get_module_directory() const;
+			core::vector<core::string> get_exposed_addons();
+			const core::unordered_map<core::string, addon>& get_system_addons() const;
+			const core::unordered_map<core::string, clibrary>& get_clibraries() const;
+			const compute::include_desc& get_compile_include_options() const;
+			bool has_library(const std::string_view& name, bool is_addon = false);
+			bool has_system_addon(const std::string_view& name);
+			bool has_addon(const std::string_view& name);
+			bool is_nullable(int type_id);
+			bool has_debugger();
+			bool add_system_addon(const std::string_view& name, const core::vector<core::string>& dependencies, addon_callback&& callback);
+			expects_vm<void> import_file(const std::string_view& path, bool is_remote, core::string& output);
+			expects_vm<void> import_cfunction(const core::vector<core::string>& sources, const std::string_view& name, const std::string_view& decl);
+			expects_vm<void> import_clibrary(const std::string_view& path, bool iaddon = false);
+			expects_vm<void> import_addon(const std::string_view& path);
+			expects_vm<void> import_system_addon(const std::string_view& name);
+			core::option<core::string> get_source_code_appendix(const std::string_view& label, const std::string_view& code, uint32_t line_number, uint32_t column_number, size_t max_lines);
+			core::option<core::string> get_source_code_appendix_by_path(const std::string_view& label, const std::string_view& path, uint32_t line_number, uint32_t column_number, size_t max_lines);
+			core::option<core::string> get_script_section(const std::string_view& section_name);
+			size_t get_functions_count() const;
+			function get_function_by_id(int id) const;
+			function get_function_by_index(size_t index) const;
+			function get_function_by_decl(const std::string_view& decl) const;
+			size_t get_properties_count() const;
+			size_t get_objects_count() const;
+			typeinfo get_object_by_index(size_t index) const;
+			size_t get_enum_count() const;
+			typeinfo get_enum_by_index(size_t index) const;
+			size_t get_function_defs_count() const;
+			typeinfo get_function_def_by_index(size_t index) const;
+			size_t get_modules_count() const;
+			asIScriptModule* get_module_by_id(int id) const;
+			int get_type_id_by_decl(const std::string_view& decl) const;
+			std::string_view get_type_id_decl(int type_id, bool include_namespace = false) const;
+			typeinfo get_type_info_by_id(int type_id) const;
+			typeinfo get_type_info_by_name(const std::string_view& name);
+			typeinfo get_type_info_by_decl(const std::string_view& decl) const;
 
 		private:
-			Core::Unique<ImmediateContext> CreateContext();
-			ExpectsVM<void> InitializeAddon(const std::string_view& Name, CLibrary& Library);
-			void UninitializeAddon(const std::string_view& Name, CLibrary& Library);
+			core::unique<immediate_context> create_context();
+			expects_vm<void> initialize_addon(const std::string_view& name, clibrary& library);
+			void uninitialize_addon(const std::string_view& name, clibrary& library);
 
 		public:
-			static void LineHandler(asIScriptContext* Context, void* Object);
-			static void ExceptionHandler(asIScriptContext* Context, void* Object);
-			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
-			static void CleanupThisThread();
-			static std::string_view GetErrorNameInfo(VirtualError Code);
-			static ByteCodeLabel GetByteCodeInfo(uint8_t Code);
-			static VirtualMachine* Get(asIScriptEngine* Engine);
-			static VirtualMachine* Get();
-			static size_t GetDefaultAccessMask();
-			static void Cleanup();
+			static void line_handler(asIScriptContext* context, void* object);
+			static void exception_handler(asIScriptContext* context, void* object);
+			static void set_memory_functions(void* (*alloc)(size_t), void(*free)(void*));
+			static void cleanup_this_thread();
+			static std::string_view get_error_name_info(virtual_error code);
+			static byte_code_label get_byte_code_info(uint8_t code);
+			static virtual_machine* get(asIScriptEngine* engine);
+			static virtual_machine* get();
+			static size_t get_default_access_mask();
+			static void cleanup();
 
 		private:
-			static std::string_view GetLibraryName(const std::string_view& Path);
-			static asIScriptContext* RequestRawContext(asIScriptEngine* Engine, void* Data);
-			static void ReturnRawContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
-			static void MessageLogger(asSMessageInfo* Info, void* Object);
-			static void* GetNullable();
+			static std::string_view get_library_name(const std::string_view& path);
+			static asIScriptContext* request_raw_context(asIScriptEngine* engine, void* data);
+			static void return_raw_context(asIScriptEngine* engine, asIScriptContext* context, void* data);
+			static void message_logger(asSMessageInfo* info, void* object);
+			static void* get_nullable();
 
 		public:
-			template <typename T>
-			ExpectsVM<void> SetFunction(const std::string_view& Decl, T Value)
+			template <typename t>
+			expects_vm<void> set_function(const std::string_view& decl, t value)
 			{
-				asSFuncPtr* Ptr = Bridge::Function<T>(Value);
-				auto Result = SetFunctionAddress(Decl, Ptr, FunctionCall::CDECLF);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function<t>(value);
+				auto result = set_function_address(decl, ptr, function_call::cdeclf);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
 			template <void(*)(asIScriptGeneric*)>
-			ExpectsVM<void> SetFunction(const std::string_view& Decl, void(*Value)(asIScriptGeneric*))
+			expects_vm<void> set_function(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* Ptr = Bridge::FunctionGeneric<void (*)(asIScriptGeneric*)>(Value);
-				auto Result = SetFunctionAddress(Decl, Ptr, FunctionCall::GENERIC);
-				FunctionFactory::ReleaseFunctor(&Ptr);
-				return Result;
+				asSFuncPtr* ptr = bridge::function_generic<void (*)(asIScriptGeneric*)>(value);
+				auto result = set_function_address(decl, ptr, function_call::genericf);
+				function_factory::release_functor(&ptr);
+				return result;
 			}
-			template <typename T>
-			ExpectsVM<void> SetProperty(const std::string_view& Decl, T* Value)
+			template <typename t>
+			expects_vm<void> set_property(const std::string_view& decl, t* value)
 			{
-				return SetPropertyAddress(Decl, (void*)Value);
+				return set_property_address(decl, (void*)value);
 			}
-			template <typename T>
-			ExpectsVM<RefClass> SetClass(const std::string_view& Name, bool GC)
+			template <typename t>
+			expects_vm<ref_class> set_class(const std::string_view& name, bool gc)
 			{
-				auto RefType = GetTypeInfoByName(Name);
-				if (RefType.IsValid())
-					return RefClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+				auto ref_type = get_type_info_by_name(name);
+				if (ref_type.is_valid())
+					return ref_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				auto Class = SetClassAddress(Name, sizeof(T), GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
-				if (!Class)
-					return Class;
+				auto data_class = set_class_address(name, sizeof(t), gc ? (size_t)object_behaviours::ref | (size_t)object_behaviours::gc : (size_t)object_behaviours::ref);
+				if (!data_class)
+					return data_class;
 
-				auto Status = Class->template SetAddRef<T>();
-				if (!Status)
-					return Status.Error();
+				auto status = data_class->template set_add_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetRelease<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_release<t>();
+				if (!status)
+					return status.error();
 
-				if (!GC)
-					return Class;
+				if (!gc)
+					return data_class;
 
-				Status = Class->template SetMarkRef<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_mark_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetIsMarkedRef<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_is_marked_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetRefCount<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_ref_count<t>();
+				if (!status)
+					return status.error();
 
-				return Class;
+				return data_class;
 			}
-			template <typename T>
-			ExpectsVM<RefClass> SetInterfaceClass(const std::string_view& Name)
+			template <typename t>
+			expects_vm<ref_class> set_interface_class(const std::string_view& name)
 			{
-				auto RefType = GetTypeInfoByName(Name);
-				if (RefType.IsValid())
-					return RefClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+				auto ref_type = get_type_info_by_name(name);
+				if (ref_type.is_valid())
+					return ref_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				return SetClassAddress(Name, sizeof(T), (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::NOCOUNT);
+				return set_class_address(name, sizeof(t), (size_t)object_behaviours::ref | (size_t)object_behaviours::nocount);
 			}
-			template <typename T>
-			ExpectsVM<TemplateClass> SetTemplateClass(const std::string_view& Decl, const std::string_view& Name, bool GC)
+			template <typename t>
+			expects_vm<template_class> set_template_class(const std::string_view& decl, const std::string_view& name, bool gc)
 			{
-				auto RefType = GetTypeInfoByDecl(Decl);
-				if (RefType.IsValid())
-					return TemplateClass(this, Name);
+				auto ref_type = get_type_info_by_decl(decl);
+				if (ref_type.is_valid())
+					return template_class(this, name);
 
-				auto Class = SetTemplateClassAddress(Decl, Name, sizeof(T), GC ? (size_t)ObjectBehaviours::TEMPLATE | (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::TEMPLATE | (size_t)ObjectBehaviours::REF);
-				if (!Class)
-					return Class;
+				auto data_class = set_template_class_address(decl, name, sizeof(t), gc ? (size_t)object_behaviours::pattern | (size_t)object_behaviours::ref | (size_t)object_behaviours::gc : (size_t)object_behaviours::pattern | (size_t)object_behaviours::ref);
+				if (!data_class)
+					return data_class;
 
-				auto Status = Class->template SetAddRef<T>();
-				if (!Status)
-					return Status.Error();
+				auto status = data_class->template set_add_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetRelease<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_release<t>();
+				if (!status)
+					return status.error();
 
-				if (!GC)
-					return Class;
+				if (!gc)
+					return data_class;
 
-				Status = Class->template SetMarkRef<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_mark_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetIsMarkedRef<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_is_marked_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetRefCount<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_ref_count<t>();
+				if (!status)
+					return status.error();
 
-				return Class;
+				return data_class;
 			}
-			template <typename T>
-			ExpectsVM<TemplateClass> SetTemplateSpecializationClass(const std::string_view& Name, bool GC)
+			template <typename t>
+			expects_vm<template_class> set_template_specialization_class(const std::string_view& name, bool gc)
 			{
-				auto Class = SetTemplateClassAddress(Name, Name, sizeof(T), GC ? (size_t)ObjectBehaviours::REF | (size_t)ObjectBehaviours::GC : (size_t)ObjectBehaviours::REF);
-				if (!Class)
-					return Class;
+				auto data_class = set_template_class_address(name, name, sizeof(t), gc ? (size_t)object_behaviours::ref | (size_t)object_behaviours::gc : (size_t)object_behaviours::ref);
+				if (!data_class)
+					return data_class;
 
-				auto Status = Class->template SetAddRef<T>();
-				if (!Status)
-					return Status.Error();
+				auto status = data_class->template set_add_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetRelease<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_release<t>();
+				if (!status)
+					return status.error();
 
-				if (!GC)
-					return Class;
+				if (!gc)
+					return data_class;
 
-				Status = Class->template SetMarkRef<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_mark_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetIsMarkedRef<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_is_marked_ref<t>();
+				if (!status)
+					return status.error();
 
-				Status = Class->template SetRefCount<T>();
-				if (!Status)
-					return Status.Error();
+				status = data_class->template set_ref_count<t>();
+				if (!status)
+					return status.error();
 
-				return Class;
+				return data_class;
 			}
-			template <typename T>
-			ExpectsVM<TypeClass> SetStructTrivial(const std::string_view& Name, size_t Traits = 0)
+			template <typename t>
+			expects_vm<type_class> set_struct_trivial(const std::string_view& name, size_t traits = 0)
 			{
-				auto RefType = GetTypeInfoByName(Name);
-				if (RefType.IsValid())
-					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+				auto ref_type = get_type_info_by_name(name);
+				if (ref_type.is_valid())
+					return type_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				auto Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>() | Traits);
-				if (!Struct)
-					return Struct;
+				auto data_struct = set_struct_address(name, sizeof(t), (size_t)object_behaviours::value | bridge::get_type_traits<t>() | traits);
+				if (!data_struct)
+					return data_struct;
 
-				auto Status = Struct->template SetOperatorCopy<T>();
-				if (!Status)
-					return Status.Error();
+				auto status = data_struct->template set_operator_copy<t>();
+				if (!status)
+					return status.error();
 
-				Status = Struct->template SetDestructor<T>("void f()");
-				if (!Status)
-					return Status.Error();
+				status = data_struct->template set_destructor<t>("void f()");
+				if (!status)
+					return status.error();
 
-				return Struct;
+				return data_struct;
 			}
-			template <typename T>
-			ExpectsVM<TypeClass> SetStruct(const std::string_view& Name, size_t Traits = 0)
+			template <typename t>
+			expects_vm<type_class> set_struct(const std::string_view& name, size_t traits = 0)
 			{
-				auto RefType = GetTypeInfoByName(Name);
-				if (RefType.IsValid())
-					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+				auto ref_type = get_type_info_by_name(name);
+				if (ref_type.is_valid())
+					return type_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>() | Traits);
+				return set_struct_address(name, sizeof(t), (size_t)object_behaviours::value | bridge::get_type_traits<t>() | traits);
 			}
-			template <typename T>
-			ExpectsVM<TypeClass> SetPod(const std::string_view& Name, size_t Traits = 0)
+			template <typename t>
+			expects_vm<type_class> set_pod(const std::string_view& name, size_t traits = 0)
 			{
-				auto RefType = GetTypeInfoByName(Name);
-				if (RefType.IsValid())
-					return TypeClass(this, RefType.GetTypeInfo(), RefType.GetTypeId());
+				auto ref_type = get_type_info_by_name(name);
+				if (ref_type.is_valid())
+					return type_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>() | Traits);
+				return set_pod_address(name, sizeof(t), (size_t)object_behaviours::value | (size_t)object_behaviours::pod | bridge::get_type_traits<t>() | traits);
 			}
 		};
 
-		class EventLoop final : public Core::Reference<EventLoop>
+		class event_loop final : public core::reference<event_loop>
 		{
 		public:
-			struct Callable
+			struct callable
 			{
-				FunctionDelegate Delegate;
-				ArgsCallback OnArgs;
-				ArgsCallback OnReturn;
-				ImmediateContext* Context;
+				function_delegate delegatef;
+				args_callback on_args;
+				args_callback on_return;
+				immediate_context* context;
 
-				Callable(ImmediateContext* NewContext) noexcept;
-				Callable(ImmediateContext* NewContext, FunctionDelegate&& NewDelegate, ArgsCallback&& NewOnArgs, ArgsCallback&& NewOnReturn) noexcept;
-				Callable(const Callable& Other) noexcept;
-				Callable(Callable&& Other) noexcept;
-				~Callable() = default;
-				Callable& operator= (const Callable& Other) noexcept;
-				Callable& operator= (Callable&& Other) noexcept;
-				bool IsNotification() const;
-				bool IsCallback() const;
+				callable(immediate_context* new_context) noexcept;
+				callable(immediate_context* new_context, function_delegate&& new_delegate, args_callback&& new_on_args, args_callback&& new_on_return) noexcept;
+				callable(const callable& other) noexcept;
+				callable(callable&& other) noexcept;
+				~callable() = default;
+				callable& operator= (const callable& other) noexcept;
+				callable& operator= (callable&& other) noexcept;
+				bool is_notification() const;
+				bool is_callback() const;
 			};
 
 		private:
-			Core::SingleQueue<Callable> Queue;
-			std::condition_variable Waitable;
-			std::mutex Mutex;
-			ArgsCallback OnEnqueue;
-			bool Aborts;
-			bool Wake;
+			core::single_queue<callable> queue;
+			std::condition_variable waitable;
+			std::mutex mutex;
+			args_callback on_enqueue;
+			bool aborts;
+			bool wake;
 
 		public:
-			EventLoop() noexcept;
-			~EventLoop() = default;
-			void Wakeup();
-			void Restore();
-			void Abort();
-			void When(ArgsCallback&& Callback);
-			void Listen(ImmediateContext* Context);
-			void Unlisten(ImmediateContext* Context);
-			void Enqueue(ImmediateContext* Context);
-			void Enqueue(FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
-			bool Poll(ImmediateContext* Context, uint64_t TimeoutMs);
-			bool PollExtended(ImmediateContext* Context, uint64_t TimeoutMs);
-			size_t Dequeue(VirtualMachine* VM, size_t MaxExecutions = 0);
-			bool IsAborted();
+			event_loop() noexcept;
+			~event_loop() = default;
+			void wakeup();
+			void restore();
+			void abort();
+			void when(args_callback&& callback);
+			void listen(immediate_context* context);
+			void unlisten(immediate_context* context);
+			void enqueue(immediate_context* context);
+			void enqueue(function_delegate&& delegatef, args_callback&& on_args, args_callback&& on_return);
+			bool poll(immediate_context* context, uint64_t timeout_ms);
+			bool poll_extended(immediate_context* context, uint64_t timeout_ms);
+			size_t dequeue(virtual_machine* vm, size_t max_executions = 0);
+			bool is_aborted();
 
 		private:
-			void OnNotification(ImmediateContext* Context);
-			void OnCallback(ImmediateContext* Context, FunctionDelegate&& Delegate, ArgsCallback&& OnArgs, ArgsCallback&& OnReturn);
-			void AbortIf(ExpectsVM<Execution>&& Status);
+			void on_notification(immediate_context* context);
+			void on_callback(immediate_context* context, function_delegate&& delegatef, args_callback&& on_args, args_callback&& on_return);
+			void abort_if(expects_vm<execution>&& status);
 
 		public:
-			static void Set(EventLoop* ForCurrentThread);
-			static EventLoop* Get();
+			static void set(event_loop* for_current_thread);
+			static event_loop* get();
 		};
 	}
 }

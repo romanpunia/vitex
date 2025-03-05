@@ -6,1167 +6,1185 @@
 #include <stack>
 #include <limits>
 
-namespace Vitex
+namespace vitex
 {
-	namespace Compute
+	namespace compute
 	{
-		class WebToken;
+		class web_token;
 
-		enum class RegexState
+		enum class regex_state
 		{
-			Preprocessed = 0,
-			Match_Found = -1,
-			No_Match = -2,
-			Unexpected_Quantifier = -3,
-			Unbalanced_Brackets = -4,
-			Internal_Error = -5,
-			Invalid_Character_Set = -6,
-			Invalid_Metacharacter = -7,
-			Sumatch_Array_Too_Small = -8,
-			Too_Many_Branches = -9,
-			Too_Many_Brackets = -10,
+			preprocessed = 0,
+			match_found = -1,
+			no_match = -2,
+			unexpected_quantifier = -3,
+			unbalanced_brackets = -4,
+			internal_error = -5,
+			invalid_character_set = -6,
+			invalid_metacharacter = -7,
+			sumatch_array_too_small = -8,
+			too_many_branches = -9,
+			too_many_brackets = -10,
 		};
 
-		enum class Compression
+		enum class compression
 		{
-			None = 0,
-			BestSpeed = 1,
-			BestCompression = 9,
-			Default = -1
+			none = 0,
+			best_speed = 1,
+			best_compression = 9,
+			placeholder = -1
 		};
 
-		enum class IncludeType
+		enum class include_type
 		{
-			Error,
-			Preprocess,
-			Unchanged,
-			Virtual
+			error,
+			preprocess,
+			unchanged,
+			computed
 		};
 
-		enum class PreprocessorError
+		enum class preprocessor_error
 		{
-			MacroDefinitionEmpty,
-			MacroNameEmpty,
-			MacroParenthesisDoubleClosed,
-			MacroParenthesisNotClosed,
-			MacroDefinitionError,
-			MacroExpansionParenthesisDoubleClosed,
-			MacroExpansionParenthesisNotClosed,
-			MacroExpansionArgumentsError,
-			MacroExpansionExecutionError,
-			MacroExpansionError,
-			ConditionNotOpened,
-			ConditionNotClosed,
-			ConditionError,
-			DirectiveNotFound,
-			DirectiveExpansionError,
-			IncludeDenied,
-			IncludeError,
-			IncludeNotFound,
-			PragmaNotFound,
-			PragmaError,
-			ExtensionError
+			macro_definition_empty,
+			macro_name_empty,
+			macro_parenthesis_double_closed,
+			macro_parenthesis_not_closed,
+			macro_definition_error,
+			macro_expansion_parenthesis_double_closed,
+			macro_expansion_parenthesis_not_closed,
+			macro_expansion_arguments_error,
+			macro_expansion_execution_error,
+			macro_expansion_error,
+			condition_not_opened,
+			condition_not_closed,
+			condition_error,
+			directive_not_found,
+			directive_expansion_error,
+			include_denied,
+			include_error,
+			include_not_found,
+			pragma_not_found,
+			pragma_error,
+			extension_error
 		};
 
-		typedef void* Cipher;
-		typedef void* Digest;
-		typedef int32_t SignAlg;
+		typedef void* cipher;
+		typedef void* digest;
+		typedef int32_t sign_alg;
 
-		struct IncludeDesc
+		struct include_desc
 		{
-			Core::Vector<Core::String> Exts;
-			Core::String From;
-			Core::String Path;
-			Core::String Root;
+			core::vector<core::string> exts;
+			core::string from;
+			core::string path;
+			core::string root;
 		};
 
-		struct IncludeResult
+		struct include_result
 		{
-			Core::String Module;
-			bool IsAbstract = false;
-			bool IsRemote = false;
-			bool IsFile = false;
+			core::string library;
+			bool is_abstract = false;
+			bool is_remote = false;
+			bool is_file = false;
 		};
 
-		struct RegexBracket
+		struct regex_bracket
 		{
-			const char* Pointer = nullptr;
-			int64_t Length = 0;
-			int64_t Branches = 0;
-			int64_t BranchesCount = 0;
+			const char* pointer = nullptr;
+			int64_t length = 0;
+			int64_t branches = 0;
+			int64_t branches_count = 0;
 		};
 
-		struct RegexBranch
+		struct regex_branch
 		{
-			int64_t BracketIndex;
-			const char* Pointer;
+			int64_t bracket_index;
+			const char* pointer;
 		};
 
-		struct RegexMatch
+		struct regex_match
 		{
-			const char* Pointer;
-			int64_t Start;
-			int64_t End;
-			int64_t Length;
-			int64_t Steps;
+			const char* pointer;
+			int64_t start;
+			int64_t end;
+			int64_t length;
+			int64_t steps;
 		};
 
-		struct RegexSource
+		struct regex_source
 		{
-			friend class Regex;
+			friend class regex;
 
 		private:
-			Core::String Expression;
-			Core::Vector<RegexBracket> Brackets;
-			Core::Vector<RegexBranch> Branches;
-			int64_t MaxBranches;
-			int64_t MaxBrackets;
-			int64_t MaxMatches;
-			RegexState State;
+			core::string expression;
+			core::vector<regex_bracket> brackets;
+			core::vector<regex_branch> branches;
+			int64_t max_branches;
+			int64_t max_brackets;
+			int64_t max_matches;
+			regex_state state;
 
 		public:
-			bool IgnoreCase;
+			bool ignore_case;
 
 		public:
-			RegexSource() noexcept;
-			RegexSource(const std::string_view& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
-			RegexSource(const RegexSource& Other) noexcept;
-			RegexSource(RegexSource&& Other) noexcept;
-			RegexSource& operator =(const RegexSource& V) noexcept;
-			RegexSource& operator =(RegexSource&& V) noexcept;
-			const Core::String& GetRegex() const;
-			int64_t GetMaxBranches() const;
-			int64_t GetMaxBrackets() const;
-			int64_t GetMaxMatches() const;
-			int64_t GetComplexity() const;
-			RegexState GetState() const;
-			bool IsSimple() const;
+			regex_source() noexcept;
+			regex_source(const std::string_view& regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
+			regex_source(const regex_source& other) noexcept;
+			regex_source(regex_source&& other) noexcept;
+			regex_source& operator =(const regex_source& v) noexcept;
+			regex_source& operator =(regex_source&& v) noexcept;
+			const core::string& get_regex() const;
+			int64_t get_max_branches() const;
+			int64_t get_max_brackets() const;
+			int64_t get_max_matches() const;
+			int64_t get_complexity() const;
+			regex_state get_state() const;
+			bool is_simple() const;
 
 		private:
-			void Compile();
+			void compile();
 		};
 
-		struct RegexResult
+		struct regex_result
 		{
-			friend class Regex;
+			friend class regex;
 
 		private:
-			Core::Vector<RegexMatch> Matches;
-			RegexState State;
-			int64_t Steps;
+			core::vector<regex_match> matches;
+			regex_state state;
+			int64_t steps;
 
 		public:
-			RegexSource* Src;
+			regex_source* src;
 
 		public:
-			RegexResult() noexcept;
-			RegexResult(const RegexResult& Other) noexcept;
-			RegexResult(RegexResult&& Other) noexcept;
-			RegexResult& operator =(const RegexResult& V) noexcept;
-			RegexResult& operator =(RegexResult&& V) noexcept;
-			bool Empty() const;
-			int64_t GetSteps() const;
-			RegexState GetState() const;
-			const Core::Vector<RegexMatch>& Get() const;
-			Core::Vector<Core::String> ToArray() const;
+			regex_result() noexcept;
+			regex_result(const regex_result& other) noexcept;
+			regex_result(regex_result&& other) noexcept;
+			regex_result& operator =(const regex_result& v) noexcept;
+			regex_result& operator =(regex_result&& v) noexcept;
+			bool empty() const;
+			int64_t get_steps() const;
+			regex_state get_state() const;
+			const core::vector<regex_match>& get() const;
+			core::vector<core::string> to_array() const;
 		};
 
-		struct PrivateKey
+		struct secret_box
 		{
 		public:
-			template <size_t MaxSize>
-			struct Exposable
+			template <size_t max_size>
+			struct exposable
 			{
-				uint8_t Buffer[MaxSize];
-				std::string_view View;
+				uint8_t buffer[max_size];
+				std::string_view view;
 
-				~Exposable() noexcept
+				~exposable() noexcept
 				{
-					PrivateKey::RandomizeBuffer((char*)Buffer, View.size());
+					secret_box::randomize_buffer((char*)buffer, view.size());
 				}
 			};
 
 		private:
-			Core::Vector<void*> Blocks;
-			Core::String Plain;
+			union box_data
+			{
+				core::vector<void*> set;
+				core::string sequence;
+				std::string_view view;
+
+				box_data()
+				{
+					memset((void*)this, 0, sizeof(*this));
+				}
+				~box_data()
+				{
+				}
+			} data;
+			enum class box_type : uint8_t
+			{
+				secure,
+				insecure,
+				view
+			} type;
 
 		private:
-			PrivateKey(const std::string_view& Text, bool) noexcept;
-			PrivateKey(Core::String&& Text, bool) noexcept;
+			secret_box(box_type new_type) noexcept;
 
 		public:
-			PrivateKey() noexcept;
-			PrivateKey(const PrivateKey& Other) noexcept;
-			PrivateKey(PrivateKey&& Other) noexcept;
-			explicit PrivateKey(const std::string_view& Key) noexcept;
-			~PrivateKey() noexcept;
-			PrivateKey& operator =(const PrivateKey& V) noexcept;
-			PrivateKey& operator =(PrivateKey&& V) noexcept;
-			void Clear();
-			void Secure(const std::string_view& Key);
-			void ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize = nullptr) const;
-			Core::String ExposeToHeap() const;
-			size_t Size() const;
-			bool Empty() const;
+			secret_box() noexcept;
+			secret_box(const secret_box& other) noexcept;
+			secret_box(secret_box&& other) noexcept;
+			~secret_box() noexcept;
+			secret_box& operator =(const secret_box& v) noexcept;
+			secret_box& operator =(secret_box&& v) noexcept;
+			void clear();
+			void stack(char* buffer, size_t max_size, size_t* out_size = nullptr) const;
+			core::string heap() const;
+			size_t size() const;
+			bool empty() const;
 
 		public:
-			template <size_t MaxSize>
-			Exposable<MaxSize> Expose() const
+			template <size_t max_size>
+			exposable<max_size> expose() const
 			{
-				size_t Size = 0;
-				Exposable<MaxSize> Result;
-				ExposeToStack((char*)Result.Buffer, MaxSize, &Size);
-				Result.View = std::string_view((char*)Result.Buffer, Size);
-				return Result;
+				size_t size = 0;
+				exposable<max_size> result;
+				stack((char*)result.buffer, max_size, &size);
+				result.view = std::string_view((char*)result.buffer, size);
+				return result;
 			}
 
 		public:
-			static PrivateKey GetPlain(Core::String&& Value);
-			static PrivateKey GetPlain(const std::string_view& Value);
-			static void RandomizeBuffer(char* Data, size_t Size);
+			static secret_box secure(const std::string_view& value);
+			static secret_box insecure(core::string&& value);
+			static secret_box insecure(const std::string_view& value);
+			static secret_box view(const std::string_view& value);
 
 		private:
-			char LoadPartition(size_t* Dest, size_t Size, size_t Index) const;
-			void RollPartition(size_t* Dest, size_t Size, size_t Index) const;
-			void FillPartition(size_t* Dest, size_t Size, size_t Index, char Source) const;
-			void CopyDistribution(const PrivateKey& Other);
+			static void randomize_buffer(char* data, size_t size);
+			static char load_partition(size_t* dest, size_t size, size_t index);
+			static void roll_partition(size_t* dest, size_t size, size_t index);
+			static void fill_partition(size_t* dest, size_t size, size_t index, char source);
+			void copy_distribution(const secret_box& other);
+			void move_distribution(secret_box&& other);
 		};
 
-		struct ProcDirective
+		struct proc_directive
 		{
-			Core::String Name;
-			Core::String Value;
-			size_t Start = 0;
-			size_t End = 0;
-			bool Found = false;
-			bool AsGlobal = false;
-			bool AsScope = false;
+			core::string name;
+			core::string value;
+			size_t start = 0;
+			size_t end = 0;
+			bool found = false;
+			bool as_global = false;
+			bool as_scope = false;
 		};
 
-		struct UInt128
+		struct uint128
 		{
 		private:
 #ifdef VI_ENDIAN_BIG
-			uint64_t Upper, Lower;
+			uint64_t upper, lower;
 #else
-			uint64_t Lower, Upper;
+			uint64_t lower, upper;
 #endif
 		public:
-			UInt128() = default;
-			UInt128(const UInt128& Right) = default;
-			UInt128(UInt128&& Right) = default;
-			UInt128(const std::string_view& Text);
-			UInt128(const std::string_view& Text, uint8_t Base);
-			UInt128& operator=(const UInt128& Right) = default;
-			UInt128& operator=(UInt128&& Right) = default;
+			uint128() = default;
+			uint128(const uint128& right) = default;
+			uint128(uint128&& right) = default;
+			uint128(const std::string_view& text);
+			uint128(const std::string_view& text, uint8_t base);
+			uint128& operator=(const uint128& right) = default;
+			uint128& operator=(uint128&& right) = default;
 			operator bool() const;
 			operator uint8_t() const;
 			operator uint16_t() const;
 			operator uint32_t() const;
 			operator uint64_t() const;
-			UInt128 operator&(const UInt128& Right) const;
-			UInt128& operator&=(const UInt128& Right);
-			UInt128 operator|(const UInt128& Right) const;
-			UInt128& operator|=(const UInt128& Right);
-			UInt128 operator^(const UInt128& Right) const;
-			UInt128& operator^=(const UInt128& Right);
-			UInt128 operator~() const;
-			UInt128 operator<<(const UInt128& Right) const;
-			UInt128& operator<<=(const UInt128& Right);
-			UInt128 operator>>(const UInt128& Right) const;
-			UInt128& operator>>=(const UInt128& Right);
+			uint128 operator&(const uint128& right) const;
+			uint128& operator&=(const uint128& right);
+			uint128 operator|(const uint128& right) const;
+			uint128& operator|=(const uint128& right);
+			uint128 operator^(const uint128& right) const;
+			uint128& operator^=(const uint128& right);
+			uint128 operator~() const;
+			uint128 operator<<(const uint128& right) const;
+			uint128& operator<<=(const uint128& right);
+			uint128 operator>>(const uint128& right) const;
+			uint128& operator>>=(const uint128& right);
 			bool operator!() const;
-			bool operator&&(const UInt128& Right) const;
-			bool operator||(const UInt128& Right) const;
-			bool operator==(const UInt128& Right) const;
-			bool operator!=(const UInt128& Right) const;
-			bool operator>(const UInt128& Right) const;
-			bool operator<(const UInt128& Right) const;
-			bool operator>=(const UInt128& Right) const;
-			bool operator<=(const UInt128& Right) const;
-			UInt128 operator+(const UInt128& Right) const;
-			UInt128& operator+=(const UInt128& Right);
-			UInt128 operator-(const UInt128& Right) const;
-			UInt128& operator-=(const UInt128& Right);
-			UInt128 operator*(const UInt128& Right) const;
-			UInt128& operator*=(const UInt128& Right);
-			UInt128 operator/(const UInt128& Right) const;
-			UInt128& operator/=(const UInt128& Right);
-			UInt128 operator%(const UInt128& Right) const;
-			UInt128& operator%=(const UInt128& Right);
-			UInt128& operator++();
-			UInt128 operator++(int);
-			UInt128& operator--();
-			UInt128 operator--(int);
-			UInt128 operator+() const;
-			UInt128 operator-() const;
-			const uint64_t& High() const;
-			const uint64_t& Low() const;
-			uint8_t Bits() const;
-			uint8_t Bytes() const;
-			uint64_t& High();
-			uint64_t& Low();
-			Core::Decimal ToDecimal() const;
-			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
-			friend std::ostream& operator<<(std::ostream& Stream, const UInt128& Right);
-			friend UInt128 operator<<(const uint8_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const uint16_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const uint32_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const uint64_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const int8_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const int16_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const int32_t& Left, const UInt128& Right);
-			friend UInt128 operator<<(const int64_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const uint8_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const uint16_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const uint32_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const uint64_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const int8_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const int16_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const int32_t& Left, const UInt128& Right);
-			friend UInt128 operator>>(const int64_t& Left, const UInt128& Right);
+			bool operator&&(const uint128& right) const;
+			bool operator||(const uint128& right) const;
+			bool operator==(const uint128& right) const;
+			bool operator!=(const uint128& right) const;
+			bool operator>(const uint128& right) const;
+			bool operator<(const uint128& right) const;
+			bool operator>=(const uint128& right) const;
+			bool operator<=(const uint128& right) const;
+			uint128 operator+(const uint128& right) const;
+			uint128& operator+=(const uint128& right);
+			uint128 operator-(const uint128& right) const;
+			uint128& operator-=(const uint128& right);
+			uint128 operator*(const uint128& right) const;
+			uint128& operator*=(const uint128& right);
+			uint128 operator/(const uint128& right) const;
+			uint128& operator/=(const uint128& right);
+			uint128 operator%(const uint128& right) const;
+			uint128& operator%=(const uint128& right);
+			uint128& operator++();
+			uint128 operator++(int);
+			uint128& operator--();
+			uint128 operator--(int);
+			uint128 operator+() const;
+			uint128 operator-() const;
+			const uint64_t& high() const;
+			const uint64_t& low() const;
+			uint8_t bits() const;
+			uint8_t bytes() const;
+			uint64_t& high();
+			uint64_t& low();
+			core::decimal to_decimal() const;
+			core::string to_string(uint8_t base = 10, uint32_t length = 0) const;
+			friend std::ostream& operator<<(std::ostream& stream, const uint128& right);
+			friend uint128 operator<<(const uint8_t& left, const uint128& right);
+			friend uint128 operator<<(const uint16_t& left, const uint128& right);
+			friend uint128 operator<<(const uint32_t& left, const uint128& right);
+			friend uint128 operator<<(const uint64_t& left, const uint128& right);
+			friend uint128 operator<<(const int8_t& left, const uint128& right);
+			friend uint128 operator<<(const int16_t& left, const uint128& right);
+			friend uint128 operator<<(const int32_t& left, const uint128& right);
+			friend uint128 operator<<(const int64_t& left, const uint128& right);
+			friend uint128 operator>>(const uint8_t& left, const uint128& right);
+			friend uint128 operator>>(const uint16_t& left, const uint128& right);
+			friend uint128 operator>>(const uint32_t& left, const uint128& right);
+			friend uint128 operator>>(const uint64_t& left, const uint128& right);
+			friend uint128 operator>>(const int8_t& left, const uint128& right);
+			friend uint128 operator>>(const int16_t& left, const uint128& right);
+			friend uint128 operator>>(const int32_t& left, const uint128& right);
+			friend uint128 operator>>(const int64_t& left, const uint128& right);
 
 		public:
-			static UInt128 Min();
-			static UInt128 Max();
+			static uint128 min();
+			static uint128 max();
 
 		private:
-			std::pair<UInt128, UInt128> Divide(const UInt128& Left, const UInt128& Right) const;
+			std::pair<uint128, uint128> divide(const uint128& left, const uint128& right) const;
 
 		public:
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128(const t& right)
 #ifdef VI_ENDIAN_BIG
-				: Upper(0), Lower(Right)
+				: upper(0), lower(right)
 #else
-				: Lower(Right), Upper(0)
+				: lower(right), upper(0)
 #endif
 			{
-				if (std::is_signed<T>::value && Right < 0)
-					Upper = -1;
+				if (std::is_signed<t>::value && right < 0)
+					upper = -1;
 			}
-			template <typename S, typename T, typename = typename std::enable_if<std::is_integral<S>::value&& std::is_integral<T>::value, void>::type>
-			UInt128(const S& UpperRight, const T& LowerRight)
+			template <typename s, typename t, typename = typename std::enable_if<std::is_integral<s>::value&& std::is_integral<t>::value, void>::type>
+			uint128(const s& upper_right, const t& lower_right)
 #ifdef VI_ENDIAN_BIG
-				: Upper(UpperRight), Lower(LowerRight)
+				: upper(upper_right), lower(lower_right)
 #else
-				: Lower(LowerRight), Upper(UpperRight)
+				: lower(lower_right), upper(upper_right)
 #endif
 			{
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator=(const t& right)
 			{
-				Upper = 0;
-				if (std::is_signed<T>::value && Right < 0)
-					Upper = -1;
+				upper = 0;
+				if (std::is_signed<t>::value && right < 0)
+					upper = -1;
 
-				Lower = Right;
+				lower = right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator&(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator&(const t& right) const
 			{
-				return UInt128(0, Lower & (uint64_t)Right);
+				return uint128(0, lower & (uint64_t)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator&=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator&=(const t& right)
 			{
-				Upper = 0;
-				Lower &= Right;
+				upper = 0;
+				lower &= right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator|(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator|(const t& right) const
 			{
-				return UInt128(Upper, Lower | (uint64_t)Right);
+				return uint128(upper, lower | (uint64_t)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator|=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator|=(const t& right)
 			{
-				Lower |= (uint64_t)Right;
+				lower |= (uint64_t)right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator^(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator^(const t& right) const
 			{
-				return UInt128(Upper, Lower ^ (uint64_t)Right);
+				return uint128(upper, lower ^ (uint64_t)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator^=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator^=(const t& right)
 			{
-				Lower ^= (uint64_t)Right;
+				lower ^= (uint64_t)right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator<<(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator<<(const t& right) const
 			{
-				return *this << UInt128(Right);
+				return *this << uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator<<=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator<<=(const t& right)
 			{
-				*this = *this << UInt128(Right);
+				*this = *this << uint128(right);
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator>>(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator>>(const t& right) const
 			{
-				return *this >> UInt128(Right);
+				return *this >> uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator>>=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator>>=(const t& right)
 			{
-				*this = *this >> UInt128(Right);
+				*this = *this >> uint128(right);
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator&&(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator&&(const t& right) const
 			{
-				return static_cast <bool> (*this && Right);
+				return static_cast <bool> (*this && right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator||(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator||(const t& right) const
 			{
-				return static_cast <bool> (*this || Right);
+				return static_cast <bool> (*this || right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator==(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator==(const t& right) const
 			{
-				return (!Upper && (Lower == (uint64_t)Right));
+				return (!upper && (lower == (uint64_t)right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator!=(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator!=(const t& right) const
 			{
-				return (Upper || (Lower != (uint64_t)Right));
+				return (upper || (lower != (uint64_t)right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator>(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator>(const t& right) const
 			{
-				return (Upper || (Lower > (uint64_t)Right));
+				return (upper || (lower > (uint64_t)right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator<(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator<(const t& right) const
 			{
-				return (!Upper) ? (Lower < (uint64_t)Right) : false;
+				return (!upper) ? (lower < (uint64_t)right) : false;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator>=(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator>=(const t& right) const
 			{
-				return ((*this > Right) || (*this == Right));
+				return ((*this > right) || (*this == right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator<=(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator<=(const t& right) const
 			{
-				return ((*this < Right) || (*this == Right));
+				return ((*this < right) || (*this == right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator+(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator+(const t& right) const
 			{
-				return UInt128(Upper + ((Lower + (uint64_t)Right) < Lower), Lower + (uint64_t)Right);
+				return uint128(upper + ((lower + (uint64_t)right) < lower), lower + (uint64_t)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator+=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator+=(const t& right)
 			{
-				return *this += UInt128(Right);
+				return *this += uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator-(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator-(const t& right) const
 			{
-				return UInt128((uint64_t)(Upper - ((Lower - Right) > Lower)), (uint64_t)(Lower - Right));
+				return uint128((uint64_t)(upper - ((lower - right) > lower)), (uint64_t)(lower - right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator-=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator-=(const t& right)
 			{
-				return *this = *this - UInt128(Right);
+				return *this = *this - uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator*(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator*(const t& right) const
 			{
-				return *this * UInt128(Right);
+				return *this * uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator*=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator*=(const t& right)
 			{
-				return *this = *this * UInt128(Right);
+				return *this = *this * uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator/(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator/(const t& right) const
 			{
-				return *this / UInt128(Right);
+				return *this / uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator/=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator/=(const t& right)
 			{
-				return *this = *this / UInt128(Right);
+				return *this = *this / uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128 operator%(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128 operator%(const t& right) const
 			{
-				return *this % UInt128(Right);
+				return *this % uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt128& operator%=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint128& operator%=(const t& right)
 			{
-				return *this = *this % UInt128(Right);
+				return *this = *this % uint128(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator&(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator&(const t& left, const uint128& right)
 			{
-				return Right & Left;
+				return right & left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator&=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator&=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (Right & Left);
+				return left = static_cast <t> (right & left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator|(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator|(const t& left, const uint128& right)
 			{
-				return Right | Left;
+				return right | left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator|=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator|=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (Right | Left);
+				return left = static_cast <t> (right | left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator^(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator^(const t& left, const uint128& right)
 			{
-				return Right ^ Left;
+				return right ^ left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator^=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator^=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (Right ^ Left);
+				return left = static_cast <t> (right ^ left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator<<=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator<<=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (UInt128(Left) << Right);
+				return left = static_cast <t> (uint128(left) << right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator>>=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator>>=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (UInt128(Left) >> Right);
+				return left = static_cast <t> (uint128(left) >> right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator==(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator==(const t& left, const uint128& right)
 			{
-				return (!Right.High() && ((uint64_t)Left == Right.Low()));
+				return (!right.high() && ((uint64_t)left == right.low()));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator!=(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator!=(const t& left, const uint128& right)
 			{
-				return (Right.High() || ((uint64_t)Left != Right.Low()));
+				return (right.high() || ((uint64_t)left != right.low()));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator>(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator>(const t& left, const uint128& right)
 			{
-				return (!Right.High()) && ((uint64_t)Left > Right.Low());
+				return (!right.high()) && ((uint64_t)left > right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator<(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator<(const t& left, const uint128& right)
 			{
-				if (Right.High())
+				if (right.high())
 					return true;
-				return ((uint64_t)Left < Right.Low());
+				return ((uint64_t)left < right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator>=(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator>=(const t& left, const uint128& right)
 			{
-				if (Right.High())
+				if (right.high())
 					return false;
-				return ((uint64_t)Left >= Right.Low());
+				return ((uint64_t)left >= right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator<=(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator<=(const t& left, const uint128& right)
 			{
-				if (Right.High())
+				if (right.high())
 					return true;
-				return ((uint64_t)Left <= Right.Low());
+				return ((uint64_t)left <= right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator+(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator+(const t& left, const uint128& right)
 			{
-				return Right + Left;
+				return right + left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator+=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator+=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (Right + Left);
+				return left = static_cast <t> (right + left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator-(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator-(const t& left, const uint128& right)
 			{
-				return -(Right - Left);
+				return -(right - left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator-=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator-=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (-(Right - Left));
+				return left = static_cast <t> (-(right - left));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator*(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator*(const t& left, const uint128& right)
 			{
-				return Right * Left;
+				return right * left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator*=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator*=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (Right * Left);
+				return left = static_cast <t> (right * left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator/(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator/(const t& left, const uint128& right)
 			{
-				return UInt128(Left) / Right;
+				return uint128(left) / right;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator/=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator/=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (UInt128(Left) / Right);
+				return left = static_cast <t> (uint128(left) / right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt128 operator%(const T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint128 operator%(const t& left, const uint128& right)
 			{
-				return UInt128(Left) % Right;
+				return uint128(left) % right;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator%=(T& Left, const UInt128& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator%=(t& left, const uint128& right)
 			{
-				return Left = static_cast <T> (UInt128(Left) % Right);
+				return left = static_cast <t> (uint128(left) % right);
 			}
 		};
 
-		struct UInt256
+		struct uint256
 		{
 		private:
 #ifdef VI_ENDIAN_BIG
-			UInt128 Upper, Lower;
+			uint128 upper, lower;
 #else
-			UInt128 Lower, Upper;
+			uint128 lower, upper;
 #endif
 
 		public:
-			UInt256() = default;
-			UInt256(const UInt256& Right) = default;
-			UInt256(UInt256&& Right) = default;
-			UInt256(const std::string_view& Text);
-			UInt256(const std::string_view& Text, uint8_t Base);
-			UInt256(const UInt128& UpperRight, const UInt128& LowerRight)
+			uint256() = default;
+			uint256(const uint256& right) = default;
+			uint256(uint256&& right) = default;
+			uint256(const std::string_view& text);
+			uint256(const std::string_view& text, uint8_t base);
+			uint256(const uint128& upper_right, const uint128& lower_right)
 #ifdef VI_ENDIAN_BIG
-				: Upper(UpperRight), Lower(LowerRight)
+				: upper(upper_right), lower(lower_right)
 #else
-				: Lower(LowerRight), Upper(UpperRight)
+				: lower(lower_right), upper(upper_right)
 #endif
 			{
 			}
-			UInt256(const UInt128& LowerRight)
+			uint256(const uint128& lower_right)
 #ifdef VI_ENDIAN_BIG
-				: Upper(UInt128::Min()), Lower(LowerRight)
+				: upper(uint128::min()), lower(lower_right)
 #else
-				: Lower(LowerRight), Upper(UInt128::Min())
+				: lower(lower_right), upper(uint128::min())
 #endif
 			{
 			}
-			UInt256& operator=(const UInt256& Right) = default;
-			UInt256& operator=(UInt256&& Right) = default;
+			uint256& operator=(const uint256& right) = default;
+			uint256& operator=(uint256&& right) = default;
 			operator bool() const;
 			operator uint8_t() const;
 			operator uint16_t() const;
 			operator uint32_t() const;
 			operator uint64_t() const;
-			operator UInt128() const;
-			UInt256 operator&(const UInt128& Right) const;
-			UInt256 operator&(const UInt256& Right) const;
-			UInt256& operator&=(const UInt128& Right);
-			UInt256& operator&=(const UInt256& Right);
-			UInt256 operator|(const UInt128& Right) const;
-			UInt256 operator|(const UInt256& Right) const;
-			UInt256& operator|=(const UInt128& Right);
-			UInt256& operator|=(const UInt256& Right);
-			UInt256 operator^(const UInt128& Right) const;
-			UInt256 operator^(const UInt256& Right) const;
-			UInt256& operator^=(const UInt128& Right);
-			UInt256& operator^=(const UInt256& Right);
-			UInt256 operator~() const;
-			UInt256 operator<<(const UInt128& Shift) const;
-			UInt256 operator<<(const UInt256& Shift) const;
-			UInt256& operator<<=(const UInt128& Shift);
-			UInt256& operator<<=(const UInt256& Shift);
-			UInt256 operator>>(const UInt128& Shift) const;
-			UInt256 operator>>(const UInt256& Shift) const;
-			UInt256& operator>>=(const UInt128& Shift);
-			UInt256& operator>>=(const UInt256& Shift);
+			operator uint128() const;
+			uint256 operator&(const uint128& right) const;
+			uint256 operator&(const uint256& right) const;
+			uint256& operator&=(const uint128& right);
+			uint256& operator&=(const uint256& right);
+			uint256 operator|(const uint128& right) const;
+			uint256 operator|(const uint256& right) const;
+			uint256& operator|=(const uint128& right);
+			uint256& operator|=(const uint256& right);
+			uint256 operator^(const uint128& right) const;
+			uint256 operator^(const uint256& right) const;
+			uint256& operator^=(const uint128& right);
+			uint256& operator^=(const uint256& right);
+			uint256 operator~() const;
+			uint256 operator<<(const uint128& shift) const;
+			uint256 operator<<(const uint256& shift) const;
+			uint256& operator<<=(const uint128& shift);
+			uint256& operator<<=(const uint256& shift);
+			uint256 operator>>(const uint128& shift) const;
+			uint256 operator>>(const uint256& shift) const;
+			uint256& operator>>=(const uint128& shift);
+			uint256& operator>>=(const uint256& shift);
 			bool operator!() const;
-			bool operator&&(const UInt128& Right) const;
-			bool operator&&(const UInt256& Right) const;
-			bool operator||(const UInt128& Right) const;
-			bool operator||(const UInt256& Right) const;
-			bool operator==(const UInt128& Right) const;
-			bool operator==(const UInt256& Right) const;
-			bool operator!=(const UInt128& Right) const;
-			bool operator!=(const UInt256& Right) const;
-			bool operator>(const UInt128& Right) const;
-			bool operator>(const UInt256& Right) const;
-			bool operator<(const UInt128& Right) const;
-			bool operator<(const UInt256& Right) const;
-			bool operator>=(const UInt128& Right) const;
-			bool operator>=(const UInt256& Right) const;
-			bool operator<=(const UInt128& Right) const;
-			bool operator<=(const UInt256& Right) const;
-			UInt256 operator+(const UInt128& Right) const;
-			UInt256 operator+(const UInt256& Right) const;
-			UInt256& operator+=(const UInt128& Right);
-			UInt256& operator+=(const UInt256& Right);
-			UInt256 operator-(const UInt128& Right) const;
-			UInt256 operator-(const UInt256& Right) const;
-			UInt256& operator-=(const UInt128& Right);
-			UInt256& operator-=(const UInt256& Right);
-			UInt256 operator*(const UInt128& Right) const;
-			UInt256 operator*(const UInt256& Right) const;
-			UInt256& operator*=(const UInt128& Right);
-			UInt256& operator*=(const UInt256& Right);
-			UInt256 operator/(const UInt128& Right) const;
-			UInt256 operator/(const UInt256& Right) const;
-			UInt256& operator/=(const UInt128& Right);
-			UInt256& operator/=(const UInt256& Right);
-			UInt256 operator%(const UInt128& Right) const;
-			UInt256 operator%(const UInt256& Right) const;
-			UInt256& operator%=(const UInt128& Right);
-			UInt256& operator%=(const UInt256& Right);
-			UInt256& operator++();
-			UInt256 operator++(int);
-			UInt256& operator--();
-			UInt256 operator--(int);
-			UInt256 operator+() const;
-			UInt256 operator-() const;
-			const UInt128& High() const;
-			const UInt128& Low() const;
-			uint16_t Bits() const;
-			uint16_t Bytes() const;
-			UInt128& High();
-			UInt128& Low();
-			Core::Decimal ToDecimal() const;
-			Core::String ToString(uint8_t Base = 10, uint32_t Length = 0) const;
-			friend UInt256 operator&(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator&=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator|(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator|=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator^(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator^=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator<<(const uint8_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const uint16_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const uint32_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const uint64_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const UInt128& Left, const UInt256& Right);
-			friend UInt256 operator<<(const int8_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const int16_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const int32_t& Left, const UInt256& Right);
-			friend UInt256 operator<<(const int64_t& Left, const UInt256& Right);
-			friend UInt128& operator<<=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator>>(const uint8_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const uint16_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const uint32_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const uint64_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const UInt128& Left, const UInt256& Right);
-			friend UInt256 operator>>(const int8_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const int16_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const int32_t& Left, const UInt256& Right);
-			friend UInt256 operator>>(const int64_t& Left, const UInt256& Right);
-			friend UInt128& operator>>=(UInt128& Left, const UInt256& Right);
-			friend bool operator==(const UInt128& Left, const UInt256& Right);
-			friend bool operator!=(const UInt128& Left, const UInt256& Right);
-			friend bool operator>(const UInt128& Left, const UInt256& Right);
-			friend bool operator<(const UInt128& Left, const UInt256& Right);
-			friend bool operator>=(const UInt128& Left, const UInt256& Right);
-			friend bool operator<=(const UInt128& Left, const UInt256& Right);
-			friend UInt256 operator+(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator+=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator-(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator-=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator*(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator*=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator/(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator/=(UInt128& Left, const UInt256& Right);
-			friend UInt256 operator%(const UInt128& Left, const UInt256& Right);
-			friend UInt128& operator%=(UInt128& Left, const UInt256& Right);
-			friend std::ostream& operator<<(std::ostream& Stream, const UInt256& Right);
+			bool operator&&(const uint128& right) const;
+			bool operator&&(const uint256& right) const;
+			bool operator||(const uint128& right) const;
+			bool operator||(const uint256& right) const;
+			bool operator==(const uint128& right) const;
+			bool operator==(const uint256& right) const;
+			bool operator!=(const uint128& right) const;
+			bool operator!=(const uint256& right) const;
+			bool operator>(const uint128& right) const;
+			bool operator>(const uint256& right) const;
+			bool operator<(const uint128& right) const;
+			bool operator<(const uint256& right) const;
+			bool operator>=(const uint128& right) const;
+			bool operator>=(const uint256& right) const;
+			bool operator<=(const uint128& right) const;
+			bool operator<=(const uint256& right) const;
+			uint256 operator+(const uint128& right) const;
+			uint256 operator+(const uint256& right) const;
+			uint256& operator+=(const uint128& right);
+			uint256& operator+=(const uint256& right);
+			uint256 operator-(const uint128& right) const;
+			uint256 operator-(const uint256& right) const;
+			uint256& operator-=(const uint128& right);
+			uint256& operator-=(const uint256& right);
+			uint256 operator*(const uint128& right) const;
+			uint256 operator*(const uint256& right) const;
+			uint256& operator*=(const uint128& right);
+			uint256& operator*=(const uint256& right);
+			uint256 operator/(const uint128& right) const;
+			uint256 operator/(const uint256& right) const;
+			uint256& operator/=(const uint128& right);
+			uint256& operator/=(const uint256& right);
+			uint256 operator%(const uint128& right) const;
+			uint256 operator%(const uint256& right) const;
+			uint256& operator%=(const uint128& right);
+			uint256& operator%=(const uint256& right);
+			uint256& operator++();
+			uint256 operator++(int);
+			uint256& operator--();
+			uint256 operator--(int);
+			uint256 operator+() const;
+			uint256 operator-() const;
+			const uint128& high() const;
+			const uint128& low() const;
+			uint16_t bits() const;
+			uint16_t bytes() const;
+			uint128& high();
+			uint128& low();
+			core::decimal to_decimal() const;
+			core::string to_string(uint8_t base = 10, uint32_t length = 0) const;
+			friend uint256 operator&(const uint128& left, const uint256& right);
+			friend uint128& operator&=(uint128& left, const uint256& right);
+			friend uint256 operator|(const uint128& left, const uint256& right);
+			friend uint128& operator|=(uint128& left, const uint256& right);
+			friend uint256 operator^(const uint128& left, const uint256& right);
+			friend uint128& operator^=(uint128& left, const uint256& right);
+			friend uint256 operator<<(const uint8_t& left, const uint256& right);
+			friend uint256 operator<<(const uint16_t& left, const uint256& right);
+			friend uint256 operator<<(const uint32_t& left, const uint256& right);
+			friend uint256 operator<<(const uint64_t& left, const uint256& right);
+			friend uint256 operator<<(const uint128& left, const uint256& right);
+			friend uint256 operator<<(const int8_t& left, const uint256& right);
+			friend uint256 operator<<(const int16_t& left, const uint256& right);
+			friend uint256 operator<<(const int32_t& left, const uint256& right);
+			friend uint256 operator<<(const int64_t& left, const uint256& right);
+			friend uint128& operator<<=(uint128& left, const uint256& right);
+			friend uint256 operator>>(const uint8_t& left, const uint256& right);
+			friend uint256 operator>>(const uint16_t& left, const uint256& right);
+			friend uint256 operator>>(const uint32_t& left, const uint256& right);
+			friend uint256 operator>>(const uint64_t& left, const uint256& right);
+			friend uint256 operator>>(const uint128& left, const uint256& right);
+			friend uint256 operator>>(const int8_t& left, const uint256& right);
+			friend uint256 operator>>(const int16_t& left, const uint256& right);
+			friend uint256 operator>>(const int32_t& left, const uint256& right);
+			friend uint256 operator>>(const int64_t& left, const uint256& right);
+			friend uint128& operator>>=(uint128& left, const uint256& right);
+			friend bool operator==(const uint128& left, const uint256& right);
+			friend bool operator!=(const uint128& left, const uint256& right);
+			friend bool operator>(const uint128& left, const uint256& right);
+			friend bool operator<(const uint128& left, const uint256& right);
+			friend bool operator>=(const uint128& left, const uint256& right);
+			friend bool operator<=(const uint128& left, const uint256& right);
+			friend uint256 operator+(const uint128& left, const uint256& right);
+			friend uint128& operator+=(uint128& left, const uint256& right);
+			friend uint256 operator-(const uint128& left, const uint256& right);
+			friend uint128& operator-=(uint128& left, const uint256& right);
+			friend uint256 operator*(const uint128& left, const uint256& right);
+			friend uint128& operator*=(uint128& left, const uint256& right);
+			friend uint256 operator/(const uint128& left, const uint256& right);
+			friend uint128& operator/=(uint128& left, const uint256& right);
+			friend uint256 operator%(const uint128& left, const uint256& right);
+			friend uint128& operator%=(uint128& left, const uint256& right);
+			friend std::ostream& operator<<(std::ostream& stream, const uint256& right);
 
 		public:
-			static UInt256 Min();
-			static UInt256 Max();
+			static uint256 min();
+			static uint256 max();
 
 		private:
-			std::pair<UInt256, UInt256> Divide(const UInt256& Left, const UInt256& Right) const;
+			std::pair<uint256, uint256> divide(const uint256& left, const uint256& right) const;
 
 		public:
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type>
-			UInt256(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type>
+			uint256(const t& right)
 #ifdef VI_ENDIAN_BIG
-				: Upper(UInt128::Min()), Lower(Right)
+				: upper(uint128::min()), lower(right)
 #else
-				: Lower(Right), Upper(UInt128::Min())
+				: lower(right), upper(uint128::min())
 #endif
 			{
-				if (std::is_signed<T>::value && Right < 0)
-					Upper = UInt128(-1, -1);
+				if (std::is_signed<t>::value && right < 0)
+					upper = uint128(-1, -1);
 			}
-			template <typename S, typename T, typename = typename std::enable_if <std::is_integral<S>::value&& std::is_integral<T>::value, void>::type>
-			UInt256(const S& UpperRight, const T& LowerRight)
+			template <typename s, typename t, typename = typename std::enable_if <std::is_integral<s>::value&& std::is_integral<t>::value, void>::type>
+			uint256(const s& upper_right, const t& lower_right)
 #ifdef VI_ENDIAN_BIG
-				: Upper(UpperRight), Lower(LowerRight)
+				: upper(upper_right), lower(lower_right)
 #else
-				: Lower(LowerRight), Upper(UpperRight)
-#endif
-			{
-			}
-			template <typename R, typename S, typename T, typename U, typename = typename std::enable_if<std::is_integral<R>::value&& std::is_integral<S>::value&& std::is_integral<T>::value&& std::is_integral<U>::value, void>::type>
-			UInt256(const R& upper_lhs, const S& lower_lhs, const T& UpperRight, const U& LowerRight)
-#ifdef VI_ENDIAN_BIG
-				: Upper(upper_lhs, lower_lhs), Lower(UpperRight, LowerRight)
-#else
-				: Lower(UpperRight, LowerRight), Upper(upper_lhs, lower_lhs)
+				: lower(lower_right), upper(upper_right)
 #endif
 			{
 			}
-			template <typename T, typename = typename std::enable_if <std::is_integral<T>::value, T>::type>
-			UInt256& operator=(const T& Right)
+			template <typename r, typename s, typename t, typename u, typename = typename std::enable_if<std::is_integral<r>::value&& std::is_integral<s>::value&& std::is_integral<t>::value&& std::is_integral<u>::value, void>::type>
+			uint256(const r& upper_lhs, const s& lower_lhs, const t& upper_right, const u& lower_right)
+#ifdef VI_ENDIAN_BIG
+				: upper(upper_lhs, lower_lhs), lower(upper_right, lower_right)
+#else
+				: lower(upper_right, lower_right), upper(upper_lhs, lower_lhs)
+#endif
 			{
-				Upper = UInt128::Min();
-				if (std::is_signed<T>::value && Right < 0)
-					Upper = UInt128(-1, -1);
+			}
+			template <typename t, typename = typename std::enable_if <std::is_integral<t>::value, t>::type>
+			uint256& operator=(const t& right)
+			{
+				upper = uint128::min();
+				if (std::is_signed<t>::value && right < 0)
+					upper = uint128(-1, -1);
 
-				Lower = Right;
+				lower = right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator&(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator&(const t& right) const
 			{
-				return UInt256(UInt128::Min(), Lower & (UInt128)Right);
+				return uint256(uint128::min(), lower & (uint128)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator&=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator&=(const t& right)
 			{
-				Upper = UInt128::Min();
-				Lower &= Right;
+				upper = uint128::min();
+				lower &= right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator|(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator|(const t& right) const
 			{
-				return UInt256(Upper, Lower | UInt128(Right));
+				return uint256(upper, lower | uint128(right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator|=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator|=(const t& right)
 			{
-				Lower |= (UInt128)Right;
+				lower |= (uint128)right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator^(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator^(const t& right) const
 			{
-				return UInt256(Upper, Lower ^ (UInt128)Right);
+				return uint256(upper, lower ^ (uint128)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator^=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator^=(const t& right)
 			{
-				Lower ^= (UInt128)Right;
+				lower ^= (uint128)right;
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator<<(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator<<(const t& right) const
 			{
-				return *this << UInt256(Right);
+				return *this << uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator<<=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator<<=(const t& right)
 			{
-				*this = *this << UInt256(Right);
+				*this = *this << uint256(right);
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator>>(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator>>(const t& right) const
 			{
-				return *this >> UInt256(Right);
+				return *this >> uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator>>=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator>>=(const t& right)
 			{
-				*this = *this >> UInt256(Right);
+				*this = *this >> uint256(right);
 				return *this;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator&&(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator&&(const t& right) const
 			{
-				return ((bool)*this && Right);
+				return ((bool)*this && right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator||(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator||(const t& right) const
 			{
-				return ((bool)*this || Right);
+				return ((bool)*this || right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator==(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator==(const t& right) const
 			{
-				return (!Upper && (Lower == UInt128(Right)));
+				return (!upper && (lower == uint128(right)));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator!=(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator!=(const t& right) const
 			{
-				return ((bool)Upper || (Lower != UInt128(Right)));
+				return ((bool)upper || (lower != uint128(right)));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator>(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator>(const t& right) const
 			{
-				return ((bool)Upper || (Lower > UInt128(Right)));
+				return ((bool)upper || (lower > uint128(right)));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator<(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator<(const t& right) const
 			{
-				return (!Upper) ? (Lower < UInt128(Right)) : false;
+				return (!upper) ? (lower < uint128(right)) : false;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator>=(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator>=(const t& right) const
 			{
-				return ((*this > Right) || (*this == Right));
+				return ((*this > right) || (*this == right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			bool operator<=(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			bool operator<=(const t& right) const
 			{
-				return ((*this < Right) || (*this == Right));
+				return ((*this < right) || (*this == right));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator+(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator+(const t& right) const
 			{
-				return UInt256(Upper + ((Lower + (UInt128)Right) < Lower), Lower + (UInt128)Right);
+				return uint256(upper + ((lower + (uint128)right) < lower), lower + (uint128)right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator+=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator+=(const t& right)
 			{
-				return *this += UInt256(Right);
+				return *this += uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator-(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator-(const t& right) const
 			{
-				return UInt256(Upper - ((Lower - Right) > Lower), Lower - Right);
+				return uint256(upper - ((lower - right) > lower), lower - right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator-=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator-=(const t& right)
 			{
-				return *this = *this - UInt256(Right);
+				return *this = *this - uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator*(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator*(const t& right) const
 			{
-				return *this * UInt256(Right);
+				return *this * uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator*=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator*=(const t& right)
 			{
-				return *this = *this * UInt256(Right);
+				return *this = *this * uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator/(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator/(const t& right) const
 			{
-				return *this / UInt256(Right);
+				return *this / uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator/=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator/=(const t& right)
 			{
-				return *this = *this / UInt256(Right);
+				return *this = *this / uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256 operator%(const T& Right) const
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256 operator%(const t& right) const
 			{
-				return *this % UInt256(Right);
+				return *this % uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			UInt256& operator%=(const T& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			uint256& operator%=(const t& right)
 			{
-				return *this = *this % UInt256(Right);
+				return *this = *this % uint256(right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator&(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator&(const t& left, const uint256& right)
 			{
-				return Right & Left;
+				return right & left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator&=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator&=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (Right & Left);
+				return left = static_cast <t> (right & left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator|(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator|(const t& left, const uint256& right)
 			{
-				return Right | Left;
+				return right | left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator|=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator|=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (Right | Left);
+				return left = static_cast <t> (right | left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator^(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator^(const t& left, const uint256& right)
 			{
-				return Right ^ Left;
+				return right ^ left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator^=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator^=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (Right ^ Left);
+				return left = static_cast <t> (right ^ left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator<<=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator<<=(t& left, const uint256& right)
 			{
-				Left = static_cast <T> (UInt256(Left) << Right);
-				return Left;
+				left = static_cast <t> (uint256(left) << right);
+				return left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator>>=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator>>=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (UInt256(Left) >> Right);
+				return left = static_cast <t> (uint256(left) >> right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator==(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator==(const t& left, const uint256& right)
 			{
-				return (!Right.High() && ((uint64_t)Left == Right.Low()));
+				return (!right.high() && ((uint64_t)left == right.low()));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator!=(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator!=(const t& left, const uint256& right)
 			{
-				return (Right.High() || ((uint64_t)Left != Right.Low()));
+				return (right.high() || ((uint64_t)left != right.low()));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator>(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator>(const t& left, const uint256& right)
 			{
-				return Right.High() ? false : ((UInt128)Left > Right.Low());
+				return right.high() ? false : ((uint128)left > right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator<(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator<(const t& left, const uint256& right)
 			{
-				return Right.High() ? true : ((UInt128)Left < Right.Low());
+				return right.high() ? true : ((uint128)left < right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator>=(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator>=(const t& left, const uint256& right)
 			{
-				return Right.High() ? false : ((UInt128)Left >= Right.Low());
+				return right.high() ? false : ((uint128)left >= right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend bool operator<=(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend bool operator<=(const t& left, const uint256& right)
 			{
-				return Right.High() ? true : ((UInt128)Left <= Right.Low());
+				return right.high() ? true : ((uint128)left <= right.low());
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator+(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator+(const t& left, const uint256& right)
 			{
-				return Right + Left;
+				return right + left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator+=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator+=(t& left, const uint256& right)
 			{
-				Left = static_cast <T> (Right + Left);
-				return Left;
+				left = static_cast <t> (right + left);
+				return left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator-(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator-(const t& left, const uint256& right)
 			{
-				return -(Right - Left);
+				return -(right - left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator-=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator-=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (-(Right - Left));
+				return left = static_cast <t> (-(right - left));
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator*(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator*(const t& left, const uint256& right)
 			{
-				return Right * Left;
+				return right * left;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator*=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator*=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (Right * Left);
+				return left = static_cast <t> (right * left);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator/(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator/(const t& left, const uint256& right)
 			{
-				return UInt256(Left) / Right;
+				return uint256(left) / right;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator/=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator/=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (UInt256(Left) / Right);
+				return left = static_cast <t> (uint256(left) / right);
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend UInt256 operator%(const T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend uint256 operator%(const t& left, const uint256& right)
 			{
-				return UInt256(Left) % Right;
+				return uint256(left) % right;
 			}
-			template <typename T, typename = typename std::enable_if<std::is_integral<T>::value, T>::type >
-			friend T& operator%=(T& Left, const UInt256& Right)
+			template <typename t, typename = typename std::enable_if<std::is_integral<t>::value, t>::type >
+			friend t& operator%=(t& left, const uint256& right)
 			{
-				return Left = static_cast <T> (UInt256(Left) % Right);
+				return left = static_cast <t> (uint256(left) % right);
 			}
 		};
 
-		class PreprocessorException final : public Core::BasicException
+		class preprocessor_exception final : public core::basic_exception
 		{
 		private:
-			PreprocessorError Type;
-			size_t Offset;
+			preprocessor_error error_type;
+			size_t error_offset;
 
 		public:
-			PreprocessorException(PreprocessorError NewType);
-			PreprocessorException(PreprocessorError NewType, size_t NewOffset);
-			PreprocessorException(PreprocessorError NewType, size_t NewOffset, const std::string_view& Message);
+			preprocessor_exception(preprocessor_error new_type);
+			preprocessor_exception(preprocessor_error new_type, size_t new_offset);
+			preprocessor_exception(preprocessor_error new_type, size_t new_offset, const std::string_view& message);
 			const char* type() const noexcept override;
-			PreprocessorError status() const noexcept;
+			preprocessor_error status() const noexcept;
 			size_t offset() const noexcept;
 		};
 
-		class CryptoException final : public Core::BasicException
+		class crypto_exception final : public core::basic_exception
 		{
 		private:
-			size_t ErrorCode;
+			size_t error_code;
 
 		public:
-			CryptoException();
-			CryptoException(size_t ErrorCode, const std::string_view& Message);
+			crypto_exception();
+			crypto_exception(size_t error_code, const std::string_view& message);
 			const char* type() const noexcept override;
-			size_t error_code() const noexcept;
+			size_t code() const noexcept;
 		};
 
-		class CompressionException final : public Core::BasicException
+		class compression_exception final : public core::basic_exception
 		{
 		private:
-			int ErrorCode;
+			int error_code;
 
 		public:
-			CompressionException(int ErrorCode, const std::string_view& Message);
+			compression_exception(int error_code, const std::string_view& message);
 			const char* type() const noexcept override;
-			int error_code() const noexcept;
+			int code() const noexcept;
 		};
 
-		template <typename V>
-		using ExpectsPreprocessor = Core::Expects<V, PreprocessorException>;
+		template <typename v>
+		using expects_preprocessor = core::expects<v, preprocessor_exception>;
 
-		template <typename V>
-		using ExpectsCrypto = Core::Expects<V, CryptoException>;
+		template <typename v>
+		using expects_crypto = core::expects<v, crypto_exception>;
 
-		template <typename V>
-		using ExpectsCompression = Core::Expects<V, CompressionException>;
+		template <typename v>
+		using expects_compression = core::expects<v, compression_exception>;
 
-		typedef std::function<ExpectsPreprocessor<IncludeType>(class Preprocessor*, const struct IncludeResult& File, Core::String& Output)> ProcIncludeCallback;
-		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const std::string_view& Name, const Core::Vector<Core::String>& Args)> ProcPragmaCallback;
-		typedef std::function<ExpectsPreprocessor<void>(class Preprocessor*, const struct ProcDirective&, Core::String& Output)> ProcDirectiveCallback;
-		typedef std::function<ExpectsPreprocessor<Core::String>(class Preprocessor*, const Core::Vector<Core::String>& Args)> ProcExpansionCallback;
+		typedef std::function<expects_preprocessor<include_type>(class preprocessor*, const struct include_result& file, core::string& output)> proc_include_callback;
+		typedef std::function<expects_preprocessor<void>(class preprocessor*, const std::string_view& name, const core::vector<core::string>& args)> proc_pragma_callback;
+		typedef std::function<expects_preprocessor<void>(class preprocessor*, const struct proc_directive&, core::string& output)> proc_directive_callback;
+		typedef std::function<expects_preprocessor<core::string>(class preprocessor*, const core::vector<core::string>& args)> proc_expansion_callback;
 
-		class MD5Hasher
+		class md5_hasher
 		{
 		private:
-			typedef uint8_t UInt1;
-			typedef uint32_t UInt4;
+			typedef uint8_t uint1;
+			typedef uint32_t uint4;
 
 		private:
 			uint32_t S11 = 7;
@@ -1187,738 +1205,738 @@ namespace Vitex
 			uint32_t S44 = 21;
 
 		private:
-			bool Finalized;
-			UInt1 Buffer[64];
-			UInt4 Count[2];
-			UInt4 State[4];
-			UInt1 Digest[16];
+			bool finalized;
+			uint1 buffer[64];
+			uint4 count[2];
+			uint4 state[4];
+			uint1 digest[16];
 
 		public:
-			MD5Hasher() noexcept;
-			void Transform(const UInt1* Buffer, uint32_t Length = 64);
-			void Update(const std::string_view& Buffer, uint32_t BlockSize = 64);
-			void Update(const uint8_t* Buffer, uint32_t Length, uint32_t BlockSize = 64);
-			void Update(const char* Buffer, uint32_t Length, uint32_t BlockSize = 64);
-			void Finalize();
-			Core::Unique<char> HexDigest() const;
-			Core::Unique<uint8_t> RawDigest() const;
-			Core::String ToHex() const;
-			Core::String ToRaw() const;
+			md5_hasher() noexcept;
+			void transform(const uint1* buffer, uint32_t length = 64);
+			void update(const std::string_view& buffer, uint32_t block_size = 64);
+			void update(const uint8_t* buffer, uint32_t length, uint32_t block_size = 64);
+			void update(const char* buffer, uint32_t length, uint32_t block_size = 64);
+			void finalize();
+			core::unique<char> hex_digest() const;
+			core::unique<uint8_t> raw_digest() const;
+			core::string to_hex() const;
+			core::string to_raw() const;
 
 		private:
-			static void Decode(UInt4* Output, const UInt1* Input, uint32_t Length);
-			static void Encode(UInt1* Output, const UInt4* Input, uint32_t Length);
-			static void FF(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
-			static void GG(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
-			static void HH(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
-			static void II(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC);
-			static UInt4 F(UInt4 X, UInt4 Y, UInt4 Z);
-			static UInt4 G(UInt4 X, UInt4 Y, UInt4 Z);
-			static UInt4 H(UInt4 X, UInt4 Y, UInt4 Z);
-			static UInt4 I(UInt4 X, UInt4 Y, UInt4 Z);
-			static UInt4 L(UInt4 X, int n);
+			static void decode(uint4* output, const uint1* input, uint32_t length);
+			static void encode(uint1* output, const uint4* input, uint32_t length);
+			static void FF(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC);
+			static void GG(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC);
+			static void HH(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC);
+			static void II(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC);
+			static uint4 f(uint4 x, uint4 y, uint4 z);
+			static uint4 g(uint4 x, uint4 y, uint4 z);
+			static uint4 h(uint4 x, uint4 y, uint4 z);
+			static uint4 i(uint4 x, uint4 y, uint4 z);
+			static uint4 l(uint4 x, int n);
 		};
 
-		class S8Hasher
+		class s8_hasher
 		{
 		public:
-			S8Hasher() noexcept = default;
-			S8Hasher(const S8Hasher&) noexcept = default;
-			S8Hasher(S8Hasher&&) noexcept = default;
-			~S8Hasher() noexcept = default;
-			S8Hasher& operator=(const S8Hasher&) = default;
-			S8Hasher& operator=(S8Hasher&&) noexcept = default;
-			inline size_t operator()(uint64_t Value) const noexcept
+			s8_hasher() noexcept = default;
+			s8_hasher(const s8_hasher&) noexcept = default;
+			s8_hasher(s8_hasher&&) noexcept = default;
+			~s8_hasher() noexcept = default;
+			s8_hasher& operator=(const s8_hasher&) = default;
+			s8_hasher& operator=(s8_hasher&&) noexcept = default;
+			inline size_t operator()(uint64_t value) const noexcept
 			{
-				Value ^= (size_t)(Value >> 33);
-				Value *= 0xFF51AFD7ED558CCD;
-				Value ^= (size_t)(Value >> 33);
-				Value *= 0xC4CEB9FE1A85EC53;
-				Value ^= (size_t)(Value >> 33);
-				return (size_t)Value;
+				value ^= (size_t)(value >> 33);
+				value *= 0xFF51AFD7ED558CCD;
+				value ^= (size_t)(value >> 33);
+				value *= 0xC4CEB9FE1A85EC53;
+				value ^= (size_t)(value >> 33);
+				return (size_t)value;
 			}
-			static inline uint64_t Parse(const char Data[8]) noexcept
+			static inline uint64_t parse(const char data[8]) noexcept
 			{
-				uint64_t Result = 0;
-				Result |= ((uint64_t)Data[0]);
-				Result |= ((uint64_t)Data[1]) << 8;
-				Result |= ((uint64_t)Data[2]) << 16;
-				Result |= ((uint64_t)Data[3]) << 24;
-				Result |= ((uint64_t)Data[4]) << 32;
-				Result |= ((uint64_t)Data[5]) << 40;
-				Result |= ((uint64_t)Data[6]) << 48;
-				Result |= ((uint64_t)Data[7]) << 56;
-				return Result;
+				uint64_t result = 0;
+				result |= ((uint64_t)data[0]);
+				result |= ((uint64_t)data[1]) << 8;
+				result |= ((uint64_t)data[2]) << 16;
+				result |= ((uint64_t)data[3]) << 24;
+				result |= ((uint64_t)data[4]) << 32;
+				result |= ((uint64_t)data[5]) << 40;
+				result |= ((uint64_t)data[6]) << 48;
+				result |= ((uint64_t)data[7]) << 56;
+				return result;
 			}
 		};
 
-		class Ciphers
+		class ciphers
 		{
 		public:
-			static Cipher DES_ECB();
-			static Cipher DES_EDE();
-			static Cipher DES_EDE3();
-			static Cipher DES_EDE_ECB();
-			static Cipher DES_EDE3_ECB();
-			static Cipher DES_CFB64();
-			static Cipher DES_CFB1();
-			static Cipher DES_CFB8();
-			static Cipher DES_EDE_CFB64();
-			static Cipher DES_EDE3_CFB64();
-			static Cipher DES_EDE3_CFB1();
-			static Cipher DES_EDE3_CFB8();
-			static Cipher DES_OFB();
-			static Cipher DES_EDE_OFB();
-			static Cipher DES_EDE3_OFB();
-			static Cipher DES_CBC();
-			static Cipher DES_EDE_CBC();
-			static Cipher DES_EDE3_CBC();
-			static Cipher DES_EDE3_Wrap();
-			static Cipher DESX_CBC();
-			static Cipher RC4();
-			static Cipher RC4_40();
-			static Cipher RC4_HMAC_MD5();
-			static Cipher IDEA_ECB();
-			static Cipher IDEA_CFB64();
-			static Cipher IDEA_OFB();
-			static Cipher IDEA_CBC();
-			static Cipher RC2_ECB();
-			static Cipher RC2_CBC();
-			static Cipher RC2_40_CBC();
-			static Cipher RC2_64_CBC();
-			static Cipher RC2_CFB64();
-			static Cipher RC2_OFB();
-			static Cipher BF_ECB();
-			static Cipher BF_CBC();
-			static Cipher BF_CFB64();
-			static Cipher BF_OFB();
-			static Cipher CAST5_ECB();
-			static Cipher CAST5_CBC();
-			static Cipher CAST5_CFB64();
-			static Cipher CAST5_OFB();
-			static Cipher RC5_32_12_16_CBC();
-			static Cipher RC5_32_12_16_ECB();
-			static Cipher RC5_32_12_16_CFB64();
-			static Cipher RC5_32_12_16_OFB();
-			static Cipher AES_128_ECB();
-			static Cipher AES_128_CBC();
-			static Cipher AES_128_CFB1();
-			static Cipher AES_128_CFB8();
-			static Cipher AES_128_CFB128();
-			static Cipher AES_128_OFB();
-			static Cipher AES_128_CTR();
-			static Cipher AES_128_CCM();
-			static Cipher AES_128_GCM();
-			static Cipher AES_128_XTS();
-			static Cipher AES_128_Wrap();
-			static Cipher AES_128_WrapPad();
-			static Cipher AES_128_OCB();
-			static Cipher AES_192_ECB();
-			static Cipher AES_192_CBC();
-			static Cipher AES_192_CFB1();
-			static Cipher AES_192_CFB8();
-			static Cipher AES_192_CFB128();
-			static Cipher AES_192_OFB();
-			static Cipher AES_192_CTR();
-			static Cipher AES_192_CCM();
-			static Cipher AES_192_GCM();
-			static Cipher AES_192_Wrap();
-			static Cipher AES_192_WrapPad();
-			static Cipher AES_192_OCB();
-			static Cipher AES_256_ECB();
-			static Cipher AES_256_CBC();
-			static Cipher AES_256_CFB1();
-			static Cipher AES_256_CFB8();
-			static Cipher AES_256_CFB128();
-			static Cipher AES_256_OFB();
-			static Cipher AES_256_CTR();
-			static Cipher AES_256_CCM();
-			static Cipher AES_256_GCM();
-			static Cipher AES_256_XTS();
-			static Cipher AES_256_Wrap();
-			static Cipher AES_256_WrapPad();
-			static Cipher AES_256_OCB();
-			static Cipher AES_128_CBC_HMAC_SHA1();
-			static Cipher AES_256_CBC_HMAC_SHA1();
-			static Cipher AES_128_CBC_HMAC_SHA256();
-			static Cipher AES_256_CBC_HMAC_SHA256();
-			static Cipher ARIA_128_ECB();
-			static Cipher ARIA_128_CBC();
-			static Cipher ARIA_128_CFB1();
-			static Cipher ARIA_128_CFB8();
-			static Cipher ARIA_128_CFB128();
-			static Cipher ARIA_128_CTR();
-			static Cipher ARIA_128_OFB();
-			static Cipher ARIA_128_GCM();
-			static Cipher ARIA_128_CCM();
-			static Cipher ARIA_192_ECB();
-			static Cipher ARIA_192_CBC();
-			static Cipher ARIA_192_CFB1();
-			static Cipher ARIA_192_CFB8();
-			static Cipher ARIA_192_CFB128();
-			static Cipher ARIA_192_CTR();
-			static Cipher ARIA_192_OFB();
-			static Cipher ARIA_192_GCM();
-			static Cipher ARIA_192_CCM();
-			static Cipher ARIA_256_ECB();
-			static Cipher ARIA_256_CBC();
-			static Cipher ARIA_256_CFB1();
-			static Cipher ARIA_256_CFB8();
-			static Cipher ARIA_256_CFB128();
-			static Cipher ARIA_256_CTR();
-			static Cipher ARIA_256_OFB();
-			static Cipher ARIA_256_GCM();
-			static Cipher ARIA_256_CCM();
-			static Cipher Camellia_128_ECB();
-			static Cipher Camellia_128_CBC();
-			static Cipher Camellia_128_CFB1();
-			static Cipher Camellia_128_CFB8();
-			static Cipher Camellia_128_CFB128();
-			static Cipher Camellia_128_OFB();
-			static Cipher Camellia_128_CTR();
-			static Cipher Camellia_192_ECB();
-			static Cipher Camellia_192_CBC();
-			static Cipher Camellia_192_CFB1();
-			static Cipher Camellia_192_CFB8();
-			static Cipher Camellia_192_CFB128();
-			static Cipher Camellia_192_OFB();
-			static Cipher Camellia_192_CTR();
-			static Cipher Camellia_256_ECB();
-			static Cipher Camellia_256_CBC();
-			static Cipher Camellia_256_CFB1();
-			static Cipher Camellia_256_CFB8();
-			static Cipher Camellia_256_CFB128();
-			static Cipher Camellia_256_OFB();
-			static Cipher Camellia_256_CTR();
-			static Cipher Chacha20();
-			static Cipher Chacha20_Poly1305();
-			static Cipher Seed_ECB();
-			static Cipher Seed_CBC();
-			static Cipher Seed_CFB128();
-			static Cipher Seed_OFB();
-			static Cipher SM4_ECB();
-			static Cipher SM4_CBC();
-			static Cipher SM4_CFB128();
-			static Cipher SM4_OFB();
-			static Cipher SM4_CTR();
+			static cipher DES_ECB();
+			static cipher DES_EDE();
+			static cipher DES_EDE3();
+			static cipher DES_EDE_ECB();
+			static cipher DES_EDE3_ECB();
+			static cipher DES_CFB64();
+			static cipher DES_CFB1();
+			static cipher DES_CFB8();
+			static cipher DES_EDE_CFB64();
+			static cipher DES_EDE3_CFB64();
+			static cipher DES_EDE3_CFB1();
+			static cipher DES_EDE3_CFB8();
+			static cipher DES_OFB();
+			static cipher DES_EDE_OFB();
+			static cipher DES_EDE3_OFB();
+			static cipher DES_CBC();
+			static cipher DES_EDE_CBC();
+			static cipher DES_EDE3_CBC();
+			static cipher desede3_wrap();
+			static cipher DESX_CBC();
+			static cipher RC4();
+			static cipher RC4_40();
+			static cipher RC4_HMAC_MD5();
+			static cipher IDEA_ECB();
+			static cipher IDEA_CFB64();
+			static cipher IDEA_OFB();
+			static cipher IDEA_CBC();
+			static cipher RC2_ECB();
+			static cipher RC2_CBC();
+			static cipher RC2_40_CBC();
+			static cipher RC2_64_CBC();
+			static cipher RC2_CFB64();
+			static cipher RC2_OFB();
+			static cipher BF_ECB();
+			static cipher BF_CBC();
+			static cipher BF_CFB64();
+			static cipher BF_OFB();
+			static cipher CAST5_ECB();
+			static cipher CAST5_CBC();
+			static cipher CAST5_CFB64();
+			static cipher CAST5_OFB();
+			static cipher RC5_32_12_16_CBC();
+			static cipher RC5_32_12_16_ECB();
+			static cipher RC5_32_12_16_CFB64();
+			static cipher RC5_32_12_16_OFB();
+			static cipher AES_128_ECB();
+			static cipher AES_128_CBC();
+			static cipher AES_128_CFB1();
+			static cipher AES_128_CFB8();
+			static cipher AES_128_CFB128();
+			static cipher AES_128_OFB();
+			static cipher AES_128_CTR();
+			static cipher AES_128_CCM();
+			static cipher AES_128_GCM();
+			static cipher AES_128_XTS();
+			static cipher aes128_wrap();
+			static cipher aes128_wrap_pad();
+			static cipher AES_128_OCB();
+			static cipher AES_192_ECB();
+			static cipher AES_192_CBC();
+			static cipher AES_192_CFB1();
+			static cipher AES_192_CFB8();
+			static cipher AES_192_CFB128();
+			static cipher AES_192_OFB();
+			static cipher AES_192_CTR();
+			static cipher AES_192_CCM();
+			static cipher AES_192_GCM();
+			static cipher aes192_wrap();
+			static cipher aes192_wrap_pad();
+			static cipher AES_192_OCB();
+			static cipher AES_256_ECB();
+			static cipher AES_256_CBC();
+			static cipher AES_256_CFB1();
+			static cipher AES_256_CFB8();
+			static cipher AES_256_CFB128();
+			static cipher AES_256_OFB();
+			static cipher AES_256_CTR();
+			static cipher AES_256_CCM();
+			static cipher AES_256_GCM();
+			static cipher AES_256_XTS();
+			static cipher aes256_wrap();
+			static cipher aes256_wrap_pad();
+			static cipher AES_256_OCB();
+			static cipher AES_128_CBC_HMAC_SHA1();
+			static cipher AES_256_CBC_HMAC_SHA1();
+			static cipher AES_128_CBC_HMAC_SHA256();
+			static cipher AES_256_CBC_HMAC_SHA256();
+			static cipher ARIA_128_ECB();
+			static cipher ARIA_128_CBC();
+			static cipher ARIA_128_CFB1();
+			static cipher ARIA_128_CFB8();
+			static cipher ARIA_128_CFB128();
+			static cipher ARIA_128_CTR();
+			static cipher ARIA_128_OFB();
+			static cipher ARIA_128_GCM();
+			static cipher ARIA_128_CCM();
+			static cipher ARIA_192_ECB();
+			static cipher ARIA_192_CBC();
+			static cipher ARIA_192_CFB1();
+			static cipher ARIA_192_CFB8();
+			static cipher ARIA_192_CFB128();
+			static cipher ARIA_192_CTR();
+			static cipher ARIA_192_OFB();
+			static cipher ARIA_192_GCM();
+			static cipher ARIA_192_CCM();
+			static cipher ARIA_256_ECB();
+			static cipher ARIA_256_CBC();
+			static cipher ARIA_256_CFB1();
+			static cipher ARIA_256_CFB8();
+			static cipher ARIA_256_CFB128();
+			static cipher ARIA_256_CTR();
+			static cipher ARIA_256_OFB();
+			static cipher ARIA_256_GCM();
+			static cipher ARIA_256_CCM();
+			static cipher camellia128_ecb();
+			static cipher camellia128_cbc();
+			static cipher camellia128_cfb1();
+			static cipher camellia128_cfb8();
+			static cipher camellia128_cfb128();
+			static cipher camellia128_ofb();
+			static cipher camellia128_ctr();
+			static cipher camellia192_ecb();
+			static cipher camellia192_cbc();
+			static cipher camellia192_cfb1();
+			static cipher camellia192_cfb8();
+			static cipher camellia192_cfb128();
+			static cipher camellia192_ofb();
+			static cipher camellia192_ctr();
+			static cipher camellia256_ecb();
+			static cipher camellia256_cbc();
+			static cipher camellia256_cfb1();
+			static cipher camellia256_cfb8();
+			static cipher camellia256_cfb128();
+			static cipher camellia256_ofb();
+			static cipher camellia256_ctr();
+			static cipher chacha20();
+			static cipher chacha20_poly1305();
+			static cipher seed_ecb();
+			static cipher seed_cbc();
+			static cipher seed_cfb128();
+			static cipher seed_ofb();
+			static cipher SM4_ECB();
+			static cipher SM4_CBC();
+			static cipher SM4_CFB128();
+			static cipher SM4_OFB();
+			static cipher SM4_CTR();
 		};
 
-		class Digests
+		class digests
 		{
 		public:
-			static Digest MD2();
-			static Digest MD4();
-			static Digest MD5();
-			static Digest MD5_SHA1();
-			static Digest Blake2B512();
-			static Digest Blake2S256();
-			static Digest SHA1();
-			static Digest SHA224();
-			static Digest SHA256();
-			static Digest SHA384();
-			static Digest SHA512();
-			static Digest SHA512_224();
-			static Digest SHA512_256();
-			static Digest SHA3_224();
-			static Digest SHA3_256();
-			static Digest SHA3_384();
-			static Digest SHA3_512();
-			static Digest Shake128();
-			static Digest Shake256();
-			static Digest MDC2();
-			static Digest RipeMD160();
-			static Digest Whirlpool();
-			static Digest SM3();
+			static digest MD2();
+			static digest MD4();
+			static digest MD5();
+			static digest MD5_SHA1();
+			static digest blake2_b512();
+			static digest blake2_s256();
+			static digest SHA1();
+			static digest SHA224();
+			static digest SHA256();
+			static digest SHA384();
+			static digest SHA512();
+			static digest SHA512_224();
+			static digest SHA512_256();
+			static digest SHA3_224();
+			static digest SHA3_256();
+			static digest SHA3_384();
+			static digest SHA3_512();
+			static digest shake128();
+			static digest shake256();
+			static digest MDC2();
+			static digest ripe_md160();
+			static digest whirlpool();
+			static digest SM3();
 		};
 
-		class Signers
+		class signers
 		{
 		public:
-			static SignAlg PkRSA();
-			static SignAlg PkDSA();
-			static SignAlg PkDH();
-			static SignAlg PkEC();
-			static SignAlg PktSIGN();
-			static SignAlg PktENC();
-			static SignAlg PktEXCH();
-			static SignAlg PksRSA();
-			static SignAlg PksDSA();
-			static SignAlg PksEC();
-			static SignAlg RSA();
-			static SignAlg RSA2();
-			static SignAlg RSA_PSS();
-			static SignAlg DSA();
-			static SignAlg DSA1();
-			static SignAlg DSA2();
-			static SignAlg DSA3();
-			static SignAlg DSA4();
-			static SignAlg DH();
-			static SignAlg DHX();
-			static SignAlg EC();
-			static SignAlg SM2();
-			static SignAlg HMAC();
-			static SignAlg CMAC();
-			static SignAlg SCRYPT();
-			static SignAlg TLS1_PRF();
-			static SignAlg HKDF();
-			static SignAlg POLY1305();
-			static SignAlg SIPHASH();
-			static SignAlg X25519();
-			static SignAlg ED25519();
-			static SignAlg X448();
-			static SignAlg ED448();
+			static sign_alg pk_rsa();
+			static sign_alg pk_dsa();
+			static sign_alg pk_dh();
+			static sign_alg pk_ec();
+			static sign_alg pkt_sign();
+			static sign_alg pkt_enc();
+			static sign_alg pkt_exch();
+			static sign_alg pks_rsa();
+			static sign_alg pks_dsa();
+			static sign_alg pks_ec();
+			static sign_alg RSA();
+			static sign_alg RSA2();
+			static sign_alg RSA_PSS();
+			static sign_alg DSA();
+			static sign_alg DSA1();
+			static sign_alg DSA2();
+			static sign_alg DSA3();
+			static sign_alg DSA4();
+			static sign_alg DH();
+			static sign_alg DHX();
+			static sign_alg EC();
+			static sign_alg SM2();
+			static sign_alg HMAC();
+			static sign_alg CMAC();
+			static sign_alg SCRYPT();
+			static sign_alg TLS1_PRF();
+			static sign_alg HKDF();
+			static sign_alg POLY1305();
+			static sign_alg SIPHASH();
+			static sign_alg X25519();
+			static sign_alg ED25519();
+			static sign_alg X448();
+			static sign_alg ED448();
 		};
 
-		class Crypto
+		class crypto
 		{
 		public:
-			typedef std::function<void(uint8_t**, size_t*)> BlockCallback;
+			typedef std::function<void(uint8_t**, size_t*)> block_callback;
 
 		public:
-			static Digest GetDigestByName(const std::string_view& Name);
-			static Cipher GetCipherByName(const std::string_view& Name);
-			static SignAlg GetSignerByName(const std::string_view& Name);
-			static std::string_view GetDigestName(Digest Type);
-			static std::string_view GetCipherName(Cipher Type);
-			static std::string_view GetSignerName(SignAlg Type);
-			static ExpectsCrypto<void> FillRandomBytes(uint8_t* Buffer, size_t Length);
-			static ExpectsCrypto<Core::String> RandomBytes(size_t Length);
-			static ExpectsCrypto<Core::String> GeneratePrivateKey(SignAlg Type, size_t TargetBits = 2048, const std::string_view& Curve = std::string_view());
-			static ExpectsCrypto<Core::String> GeneratePublicKey(SignAlg Type, const PrivateKey& SecretKey);
-			static ExpectsCrypto<Core::String> ChecksumHex(Digest Type, Core::Stream* Stream);
-			static ExpectsCrypto<Core::String> ChecksumRaw(Digest Type, Core::Stream* Stream);
-			static ExpectsCrypto<Core::String> HashHex(Digest Type, const std::string_view& Value);
-			static ExpectsCrypto<Core::String> HashRaw(Digest Type, const std::string_view& Value);
-			static ExpectsCrypto<Core::String> Sign(Digest Type, SignAlg KeyType, const std::string_view& Value, const PrivateKey& SecretKey);
-			static ExpectsCrypto<void> Verify(Digest Type, SignAlg KeyType, const std::string_view& Value, const std::string_view& Signature, const PrivateKey& PublicKey);
-			static ExpectsCrypto<Core::String> HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> Encrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static ExpectsCrypto<Core::String> Decrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
-			static ExpectsCrypto<Core::String> JWTSign(const std::string_view& Algo, const std::string_view& Payload, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> JWTEncode(WebToken* Src, const PrivateKey& Key);
-			static ExpectsCrypto<Core::Unique<WebToken>> JWTDecode(const std::string_view& Value, const PrivateKey& Key);
-			static ExpectsCrypto<Core::String> DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
-			static ExpectsCrypto<Core::Unique<Core::Schema>> DocDecrypt(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt);
-			static ExpectsCrypto<size_t> Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
-			static ExpectsCrypto<size_t> Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback = nullptr, size_t ReadInterval = 1, int ComplexityBytes = -1);
-			static uint8_t RandomUC();
-			static uint64_t CRC32(const std::string_view& Data);
-			static uint64_t Random(uint64_t Min, uint64_t Max);
-			static uint64_t Random();
-			static void Sha1CollapseBufferBlock(uint32_t* Buffer);
-			static void Sha1ComputeHashBlock(uint32_t* Result, uint32_t* W);
-			static void Sha1Compute(const void* Value, int Length, char* Hash20);
-			static void Sha1Hash20ToHex(const char* Hash20, char* HexString);
-			static void DisplayCryptoLog();
+			static digest get_digest_by_name(const std::string_view& name);
+			static cipher get_cipher_by_name(const std::string_view& name);
+			static sign_alg get_signer_by_name(const std::string_view& name);
+			static std::string_view get_digest_name(digest type);
+			static std::string_view get_cipher_name(cipher type);
+			static std::string_view get_signer_name(sign_alg type);
+			static expects_crypto<void> fill_random_bytes(uint8_t* buffer, size_t length);
+			static expects_crypto<core::string> random_bytes(size_t length);
+			static expects_crypto<core::string> generate_private_key(sign_alg type, size_t target_bits = 2048, const std::string_view& curve = std::string_view());
+			static expects_crypto<core::string> generate_public_key(sign_alg type, const secret_box& secret_key);
+			static expects_crypto<core::string> checksum_hex(digest type, core::stream* stream);
+			static expects_crypto<core::string> checksum_raw(digest type, core::stream* stream);
+			static expects_crypto<core::string> hash_hex(digest type, const std::string_view& value);
+			static expects_crypto<core::string> hash_raw(digest type, const std::string_view& value);
+			static expects_crypto<core::string> sign(digest type, sign_alg key_type, const std::string_view& value, const secret_box& secret_key);
+			static expects_crypto<void> verify(digest type, sign_alg key_type, const std::string_view& value, const std::string_view& signature, const secret_box& public_key);
+			static expects_crypto<core::string> HMAC(digest type, const std::string_view& value, const secret_box& key);
+			static expects_crypto<core::string> encrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes = -1);
+			static expects_crypto<core::string> decrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes = -1);
+			static expects_crypto<core::string> jwt_sign(const std::string_view& algo, const std::string_view& payload, const secret_box& key);
+			static expects_crypto<core::string> jwt_encode(web_token* src, const secret_box& key);
+			static expects_crypto<core::unique<web_token>> jwt_decode(const std::string_view& value, const secret_box& key);
+			static expects_crypto<core::string> doc_encrypt(core::schema* src, const secret_box& key, const secret_box& salt);
+			static expects_crypto<core::unique<core::schema>> doc_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt);
+			static expects_crypto<size_t> encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
+			static expects_crypto<size_t> decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
+			static uint8_t random_uc();
+			static uint64_t CRC32(const std::string_view& data);
+			static uint64_t random(uint64_t min, uint64_t max);
+			static uint64_t random();
+			static void sha1_collapse_buffer_block(uint32_t* buffer);
+			static void sha1_compute_hash_block(uint32_t* result, uint32_t* w);
+			static void sha1_compute(const void* value, int length, char* hash20);
+			static void sha1_hash20_to_hex(const char* hash20, char* hex_string);
+			static void display_crypto_log();
 		};
 
-		class Codec
+		class codec
 		{
 		public:
-			static void RotateBuffer(uint8_t* Buffer, size_t BufferSize, uint64_t Hash, int8_t Direction);
-			static Core::String Rotate(const std::string_view& Value, uint64_t Hash, int8_t Direction);
-			static Core::String Encode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool Padding);
-			static Core::String Decode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool(*IsAlphabetic)(uint8_t));
-			static Core::String Bep45Encode(const std::string_view& Value);
-			static Core::String Bep45Decode(const std::string_view& Value);
-			static Core::String Base32Encode(const std::string_view& Value);
-			static Core::String Base32Decode(const std::string_view& Value);
-			static Core::String Base45Encode(const std::string_view& Value);
-			static Core::String Base45Decode(const std::string_view& Value);
-			static Core::String Base64Encode(const std::string_view& Value);
-			static Core::String Base64Decode(const std::string_view& Value);
-			static Core::String Base64URLEncode(const std::string_view& Value);
-			static Core::String Base64URLDecode(const std::string_view& Value);
-			static Core::String Shuffle(const char* Value, size_t Size, uint64_t Mask);
-			static ExpectsCompression<Core::String> Compress(const std::string_view& Data, Compression Type = Compression::Default);
-			static ExpectsCompression<Core::String> Decompress(const std::string_view& Data);
-			static Core::String HexEncodeOdd(const std::string_view& Value, bool UpperCase = false);
-			static Core::String HexEncode(const std::string_view& Value, bool UpperCase = false);
-			static Core::String HexDecode(const std::string_view& Value);
-			static Core::String URLEncode(const std::string_view& Text);
-			static Core::String URLDecode(const std::string_view& Text);
-			static Core::String DecimalToHex(uint64_t V);
-			static Core::String Base10ToBaseN(uint64_t Value, uint32_t BaseLessThan65);
-			static size_t Utf8(int Code, char* Buffer);
-			static bool Hex(char Code, int& Value);
-			static bool HexToString(const std::string_view& Data, char* Buffer, size_t BufferLength);
-			static bool HexToDecimal(const std::string_view& Text, size_t Index, size_t Size, int& Value);
-			static bool IsBase64URL(uint8_t Value);
-			static bool IsBase64(uint8_t Value);
+			static void rotate_buffer(uint8_t* buffer, size_t buffer_size, uint64_t hash, int8_t direction);
+			static core::string rotate(const std::string_view& value, uint64_t hash, int8_t direction);
+			static core::string encode64(const char alphabet[65], const uint8_t* value, size_t length, bool padding);
+			static core::string decode64(const char alphabet[65], const uint8_t* value, size_t length, bool(*is_alphabetic)(uint8_t));
+			static core::string bep45_encode(const std::string_view& value);
+			static core::string bep45_decode(const std::string_view& value);
+			static core::string base32_encode(const std::string_view& value);
+			static core::string base32_decode(const std::string_view& value);
+			static core::string base45_encode(const std::string_view& value);
+			static core::string base45_decode(const std::string_view& value);
+			static core::string base64_encode(const std::string_view& value);
+			static core::string base64_decode(const std::string_view& value);
+			static core::string base64_url_encode(const std::string_view& value);
+			static core::string base64_url_decode(const std::string_view& value);
+			static core::string shuffle(const char* value, size_t size, uint64_t mask);
+			static expects_compression<core::string> compress(const std::string_view& data, compression type = compression::placeholder);
+			static expects_compression<core::string> decompress(const std::string_view& data);
+			static core::string hex_encode_odd(const std::string_view& value, bool upper_case = false);
+			static core::string hex_encode(const std::string_view& value, bool upper_case = false);
+			static core::string hex_decode(const std::string_view& value);
+			static core::string url_encode(const std::string_view& text);
+			static core::string url_decode(const std::string_view& text);
+			static core::string decimal_to_hex(uint64_t v);
+			static core::string base10_to_base_n(uint64_t value, uint32_t base_less_than65);
+			static size_t utf8(int code, char* buffer);
+			static bool hex(char code, int& value);
+			static bool hex_to_string(const std::string_view& data, char* buffer, size_t buffer_length);
+			static bool hex_to_decimal(const std::string_view& text, size_t index, size_t size, int& value);
+			static bool is_base64_url(uint8_t value);
+			static bool is_base64(uint8_t value);
 		};
 
-		class Regex
+		class regex
 		{
-			friend RegexSource;
+			friend regex_source;
 
 		private:
-			static int64_t Meta(const uint8_t* Buffer);
-			static int64_t OpLength(const char* Value);
-			static int64_t SetLength(const char* Value, int64_t ValueLength);
-			static int64_t GetOpLength(const char* Value, int64_t ValueLength);
-			static int64_t Quantifier(const char* Value);
-			static int64_t ToInt(int64_t x);
-			static int64_t HexToInt(const uint8_t* Buffer);
-			static int64_t MatchOp(const uint8_t* Value, const uint8_t* Buffer, RegexResult* Info);
-			static int64_t MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info);
-			static int64_t ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
-			static int64_t ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
-			static int64_t Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info);
+			static int64_t meta(const uint8_t* buffer);
+			static int64_t op_length(const char* value);
+			static int64_t set_length(const char* value, int64_t value_length);
+			static int64_t get_op_length(const char* value, int64_t value_length);
+			static int64_t quantifier(const char* value);
+			static int64_t to_int(int64_t x);
+			static int64_t hex_to_int(const uint8_t* buffer);
+			static int64_t match_op(const uint8_t* value, const uint8_t* buffer, regex_result* info);
+			static int64_t match_set(const char* value, int64_t value_length, const char* buffer, regex_result* info);
+			static int64_t parse_doh(const char* buffer, int64_t buffer_length, regex_result* info, int64_t condition);
+			static int64_t parse_inner(const char* value, int64_t value_length, const char* buffer, int64_t buffer_length, regex_result* info, int64_t condition);
+			static int64_t parse(const char* buffer, int64_t buffer_length, regex_result* info);
 
 		public:
-			static bool Match(RegexSource* Value, RegexResult& Result, const std::string_view& Buffer);
-			static bool Replace(RegexSource* Value, const std::string_view& ToExpression, Core::String& Buffer);
-			static const char* Syntax();
+			static bool match(regex_source* value, regex_result& result, const std::string_view& buffer);
+			static bool replace(regex_source* value, const std::string_view& to_expression, core::string& buffer);
+			static const char* syntax();
 		};
 
-		class WebToken final : public Core::Reference<WebToken>
+		class web_token final : public core::reference<web_token>
 		{
 		public:
-			Core::Schema* Header;
-			Core::Schema* Payload;
-			Core::Schema* Token;
-			Core::String Refresher;
-			Core::String Signature;
-			Core::String Data;
+			core::schema* header;
+			core::schema* payload;
+			core::schema* token;
+			core::string refresher;
+			core::string signature;
+			core::string data;
 
 		public:
-			WebToken() noexcept;
-			WebToken(const std::string_view& Issuer, const std::string_view& Subject, int64_t Expiration) noexcept;
-			virtual ~WebToken() noexcept;
-			void Unsign();
-			void SetAlgorithm(const std::string_view& Value);
-			void SetType(const std::string_view& Value);
-			void SetContentType(const std::string_view& Value);
-			void SetIssuer(const std::string_view& Value);
-			void SetSubject(const std::string_view& Value);
-			void SetId(const std::string_view& Value);
-			void SetAudience(const Core::Vector<Core::String>& Value);
-			void SetExpiration(int64_t Value);
-			void SetNotBefore(int64_t Value);
-			void SetCreated(int64_t Value);
-			void SetRefreshToken(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt);
-			bool Sign(const PrivateKey& Key);
-			ExpectsCrypto<Core::String> GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
-			bool IsValid() const;
+			web_token() noexcept;
+			web_token(const std::string_view& issuer, const std::string_view& subject, int64_t expiration) noexcept;
+			virtual ~web_token() noexcept;
+			void unsign();
+			void set_algorithm(const std::string_view& value);
+			void set_type(const std::string_view& value);
+			void set_content_type(const std::string_view& value);
+			void set_issuer(const std::string_view& value);
+			void set_subject(const std::string_view& value);
+			void set_id(const std::string_view& value);
+			void set_audience(const core::vector<core::string>& value);
+			void set_expiration(int64_t value);
+			void set_not_before(int64_t value);
+			void set_created(int64_t value);
+			void set_refresh_token(const std::string_view& value, const secret_box& key, const secret_box& salt);
+			bool sign(const secret_box& key);
+			expects_crypto<core::string> get_refresh_token(const secret_box& key, const secret_box& salt);
+			bool is_valid() const;
 		};
 
-		class Preprocessor final : public Core::Reference<Preprocessor>
+		class preprocessor final : public core::reference<preprocessor>
 		{
 		public:
-			struct Desc
+			struct desc
 			{
-				Core::String MultilineCommentBegin = "/*";
-				Core::String MultilineCommentEnd = "*/";
-				Core::String CommentBegin = "//";
-				Core::String StringLiterals = "\"'`";
-				bool Pragmas = true;
-				bool Includes = true;
-				bool Defines = true;
-				bool Conditions = true;
-			};
-
-		private:
-			enum class Controller
-			{
-				StartIf = 0,
-				ElseIf = 1,
-				Else = 2,
-				EndIf = 3
-			};
-
-			enum class Condition
-			{
-				Exists = 1,
-				Equals = 2,
-				Greater = 3,
-				GreaterEquals = 4,
-				Less = 5,
-				LessEquals = 6,
-				Text = 0,
-				NotExists = -1,
-				NotEquals = -2,
-				NotGreater = -3,
-				NotGreaterEquals = -4,
-				NotLess = -5,
-				NotLessEquals = -6,
-			};
-
-			struct Conditional
-			{
-				Core::Vector<Conditional> Childs;
-				Core::String Expression;
-				bool Chaining = false;
-				Condition Type = Condition::Text;
-				size_t TokenStart = 0;
-				size_t TokenEnd = 0;
-				size_t TextStart = 0;
-				size_t TextEnd = 0;
-			};
-
-			struct Definition
-			{
-				Core::Vector<Core::String> Tokens;
-				Core::String Expansion;
-				ProcExpansionCallback Callback;
+				core::string multiline_comment_begin = "/*";
+				core::string multiline_comment_end = "*/";
+				core::string comment_begin = "//";
+				core::string string_literals = "\"'`";
+				bool pragmas = true;
+				bool includes = true;
+				bool defines = true;
+				bool conditions = true;
 			};
 
 		private:
-			struct FileContext
+			enum class controller
 			{
-				Core::String Path;
-				size_t Line = 0;
-			} ThisFile;
+				start_if = 0,
+				else_if = 1,
+				else_case = 2,
+				end_if = 3
+			};
+
+			enum class condition
+			{
+				exists = 1,
+				equals = 2,
+				greater = 3,
+				greater_equals = 4,
+				less = 5,
+				less_equals = 6,
+				text = 0,
+				not_exists = -1,
+				not_equals = -2,
+				not_greater = -3,
+				not_greater_equals = -4,
+				not_less = -5,
+				not_less_equals = -6,
+			};
+
+			struct conditional
+			{
+				core::vector<conditional> childs;
+				core::string expression;
+				bool chaining = false;
+				condition type = condition::text;
+				size_t token_start = 0;
+				size_t token_end = 0;
+				size_t text_start = 0;
+				size_t text_end = 0;
+			};
+
+			struct definition
+			{
+				core::vector<core::string> tokens;
+				core::string expansion;
+				proc_expansion_callback callback;
+			};
 
 		private:
-			Core::UnorderedMap<Core::String, std::pair<Condition, Controller>> ControlFlow;
-			Core::UnorderedMap<Core::String, ProcDirectiveCallback> Directives;
-			Core::UnorderedMap<Core::String, Definition> Defines;
-			Core::UnorderedSet<Core::String> Sets;
-			std::function<size_t()> StoreCurrentLine;
-			ProcIncludeCallback Include;
-			ProcPragmaCallback Pragma;
-			IncludeDesc FileDesc;
-			Desc Features;
-			bool Nested;
-
-		public:
-			Preprocessor() noexcept;
-			~Preprocessor() noexcept = default;
-			void SetIncludeOptions(const IncludeDesc& NewDesc);
-			void SetIncludeCallback(ProcIncludeCallback&& Callback);
-			void SetPragmaCallback(ProcPragmaCallback&& Callback);
-			void SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback);
-			void SetFeatures(const Desc& Value);
-			void AddDefaultDefinitions();
-			ExpectsPreprocessor<void> Define(const std::string_view& Expression);
-			ExpectsPreprocessor<void> DefineDynamic(const std::string_view& Expression, ProcExpansionCallback&& Callback);
-			void Undefine(const std::string_view& Name);
-			void Clear();
-			bool IsDefined(const std::string_view& Name) const;
-			bool IsDefined(const std::string_view& Name, const std::string_view& Value) const;
-			ExpectsPreprocessor<void> Process(const std::string_view& Path, Core::String& Buffer);
-			ExpectsPreprocessor<Core::String> ResolveFile(const std::string_view& Path, const std::string_view& Include);
-			const Core::String& GetCurrentFilePath() const;
-			size_t GetCurrentLineNumber();
+			struct file_context
+			{
+				core::string path;
+				size_t line = 0;
+			} this_file;
 
 		private:
-			ProcDirective FindNextToken(Core::String& Buffer, size_t& Offset);
-			ProcDirective FindNextConditionalToken(Core::String& Buffer, size_t& Offset);
-			size_t ReplaceToken(ProcDirective& Where, Core::String& Buffer, const std::string_view& To);
-			ExpectsPreprocessor<Core::Vector<Conditional>> PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top);
-			Core::String Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions);
-			std::pair<Core::String, Core::String> GetExpressionParts(const std::string_view& Value);
-			std::pair<Core::String, Core::String> UnpackExpression(const std::pair<Core::String, Core::String>& Expression);
-			int SwitchCase(const Conditional& Value);
-			size_t GetLinesCount(Core::String& Buffer, size_t End);
-			ExpectsPreprocessor<void> ExpandDefinitions(Core::String& Buffer, size_t& Size);
-			ExpectsPreprocessor<void> ParseArguments(const std::string_view& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals);
-			ExpectsPreprocessor<void> ConsumeTokens(const std::string_view& Path, Core::String& Buffer);
-			void ApplyResult(bool WasNested);
-			bool HasResult(const std::string_view& Path);
-			bool SaveResult();
+			core::unordered_map<core::string, std::pair<condition, controller>> control_flow;
+			core::unordered_map<core::string, proc_directive_callback> directives;
+			core::unordered_map<core::string, definition> defines;
+			core::unordered_set<core::string> sets;
+			std::function<size_t()> store_current_line;
+			proc_include_callback include;
+			proc_pragma_callback pragma;
+			include_desc file_desc;
+			desc features;
+			bool nested;
 
 		public:
-			static IncludeResult ResolveInclude(const IncludeDesc& Desc, bool AsGlobal);
+			preprocessor() noexcept;
+			~preprocessor() noexcept = default;
+			void set_include_options(const include_desc& new_desc);
+			void set_include_callback(proc_include_callback&& callback);
+			void set_pragma_callback(proc_pragma_callback&& callback);
+			void set_directive_callback(const std::string_view& name, proc_directive_callback&& callback);
+			void set_features(const desc& value);
+			void add_default_definitions();
+			expects_preprocessor<void> define(const std::string_view& expression);
+			expects_preprocessor<void> define_dynamic(const std::string_view& expression, proc_expansion_callback&& callback);
+			void undefine(const std::string_view& name);
+			void clear();
+			bool is_defined(const std::string_view& name) const;
+			bool is_defined(const std::string_view& name, const std::string_view& value) const;
+			expects_preprocessor<void> process(const std::string_view& path, core::string& buffer);
+			expects_preprocessor<core::string> resolve_file(const std::string_view& path, const std::string_view& include);
+			const core::string& get_current_file_path() const;
+			size_t get_current_line_number();
+
+		private:
+			proc_directive find_next_token(core::string& buffer, size_t& offset);
+			proc_directive find_next_conditional_token(core::string& buffer, size_t& offset);
+			size_t replace_token(proc_directive& where, core::string& buffer, const std::string_view& to);
+			expects_preprocessor<core::vector<conditional>> prepare_conditions(core::string& buffer, proc_directive& next, size_t& offset, bool top);
+			core::string evaluate(core::string& buffer, const core::vector<conditional>& conditions);
+			std::pair<core::string, core::string> get_expression_parts(const std::string_view& value);
+			std::pair<core::string, core::string> unpack_expression(const std::pair<core::string, core::string>& expression);
+			int switch_case(const conditional& value);
+			size_t get_lines_count(core::string& buffer, size_t end);
+			expects_preprocessor<void> expand_definitions(core::string& buffer, size_t& size);
+			expects_preprocessor<void> parse_arguments(const std::string_view& value, core::vector<core::string>& tokens, bool unpack_literals);
+			expects_preprocessor<void> consume_tokens(const std::string_view& path, core::string& buffer);
+			void apply_result(bool was_nested);
+			bool has_result(const std::string_view& path);
+			bool save_result();
+
+		public:
+			static include_result resolve_include(const include_desc& desc, bool as_global);
 		};
 
-		template <typename T>
-		class Math
+		template <typename t>
+		class math
 		{
 		public:
-			template <typename F, bool = std::is_fundamental<F>::value>
-			struct TypeTraits
+			template <typename f, bool = std::is_fundamental<f>::value>
+			struct type_traits
 			{
 			};
 
-			template <typename F>
-			struct TypeTraits<F, true>
+			template <typename f>
+			struct type_traits<f, true>
 			{
-				typedef F type;
+				typedef f type;
 			};
 
-			template <typename F>
-			struct TypeTraits<F, false>
+			template <typename f>
+			struct type_traits<f, false>
 			{
-				typedef const F& type;
+				typedef const f& type;
 			};
 
 		public:
-			typedef typename TypeTraits<T>::type I;
+			typedef typename type_traits<t>::type i;
 
 		public:
-			static T Rad2Deg()
+			static t rad2_deg()
 			{
-				return T(57.2957795130);
+				return t(57.2957795130);
 			}
-			static T Deg2Rad()
+			static t deg2_rad()
 			{
-				return T(0.01745329251);
+				return t(0.01745329251);
 			}
-			static T Pi()
+			static t pi()
 			{
-				return T(3.14159265359);
+				return t(3.14159265359);
 			}
-			static T Sqrt(I Value)
+			static t sqrt(i value)
 			{
-				return T(std::sqrt((double)Value));
+				return t(std::sqrt((double)value));
 			}
-			static T Abs(I Value)
+			static t abs(i value)
 			{
-				return Value < 0 ? -Value : Value;
+				return value < 0 ? -value : value;
 			}
-			static T Atan(I Angle)
+			static t atan(i angle)
 			{
-				return T(std::atan((double)Angle));
+				return t(std::atan((double)angle));
 			}
-			static T Atan2(I Angle0, I Angle1)
+			static t atan2(i angle0, i angle1)
 			{
-				return T(std::atan2((double)Angle0, (double)Angle1));
+				return t(std::atan2((double)angle0, (double)angle1));
 			}
-			static T Acos(I Angle)
+			static t acos(i angle)
 			{
-				return T(std::acos((double)Angle));
+				return t(std::acos((double)angle));
 			}
-			static T Asin(I Angle)
+			static t asin(i angle)
 			{
-				return T(std::asin((double)Angle));
+				return t(std::asin((double)angle));
 			}
-			static T Cos(I Angle)
+			static t cos(i angle)
 			{
-				return T(std::cos((double)Angle));
+				return t(std::cos((double)angle));
 			}
-			static T Sin(I Angle)
+			static t sin(i angle)
 			{
-				return T(std::sin((double)Angle));
+				return t(std::sin((double)angle));
 			}
-			static T Tan(I Angle)
+			static t tan(i angle)
 			{
-				return T(std::tan((double)Angle));
+				return t(std::tan((double)angle));
 			}
-			static T Acotan(I Angle)
+			static t acotan(i angle)
 			{
-				return T(std::atan(1.0 / (double)Angle));
+				return t(std::atan(1.0 / (double)angle));
 			}
-			static T Max(I Value1, I Value2)
+			static t max(i value1, i value2)
 			{
-				return Value1 > Value2 ? Value1 : Value2;
+				return value1 > value2 ? value1 : value2;
 			}
-			static T Min(I Value1, I Value2)
+			static t min(i value1, i value2)
 			{
-				return Value1 < Value2 ? Value1 : Value2;
+				return value1 < value2 ? value1 : value2;
 			}
-			static T Log(I Value)
+			static t log(i value)
 			{
-				return T(std::log((double)Value));
+				return t(std::log((double)value));
 			}
-			static T Log2(I Value)
+			static t log2(i value)
 			{
-				return T(std::log2((double)Value));
+				return t(std::log2((double)value));
 			}
-			static T Log10(I Value)
+			static t log10(i value)
 			{
-				return T(std::log10((double)Value));
+				return t(std::log10((double)value));
 			}
-			static T Exp(I Value)
+			static t exp(i value)
 			{
-				return T(std::exp((double)Value));
+				return t(std::exp((double)value));
 			}
-			static T Ceil(I Value)
+			static t ceil(i value)
 			{
-				return T(std::ceil((double)Value));
+				return t(std::ceil((double)value));
 			}
-			static T Floor(I Value)
+			static t floor(i value)
 			{
-				return T(std::floor((double)Value));
+				return t(std::floor((double)value));
 			}
-			static T Lerp(I A, I B, I DeltaTime)
+			static t lerp(i a, i b, i delta_time)
 			{
-				return A + DeltaTime * (B - A);
+				return a + delta_time * (b - a);
 			}
-			static T StrongLerp(I A, I B, I Time)
+			static t strong_lerp(i a, i b, i time)
 			{
-				return (T(1.0) - Time) * A + Time * B;
+				return (t(1.0) - time) * a + time * b;
 			}
-			static T SaturateAngle(I Angle)
+			static t saturate_angle(i angle)
 			{
-				return T(std::atan2(std::sin((double)Angle), std::cos((double)Angle)));
+				return t(std::atan2(std::sin((double)angle), std::cos((double)angle)));
 			}
-			static T Saturate(I Value)
+			static t saturate(i value)
 			{
-				return Min(Max(Value, T(0.0)), T(1.0));
+				return min(max(value, t(0.0)), t(1.0));
 			}
-			static T Random(I Number0, I Number1)
+			static t random(i number0, i number1)
 			{
-				if (Number0 == Number1)
-					return Number0;
+				if (number0 == number1)
+					return number0;
 
-				return T((double)Number0 + ((double)Number1 - (double)Number0) / (double)std::numeric_limits<uint64_t>::max() * (double)Crypto::Random());
+				return t((double)number0 + ((double)number1 - (double)number0) / (double)std::numeric_limits<uint64_t>::max() * (double)crypto::random());
 			}
-			static T Round(I Value)
+			static t round(i value)
 			{
-				return T(std::round((double)Value));
+				return t(std::round((double)value));
 			}
-			static T Random()
+			static t random()
 			{
-				return T((double)Crypto::Random() / (double)std::numeric_limits<uint64_t>::max());
+				return t((double)crypto::random() / (double)std::numeric_limits<uint64_t>::max());
 			}
-			static T RandomMag()
+			static t random_mag()
 			{
-				return T(2.0) * Random() - T(1.0);
+				return t(2.0) * random() - t(1.0);
 			}
-			static T Pow(I Value0, I Value1)
+			static t pow(i value0, i value1)
 			{
-				return T(std::pow((double)Value0, (double)Value1));
+				return t(std::pow((double)value0, (double)value1));
 			}
-			static T Pow2(I Value0)
+			static t pow2(i value0)
 			{
-				return Value0 * Value0;
+				return value0 * value0;
 			}
-			static T Pow3(I Value0)
+			static t pow3(i value0)
 			{
-				return Value0 * Value0 * Value0;
+				return value0 * value0 * value0;
 			}
-			static T Pow4(I Value0)
+			static t pow4(i value0)
 			{
-				T Value = Value0 * Value0;
-				return Value * Value;
+				t value = value0 * value0;
+				return value * value;
 			}
-			static T Clamp(I Value, I pMin, I pMax)
+			static t clamp(i value, i pMin, i pMax)
 			{
-				return Min(Max(Value, pMin), pMax);
+				return min(max(value, pMin), pMax);
 			}
-			static T Select(I A, I B)
+			static t select(i a, i b)
 			{
-				return Crypto::Random() < std::numeric_limits<uint64_t>::max() / 2 ? B : A;
+				return crypto::random() < std::numeric_limits<uint64_t>::max() / 2 ? b : a;
 			}
-			static T Cotan(I Value)
+			static t cotan(i value)
 			{
-				return T(1.0 / std::tan((double)Value));
+				return t(1.0 / std::tan((double)value));
 			}
-			static T Map(I Value, I FromMin, I FromMax, I ToMin, I ToMax)
+			static t map(i value, i from_min, i from_max, i to_min, i to_max)
 			{
-				return ToMin + (Value - FromMin) * (ToMax - ToMin) / (FromMax - FromMin);
+				return to_min + (value - from_min) * (to_max - to_min) / (from_max - from_min);
 			}
-			static void Swap(T& Value0, T& Value1)
+			static void swap(t& value0, t& value1)
 			{
-				T Value2 = Value0;
-				Value0 = Value1;
-				Value1 = Value2;
+				t value2 = value0;
+				value0 = value1;
+				value1 = value2;
 			}
 		};
 
-		typedef Math<Core::Decimal> Math0;
-		typedef Math<UInt128> Math128u;
-		typedef Math<UInt256> Math256u;
-		typedef Math<int32_t> Math32;
-		typedef Math<uint32_t> Math32u;
-		typedef Math<int64_t> Math64;
-		typedef Math<uint64_t> Math64u;
-		typedef Math<float> Mathf;
-		typedef Math<double> Mathd;
+		typedef math<core::decimal> math0;
+		typedef math<uint128> math128u;
+		typedef math<uint256> math256u;
+		typedef math<int32_t> math32;
+		typedef math<uint32_t> math32u;
+		typedef math<int64_t> math64;
+		typedef math<uint64_t> math64u;
+		typedef math<float> mathf;
+		typedef math<double> mathd;
 	}
 }
 
-using uint128_t = Vitex::Compute::UInt128;
-using uint256_t = Vitex::Compute::UInt256;
+using uint128_t = vitex::compute::uint128;
+using uint256_t = vitex::compute::uint256;
 #endif

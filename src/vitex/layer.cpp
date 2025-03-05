@@ -1,8 +1,8 @@
 #include "layer.h"
 #include "layer/processors.h"
 #include "network/http.h"
-#include "network/mdb.h"
-#include "network/pdb.h"
+#include "network/mongo.h"
+#include "network/pq.h"
 #include "vitex.h"
 #include <sstream>
 #define CONTENT_BLOCKED_WAIT_MS 50
@@ -12,1358 +12,1358 @@
 #define CONTENT_ARCHIVE_MAX_PATH 1024
 #define CONTENT_ARCHIVE_MAX_SIZE 1024llu * 1024 * 1024 * 4
 
-namespace Vitex
+namespace vitex
 {
-	namespace Layer
+	namespace layer
 	{
-		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) noexcept : Buffer(SrcBuffer), Length(SrcSize)
+		asset_file::asset_file(char* src_buffer, size_t src_size) noexcept : buffer(src_buffer), length(src_size)
 		{
 		}
-		AssetFile::~AssetFile() noexcept
+		asset_file::~asset_file() noexcept
 		{
-			if (Buffer != nullptr)
-				Core::Memory::Deallocate(Buffer);
+			if (buffer != nullptr)
+				core::memory::deallocate(buffer);
 		}
-		char* AssetFile::GetBuffer()
+		char* asset_file::get_buffer()
 		{
-			return Buffer;
+			return buffer;
 		}
-		size_t AssetFile::Size()
+		size_t asset_file::size()
 		{
-			return Length;
+			return length;
 		}
 
-		ContentException::ContentException() : Core::SystemException()
+		content_exception::content_exception() : core::system_exception()
 		{
 		}
-		ContentException::ContentException(const std::string_view& Message) : Core::SystemException(Message)
+		content_exception::content_exception(const std::string_view& message) : core::system_exception(message)
 		{
 		}
-		const char* ContentException::type() const noexcept
+		const char* content_exception::type() const noexcept
 		{
 			return "content_error";
 		}
 
-		void Series::Pack(Core::Schema* V, bool Value)
+		void series::pack(core::schema* v, bool value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("b", Core::Var::Boolean(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("b", core::var::boolean(value));
 		}
-		void Series::Pack(Core::Schema* V, int32_t Value)
+		void series::pack(core::schema* v, int32_t value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("i", Core::Var::Integer(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("i", core::var::integer(value));
 		}
-		void Series::Pack(Core::Schema* V, int64_t Value)
+		void series::pack(core::schema* v, int64_t value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("i", Core::Var::Integer(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("i", core::var::integer(value));
 		}
-		void Series::Pack(Core::Schema* V, uint32_t Value)
+		void series::pack(core::schema* v, uint32_t value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("i", Core::Var::Integer(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("i", core::var::integer(value));
 		}
-		void Series::Pack(Core::Schema* V, uint64_t Value)
+		void series::pack(core::schema* v, uint64_t value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("i", Core::Var::Integer(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("i", core::var::integer(value));
 		}
-		void Series::Pack(Core::Schema* V, float Value)
+		void series::pack(core::schema* v, float value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("n", Core::Var::Number(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("n", core::var::number(value));
 		}
-		void Series::Pack(Core::Schema* V, double Value)
+		void series::pack(core::schema* v, double value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("n", Core::Var::Number(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("n", core::var::number(value));
 		}
-		void Series::Pack(Core::Schema* V, const std::string_view& Value)
+		void series::pack(core::schema* v, const std::string_view& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			V->SetAttribute("s", Core::Var::String(Value));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			v->set_attribute("s", core::var::string(value));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<bool>& Value)
+		void series::pack(core::schema* v, const core::vector<bool>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("b-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("b-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<int32_t>& Value)
+		void series::pack(core::schema* v, const core::vector<int32_t>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("i-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<int64_t>& Value)
+		void series::pack(core::schema* v, const core::vector<int64_t>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("i-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<uint32_t>& Value)
+		void series::pack(core::schema* v, const core::vector<uint32_t>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("i-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value)
+		void series::pack(core::schema* v, const core::vector<uint64_t>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("i-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<float>& Value)
+		void series::pack(core::schema* v, const core::vector<float>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("n-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<double>& Value)
+		void series::pack(core::schema* v, const core::vector<double>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << it << " ";
 
-			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("n-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::Vector<Core::String>& Value)
+		void series::pack(core::schema* v, const core::vector<core::string>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::Schema* Array = V->Set("s-array", Core::Var::Array());
-			for (auto&& It : Value)
-				Array->Set("s", Core::Var::String(It));
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::schema* array = v->set("s-array", core::var::array());
+			for (auto&& it : value)
+				array->set("s", core::var::string(it));
 
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void Series::Pack(Core::Schema* V, const Core::UnorderedMap<size_t, size_t>& Value)
+		void series::pack(core::schema* v, const core::unordered_map<size_t, size_t>& value)
 		{
-			VI_ASSERT(V != nullptr, "schema should be set");
-			Core::StringStream Stream;
-			for (auto&& It : Value)
-				Stream << (uint64_t)It.first << " " << (uint64_t)It.second << " ";
+			VI_ASSERT(v != nullptr, "schema should be set");
+			core::string_stream stream;
+			for (auto&& it : value)
+				stream << (uint64_t)it.first << " " << (uint64_t)it.second << " ";
 
-			V->Set("gl-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			v->set("gl-array", core::var::string(stream.str().substr(0, stream.str().size() - 1)));
+			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		bool Series::Unpack(Core::Schema* V, bool* O)
+		bool series::unpack(core::schema* v, bool* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = V->GetAttributeVar("b").GetBoolean();
+			*o = v->get_attribute_var("b").get_boolean();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, int32_t* O)
+		bool series::unpack(core::schema* v, int32_t* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = (int)V->GetAttributeVar("i").GetInteger();
+			*o = (int)v->get_attribute_var("i").get_integer();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, int64_t* O)
+		bool series::unpack(core::schema* v, int64_t* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = V->GetAttributeVar("i").GetInteger();
+			*o = v->get_attribute_var("i").get_integer();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, uint32_t* O)
+		bool series::unpack(core::schema* v, uint32_t* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = (uint32_t)V->GetAttributeVar("i").GetInteger();
+			*o = (uint32_t)v->get_attribute_var("i").get_integer();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, uint64_t* O)
+		bool series::unpack(core::schema* v, uint64_t* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = (uint64_t)V->GetAttributeVar("i").GetInteger();
+			*o = (uint64_t)v->get_attribute_var("i").get_integer();
 			return true;
 		}
-		bool Series::UnpackA(Core::Schema* V, size_t* O)
+		bool series::unpack_a(core::schema* v, size_t* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = (size_t)V->GetAttributeVar("i").GetInteger();
+			*o = (size_t)v->get_attribute_var("i").get_integer();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, float* O)
+		bool series::unpack(core::schema* v, float* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = (float)V->GetAttributeVar("n").GetNumber();
+			*o = (float)v->get_attribute_var("n").get_number();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, double* O)
+		bool series::unpack(core::schema* v, double* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = (int)V->GetAttributeVar("n").GetNumber();
+			*o = (int)v->get_attribute_var("n").get_number();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::String* O)
+		bool series::unpack(core::schema* v, core::string* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			*O = V->GetAttributeVar("s").GetBlob();
+			*o = v->get_attribute_var("s").get_blob();
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<bool>* O)
+		bool series::unpack(core::schema* v, core::vector<bool>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("b-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("b-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				bool Item;
-				Stream >> Item;
-				*It = Item;
+				bool item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<int32_t>* O)
+		bool series::unpack(core::schema* v, core::vector<int32_t>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("i-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("i-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				int Item;
-				Stream >> Item;
-				*It = Item;
+				int item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<int64_t>* O)
+		bool series::unpack(core::schema* v, core::vector<int64_t>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("i-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("i-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				int64_t Item;
-				Stream >> Item;
-				*It = Item;
+				int64_t item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<uint32_t>* O)
+		bool series::unpack(core::schema* v, core::vector<uint32_t>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("i-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("i-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				uint32_t Item;
-				Stream >> Item;
-				*It = Item;
+				uint32_t item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<uint64_t>* O)
+		bool series::unpack(core::schema* v, core::vector<uint64_t>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("i-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("i-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				uint64_t Item;
-				Stream >> Item;
-				*It = Item;
+				uint64_t item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<float>* O)
+		bool series::unpack(core::schema* v, core::vector<float>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("n-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("n-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				float Item;
-				Stream >> Item;
-				*It = Item;
+				float item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<double>* O)
+		bool series::unpack(core::schema* v, core::vector<double>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("n-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("n-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->resize((size_t)Size);
+			core::string_stream stream(array);
+			o->resize((size_t)size);
 
-			for (auto It = O->begin(); It != O->end(); ++It)
+			for (auto it = o->begin(); it != o->end(); ++it)
 			{
-				double Item;
-				Stream >> Item;
-				*It = Item;
+				double item;
+				stream >> item;
+				*it = item;
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::Vector<Core::String>* O)
+		bool series::unpack(core::schema* v, core::vector<core::string>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::Schema* Array = V->Get("s-array");
-			if (!Array)
+			core::schema* array = v->get("s-array");
+			if (!array)
 				return false;
 
-			for (auto&& It : Array->GetChilds())
+			for (auto&& it : array->get_childs())
 			{
-				if (It->Key == "s" && It->Value.GetType() == Core::VarType::String)
-					O->push_back(It->Value.GetBlob());
+				if (it->key == "s" && it->value.get_type() == core::var_type::string)
+					o->push_back(it->value.get_blob());
 			}
 
 			return true;
 		}
-		bool Series::Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O)
+		bool series::unpack(core::schema* v, core::unordered_map<size_t, size_t>* o)
 		{
-			VI_ASSERT(O != nullptr, "output should be set");
-			if (!V)
+			VI_ASSERT(o != nullptr, "output should be set");
+			if (!v)
 				return false;
 
-			Core::String Array(V->GetVar("gl-array").GetBlob());
-			int64_t Size = V->GetVar("size").GetInteger();
-			if (Array.empty() || !Size)
+			core::string array(v->get_var("gl-array").get_blob());
+			int64_t size = v->get_var("size").get_integer();
+			if (array.empty() || !size)
 				return false;
 
-			Core::StringStream Stream(Array);
-			O->reserve((size_t)Size);
+			core::string_stream stream(array);
+			o->reserve((size_t)size);
 
-			for (size_t i = 0; i < (size_t)Size; i++)
+			for (size_t i = 0; i < (size_t)size; i++)
 			{
-				uint64_t GlobalIndex = 0;
-				uint64_t LocalIndex = 0;
-				Stream >> GlobalIndex;
-				Stream >> LocalIndex;
-				(*O)[GlobalIndex] = LocalIndex;
+				uint64_t global_index = 0;
+				uint64_t local_index = 0;
+				stream >> global_index;
+				stream >> local_index;
+				(*o)[global_index] = local_index;
 			}
 
 			return true;
 		}
 
-		Core::Promise<void> Parallel::Enqueue(Core::TaskCallback&& Callback)
+		core::promise<void> parallel::enqueue(core::task_callback&& callback)
 		{
-			VI_ASSERT(Callback != nullptr, "callback should be set");
-			return Core::Cotask<void>(std::move(Callback));
+			VI_ASSERT(callback != nullptr, "callback should be set");
+			return core::cotask<void>(std::move(callback));
 		}
-		Core::Vector<Core::Promise<void>> Parallel::EnqueueAll(Core::Vector<Core::TaskCallback>&& Callbacks)
+		core::vector<core::promise<void>> parallel::enqueue_all(core::vector<core::task_callback>&& callbacks)
 		{
-			VI_ASSERT(!Callbacks.empty(), "callbacks should not be empty");
-			Core::Vector<Core::Promise<void>> Result;
-			Result.reserve(Callbacks.size());
+			VI_ASSERT(!callbacks.empty(), "callbacks should not be empty");
+			core::vector<core::promise<void>> result;
+			result.reserve(callbacks.size());
 
-			for (auto& Callback : Callbacks)
-				Result.emplace_back(Enqueue(std::move(Callback)));
+			for (auto& callback : callbacks)
+				result.emplace_back(enqueue(std::move(callback)));
 
-			return Result;
+			return result;
 		}
-		void Parallel::Wait(Core::Promise<void>&& Value)
+		void parallel::wait(core::promise<void>&& value)
 		{
-			Value.Wait();
+			value.wait();
 		}
-		void Parallel::WailAll(Core::Vector<Core::Promise<void>>&& Values)
+		void parallel::wail_all(core::vector<core::promise<void>>&& values)
 		{
-			for (auto& Value : Values)
-				Value.Wait();
+			for (auto& value : values)
+				value.wait();
 		}
-		size_t Parallel::GetThreadIndex()
+		size_t parallel::get_thread_index()
 		{
-			return Core::Schedule::Get()->GetThreadLocalIndex();
+			return core::schedule::get()->get_thread_local_index();
 		}
-		size_t Parallel::GetThreads()
+		size_t parallel::get_threads()
 		{
-			return Core::Schedule::Get()->GetThreads(Core::Difficulty::Sync);
-		}
-
-		Processor::Processor(ContentManager* NewContent) noexcept : Content(NewContent)
-		{
-		}
-		Processor::~Processor() noexcept
-		{
-		}
-		void Processor::Free(AssetCache* Asset)
-		{
-		}
-		ExpectsContent<void*> Processor::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
-		{
-			return ContentException("not implemented");
-		}
-		ExpectsContent<void*> Processor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
-		{
-			return ContentException("not implemented");
-		}
-		ExpectsContent<void> Processor::Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args)
-		{
-			return ContentException("not implemented");
-		}
-		ContentManager* Processor::GetContent() const
-		{
-			return Content;
+			return core::schedule::get()->get_threads(core::difficulty::sync);
 		}
 
-		ContentManager::ContentManager() noexcept : Queue(0)
+		processor::processor(content_manager* new_content) noexcept : content(new_content)
 		{
-			auto Directory = Core::OS::Directory::GetWorking();
-			if (!Directory)
+		}
+		processor::~processor() noexcept
+		{
+		}
+		void processor::free(asset_cache* asset)
+		{
+		}
+		expects_content<void*> processor::duplicate(asset_cache* asset, const core::variant_args& args)
+		{
+			return content_exception("not implemented");
+		}
+		expects_content<void*> processor::deserialize(core::stream* stream, size_t offset, const core::variant_args& args)
+		{
+			return content_exception("not implemented");
+		}
+		expects_content<void> processor::serialize(core::stream* stream, void* object, const core::variant_args& args)
+		{
+			return content_exception("not implemented");
+		}
+		content_manager* processor::get_content() const
+		{
+			return content;
+		}
+
+		content_manager::content_manager() noexcept : queue(0)
+		{
+			auto directory = core::os::directory::get_working();
+			if (!directory)
 				return;
 
-			Directory = Core::OS::Path::ResolveDirectory(Directory->c_str());
-			if (!Directory)
+			directory = core::os::path::resolve_directory(directory->c_str());
+			if (!directory)
 				return;
 
-			Base = std::move(*Directory);
-			SetEnvironment(Base);
+			base = std::move(*directory);
+			set_environment(base);
 		}
-		ContentManager::~ContentManager() noexcept
+		content_manager::~content_manager() noexcept
 		{
-			ClearCache();
-			ClearArchives();
-			ClearStreams();
-			ClearProcessors();
+			clear_cache();
+			clear_archives();
+			clear_streams();
+			clear_processors();
 		}
-		void ContentManager::ClearCache()
+		void content_manager::clear_cache()
 		{
 			VI_TRACE("[content] clear cache on 0x%" PRIXPTR, (void*)this);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto& Entries : Assets)
+			core::umutex<std::mutex> unique(exclusive);
+			for (auto& entries : assets)
 			{
-				for (auto& Entry : Entries.second)
+				for (auto& entry : entries.second)
 				{
-					if (!Entry.second)
+					if (!entry.second)
 						continue;
 
-					Unique.Negate();
-					if (Entry.first != nullptr)
-						Entry.first->Free(Entry.second);
-					Core::Memory::Delete(Entry.second);
-					Unique.Negate();
+					unique.negate();
+					if (entry.first != nullptr)
+						entry.first->free(entry.second);
+					core::memory::deinit(entry.second);
+					unique.negate();
 				}
 			}
-			Assets.clear();
+			assets.clear();
 		}
-		void ContentManager::ClearArchives()
+		void content_manager::clear_archives()
 		{
 			VI_TRACE("[content] clear archives on 0x%" PRIXPTR, (void*)this);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto It = Archives.begin(); It != Archives.end(); ++It)
-				Core::Memory::Delete(It->second);
-			Archives.clear();
+			core::umutex<std::mutex> unique(exclusive);
+			for (auto it = archives.begin(); it != archives.end(); ++it)
+				core::memory::deinit(it->second);
+			archives.clear();
 		}
-		void ContentManager::ClearStreams()
+		void content_manager::clear_streams()
 		{
 			VI_TRACE("[content] clear streams on 0x%" PRIXPTR, (void*)this);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto It = Streams.begin(); It != Streams.end(); ++It)
-				It->first->Release();
-			Streams.clear();
+			core::umutex<std::mutex> unique(exclusive);
+			for (auto it = streams.begin(); it != streams.end(); ++it)
+				it->first->release();
+			streams.clear();
 		}
-		void ContentManager::ClearProcessors()
+		void content_manager::clear_processors()
 		{
 			VI_TRACE("[content] clear processors on 0x%" PRIXPTR, (void*)this);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto It = Processors.begin(); It != Processors.end(); ++It)
-				Core::Memory::Release(It->second);
-			Processors.clear();
+			core::umutex<std::mutex> unique(exclusive);
+			for (auto it = processors.begin(); it != processors.end(); ++it)
+				core::memory::release(it->second);
+			processors.clear();
 		}
-		void ContentManager::ClearPath(const std::string_view& Path)
+		void content_manager::clear_path(const std::string_view& path)
 		{
-			VI_TRACE("[content] clear path %.*s on 0x%" PRIXPTR, (int)Path.size(), Path.data(), (void*)this);
-			auto File = Core::OS::Path::Resolve(Path, Environment, true);
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			if (File)
+			VI_TRACE("[content] clear path %.*s on 0x%" PRIXPTR, (int)path.size(), path.data(), (void*)this);
+			auto file = core::os::path::resolve(path, environment, true);
+			core::umutex<std::mutex> unique(exclusive);
+			if (file)
 			{
-				auto It = Assets.find(*File);
-				if (It != Assets.end())
-					Assets.erase(It);
+				auto it = assets.find(*file);
+				if (it != assets.end())
+					assets.erase(it);
 			}
 
-			auto It = Assets.find(Core::KeyLookupCast(Path));
-			if (It != Assets.end())
-				Assets.erase(It);
+			auto it = assets.find(core::key_lookup_cast(path));
+			if (it != assets.end())
+				assets.erase(it);
 		}
-		void ContentManager::SetEnvironment(const std::string_view& Path)
+		void content_manager::set_environment(const std::string_view& path)
 		{
-			auto Target = Core::OS::Path::ResolveDirectory(Path);
-			if (!Target)
+			auto target = core::os::path::resolve_directory(path);
+			if (!target)
 				return;
 
-			Core::String NewPath = *Target;
-			Core::Stringify::Replace(NewPath, '\\', '/');
-			Core::OS::Directory::SetWorking(NewPath.c_str());
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			Environment = NewPath;
+			core::string new_path = *target;
+			core::stringify::replace(new_path, '\\', '/');
+			core::os::directory::set_working(new_path.c_str());
+			core::umutex<std::mutex> unique(exclusive);
+			environment = new_path;
 		}
-		ExpectsContent<void> ContentManager::ImportArchive(const std::string_view& Path, bool ValidateChecksum)
+		expects_content<void> content_manager::import_archive(const std::string_view& path, bool validate_checksum)
 		{
-			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, true);
-			if (!TargetPath)
-				return ContentException("archive was not found: " + Core::String(Path));
+			auto target_path = core::os::path::resolve(path, environment, true);
+			if (!target_path)
+				return content_exception("archive was not found: " + core::string(path));
 
-			Core::UPtr<Core::Stream> Stream = Core::OS::File::Open(*TargetPath, Core::FileMode::Binary_Read_Only).Or(nullptr);
-			if (!Stream)
-				return ContentException("cannot open archive: " + Core::String(Path));
+			core::uptr<core::stream> stream = core::os::file::open(*target_path, core::file_mode::binary_read_only).otherwise(nullptr);
+			if (!stream)
+				return content_exception("cannot open archive: " + core::string(path));
 
-			uint8_t Header[32] = { 0 }; size_t HeaderSize = sizeof(Header);
-			if (Stream->Read(Header, HeaderSize).Or(0) != HeaderSize || memcmp(Header, CONTENT_ARCHIVE_HEADER_MAGIC, HeaderSize) != 0)
-				return ContentException("invalid archive header: " + Core::String(Path));
+			uint8_t header[32] = { 0 }; size_t header_size = sizeof(header);
+			if (stream->read(header, header_size).otherwise(0) != header_size || memcmp(header, CONTENT_ARCHIVE_HEADER_MAGIC, header_size) != 0)
+				return content_exception("invalid archive header: " + core::string(path));
 
-			uint64_t ContentElements = 0;
-			if (Stream->Read((uint8_t*)&ContentElements, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
-				return ContentException("invalid archive size: " + Core::String(Path) + " (size = " + Core::ToString(ContentElements) + ")");
+			uint64_t content_elements = 0;
+			if (stream->read((uint8_t*)&content_elements, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+				return content_exception("invalid archive size: " + core::string(path) + " (size = " + core::to_string(content_elements) + ")");
 
-			ContentElements = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, ContentElements);
-			if (!ContentElements || ContentElements > CONTENT_ARCHIVE_MAX_FILES)
-				return ContentException("invalid archive size: " + Core::String(Path) + " (size = " + Core::ToString(ContentElements) + ")");
+			content_elements = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, content_elements);
+			if (!content_elements || content_elements > CONTENT_ARCHIVE_MAX_FILES)
+				return content_exception("invalid archive size: " + core::string(path) + " (size = " + core::to_string(content_elements) + ")");
 
-			uint64_t ContentOffset = 0;
-			Core::Vector<Core::UPtr<AssetArchive>> ContentFiles;
-			ContentFiles.reserve((size_t)ContentElements);
-			for (uint64_t i = 0; i < ContentElements; i++)
+			uint64_t content_offset = 0;
+			core::vector<core::uptr<asset_archive>> content_files;
+			content_files.reserve((size_t)content_elements);
+			for (uint64_t i = 0; i < content_elements; i++)
 			{
-				uint64_t ContentLength = 0;
-				if (Stream->Read((uint8_t*)&ContentLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
-					return ContentException("invalid archive chunk length: " + Core::String(Path) + " (chunk = " + Core::ToString(i) + ")");
+				uint64_t content_length = 0;
+				if (stream->read((uint8_t*)&content_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+					return content_exception("invalid archive chunk length: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
-				ContentLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, ContentLength);
-				if (ContentLength > CONTENT_ARCHIVE_MAX_SIZE)
-					return ContentException("invalid archive chunk length: " + Core::String(Path) + " (chunk = " + Core::ToString(i) + ")");
+				content_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, content_length);
+				if (content_length > CONTENT_ARCHIVE_MAX_SIZE)
+					return content_exception("invalid archive chunk length: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
-				uint64_t PathLength = 0;
-				if (Stream->Read((uint8_t*)&PathLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
-					return ContentException("invalid archive chunk path size: " + Core::String(Path) + " (chunk = " + Core::ToString(i) + ")");
+				uint64_t path_length = 0;
+				if (stream->read((uint8_t*)&path_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+					return content_exception("invalid archive chunk path size: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
-				PathLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, PathLength);
-				if (PathLength > CONTENT_ARCHIVE_MAX_PATH)
-					return ContentException("invalid archive chunk path size: " + Core::String(Path) + " (chunk = " + Core::ToString(i) + ")");
+				path_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, path_length);
+				if (path_length > CONTENT_ARCHIVE_MAX_PATH)
+					return content_exception("invalid archive chunk path size: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
-				Core::String PathValue = Core::String((size_t)PathLength, '\0');
-				if (Stream->Read((uint8_t*)PathValue.c_str(), sizeof(char) * (size_t)PathLength).Or(0) != (size_t)PathLength)
-					return ContentException("invalid archive chunk path data: " + Core::String(Path) + " (chunk = " + Core::ToString(i) + ")");
-				
-				AssetArchive* Archive = Core::Memory::New<AssetArchive>();
-				Archive->Path = std::move(PathValue);
-				Archive->Offset = ContentOffset;
-				Archive->Length = ContentLength;
-				Archive->Stream = *Stream;
-				ContentFiles.push_back(Archive);
-				ContentOffset += ContentLength;
+				core::string path_value = core::string((size_t)path_length, '\0');
+				if (stream->read((uint8_t*)path_value.c_str(), sizeof(char) * (size_t)path_length).otherwise(0) != (size_t)path_length)
+					return content_exception("invalid archive chunk path data: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
+
+				asset_archive* archive = core::memory::init<asset_archive>();
+				archive->path = std::move(path_value);
+				archive->offset = content_offset;
+				archive->length = content_length;
+				archive->stream = *stream;
+				content_files.push_back(archive);
+				content_offset += content_length;
 			}
 
-			size_t HeadersOffset = Stream->Tell().Or(0);
-			if (ValidateChecksum)
+			size_t headers_offset = stream->tell().otherwise(0);
+			if (validate_checksum)
 			{
-				size_t CalculatedChunk = 0;
-				Core::String CalculatedHash = CONTENT_ARCHIVE_HASH_MAGIC;
-				for (auto& Item : ContentFiles)
+				size_t calculated_chunk = 0;
+				core::string calculated_hash = CONTENT_ARCHIVE_HASH_MAGIC;
+				for (auto& item : content_files)
 				{
-					size_t DataLength = Item->Length;
-					while (DataLength > 0)
+					size_t data_length = item->length;
+					while (data_length > 0)
 					{
-						uint8_t DataBuffer[Core::CHUNK_SIZE];
-						size_t DataSize = std::min<size_t>(sizeof(DataBuffer), DataLength);
-						size_t ValueSize = Stream->Read(DataBuffer, DataSize).Or(0);
-						DataLength -= ValueSize;
-						if (!ValueSize)
+						uint8_t data_buffer[core::CHUNK_SIZE];
+						size_t data_size = std::min<size_t>(sizeof(data_buffer), data_length);
+						size_t value_size = stream->read(data_buffer, data_size).otherwise(0);
+						data_length -= value_size;
+						if (!value_size)
 							break;
 
-						CalculatedHash.append((char*)DataBuffer, ValueSize);
-						CalculatedHash = *Compute::Crypto::HashRaw(Compute::Digests::SHA256(), CalculatedHash);
-						if (ValueSize < DataSize)
+						calculated_hash.append((char*)data_buffer, value_size);
+						calculated_hash = *compute::crypto::hash_raw(compute::digests::SHA256(), calculated_hash);
+						if (value_size < data_size)
 							break;
 					}
 
-					if (DataLength > 0)
-						return ContentException("invalid archive chunk content data: " + Core::String(Path) + " (chunk = " + Core::ToString(CalculatedChunk) + ")");
+					if (data_length > 0)
+						return content_exception("invalid archive chunk content data: " + core::string(path) + " (chunk = " + core::to_string(calculated_chunk) + ")");
 
-					++CalculatedChunk;
+					++calculated_chunk;
 				}
 
-				uint8_t RequestedHash[64] = { 0 };
-				CalculatedHash = Compute::Codec::HexEncode(CalculatedHash);
-				if (Stream->Read(RequestedHash, sizeof(RequestedHash)).Or(0) != sizeof(RequestedHash) || CalculatedHash.size() != sizeof(RequestedHash) || memcmp(RequestedHash, CalculatedHash.c_str(), sizeof(RequestedHash)) != 0)
-					return ContentException("invalid archive checksum: " + Core::String(Path) + " (calculated = " + CalculatedHash + ")");
-				Stream->Seek(Core::FileSeek::Begin, (int64_t)HeadersOffset);
+				uint8_t requested_hash[64] = { 0 };
+				calculated_hash = compute::codec::hex_encode(calculated_hash);
+				if (stream->read(requested_hash, sizeof(requested_hash)).otherwise(0) != sizeof(requested_hash) || calculated_hash.size() != sizeof(requested_hash) || memcmp(requested_hash, calculated_hash.c_str(), sizeof(requested_hash)) != 0)
+					return content_exception("invalid archive checksum: " + core::string(path) + " (calculated = " + calculated_hash + ")");
+				stream->seek(core::file_seek::begin, (int64_t)headers_offset);
 			}
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto& Item : ContentFiles)
+			core::umutex<std::mutex> unique(exclusive);
+			for (auto& item : content_files)
 			{
-				auto It = Archives.find(Item->Path);
-				if (It != Archives.end())
+				auto it = archives.find(item->path);
+				if (it != archives.end())
 				{
-					Core::Memory::Delete(It->second);
-					It->second = Item.Reset();
+					core::memory::deinit(it->second);
+					it->second = item.reset();
 				}
 				else
-					Archives[Item->Path] = Item.Reset();
+					archives[item->path] = item.reset();
 			}
-			Streams[Stream.Reset()] = HeadersOffset;
-			return Core::Expectation::Met;
+			streams[stream.reset()] = headers_offset;
+			return core::expectation::met;
 		}
-		ExpectsContent<void> ContentManager::ExportArchive(const std::string_view& Path, const std::string_view& PhysicalDirectory, const std::string_view& VirtualDirectory)
+		expects_content<void> content_manager::export_archive(const std::string_view& path, const std::string_view& physical_directory, const std::string_view& virtual_directory)
 		{
-			VI_ASSERT(!Path.empty() && !PhysicalDirectory.empty(), "path and directory should not be empty");
-			auto TargetPath = Core::OS::Path::Resolve(Path, Environment, true);
-			if (!TargetPath)
-				return ContentException("cannot resolve archive path: " + Core::String(Path));
+			VI_ASSERT(!path.empty() && !physical_directory.empty(), "path and directory should not be empty");
+			auto target_path = core::os::path::resolve(path, environment, true);
+			if (!target_path)
+				return content_exception("cannot resolve archive path: " + core::string(path));
 
-			auto PhysicalVolume = Core::OS::Path::Resolve(PhysicalDirectory, Environment, true);
-			if (!PhysicalVolume)
-				return ContentException("cannot resolve archive target path: " + Core::String(PhysicalDirectory));
+			auto physical_volume = core::os::path::resolve(physical_directory, environment, true);
+			if (!physical_volume)
+				return content_exception("cannot resolve archive target path: " + core::string(physical_directory));
 
-			size_t PathIndex = TargetPath->find(*PhysicalVolume);
-			if (PathIndex != std::string::npos)
+			size_t path_index = target_path->find(*physical_volume);
+			if (path_index != std::string::npos)
 			{
-				auto Copy = TargetPath->substr(PathIndex + PhysicalVolume->size());
-				if (Copy.empty() || Copy.front() != '.' || Copy.find_first_of("\\/") != std::string::npos)
-					return ContentException("export path overlaps physical directory: " + *TargetPath);
+				auto copy = target_path->substr(path_index + physical_volume->size());
+				if (copy.empty() || copy.front() != '.' || copy.find_first_of("\\/") != std::string::npos)
+					return content_exception("export path overlaps physical directory: " + *target_path);
 			}
 
-			Core::String VirtualVolume = Core::String(VirtualDirectory);
-			Core::Stringify::Replace(VirtualVolume, '\\', '/');
-			while (!VirtualVolume.empty() && VirtualVolume.front() == '/')
-				VirtualVolume.erase(VirtualVolume.begin());
+			core::string virtual_volume = core::string(virtual_directory);
+			core::stringify::replace(virtual_volume, '\\', '/');
+			while (!virtual_volume.empty() && virtual_volume.front() == '/')
+				virtual_volume.erase(virtual_volume.begin());
 
-			Core::UPtr<Core::Stream> Stream = Core::OS::File::Open(*TargetPath, Core::FileMode::Binary_Write_Only).Or(nullptr);
-			if (!Stream)
-				return ContentException("cannot open archive: " + Core::String(Path));
+			core::uptr<core::stream> stream = core::os::file::open(*target_path, core::file_mode::binary_write_only).otherwise(nullptr);
+			if (!stream)
+				return content_exception("cannot open archive: " + core::string(path));
 
-			uint8_t Header[] = CONTENT_ARCHIVE_HEADER_MAGIC;
-			if (Stream->Write(Header, sizeof(Header) - 1).Or(0) != sizeof(Header) - 1)
-				return ContentException("cannot write header: " + *PhysicalVolume);
+			uint8_t header[] = CONTENT_ARCHIVE_HEADER_MAGIC;
+			if (stream->write(header, sizeof(header) - 1).otherwise(0) != sizeof(header) - 1)
+				return content_exception("cannot write header: " + *physical_volume);
 
-			Core::UPtr<Core::FileTree> Scanner = new Core::FileTree(*PhysicalVolume);
-			size_t ContentCount = Scanner->GetFiles();
-			uint64_t ContentElements = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, (uint64_t)ContentCount);
-			if (Stream->Write((uint8_t*)&ContentElements, sizeof(uint64_t)).Or(0) != sizeof(uint64_t) || ContentElements > CONTENT_ARCHIVE_MAX_FILES)
-				return ContentException("too many files: " + *PhysicalVolume);
+			core::uptr<core::file_tree> scanner = new core::file_tree(*physical_volume);
+			size_t content_count = scanner->get_files();
+			uint64_t content_elements = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, (uint64_t)content_count);
+			if (stream->write((uint8_t*)&content_elements, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t) || content_elements > CONTENT_ARCHIVE_MAX_FILES)
+				return content_exception("too many files: " + *physical_volume);
 
-			size_t CalculatedChunk = 0;
-			Core::String CalculatedHash = CONTENT_ARCHIVE_HASH_MAGIC;
-			ExpectsContent<void> ContentError = Core::Expectation::Met;
-			Core::Vector<std::pair<Core::UPtr<Core::Stream>, size_t>> ContentFiles;
-			Core::Stringify::Replace(*PhysicalVolume, '\\', '/');
-			ContentFiles.reserve(ContentCount);	
-			Scanner->Loop([&Stream, &ContentFiles, &ContentError, &PhysicalVolume, &VirtualVolume](const Core::FileTree* Tree) mutable
+			size_t calculated_chunk = 0;
+			core::string calculated_hash = CONTENT_ARCHIVE_HASH_MAGIC;
+			expects_content<void> content_error = core::expectation::met;
+			core::vector<std::pair<core::uptr<core::stream>, size_t>> content_files;
+			core::stringify::replace(*physical_volume, '\\', '/');
+			content_files.reserve(content_count);
+			scanner->loop([&stream, &content_files, &content_error, &physical_volume, &virtual_volume](const core::file_tree* tree) mutable
 			{
-				Core::Stringify::Replace(((Core::FileTree*)Tree)->Path, '\\', '/');
-				for (auto& PhysicalPath : Tree->Files)
+				core::stringify::replace(((core::file_tree*)tree)->path, '\\', '/');
+				for (auto& physical_path : tree->files)
 				{
-					Core::String VirtualPath = Tree->Path + '/' + PhysicalPath;
-					Core::UPtr<Core::Stream> File = Core::OS::File::Open(VirtualPath, Core::FileMode::Binary_Read_Only).Or(nullptr);
-					if (!File)
+					core::string virtual_path = tree->path + '/' + physical_path;
+					core::uptr<core::stream> file = core::os::file::open(virtual_path, core::file_mode::binary_read_only).otherwise(nullptr);
+					if (!file)
 					{
-						ContentError = ContentException("cannot open content path: " + PhysicalPath);
+						content_error = content_exception("cannot open content path: " + physical_path);
 						return false;
 					}
 
-					size_t ContentSize = File->Size().Or(0);
-					uint64_t ContentLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, (uint64_t)ContentSize);
-					if (ContentLength > CONTENT_ARCHIVE_MAX_SIZE || Stream->Write((uint8_t*)&ContentLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
+					size_t content_size = file->size().otherwise(0);
+					uint64_t content_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, (uint64_t)content_size);
+					if (content_length > CONTENT_ARCHIVE_MAX_SIZE || stream->write((uint8_t*)&content_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
 					{
-						ContentError = ContentException("cannot write content length: " + PhysicalPath);
+						content_error = content_exception("cannot write content length: " + physical_path);
 						return false;
 					}
 
-					Core::Stringify::Replace(VirtualPath, *PhysicalVolume, VirtualVolume);
-					Core::Stringify::Replace(VirtualPath, "//", "/");
-					while (VirtualVolume.empty() && !VirtualPath.empty() && VirtualPath.front() == '/')
-						VirtualPath.erase(VirtualPath.begin());
+					core::stringify::replace(virtual_path, *physical_volume, virtual_volume);
+					core::stringify::replace(virtual_path, "//", "/");
+					while (virtual_volume.empty() && !virtual_path.empty() && virtual_path.front() == '/')
+						virtual_path.erase(virtual_path.begin());
 
-					uint64_t PathLength = Core::OS::CPU::ToEndianness<uint64_t>(Core::OS::CPU::Endian::Little, (uint64_t)VirtualPath.size());
-					if (PathLength > CONTENT_ARCHIVE_MAX_PATH || Stream->Write((uint8_t*)&PathLength, sizeof(uint64_t)).Or(0) != sizeof(uint64_t))
+					uint64_t path_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, (uint64_t)virtual_path.size());
+					if (path_length > CONTENT_ARCHIVE_MAX_PATH || stream->write((uint8_t*)&path_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
 					{
-						ContentError = ContentException("cannot write content path length: " + PhysicalPath);
+						content_error = content_exception("cannot write content path length: " + physical_path);
 						return false;
 					}
-					else if (!VirtualPath.empty() && Stream->Write((uint8_t*)VirtualPath.c_str(), sizeof(char) * VirtualPath.size()).Or(0) != VirtualPath.size())
+					else if (!virtual_path.empty() && stream->write((uint8_t*)virtual_path.c_str(), sizeof(char) * virtual_path.size()).otherwise(0) != virtual_path.size())
 					{
-						ContentError = ContentException("cannot write content path data: " + PhysicalPath);
+						content_error = content_exception("cannot write content path data: " + physical_path);
 						return false;
 					}
 
-					ContentFiles.push_back(std::make_pair(*File, ContentSize));
+					content_files.push_back(std::make_pair(*file, content_size));
 				}
 				return true;
 			});
 
-			if (!ContentError)
-				return ContentError;
+			if (!content_error)
+				return content_error;
 
-			for (auto& Item : ContentFiles)
+			for (auto& item : content_files)
 			{
-				size_t DataLength = Item.second;
-				while (DataLength > 0)
+				size_t data_length = item.second;
+				while (data_length > 0)
 				{
-					uint8_t DataBuffer[Core::CHUNK_SIZE];
-					size_t DataSize = std::min<size_t>(sizeof(DataBuffer), DataLength);
-					size_t ValueSize = Item.first->Read(DataBuffer, DataSize).Or(0);
-					DataLength -= ValueSize;
-					if (!ValueSize)
+					uint8_t data_buffer[core::CHUNK_SIZE];
+					size_t data_size = std::min<size_t>(sizeof(data_buffer), data_length);
+					size_t value_size = item.first->read(data_buffer, data_size).otherwise(0);
+					data_length -= value_size;
+					if (!value_size)
 						break;
 
-					if (Stream->Write(DataBuffer, ValueSize).Or(0) != ValueSize)
-						return ContentException("cannot write content data: " + Core::String(Item.first->VirtualName()) + " (chunk = " + Core::ToString(CalculatedChunk) + ")");
+					if (stream->write(data_buffer, value_size).otherwise(0) != value_size)
+						return content_exception("cannot write content data: " + core::string(item.first->virtual_name()) + " (chunk = " + core::to_string(calculated_chunk) + ")");
 
-					CalculatedHash.append((char*)DataBuffer, ValueSize);
-					CalculatedHash = *Compute::Crypto::HashRaw(Compute::Digests::SHA256(), CalculatedHash);
-					if (ValueSize < DataSize)
+					calculated_hash.append((char*)data_buffer, value_size);
+					calculated_hash = *compute::crypto::hash_raw(compute::digests::SHA256(), calculated_hash);
+					if (value_size < data_size)
 						break;
 				}
 
-				if (DataLength > 0)
-					return ContentException("cannot read content data: " + Core::String(Item.first->VirtualName()) + " (chunk = " + Core::ToString(CalculatedChunk) + ")");
+				if (data_length > 0)
+					return content_exception("cannot read content data: " + core::string(item.first->virtual_name()) + " (chunk = " + core::to_string(calculated_chunk) + ")");
 
-				++CalculatedChunk;
+				++calculated_chunk;
 			}
 
-			CalculatedHash = Compute::Codec::HexEncode(CalculatedHash);
-			if (Stream->Write((uint8_t*)CalculatedHash.data(), CalculatedHash.size()).Or(0) != CalculatedHash.size())
-				return ContentException("cannot write archive checksum: " + Core::String(Path) + " (calculated = " + CalculatedHash + ")");
+			calculated_hash = compute::codec::hex_encode(calculated_hash);
+			if (stream->write((uint8_t*)calculated_hash.data(), calculated_hash.size()).otherwise(0) != calculated_hash.size())
+				return content_exception("cannot write archive checksum: " + core::string(path) + " (calculated = " + calculated_hash + ")");
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		ExpectsContent<void*> ContentManager::LoadFromArchive(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Map)
+		expects_content<void*> content_manager::load_from_archive(processor* processor, const std::string_view& path, const core::variant_args& map)
 		{
-			Core::String File(Path);
-			Core::Stringify::Replace(File, '\\', '/');
-			Core::Stringify::Replace(File, "./", "");
+			core::string file(path);
+			core::stringify::replace(file, '\\', '/');
+			core::stringify::replace(file, "./", "");
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto Archive = Archives.find(File);
-			if (Archive == Archives.end() || !Archive->second || !Archive->second->Stream)
+			core::umutex<std::mutex> unique(exclusive);
+			auto archive = archives.find(file);
+			if (archive == archives.end() || !archive->second || !archive->second->stream)
 			{
-				VI_TRACE("[content] archive was not found: %.*s", (int)Path.size(), Path.data());
-				return ContentException("archive was not found: " + Core::String(Path));
+				VI_TRACE("[content] archive was not found: %.*s", (int)path.size(), path.data());
+				return content_exception("archive was not found: " + core::string(path));
 			}
 
-			Unique.Negate();
+			unique.negate();
 			{
-				AssetCache* Asset = FindCache(Processor, File);
-				if (Asset != nullptr)
+				asset_cache* asset = find_cache(processor, file);
+				if (asset != nullptr)
 				{
-					VI_TRACE("[content] load archived %.*s: cached", (int)Path.size(), Path.data());
-					return Processor->Duplicate(Asset, Map);
+					VI_TRACE("[content] load archived %.*s: cached", (int)path.size(), path.data());
+					return processor->duplicate(asset, map);
 				}
 			}
-			Unique.Negate();
+			unique.negate();
 
-			auto It = Streams.find(Archive->second->Stream);
-			if (It == Streams.end())
-				return ContentException("archived content does not contain: " + Core::String(Path));
+			auto it = streams.find(archive->second->stream);
+			if (it == streams.end())
+				return content_exception("archived content does not contain: " + core::string(path));
 
-			auto* Stream = Archive->second->Stream;
-			Stream->SetVirtualName(File);
-			Stream->SetVirtualSize(Archive->second->Length);
-			Stream->Seek(Core::FileSeek::Begin, It->second + Archive->second->Offset);
-			Unique.Negate();
+			auto* stream = archive->second->stream;
+			stream->set_virtual_name(file);
+			stream->set_virtual_size(archive->second->length);
+			stream->seek(core::file_seek::begin, it->second + archive->second->offset);
+			unique.negate();
 
-			VI_TRACE("[content] load archived: %.*s", (int)Path.size(), Path.data());
-			return Processor->Deserialize(Stream, It->second + Archive->second->Offset, Map);
+			VI_TRACE("[content] load archived: %.*s", (int)path.size(), path.data());
+			return processor->deserialize(stream, it->second + archive->second->offset, map);
 		}
-		ExpectsContent<void*> ContentManager::Load(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Map)
+		expects_content<void*> content_manager::load(processor* processor, const std::string_view& path, const core::variant_args& map)
 		{
-			if (Path.empty())
+			if (path.empty())
 			{
 				VI_TRACE("[content] load from archive: no path provided");
-				return ContentException("content path is empty");
+				return content_exception("content path is empty");
 			}
 
-			if (!Processor)
-				return ContentException("content processor was not found: " + Core::String(Path));
+			if (!processor)
+				return content_exception("content processor was not found: " + core::string(path));
 
-			auto Object = LoadFromArchive(Processor, Path, Map);
-			if (Object && *Object != nullptr)
+			auto object = load_from_archive(processor, path, map);
+			if (object && *object != nullptr)
 			{
-				VI_TRACE("[content] load from archive %.*s: OK", (int)Path.size(), Path.data());
-				return Object;
+				VI_TRACE("[content] load from archive %.*s: OK", (int)path.size(), path.data());
+				return object;
 			}
 
-			Core::String File = Core::String(Path);
-			if (!Core::OS::Path::IsRemote(File.c_str()))
+			core::string file = core::string(path);
+			if (!core::os::path::is_remote(file.c_str()))
 			{
-				auto Subfile = Core::OS::Path::Resolve(File, Environment, true);
-				if (Subfile && Core::OS::File::IsExists(Subfile->c_str()))
+				auto subfile = core::os::path::resolve(file, environment, true);
+				if (subfile && core::os::file::is_exists(subfile->c_str()))
 				{
-					File = *Subfile;
-					auto Subtarget = Environment + File;
-					auto Subpath = Core::OS::Path::Resolve(Subtarget.c_str());
-					if (Subpath && Core::OS::File::IsExists(Subpath->c_str()))
-						File = *Subpath;
+					file = *subfile;
+					auto subtarget = environment + file;
+					auto subpath = core::os::path::resolve(subtarget.c_str());
+					if (subpath && core::os::file::is_exists(subpath->c_str()))
+						file = *subpath;
 				}
 
-				if (File.empty())
-					return ContentException("content was not found: " + Core::String(Path));
+				if (file.empty())
+					return content_exception("content was not found: " + core::string(path));
 			}
 
-			AssetCache* Asset = FindCache(Processor, File);
-			if (Asset != nullptr)
+			asset_cache* asset = find_cache(processor, file);
+			if (asset != nullptr)
 			{
-				VI_TRACE("[content] load from archive %.*s: cached", (int)Path.size(), Path.data());
-				return Processor->Duplicate(Asset, Map);
+				VI_TRACE("[content] load from archive %.*s: cached", (int)path.size(), path.data());
+				return processor->duplicate(asset, map);
 			}
 
-			Core::UPtr<Core::Stream> Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only).Or(nullptr);
-			if (!Stream)
+			core::uptr<core::stream> stream = core::os::file::open(file, core::file_mode::binary_read_only).otherwise(nullptr);
+			if (!stream)
 			{
-				VI_TRACE("[content] load from archive %.*s: non-existant", (int)Path.size(), Path.data());
-				return ContentException("content was not found: " + Core::String(Path));
+				VI_TRACE("[content] load from archive %.*s: non-existant", (int)path.size(), path.data());
+				return content_exception("content was not found: " + core::string(path));
 			}
 
-			Object = Processor->Deserialize(*Stream, 0, Map);
-			VI_TRACE("[content] load from archive %.*s: %s", (int)Path.size(), Path.data(), Object ? "OK" : Object.Error().what());
-			return Object;
+			object = processor->deserialize(*stream, 0, map);
+			VI_TRACE("[content] load from archive %.*s: %s", (int)path.size(), path.data(), object ? "OK" : object.error().what());
+			return object;
 		}
-		ExpectsContent<void> ContentManager::Save(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Map)
+		expects_content<void> content_manager::save(processor* processor, const std::string_view& path, void* object, const core::variant_args& map)
 		{
-			VI_ASSERT(Object != nullptr, "object should be set");
-			if (Path.empty())
+			VI_ASSERT(object != nullptr, "object should be set");
+			if (path.empty())
 			{
 				VI_TRACE("[content] save forward: no path provided");
-				return ContentException("content path is empty");
+				return content_exception("content path is empty");
 			}
 
-			if (!Processor)
-				return ContentException("content processor was not found: " + Core::String(Path));
+			if (!processor)
+				return content_exception("content processor was not found: " + core::string(path));
 
-			Core::String Directory = Core::OS::Path::GetDirectory(Path);
-			auto File = Core::OS::Path::Resolve(Directory, Environment, true);
-			if (!File)
-				return ContentException("cannot resolve saving path: " + Core::String(Path));
+			core::string directory = core::os::path::get_directory(path);
+			auto file = core::os::path::resolve(directory, environment, true);
+			if (!file)
+				return content_exception("cannot resolve saving path: " + core::string(path));
 
-			Core::String Target = *File;
-			Target.append(Path.substr(Directory.size()));
+			core::string target = *file;
+			target.append(path.substr(directory.size()));
 
-			if (!Target.empty())
-				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Target.c_str()));
+			if (!target.empty())
+				core::os::directory::patch(core::os::path::get_directory(target.c_str()));
 			else
-				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Path));
+				core::os::directory::patch(core::os::path::get_directory(path));
 
-			Core::UPtr<Core::Stream> Stream = Core::OS::File::Open(Target, Core::FileMode::Binary_Write_Only).Or(nullptr);
-			if (!Stream)
+			core::uptr<core::stream> stream = core::os::file::open(target, core::file_mode::binary_write_only).otherwise(nullptr);
+			if (!stream)
 			{
-				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only).Or(nullptr);
-				if (!Stream)
-					return ContentException("cannot open saving stream: " + Core::String(Path) + " or " + Target);
+				stream = core::os::file::open(path, core::file_mode::binary_write_only).otherwise(nullptr);
+				if (!stream)
+					return content_exception("cannot open saving stream: " + core::string(path) + " or " + target);
 			}
 
-			auto Result = Processor->Serialize(*Stream, Object, Map);
-			VI_TRACE("[content] save forward %.*s: %s", (int)Path.size(), Path.data(), Result ? "OK" : Result.Error().what());
-			return Result;
+			auto result = processor->serialize(*stream, object, map);
+			VI_TRACE("[content] save forward %.*s: %s", (int)path.size(), path.data(), result ? "OK" : result.error().what());
+			return result;
 		}
-		ExpectsPromiseContent<void*> ContentManager::LoadDeferred(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys)
+		expects_promise_content<void*> content_manager::load_deferred(processor* processor, const std::string_view& path, const core::variant_args& keys)
 		{
-			Enqueue();
-			Core::String TargetPath = Core::String(Path);
-			return Core::Cotask<ExpectsContent<void*>>([this, Processor, TargetPath, Keys]()
+			enqueue();
+			core::string target_path = core::string(path);
+			return core::cotask<expects_content<void*>>([this, processor, target_path, keys]()
 			{
-				auto Result = Load(Processor, TargetPath, Keys);
-				Dequeue();
-				return Result;
+				auto result = load(processor, target_path, keys);
+				dequeue();
+				return result;
 			});
 		}
-		ExpectsPromiseContent<void> ContentManager::SaveDeferred(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys)
+		expects_promise_content<void> content_manager::save_deferred(processor* processor, const std::string_view& path, void* object, const core::variant_args& keys)
 		{
-			Enqueue();
-			Core::String TargetPath = Core::String(Path);
-			return Core::Cotask<ExpectsContent<void>>([this, Processor, TargetPath, Object, Keys]()
+			enqueue();
+			core::string target_path = core::string(path);
+			return core::cotask<expects_content<void>>([this, processor, target_path, object, keys]()
 			{
-				auto Result = Save(Processor, TargetPath, Object, Keys);
-				Dequeue();
-				return Result;
+				auto result = save(processor, target_path, object, keys);
+				dequeue();
+				return result;
 			});
 		}
-		Processor* ContentManager::AddProcessor(Processor* Value, uint64_t Id)
+		processor* content_manager::add_processor(processor* value, uint64_t id)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Processors.find(Id);
-			if (It != Processors.end())
+			core::umutex<std::mutex> unique(exclusive);
+			auto it = processors.find(id);
+			if (it != processors.end())
 			{
-				Core::Memory::Release(It->second);
-				It->second = Value;
+				core::memory::release(it->second);
+				it->second = value;
 			}
 			else
-				Processors[Id] = Value;
+				processors[id] = value;
 
-			return Value;
+			return value;
 		}
-		Processor* ContentManager::GetProcessor(uint64_t Id)
+		processor* content_manager::get_processor(uint64_t id)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Processors.find(Id);
-			if (It != Processors.end())
-				return It->second;
+			core::umutex<std::mutex> unique(exclusive);
+			auto it = processors.find(id);
+			if (it != processors.end())
+				return it->second;
 
 			return nullptr;
 		}
-		bool ContentManager::RemoveProcessor(uint64_t Id)
+		bool content_manager::remove_processor(uint64_t id)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Processors.find(Id);
-			if (It == Processors.end())
+			core::umutex<std::mutex> unique(exclusive);
+			auto it = processors.find(id);
+			if (it == processors.end())
 				return false;
 
-			Core::Memory::Release(It->second);
-			Processors.erase(It);
+			core::memory::release(it->second);
+			processors.erase(it);
 			return true;
 		}
-		void* ContentManager::TryToCache(Processor* Root, const std::string_view& Path, void* Resource)
+		void* content_manager::try_to_cache(processor* root, const std::string_view& path, void* resource)
 		{
-			VI_TRACE("[content] save 0x%" PRIXPTR " to cache", Resource);
-			Core::String Target = Core::String(Path);
-			Core::Stringify::Replace(Target, '\\', '/');
-			Core::Stringify::Replace(Target, Environment, "./");		
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto& Entries = Assets[Target];
-			auto& Entry = Entries[Root];
-			if (Entry != nullptr)
-				return Entry->Resource;
+			VI_TRACE("[content] save 0x%" PRIXPTR " to cache", resource);
+			core::string target = core::string(path);
+			core::stringify::replace(target, '\\', '/');
+			core::stringify::replace(target, environment, "./");
+			core::umutex<std::mutex> unique(exclusive);
+			auto& entries = assets[target];
+			auto& entry = entries[root];
+			if (entry != nullptr)
+				return entry->resource;
 
-			AssetCache* Asset = Core::Memory::New<AssetCache>();
-			Asset->Path = Target;
-			Asset->Resource = Resource;
-			Entry = Asset;
+			asset_cache* asset = core::memory::init<asset_cache>();
+			asset->path = target;
+			asset->resource = resource;
+			entry = asset;
 			return nullptr;
 		}
-		bool ContentManager::IsBusy()
+		bool content_manager::is_busy()
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			return Queue > 0;
+			core::umutex<std::mutex> unique(exclusive);
+			return queue > 0;
 		}
-		void ContentManager::Enqueue()
+		void content_manager::enqueue()
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			++Queue;
+			core::umutex<std::mutex> unique(exclusive);
+			++queue;
 		}
-		void ContentManager::Dequeue()
+		void content_manager::dequeue()
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			--Queue;
+			core::umutex<std::mutex> unique(exclusive);
+			--queue;
 		}
-		const Core::UnorderedMap<uint64_t, Processor*>& ContentManager::GetProcessors() const
+		const core::unordered_map<uint64_t, processor*>& content_manager::get_processors() const
 		{
-			return Processors;
+			return processors;
 		}
-		AssetCache* ContentManager::FindCache(Processor* Target, const std::string_view& Path)
+		asset_cache* content_manager::find_cache(processor* target, const std::string_view& path)
 		{
-			if (Path.empty())
+			if (path.empty())
 				return nullptr;
 
-			Core::String RelPath = Core::String(Path);
-			Core::Stringify::Replace(RelPath, '\\', '/');
-			Core::Stringify::Replace(RelPath, Environment, "./");
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			auto It = Assets.find(RelPath);
-			if (It != Assets.end())
+			core::string rel_path = core::string(path);
+			core::stringify::replace(rel_path, '\\', '/');
+			core::stringify::replace(rel_path, environment, "./");
+			core::umutex<std::mutex> unique(exclusive);
+			auto it = assets.find(rel_path);
+			if (it != assets.end())
 			{
-				auto KIt = It->second.find(Target);
-				if (KIt != It->second.end())
-					return KIt->second;
+				auto kit = it->second.find(target);
+				if (kit != it->second.end())
+					return kit->second;
 			}
 
 			return nullptr;
 		}
-		AssetCache* ContentManager::FindCache(Processor* Target, void* Resource)
+		asset_cache* content_manager::find_cache(processor* target, void* resource)
 		{
-			if (!Resource)
+			if (!resource)
 				return nullptr;
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			for (auto& It : Assets)
+			core::umutex<std::mutex> unique(exclusive);
+			for (auto& it : assets)
 			{
-				auto KIt = It.second.find(Target);
-				if (KIt == It.second.end())
+				auto kit = it.second.find(target);
+				if (kit == it.second.end())
 					continue;
 
-				if (KIt->second && KIt->second->Resource == Resource)
-					return KIt->second;
+				if (kit->second && kit->second->resource == resource)
+					return kit->second;
 			}
 
 			return nullptr;
 		}
-		const Core::String& ContentManager::GetEnvironment() const
+		const core::string& content_manager::get_environment() const
 		{
-			return Environment;
+			return environment;
 		}
 
-		AppData::AppData(ContentManager* Manager, const std::string_view& NewPath) noexcept : Content(Manager), Data(nullptr)
+		app_data::app_data(content_manager* manager, const std::string_view& new_path) noexcept : content(manager), data(nullptr)
 		{
-			VI_ASSERT(Manager != nullptr, "content manager should be set");
-			Migrate(NewPath);
+			VI_ASSERT(manager != nullptr, "content manager should be set");
+			migrate(new_path);
 		}
-		AppData::~AppData() noexcept
+		app_data::~app_data() noexcept
 		{
-			Core::Memory::Release(Data);
+			core::memory::release(data);
 		}
-		void AppData::Migrate(const std::string_view& Next)
+		void app_data::migrate(const std::string_view& next)
 		{
-			VI_ASSERT(!Next.empty(), "path should not be empty");
-			VI_TRACE("[appd] migrate %s to %.*s", Path.c_str(), (int)Next.size(), Next.data());
+			VI_ASSERT(!next.empty(), "path should not be empty");
+			VI_TRACE("[appd] migrate %s to %.*s", path.c_str(), (int)next.size(), next.data());
 
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			if (Data != nullptr)
+			core::umutex<std::mutex> unique(exclusive);
+			if (data != nullptr)
 			{
-				if (!Path.empty())
-					Core::OS::File::Remove(Path.c_str());
-				WriteAppData(Next);
+				if (!path.empty())
+					core::os::file::remove(path.c_str());
+				write_app_data(next);
 			}
 			else
-				ReadAppData(Next);
-			Path = Next;
+				read_app_data(next);
+			path = next;
 		}
-		void AppData::SetKey(const std::string_view& Name, Core::Schema* Value)
+		void app_data::set_key(const std::string_view& name, core::schema* value)
 		{
-			VI_TRACE("[appd] apply %.*s = %s", (int)Name.size(), Name.data(), Value ? Core::Schema::ToJSON(Value).c_str() : "NULL");
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			if (!Data)
-				Data = Core::Var::Set::Object();
-			Data->Set(Name, Value);
-			WriteAppData(Path);
+			VI_TRACE("[appd] apply %.*s = %s", (int)name.size(), name.data(), value ? core::schema::to_json(value).c_str() : "NULL");
+			core::umutex<std::mutex> unique(exclusive);
+			if (!data)
+				data = core::var::set::object();
+			data->set(name, value);
+			write_app_data(path);
 		}
-		void AppData::SetText(const std::string_view& Name, const std::string_view& Value)
+		void app_data::set_text(const std::string_view& name, const std::string_view& value)
 		{
-			SetKey(Name, Core::Var::Set::String(Value));
+			set_key(name, core::var::set::string(value));
 		}
-		Core::Schema* AppData::GetKey(const std::string_view& Name)
+		core::schema* app_data::get_key(const std::string_view& name)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			if (!ReadAppData(Path))
+			core::umutex<std::mutex> unique(exclusive);
+			if (!read_app_data(path))
 				return nullptr;
 
-			Core::Schema* Result = Data->Get(Name);
-			if (Result != nullptr)
-				Result = Result->Copy();
-			return Result;
+			core::schema* result = data->get(name);
+			if (result != nullptr)
+				result = result->copy();
+			return result;
 		}
-		Core::String AppData::GetText(const std::string_view& Name)
+		core::string app_data::get_text(const std::string_view& name)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			if (!ReadAppData(Path))
-				return Core::String();
+			core::umutex<std::mutex> unique(exclusive);
+			if (!read_app_data(path))
+				return core::string();
 
-			return Data->GetVar(Name).GetBlob();
+			return data->get_var(name).get_blob();
 		}
-		bool AppData::Has(const std::string_view& Name)
+		bool app_data::has(const std::string_view& name)
 		{
-			Core::UMutex<std::mutex> Unique(Exclusive);
-			if (!ReadAppData(Path))
+			core::umutex<std::mutex> unique(exclusive);
+			if (!read_app_data(path))
 				return false;
 
-			return Data->Has(Name);
+			return data->has(name);
 		}
-		bool AppData::ReadAppData(const std::string_view& Next)
+		bool app_data::read_app_data(const std::string_view& next)
 		{
-			if (Data != nullptr)
+			if (data != nullptr)
 				return true;
 
-			if (Next.empty())
+			if (next.empty())
 				return false;
 
-			Data = Content->Load<Core::Schema>(Next).Or(nullptr);
-			return Data != nullptr;
+			data = content->load<core::schema>(next).otherwise(nullptr);
+			return data != nullptr;
 		}
-		bool AppData::WriteAppData(const std::string_view& Next)
+		bool app_data::write_app_data(const std::string_view& next)
 		{
-			if (Next.empty() || !Data)
+			if (next.empty() || !data)
 				return false;
 
-			Core::String Type = "JSONB";
-			auto TypeId = Core::OS::Path::GetExtension(Next);
-			if (!TypeId.empty())
+			core::string type = "JSONB";
+			auto type_id = core::os::path::get_extension(next);
+			if (!type_id.empty())
 			{
-				Type.assign(TypeId);
-				Core::Stringify::ToUpper(Type);
-				if (Type != "JSON" && Type != "JSONB" && Type != "XML")
-					Type = "JSONB";
+				type.assign(type_id);
+				core::stringify::to_upper(type);
+				if (type != "JSON" && type != "JSONB" && type != "XML")
+					type = "JSONB";
 			}
 
-			Core::VariantArgs Args;
-			Args["type"] = Core::Var::String(Type);
+			core::variant_args args;
+			args["type"] = core::var::string(type);
 
-			return !!Content->Save<Core::Schema>(Next, Data, Args);
+			return !!content->save<core::schema>(next, data, args);
 		}
-		Core::Schema* AppData::GetSnapshot() const
+		core::schema* app_data::get_snapshot() const
 		{
-			return Data;
+			return data;
 		}
 
-		Application::Application(Desc* I) noexcept : Control(I ? *I : Desc())
+		application::application(desc* i) noexcept : control(i ? *i : desc())
 		{
-			VI_ASSERT(I != nullptr, "desc should be set");
-			State = ApplicationState::Staging;
+			VI_ASSERT(i != nullptr, "desc should be set");
+			state = application_state::staging;
 		}
-		Application::~Application() noexcept
+		application::~application() noexcept
 		{
-			Core::Memory::Release(VM);
-			Core::Memory::Release(Content);
-			Core::Memory::Release(Clock);
-			Application::UnlinkInstance(this);
-			Vitex::Runtime::CleanupInstances();
+			core::memory::release(vm);
+			core::memory::release(content);
+			core::memory::release(clock);
+			application::unlink_instance(this);
+			vitex::runtime::cleanup_instances();
 		}
-		Core::Promise<void> Application::Startup()
+		core::promise<void> application::startup()
 		{
-			return Core::Promise<void>::Null();
+			return core::promise<void>::null();
 		}
-		Core::Promise<void> Application::Shutdown()
+		core::promise<void> application::shutdown()
 		{
-			return Core::Promise<void>::Null();
+			return core::promise<void>::null();
 		}
-		void Application::ScriptHook()
-		{
-		}
-		void Application::Composition()
+		void application::script_hook()
 		{
 		}
-		void Application::Dispatch(Core::Timer* Time)
+		void application::composition()
 		{
 		}
-		void Application::Publish(Core::Timer* Time)
+		void application::dispatch(core::timer* time)
 		{
 		}
-		void Application::Initialize()
+		void application::publish(core::timer* time)
 		{
 		}
-		void Application::LoopTrigger()
+		void application::initialize()
 		{
-			VI_MEASURE(Core::Timings::Infinite);
-			Core::Schedule::Desc& Policy = Control.Scheduler;
-			Core::Schedule* Queue = Core::Schedule::Get();
-			if (Policy.Parallel)
+		}
+		void application::loop_trigger()
+		{
+			VI_MEASURE(core::timings::infinite);
+			core::schedule::desc& policy = control.scheduler;
+			core::schedule* queue = core::schedule::get();
+			if (policy.parallel)
 			{
-				while (State == ApplicationState::Active)
+				while (state == application_state::active)
 				{
-					Clock->Begin();
-					Dispatch(Clock);
+					clock->begin();
+					dispatch(clock);
 
-					Clock->Finish();
-					Publish(Clock);
+					clock->finish();
+					publish(clock);
 				}
 
-				while (Content && Content->IsBusy())
+				while (content && content->is_busy())
 					std::this_thread::sleep_for(std::chrono::milliseconds(CONTENT_BLOCKED_WAIT_MS));
 			}
 			else
 			{
-				while (State == ApplicationState::Active)
+				while (state == application_state::active)
 				{
-					Queue->Dispatch();
-					Clock->Begin();
-					Dispatch(Clock);
+					queue->dispatch();
+					clock->begin();
+					dispatch(clock);
 
-					Clock->Finish();
-					Publish(Clock);
+					clock->finish();
+					publish(clock);
 				}
 			}
 		}
-		int Application::Start()
+		int application::start()
 		{
-			Composition();
-			if (Control.Usage & (size_t)USE_PROCESSING)
+			composition();
+			if (control.usage & (size_t)USE_PROCESSING)
 			{
-				if (!Content)
-					Content = new ContentManager();
+				if (!content)
+					content = new content_manager();
 
-				Content->AddProcessor<Processors::AssetProcessor, AssetFile>();
-				Content->AddProcessor<Processors::SchemaProcessor, Core::Schema>();
-				Content->AddProcessor<Processors::ServerProcessor, Network::HTTP::Server>();
-				if (Control.Environment.empty())
+				content->add_processor<processors::asset_processor, asset_file>();
+				content->add_processor<processors::schema_processor, core::schema>();
+				content->add_processor<processors::server_processor, network::http::server>();
+				if (control.environment.empty())
 				{
-					auto Directory = Core::OS::Directory::GetWorking();
-					if (Directory)
-						Content->SetEnvironment(*Directory + Control.Directory);
+					auto directory = core::os::directory::get_working();
+					if (directory)
+						content->set_environment(*directory + control.directory);
 				}
 				else
-					Content->SetEnvironment(Control.Environment + Control.Directory);
-				
-				if (!Control.Preferences.empty() && !Database)
+					content->set_environment(control.environment + control.directory);
+
+				if (!control.preferences.empty() && !database)
 				{
-					auto Path = Core::OS::Path::Resolve(Control.Preferences, Content->GetEnvironment(), true);
-					Database = new AppData(Content, Path ? *Path : Control.Preferences);
+					auto path = core::os::path::resolve(control.preferences, content->get_environment(), true);
+					database = new app_data(content, path ? *path : control.preferences);
 				}
 			}
 
-			if (Control.Usage & (size_t)USE_SCRIPTING && !VM)
-				VM = new Scripting::VirtualMachine();
+			if (control.usage & (size_t)USE_SCRIPTING && !vm)
+				vm = new scripting::virtual_machine();
 
-			Clock = new Core::Timer();
-			Clock->SetFixedFrames(Control.Refreshrate.Stable);
-			Clock->SetMaxFrames(Control.Refreshrate.Limit);
+			clock = new core::timer();
+			clock->set_fixed_frames(control.refreshrate.stable);
+			clock->set_max_frames(control.refreshrate.limit);
 
-			if (Control.Usage & (size_t)USE_NETWORKING)
+			if (control.usage & (size_t)USE_NETWORKING)
 			{
-				if (Network::Multiplexer::HasInstance())
-					Network::Multiplexer::Get()->Rescale(Control.PollingTimeout, Control.PollingEvents);
+				if (network::multiplexer::has_instance())
+					network::multiplexer::get()->rescale(control.polling_timeout, control.polling_events);
 				else
-					new Network::Multiplexer(Control.PollingTimeout, Control.PollingEvents);
+					new network::multiplexer(control.polling_timeout, control.polling_events);
 			}
 
-			if (Control.Usage & (size_t)USE_SCRIPTING)
-				ScriptHook();
+			if (control.usage & (size_t)USE_SCRIPTING)
+				script_hook();
 
-			Initialize();
-			if (State == ApplicationState::Terminated)
-				return ExitCode != 0 ? ExitCode : EXIT_JUMP + 6;
+			initialize();
+			if (state == application_state::terminated)
+				return exit_code != 0 ? exit_code : EXIT_JUMP + 6;
 
-			State = ApplicationState::Active;
-			Core::Schedule::Desc& Policy = Control.Scheduler;
-			Policy.Initialize = [this](Core::TaskCallback&& Callback) { this->Startup().When(std::move(Callback)); };
-			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
+			state = application_state::active;
+			core::schedule::desc& policy = control.scheduler;
+			policy.initialize = [this](core::task_callback&& callback) { this->startup().when(std::move(callback)); };
+			policy.ping = control.daemon ? std::bind(&application::status, this) : (core::activity_callback)nullptr;
 
-			if (Control.Threads > 0)
+			if (control.threads > 0)
 			{
-				Core::Schedule::Desc Launch = Core::Schedule::Desc(Control.Threads);
-				memcpy(Policy.Threads, Launch.Threads, sizeof(Policy.Threads));
+				core::schedule::desc launch = core::schedule::desc(control.threads);
+				memcpy(policy.threads, launch.threads, sizeof(policy.threads));
 			}
 
-			auto* Queue = Core::Schedule::Get();
-			Queue->Start(Policy);
-			Clock->Reset();
-			LoopTrigger();
-			Shutdown().Wait();
-			Queue->Stop();
+			auto* queue = core::schedule::get();
+			queue->start(policy);
+			clock->reset();
+			loop_trigger();
+			shutdown().wait();
+			queue->stop();
 
-			ExitCode = (State == ApplicationState::Restart ? EXIT_RESTART : ExitCode);
-			State = ApplicationState::Terminated;
-			return ExitCode;
+			exit_code = (state == application_state::restart ? EXIT_RESTART : exit_code);
+			state = application_state::terminated;
+			return exit_code;
 		}
-		void Application::Stop(int Code)
+		void application::stop(int code)
 		{
-			Core::Schedule* Queue = Core::Schedule::Get();
-			State = ApplicationState::Terminated;
-			ExitCode = Code;
-			Queue->Wakeup();
+			core::schedule* queue = core::schedule::get();
+			state = application_state::terminated;
+			exit_code = code;
+			queue->wakeup();
 		}
-		void Application::Restart()
+		void application::restart()
 		{
-			Core::Schedule* Queue = Core::Schedule::Get();
-			State = ApplicationState::Restart;
-			Queue->Wakeup();
+			core::schedule* queue = core::schedule::get();
+			state = application_state::restart;
+			queue->wakeup();
 		}
-		ApplicationState Application::GetState() const
+		application_state application::get_state() const
 		{
-			return State;
+			return state;
 		}
-		bool Application::Status(Application* App)
+		bool application::status(application* app)
 		{
-			return App->State == ApplicationState::Active;
+			return app->state == application_state::active;
 		}
 	}
 }

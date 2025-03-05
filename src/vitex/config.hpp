@@ -10,10 +10,10 @@
 #endif
 #ifdef VI_FCONTEXT
 #define VI_COCALL
-#define VI_CODATA void* Context
+#define VI_CODATA void* context
 #else
 #define VI_COCALL __stdcall
-#define VI_CODATA void* Context
+#define VI_CODATA void* context
 #endif
 typedef size_t socket_t;
 typedef int socket_size_t;
@@ -30,12 +30,12 @@ typedef void* epoll_handle;
 #endif
 #ifdef VI_FCONTEXT
 #define VI_COCALL
-#define VI_CODATA void* Context
+#define VI_CODATA void* context
 #else
 #define VI_COCALL
-#define VI_CODATA int X, int Y
+#define VI_CODATA int x, int y
 #endif
-#include <TargetConditionals.h>
+#include <target_conditionals.h>
 #if TARGET_IPHONE_SIMULATOR == 1 || TARGET_OS_IPHONE == 1
 #define VI_IOS 1
 #elif TARGET_OS_MAC == 1
@@ -65,10 +65,10 @@ typedef socklen_t socket_size_t;
 #endif
 #ifdef VI_FCONTEXT
 #define VI_COCALL
-#define VI_CODATA void* Context
+#define VI_CODATA void* context
 #else
 #define VI_COCALL
-#define VI_CODATA int X, int Y
+#define VI_CODATA int x, int y
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -98,74 +98,74 @@ typedef socklen_t socket_size_t;
 #endif
 #ifdef VI_MICROSOFT
 #include <execution>
-#define VI_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
+#define VI_SORT(begin, end, comparator) std::sort(std::execution::par_unseq, begin, end, comparator)
 #else
-#define VI_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
+#define VI_SORT(begin, end, comparator) std::sort(begin, end, comparator)
 #endif
 #ifdef NDEBUG
 #ifdef VI_PESSIMISTIC
-#define VI_ASSERT(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Panic(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
+#define VI_ASSERT(condition, format, ...) if (!(condition)) { vitex::core::error_handling::panic(__LINE__, __FILE__, __func__, #condition, format, ##__VA_ARGS__); }
 #else
-#define VI_ASSERT(Condition, Format, ...) ((void)0)
+#define VI_ASSERT(condition, format, ...) ((void)0)
 #endif
-#define VI_MEASURE(Threshold) ((void)0)
+#define VI_MEASURE(threshold) ((void)0)
 #define VI_MEASURE_LOOP() ((void)0)
-#define VI_WATCH(Ptr, Label) ((void)0)
-#define VI_WATCH_AT(Ptr, Function, Label) ((void)0)
-#define VI_UNWATCH(Ptr) ((void)0)
+#define VI_WATCH(ptr, label) ((void)0)
+#define VI_WATCH_AT(ptr, function, label) ((void)0)
+#define VI_UNWATCH(ptr) ((void)0)
 #ifndef VI_CXX20
-#define VI_AWAIT(Value) Vitex::Core::Coawait(Value)
+#define VI_AWAIT(value) vitex::core::coawait(value)
 #endif
 #else
-#define VI_ASSERT(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Assert(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
-#define VI_MEASURE_START(X) _measure_line_##X
-#define VI_MEASURE_PREPARE(X) VI_MEASURE_START(X)
-#define VI_MEASURE(Threshold) auto VI_MEASURE_PREPARE(__LINE__) = Vitex::Core::ErrorHandling::Measure(__FILE__, __func__, __LINE__, (uint64_t)(Threshold))
-#define VI_MEASURE_LOOP() Vitex::Core::ErrorHandling::MeasureLoop()
-#define VI_WATCH(Ptr, Label) Vitex::Core::Memory::Watch(Ptr, Vitex::Core::MemoryLocation(__FILE__, __func__, Label, __LINE__))
-#define VI_WATCH_AT(Ptr, Function, Label) Vitex::Core::Memory::Watch(Ptr, Vitex::Core::MemoryLocation(__FILE__, Function, Label, __LINE__))
-#define VI_UNWATCH(Ptr) Vitex::Core::Memory::Unwatch(Ptr)
+#define VI_ASSERT(condition, format, ...) if (!(condition)) { vitex::core::error_handling::assertion(__LINE__, __FILE__, __func__, #condition, format, ##__VA_ARGS__); }
+#define VI_MEASURE_START(x) _measure_line_##x
+#define VI_MEASURE_PREPARE(x) VI_MEASURE_START(x)
+#define VI_MEASURE(threshold) auto VI_MEASURE_PREPARE(__LINE__) = vitex::core::error_handling::measure(__FILE__, __func__, __LINE__, (uint64_t)(threshold))
+#define VI_MEASURE_LOOP() vitex::core::error_handling::measure_loop()
+#define VI_WATCH(ptr, label) vitex::core::memory::watch(ptr, vitex::core::memory_location(__FILE__, __func__, label, __LINE__))
+#define VI_WATCH_AT(ptr, function, label) vitex::core::memory::watch(ptr, vitex::core::memory_location(__FILE__, function, label, __LINE__))
+#define VI_UNWATCH(ptr) vitex::core::memory::unwatch(ptr)
 #ifndef VI_CXX20
-#define VI_AWAIT(Value) Vitex::Core::Coawait(Value, __func__, #Value)
+#define VI_AWAIT(value) vitex::core::coawait(value, __func__, #value)
 #endif
 #endif
 #if VI_DLEVEL >= 5
-#define VI_TRACE(Format, ...) Vitex::Core::ErrorHandling::Message(Vitex::Core::LogLevel::Trace, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define VI_TRACE(format, ...) vitex::core::error_handling::message(vitex::core::log_level::trace, __LINE__, __FILE__, format, ##__VA_ARGS__)
 #else
-#define VI_TRACE(Format, ...) ((void)0)
+#define VI_TRACE(format, ...) ((void)0)
 #endif
 #if VI_DLEVEL >= 4
-#define VI_DEBUG(Format, ...) Vitex::Core::ErrorHandling::Message(Vitex::Core::LogLevel::Debug, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define VI_DEBUG(format, ...) vitex::core::error_handling::message(vitex::core::log_level::debug, __LINE__, __FILE__, format, ##__VA_ARGS__)
 #else
-#define VI_DEBUG(Format, ...) ((void)0)
+#define VI_DEBUG(format, ...) ((void)0)
 #endif
 #if VI_DLEVEL >= 3
-#define VI_INFO(Format, ...) Vitex::Core::ErrorHandling::Message(Vitex::Core::LogLevel::Info, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define VI_INFO(format, ...) vitex::core::error_handling::message(vitex::core::log_level::info, __LINE__, __FILE__, format, ##__VA_ARGS__)
 #else
-#define VI_INFO(Format, ...) ((void)0)
+#define VI_INFO(format, ...) ((void)0)
 #endif
 #if VI_DLEVEL >= 2
-#define VI_WARN(Format, ...) Vitex::Core::ErrorHandling::Message(Vitex::Core::LogLevel::Warning, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define VI_WARN(format, ...) vitex::core::error_handling::message(vitex::core::log_level::warning, __LINE__, __FILE__, format, ##__VA_ARGS__)
 #else
-#define VI_WARN(Format, ...) ((void)0)
+#define VI_WARN(format, ...) ((void)0)
 #endif
 #if VI_DLEVEL >= 1
-#define VI_ERR(Format, ...) Vitex::Core::ErrorHandling::Message(Vitex::Core::LogLevel::Error, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define VI_ERR(format, ...) vitex::core::error_handling::message(vitex::core::log_level::error, __LINE__, __FILE__, format, ##__VA_ARGS__)
 #else
-#define VI_ERR(Format, ...) ((void)0)
+#define VI_ERR(format, ...) ((void)0)
 #endif
-#define VI_PANIC(Condition, Format, ...) if (!(Condition)) { Vitex::Core::ErrorHandling::Panic(__LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); }
-#define VI_HASH(Name) Vitex::Core::OS::File::GetHash(Name)
-#define VI_STRINGIFY(Text) #Text
-#define VI_COMPONENT_ROOT(Name) virtual const char* GetName() { return Name; } virtual uint64_t GetId() { static uint64_t V = VI_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = VI_HASH(Name); return V; }
-#define VI_COMPONENT(Name) virtual const char* GetName() override { return Name; } virtual uint64_t GetId() override { static uint64_t V = VI_HASH(Name); return V; } static const char* GetTypeName() { return Name; } static uint64_t GetTypeId() { static uint64_t V = VI_HASH(Name); return V; }
+#define VI_PANIC(condition, format, ...) if (!(condition)) { vitex::core::error_handling::panic(__LINE__, __FILE__, __func__, #condition, format, ##__VA_ARGS__); }
+#define VI_HASH(name) vitex::core::os::file::get_hash(name)
+#define VI_STRINGIFY(text) #text
+#define VI_COMPONENT_ROOT(name) virtual const char* get_name() { return name; } virtual uint64_t get_id() { static uint64_t v = VI_HASH(name); return v; } static const char* get_type_name() { return name; } static uint64_t get_type_id() { static uint64_t v = VI_HASH(name); return v; }
+#define VI_COMPONENT(name) virtual const char* get_name() override { return name; } virtual uint64_t get_id() override { static uint64_t v = VI_HASH(name); return v; } static const char* get_type_name() { return name; } static uint64_t get_type_id() { static uint64_t v = VI_HASH(name); return v; }
 #ifdef VI_CXX20
-#define VI_AWAIT(Value) (co_await (Value))
-#define Coawait(Value) (co_await (Value))
-#define Coreturn co_return
-#define CoreturnVoid co_return
+#define VI_AWAIT(value) (co_await (value))
+#define coawait(value) (co_await (value))
+#define coreturn co_return
+#define coreturn_void co_return
 #else
-#define Coreturn return
-#define CoreturnVoid return Vitex::Core::Promise<void>::Null()
+#define coreturn return
+#define coreturn_void return vitex::core::promise<void>::null()
 #endif
 #endif

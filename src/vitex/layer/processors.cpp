@@ -1,456 +1,456 @@
 #include "processors.h"
 #include "../network/http.h"
 
-namespace Vitex
+namespace vitex
 {
-	namespace Layer
+	namespace layer
 	{
-		namespace Processors
+		namespace processors
 		{
-			AssetProcessor::AssetProcessor(ContentManager* Manager) : Processor(Manager)
+			asset_processor::asset_processor(content_manager* manager) : processor(manager)
 			{
 			}
-			ExpectsContent<void*> AssetProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			expects_content<void*> asset_processor::deserialize(core::stream* stream, size_t offset, const core::variant_args& args)
 			{
-				VI_ASSERT(Stream != nullptr, "stream should be set");
+				VI_ASSERT(stream != nullptr, "stream should be set");
 
-				Core::Vector<char> Temp;
-				Stream->ReadAll([&Temp](uint8_t* Buffer, size_t Size)
+				core::vector<char> temp;
+				stream->read_all([&temp](uint8_t* buffer, size_t size)
 				{
-					Temp.reserve(Temp.size() + Size);
-					for (size_t i = 0; i < Size; i++)
-						Temp.push_back(Buffer[i]);
+					temp.reserve(temp.size() + size);
+					for (size_t i = 0; i < size; i++)
+						temp.push_back(buffer[i]);
 				});
 
-				char* Data = Core::Memory::Allocate<char>(sizeof(char) * Temp.size());
-				memcpy(Data, Temp.data(), sizeof(char) * Temp.size());
-				return new AssetFile(Data, Temp.size());
+				char* data = core::memory::allocate<char>(sizeof(char) * temp.size());
+				memcpy(data, temp.data(), sizeof(char) * temp.size());
+				return new asset_file(data, temp.size());
 			}
 
-			SchemaProcessor::SchemaProcessor(ContentManager* Manager) : Processor(Manager)
+			schema_processor::schema_processor(content_manager* manager) : processor(manager)
 			{
 			}
-			ExpectsContent<void*> SchemaProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			expects_content<void*> schema_processor::deserialize(core::stream* stream, size_t offset, const core::variant_args& args)
 			{
-				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto Object = Core::Schema::ConvertFromJSONB([Stream](uint8_t* Buffer, size_t Size) { return Size > 0 ? Stream->Read(Buffer, Size).Or(0) == Size : true; });
-				if (Object)
-					return *Object;
-				
-				Core::String Data;
-				Stream->Seek(Core::FileSeek::Begin, Offset);
-				Stream->ReadAll([&Data](uint8_t* Buffer, size_t Size) { Data.append((char*)Buffer, Size); });
+				VI_ASSERT(stream != nullptr, "stream should be set");
+				auto object = core::schema::convert_from_jsonb([stream](uint8_t* buffer, size_t size) { return size > 0 ? stream->read(buffer, size).otherwise(0) == size : true; });
+				if (object)
+					return *object;
 
-				Object = Core::Schema::ConvertFromJSON(Data);
-				if (Object)
-					return *Object;
+				core::string data;
+				stream->seek(core::file_seek::begin, offset);
+				stream->read_all([&data](uint8_t* buffer, size_t size) { data.append((char*)buffer, size); });
 
-				Object = Core::Schema::ConvertFromXML(Data);
-				if (!Object)
-					return ContentException(std::move(Object.Error().message()));
+				object = core::schema::convert_from_json(data);
+				if (object)
+					return *object;
 
-				return *Object;
+				object = core::schema::convert_from_xml(data);
+				if (!object)
+					return content_exception(std::move(object.error().message()));
+
+				return *object;
 			}
-			ExpectsContent<void> SchemaProcessor::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			expects_content<void> schema_processor::serialize(core::stream* stream, void* instance, const core::variant_args& args)
 			{
-				auto Type = Args.find("type");
-				VI_ASSERT(Type != Args.end(), "type argument should be set");
-				VI_ASSERT(Stream != nullptr, "stream should be set");
-				VI_ASSERT(Instance != nullptr, "instance should be set");
+				auto type = args.find("type");
+				VI_ASSERT(type != args.end(), "type argument should be set");
+				VI_ASSERT(stream != nullptr, "stream should be set");
+				VI_ASSERT(instance != nullptr, "instance should be set");
 
-				auto Schema = (Core::Schema*)Instance;
-				if (Type->second == Core::Var::String("XML"))
+				auto schema = (core::schema*)instance;
+				if (type->second == core::var::string("XML"))
 				{
-					Core::String Offset;
-					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const std::string_view& Buffer)
+					core::string offset;
+					core::schema::convert_to_xml(schema, [stream, &offset](core::var_form pretty, const std::string_view& buffer)
 					{
-						if (!Buffer.empty())
-							Stream->Write((uint8_t*)Buffer.data(), Buffer.size());
+						if (!buffer.empty())
+							stream->write((uint8_t*)buffer.data(), buffer.size());
 
-						switch (Pretty)
+						switch (pretty)
 						{
-							case Vitex::Core::VarForm::Tab_Decrease:
-								Offset.erase(Offset.end() - 1);
+							case vitex::core::var_form::tab_decrease:
+								offset.erase(offset.end() - 1);
 								break;
-							case Vitex::Core::VarForm::Tab_Increase:
-								Offset.append(1, '\t');
+							case vitex::core::var_form::tab_increase:
+								offset.append(1, '\t');
 								break;
-							case Vitex::Core::VarForm::Write_Space:
-								Stream->Write((uint8_t*)" ", 1);
+							case vitex::core::var_form::write_space:
+								stream->write((uint8_t*)" ", 1);
 								break;
-							case Vitex::Core::VarForm::Write_Line:
-								Stream->Write((uint8_t*)"\n", 1);
+							case vitex::core::var_form::write_line:
+								stream->write((uint8_t*)"\n", 1);
 								break;
-							case Vitex::Core::VarForm::Write_Tab:
-								Stream->Write((uint8_t*)Offset.c_str(), Offset.size());
+							case vitex::core::var_form::write_tab:
+								stream->write((uint8_t*)offset.c_str(), offset.size());
 								break;
 							default:
 								break;
 						}
 					});
-					return Core::Expectation::Met;
+					return core::expectation::met;
 				}
-				else if (Type->second == Core::Var::String("JSON"))
+				else if (type->second == core::var::string("JSON"))
 				{
-					Core::String Offset;
-					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const std::string_view& Buffer)
+					core::string offset;
+					core::schema::convert_to_json(schema, [stream, &offset](core::var_form pretty, const std::string_view& buffer)
 					{
-						if (!Buffer.empty())
-							Stream->Write((uint8_t*)Buffer.data(), Buffer.size());
+						if (!buffer.empty())
+							stream->write((uint8_t*)buffer.data(), buffer.size());
 
-						switch (Pretty)
+						switch (pretty)
 						{
-							case Vitex::Core::VarForm::Tab_Decrease:
-								Offset.erase(Offset.end() - 1);
+							case vitex::core::var_form::tab_decrease:
+								offset.erase(offset.end() - 1);
 								break;
-							case Vitex::Core::VarForm::Tab_Increase:
-								Offset.append(1, '\t');
+							case vitex::core::var_form::tab_increase:
+								offset.append(1, '\t');
 								break;
-							case Vitex::Core::VarForm::Write_Space:
-								Stream->Write((uint8_t*)" ", 1);
+							case vitex::core::var_form::write_space:
+								stream->write((uint8_t*)" ", 1);
 								break;
-							case Vitex::Core::VarForm::Write_Line:
-								Stream->Write((uint8_t*)"\n", 1);
+							case vitex::core::var_form::write_line:
+								stream->write((uint8_t*)"\n", 1);
 								break;
-							case Vitex::Core::VarForm::Write_Tab:
-								Stream->Write((uint8_t*)Offset.c_str(), Offset.size());
+							case vitex::core::var_form::write_tab:
+								stream->write((uint8_t*)offset.c_str(), offset.size());
 								break;
 							default:
 								break;
 						}
 					});
-					return Core::Expectation::Met;
+					return core::expectation::met;
 				}
-				else if (Type->second == Core::Var::String("JSONB"))
+				else if (type->second == core::var::string("JSONB"))
 				{
-					Core::Schema::ConvertToJSONB(Schema, [Stream](Core::VarForm, const std::string_view& Buffer)
+					core::schema::convert_to_jsonb(schema, [stream](core::var_form, const std::string_view& buffer)
 					{
-						if (!Buffer.empty())
-							Stream->Write((uint8_t*)Buffer.data(), Buffer.size());
+						if (!buffer.empty())
+							stream->write((uint8_t*)buffer.data(), buffer.size());
 					});
-					return Core::Expectation::Met;
+					return core::expectation::met;
 				}
 
-				return ContentException("save schema: unsupported type");
+				return content_exception("save schema: unsupported type");
 			}
 
-			ServerProcessor::ServerProcessor(ContentManager* Manager) : Processor(Manager)
+			server_processor::server_processor(content_manager* manager) : processor(manager)
 			{
 			}
-			ExpectsContent<void*> ServerProcessor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
+			expects_content<void*> server_processor::deserialize(core::stream* stream, size_t offset, const core::variant_args& args)
 			{
-				VI_ASSERT(Stream != nullptr, "stream should be set");
-				auto BlobStatus = Content->Load<Core::Schema>(Stream->VirtualName());
-				if (!BlobStatus)
-					return BlobStatus.Error();
+				VI_ASSERT(stream != nullptr, "stream should be set");
+				auto blob_status = content->load<core::schema>(stream->virtual_name());
+				if (!blob_status)
+					return blob_status.error();
 
-				auto NetAddresses = Network::Utils::GetHostIpAddresses();
-				Core::String BaseDirectory = Core::OS::Path::GetDirectory(Stream->VirtualName());
-				Core::UPtr<Network::HTTP::MapRouter> Router = new Network::HTTP::MapRouter();
-				Core::UPtr<Network::HTTP::Server> Object = new Network::HTTP::Server();
-				Core::UPtr<Core::Schema> Blob = *BlobStatus;
-				if (Callback)
-					Callback((void*)*Object, *Blob);
+				auto net_addresses = network::utils::get_host_ip_addresses();
+				core::string base_directory = core::os::path::get_directory(stream->virtual_name());
+				core::uptr<network::http::map_router> router = new network::http::map_router();
+				core::uptr<network::http::server> object = new network::http::server();
+				core::uptr<core::schema> blob = *blob_status;
+				if (callback)
+					callback((void*)*object, *blob);
 
-				Core::Vector<Core::Schema*> Certificates = Blob->FindCollection("certificate", true);
-				for (auto&& It : Certificates)
+				core::vector<core::schema*> certificates = blob->find_collection("certificate", true);
+				for (auto&& it : certificates)
 				{
-					Core::String Name;
-					if (Series::Unpack(It, &Name))
-						Core::Stringify::EvalEnvs(Name, BaseDirectory, NetAddresses);
+					core::string name;
+					if (series::unpack(it, &name))
+						core::stringify::eval_envs(name, base_directory, net_addresses);
 					else
-						Name = "*";
+						name = "*";
 
-					Network::SocketCertificate* Cert = &Router->Certificates[Name];
-					Series::Unpack(It->Find("ciphers"), &Cert->Ciphers);
-					Series::Unpack(It->Find("verify-peers"), &Cert->VerifyPeers);
-					Series::Unpack(It->Find("pkey"), &Cert->Blob.PrivateKey);
-					Series::Unpack(It->Find("cert"), &Cert->Blob.Certificate);
-					if (Series::Unpack(It->Find("options"), &Name))
+					network::socket_certificate* cert = &router->certificates[name];
+					series::unpack(it->find("ciphers"), &cert->ciphers);
+					series::unpack(it->find("verify-peers"), &cert->verify_peers);
+					series::unpack(it->find("pkey"), &cert->blob.private_key);
+					series::unpack(it->find("cert"), &cert->blob.certificate);
+					if (series::unpack(it->find("options"), &name))
 					{
-						if (Name.find("no_ssl_v2") != std::string::npos)
-							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoSSL_V2);
-						if (Name.find("no_ssl_v3") != std::string::npos)
-							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoSSL_V3);
-						if (Name.find("no_tls_v1") != std::string::npos)
-							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1);
-						if (Name.find("no_tls_v1_1") != std::string::npos)
-							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_1);
-						if (Name.find("no_tls_v1_2") != std::string::npos)
-							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_2);
-						if (Name.find("no_tls_v1_3") != std::string::npos)
-							Cert->Options = (Network::SecureLayerOptions)((size_t)Cert->Options & (size_t)Network::SecureLayerOptions::NoTLS_V1_3);
+						if (name.find("no_ssl_v2") != std::string::npos)
+							cert->options = (network::secure_layer_options)((size_t)cert->options & (size_t)network::secure_layer_options::no_sslv2);
+						if (name.find("no_ssl_v3") != std::string::npos)
+							cert->options = (network::secure_layer_options)((size_t)cert->options & (size_t)network::secure_layer_options::no_sslv3);
+						if (name.find("no_tls_v1") != std::string::npos)
+							cert->options = (network::secure_layer_options)((size_t)cert->options & (size_t)network::secure_layer_options::no_tlsv1);
+						if (name.find("no_tls_v1_1") != std::string::npos)
+							cert->options = (network::secure_layer_options)((size_t)cert->options & (size_t)network::secure_layer_options::no_tlsv11);
+						if (name.find("no_tls_v1_2") != std::string::npos)
+							cert->options = (network::secure_layer_options)((size_t)cert->options & (size_t)network::secure_layer_options::no_tlsv12);
+						if (name.find("no_tls_v1_3") != std::string::npos)
+							cert->options = (network::secure_layer_options)((size_t)cert->options & (size_t)network::secure_layer_options::no_tlsv13);
 					}
 
-					Core::Stringify::EvalEnvs(Cert->Blob.PrivateKey, BaseDirectory, NetAddresses);
-					if (!Cert->Blob.PrivateKey.empty())
+					core::stringify::eval_envs(cert->blob.private_key, base_directory, net_addresses);
+					if (!cert->blob.private_key.empty())
 					{
-						auto Data = Core::OS::File::ReadAsString(Cert->Blob.PrivateKey);
-						if (!Data)
-							return ContentException(Core::Stringify::Text("import invalid server private key: %s", Data.Error().message().c_str()));
-						
-						Cert->Blob.PrivateKey = *Data;
+						auto data = core::os::file::read_as_string(cert->blob.private_key);
+						if (!data)
+							return content_exception(core::stringify::text("import invalid server private key: %s", data.error().message().c_str()));
+
+						cert->blob.private_key = *data;
 					}
 
-					Core::Stringify::EvalEnvs(Cert->Blob.Certificate, BaseDirectory, NetAddresses);
-					if (!Cert->Blob.Certificate.empty())
+					core::stringify::eval_envs(cert->blob.certificate, base_directory, net_addresses);
+					if (!cert->blob.certificate.empty())
 					{
-						auto Data = Core::OS::File::ReadAsString(Cert->Blob.Certificate);
-						if (!Data)
-							return ContentException(Core::Stringify::Text("import invalid server certificate: %s", Data.Error().message().c_str()));
-						
-						Cert->Blob.Certificate = *Data;
+						auto data = core::os::file::read_as_string(cert->blob.certificate);
+						if (!data)
+							return content_exception(core::stringify::text("import invalid server certificate: %s", data.error().message().c_str()));
+
+						cert->blob.certificate = *data;
 					}
 				}
 
-				Core::Vector<Core::Schema*> Listeners = Blob->FindCollection("listen", true);
-				for (auto&& It : Listeners)
+				core::vector<core::schema*> listeners = blob->find_collection("listen", true);
+				for (auto&& it : listeners)
 				{
-					Core::String Pattern, Hostname, Service;
-					uint32_t Port = 0; bool Secure = false;
-					Series::Unpack(It, &Pattern);
-					Series::Unpack(It->Find("hostname"), &Hostname);
-					Series::Unpack(It->Find("service"), &Service);
-					Series::Unpack(It->Find("port"), &Port);
-					Series::Unpack(It->Find("secure"), &Secure);
-					Core::Stringify::EvalEnvs(Pattern, BaseDirectory, NetAddresses);
-					Core::Stringify::EvalEnvs(Hostname, BaseDirectory, NetAddresses);
+					core::string pattern, hostname, service;
+					uint32_t port = 0; bool secure = false;
+					series::unpack(it, &pattern);
+					series::unpack(it->find("hostname"), &hostname);
+					series::unpack(it->find("service"), &service);
+					series::unpack(it->find("port"), &port);
+					series::unpack(it->find("secure"), &secure);
+					core::stringify::eval_envs(pattern, base_directory, net_addresses);
+					core::stringify::eval_envs(hostname, base_directory, net_addresses);
 
-					auto Status = Router->Listen(Pattern.empty() ? "*" : Pattern, Hostname.empty() ? "0.0.0.0" : Hostname, Service.empty() ? (Port > 0 ? Core::ToString(Port) : "80") : Service, Secure);
-					if (!Status)
-						return ContentException(Core::Stringify::Text("bind %s:%i listener from %s: %s", Hostname.c_str(), (int32_t)Port, Pattern.c_str(), Status.Error().message().c_str()));
+					auto status = router->listen(pattern.empty() ? "*" : pattern, hostname.empty() ? "0.0.0.0" : hostname, service.empty() ? (port > 0 ? core::to_string(port) : "80") : service, secure);
+					if (!status)
+						return content_exception(core::stringify::text("bind %s:%i listener from %s: %s", hostname.c_str(), (int32_t)port, pattern.c_str(), status.error().message().c_str()));
 				}
 
-				Core::Schema* Network = Blob->Find("network");
-				if (Network != nullptr)
+				core::schema* network = blob->find("network");
+				if (network != nullptr)
 				{
-					Series::Unpack(Network->Find("keep-alive"), &Router->KeepAliveMaxCount);
-					Series::UnpackA(Network->Find("payload-max-length"), &Router->MaxHeapBuffer);
-					Series::UnpackA(Network->Find("payload-max-length"), &Router->MaxNetBuffer);
-					Series::UnpackA(Network->Find("backlog-queue"), &Router->BacklogQueue);
-					Series::UnpackA(Network->Find("socket-timeout"), &Router->SocketTimeout);
-					Series::Unpack(Network->Find("graceful-time-wait"), &Router->GracefulTimeWait);
-					Series::UnpackA(Network->Find("max-connections"), &Router->MaxConnections);
-					Series::Unpack(Network->Find("enable-no-delay"), &Router->EnableNoDelay);
-					Series::UnpackA(Network->Find("max-uploadable-resources"), &Router->MaxUploadableResources);
-					Series::Unpack(Network->Find("temporary-directory"), &Router->TemporaryDirectory);
-					Series::Unpack(Network->Fetch("session.cookie.name"), &Router->Session.Cookie.Name);
-					Series::Unpack(Network->Fetch("session.cookie.domain"), &Router->Session.Cookie.Domain);
-					Series::Unpack(Network->Fetch("session.cookie.path"), &Router->Session.Cookie.Path);
-					Series::Unpack(Network->Fetch("session.cookie.same-site"), &Router->Session.Cookie.SameSite);
-					Series::Unpack(Network->Fetch("session.cookie.expires"), &Router->Session.Cookie.Expires);
-					Series::Unpack(Network->Fetch("session.cookie.secure"), &Router->Session.Cookie.Secure);
-					Series::Unpack(Network->Fetch("session.cookie.http-only"), &Router->Session.Cookie.HttpOnly);
-					Series::Unpack(Network->Fetch("session.directory"), &Router->Session.Directory);
-					Series::Unpack(Network->Fetch("session.expires"), &Router->Session.Expires);
-					Core::Stringify::EvalEnvs(Router->Session.Directory, BaseDirectory, NetAddresses);
-					Core::Stringify::EvalEnvs(Router->TemporaryDirectory, BaseDirectory, NetAddresses);
+					series::unpack(network->find("keep-alive"), &router->keep_alive_max_count);
+					series::unpack_a(network->find("payload-max-length"), &router->max_heap_buffer);
+					series::unpack_a(network->find("payload-max-length"), &router->max_net_buffer);
+					series::unpack_a(network->find("backlog-queue"), &router->backlog_queue);
+					series::unpack_a(network->find("socket-timeout"), &router->socket_timeout);
+					series::unpack(network->find("graceful-time-wait"), &router->graceful_time_wait);
+					series::unpack_a(network->find("max-connections"), &router->max_connections);
+					series::unpack(network->find("enable-no-delay"), &router->enable_no_delay);
+					series::unpack_a(network->find("max-uploadable-resources"), &router->max_uploadable_resources);
+					series::unpack(network->find("temporary-directory"), &router->temporary_directory);
+					series::unpack(network->fetch("session.cookie.name"), &router->session.cookie.name);
+					series::unpack(network->fetch("session.cookie.domain"), &router->session.cookie.domain);
+					series::unpack(network->fetch("session.cookie.path"), &router->session.cookie.path);
+					series::unpack(network->fetch("session.cookie.same-site"), &router->session.cookie.same_site);
+					series::unpack(network->fetch("session.cookie.expires"), &router->session.cookie.expires);
+					series::unpack(network->fetch("session.cookie.secure"), &router->session.cookie.secure);
+					series::unpack(network->fetch("session.cookie.http-only"), &router->session.cookie.http_only);
+					series::unpack(network->fetch("session.directory"), &router->session.directory);
+					series::unpack(network->fetch("session.expires"), &router->session.expires);
+					core::stringify::eval_envs(router->session.directory, base_directory, net_addresses);
+					core::stringify::eval_envs(router->temporary_directory, base_directory, net_addresses);
 
-					Core::UnorderedMap<Core::String, Network::HTTP::RouterEntry*> Aliases;
-					Core::Vector<Core::Schema*> Groups = Network->FindCollection("group", true);
-					for (auto&& Subgroup : Groups)
+					core::unordered_map<core::string, network::http::router_entry*> aliases;
+					core::vector<core::schema*> groups = network->find_collection("group", true);
+					for (auto&& subgroup : groups)
 					{
-						Core::String Match;
-						Core::Schema* fMatch = Subgroup->GetAttribute("match");
-						if (fMatch != nullptr && fMatch->Value.GetType() == Core::VarType::String)
-							Match = fMatch->Value.GetBlob();
+						core::string match;
+						core::schema* match_data = subgroup->get_attribute("match");
+						if (match_data != nullptr && match_data->value.get_type() == core::var_type::string)
+							match = match_data->value.get_blob();
 
-						Network::HTTP::RouteMode Mode = Network::HTTP::RouteMode::Start;
-						Core::Schema* fMode = Subgroup->GetAttribute("mode");
-						if (fMode != nullptr && fMode->Value.GetType() == Core::VarType::String)
+						network::http::route_mode mode = network::http::route_mode::start;
+						core::schema* fMode = subgroup->get_attribute("mode");
+						if (fMode != nullptr && fMode->value.get_type() == core::var_type::string)
 						{
-							if (fMode->Value.IsString("start"))
-								Mode = Network::HTTP::RouteMode::Start;
-							else if (fMode->Value.IsString("sub"))
-								Mode = Network::HTTP::RouteMode::Match;
-							else if (fMode->Value.IsString("end"))
-								Mode = Network::HTTP::RouteMode::End;
+							if (fMode->value.is_string("start"))
+								mode = network::http::route_mode::start;
+							else if (fMode->value.is_string("sub"))
+								mode = network::http::route_mode::match;
+							else if (fMode->value.is_string("end"))
+								mode = network::http::route_mode::end;
 						}
 
-						Network::HTTP::RouterGroup* Group = Router->Group(Match, Mode);
-						Core::Vector<Core::Schema*> Routes = Subgroup->FindCollection("route", true);
-						for (auto&& Base : Routes)
+						network::http::router_group* group = router->group(match, mode);
+						core::vector<core::schema*> routes = subgroup->find_collection("route", true);
+						for (auto&& base : routes)
 						{
-							Network::HTTP::RouterEntry* Route = nullptr;
-							Core::Schema* From = Base->GetAttribute("from");
-							Core::Schema* For = Base->GetAttribute("for");
-							Core::String SourceLocation = "*";
-							Series::Unpack(Base, &SourceLocation);
+							network::http::router_entry* route = nullptr;
+							core::schema* from = base->get_attribute("from");
+							core::schema* destination = base->get_attribute("for");
+							core::string source_location = "*";
+							series::unpack(base, &source_location);
 
-							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
+							if (from != nullptr && from->value.get_type() == core::var_type::string)
 							{
-								auto Subalias = Aliases.find(From->Value.GetBlob());
-								if (Subalias != Aliases.end())
-									Route = Router->Route(SourceLocation, Group, Subalias->second);
+								auto subalias = aliases.find(from->value.get_blob());
+								if (subalias != aliases.end())
+									route = router->route(source_location, group, subalias->second);
 								else
-									Route = Router->Route(Match, Mode, SourceLocation, true);
+									route = router->route(match, mode, source_location, true);
 							}
-							else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceLocation.empty())
-								Route = Router->Route(Match, Mode, "..." + For->Value.GetBlob() + "...", true);
+							else if (destination != nullptr && destination->value.get_type() == core::var_type::string && source_location.empty())
+								route = router->route(match, mode, "..." + destination->value.get_blob() + "...", true);
 							else
-								Route = Router->Route(Match, Mode, SourceLocation, true);
+								route = router->route(match, mode, source_location, true);
 
-							Core::Schema* Level = Base->GetAttribute("level");
-							if (Level != nullptr)
-								Route->Level = (size_t)Level->Value.GetInteger();
+							core::schema* level = base->get_attribute("level");
+							if (level != nullptr)
+								route->level = (size_t)level->value.get_integer();
 
-							Core::String Tune;
-							if (Series::Unpack(Base->Fetch("compression.tune"), &Tune))
+							core::string tune;
+							if (series::unpack(base->fetch("compression.tune"), &tune))
 							{
-								if (!strcmp(Tune.c_str(), "Filtered"))
-									Route->Compression.Tune = Network::HTTP::CompressionTune::Filtered;
-								else if (!strcmp(Tune.c_str(), "Huffman"))
-									Route->Compression.Tune = Network::HTTP::CompressionTune::Huffman;
-								else if (!strcmp(Tune.c_str(), "Rle"))
-									Route->Compression.Tune = Network::HTTP::CompressionTune::Rle;
-								else if (!strcmp(Tune.c_str(), "Fixed"))
-									Route->Compression.Tune = Network::HTTP::CompressionTune::Fixed;
+								if (!strcmp(tune.c_str(), "Filtered"))
+									route->compression.tune = network::http::compression_tune::filtered;
+								else if (!strcmp(tune.c_str(), "Huffman"))
+									route->compression.tune = network::http::compression_tune::huffman;
+								else if (!strcmp(tune.c_str(), "Rle"))
+									route->compression.tune = network::http::compression_tune::rle;
+								else if (!strcmp(tune.c_str(), "Fixed"))
+									route->compression.tune = network::http::compression_tune::fixed;
 								else
-									Route->Compression.Tune = Network::HTTP::CompressionTune::Default;
+									route->compression.tune = network::http::compression_tune::placeholder;
 							}
 
-							if (Series::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
-								Route->Compression.QualityLevel = Compute::Math32::Clamp(Route->Compression.QualityLevel, 0, 9);
+							if (series::unpack(base->fetch("compression.quality-level"), &route->compression.quality_level))
+								route->compression.quality_level = compute::math32::clamp(route->compression.quality_level, 0, 9);
 
-							if (Series::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
-								Route->Compression.MemoryLevel = Compute::Math32::Clamp(Route->Compression.MemoryLevel, 1, 9);
+							if (series::unpack(base->fetch("compression.memory-level"), &route->compression.memory_level))
+								route->compression.memory_level = compute::math32::clamp(route->compression.memory_level, 1, 9);
 
-							Series::Unpack(Base->Find("alias"), &Route->Alias);
-							Series::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
-							Series::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
-							Series::UnpackA(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
-							Series::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
-							Series::Unpack(Base->Find("char-set"), &Route->CharSet);
-							Series::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
-							Series::Unpack(Base->Find("redirect"), &Route->Redirect);
-							Series::UnpackA(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
-							Series::UnpackA(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
-							Series::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
-							Series::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
-							Series::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
-							Series::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
-							if (Series::Unpack(Base->Find("files-directory"), &Route->FilesDirectory))
-								Core::Stringify::EvalEnvs(Route->FilesDirectory, BaseDirectory, NetAddresses);
+							series::unpack(base->find("alias"), &route->alias);
+							series::unpack(base->fetch("auth.type"), &route->auth.type);
+							series::unpack(base->fetch("auth.realm"), &route->auth.realm);
+							series::unpack_a(base->fetch("compression.min-length"), &route->compression.min_length);
+							series::unpack(base->fetch("compression.enabled"), &route->compression.enabled);
+							series::unpack(base->find("char-set"), &route->char_set);
+							series::unpack(base->find("access-control-allow-origin"), &route->access_control_allow_origin);
+							series::unpack(base->find("redirect"), &route->redirect);
+							series::unpack_a(base->find("web-socket-timeout"), &route->web_socket_timeout);
+							series::unpack_a(base->find("static-file-max-age"), &route->static_file_max_age);
+							series::unpack(base->find("allow-directory-listing"), &route->allow_directory_listing);
+							series::unpack(base->find("allow-web-socket"), &route->allow_web_socket);
+							series::unpack(base->find("allow-send-file"), &route->allow_send_file);
+							series::unpack(base->find("proxy-ip-address"), &route->proxy_ip_address);
+							if (series::unpack(base->find("files-directory"), &route->files_directory))
+								core::stringify::eval_envs(route->files_directory, base_directory, net_addresses);
 
-							Core::Vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
-							Core::Vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
-							Core::Vector<Core::Schema*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
-							Core::Vector<Core::Schema*> IndexFiles = Base->FetchCollection("index-files.index");
-							Core::Vector<Core::Schema*> TryFiles = Base->FetchCollection("try-files.fallback");
-							Core::Vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");
-							Core::Vector<Core::Schema*> MimeTypes = Base->FetchCollection("mime-types.file");
-							Core::Vector<Core::Schema*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
-							if (Base->Fetch("auth.methods.[clear]") != nullptr)
-								Route->Auth.Methods.clear();
-							if (Base->Fetch("compression.files.[clear]") != nullptr)
-								Route->Compression.Files.clear();
-							if (Base->Fetch("hidden-files.[clear]") != nullptr)
-								Route->HiddenFiles.clear();
-							if (Base->Fetch("index-files.[clear]") != nullptr)
-								Route->IndexFiles.clear();
-							if (Base->Fetch("try-files.[clear]") != nullptr)
-								Route->TryFiles.clear();
-							if (Base->Fetch("error-files.[clear]") != nullptr)
-								Route->ErrorFiles.clear();
-							if (Base->Fetch("mime-types.[clear]") != nullptr)
-								Route->MimeTypes.clear();
-							if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
-								Route->DisallowedMethods.clear();
+							core::vector<core::schema*> auth_methods = base->fetch_collection("auth.methods.method");
+							core::vector<core::schema*> compression_files = base->fetch_collection("compression.files.file");
+							core::vector<core::schema*> hidden_files = base->fetch_collection("hidden-files.hide");
+							core::vector<core::schema*> index_files = base->fetch_collection("index-files.index");
+							core::vector<core::schema*> try_files = base->fetch_collection("try-files.fallback");
+							core::vector<core::schema*> error_files = base->fetch_collection("error-files.error");
+							core::vector<core::schema*> mime_types = base->fetch_collection("mime-types.file");
+							core::vector<core::schema*> disallowed_methods = base->fetch_collection("disallowed-methods.method");
+							if (base->fetch("auth.methods.[clear]") != nullptr)
+								route->auth.methods.clear();
+							if (base->fetch("compression.files.[clear]") != nullptr)
+								route->compression.files.clear();
+							if (base->fetch("hidden-files.[clear]") != nullptr)
+								route->hidden_files.clear();
+							if (base->fetch("index-files.[clear]") != nullptr)
+								route->index_files.clear();
+							if (base->fetch("try-files.[clear]") != nullptr)
+								route->try_files.clear();
+							if (base->fetch("error-files.[clear]") != nullptr)
+								route->error_files.clear();
+							if (base->fetch("mime-types.[clear]") != nullptr)
+								route->mime_types.clear();
+							if (base->fetch("disallowed-methods.[clear]") != nullptr)
+								route->disallowed_methods.clear();
 
-							for (auto& Method : AuthMethods)
+							for (auto& method : auth_methods)
 							{
-								Core::String Value;
-								if (Series::Unpack(Method, &Value))
-									Route->Auth.Methods.push_back(Value);
+								core::string value;
+								if (series::unpack(method, &value))
+									route->auth.methods.push_back(value);
 							}
 
-							for (auto& File : CompressionFiles)
+							for (auto& file : compression_files)
 							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-									Route->Compression.Files.emplace_back(Pattern, true);
+								core::string pattern;
+								if (series::unpack(file, &pattern))
+									route->compression.files.emplace_back(pattern, true);
 							}
 
-							for (auto& File : HiddenFiles)
+							for (auto& file : hidden_files)
 							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
-									Route->HiddenFiles.emplace_back(Pattern, true);
+								core::string pattern;
+								if (series::unpack(file, &pattern))
+									route->hidden_files.emplace_back(pattern, true);
 							}
 
-							for (auto& File : IndexFiles)
+							for (auto& file : index_files)
 							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
+								core::string pattern;
+								if (series::unpack(file, &pattern))
 								{
-									if (!File->GetAttribute("use"))
-										Core::Stringify::EvalEnvs(Pattern, BaseDirectory, NetAddresses);
+									if (!file->get_attribute("use"))
+										core::stringify::eval_envs(pattern, base_directory, net_addresses);
 
-									Route->IndexFiles.push_back(Pattern);
+									route->index_files.push_back(pattern);
 								}
 							}
 
-							for (auto& File : TryFiles)
+							for (auto& file : try_files)
 							{
-								Core::String Pattern;
-								if (Series::Unpack(File, &Pattern))
+								core::string pattern;
+								if (series::unpack(file, &pattern))
 								{
-									if (!File->GetAttribute("use"))
-										Core::Stringify::EvalEnvs(Pattern, BaseDirectory, NetAddresses);
+									if (!file->get_attribute("use"))
+										core::stringify::eval_envs(pattern, base_directory, net_addresses);
 
-									Route->TryFiles.push_back(Pattern);
+									route->try_files.push_back(pattern);
 								}
 							}
 
-							for (auto& File : ErrorFiles)
+							for (auto& file : error_files)
 							{
-								Network::HTTP::ErrorFile Source;
-								Series::Unpack(File->Find("status"), &Source.StatusCode);
-								if (Series::Unpack(File->Find("file"), &Source.Pattern))
-									Core::Stringify::EvalEnvs(Source.Pattern, BaseDirectory, NetAddresses);
-								Route->ErrorFiles.push_back(Source);
+								network::http::error_file source;
+								series::unpack(file->find("status"), &source.status_code);
+								if (series::unpack(file->find("file"), &source.pattern))
+									core::stringify::eval_envs(source.pattern, base_directory, net_addresses);
+								route->error_files.push_back(source);
 							}
 
-							for (auto& Type : MimeTypes)
+							for (auto& type : mime_types)
 							{
-								Network::HTTP::MimeType Pattern;
-								Series::Unpack(Type->Find("ext"), &Pattern.Extension);
-								Series::Unpack(Type->Find("type"), &Pattern.Type);
-								Route->MimeTypes.push_back(Pattern);
+								network::http::mime_type pattern;
+								series::unpack(type->find("ext"), &pattern.extension);
+								series::unpack(type->find("type"), &pattern.type);
+								route->mime_types.push_back(pattern);
 							}
 
-							for (auto& Method : DisallowedMethods)
+							for (auto& method : disallowed_methods)
 							{
-								Core::String Value;
-								if (Series::Unpack(Method, &Value))
-									Route->DisallowedMethods.push_back(Value);
+								core::string value;
+								if (series::unpack(method, &value))
+									route->disallowed_methods.push_back(value);
 							}
 
-							if (!For || For->Value.GetType() != Core::VarType::String)
+							if (!destination || destination->value.get_type() != core::var_type::string)
 								continue;
 
-							Core::String Alias = For->Value.GetBlob();
-							auto Subalias = Aliases.find(Alias);
-							if (Subalias == Aliases.end())
-								Aliases[Alias] = Route;
+							core::string alias = destination->value.get_blob();
+							auto subalias = aliases.find(alias);
+							if (subalias == aliases.end())
+								aliases[alias] = route;
 						}
 					}
 
-					for (auto& Item : Aliases)
-						Router->Remove(Item.second);
+					for (auto& item : aliases)
+						router->remove(item.second);
 				}
 
-				auto Configure = Args.find("configure");
-				if (Configure != Args.end() && Configure->second.GetBoolean())
+				auto configure = args.find("configure");
+				if (configure != args.end() && configure->second.get_boolean())
 				{
-					auto Status = Object->Configure(Router.Reset());
-					if (!Status)
-						return ContentException(std::move(Status.Error().message()));
+					auto status = object->configure(router.reset());
+					if (!status)
+						return content_exception(std::move(status.error().message()));
 				}
 				else
-					Object->SetRouter(Router.Reset());
+					object->set_router(router.reset());
 
-				return Object.Reset();
+				return object.reset();
 			}
 		}
 	}

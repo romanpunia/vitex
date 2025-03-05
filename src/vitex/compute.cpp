@@ -10,7 +10,7 @@ extern "C"
 }
 #endif
 #ifdef VI_MICROSOFT
-#include <Windows.h>
+#include <windows.h>
 #else
 #include <time.h>
 #endif
@@ -27,509 +27,509 @@ extern "C"
 #include <openssl/rsa.h>
 }
 #endif
-#define REGEX_FAIL(A, B) if (A) return (B)
-#define REGEX_FAIL_IN(A, B) if (A) { State = B; return; }
-#define PRIVATE_KEY_SIZE (sizeof(size_t) * 8)
+#define REGEX_FAIL(a, b) if (a) return (b)
+#define REGEX_FAIL_IN(a, b) if (a) { state = b; return; }
+#define PARTITION_SIZE (sizeof(size_t) * 2)
 
 namespace
 {
-	size_t OffsetOf64(const char* Source, char Dest)
+	size_t offset_of64(const char* source, char dest)
 	{
-		VI_ASSERT(Source != nullptr, "source should be set");
+		VI_ASSERT(source != nullptr, "source should be set");
 		for (size_t i = 0; i < 64; i++)
 		{
-			if (Source[i] == Dest)
+			if (source[i] == dest)
 				return i;
 		}
 
 		return 63;
 	}
-	Vitex::Core::String EscapeText(const Vitex::Core::String& Data)
+	vitex::core::string escape_text(const vitex::core::string& data)
 	{
-		Vitex::Core::String Result = "\"";
-		Result.append(Data).append("\"");
-		return Result;
+		vitex::core::string result = "\"";
+		result.append(data).append("\"");
+		return result;
 	}
 }
 
-namespace Vitex
+namespace vitex
 {
-	namespace Compute
+	namespace compute
 	{
-		RegexSource::RegexSource() noexcept :
-			MaxBranches(128), MaxBrackets(128), MaxMatches(128),
-			State(RegexState::No_Match), IgnoreCase(false)
+		regex_source::regex_source() noexcept :
+			max_branches(128), max_brackets(128), max_matches(128),
+			state(regex_state::no_match), ignore_case(false)
 		{
 		}
-		RegexSource::RegexSource(const std::string_view& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
-			Expression(Regexp),
-			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
-			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
-			MaxMatches(fMaxMatches >= 1 ? fMaxMatches : 128),
-			State(RegexState::Preprocessed), IgnoreCase(fIgnoreCase)
+		regex_source::regex_source(const std::string_view& regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
+			expression(regexp),
+			max_branches(fMaxBranches >= 1 ? fMaxBranches : 128),
+			max_brackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
+			max_matches(fMaxMatches >= 1 ? fMaxMatches : 128),
+			state(regex_state::preprocessed), ignore_case(fIgnoreCase)
 		{
-			Compile();
+			compile();
 		}
-		RegexSource::RegexSource(const RegexSource& Other) noexcept :
-			Expression(Other.Expression),
-			MaxBranches(Other.MaxBranches),
-			MaxBrackets(Other.MaxBrackets),
-			MaxMatches(Other.MaxMatches),
-			State(Other.State), IgnoreCase(Other.IgnoreCase)
+		regex_source::regex_source(const regex_source& other) noexcept :
+			expression(other.expression),
+			max_branches(other.max_branches),
+			max_brackets(other.max_brackets),
+			max_matches(other.max_matches),
+			state(other.state), ignore_case(other.ignore_case)
 		{
-			Compile();
+			compile();
 		}
-		RegexSource::RegexSource(RegexSource&& Other) noexcept :
-			Expression(std::move(Other.Expression)),
-			MaxBranches(Other.MaxBranches),
-			MaxBrackets(Other.MaxBrackets),
-			MaxMatches(Other.MaxMatches),
-			State(Other.State), IgnoreCase(Other.IgnoreCase)
+		regex_source::regex_source(regex_source&& other) noexcept :
+			expression(std::move(other.expression)),
+			max_branches(other.max_branches),
+			max_brackets(other.max_brackets),
+			max_matches(other.max_matches),
+			state(other.state), ignore_case(other.ignore_case)
 		{
-			Brackets.reserve(Other.Brackets.capacity());
-			Branches.reserve(Other.Branches.capacity());
-			Compile();
+			brackets.reserve(other.brackets.capacity());
+			branches.reserve(other.branches.capacity());
+			compile();
 		}
-		RegexSource& RegexSource::operator=(const RegexSource& V) noexcept
+		regex_source& regex_source::operator=(const regex_source& v) noexcept
 		{
-			VI_ASSERT(this != &V, "cannot set to self");
-			Brackets.clear();
-			Brackets.reserve(V.Brackets.capacity());
-			Branches.clear();
-			Branches.reserve(V.Branches.capacity());
-			Expression = V.Expression;
-			IgnoreCase = V.IgnoreCase;
-			State = V.State;
-			MaxBrackets = V.MaxBrackets;
-			MaxBranches = V.MaxBranches;
-			MaxMatches = V.MaxMatches;
-			Compile();
+			VI_ASSERT(this != &v, "cannot set to self");
+			brackets.clear();
+			brackets.reserve(v.brackets.capacity());
+			branches.clear();
+			branches.reserve(v.branches.capacity());
+			expression = v.expression;
+			ignore_case = v.ignore_case;
+			state = v.state;
+			max_brackets = v.max_brackets;
+			max_branches = v.max_branches;
+			max_matches = v.max_matches;
+			compile();
 
 			return *this;
 		}
-		RegexSource& RegexSource::operator=(RegexSource&& V) noexcept
+		regex_source& regex_source::operator=(regex_source&& v) noexcept
 		{
-			VI_ASSERT(this != &V, "cannot set to self");
-			Brackets.clear();
-			Brackets.reserve(V.Brackets.capacity());
-			Branches.clear();
-			Branches.reserve(V.Branches.capacity());
-			Expression = std::move(V.Expression);
-			IgnoreCase = V.IgnoreCase;
-			State = V.State;
-			MaxBrackets = V.MaxBrackets;
-			MaxBranches = V.MaxBranches;
-			MaxMatches = V.MaxMatches;
-			Compile();
+			VI_ASSERT(this != &v, "cannot set to self");
+			brackets.clear();
+			brackets.reserve(v.brackets.capacity());
+			branches.clear();
+			branches.reserve(v.branches.capacity());
+			expression = std::move(v.expression);
+			ignore_case = v.ignore_case;
+			state = v.state;
+			max_brackets = v.max_brackets;
+			max_branches = v.max_branches;
+			max_matches = v.max_matches;
+			compile();
 
 			return *this;
 		}
-		const Core::String& RegexSource::GetRegex() const
+		const core::string& regex_source::get_regex() const
 		{
-			return Expression;
+			return expression;
 		}
-		int64_t RegexSource::GetMaxBranches() const
+		int64_t regex_source::get_max_branches() const
 		{
-			return MaxBranches;
+			return max_branches;
 		}
-		int64_t RegexSource::GetMaxBrackets() const
+		int64_t regex_source::get_max_brackets() const
 		{
-			return MaxBrackets;
+			return max_brackets;
 		}
-		int64_t RegexSource::GetMaxMatches() const
+		int64_t regex_source::get_max_matches() const
 		{
-			return MaxMatches;
+			return max_matches;
 		}
-		int64_t RegexSource::GetComplexity() const
+		int64_t regex_source::get_complexity() const
 		{
-			int64_t A = (int64_t)Branches.size() + 1;
-			int64_t B = (int64_t)Brackets.size();
-			int64_t C = 0;
+			int64_t a = (int64_t)branches.size() + 1;
+			int64_t b = (int64_t)brackets.size();
+			int64_t c = 0;
 
-			for (size_t i = 0; i < (size_t)B; i++)
-				C += Brackets[i].Length;
+			for (size_t i = 0; i < (size_t)b; i++)
+				c += brackets[i].length;
 
-			return (int64_t)Expression.size() + A * B * C;
+			return (int64_t)expression.size() + a * b * c;
 		}
-		RegexState RegexSource::GetState() const
+		regex_state regex_source::get_state() const
 		{
-			return State;
+			return state;
 		}
-		bool RegexSource::IsSimple() const
+		bool regex_source::is_simple() const
 		{
-			return !Core::Stringify::FindOf(Expression, "\\+*?|[]").Found;
+			return !core::stringify::find_of(expression, "\\+*?|[]").found;
 		}
-		void RegexSource::Compile()
+		void regex_source::compile()
 		{
-			const char* vPtr = Expression.c_str();
-			int64_t vSize = (int64_t)Expression.size();
-			Brackets.reserve(8);
-			Branches.reserve(8);
+			const char* vPtr = expression.c_str();
+			int64_t vSize = (int64_t)expression.size();
+			brackets.reserve(8);
+			branches.reserve(8);
 
-			RegexBracket Bracket;
-			Bracket.Pointer = vPtr;
-			Bracket.Length = vSize;
-			Brackets.push_back(Bracket);
+			regex_bracket bracket;
+			bracket.pointer = vPtr;
+			bracket.length = vSize;
+			brackets.push_back(bracket);
 
-			int64_t Step = 0, Depth = 0;
-			for (int64_t i = 0; i < vSize; i += Step)
+			int64_t step = 0, depth = 0;
+			for (int64_t i = 0; i < vSize; i += step)
 			{
-				Step = Regex::GetOpLength(vPtr + i, vSize - i);
+				step = regex::get_op_length(vPtr + i, vSize - i);
 				if (vPtr[i] == '|')
 				{
-					RegexBranch Branch;
-					Branch.BracketIndex = (Brackets.back().Length == -1 ? Brackets.size() - 1 : Depth);
-					Branch.Pointer = &vPtr[i];
-					Branches.push_back(Branch);
+					regex_branch branch;
+					branch.bracket_index = (brackets.back().length == -1 ? brackets.size() - 1 : depth);
+					branch.pointer = &vPtr[i];
+					branches.push_back(branch);
 				}
 				else if (vPtr[i] == '\\')
 				{
-					REGEX_FAIL_IN(i >= vSize - 1, RegexState::Invalid_Metacharacter);
+					REGEX_FAIL_IN(i >= vSize - 1, regex_state::invalid_metacharacter);
 					if (vPtr[i + 1] == 'x')
 					{
-						REGEX_FAIL_IN(i >= vSize - 3, RegexState::Invalid_Metacharacter);
-						REGEX_FAIL_IN(!(isxdigit(vPtr[i + 2]) && isxdigit(vPtr[i + 3])), RegexState::Invalid_Metacharacter);
+						REGEX_FAIL_IN(i >= vSize - 3, regex_state::invalid_metacharacter);
+						REGEX_FAIL_IN(!(isxdigit(vPtr[i + 2]) && isxdigit(vPtr[i + 3])), regex_state::invalid_metacharacter);
 					}
 					else
 					{
-						REGEX_FAIL_IN(!Regex::Meta((const uint8_t*)vPtr + i + 1), RegexState::Invalid_Metacharacter);
+						REGEX_FAIL_IN(!regex::meta((const uint8_t*)vPtr + i + 1), regex_state::invalid_metacharacter);
 					}
 				}
 				else if (vPtr[i] == '(')
 				{
-					Depth++;
-					Bracket.Pointer = vPtr + i + 1;
-					Bracket.Length = -1;
-					Brackets.push_back(Bracket);
+					depth++;
+					bracket.pointer = vPtr + i + 1;
+					bracket.length = -1;
+					brackets.push_back(bracket);
 				}
 				else if (vPtr[i] == ')')
 				{
-					int64_t Idx = (Brackets[Brackets.size() - 1].Length == -1 ? Brackets.size() - 1 : Depth);
-					Brackets[(size_t)Idx].Length = (int64_t)(&vPtr[i] - Brackets[(size_t)Idx].Pointer); Depth--;
-					REGEX_FAIL_IN(Depth < 0, RegexState::Unbalanced_Brackets);
-					REGEX_FAIL_IN(i > 0 && vPtr[i - 1] == '(', RegexState::No_Match);
+					int64_t idx = (brackets[brackets.size() - 1].length == -1 ? brackets.size() - 1 : depth);
+					brackets[(size_t)idx].length = (int64_t)(&vPtr[i] - brackets[(size_t)idx].pointer); depth--;
+					REGEX_FAIL_IN(depth < 0, regex_state::unbalanced_brackets);
+					REGEX_FAIL_IN(i > 0 && vPtr[i - 1] == '(', regex_state::no_match);
 				}
 			}
 
-			REGEX_FAIL_IN(Depth != 0, RegexState::Unbalanced_Brackets);
+			REGEX_FAIL_IN(depth != 0, regex_state::unbalanced_brackets);
 
-			RegexBranch Branch; size_t i, j;
-			for (i = 0; i < Branches.size(); i++)
+			regex_branch branch; size_t i, j;
+			for (i = 0; i < branches.size(); i++)
 			{
-				for (j = i + 1; j < Branches.size(); j++)
+				for (j = i + 1; j < branches.size(); j++)
 				{
-					if (Branches[i].BracketIndex > Branches[j].BracketIndex)
+					if (branches[i].bracket_index > branches[j].bracket_index)
 					{
-						Branch = Branches[i];
-						Branches[i] = Branches[j];
-						Branches[j] = Branch;
+						branch = branches[i];
+						branches[i] = branches[j];
+						branches[j] = branch;
 					}
 				}
 			}
 
-			for (i = j = 0; i < Brackets.size(); i++)
+			for (i = j = 0; i < brackets.size(); i++)
 			{
-				auto& Bracket = Brackets[i];
-				Bracket.BranchesCount = 0;
-				Bracket.Branches = j;
+				auto& bracket = brackets[i];
+				bracket.branches_count = 0;
+				bracket.branches = j;
 
-				while (j < Branches.size() && Branches[j].BracketIndex == i)
+				while (j < branches.size() && branches[j].bracket_index == i)
 				{
-					Bracket.BranchesCount++;
+					bracket.branches_count++;
 					j++;
 				}
 			}
 		}
 
-		RegexResult::RegexResult() noexcept : State(RegexState::No_Match), Steps(0), Src(nullptr)
+		regex_result::regex_result() noexcept : state(regex_state::no_match), steps(0), src(nullptr)
 		{
 		}
-		RegexResult::RegexResult(const RegexResult& Other) noexcept : Matches(Other.Matches), State(Other.State), Steps(Other.Steps), Src(Other.Src)
+		regex_result::regex_result(const regex_result& other) noexcept : matches(other.matches), state(other.state), steps(other.steps), src(other.src)
 		{
 		}
-		RegexResult::RegexResult(RegexResult&& Other) noexcept : Matches(std::move(Other.Matches)), State(Other.State), Steps(Other.Steps), Src(Other.Src)
+		regex_result::regex_result(regex_result&& other) noexcept : matches(std::move(other.matches)), state(other.state), steps(other.steps), src(other.src)
 		{
 		}
-		RegexResult& RegexResult::operator =(const RegexResult& V) noexcept
+		regex_result& regex_result::operator =(const regex_result& v) noexcept
 		{
-			Matches = V.Matches;
-			Src = V.Src;
-			Steps = V.Steps;
-			State = V.State;
+			matches = v.matches;
+			src = v.src;
+			steps = v.steps;
+			state = v.state;
 
 			return *this;
 		}
-		RegexResult& RegexResult::operator =(RegexResult&& V) noexcept
+		regex_result& regex_result::operator =(regex_result&& v) noexcept
 		{
-			Matches.swap(V.Matches);
-			Src = V.Src;
-			Steps = V.Steps;
-			State = V.State;
+			matches.swap(v.matches);
+			src = v.src;
+			steps = v.steps;
+			state = v.state;
 
 			return *this;
 		}
-		bool RegexResult::Empty() const
+		bool regex_result::empty() const
 		{
-			return Matches.empty();
+			return matches.empty();
 		}
-		int64_t RegexResult::GetSteps() const
+		int64_t regex_result::get_steps() const
 		{
-			return Steps;
+			return steps;
 		}
-		RegexState RegexResult::GetState() const
+		regex_state regex_result::get_state() const
 		{
-			return State;
+			return state;
 		}
-		const Core::Vector<RegexMatch>& RegexResult::Get() const
+		const core::vector<regex_match>& regex_result::get() const
 		{
-			return Matches;
+			return matches;
 		}
-		Core::Vector<Core::String> RegexResult::ToArray() const
+		core::vector<core::string> regex_result::to_array() const
 		{
-			Core::Vector<Core::String> Array;
-			Array.reserve(Matches.size());
+			core::vector<core::string> array;
+			array.reserve(matches.size());
 
-			for (auto& Item : Matches)
-				Array.emplace_back(Item.Pointer, (size_t)Item.Length);
+			for (auto& item : matches)
+				array.emplace_back(item.pointer, (size_t)item.length);
 
-			return Array;
+			return array;
 		}
 
-		bool Regex::Match(RegexSource* Value, RegexResult& Result, const std::string_view& Buffer)
+		bool regex::match(regex_source* value, regex_result& result, const std::string_view& buffer)
 		{
-			VI_ASSERT(Value != nullptr && Value->State == RegexState::Preprocessed, "invalid regex source");
-			VI_ASSERT(!Buffer.empty(), "invalid buffer");
+			VI_ASSERT(value != nullptr && value->state == regex_state::preprocessed, "invalid regex source");
+			VI_ASSERT(!buffer.empty(), "invalid buffer");
 
-			Result.Src = Value;
-			Result.State = RegexState::Preprocessed;
-			Result.Matches.clear();
-			Result.Matches.reserve(8);
+			result.src = value;
+			result.state = regex_state::preprocessed;
+			result.matches.clear();
+			result.matches.reserve(8);
 
-			int64_t Code = Parse(Buffer.data(), Buffer.size(), &Result);
-			if (Code <= 0)
+			int64_t code = parse(buffer.data(), buffer.size(), &result);
+			if (code <= 0)
 			{
-				Result.State = (RegexState)Code;
-				Result.Matches.clear();
+				result.state = (regex_state)code;
+				result.matches.clear();
 				return false;
 			}
 
-			for (auto It = Result.Matches.begin(); It != Result.Matches.end(); ++It)
+			for (auto it = result.matches.begin(); it != result.matches.end(); ++it)
 			{
-				It->Start = It->Pointer - Buffer.data();
-				It->End = It->Start + It->Length;
+				it->start = it->pointer - buffer.data();
+				it->end = it->start + it->length;
 			}
 
-			Result.State = RegexState::Match_Found;
+			result.state = regex_state::match_found;
 			return true;
 		}
-		bool Regex::Replace(RegexSource* Value, const std::string_view& To, Core::String& Buffer)
+		bool regex::replace(regex_source* value, const std::string_view& to, core::string& buffer)
 		{
-			Core::String Emplace;
-			RegexResult Result;
-			size_t Matches = 0;
+			core::string emplace;
+			regex_result result;
+			size_t matches = 0;
 
-			bool Expression = (!To.empty() && To.find('$') != Core::String::npos);
-			if (!Expression)
-				Emplace.assign(To);
+			bool expression = (!to.empty() && to.find('$') != core::string::npos);
+			if (!expression)
+				emplace.assign(to);
 
-			size_t Start = 0;
-			while (Match(Value, Result, std::string_view(Buffer.c_str() + Start, Buffer.size() - Start)))
+			size_t start = 0;
+			while (match(value, result, std::string_view(buffer.c_str() + start, buffer.size() - start)))
 			{
-				Matches++;
-				if (Result.Matches.empty())
+				matches++;
+				if (result.matches.empty())
 					continue;
 
-				if (Expression)
+				if (expression)
 				{
-					Emplace.assign(To);
-					for (size_t i = 1; i < Result.Matches.size(); i++)
+					emplace.assign(to);
+					for (size_t i = 1; i < result.matches.size(); i++)
 					{
-						auto& Item = Result.Matches[i];
-						Core::Stringify::Replace(Emplace, "$" + Core::ToString(i), Core::String(Item.Pointer, (size_t)Item.Length));
+						auto& item = result.matches[i];
+						core::stringify::replace(emplace, "$" + core::to_string(i), core::string(item.pointer, (size_t)item.length));
 					}
 				}
 
-				auto& Where = Result.Matches.front();
-				Core::Stringify::ReplacePart(Buffer, (size_t)Where.Start + Start, (size_t)Where.End + Start, Emplace);
-				Start += (size_t)Where.Start + (size_t)Emplace.size() - (Emplace.empty() ? 0 : 1);
+				auto& where = result.matches.front();
+				core::stringify::replace_part(buffer, (size_t)where.start + start, (size_t)where.end + start, emplace);
+				start += (size_t)where.start + (size_t)emplace.size() - (emplace.empty() ? 0 : 1);
 			}
 
-			return Matches > 0;
+			return matches > 0;
 		}
-		int64_t Regex::Meta(const uint8_t* Buffer)
+		int64_t regex::meta(const uint8_t* buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			static const char* Chars = "^$().[]*+?|\\Ssdbfnrtv";
-			return strchr(Chars, *Buffer) != nullptr;
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			static const char* chars = "^$().[]*+?|\\Ssdbfnrtv";
+			return strchr(chars, *buffer) != nullptr;
 		}
-		int64_t Regex::OpLength(const char* Value)
+		int64_t regex::op_length(const char* value)
 		{
-			VI_ASSERT(Value != nullptr, "invalid value");
-			return Value[0] == '\\' && Value[1] == 'x' ? 4 : Value[0] == '\\' ? 2 : 1;
+			VI_ASSERT(value != nullptr, "invalid value");
+			return value[0] == '\\' && value[1] == 'x' ? 4 : value[0] == '\\' ? 2 : 1;
 		}
-		int64_t Regex::SetLength(const char* Value, int64_t ValueLength)
+		int64_t regex::set_length(const char* value, int64_t value_length)
 		{
-			VI_ASSERT(Value != nullptr, "invalid value");
-			int64_t Length = 0;
-			while (Length < ValueLength && Value[Length] != ']')
-				Length += OpLength(Value + Length);
+			VI_ASSERT(value != nullptr, "invalid value");
+			int64_t length = 0;
+			while (length < value_length && value[length] != ']')
+				length += op_length(value + length);
 
-			return Length <= ValueLength ? Length + 1 : -1;
+			return length <= value_length ? length + 1 : -1;
 		}
-		int64_t Regex::GetOpLength(const char* Value, int64_t ValueLength)
+		int64_t regex::get_op_length(const char* value, int64_t value_length)
 		{
-			VI_ASSERT(Value != nullptr, "invalid value");
-			return Value[0] == '[' ? SetLength(Value + 1, ValueLength - 1) + 1 : OpLength(Value);
+			VI_ASSERT(value != nullptr, "invalid value");
+			return value[0] == '[' ? set_length(value + 1, value_length - 1) + 1 : op_length(value);
 		}
-		int64_t Regex::Quantifier(const char* Value)
+		int64_t regex::quantifier(const char* value)
 		{
-			VI_ASSERT(Value != nullptr, "invalid value");
-			return Value[0] == '*' || Value[0] == '+' || Value[0] == '?';
+			VI_ASSERT(value != nullptr, "invalid value");
+			return value[0] == '*' || value[0] == '+' || value[0] == '?';
 		}
-		int64_t Regex::ToInt(int64_t x)
+		int64_t regex::to_int(int64_t x)
 		{
 			return (int64_t)(isdigit((int)x) ? (int)x - '0' : (int)x - 'W');
 		}
-		int64_t Regex::HexToInt(const uint8_t* Buffer)
+		int64_t regex::hex_to_int(const uint8_t* buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			return (ToInt(tolower(Buffer[0])) << 4) | ToInt(tolower(Buffer[1]));
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			return (to_int(tolower(buffer[0])) << 4) | to_int(tolower(buffer[1]));
 		}
-		int64_t Regex::MatchOp(const uint8_t* Value, const uint8_t* Buffer, RegexResult* Info)
+		int64_t regex::match_op(const uint8_t* value, const uint8_t* buffer, regex_result* info)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			VI_ASSERT(Value != nullptr, "invalid value");
-			VI_ASSERT(Info != nullptr, "invalid regex result");
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			VI_ASSERT(value != nullptr, "invalid value");
+			VI_ASSERT(info != nullptr, "invalid regex result");
 
-			int64_t Result = 0;
-			switch (*Value)
+			int64_t result = 0;
+			switch (*value)
 			{
 				case '\\':
-					switch (Value[1])
+					switch (value[1])
 					{
 						case 'S':
-							REGEX_FAIL(isspace(*Buffer), (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(isspace(*buffer), (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 's':
-							REGEX_FAIL(!isspace(*Buffer), (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(!isspace(*buffer), (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'd':
-							REGEX_FAIL(!isdigit(*Buffer), (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(!isdigit(*buffer), (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'b':
-							REGEX_FAIL(*Buffer != '\b', (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(*buffer != '\b', (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'f':
-							REGEX_FAIL(*Buffer != '\f', (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(*buffer != '\f', (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'n':
-							REGEX_FAIL(*Buffer != '\n', (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(*buffer != '\n', (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'r':
-							REGEX_FAIL(*Buffer != '\r', (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(*buffer != '\r', (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 't':
-							REGEX_FAIL(*Buffer != '\t', (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(*buffer != '\t', (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'v':
-							REGEX_FAIL(*Buffer != '\v', (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(*buffer != '\v', (int64_t)regex_state::no_match);
+							result++;
 							break;
 						case 'x':
-							REGEX_FAIL((uint8_t)HexToInt(Value + 2) != *Buffer, (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL((uint8_t)hex_to_int(value + 2) != *buffer, (int64_t)regex_state::no_match);
+							result++;
 							break;
 						default:
-							REGEX_FAIL(Value[1] != Buffer[0], (int64_t)RegexState::No_Match);
-							Result++;
+							REGEX_FAIL(value[1] != buffer[0], (int64_t)regex_state::no_match);
+							result++;
 							break;
 					}
 					break;
 				case '|':
-					REGEX_FAIL(1, (int64_t)RegexState::Internal_Error);
+					REGEX_FAIL(1, (int64_t)regex_state::internal_error);
 					break;
 				case '$':
-					REGEX_FAIL(1, (int64_t)RegexState::No_Match);
+					REGEX_FAIL(1, (int64_t)regex_state::no_match);
 					break;
 				case '.':
-					Result++;
+					result++;
 					break;
 				default:
-					if (Info->Src->IgnoreCase)
+					if (info->src->ignore_case)
 					{
-						REGEX_FAIL(tolower(*Value) != tolower(*Buffer), (int64_t)RegexState::No_Match);
+						REGEX_FAIL(tolower(*value) != tolower(*buffer), (int64_t)regex_state::no_match);
 					}
 					else
 					{
-						REGEX_FAIL(*Value != *Buffer, (int64_t)RegexState::No_Match);
+						REGEX_FAIL(*value != *buffer, (int64_t)regex_state::no_match);
 					}
-					Result++;
+					result++;
 					break;
 			}
 
-			return Result;
+			return result;
 		}
-		int64_t Regex::MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info)
+		int64_t regex::match_set(const char* value, int64_t value_length, const char* buffer, regex_result* info)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			VI_ASSERT(Value != nullptr, "invalid value");
-			VI_ASSERT(Info != nullptr, "invalid regex result");
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			VI_ASSERT(value != nullptr, "invalid value");
+			VI_ASSERT(info != nullptr, "invalid regex result");
 
-			int64_t Length = 0, Result = -1, Invert = Value[0] == '^';
-			if (Invert)
-				Value++, ValueLength--;
+			int64_t length = 0, result = -1, invert = value[0] == '^';
+			if (invert)
+				value++, value_length--;
 
-			while (Length <= ValueLength && Value[Length] != ']' && Result <= 0)
+			while (length <= value_length && value[length] != ']' && result <= 0)
 			{
-				if (Value[Length] != '-' && Value[Length + 1] == '-' && Value[Length + 2] != ']' && Value[Length + 2] != '\0')
+				if (value[length] != '-' && value[length + 1] == '-' && value[length + 2] != ']' && value[length + 2] != '\0')
 				{
-					Result = (Info->Src->IgnoreCase) ? tolower(*Buffer) >= tolower(Value[Length]) && tolower(*Buffer) <= tolower(Value[Length + 2]) : *Buffer >= Value[Length] && *Buffer <= Value[Length + 2];
-					Length += 3;
+					result = (info->src->ignore_case) ? tolower(*buffer) >= tolower(value[length]) && tolower(*buffer) <= tolower(value[length + 2]) : *buffer >= value[length] && *buffer <= value[length + 2];
+					length += 3;
 				}
 				else
 				{
-					Result = MatchOp((const uint8_t*)Value + Length, (const uint8_t*)Buffer, Info);
-					Length += OpLength(Value + Length);
+					result = match_op((const uint8_t*)value + length, (const uint8_t*)buffer, info);
+					length += op_length(value + length);
 				}
 			}
 
-			return (!Invert && Result > 0) || (Invert && Result <= 0) ? 1 : -1;
+			return (!invert && result > 0) || (invert && result <= 0) ? 1 : -1;
 		}
-		int64_t Regex::ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
+		int64_t regex::parse_inner(const char* value, int64_t value_length, const char* buffer, int64_t buffer_length, regex_result* info, int64_t condition)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			VI_ASSERT(Value != nullptr, "invalid value");
-			VI_ASSERT(Info != nullptr, "invalid regex result");
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			VI_ASSERT(value != nullptr, "invalid value");
+			VI_ASSERT(info != nullptr, "invalid regex result");
 
-			int64_t i, j, n, Step;
-			for (i = j = 0; i < ValueLength && j <= BufferLength; i += Step)
+			int64_t i, j, n, step;
+			for (i = j = 0; i < value_length && j <= buffer_length; i += step)
 			{
-				Step = Value[i] == '(' ? Info->Src->Brackets[(size_t)Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
-				REGEX_FAIL(Quantifier(&Value[i]), (int64_t)RegexState::Unexpected_Quantifier);
-				REGEX_FAIL(Step <= 0, (int64_t)RegexState::Invalid_Character_Set);
-				Info->Steps++;
+				step = value[i] == '(' ? info->src->brackets[(size_t)condition + 1].length + 2 : get_op_length(value + i, value_length - i);
+				REGEX_FAIL(quantifier(&value[i]), (int64_t)regex_state::unexpected_quantifier);
+				REGEX_FAIL(step <= 0, (int64_t)regex_state::invalid_character_set);
+				info->steps++;
 
-				if (i + Step < ValueLength && Quantifier(Value + i + Step))
+				if (i + step < value_length && quantifier(value + i + step))
 				{
-					if (Value[i + Step] == '?')
+					if (value[i + step] == '?')
 					{
-						int64_t result = ParseInner(Value + i, Step, Buffer + j, BufferLength - j, Info, Case);
+						int64_t result = parse_inner(value + i, step, buffer + j, buffer_length - j, info, condition);
 						j += result > 0 ? result : 0;
 						i++;
 					}
-					else if (Value[i + Step] == '+' || Value[i + Step] == '*')
+					else if (value[i + step] == '+' || value[i + step] == '*')
 					{
 						int64_t j2 = j, nj = j, n1, n2 = -1, ni, non_greedy = 0;
-						ni = i + Step + 1;
-						if (ni < ValueLength && Value[ni] == '?')
+						ni = i + step + 1;
+						if (ni < value_length && value[ni] == '?')
 						{
 							non_greedy = 1;
 							ni++;
@@ -537,86 +537,86 @@ namespace Vitex
 
 						do
 						{
-							if ((n1 = ParseInner(Value + i, Step, Buffer + j2, BufferLength - j2, Info, Case)) > 0)
+							if ((n1 = parse_inner(value + i, step, buffer + j2, buffer_length - j2, info, condition)) > 0)
 								j2 += n1;
 
-							if (Value[i + Step] == '+' && n1 < 0)
+							if (value[i + step] == '+' && n1 < 0)
 								break;
 
-							if (ni >= ValueLength)
+							if (ni >= value_length)
 								nj = j2;
-							else if ((n2 = ParseInner(Value + ni, ValueLength - ni, Buffer + j2, BufferLength - j2, Info, Case)) >= 0)
+							else if ((n2 = parse_inner(value + ni, value_length - ni, buffer + j2, buffer_length - j2, info, condition)) >= 0)
 								nj = j2 + n2;
 
 							if (nj > j && non_greedy)
 								break;
 						} while (n1 > 0);
 
-						if (n1 < 0 && n2 < 0 && Value[i + Step] == '*' && (n2 = ParseInner(Value + ni, ValueLength - ni, Buffer + j, BufferLength - j, Info, Case)) > 0)
+						if (n1 < 0 && n2 < 0 && value[i + step] == '*' && (n2 = parse_inner(value + ni, value_length - ni, buffer + j, buffer_length - j, info, condition)) > 0)
 							nj = j + n2;
 
-						REGEX_FAIL(Value[i + Step] == '+' && nj == j, (int64_t)RegexState::No_Match);
-						REGEX_FAIL(nj == j && ni < ValueLength&& n2 < 0, (int64_t)RegexState::No_Match);
+						REGEX_FAIL(value[i + step] == '+' && nj == j, (int64_t)regex_state::no_match);
+						REGEX_FAIL(nj == j && ni < value_length && n2 < 0, (int64_t)regex_state::no_match);
 						return nj;
 					}
 
 					continue;
 				}
 
-				if (Value[i] == '[')
+				if (value[i] == '[')
 				{
-					n = MatchSet(Value + i + 1, ValueLength - (i + 2), Buffer + j, Info);
-					REGEX_FAIL(n <= 0, (int64_t)RegexState::No_Match);
+					n = match_set(value + i + 1, value_length - (i + 2), buffer + j, info);
+					REGEX_FAIL(n <= 0, (int64_t)regex_state::no_match);
 					j += n;
 				}
-				else if (Value[i] == '(')
+				else if (value[i] == '(')
 				{
-					n = (int64_t)RegexState::No_Match;
-					Case++;
+					n = (int64_t)regex_state::no_match;
+					condition++;
 
-					REGEX_FAIL(Case >= (int64_t)Info->Src->Brackets.size(), (int64_t)RegexState::Internal_Error);
-					if (ValueLength - (i + Step) > 0)
+					REGEX_FAIL(condition >= (int64_t)info->src->brackets.size(), (int64_t)regex_state::internal_error);
+					if (value_length - (i + step) > 0)
 					{
 						int64_t j2;
-						for (j2 = 0; j2 <= BufferLength - j; j2++)
+						for (j2 = 0; j2 <= buffer_length - j; j2++)
 						{
-							if ((n = ParseDOH(Buffer + j, BufferLength - (j + j2), Info, Case)) >= 0 && ParseInner(Value + i + Step, ValueLength - (i + Step), Buffer + j + n, BufferLength - (j + n), Info, Case) >= 0)
+							if ((n = parse_doh(buffer + j, buffer_length - (j + j2), info, condition)) >= 0 && parse_inner(value + i + step, value_length - (i + step), buffer + j + n, buffer_length - (j + n), info, condition) >= 0)
 								break;
 						}
 					}
 					else
-						n = ParseDOH(Buffer + j, BufferLength - j, Info, Case);
+						n = parse_doh(buffer + j, buffer_length - j, info, condition);
 
 					REGEX_FAIL(n < 0, n);
 					if (n > 0)
 					{
-						RegexMatch* Match;
-						if (Case - 1 >= (int64_t)Info->Matches.size())
+						regex_match* match;
+						if (condition - 1 >= (int64_t)info->matches.size())
 						{
-							Info->Matches.emplace_back();
-							Match = &Info->Matches[Info->Matches.size() - 1];
+							info->matches.emplace_back();
+							match = &info->matches[info->matches.size() - 1];
 						}
 						else
-							Match = &Info->Matches.at((size_t)Case - 1);
+							match = &info->matches.at((size_t)condition - 1);
 
-						Match->Pointer = Buffer + j;
-						Match->Length = n;
-						Match->Steps++;
+						match->pointer = buffer + j;
+						match->length = n;
+						match->steps++;
 					}
 					j += n;
 				}
-				else if (Value[i] == '^')
+				else if (value[i] == '^')
 				{
-					REGEX_FAIL(j != 0, (int64_t)RegexState::No_Match);
+					REGEX_FAIL(j != 0, (int64_t)regex_state::no_match);
 				}
-				else if (Value[i] == '$')
+				else if (value[i] == '$')
 				{
-					REGEX_FAIL(j != BufferLength, (int64_t)RegexState::No_Match);
+					REGEX_FAIL(j != buffer_length, (int64_t)regex_state::no_match);
 				}
 				else
 				{
-					REGEX_FAIL(j >= BufferLength, (int64_t)RegexState::No_Match);
-					n = MatchOp((const uint8_t*)(Value + i), (const uint8_t*)(Buffer + j), Info);
+					REGEX_FAIL(j >= buffer_length, (int64_t)regex_state::no_match);
+					n = match_op((const uint8_t*)(value + i), (const uint8_t*)(buffer + j), info);
 					REGEX_FAIL(n <= 0, n);
 					j += n;
 				}
@@ -624,35 +624,35 @@ namespace Vitex
 
 			return j;
 		}
-		int64_t Regex::ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
+		int64_t regex::parse_doh(const char* buffer, int64_t buffer_length, regex_result* info, int64_t condition)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			VI_ASSERT(Info != nullptr, "invalid regex result");
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			VI_ASSERT(info != nullptr, "invalid regex result");
 
-			const RegexBracket* Bk = &Info->Src->Brackets[(size_t)Case];
-			int64_t i = 0, Length, Result;
-			const char* Ptr;
+			const regex_bracket* bk = &info->src->brackets[(size_t)condition];
+			int64_t i = 0, length, result;
+			const char* ptr;
 
 			do
 			{
-				Ptr = i == 0 ? Bk->Pointer : Info->Src->Branches[(size_t)(Bk->Branches + i - 1)].Pointer + 1;
-				Length = Bk->BranchesCount == 0 ? Bk->Length : i == Bk->BranchesCount ? (int64_t)(Bk->Pointer + Bk->Length - Ptr) : (int64_t)(Info->Src->Branches[(size_t)(Bk->Branches + i)].Pointer - Ptr);
-				Result = ParseInner(Ptr, Length, Buffer, BufferLength, Info, Case);
+				ptr = i == 0 ? bk->pointer : info->src->branches[(size_t)(bk->branches + i - 1)].pointer + 1;
+				length = bk->branches_count == 0 ? bk->length : i == bk->branches_count ? (int64_t)(bk->pointer + bk->length - ptr) : (int64_t)(info->src->branches[(size_t)(bk->branches + i)].pointer - ptr);
+				result = parse_inner(ptr, length, buffer, buffer_length, info, condition);
 				VI_MEASURE_LOOP();
-			} while (Result <= 0 && i++ < Bk->BranchesCount);
+			} while (result <= 0 && i++ < bk->branches_count);
 
-			return Result;
+			return result;
 		}
-		int64_t Regex::Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info)
+		int64_t regex::parse(const char* buffer, int64_t buffer_length, regex_result* info)
 		{
-			VI_ASSERT(Buffer != nullptr, "invalid buffer");
-			VI_ASSERT(Info != nullptr, "invalid regex result");
-			VI_MEASURE(Core::Timings::Frame);
+			VI_ASSERT(buffer != nullptr, "invalid buffer");
+			VI_ASSERT(info != nullptr, "invalid regex result");
+			VI_MEASURE(core::timings::frame);
 
-			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
-			for (i = 0; i <= BufferLength; i++)
+			int64_t is_anchored = info->src->brackets[0].pointer[0] == '^', i, result = -1;
+			for (i = 0; i <= buffer_length; i++)
 			{
-				result = ParseDOH(Buffer + i, BufferLength - i, Info, 0);
+				result = parse_doh(buffer + i, buffer_length - i, info, 0);
 				if (result >= 0)
 				{
 					result += i;
@@ -665,441 +665,522 @@ namespace Vitex
 
 			return result;
 		}
-		const char* Regex::Syntax()
+		const char* regex::syntax()
 		{
 			return
-				"\"^\" - Match beginning of a buffer\n"
-				"\"$\" - Match end of a buffer\n"
-				"\"()\" - Grouping and substring capturing\n"
-				"\"\\s\" - Match whitespace\n"
-				"\"\\S\" - Match non - whitespace\n"
-				"\"\\d\" - Match decimal digit\n"
-				"\"\\n\" - Match new line character\n"
-				"\"\\r\" - Match line feed character\n"
-				"\"\\f\" - Match form feed character\n"
-				"\"\\v\" - Match vertical tab character\n"
-				"\"\\t\" - Match horizontal tab character\n"
-				"\"\\b\" - Match backspace character\n"
-				"\"+\" - Match one or more times (greedy)\n"
-				"\"+?\" - Match one or more times (non - greedy)\n"
-				"\"*\" - Match zero or more times (greedy)\n"
-				"\"*?\" - Match zero or more times(non - greedy)\n"
-				"\"?\" - Match zero or once(non - greedy)\n"
-				"\"x|y\" - Match x or y(alternation operator)\n"
-				"\"\\meta\" - Match one of the meta character: ^$().[]*+?|\\\n"
-				"\"\\xHH\" - Match byte with hex value 0xHH, e.g. \\x4a\n"
-				"\"[...]\" - Match any character from set. Ranges like[a-z] are supported\n"
-				"\"[^...]\" - Match any character but ones from set\n";
+				"\"^\" - match beginning of a buffer\n"
+				"\"$\" - match end of a buffer\n"
+				"\"()\" - grouping and substring capturing\n"
+				"\"\\s\" - match whitespace\n"
+				"\"\\s\" - match non - whitespace\n"
+				"\"\\d\" - match decimal digit\n"
+				"\"\\n\" - match new line character\n"
+				"\"\\r\" - match line feed character\n"
+				"\"\\f\" - match form feed character\n"
+				"\"\\v\" - match vertical tab character\n"
+				"\"\\t\" - match horizontal tab character\n"
+				"\"\\b\" - match backspace character\n"
+				"\"+\" - match one or more times (greedy)\n"
+				"\"+?\" - match one or more times (non - greedy)\n"
+				"\"*\" - match zero or more times (greedy)\n"
+				"\"*?\" - match zero or more times(non - greedy)\n"
+				"\"?\" - match zero or once(non - greedy)\n"
+				"\"x|y\" - match x or y(alternation operator)\n"
+				"\"\\meta\" - match one of the meta character: ^$().[]*+?|\\\n"
+				"\"\\xHH\" - match byte with hex value 0xHH, e.g. \\x4a\n"
+				"\"[...]\" - match any character from set. ranges like[a-z] are supported\n"
+				"\"[^...]\" - match any character but ones from set\n";
 		}
 
-		PrivateKey::PrivateKey() noexcept
-		{
-			VI_TRACE("[crypto] create empty private key");
-		}
-		PrivateKey::PrivateKey(Core::String&& Text, bool) noexcept : Plain(std::move(Text))
-		{
-			VI_TRACE("[crypto] create plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
-		}
-		PrivateKey::PrivateKey(const std::string_view& Text, bool) noexcept : Plain(Text)
-		{
-			VI_TRACE("[crypto] create plain private key on %" PRIu64 " bytes", (uint64_t)Plain.size());
-		}
-		PrivateKey::PrivateKey(const std::string_view& Key) noexcept
-		{
-			Secure(Key);
-		}
-		PrivateKey::PrivateKey(const PrivateKey& Other) noexcept
-		{
-			CopyDistribution(Other);
-		}
-		PrivateKey::PrivateKey(PrivateKey&& Other) noexcept : Blocks(std::move(Other.Blocks)), Plain(std::move(Other.Plain))
+		secret_box::secret_box() noexcept : type((box_type)std::numeric_limits<uint8_t>::max())
 		{
 		}
-		PrivateKey::~PrivateKey() noexcept
+		secret_box::secret_box(box_type new_type) noexcept : type(new_type)
 		{
-			Clear();
 		}
-		PrivateKey& PrivateKey::operator =(const PrivateKey& V) noexcept
+		secret_box::secret_box(const secret_box& other) noexcept : type((box_type)std::numeric_limits<uint8_t>::max())
 		{
-			CopyDistribution(V);
+			copy_distribution(other);
+		}
+		secret_box::secret_box(secret_box&& other) noexcept : type((box_type)std::numeric_limits<uint8_t>::max())
+		{
+			move_distribution(std::move(other));
+		}
+		secret_box::~secret_box() noexcept
+		{
+			clear();
+		}
+		secret_box& secret_box::operator =(const secret_box& v) noexcept
+		{
+			copy_distribution(v);
 			return *this;
 		}
-		PrivateKey& PrivateKey::operator =(PrivateKey&& V) noexcept
+		secret_box& secret_box::operator =(secret_box&& v) noexcept
 		{
-			Clear();
-			Blocks = std::move(V.Blocks);
-			Plain = std::move(V.Plain);
+			move_distribution(std::move(v));
 			return *this;
 		}
-		void PrivateKey::Clear()
+		void secret_box::clear()
 		{
-			size_t Size = Blocks.size();
-			for (size_t i = 0; i < Size; i++)
+			switch (type)
 			{
-				size_t* Partition = (size_t*)Blocks[i];
-				RollPartition(Partition, Size, i);
-				Core::Memory::Deallocate(Partition);
-			}
-			Blocks.clear();
-			Plain.clear();
-		}
-		void PrivateKey::Secure(const std::string_view& Key)
-		{
-			VI_TRACE("[crypto] secure private key on %" PRIu64 " bytes", (uint64_t)Key.size());
-			Blocks.reserve(Key.size());
-			Clear();
-
-			for (size_t i = 0; i < Key.size(); i++)
-			{
-				size_t* Partition = Core::Memory::Allocate<size_t>(PRIVATE_KEY_SIZE);
-				FillPartition(Partition, Key.size(), i, Key[i]);
-				Blocks.emplace_back(Partition);
-			}
-		}
-		void PrivateKey::ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize) const
-		{
-			VI_TRACE("[crypto] stack expose private key to 0x%" PRIXPTR, (void*)Buffer);
-			size_t Size;
-			if (Plain.empty())
-			{
-				Size = (--MaxSize > Blocks.size() ? Blocks.size() : MaxSize);
-				for (size_t i = 0; i < Size; i++)
-					Buffer[i] = LoadPartition((size_t*)Blocks[i], Size, i);
-			}
-			else
-			{
-				Size = (--MaxSize > Plain.size() ? Plain.size() : MaxSize);
-				memcpy(Buffer, Plain.data(), sizeof(char) * Size);
-			}
-
-			Buffer[Size] = '\0';
-			if (OutSize != nullptr)
-				*OutSize = Size;
-		}
-		Core::String PrivateKey::ExposeToHeap() const
-		{
-			VI_TRACE("[crypto] heap expose private key from 0x%" PRIXPTR, (void*)this);
-			Core::String Result = Plain;
-			if (Result.empty())
-			{
-				Result.resize(Blocks.size());
-				ExposeToStack((char*)Result.data(), Result.size() + 1);
-			}
-			return Result;
-		}
-		void PrivateKey::CopyDistribution(const PrivateKey& Other)
-		{
-			VI_TRACE("[crypto] copy private key from 0x%" PRIXPTR, (void*)&Other);
-			Clear();
-			if (Other.Plain.empty())
-			{
-				Blocks.reserve(Other.Blocks.size());
-				for (auto* Partition : Other.Blocks)
+				case box_type::secure:
 				{
-					void* CopiedPartition = Core::Memory::Allocate<void>(PRIVATE_KEY_SIZE);
-					memcpy(CopiedPartition, Partition, PRIVATE_KEY_SIZE);
-					Blocks.emplace_back(CopiedPartition);
+					size_t size = data.set.size();
+					for (size_t i = 0; i < size; i++)
+					{
+						size_t* partition = (size_t*)data.set[i];
+						roll_partition(partition, size, i);
+						core::memory::deallocate(partition);
+					}
+					data.set.~vector();
+					break;
 				}
+				case box_type::insecure:
+					randomize_buffer(data.sequence.data(), data.sequence.size());
+					data.sequence.~basic_string();
+					break;
+				case box_type::view:
+					data.view.~basic_string_view();
+					break;
+				default:
+					break;
 			}
-			else
-				Plain = Other.Plain;
+			type = (box_type)std::numeric_limits<uint8_t>::max();
 		}
-		size_t PrivateKey::Size() const
+		void secret_box::stack(char* buffer, size_t max_size, size_t* out_size) const
 		{
-			return Plain.empty() ? Blocks.size() : Plain.size();
+			VI_TRACE("[crypto] stack expose secret box to 0x%" PRIXPTR, (void*)buffer);
+			switch (type)
+			{
+				case box_type::secure:
+				{
+					size_t size = std::min(max_size - 1, data.set.size());
+					for (size_t i = 0; i < size; i++)
+						buffer[i] = load_partition((size_t*)data.set[i], size, i);
+					buffer[size] = '\0';
+					if (out_size != nullptr)
+						*out_size = size;
+					break;
+				}
+				case box_type::insecure:
+				{
+					size_t size = std::min(max_size - 1, data.sequence.size());
+					memcpy(buffer, data.sequence.data(), sizeof(char) * size);
+					buffer[size] = '\0';
+					if (out_size != nullptr)
+						*out_size = size;
+					break;
+				}
+				case box_type::view:
+				{
+					size_t size = std::min(max_size - 1, data.view.size());
+					memcpy(buffer, data.view.data(), sizeof(char) * size);
+					buffer[size] = '\0';
+					if (out_size != nullptr)
+						*out_size = size;
+					break;
+				}
+				default:
+					break;
+			}
 		}
-		bool PrivateKey::Empty() const
+		core::string secret_box::heap() const
 		{
-			return std::max(Plain.size(), Blocks.size()) == 0;
+			VI_TRACE("[crypto] heap expose secret box from 0x%" PRIXPTR, (void*)this);
+			core::string result = core::string(size(), '\0');
+			stack(result.data(), result.size() + 1);
+			return result;
 		}
-		char PrivateKey::LoadPartition(size_t* Dest, size_t Size, size_t Index) const
+		void secret_box::copy_distribution(const secret_box& other)
 		{
-			char* Buffer = (char*)Dest + sizeof(size_t);
-			return Buffer[Dest[0]];
+			VI_TRACE("[crypto] copy secret box from 0x%" PRIXPTR, (void*)&other);
+			clear();
+			type = other.type;
+			switch (type)
+			{
+				case box_type::secure:
+				{
+					new (&data.set) core::vector<void*>();
+					data.set.reserve(other.data.set.size());
+					for (auto* partition : other.data.set)
+					{
+						void* copied_partition = core::memory::allocate<void>(PARTITION_SIZE);
+						memcpy(copied_partition, partition, PARTITION_SIZE);
+						data.set.emplace_back(copied_partition);
+					}
+					break;
+				}
+				case box_type::insecure:
+					new (&data.sequence) core::string(other.data.sequence);
+					break;
+				case box_type::view:
+					new (&data.view) std::string_view(other.data.view);
+					break;
+				default:
+					break;
+			}
 		}
-		void PrivateKey::RollPartition(size_t* Dest, size_t Size, size_t Index) const
+		void secret_box::move_distribution(secret_box&& other)
 		{
-			char* Buffer = (char*)Dest + sizeof(size_t);
-			Buffer[Dest[0]] = (char)(Crypto::Random() % std::numeric_limits<uint8_t>::max());
+			clear();
+			type = other.type;
+			switch (type)
+			{
+				case box_type::secure:
+					new (&data.set) core::vector<void*>(std::move(other.data.set));
+					break;
+				case box_type::insecure:
+					new (&data.sequence) core::string(std::move(other.data.sequence));
+					break;
+				case box_type::view:
+					new (&data.view) std::string_view(std::move(other.data.view));
+					break;
+				default:
+					break;
+			}
 		}
-		void PrivateKey::FillPartition(size_t* Dest, size_t Size, size_t Index, char Source) const
+		size_t secret_box::size() const
 		{
-			Dest[0] = ((size_t(Source) << 16) + 17) % (PRIVATE_KEY_SIZE - sizeof(size_t));
-			char* Buffer = (char*)Dest + sizeof(size_t);
-			for (size_t i = 0; i < PRIVATE_KEY_SIZE - sizeof(size_t); i++)
-				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<uint8_t>::max());
-			Buffer[Dest[0]] = Source;
+			switch (type)
+			{
+				case box_type::secure:
+					return data.set.size();
+				case box_type::insecure:
+					return data.sequence.size();
+				case box_type::view:
+					return data.view.size();
+				default:
+					return 0;
+			}
 		}
-		void PrivateKey::RandomizeBuffer(char* Buffer, size_t Size)
+		bool secret_box::empty() const
 		{
-			for (size_t i = 0; i < Size; i++)
-				Buffer[i] = Crypto::Random() % std::numeric_limits<char>::max();
+			switch (type)
+			{
+				case box_type::secure:
+					return data.set.empty();
+				case box_type::insecure:
+					return data.sequence.empty();
+				case box_type::view:
+					return data.view.empty();
+				default:
+					return true;
+			}
 		}
-		PrivateKey PrivateKey::GetPlain(Core::String&& Value)
+		char secret_box::load_partition(size_t* dest, size_t size, size_t index)
 		{
-			PrivateKey Key = PrivateKey(std::move(Value), true);
-			return Key;
+			char* buffer = (char*)dest + sizeof(size_t);
+			return buffer[dest[0]];
 		}
-		PrivateKey PrivateKey::GetPlain(const std::string_view& Value)
+		void secret_box::roll_partition(size_t* dest, size_t size, size_t index)
 		{
-			PrivateKey Key = PrivateKey(Value, true);
-			return Key;
+			char* buffer = (char*)dest + sizeof(size_t);
+			buffer[dest[0]] = (char)(crypto::random() % std::numeric_limits<uint8_t>::max());
+		}
+		void secret_box::fill_partition(size_t* dest, size_t size, size_t index, char source)
+		{
+			dest[0] = ((size_t(source) << 16) + 17) % (PARTITION_SIZE - sizeof(size_t));
+			char* buffer = (char*)dest + sizeof(size_t);
+			for (size_t i = 0; i < PARTITION_SIZE - sizeof(size_t); i++)
+				buffer[i] = (char)(crypto::random() % std::numeric_limits<uint8_t>::max());
+			buffer[dest[0]] = source;
+		}
+		void secret_box::randomize_buffer(char* buffer, size_t size)
+		{
+			for (size_t i = 0; i < size; i++)
+				buffer[i] = crypto::random() % std::numeric_limits<char>::max();
+		}
+		secret_box secret_box::secure(const std::string_view& value)
+		{
+			VI_TRACE("[crypto] secure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			secret_box result = secret_box(box_type::secure);
+			new (&result.data.set) core::vector<void*>();
+			result.data.set.reserve(value.size());
+			for (size_t i = 0; i < value.size(); i++)
+			{
+				size_t* partition = core::memory::allocate<size_t>(PARTITION_SIZE);
+				fill_partition(partition, value.size(), i, value[i]);
+				result.data.set.emplace_back(partition);
+			}
+			return result;
+		}
+		secret_box secret_box::insecure(core::string&& value)
+		{
+			VI_TRACE("[crypto] insecure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			secret_box result = secret_box(box_type::insecure);
+			new (&result.data.sequence) core::string(std::move(value));
+			return result;
+		}
+		secret_box secret_box::insecure(const std::string_view& value)
+		{
+			VI_TRACE("[crypto] insecure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			secret_box result = secret_box(box_type::insecure);
+			new (&result.data.sequence) core::string(value);
+			return result;
+		}
+		secret_box secret_box::view(const std::string_view& value)
+		{
+			VI_TRACE("[crypto] view secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			secret_box result = secret_box(box_type::view);
+			new (&result.data.view) std::string_view(value);
+			return result;
 		}
 
-		UInt128::UInt128(const std::string_view& Text) : UInt128(Text, 10)
+		uint128::uint128(const std::string_view& text) : uint128(text, 10)
 		{
 		}
-		UInt128::UInt128(const std::string_view& Text, uint8_t Base)
+		uint128::uint128(const std::string_view& text, uint8_t base)
 		{
-			if (Text.empty())
+			if (text.empty())
 			{
-				Lower = Upper = 0;
+				lower = upper = 0;
 				return;
 			}
 
-			size_t Size = Text.size();
-			char* Data = (char*)Text.data();
-			while (Size > 0 && Core::Stringify::IsWhitespace(*Data))
+			size_t size = text.size();
+			char* data = (char*)text.data();
+			while (size > 0 && core::stringify::is_whitespace(*data))
 			{
-				++Data;
-				Size--;
+				++data;
+				size--;
 			}
 
-			switch (Base)
+			switch (base)
 			{
 				case 16:
 				{
 					static const size_t MAX_LEN = 32;
-					const size_t max_len = std::min(Size, MAX_LEN);
-					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
-					const size_t double_lower = sizeof(Lower) * 2;
+					const size_t max_len = std::min(size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < size) ? (size - MAX_LEN) : 0;
+					const size_t double_lower = sizeof(lower) * 2;
 					const size_t lower_len = (max_len >= double_lower) ? double_lower : max_len;
 					const size_t upper_len = (max_len >= double_lower) ? (max_len - double_lower) : 0;
 
 					std::stringstream lower_s, upper_s;
-					upper_s << std::hex << Core::String(Data + starting_index, upper_len);
-					lower_s << std::hex << Core::String(Data + starting_index + upper_len, lower_len);
-					upper_s >> Upper;
-					lower_s >> Lower;
+					upper_s << std::hex << core::string(data + starting_index, upper_len);
+					lower_s << std::hex << core::string(data + starting_index + upper_len, lower_len);
+					upper_s >> upper;
+					lower_s >> lower;
 					break;
 				}
 				case 10:
 				{
 					static const size_t MAX_LEN = 39;
-					const size_t max_len = std::min(Size, MAX_LEN);
-					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
-					Data += starting_index;
+					const size_t max_len = std::min(size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < size) ? (size - MAX_LEN) : 0;
+					data += starting_index;
 
-					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '9') && (i < max_len); ++Data, ++i)
+					for (size_t i = 0; *data && ('0' <= *data) && (*data <= '9') && (i < max_len); ++data, ++i)
 					{
 						*this *= 10;
-						*this += *Data - '0';
+						*this += *data - '0';
 					}
 					break;
 				}
 				case 8:
 				{
 					static const size_t MAX_LEN = 43;
-					const size_t max_len = std::min(Size, MAX_LEN);
-					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
-					Data += starting_index;
+					const size_t max_len = std::min(size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < size) ? (size - MAX_LEN) : 0;
+					data += starting_index;
 
-					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '7') && (i < max_len); ++Data, ++i)
+					for (size_t i = 0; *data && ('0' <= *data) && (*data <= '7') && (i < max_len); ++data, ++i)
 					{
 						*this *= 8;
-						*this += *Data - '0';
+						*this += *data - '0';
 					}
 					break;
 				}
 				case 2:
 				{
 					static const size_t MAX_LEN = 128;
-					const size_t max_len = std::min(Size, MAX_LEN);
-					const size_t starting_index = (MAX_LEN < Size) ? (Size - MAX_LEN) : 0;
-					const size_t eight_lower = sizeof(Lower) * 8;
+					const size_t max_len = std::min(size, MAX_LEN);
+					const size_t starting_index = (MAX_LEN < size) ? (size - MAX_LEN) : 0;
+					const size_t eight_lower = sizeof(lower) * 8;
 					const size_t lower_len = (max_len >= eight_lower) ? eight_lower : max_len;
 					const size_t upper_len = (max_len >= eight_lower) ? (max_len - eight_lower) : 0;
-					Data += starting_index;
+					data += starting_index;
 
-					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '1') && (i < upper_len); ++Data, ++i)
+					for (size_t i = 0; *data && ('0' <= *data) && (*data <= '1') && (i < upper_len); ++data, ++i)
 					{
-						Upper <<= 1;
-						Upper |= *Data - '0';
+						upper <<= 1;
+						upper |= *data - '0';
 					}
 
-					for (size_t i = 0; *Data && ('0' <= *Data) && (*Data <= '1') && (i < lower_len); ++Data, ++i)
+					for (size_t i = 0; *data && ('0' <= *data) && (*data <= '1') && (i < lower_len); ++data, ++i)
 					{
-						Lower <<= 1;
-						Lower |= *Data - '0';
+						lower <<= 1;
+						lower |= *data - '0';
 					}
 					break;
 				}
 				default:
-					VI_ASSERT(false, "invalid from string base: %i", (int)Base);
+					VI_ASSERT(false, "invalid from string base: %i", (int)base);
 					break;
 			}
 		}
-		UInt128::operator bool() const
+		uint128::operator bool() const
 		{
-			return (bool)(Upper || Lower);
+			return (bool)(upper || lower);
 		}
-		UInt128::operator uint8_t() const
+		uint128::operator uint8_t() const
 		{
-			return (uint8_t)Lower;
+			return (uint8_t)lower;
 		}
-		UInt128::operator uint16_t() const
+		uint128::operator uint16_t() const
 		{
-			return (uint16_t)Lower;
+			return (uint16_t)lower;
 		}
-		UInt128::operator uint32_t() const
+		uint128::operator uint32_t() const
 		{
-			return (uint32_t)Lower;
+			return (uint32_t)lower;
 		}
-		UInt128::operator uint64_t() const
+		uint128::operator uint64_t() const
 		{
-			return (uint64_t)Lower;
+			return (uint64_t)lower;
 		}
-		UInt128 UInt128::operator&(const UInt128& Right) const
+		uint128 uint128::operator&(const uint128& right) const
 		{
-			return UInt128(Upper & Right.Upper, Lower & Right.Lower);
+			return uint128(upper & right.upper, lower & right.lower);
 		}
-		UInt128& UInt128::operator&=(const UInt128& Right)
+		uint128& uint128::operator&=(const uint128& right)
 		{
-			Upper &= Right.Upper;
-			Lower &= Right.Lower;
+			upper &= right.upper;
+			lower &= right.lower;
 			return *this;
 		}
-		UInt128 UInt128::operator|(const UInt128& Right) const
+		uint128 uint128::operator|(const uint128& right) const
 		{
-			return UInt128(Upper | Right.Upper, Lower | Right.Lower);
+			return uint128(upper | right.upper, lower | right.lower);
 		}
-		UInt128& UInt128::operator|=(const UInt128& Right)
+		uint128& uint128::operator|=(const uint128& right)
 		{
-			Upper |= Right.Upper;
-			Lower |= Right.Lower;
+			upper |= right.upper;
+			lower |= right.lower;
 			return *this;
 		}
-		UInt128 UInt128::operator^(const UInt128& Right) const
+		uint128 uint128::operator^(const uint128& right) const
 		{
-			return UInt128(Upper ^ Right.Upper, Lower ^ Right.Lower);
+			return uint128(upper ^ right.upper, lower ^ right.lower);
 		}
-		UInt128& UInt128::operator^=(const UInt128& Right)
+		uint128& uint128::operator^=(const uint128& right)
 		{
-			Upper ^= Right.Upper;
-			Lower ^= Right.Lower;
+			upper ^= right.upper;
+			lower ^= right.lower;
 			return *this;
 		}
-		UInt128 UInt128::operator~() const
+		uint128 uint128::operator~() const
 		{
-			return UInt128(~Upper, ~Lower);
+			return uint128(~upper, ~lower);
 		}
-		UInt128 UInt128::operator<<(const UInt128& Right) const
+		uint128 uint128::operator<<(const uint128& right) const
 		{
-			const uint64_t shift = Right.Lower;
-			if (((bool)Right.Upper) || (shift >= 128))
-				return UInt128(0);
+			const uint64_t shift = right.lower;
+			if (((bool)right.upper) || (shift >= 128))
+				return uint128(0);
 			else if (shift == 64)
-				return UInt128(Lower, 0);
+				return uint128(lower, 0);
 			else if (shift == 0)
 				return *this;
 			else if (shift < 64)
-				return UInt128((Upper << shift) + (Lower >> (64 - shift)), Lower << shift);
+				return uint128((upper << shift) + (lower >> (64 - shift)), lower << shift);
 			else if ((128 > shift) && (shift > 64))
-				return UInt128(Lower << (shift - 64), 0);
+				return uint128(lower << (shift - 64), 0);
 
-			return UInt128(0);
+			return uint128(0);
 		}
-		UInt128& UInt128::operator<<=(const UInt128& Right)
+		uint128& uint128::operator<<=(const uint128& right)
 		{
-			*this = *this << Right;
+			*this = *this << right;
 			return *this;
 		}
-		UInt128 UInt128::operator>>(const UInt128& Right) const
+		uint128 uint128::operator>>(const uint128& right) const
 		{
-			const uint64_t shift = Right.Lower;
-			if (((bool)Right.Upper) || (shift >= 128))
-				return UInt128(0);
+			const uint64_t shift = right.lower;
+			if (((bool)right.upper) || (shift >= 128))
+				return uint128(0);
 			else if (shift == 64)
-				return UInt128(0, Upper);
+				return uint128(0, upper);
 			else if (shift == 0)
 				return *this;
 			else if (shift < 64)
-				return UInt128(Upper >> shift, (Upper << (64 - shift)) + (Lower >> shift));
+				return uint128(upper >> shift, (upper << (64 - shift)) + (lower >> shift));
 			else if ((128 > shift) && (shift > 64))
-				return UInt128(0, (Upper >> (shift - 64)));
+				return uint128(0, (upper >> (shift - 64)));
 
-			return UInt128(0);
+			return uint128(0);
 		}
-		UInt128& UInt128::operator>>=(const UInt128& Right)
+		uint128& uint128::operator>>=(const uint128& right)
 		{
-			*this = *this >> Right;
+			*this = *this >> right;
 			return *this;
 		}
-		bool UInt128::operator!() const
+		bool uint128::operator!() const
 		{
-			return !(bool)(Upper || Lower);
+			return !(bool)(upper || lower);
 		}
-		bool UInt128::operator&&(const UInt128& Right) const
+		bool uint128::operator&&(const uint128& right) const
 		{
-			return ((bool)*this && Right);
+			return ((bool)*this && right);
 		}
-		bool UInt128::operator||(const UInt128& Right) const
+		bool uint128::operator||(const uint128& right) const
 		{
-			return ((bool)*this || Right);
+			return ((bool)*this || right);
 		}
-		bool UInt128::operator==(const UInt128& Right) const
+		bool uint128::operator==(const uint128& right) const
 		{
-			return ((Upper == Right.Upper) && (Lower == Right.Lower));
+			return ((upper == right.upper) && (lower == right.lower));
 		}
-		bool UInt128::operator!=(const UInt128& Right) const
+		bool uint128::operator!=(const uint128& right) const
 		{
-			return ((Upper != Right.Upper) || (Lower != Right.Lower));
+			return ((upper != right.upper) || (lower != right.lower));
 		}
-		bool UInt128::operator>(const UInt128& Right) const
+		bool uint128::operator>(const uint128& right) const
 		{
-			if (Upper == Right.Upper)
-				return (Lower > Right.Lower);
+			if (upper == right.upper)
+				return (lower > right.lower);
 
-			return (Upper > Right.Upper);
+			return (upper > right.upper);
 		}
-		bool UInt128::operator<(const UInt128& Right) const
+		bool uint128::operator<(const uint128& right) const
 		{
-			if (Upper == Right.Upper)
-				return (Lower < Right.Lower);
+			if (upper == right.upper)
+				return (lower < right.lower);
 
-			return (Upper < Right.Upper);
+			return (upper < right.upper);
 		}
-		bool UInt128::operator>=(const UInt128& Right) const
+		bool uint128::operator>=(const uint128& right) const
 		{
-			return ((*this > Right) || (*this == Right));
+			return ((*this > right) || (*this == right));
 		}
-		bool UInt128::operator<=(const UInt128& Right) const
+		bool uint128::operator<=(const uint128& right) const
 		{
-			return ((*this < Right) || (*this == Right));
+			return ((*this < right) || (*this == right));
 		}
-		UInt128 UInt128::operator+(const UInt128& Right) const
+		uint128 uint128::operator+(const uint128& right) const
 		{
-			return UInt128(Upper + Right.Upper + ((Lower + Right.Lower) < Lower), Lower + Right.Lower);
+			return uint128(upper + right.upper + ((lower + right.lower) < lower), lower + right.lower);
 		}
-		UInt128& UInt128::operator+=(const UInt128& Right)
+		uint128& uint128::operator+=(const uint128& right)
 		{
-			Upper += Right.Upper + ((Lower + Right.Lower) < Lower);
-			Lower += Right.Lower;
+			upper += right.upper + ((lower + right.lower) < lower);
+			lower += right.lower;
 			return *this;
 		}
-		UInt128 UInt128::operator-(const UInt128& Right) const
+		uint128 uint128::operator-(const uint128& right) const
 		{
-			return UInt128(Upper - Right.Upper - ((Lower - Right.Lower) > Lower), Lower - Right.Lower);
+			return uint128(upper - right.upper - ((lower - right.lower) > lower), lower - right.lower);
 		}
-		UInt128& UInt128::operator-=(const UInt128& Right)
+		uint128& uint128::operator-=(const uint128& right)
 		{
-			*this = *this - Right;
+			*this = *this - right;
 			return *this;
 		}
-		UInt128 UInt128::operator*(const UInt128& Right) const
+		uint128 uint128::operator*(const uint128& right) const
 		{
-			uint64_t top[4] = { Upper >> 32, Upper & 0xffffffff, Lower >> 32, Lower & 0xffffffff };
-			uint64_t bottom[4] = { Right.Upper >> 32, Right.Upper & 0xffffffff, Right.Lower >> 32, Right.Lower & 0xffffffff };
+			uint64_t top[4] = { upper >> 32, upper & 0xffffffff, lower >> 32, lower & 0xffffffff };
+			uint64_t bottom[4] = { right.upper >> 32, right.upper & 0xffffffff, right.lower >> 32, right.lower & 0xffffffff };
 			uint64_t products[4][4];
 
 			for (int y = 3; y > -1; y--)
@@ -1125,123 +1206,123 @@ namespace Vitex
 			third32 &= 0xffffffff;
 			second32 &= 0xffffffff;
 			first32 &= 0xffffffff;
-			return UInt128((first32 << 32) | second32, (third32 << 32) | fourth32);
+			return uint128((first32 << 32) | second32, (third32 << 32) | fourth32);
 		}
-		UInt128& UInt128::operator*=(const UInt128& Right)
+		uint128& uint128::operator*=(const uint128& right)
 		{
-			*this = *this * Right;
+			*this = *this * right;
 			return *this;
 		}
-		UInt128 UInt128::Min()
+		uint128 uint128::min()
 		{
-			static UInt128 Value = UInt128(0);
-			return Value;
+			static uint128 value = uint128(0);
+			return value;
 		}
-		UInt128 UInt128::Max()
+		uint128 uint128::max()
 		{
-			static UInt128 Value = UInt128(-1, -1);
-			return Value;
+			static uint128 value = uint128(-1, -1);
+			return value;
 		}
-		std::pair<UInt128, UInt128> UInt128::Divide(const UInt128& Left, const UInt128& Right) const
+		std::pair<uint128, uint128> uint128::divide(const uint128& left, const uint128& right) const
 		{
-			UInt128 Zero(0), One(1);
-			if (Right == Zero)
+			uint128 zero(0), one(1);
+			if (right == zero)
 			{
 				VI_ASSERT(false, "division or modulus by zero");
-				return std::pair<UInt128, UInt128>(Zero, Zero);
+				return std::pair<uint128, uint128>(zero, zero);
 			}
-			else if (Right == One)
-				return std::pair <UInt128, UInt128>(Left, Zero);
-			else if (Left == Right)
-				return std::pair <UInt128, UInt128>(One, Zero);
-			else if ((Left == Zero) || (Left < Right))
-				return std::pair <UInt128, UInt128>(Zero, Left);
+			else if (right == one)
+				return std::pair <uint128, uint128>(left, zero);
+			else if (left == right)
+				return std::pair <uint128, uint128>(one, zero);
+			else if ((left == zero) || (left < right))
+				return std::pair <uint128, uint128>(zero, left);
 
-			std::pair <UInt128, UInt128> qr(Zero, Zero);
-			for (uint8_t x = Left.Bits(); x > 0; x--)
+			std::pair <uint128, uint128> qr(zero, zero);
+			for (uint8_t x = left.bits(); x > 0; x--)
 			{
-				qr.first <<= One;
-				qr.second <<= One;
-				if ((Left >> (x - 1U)) & 1)
+				qr.first <<= one;
+				qr.second <<= one;
+				if ((left >> (x - 1U)) & 1)
 					++qr.second;
 
-				if (qr.second >= Right)
+				if (qr.second >= right)
 				{
-					qr.second -= Right;
+					qr.second -= right;
 					++qr.first;
 				}
 			}
 			return qr;
 		}
-		UInt128 UInt128::operator/(const UInt128& Right) const
+		uint128 uint128::operator/(const uint128& right) const
 		{
-			return Divide(*this, Right).first;
+			return divide(*this, right).first;
 		}
-		UInt128& UInt128::operator/=(const UInt128& Right)
+		uint128& uint128::operator/=(const uint128& right)
 		{
-			*this = *this / Right;
+			*this = *this / right;
 			return *this;
 		}
-		UInt128 UInt128::operator%(const UInt128& Right) const
+		uint128 uint128::operator%(const uint128& right) const
 		{
-			return Divide(*this, Right).second;
+			return divide(*this, right).second;
 		}
-		UInt128& UInt128::operator%=(const UInt128& Right)
+		uint128& uint128::operator%=(const uint128& right)
 		{
-			*this = *this % Right;
+			*this = *this % right;
 			return *this;
 		}
-		UInt128& UInt128::operator++()
+		uint128& uint128::operator++()
 		{
-			return *this += UInt128(1);
+			return *this += uint128(1);
 		}
-		UInt128 UInt128::operator++(int)
+		uint128 uint128::operator++(int)
 		{
-			UInt128 temp(*this);
+			uint128 temp(*this);
 			++*this;
 			return temp;
 		}
-		UInt128& UInt128::operator--()
+		uint128& uint128::operator--()
 		{
-			return *this -= UInt128(1);
+			return *this -= uint128(1);
 		}
-		UInt128 UInt128::operator--(int)
+		uint128 uint128::operator--(int)
 		{
-			UInt128 temp(*this);
+			uint128 temp(*this);
 			--*this;
 			return temp;
 		}
-		UInt128 UInt128::operator+() const
+		uint128 uint128::operator+() const
 		{
 			return *this;
 		}
-		UInt128 UInt128::operator-() const
+		uint128 uint128::operator-() const
 		{
-			return ~*this + UInt128(1);
+			return ~*this + uint128(1);
 		}
-		const uint64_t& UInt128::High() const
+		const uint64_t& uint128::high() const
 		{
-			return Upper;
+			return upper;
 		}
-		const uint64_t& UInt128::Low() const
+		const uint64_t& uint128::low() const
 		{
-			return Lower;
+			return lower;
 		}
-		uint64_t& UInt128::High()
+		uint64_t& uint128::high()
 		{
-			return Upper;
+			return upper;
 		}
-		uint64_t& UInt128::Low()
+		uint64_t& uint128::low()
 		{
-			return Lower;
+			return lower;
 		}
-		uint8_t UInt128::Bits() const
+		uint8_t uint128::bits() const
 		{
 			uint8_t out = 0;
-			if (Upper)
+			if (upper)
 			{
 				out = 64;
-				uint64_t up = Upper;
+				uint64_t up = upper;
 				while (up)
 				{
 					up >>= 1;
@@ -1250,7 +1331,7 @@ namespace Vitex
 			}
 			else
 			{
-				uint64_t low = Lower;
+				uint64_t low = lower;
 				while (low)
 				{
 					low >>= 1;
@@ -1259,436 +1340,436 @@ namespace Vitex
 			}
 			return out;
 		}
-		uint8_t UInt128::Bytes() const
+		uint8_t uint128::bytes() const
 		{
 			if (!*this)
 				return 0;
 
-			uint8_t Length = Bits();
-			return std::max<uint8_t>(1, std::min(16, (Length - Length % 8 + 8) / 8));
+			uint8_t length = bits();
+			return std::max<uint8_t>(1, std::min(16, (length - length % 8 + 8) / 8));
 		}
-		Core::Decimal UInt128::ToDecimal() const
+		core::decimal uint128::to_decimal() const
 		{
-			return Core::Decimal::From(ToString(16), 16);
+			return core::decimal::from(to_string(16), 16);
 		}
-		Core::String UInt128::ToString(uint8_t Base, uint32_t Length) const
+		core::string uint128::to_string(uint8_t base, uint32_t length) const
 		{
-			VI_ASSERT(Base >= 2 && Base <= 16, "base must be in the range [2, 16]");
-			static const char* Alphabet = "0123456789abcdef";
-			Core::String Output;
+			VI_ASSERT(base >= 2 && base <= 16, "base must be in the range [2, 16]");
+			static const char* alphabet = "0123456789abcdef";
+			core::string output;
 			if (!(*this))
 			{
-				if (!Length)
-					Output.push_back('0');
-				else if (Output.size() < Length)
-					Output.append(Length - Output.size(), '0');
-				return Output;
+				if (!length)
+					output.push_back('0');
+				else if (output.size() < length)
+					output.append(length - output.size(), '0');
+				return output;
 			}
 
-			switch (Base)
+			switch (base)
 			{
 				case 16:
 				{
-					uint64_t Array[2]; size_t Size = Bytes();
-					if (Size > sizeof(uint64_t) * 0)
+					uint64_t array[2]; size_t size = bytes();
+					if (size > sizeof(uint64_t) * 0)
 					{
-						Array[1] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Lower);
-						if (Size > sizeof(uint64_t) * 1)
-							Array[0] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Upper);
+						array[1] = core::os::hw::to_endianness(core::os::hw::endian::big, lower);
+						if (size > sizeof(uint64_t) * 1)
+							array[0] = core::os::hw::to_endianness(core::os::hw::endian::big, upper);
 					}
 
-					Output = Codec::HexEncodeOdd(std::string_view(((char*)Array) + (sizeof(Array) - Size), Size));
-					if (Output.size() < Length)
-						Output.append(Length - Output.size(), '0');
+					output = codec::hex_encode_odd(std::string_view(((char*)array) + (sizeof(array) - size), size));
+					if (output.size() < length)
+						output.append(length - output.size(), '0');
 					break;
 				}
 				default:
 				{
-					std::pair<UInt256, UInt256> Remainder(*this, Min());
+					std::pair<uint256, uint256> remainder(*this, min());
 					do
 					{
-						Remainder = Divide(Remainder.first, Base);
-						Output.push_back(Alphabet[(uint8_t)Remainder.second]);
-					} while (Remainder.first);
-					if (Output.size() < Length)
-						Output.append(Length - Output.size(), '0');
+						remainder = divide(remainder.first, base);
+						output.push_back(alphabet[(uint8_t)remainder.second]);
+					} while (remainder.first);
+					if (output.size() < length)
+						output.append(length - output.size(), '0');
 
-					std::reverse(Output.begin(), Output.end());
+					std::reverse(output.begin(), output.end());
 					break;
 				}
 			}
-			return Output;
+			return output;
 		}
-		UInt128 operator<<(const uint8_t& Left, const UInt128& Right)
+		uint128 operator<<(const uint8_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const uint16_t& Left, const UInt128& Right)
+		uint128 operator<<(const uint16_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const uint32_t& Left, const UInt128& Right)
+		uint128 operator<<(const uint32_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const uint64_t& Left, const UInt128& Right)
+		uint128 operator<<(const uint64_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const int8_t& Left, const UInt128& Right)
+		uint128 operator<<(const int8_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const int16_t& Left, const UInt128& Right)
+		uint128 operator<<(const int16_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const int32_t& Left, const UInt128& Right)
+		uint128 operator<<(const int32_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator<<(const int64_t& Left, const UInt128& Right)
+		uint128 operator<<(const int64_t& left, const uint128& right)
 		{
-			return UInt128(Left) << Right;
+			return uint128(left) << right;
 		}
-		UInt128 operator>>(const uint8_t& Left, const UInt128& Right)
+		uint128 operator>>(const uint8_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const uint16_t& Left, const UInt128& Right)
+		uint128 operator>>(const uint16_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const uint32_t& Left, const UInt128& Right)
+		uint128 operator>>(const uint32_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const uint64_t& Left, const UInt128& Right)
+		uint128 operator>>(const uint64_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const int8_t& Left, const UInt128& Right)
+		uint128 operator>>(const int8_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const int16_t& Left, const UInt128& Right)
+		uint128 operator>>(const int16_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const int32_t& Left, const UInt128& Right)
+		uint128 operator>>(const int32_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		UInt128 operator>>(const int64_t& Left, const UInt128& Right)
+		uint128 operator>>(const int64_t& left, const uint128& right)
 		{
-			return UInt128(Left) >> Right;
+			return uint128(left) >> right;
 		}
-		std::ostream& operator<<(std::ostream& Stream, const UInt128& Right)
+		std::ostream& operator<<(std::ostream& stream, const uint128& right)
 		{
-			if (Stream.flags() & Stream.oct)
-				Stream << Right.ToString(8);
-			else if (Stream.flags() & Stream.dec)
-				Stream << Right.ToString(10);
-			else if (Stream.flags() & Stream.hex)
-				Stream << Right.ToString(16);
-			return Stream;
+			if (stream.flags() & stream.oct)
+				stream << right.to_string(8);
+			else if (stream.flags() & stream.dec)
+				stream << right.to_string(10);
+			else if (stream.flags() & stream.hex)
+				stream << right.to_string(16);
+			return stream;
 		}
 
-		UInt256::UInt256(const std::string_view& Text) : UInt256(Text, 10)
+		uint256::uint256(const std::string_view& text) : uint256(text, 10)
 		{
 		}
-		UInt256::UInt256(const std::string_view& Text, uint8_t Base)
+		uint256::uint256(const std::string_view& text, uint8_t base)
 		{
 			*this = 0;
-			UInt256 power(1);
+			uint256 power(1);
 			uint8_t digit;
-			int64_t pos = (int64_t)Text.size() - 1;
+			int64_t pos = (int64_t)text.size() - 1;
 			while (pos >= 0)
 			{
 				digit = 0;
-				if ('0' <= Text[pos] && Text[pos] <= '9')
-					digit = Text[pos] - '0';
-				else if ('a' <= Text[pos] && Text[pos] <= 'z')
-					digit = Text[pos] - 'a' + 10;
+				if ('0' <= text[pos] && text[pos] <= '9')
+					digit = text[pos] - '0';
+				else if ('a' <= text[pos] && text[pos] <= 'z')
+					digit = text[pos] - 'a' + 10;
 				*this += digit * power;
-				power *= Base;
+				power *= base;
 				pos--;
 			}
 		}
-		UInt256 UInt256::Min()
+		uint256 uint256::min()
 		{
-			static UInt256 Value = UInt256(0);
-			return Value;
+			static uint256 value = uint256(0);
+			return value;
 		}
-		UInt256 UInt256::Max()
+		uint256 uint256::max()
 		{
-			static UInt256 Value = UInt256(UInt128((uint64_t)-1, (uint64_t)-1), UInt128((uint64_t)-1, (uint64_t)-1));
-			return Value;
+			static uint256 value = uint256(uint128((uint64_t)-1, (uint64_t)-1), uint128((uint64_t)-1, (uint64_t)-1));
+			return value;
 		}
-		UInt256::operator bool() const
+		uint256::operator bool() const
 		{
-			return (bool)(Upper || Lower);
+			return (bool)(upper || lower);
 		}
-		UInt256::operator uint8_t() const
+		uint256::operator uint8_t() const
 		{
-			return (uint8_t)Lower;
+			return (uint8_t)lower;
 		}
-		UInt256::operator uint16_t() const
+		uint256::operator uint16_t() const
 		{
-			return (uint16_t)Lower;
+			return (uint16_t)lower;
 		}
-		UInt256::operator uint32_t() const
+		uint256::operator uint32_t() const
 		{
-			return (uint32_t)Lower;
+			return (uint32_t)lower;
 		}
-		UInt256::operator uint64_t() const
+		uint256::operator uint64_t() const
 		{
-			return (uint64_t)Lower;
+			return (uint64_t)lower;
 		}
-		UInt256::operator UInt128() const
+		uint256::operator uint128() const
 		{
-			return Lower;
+			return lower;
 		}
-		UInt256 UInt256::operator&(const UInt128& Right) const
+		uint256 uint256::operator&(const uint128& right) const
 		{
-			return UInt256(UInt128::Min(), Lower & Right);
+			return uint256(uint128::min(), lower & right);
 		}
-		UInt256 UInt256::operator&(const UInt256& Right) const
+		uint256 uint256::operator&(const uint256& right) const
 		{
-			return UInt256(Upper & Right.Upper, Lower & Right.Lower);
+			return uint256(upper & right.upper, lower & right.lower);
 		}
-		UInt256& UInt256::operator&=(const UInt128& Right)
+		uint256& uint256::operator&=(const uint128& right)
 		{
-			Upper = UInt128::Min();
-			Lower &= Right;
+			upper = uint128::min();
+			lower &= right;
 			return *this;
 		}
-		UInt256& UInt256::operator&=(const UInt256& Right)
+		uint256& uint256::operator&=(const uint256& right)
 		{
-			Upper &= Right.Upper;
-			Lower &= Right.Lower;
+			upper &= right.upper;
+			lower &= right.lower;
 			return *this;
 		}
-		UInt256 UInt256::operator|(const UInt128& Right) const
+		uint256 uint256::operator|(const uint128& right) const
 		{
-			return UInt256(Upper, Lower | Right);
+			return uint256(upper, lower | right);
 		}
-		UInt256 UInt256::operator|(const UInt256& Right) const
+		uint256 uint256::operator|(const uint256& right) const
 		{
-			return UInt256(Upper | Right.Upper, Lower | Right.Lower);
+			return uint256(upper | right.upper, lower | right.lower);
 		}
-		UInt256& UInt256::operator|=(const UInt128& Right)
+		uint256& uint256::operator|=(const uint128& right)
 		{
-			Lower |= Right;
+			lower |= right;
 			return *this;
 		}
-		UInt256& UInt256::operator|=(const UInt256& Right)
+		uint256& uint256::operator|=(const uint256& right)
 		{
-			Upper |= Right.Upper;
-			Lower |= Right.Lower;
+			upper |= right.upper;
+			lower |= right.lower;
 			return *this;
 		}
-		UInt256 UInt256::operator^(const UInt128& Right) const
+		uint256 uint256::operator^(const uint128& right) const
 		{
-			return UInt256(Upper, Lower ^ Right);
+			return uint256(upper, lower ^ right);
 		}
-		UInt256 UInt256::operator^(const UInt256& Right) const
+		uint256 uint256::operator^(const uint256& right) const
 		{
-			return UInt256(Upper ^ Right.Upper, Lower ^ Right.Lower);
+			return uint256(upper ^ right.upper, lower ^ right.lower);
 		}
-		UInt256& UInt256::operator^=(const UInt128& Right)
+		uint256& uint256::operator^=(const uint128& right)
 		{
-			Lower ^= Right;
+			lower ^= right;
 			return *this;
 		}
-		UInt256& UInt256::operator^=(const UInt256& Right)
+		uint256& uint256::operator^=(const uint256& right)
 		{
-			Upper ^= Right.Upper;
-			Lower ^= Right.Lower;
+			upper ^= right.upper;
+			lower ^= right.lower;
 			return *this;
 		}
-		UInt256 UInt256::operator~() const
+		uint256 uint256::operator~() const
 		{
-			return UInt256(~Upper, ~Lower);
+			return uint256(~upper, ~lower);
 		}
-		UInt256 UInt256::operator<<(const UInt128& Right) const
+		uint256 uint256::operator<<(const uint128& right) const
 		{
-			return *this << UInt256(Right);
+			return *this << uint256(right);
 		}
-		UInt256 UInt256::operator<<(const UInt256& Right) const
+		uint256 uint256::operator<<(const uint256& right) const
 		{
-			const UInt128 shift = Right.Lower;
-			if (((bool)Right.Upper) || (shift >= UInt128(256)))
-				return Min();
-			else if (shift == UInt128(128))
-				return UInt256(Lower, UInt128::Min());
-			else if (shift == UInt128::Min())
+			const uint128 shift = right.lower;
+			if (((bool)right.upper) || (shift >= uint128(256)))
+				return min();
+			else if (shift == uint128(128))
+				return uint256(lower, uint128::min());
+			else if (shift == uint128::min())
 				return *this;
-			else if (shift < UInt128(128))
-				return UInt256((Upper << shift) + (Lower >> (UInt128(128) - shift)), Lower << shift);
-			else if ((UInt128(256) > shift) && (shift > UInt128(128)))
-				return UInt256(Lower << (shift - UInt128(128)), UInt128::Min());
+			else if (shift < uint128(128))
+				return uint256((upper << shift) + (lower >> (uint128(128) - shift)), lower << shift);
+			else if ((uint128(256) > shift) && (shift > uint128(128)))
+				return uint256(lower << (shift - uint128(128)), uint128::min());
 
-			return Min();
+			return min();
 		}
-		UInt256& UInt256::operator<<=(const UInt128& Shift)
+		uint256& uint256::operator<<=(const uint128& shift)
 		{
-			return *this <<= UInt256(Shift);
+			return *this <<= uint256(shift);
 		}
-		UInt256& UInt256::operator<<=(const UInt256& Shift)
+		uint256& uint256::operator<<=(const uint256& shift)
 		{
-			*this = *this << Shift;
+			*this = *this << shift;
 			return *this;
 		}
-		UInt256 UInt256::operator>>(const UInt128& Right) const
+		uint256 uint256::operator>>(const uint128& right) const
 		{
-			return *this >> UInt256(Right);
+			return *this >> uint256(right);
 		}
-		UInt256 UInt256::operator>>(const UInt256& Right) const
+		uint256 uint256::operator>>(const uint256& right) const
 		{
-			const UInt128 Shift = Right.Lower;
-			if (((bool)Right.Upper) || (Shift >= UInt128(128)))
-				return Min();
-			else if (Shift == UInt128(128))
-				return UInt256(Upper);
-			else if (Shift == UInt128::Min())
+			const uint128 shift = right.lower;
+			if (((bool)right.upper) || (shift >= uint128(128)))
+				return min();
+			else if (shift == uint128(128))
+				return uint256(upper);
+			else if (shift == uint128::min())
 				return *this;
-			else if (Shift < UInt128(128))
-				return UInt256(Upper >> Shift, (Upper << (UInt128(128) - Shift)) + (Lower >> Shift));
-			else if ((UInt128(256) > Shift) && (Shift > UInt128(128)))
-				return UInt256(Upper >> (Shift - UInt128(128)));
+			else if (shift < uint128(128))
+				return uint256(upper >> shift, (upper << (uint128(128) - shift)) + (lower >> shift));
+			else if ((uint128(256) > shift) && (shift > uint128(128)))
+				return uint256(upper >> (shift - uint128(128)));
 
-			return Min();
+			return min();
 		}
-		UInt256& UInt256::operator>>=(const UInt128& Shift)
+		uint256& uint256::operator>>=(const uint128& shift)
 		{
-			return *this >>= UInt256(Shift);
+			return *this >>= uint256(shift);
 		}
-		UInt256& UInt256::operator>>=(const UInt256& Shift)
+		uint256& uint256::operator>>=(const uint256& shift)
 		{
-			*this = *this >> Shift;
+			*this = *this >> shift;
 			return *this;
 		}
-		bool UInt256::operator!() const
+		bool uint256::operator!() const
 		{
 			return !(bool)*this;
 		}
-		bool UInt256::operator&&(const UInt128& Right) const
+		bool uint256::operator&&(const uint128& right) const
 		{
-			return (*this && UInt256(Right));
+			return (*this && uint256(right));
 		}
-		bool UInt256::operator&&(const UInt256& Right) const
+		bool uint256::operator&&(const uint256& right) const
 		{
-			return ((bool)*this && (bool)Right);
+			return ((bool)*this && (bool)right);
 		}
-		bool UInt256::operator||(const UInt128& Right) const
+		bool uint256::operator||(const uint128& right) const
 		{
-			return (*this || UInt256(Right));
+			return (*this || uint256(right));
 		}
-		bool UInt256::operator||(const UInt256& Right) const
+		bool uint256::operator||(const uint256& right) const
 		{
-			return ((bool)*this || (bool)Right);
+			return ((bool)*this || (bool)right);
 		}
-		bool UInt256::operator==(const UInt128& Right) const
+		bool uint256::operator==(const uint128& right) const
 		{
-			return (*this == UInt256(Right));
+			return (*this == uint256(right));
 		}
-		bool UInt256::operator==(const UInt256& Right) const
+		bool uint256::operator==(const uint256& right) const
 		{
-			return ((Upper == Right.Upper) && (Lower == Right.Lower));
+			return ((upper == right.upper) && (lower == right.lower));
 		}
-		bool UInt256::operator!=(const UInt128& Right) const
+		bool uint256::operator!=(const uint128& right) const
 		{
-			return (*this != UInt256(Right));
+			return (*this != uint256(right));
 		}
-		bool UInt256::operator!=(const UInt256& Right) const
+		bool uint256::operator!=(const uint256& right) const
 		{
-			return ((Upper != Right.Upper) || (Lower != Right.Lower));
+			return ((upper != right.upper) || (lower != right.lower));
 		}
-		bool UInt256::operator>(const UInt128& Right) const
+		bool uint256::operator>(const uint128& right) const
 		{
-			return (*this > UInt256(Right));
+			return (*this > uint256(right));
 		}
-		bool UInt256::operator>(const UInt256& Right) const
+		bool uint256::operator>(const uint256& right) const
 		{
-			if (Upper == Right.Upper)
-				return (Lower > Right.Lower);
-			if (Upper > Right.Upper)
+			if (upper == right.upper)
+				return (lower > right.lower);
+			if (upper > right.upper)
 				return true;
 			return false;
 		}
-		bool UInt256::operator<(const UInt128& Right) const
+		bool uint256::operator<(const uint128& right) const
 		{
-			return (*this < UInt256(Right));
+			return (*this < uint256(right));
 		}
-		bool UInt256::operator<(const UInt256& Right) const
+		bool uint256::operator<(const uint256& right) const
 		{
-			if (Upper == Right.Upper)
-				return (Lower < Right.Lower);
-			if (Upper < Right.Upper)
+			if (upper == right.upper)
+				return (lower < right.lower);
+			if (upper < right.upper)
 				return true;
 			return false;
 		}
-		bool UInt256::operator>=(const UInt128& Right) const
+		bool uint256::operator>=(const uint128& right) const
 		{
-			return (*this >= UInt256(Right));
+			return (*this >= uint256(right));
 		}
-		bool UInt256::operator>=(const UInt256& Right) const
+		bool uint256::operator>=(const uint256& right) const
 		{
-			return ((*this > Right) || (*this == Right));
+			return ((*this > right) || (*this == right));
 		}
-		bool UInt256::operator<=(const UInt128& Right) const
+		bool uint256::operator<=(const uint128& right) const
 		{
-			return (*this <= UInt256(Right));
+			return (*this <= uint256(right));
 		}
-		bool UInt256::operator<=(const UInt256& Right) const
+		bool uint256::operator<=(const uint256& right) const
 		{
-			return ((*this < Right) || (*this == Right));
+			return ((*this < right) || (*this == right));
 		}
-		UInt256 UInt256::operator+(const UInt128& Right) const
+		uint256 uint256::operator+(const uint128& right) const
 		{
-			return *this + UInt256(Right);
+			return *this + uint256(right);
 		}
-		UInt256 UInt256::operator+(const UInt256& Right) const
+		uint256 uint256::operator+(const uint256& right) const
 		{
-			return UInt256(Upper + Right.Upper + (((Lower + Right.Lower) < Lower) ? UInt128(1) : UInt128::Min()), Lower + Right.Lower);
+			return uint256(upper + right.upper + (((lower + right.lower) < lower) ? uint128(1) : uint128::min()), lower + right.lower);
 		}
-		UInt256& UInt256::operator+=(const UInt128& Right)
+		uint256& uint256::operator+=(const uint128& right)
 		{
-			return *this += UInt256(Right);
+			return *this += uint256(right);
 		}
-		UInt256& UInt256::operator+=(const UInt256& Right)
+		uint256& uint256::operator+=(const uint256& right)
 		{
-			Upper = Right.Upper + Upper + ((Lower + Right.Lower) < Lower);
-			Lower = Lower + Right.Lower;
+			upper = right.upper + upper + ((lower + right.lower) < lower);
+			lower = lower + right.lower;
 			return *this;
 		}
-		UInt256 UInt256::operator-(const UInt128& Right) const
+		uint256 uint256::operator-(const uint128& right) const
 		{
-			return *this - UInt256(Right);
+			return *this - uint256(right);
 		}
-		UInt256 UInt256::operator-(const UInt256& Right) const
+		uint256 uint256::operator-(const uint256& right) const
 		{
-			return UInt256(Upper - Right.Upper - ((Lower - Right.Lower) > Lower), Lower - Right.Lower);
+			return uint256(upper - right.upper - ((lower - right.lower) > lower), lower - right.lower);
 		}
-		UInt256& UInt256::operator-=(const UInt128& Right)
+		uint256& uint256::operator-=(const uint128& right)
 		{
-			return *this -= UInt256(Right);
+			return *this -= uint256(right);
 		}
-		UInt256& UInt256::operator-=(const UInt256& Right)
+		uint256& uint256::operator-=(const uint256& right)
 		{
-			*this = *this - Right;
+			*this = *this - right;
 			return *this;
 		}
-		UInt256 UInt256::operator*(const UInt128& Right) const
+		uint256 uint256::operator*(const uint128& right) const
 		{
-			return *this * UInt256(Right);
+			return *this * uint256(right);
 		}
-		UInt256 UInt256::operator*(const UInt256& Right) const
+		uint256 uint256::operator*(const uint256& right) const
 		{
-			UInt128 top[4] = { Upper.High(), Upper.Low(), Lower.High(), Lower.Low() };
-			UInt128 bottom[4] = { Right.High().High(), Right.High().Low(), Right.Low().High(), Right.Low().Low() };
-			UInt128 products[4][4];
+			uint128 top[4] = { upper.high(), upper.low(), lower.high(), lower.low() };
+			uint128 bottom[4] = { right.high().high(), right.high().low(), right.low().high(), right.low().low() };
+			uint128 products[4][4];
 
 			for (int y = 3; y > -1; y--)
 			{
@@ -1696,833 +1777,832 @@ namespace Vitex
 					products[3 - y][x] = top[x] * bottom[y];
 			}
 
-			UInt128 fourth64 = UInt128(products[0][3].Low());
-			UInt128 third64 = UInt128(products[0][2].Low()) + UInt128(products[0][3].High());
-			UInt128 second64 = UInt128(products[0][1].Low()) + UInt128(products[0][2].High());
-			UInt128 first64 = UInt128(products[0][0].Low()) + UInt128(products[0][1].High());
-			third64 += UInt128(products[1][3].Low());
-			second64 += UInt128(products[1][2].Low()) + UInt128(products[1][3].High());
-			first64 += UInt128(products[1][1].Low()) + UInt128(products[1][2].High());
-			second64 += UInt128(products[2][3].Low());
-			first64 += UInt128(products[2][2].Low()) + UInt128(products[2][3].High());
-			first64 += UInt128(products[3][3].Low());
+			uint128 fourth64 = uint128(products[0][3].low());
+			uint128 third64 = uint128(products[0][2].low()) + uint128(products[0][3].high());
+			uint128 second64 = uint128(products[0][1].low()) + uint128(products[0][2].high());
+			uint128 first64 = uint128(products[0][0].low()) + uint128(products[0][1].high());
+			third64 += uint128(products[1][3].low());
+			second64 += uint128(products[1][2].low()) + uint128(products[1][3].high());
+			first64 += uint128(products[1][1].low()) + uint128(products[1][2].high());
+			second64 += uint128(products[2][3].low());
+			first64 += uint128(products[2][2].low()) + uint128(products[2][3].high());
+			first64 += uint128(products[3][3].low());
 
-			return UInt256(first64 << UInt128(64), UInt128::Min()) +
-				UInt256(third64.High(), third64 << UInt128(64)) +
-				UInt256(second64, UInt128::Min()) +
-				UInt256(fourth64);
+			return uint256(first64 << uint128(64), uint128::min()) +
+				uint256(third64.high(), third64 << uint128(64)) +
+				uint256(second64, uint128::min()) +
+				uint256(fourth64);
 		}
-		UInt256& UInt256::operator*=(const UInt128& Right)
+		uint256& uint256::operator*=(const uint128& right)
 		{
-			return *this *= UInt256(Right);
+			return *this *= uint256(right);
 		}
-		UInt256& UInt256::operator*=(const UInt256& Right)
+		uint256& uint256::operator*=(const uint256& right)
 		{
-			*this = *this * Right;
+			*this = *this * right;
 			return *this;
 		}
-		std::pair<UInt256, UInt256> UInt256::Divide(const UInt256& Left, const UInt256& Right) const
+		std::pair<uint256, uint256> uint256::divide(const uint256& left, const uint256& right) const
 		{
-			if (Right == Min())
+			if (right == min())
 			{
 				VI_ASSERT(false, " division or modulus by zero");
-				return std::pair <UInt256, UInt256>(Min(), Min());
+				return std::pair <uint256, uint256>(min(), min());
 			}
-			else if (Right == UInt256(1))
-				return std::pair <UInt256, UInt256>(Left, Min());
-			else if (Left == Right)
-				return std::pair <UInt256, UInt256>(UInt256(1), Min());
-			else if ((Left == Min()) || (Left < Right))
-				return std::pair <UInt256, UInt256>(Min(), Left);
+			else if (right == uint256(1))
+				return std::pair <uint256, uint256>(left, min());
+			else if (left == right)
+				return std::pair <uint256, uint256>(uint256(1), min());
+			else if ((left == min()) || (left < right))
+				return std::pair <uint256, uint256>(min(), left);
 
-			std::pair <UInt256, UInt256> qr(Min(), Left);
-			UInt256 copyd = Right << (Left.Bits() - Right.Bits());
-			UInt256 adder = UInt256(1) << (Left.Bits() - Right.Bits());
+			std::pair <uint256, uint256> qr(min(), left);
+			uint256 copyd = right << (left.bits() - right.bits());
+			uint256 adder = uint256(1) << (left.bits() - right.bits());
 			if (copyd > qr.second)
 			{
-				copyd >>= UInt256(1);
-				adder >>= UInt256(1);
+				copyd >>= uint256(1);
+				adder >>= uint256(1);
 			}
-			while (qr.second >= Right)
+			while (qr.second >= right)
 			{
 				if (qr.second >= copyd)
 				{
 					qr.second -= copyd;
 					qr.first |= adder;
 				}
-				copyd >>= UInt256(1);
-				adder >>= UInt256(1);
+				copyd >>= uint256(1);
+				adder >>= uint256(1);
 			}
 			return qr;
 		}
-		UInt256 UInt256::operator/(const UInt128& Right) const
+		uint256 uint256::operator/(const uint128& right) const
 		{
-			return *this / UInt256(Right);
+			return *this / uint256(right);
 		}
-		UInt256 UInt256::operator/(const UInt256& Right) const
+		uint256 uint256::operator/(const uint256& right) const
 		{
-			return Divide(*this, Right).first;
+			return divide(*this, right).first;
 		}
-		UInt256& UInt256::operator/=(const UInt128& Right)
+		uint256& uint256::operator/=(const uint128& right)
 		{
-			return *this /= UInt256(Right);
+			return *this /= uint256(right);
 		}
-		UInt256& UInt256::operator/=(const UInt256& Right)
+		uint256& uint256::operator/=(const uint256& right)
 		{
-			*this = *this / Right;
+			*this = *this / right;
 			return *this;
 		}
-		UInt256 UInt256::operator%(const UInt128& Right) const
+		uint256 uint256::operator%(const uint128& right) const
 		{
-			return *this % UInt256(Right);
+			return *this % uint256(right);
 		}
-		UInt256 UInt256::operator%(const UInt256& Right) const
+		uint256 uint256::operator%(const uint256& right) const
 		{
-			return *this - (Right * (*this / Right));
+			return *this - (right * (*this / right));
 		}
-		UInt256& UInt256::operator%=(const UInt128& Right)
+		uint256& uint256::operator%=(const uint128& right)
 		{
-			return *this %= UInt256(Right);
+			return *this %= uint256(right);
 		}
-		UInt256& UInt256::operator%=(const UInt256& Right)
+		uint256& uint256::operator%=(const uint256& right)
 		{
-			*this = *this % Right;
+			*this = *this % right;
 			return *this;
 		}
-		UInt256& UInt256::operator++()
+		uint256& uint256::operator++()
 		{
-			*this += UInt256(1);
+			*this += uint256(1);
 			return *this;
 		}
-		UInt256 UInt256::operator++(int)
+		uint256 uint256::operator++(int)
 		{
-			UInt256 temp(*this);
+			uint256 temp(*this);
 			++*this;
 			return temp;
 		}
-		UInt256& UInt256::operator--()
+		uint256& uint256::operator--()
 		{
-			*this -= UInt256(1);
+			*this -= uint256(1);
 			return *this;
 		}
-		UInt256 UInt256::operator--(int)
+		uint256 uint256::operator--(int)
 		{
-			UInt256 temp(*this);
+			uint256 temp(*this);
 			--*this;
 			return temp;
 		}
-		UInt256 UInt256::operator+() const
+		uint256 uint256::operator+() const
 		{
 			return *this;
 		}
-		UInt256 UInt256::operator-() const
+		uint256 uint256::operator-() const
 		{
-			return ~*this + UInt256(1);
+			return ~*this + uint256(1);
 		}
-		const UInt128& UInt256::High() const
+		const uint128& uint256::high() const
 		{
-			return Upper;
+			return upper;
 		}
-		const UInt128& UInt256::Low() const
+		const uint128& uint256::low() const
 		{
-			return Lower;
+			return lower;
 		}
-		UInt128& UInt256::High()
+		uint128& uint256::high()
 		{
-			return Upper;
+			return upper;
 		}
-		UInt128& UInt256::Low()
+		uint128& uint256::low()
 		{
-			return Lower;
+			return lower;
 		}
-		uint16_t UInt256::Bits() const
+		uint16_t uint256::bits() const
 		{
 			uint16_t out = 0;
-			if (Upper)
+			if (upper)
 			{
 				out = 128;
-				UInt128 up = Upper;
+				uint128 up = upper;
 				while (up)
 				{
-					up >>= UInt128(1);
+					up >>= uint128(1);
 					out++;
 				}
 			}
 			else
 			{
-				UInt128 low = Lower;
+				uint128 low = lower;
 				while (low)
 				{
-					low >>= UInt128(1);
+					low >>= uint128(1);
 					out++;
 				}
 			}
 			return out;
 		}
-		uint16_t UInt256::Bytes() const
+		uint16_t uint256::bytes() const
 		{
 			if (!*this)
 				return 0;
 
-			uint16_t Length = Bits();
-			if (!Length--)
+			uint16_t length = bits();
+			if (!length--)
 				return 0;
 
-			return std::max<uint16_t>(1, std::min(32, (Length - Length % 8 + 8) / 8));
+			return std::max<uint16_t>(1, std::min(32, (length - length % 8 + 8) / 8));
 		}
-		Core::Decimal UInt256::ToDecimal() const
+		core::decimal uint256::to_decimal() const
 		{
-			return Core::Decimal::From(ToString(16), 16);
+			return core::decimal::from(to_string(16), 16);
 		}
-		Core::String UInt256::ToString(uint8_t Base, uint32_t Length) const
+		core::string uint256::to_string(uint8_t base, uint32_t length) const
 		{
-			VI_ASSERT(Base >= 2 && Base <= 36, "base must be in the range [2, 36]");
-			static const char* Alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
-			Core::String Output;
+			VI_ASSERT(base >= 2 && base <= 36, "base must be in the range [2, 36]");
+			static const char* alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+			core::string output;
 			if (!(*this))
 			{
-				if (!Length)
-					Output.push_back('0');
-				else if (Output.size() < Length)
-					Output.append(Length - Output.size(), '0');
-				return Output;
+				if (!length)
+					output.push_back('0');
+				else if (output.size() < length)
+					output.append(length - output.size(), '0');
+				return output;
 			}
 
-			switch (Base)
+			switch (base)
 			{
 				case 16:
 				{
-					uint64_t Array[4]; size_t Size = Bytes();
-					if (Size > sizeof(uint64_t) * 0)
+					uint64_t array[4]; size_t size = bytes();
+					if (size > sizeof(uint64_t) * 0)
 					{
-						Array[3] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Lower.Low());
-						if (Size > sizeof(uint64_t) * 1)
+						array[3] = core::os::hw::to_endianness(core::os::hw::endian::big, lower.low());
+						if (size > sizeof(uint64_t) * 1)
 						{
-							Array[2] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Lower.High());
-							if (Size > sizeof(uint64_t) * 2)
+							array[2] = core::os::hw::to_endianness(core::os::hw::endian::big, lower.high());
+							if (size > sizeof(uint64_t) * 2)
 							{
-								Array[1] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Upper.Low());
-								if (Size > sizeof(uint64_t) * 3)
-									Array[0] = Core::OS::CPU::ToEndianness(Core::OS::CPU::Endian::Big, Upper.High());
+								array[1] = core::os::hw::to_endianness(core::os::hw::endian::big, upper.low());
+								if (size > sizeof(uint64_t) * 3)
+									array[0] = core::os::hw::to_endianness(core::os::hw::endian::big, upper.high());
 							}
 						}
 					}
-					
-					Output = Codec::HexEncodeOdd(std::string_view(((char*)Array) + (sizeof(Array) - Size), Size));
-					if (Output.size() < Length)
-						Output.append(Length - Output.size(), '0');
+
+					output = codec::hex_encode_odd(std::string_view(((char*)array) + (sizeof(array) - size), size));
+					if (output.size() < length)
+						output.append(length - output.size(), '0');
 					break;
 				}
 				default:
 				{
-					std::pair<UInt256, UInt256> Remainder(*this, Min());
+					std::pair<uint256, uint256> remainder(*this, min());
 					do
 					{
-						Remainder = Divide(Remainder.first, Base);
-						Output.push_back(Alphabet[(uint8_t)Remainder.second]);
-					} while (Remainder.first);
-					if (Output.size() < Length)
-						Output.append(Length - Output.size(), '0');
+						remainder = divide(remainder.first, base);
+						output.push_back(alphabet[(uint8_t)remainder.second]);
+					} while (remainder.first);
+					if (output.size() < length)
+						output.append(length - output.size(), '0');
 
-					std::reverse(Output.begin(), Output.end());
+					std::reverse(output.begin(), output.end());
 					break;
 				}
 			}
-			return Output;
+			return output;
 		}
-		UInt256 operator&(const UInt128& Left, const UInt256& Right)
+		uint256 operator&(const uint128& left, const uint256& right)
 		{
-			return Right & Left;
+			return right & left;
 		}
-		UInt128& operator&=(UInt128& Left, const UInt256& Right)
+		uint128& operator&=(uint128& left, const uint256& right)
 		{
-			Left = (Right & Left).Low();
-			return Left;
+			left = (right & left).low();
+			return left;
 		}
-		UInt256 operator|(const UInt128& Left, const UInt256& Right)
+		uint256 operator|(const uint128& left, const uint256& right)
 		{
-			return Right | Left;
+			return right | left;
 		}
-		UInt128& operator|=(UInt128& Left, const UInt256& Right)
+		uint128& operator|=(uint128& left, const uint256& right)
 		{
-			Left = (Right | Left).Low();
-			return Left;
+			left = (right | left).low();
+			return left;
 		}
-		UInt256 operator^(const UInt128& Left, const UInt256& Right)
+		uint256 operator^(const uint128& left, const uint256& right)
 		{
-			return Right ^ Left;
+			return right ^ left;
 		}
-		UInt128& operator^=(UInt128& Left, const UInt256& Right)
+		uint128& operator^=(uint128& left, const uint256& right)
 		{
-			Left = (Right ^ Left).Low();
-			return Left;
+			left = (right ^ left).low();
+			return left;
 		}
-		UInt256 operator<<(const uint8_t& Left, const UInt256& Right)
+		uint256 operator<<(const uint8_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const uint16_t& Left, const UInt256& Right)
+		uint256 operator<<(const uint16_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const uint32_t& Left, const UInt256& Right)
+		uint256 operator<<(const uint32_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const uint64_t& Left, const UInt256& Right)
+		uint256 operator<<(const uint64_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const UInt128& Left, const UInt256& Right)
+		uint256 operator<<(const uint128& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const int8_t& Left, const UInt256& Right)
+		uint256 operator<<(const int8_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const int16_t& Left, const UInt256& Right)
+		uint256 operator<<(const int16_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const int32_t& Left, const UInt256& Right)
+		uint256 operator<<(const int32_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt256 operator<<(const int64_t& Left, const UInt256& Right)
+		uint256 operator<<(const int64_t& left, const uint256& right)
 		{
-			return UInt256(Left) << Right;
+			return uint256(left) << right;
 		}
-		UInt128& operator<<=(UInt128& Left, const UInt256& Right)
+		uint128& operator<<=(uint128& left, const uint256& right)
 		{
-			Left = (UInt256(Left) << Right).Low();
-			return Left;
+			left = (uint256(left) << right).low();
+			return left;
 		}
-		UInt256 operator>>(const uint8_t& Left, const UInt256& Right)
+		uint256 operator>>(const uint8_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const uint16_t& Left, const UInt256& Right)
+		uint256 operator>>(const uint16_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const uint32_t& Left, const UInt256& Right)
+		uint256 operator>>(const uint32_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const uint64_t& Left, const UInt256& Right)
+		uint256 operator>>(const uint64_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const UInt128& Left, const UInt256& Right)
+		uint256 operator>>(const uint128& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const int8_t& Left, const UInt256& Right)
+		uint256 operator>>(const int8_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const int16_t& Left, const UInt256& Right)
+		uint256 operator>>(const int16_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const int32_t& Left, const UInt256& Right)
+		uint256 operator>>(const int32_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt256 operator>>(const int64_t& Left, const UInt256& Right)
+		uint256 operator>>(const int64_t& left, const uint256& right)
 		{
-			return UInt256(Left) >> Right;
+			return uint256(left) >> right;
 		}
-		UInt128& operator>>=(UInt128& Left, const UInt256& Right)
+		uint128& operator>>=(uint128& left, const uint256& right)
 		{
-			Left = (UInt256(Left) >> Right).Low();
-			return Left;
+			left = (uint256(left) >> right).low();
+			return left;
 		}
-		bool operator==(const UInt128& Left, const UInt256& Right)
+		bool operator==(const uint128& left, const uint256& right)
 		{
-			return Right == Left;
+			return right == left;
 		}
-		bool operator!=(const UInt128& Left, const UInt256& Right)
+		bool operator!=(const uint128& left, const uint256& right)
 		{
-			return Right != Left;
+			return right != left;
 		}
-		bool operator>(const UInt128& Left, const UInt256& Right)
+		bool operator>(const uint128& left, const uint256& right)
 		{
-			return Right < Left;
+			return right < left;
 		}
-		bool operator<(const UInt128& Left, const UInt256& Right)
+		bool operator<(const uint128& left, const uint256& right)
 		{
-			return Right > Left;
+			return right > left;
 		}
-		bool operator>=(const UInt128& Left, const UInt256& Right)
+		bool operator>=(const uint128& left, const uint256& right)
 		{
-			return Right <= Left;
+			return right <= left;
 		}
-		bool operator<=(const UInt128& Left, const UInt256& Right)
+		bool operator<=(const uint128& left, const uint256& right)
 		{
-			return Right >= Left;
+			return right >= left;
 		}
-		UInt256 operator+(const UInt128& Left, const UInt256& Right)
+		uint256 operator+(const uint128& left, const uint256& right)
 		{
-			return Right + Left;
+			return right + left;
 		}
-		UInt128& operator+=(UInt128& Left, const UInt256& Right)
+		uint128& operator+=(uint128& left, const uint256& right)
 		{
-			Left = (Right + Left).Low();
-			return Left;
+			left = (right + left).low();
+			return left;
 		}
-		UInt256 operator-(const UInt128& Left, const UInt256& Right)
+		uint256 operator-(const uint128& left, const uint256& right)
 		{
-			return -(Right - Left);
+			return -(right - left);
 		}
-		UInt128& operator-=(UInt128& Left, const UInt256& Right)
+		uint128& operator-=(uint128& left, const uint256& right)
 		{
-			Left = (-(Right - Left)).Low();
-			return Left;
+			left = (-(right - left)).low();
+			return left;
 		}
-		UInt256 operator*(const UInt128& Left, const UInt256& Right)
+		uint256 operator*(const uint128& left, const uint256& right)
 		{
-			return Right * Left;
+			return right * left;
 		}
-		UInt128& operator*=(UInt128& Left, const UInt256& Right)
+		uint128& operator*=(uint128& left, const uint256& right)
 		{
-			Left = (Right * Left).Low();
-			return Left;
+			left = (right * left).low();
+			return left;
 		}
-		UInt256 operator/(const UInt128& Left, const UInt256& Right)
+		uint256 operator/(const uint128& left, const uint256& right)
 		{
-			return UInt256(Left) / Right;
+			return uint256(left) / right;
 		}
-		UInt128& operator/=(UInt128& Left, const UInt256& Right)
+		uint128& operator/=(uint128& left, const uint256& right)
 		{
-			Left = (UInt256(Left) / Right).Low();
-			return Left;
+			left = (uint256(left) / right).low();
+			return left;
 		}
-		UInt256 operator%(const UInt128& Left, const UInt256& Right)
+		uint256 operator%(const uint128& left, const uint256& right)
 		{
-			return UInt256(Left) % Right;
+			return uint256(left) % right;
 		}
-		UInt128& operator%=(UInt128& Left, const UInt256& Right)
+		uint128& operator%=(uint128& left, const uint256& right)
 		{
-			Left = (UInt256(Left) % Right).Low();
-			return Left;
+			left = (uint256(left) % right).low();
+			return left;
 		}
-		std::ostream& operator<<(std::ostream& Stream, const UInt256& Right)
+		std::ostream& operator<<(std::ostream& stream, const uint256& right)
 		{
-			if (Stream.flags() & Stream.oct)
-				Stream << Right.ToString(8);
-			else if (Stream.flags() & Stream.dec)
-				Stream << Right.ToString(10);
-			else if (Stream.flags() & Stream.hex)
-				Stream << Right.ToString(16);
-			return Stream;
+			if (stream.flags() & stream.oct)
+				stream << right.to_string(8);
+			else if (stream.flags() & stream.dec)
+				stream << right.to_string(10);
+			else if (stream.flags() & stream.hex)
+				stream << right.to_string(16);
+			return stream;
 		}
-
-		PreprocessorException::PreprocessorException(PreprocessorError NewType) : PreprocessorException(NewType, 0)
-		{
-		}
-		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset) : PreprocessorException(NewType, NewOffset, "")
+		preprocessor_exception::preprocessor_exception(preprocessor_error new_type) : preprocessor_exception(new_type, 0)
 		{
 		}
-		PreprocessorException::PreprocessorException(PreprocessorError NewType, size_t NewOffset, const std::string_view& NewMessage) : Type(NewType), Offset(NewOffset)
+		preprocessor_exception::preprocessor_exception(preprocessor_error new_type, size_t new_offset) : preprocessor_exception(new_type, new_offset, "")
 		{
-			switch (Type)
+		}
+		preprocessor_exception::preprocessor_exception(preprocessor_error new_type, size_t new_offset, const std::string_view& new_message) : error_type(new_type), error_offset(new_offset)
+		{
+			switch (error_type)
 			{
-				case PreprocessorError::MacroDefinitionEmpty:
-					Message = "empty macro directive definition";
+				case preprocessor_error::macro_definition_empty:
+					error_message = "empty macro directive definition";
 					break;
-				case PreprocessorError::MacroNameEmpty:
-					Message = "empty macro directive name";
+				case preprocessor_error::macro_name_empty:
+					error_message = "empty macro directive name";
 					break;
-				case PreprocessorError::MacroParenthesisDoubleClosed:
-					Message = "macro directive parenthesis is closed twice";
+				case preprocessor_error::macro_parenthesis_double_closed:
+					error_message = "macro directive parenthesis is closed twice";
 					break;
-				case PreprocessorError::MacroParenthesisNotClosed:
-					Message = "macro directive parenthesis is not closed";
+				case preprocessor_error::macro_parenthesis_not_closed:
+					error_message = "macro directive parenthesis is not closed";
 					break;
-				case PreprocessorError::MacroDefinitionError:
-					Message = "macro directive definition parsing error";
+				case preprocessor_error::macro_definition_error:
+					error_message = "macro directive definition parsing error";
 					break;
-				case PreprocessorError::MacroExpansionParenthesisDoubleClosed:
-					Message = "macro expansion directive parenthesis is closed twice";
+				case preprocessor_error::macro_expansion_parenthesis_double_closed:
+					error_message = "macro expansion directive parenthesis is closed twice";
 					break;
-				case PreprocessorError::MacroExpansionParenthesisNotClosed:
-					Message = "macro expansion directive parenthesis is not closed";
+				case preprocessor_error::macro_expansion_parenthesis_not_closed:
+					error_message = "macro expansion directive parenthesis is not closed";
 					break;
-				case PreprocessorError::MacroExpansionArgumentsError:
-					Message = "macro expansion directive uses incorrect number of arguments";
+				case preprocessor_error::macro_expansion_arguments_error:
+					error_message = "macro expansion directive uses incorrect number of arguments";
 					break;
-				case PreprocessorError::MacroExpansionExecutionError:
-					Message = "macro expansion directive execution error";
+				case preprocessor_error::macro_expansion_execution_error:
+					error_message = "macro expansion directive execution error";
 					break;
-				case PreprocessorError::MacroExpansionError:
-					Message = "macro expansion directive parsing error";
+				case preprocessor_error::macro_expansion_error:
+					error_message = "macro expansion directive parsing error";
 					break;
-				case PreprocessorError::ConditionNotOpened:
-					Message = "conditional directive has no opened parenthesis";
+				case preprocessor_error::condition_not_opened:
+					error_message = "conditional directive has no opened parenthesis";
 					break;
-				case PreprocessorError::ConditionNotClosed:
-					Message = "conditional directive parenthesis is not closed";
+				case preprocessor_error::condition_not_closed:
+					error_message = "conditional directive parenthesis is not closed";
 					break;
-				case PreprocessorError::ConditionError:
-					Message = "conditional directive parsing error";
+				case preprocessor_error::condition_error:
+					error_message = "conditional directive parsing error";
 					break;
-				case PreprocessorError::DirectiveNotFound:
-					Message = "directive is not found";
+				case preprocessor_error::directive_not_found:
+					error_message = "directive is not found";
 					break;
-				case PreprocessorError::DirectiveExpansionError:
-					Message = "directive expansion error";
+				case preprocessor_error::directive_expansion_error:
+					error_message = "directive expansion error";
 					break;
-				case PreprocessorError::IncludeDenied:
-					Message = "inclusion directive is denied";
+				case preprocessor_error::include_denied:
+					error_message = "inclusion directive is denied";
 					break;
-				case PreprocessorError::IncludeError:
-					Message = "inclusion directive parsing error";
+				case preprocessor_error::include_error:
+					error_message = "inclusion directive parsing error";
 					break;
-				case PreprocessorError::IncludeNotFound:
-					Message = "inclusion directive is not found";
+				case preprocessor_error::include_not_found:
+					error_message = "inclusion directive is not found";
 					break;
-				case PreprocessorError::PragmaNotFound:
-					Message = "pragma directive is not found";
+				case preprocessor_error::pragma_not_found:
+					error_message = "pragma directive is not found";
 					break;
-				case PreprocessorError::PragmaError:
-					Message = "pragma directive parsing error";
+				case preprocessor_error::pragma_error:
+					error_message = "pragma directive parsing error";
 					break;
-				case PreprocessorError::ExtensionError:
-					Message = "extension error";
+				case preprocessor_error::extension_error:
+					error_message = "extension error";
 					break;
 				default:
 					break;
 			}
 
-			if (Offset > 0)
+			if (error_offset > 0)
 			{
-				Message += " at offset ";
-				Message += Core::ToString(Offset);
+				error_message += " at offset ";
+				error_message += core::to_string(error_offset);
 			}
 
-			if (!NewMessage.empty())
+			if (!new_message.empty())
 			{
-				Message += " on ";
-				Message += NewMessage;
+				error_message += " on ";
+				error_message += new_message;
 			}
 		}
-		const char* PreprocessorException::type() const noexcept
+		const char* preprocessor_exception::type() const noexcept
 		{
 			return "preprocessor_error";
 		}
-		PreprocessorError PreprocessorException::status() const noexcept
+		preprocessor_error preprocessor_exception::status() const noexcept
 		{
-			return Type;
+			return error_type;
 		}
-		size_t PreprocessorException::offset() const noexcept
+		size_t preprocessor_exception::offset() const noexcept
 		{
-			return Offset;
+			return error_offset;
 		}
 
-		CryptoException::CryptoException() : ErrorCode(0)
+		crypto_exception::crypto_exception() : error_code(0)
 		{
 #ifdef VI_OPENSSL
-			unsigned long Error = ERR_get_error();
-			if (Error > 0)
+			unsigned long error = ERR_get_error();
+			if (error > 0)
 			{
-				ErrorCode = (size_t)Error;
-				char* ErrorText = ERR_error_string(Error, nullptr);
-				if (ErrorText != nullptr)
-					Message = ErrorText;
+				error_code = (size_t)error;
+				char* error_text = ERR_error_string(error, nullptr);
+				if (error_text != nullptr)
+					error_message = error_text;
 				else
-					Message = "error:" + Core::ToString(ErrorCode);
+					error_message = "error:" + core::to_string(error_code);
 			}
 			else
-				Message = "error:internal";
+				error_message = "error:internal";
 #else
-			Message = "error:unsupported";
+			error_message = "error:unsupported";
 #endif
 		}
-		CryptoException::CryptoException(size_t NewErrorCode, const std::string_view& NewMessage) : ErrorCode(NewErrorCode)
+		crypto_exception::crypto_exception(size_t new_error_code, const std::string_view& new_message) : error_code(new_error_code)
 		{
-			Message = "error:" + Core::ToString(ErrorCode) + ":";
-			if (!NewMessage.empty())
-				Message += NewMessage;
+			error_message = "error:" + core::to_string(error_code) + ":";
+			if (!new_message.empty())
+				error_message += new_message;
 			else
-				Message += "internal";
+				error_message += "internal";
 		}
-		const char* CryptoException::type() const noexcept
+		const char* crypto_exception::type() const noexcept
 		{
 			return "crypto_error";
 		}
-		size_t CryptoException::error_code() const noexcept
+		size_t crypto_exception::code() const noexcept
 		{
-			return ErrorCode;
+			return error_code;
 		}
 
-		CompressionException::CompressionException(int NewErrorCode, const std::string_view& NewMessage) : ErrorCode(NewErrorCode)
+		compression_exception::compression_exception(int new_error_code, const std::string_view& new_message) : error_code(new_error_code)
 		{
-			if (!NewMessage.empty())
-				Message += NewMessage;
+			if (!new_message.empty())
+				error_message += new_message;
 			else
-				Message += "internal error";
-			Message += " (error = " + Core::ToString(ErrorCode) + ")";
+				error_message += "internal error";
+			error_message += " (error = " + core::to_string(error_code) + ")";
 		}
-		const char* CompressionException::type() const noexcept
+		const char* compression_exception::type() const noexcept
 		{
 			return "compression_error";
 		}
-		int CompressionException::error_code() const noexcept
+		int compression_exception::code() const noexcept
 		{
-			return ErrorCode;
+			return error_code;
 		}
 
-		MD5Hasher::MD5Hasher() noexcept
+		md5_hasher::md5_hasher() noexcept
 		{
 			VI_TRACE("[crypto] create md5 hasher");
-			memset(Buffer, 0, sizeof(Buffer));
-			memset(Digest, 0, sizeof(Digest));
-			Finalized = false;
-			Count[0] = 0;
-			Count[1] = 0;
-			State[0] = 0x67452301;
-			State[1] = 0xefcdab89;
-			State[2] = 0x98badcfe;
-			State[3] = 0x10325476;
+			memset(buffer, 0, sizeof(buffer));
+			memset(digest, 0, sizeof(digest));
+			finalized = false;
+			count[0] = 0;
+			count[1] = 0;
+			state[0] = 0x67452301;
+			state[1] = 0xefcdab89;
+			state[2] = 0x98badcfe;
+			state[3] = 0x10325476;
 		}
-		void MD5Hasher::Decode(UInt4* Output, const UInt1* Input, uint32_t Length)
+		void md5_hasher::decode(uint4* output, const uint1* input, uint32_t length)
 		{
-			VI_ASSERT(Output != nullptr && Input != nullptr, "output and input should be set");
-			for (uint32_t i = 0, j = 0; j < Length; i++, j += 4)
-				Output[i] = ((UInt4)Input[j]) | (((UInt4)Input[j + 1]) << 8) | (((UInt4)Input[j + 2]) << 16) | (((UInt4)Input[j + 3]) << 24);
-			VI_TRACE("[crypto] md5 hasher decode to 0x%" PRIXPTR, (void*)Output);
+			VI_ASSERT(output != nullptr && input != nullptr, "output and input should be set");
+			for (uint32_t i = 0, j = 0; j < length; i++, j += 4)
+				output[i] = ((uint4)input[j]) | (((uint4)input[j + 1]) << 8) | (((uint4)input[j + 2]) << 16) | (((uint4)input[j + 3]) << 24);
+			VI_TRACE("[crypto] md5 hasher decode to 0x%" PRIXPTR, (void*)output);
 		}
-		void MD5Hasher::Encode(UInt1* Output, const UInt4* Input, uint32_t Length)
+		void md5_hasher::encode(uint1* output, const uint4* input, uint32_t length)
 		{
-			VI_ASSERT(Output != nullptr && Input != nullptr, "output and input should be set");
-			for (uint32_t i = 0, j = 0; j < Length; i++, j += 4)
+			VI_ASSERT(output != nullptr && input != nullptr, "output and input should be set");
+			for (uint32_t i = 0, j = 0; j < length; i++, j += 4)
 			{
-				Output[j] = Input[i] & 0xff;
-				Output[j + 1] = (Input[i] >> 8) & 0xff;
-				Output[j + 2] = (Input[i] >> 16) & 0xff;
-				Output[j + 3] = (Input[i] >> 24) & 0xff;
+				output[j] = input[i] & 0xff;
+				output[j + 1] = (input[i] >> 8) & 0xff;
+				output[j + 2] = (input[i] >> 16) & 0xff;
+				output[j + 3] = (input[i] >> 24) & 0xff;
 			}
-			VI_TRACE("[crypto] md5 hasher encode to 0x%" PRIXPTR, (void*)Output);
+			VI_TRACE("[crypto] md5 hasher encode to 0x%" PRIXPTR, (void*)output);
 		}
-		void MD5Hasher::Transform(const UInt1* Block, uint32_t Length)
+		void md5_hasher::transform(const uint1* block, uint32_t length)
 		{
-			VI_ASSERT(Block != nullptr, "block should be set");
-			VI_TRACE("[crypto] md5 hasher transform from 0x%" PRIXPTR, (void*)Block);
-			UInt4 A = State[0], B = State[1], C = State[2], D = State[3], X[16];
-			Decode(X, Block, Length);
+			VI_ASSERT(block != nullptr, "block should be set");
+			VI_TRACE("[crypto] md5 hasher transform from 0x%" PRIXPTR, (void*)block);
+			uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
+			decode(x, block, length);
 
-			FF(A, B, C, D, X[0], S11, 0xd76aa478);
-			FF(D, A, B, C, X[1], S12, 0xe8c7b756);
-			FF(C, D, A, B, X[2], S13, 0x242070db);
-			FF(B, C, D, A, X[3], S14, 0xc1bdceee);
-			FF(A, B, C, D, X[4], S11, 0xf57c0faf);
-			FF(D, A, B, C, X[5], S12, 0x4787c62a);
-			FF(C, D, A, B, X[6], S13, 0xa8304613);
-			FF(B, C, D, A, X[7], S14, 0xfd469501);
-			FF(A, B, C, D, X[8], S11, 0x698098d8);
-			FF(D, A, B, C, X[9], S12, 0x8b44f7af);
-			FF(C, D, A, B, X[10], S13, 0xffff5bb1);
-			FF(B, C, D, A, X[11], S14, 0x895cd7be);
-			FF(A, B, C, D, X[12], S11, 0x6b901122);
-			FF(D, A, B, C, X[13], S12, 0xfd987193);
-			FF(C, D, A, B, X[14], S13, 0xa679438e);
-			FF(B, C, D, A, X[15], S14, 0x49b40821);
-			GG(A, B, C, D, X[1], S21, 0xf61e2562);
-			GG(D, A, B, C, X[6], S22, 0xc040b340);
-			GG(C, D, A, B, X[11], S23, 0x265e5a51);
-			GG(B, C, D, A, X[0], S24, 0xe9b6c7aa);
-			GG(A, B, C, D, X[5], S21, 0xd62f105d);
-			GG(D, A, B, C, X[10], S22, 0x2441453);
-			GG(C, D, A, B, X[15], S23, 0xd8a1e681);
-			GG(B, C, D, A, X[4], S24, 0xe7d3fbc8);
-			GG(A, B, C, D, X[9], S21, 0x21e1cde6);
-			GG(D, A, B, C, X[14], S22, 0xc33707d6);
-			GG(C, D, A, B, X[3], S23, 0xf4d50d87);
-			GG(B, C, D, A, X[8], S24, 0x455a14ed);
-			GG(A, B, C, D, X[13], S21, 0xa9e3e905);
-			GG(D, A, B, C, X[2], S22, 0xfcefa3f8);
-			GG(C, D, A, B, X[7], S23, 0x676f02d9);
-			GG(B, C, D, A, X[12], S24, 0x8d2a4c8a);
-			HH(A, B, C, D, X[5], S31, 0xfffa3942);
-			HH(D, A, B, C, X[8], S32, 0x8771f681);
-			HH(C, D, A, B, X[11], S33, 0x6d9d6122);
-			HH(B, C, D, A, X[14], S34, 0xfde5380c);
-			HH(A, B, C, D, X[1], S31, 0xa4beea44);
-			HH(D, A, B, C, X[4], S32, 0x4bdecfa9);
-			HH(C, D, A, B, X[7], S33, 0xf6bb4b60);
-			HH(B, C, D, A, X[10], S34, 0xbebfbc70);
-			HH(A, B, C, D, X[13], S31, 0x289b7ec6);
-			HH(D, A, B, C, X[0], S32, 0xeaa127fa);
-			HH(C, D, A, B, X[3], S33, 0xd4ef3085);
-			HH(B, C, D, A, X[6], S34, 0x4881d05);
-			HH(A, B, C, D, X[9], S31, 0xd9d4d039);
-			HH(D, A, B, C, X[12], S32, 0xe6db99e5);
-			HH(C, D, A, B, X[15], S33, 0x1fa27cf8);
-			HH(B, C, D, A, X[2], S34, 0xc4ac5665);
-			II(A, B, C, D, X[0], S41, 0xf4292244);
-			II(D, A, B, C, X[7], S42, 0x432aff97);
-			II(C, D, A, B, X[14], S43, 0xab9423a7);
-			II(B, C, D, A, X[5], S44, 0xfc93a039);
-			II(A, B, C, D, X[12], S41, 0x655b59c3);
-			II(D, A, B, C, X[3], S42, 0x8f0ccc92);
-			II(C, D, A, B, X[10], S43, 0xffeff47d);
-			II(B, C, D, A, X[1], S44, 0x85845dd1);
-			II(A, B, C, D, X[8], S41, 0x6fa87e4f);
-			II(D, A, B, C, X[15], S42, 0xfe2ce6e0);
-			II(C, D, A, B, X[6], S43, 0xa3014314);
-			II(B, C, D, A, X[13], S44, 0x4e0811a1);
-			II(A, B, C, D, X[4], S41, 0xf7537e82);
-			II(D, A, B, C, X[11], S42, 0xbd3af235);
-			II(C, D, A, B, X[2], S43, 0x2ad7d2bb);
-			II(B, C, D, A, X[9], S44, 0xeb86d391);
+			FF(a, b, c, d, x[0], S11, 0xd76aa478);
+			FF(d, a, b, c, x[1], S12, 0xe8c7b756);
+			FF(c, d, a, b, x[2], S13, 0x242070db);
+			FF(b, c, d, a, x[3], S14, 0xc1bdceee);
+			FF(a, b, c, d, x[4], S11, 0xf57c0faf);
+			FF(d, a, b, c, x[5], S12, 0x4787c62a);
+			FF(c, d, a, b, x[6], S13, 0xa8304613);
+			FF(b, c, d, a, x[7], S14, 0xfd469501);
+			FF(a, b, c, d, x[8], S11, 0x698098d8);
+			FF(d, a, b, c, x[9], S12, 0x8b44f7af);
+			FF(c, d, a, b, x[10], S13, 0xffff5bb1);
+			FF(b, c, d, a, x[11], S14, 0x895cd7be);
+			FF(a, b, c, d, x[12], S11, 0x6b901122);
+			FF(d, a, b, c, x[13], S12, 0xfd987193);
+			FF(c, d, a, b, x[14], S13, 0xa679438e);
+			FF(b, c, d, a, x[15], S14, 0x49b40821);
+			GG(a, b, c, d, x[1], S21, 0xf61e2562);
+			GG(d, a, b, c, x[6], S22, 0xc040b340);
+			GG(c, d, a, b, x[11], S23, 0x265e5a51);
+			GG(b, c, d, a, x[0], S24, 0xe9b6c7aa);
+			GG(a, b, c, d, x[5], S21, 0xd62f105d);
+			GG(d, a, b, c, x[10], S22, 0x2441453);
+			GG(c, d, a, b, x[15], S23, 0xd8a1e681);
+			GG(b, c, d, a, x[4], S24, 0xe7d3fbc8);
+			GG(a, b, c, d, x[9], S21, 0x21e1cde6);
+			GG(d, a, b, c, x[14], S22, 0xc33707d6);
+			GG(c, d, a, b, x[3], S23, 0xf4d50d87);
+			GG(b, c, d, a, x[8], S24, 0x455a14ed);
+			GG(a, b, c, d, x[13], S21, 0xa9e3e905);
+			GG(d, a, b, c, x[2], S22, 0xfcefa3f8);
+			GG(c, d, a, b, x[7], S23, 0x676f02d9);
+			GG(b, c, d, a, x[12], S24, 0x8d2a4c8a);
+			HH(a, b, c, d, x[5], S31, 0xfffa3942);
+			HH(d, a, b, c, x[8], S32, 0x8771f681);
+			HH(c, d, a, b, x[11], S33, 0x6d9d6122);
+			HH(b, c, d, a, x[14], S34, 0xfde5380c);
+			HH(a, b, c, d, x[1], S31, 0xa4beea44);
+			HH(d, a, b, c, x[4], S32, 0x4bdecfa9);
+			HH(c, d, a, b, x[7], S33, 0xf6bb4b60);
+			HH(b, c, d, a, x[10], S34, 0xbebfbc70);
+			HH(a, b, c, d, x[13], S31, 0x289b7ec6);
+			HH(d, a, b, c, x[0], S32, 0xeaa127fa);
+			HH(c, d, a, b, x[3], S33, 0xd4ef3085);
+			HH(b, c, d, a, x[6], S34, 0x4881d05);
+			HH(a, b, c, d, x[9], S31, 0xd9d4d039);
+			HH(d, a, b, c, x[12], S32, 0xe6db99e5);
+			HH(c, d, a, b, x[15], S33, 0x1fa27cf8);
+			HH(b, c, d, a, x[2], S34, 0xc4ac5665);
+			II(a, b, c, d, x[0], S41, 0xf4292244);
+			II(d, a, b, c, x[7], S42, 0x432aff97);
+			II(c, d, a, b, x[14], S43, 0xab9423a7);
+			II(b, c, d, a, x[5], S44, 0xfc93a039);
+			II(a, b, c, d, x[12], S41, 0x655b59c3);
+			II(d, a, b, c, x[3], S42, 0x8f0ccc92);
+			II(c, d, a, b, x[10], S43, 0xffeff47d);
+			II(b, c, d, a, x[1], S44, 0x85845dd1);
+			II(a, b, c, d, x[8], S41, 0x6fa87e4f);
+			II(d, a, b, c, x[15], S42, 0xfe2ce6e0);
+			II(c, d, a, b, x[6], S43, 0xa3014314);
+			II(b, c, d, a, x[13], S44, 0x4e0811a1);
+			II(a, b, c, d, x[4], S41, 0xf7537e82);
+			II(d, a, b, c, x[11], S42, 0xbd3af235);
+			II(c, d, a, b, x[2], S43, 0x2ad7d2bb);
+			II(b, c, d, a, x[9], S44, 0xeb86d391);
 
-			State[0] += A;
-			State[1] += B;
-			State[2] += C;
-			State[3] += D;
+			state[0] += a;
+			state[1] += b;
+			state[2] += c;
+			state[3] += d;
 #ifdef VI_MICROSOFT
-			RtlSecureZeroMemory(X, sizeof(X));
+			RtlSecureZeroMemory(x, sizeof(x));
 #else
-			memset(X, 0, sizeof(X));
+			memset(x, 0, sizeof(x));
 #endif
 		}
-		void MD5Hasher::Update(const std::string_view& Input, uint32_t BlockSize)
+		void md5_hasher::update(const std::string_view& input, uint32_t block_size)
 		{
-			Update(Input.data(), (uint32_t)Input.size(), BlockSize);
+			update(input.data(), (uint32_t)input.size(), block_size);
 		}
-		void MD5Hasher::Update(const uint8_t* Input, uint32_t Length, uint32_t BlockSize)
+		void md5_hasher::update(const uint8_t* input, uint32_t length, uint32_t block_size)
 		{
-			VI_ASSERT(Input != nullptr, "input should be set");
-			VI_TRACE("[crypto] md5 hasher update from 0x%" PRIXPTR, (void*)Input);
-			uint32_t Index = Count[0] / 8 % BlockSize;
-			Count[0] += (Length << 3);
-			if (Count[0] < Length << 3)
-				Count[1]++;
+			VI_ASSERT(input != nullptr, "input should be set");
+			VI_TRACE("[crypto] md5 hasher update from 0x%" PRIXPTR, (void*)input);
+			uint32_t index = count[0] / 8 % block_size;
+			count[0] += (length << 3);
+			if (count[0] < length << 3)
+				count[1]++;
 
-			Count[1] += (Length >> 29);
-			uint32_t Chunk = 64 - Index, i = 0;
-			if (Length >= Chunk)
+			count[1] += (length >> 29);
+			uint32_t chunk = 64 - index, i = 0;
+			if (length >= chunk)
 			{
-				memcpy(&Buffer[Index], Input, Chunk);
-				Transform(Buffer, BlockSize);
+				memcpy(&buffer[index], input, chunk);
+				transform(buffer, block_size);
 
-				for (i = Chunk; i + BlockSize <= Length; i += BlockSize)
-					Transform(&Input[i]);
-				Index = 0;
+				for (i = chunk; i + block_size <= length; i += block_size)
+					transform(&input[i]);
+				index = 0;
 			}
 			else
 				i = 0;
 
-			memcpy(&Buffer[Index], &Input[i], Length - i);
+			memcpy(&buffer[index], &input[i], length - i);
 		}
-		void MD5Hasher::Update(const char* Input, uint32_t Length, uint32_t BlockSize)
+		void md5_hasher::update(const char* input, uint32_t length, uint32_t block_size)
 		{
-			Update((const uint8_t*)Input, Length, BlockSize);
+			update((const uint8_t*)input, length, block_size);
 		}
-		void MD5Hasher::Finalize()
+		void md5_hasher::finalize()
 		{
 			VI_TRACE("[crypto] md5 hasher finalize at 0x%" PRIXPTR, (void*)this);
-			static uint8_t Padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-			if (Finalized)
+			static uint8_t padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			if (finalized)
 				return;
 
-			uint8_t Bits[8];
-			Encode(Bits, Count, 8);
+			uint8_t bits[8];
+			encode(bits, count, 8);
 
-			uint32_t Index = Count[0] / 8 % 64;
-			uint32_t Size = (Index < 56) ? (56 - Index) : (120 - Index);
-			Update(Padding, Size);
-			Update(Bits, 8);
-			Encode(Digest, State, 16);
+			uint32_t index = count[0] / 8 % 64;
+			uint32_t size = (index < 56) ? (56 - index) : (120 - index);
+			update(padding, size);
+			update(bits, 8);
+			encode(digest, state, 16);
 
-			memset(Buffer, 0, sizeof(Buffer));
-			memset(Count, 0, sizeof(Count));
-			Finalized = true;
+			memset(buffer, 0, sizeof(buffer));
+			memset(count, 0, sizeof(count));
+			finalized = true;
 		}
-		char* MD5Hasher::HexDigest() const
+		char* md5_hasher::hex_digest() const
 		{
-			VI_ASSERT(Finalized, "md5 hash should be finalized");
-			char* Data = Core::Memory::Allocate<char>(sizeof(char) * 48);
-			memset(Data, 0, sizeof(char) * 48);
-
-			for (size_t i = 0; i < 16; i++)
-				snprintf(Data + i * 2, 4, "%02x", (uint32_t)Digest[i]);
-
-			return Data;
-		}
-		uint8_t* MD5Hasher::RawDigest() const
-		{
-			VI_ASSERT(Finalized, "md5 hash should be finalized");
-			UInt1* Output = Core::Memory::Allocate<UInt1>(sizeof(UInt1) * 17);
-			memcpy(Output, Digest, 16);
-			Output[16] = '\0';
-
-			return Output;
-		}
-		Core::String MD5Hasher::ToHex() const
-		{
-			VI_ASSERT(Finalized, "md5 hash should be finalized");
-			char Data[48];
-			memset(Data, 0, sizeof(Data));
+			VI_ASSERT(finalized, "md5 hash should be finalized");
+			char* data = core::memory::allocate<char>(sizeof(char) * 48);
+			memset(data, 0, sizeof(char) * 48);
 
 			for (size_t i = 0; i < 16; i++)
-				snprintf(Data + i * 2, 4, "%02x", (uint32_t)Digest[i]);
+				snprintf(data + i * 2, 4, "%02x", (uint32_t)digest[i]);
 
-			return Data;
+			return data;
 		}
-		Core::String MD5Hasher::ToRaw() const
+		uint8_t* md5_hasher::raw_digest() const
 		{
-			VI_ASSERT(Finalized, "md5 hash should be finalized");
-			UInt1 Data[17];
-			memcpy(Data, Digest, 16);
-			Data[16] = '\0';
+			VI_ASSERT(finalized, "md5 hash should be finalized");
+			uint1* output = core::memory::allocate<uint1>(sizeof(uint1) * 17);
+			memcpy(output, digest, 16);
+			output[16] = '\0';
 
-			return (const char*)Data;
+			return output;
 		}
-		MD5Hasher::UInt4 MD5Hasher::F(UInt4 X, UInt4 Y, UInt4 Z)
+		core::string md5_hasher::to_hex() const
 		{
-			return (X & Y) | (~X & Z);
+			VI_ASSERT(finalized, "md5 hash should be finalized");
+			char data[48];
+			memset(data, 0, sizeof(data));
+
+			for (size_t i = 0; i < 16; i++)
+				snprintf(data + i * 2, 4, "%02x", (uint32_t)digest[i]);
+
+			return data;
 		}
-		MD5Hasher::UInt4 MD5Hasher::G(UInt4 X, UInt4 Y, UInt4 Z)
+		core::string md5_hasher::to_raw() const
 		{
-			return (X & Z) | (Y & ~Z);
+			VI_ASSERT(finalized, "md5 hash should be finalized");
+			uint1 data[17];
+			memcpy(data, digest, 16);
+			data[16] = '\0';
+
+			return (const char*)data;
 		}
-		MD5Hasher::UInt4 MD5Hasher::H(UInt4 X, UInt4 Y, UInt4 Z)
+		md5_hasher::uint4 md5_hasher::f(uint4 x, uint4 y, uint4 z)
 		{
-			return X ^ Y ^ Z;
+			return (x & y) | (~x & z);
 		}
-		MD5Hasher::UInt4 MD5Hasher::I(UInt4 X, UInt4 Y, UInt4 Z)
+		md5_hasher::uint4 md5_hasher::g(uint4 x, uint4 y, uint4 z)
 		{
-			return Y ^ (X | ~Z);
+			return (x & z) | (y & ~z);
 		}
-		MD5Hasher::UInt4 MD5Hasher::L(UInt4 X, int n)
+		md5_hasher::uint4 md5_hasher::h(uint4 x, uint4 y, uint4 z)
 		{
-			return (X << n) | (X >> (32 - n));
+			return x ^ y ^ z;
 		}
-		void MD5Hasher::FF(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC)
+		md5_hasher::uint4 md5_hasher::i(uint4 x, uint4 y, uint4 z)
 		{
-			A = L(A + F(B, C, D) + X + AC, S) + B;
+			return y ^ (x | ~z);
 		}
-		void MD5Hasher::GG(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC)
+		md5_hasher::uint4 md5_hasher::l(uint4 x, int n)
 		{
-			A = L(A + G(B, C, D) + X + AC, S) + B;
+			return (x << n) | (x >> (32 - n));
 		}
-		void MD5Hasher::HH(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC)
+		void md5_hasher::FF(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
 		{
-			A = L(A + H(B, C, D) + X + AC, S) + B;
+			a = l(a + f(b, c, d) + x + AC, s) + b;
 		}
-		void MD5Hasher::II(UInt4& A, UInt4 B, UInt4 C, UInt4 D, UInt4 X, UInt4 S, UInt4 AC)
+		void md5_hasher::GG(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
 		{
-			A = L(A + I(B, C, D) + X + AC, S) + B;
+			a = l(a + g(b, c, d) + x + AC, s) + b;
+		}
+		void md5_hasher::HH(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
+		{
+			a = l(a + h(b, c, d) + x + AC, s) + b;
+		}
+		void md5_hasher::II(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
+		{
+			a = l(a + i(b, c, d) + x + AC, s) + b;
 		}
 
-		Cipher Ciphers::DES_ECB()
+		cipher ciphers::DES_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ecb();
+			return (cipher)EVP_des_ecb();
 #else
 			return nullptr;
 #endif
@@ -2530,11 +2610,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE()
+		cipher ciphers::DES_EDE()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede();
+			return (cipher)EVP_des_ede();
 #else
 			return nullptr;
 #endif
@@ -2542,11 +2622,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3()
+		cipher ciphers::DES_EDE3()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3();
+			return (cipher)EVP_des_ede3();
 #else
 			return nullptr;
 #endif
@@ -2554,11 +2634,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE_ECB()
+		cipher ciphers::DES_EDE_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede_ecb();
+			return (cipher)EVP_des_ede_ecb();
 #else
 			return nullptr;
 #endif
@@ -2566,11 +2646,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_ECB()
+		cipher ciphers::DES_EDE3_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_ecb();
+			return (cipher)EVP_des_ede3_ecb();
 #else
 			return nullptr;
 #endif
@@ -2578,11 +2658,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_CFB64()
+		cipher ciphers::DES_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_cfb64();
+			return (cipher)EVP_des_cfb64();
 #else
 			return nullptr;
 #endif
@@ -2590,11 +2670,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_CFB1()
+		cipher ciphers::DES_CFB1()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_cfb1();
+			return (cipher)EVP_des_cfb1();
 #else
 			return nullptr;
 #endif
@@ -2602,11 +2682,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_CFB8()
+		cipher ciphers::DES_CFB8()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_cfb8();
+			return (cipher)EVP_des_cfb8();
 #else
 			return nullptr;
 #endif
@@ -2614,11 +2694,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE_CFB64()
+		cipher ciphers::DES_EDE_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede_cfb64();
+			return (cipher)EVP_des_ede_cfb64();
 #else
 			return nullptr;
 #endif
@@ -2626,11 +2706,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_CFB64()
+		cipher ciphers::DES_EDE3_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_cfb64();
+			return (cipher)EVP_des_ede3_cfb64();
 #else
 			return nullptr;
 #endif
@@ -2638,11 +2718,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_CFB1()
+		cipher ciphers::DES_EDE3_CFB1()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_cfb1();
+			return (cipher)EVP_des_ede3_cfb1();
 #else
 			return nullptr;
 #endif
@@ -2650,11 +2730,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_CFB8()
+		cipher ciphers::DES_EDE3_CFB8()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_cfb8();
+			return (cipher)EVP_des_ede3_cfb8();
 #else
 			return nullptr;
 #endif
@@ -2662,11 +2742,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_OFB()
+		cipher ciphers::DES_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ofb();
+			return (cipher)EVP_des_ofb();
 #else
 			return nullptr;
 #endif
@@ -2674,11 +2754,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE_OFB()
+		cipher ciphers::DES_EDE_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede_ofb();
+			return (cipher)EVP_des_ede_ofb();
 #else
 			return nullptr;
 #endif
@@ -2686,11 +2766,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_OFB()
+		cipher ciphers::DES_EDE3_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_ofb();
+			return (cipher)EVP_des_ede3_ofb();
 #else
 			return nullptr;
 #endif
@@ -2698,11 +2778,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_CBC()
+		cipher ciphers::DES_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_cbc();
+			return (cipher)EVP_des_cbc();
 #else
 			return nullptr;
 #endif
@@ -2710,11 +2790,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE_CBC()
+		cipher ciphers::DES_EDE_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede_cbc();
+			return (cipher)EVP_des_ede_cbc();
 #else
 			return nullptr;
 #endif
@@ -2722,11 +2802,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_CBC()
+		cipher ciphers::DES_EDE3_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_cbc();
+			return (cipher)EVP_des_ede3_cbc();
 #else
 			return nullptr;
 #endif
@@ -2734,11 +2814,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DES_EDE3_Wrap()
+		cipher ciphers::desede3_wrap()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_des_ede3_wrap();
+			return (cipher)EVP_des_ede3_wrap();
 #else
 			return nullptr;
 #endif
@@ -2746,11 +2826,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::DESX_CBC()
+		cipher ciphers::DESX_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
-			return (Cipher)EVP_desx_cbc();
+			return (cipher)EVP_desx_cbc();
 #else
 			return nullptr;
 #endif
@@ -2758,11 +2838,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC4()
+		cipher ciphers::RC4()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC4
-			return (Cipher)EVP_rc4();
+			return (cipher)EVP_rc4();
 #else
 			return nullptr;
 #endif
@@ -2770,11 +2850,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC4_40()
+		cipher ciphers::RC4_40()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC4
-			return (Cipher)EVP_rc4_40();
+			return (cipher)EVP_rc4_40();
 #else
 			return nullptr;
 #endif
@@ -2782,12 +2862,12 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC4_HMAC_MD5()
+		cipher ciphers::RC4_HMAC_MD5()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC4
 #ifndef OPENSSL_NO_MD5
-			return (Cipher)EVP_rc4_hmac_md5();
+			return (cipher)EVP_rc4_hmac_md5();
 #else
 			return nullptr;
 #endif
@@ -2798,11 +2878,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::IDEA_ECB()
+		cipher ciphers::IDEA_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
-			return (Cipher)EVP_idea_ecb();
+			return (cipher)EVP_idea_ecb();
 #else
 			return nullptr;
 #endif
@@ -2810,11 +2890,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::IDEA_CFB64()
+		cipher ciphers::IDEA_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
-			return (Cipher)EVP_idea_cfb64();
+			return (cipher)EVP_idea_cfb64();
 #else
 			return nullptr;
 #endif
@@ -2822,11 +2902,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::IDEA_OFB()
+		cipher ciphers::IDEA_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
-			return (Cipher)EVP_idea_ofb();
+			return (cipher)EVP_idea_ofb();
 #else
 			return nullptr;
 #endif
@@ -2834,11 +2914,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::IDEA_CBC()
+		cipher ciphers::IDEA_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
-			return (Cipher)EVP_idea_cbc();
+			return (cipher)EVP_idea_cbc();
 #else
 			return nullptr;
 #endif
@@ -2846,11 +2926,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC2_ECB()
+		cipher ciphers::RC2_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
-			return (Cipher)EVP_rc2_ecb();
+			return (cipher)EVP_rc2_ecb();
 #else
 			return nullptr;
 #endif
@@ -2858,11 +2938,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC2_CBC()
+		cipher ciphers::RC2_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
-			return (Cipher)EVP_rc2_cbc();
+			return (cipher)EVP_rc2_cbc();
 #else
 			return nullptr;
 #endif
@@ -2870,11 +2950,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC2_40_CBC()
+		cipher ciphers::RC2_40_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
-			return (Cipher)EVP_rc2_40_cbc();
+			return (cipher)EVP_rc2_40_cbc();
 #else
 			return nullptr;
 #endif
@@ -2882,11 +2962,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC2_64_CBC()
+		cipher ciphers::RC2_64_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
-			return (Cipher)EVP_rc2_64_cbc();
+			return (cipher)EVP_rc2_64_cbc();
 #else
 			return nullptr;
 #endif
@@ -2894,11 +2974,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC2_CFB64()
+		cipher ciphers::RC2_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
-			return (Cipher)EVP_rc2_cfb64();
+			return (cipher)EVP_rc2_cfb64();
 #else
 			return nullptr;
 #endif
@@ -2906,11 +2986,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC2_OFB()
+		cipher ciphers::RC2_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
-			return (Cipher)EVP_rc2_ofb();
+			return (cipher)EVP_rc2_ofb();
 #else
 			return nullptr;
 #endif
@@ -2918,11 +2998,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::BF_ECB()
+		cipher ciphers::BF_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
-			return (Cipher)EVP_bf_ecb();
+			return (cipher)EVP_bf_ecb();
 #else
 			return nullptr;
 #endif
@@ -2930,11 +3010,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::BF_CBC()
+		cipher ciphers::BF_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
-			return (Cipher)EVP_bf_cbc();
+			return (cipher)EVP_bf_cbc();
 #else
 			return nullptr;
 #endif
@@ -2942,11 +3022,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::BF_CFB64()
+		cipher ciphers::BF_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
-			return (Cipher)EVP_bf_cfb64();
+			return (cipher)EVP_bf_cfb64();
 #else
 			return nullptr;
 #endif
@@ -2954,11 +3034,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::BF_OFB()
+		cipher ciphers::BF_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
-			return (Cipher)EVP_bf_ofb();
+			return (cipher)EVP_bf_ofb();
 #else
 			return nullptr;
 #endif
@@ -2966,11 +3046,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::CAST5_ECB()
+		cipher ciphers::CAST5_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
-			return (Cipher)EVP_cast5_ecb();
+			return (cipher)EVP_cast5_ecb();
 #else
 			return nullptr;
 #endif
@@ -2978,11 +3058,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::CAST5_CBC()
+		cipher ciphers::CAST5_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
-			return (Cipher)EVP_cast5_cbc();
+			return (cipher)EVP_cast5_cbc();
 #else
 			return nullptr;
 #endif
@@ -2990,11 +3070,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::CAST5_CFB64()
+		cipher ciphers::CAST5_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
-			return (Cipher)EVP_cast5_cfb64();
+			return (cipher)EVP_cast5_cfb64();
 #else
 			return nullptr;
 #endif
@@ -3002,11 +3082,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::CAST5_OFB()
+		cipher ciphers::CAST5_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
-			return (Cipher)EVP_cast5_ofb();
+			return (cipher)EVP_cast5_ofb();
 #else
 			return nullptr;
 #endif
@@ -3014,11 +3094,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC5_32_12_16_CBC()
+		cipher ciphers::RC5_32_12_16_CBC()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
-			return (Cipher)EVP_rc5_32_12_16_cbc();
+			return (cipher)EVP_rc5_32_12_16_cbc();
 #else
 			return nullptr;
 #endif
@@ -3026,11 +3106,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC5_32_12_16_ECB()
+		cipher ciphers::RC5_32_12_16_ECB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
-			return (Cipher)EVP_rc5_32_12_16_ecb();
+			return (cipher)EVP_rc5_32_12_16_ecb();
 #else
 			return nullptr;
 #endif
@@ -3038,11 +3118,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC5_32_12_16_CFB64()
+		cipher ciphers::RC5_32_12_16_CFB64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
-			return (Cipher)EVP_rc5_32_12_16_cfb64();
+			return (cipher)EVP_rc5_32_12_16_cfb64();
 #else
 			return nullptr;
 #endif
@@ -3050,11 +3130,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::RC5_32_12_16_OFB()
+		cipher ciphers::RC5_32_12_16_OFB()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
-			return (Cipher)EVP_rc5_32_12_16_ofb();
+			return (cipher)EVP_rc5_32_12_16_ofb();
 #else
 			return nullptr;
 #endif
@@ -3062,107 +3142,107 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_ECB()
+		cipher ciphers::AES_128_ECB()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_ecb();
+			return (cipher)EVP_aes_128_ecb();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CBC()
+		cipher ciphers::AES_128_CBC()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_cbc();
+			return (cipher)EVP_aes_128_cbc();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CFB1()
+		cipher ciphers::AES_128_CFB1()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_cfb1();
+			return (cipher)EVP_aes_128_cfb1();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CFB8()
+		cipher ciphers::AES_128_CFB8()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_cfb8();
+			return (cipher)EVP_aes_128_cfb8();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CFB128()
+		cipher ciphers::AES_128_CFB128()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_cfb128();
+			return (cipher)EVP_aes_128_cfb128();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_OFB()
+		cipher ciphers::AES_128_OFB()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_ofb();
+			return (cipher)EVP_aes_128_ofb();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CTR()
+		cipher ciphers::AES_128_CTR()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_ctr();
+			return (cipher)EVP_aes_128_ctr();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CCM()
+		cipher ciphers::AES_128_CCM()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_ccm();
+			return (cipher)EVP_aes_128_ccm();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_GCM()
+		cipher ciphers::AES_128_GCM()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_gcm();
+			return (cipher)EVP_aes_128_gcm();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_XTS()
+		cipher ciphers::AES_128_XTS()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_xts();
+			return (cipher)EVP_aes_128_xts();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_Wrap()
+		cipher ciphers::aes128_wrap()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_128_wrap();
+			return (cipher)EVP_aes_128_wrap();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_WrapPad()
+		cipher ciphers::aes128_wrap_pad()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_128_wrap_pad();
+			return (cipher)EVP_aes_128_wrap_pad();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_OCB()
+		cipher ciphers::AES_128_OCB()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
-			return (Cipher)EVP_aes_128_ocb();
+			return (cipher)EVP_aes_128_ocb();
 #else
 			return nullptr;
 #endif
@@ -3170,207 +3250,99 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_ECB()
+		cipher ciphers::AES_192_ECB()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_ecb();
+			return (cipher)EVP_aes_192_ecb();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_CBC()
+		cipher ciphers::AES_192_CBC()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_cbc();
+			return (cipher)EVP_aes_192_cbc();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_CFB1()
+		cipher ciphers::AES_192_CFB1()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_cfb1();
+			return (cipher)EVP_aes_192_cfb1();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_CFB8()
+		cipher ciphers::AES_192_CFB8()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_cfb8();
+			return (cipher)EVP_aes_192_cfb8();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_CFB128()
+		cipher ciphers::AES_192_CFB128()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_cfb128();
+			return (cipher)EVP_aes_192_cfb128();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_OFB()
+		cipher ciphers::AES_192_OFB()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_ofb();
+			return (cipher)EVP_aes_192_ofb();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_CTR()
+		cipher ciphers::AES_192_CTR()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_ctr();
+			return (cipher)EVP_aes_192_ctr();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_CCM()
+		cipher ciphers::AES_192_CCM()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_ccm();
+			return (cipher)EVP_aes_192_ccm();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_GCM()
+		cipher ciphers::AES_192_GCM()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_192_gcm();
+			return (cipher)EVP_aes_192_gcm();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_Wrap()
+		cipher ciphers::aes192_wrap()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_192_wrap();
+			return (cipher)EVP_aes_192_wrap();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_WrapPad()
+		cipher ciphers::aes192_wrap_pad()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_192_wrap_pad();
+			return (cipher)EVP_aes_192_wrap_pad();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_192_OCB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_OCB
-			return (Cipher)EVP_aes_192_ocb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_ECB()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_ecb();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CBC()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_cbc();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CFB1()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_cfb1();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CFB8()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_cfb8();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CFB128()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_cfb128();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_OFB()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_ofb();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CTR()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_ctr();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CCM()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_ccm();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_GCM()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_gcm();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_XTS()
-		{
-#ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_xts();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_Wrap()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_256_wrap();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_WrapPad()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_256_wrap_pad();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_OCB()
+		cipher ciphers::AES_192_OCB()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
-			return (Cipher)EVP_aes_256_ocb();
+			return (cipher)EVP_aes_192_ocb();
 #else
 			return nullptr;
 #endif
@@ -3378,439 +3350,107 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CBC_HMAC_SHA1()
+		cipher ciphers::AES_256_ECB()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_128_cbc_hmac_sha1();
+			return (cipher)EVP_aes_256_ecb();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_256_CBC_HMAC_SHA1()
+		cipher ciphers::AES_256_CBC()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_aes_256_cbc_hmac_sha1();
+			return (cipher)EVP_aes_256_cbc();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::AES_128_CBC_HMAC_SHA256()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_128_cbc_hmac_sha256();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::AES_256_CBC_HMAC_SHA256()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_aes_256_cbc_hmac_sha256();
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_ECB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_ecb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_CBC()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_cbc();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_CFB1()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_cfb1();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_CFB8()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_cfb8();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_CFB128()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_cfb128();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_CTR()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_ctr();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_OFB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_ofb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_GCM()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_gcm();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_128_CCM()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_128_ccm();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_ECB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_ecb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_CBC()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_cbc();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_CFB1()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_cfb1();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_CFB8()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_cfb8();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_CFB128()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_cfb128();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_CTR()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_ctr();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_OFB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_ofb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_GCM()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_gcm();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_192_CCM()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_192_ccm();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_ECB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_ecb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_CBC()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_cbc();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_CFB1()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_cfb1();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_CFB8()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_cfb8();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_CFB128()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_cfb128();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_CTR()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_ctr();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_OFB()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_ofb();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_GCM()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_gcm();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::ARIA_256_CCM()
-		{
-#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_ARIA
-			return (Cipher)EVP_aria_256_ccm();
-#else
-			return nullptr;
-#endif
-#else
-			return nullptr;
-#endif
-		}
-		Cipher Ciphers::Camellia_128_ECB()
+		cipher ciphers::AES_256_CFB1()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_ecb();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_cfb1();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_128_CBC()
+		cipher ciphers::AES_256_CFB8()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_cbc();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_cfb8();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_128_CFB1()
+		cipher ciphers::AES_256_CFB128()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_cfb1();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_cfb128();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_128_CFB8()
+		cipher ciphers::AES_256_OFB()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_cfb8();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_ofb();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_128_CFB128()
+		cipher ciphers::AES_256_CTR()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_cfb128();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_ctr();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_128_OFB()
+		cipher ciphers::AES_256_CCM()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_ofb();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_ccm();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_128_CTR()
+		cipher ciphers::AES_256_GCM()
+		{
+#ifdef VI_OPENSSL
+			return (cipher)EVP_aes_256_gcm();
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::AES_256_XTS()
+		{
+#ifdef VI_OPENSSL
+			return (cipher)EVP_aes_256_xts();
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::aes256_wrap()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_128_ctr();
+			return (cipher)EVP_aes_256_wrap();
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::aes256_wrap_pad()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+			return (cipher)EVP_aes_256_wrap_pad();
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::AES_256_OCB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_OCB
+			return (cipher)EVP_aes_256_ocb();
 #else
 			return nullptr;
 #endif
@@ -3818,35 +3458,43 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_ECB()
+		cipher ciphers::AES_128_CBC_HMAC_SHA1()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_ecb();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_128_cbc_hmac_sha1();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_CBC()
+		cipher ciphers::AES_256_CBC_HMAC_SHA1()
 		{
 #ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_cbc();
-#else
-			return nullptr;
-#endif
+			return (cipher)EVP_aes_256_cbc_hmac_sha1();
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_CFB1()
+		cipher ciphers::AES_128_CBC_HMAC_SHA256()
 		{
-#ifdef VI_OPENSSL
-#ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_cfb1();
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+			return (cipher)EVP_aes_128_cbc_hmac_sha256();
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::AES_256_CBC_HMAC_SHA256()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+			return (cipher)EVP_aes_256_cbc_hmac_sha256();
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_ECB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_ecb();
 #else
 			return nullptr;
 #endif
@@ -3854,11 +3502,323 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_CFB8()
+		cipher ciphers::ARIA_128_CBC()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_CFB1()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_CFB8()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_CFB128()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_CTR()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_OFB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_GCM()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_gcm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_128_CCM()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_128_ccm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_ECB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_CBC()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_CFB1()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_CFB8()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_CFB128()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_CTR()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_OFB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_GCM()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_gcm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_192_CCM()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_192_ccm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_ECB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_CBC()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_CFB1()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_CFB8()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_CFB128()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_CTR()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_OFB()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_GCM()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_gcm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::ARIA_256_CCM()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_ARIA
+			return (cipher)EVP_aria_256_ccm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia128_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_cfb8();
+			return (cipher)EVP_camellia_128_ecb();
 #else
 			return nullptr;
 #endif
@@ -3866,11 +3826,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_CFB128()
+		cipher ciphers::camellia128_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_cfb128();
+			return (cipher)EVP_camellia_128_cbc();
 #else
 			return nullptr;
 #endif
@@ -3878,11 +3838,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_OFB()
+		cipher ciphers::camellia128_cfb1()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_ofb();
+			return (cipher)EVP_camellia_128_cfb1();
 #else
 			return nullptr;
 #endif
@@ -3890,11 +3850,47 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_192_CTR()
+		cipher ciphers::camellia128_cfb8()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_128_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia128_cfb128()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_128_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia128_ofb()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_128_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia128_ctr()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_192_ctr();
+			return (cipher)EVP_camellia_128_ctr();
 #else
 			return nullptr;
 #endif
@@ -3902,11 +3898,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_ECB()
+		cipher ciphers::camellia192_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_ecb();
+			return (cipher)EVP_camellia_192_ecb();
 #else
 			return nullptr;
 #endif
@@ -3914,11 +3910,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_CBC()
+		cipher ciphers::camellia192_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_cbc();
+			return (cipher)EVP_camellia_192_cbc();
 #else
 			return nullptr;
 #endif
@@ -3926,11 +3922,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_CFB1()
+		cipher ciphers::camellia192_cfb1()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_cfb1();
+			return (cipher)EVP_camellia_192_cfb1();
 #else
 			return nullptr;
 #endif
@@ -3938,11 +3934,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_CFB8()
+		cipher ciphers::camellia192_cfb8()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_cfb8();
+			return (cipher)EVP_camellia_192_cfb8();
 #else
 			return nullptr;
 #endif
@@ -3950,11 +3946,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_CFB128()
+		cipher ciphers::camellia192_cfb128()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_cfb128();
+			return (cipher)EVP_camellia_192_cfb128();
 #else
 			return nullptr;
 #endif
@@ -3962,11 +3958,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_OFB()
+		cipher ciphers::camellia192_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_ofb();
+			return (cipher)EVP_camellia_192_ofb();
 #else
 			return nullptr;
 #endif
@@ -3974,11 +3970,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Camellia_256_CTR()
+		cipher ciphers::camellia192_ctr()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CAMELLIA
-			return (Cipher)EVP_camellia_256_ctr();
+			return (cipher)EVP_camellia_192_ctr();
 #else
 			return nullptr;
 #endif
@@ -3986,11 +3982,95 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Chacha20()
+		cipher ciphers::camellia256_ecb()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia256_cbc()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia256_cfb1()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia256_cfb8()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia256_cfb128()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia256_ofb()
+		{
+#ifdef VI_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::camellia256_ctr()
+		{
+#if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (cipher)EVP_camellia_256_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		cipher ciphers::chacha20()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CHACHA
-			return (Cipher)EVP_chacha20();
+			return (cipher)EVP_chacha20();
 #else
 			return nullptr;
 #endif
@@ -3998,12 +4078,12 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Chacha20_Poly1305()
+		cipher ciphers::chacha20_poly1305()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CHACHA
 #ifndef OPENSSL_NO_POLY1305
-			return (Cipher)EVP_chacha20_poly1305();
+			return (cipher)EVP_chacha20_poly1305();
 #else
 			return nullptr;
 #endif
@@ -4014,11 +4094,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Seed_ECB()
+		cipher ciphers::seed_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_SEED
-			return (Cipher)EVP_seed_ecb();
+			return (cipher)EVP_seed_ecb();
 #else
 			return nullptr;
 #endif
@@ -4026,11 +4106,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Seed_CBC()
+		cipher ciphers::seed_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_SEED
-			return (Cipher)EVP_seed_cbc();
+			return (cipher)EVP_seed_cbc();
 #else
 			return nullptr;
 #endif
@@ -4038,11 +4118,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Seed_CFB128()
+		cipher ciphers::seed_cfb128()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_SEED
-			return (Cipher)EVP_seed_cfb128();
+			return (cipher)EVP_seed_cfb128();
 #else
 			return nullptr;
 #endif
@@ -4050,11 +4130,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::Seed_OFB()
+		cipher ciphers::seed_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_SEED
-			return (Cipher)EVP_seed_ofb();
+			return (cipher)EVP_seed_ofb();
 #else
 			return nullptr;
 #endif
@@ -4062,11 +4142,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::SM4_ECB()
+		cipher ciphers::SM4_ECB()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
-			return (Cipher)EVP_sm4_ecb();
+			return (cipher)EVP_sm4_ecb();
 #else
 			return nullptr;
 #endif
@@ -4074,11 +4154,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::SM4_CBC()
+		cipher ciphers::SM4_CBC()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
-			return (Cipher)EVP_sm4_cbc();
+			return (cipher)EVP_sm4_cbc();
 #else
 			return nullptr;
 #endif
@@ -4086,11 +4166,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::SM4_CFB128()
+		cipher ciphers::SM4_CFB128()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
-			return (Cipher)EVP_sm4_cfb128();
+			return (cipher)EVP_sm4_cfb128();
 #else
 			return nullptr;
 #endif
@@ -4098,11 +4178,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::SM4_OFB()
+		cipher ciphers::SM4_OFB()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
-			return (Cipher)EVP_sm4_ofb();
+			return (cipher)EVP_sm4_ofb();
 #else
 			return nullptr;
 #endif
@@ -4110,11 +4190,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Cipher Ciphers::SM4_CTR()
+		cipher ciphers::SM4_CTR()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
-			return (Cipher)EVP_sm4_ctr();
+			return (cipher)EVP_sm4_ctr();
 #else
 			return nullptr;
 #endif
@@ -4123,11 +4203,11 @@ namespace Vitex
 #endif
 		}
 
-		Digest Digests::MD2()
+		digest digests::MD2()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MD2
-			return (Cipher)EVP_md2();
+			return (cipher)EVP_md2();
 #else
 			return nullptr;
 #endif
@@ -4135,11 +4215,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::MD4()
+		digest digests::MD4()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MD4
-			return (Cipher)EVP_md4();
+			return (cipher)EVP_md4();
 #else
 			return nullptr;
 #endif
@@ -4147,11 +4227,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::MD5()
+		digest digests::MD5()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MD5
-			return (Cipher)EVP_md5();
+			return (cipher)EVP_md5();
 #else
 			return nullptr;
 #endif
@@ -4159,11 +4239,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::MD5_SHA1()
+		digest digests::MD5_SHA1()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_MD5
-			return (Cipher)EVP_md5_sha1();
+			return (cipher)EVP_md5_sha1();
 #else
 			return nullptr;
 #endif
@@ -4171,11 +4251,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::Blake2B512()
+		digest digests::blake2_b512()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_BLAKE2
-			return (Cipher)EVP_blake2b512();
+			return (cipher)EVP_blake2b512();
 #else
 			return nullptr;
 #endif
@@ -4183,11 +4263,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::Blake2S256()
+		digest digests::blake2_s256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_BLAKE2
-			return (Cipher)EVP_blake2s256();
+			return (cipher)EVP_blake2s256();
 #else
 			return nullptr;
 #endif
@@ -4195,115 +4275,115 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA1()
+		digest digests::SHA1()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_sha1();
+			return (cipher)EVP_sha1();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA224()
+		digest digests::SHA224()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_sha224();
+			return (cipher)EVP_sha224();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA256()
+		digest digests::SHA256()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_sha256();
+			return (cipher)EVP_sha256();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA384()
+		digest digests::SHA384()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_sha384();
+			return (cipher)EVP_sha384();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA512()
+		digest digests::SHA512()
 		{
 #ifdef VI_OPENSSL
-			return (Cipher)EVP_sha512();
+			return (cipher)EVP_sha512();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA512_224()
+		digest digests::SHA512_224()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_sha512_224();
+			return (cipher)EVP_sha512_224();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA512_256()
+		digest digests::SHA512_256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_sha512_256();
+			return (cipher)EVP_sha512_256();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA3_224()
+		digest digests::SHA3_224()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_sha3_224();
+			return (cipher)EVP_sha3_224();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA3_256()
+		digest digests::SHA3_256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_sha3_256();
+			return (cipher)EVP_sha3_256();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA3_384()
+		digest digests::SHA3_384()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_sha3_384();
+			return (cipher)EVP_sha3_384();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::SHA3_512()
+		digest digests::SHA3_512()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_sha3_512();
+			return (cipher)EVP_sha3_512();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::Shake128()
+		digest digests::shake128()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_shake128();
+			return (cipher)EVP_shake128();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::Shake256()
+		digest digests::shake256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			return (Cipher)EVP_shake256();
+			return (cipher)EVP_shake256();
 #else
 			return nullptr;
 #endif
 		}
-		Digest Digests::MDC2()
+		digest digests::MDC2()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MDC2
-			return (Cipher)EVP_mdc2();
+			return (cipher)EVP_mdc2();
 #else
 			return nullptr;
 #endif
@@ -4311,11 +4391,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::RipeMD160()
+		digest digests::ripe_md160()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RMD160
-			return (Cipher)EVP_ripemd160();
+			return (cipher)EVP_ripemd160();
 #else
 			return nullptr;
 #endif
@@ -4323,11 +4403,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::Whirlpool()
+		digest digests::whirlpool()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_WHIRLPOOL
-			return (Cipher)EVP_whirlpool();
+			return (cipher)EVP_whirlpool();
 #else
 			return nullptr;
 #endif
@@ -4335,11 +4415,11 @@ namespace Vitex
 			return nullptr;
 #endif
 		}
-		Digest Digests::SM3()
+		digest digests::SM3()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM3
-			return (Cipher)EVP_sm3();
+			return (cipher)EVP_sm3();
 #else
 			return nullptr;
 #endif
@@ -4348,381 +4428,381 @@ namespace Vitex
 #endif
 		}
 
-		SignAlg Signers::PkRSA()
+		sign_alg signers::pk_rsa()
 		{
 #ifdef EVP_PK_RSA
-			return (SignAlg)EVP_PK_RSA;
+			return (sign_alg)EVP_PK_RSA;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PkDSA()
+		sign_alg signers::pk_dsa()
 		{
 #ifdef EVP_PK_DSA
-			return (SignAlg)EVP_PK_DSA;
+			return (sign_alg)EVP_PK_DSA;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PkDH()
+		sign_alg signers::pk_dh()
 		{
 #ifdef EVP_PK_DH
-			return (SignAlg)EVP_PK_DH;
+			return (sign_alg)EVP_PK_DH;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PkEC()
+		sign_alg signers::pk_ec()
 		{
 #ifdef EVP_PK_EC
-			return (SignAlg)EVP_PK_EC;
+			return (sign_alg)EVP_PK_EC;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PktSIGN()
+		sign_alg signers::pkt_sign()
 		{
 #ifdef EVP_PKT_SIGN
-			return (SignAlg)EVP_PKT_SIGN;
+			return (sign_alg)EVP_PKT_SIGN;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PktENC()
+		sign_alg signers::pkt_enc()
 		{
 #ifdef EVP_PKT_ENC
-			return (SignAlg)EVP_PKT_ENC;
+			return (sign_alg)EVP_PKT_ENC;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PktEXCH()
+		sign_alg signers::pkt_exch()
 		{
 #ifdef EVP_PKT_EXCH
-			return (SignAlg)EVP_PKT_EXCH;
+			return (sign_alg)EVP_PKT_EXCH;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PksRSA()
+		sign_alg signers::pks_rsa()
 		{
 #ifdef EVP_PKS_RSA
-			return (SignAlg)EVP_PKS_RSA;
+			return (sign_alg)EVP_PKS_RSA;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PksDSA()
+		sign_alg signers::pks_dsa()
 		{
 #ifdef EVP_PKS_DSA
-			return (SignAlg)EVP_PKS_DSA;
+			return (sign_alg)EVP_PKS_DSA;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::PksEC()
+		sign_alg signers::pks_ec()
 		{
 #ifdef EVP_PKS_EC
-			return (SignAlg)EVP_PKS_EC;
+			return (sign_alg)EVP_PKS_EC;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::RSA()
+		sign_alg signers::RSA()
 		{
 #ifdef EVP_PKEY_RSA
-			return (SignAlg)EVP_PKEY_RSA;
+			return (sign_alg)EVP_PKEY_RSA;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::RSA2()
+		sign_alg signers::RSA2()
 		{
 #ifdef EVP_PKEY_RSA2
-			return (SignAlg)EVP_PKEY_RSA2;
+			return (sign_alg)EVP_PKEY_RSA2;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::RSA_PSS()
+		sign_alg signers::RSA_PSS()
 		{
 #ifdef EVP_PKEY_RSA_PSS
-			return (SignAlg)EVP_PKEY_RSA_PSS;
+			return (sign_alg)EVP_PKEY_RSA_PSS;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DSA()
+		sign_alg signers::DSA()
 		{
 #ifdef EVP_PKEY_DSA
-			return (SignAlg)EVP_PKEY_DSA;
+			return (sign_alg)EVP_PKEY_DSA;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DSA1()
+		sign_alg signers::DSA1()
 		{
 #ifdef EVP_PKEY_DSA1
-			return (SignAlg)EVP_PKEY_DSA1;
+			return (sign_alg)EVP_PKEY_DSA1;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DSA2()
+		sign_alg signers::DSA2()
 		{
 #ifdef EVP_PKEY_DSA2
-			return (SignAlg)EVP_PKEY_DSA2;
+			return (sign_alg)EVP_PKEY_DSA2;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DSA3()
+		sign_alg signers::DSA3()
 		{
 #ifdef EVP_PKEY_DSA3
-			return (SignAlg)EVP_PKEY_DSA3;
+			return (sign_alg)EVP_PKEY_DSA3;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DSA4()
+		sign_alg signers::DSA4()
 		{
 #ifdef EVP_PKEY_DSA4
-			return (SignAlg)EVP_PKEY_DSA4;
+			return (sign_alg)EVP_PKEY_DSA4;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DH()
+		sign_alg signers::DH()
 		{
 #ifdef EVP_PKEY_DH
-			return (SignAlg)EVP_PKEY_DH;
+			return (sign_alg)EVP_PKEY_DH;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::DHX()
+		sign_alg signers::DHX()
 		{
 #ifdef EVP_PKEY_DHX
-			return (SignAlg)EVP_PKEY_DHX;
+			return (sign_alg)EVP_PKEY_DHX;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::EC()
+		sign_alg signers::EC()
 		{
 #ifdef EVP_PKEY_EC
-			return (SignAlg)EVP_PKEY_EC;
+			return (sign_alg)EVP_PKEY_EC;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::SM2()
+		sign_alg signers::SM2()
 		{
 #ifdef EVP_PKEY_SM2
-			return (SignAlg)EVP_PKEY_SM2;
+			return (sign_alg)EVP_PKEY_SM2;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::HMAC()
+		sign_alg signers::HMAC()
 		{
 #ifdef EVP_PKEY_HMAC
-			return (SignAlg)EVP_PKEY_HMAC;
+			return (sign_alg)EVP_PKEY_HMAC;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::CMAC()
+		sign_alg signers::CMAC()
 		{
 #ifdef EVP_PKEY_CMAC
-			return (SignAlg)EVP_PKEY_CMAC;
+			return (sign_alg)EVP_PKEY_CMAC;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::SCRYPT()
+		sign_alg signers::SCRYPT()
 		{
 #ifdef EVP_PKEY_SCRYPT
-			return (SignAlg)EVP_PKEY_SCRYPT;
+			return (sign_alg)EVP_PKEY_SCRYPT;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::TLS1_PRF()
+		sign_alg signers::TLS1_PRF()
 		{
 #ifdef EVP_PKEY_TLS1_PRF
-			return (SignAlg)EVP_PKEY_TLS1_PRF;
+			return (sign_alg)EVP_PKEY_TLS1_PRF;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::HKDF()
+		sign_alg signers::HKDF()
 		{
 #ifdef EVP_PKEY_HKDF
-			return (SignAlg)EVP_PKEY_HKDF;
+			return (sign_alg)EVP_PKEY_HKDF;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::POLY1305()
+		sign_alg signers::POLY1305()
 		{
 #ifdef EVP_PKEY_POLY1305
-			return (SignAlg)EVP_PKEY_POLY1305;
+			return (sign_alg)EVP_PKEY_POLY1305;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::SIPHASH()
+		sign_alg signers::SIPHASH()
 		{
 #ifdef EVP_PKEY_SIPHASH
-			return (SignAlg)EVP_PKEY_SIPHASH;
+			return (sign_alg)EVP_PKEY_SIPHASH;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::X25519()
+		sign_alg signers::X25519()
 		{
 #ifdef EVP_PKEY_X25519
-			return (SignAlg)EVP_PKEY_X25519;
+			return (sign_alg)EVP_PKEY_X25519;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::ED25519()
+		sign_alg signers::ED25519()
 		{
 #ifdef EVP_PKEY_ED25519
-			return (SignAlg)EVP_PKEY_ED25519;
+			return (sign_alg)EVP_PKEY_ED25519;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::X448()
+		sign_alg signers::X448()
 		{
 #ifdef EVP_PKEY_X448
-			return (SignAlg)EVP_PKEY_X448;
+			return (sign_alg)EVP_PKEY_X448;
 #else
 			return -1;
 #endif
 		}
-		SignAlg Signers::ED448()
+		sign_alg signers::ED448()
 		{
 #ifdef EVP_PKEY_ED448
-			return (SignAlg)EVP_PKEY_ED448;
+			return (sign_alg)EVP_PKEY_ED448;
 #else
 			return -1;
 #endif
 		}
 
-		Digest Crypto::GetDigestByName(const std::string_view& Name)
+		digest crypto::get_digest_by_name(const std::string_view& name)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "digest name should not be empty");
+			VI_ASSERT(core::stringify::is_cstring(name), "digest name should not be empty");
 #ifdef EVP_MD_name
-			return (Digest)EVP_get_digestbyname(Name.data());
+			return (digest)EVP_get_digestbyname(name.data());
 #else
 			return nullptr;
 #endif
 		}
-		Cipher Crypto::GetCipherByName(const std::string_view& Name)
+		cipher crypto::get_cipher_by_name(const std::string_view& name)
 		{
-			VI_ASSERT(Core::Stringify::IsCString(Name), "cipher name should not be empty");
+			VI_ASSERT(core::stringify::is_cstring(name), "cipher name should not be empty");
 #ifdef EVP_MD_name
-			return (Cipher)EVP_get_cipherbyname(Name.data());
+			return (cipher)EVP_get_cipherbyname(name.data());
 #else
 			return nullptr;
 #endif
 		}
-		SignAlg Crypto::GetSignerByName(const std::string_view& Name)
+		sign_alg crypto::get_signer_by_name(const std::string_view& name)
 		{
 #ifdef EVP_MD_name
-			auto* Method = EVP_PKEY_asn1_find_str(nullptr, Name.data(), (int)Name.size());
-			if (!Method)
+			auto* method = EVP_PKEY_asn1_find_str(nullptr, name.data(), (int)name.size());
+			if (!method)
 				return -1;
 
-			int KeyType = -1;
-			if (EVP_PKEY_asn1_get0_info(&KeyType, nullptr, nullptr, nullptr, nullptr, Method) != 1)
+			int key_type = -1;
+			if (EVP_PKEY_asn1_get0_info(&key_type, nullptr, nullptr, nullptr, nullptr, method) != 1)
 				return -1;
 
-			return (SignAlg)KeyType;
+			return (sign_alg)key_type;
 #else
 			return -1;
 #endif
 		}
-		std::string_view Crypto::GetDigestName(Digest Type)
+		std::string_view crypto::get_digest_name(digest type)
 		{
-			VI_ASSERT(Type != nullptr, "digest should be set");
+			VI_ASSERT(type != nullptr, "digest should be set");
 #ifdef EVP_MD_name
-			const char* Name = EVP_MD_name((EVP_MD*)Type);
-			return Name ? Name : "";
+			const char* name = EVP_MD_name((EVP_MD*)type);
+			return name ? name : "";
 #else
 			return "";
 #endif
 		}
-		std::string_view Crypto::GetCipherName(Cipher Type)
+		std::string_view crypto::get_cipher_name(cipher type)
 		{
-			VI_ASSERT(Type != nullptr, "cipher should be set");
+			VI_ASSERT(type != nullptr, "cipher should be set");
 #ifdef EVP_CIPHER_name
-			const char* Name = EVP_CIPHER_name((EVP_CIPHER*)Type);
-			return Name ? Name : "";
+			const char* name = EVP_CIPHER_name((EVP_CIPHER*)type);
+			return name ? name : "";
 #else
 			return "";
 #endif
 		}
-		std::string_view Crypto::GetSignerName(SignAlg Type)
+		std::string_view crypto::get_signer_name(sign_alg type)
 		{
 #ifdef VI_OPENSSL
-			if (Type == EVP_PKEY_NONE)
+			if (type == EVP_PKEY_NONE)
 				return "";
 
-			const char* Name = OBJ_nid2sn(Type);
-			return Name ? Name : "";
+			const char* name = OBJ_nid2sn(type);
+			return name ? name : "";
 #else
 			return "";
 #endif
 		}
-		ExpectsCrypto<void> Crypto::FillRandomBytes(uint8_t* Buffer, size_t Length)
+		expects_crypto<void> crypto::fill_random_bytes(uint8_t* buffer, size_t length)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)Length);
-			if (RAND_bytes(Buffer, (int)Length) == 1)
-				return Core::Expectation::Met;
+			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)length);
+			if (RAND_bytes(buffer, (int)length) == 1)
+				return core::expectation::met;
 #endif
-			return CryptoException();
+			return crypto_exception();
 		}
-		ExpectsCrypto<Core::String> Crypto::RandomBytes(size_t Length)
+		expects_crypto<core::string> crypto::random_bytes(size_t length)
 		{
 #ifdef VI_OPENSSL
-			Core::String Buffer(Length, '\0');
-			auto Status = FillRandomBytes((uint8_t*)Buffer.data(), Buffer.size());
-			if (!Status)
-				return Status.Error();
+			core::string buffer(length, '\0');
+			auto status = fill_random_bytes((uint8_t*)buffer.data(), buffer.size());
+			if (!status)
+				return status.error();
 
-			return Buffer;
+			return buffer;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::GeneratePrivateKey(SignAlg Type, size_t Bits, const std::string_view& Curve)
+		expects_crypto<core::string> crypto::generate_private_key(sign_alg type, size_t bits, const std::string_view& curve)
 		{
 #ifdef VI_OPENSSL
-			VI_ASSERT(Curve.empty() || Core::Stringify::IsCString(Curve), "curve should not be empty");
-			VI_TRACE("[crypto] generate %s private key up to %i bits", GetSignerName(Type).data(), (int)Bits);
-			EVP_PKEY_CTX* Context = EVP_PKEY_CTX_new_id((int)Type, NULL);
-			if (!Context)
-				return CryptoException();
+			VI_ASSERT(curve.empty() || core::stringify::is_cstring(curve), "curve should not be empty");
+			VI_TRACE("[crypto] generate %s private key up to %i bits", get_signer_name(type).data(), (int)bits);
+			EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id((int)type, NULL);
+			if (!context)
+				return crypto_exception();
 
-			if (EVP_PKEY_keygen_init(Context) != 1)
+			if (EVP_PKEY_keygen_init(context) != 1)
 			{
-				EVP_PKEY_CTX_free(Context);
-				return CryptoException();
+				EVP_PKEY_CTX_free(context);
+				return crypto_exception();
 			}
 
-			bool Success = true;
-			switch (Type)
+			bool success = true;
+			switch (type)
 			{
 				case EVP_PKEY_RSA:
 				case EVP_PKEY_RSA2:
 				case EVP_PKEY_RSA_PSS:
-					Success = (EVP_PKEY_CTX_set_rsa_keygen_bits(Context, (int)Bits) == 1);
+					success = (EVP_PKEY_CTX_set_rsa_keygen_bits(context, (int)bits) == 1);
 					break;
 				case EVP_PKEY_EC:
 				case EVP_PKEY_SM2:
@@ -4735,1202 +4815,1202 @@ namespace Vitex
 				case EVP_PKEY_ED25519:
 				case EVP_PKEY_X448:
 				case EVP_PKEY_ED448:
-					Success = (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(Context, Curve.empty() ? NID_X9_62_prime256v1 : OBJ_sn2nid(Curve.data())) == 1);
+					success = (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(context, curve.empty() ? NID_X9_62_prime256v1 : OBJ_sn2nid(curve.data())) == 1);
 					break;
 				case EVP_PKEY_DSA:
 				case EVP_PKEY_DSA1:
 				case EVP_PKEY_DSA2:
 				case EVP_PKEY_DSA3:
 				case EVP_PKEY_DSA4:
-					Success = (EVP_PKEY_CTX_set_dsa_paramgen_bits(Context, (int)Bits) == 1);
+					success = (EVP_PKEY_CTX_set_dsa_paramgen_bits(context, (int)bits) == 1);
 					break;
 				case EVP_PKEY_DH:
 				case EVP_PKEY_DHX:
-					Success = (EVP_PKEY_CTX_set_dh_paramgen_prime_len(Context, (int)Bits) == 1);
-					if (Success)
-						Success = (EVP_PKEY_CTX_set_dh_nid(Context, Curve.empty() ? NID_ffdhe2048 : OBJ_sn2nid(Curve.data())) == 1);
+					success = (EVP_PKEY_CTX_set_dh_paramgen_prime_len(context, (int)bits) == 1);
+					if (success)
+						success = (EVP_PKEY_CTX_set_dh_nid(context, curve.empty() ? NID_ffdhe2048 : OBJ_sn2nid(curve.data())) == 1);
 					break;
 				case EVP_PKEY_HMAC:
 				case EVP_PKEY_CMAC:
-					Success = false;
+					success = false;
 					break;
 				default:
 					break;
 			}
 
-			EVP_PKEY* Key = nullptr;
-			if (!Success || EVP_PKEY_keygen(Context, &Key) != 1)
+			EVP_PKEY* key = nullptr;
+			if (!success || EVP_PKEY_keygen(context, &key) != 1)
 			{
-				EVP_PKEY_CTX_free(Context);
-				return CryptoException();
+				EVP_PKEY_CTX_free(context);
+				return crypto_exception();
 			}
 
-			size_t Length;
-			if (EVP_PKEY_get_raw_private_key(Key, nullptr, &Length) != 1)
+			size_t length;
+			if (EVP_PKEY_get_raw_private_key(key, nullptr, &length) != 1)
 			{
-				EVP_PKEY_free(Key);
-				EVP_PKEY_CTX_free(Context);
-				return CryptoException();
+				EVP_PKEY_free(key);
+				EVP_PKEY_CTX_free(context);
+				return crypto_exception();
 			}
 
-			Core::String SecretKey;
-			SecretKey.resize(Length);
+			core::string secret_key;
+			secret_key.resize(length);
 
-			if (EVP_PKEY_get_raw_private_key(Key, (uint8_t*)SecretKey.data(), &Length) != 1)
+			if (EVP_PKEY_get_raw_private_key(key, (uint8_t*)secret_key.data(), &length) != 1)
 			{
-				EVP_PKEY_free(Key);
-				EVP_PKEY_CTX_free(Context);
-				return CryptoException();
+				EVP_PKEY_free(key);
+				EVP_PKEY_CTX_free(context);
+				return crypto_exception();
 			}
 
-			EVP_PKEY_free(Key);
-			EVP_PKEY_CTX_free(Context);
-			return SecretKey;
+			EVP_PKEY_free(key);
+			EVP_PKEY_CTX_free(context);
+			return secret_key;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::GeneratePublicKey(SignAlg Type, const PrivateKey& SecretKey)
+		expects_crypto<core::string> crypto::generate_public_key(sign_alg type, const secret_box& secret_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate %s public key from %i bytes", GetSignerName(Type).data(), (int)SecretKey.Size());
-			auto LocalKey = SecretKey.Expose<Core::CHUNK_SIZE>();
-			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)Type, nullptr, (uint8_t*)LocalKey.View.data(), LocalKey.View.size());
-			if (!Key)
-				return CryptoException();
+			VI_TRACE("[crypto] generate %s public key from %i bytes", get_signer_name(type).data(), (int)secret_key.size());
+			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
+			EVP_PKEY* key = EVP_PKEY_new_raw_private_key((int)type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+			if (!key)
+				return crypto_exception();
 
-			size_t Length;
-			if (EVP_PKEY_get_raw_public_key(Key, nullptr, &Length) != 1)
+			size_t length;
+			if (EVP_PKEY_get_raw_public_key(key, nullptr, &length) != 1)
 			{
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			Core::String PublicKey;
-			PublicKey.resize(Length);
+			core::string public_key;
+			public_key.resize(length);
 
-			if (EVP_PKEY_get_raw_public_key(Key, (uint8_t*)PublicKey.data(), &Length) != 1)
+			if (EVP_PKEY_get_raw_public_key(key, (uint8_t*)public_key.data(), &length) != 1)
 			{
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			EVP_PKEY_free(Key);
-			return PublicKey;
+			EVP_PKEY_free(key);
+			return public_key;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::ChecksumHex(Digest Type, Core::Stream* Stream)
+		expects_crypto<core::string> crypto::checksum_hex(digest type, core::stream* stream)
 		{
-			auto Data = Crypto::ChecksumRaw(Type, Stream);
-			if (!Data)
-				return Data;
+			auto data = crypto::checksum_raw(type, stream);
+			if (!data)
+				return data;
 
-			return Codec::HexEncode(*Data);
+			return codec::hex_encode(*data);
 		}
-		ExpectsCrypto<Core::String> Crypto::ChecksumRaw(Digest Type, Core::Stream* Stream)
+		expects_crypto<core::string> crypto::checksum_raw(digest type, core::stream* stream)
 		{
-			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_ASSERT(Stream != nullptr, "stream should be set");
+			VI_ASSERT(type != nullptr, "type should be set");
+			VI_ASSERT(stream != nullptr, "stream should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s stream-hash fd %i", GetDigestName(Type).data(), (int)Stream->GetReadableFd());
+			VI_TRACE("[crypto] %s stream-hash fd %i", get_digest_name(type).data(), (int)stream->get_readable_fd());
 
-			EVP_MD* Method = (EVP_MD*)Type;
-			EVP_MD_CTX* Context = EVP_MD_CTX_create();
-			if (!Context)
-				return CryptoException();
+			EVP_MD* method = (EVP_MD*)type;
+			EVP_MD_CTX* context = EVP_MD_CTX_create();
+			if (!context)
+				return crypto_exception();
 
-			Core::String Result;
-			Result.resize(EVP_MD_size(Method));
+			core::string result;
+			result.resize(EVP_MD_size(method));
 
-			uint32_t Size = 0; bool OK = true;
-			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
+			uint32_t size = 0; bool OK = true;
+			OK = EVP_DigestInit_ex(context, method, nullptr) == 1 ? OK : false;
 			{
-				uint8_t Buffer[Core::BLOB_SIZE]; size_t Size = 0;
-				while ((Size = Stream->Read(Buffer, sizeof(Buffer)).Or(0)) > 0)
-					OK = EVP_DigestUpdate(Context, Buffer, Size) == 1 ? OK : false;
+				uint8_t buffer[core::BLOB_SIZE]; size_t size = 0;
+				while ((size = stream->read(buffer, sizeof(buffer)).otherwise(0)) > 0)
+					OK = EVP_DigestUpdate(context, buffer, size) == 1 ? OK : false;
 			}
 			if (OK)
 			{
-				OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
+				OK = EVP_DigestFinal_ex(context, (uint8_t*)result.data(), &size) == 1 ? OK : false;
 				if (!OK)
 				{
-					Size = (uint32_t)Result.size();
-					OK = EVP_DigestFinalXOF(Context, (uint8_t*)Result.data(), Size) == 1;
+					size = (uint32_t)result.size();
+					OK = EVP_DigestFinalXOF(context, (uint8_t*)result.data(), size) == 1;
 				}
 			}
-			EVP_MD_CTX_destroy(Context);
+			EVP_MD_CTX_destroy(context);
 
 			if (!OK)
-				return CryptoException();
+				return crypto_exception();
 
-			Result.resize((size_t)Size);
-			return Result;
+			result.resize((size_t)size);
+			return result;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::HashHex(Digest Type, const std::string_view& Value)
+		expects_crypto<core::string> crypto::hash_hex(digest type, const std::string_view& value)
 		{
-			auto Data = Crypto::HashRaw(Type, Value);
-			if (!Data)
-				return Data;
+			auto data = crypto::hash_raw(type, value);
+			if (!data)
+				return data;
 
-			return Codec::HexEncode(*Data);
+			return codec::hex_encode(*data);
 		}
-		ExpectsCrypto<Core::String> Crypto::HashRaw(Digest Type, const std::string_view& Value)
+		expects_crypto<core::string> crypto::hash_raw(digest type, const std::string_view& value)
 		{
-			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_ASSERT(type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
-			if (Value.empty())
-				return Core::String(Value);
+			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			if (value.empty())
+				return core::string(value);
 
-			EVP_MD* Method = (EVP_MD*)Type;
-			EVP_MD_CTX* Context = EVP_MD_CTX_create();
-			if (!Context)
-				return CryptoException();
+			EVP_MD* method = (EVP_MD*)type;
+			EVP_MD_CTX* context = EVP_MD_CTX_create();
+			if (!context)
+				return crypto_exception();
 
-			Core::String Result;
-			Result.resize(EVP_MD_size(Method));
+			core::string result;
+			result.resize(EVP_MD_size(method));
 
-			uint32_t Size = 0; bool OK = true;
-			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
-			OK = EVP_DigestUpdate(Context, Value.data(), Value.size()) == 1 ? OK : false;
+			uint32_t size = 0; bool OK = true;
+			OK = EVP_DigestInit_ex(context, method, nullptr) == 1 ? OK : false;
+			OK = EVP_DigestUpdate(context, value.data(), value.size()) == 1 ? OK : false;
 			if (OK)
 			{
-				OK = EVP_DigestFinal_ex(Context, (uint8_t*)Result.data(), &Size) == 1 ? OK : false;
+				OK = EVP_DigestFinal_ex(context, (uint8_t*)result.data(), &size) == 1 ? OK : false;
 				if (!OK)
 				{
-					Size = (uint32_t)Result.size();
-					OK = EVP_DigestFinalXOF(Context, (uint8_t*)Result.data(), Size) == 1;
+					size = (uint32_t)result.size();
+					OK = EVP_DigestFinalXOF(context, (uint8_t*)result.data(), size) == 1;
 				}
 			}
-			EVP_MD_CTX_destroy(Context);
+			EVP_MD_CTX_destroy(context);
 			if (!OK)
-				return CryptoException();
+				return crypto_exception();
 
-			Result.resize((size_t)Size);
-			return Result;
+			result.resize((size_t)size);
+			return result;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Sign(Digest Type, SignAlg KeyType, const std::string_view& Value, const PrivateKey& SecretKey)
+		expects_crypto<core::string> crypto::sign(digest type, sign_alg key_type, const std::string_view& value, const secret_box& secret_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
-			if (Value.empty())
-				return Core::String();
+			VI_TRACE("[crypto] %s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			if (value.empty())
+				return core::string();
 
-			auto LocalKey = SecretKey.Expose<Core::CHUNK_SIZE>();
-			EVP_PKEY* Key = EVP_PKEY_new_raw_private_key((int)KeyType, nullptr, (uint8_t*)LocalKey.View.data(), LocalKey.View.size());
-			if (!Key)
-				return CryptoException();
+			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
+			EVP_PKEY* key = EVP_PKEY_new_raw_private_key((int)key_type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+			if (!key)
+				return crypto_exception();
 
-			EVP_MD_CTX* Context = EVP_MD_CTX_create();
-			if (EVP_DigestSignInit(Context, nullptr, (EVP_MD*)Type, nullptr, Key) != 1)
+			EVP_MD_CTX* context = EVP_MD_CTX_create();
+			if (EVP_DigestSignInit(context, nullptr, (EVP_MD*)type, nullptr, key) != 1)
 			{
-				EVP_MD_CTX_free(Context);
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_MD_CTX_free(context);
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			size_t Length;
-			if (EVP_DigestSign(Context, nullptr, &Length, (uint8_t*)Value.data(), Value.size()) != 1)
+			size_t length;
+			if (EVP_DigestSign(context, nullptr, &length, (uint8_t*)value.data(), value.size()) != 1)
 			{
-				EVP_MD_CTX_free(Context);
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_MD_CTX_free(context);
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			Core::String Signature;
-			Signature.resize(Length);
+			core::string signature;
+			signature.resize(length);
 
-			if (EVP_DigestSign(Context, (uint8_t*)Signature.data(), &Length, (uint8_t*)Value.data(), Value.size()) != 1)
+			if (EVP_DigestSign(context, (uint8_t*)signature.data(), &length, (uint8_t*)value.data(), value.size()) != 1)
 			{
-				EVP_MD_CTX_free(Context);
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_MD_CTX_free(context);
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			EVP_MD_CTX_free(Context);
-			EVP_PKEY_free(Key);
-			return Signature;
+			EVP_MD_CTX_free(context);
+			EVP_PKEY_free(key);
+			return signature;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<void> Crypto::Verify(Digest Type, SignAlg KeyType, const std::string_view& Value, const std::string_view& Signature, const PrivateKey& PublicKey)
+		expects_crypto<void> crypto::verify(digest type, sign_alg key_type, const std::string_view& value, const std::string_view& signature, const secret_box& public_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s verify %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)(Value.size() + Signature.size()));
-			if (Value.empty())
-				return CryptoException(-1, "verify:empty");
+			VI_TRACE("[crypto] %s verify %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)(value.size() + signature.size()));
+			if (value.empty())
+				return crypto_exception(-1, "verify:empty");
 
-			auto LocalKey = PublicKey.Expose<Core::CHUNK_SIZE>();
-			EVP_PKEY* Key = EVP_PKEY_new_raw_public_key((int)KeyType, nullptr, (uint8_t*)LocalKey.View.data(), LocalKey.View.size());
-			if (!Key)
-				return CryptoException();
+			auto local_key = public_key.expose<core::CHUNK_SIZE>();
+			EVP_PKEY* key = EVP_PKEY_new_raw_public_key((int)key_type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+			if (!key)
+				return crypto_exception();
 
-			EVP_MD_CTX* Context = EVP_MD_CTX_create();
-			if (EVP_DigestVerifyInit(Context, nullptr, (EVP_MD*)Type, nullptr, Key) != 1)
+			EVP_MD_CTX* context = EVP_MD_CTX_create();
+			if (EVP_DigestVerifyInit(context, nullptr, (EVP_MD*)type, nullptr, key) != 1)
 			{
-				EVP_MD_CTX_free(Context);
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_MD_CTX_free(context);
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			if (EVP_DigestVerify(Context, (uint8_t*)Signature.data(), Signature.size(), (uint8_t*)Value.data(), Value.size()) != 1)
+			if (EVP_DigestVerify(context, (uint8_t*)signature.data(), signature.size(), (uint8_t*)value.data(), value.size()) != 1)
 			{
-				EVP_MD_CTX_free(Context);
-				EVP_PKEY_free(Key);
-				return CryptoException();
+				EVP_MD_CTX_free(context);
+				EVP_PKEY_free(key);
+				return crypto_exception();
 			}
 
-			EVP_MD_CTX_free(Context);
-			EVP_PKEY_free(Key);
-			return Core::Expectation::Met;
+			EVP_MD_CTX_free(context);
+			EVP_PKEY_free(key);
+			return core::expectation::met;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::HMAC(Digest Type, const std::string_view& Value, const PrivateKey& Key)
+		expects_crypto<core::string> crypto::HMAC(digest type, const std::string_view& value, const secret_box& key)
 		{
-			VI_ASSERT(Type != nullptr, "type should be set");
+			VI_ASSERT(type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
-			if (Value.empty())
-				return Core::String();
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			if (value.empty())
+				return core::string();
 
-			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
+			auto local_key = key.expose<core::CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
-			uint8_t Result[EVP_MAX_MD_SIZE];
-			uint32_t Size = sizeof(Result);
-			uint8_t* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.View.data(), (int)LocalKey.View.size(), (const uint8_t*)Value.data(), Value.size(), Result, &Size);
+			uint8_t result[EVP_MAX_MD_SIZE];
+			uint32_t size = sizeof(result);
+			uint8_t* pointer = ::HMAC((const EVP_MD*)type, local_key.view.data(), (int)local_key.view.size(), (const uint8_t*)value.data(), value.size(), result, &size);
 
-			if (!Pointer)
-				return CryptoException();
+			if (!pointer)
+				return crypto_exception();
 
-			return Core::String((const char*)Result, Size);
+			return core::string((const char*)result, size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
-			HMAC_CTX* Context = HMAC_CTX_new();
-			if (!Context)
-				return CryptoException();
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			HMAC_CTX* context = HMAC_CTX_new();
+			if (!context)
+				return crypto_exception();
 
-			uint8_t Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(Context, LocalKey.View.data(), (int)LocalKey.View.size(), (const EVP_MD*)Type, nullptr))
+			uint8_t result[EVP_MAX_MD_SIZE];
+			if (1 != HMAC_Init_ex(context, local_key.view.data(), (int)local_key.view.size(), (const EVP_MD*)type, nullptr))
 			{
-				HMAC_CTX_free(Context);
-				return CryptoException();
+				HMAC_CTX_free(context);
+				return crypto_exception();
 			}
 
-			if (1 != HMAC_Update(Context, (const uint8_t*)Value.data(), (int)Value.size()))
+			if (1 != HMAC_Update(context, (const uint8_t*)value.data(), (int)value.size()))
 			{
-				HMAC_CTX_free(Context);
-				return CryptoException();
+				HMAC_CTX_free(context);
+				return crypto_exception();
 			}
 
-			uint32_t Size = sizeof(Result);
-			if (1 != HMAC_Final(Context, Result, &Size))
+			uint32_t size = sizeof(result);
+			if (1 != HMAC_Final(context, result, &size))
 			{
-				HMAC_CTX_free(Context);
-				return CryptoException();
+				HMAC_CTX_free(context);
+				return crypto_exception();
 			}
 
-			Core::String Output((const char*)Result, Size);
-			HMAC_CTX_free(Context);
+			core::string output((const char*)result, size);
+			HMAC_CTX_free(context);
 
-			return Output;
+			return output;
 #else
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", GetDigestName(Type).data(), (uint64_t)Value.size());
-			HMAC_CTX Context;
-			HMAC_CTX_init(&Context);
+			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			HMAC_CTX context;
+			HMAC_CTX_init(&context);
 
-			uint8_t Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(&Context, LocalKey.View.data(), (int)LocalKey.View.size(), (const EVP_MD*)Type, nullptr))
+			uint8_t result[EVP_MAX_MD_SIZE];
+			if (1 != HMAC_Init_ex(&context, local_key.view.data(), (int)local_key.view.size(), (const EVP_MD*)type, nullptr))
 			{
-				HMAC_CTX_cleanup(&Context);
-				return CryptoException();
+				HMAC_CTX_cleanup(&context);
+				return crypto_exception();
 			}
 
-			if (1 != HMAC_Update(&Context, (const uint8_t*)Value.data(), (int)Value.size()))
+			if (1 != HMAC_Update(&context, (const uint8_t*)value.data(), (int)value.size()))
 			{
-				HMAC_CTX_cleanup(&Context);
-				return CryptoException();
+				HMAC_CTX_cleanup(&context);
+				return crypto_exception();
 			}
 
-			uint32_t Size = sizeof(Result);
-			if (1 != HMAC_Final(&Context, Result, &Size))
+			uint32_t size = sizeof(result);
+			if (1 != HMAC_Final(&context, result, &size))
 			{
-				HMAC_CTX_cleanup(&Context);
-				return CryptoException();
+				HMAC_CTX_cleanup(&context);
+				return crypto_exception();
 			}
 
-			Core::String Output((const char*)Result, Size);
-			HMAC_CTX_cleanup(&Context);
+			core::string output((const char*)result, size);
+			HMAC_CTX_cleanup(&context);
 
-			return Output;
+			return output;
 #endif
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Encrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		expects_crypto<core::string> crypto::encrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes)
 		{
-			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Value.size());
-			if (Value.empty())
-				return Core::String();
+			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(type != nullptr, "type should be set");
+			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
+			if (value.empty())
+				return core::string();
 #ifdef VI_OPENSSL
-			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
-			if (!Context)
-				return CryptoException();
+			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
+			if (!context)
+				return crypto_exception();
 
-			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
-			if (ComplexityBytes > 0)
+			auto local_key = key.expose<core::CHUNK_SIZE>();
+			if (complexity_bytes > 0)
 			{
-				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				if (1 != EVP_EncryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(context, complexity_bytes))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 			}
 
-			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
+			auto local_salt = salt.expose<core::CHUNK_SIZE>();
+			if (1 != EVP_EncryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, (const uint8_t*)local_key.view.data(), (const uint8_t*)local_salt.view.data()))
 			{
-				EVP_CIPHER_CTX_free(Context);
-				return CryptoException();
+				EVP_CIPHER_CTX_free(context);
+				return crypto_exception();
 			}
 
-			Core::String Output;
-			Output.reserve(Value.size());
+			core::string output;
+			output.reserve(value.size());
 
-			size_t Offset = 0; bool IsFinalized = false;
-			uint8_t OutBuffer[Core::BLOB_SIZE + 2048];
-			const uint8_t* InBuffer = (const uint8_t*)Value.data();
-			while (Offset < Value.size())
+			size_t offset = 0; bool is_finalized = false;
+			uint8_t out_buffer[core::BLOB_SIZE + 2048];
+			const uint8_t* in_buffer = (const uint8_t*)value.data();
+			while (offset < value.size())
 			{
-				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Value.size() - Offset)), OutSize = 0;
-				if (1 != EVP_EncryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
+				int in_size = std::min<int>(core::BLOB_SIZE, (int)(value.size() - offset)), out_size = 0;
+				if (1 != EVP_EncryptUpdate(context, out_buffer, &out_size, in_buffer + offset, in_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-			Finalize:
-				size_t OutputOffset = Output.size();
-				size_t OutBufferSize = (size_t)OutSize;
-				Output.resize(Output.size() + OutBufferSize);
-				memcpy((char*)Output.data() + OutputOffset, OutBuffer, OutBufferSize);
-				Offset += (size_t)InSize;
-				if (Offset < Value.size())
+			finalize:
+				size_t output_offset = output.size();
+				size_t out_buffer_size = (size_t)out_size;
+				output.resize(output.size() + out_buffer_size);
+				memcpy((char*)output.data() + output_offset, out_buffer, out_buffer_size);
+				offset += (size_t)in_size;
+				if (offset < value.size())
 					continue;
-				else if (IsFinalized)
+				else if (is_finalized)
 					break;
-				
-				if (1 != EVP_EncryptFinal_ex(Context, OutBuffer, &OutSize))
+
+				if (1 != EVP_EncryptFinal_ex(context, out_buffer, &out_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-				IsFinalized = true;
-				goto Finalize;
+				is_finalized = true;
+				goto finalize;
 			}
 
-			EVP_CIPHER_CTX_free(Context);
-			return Output;
+			EVP_CIPHER_CTX_free(context);
+			return output;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::Decrypt(Cipher Type, const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
+		expects_crypto<core::string> crypto::decrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes)
 		{
-			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", GetCipherName(Type), ComplexityBytes, (uint64_t)Value.size());
-			if (Value.empty())
-				return Core::String();
+			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(type != nullptr, "type should be set");
+			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
+			if (value.empty())
+				return core::string();
 #ifdef VI_OPENSSL
-			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
-			if (!Context)
-				return CryptoException();
+			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
+			if (!context)
+				return crypto_exception();
 
-			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
-			if (ComplexityBytes > 0)
+			auto local_key = key.expose<core::CHUNK_SIZE>();
+			if (complexity_bytes > 0)
 			{
-				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				if (1 != EVP_EncryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(context, complexity_bytes))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 			}
 
-			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
+			auto local_salt = salt.expose<core::CHUNK_SIZE>();
+			if (1 != EVP_DecryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, (const uint8_t*)local_key.view.data(), (const uint8_t*)local_salt.view.data()))
 			{
-				EVP_CIPHER_CTX_free(Context);
-				return CryptoException();
+				EVP_CIPHER_CTX_free(context);
+				return crypto_exception();
 			}
 
-			Core::String Output;
-			Output.reserve(Value.size());
+			core::string output;
+			output.reserve(value.size());
 
-			size_t Offset = 0; bool IsFinalized = false;
-			uint8_t OutBuffer[Core::BLOB_SIZE + 2048];
-			const uint8_t* InBuffer = (const uint8_t*)Value.data();
-			while (Offset < Value.size())
+			size_t offset = 0; bool is_finalized = false;
+			uint8_t out_buffer[core::BLOB_SIZE + 2048];
+			const uint8_t* in_buffer = (const uint8_t*)value.data();
+			while (offset < value.size())
 			{
-				int InSize = std::min<int>(Core::BLOB_SIZE, (int)(Value.size() - Offset)), OutSize = 0;
-				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, InBuffer + Offset, InSize))
+				int in_size = std::min<int>(core::BLOB_SIZE, (int)(value.size() - offset)), out_size = 0;
+				if (1 != EVP_DecryptUpdate(context, out_buffer, &out_size, in_buffer + offset, in_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-			Finalize:
-				size_t OutputOffset = Output.size();
-				size_t OutBufferSize = (size_t)OutSize;
-				Output.resize(Output.size() + OutBufferSize);
-				memcpy((char*)Output.data() + OutputOffset, OutBuffer, OutBufferSize);
-				Offset += (size_t)InSize;
-				if (Offset < Value.size())
+			finalize:
+				size_t output_offset = output.size();
+				size_t out_buffer_size = (size_t)out_size;
+				output.resize(output.size() + out_buffer_size);
+				memcpy((char*)output.data() + output_offset, out_buffer, out_buffer_size);
+				offset += (size_t)in_size;
+				if (offset < value.size())
 					continue;
-				else if (IsFinalized)
+				else if (is_finalized)
 					break;
-				
-				if (1 != EVP_DecryptFinal_ex(Context, OutBuffer, &OutSize))
+
+				if (1 != EVP_DecryptFinal_ex(context, out_buffer, &out_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-				IsFinalized = true;
-				goto Finalize;
+				is_finalized = true;
+				goto finalize;
 			}
 
-			EVP_CIPHER_CTX_free(Context);
-			return Output;
+			EVP_CIPHER_CTX_free(context);
+			return output;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<Core::String> Crypto::JWTSign(const std::string_view& Alg, const std::string_view& Payload, const PrivateKey& Key)
+		expects_crypto<core::string> crypto::jwt_sign(const std::string_view& alg, const std::string_view& payload, const secret_box& key)
 		{
-			Digest Hash = nullptr;
-			if (Alg == "HS256")
-				Hash = Digests::SHA256();
-			else if (Alg == "HS384")
-				Hash = Digests::SHA384();
-			else if (Alg == "HS512")
-				Hash = Digests::SHA512();
+			digest hash = nullptr;
+			if (alg == "HS256")
+				hash = digests::SHA256();
+			else if (alg == "HS384")
+				hash = digests::SHA384();
+			else if (alg == "HS512")
+				hash = digests::SHA512();
 
-			return Crypto::HMAC(Hash, Payload, Key);
+			return crypto::HMAC(hash, payload, key);
 		}
-		ExpectsCrypto<Core::String> Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
+		expects_crypto<core::string> crypto::jwt_encode(web_token* src, const secret_box& key)
 		{
-			VI_ASSERT(Src != nullptr, "web token should be set");
-			VI_ASSERT(Src->Header != nullptr, "web token header should be set");
-			VI_ASSERT(Src->Payload != nullptr, "web token payload should be set");
-			Core::String Alg = Src->Header->GetVar("alg").GetBlob();
-			if (Alg.empty())
-				return CryptoException(-1, "jwt:algorithm_error");
+			VI_ASSERT(src != nullptr, "web token should be set");
+			VI_ASSERT(src->header != nullptr, "web token header should be set");
+			VI_ASSERT(src->payload != nullptr, "web token payload should be set");
+			core::string alg = src->header->get_var("alg").get_blob();
+			if (alg.empty())
+				return crypto_exception(-1, "jwt:algorithm_error");
 
-			Core::String Header;
-			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const std::string_view& Buffer) { Header.append(Buffer); });
+			core::string header;
+			core::schema::convert_to_json(src->header, [&header](core::var_form, const std::string_view& buffer) { header.append(buffer); });
 
-			Core::String Payload;
-			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const std::string_view& Buffer) { Payload.append(Buffer); });
+			core::string payload;
+			core::schema::convert_to_json(src->payload, [&payload](core::var_form, const std::string_view& buffer) { payload.append(buffer); });
 
-			Core::String Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
-			auto Signature = JWTSign(Alg, Data, Key);
-			if (!Signature)
-				return Signature;
+			core::string data = codec::base64_url_encode(header) + '.' + codec::base64_url_encode(payload);
+			auto signature = jwt_sign(alg, data, key);
+			if (!signature)
+				return signature;
 
-			Src->Signature = *Signature;
-			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
+			src->signature = *signature;
+			return data + '.' + codec::base64_url_encode(src->signature);
 		}
-		ExpectsCrypto<WebToken*> Crypto::JWTDecode(const std::string_view& Value, const PrivateKey& Key)
+		expects_crypto<web_token*> crypto::jwt_decode(const std::string_view& value, const secret_box& key)
 		{
-			Core::Vector<Core::String> Source = Core::Stringify::Split(Value, '.');
-			if (Source.size() != 3)
-				return CryptoException(-1, "jwt:format_error");
+			core::vector<core::string> source = core::stringify::split(value, '.');
+			if (source.size() != 3)
+				return crypto_exception(-1, "jwt:format_error");
 
-			size_t Offset = Source[0].size() + Source[1].size() + 1;
-			Source[0] = Codec::Base64URLDecode(Source[0]);
-			Core::UPtr<Core::Schema> Header = Core::Schema::ConvertFromJSON(Source[0]).Or(nullptr);
-			if (!Header)
-				return CryptoException(-1, "jwt:header_parser_error");
+			size_t offset = source[0].size() + source[1].size() + 1;
+			source[0] = codec::base64_url_decode(source[0]);
+			core::uptr<core::schema> header = core::schema::convert_from_json(source[0]).otherwise(nullptr);
+			if (!header)
+				return crypto_exception(-1, "jwt:header_parser_error");
 
-			Source[1] = Codec::Base64URLDecode(Source[1]);
-			Core::UPtr<Core::Schema> Payload = Core::Schema::ConvertFromJSON(Source[1]).Or(nullptr);
-			if (!Payload)
-				return CryptoException(-1, "jwt:payload_parser_error");
+			source[1] = codec::base64_url_decode(source[1]);
+			core::uptr<core::schema> payload = core::schema::convert_from_json(source[1]).otherwise(nullptr);
+			if (!payload)
+				return crypto_exception(-1, "jwt:payload_parser_error");
 
-			Source[0] = Header->GetVar("alg").GetBlob();
-			auto Signature = JWTSign(Source[0], Value.substr(0, Offset), Key);
-			if (!Signature || Codec::Base64URLEncode(*Signature) != Source[2])
-				return CryptoException(-1, "jwt:signature_error");
+			source[0] = header->get_var("alg").get_blob();
+			auto signature = jwt_sign(source[0], value.substr(0, offset), key);
+			if (!signature || codec::base64_url_encode(*signature) != source[2])
+				return crypto_exception(-1, "jwt:signature_error");
 
-			WebToken* Result = new WebToken();
-			Result->Signature = Codec::Base64URLDecode(Source[2]);
-			Result->Header = Header.Reset();
-			Result->Payload = Payload.Reset();
-			return Result;
+			web_token* result = new web_token();
+			result->signature = codec::base64_url_decode(source[2]);
+			result->header = header.reset();
+			result->payload = payload.reset();
+			return result;
 		}
-		ExpectsCrypto<Core::String> Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
+		expects_crypto<core::string> crypto::doc_encrypt(core::schema* src, const secret_box& key, const secret_box& salt)
 		{
-			VI_ASSERT(Src != nullptr, "schema should be set");
-			Core::String Result;
-			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const std::string_view& Buffer) { Result.append(Buffer); });
+			VI_ASSERT(src != nullptr, "schema should be set");
+			core::string result;
+			core::schema::convert_to_json(src, [&result](core::var_form, const std::string_view& buffer) { result.append(buffer); });
 
-			auto Data = Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt);
-			if (!Data)
-				return Data;
+			auto data = encrypt(ciphers::AES_256_CBC(), result, key, salt);
+			if (!data)
+				return data;
 
-			Result = Codec::Bep45Encode(*Data);
-			return Result;
+			result = codec::bep45_encode(*data);
+			return result;
 		}
-		ExpectsCrypto<Core::Schema*> Crypto::DocDecrypt(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		expects_crypto<core::schema*> crypto::doc_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt)
 		{
-			VI_ASSERT(!Value.empty(), "value should not be empty");
-			if (Value.empty())
-				return CryptoException(-1, "doc:payload_empty");
+			VI_ASSERT(!value.empty(), "value should not be empty");
+			if (value.empty())
+				return crypto_exception(-1, "doc:payload_empty");
 
-			auto Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
-			if (!Source)
-				return Source.Error();
+			auto source = decrypt(ciphers::AES_256_CBC(), codec::bep45_decode(value), key, salt);
+			if (!source)
+				return source.error();
 
-			auto Result = Core::Schema::ConvertFromJSON(*Source);
-			if (!Result)
-				return CryptoException(-1, "doc:payload_parser_error");
+			auto result = core::schema::convert_from_json(*source);
+			if (!result)
+				return crypto_exception(-1, "doc:payload_parser_error");
 
-			return *Result;
+			return *result;
 		}
-		ExpectsCrypto<size_t> Crypto::Encrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
+		expects_crypto<size_t> crypto::encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback, size_t read_interval, int complexity_bytes)
 		{
-			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(ReadInterval > 0, "read interval should be greater than zero.");
-			VI_ASSERT(From != nullptr, "from stream should be set");
-			VI_ASSERT(To != nullptr, "to stream should be set");
-			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-encrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetReadableFd(), (int)To->GetWriteableFd());
+			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(read_interval > 0, "read interval should be greater than zero.");
+			VI_ASSERT(from != nullptr, "from stream should be set");
+			VI_ASSERT(to != nullptr, "to stream should be set");
+			VI_ASSERT(type != nullptr, "type should be set");
+			VI_TRACE("[crypto] %s stream-encrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
 #ifdef VI_OPENSSL
-			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
-			if (!Context)
-				return CryptoException();
+			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
+			if (!context)
+				return crypto_exception();
 
-			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
-			if (ComplexityBytes > 0)
+			auto local_key = key.expose<core::CHUNK_SIZE>();
+			if (complexity_bytes > 0)
 			{
-				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				if (1 != EVP_EncryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(context, complexity_bytes))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 			}
 
-			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
+			auto local_salt = salt.expose<core::CHUNK_SIZE>();
+			if (1 != EVP_EncryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, (const uint8_t*)local_key.view.data(), (const uint8_t*)local_salt.view.data()))
 			{
-				EVP_CIPHER_CTX_free(Context);
-				return CryptoException();
+				EVP_CIPHER_CTX_free(context);
+				return crypto_exception();
 			}
 
-			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
-			uint8_t InBuffer[Core::CHUNK_SIZE], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
-			while ((InBufferSize = From->Read(InBuffer, sizeof(InBuffer)).Or(0)) > 0)
+			size_t size = 0, in_buffer_size = 0, trailing_buffer_size = 0; bool is_finalized = false;
+			uint8_t in_buffer[core::CHUNK_SIZE], out_buffer[core::CHUNK_SIZE + 1024], trailing_buffer[core::CHUNK_SIZE];
+			while ((in_buffer_size = from->read(in_buffer, sizeof(in_buffer)).otherwise(0)) > 0)
 			{
-				int OutSize = 0;
-				if (1 != EVP_EncryptUpdate(Context, OutBuffer + TrailingBufferSize, &OutSize, InBuffer, (int)InBufferSize))
+				int out_size = 0;
+				if (1 != EVP_EncryptUpdate(context, out_buffer + trailing_buffer_size, &out_size, in_buffer, (int)in_buffer_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-			Finalize:
-				uint8_t* WriteBuffer = OutBuffer;
-				size_t WriteBufferSize = (size_t)OutSize + TrailingBufferSize;
-				size_t TrailingOffset = WriteBufferSize % ReadInterval;
-				memcpy(WriteBuffer, TrailingBuffer, TrailingBufferSize);
-				if (TrailingOffset > 0 && !IsFinalized)
+			finalize:
+				uint8_t* write_buffer = out_buffer;
+				size_t write_buffer_size = (size_t)out_size + trailing_buffer_size;
+				size_t trailing_offset = write_buffer_size % read_interval;
+				memcpy(write_buffer, trailing_buffer, trailing_buffer_size);
+				if (trailing_offset > 0 && !is_finalized)
 				{
-					size_t Offset = WriteBufferSize - TrailingOffset;
-					memcpy(TrailingBuffer, WriteBuffer + Offset, TrailingOffset);
-					TrailingBufferSize = TrailingOffset;
-					WriteBufferSize -= TrailingOffset;
+					size_t offset = write_buffer_size - trailing_offset;
+					memcpy(trailing_buffer, write_buffer + offset, trailing_offset);
+					trailing_buffer_size = trailing_offset;
+					write_buffer_size -= trailing_offset;
 				}
 				else
-					TrailingBufferSize = 0;
+					trailing_buffer_size = 0;
 
-				if (Callback && WriteBufferSize > 0)
-					Callback(&WriteBuffer, &WriteBufferSize);
+				if (callback && write_buffer_size > 0)
+					callback(&write_buffer, &write_buffer_size);
 
-				if (To->Write(WriteBuffer, WriteBufferSize).Or(0) != WriteBufferSize)
+				if (to->write(write_buffer, write_buffer_size).otherwise(0) != write_buffer_size)
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-				Size += WriteBufferSize;
-				if (InBufferSize >= sizeof(InBuffer))
+				size += write_buffer_size;
+				if (in_buffer_size >= sizeof(in_buffer))
 					continue;
-				else if (IsFinalized)
+				else if (is_finalized)
 					break;
 
-				if (1 != EVP_EncryptFinal_ex(Context, OutBuffer + TrailingBufferSize, &OutSize))
+				if (1 != EVP_EncryptFinal_ex(context, out_buffer + trailing_buffer_size, &out_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-				IsFinalized = true;
-				goto Finalize;
+				is_finalized = true;
+				goto finalize;
 			}
 
-			EVP_CIPHER_CTX_free(Context);
-			return Size;
+			EVP_CIPHER_CTX_free(context);
+			return size;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		ExpectsCrypto<size_t> Crypto::Decrypt(Cipher Type, Core::Stream* From, Core::Stream* To, const PrivateKey& Key, const PrivateKey& Salt, BlockCallback&& Callback, size_t ReadInterval, int ComplexityBytes)
+		expects_crypto<size_t> crypto::decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback, size_t read_interval, int complexity_bytes)
 		{
-			VI_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
-			VI_ASSERT(ReadInterval > 0, "read interval should be greater than zero.");
-			VI_ASSERT(From != nullptr, "from stream should be set");
-			VI_ASSERT(To != nullptr, "to stream should be set");
-			VI_ASSERT(Type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-decrypt-%i from fd %i to fd %i", GetCipherName(Type), ComplexityBytes, (int)From->GetReadableFd(), (int)To->GetWriteableFd());
+			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
+			VI_ASSERT(read_interval > 0, "read interval should be greater than zero.");
+			VI_ASSERT(from != nullptr, "from stream should be set");
+			VI_ASSERT(to != nullptr, "to stream should be set");
+			VI_ASSERT(type != nullptr, "type should be set");
+			VI_TRACE("[crypto] %s stream-decrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
 #ifdef VI_OPENSSL
-			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
-			if (!Context)
-				return CryptoException();
+			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
+			if (!context)
+				return crypto_exception();
 
-			auto LocalKey = Key.Expose<Core::CHUNK_SIZE>();
-			if (ComplexityBytes > 0)
+			auto local_key = key.expose<core::CHUNK_SIZE>();
+			if (complexity_bytes > 0)
 			{
-				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				if (1 != EVP_EncryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(context, complexity_bytes))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 			}
 
-			auto LocalSalt = Salt.Expose<Core::CHUNK_SIZE>();
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const uint8_t*)LocalKey.View.data(), (const uint8_t*)LocalSalt.View.data()))
+			auto local_salt = salt.expose<core::CHUNK_SIZE>();
+			if (1 != EVP_DecryptInit_ex(context, (const EVP_CIPHER*)type, nullptr, (const uint8_t*)local_key.view.data(), (const uint8_t*)local_salt.view.data()))
 			{
-				EVP_CIPHER_CTX_free(Context);
-				return CryptoException();
+				EVP_CIPHER_CTX_free(context);
+				return crypto_exception();
 			}
 
-			size_t Size = 0, InBufferSize = 0, TrailingBufferSize = 0; bool IsFinalized = false;
-			uint8_t InBuffer[Core::CHUNK_SIZE + 1024], OutBuffer[Core::CHUNK_SIZE + 1024], TrailingBuffer[Core::CHUNK_SIZE];
-			while ((InBufferSize = From->Read(InBuffer + TrailingBufferSize, sizeof(TrailingBuffer)).Or(0)) > 0)
+			size_t size = 0, in_buffer_size = 0, trailing_buffer_size = 0; bool is_finalized = false;
+			uint8_t in_buffer[core::CHUNK_SIZE + 1024], out_buffer[core::CHUNK_SIZE + 1024], trailing_buffer[core::CHUNK_SIZE];
+			while ((in_buffer_size = from->read(in_buffer + trailing_buffer_size, sizeof(trailing_buffer)).otherwise(0)) > 0)
 			{
-				uint8_t* ReadBuffer = InBuffer;
-				size_t ReadBufferSize = (size_t)InBufferSize + TrailingBufferSize;
-				size_t TrailingOffset = ReadBufferSize % ReadInterval;
-				memcpy(ReadBuffer, TrailingBuffer, TrailingBufferSize);
-				if (TrailingOffset > 0 && !IsFinalized)
+				uint8_t* read_buffer = in_buffer;
+				size_t read_buffer_size = (size_t)in_buffer_size + trailing_buffer_size;
+				size_t trailing_offset = read_buffer_size % read_interval;
+				memcpy(read_buffer, trailing_buffer, trailing_buffer_size);
+				if (trailing_offset > 0 && !is_finalized)
 				{
-					size_t Offset = ReadBufferSize - TrailingOffset;
-					memcpy(TrailingBuffer, ReadBuffer + Offset, TrailingOffset);
-					TrailingBufferSize = TrailingOffset;
-					ReadBufferSize -= TrailingOffset;
+					size_t offset = read_buffer_size - trailing_offset;
+					memcpy(trailing_buffer, read_buffer + offset, trailing_offset);
+					trailing_buffer_size = trailing_offset;
+					read_buffer_size -= trailing_offset;
 				}
 				else
-					TrailingBufferSize = 0;
+					trailing_buffer_size = 0;
 
-				if (Callback && ReadBufferSize > 0)
-					Callback(&ReadBuffer, &ReadBufferSize);
+				if (callback && read_buffer_size > 0)
+					callback(&read_buffer, &read_buffer_size);
 
-				int OutSize = 0;
-				if (1 != EVP_DecryptUpdate(Context, OutBuffer, &OutSize, (uint8_t*)ReadBuffer, (int)ReadBufferSize))
+				int out_size = 0;
+				if (1 != EVP_DecryptUpdate(context, out_buffer, &out_size, (uint8_t*)read_buffer, (int)read_buffer_size))
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-			Finalize:
-				size_t OutBufferSize = (size_t)OutSize;
-				if (To->Write(OutBuffer, OutBufferSize).Or(0) != OutBufferSize)
+			finalize:
+				size_t out_buffer_size = (size_t)out_size;
+				if (to->write(out_buffer, out_buffer_size).otherwise(0) != out_buffer_size)
 				{
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-				Size += OutBufferSize;
-				if (InBufferSize >= sizeof(TrailingBuffer))
+				size += out_buffer_size;
+				if (in_buffer_size >= sizeof(trailing_buffer))
 					continue;
-				else if (IsFinalized)
+				else if (is_finalized)
 					break;
-				
-				if (1 != EVP_DecryptFinal_ex(Context, OutBuffer, &OutSize))
+
+				if (1 != EVP_DecryptFinal_ex(context, out_buffer, &out_size))
 				{
-					DisplayCryptoLog();
-					EVP_CIPHER_CTX_free(Context);
-					return CryptoException();
+					display_crypto_log();
+					EVP_CIPHER_CTX_free(context);
+					return crypto_exception();
 				}
 
-				IsFinalized = true;
-				goto Finalize;
+				is_finalized = true;
+				goto finalize;
 			}
 
-			EVP_CIPHER_CTX_free(Context);
-			return Size;
+			EVP_CIPHER_CTX_free(context);
+			return size;
 #else
-			return CryptoException();
+			return crypto_exception();
 #endif
 		}
-		uint8_t Crypto::RandomUC()
+		uint8_t crypto::random_uc()
 		{
-			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-			return Alphabet[(size_t)(Random() % (sizeof(Alphabet) - 1))];
+			static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+			return alphabet[(size_t)(random() % (sizeof(alphabet) - 1))];
 		}
-		uint64_t Crypto::CRC32(const std::string_view& Data)
+		uint64_t crypto::CRC32(const std::string_view& data)
 		{
-			VI_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)Data.size());
-			int64_t Result = 0xFFFFFFFF;
-			int64_t Byte = 0;
-			int64_t Mask = 0;
-			int64_t Offset = 0;
-			size_t Index = 0;
+			VI_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)data.size());
+			int64_t result = 0xFFFFFFFF;
+			int64_t byte = 0;
+			int64_t mask = 0;
+			int64_t offset = 0;
+			size_t index = 0;
 
-			while (Index < Data.size())
+			while (index < data.size())
 			{
-				Byte = Data[Index];
-				Result = Result ^ Byte;
+				byte = data[index];
+				result = result ^ byte;
 
-				for (Offset = 7; Offset >= 0; Offset--)
+				for (offset = 7; offset >= 0; offset--)
 				{
-					Mask = -(Result & 1);
-					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
+					mask = -(result & 1);
+					result = (result >> 1) ^ (0xEDB88320 & mask);
 				}
 
-				Index++;
+				index++;
 			}
 
-			return (uint64_t)~Result;
+			return (uint64_t)~result;
 		}
-		uint64_t Crypto::Random(uint64_t Min, uint64_t Max)
+		uint64_t crypto::random(uint64_t min, uint64_t max)
 		{
-			uint64_t Raw = 0;
-			if (Min > Max)
-				return Raw;
+			uint64_t raw = 0;
+			if (min > max)
+				return raw;
 #ifdef VI_OPENSSL
-			if (RAND_bytes((uint8_t*)&Raw, sizeof(uint64_t)) != 1)
+			if (RAND_bytes((uint8_t*)&raw, sizeof(uint64_t)) != 1)
 			{
 				ERR_clear_error();
-				Raw = Random();
+				raw = random();
 			}
 #else
-			Raw = Random();
+			raw = random();
 #endif
-			return Raw % (Max - Min + 1) + Min;
+			return raw % (max - min + 1) + min;
 		}
-		uint64_t Crypto::Random()
+		uint64_t crypto::random()
 		{
-			static std::random_device Device;
-			static std::mt19937 Engine(Device());
-			static std::uniform_int_distribution<uint64_t> Range;
+			static std::random_device device;
+			static std::mt19937 engine(device());
+			static std::uniform_int_distribution<uint64_t> range;
 
-			return Range(Engine);
+			return range(engine);
 		}
-		void Crypto::Sha1CollapseBufferBlock(uint32_t* Buffer)
+		void crypto::sha1_collapse_buffer_block(uint32_t* buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
+			VI_ASSERT(buffer != nullptr, "buffer should be set");
 			for (int i = 16; --i >= 0;)
-				Buffer[i] = 0;
+				buffer[i] = 0;
 		}
-		void Crypto::Sha1ComputeHashBlock(uint32_t* Result, uint32_t* W)
+		void crypto::sha1_compute_hash_block(uint32_t* result, uint32_t* w)
 		{
-			VI_ASSERT(Result != nullptr, "result should be set");
-			VI_ASSERT(W != nullptr, "salt should be set");
-			uint32_t A = Result[0];
-			uint32_t B = Result[1];
-			uint32_t C = Result[2];
-			uint32_t D = Result[3];
-			uint32_t E = Result[4];
-			int R = 0;
+			VI_ASSERT(result != nullptr, "result should be set");
+			VI_ASSERT(w != nullptr, "salt should be set");
+			uint32_t a = result[0];
+			uint32_t b = result[1];
+			uint32_t c = result[2];
+			uint32_t d = result[3];
+			uint32_t e = result[4];
+			int r = 0;
 
-#define Sha1Roll(A1, A2) (((A1) << (A2)) | ((A1) >> (32 - (A2))))
-#define Sha1Make(F, V) {const uint32_t T = Sha1Roll(A, 5) + (F) + E + V + W[R]; E = D; D = C; C = Sha1Roll(B, 30); B = A; A = T; R++;}
+#define sha1_roll(A1, A2) (((A1) << (A2)) | ((A1) >> (32 - (A2))))
+#define sha1_make(f, v) {const uint32_t t = sha1_roll(a, 5) + (f) + e + v + w[r]; e = d; d = c; c = sha1_roll(b, 30); b = a; a = t; r++;}
 
-			while (R < 16)
-				Sha1Make((B & C) | (~B & D), 0x5a827999);
+			while (r < 16)
+				sha1_make((b & c) | (~b & d), 0x5a827999);
 
-			while (R < 20)
+			while (r < 20)
 			{
-				W[R] = Sha1Roll((W[R - 3] ^ W[R - 8] ^ W[R - 14] ^ W[R - 16]), 1);
-				Sha1Make((B & C) | (~B & D), 0x5a827999);
+				w[r] = sha1_roll((w[r - 3] ^ w[r - 8] ^ w[r - 14] ^ w[r - 16]), 1);
+				sha1_make((b & c) | (~b & d), 0x5a827999);
 			}
 
-			while (R < 40)
+			while (r < 40)
 			{
-				W[R] = Sha1Roll((W[R - 3] ^ W[R - 8] ^ W[R - 14] ^ W[R - 16]), 1);
-				Sha1Make(B ^ C ^ D, 0x6ed9eba1);
+				w[r] = sha1_roll((w[r - 3] ^ w[r - 8] ^ w[r - 14] ^ w[r - 16]), 1);
+				sha1_make(b ^ c ^ d, 0x6ed9eba1);
 			}
 
-			while (R < 60)
+			while (r < 60)
 			{
-				W[R] = Sha1Roll((W[R - 3] ^ W[R - 8] ^ W[R - 14] ^ W[R - 16]), 1);
-				Sha1Make((B & C) | (B & D) | (C & D), 0x8f1bbcdc);
+				w[r] = sha1_roll((w[r - 3] ^ w[r - 8] ^ w[r - 14] ^ w[r - 16]), 1);
+				sha1_make((b & c) | (b & d) | (c & d), 0x8f1bbcdc);
 			}
 
-			while (R < 80)
+			while (r < 80)
 			{
-				W[R] = Sha1Roll((W[R - 3] ^ W[R - 8] ^ W[R - 14] ^ W[R - 16]), 1);
-				Sha1Make(B ^ C ^ D, 0xca62c1d6);
+				w[r] = sha1_roll((w[r - 3] ^ w[r - 8] ^ w[r - 14] ^ w[r - 16]), 1);
+				sha1_make(b ^ c ^ d, 0xca62c1d6);
 			}
 
-#undef Sha1Roll
-#undef Sha1Make
+#undef sha1_roll
+#undef sha1_make
 
-			Result[0] += A;
-			Result[1] += B;
-			Result[2] += C;
-			Result[3] += D;
-			Result[4] += E;
+			result[0] += a;
+			result[1] += b;
+			result[2] += c;
+			result[3] += d;
+			result[4] += e;
 		}
-		void Crypto::Sha1Compute(const void* Value, const int Length, char* Hash20)
+		void crypto::sha1_compute(const void* value, const int length, char* hash20)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Hash20 != nullptr, "hash of size 20 should be set");
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_ASSERT(hash20 != nullptr, "hash of size 20 should be set");
 
-			uint32_t Result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
-			const uint8_t* ValueCUC = (const uint8_t*)Value;
-			uint32_t W[80];
+			uint32_t result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
+			const uint8_t* value_cuc = (const uint8_t*)value;
+			uint32_t w[80];
 
-			const int EndOfFullBlocks = Length - 64;
-			int EndCurrentBlock, CurrentBlock = 0;
+			const int end_of_full_blocks = length - 64;
+			int end_current_block, current_block = 0;
 
-			while (CurrentBlock <= EndOfFullBlocks)
+			while (current_block <= end_of_full_blocks)
 			{
-				EndCurrentBlock = CurrentBlock + 64;
-				for (int i = 0; CurrentBlock < EndCurrentBlock; CurrentBlock += 4)
-					W[i++] = (uint32_t)ValueCUC[CurrentBlock + 3] | (((uint32_t)ValueCUC[CurrentBlock + 2]) << 8) | (((uint32_t)ValueCUC[CurrentBlock + 1]) << 16) | (((uint32_t)ValueCUC[CurrentBlock]) << 24);
-				Sha1ComputeHashBlock(Result, W);
+				end_current_block = current_block + 64;
+				for (int i = 0; current_block < end_current_block; current_block += 4)
+					w[i++] = (uint32_t)value_cuc[current_block + 3] | (((uint32_t)value_cuc[current_block + 2]) << 8) | (((uint32_t)value_cuc[current_block + 1]) << 16) | (((uint32_t)value_cuc[current_block]) << 24);
+				sha1_compute_hash_block(result, w);
 			}
 
-			EndCurrentBlock = Length - CurrentBlock;
-			Sha1CollapseBufferBlock(W);
+			end_current_block = length - current_block;
+			sha1_collapse_buffer_block(w);
 
-			int LastBlockBytes = 0;
-			for (; LastBlockBytes < EndCurrentBlock; LastBlockBytes++)
-				W[LastBlockBytes >> 2] |= (uint32_t)ValueCUC[LastBlockBytes + CurrentBlock] << ((3 - (LastBlockBytes & 3)) << 3);
+			int last_block_bytes = 0;
+			for (; last_block_bytes < end_current_block; last_block_bytes++)
+				w[last_block_bytes >> 2] |= (uint32_t)value_cuc[last_block_bytes + current_block] << ((3 - (last_block_bytes & 3)) << 3);
 
-			W[LastBlockBytes >> 2] |= 0x80 << ((3 - (LastBlockBytes & 3)) << 3);
-			if (EndCurrentBlock >= 56)
+			w[last_block_bytes >> 2] |= 0x80 << ((3 - (last_block_bytes & 3)) << 3);
+			if (end_current_block >= 56)
 			{
-				Sha1ComputeHashBlock(Result, W);
-				Sha1CollapseBufferBlock(W);
+				sha1_compute_hash_block(result, w);
+				sha1_collapse_buffer_block(w);
 			}
 
-			W[15] = Length << 3;
-			Sha1ComputeHashBlock(Result, W);
+			w[15] = length << 3;
+			sha1_compute_hash_block(result, w);
 
 			for (int i = 20; --i >= 0;)
-				Hash20[i] = (Result[i >> 2] >> (((3 - i) & 0x3) << 3)) & 0xff;
+				hash20[i] = (result[i >> 2] >> (((3 - i) & 0x3) << 3)) & 0xff;
 		}
-		void Crypto::Sha1Hash20ToHex(const char* Hash20, char* HexString)
+		void crypto::sha1_hash20_to_hex(const char* hash20, char* hex_string)
 		{
-			VI_ASSERT(Hash20 != nullptr, "hash of size 20 should be set");
-			VI_ASSERT(HexString != nullptr, "result hex should be set");
+			VI_ASSERT(hash20 != nullptr, "hash of size 20 should be set");
+			VI_ASSERT(hex_string != nullptr, "result hex should be set");
 
-			const char Hex[] = { "0123456789abcdef" };
+			const char hex[] = { "0123456789abcdef" };
 			for (int i = 20; --i >= 0;)
 			{
-				HexString[i << 1] = Hex[(Hash20[i] >> 4) & 0xf];
-				HexString[(i << 1) + 1] = Hex[Hash20[i] & 0xf];
+				hex_string[i << 1] = hex[(hash20[i] >> 4) & 0xf];
+				hex_string[(i << 1) + 1] = hex[hash20[i] & 0xf];
 			}
 
-			HexString[40] = 0;
+			hex_string[40] = 0;
 		}
-		void Crypto::DisplayCryptoLog()
+		void crypto::display_crypto_log()
 		{
 #ifdef VI_OPENSSL
-			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
+			ERR_print_errors_cb([](const char* message, size_t size, void*)
 			{
-				while (Size > 0 && Core::Stringify::IsWhitespace(Message[Size - 1]))
-					--Size;
-				VI_ERR("[openssl] %.*s", (int)Size, Message);
+				while (size > 0 && core::stringify::is_whitespace(message[size - 1]))
+					--size;
+				VI_ERR("[openssl] %.*s", (int)size, message);
 				return 0;
 			}, nullptr);
 #endif
 		}
 
-		void Codec::RotateBuffer(uint8_t* Buffer, size_t BufferSize, uint64_t Hash, int8_t Direction)
+		void codec::rotate_buffer(uint8_t* buffer, size_t buffer_size, uint64_t hash, int8_t direction)
 		{
-			Core::String Partition;
-			Core::KeyHasher<Core::String> Hasher;
-			Partition.reserve(BufferSize);
+			core::string partition;
+			core::key_hasher<core::string> hasher;
+			partition.reserve(buffer_size);
 
-			constexpr uint8_t Limit = std::numeric_limits<uint8_t>::max() - 1;
-			if (Direction < 0)
+			constexpr uint8_t limit = std::numeric_limits<uint8_t>::max() - 1;
+			if (direction < 0)
 			{
-				Core::Vector<uint8_t> RotatedBuffer(Buffer, Buffer + BufferSize);
-				for (size_t i = 0; i < BufferSize; i++)
+				core::vector<uint8_t> rotated_buffer(buffer, buffer + buffer_size);
+				for (size_t i = 0; i < buffer_size; i++)
 				{
-					Partition.assign((char*)RotatedBuffer.data(), i + 1).back() = (char)(++Hash % Limit);
-					uint8_t Rotation = (uint8_t)(Hasher(Partition) % Limit);
-					Buffer[i] -= Rotation;
+					partition.assign((char*)rotated_buffer.data(), i + 1).back() = (char)(++hash % limit);
+					uint8_t rotation = (uint8_t)(hasher(partition) % limit);
+					buffer[i] -= rotation;
 				}
 			}
 			else
 			{
-				for (size_t i = 0; i < BufferSize; i++)
+				for (size_t i = 0; i < buffer_size; i++)
 				{
-					Partition.assign((char*)Buffer, i + 1).back() = (char)(++Hash % Limit);
-					uint8_t Rotation = (uint8_t)(Hasher(Partition) % Limit);
-					Buffer[i] += Rotation;
+					partition.assign((char*)buffer, i + 1).back() = (char)(++hash % limit);
+					uint8_t rotation = (uint8_t)(hasher(partition) % limit);
+					buffer[i] += rotation;
 				}
 			}
 		}
-		Core::String Codec::Rotate(const std::string_view& Value, uint64_t Hash, int8_t Direction)
+		core::string codec::rotate(const std::string_view& value, uint64_t hash, int8_t direction)
 		{
-			Core::String Result = Core::String(Value);
-			RotateBuffer((uint8_t*)Result.data(), Result.size(), Hash, Direction);
-			return Result;
+			core::string result = core::string(value);
+			rotate_buffer((uint8_t*)result.data(), result.size(), hash, direction);
+			return result;
 		}
-		Core::String Codec::Encode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool Padding)
+		core::string codec::encode64(const char alphabet[65], const uint8_t* value, size_t length, bool padding)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] %s encode-64 %" PRIu64 " bytes", Padding ? "padded" : "unpadded", (uint64_t)Length);
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_ASSERT(length > 0, "length should be greater than zero");
+			VI_TRACE("[codec] %s encode-64 %" PRIu64 " bytes", padding ? "padded" : "unpadded", (uint64_t)length);
 
-			Core::String Result;
-			uint8_t Row3[3];
-			uint8_t Row4[4];
-			uint32_t Offset = 0, Step = 0;
+			core::string result;
+			uint8_t row3[3];
+			uint8_t row4[4];
+			uint32_t offset = 0, step = 0;
 
-			while (Length--)
+			while (length--)
 			{
-				Row3[Offset++] = *(Value++);
-				if (Offset != 3)
+				row3[offset++] = *(value++);
+				if (offset != 3)
 					continue;
 
-				Row4[0] = (Row3[0] & 0xfc) >> 2;
-				Row4[1] = ((Row3[0] & 0x03) << 4) + ((Row3[1] & 0xf0) >> 4);
-				Row4[2] = ((Row3[1] & 0x0f) << 2) + ((Row3[2] & 0xc0) >> 6);
-				Row4[3] = Row3[2] & 0x3f;
+				row4[0] = (row3[0] & 0xfc) >> 2;
+				row4[1] = ((row3[0] & 0x03) << 4) + ((row3[1] & 0xf0) >> 4);
+				row4[2] = ((row3[1] & 0x0f) << 2) + ((row3[2] & 0xc0) >> 6);
+				row4[3] = row3[2] & 0x3f;
 
-				for (Offset = 0; Offset < 4; Offset++)
-					Result += Alphabet[Row4[Offset]];
+				for (offset = 0; offset < 4; offset++)
+					result += alphabet[row4[offset]];
 
-				Offset = 0;
+				offset = 0;
 			}
 
-			if (!Offset)
-				return Result;
+			if (!offset)
+				return result;
 
-			for (Step = Offset; Step < 3; Step++)
-				Row3[Step] = '\0';
+			for (step = offset; step < 3; step++)
+				row3[step] = '\0';
 
-			Row4[0] = (Row3[0] & 0xfc) >> 2;
-			Row4[1] = ((Row3[0] & 0x03) << 4) + ((Row3[1] & 0xf0) >> 4);
-			Row4[2] = ((Row3[1] & 0x0f) << 2) + ((Row3[2] & 0xc0) >> 6);
-			Row4[3] = Row3[2] & 0x3f;
+			row4[0] = (row3[0] & 0xfc) >> 2;
+			row4[1] = ((row3[0] & 0x03) << 4) + ((row3[1] & 0xf0) >> 4);
+			row4[2] = ((row3[1] & 0x0f) << 2) + ((row3[2] & 0xc0) >> 6);
+			row4[3] = row3[2] & 0x3f;
 
-			for (Step = 0; (Step < Offset + 1); Step++)
-				Result += Alphabet[Row4[Step]];
+			for (step = 0; (step < offset + 1); step++)
+				result += alphabet[row4[step]];
 
-			if (!Padding)
-				return Result;
+			if (!padding)
+				return result;
 
-			while (Offset++ < 3)
-				Result += '=';
+			while (offset++ < 3)
+				result += '=';
 
-			return Result;
+			return result;
 		}
-		Core::String Codec::Decode64(const char Alphabet[65], const uint8_t* Value, size_t Length, bool(*IsAlphabetic)(uint8_t))
+		core::string codec::decode64(const char alphabet[65], const uint8_t* value, size_t length, bool(*is_alphabetic)(uint8_t))
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_ASSERT(IsAlphabetic != nullptr, "callback should be set");
-			VI_ASSERT(Length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] decode-64 %" PRIu64 " bytes", (uint64_t)Length);
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_ASSERT(is_alphabetic != nullptr, "callback should be set");
+			VI_ASSERT(length > 0, "length should be greater than zero");
+			VI_TRACE("[codec] decode-64 %" PRIu64 " bytes", (uint64_t)length);
 
-			Core::String Result;
-			uint8_t Row4[4];
-			uint8_t Row3[3];
-			uint32_t Offset = 0, Step = 0;
-			uint32_t Focus = 0;
+			core::string result;
+			uint8_t row4[4];
+			uint8_t row3[3];
+			uint32_t offset = 0, step = 0;
+			uint32_t focus = 0;
 
-			while (Length-- && (Value[Focus] != '=') && IsAlphabetic(Value[Focus]))
+			while (length-- && (value[focus] != '=') && is_alphabetic(value[focus]))
 			{
-				Row4[Offset++] = Value[Focus]; Focus++;
-				if (Offset != 4)
+				row4[offset++] = value[focus]; focus++;
+				if (offset != 4)
 					continue;
 
-				for (Offset = 0; Offset < 4; Offset++)
-					Row4[Offset] = (uint8_t)OffsetOf64(Alphabet, Row4[Offset]);
+				for (offset = 0; offset < 4; offset++)
+					row4[offset] = (uint8_t)offset_of64(alphabet, row4[offset]);
 
-				Row3[0] = (Row4[0] << 2) + ((Row4[1] & 0x30) >> 4);
-				Row3[1] = ((Row4[1] & 0xf) << 4) + ((Row4[2] & 0x3c) >> 2);
-				Row3[2] = ((Row4[2] & 0x3) << 6) + Row4[3];
+				row3[0] = (row4[0] << 2) + ((row4[1] & 0x30) >> 4);
+				row3[1] = ((row4[1] & 0xf) << 4) + ((row4[2] & 0x3c) >> 2);
+				row3[2] = ((row4[2] & 0x3) << 6) + row4[3];
 
-				for (Offset = 0; (Offset < 3); Offset++)
-					Result += Row3[Offset];
+				for (offset = 0; (offset < 3); offset++)
+					result += row3[offset];
 
-				Offset = 0;
+				offset = 0;
 			}
 
-			if (!Offset)
-				return Result;
+			if (!offset)
+				return result;
 
-			for (Step = Offset; Step < 4; Step++)
-				Row4[Step] = 0;
+			for (step = offset; step < 4; step++)
+				row4[step] = 0;
 
-			for (Step = 0; Step < 4; Step++)
-				Row4[Step] = (uint8_t)OffsetOf64(Alphabet, Row4[Step]);
+			for (step = 0; step < 4; step++)
+				row4[step] = (uint8_t)offset_of64(alphabet, row4[step]);
 
-			Row3[0] = (Row4[0] << 2) + ((Row4[1] & 0x30) >> 4);
-			Row3[1] = ((Row4[1] & 0xf) << 4) + ((Row4[2] & 0x3c) >> 2);
-			Row3[2] = ((Row4[2] & 0x3) << 6) + Row4[3];
+			row3[0] = (row4[0] << 2) + ((row4[1] & 0x30) >> 4);
+			row3[1] = ((row4[1] & 0xf) << 4) + ((row4[2] & 0x3c) >> 2);
+			row3[2] = ((row4[2] & 0x3) << 6) + row4[3];
 
-			for (Step = 0; (Step < Offset - 1); Step++)
-				Result += Row3[Step];
+			for (step = 0; (step < offset - 1); step++)
+				result += row3[step];
 
-			return Result;
+			return result;
 		}
-		Core::String Codec::Bep45Encode(const std::string_view& Data)
+		core::string codec::bep45_encode(const std::string_view& data)
 		{
-			static const char From[] = " $%*+-./:";
-			static const char To[] = "abcdefghi";
+			static const char from[] = " $%*+-./:";
+			static const char to[] = "abcdefghi";
 
-			Core::String Result(Base45Encode(Data));
-			for (size_t i = 0; i < sizeof(From) - 1; i++)
-				Core::Stringify::Replace(Result, From[i], To[i]);
+			core::string result(base45_encode(data));
+			for (size_t i = 0; i < sizeof(from) - 1; i++)
+				core::stringify::replace(result, from[i], to[i]);
 
-			return Result;
+			return result;
 		}
-		Core::String Codec::Bep45Decode(const std::string_view& Data)
+		core::string codec::bep45_decode(const std::string_view& data)
 		{
-			static const char From[] = "abcdefghi";
-			static const char To[] = " $%*+-./:";
+			static const char from[] = "abcdefghi";
+			static const char to[] = " $%*+-./:";
 
-			Core::String Result(Data);
-			for (size_t i = 0; i < sizeof(From) - 1; i++)
-				Core::Stringify::Replace(Result, From[i], To[i]);
+			core::string result(data);
+			for (size_t i = 0; i < sizeof(from) - 1; i++)
+				core::stringify::replace(result, from[i], to[i]);
 
-			return Base45Decode(Result);
+			return base45_decode(result);
 		}
-		Core::String Codec::Base32Encode(const std::string_view& Value)
+		core::string codec::base32_encode(const std::string_view& value)
 		{
-			static const char Alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-			Core::String Result;
-			if (Value.empty())
-				return Result;
+			static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+			core::string result;
+			if (value.empty())
+				return result;
 
-			size_t Next = (size_t)Value[0], Offset = 1, Remainder = 8;
-			Result.reserve((size_t)((double)Value.size() * 1.6));
+			size_t next = (size_t)value[0], offset = 1, remainder = 8;
+			result.reserve((size_t)((double)value.size() * 1.6));
 
-			while (Remainder > 0 || Offset < Value.size())
+			while (remainder > 0 || offset < value.size())
 			{
-				if (Remainder < 5)
+				if (remainder < 5)
 				{
-					if (Offset < Value.size())
+					if (offset < value.size())
 					{
-						Next <<= 8;
-						Next |= (size_t)Value[Offset++] & 0xFF;
-						Remainder += 8;
+						next <<= 8;
+						next |= (size_t)value[offset++] & 0xFF;
+						remainder += 8;
 					}
 					else
 					{
-						size_t Padding = 5 - Remainder;
-						Next <<= Padding;
-						Remainder += Padding;
+						size_t padding = 5 - remainder;
+						next <<= padding;
+						remainder += padding;
 					}
 				}
 
-				Remainder -= 5;
-				size_t Index = 0x1F & (Next >> Remainder);
-				Result.push_back(Alphabet[Index % (sizeof(Alphabet) - 1)]);
+				remainder -= 5;
+				size_t index = 0x1F & (next >> remainder);
+				result.push_back(alphabet[index % (sizeof(alphabet) - 1)]);
 			}
 
-			return Result;
+			return result;
 		}
-		Core::String Codec::Base32Decode(const std::string_view& Value)
+		core::string codec::base32_decode(const std::string_view& value)
 		{
-			Core::String Result;
-			Result.reserve(Value.size());
+			core::string result;
+			result.reserve(value.size());
 
-			size_t Prev = 0, BitsLeft = 0;
-			for (char Next : Value)
+			size_t prev = 0, bits_left = 0;
+			for (char next : value)
 			{
-				if (Next == ' ' || Next == '\t' || Next == '\r' || Next == '\n' || Next == '-')
+				if (next == ' ' || next == '\t' || next == '\r' || next == '\n' || next == '-')
 					continue;
 
-				Prev <<= 5;
-				if (Next == '0')
-					Next = 'O';
-				else if (Next == '1')
-					Next = 'L';
-				else if (Next == '8')
-					Next = 'B';
+				prev <<= 5;
+				if (next == '0')
+					next = 'O';
+				else if (next == '1')
+					next = 'L';
+				else if (next == '8')
+					next = 'B';
 
-				if ((Next >= 'A' && Next <= 'Z') || (Next >= 'a' && Next <= 'z'))
-					Next = (Next & 0x1F) - 1;
-				else if (Next >= '2' && Next <= '7')
-					Next -= '2' - 26;
+				if ((next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z'))
+					next = (next & 0x1F) - 1;
+				else if (next >= '2' && next <= '7')
+					next -= '2' - 26;
 				else
 					break;
 
-				Prev |= Next;
-				BitsLeft += 5;
-				if (BitsLeft < 8)
+				prev |= next;
+				bits_left += 5;
+				if (bits_left < 8)
 					continue;
 
-				Result.push_back((char)(Prev >> (BitsLeft - 8)));
-				BitsLeft -= 8;
+				result.push_back((char)(prev >> (bits_left - 8)));
+				bits_left -= 8;
 			}
 
-			return Result;
+			return result;
 		}
-		Core::String Codec::Base45Encode(const std::string_view& Data)
+		core::string codec::base45_encode(const std::string_view& data)
 		{
-			VI_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)Data.size());
-			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
-			Core::String Result;
-			size_t Size = Data.size();
-			Result.reserve(Size);
+			VI_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)data.size());
+			static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+			core::string result;
+			size_t size = data.size();
+			result.reserve(size);
 
-			for (size_t i = 0; i < Size; i += 2)
+			for (size_t i = 0; i < size; i += 2)
 			{
-				if (Size - i > 1)
+				if (size - i > 1)
 				{
-					int x = ((uint8_t)(Data[i]) << 8) + (uint8_t)Data[i + 1];
+					int x = ((uint8_t)(data[i]) << 8) + (uint8_t)data[i + 1];
 					uint8_t e = x / (45 * 45);
 					x %= 45 * 45;
 
 					uint8_t d = x / 45;
 					uint8_t c = x % 45;
-					Result += Alphabet[c];
-					Result += Alphabet[d];
-					Result += Alphabet[e];
+					result += alphabet[c];
+					result += alphabet[d];
+					result += alphabet[e];
 				}
 				else
 				{
-					int x = (uint8_t)Data[i];
+					int x = (uint8_t)data[i];
 					uint8_t d = x / 45;
 					uint8_t c = x % 45;
 
-					Result += Alphabet[c];
-					Result += Alphabet[d];
+					result += alphabet[c];
+					result += alphabet[d];
 				}
 			}
 
-			return Result;
+			return result;
 		}
-		Core::String Codec::Base45Decode(const std::string_view& Data)
+		core::string codec::base45_decode(const std::string_view& data)
 		{
-			VI_TRACE("[codec] base45 decode %" PRIu64 " bytes", (uint64_t)Data.size());
-			static uint8_t CharToInt[256] =
+			VI_TRACE("[codec] base45 decode %" PRIu64 " bytes", (uint64_t)data.size());
+			static uint8_t char_to_int[256] =
 			{
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -5950,1621 +6030,1621 @@ namespace Vitex
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
 			};
 
-			size_t Size = Data.size();
-			Core::String Result(Size, ' ');
-			size_t Offset = 0;
+			size_t size = data.size();
+			core::string result(size, ' ');
+			size_t offset = 0;
 
-			for (size_t i = 0; i < Size; i += 3)
+			for (size_t i = 0; i < size; i += 3)
 			{
 				int x, a, b;
-				if (Size - i < 2)
+				if (size - i < 2)
 					break;
 
-				if ((255 == (a = (char)CharToInt[(uint8_t)Data[i]])) || (255 == (b = (char)CharToInt[(uint8_t)Data[i + 1]])))
+				if ((255 == (a = (char)char_to_int[(uint8_t)data[i]])) || (255 == (b = (char)char_to_int[(uint8_t)data[i + 1]])))
 					break;
 
 				x = a + 45 * b;
-				if (Size - i >= 3)
+				if (size - i >= 3)
 				{
-					if (255 == (a = (char)CharToInt[(uint8_t)Data[i + 2]]))
+					if (255 == (a = (char)char_to_int[(uint8_t)data[i + 2]]))
 						break;
 
 					x += a * 45 * 45;
-					Result[Offset++] = x / 256;
+					result[offset++] = x / 256;
 					x %= 256;
 				}
 
-				Result[Offset++] = x;
+				result[offset++] = x;
 			}
 
-			return Core::String(Result.c_str(), Offset);
+			return core::string(result.c_str(), offset);
 		}
-		Core::String Codec::Base64Encode(const std::string_view& Value)
+		core::string codec::base64_encode(const std::string_view& value)
 		{
-			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			return Encode64(Set, (uint8_t*)Value.data(), Value.size(), true);
+			static const char set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			return encode64(set, (uint8_t*)value.data(), value.size(), true);
 		}
-		Core::String Codec::Base64Decode(const std::string_view& Value)
+		core::string codec::base64_decode(const std::string_view& value)
 		{
-			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			return Decode64(Set, (uint8_t*)Value.data(), Value.size(), IsBase64);
+			static const char set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			return decode64(set, (uint8_t*)value.data(), value.size(), is_base64);
 		}
-		Core::String Codec::Base64URLEncode(const std::string_view& Value)
+		core::string codec::base64_url_encode(const std::string_view& value)
 		{
-			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-			return Encode64(Set, (uint8_t*)Value.data(), Value.size(), false);
+			static const char set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+			return encode64(set, (uint8_t*)value.data(), value.size(), false);
 		}
-		Core::String Codec::Base64URLDecode(const std::string_view& Value)
+		core::string codec::base64_url_decode(const std::string_view& value)
 		{
-			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-			size_t Padding = Value.size() % 4;
-			if (Padding == 0)
-				return Decode64(Set, (uint8_t*)Value.data(), Value.size(), IsBase64URL);
+			static const char set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+			size_t padding = value.size() % 4;
+			if (padding == 0)
+				return decode64(set, (uint8_t*)value.data(), value.size(), is_base64_url);
 
-			Core::String Padded = Core::String(Value);
-			Padded.append(4 - Padding, '=');
-			return Decode64(Set, (uint8_t*)Padded.c_str(), Padded.size(), IsBase64URL);
+			core::string padded = core::string(value);
+			padded.append(4 - padding, '=');
+			return decode64(set, (uint8_t*)padded.c_str(), padded.size(), is_base64_url);
 		}
-		Core::String Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
+		core::string codec::shuffle(const char* value, size_t size, uint64_t mask)
 		{
-			VI_ASSERT(Value != nullptr, "value should be set");
-			VI_TRACE("[codec] shuffle %" PRIu64 " bytes", (uint64_t)Size);
+			VI_ASSERT(value != nullptr, "value should be set");
+			VI_TRACE("[codec] shuffle %" PRIu64 " bytes", (uint64_t)size);
 
-			Core::String Result;
-			Result.resize(Size);
+			core::string result;
+			result.resize(size);
 
-			int64_t Hash = Mask;
-			for (size_t i = 0; i < Size; i++)
+			int64_t hash = mask;
+			for (size_t i = 0; i < size; i++)
 			{
-				Hash = ((Hash << 5) - Hash) + Value[i];
-				Hash = Hash & Hash;
-				Result[i] = (char)(Hash % 255);
+				hash = ((hash << 5) - hash) + value[i];
+				hash = hash & hash;
+				result[i] = (char)(hash % 255);
 			}
 
-			return Result;
+			return result;
 		}
-		ExpectsCompression<Core::String> Codec::Compress(const std::string_view& Data, Compression Type)
+		expects_compression<core::string> codec::compress(const std::string_view& data, compression type)
 		{
 #ifdef VI_ZLIB
-			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)Data.size());
-			if (Data.empty())
-				return CompressionException(Z_DATA_ERROR, "empty input buffer");
+			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)data.size());
+			if (data.empty())
+				return compression_exception(Z_DATA_ERROR, "empty input buffer");
 
-			uLongf Size = compressBound((uLong)Data.size());
-			Bytef* Buffer = Core::Memory::Allocate<Bytef>(Size);
-			int Code = compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type);
-			if (Code != Z_OK)
+			uLongf size = compressBound((uLong)data.size());
+			Bytef* buffer = core::memory::allocate<Bytef>(size);
+			int code = compress2(buffer, &size, (const Bytef*)data.data(), (uLong)data.size(), (int)type);
+			if (code != Z_OK)
 			{
-				Core::Memory::Deallocate(Buffer);
-				return CompressionException(Code, "buffer compression using compress2 error");
+				core::memory::deallocate(buffer);
+				return compression_exception(code, "buffer compression using compress2 error");
 			}
 
-			Core::String Output((char*)Buffer, (size_t)Size);
-			Core::Memory::Deallocate(Buffer);
-			return Output;
+			core::string output((char*)buffer, (size_t)size);
+			core::memory::deallocate(buffer);
+			return output;
 #else
-			return CompressionException(-1, "unsupported");
+			return compression_exception(-1, "unsupported");
 #endif
 		}
-		ExpectsCompression<Core::String> Codec::Decompress(const std::string_view& Data)
+		expects_compression<core::string> codec::decompress(const std::string_view& data)
 		{
 #ifdef VI_ZLIB
-			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)Data.size());
-			if (Data.empty())
-				return CompressionException(Z_DATA_ERROR, "empty input buffer");
-			
-			uLongf SourceSize = (uLong)Data.size();
-			uLongf TotalSize = SourceSize * 2;
+			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)data.size());
+			if (data.empty())
+				return compression_exception(Z_DATA_ERROR, "empty input buffer");
+
+			uLongf source_size = (uLong)data.size();
+			uLongf total_size = source_size * 2;
 			while (true)
 			{
-				uLongf Size = TotalSize, FinalSize = SourceSize;
-				Bytef* Buffer = Core::Memory::Allocate<Bytef>(Size);
-				int Code = uncompress2(Buffer, &Size, (const Bytef*)Data.data(), &FinalSize);
-				if (Code == Z_MEM_ERROR || Code == Z_BUF_ERROR)
+				uLongf size = total_size, final_size = source_size;
+				Bytef* buffer = core::memory::allocate<Bytef>(size);
+				int code = uncompress2(buffer, &size, (const Bytef*)data.data(), &final_size);
+				if (code == Z_MEM_ERROR || code == Z_BUF_ERROR)
 				{
-					Core::Memory::Deallocate(Buffer);
-					TotalSize += SourceSize;
+					core::memory::deallocate(buffer);
+					total_size += source_size;
 					continue;
 				}
-				else if (Code != Z_OK)
+				else if (code != Z_OK)
 				{
-					Core::Memory::Deallocate(Buffer);
-					return CompressionException(Code, "buffer decompression using uncompress2 error");
+					core::memory::deallocate(buffer);
+					return compression_exception(code, "buffer decompression using uncompress2 error");
 				}
 
-				Core::String Output((char*)Buffer, (size_t)Size);
-				Core::Memory::Deallocate(Buffer);
-				return Output;
+				core::string output((char*)buffer, (size_t)size);
+				core::memory::deallocate(buffer);
+				return output;
 			}
 
-			return CompressionException(Z_DATA_ERROR, "buffer decompression error");
+			return compression_exception(Z_DATA_ERROR, "buffer decompression error");
 #else
-			return CompressionException(-1, "unsupported");
+			return compression_exception(-1, "unsupported");
 #endif
 		}
-		Core::String Codec::HexEncodeOdd(const std::string_view& Value, bool UpperCase)
+		core::string codec::hex_encode_odd(const std::string_view& value, bool upper_case)
 		{
-			VI_TRACE("[codec] hex encode odd %" PRIu64 " bytes", (uint64_t)Value.size());
-			static const char HexLowerCase[17] = "0123456789abcdef";
-			static const char HexUpperCase[17] = "0123456789ABCDEF";
+			VI_TRACE("[codec] hex encode odd %" PRIu64 " bytes", (uint64_t)value.size());
+			static const char hex_lower_case[17] = "0123456789abcdef";
+			static const char hex_upper_case[17] = "0123456789ABCDEF";
 
-			Core::String Output;
-			Output.reserve(Value.size() * 2);
+			core::string output;
+			output.reserve(value.size() * 2);
 
-			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
-			for (size_t i = 0; i < Value.size(); i++)
+			const char* hex = upper_case ? hex_upper_case : hex_lower_case;
+			for (size_t i = 0; i < value.size(); i++)
 			{
-				uint8_t C = static_cast<uint8_t>(Value[i]);
-				if (C >= 16)
-					Output += Hex[C >> 4];
-				Output += Hex[C & 0xf];
+				uint8_t c = static_cast<uint8_t>(value[i]);
+				if (c >= 16)
+					output += hex[c >> 4];
+				output += hex[c & 0xf];
 			}
 
-			return Output;
+			return output;
 		}
-		Core::String Codec::HexEncode(const std::string_view& Value, bool UpperCase)
+		core::string codec::hex_encode(const std::string_view& value, bool upper_case)
 		{
-			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)Value.size());
-			static const char HexLowerCase[17] = "0123456789abcdef";
-			static const char HexUpperCase[17] = "0123456789ABCDEF";
-			const char* Hex = UpperCase ? HexUpperCase : HexLowerCase;
+			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)value.size());
+			static const char hex_lower_case[17] = "0123456789abcdef";
+			static const char hex_upper_case[17] = "0123456789ABCDEF";
+			const char* hex = upper_case ? hex_upper_case : hex_lower_case;
 
-			Core::String Output;
-			Output.reserve(Value.size() * 2);
+			core::string output;
+			output.reserve(value.size() * 2);
 
-			for (size_t i = 0; i < Value.size(); i++)
+			for (size_t i = 0; i < value.size(); i++)
 			{
-				uint8_t C = static_cast<uint8_t>(Value[i]);
-				Output += Hex[C >> 4];
-				Output += Hex[C & 0xf];
+				uint8_t c = static_cast<uint8_t>(value[i]);
+				output += hex[c >> 4];
+				output += hex[c & 0xf];
 			}
 
-			return Output;
+			return output;
 		}
-		Core::String Codec::HexDecode(const std::string_view& Value)
+		core::string codec::hex_decode(const std::string_view& value)
 		{
-			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)Value.size());
-			size_t Offset = 0;
-			if (Value.size() >= 2 && Value[0] == '0' && Value[1] == 'x')
-				Offset = 2;
+			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)value.size());
+			size_t offset = 0;
+			if (value.size() >= 2 && value[0] == '0' && value[1] == 'x')
+				offset = 2;
 
-			Core::String Output;
-			Output.reserve(Value.size() / 2);
+			core::string output;
+			output.reserve(value.size() / 2);
 
-			char Hex[3] = { 0, 0, 0 };
-			for (size_t i = Offset; i < Value.size(); i += 2)
+			char hex[3] = { 0, 0, 0 };
+			for (size_t i = offset; i < value.size(); i += 2)
 			{
-				size_t Size = std::min<size_t>(2, Value.size() - i);
-				memcpy(Hex, Value.data() + i, sizeof(char) * Size);
-				Output.push_back((char)(int)strtol(Hex, nullptr, 16));
-				Hex[1] = 0;
+				size_t size = std::min<size_t>(2, value.size() - i);
+				memcpy(hex, value.data() + i, sizeof(char) * size);
+				output.push_back((char)(int)strtol(hex, nullptr, 16));
+				hex[1] = 0;
 			}
 
-			return Output;
+			return output;
 		}
-		Core::String Codec::URLEncode(const std::string_view& Text)
+		core::string codec::url_encode(const std::string_view& text)
 		{
-			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Text.size());
-			static const char* Unescape = "._-$,;~()";
-			static const char* Hex = "0123456789abcdef";
+			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)text.size());
+			static const char* unescape = "._-$,;~()";
+			static const char* hex = "0123456789abcdef";
 
-			Core::String Value;
-			Value.reserve(Text.size());
+			core::string value;
+			value.reserve(text.size());
 
-			size_t Offset = 0;
-			while (Offset < Text.size())
+			size_t offset = 0;
+			while (offset < text.size())
 			{
-				uint8_t V = Text[Offset++];
-				if (!isalnum(V) && !strchr(Unescape, V))
+				uint8_t v = text[offset++];
+				if (!isalnum(v) && !strchr(unescape, v))
 				{
-					Value += '%';
-					Value += (Hex[V >> 4]);
-					Value += (Hex[V & 0xf]);
+					value += '%';
+					value += (hex[v >> 4]);
+					value += (hex[v & 0xf]);
 				}
 				else
-					Value += V;
+					value += v;
 			}
 
-			return Value;
+			return value;
 		}
-		Core::String Codec::URLDecode(const std::string_view& Text)
+		core::string codec::url_decode(const std::string_view& text)
 		{
-			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)Text.size());
-			Core::String Value;
-			uint8_t* Data = (uint8_t*)Text.data();
-			size_t Size = Text.size();
+			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)text.size());
+			core::string value;
+			uint8_t* data = (uint8_t*)text.data();
+			size_t size = text.size();
 			size_t i = 0;
 
-			while (i < Size)
+			while (i < size)
 			{
-				if (Size >= 2 && i < Size - 2 && Text[i] == '%' && isxdigit(*(Data + i + 1)) && isxdigit(*(Data + i + 2)))
+				if (size >= 2 && i < size - 2 && text[i] == '%' && isxdigit(*(data + i + 1)) && isxdigit(*(data + i + 2)))
 				{
-					int A = tolower(*(Data + i + 1)), B = tolower(*(Data + i + 2));
-					Value += (char)(((isdigit(A) ? (A - '0') : (A - 'W')) << 4) | (isdigit(B) ? (B - '0') : (B - 'W')));
+					int a = tolower(*(data + i + 1)), b = tolower(*(data + i + 2));
+					value += (char)(((isdigit(a) ? (a - '0') : (a - 'W')) << 4) | (isdigit(b) ? (b - '0') : (b - 'W')));
 					i += 2;
 				}
-				else if (Text[i] != '+')
-					Value += Text[i];
+				else if (text[i] != '+')
+					value += text[i];
 				else
-					Value += ' ';
+					value += ' ';
 
 				i++;
 			}
 
-			return Value;
+			return value;
 		}
-		Core::String Codec::Base10ToBaseN(uint64_t Value, uint32_t BaseLessThan65)
+		core::string codec::base10_to_base_n(uint64_t value, uint32_t base_less_than65)
 		{
-			VI_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, "base should be between 1 and 64");
-			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
-			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			if (Value == 0)
+			VI_ASSERT(base_less_than65 >= 1 && base_less_than65 <= 64, "base should be between 1 and 64");
+			static const char* base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+			static const char* base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			if (value == 0)
 				return "0";
 
-			const char* Base = (BaseLessThan65 == 64 ? Base64 : Base62);
-			Core::String Output;
+			const char* base = (base_less_than65 == 64 ? base64 : base62);
+			core::string output;
 
-			while (Value > 0)
+			while (value > 0)
 			{
-				Output.insert(0, 1, Base[Value % BaseLessThan65]);
-				Value /= BaseLessThan65;
+				output.insert(0, 1, base[value % base_less_than65]);
+				value /= base_less_than65;
 			}
 
-			return Output;
+			return output;
 		}
-		Core::String Codec::DecimalToHex(uint64_t n)
+		core::string codec::decimal_to_hex(uint64_t n)
 		{
-			const char* Set = "0123456789abcdef";
-			Core::String Result;
+			const char* set = "0123456789abcdef";
+			core::string result;
 
 			do
 			{
-				Result = Set[n & 15] + Result;
+				result = set[n & 15] + result;
 				n >>= 4;
 			} while (n > 0);
 
-			return Result;
+			return result;
 		}
-		size_t Codec::Utf8(int Code, char* Buffer)
+		size_t codec::utf8(int code, char* buffer)
 		{
-			VI_ASSERT(Buffer != nullptr, "buffer should be set");
-			if (Code < 0x0080)
+			VI_ASSERT(buffer != nullptr, "buffer should be set");
+			if (code < 0x0080)
 			{
-				Buffer[0] = (Code & 0x7F);
+				buffer[0] = (code & 0x7F);
 				return 1;
 			}
-			else if (Code < 0x0800)
+			else if (code < 0x0800)
 			{
-				Buffer[0] = (0xC0 | ((Code >> 6) & 0x1F));
-				Buffer[1] = (0x80 | (Code & 0x3F));
+				buffer[0] = (0xC0 | ((code >> 6) & 0x1F));
+				buffer[1] = (0x80 | (code & 0x3F));
 				return 2;
 			}
-			else if (Code < 0xD800)
+			else if (code < 0xD800)
 			{
-				Buffer[0] = (0xE0 | ((Code >> 12) & 0xF));
-				Buffer[1] = (0x80 | ((Code >> 6) & 0x3F));
-				Buffer[2] = (0x80 | (Code & 0x3F));
+				buffer[0] = (0xE0 | ((code >> 12) & 0xF));
+				buffer[1] = (0x80 | ((code >> 6) & 0x3F));
+				buffer[2] = (0x80 | (code & 0x3F));
 				return 3;
 			}
-			else if (Code < 0xE000)
+			else if (code < 0xE000)
 			{
 				return 0;
 			}
-			else if (Code < 0x10000)
+			else if (code < 0x10000)
 			{
-				Buffer[0] = (0xE0 | ((Code >> 12) & 0xF));
-				Buffer[1] = (0x80 | ((Code >> 6) & 0x3F));
-				Buffer[2] = (0x80 | (Code & 0x3F));
+				buffer[0] = (0xE0 | ((code >> 12) & 0xF));
+				buffer[1] = (0x80 | ((code >> 6) & 0x3F));
+				buffer[2] = (0x80 | (code & 0x3F));
 				return 3;
 			}
-			else if (Code < 0x110000)
+			else if (code < 0x110000)
 			{
-				Buffer[0] = (0xF0 | ((Code >> 18) & 0x7));
-				Buffer[1] = (0x80 | ((Code >> 12) & 0x3F));
-				Buffer[2] = (0x80 | ((Code >> 6) & 0x3F));
-				Buffer[3] = (0x80 | (Code & 0x3F));
+				buffer[0] = (0xF0 | ((code >> 18) & 0x7));
+				buffer[1] = (0x80 | ((code >> 12) & 0x3F));
+				buffer[2] = (0x80 | ((code >> 6) & 0x3F));
+				buffer[3] = (0x80 | (code & 0x3F));
 				return 4;
 			}
 
 			return 0;
 		}
-		bool Codec::Hex(char Code, int& Value)
+		bool codec::hex(char code, int& value)
 		{
-			if (0x20 <= Code && isdigit(Code))
+			if (0x20 <= code && isdigit(code))
 			{
-				Value = Code - '0';
+				value = code - '0';
 				return true;
 			}
-			else if ('A' <= Code && Code <= 'F')
+			else if ('A' <= code && code <= 'F')
 			{
-				Value = Code - 'A' + 10;
+				value = code - 'A' + 10;
 				return true;
 			}
-			else if ('a' <= Code && Code <= 'f')
+			else if ('a' <= code && code <= 'f')
 			{
-				Value = Code - 'a' + 10;
+				value = code - 'a' + 10;
 				return true;
 			}
 
 			return false;
 		}
-		bool Codec::HexToString(const std::string_view& Data, char* Buffer, size_t BufferLength)
+		bool codec::hex_to_string(const std::string_view& data, char* buffer, size_t buffer_length)
 		{
-			VI_ASSERT(Buffer != nullptr && BufferLength > 0, "buffer should be set");
-			VI_ASSERT(BufferLength >= (3 * Data.size()), "buffer is too small");
-			if (Data.empty())
+			VI_ASSERT(buffer != nullptr && buffer_length > 0, "buffer should be set");
+			VI_ASSERT(buffer_length >= (3 * data.size()), "buffer is too small");
+			if (data.empty())
 				return false;
 
 			static const char HEX[] = "0123456789abcdef";
-			uint8_t* Value = (uint8_t*)Data.data();
-			for (size_t i = 0; i < Data.size(); i++)
+			uint8_t* value = (uint8_t*)data.data();
+			for (size_t i = 0; i < data.size(); i++)
 			{
 				if (i > 0)
-					Buffer[3 * i - 1] = ' ';
-				Buffer[3 * i] = HEX[(Value[i] >> 4) & 0xF];
-				Buffer[3 * i + 1] = HEX[Value[i] & 0xF];
+					buffer[3 * i - 1] = ' ';
+				buffer[3 * i] = HEX[(value[i] >> 4) & 0xF];
+				buffer[3 * i + 1] = HEX[value[i] & 0xF];
 			}
 
-			Buffer[3 * Data.size() - 1] = 0;
+			buffer[3 * data.size() - 1] = 0;
 			return true;
 		}
-		bool Codec::HexToDecimal(const std::string_view& Text, size_t Index, size_t Count, int& Value)
+		bool codec::hex_to_decimal(const std::string_view& text, size_t index, size_t count, int& value)
 		{
-			VI_ASSERT(Index < Text.size(), "index outside of range");
+			VI_ASSERT(index < text.size(), "index outside of range");
 
-			Value = 0;
-			for (; Count; Index++, Count--)
+			value = 0;
+			for (; count; index++, count--)
 			{
-				if (!Text[Index])
+				if (!text[index])
 					return false;
 
 				int v = 0;
-				if (!Hex(Text[Index], v))
+				if (!hex(text[index], v))
 					return false;
 
-				Value = Value * 16 + v;
+				value = value * 16 + v;
 			}
 
 			return true;
 		}
-		bool Codec::IsBase64(uint8_t Value)
+		bool codec::is_base64(uint8_t value)
 		{
-			return (isalnum(Value) || (Value == '+') || (Value == '/'));
+			return (isalnum(value) || (value == '+') || (value == '/'));
 		}
-		bool Codec::IsBase64URL(uint8_t Value)
+		bool codec::is_base64_url(uint8_t value)
 		{
-			return (isalnum(Value) || (Value == '-') || (Value == '_'));
+			return (isalnum(value) || (value == '-') || (value == '_'));
 		}
 
-		WebToken::WebToken() noexcept : Header(nullptr), Payload(nullptr), Token(nullptr)
+		web_token::web_token() noexcept : header(nullptr), payload(nullptr), token(nullptr)
 		{
 		}
-		WebToken::WebToken(const std::string_view& Issuer, const std::string_view& Subject, int64_t Expiration) noexcept : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
+		web_token::web_token(const std::string_view& issuer, const std::string_view& subject, int64_t expiration) noexcept : header(core::var::set::object()), payload(core::var::set::object()), token(nullptr)
 		{
-			Header->Set("alg", Core::Var::String("HS256"));
-			Header->Set("typ", Core::Var::String("JWT"));
-			Payload->Set("iss", Core::Var::String(Issuer));
-			Payload->Set("sub", Core::Var::String(Subject));
-			Payload->Set("exp", Core::Var::Integer(Expiration));
+			header->set("alg", core::var::string("HS256"));
+			header->set("typ", core::var::string("JWT"));
+			payload->set("iss", core::var::string(issuer));
+			payload->set("sub", core::var::string(subject));
+			payload->set("exp", core::var::integer(expiration));
 		}
-		WebToken::~WebToken() noexcept
+		web_token::~web_token() noexcept
 		{
-			Core::Memory::Release(Header);
-			Core::Memory::Release(Payload);
-			Core::Memory::Release(Token);
+			core::memory::release(header);
+			core::memory::release(payload);
+			core::memory::release(token);
 		}
-		void WebToken::Unsign()
+		void web_token::unsign()
 		{
-			Signature.clear();
-			Data.clear();
+			signature.clear();
+			data.clear();
 		}
-		void WebToken::SetAlgorithm(const std::string_view& Value)
+		void web_token::set_algorithm(const std::string_view& value)
 		{
-			if (!Header)
-				Header = Core::Var::Set::Object();
+			if (!header)
+				header = core::var::set::object();
 
-			Header->Set("alg", Core::Var::String(Value));
-			Unsign();
+			header->set("alg", core::var::string(value));
+			unsign();
 		}
-		void WebToken::SetType(const std::string_view& Value)
+		void web_token::set_type(const std::string_view& value)
 		{
-			if (!Header)
-				Header = Core::Var::Set::Object();
+			if (!header)
+				header = core::var::set::object();
 
-			Header->Set("typ", Core::Var::String(Value));
-			Unsign();
+			header->set("typ", core::var::string(value));
+			unsign();
 		}
-		void WebToken::SetContentType(const std::string_view& Value)
+		void web_token::set_content_type(const std::string_view& value)
 		{
-			if (!Header)
-				Header = Core::Var::Set::Object();
+			if (!header)
+				header = core::var::set::object();
 
-			Header->Set("cty", Core::Var::String(Value));
-			Unsign();
+			header->set("cty", core::var::string(value));
+			unsign();
 		}
-		void WebToken::SetIssuer(const std::string_view& Value)
+		void web_token::set_issuer(const std::string_view& value)
 		{
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("iss", Core::Var::String(Value));
-			Unsign();
+			payload->set("iss", core::var::string(value));
+			unsign();
 		}
-		void WebToken::SetSubject(const std::string_view& Value)
+		void web_token::set_subject(const std::string_view& value)
 		{
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("sub", Core::Var::String(Value));
-			Unsign();
+			payload->set("sub", core::var::string(value));
+			unsign();
 		}
-		void WebToken::SetId(const std::string_view& Value)
+		void web_token::set_id(const std::string_view& value)
 		{
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("jti", Core::Var::String(Value));
-			Unsign();
+			payload->set("jti", core::var::string(value));
+			unsign();
 		}
-		void WebToken::SetAudience(const Core::Vector<Core::String>& Value)
+		void web_token::set_audience(const core::vector<core::string>& value)
 		{
-			Core::Schema* Array = Core::Var::Set::Array();
-			for (auto& Item : Value)
-				Array->Push(Core::Var::String(Item));
+			core::schema* array = core::var::set::array();
+			for (auto& item : value)
+				array->push(core::var::string(item));
 
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("aud", Array);
-			Unsign();
+			payload->set("aud", array);
+			unsign();
 		}
-		void WebToken::SetExpiration(int64_t Value)
+		void web_token::set_expiration(int64_t value)
 		{
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("exp", Core::Var::Integer(Value));
-			Unsign();
+			payload->set("exp", core::var::integer(value));
+			unsign();
 		}
-		void WebToken::SetNotBefore(int64_t Value)
+		void web_token::set_not_before(int64_t value)
 		{
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("nbf", Core::Var::Integer(Value));
-			Unsign();
+			payload->set("nbf", core::var::integer(value));
+			unsign();
 		}
-		void WebToken::SetCreated(int64_t Value)
+		void web_token::set_created(int64_t value)
 		{
-			if (!Payload)
-				Payload = Core::Var::Set::Object();
+			if (!payload)
+				payload = core::var::set::object();
 
-			Payload->Set("iat", Core::Var::Integer(Value));
-			Unsign();
+			payload->set("iat", core::var::integer(value));
+			unsign();
 		}
-		void WebToken::SetRefreshToken(const std::string_view& Value, const PrivateKey& Key, const PrivateKey& Salt)
+		void web_token::set_refresh_token(const std::string_view& value, const secret_box& key, const secret_box& salt)
 		{
-			Core::Memory::Release(Token);
-			auto NewToken = Crypto::DocDecrypt(Value, Key, Salt);
-			if (NewToken)
+			core::memory::release(token);
+			auto new_token = crypto::doc_decrypt(value, key, salt);
+			if (new_token)
 			{
-				Token = *NewToken;
-				Refresher.assign(Value);
+				token = *new_token;
+				refresher.assign(value);
 			}
 			else
 			{
-				Token = nullptr;
-				Refresher.clear();
+				token = nullptr;
+				refresher.clear();
 			}
 		}
-		bool WebToken::Sign(const PrivateKey& Key)
+		bool web_token::sign(const secret_box& key)
 		{
-			VI_ASSERT(Header != nullptr, "header should be set");
-			VI_ASSERT(Payload != nullptr, "payload should be set");
-			if (!Data.empty())
+			VI_ASSERT(header != nullptr, "header should be set");
+			VI_ASSERT(payload != nullptr, "payload should be set");
+			if (!data.empty())
 				return true;
 
-			auto NewData = Crypto::JWTEncode(this, Key);
-			if (!NewData)
+			auto new_data = crypto::jwt_encode(this, key);
+			if (!new_data)
 				return false;
 
-			Data = *NewData;
-			return !Data.empty();
+			data = *new_data;
+			return !data.empty();
 		}
-		ExpectsCrypto<Core::String> WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
+		expects_crypto<core::string> web_token::get_refresh_token(const secret_box& key, const secret_box& salt)
 		{
-			auto NewToken = Crypto::DocEncrypt(Token, Key, Salt);
-			if (!NewToken)
-				return NewToken;
+			auto new_token = crypto::doc_encrypt(token, key, salt);
+			if (!new_token)
+				return new_token;
 
-			Refresher = *NewToken;
-			return Refresher;
+			refresher = *new_token;
+			return refresher;
 		}
-		bool WebToken::IsValid() const
+		bool web_token::is_valid() const
 		{
-			if (!Header || !Payload || Signature.empty())
+			if (!header || !payload || signature.empty())
 				return false;
 
-			int64_t Expires = Payload->GetVar("exp").GetInteger();
-			return time(nullptr) < Expires;
+			int64_t expires = payload->get_var("exp").get_integer();
+			return time(nullptr) < expires;
 		}
 
-		Preprocessor::Preprocessor() noexcept : Nested(false)
+		preprocessor::preprocessor() noexcept : nested(false)
 		{
-			Core::Vector<std::pair<Core::String, Condition>> Controls =
+			core::vector<std::pair<core::string, condition>> controls =
 			{
-				std::make_pair(Core::String("ifdef"), Condition::Exists),
-				std::make_pair(Core::String("ifndef"), Condition::NotExists),
-				std::make_pair(Core::String("ifeq"), Condition::Equals),
-				std::make_pair(Core::String("ifneq"), Condition::NotEquals),
-				std::make_pair(Core::String("ifgt"), Condition::Greater),
-				std::make_pair(Core::String("ifngt"), Condition::NotGreater),
-				std::make_pair(Core::String("ifgte"), Condition::GreaterEquals),
-				std::make_pair(Core::String("ifngte"), Condition::NotGreaterEquals),
-				std::make_pair(Core::String("iflt"), Condition::Less),
-				std::make_pair(Core::String("ifnlt"), Condition::NotLess),
-				std::make_pair(Core::String("iflte"), Condition::LessEquals),
-				std::make_pair(Core::String("ifnlte"), Condition::NotLessEquals),
-				std::make_pair(Core::String("iflte"), Condition::LessEquals),
-				std::make_pair(Core::String("ifnlte"), Condition::NotLessEquals)
+				std::make_pair(core::string("ifdef"), condition::exists),
+				std::make_pair(core::string("ifndef"), condition::not_exists),
+				std::make_pair(core::string("ifeq"), condition::equals),
+				std::make_pair(core::string("ifneq"), condition::not_equals),
+				std::make_pair(core::string("ifgt"), condition::greater),
+				std::make_pair(core::string("ifngt"), condition::not_greater),
+				std::make_pair(core::string("ifgte"), condition::greater_equals),
+				std::make_pair(core::string("ifngte"), condition::not_greater_equals),
+				std::make_pair(core::string("iflt"), condition::less),
+				std::make_pair(core::string("ifnlt"), condition::not_less),
+				std::make_pair(core::string("iflte"), condition::less_equals),
+				std::make_pair(core::string("ifnlte"), condition::not_less_equals),
+				std::make_pair(core::string("iflte"), condition::less_equals),
+				std::make_pair(core::string("ifnlte"), condition::not_less_equals)
 			};
 
-			ControlFlow.reserve(Controls.size() * 2 + 2);
-			ControlFlow["else"] = std::make_pair(Condition::Exists, Controller::Else);
-			ControlFlow["endif"] = std::make_pair(Condition::NotExists, Controller::EndIf);
+			control_flow.reserve(controls.size() * 2 + 2);
+			control_flow["else"] = std::make_pair(condition::exists, controller::else_case);
+			control_flow["endif"] = std::make_pair(condition::not_exists, controller::end_if);
 
-			for (auto& Item : Controls)
+			for (auto& item : controls)
 			{
-				ControlFlow[Item.first] = std::make_pair(Item.second, Controller::StartIf);
-				ControlFlow["el" + Item.first] = std::make_pair(Item.second, Controller::ElseIf);
+				control_flow[item.first] = std::make_pair(item.second, controller::start_if);
+				control_flow["el" + item.first] = std::make_pair(item.second, controller::else_if);
 			}
 		}
-		void Preprocessor::SetIncludeOptions(const IncludeDesc& NewDesc)
+		void preprocessor::set_include_options(const include_desc& new_desc)
 		{
-			FileDesc = NewDesc;
+			file_desc = new_desc;
 		}
-		void Preprocessor::SetIncludeCallback(ProcIncludeCallback&& Callback)
+		void preprocessor::set_include_callback(proc_include_callback&& callback)
 		{
-			Include = std::move(Callback);
+			include = std::move(callback);
 		}
-		void Preprocessor::SetPragmaCallback(ProcPragmaCallback&& Callback)
+		void preprocessor::set_pragma_callback(proc_pragma_callback&& callback)
 		{
-			Pragma = std::move(Callback);
+			pragma = std::move(callback);
 		}
-		void Preprocessor::SetDirectiveCallback(const std::string_view& Name, ProcDirectiveCallback&& Callback)
+		void preprocessor::set_directive_callback(const std::string_view& name, proc_directive_callback&& callback)
 		{
-			auto It = Directives.find(Core::KeyLookupCast(Name));
-			if (It != Directives.end())
+			auto it = directives.find(core::key_lookup_cast(name));
+			if (it != directives.end())
 			{
-				if (Callback)
-					It->second = std::move(Callback);
+				if (callback)
+					it->second = std::move(callback);
 				else
-					Directives.erase(It);
+					directives.erase(it);
 			}
-			else if (Callback)
-				Directives[Core::String(Name)] = std::move(Callback);
+			else if (callback)
+				directives[core::string(name)] = std::move(callback);
 			else
-				Directives.erase(Core::String(Name));
+				directives.erase(core::string(name));
 		}
-		void Preprocessor::SetFeatures(const Desc& F)
+		void preprocessor::set_features(const desc& f)
 		{
-			Features = F;
+			features = f;
 		}
-		void Preprocessor::AddDefaultDefinitions()
+		void preprocessor::add_default_definitions()
 		{
-			DefineDynamic("__VERSION__", [](Preprocessor*, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
+			define_dynamic("__VERSION__", [](preprocessor*, const core::vector<core::string>& args) -> expects_preprocessor<core::string>
 			{
-				return Core::ToString<size_t>(Vitex::VERSION);
+				return core::to_string<size_t>(vitex::version);
 			});
-			DefineDynamic("__DATE__", [](Preprocessor*, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
+			define_dynamic("__DATE__", [](preprocessor*, const core::vector<core::string>& args) -> expects_preprocessor<core::string>
 			{
-				return EscapeText(Core::DateTime::SerializeLocal(Core::DateTime::Now(), "%b %d %Y"));
+				return escape_text(core::date_time::serialize_local(core::date_time::now(), "%b %d %Y"));
 			});
-			DefineDynamic("__FILE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
+			define_dynamic("__FILE__", [](preprocessor* base, const core::vector<core::string>& args) -> expects_preprocessor<core::string>
 			{
-				Core::String Path = Base->GetCurrentFilePath();
-				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
+				core::string path = base->get_current_file_path();
+				return escape_text(core::stringify::replace(path, "\\", "\\\\"));
 			});
-			DefineDynamic("__LINE__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
+			define_dynamic("__LINE__", [](preprocessor* base, const core::vector<core::string>& args) -> expects_preprocessor<core::string>
 			{
-				return Core::ToString<size_t>(Base->GetCurrentLineNumber());
+				return core::to_string<size_t>(base->get_current_line_number());
 			});
-			DefineDynamic("__DIRECTORY__", [](Preprocessor* Base, const Core::Vector<Core::String>& Args) -> ExpectsPreprocessor<Core::String>
+			define_dynamic("__DIRECTORY__", [](preprocessor* base, const core::vector<core::string>& args) -> expects_preprocessor<core::string>
 			{
-				Core::String Path = Core::OS::Path::GetDirectory(Base->GetCurrentFilePath().c_str());
-				if (!Path.empty() && (Path.back() == '\\' || Path.back() == '/'))
-					Path.erase(Path.size() - 1, 1);
-				return EscapeText(Core::Stringify::Replace(Path, "\\", "\\\\"));
+				core::string path = core::os::path::get_directory(base->get_current_file_path().c_str());
+				if (!path.empty() && (path.back() == '\\' || path.back() == '/'))
+					path.erase(path.size() - 1, 1);
+				return escape_text(core::stringify::replace(path, "\\", "\\\\"));
 			});
 		}
-		ExpectsPreprocessor<void> Preprocessor::Define(const std::string_view& Expression)
+		expects_preprocessor<void> preprocessor::define(const std::string_view& expression)
 		{
-			return DefineDynamic(Expression, nullptr);
+			return define_dynamic(expression, nullptr);
 		}
-		ExpectsPreprocessor<void> Preprocessor::DefineDynamic(const std::string_view& Expression, ProcExpansionCallback&& Callback)
+		expects_preprocessor<void> preprocessor::define_dynamic(const std::string_view& expression, proc_expansion_callback&& callback)
 		{
-			if (Expression.empty())
-				return PreprocessorException(PreprocessorError::MacroDefinitionEmpty, 0, ThisFile.Path);
+			if (expression.empty())
+				return preprocessor_exception(preprocessor_error::macro_definition_empty, 0, this_file.path);
 
-			VI_TRACE("[proc] define %.*s on 0x%" PRIXPTR, (int)Expression.size(), Expression.data(), (void*)this);
-			Core::String Name; size_t NameOffset = 0;
-			while (NameOffset < Expression.size())
+			VI_TRACE("[proc] define %.*s on 0x%" PRIXPTR, (int)expression.size(), expression.data(), (void*)this);
+			core::string name; size_t name_offset = 0;
+			while (name_offset < expression.size())
 			{
-				char V = Expression[NameOffset++];
-				if (V != '_' && !Core::Stringify::IsAlphanum(V))
+				char v = expression[name_offset++];
+				if (v != '_' && !core::stringify::is_alphanum(v))
 				{
-					Name = Expression.substr(0, --NameOffset);
+					name = expression.substr(0, --name_offset);
 					break;
 				}
-				else if (NameOffset >= Expression.size())
+				else if (name_offset >= expression.size())
 				{
-					Name = Expression.substr(0, NameOffset);
+					name = expression.substr(0, name_offset);
 					break;
 				}
 			}
 
-			bool EmptyParenthesis = false;
-			if (Name.empty())
-				return PreprocessorException(PreprocessorError::MacroNameEmpty, 0, ThisFile.Path);
+			bool empty_parenthesis = false;
+			if (name.empty())
+				return preprocessor_exception(preprocessor_error::macro_name_empty, 0, this_file.path);
 
-			Definition Data; size_t TemplateBegin = NameOffset, TemplateEnd = NameOffset + 1;
-			if (TemplateBegin < Expression.size() && Expression[TemplateBegin] == '(')
+			definition data; size_t template_begin = name_offset, template_end = name_offset + 1;
+			if (template_begin < expression.size() && expression[template_begin] == '(')
 			{
-				int32_t Pose = 1;
-				while (TemplateEnd < Expression.size() && Pose > 0)
+				int32_t pose = 1;
+				while (template_end < expression.size() && pose > 0)
 				{
-					char V = Expression[TemplateEnd++];
-					if (V == '(')
-						++Pose;
-					else if (V == ')')
-						--Pose;
+					char v = expression[template_end++];
+					if (v == '(')
+						++pose;
+					else if (v == ')')
+						--pose;
 				}
 
-				if (Pose < 0)
-					return PreprocessorException(PreprocessorError::MacroParenthesisDoubleClosed, 0, Expression);
-				else if (Pose > 1)
-					return PreprocessorException(PreprocessorError::MacroParenthesisNotClosed, 0, Expression);
+				if (pose < 0)
+					return preprocessor_exception(preprocessor_error::macro_parenthesis_double_closed, 0, expression);
+				else if (pose > 1)
+					return preprocessor_exception(preprocessor_error::macro_parenthesis_not_closed, 0, expression);
 
-				Core::String Template = Core::String(Expression.substr(0, TemplateEnd));
-				Core::Stringify::Trim(Template);
+				core::string pattern = core::string(expression.substr(0, template_end));
+				core::stringify::trim(pattern);
 
-				if (!ParseArguments(Template, Data.Tokens, false) || Data.Tokens.empty())
-					return PreprocessorException(PreprocessorError::MacroDefinitionError, 0, Template);
+				if (!parse_arguments(pattern, data.tokens, false) || data.tokens.empty())
+					return preprocessor_exception(preprocessor_error::macro_definition_error, 0, pattern);
 
-				Data.Tokens.erase(Data.Tokens.begin());
-				EmptyParenthesis = Data.Tokens.empty();
+				data.tokens.erase(data.tokens.begin());
+				empty_parenthesis = data.tokens.empty();
 			}
 
-			Core::Stringify::Trim(Name);
-			if (TemplateEnd < Expression.size())
+			core::stringify::trim(name);
+			if (template_end < expression.size())
 			{
-				Data.Expansion = Expression.substr(TemplateEnd);
-				Core::Stringify::Trim(Data.Expansion);
+				data.expansion = expression.substr(template_end);
+				core::stringify::trim(data.expansion);
 			}
 
-			if (EmptyParenthesis)
-				Name += "()";
+			if (empty_parenthesis)
+				name += "()";
 
-			size_t Size = Data.Expansion.size();
-			Data.Callback = std::move(Callback);
+			size_t size = data.expansion.size();
+			data.callback = std::move(callback);
 
-			if (Size > 0)
-				ExpandDefinitions(Data.Expansion, Size);
+			if (size > 0)
+				expand_definitions(data.expansion, size);
 
-			Defines[Name] = std::move(Data);
-			return Core::Expectation::Met;
+			defines[name] = std::move(data);
+			return core::expectation::met;
 		}
-		void Preprocessor::Undefine(const std::string_view& Name)
+		void preprocessor::undefine(const std::string_view& name)
 		{
-			VI_TRACE("[proc] undefine %.*s on 0x%" PRIXPTR, (int)Name.size(), Name.data(), (void*)this);
-			auto It = Defines.find(Core::KeyLookupCast(Name));
-			if (It != Defines.end())
-				Defines.erase(It);
+			VI_TRACE("[proc] undefine %.*s on 0x%" PRIXPTR, (int)name.size(), name.data(), (void*)this);
+			auto it = defines.find(core::key_lookup_cast(name));
+			if (it != defines.end())
+				defines.erase(it);
 		}
-		void Preprocessor::Clear()
+		void preprocessor::clear()
 		{
-			Defines.clear();
-			Sets.clear();
-			ThisFile.Path.clear();
-			ThisFile.Line = 0;
+			defines.clear();
+			sets.clear();
+			this_file.path.clear();
+			this_file.line = 0;
 		}
-		bool Preprocessor::IsDefined(const std::string_view& Name) const
+		bool preprocessor::is_defined(const std::string_view& name) const
 		{
-			bool Exists = Defines.count(Core::KeyLookupCast(Name)) > 0;
-			VI_TRACE("[proc] ifdef %.*s on 0x%: %s" PRIXPTR, (int)Name.size(), Name.data(), (void*)this, Exists ? "yes" : "no");
-			return Exists;
+			bool exists = defines.count(core::key_lookup_cast(name)) > 0;
+			VI_TRACE("[proc] ifdef %.*s on 0x%: %s" PRIXPTR, (int)name.size(), name.data(), (void*)this, exists ? "yes" : "no");
+			return exists;
 		}
-		bool Preprocessor::IsDefined(const std::string_view& Name, const std::string_view& Value) const
+		bool preprocessor::is_defined(const std::string_view& name, const std::string_view& value) const
 		{
-			auto It = Defines.find(Core::KeyLookupCast(Name));
-			if (It != Defines.end())
-				return It->second.Expansion == Value;
+			auto it = defines.find(core::key_lookup_cast(name));
+			if (it != defines.end())
+				return it->second.expansion == value;
 
-			return Value.empty();
+			return value.empty();
 		}
-		ExpectsPreprocessor<void> Preprocessor::Process(const std::string_view& Path, Core::String& Data)
+		expects_preprocessor<void> preprocessor::process(const std::string_view& path, core::string& data)
 		{
-			bool Nesting = SaveResult();
-			if (Data.empty() || (!Path.empty() && HasResult(Path)))
+			bool nesting = save_result();
+			if (data.empty() || (!path.empty() && has_result(path)))
 			{
-				ApplyResult(Nesting);
-				return Core::Expectation::Met;
+				apply_result(nesting);
+				return core::expectation::met;
 			}
 
-			FileContext LastFile = ThisFile;
-			ThisFile.Path = Path;
-			ThisFile.Line = 0;
+			file_context last_file = this_file;
+			this_file.path = path;
+			this_file.line = 0;
 
-			if (!Path.empty())
-				Sets.insert(Core::String(Path));
+			if (!path.empty())
+				sets.insert(core::string(path));
 
-			auto TokensStatus = ConsumeTokens(Path, Data);
-			if (!TokensStatus)
+			auto tokens_status = consume_tokens(path, data);
+			if (!tokens_status)
 			{
-				ThisFile = LastFile;
-				ApplyResult(Nesting);
-				return TokensStatus;
+				this_file = last_file;
+				apply_result(nesting);
+				return tokens_status;
 			}
 
-			size_t Size = Data.size();
-			auto ExpansionStatus = ExpandDefinitions(Data, Size);
-			if (!ExpansionStatus)
+			size_t size = data.size();
+			auto expansion_status = expand_definitions(data, size);
+			if (!expansion_status)
 			{
-				ThisFile = LastFile;
-				ApplyResult(Nesting);
-				return ExpansionStatus;
+				this_file = last_file;
+				apply_result(nesting);
+				return expansion_status;
 			}
 
-			ThisFile = LastFile;
-			ApplyResult(Nesting);
-			return Core::Expectation::Met;
+			this_file = last_file;
+			apply_result(nesting);
+			return core::expectation::met;
 		}
-		void Preprocessor::ApplyResult(bool WasNested)
+		void preprocessor::apply_result(bool was_nested)
 		{
-			Nested = WasNested;
-			if (!Nested)
+			nested = was_nested;
+			if (!nested)
 			{
-				Sets.clear();
-				ThisFile.Path.clear();
-				ThisFile.Line = 0;
+				sets.clear();
+				this_file.path.clear();
+				this_file.line = 0;
 			}
 		}
-		bool Preprocessor::HasResult(const std::string_view& Path)
+		bool preprocessor::has_result(const std::string_view& path)
 		{
-			return Path != ThisFile.Path && Sets.count(Core::KeyLookupCast(Path)) > 0;
+			return path != this_file.path && sets.count(core::key_lookup_cast(path)) > 0;
 		}
-		bool Preprocessor::SaveResult()
+		bool preprocessor::save_result()
 		{
-			bool Nesting = Nested;
-			Nested = true;
+			bool nesting = nested;
+			nested = true;
 
-			return Nesting;
+			return nesting;
 		}
-		ProcDirective Preprocessor::FindNextToken(Core::String& Buffer, size_t& Offset)
+		proc_directive preprocessor::find_next_token(core::string& buffer, size_t& offset)
 		{
-			bool HasMultilineComments = !Features.MultilineCommentBegin.empty() && !Features.MultilineCommentEnd.empty();
-			bool HasComments = !Features.CommentBegin.empty();
-			bool HasStringLiterals = !Features.StringLiterals.empty();
-			ProcDirective Result;
+			bool has_multiline_comments = !features.multiline_comment_begin.empty() && !features.multiline_comment_end.empty();
+			bool has_comments = !features.comment_begin.empty();
+			bool has_string_literals = !features.string_literals.empty();
+			proc_directive result;
 
-			while (Offset < Buffer.size())
+			while (offset < buffer.size())
 			{
-				char V = Buffer[Offset];
-				if (V == '#' && Offset + 1 < Buffer.size() && !Core::Stringify::IsWhitespace(Buffer[Offset + 1]))
+				char v = buffer[offset];
+				if (v == '#' && offset + 1 < buffer.size() && !core::stringify::is_whitespace(buffer[offset + 1]))
 				{
-					Result.Start = Offset;
-					while (Offset < Buffer.size())
+					result.start = offset;
+					while (offset < buffer.size())
 					{
-						if (Core::Stringify::IsWhitespace(Buffer[++Offset]))
+						if (core::stringify::is_whitespace(buffer[++offset]))
 						{
-							Result.Name = Buffer.substr(Result.Start + 1, Offset - Result.Start - 1);
+							result.name = buffer.substr(result.start + 1, offset - result.start - 1);
 							break;
 						}
 					}
 
-					Result.End = Result.Start;
-					while (Result.End < Buffer.size())
+					result.end = result.start;
+					while (result.end < buffer.size())
 					{
-						char N = Buffer[++Result.End];
-						if (N == '\r' || N == '\n' || Result.End == Buffer.size())
+						char n = buffer[++result.end];
+						if (n == '\r' || n == '\n' || result.end == buffer.size())
 						{
-							Result.Value = Buffer.substr(Offset, Result.End - Offset);
+							result.value = buffer.substr(offset, result.end - offset);
 							break;
 						}
 					}
 
-					Core::Stringify::Trim(Result.Name);
-					Core::Stringify::Trim(Result.Value);
-					if (Result.Value.size() >= 2)
+					core::stringify::trim(result.name);
+					core::stringify::trim(result.value);
+					if (result.value.size() >= 2)
 					{
-						if (HasStringLiterals && Result.Value.front() == Result.Value.back() && Features.StringLiterals.find(Result.Value.front()) != Core::String::npos)
+						if (has_string_literals && result.value.front() == result.value.back() && features.string_literals.find(result.value.front()) != core::string::npos)
 						{
-							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
-							Result.AsScope = true;
+							result.value = result.value.substr(1, result.value.size() - 2);
+							result.as_scope = true;
 						}
-						else if (Result.Value.front() == '<' && Result.Value.back() == '>')
+						else if (result.value.front() == '<' && result.value.back() == '>')
 						{
-							Result.Value = Result.Value.substr(1, Result.Value.size() - 2);
-							Result.AsGlobal = true;
+							result.value = result.value.substr(1, result.value.size() - 2);
+							result.as_global = true;
 						}
 					}
 
-					Result.Found = true;
+					result.found = true;
 					break;
 				}
-				else if (HasMultilineComments && V == Features.MultilineCommentBegin.front() && Offset + Features.MultilineCommentBegin.size() - 1 < Buffer.size())
+				else if (has_multiline_comments && v == features.multiline_comment_begin.front() && offset + features.multiline_comment_begin.size() - 1 < buffer.size())
 				{
-					if (memcmp(Buffer.c_str() + Offset, Features.MultilineCommentBegin.c_str(), sizeof(char) * Features.MultilineCommentBegin.size()) != 0)
-						goto ParseCommentsOrLiterals;
+					if (memcmp(buffer.c_str() + offset, features.multiline_comment_begin.c_str(), sizeof(char) * features.multiline_comment_begin.size()) != 0)
+						goto parse_comments_or_literals;
 
-					Offset += Features.MultilineCommentBegin.size();
-					Offset = Buffer.find(Features.MultilineCommentEnd, Offset);
-					if (Offset == Core::String::npos)
+					offset += features.multiline_comment_begin.size();
+					offset = buffer.find(features.multiline_comment_end, offset);
+					if (offset == core::string::npos)
 					{
-						Offset = Buffer.size();
+						offset = buffer.size();
 						break;
 					}
 					else
-						Offset += Features.MultilineCommentBegin.size();
+						offset += features.multiline_comment_begin.size();
 					continue;
 				}
-				
-			ParseCommentsOrLiterals:
-				if (HasComments && V == Features.CommentBegin.front() && Offset + Features.CommentBegin.size() - 1 < Buffer.size())
-				{
-					if (memcmp(Buffer.c_str() + Offset, Features.CommentBegin.c_str(), sizeof(char) * Features.CommentBegin.size()) != 0)
-						goto ParseLiterals;
 
-					while (Offset < Buffer.size())
+			parse_comments_or_literals:
+				if (has_comments && v == features.comment_begin.front() && offset + features.comment_begin.size() - 1 < buffer.size())
+				{
+					if (memcmp(buffer.c_str() + offset, features.comment_begin.c_str(), sizeof(char) * features.comment_begin.size()) != 0)
+						goto parse_literals;
+
+					while (offset < buffer.size())
 					{
-						char N = Buffer[++Offset];
-						if (N == '\r' || N == '\n')
+						char n = buffer[++offset];
+						if (n == '\r' || n == '\n')
 							break;
 					}
 					continue;
 				}
 
-			ParseLiterals:
-				if (HasStringLiterals && Features.StringLiterals.find(V) != Core::String::npos)
+			parse_literals:
+				if (has_string_literals && features.string_literals.find(v) != core::string::npos)
 				{
-					while (Offset < Buffer.size())
+					while (offset < buffer.size())
 					{
-						if (Buffer[++Offset] == V)
+						if (buffer[++offset] == v)
 							break;
 					}
 				}
-				++Offset;
+				++offset;
 			}
 
-			return Result;
+			return result;
 		}
-		ProcDirective Preprocessor::FindNextConditionalToken(Core::String& Buffer, size_t& Offset)
+		proc_directive preprocessor::find_next_conditional_token(core::string& buffer, size_t& offset)
 		{
-		Retry:
-			ProcDirective Next = FindNextToken(Buffer, Offset);
-			if (!Next.Found)
-				return Next;
+		retry:
+			proc_directive next = find_next_token(buffer, offset);
+			if (!next.found)
+				return next;
 
-			if (ControlFlow.find(Next.Name) == ControlFlow.end())
-				goto Retry;
+			if (control_flow.find(next.name) == control_flow.end())
+				goto retry;
 
-			return Next;
+			return next;
 		}
-		size_t Preprocessor::ReplaceToken(ProcDirective& Where, Core::String& Buffer, const std::string_view& To)
+		size_t preprocessor::replace_token(proc_directive& where, core::string& buffer, const std::string_view& to)
 		{
-			Buffer.replace(Where.Start, Where.End - Where.Start, To);
-			return Where.Start;
+			buffer.replace(where.start, where.end - where.start, to);
+			return where.start;
 		}
-		ExpectsPreprocessor<Core::Vector<Preprocessor::Conditional>> Preprocessor::PrepareConditions(Core::String& Buffer, ProcDirective& Next, size_t& Offset, bool Top)
+		expects_preprocessor<core::vector<preprocessor::conditional>> preprocessor::prepare_conditions(core::string& buffer, proc_directive& next, size_t& offset, bool top)
 		{
-			Core::Vector<Conditional> Conditions;
-			size_t ChildEnding = 0;
+			core::vector<conditional> conditions;
+			size_t child_ending = 0;
 
 			do
 			{
-				auto Control = ControlFlow.find(Next.Name);
-				if (!Conditions.empty())
+				auto control = control_flow.find(next.name);
+				if (!conditions.empty())
 				{
-					auto& Last = Conditions.back();
-					if (!Last.TextEnd)
-						Last.TextEnd = Next.Start;
+					auto& last = conditions.back();
+					if (!last.text_end)
+						last.text_end = next.start;
 				}
 
-				Conditional Block;
-				Block.Type = Control->second.first;
-				Block.Chaining = Control->second.second != Controller::StartIf;
-				Block.Expression = Next.Value;
-				Block.TokenStart = Next.Start;
-				Block.TokenEnd = Next.End;
-				Block.TextStart = Next.End;
+				conditional block;
+				block.type = control->second.first;
+				block.chaining = control->second.second != controller::start_if;
+				block.expression = next.value;
+				block.token_start = next.start;
+				block.token_end = next.end;
+				block.text_start = next.end;
 
-				if (ChildEnding > 0)
+				if (child_ending > 0)
 				{
-					Core::String Text = Buffer.substr(ChildEnding, Block.TokenStart - ChildEnding);
-					if (!Text.empty())
+					core::string text = buffer.substr(child_ending, block.token_start - child_ending);
+					if (!text.empty())
 					{
-						Conditional Subblock;
-						Subblock.Expression = Text;
-						Conditions.back().Childs.emplace_back(std::move(Subblock));
+						conditional subblock;
+						subblock.expression = text;
+						conditions.back().childs.emplace_back(std::move(subblock));
 					}
-					ChildEnding = 0;
+					child_ending = 0;
 				}
 
-				if (Control->second.second == Controller::StartIf)
+				if (control->second.second == controller::start_if)
 				{
-					if (Conditions.empty())
+					if (conditions.empty())
 					{
-						Conditions.emplace_back(std::move(Block));
+						conditions.emplace_back(std::move(block));
 						continue;
 					}
 
-					auto& Base = Conditions.back();
-					auto Listing = PrepareConditions(Buffer, Next, Offset, false);
-					if (!Listing)
-						return Listing;
+					auto& base = conditions.back();
+					auto listing = prepare_conditions(buffer, next, offset, false);
+					if (!listing)
+						return listing;
 
-					size_t LastSize = Base.Childs.size();
-					Base.Childs.reserve(LastSize + Listing->size());
-					for (auto& Item : *Listing)
-						Base.Childs.push_back(Item);
+					size_t last_size = base.childs.size();
+					base.childs.reserve(last_size + listing->size());
+					for (auto& item : *listing)
+						base.childs.push_back(item);
 
-					ChildEnding = Next.End;
-					if (LastSize > 0)
+					child_ending = next.end;
+					if (last_size > 0)
 						continue;
 
-					Core::String Text = Buffer.substr(Base.TokenEnd, Block.TokenStart - Base.TokenEnd);
-					if (!Text.empty())
+					core::string text = buffer.substr(base.token_end, block.token_start - base.token_end);
+					if (!text.empty())
 					{
-						Conditional Subblock;
-						Subblock.Expression = Text;
-						Base.Childs.insert(Base.Childs.begin() + LastSize, std::move(Subblock));
+						conditional subblock;
+						subblock.expression = text;
+						base.childs.insert(base.childs.begin() + last_size, std::move(subblock));
 					}
 					continue;
 				}
-				else if (Control->second.second == Controller::Else)
+				else if (control->second.second == controller::else_case)
 				{
-					Block.Type = (Conditions.empty() ? Condition::Equals : (Condition)(-(int32_t)Conditions.back().Type));
-					if (Conditions.empty())
-						return PreprocessorException(PreprocessorError::ConditionNotOpened, 0, Next.Name);
+					block.type = (conditions.empty() ? condition::equals : (condition)(-(int32_t)conditions.back().type));
+					if (conditions.empty())
+						return preprocessor_exception(preprocessor_error::condition_not_opened, 0, next.name);
 
-					Conditions.emplace_back(std::move(Block));
+					conditions.emplace_back(std::move(block));
 					continue;
 				}
-				else if (Control->second.second == Controller::ElseIf)
+				else if (control->second.second == controller::else_if)
 				{
-					if (Conditions.empty())
-						return PreprocessorException(PreprocessorError::ConditionNotOpened, 0, Next.Name);
+					if (conditions.empty())
+						return preprocessor_exception(preprocessor_error::condition_not_opened, 0, next.name);
 
-					Conditions.emplace_back(std::move(Block));
+					conditions.emplace_back(std::move(block));
 					continue;
 				}
-				else if (Control->second.second == Controller::EndIf)
+				else if (control->second.second == controller::end_if)
 					break;
 
-				return PreprocessorException(PreprocessorError::ConditionError, 0, Next.Name);
-			} while ((Next = FindNextConditionalToken(Buffer, Offset)).Found);
+				return preprocessor_exception(preprocessor_error::condition_error, 0, next.name);
+			} while ((next = find_next_conditional_token(buffer, offset)).found);
 
-			return Conditions;
+			return conditions;
 		}
-		Core::String Preprocessor::Evaluate(Core::String& Buffer, const Core::Vector<Conditional>& Conditions)
+		core::string preprocessor::evaluate(core::string& buffer, const core::vector<conditional>& conditions)
 		{
-			Core::String Result;
-			for (size_t i = 0; i < Conditions.size(); i++)
+			core::string result;
+			for (size_t i = 0; i < conditions.size(); i++)
 			{
-				auto& Next = Conditions[i];
-				int Case = SwitchCase(Next);
-				if (Case == 1)
+				auto& next = conditions[i];
+				int condition = switch_case(next);
+				if (condition == 1)
 				{
-					if (Next.Childs.empty())
-						Result += Buffer.substr(Next.TextStart, Next.TextEnd - Next.TextStart);
+					if (next.childs.empty())
+						result += buffer.substr(next.text_start, next.text_end - next.text_start);
 					else
-						Result += Evaluate(Buffer, Next.Childs);
+						result += evaluate(buffer, next.childs);
 
-					while (i + 1 < Conditions.size() && Conditions[i + 1].Chaining)
+					while (i + 1 < conditions.size() && conditions[i + 1].chaining)
 						++i;
 				}
-				else if (Case == -1)
-					Result += Next.Expression;
+				else if (condition == -1)
+					result += next.expression;
 			}
 
-			return Result;
+			return result;
 		}
-		std::pair<Core::String, Core::String> Preprocessor::GetExpressionParts(const std::string_view& Value)
+		std::pair<core::string, core::string> preprocessor::get_expression_parts(const std::string_view& value)
 		{
-			size_t Offset = 0;
-			while (Offset < Value.size())
+			size_t offset = 0;
+			while (offset < value.size())
 			{
-				char V = Value[Offset];
-				if (!Core::Stringify::IsWhitespace(V))
+				char v = value[offset];
+				if (!core::stringify::is_whitespace(v))
 				{
-					++Offset;
+					++offset;
 					continue;
 				}
 
-				size_t Count = Offset;
-				while (Offset < Value.size() && Core::Stringify::IsWhitespace(Value[++Offset]));
+				size_t count = offset;
+				while (offset < value.size() && core::stringify::is_whitespace(value[++offset]));
 
-				Core::String Right = Core::String(Value.substr(Offset));
-				Core::String Left = Core::String(Value.substr(0, Count));
-				Core::Stringify::Trim(Right);
-				Core::Stringify::Trim(Left);
+				core::string right = core::string(value.substr(offset));
+				core::string left = core::string(value.substr(0, count));
+				core::stringify::trim(right);
+				core::stringify::trim(left);
 
-				if (!Features.StringLiterals.empty() && Right.front() == Right.back() && Features.StringLiterals.find(Right.front()) != Core::String::npos)
+				if (!features.string_literals.empty() && right.front() == right.back() && features.string_literals.find(right.front()) != core::string::npos)
 				{
-					Right = Right.substr(1, Right.size() - 2);
-					Core::Stringify::Trim(Right);
+					right = right.substr(1, right.size() - 2);
+					core::stringify::trim(right);
 				}
 
-				return std::make_pair(Left, Right);
+				return std::make_pair(left, right);
 			}
 
-			Core::String Expression = Core::String(Value);
-			Core::Stringify::Trim(Expression);
-			return std::make_pair(Expression, Core::String());
+			core::string expression = core::string(value);
+			core::stringify::trim(expression);
+			return std::make_pair(expression, core::string());
 		}
-		std::pair<Core::String, Core::String> Preprocessor::UnpackExpression(const std::pair<Core::String, Core::String>& Expression)
+		std::pair<core::string, core::string> preprocessor::unpack_expression(const std::pair<core::string, core::string>& expression)
 		{
-			auto Left = Defines.find(Expression.first);
-			auto Right = Defines.find(Expression.second);
-			return std::make_pair(Left == Defines.end() ? Expression.first : Left->second.Expansion, Right == Defines.end() ? Expression.second : Right->second.Expansion);
+			auto left = defines.find(expression.first);
+			auto right = defines.find(expression.second);
+			return std::make_pair(left == defines.end() ? expression.first : left->second.expansion, right == defines.end() ? expression.second : right->second.expansion);
 		}
-		int Preprocessor::SwitchCase(const Conditional& Value)
+		int preprocessor::switch_case(const conditional& value)
 		{
-			if (Value.Expression.empty())
+			if (value.expression.empty())
 				return 1;
 
-			switch (Value.Type)
+			switch (value.type)
 			{
-				case Condition::Exists:
-					return IsDefined(Value.Expression) ? 1 : 0;
-				case Condition::Equals:
+				case condition::exists:
+					return is_defined(value.expression) ? 1 : 0;
+				case condition::equals:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					return IsDefined(Parts.first, Parts.second) ? 1 : 0;
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					return is_defined(parts.first, parts.second) ? 1 : 0;
 				}
-				case Condition::Greater:
+				case condition::greater:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) > (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) > (right ? *right : 0.0);
 				}
-				case Condition::GreaterEquals:
+				case condition::greater_equals:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) >= (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) >= (right ? *right : 0.0);
 				}
-				case Condition::Less:
+				case condition::less:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) < (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) < (right ? *right : 0.0);
 				}
-				case Condition::LessEquals:
+				case condition::less_equals:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) <= (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) <= (right ? *right : 0.0);
 				}
-				case Condition::NotExists:
-					return !IsDefined(Value.Expression) ? 1 : 0;
-				case Condition::NotEquals:
+				case condition::not_exists:
+					return !is_defined(value.expression) ? 1 : 0;
+				case condition::not_equals:
 				{
-					auto Parts = GetExpressionParts(Value.Expression);
-					return !IsDefined(Parts.first, Parts.second) ? 1 : 0;
+					auto parts = get_expression_parts(value.expression);
+					return !is_defined(parts.first, parts.second) ? 1 : 0;
 				}
-				case Condition::NotGreater:
+				case condition::not_greater:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) <= (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) <= (right ? *right : 0.0);
 				}
-				case Condition::NotGreaterEquals:
+				case condition::not_greater_equals:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) < (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) < (right ? *right : 0.0);
 				}
-				case Condition::NotLess:
+				case condition::not_less:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) >= (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) >= (right ? *right : 0.0);
 				}
-				case Condition::NotLessEquals:
+				case condition::not_less_equals:
 				{
-					auto Parts = UnpackExpression(GetExpressionParts(Value.Expression));
-					auto Left = Core::FromString<double>(Parts.first), Right = Core::FromString<double>(Parts.second);
-					return (Left ? *Left : 0.0) > (Right ? *Right : 0.0);
+					auto parts = unpack_expression(get_expression_parts(value.expression));
+					auto left = core::from_string<double>(parts.first), right = core::from_string<double>(parts.second);
+					return (left ? *left : 0.0) > (right ? *right : 0.0);
 				}
-				case Condition::Text:
+				case condition::text:
 				default:
 					return -1;
 			}
 		}
-		size_t Preprocessor::GetLinesCount(Core::String& Buffer, size_t End)
+		size_t preprocessor::get_lines_count(core::string& buffer, size_t end)
 		{
-			const char* Target = Buffer.c_str();
-			size_t Offset = 0, Lines = 0;
-			while (Offset < End)
+			const char* target = buffer.c_str();
+			size_t offset = 0, lines = 0;
+			while (offset < end)
 			{
-				if (Target[Offset++] == '\n')
-					++Lines;
+				if (target[offset++] == '\n')
+					++lines;
 			}
 
-			return Lines;
+			return lines;
 		}
-		ExpectsPreprocessor<void> Preprocessor::ExpandDefinitions(Core::String& Buffer, size_t& Size)
+		expects_preprocessor<void> preprocessor::expand_definitions(core::string& buffer, size_t& size)
 		{
-			if (!Size || Defines.empty())
-				return Core::Expectation::Met;
+			if (!size || defines.empty())
+				return core::expectation::met;
 
-			Core::Vector<Core::String> Tokens;
-			Core::String Formatter = Buffer.substr(0, Size);
-			Buffer.erase(Buffer.begin(), Buffer.begin() + Size);
+			core::vector<core::string> tokens;
+			core::string formatter = buffer.substr(0, size);
+			buffer.erase(buffer.begin(), buffer.begin() + size);
 
-			for (auto& Item : Defines)
+			for (auto& item : defines)
 			{
-				if (Size < Item.first.size())
+				if (size < item.first.size())
 					continue;
 
-				if (Item.second.Tokens.empty())
+				if (item.second.tokens.empty())
 				{
-					Tokens.clear();
-					if (Item.second.Callback != nullptr)
+					tokens.clear();
+					if (item.second.callback != nullptr)
 					{
-						size_t FoundOffset = Formatter.find(Item.first);
-						size_t TemplateSize = Item.first.size();
-						while (FoundOffset != Core::String::npos)
+						size_t found_offset = formatter.find(item.first);
+						size_t template_size = item.first.size();
+						while (found_offset != core::string::npos)
 						{
-							StoreCurrentLine = [this, &Formatter, FoundOffset, TemplateSize]() { return GetLinesCount(Formatter, FoundOffset + TemplateSize); };
-							auto Status = Item.second.Callback(this, Tokens);
-							if (!Status)
-								return Status.Error();
+							store_current_line = [this, &formatter, found_offset, template_size]() { return get_lines_count(formatter, found_offset + template_size); };
+							auto status = item.second.callback(this, tokens);
+							if (!status)
+								return status.error();
 
-							Formatter.replace(FoundOffset, TemplateSize, *Status);
-							FoundOffset = Formatter.find(Item.first, FoundOffset);
+							formatter.replace(found_offset, template_size, *status);
+							found_offset = formatter.find(item.first, found_offset);
 						}
 					}
 					else
-						Core::Stringify::Replace(Formatter, Item.first, Item.second.Expansion);
+						core::stringify::replace(formatter, item.first, item.second.expansion);
 					continue;
 				}
-				else if (Size < Item.first.size() + 1)
+				else if (size < item.first.size() + 1)
 					continue;
 
-				bool Stringify = Item.second.Expansion.find('#') != Core::String::npos;
-				size_t TemplateStart, Offset = 0; Core::String Needle = Item.first + '(';
-				while ((TemplateStart = Formatter.find(Needle, Offset)) != Core::String::npos)
+				bool stringify = item.second.expansion.find('#') != core::string::npos;
+				size_t template_start, offset = 0; core::string needle = item.first + '(';
+				while ((template_start = formatter.find(needle, offset)) != core::string::npos)
 				{
-					int32_t Pose = 1; size_t TemplateEnd = TemplateStart + Needle.size();
-					while (TemplateEnd < Formatter.size() && Pose > 0)
+					int32_t pose = 1; size_t template_end = template_start + needle.size();
+					while (template_end < formatter.size() && pose > 0)
 					{
-						char V = Formatter[TemplateEnd++];
-						if (V == '(')
-							++Pose;
-						else if (V == ')')
-							--Pose;
+						char v = formatter[template_end++];
+						if (v == '(')
+							++pose;
+						else if (v == ')')
+							--pose;
 					}
 
-					if (Pose < 0)
-						return PreprocessorException(PreprocessorError::MacroExpansionParenthesisDoubleClosed, TemplateStart, ThisFile.Path);
-					else if (Pose > 1)
-						return PreprocessorException(PreprocessorError::MacroExpansionParenthesisNotClosed, TemplateStart, ThisFile.Path);
+					if (pose < 0)
+						return preprocessor_exception(preprocessor_error::macro_expansion_parenthesis_double_closed, template_start, this_file.path);
+					else if (pose > 1)
+						return preprocessor_exception(preprocessor_error::macro_expansion_parenthesis_not_closed, template_start, this_file.path);
 
-					Core::String Template = Formatter.substr(TemplateStart, TemplateEnd - TemplateStart);
-					Tokens.reserve(Item.second.Tokens.size() + 1);
-					Tokens.clear();
+					core::string pattern = formatter.substr(template_start, template_end - template_start);
+					tokens.reserve(item.second.tokens.size() + 1);
+					tokens.clear();
 
-					if (!ParseArguments(Template, Tokens, false) || Tokens.empty())
-						return PreprocessorException(PreprocessorError::MacroExpansionError, TemplateStart, ThisFile.Path);
+					if (!parse_arguments(pattern, tokens, false) || tokens.empty())
+						return preprocessor_exception(preprocessor_error::macro_expansion_error, template_start, this_file.path);
 
-					if (Tokens.size() - 1 != Item.second.Tokens.size())
-						return PreprocessorException(PreprocessorError::MacroExpansionArgumentsError, TemplateStart, Core::Stringify::Text("%i out of %i", (int)Tokens.size() - 1, (int)Item.second.Tokens.size()));
+					if (tokens.size() - 1 != item.second.tokens.size())
+						return preprocessor_exception(preprocessor_error::macro_expansion_arguments_error, template_start, core::stringify::text("%i out of %i", (int)tokens.size() - 1, (int)item.second.tokens.size()));
 
-					Core::String Body;
-					if (Item.second.Callback != nullptr)
+					core::string body;
+					if (item.second.callback != nullptr)
 					{
-						auto Status = Item.second.Callback(this, Tokens);
-						if (!Status)
-							return Status.Error();
-						Body = std::move(*Status);
+						auto status = item.second.callback(this, tokens);
+						if (!status)
+							return status.error();
+						body = std::move(*status);
 					}
 					else
-						Body = Item.second.Expansion;
+						body = item.second.expansion;
 
-					for (size_t i = 0; i < Item.second.Tokens.size(); i++)
+					for (size_t i = 0; i < item.second.tokens.size(); i++)
 					{
-						auto& From = Item.second.Tokens[i];
-						auto& To = Tokens[i + 1];
-						Core::Stringify::Replace(Body, From, To);
-						if (Stringify)
-							Core::Stringify::Replace(Body, "#" + From, '\"' + To + '\"');
+						auto& from = item.second.tokens[i];
+						auto& to = tokens[i + 1];
+						core::stringify::replace(body, from, to);
+						if (stringify)
+							core::stringify::replace(body, "#" + from, '\"' + to + '\"');
 					}
 
-					StoreCurrentLine = [this, &Formatter, TemplateEnd]() { return GetLinesCount(Formatter, TemplateEnd); };
-					Core::Stringify::ReplacePart(Formatter, TemplateStart, TemplateEnd, Body);
-					Offset = TemplateStart + Body.size();
+					store_current_line = [this, &formatter, template_end]() { return get_lines_count(formatter, template_end); };
+					core::stringify::replace_part(formatter, template_start, template_end, body);
+					offset = template_start + body.size();
 				}
 			}
 
-			Size = Formatter.size();
-			Buffer.insert(0, Formatter);
-			return Core::Expectation::Met;
+			size = formatter.size();
+			buffer.insert(0, formatter);
+			return core::expectation::met;
 		}
-		ExpectsPreprocessor<void> Preprocessor::ParseArguments(const std::string_view& Value, Core::Vector<Core::String>& Tokens, bool UnpackLiterals)
+		expects_preprocessor<void> preprocessor::parse_arguments(const std::string_view& value, core::vector<core::string>& tokens, bool unpack_literals)
 		{
-			size_t Where = Value.find('(');
-			if (Where == Core::String::npos || Value.back() != ')')
-				return PreprocessorException(PreprocessorError::MacroDefinitionError, 0, ThisFile.Path);
+			size_t where = value.find('(');
+			if (where == core::string::npos || value.back() != ')')
+				return preprocessor_exception(preprocessor_error::macro_definition_error, 0, this_file.path);
 
-			std::string_view Data = Value.substr(Where + 1, Value.size() - Where - 2);
-			Tokens.emplace_back(Value.substr(0, Where));
-			Where = 0;
+			std::string_view data = value.substr(where + 1, value.size() - where - 2);
+			tokens.emplace_back(value.substr(0, where));
+			where = 0;
 
-			size_t Last = 0;
-			while (Where < Data.size())
+			size_t last = 0;
+			while (where < data.size())
 			{
-				char V = Data[Where];
-				if (V == '\"' || V == '\'')
+				char v = data[where];
+				if (v == '\"' || v == '\'')
 				{
-					while (Where < Data.size())
+					while (where < data.size())
 					{
-						char N = Data[++Where];
-						if (N == V)
+						char n = data[++where];
+						if (n == v)
 							break;
 					}
 
-					if (Where + 1 >= Data.size())
+					if (where + 1 >= data.size())
 					{
-						++Where;
-						goto AddValue;
+						++where;
+						goto add_value;
 					}
 				}
-				else if (V == ',' || Where + 1 >= Data.size())
+				else if (v == ',' || where + 1 >= data.size())
 				{
-				AddValue:
-					Core::String Subvalue = Core::String(Data.substr(Last, Where + 1 >= Data.size() ? Core::String::npos : Where - Last));
-					Core::Stringify::Trim(Subvalue);
+				add_value:
+					core::string subvalue = core::string(data.substr(last, where + 1 >= data.size() ? core::string::npos : where - last));
+					core::stringify::trim(subvalue);
 
-					if (UnpackLiterals && Subvalue.size() >= 2)
+					if (unpack_literals && subvalue.size() >= 2)
 					{
-						if (!Features.StringLiterals.empty() && Subvalue.front() == Subvalue.back() && Features.StringLiterals.find(Subvalue.front()) != Core::String::npos)
-							Tokens.emplace_back(Subvalue.substr(1, Subvalue.size() - 2));
+						if (!features.string_literals.empty() && subvalue.front() == subvalue.back() && features.string_literals.find(subvalue.front()) != core::string::npos)
+							tokens.emplace_back(subvalue.substr(1, subvalue.size() - 2));
 						else
-							Tokens.emplace_back(std::move(Subvalue));
+							tokens.emplace_back(std::move(subvalue));
 					}
 					else
-						Tokens.emplace_back(std::move(Subvalue));
-					Last = Where + 1;
+						tokens.emplace_back(std::move(subvalue));
+					last = where + 1;
 				}
-				++Where;
+				++where;
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		ExpectsPreprocessor<void> Preprocessor::ConsumeTokens(const std::string_view& Path, Core::String& Buffer)
+		expects_preprocessor<void> preprocessor::consume_tokens(const std::string_view& path, core::string& buffer)
 		{
-			size_t Offset = 0;
+			size_t offset = 0;
 			while (true)
 			{
-				auto Next = FindNextToken(Buffer, Offset);
-				if (!Next.Found)
+				auto next = find_next_token(buffer, offset);
+				if (!next.found)
 					break;
 
-				if (Next.Name == "include")
+				if (next.name == "include")
 				{
-					if (!Features.Includes)
-						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Core::String(Path) + " << " + Next.Value);
+					if (!features.includes)
+						return preprocessor_exception(preprocessor_error::include_denied, offset, core::string(path) + " << " + next.value);
 
-					Core::String Subbuffer;
-					FileDesc.Path = Next.Value;
-					FileDesc.From = Path;
+					core::string subbuffer;
+					file_desc.path = next.value;
+					file_desc.from = path;
 
-					IncludeResult File = ResolveInclude(FileDesc, Next.AsGlobal);
-					if (HasResult(File.Module))
+					include_result file = resolve_include(file_desc, next.as_global);
+					if (has_result(file.library))
 					{
-					SuccessfulInclude:
-						Offset = ReplaceToken(Next, Buffer, Subbuffer);
+					successful_include:
+						offset = replace_token(next, buffer, subbuffer);
 						continue;
 					}
 
-					if (!Include)
-						return PreprocessorException(PreprocessorError::IncludeDenied, Offset, Core::String(Path) + " << " + Next.Value);
+					if (!include)
+						return preprocessor_exception(preprocessor_error::include_denied, offset, core::string(path) + " << " + next.value);
 
-					auto Status = Include(this, File, Subbuffer);
-					if (!Status)
-						return Status.Error();
+					auto status = include(this, file, subbuffer);
+					if (!status)
+						return status.error();
 
-					switch (*Status)
+					switch (*status)
 					{
-						case IncludeType::Preprocess:
+						case include_type::preprocess:
 						{
-							VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
-							if (Subbuffer.empty())
-								goto SuccessfulInclude;
+							VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+							if (subbuffer.empty())
+								goto successful_include;
 
-							auto ProcessStatus = Process(File.Module, Subbuffer);
-							if (ProcessStatus)
-								goto SuccessfulInclude;
+							auto process_status = process(file.library, subbuffer);
+							if (process_status)
+								goto successful_include;
 
-							return ProcessStatus;
+							return process_status;
 						}
-						case IncludeType::Unchanged:
-							VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
-							goto SuccessfulInclude;
-						case IncludeType::Virtual:
-							VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
-							Subbuffer.clear();
-							goto SuccessfulInclude;
-						case IncludeType::Error:
+						case include_type::unchanged:
+							VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+							goto successful_include;
+						case include_type::computed:
+							VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+							subbuffer.clear();
+							goto successful_include;
+						case include_type::error:
 						default:
-							return PreprocessorException(PreprocessorError::IncludeNotFound, Offset, Core::String(Path) + " << " + Next.Value);
+							return preprocessor_exception(preprocessor_error::include_not_found, offset, core::string(path) + " << " + next.value);
 					}
 				}
-				else if (Next.Name == "pragma")
+				else if (next.name == "pragma")
 				{
-					Core::Vector<Core::String> Tokens;
-					if (!ParseArguments(Next.Value, Tokens, true) || Tokens.empty())
-						return PreprocessorException(PreprocessorError::PragmaNotFound, Offset, Next.Value);
+					core::vector<core::string> tokens;
+					if (!parse_arguments(next.value, tokens, true) || tokens.empty())
+						return preprocessor_exception(preprocessor_error::pragma_not_found, offset, next.value);
 
-					Core::String Name = Tokens.front();
-					Tokens.erase(Tokens.begin());
-					if (!Pragma)
+					core::string name = tokens.front();
+					tokens.erase(tokens.begin());
+					if (!pragma)
 						continue;
-					
-					auto Status = Pragma(this, Name, Tokens);
-					if (!Status)
-						return Status;
 
-					VI_TRACE("[proc] apply pragma %s on 0x%" PRIXPTR, Buffer.substr(Next.Start, Next.End - Next.Start).c_str(), (void*)this);
-					Offset = ReplaceToken(Next, Buffer, Core::String());
-				}
-				else if (Next.Name == "define")
-				{
-					Define(Next.Value);
-					Offset = ReplaceToken(Next, Buffer, "");
-				}
-				else if (Next.Name == "undef")
-				{
-					Undefine(Next.Value);
-					Offset = ReplaceToken(Next, Buffer, "");
-					if (!ExpandDefinitions(Buffer, Offset))
-						return PreprocessorException(PreprocessorError::DirectiveExpansionError, Offset, Next.Name);
-				}
-				else if (Next.Name.size() >= 2 && Next.Name[0] == 'i' && Next.Name[1] == 'f' && ControlFlow.find(Next.Name) != ControlFlow.end())
-				{
-					size_t Start = Next.Start;
-					auto Conditions = PrepareConditions(Buffer, Next, Offset, true);
-					if (!Conditions)
-						return PreprocessorException(PreprocessorError::ConditionNotClosed, Offset, Next.Name);
+					auto status = pragma(this, name, tokens);
+					if (!status)
+						return status;
 
-					Core::String Result = Evaluate(Buffer, *Conditions);
-					Next.Start = Start; Next.End = Offset;
-					Offset = ReplaceToken(Next, Buffer, Result);
+					VI_TRACE("[proc] apply pragma %s on 0x%" PRIXPTR, buffer.substr(next.start, next.end - next.start).c_str(), (void*)this);
+					offset = replace_token(next, buffer, core::string());
+				}
+				else if (next.name == "define")
+				{
+					define(next.value);
+					offset = replace_token(next, buffer, "");
+				}
+				else if (next.name == "undef")
+				{
+					undefine(next.value);
+					offset = replace_token(next, buffer, "");
+					if (!expand_definitions(buffer, offset))
+						return preprocessor_exception(preprocessor_error::directive_expansion_error, offset, next.name);
+				}
+				else if (next.name.size() >= 2 && next.name[0] == 'i' && next.name[1] == 'f' && control_flow.find(next.name) != control_flow.end())
+				{
+					size_t start = next.start;
+					auto conditions = prepare_conditions(buffer, next, offset, true);
+					if (!conditions)
+						return preprocessor_exception(preprocessor_error::condition_not_closed, offset, next.name);
+
+					core::string result = evaluate(buffer, *conditions);
+					next.start = start; next.end = offset;
+					offset = replace_token(next, buffer, result);
 				}
 				else
 				{
-					auto It = Directives.find(Next.Name);
-					if (It == Directives.end())
+					auto it = directives.find(next.name);
+					if (it == directives.end())
 						continue;
 
-					Core::String Result;
-					auto Status = It->second(this, Next, Result);
-					if (!Status)
-						return Status.Error();
+					core::string result;
+					auto status = it->second(this, next, result);
+					if (!status)
+						return status.error();
 
-					Offset = ReplaceToken(Next, Buffer, Result);
+					offset = replace_token(next, buffer, result);
 				}
 			}
 
-			return Core::Expectation::Met;
+			return core::expectation::met;
 		}
-		ExpectsPreprocessor<Core::String> Preprocessor::ResolveFile(const std::string_view& Path, const std::string_view& IncludePath)
+		expects_preprocessor<core::string> preprocessor::resolve_file(const std::string_view& path, const std::string_view& include_path)
 		{
-			if (!Features.Includes)
-				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Core::String(Path) + " << " + Core::String(IncludePath));
+			if (!features.includes)
+				return preprocessor_exception(preprocessor_error::include_denied, 0, core::string(path) + " << " + core::string(include_path));
 
-			FileContext LastFile = ThisFile;
-			ThisFile.Path = Path;
-			ThisFile.Line = 0;
+			file_context last_file = this_file;
+			this_file.path = path;
+			this_file.line = 0;
 
-			Core::String Subbuffer;
-			FileDesc.Path = IncludePath;
-			FileDesc.From = Path;
+			core::string subbuffer;
+			file_desc.path = include_path;
+			file_desc.from = path;
 
-			IncludeResult File = ResolveInclude(FileDesc, !Core::Stringify::FindOf(IncludePath, ":/\\").Found && !Core::Stringify::Find(IncludePath, "./").Found);
-			if (HasResult(File.Module))
+			include_result file = resolve_include(file_desc, !core::stringify::find_of(include_path, ":/\\").found && !core::stringify::find(include_path, "./").found);
+			if (has_result(file.library))
 			{
-			IncludeResult:
-				ThisFile = LastFile;
-				return Subbuffer;
+			include_result:
+				this_file = last_file;
+				return subbuffer;
 			}
 
-			if (!Include)
+			if (!include)
 			{
-				ThisFile = LastFile;
-				return PreprocessorException(PreprocessorError::IncludeDenied, 0, Core::String(Path) + " << " + Core::String(IncludePath));
+				this_file = last_file;
+				return preprocessor_exception(preprocessor_error::include_denied, 0, core::string(path) + " << " + core::string(include_path));
 			}
 
-			auto Status = Include(this, File, Subbuffer);
-			if (!Status)
+			auto status = include(this, file, subbuffer);
+			if (!status)
 			{
-				ThisFile = LastFile;
-				return Status.Error();
+				this_file = last_file;
+				return status.error();
 			}
 
-			switch (*Status)
+			switch (*status)
 			{
-				case IncludeType::Preprocess:
+				case include_type::preprocess:
 				{
-					VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
-					if (Subbuffer.empty())
-						goto IncludeResult;
+					VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+					if (subbuffer.empty())
+						goto include_result;
 
-					auto ProcessStatus = Process(File.Module, Subbuffer);
-					if (ProcessStatus)
-						goto IncludeResult;
+					auto process_status = process(file.library, subbuffer);
+					if (process_status)
+						goto include_result;
 
-					ThisFile = LastFile;
-					return ProcessStatus.Error();
+					this_file = last_file;
+					return process_status.error();
 				}
-				case IncludeType::Unchanged:
-					VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
-					goto IncludeResult;
-				case IncludeType::Virtual:
-					VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, File.IsRemote ? "remote " : "", File.IsAbstract ? "abstract " : "", File.IsFile ? "file " : "", File.Module.c_str(), (void*)this);
-					Subbuffer.clear();
-					goto IncludeResult;
-				case IncludeType::Error:
+				case include_type::unchanged:
+					VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+					goto include_result;
+				case include_type::computed:
+					VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+					subbuffer.clear();
+					goto include_result;
+				case include_type::error:
 				default:
-					ThisFile = LastFile;
-					return PreprocessorException(PreprocessorError::IncludeNotFound, 0, Core::String(Path) + " << " + Core::String(IncludePath));
+					this_file = last_file;
+					return preprocessor_exception(preprocessor_error::include_not_found, 0, core::string(path) + " << " + core::string(include_path));
 			}
 		}
-		const Core::String& Preprocessor::GetCurrentFilePath() const
+		const core::string& preprocessor::get_current_file_path() const
 		{
-			return ThisFile.Path;
+			return this_file.path;
 		}
-		size_t Preprocessor::GetCurrentLineNumber()
+		size_t preprocessor::get_current_line_number()
 		{
-			if (StoreCurrentLine != nullptr)
+			if (store_current_line != nullptr)
 			{
-				ThisFile.Line = StoreCurrentLine();
-				StoreCurrentLine = nullptr;
+				this_file.line = store_current_line();
+				store_current_line = nullptr;
 			}
 
-			return ThisFile.Line + 1;
+			return this_file.line + 1;
 		}
-		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc, bool AsGlobal)
+		include_result preprocessor::resolve_include(const include_desc& desc, bool as_global)
 		{
-			IncludeResult Result;
-			if (!AsGlobal)
+			include_result result;
+			if (!as_global)
 			{
-				Core::String Base;
-				if (Desc.From.empty())
+				core::string base;
+				if (desc.from.empty())
 				{
-					auto Directory = Core::OS::Directory::GetWorking();
-					if (Directory)
-						Base = *Directory;
+					auto directory = core::os::directory::get_working();
+					if (directory)
+						base = *directory;
 				}
 				else
-					Base = Core::OS::Path::GetDirectory(Desc.From.c_str());
+					base = core::os::path::get_directory(desc.from.c_str());
 
-				bool IsOriginRemote = (Desc.From.empty() ? false : Core::OS::Path::IsRemote(Base.c_str()));
-				bool IsPathRemote = (Desc.Path.empty() ? false : Core::OS::Path::IsRemote(Desc.Path.c_str()));
-				if (IsOriginRemote || IsPathRemote)
+				bool is_origin_remote = (desc.from.empty() ? false : core::os::path::is_remote(base.c_str()));
+				bool is_path_remote = (desc.path.empty() ? false : core::os::path::is_remote(desc.path.c_str()));
+				if (is_origin_remote || is_path_remote)
 				{
-					Result.Module = Desc.Path;
-					Result.IsRemote = true;
-					Result.IsFile = true;
-					if (!IsOriginRemote)
-						return Result;
+					result.library = desc.path;
+					result.is_remote = true;
+					result.is_file = true;
+					if (!is_origin_remote)
+						return result;
 
-					Core::Stringify::Replace(Result.Module, "./", "");
-					Result.Module.insert(0, Base);
-					return Result;
+					core::stringify::replace(result.library, "./", "");
+					result.library.insert(0, base);
+					return result;
 				}
 			}
 
-			if (!Core::Stringify::StartsOf(Desc.Path, "/."))
+			if (!core::stringify::starts_of(desc.path, "/."))
 			{
-				if (AsGlobal || Desc.Path.empty() || Desc.Root.empty())
+				if (as_global || desc.path.empty() || desc.root.empty())
 				{
-					Result.Module = Desc.Path;
-					Result.IsAbstract = true;
-					Core::Stringify::Replace(Result.Module, '\\', '/');
-					return Result;
+					result.library = desc.path;
+					result.is_abstract = true;
+					core::stringify::replace(result.library, '\\', '/');
+					return result;
 				}
 
-				auto Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root, false);
-				if (Module)
+				auto library = core::os::path::resolve(desc.path, desc.root, false);
+				if (library)
 				{
-					Result.Module = *Module;
-					if (Core::OS::File::IsExists(Result.Module.c_str()))
+					result.library = *library;
+					if (core::os::file::is_exists(result.library.c_str()))
 					{
-						Result.IsAbstract = true;
-						Result.IsFile = true;
-						return Result;
+						result.is_abstract = true;
+						result.is_file = true;
+						return result;
 					}
 				}
 
-				for (auto It : Desc.Exts)
+				for (auto it : desc.exts)
 				{
-					Core::String File(Result.Module);
-					if (Result.Module.empty())
+					core::string file(result.library);
+					if (result.library.empty())
 					{
-						auto Target = Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, false);
-						if (!Target)
+						auto target = core::os::path::resolve(desc.path + it, desc.root, false);
+						if (!target)
 							continue;
 
-						File.assign(*Target);
+						file.assign(*target);
 					}
 					else
-						File.append(It);
+						file.append(it);
 
-					if (!Core::OS::File::IsExists(File.c_str()))
+					if (!core::os::file::is_exists(file.c_str()))
 						continue;
 
-					Result.Module = std::move(File);
-					Result.IsAbstract = true;
-					Result.IsFile = true;
-					return Result;
+					result.library = std::move(file);
+					result.is_abstract = true;
+					result.is_file = true;
+					return result;
 				}
 
-				Result.Module = Desc.Path;
-				Result.IsAbstract = true;
-				Core::Stringify::Replace(Result.Module, '\\', '/');
-				return Result;
+				result.library = desc.path;
+				result.is_abstract = true;
+				core::stringify::replace(result.library, '\\', '/');
+				return result;
 			}
-			else if (AsGlobal)
-				return Result;
+			else if (as_global)
+				return result;
 
-			Core::String Base;
-			if (Desc.From.empty())
+			core::string base;
+			if (desc.from.empty())
 			{
-				auto Directory = Core::OS::Directory::GetWorking();
-				if (Directory)
-					Base = *Directory;
+				auto directory = core::os::directory::get_working();
+				if (directory)
+					base = *directory;
 			}
 			else
-				Base = Core::OS::Path::GetDirectory(Desc.From.c_str());
+				base = core::os::path::get_directory(desc.from.c_str());
 
-			auto Module = Core::OS::Path::Resolve(Desc.Path, Base, true);
-			if (Module)
+			auto library = core::os::path::resolve(desc.path, base, true);
+			if (library)
 			{
-				Result.Module = *Module;
-				if (Core::OS::File::IsExists(Result.Module.c_str()))
+				result.library = *library;
+				if (core::os::file::is_exists(result.library.c_str()))
 				{
-					Result.IsFile = true;
-					return Result;
+					result.is_file = true;
+					return result;
 				}
 			}
 
-			for (auto It : Desc.Exts)
+			for (auto it : desc.exts)
 			{
-				Core::String File(Result.Module);
-				if (Result.Module.empty())
+				core::string file(result.library);
+				if (result.library.empty())
 				{
-					auto Target = Core::OS::Path::Resolve(Desc.Path + It, Desc.Root, true);
-					if (!Target)
+					auto target = core::os::path::resolve(desc.path + it, desc.root, true);
+					if (!target)
 						continue;
 
-					File.assign(*Target);
+					file.assign(*target);
 				}
 				else
-					File.append(It);
+					file.append(it);
 
-				if (!Core::OS::File::IsExists(File.c_str()))
+				if (!core::os::file::is_exists(file.c_str()))
 					continue;
 
-				Result.Module = std::move(File);
-				Result.IsFile = true;
-				return Result;
+				result.library = std::move(file);
+				result.is_file = true;
+				return result;
 			}
 
-			Result.Module.clear();
-			return Result;
+			result.library.clear();
+			return result;
 		}
 	}
 }

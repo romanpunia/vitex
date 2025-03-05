@@ -2,11 +2,11 @@
 #define VI_NETWORK_HTTP_H
 #include "../network.h"
 
-namespace Vitex
+namespace vitex
 {
-	namespace Network
+	namespace network
 	{
-		namespace HTTP
+		namespace http
 		{
 			enum
 			{
@@ -15,958 +15,958 @@ namespace Vitex
 				PAYLOAD_SIZE = (size_t)(1024 * 64)
 			};
 
-			enum class Auth
+			enum class auth
 			{
-				Granted,
-				Denied,
-				Unverified
+				granted,
+				denied,
+				unverified
 			};
 
-			enum class WebSocketOp
+			enum class web_socket_op
 			{
-				Continue = 0x00,
-				Text = 0x01,
-				Binary = 0x02,
-				Close = 0x08,
-				Ping = 0x09,
-				Pong = 0x0A
+				next = 0x00,
+				text = 0x01,
+				binary = 0x02,
+				close = 0x08,
+				ping = 0x09,
+				pong = 0x0A
 			};
 
-			enum class WebSocketState
+			enum class web_socket_state
 			{
-				Open,
-				Receive,
-				Process,
-				Close
+				open,
+				receive,
+				process,
+				close
 			};
 
-			enum class CompressionTune
+			enum class compression_tune
 			{
-				Filtered = 1,
-				Huffman = 2,
-				Rle = 3,
-				Fixed = 4,
-				Default = 0
+				filtered = 1,
+				huffman = 2,
+				rle = 3,
+				fixed = 4,
+				placeholder = 0
 			};
 
-			enum class RouteMode
+			enum class route_mode
 			{
-				Exact,
-				Start,
-				Match,
-				End
+				exact,
+				start,
+				match,
+				end
 			};
 
-			template <typename T, T OffsetBasis, T Prime>
-			struct LFNV1AHash
+			template <typename t, t offset_basis, t prime>
+			struct lfnv1a_hash
 			{
-				static_assert(std::is_unsigned<T>::value, "Q needs to be unsigned integer");
+				static_assert(std::is_unsigned<t>::value, "Q needs to be unsigned integer");
 
-				inline T operator()(const void* Address, size_t Size) const noexcept
+				inline t operator()(const void* address, size_t size) const noexcept
 				{
-					const auto Data = static_cast<const uint8_t*>(Address);
-					auto State = OffsetBasis;
-					for (size_t i = 0; i < Size; ++i)
-						State = (State ^ (size_t)tolower(Data[i])) * Prime;
-					return State;
+					const auto data = static_cast<const uint8_t*>(address);
+					auto state = offset_basis;
+					for (size_t i = 0; i < size; ++i)
+						state = (state ^ (size_t)tolower(data[i])) * prime;
+					return state;
 				}
 			};
 
-			template <size_t Bits>
-			struct LFNV1ABits;
+			template <size_t bits>
+			struct lfnv1a_bits;
 
 			template <>
-			struct LFNV1ABits<32> { using type = LFNV1AHash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>; };
+			struct lfnv1a_bits<32> { using type = lfnv1a_hash<uint32_t, UINT32_C(2166136261), UINT32_C(16777619)>; };
 
 			template <>
-			struct LFNV1ABits<64> { using type = LFNV1AHash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>; };
+			struct lfnv1a_bits<64> { using type = lfnv1a_hash<uint64_t, UINT64_C(14695981039346656037), UINT64_C(1099511628211)>; };
 
-			template <size_t Bits>
-			using LFNV1A = typename LFNV1ABits<Bits>::type;
+			template <size_t bits>
+			using LFNV1A = typename lfnv1a_bits<bits>::type;
 
-			struct KimvEqualTo
+			struct kimv_equal_to
 			{
-				typedef Core::String first_argument_type;
-				typedef Core::String second_argument_type;
+				typedef core::string first_argument_type;
+				typedef core::string second_argument_type;
 				typedef bool result_type;
 				using is_transparent = void;
 
-				inline result_type operator()(const Core::String& Left, const Core::String& Right) const noexcept
+				inline result_type operator()(const core::string& left, const core::string& right) const noexcept
 				{
-					return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+					return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin(), [](uint8_t a, uint8_t b) { return tolower(a) == tolower(b); });
 				}
-				inline result_type operator()(const Core::String& Left, const char* Right) const noexcept
+				inline result_type operator()(const core::string& left, const char* right) const noexcept
 				{
-					size_t Size = strlen(Right);
-					return Left.size() == Size && std::equal(Left.begin(), Left.end(), Right, [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+					size_t size = strlen(right);
+					return left.size() == size && std::equal(left.begin(), left.end(), right, [](uint8_t a, uint8_t b) { return tolower(a) == tolower(b); });
 				}
-				inline result_type operator()(const Core::String& Left, const std::string_view& Right) const noexcept
+				inline result_type operator()(const core::string& left, const std::string_view& right) const noexcept
 				{
-					return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+					return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin(), [](uint8_t a, uint8_t b) { return tolower(a) == tolower(b); });
 				}
-				inline result_type operator()(const char* Left, const Core::String& Right) const noexcept
+				inline result_type operator()(const char* left, const core::string& right) const noexcept
 				{
-					size_t Size = strlen(Left);
-					return Size == Right.size() && std::equal(Left, Left + Size, Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+					size_t size = strlen(left);
+					return size == right.size() && std::equal(left, left + size, right.begin(), [](uint8_t a, uint8_t b) { return tolower(a) == tolower(b); });
 				}
-				inline result_type operator()(const std::string_view& Left, const Core::String& Right) const noexcept
+				inline result_type operator()(const std::string_view& left, const core::string& right) const noexcept
 				{
-					return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(), [](uint8_t A, uint8_t B) { return tolower(A) == tolower(B); });
+					return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin(), [](uint8_t a, uint8_t b) { return tolower(a) == tolower(b); });
 				}
 			};
 
-			struct KimvKeyHasher
+			struct kimv_key_hasher
 			{
 				typedef float argument_type;
 				typedef size_t result_type;
 				using is_transparent = void;
 
-				inline result_type operator()(const char* Value) const noexcept
+				inline result_type operator()(const char* value) const noexcept
 				{
-					return LFNV1A<8 * sizeof(size_t)>()(Value, strlen(Value));
+					return LFNV1A<8 * sizeof(size_t)>()(value, strlen(value));
 				}
-				inline result_type operator()(const std::string_view& Value) const noexcept
+				inline result_type operator()(const std::string_view& value) const noexcept
 				{
-					return LFNV1A<8 * sizeof(size_t)>()(Value.data(), Value.size());
+					return LFNV1A<8 * sizeof(size_t)>()(value.data(), value.size());
 				}
-				inline result_type operator()(const Core::String& Value) const noexcept
+				inline result_type operator()(const core::string& value) const noexcept
 				{
-					return LFNV1A<8 * sizeof(size_t)>()(Value.c_str(), Value.size());
+					return LFNV1A<8 * sizeof(size_t)>()(value.c_str(), value.size());
 				}
 			};
 
-			typedef Core::UnorderedMap<Core::String, Core::Vector<Core::String>, KimvKeyHasher, KimvEqualTo> KimvUnorderedMap;
-			typedef std::function<bool(class Connection*)> SuccessCallback;
-			typedef std::function<void(class Connection*, SocketPoll)> HeadersCallback;
-			typedef std::function<bool(class Connection*, SocketPoll, const std::string_view&)> ContentCallback;
-			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
-			typedef std::function<bool(class Connection*, Core::String&)> HeaderCallback;
-			typedef std::function<bool(struct Resource*)> ResourceCallback;
-			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
-			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const std::string_view&)> WebSocketReadCallback;
-			typedef std::function<void(class WebSocketFrame*, bool)> WebSocketStatusCallback;
-			typedef std::function<bool(class WebSocketFrame*)> WebSocketCheckCallback;
+			typedef core::unordered_map<core::string, core::vector<core::string>, kimv_key_hasher, kimv_equal_to> kimv_unordered_map;
+			typedef std::function<bool(class connection*)> success_callback;
+			typedef std::function<void(class connection*, socket_poll)> headers_callback;
+			typedef std::function<bool(class connection*, socket_poll, const std::string_view&)> content_callback;
+			typedef std::function<bool(class connection*, struct credentials*)> authorize_callback;
+			typedef std::function<bool(class connection*, core::string&)> header_callback;
+			typedef std::function<bool(struct resource*)> resource_callback;
+			typedef std::function<void(class web_socket_frame*)> web_socket_callback;
+			typedef std::function<bool(class web_socket_frame*, web_socket_op, const std::string_view&)> web_socket_read_callback;
+			typedef std::function<void(class web_socket_frame*, bool)> web_socket_status_callback;
+			typedef std::function<bool(class web_socket_frame*)> web_socket_check_callback;
 
-			class Parser;
+			class parser;
 
-			class Connection;
+			class connection;
 
-			class Client;
+			class client;
 
-			class RouterEntry;
+			class router_entry;
 
-			class MapRouter;
+			class map_router;
 
-			class Server;
+			class server;
 
-			class Query;
+			class query;
 
-			class WebCodec;
+			class web_codec;
 
-			struct ErrorFile
+			struct error_file
 			{
-				Core::String Pattern;
-				int StatusCode = 0;
+				core::string pattern;
+				int status_code = 0;
 			};
 
-			struct MimeType
+			struct mime_type
 			{
-				Core::String Extension;
-				Core::String Type;
+				core::string extension;
+				core::string type;
 			};
 
-			struct MimeStatic
+			struct mime_static
 			{
-				std::string_view Extension = "";
-				std::string_view Type = "";
+				std::string_view extension = "";
+				std::string_view type = "";
 
-				MimeStatic(const std::string_view& Ext, const std::string_view& T);
+				mime_static(const std::string_view& ext, const std::string_view& t);
 			};
 
-			struct Credentials
+			struct credentials
 			{
-				Core::String Token;
-				Auth Type = Auth::Unverified;
+				core::string token;
+				auth type = auth::unverified;
 			};
 
-			struct Resource
+			struct resource
 			{
-				KimvUnorderedMap Headers;
-				Core::String Path;
-				Core::String Type;
-				Core::String Name;
-				Core::String Key;
-				size_t Length = 0;
-				bool IsInMemory = false;
+				kimv_unordered_map headers;
+				core::string path;
+				core::string type;
+				core::string name;
+				core::string key;
+				size_t length = 0;
+				bool is_in_memory = false;
 
-				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String ComposeHeader(const std::string_view& Key) const;
-				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
-				Core::String* GetHeaderBlob(const std::string_view& Key);
-				std::string_view GetHeader(const std::string_view& Key) const;
-				const Core::String& GetInMemoryContents() const;
+				core::string& put_header(const std::string_view& key, const std::string_view& value);
+				core::string& set_header(const std::string_view& key, const std::string_view& value);
+				core::string compose_header(const std::string_view& key) const;
+				core::vector<core::string>* get_header_ranges(const std::string_view& key);
+				core::string* get_header_blob(const std::string_view& key);
+				std::string_view get_header(const std::string_view& key) const;
+				const core::string& get_in_memory_contents() const;
 			};
 
-			struct Cookie
+			struct cookie
 			{
-				Core::String Name;
-				Core::String Value;
-				Core::String Domain;
-				Core::String Path = "/";
-				Core::String SameSite;
-				Core::String Expires;
-				bool Secure = false;
-				bool HttpOnly = false;
+				core::string name;
+				core::string value;
+				core::string domain;
+				core::string path = "/";
+				core::string same_site;
+				core::string expires;
+				bool secure = false;
+				bool http_only = false;
 
-				void SetExpires(int64_t Time);
-				void SetExpired();
+				void set_expires(int64_t time);
+				void set_expired();
 			};
 
-			struct ContentFrame
+			struct content_frame
 			{
-				Core::Vector<Resource> Resources;
-				Core::Vector<char> Data;
-				size_t Length;
-				size_t Offset;
-				size_t Prefetch;
-				bool Exceeds;
-				bool Limited;
+				core::vector<resource> resources;
+				core::vector<char> data;
+				size_t length;
+				size_t offset;
+				size_t prefetch;
+				bool exceeds;
+				bool limited;
 
-				ContentFrame();
-				ContentFrame(const ContentFrame&) = default;
-				ContentFrame(ContentFrame&&) noexcept = default;
-				ContentFrame& operator= (const ContentFrame&) = default;
-				ContentFrame& operator= (ContentFrame&&) noexcept = default;
-				void Append(const std::string_view& Data);
-				void Assign(const std::string_view& Data);
-				void Prepare(const KimvUnorderedMap& Headers, const uint8_t* Buffer, size_t Size);
-				void Finalize();
-				void Cleanup();
-				Core::ExpectsParser<Core::Unique<Core::Schema>> GetJSON() const;
-				Core::ExpectsParser<Core::Unique<Core::Schema>> GetXML() const;
-				Core::String GetText() const;
-				bool IsFinalized() const;
+				content_frame();
+				content_frame(const content_frame&) = default;
+				content_frame(content_frame&&) noexcept = default;
+				content_frame& operator= (const content_frame&) = default;
+				content_frame& operator= (content_frame&&) noexcept = default;
+				void append(const std::string_view& data);
+				void assign(const std::string_view& data);
+				void prepare(const kimv_unordered_map& headers, const uint8_t* buffer, size_t size);
+				void finalize();
+				void cleanup();
+				core::expects_parser<core::unique<core::schema>> get_json() const;
+				core::expects_parser<core::unique<core::schema>> get_xml() const;
+				core::string get_text() const;
+				bool is_finalized() const;
 			};
 
-			struct RequestFrame
+			struct request_frame
 			{
-				ContentFrame Content;
-				KimvUnorderedMap Cookies;
-				KimvUnorderedMap Headers;
-				Compute::RegexResult Match;
-				Credentials User;
-				Core::String Query;
-				Core::String Path;
-				Core::String Location;
-				Core::String Referrer;
-				char Method[LABEL_SIZE];
-				char Version[LABEL_SIZE];
+				content_frame content;
+				kimv_unordered_map cookies;
+				kimv_unordered_map headers;
+				compute::regex_result match;
+				credentials user;
+				core::string query;
+				core::string path;
+				core::string location;
+				core::string referrer;
+				char method[LABEL_SIZE];
+				char version[LABEL_SIZE];
 
-				RequestFrame();
-				RequestFrame(const RequestFrame&) = default;
-				RequestFrame(RequestFrame&&) noexcept = default;
-				RequestFrame& operator= (const RequestFrame&) = default;
-				RequestFrame& operator= (RequestFrame&&) noexcept = default;
-				void SetMethod(const std::string_view& Value);
-				void SetVersion(uint32_t Major, uint32_t Minor);
-				void Cleanup();
-				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String ComposeHeader(const std::string_view& Key) const;
-				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
-				Core::String* GetHeaderBlob(const std::string_view& Key);
-				std::string_view GetHeader(const std::string_view& Key) const;
-				Core::Vector<Core::String>* GetCookieRanges(const std::string_view& Key);
-				Core::String* GetCookieBlob(const std::string_view& Key);
-				std::string_view GetCookie(const std::string_view& Key) const;
-				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
-				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
+				request_frame();
+				request_frame(const request_frame&) = default;
+				request_frame(request_frame&&) noexcept = default;
+				request_frame& operator= (const request_frame&) = default;
+				request_frame& operator= (request_frame&&) noexcept = default;
+				void set_method(const std::string_view& value);
+				void set_version(uint32_t major, uint32_t minor);
+				void cleanup();
+				core::string& put_header(const std::string_view& key, const std::string_view& value);
+				core::string& set_header(const std::string_view& key, const std::string_view& value);
+				core::string compose_header(const std::string_view& key) const;
+				core::vector<core::string>* get_header_ranges(const std::string_view& key);
+				core::string* get_header_blob(const std::string_view& key);
+				std::string_view get_header(const std::string_view& key) const;
+				core::vector<core::string>* get_cookie_ranges(const std::string_view& key);
+				core::string* get_cookie_blob(const std::string_view& key);
+				std::string_view get_cookie(const std::string_view& key) const;
+				core::vector<std::pair<size_t, size_t>> get_ranges() const;
+				std::pair<size_t, size_t> get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const;
 			};
 
-			struct ResponseFrame
+			struct response_frame
 			{
-				ContentFrame Content;
-				KimvUnorderedMap Headers;
-				Core::Vector<Cookie> Cookies;
-				int StatusCode;
-				bool Error;
+				content_frame content;
+				kimv_unordered_map headers;
+				core::vector<cookie> cookies;
+				int status_code;
+				bool error;
 
-				ResponseFrame();
-				ResponseFrame(const ResponseFrame&) = default;
-				ResponseFrame(ResponseFrame&&) noexcept = default;
-				ResponseFrame& operator= (const ResponseFrame&) = default;
-				ResponseFrame& operator= (ResponseFrame&&) noexcept = default;
-				void SetCookie(const Cookie& Value);
-				void SetCookie(Cookie&& Value);
-				void Cleanup();
-				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String ComposeHeader(const std::string_view& Key) const;
-				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
-				Core::String* GetHeaderBlob(const std::string_view& Key);
-				std::string_view GetHeader(const std::string_view& Key) const;
-				Cookie* GetCookie(const std::string_view& Key);
-				bool IsUndefined() const;
-				bool IsOK() const;
+				response_frame();
+				response_frame(const response_frame&) = default;
+				response_frame(response_frame&&) noexcept = default;
+				response_frame& operator= (const response_frame&) = default;
+				response_frame& operator= (response_frame&&) noexcept = default;
+				void set_cookie(const cookie& value);
+				void set_cookie(cookie&& value);
+				void cleanup();
+				core::string& put_header(const std::string_view& key, const std::string_view& value);
+				core::string& set_header(const std::string_view& key, const std::string_view& value);
+				core::string compose_header(const std::string_view& key) const;
+				core::vector<core::string>* get_header_ranges(const std::string_view& key);
+				core::string* get_header_blob(const std::string_view& key);
+				std::string_view get_header(const std::string_view& key) const;
+				cookie* get_cookie(const std::string_view& key);
+				bool is_undefined() const;
+				bool is_ok() const;
 			};
 
-			struct FetchFrame
+			struct fetch_frame
 			{
-				ContentFrame Content;
-				KimvUnorderedMap Cookies;
-				KimvUnorderedMap Headers;
-				uint64_t Timeout;
-				size_t MaxSize;
-				uint32_t VerifyPeers;
+				content_frame content;
+				kimv_unordered_map cookies;
+				kimv_unordered_map headers;
+				uint64_t timeout;
+				size_t max_size;
+				uint32_t verify_peers;
 
-				FetchFrame();
-				FetchFrame(const FetchFrame&) = default;
-				FetchFrame(FetchFrame&&) noexcept = default;
-				FetchFrame& operator= (const FetchFrame&) = default;
-				FetchFrame& operator= (FetchFrame&&) noexcept = default;
-				void Cleanup();
-				Core::String& PutHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String& SetHeader(const std::string_view& Key, const std::string_view& Value);
-				Core::String ComposeHeader(const std::string_view& Key) const;
-				Core::Vector<Core::String>* GetHeaderRanges(const std::string_view& Key);
-				Core::String* GetHeaderBlob(const std::string_view& Key);
-				std::string_view GetHeader(const std::string_view& Key) const;
-				Core::Vector<Core::String>* GetCookieRanges(const std::string_view& Key);
-				Core::String* GetCookieBlob(const std::string_view& Key);
-				std::string_view GetCookie(const std::string_view& Key) const;
-				Core::Vector<std::pair<size_t, size_t>> GetRanges() const;
-				std::pair<size_t, size_t> GetRange(Core::Vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
+				fetch_frame();
+				fetch_frame(const fetch_frame&) = default;
+				fetch_frame(fetch_frame&&) noexcept = default;
+				fetch_frame& operator= (const fetch_frame&) = default;
+				fetch_frame& operator= (fetch_frame&&) noexcept = default;
+				void cleanup();
+				core::string& put_header(const std::string_view& key, const std::string_view& value);
+				core::string& set_header(const std::string_view& key, const std::string_view& value);
+				core::string compose_header(const std::string_view& key) const;
+				core::vector<core::string>* get_header_ranges(const std::string_view& key);
+				core::string* get_header_blob(const std::string_view& key);
+				std::string_view get_header(const std::string_view& key) const;
+				core::vector<core::string>* get_cookie_ranges(const std::string_view& key);
+				core::string* get_cookie_blob(const std::string_view& key);
+				std::string_view get_cookie(const std::string_view& key) const;
+				core::vector<std::pair<size_t, size_t>> get_ranges() const;
+				std::pair<size_t, size_t> get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const;
 			};
 
-			class WebSocketFrame final : public Core::Reference<WebSocketFrame>
+			class web_socket_frame final : public core::reference<web_socket_frame>
 			{
-				friend class Connection;
+				friend class connection;
 
 			private:
-				enum class Tunnel
+				enum class tunnel
 				{
-					Healthy,
-					Closing,
-					Gone
+					healthy,
+					closing,
+					gone
 				};
 
 			private:
-				struct Message
+				struct message
 				{
-					uint32_t Mask;
-					char* Buffer;
-					size_t Size;
-					WebSocketOp Opcode;
-					WebSocketCallback Callback;
+					uint32_t mask;
+					char* buffer;
+					size_t size;
+					web_socket_op opcode;
+					web_socket_callback callback;
 				};
 
 			public:
 				struct
 				{
-					WebSocketCallback Destroy;
-					WebSocketStatusCallback Close;
-					WebSocketCheckCallback Dead;
-				} Lifetime;
+					web_socket_callback destroy;
+					web_socket_status_callback close;
+					web_socket_check_callback dead;
+				} lifetime;
 
 			private:
-				std::mutex Section;
-				Core::SingleQueue<Message> Messages;
-				Socket* Stream;
-				WebCodec* Codec;
-				std::atomic<uint32_t> State;
-				std::atomic<uint32_t> Tunneling;
-				std::atomic<bool> Active;
-				std::atomic<bool> Deadly;
-				std::atomic<bool> Busy;
+				std::mutex section;
+				core::single_queue<message> messages;
+				socket* stream;
+				web_codec* codec;
+				std::atomic<uint32_t> state;
+				std::atomic<uint32_t> tunneling;
+				std::atomic<bool> active;
+				std::atomic<bool> deadly;
+				std::atomic<bool> busy;
 
 			public:
-				WebSocketCallback Connect;
-				WebSocketCallback BeforeDisconnect;
-				WebSocketCallback Disconnect;
-				WebSocketReadCallback Receive;
-				void* UserData;
+				web_socket_callback connect;
+				web_socket_callback before_disconnect;
+				web_socket_callback disconnect;
+				web_socket_read_callback receive;
+				void* user_data;
 
 			public:
-				WebSocketFrame(Socket* NewStream, void* NewUserData);
-				~WebSocketFrame() noexcept;
-				Core::ExpectsSystem<size_t> Send(const std::string_view& Buffer, WebSocketOp OpCode, WebSocketCallback&& Callback);
-				Core::ExpectsSystem<size_t> Send(uint32_t Mask, const std::string_view& Buffer, WebSocketOp OpCode, WebSocketCallback&& Callback);
-				Core::ExpectsSystem<void> SendClose(WebSocketCallback&& Callback);
-				void Next();
-				bool IsFinished();
-				Socket* GetStream();
-				Connection* GetConnection();
-				Client* GetClient();
+				web_socket_frame(socket* new_stream, void* new_user_data);
+				~web_socket_frame() noexcept;
+				core::expects_system<size_t> send(const std::string_view& buffer, web_socket_op op_code, web_socket_callback&& callback);
+				core::expects_system<size_t> send(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, web_socket_callback&& callback);
+				core::expects_system<void> send_close(web_socket_callback&& callback);
+				void next();
+				bool is_finished();
+				socket* get_stream();
+				connection* get_connection();
+				client* get_client();
 
 			private:
-				void Update();
-				void Finalize();
-				void Dequeue();
-				bool Enqueue(uint32_t Mask, const std::string_view& Buffer, WebSocketOp OpCode, WebSocketCallback&& Callback);
-				bool IsWriteable();
-				bool IsIgnore();
+				void update();
+				void finalize();
+				void dequeue();
+				bool enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, web_socket_callback&& callback);
+				bool is_writeable();
+				bool is_ignore();
 			};
 
-			class RouterGroup final : public Core::Reference<RouterGroup>
+			class router_group final : public core::reference<router_group>
 			{
 			public:
-				Core::String Match;
-				Core::Vector<RouterEntry*> Routes;
-				RouteMode Mode;
+				core::string match;
+				core::vector<router_entry*> routes;
+				route_mode mode;
 
 			public:
-				RouterGroup(const std::string_view& NewMatch, RouteMode NewMode) noexcept;
-				~RouterGroup() noexcept;
+				router_group(const std::string_view& new_match, route_mode new_mode) noexcept;
+				~router_group() noexcept;
 			};
 
-			class RouterEntry final : public Core::Reference<RouterEntry>
+			class router_entry final : public core::reference<router_entry>
 			{
-				friend MapRouter;
+				friend map_router;
 
 			public:
-				struct EntryCallbacks
+				struct entry_callbacks
 				{
-					struct WebSocketCallbacks
+					struct web_socket_callbacks
 					{
-						SuccessCallback Initiate;
-						WebSocketCallback Connect;
-						WebSocketCallback Disconnect;
-						WebSocketReadCallback Receive;
-					} WebSocket;
+						success_callback initiate;
+						web_socket_callback connect;
+						web_socket_callback disconnect;
+						web_socket_read_callback receive;
+					} web_socket;
 
-					SuccessCallback Get;
-					SuccessCallback Post;
-					SuccessCallback Put;
-					SuccessCallback Patch;
-					SuccessCallback Delete;
-					SuccessCallback Options;
-					SuccessCallback Access;
-					HeaderCallback Headers;
-					AuthorizeCallback Authorize;
-				} Callbacks;
+					success_callback get;
+					success_callback post;
+					success_callback put;
+					success_callback patch;
+					success_callback deinit;
+					success_callback options;
+					success_callback access;
+					header_callback headers;
+					authorize_callback authorize;
+				} callbacks;
 
-				struct EntryAuth
+				struct entry_auth
 				{
-					Core::String Type;
-					Core::String Realm;
-					Core::Vector<Core::String> Methods;
-				} Auth;
+					core::string type;
+					core::string realm;
+					core::vector<core::string> methods;
+				} auth;
 
-				struct EntryCompression
+				struct entry_compression
 				{
-					Core::Vector<Compute::RegexSource> Files;
-					CompressionTune Tune = CompressionTune::Default;
-					size_t MinLength = 16384;
-					int QualityLevel = 8;
-					int MemoryLevel = 8;
-					bool Enabled = false;
-				} Compression;
+					core::vector<compute::regex_source> files;
+					compression_tune tune = compression_tune::placeholder;
+					size_t min_length = 16384;
+					int quality_level = 8;
+					int memory_level = 8;
+					bool enabled = false;
+				} compression;
 
 			public:
-				Compute::RegexSource Location;
-				Core::String FilesDirectory;
-				Core::String CharSet = "utf-8";
-				Core::String ProxyIpAddress;
-				Core::String AccessControlAllowOrigin;
-				Core::String Redirect;
-				Core::String Alias;
-				Core::Vector<Compute::RegexSource> HiddenFiles;
-				Core::Vector<ErrorFile> ErrorFiles;
-				Core::Vector<MimeType> MimeTypes;
-				Core::Vector<Core::String> IndexFiles;
-				Core::Vector<Core::String> TryFiles;
-				Core::Vector<Core::String> DisallowedMethods;
-				MapRouter* Router = nullptr;
-				size_t WebSocketTimeout = 30000;
-				size_t StaticFileMaxAge = 604800;
-				size_t Level = 0;
-				bool AllowDirectoryListing = false;
-				bool AllowWebSocket = false;
-				bool AllowSendFile = true;
+				compute::regex_source location;
+				core::string files_directory;
+				core::string char_set = "utf-8";
+				core::string proxy_ip_address;
+				core::string access_control_allow_origin;
+				core::string redirect;
+				core::string alias;
+				core::vector<compute::regex_source> hidden_files;
+				core::vector<error_file> error_files;
+				core::vector<mime_type> mime_types;
+				core::vector<core::string> index_files;
+				core::vector<core::string> try_files;
+				core::vector<core::string> disallowed_methods;
+				map_router* router = nullptr;
+				size_t web_socket_timeout = 30000;
+				size_t static_file_max_age = 604800;
+				size_t level = 0;
+				bool allow_directory_listing = false;
+				bool allow_web_socket = false;
+				bool allow_send_file = true;
 
 			private:
-				static RouterEntry* From(const RouterEntry& Other, const Compute::RegexSource& Source);
+				static router_entry* from(const router_entry& other, const compute::regex_source& source);
 			};
 
-			class MapRouter final : public SocketRouter
+			class map_router final : public socket_router
 			{
 			public:
-				struct RouterSession
+				struct router_session
 				{
-					struct RouterCookie
+					struct router_cookie
 					{
-						Core::String Name = "sid";
-						Core::String Domain;
-						Core::String Path = "/";
-						Core::String SameSite = "Strict";
-						uint64_t Expires = 31536000;
-						bool Secure = false;
-						bool HttpOnly = true;
-					} Cookie;
+						core::string name = "sid";
+						core::string domain;
+						core::string path = "/";
+						core::string same_site = "Strict";
+						uint64_t expires = 31536000;
+						bool secure = false;
+						bool http_only = true;
+					} cookie;
 
-					Core::String Directory;
-					uint64_t Expires = 604800;
-				} Session;
+					core::string directory;
+					uint64_t expires = 604800;
+				} session;
 
-				struct RouterCallbacks
+				struct router_callbacks
 				{
-					std::function<void(MapRouter*)> OnDestroy;
-					SuccessCallback OnLocation;
-				} Callbacks;
+					std::function<void(map_router*)> on_destroy;
+					success_callback on_location;
+				} callbacks;
 
 			public:
-				Core::String TemporaryDirectory = "./temp";
-				Core::Vector<RouterGroup*> Groups;
-				size_t MaxUploadableResources = 10;
-				RouterEntry* Base = nullptr;
+				core::string temporary_directory = "./temp";
+				core::vector<router_group*> groups;
+				size_t max_uploadable_resources = 10;
+				router_entry* base = nullptr;
 
 			public:
-				MapRouter();
-				~MapRouter() override;
-				void Sort();
-				RouterGroup* Group(const std::string_view& Match, RouteMode Mode);
-				RouterEntry* Route(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, bool InheritProps);
-				RouterEntry* Route(const std::string_view& Pattern, RouterGroup* Group, RouterEntry* From);
-				bool Remove(RouterEntry* Source);
-				bool Get(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Get(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Post(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Post(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Put(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Put(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Patch(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Patch(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Delete(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Delete(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Options(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Options(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Access(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Access(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool Headers(const std::string_view& Pattern, HeaderCallback&& Callback);
-				bool Headers(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, HeaderCallback&& Callback);
-				bool Authorize(const std::string_view& Pattern, AuthorizeCallback&& Callback);
-				bool Authorize(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, AuthorizeCallback&& Callback);
-				bool WebSocketInitiate(const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool WebSocketInitiate(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, SuccessCallback&& Callback);
-				bool WebSocketConnect(const std::string_view& Pattern, WebSocketCallback&& Callback);
-				bool WebSocketConnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketCallback&& Callback);
-				bool WebSocketDisconnect(const std::string_view& Pattern, WebSocketCallback&& Callback);
-				bool WebSocketDisconnect(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketCallback&& Callback);
-				bool WebSocketReceive(const std::string_view& Pattern, WebSocketReadCallback&& Callback);
-				bool WebSocketReceive(const std::string_view& Match, RouteMode Mode, const std::string_view& Pattern, WebSocketReadCallback&& Callback);
+				map_router();
+				~map_router() override;
+				void sort();
+				router_group* group(const std::string_view& match, route_mode mode);
+				router_entry* route(const std::string_view& match, route_mode mode, const std::string_view& pattern, bool inherit_props);
+				router_entry* route(const std::string_view& pattern, router_group* group, router_entry* from);
+				bool remove(router_entry* source);
+				bool get(const std::string_view& pattern, success_callback&& callback);
+				bool get(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool post(const std::string_view& pattern, success_callback&& callback);
+				bool post(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool put(const std::string_view& pattern, success_callback&& callback);
+				bool put(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool patch(const std::string_view& pattern, success_callback&& callback);
+				bool patch(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool deinit(const std::string_view& pattern, success_callback&& callback);
+				bool deinit(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool options(const std::string_view& pattern, success_callback&& callback);
+				bool options(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool access(const std::string_view& pattern, success_callback&& callback);
+				bool access(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool headers(const std::string_view& pattern, header_callback&& callback);
+				bool headers(const std::string_view& match, route_mode mode, const std::string_view& pattern, header_callback&& callback);
+				bool authorize(const std::string_view& pattern, authorize_callback&& callback);
+				bool authorize(const std::string_view& match, route_mode mode, const std::string_view& pattern, authorize_callback&& callback);
+				bool web_socket_initiate(const std::string_view& pattern, success_callback&& callback);
+				bool web_socket_initiate(const std::string_view& match, route_mode mode, const std::string_view& pattern, success_callback&& callback);
+				bool web_socket_connect(const std::string_view& pattern, web_socket_callback&& callback);
+				bool web_socket_connect(const std::string_view& match, route_mode mode, const std::string_view& pattern, web_socket_callback&& callback);
+				bool web_socket_disconnect(const std::string_view& pattern, web_socket_callback&& callback);
+				bool web_socket_disconnect(const std::string_view& match, route_mode mode, const std::string_view& pattern, web_socket_callback&& callback);
+				bool web_socket_receive(const std::string_view& pattern, web_socket_read_callback&& callback);
+				bool web_socket_receive(const std::string_view& match, route_mode mode, const std::string_view& pattern, web_socket_read_callback&& callback);
 			};
 
-			class Connection final : public SocketConnection
+			class connection final : public socket_connection
 			{
 			public:
-				RequestFrame Request;
-				ResponseFrame Response;
-				Core::FileEntry Resource;
-				Parser* Resolver = nullptr;
-				WebSocketFrame* WebSocket = nullptr;
-				RouterEntry* Route = nullptr;
-				Server* Root = nullptr;
+				request_frame request;
+				response_frame response;
+				core::file_entry resource;
+				parser* resolver = nullptr;
+				web_socket_frame* web_socket = nullptr;
+				router_entry* route = nullptr;
+				server* root = nullptr;
 
 			public:
-				Connection(Server* Source) noexcept;
-				~Connection() noexcept override;
-				void Reset(bool Fully) override;
-				bool Next() override;
-				bool Next(int StatusCode) override;
-				bool SendHeaders(int StatusCode, bool SpecifyTransferEncoding, HeadersCallback&& Callback);
-				bool SendChunk(const std::string_view& Chunk, HeadersCallback&& Callback);
-				bool Fetch(ContentCallback&& Callback = nullptr, bool Eat = false);
-				bool Store(ResourceCallback&& Callback = nullptr, bool Eat = false);
-				bool Skip(SuccessCallback&& Callback);
-				Core::ExpectsIO<Core::String> GetPeerIpAddress() const;
-				bool IsSkipRequired() const;
+				connection(server* source) noexcept;
+				~connection() noexcept override;
+				void reset(bool fully) override;
+				bool next() override;
+				bool next(int status_code) override;
+				bool send_headers(int status_code, bool specify_transfer_encoding, headers_callback&& callback);
+				bool send_chunk(const std::string_view& chunk, headers_callback&& callback);
+				bool fetch(content_callback&& callback = nullptr, bool eat = false);
+				bool store(resource_callback&& callback = nullptr, bool eat = false);
+				bool skip(success_callback&& callback);
+				core::expects_io<core::string> get_peer_ip_address() const;
+				bool is_skip_required() const;
 
 			private:
-				bool ComposeResponse(bool ApplyErrorResponse, bool ApplyBodyInline, HeadersCallback&& Callback);
-				bool ErrorResponseRequested();
-				bool BodyInliningRequested();
-				bool WaitingForWebSocket();
+				bool compose_response(bool apply_error_response, bool apply_body_inline, headers_callback&& callback);
+				bool error_response_requested();
+				bool body_inlining_requested();
+				bool waiting_for_web_socket();
 			};
 
-			class Query final : public Core::Reference<Query>
+			class query final : public core::reference<query>
 			{
 			private:
-				struct QueryToken
+				struct query_token
 				{
-					char* Value = nullptr;
-					size_t Length = 0;
+					char* value = nullptr;
+					size_t length = 0;
 				};
 
 			public:
-				Core::Schema* Object;
+				core::schema* object;
 
 			public:
-				Query();
-				~Query() noexcept;
-				void Clear();
-				void Steal(Core::Schema** Output);
-				void Decode(const std::string_view& ContentType, const std::string_view& Body);
-				Core::String Encode(const std::string_view& ContentType) const;
-				Core::Schema* Get(const std::string_view& Name) const;
-				Core::Schema* Set(const std::string_view& Name);
-				Core::Schema* Set(const std::string_view& Name, const std::string_view& Value);
+				query();
+				~query() noexcept;
+				void clear();
+				void steal(core::schema** output);
+				void decode(const std::string_view& content_type, const std::string_view& body);
+				core::string encode(const std::string_view& content_type) const;
+				core::schema* get(const std::string_view& name) const;
+				core::schema* set(const std::string_view& name);
+				core::schema* set(const std::string_view& name, const std::string_view& value);
 
 			private:
-				void NewParameter(Core::Vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
-				void DecodeAXWFD(const std::string_view& Body);
-				void DecodeAJSON(const std::string_view& Body);
-				Core::String EncodeAXWFD() const;
-				Core::String EncodeAJSON() const;
-				Core::Schema* GetParameter(QueryToken* Name);
+				void new_parameter(core::vector<query_token>* tokens, const query_token& name, const query_token& value);
+				void decode_axwfd(const std::string_view& body);
+				void decode_ajson(const std::string_view& body);
+				core::string encode_axwfd() const;
+				core::string encode_ajson() const;
+				core::schema* get_parameter(query_token* name);
 
 			private:
-				static Core::String Build(Core::Schema* Base);
-				static Core::String BuildFromBase(Core::Schema* Base);
-				static Core::Schema* FindParameter(Core::Schema* Base, QueryToken* Name);
+				static core::string build(core::schema* base);
+				static core::string build_from_base(core::schema* base);
+				static core::schema* find_parameter(core::schema* base, query_token* name);
 			};
 
-			class Session final : public Core::Reference<Session>
+			class session final : public core::reference<session>
 			{
 			public:
-				Core::String SessionId;
-				Core::Schema* Query = nullptr;
-				int64_t SessionExpires = 0;
+				core::string session_id;
+				core::schema* query = nullptr;
+				int64_t session_expires = 0;
 
 			public:
-				Session();
-				~Session() noexcept;
-				Core::ExpectsSystem<void> Write(Connection* Base);
-				Core::ExpectsSystem<void> Read(Connection* Base);
-				void Clear();
+				session();
+				~session() noexcept;
+				core::expects_system<void> write(connection* base);
+				core::expects_system<void> read(connection* base);
+				void clear();
 
 			private:
-				Core::String& FindSessionId(Connection* Base);
-				Core::String& GenerateSessionId(Connection* Base);
+				core::string& find_session_id(connection* base);
+				core::string& generate_session_id(connection* base);
 
 			public:
-				static Core::ExpectsSystem<void> InvalidateCache(const std::string_view& Path);
+				static core::expects_system<void> invalidate_cache(const std::string_view& path);
 			};
 
-			class Parser final : public Core::Reference<Parser>
+			class parser final : public core::reference<parser>
 			{
 			private:
-				enum class MultipartStatus : uint8_t
+				enum class multipart_status : uint8_t
 				{
-					Uninitialized = 1,
-					Start,
-					Start_Boundary,
-					Header_Field_Start,
-					Header_Field,
-					Header_Field_Waiting,
-					Header_Value_Start,
-					Header_Value,
-					Header_Value_Waiting,
-					Resource_Start,
-					Resource,
-					Resource_Boundary_Waiting,
-					Resource_Boundary,
-					Resource_Waiting,
-					Resource_End,
-					Resource_Hyphen,
-					End
+					uninitialized = 1,
+					start,
+					start_boundary,
+					header_field_start,
+					header_field,
+					header_field_waiting,
+					header_value_start,
+					header_value,
+					header_value_waiting,
+					resource_start,
+					resource,
+					resource_boundary_waiting,
+					resource_boundary,
+					resource_waiting,
+					resource_end,
+					resource_hyphen,
+					end
 				};
 
-				enum class ChunkedStatus : int8_t
+				enum class chunked_status : int8_t
 				{
-					Size,
-					Ext,
-					Data,
-					End,
-					Head,
-					Middle
+					size,
+					ext,
+					data,
+					end,
+					head,
+					middle
 				};
 
 			public:
-				struct MessageState
+				struct message_state
 				{
-					Core::String Header;
-					char* Version = nullptr;
-					char* Method = nullptr;
-					int* StatusCode = nullptr;
-					Core::String* Location = nullptr;
-					Core::String* Query = nullptr;
-					KimvUnorderedMap* Cookies = nullptr;
-					KimvUnorderedMap* Headers = nullptr;
-					ContentFrame* Content = nullptr;
-				} Message;
+					core::string header;
+					char* version = nullptr;
+					char* method = nullptr;
+					int* status_code = nullptr;
+					core::string* location = nullptr;
+					core::string* query = nullptr;
+					kimv_unordered_map* cookies = nullptr;
+					kimv_unordered_map* headers = nullptr;
+					content_frame* content = nullptr;
+				} message;
 
-				struct ChunkedState
+				struct chunked_state
 				{
-					size_t Length = 0;
-					ChunkedStatus State = ChunkedStatus::Size;
-					int8_t ConsumeTrailer = 1;
-					int8_t HexCount = 0;
-				} Chunked;
+					size_t length = 0;
+					chunked_status state = chunked_status::size;
+					int8_t consume_trailer = 1;
+					int8_t hex_count = 0;
+				} chunked;
 
-				struct MultipartState
+				struct multipart_state
 				{
-					Resource Data;
-					ResourceCallback Callback;
-					Core::String* TemporaryDirectory = nullptr;
-					FILE* Stream = nullptr;
-					uint8_t* LookBehind = nullptr;
-					uint8_t* Boundary = nullptr;
-					int64_t Index = 0;
-					int64_t Length = 0;
-					size_t MaxResources = 0;
-					bool Skip = false;
-					bool Finish = false;
-					MultipartStatus State = MultipartStatus::Start;
-				} Multipart;
+					resource data;
+					resource_callback callback;
+					core::string* temporary_directory = nullptr;
+					FILE* stream = nullptr;
+					uint8_t* look_behind = nullptr;
+					uint8_t* boundary = nullptr;
+					int64_t index = 0;
+					int64_t length = 0;
+					size_t max_resources = 0;
+					bool skip = false;
+					bool finish = false;
+					multipart_status state = multipart_status::start;
+				} multipart;
 
 			public:
-				Parser();
-				~Parser() noexcept;
-				void PrepareForRequestParsing(RequestFrame* Request);
-				void PrepareForResponseParsing(ResponseFrame* Response);
-				void PrepareForChunkedParsing();
-				void PrepareForMultipartParsing(ContentFrame* Content, Core::String* TemporaryDirectory, size_t MaxResources, bool Skip, ResourceCallback&& Callback);
-				int64_t MultipartParse(const std::string_view& Boundary, const uint8_t* Buffer, size_t Length);
-				int64_t ParseRequest(const uint8_t* BufferStart, size_t Length, size_t LengthLastTime);
-				int64_t ParseResponse(const uint8_t* BufferStart, size_t Length, size_t LengthLastTime);
-				int64_t ParseDecodeChunked(uint8_t* Buffer, size_t* BufferLength);
+				parser();
+				~parser() noexcept;
+				void prepare_for_request_parsing(request_frame* request);
+				void prepare_for_response_parsing(response_frame* response);
+				void prepare_for_chunked_parsing();
+				void prepare_for_multipart_parsing(content_frame* content, core::string* temporary_directory, size_t max_resources, bool skip, resource_callback&& callback);
+				int64_t multipart_parse(const std::string_view& boundary, const uint8_t* buffer, size_t length);
+				int64_t parse_request(const uint8_t* buffer_start, size_t length, size_t length_last_time);
+				int64_t parse_response(const uint8_t* buffer_start, size_t length, size_t length_last_time);
+				int64_t parse_decode_chunked(uint8_t* buffer, size_t* buffer_length);
 
 			private:
-				const uint8_t* IsCompleted(const uint8_t* Buffer, const uint8_t* BufferEnd, size_t Offset, int* Out);
-				const uint8_t* Tokenize(const uint8_t* Buffer, const uint8_t* BufferEnd, const uint8_t** Token, size_t* TokenLength, int* Out);
-				const uint8_t* ProcessVersion(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
-				const uint8_t* ProcessHeaders(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
-				const uint8_t* ProcessRequest(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
-				const uint8_t* ProcessResponse(const uint8_t* Buffer, const uint8_t* BufferEnd, int* Out);
+				const uint8_t* is_completed(const uint8_t* buffer, const uint8_t* buffer_end, size_t offset, int* out);
+				const uint8_t* tokenize(const uint8_t* buffer, const uint8_t* buffer_end, const uint8_t** token, size_t* token_length, int* out);
+				const uint8_t* process_version(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
+				const uint8_t* process_headers(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
+				const uint8_t* process_request(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
+				const uint8_t* process_response(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
 			};
 
-			class WebCodec final : public Core::Reference<WebCodec>
+			class web_codec final : public core::reference<web_codec>
 			{
 			public:
-				typedef Core::SingleQueue<std::pair<WebSocketOp, Core::Vector<char>>> MessageQueue;
+				typedef core::single_queue<std::pair<web_socket_op, core::vector<char>>> message_queue;
 
 			private:
-				enum class Bytecode
+				enum class bytecode
 				{
-					Begin = 0,
-					Length,
-					Length_16_0,
-					Length_16_1,
-					Length_64_0,
-					Length_64_1,
-					Length_64_2,
-					Length_64_3,
-					Length_64_4,
-					Length_64_5,
-					Length_64_6,
-					Length_64_7,
-					Mask_0,
-					Mask_1,
-					Mask_2,
-					Mask_3,
-					End
-				};
-
-			private:
-				MessageQueue Queue;
-				Core::Vector<char> Payload;
-				uint64_t Remains;
-				WebSocketOp Opcode;
-				Bytecode State;
-				uint8_t Mask[4];
-				uint8_t Fragment;
-				uint8_t Final;
-				uint8_t Control;
-				uint8_t Masked;
-				uint8_t Masks;
-
-			public:
-				Core::Vector<char> Data;
-
-			public:
-				WebCodec();
-				bool ParseFrame(const uint8_t* Buffer, size_t Size);
-				bool GetFrame(WebSocketOp* Op, Core::Vector<char>* Message);
-			};
-
-			class HrmCache final : public Core::Singleton<HrmCache>
-			{
-			private:
-				std::mutex Mutex;
-				Core::SingleQueue<Core::String*> Queue;
-				size_t Capacity;
-				size_t Size;
-
-			public:
-				HrmCache() noexcept;
-				HrmCache(size_t MaxBytesStorage) noexcept;
-				virtual ~HrmCache() noexcept override;
-				void Rescale(size_t MaxBytesStorage) noexcept;
-				void Shrink() noexcept;
-				void Push(Core::String* Entry);
-				Core::String* Pop() noexcept;
-
-			private:
-				void ShrinkToFit() noexcept;
-			};
-
-			class Utils
-			{
-			public:
-				static void UpdateKeepAliveHeaders(Connection* Base, Core::String& Content);
-				static std::string_view StatusMessage(int StatusCode);
-				static std::string_view ContentType(const std::string_view& Path, Core::Vector<MimeType>* MimeTypes);
-			};
-
-			class Paths
-			{
-			public:
-				static void ConstructPath(Connection* Base);
-				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::String& Buffer);
-				static void ConstructHeadCache(Connection* Base, Core::String& Buffer);
-				static void ConstructHeadUncache(Core::String& Buffer);
-				static bool ConstructRoute(MapRouter* Router, Connection* Base);
-				static bool ConstructDirectoryEntries(Connection* Base, const Core::String& NameA, const Core::FileEntry& A, const Core::String& NameB, const Core::FileEntry& B);
-				static Core::String ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
-			};
-
-			class Parsing
-			{
-			public:
-				static bool ParseMultipartHeaderField(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseMultipartHeaderValue(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseMultipartContentData(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseMultipartResourceBegin(Parser* Target);
-				static bool ParseMultipartResourceEnd(Parser* Target);
-				static bool ParseHeaderField(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseHeaderValue(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseVersion(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseStatusCode(Parser* Target, size_t Length);
-				static bool ParseStatusMessage(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseMethodValue(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParsePathValue(Parser* Target, const uint8_t* Name, size_t Length);
-				static bool ParseQueryValue(Parser* Target, const uint8_t* Name, size_t Length);
-				static int ParseContentRange(const std::string_view& ContentRange, int64_t* Range1, int64_t* Range2);
-				static Core::String ParseMultipartDataBoundary();
-				static void ParseCookie(const std::string_view& Value);
-			};
-
-			class Permissions
-			{
-			public:
-				static Core::String Authorize(const std::string_view& Username, const std::string_view& Password, const std::string_view& Type = "Basic");
-				static bool Authorize(Connection* Base);
-				static bool MethodAllowed(Connection* Base);
-				static bool WebSocketUpgradeAllowed(Connection* Base);
-			};
-
-			class Resources
-			{
-			public:
-				static bool ResourceHasAlternative(Connection* Base);
-				static bool ResourceHidden(Connection* Base, Core::String* Path);
-				static bool ResourceIndexed(Connection* Base, Core::FileEntry* Resource);
-				static bool ResourceModified(Connection* Base, Core::FileEntry* Resource);
-				static bool ResourceCompressed(Connection* Base, size_t Size);
-			};
-
-			class Routing
-			{
-			public:
-				static bool RouteWebSocket(Connection* Base);
-				static bool RouteGet(Connection* Base);
-				static bool RoutePost(Connection* Base);
-				static bool RoutePut(Connection* Base);
-				static bool RoutePatch(Connection* Base);
-				static bool RouteDelete(Connection* Base);
-				static bool RouteOptions(Connection* Base);
-			};
-
-			class Logical
-			{
-			public:
-				static bool ProcessDirectory(Connection* Base);
-				static bool ProcessResource(Connection* Base);
-				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const std::string_view& ContentRange, size_t Range);
-				static bool ProcessResourceCache(Connection* Base);
-				static bool ProcessFile(Connection* Base, size_t ContentLength, size_t Range);
-				static bool ProcessFileStream(Connection* Base, FILE* Stream, size_t ContentLength, size_t Range);
-				static bool ProcessFileChunk(Connection* Base, FILE* Stream, size_t ContentLength);
-				static bool ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip);
-				static bool ProcessFileCompressChunk(Connection* Base, FILE* Stream, void* CStream, size_t ContentLength);
-				static bool ProcessWebSocket(Connection* Base, const uint8_t* Key, size_t KeySize);
-			};
-
-			class Server final : public SocketServer
-			{
-				friend Connection;
-				friend Logical;
-				friend Utils;
-
-			public:
-				Server();
-				~Server() override;
-				Core::ExpectsSystem<void> Update();
-
-			private:
-				Core::ExpectsSystem<void> UpdateRoute(RouterEntry* Route);
-				Core::ExpectsSystem<void> OnConfigure(SocketRouter* New) override;
-				Core::ExpectsSystem<void> OnUnlisten() override;
-				void OnRequestOpen(SocketConnection* Base) override;
-				bool OnRequestCleanup(SocketConnection* Base) override;
-				void OnRequestStall(SocketConnection* Data) override;
-				void OnRequestClose(SocketConnection* Base) override;
-				SocketConnection* OnAllocate(SocketListener* Host) override;
-				SocketRouter* OnAllocateRouter() override;
-			};
-
-			class Client final : public SocketClient
-			{
-			private:
-				struct BoundaryBlock
-				{
-					Resource* File;
-					Core::String Data;
-					Core::String Finish;
-					bool IsFinal;
+					begin = 0,
+					length,
+					length160,
+					length161,
+					length640,
+					length641,
+					length642,
+					length643,
+					length644,
+					length645,
+					length646,
+					length647,
+					mask0,
+					mask1,
+					mask2,
+					mask3,
+					end
 				};
 
 			private:
-				Parser* Resolver;
-				WebSocketFrame* WebSocket;
-				RequestFrame Request;
-				ResponseFrame Response;
-				Core::Vector<BoundaryBlock> Boundaries;
-				Core::ExpectsPromiseSystem<void> Future;
+				message_queue queue;
+				core::vector<char> payload;
+				uint64_t remains;
+				web_socket_op opcode;
+				bytecode state;
+				uint8_t mask[4];
+				uint8_t fragment;
+				uint8_t final;
+				uint8_t control;
+				uint8_t masked;
+				uint8_t masks;
 
 			public:
-				Client(int64_t ReadTimeout);
-				~Client() override;
-				Core::ExpectsPromiseSystem<void> Skip();
-				Core::ExpectsPromiseSystem<void> Fetch(size_t MaxSize = PAYLOAD_SIZE, bool Eat = false);
-				Core::ExpectsPromiseSystem<void> Upgrade(RequestFrame&& Root);
-				Core::ExpectsPromiseSystem<void> Send(RequestFrame&& Root);
-				Core::ExpectsPromiseSystem<void> SendFetch(RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> JSON(RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				Core::ExpectsPromiseSystem<Core::Unique<Core::Schema>> XML(RequestFrame&& Root, size_t MaxSize = PAYLOAD_SIZE);
-				void Downgrade();
-				WebSocketFrame* GetWebSocket();
-				RequestFrame* GetRequest();
-				ResponseFrame* GetResponse();
+				core::vector<char> data;
 
-			private:
-				Core::ExpectsSystem<void> OnReuse() override;
-				Core::ExpectsSystem<void> OnDisconnect() override;
-				void UploadFile(BoundaryBlock* Boundary, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-				void UploadFileChunk(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-				void UploadFileChunkQueued(FILE* Stream, size_t ContentLength, std::function<void(Core::ExpectsSystem<void>&&)>&& Callback);
-				void Upload(size_t FileId);
-				void ManageKeepAlive();
-				void Receive(const uint8_t* LeftoverBuffer, size_t LeftoverSize);
+			public:
+				web_codec();
+				bool parse_frame(const uint8_t* buffer, size_t size);
+				bool get_frame(web_socket_op* op, core::vector<char>* message);
 			};
 
-			Core::ExpectsPromiseSystem<ResponseFrame> Fetch(const std::string_view& Location, const std::string_view& Method = "GET", const FetchFrame& Options = FetchFrame());
+			class hrm_cache final : public core::singleton<hrm_cache>
+			{
+			private:
+				std::mutex mutex;
+				core::single_queue<core::string*> queue;
+				size_t capacity;
+				size_t size;
+
+			public:
+				hrm_cache() noexcept;
+				hrm_cache(size_t max_bytes_storage) noexcept;
+				virtual ~hrm_cache() noexcept override;
+				void rescale(size_t max_bytes_storage) noexcept;
+				void shrink() noexcept;
+				void push(core::string* entry);
+				core::string* pop() noexcept;
+
+			private:
+				void shrink_to_fit() noexcept;
+			};
+
+			class utils
+			{
+			public:
+				static void update_keep_alive_headers(connection* base, core::string& content);
+				static std::string_view status_message(int status_code);
+				static std::string_view content_type(const std::string_view& path, core::vector<mime_type>* mime_types);
+			};
+
+			class paths
+			{
+			public:
+				static void construct_path(connection* base);
+				static void construct_head_full(request_frame* request, response_frame* response, bool is_request, core::string& buffer);
+				static void construct_head_cache(connection* base, core::string& buffer);
+				static void construct_head_uncache(core::string& buffer);
+				static bool construct_route(map_router* router, connection* base);
+				static bool construct_directory_entries(connection* base, const core::string& name_a, const core::file_entry& a, const core::string& name_b, const core::file_entry& b);
+				static core::string construct_content_range(size_t offset, size_t length, size_t content_length);
+			};
+
+			class parsing
+			{
+			public:
+				static bool parse_multipart_header_field(parser* target, const uint8_t* name, size_t length);
+				static bool parse_multipart_header_value(parser* target, const uint8_t* name, size_t length);
+				static bool parse_multipart_content_data(parser* target, const uint8_t* name, size_t length);
+				static bool parse_multipart_resource_begin(parser* target);
+				static bool parse_multipart_resource_end(parser* target);
+				static bool parse_header_field(parser* target, const uint8_t* name, size_t length);
+				static bool parse_header_value(parser* target, const uint8_t* name, size_t length);
+				static bool parse_version(parser* target, const uint8_t* name, size_t length);
+				static bool parse_status_code(parser* target, size_t length);
+				static bool parse_status_message(parser* target, const uint8_t* name, size_t length);
+				static bool parse_method_value(parser* target, const uint8_t* name, size_t length);
+				static bool parse_path_value(parser* target, const uint8_t* name, size_t length);
+				static bool parse_query_value(parser* target, const uint8_t* name, size_t length);
+				static int parse_content_range(const std::string_view& content_range, int64_t* range1, int64_t* range2);
+				static core::string parse_multipart_data_boundary();
+				static void parse_cookie(const std::string_view& value);
+			};
+
+			class permissions
+			{
+			public:
+				static core::string authorize(const std::string_view& username, const std::string_view& password, const std::string_view& type = "Basic");
+				static bool authorize(connection* base);
+				static bool method_allowed(connection* base);
+				static bool web_socket_upgrade_allowed(connection* base);
+			};
+
+			class resources
+			{
+			public:
+				static bool resource_has_alternative(connection* base);
+				static bool resource_hidden(connection* base, core::string* path);
+				static bool resource_indexed(connection* base, core::file_entry* resource);
+				static bool resource_modified(connection* base, core::file_entry* resource);
+				static bool resource_compressed(connection* base, size_t size);
+			};
+
+			class routing
+			{
+			public:
+				static bool route_web_socket(connection* base);
+				static bool route_get(connection* base);
+				static bool route_post(connection* base);
+				static bool route_put(connection* base);
+				static bool route_patch(connection* base);
+				static bool route_delete(connection* base);
+				static bool route_options(connection* base);
+			};
+
+			class logical
+			{
+			public:
+				static bool process_directory(connection* base);
+				static bool process_resource(connection* base);
+				static bool process_resource_compress(connection* base, bool deflate, bool gzip, const std::string_view& content_range, size_t range);
+				static bool process_resource_cache(connection* base);
+				static bool process_file(connection* base, size_t content_length, size_t range);
+				static bool process_file_stream(connection* base, FILE* stream, size_t content_length, size_t range);
+				static bool process_file_chunk(connection* base, FILE* stream, size_t content_length);
+				static bool process_file_compress(connection* base, size_t content_length, size_t range, bool gzip);
+				static bool process_file_compress_chunk(connection* base, FILE* stream, void* cstream, size_t content_length);
+				static bool process_web_socket(connection* base, const uint8_t* key, size_t key_size);
+			};
+
+			class server final : public socket_server
+			{
+				friend connection;
+				friend logical;
+				friend utils;
+
+			public:
+				server();
+				~server() override;
+				core::expects_system<void> update();
+
+			private:
+				core::expects_system<void> update_route(router_entry* route);
+				core::expects_system<void> on_configure(socket_router* init) override;
+				core::expects_system<void> on_unlisten() override;
+				void on_request_open(socket_connection* base) override;
+				bool on_request_cleanup(socket_connection* base) override;
+				void on_request_stall(socket_connection* data) override;
+				void on_request_close(socket_connection* base) override;
+				socket_connection* on_allocate(socket_listener* host) override;
+				socket_router* on_allocate_router() override;
+			};
+
+			class client final : public socket_client
+			{
+			private:
+				struct boundary_block
+				{
+					resource* file;
+					core::string data;
+					core::string finish;
+					bool is_final;
+				};
+
+			private:
+				parser* resolver;
+				web_socket_frame* web_socket;
+				request_frame request;
+				response_frame response;
+				core::vector<boundary_block> boundaries;
+				core::expects_promise_system<void> future;
+
+			public:
+				client(int64_t read_timeout);
+				~client() override;
+				core::expects_promise_system<void> skip();
+				core::expects_promise_system<void> fetch(size_t max_size = PAYLOAD_SIZE, bool eat = false);
+				core::expects_promise_system<void> upgrade(request_frame&& root);
+				core::expects_promise_system<void> send(request_frame&& root);
+				core::expects_promise_system<void> send_fetch(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
+				core::expects_promise_system<core::unique<core::schema>> json(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
+				core::expects_promise_system<core::unique<core::schema>> xml(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
+				void downgrade();
+				web_socket_frame* get_web_socket();
+				request_frame* get_request();
+				response_frame* get_response();
+
+			private:
+				core::expects_system<void> on_reuse() override;
+				core::expects_system<void> on_disconnect() override;
+				void upload_file(boundary_block* boundary, std::function<void(core::expects_system<void>&&)>&& callback);
+				void upload_file_chunk(FILE* stream, size_t content_length, std::function<void(core::expects_system<void>&&)>&& callback);
+				void upload_file_chunk_queued(FILE* stream, size_t content_length, std::function<void(core::expects_system<void>&&)>&& callback);
+				void upload(size_t file_id);
+				void manage_keep_alive();
+				void receive(const uint8_t* leftover_buffer, size_t leftover_size);
+			};
+
+			core::expects_promise_system<response_frame> fetch(const std::string_view& location, const std::string_view& method = "GET", const fetch_frame& options = fetch_frame());
 		}
 	}
 }

@@ -2,85 +2,85 @@
 #define VITEX_H
 #include "core.h"
 
-namespace Vitex
+namespace vitex
 {
 	enum
 	{
-		LOAD_NETWORKING = 1 << 0,
-		LOAD_CRYPTOGRAPHY = 1 << 1,
-		LOAD_PROVIDERS = 1 << 2,
-		LOAD_LOCALE = 1 << 3,
-		MAJOR_VERSION = 3,
-		MINOR_VERSION = 5,
-		PATCH_VERSION = 0,
-		BUILD_VERSION = 0,
-		VERSION = (MAJOR_VERSION) * 100000000 + (MINOR_VERSION) * 1000000 + (PATCH_VERSION) * 1000 + BUILD_VERSION
+		load_networking = 1 << 0,
+		load_cryptography = 1 << 1,
+		load_providers = 1 << 2,
+		load_locale = 1 << 3,
+		major_version = 4,
+		minor_version = 0,
+		patch_version = 0,
+		build_version = 0,
+		version = (major_version) * 100000000 + (minor_version) * 1000000 + (patch_version) * 1000 + build_version
 	};
 
-	class Runtime : public Core::Singletonish
+	class runtime : public core::singletonish
 	{
 	private:
-		static Runtime* Instance;
+		static runtime* instance;
 
 	public:
-		struct CryptographyState
+		struct cryptography_state
 		{
-			Core::Vector<std::shared_ptr<std::mutex>> Locks;
-			void* LegacyProvider = nullptr;
-			void* DefaultProvider = nullptr;
+			core::vector<std::shared_ptr<std::mutex>> locks;
+			void* legacy_provider = nullptr;
+			void* default_provider = nullptr;
 		};
 
 	protected:
-		CryptographyState* Crypto;
-		size_t Modes;
+		cryptography_state* crypto;
+		size_t modes;
 
 	public:
-		Runtime(size_t Modules = LOAD_NETWORKING | LOAD_CRYPTOGRAPHY | LOAD_PROVIDERS | LOAD_LOCALE, Core::GlobalAllocator* Allocator = nullptr) noexcept;
-		virtual ~Runtime() noexcept;
-		bool HasFtAllocator() const noexcept;
-		bool HasFtPessimistic() const noexcept;
-		bool HasFtBindings() const noexcept;
-		bool HasFtFContext() const noexcept;
-		bool HasSoOpenSSL() const noexcept;
-		bool HasSoZLib() const noexcept;
-		bool HasSoMongoc() const noexcept;
-		bool HasSoPostgreSQL() const noexcept;
-		bool HasSoSQLite() const noexcept;
-		bool HasMdAngelScript() const noexcept;
-		bool HasMdBackwardCpp() const noexcept;
-		bool HasMdWepoll() const noexcept;
-		bool HasMdPugiXml() const noexcept;
-		bool HasMdRapidJson() const noexcept;
-		int GetMajorVersion() const noexcept;
-		int GetMinorVersion() const noexcept;
-		int GetPatchVersion() const noexcept;
-		int GetBuildVersion() const noexcept;
-		int GetVersion() const noexcept;
-		int GetDebugLevel() const noexcept;
-		int GetArchitecture() const noexcept;
-		size_t GetModes() const noexcept;
-		virtual Core::String GetDetails() const noexcept;
-		std::string_view GetBuild() const noexcept;
-		std::string_view GetCompiler() const noexcept;
-		std::string_view GetPlatform() const noexcept;
+		runtime(size_t modules = load_networking | load_cryptography | load_providers | load_locale, core::global_allocator* allocator = nullptr) noexcept;
+		virtual ~runtime() noexcept;
+		bool has_ft_allocator() const noexcept;
+		bool has_ft_pessimistic() const noexcept;
+		bool has_ft_bindings() const noexcept;
+		bool has_ft_fcontext() const noexcept;
+		bool has_so_open_ssl() const noexcept;
+		bool has_so_zlib() const noexcept;
+		bool has_so_mongoc() const noexcept;
+		bool has_so_postgresql() const noexcept;
+		bool has_so_sqlite() const noexcept;
+		bool has_md_angelscript() const noexcept;
+		bool has_md_backwardcpp() const noexcept;
+		bool has_md_wepoll() const noexcept;
+		bool has_md_pugixml() const noexcept;
+		bool has_md_rapidjson() const noexcept;
+		int get_major_version() const noexcept;
+		int get_minor_version() const noexcept;
+		int get_patch_version() const noexcept;
+		int get_build_version() const noexcept;
+		int get_version() const noexcept;
+		int get_debug_level() const noexcept;
+		int get_architecture() const noexcept;
+		size_t get_modes() const noexcept;
+		virtual core::string get_details() const noexcept;
+		std::string_view get_build() const noexcept;
+		std::string_view get_compiler() const noexcept;
+		std::string_view get_platform() const noexcept;
 
 	public:
-		static bool InitializeAllocator(Core::GlobalAllocator** InoutAllocator) noexcept;
-		static bool InitializeNetwork() noexcept;
-		static bool InitializeProviders(CryptographyState* Crypto) noexcept;
-		static bool InitializeCryptography(CryptographyState** OutCrypto, bool InitProviders) noexcept;
-		static bool InitializeLocale() noexcept;
-		static bool InitializeRandom() noexcept;
-		static bool InitializeScripting() noexcept;
-		static void CleanupInstances() noexcept;
-		static void CleanupCryptography(CryptographyState** InCrypto) noexcept;
-		static void CleanupNetwork() noexcept;
-		static void CleanupScripting() noexcept;
-		static void CleanupComposer() noexcept;
-		static void CleanupErrorHandling() noexcept;
-		static void CleanupMemory() noexcept;
-		static void CleanupAllocator(Core::GlobalAllocator** InAllocator) noexcept;
-		static Runtime* Get() noexcept;
+		static bool initialize_allocator(core::global_allocator** inout_allocator) noexcept;
+		static bool initialize_network() noexcept;
+		static bool initialize_providers(cryptography_state* crypto) noexcept;
+		static bool initialize_cryptography(cryptography_state** out_crypto, bool init_providers) noexcept;
+		static bool initialize_locale() noexcept;
+		static bool initialize_random() noexcept;
+		static bool initialize_scripting() noexcept;
+		static void cleanup_instances() noexcept;
+		static void cleanup_cryptography(cryptography_state** in_crypto) noexcept;
+		static void cleanup_network() noexcept;
+		static void cleanup_scripting() noexcept;
+		static void cleanup_composer() noexcept;
+		static void cleanup_error_handling() noexcept;
+		static void cleanup_memory() noexcept;
+		static void cleanup_allocator(core::global_allocator** in_allocator) noexcept;
+		static runtime* get() noexcept;
 	};
 }
 #endif

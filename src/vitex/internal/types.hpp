@@ -40,7 +40,7 @@
 #define TYPENAME_REGEXSOURCE "regex_source"
 #define TYPENAME_SOCKETCERTIFICATE "socket_certificate"
 #define TYPENAME_ASSETFILE "asset_file"
-#define TYPENAME_LDBCHECKPOINT "ldb::checkpoint"
+#define TYPENAME_LDBCHECKPOINT "sqlite::checkpoint"
 #define TYPENAME_HTTPERRORFILE "http::error_file"
 #define TYPENAME_HTTPMIMETYPE "http::mime_type"
 #define TYPENAME_HTTPRESOURCEINFO "http::resource_info"

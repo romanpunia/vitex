@@ -4,17 +4,17 @@
 #include <atomic>
 #include <cstdarg>
 
-namespace Vitex
+namespace vitex
 {
-	namespace Layer
+	namespace layer
 	{
-		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
+		typedef std::function<void(class content_manager*, bool)> save_callback;
 
-		class Application;
+		class application;
 
-		class ContentManager;
+		class content_manager;
 
-		class Processor;
+		class processor;
 
 		enum
 		{
@@ -25,469 +25,469 @@ namespace Vitex
 			EXIT_RESTART = EXIT_JUMP * 2
 		};
 
-		enum class ApplicationState
+		enum class application_state
 		{
-			Terminated,
-			Staging,
-			Active,
-			Restart
+			terminated,
+			staging,
+			active,
+			restart
 		};
 
-		struct AssetCache
+		struct asset_cache
 		{
-			Core::String Path;
-			void* Resource = nullptr;
+			core::string path;
+			void* resource = nullptr;
 		};
 
-		struct AssetArchive
+		struct asset_archive
 		{
-			Core::Stream* Stream = nullptr;
-			Core::String Path;
-			size_t Length = 0;
-			size_t Offset = 0;
+			core::stream* stream = nullptr;
+			core::string path;
+			size_t length = 0;
+			size_t offset = 0;
 		};
 
-		class ContentException : public Core::SystemException
+		class content_exception : public core::system_exception
 		{
 		public:
-			ContentException();
-			ContentException(const std::string_view& Message);
+			content_exception();
+			content_exception(const std::string_view& message);
 			const char* type() const noexcept override;
 		};
 
-		template <typename V>
-		using ExpectsContent = Core::Expects<V, ContentException>;
+		template <typename v>
+		using expects_content = core::expects<v, content_exception>;
 
-		template <typename T, typename Executor = Core::ParallelExecutor>
-		using ExpectsPromiseContent = Core::BasicPromise<ExpectsContent<T>, Executor>;
+		template <typename t, typename executor = core::parallel_executor>
+		using expects_promise_content = core::basic_promise<expects_content<t>, executor>;
 
-		class Parallel
+		class parallel
 		{
 		public:
-			static Core::Promise<void> Enqueue(Core::TaskCallback&& Callback);
-			static Core::Vector<Core::Promise<void>> EnqueueAll(Core::Vector<Core::TaskCallback>&& Callbacks);
-			static void Wait(Core::Promise<void>&& Value);
-			static void WailAll(Core::Vector<Core::Promise<void>>&& Values);
-			static size_t GetThreadIndex();
-			static size_t GetThreads();
+			static core::promise<void> enqueue(core::task_callback&& callback);
+			static core::vector<core::promise<void>> enqueue_all(core::vector<core::task_callback>&& callbacks);
+			static void wait(core::promise<void>&& value);
+			static void wail_all(core::vector<core::promise<void>>&& values);
+			static size_t get_thread_index();
+			static size_t get_threads();
 
 		public:
-			template <typename T>
-			static Core::Vector<T> InlineWaitAll(Core::Vector<Core::Promise<T>>&& Values)
+			template <typename t>
+			static core::vector<t> inline_wait_all(core::vector<core::promise<t>>&& values)
 			{
-				Core::Vector<T> Results;
-				Results.reserve(Values.size());
-				for (auto& Value : Values)
-					Results.emplace_back(std::move(Value.Get()));
-				return Results;
+				core::vector<t> results;
+				results.reserve(values.size());
+				for (auto& value : values)
+					results.emplace_back(std::move(value.get()));
+				return results;
 			}
-			template <typename Function>
-			static Core::Vector<Core::Promise<void>> For(size_t Size, size_t ThresholdSize, Function Callback)
+			template <typename function>
+			static core::vector<core::promise<void>> for_loop(size_t size, size_t threshold_size, function callback)
 			{
-				Core::Vector<Core::Promise<void>> Tasks;
-				if (!Size)
-					return Tasks;
+				core::vector<core::promise<void>> tasks;
+				if (!size)
+					return tasks;
 
-				size_t Threads = std::max<size_t>(1, GetThreads());
-				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
+				size_t threads = std::max<size_t>(1, get_threads());
+				if (core::schedule::is_available() && threads > 1 && size > threshold_size)
 				{
-					size_t Begin = 0, End = Size;
-					size_t Step = Size / Threads;
-					size_t Remains = Size % Threads;
-					Tasks.reserve(Threads);
-					while (Begin != End)
+					size_t begin = 0, end = size;
+					size_t step = size / threads;
+					size_t remains = size % threads;
+					tasks.reserve(threads);
+					while (begin != end)
 					{
-						auto Offset = Begin;
-						Begin += Remains > 0 ? --Remains, Step + 1 : Step;
-						Tasks.emplace_back(Core::Cotask<void>([Offset, Begin, &Callback]()
+						auto offset = begin;
+						begin += remains > 0 ? --remains, step + 1 : step;
+						tasks.emplace_back(core::cotask<void>([offset, begin, &callback]()
 						{
-							for (size_t i = Offset; i < Begin; i++)
-								Callback(i);
+							for (size_t i = offset; i < begin; i++)
+								callback(i);
 						}, false));
 					}
 				}
 				else
 				{
-					for (size_t i = 0; i < Size; i++)
-						Callback(i);
+					for (size_t i = 0; i < size; i++)
+						callback(i);
 				}
-				return Tasks;
+				return tasks;
 			}
-			template <typename Iterator, typename Function>
-			static Core::Vector<Core::Promise<void>> ForEach(Iterator Begin, Iterator End, size_t ThresholdSize, Function Callback)
+			template <typename iterator, typename function>
+			static core::vector<core::promise<void>> for_each(iterator begin, iterator end, size_t threshold_size, function callback)
 			{
-				Core::Vector<Core::Promise<void>> Tasks;
-				size_t Size = End - Begin;
-				if (!Size)
-					return Tasks;
+				core::vector<core::promise<void>> tasks;
+				size_t size = end - begin;
+				if (!size)
+					return tasks;
 
-				size_t Threads = std::max<size_t>(1, GetThreads());
-				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
+				size_t threads = std::max<size_t>(1, get_threads());
+				if (core::schedule::is_available() && threads > 1 && size > threshold_size)
 				{
-					size_t Step = Size / Threads;
-					size_t Remains = Size % Threads;
-					Tasks.reserve(Threads);
-					while (Begin != End)
+					size_t step = size / threads;
+					size_t remains = size % threads;
+					tasks.reserve(threads);
+					while (begin != end)
 					{
-						auto Offset = Begin;
-						Begin += Remains > 0 ? --Remains, Step + 1 : Step;
-						Tasks.emplace_back(Core::Cotask<void>(std::bind(std::for_each<Iterator, Function>, Offset, Begin, Callback), false));
+						auto offset = begin;
+						begin += remains > 0 ? --remains, step + 1 : step;
+						tasks.emplace_back(core::cotask<void>(std::bind(std::for_each<iterator, function>, offset, begin, callback), false));
 					}
 				}
 				else
-					std::for_each(Begin, End, Callback);
-				return Tasks;
+					std::for_each(begin, end, callback);
+				return tasks;
 			}
-			template <typename Iterator, typename Function>
-			static Core::Vector<Core::Promise<void>> ForEachSequential(Iterator Begin, Iterator End, size_t Size, size_t ThresholdSize, Function Callback)
+			template <typename iterator, typename function>
+			static core::vector<core::promise<void>> for_each_sequential(iterator begin, iterator end, size_t size, size_t threshold_size, function callback)
 			{
-				Core::Vector<Core::Promise<void>> Tasks;
-				if (!Size)
-					return Tasks;
+				core::vector<core::promise<void>> tasks;
+				if (!size)
+					return tasks;
 
-				size_t Threads = std::max<size_t>(1, GetThreads());
-				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
+				size_t threads = std::max<size_t>(1, get_threads());
+				if (core::schedule::is_available() && threads > 1 && size > threshold_size)
 				{
-					size_t Step = Size / Threads;
-					size_t Remains = Size % Threads;
-					Tasks.reserve(Threads);
-					while (Begin != End)
+					size_t step = size / threads;
+					size_t remains = size % threads;
+					tasks.reserve(threads);
+					while (begin != end)
 					{
-						auto Offset = Begin;
-						size_t Count = Remains > 0 ? --Remains, Step + 1 : Step;
-						while (Count-- > 0)
-							++Begin;
-						Tasks.emplace_back(Core::Cotask<void>(std::bind(std::for_each<Iterator, Function>, Offset, Begin, Callback), false));
+						auto offset = begin;
+						size_t count = remains > 0 ? --remains, step + 1 : step;
+						while (count-- > 0)
+							++begin;
+						tasks.emplace_back(core::cotask<void>(std::bind(std::for_each<iterator, function>, offset, begin, callback), false));
 					}
 				}
 				else
-					std::for_each(Begin, End, Callback);
-				return Tasks;
+					std::for_each(begin, end, callback);
+				return tasks;
 			}
-			template <typename Iterator, typename InitFunction, typename ElementFunction>
-			static Core::Vector<Core::Promise<void>> Distribute(Iterator Begin, Iterator End, size_t ThresholdSize, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
+			template <typename iterator, typename init_function, typename element_function>
+			static core::vector<core::promise<void>> distribute(iterator begin, iterator end, size_t threshold_size, init_function&& init_callback, element_function&& element_callback)
 			{
-				Core::Vector<Core::Promise<void>> Tasks;
-				size_t Size = End - Begin;
-				if (!Size)
+				core::vector<core::promise<void>> tasks;
+				size_t size = end - begin;
+				if (!size)
 				{
-					InitCallback((size_t)0);
-					return Tasks;
+					init_callback((size_t)0);
+					return tasks;
 				}
 
-				size_t Threads = std::max<size_t>(1, GetThreads());
-				if (Core::Schedule::IsAvailable() && Threads > 1 && Size > ThresholdSize)
+				size_t threads = std::max<size_t>(1, get_threads());
+				if (core::schedule::is_available() && threads > 1 && size > threshold_size)
 				{
-					size_t Step = Size / Threads;
-					size_t Remains = Size % Threads;
-					size_t Remainder = Remains;
-					size_t Index = 0, Counting = 0;
-					auto Start = Begin;
+					size_t step = size / threads;
+					size_t remains = size % threads;
+					size_t remainder = remains;
+					size_t index = 0, counting = 0;
+					auto start = begin;
 
-					while (Start != End)
+					while (start != end)
 					{
-						Start += Remainder > 0 ? --Remainder, Step + 1 : Step;
-						++Counting;
+						start += remainder > 0 ? --remainder, step + 1 : step;
+						++counting;
 					}
 
-					Tasks.reserve(Counting);
-					InitCallback(Counting);
+					tasks.reserve(counting);
+					init_callback(counting);
 
-					while (Begin != End)
+					while (begin != end)
 					{
-						auto Offset = Begin;
-						auto Bound = std::bind(ElementCallback, Index++, std::placeholders::_1);
-						Begin += Remains > 0 ? --Remains, Step + 1 : Step;
-						Tasks.emplace_back(Enqueue([Offset, Begin, Bound]()
+						auto offset = begin;
+						auto bound = std::bind(element_callback, index++, std::placeholders::_1);
+						begin += remains > 0 ? --remains, step + 1 : step;
+						tasks.emplace_back(enqueue([offset, begin, bound]()
 						{
-							std::for_each<Iterator, decltype(Bound)>(Offset, Begin, Bound);
+							std::for_each<iterator, decltype(bound)>(offset, begin, bound);
 						}));
 					}
 				}
 				else
 				{
-					InitCallback((size_t)1);
-					auto Bound = std::bind(ElementCallback, (size_t)0, std::placeholders::_1);
-					std::for_each<Iterator, decltype(Bound)>(Begin, End, Bound);
+					init_callback((size_t)1);
+					auto bound = std::bind(element_callback, (size_t)0, std::placeholders::_1);
+					std::for_each<iterator, decltype(bound)>(begin, end, bound);
 				}
 
-				return Tasks;
+				return tasks;
 			}
 		};
 
-		class Series
+		class series
 		{
 		public:
-			static void Pack(Core::Schema* V, bool Value);
-			static void Pack(Core::Schema* V, int32_t Value);
-			static void Pack(Core::Schema* V, int64_t Value);
-			static void Pack(Core::Schema* V, uint32_t Value);
-			static void Pack(Core::Schema* V, uint64_t Value);
-			static void Pack(Core::Schema* V, float Value);
-			static void Pack(Core::Schema* V, double Value);
-			static void Pack(Core::Schema* V, const std::string_view& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<bool>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<int32_t>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<int64_t>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<uint32_t>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<uint64_t>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<float>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<double>& Value);
-			static void Pack(Core::Schema* V, const Core::Vector<Core::String>& Value);
-			static void Pack(Core::Schema* V, const Core::UnorderedMap<size_t, size_t>& Value);
-			static bool Unpack(Core::Schema* V, bool* O);
-			static bool Unpack(Core::Schema* V, int32_t* O);
-			static bool Unpack(Core::Schema* V, int64_t* O);
-			static bool Unpack(Core::Schema* V, uint32_t* O);
-			static bool Unpack(Core::Schema* V, uint64_t* O);
-			static bool UnpackA(Core::Schema* V, size_t* O);
-			static bool Unpack(Core::Schema* V, float* O);
-			static bool Unpack(Core::Schema* V, double* O);
-			static bool Unpack(Core::Schema* V, Core::String* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<bool>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<int32_t>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<int64_t>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<uint32_t>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<uint64_t>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<float>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<double>* O);
-			static bool Unpack(Core::Schema* V, Core::Vector<Core::String>* O);
-			static bool Unpack(Core::Schema* V, Core::UnorderedMap<size_t, size_t>* O);
+			static void pack(core::schema* v, bool value);
+			static void pack(core::schema* v, int32_t value);
+			static void pack(core::schema* v, int64_t value);
+			static void pack(core::schema* v, uint32_t value);
+			static void pack(core::schema* v, uint64_t value);
+			static void pack(core::schema* v, float value);
+			static void pack(core::schema* v, double value);
+			static void pack(core::schema* v, const std::string_view& value);
+			static void pack(core::schema* v, const core::vector<bool>& value);
+			static void pack(core::schema* v, const core::vector<int32_t>& value);
+			static void pack(core::schema* v, const core::vector<int64_t>& value);
+			static void pack(core::schema* v, const core::vector<uint32_t>& value);
+			static void pack(core::schema* v, const core::vector<uint64_t>& value);
+			static void pack(core::schema* v, const core::vector<float>& value);
+			static void pack(core::schema* v, const core::vector<double>& value);
+			static void pack(core::schema* v, const core::vector<core::string>& value);
+			static void pack(core::schema* v, const core::unordered_map<size_t, size_t>& value);
+			static bool unpack(core::schema* v, bool* o);
+			static bool unpack(core::schema* v, int32_t* o);
+			static bool unpack(core::schema* v, int64_t* o);
+			static bool unpack(core::schema* v, uint32_t* o);
+			static bool unpack(core::schema* v, uint64_t* o);
+			static bool unpack_a(core::schema* v, size_t* o);
+			static bool unpack(core::schema* v, float* o);
+			static bool unpack(core::schema* v, double* o);
+			static bool unpack(core::schema* v, core::string* o);
+			static bool unpack(core::schema* v, core::vector<bool>* o);
+			static bool unpack(core::schema* v, core::vector<int32_t>* o);
+			static bool unpack(core::schema* v, core::vector<int64_t>* o);
+			static bool unpack(core::schema* v, core::vector<uint32_t>* o);
+			static bool unpack(core::schema* v, core::vector<uint64_t>* o);
+			static bool unpack(core::schema* v, core::vector<float>* o);
+			static bool unpack(core::schema* v, core::vector<double>* o);
+			static bool unpack(core::schema* v, core::vector<core::string>* o);
+			static bool unpack(core::schema* v, core::unordered_map<size_t, size_t>* o);
 		};
 
-		class AssetFile final : public Core::Reference<AssetFile>
+		class asset_file final : public core::reference<asset_file>
 		{
 		private:
-			char* Buffer;
-			size_t Length;
+			char* buffer;
+			size_t length;
 
 		public:
-			AssetFile(char* SrcBuffer, size_t SrcSize) noexcept;
-			~AssetFile() noexcept;
-			char* GetBuffer();
-			size_t Size();
+			asset_file(char* src_buffer, size_t src_size) noexcept;
+			~asset_file() noexcept;
+			char* get_buffer();
+			size_t size();
 		};
 
-		class Processor : public Core::Reference<Processor>
+		class processor : public core::reference<processor>
 		{
-			friend ContentManager;
+			friend content_manager;
 
 		protected:
-			ContentManager* Content;
+			content_manager* content;
 
 		public:
-			Processor(ContentManager* NewContent) noexcept;
-			virtual ~Processor() noexcept;
-			virtual void Free(AssetCache* Asset);
-			virtual ExpectsContent<Core::Unique<void>> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
-			virtual ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Keys);
-			virtual ExpectsContent<void> Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
-			ContentManager* GetContent() const;
+			processor(content_manager* new_content) noexcept;
+			virtual ~processor() noexcept;
+			virtual void free(asset_cache* asset);
+			virtual expects_content<core::unique<void>> duplicate(asset_cache* asset, const core::variant_args& keys);
+			virtual expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& keys);
+			virtual expects_content<void> serialize(core::stream* stream, void* instance, const core::variant_args& keys);
+			content_manager* get_content() const;
 		};
 
-		class ContentManager : public Core::Reference<ContentManager>
+		class content_manager : public core::reference<content_manager>
 		{
 		private:
-			Core::UnorderedMap<Core::String, Core::UnorderedMap<Processor*, AssetCache*>> Assets;
-			Core::UnorderedMap<Core::String, AssetArchive*> Archives;
-			Core::UnorderedMap<uint64_t, Processor*> Processors;
-			Core::UnorderedMap<Core::Stream*, size_t> Streams;
-			Core::String Environment, Base;
-			std::mutex Exclusive;
-			size_t Queue;
+			core::unordered_map<core::string, core::unordered_map<processor*, asset_cache*>> assets;
+			core::unordered_map<core::string, asset_archive*> archives;
+			core::unordered_map<uint64_t, processor*> processors;
+			core::unordered_map<core::stream*, size_t> streams;
+			core::string environment, base;
+			std::mutex exclusive;
+			size_t queue;
 
 		public:
-			ContentManager() noexcept;
-			virtual ~ContentManager() noexcept;
-			void ClearCache();
-			void ClearArchives();
-			void ClearStreams();
-			void ClearProcessors();
-			void ClearPath(const std::string_view& Path);
-			void SetEnvironment(const std::string_view& Path);
-			ExpectsContent<void> ImportArchive(const std::string_view& Path, bool ValidateChecksum);
-			ExpectsContent<void> ExportArchive(const std::string_view& Path, const std::string_view& PhysicalDirectory, const std::string_view& VirtualDirectory = std::string_view());
-			ExpectsContent<Core::Unique<void>> Load(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
-			ExpectsContent<void> Save(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
-			ExpectsPromiseContent<Core::Unique<void>> LoadDeferred(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
-			ExpectsPromiseContent<void> SaveDeferred(Processor* Processor, const std::string_view& Path, void* Object, const Core::VariantArgs& Keys);
-			Processor* AddProcessor(Processor* Value, uint64_t Id);
-			Processor* GetProcessor(uint64_t Id);
-			AssetCache* FindCache(Processor* Target, const std::string_view& Path);
-			AssetCache* FindCache(Processor* Target, void* Resource);
-			const Core::UnorderedMap<uint64_t, Processor*>& GetProcessors() const;
-			bool RemoveProcessor(uint64_t Id);
-			void* TryToCache(Processor* Root, const std::string_view& Path, void* Resource);
-			bool IsBusy();
-			const Core::String& GetEnvironment() const;
+			content_manager() noexcept;
+			virtual ~content_manager() noexcept;
+			void clear_cache();
+			void clear_archives();
+			void clear_streams();
+			void clear_processors();
+			void clear_path(const std::string_view& path);
+			void set_environment(const std::string_view& path);
+			expects_content<void> import_archive(const std::string_view& path, bool validate_checksum);
+			expects_content<void> export_archive(const std::string_view& path, const std::string_view& physical_directory, const std::string_view& virtual_directory = std::string_view());
+			expects_content<core::unique<void>> load(processor* processor, const std::string_view& path, const core::variant_args& keys);
+			expects_content<void> save(processor* processor, const std::string_view& path, void* object, const core::variant_args& keys);
+			expects_promise_content<core::unique<void>> load_deferred(processor* processor, const std::string_view& path, const core::variant_args& keys);
+			expects_promise_content<void> save_deferred(processor* processor, const std::string_view& path, void* object, const core::variant_args& keys);
+			processor* add_processor(processor* value, uint64_t id);
+			processor* get_processor(uint64_t id);
+			asset_cache* find_cache(processor* target, const std::string_view& path);
+			asset_cache* find_cache(processor* target, void* resource);
+			const core::unordered_map<uint64_t, processor*>& get_processors() const;
+			bool remove_processor(uint64_t id);
+			void* try_to_cache(processor* root, const std::string_view& path, void* resource);
+			bool is_busy();
+			const core::string& get_environment() const;
 
 		private:
-			ExpectsContent<void*> LoadFromArchive(Processor* Processor, const std::string_view& Path, const Core::VariantArgs& Keys);
-			void Enqueue();
-			void Dequeue();
+			expects_content<void*> load_from_archive(processor* processor, const std::string_view& path, const core::variant_args& keys);
+			void enqueue();
+			void dequeue();
 
 		public:
-			template <typename T>
-			ExpectsContent<Core::Unique<T>> Load(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			template <typename t>
+			expects_content<core::unique<t>> load(const std::string_view& path, const core::variant_args& keys = core::variant_args())
 			{
-				auto Result = Load(GetProcessor<T>(), Path, Keys);
-				if (!Result)
-					return ExpectsContent<T*>(Result.Error());
+				auto result = load(get_processor<t>(), path, keys);
+				if (!result)
+					return expects_content<t*>(result.error());
 
-				return ExpectsContent<T*>((T*)*Result);
+				return expects_content<t*>((t*)*result);
 			}
-			template <typename T>
-			ExpectsPromiseContent<Core::Unique<T>> LoadDeferred(const std::string_view& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			template <typename t>
+			expects_promise_content<core::unique<t>> load_deferred(const std::string_view& path, const core::variant_args& keys = core::variant_args())
 			{
-				Enqueue();
-				Core::String TargetPath = Core::String(Path);
-				return Core::Cotask<ExpectsContent<T*>>([this, TargetPath, Keys]()
+				enqueue();
+				core::string target_path = core::string(path);
+				return core::cotask<expects_content<t*>>([this, target_path, keys]()
 				{
-					auto Result = Load(GetProcessor<T>(), TargetPath, Keys);
-					Dequeue();
-					if (!Result)
-						return ExpectsContent<T*>(Result.Error());
+					auto result = load(get_processor<t>(), target_path, keys);
+					dequeue();
+					if (!result)
+						return expects_content<t*>(result.error());
 
-					return ExpectsContent<T*>((T*)*Result);
+					return expects_content<t*>((t*)*result);
 				});
 			}
-			template <typename T>
-			ExpectsContent<void> Save(const std::string_view& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			template <typename t>
+			expects_content<void> save(const std::string_view& path, t* object, const core::variant_args& keys = core::variant_args())
 			{
-				return Save(GetProcessor<T>(), Path, Object, Keys);
+				return save(get_processor<t>(), path, object, keys);
 			}
-			template <typename T>
-			ExpectsPromiseContent<void> SaveDeferred(const std::string_view& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			template <typename t>
+			expects_promise_content<void> save_deferred(const std::string_view& path, t* object, const core::variant_args& keys = core::variant_args())
 			{
-				return SaveDeferred(GetProcessor<T>(), Path, (void*)Object, Keys);
+				return save_deferred(get_processor<t>(), path, (void*)object, keys);
 			}
-			template <typename T>
-			bool RemoveProcessor()
+			template <typename t>
+			bool remove_processor()
 			{
-				return RemoveProcessor(typeid(T).hash_code());
+				return remove_processor(typeid(t).hash_code());
 			}
-			template <typename V, typename T>
-			V* AddProcessor()
+			template <typename v, typename t>
+			v* add_processor()
 			{
-				return (V*)AddProcessor(new V(this), typeid(T).hash_code());
+				return (v*)add_processor(new v(this), typeid(t).hash_code());
 			}
-			template <typename T>
-			Processor* GetProcessor()
+			template <typename t>
+			processor* get_processor()
 			{
-				return GetProcessor(typeid(T).hash_code());
+				return get_processor(typeid(t).hash_code());
 			}
-			template <typename T>
-			AssetCache* FindCache(const std::string_view& Path)
+			template <typename t>
+			asset_cache* find_cache(const std::string_view& path)
 			{
-				return FindCache(GetProcessor<T>(), Path);
+				return find_cache(get_processor<t>(), path);
 			}
-			template <typename T>
-			AssetCache* FindCache(void* Resource)
+			template <typename t>
+			asset_cache* find_cache(void* resource)
 			{
-				return FindCache(GetProcessor<T>(), Resource);
+				return find_cache(get_processor<t>(), resource);
 			}
 		};
 
-		class AppData final : public Core::Reference<AppData>
+		class app_data final : public core::reference<app_data>
 		{
 		private:
-			ContentManager* Content;
-			Core::Schema* Data;
-			Core::String Path;
-			std::mutex Exclusive;
+			content_manager* content;
+			core::schema* data;
+			core::string path;
+			std::mutex exclusive;
 
 		public:
-			AppData(ContentManager* Manager, const std::string_view& Path) noexcept;
-			~AppData() noexcept;
-			void Migrate(const std::string_view& Path);
-			void SetKey(const std::string_view& Name, Core::Unique<Core::Schema> Value);
-			void SetText(const std::string_view& Name, const std::string_view& Value);
-			Core::Unique<Core::Schema> GetKey(const std::string_view& Name);
-			Core::String GetText(const std::string_view& Name);
-			bool Has(const std::string_view& Name);
-			Core::Schema* GetSnapshot() const;
+			app_data(content_manager* manager, const std::string_view& path) noexcept;
+			~app_data() noexcept;
+			void migrate(const std::string_view& path);
+			void set_key(const std::string_view& name, core::unique<core::schema> value);
+			void set_text(const std::string_view& name, const std::string_view& value);
+			core::unique<core::schema> get_key(const std::string_view& name);
+			core::string get_text(const std::string_view& name);
+			bool has(const std::string_view& name);
+			core::schema* get_snapshot() const;
 
 		private:
-			bool ReadAppData(const std::string_view& Path);
-			bool WriteAppData(const std::string_view& Path);
+			bool read_app_data(const std::string_view& path);
+			bool write_app_data(const std::string_view& path);
 		};
 
-		class Application : public Core::Singleton<Application>
+		class application : public core::singleton<application>
 		{
 		public:
-			struct Desc
+			struct desc
 			{
-				struct FramesInfo
+				struct frames_info
 				{
-					float Stable = 120.0f;
-					float Limit = 0.0f;
-				} Refreshrate;
+					float stable = 120.0f;
+					float limit = 0.0f;
+				} refreshrate;
 
-				Core::Schedule::Desc Scheduler;
-				Core::String Preferences;
-				Core::String Environment;
-				Core::String Directory;
-				size_t PollingTimeout = 100;
-				size_t PollingEvents = 256;
-				size_t Threads = 0;
-				size_t Usage =
+				core::schedule::desc scheduler;
+				core::string preferences;
+				core::string environment;
+				core::string directory;
+				size_t polling_timeout = 100;
+				size_t polling_events = 256;
+				size_t threads = 0;
+				size_t usage =
 					(size_t)USE_PROCESSING |
 					(size_t)USE_NETWORKING |
 					(size_t)USE_SCRIPTING;
-				bool Daemon = false;
+				bool daemon = false;
 			};
 
 		private:
-			Core::Timer* Clock = nullptr;
-			ApplicationState State = ApplicationState::Terminated;
-			int ExitCode = 0;
+			core::timer* clock = nullptr;
+			application_state state = application_state::terminated;
+			int exit_code = 0;
 
 		public:
-			Scripting::VirtualMachine* VM = nullptr;
-			ContentManager* Content = nullptr;
-			AppData* Database = nullptr;
-			Desc Control;
+			scripting::virtual_machine* vm = nullptr;
+			content_manager* content = nullptr;
+			app_data* database = nullptr;
+			desc control;
 
 		public:
-			Application(Desc* I) noexcept;
-			virtual ~Application() noexcept;
-			virtual void Dispatch(Core::Timer* Time);
-			virtual void Publish(Core::Timer* Time);
-			virtual void Composition();
-			virtual void ScriptHook();
-			virtual void Initialize();
-			virtual Core::Promise<void> Startup();
-			virtual Core::Promise<void> Shutdown();
-			ApplicationState GetState() const;
-			int Start();
-			void Restart();
-			void Stop(int ExitCode = 0);
+			application(desc* i) noexcept;
+			virtual ~application() noexcept;
+			virtual void dispatch(core::timer* time);
+			virtual void publish(core::timer* time);
+			virtual void composition();
+			virtual void script_hook();
+			virtual void initialize();
+			virtual core::promise<void> startup();
+			virtual core::promise<void> shutdown();
+			application_state get_state() const;
+			int start();
+			void restart();
+			void stop(int exit_code = 0);
 
 		private:
-			void LoopTrigger();
+			void loop_trigger();
 
 		private:
-			static bool Status(Application* App);
+			static bool status(application* app);
 
 		public:
-			template <typename T, typename ...A>
-			static int StartApp(A... Args)
+			template <typename t, typename ...a>
+			static int start_app(a... args)
 			{
-				Core::UPtr<T> App = new T(Args...);
-				int ExitCode = App->Start();
-				VI_ASSERT(ExitCode != EXIT_RESTART, "application cannot be restarted");
-				return ExitCode;
+				core::uptr<t> app = new t(args...);
+				int exit_code = app->start();
+				VI_ASSERT(exit_code != EXIT_RESTART, "application cannot be restarted");
+				return exit_code;
 			}
-			template <typename T, typename ...A>
-			static int StartAppWithRestart(A... Args)
+			template <typename t, typename ...a>
+			static int start_app_with_restart(a... args)
 			{
-			RestartApp:
-				Core::UPtr<T> App = new T(Args...);
-				int ExitCode = App->Start();
-				if (ExitCode == EXIT_RESTART)
-					goto RestartApp;
+			restart_app:
+				core::uptr<t> app = new t(args...);
+				int exit_code = app->start();
+				if (exit_code == EXIT_RESTART)
+					goto restart_app;
 
-				return ExitCode;
+				return exit_code;
 			}
 		};
 	}

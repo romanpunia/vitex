@@ -1,6 +1,6 @@
 #include "smtp.h"
 #ifdef VI_MICROSOFT
-#include <WS2tcpip.h>
+#include <ws2tcpip.h>
 #include <io.h>
 #else
 #include <arpa/inet.h>
@@ -30,724 +30,724 @@ extern "C"
 #endif
 }
 
-namespace Vitex
+namespace vitex
 {
-	namespace Network
+	namespace network
 	{
-		namespace SMTP
+		namespace smtp
 		{
-			Client::Client(const std::string_view& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Hoster(Domain), Pending(0), Authorized(false)
+			client::client(const std::string_view& domain, int64_t read_timeout) : socket_client(read_timeout), attachment_file(nullptr), hoster(domain), pending(0), authorized(false)
 			{
-				Config.IsAutoHandshake = false;
+				config.is_auto_handshake = false;
 			}
-			Core::ExpectsPromiseSystem<void> Client::Send(RequestFrame&& Root)
+			core::expects_promise_system<void> client::send(request_frame&& root)
 			{
-				if (!HasStream())
-					return Core::ExpectsPromiseSystem<void>(Core::SystemException("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+				if (!has_stream())
+					return core::expects_promise_system<void>(core::system_exception("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				Core::ExpectsPromiseSystem<void> Result;
-				if (&Request != &Root)
-					Request = std::move(Root);
+				core::expects_promise_system<void> result;
+				if (&request != &root)
+					request = std::move(root);
 
-				VI_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
-				State.Resolver = [this, Result](Core::ExpectsSystem<void>&& Status) mutable
+				VI_DEBUG("[smtp] message to %s", root.receiver.c_str());
+				state.resolver = [this, result](core::expects_system<void>&& status) mutable
 				{
-					if (!Buffer.empty())
-						VI_DEBUG("[smtp] fd %i responded\n%.*s", (int)Net.Stream->GetFd(), (int)Buffer.size(), Buffer.data());
+					if (!buffer.empty())
+						VI_DEBUG("[smtp] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)buffer.size(), buffer.data());
 
-					Buffer.clear();
-					Result.Set(std::move(Status));
+					buffer.clear();
+					result.set(std::move(status));
 				};
-				if (!Authorized && Request.Authenticate && CanRequest("AUTH"))
-					Authorize(std::bind(&Client::PrepareAndSend, this));
+				if (!authorized && request.authenticate && can_request("AUTH"))
+					authorize(std::bind(&client::prepare_and_send, this));
 				else
-					PrepareAndSend();
+					prepare_and_send();
 
-				return Result;
+				return result;
 			}
-			Core::ExpectsSystem<void> Client::OnConnect()
+			core::expects_system<void> client::on_connect()
 			{
-				Authorized = false;
-				ReadResponse(220, [this]()
+				authorized = false;
+				read_response(220, [this]()
 				{
-					SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
+					send_request(250, core::stringify::text("EHLO %s\r\n", hoster.empty() ? "domain" : hoster.c_str()), [this]()
 					{
-						if (this->IsSecure())
+						if (this->is_secure())
 						{
-							if (!CanRequest("STARTTLS"))
-								return Report(Core::SystemException("connect tls: server has no support", std::make_error_condition(std::errc::protocol_not_supported)));
+							if (!can_request("STARTTLS"))
+								return report(core::system_exception("connect tls: server has no support", std::make_error_condition(std::errc::protocol_not_supported)));
 
-							SendRequest(220, "STARTTLS\r\n", [this]()
+							send_request(220, "STARTTLS\r\n", [this]()
 							{
-								Handshake([this](Core::ExpectsSystem<void>&& Status)
+								handshake([this](core::expects_system<void>&& status)
 								{
-									if (!Status)
-										return Report(std::move(Status));
+									if (!status)
+										return report(std::move(status));
 
-									SendRequest(250, Core::Stringify::Text("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()), [this]()
+									send_request(250, core::stringify::text("EHLO %s\r\n", hoster.empty() ? "domain" : hoster.c_str()), [this]()
 									{
-										Report(Core::Expectation::Met);
+										report(core::expectation::met);
 									});
 								});
 							});
 						}
 						else
-							Report(Core::Expectation::Met);
+							report(core::expectation::met);
 					});
 				});
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
-			Core::ExpectsSystem<void> Client::OnDisconnect()
+			core::expects_system<void> client::on_disconnect()
 			{
-				SendRequest(221, "QUIT\r\n", [this]()
+				send_request(221, "QUIT\r\n", [this]()
 				{
-					Authorized = false;
-					Report(Core::Expectation::Met);
+					authorized = false;
+					report(core::expectation::met);
 				});
-				return Core::Expectation::Met;
+				return core::expectation::met;
 			}
-			bool Client::ReadResponses(int Code, ReplyCallback&& Callback)
+			bool client::read_responses(int code, reply_callback&& callback)
 			{
-				return ReadResponse(Code, [this, Callback = std::move(Callback), Code]() mutable
+				return read_response(code, [this, callback = std::move(callback), code]() mutable
 				{
-					if (--Pending <= 0)
+					if (--pending <= 0)
 					{
-						Pending = 0;
-						if (Callback)
-							Callback();
+						pending = 0;
+						if (callback)
+							callback();
 					}
 					else
-						ReadResponses(Code, std::move(Callback));
+						read_responses(code, std::move(callback));
 				});
 			}
-			bool Client::ReadResponse(int Code, ReplyCallback&& Callback)
+			bool client::read_response(int code, reply_callback&& callback)
 			{
-				Command.clear();
-				return Net.Stream->ReadUntilQueued("\r\n", [this, Callback = std::move(Callback), Code](SocketPoll Event, const uint8_t* Data, size_t Recv) mutable
+				command.clear();
+				return net.stream->read_until_queued("\r\n", [this, callback = std::move(callback), code](socket_poll event, const uint8_t* data, size_t recv) mutable
 				{
-					if (Packet::IsData(Event))
+					if (packet::is_data(event))
 					{
-						Buffer.append((char*)Data, Recv);
-						Command.append((char*)Data, Recv);
+						buffer.append((char*)data, recv);
+						command.append((char*)data, recv);
 					}
-					else if (Packet::IsDone(Event))
+					else if (packet::is_done(event))
 					{
-						if (!isdigit(Command[0]) || !isdigit(Command[1]) || !isdigit(Command[2]))
+						if (!isdigit(command[0]) || !isdigit(command[1]) || !isdigit(command[2]))
 						{
-							Report(Core::SystemException("receive response: bad command", std::make_error_condition(std::errc::bad_message)));
+							report(core::system_exception("receive response: bad command", std::make_error_condition(std::errc::bad_message)));
 							return false;
 						}
 
-						if (Command[3] != ' ')
-							return ReadResponse(Code, std::move(Callback));
+						if (command[3] != ' ')
+							return read_response(code, std::move(callback));
 
-						int ReplyCode = (Command[0] - '0') * 100 + (Command[1] - '0') * 10 + Command[2] - '0';
-						if (ReplyCode != Code)
+						int reply_code = (command[0] - '0') * 100 + (command[1] - '0') * 10 + command[2] - '0';
+						if (reply_code != code)
 						{
-							Report(Core::SystemException("receiving unexpected response code: " + Core::ToString(ReplyCode) + " is not " + Core::ToString(Code), std::make_error_condition(std::errc::bad_message)));
+							report(core::system_exception("receiving unexpected response code: " + core::to_string(reply_code) + " is not " + core::to_string(code), std::make_error_condition(std::errc::bad_message)));
 							return false;
 						}
 
-						if (Callback)
-							Callback();
+						if (callback)
+							callback();
 					}
-					else if (Packet::IsErrorOrSkip(Event))
+					else if (packet::is_error_or_skip(event))
 					{
-						Report(Core::SystemException("receive response: aborted", std::make_error_condition(std::errc::connection_aborted)));
+						report(core::system_exception("receive response: aborted", std::make_error_condition(std::errc::connection_aborted)));
 						return false;
 					}
 
 					return true;
 				}) || true;
 			}
-			bool Client::SendRequest(int Code, const std::string_view& Content, ReplyCallback&& Callback)
+			bool client::send_request(int code, const std::string_view& content, reply_callback&& callback)
 			{
-				return Net.Stream->WriteQueued((uint8_t*)Content.data(), Content.size(), [this, Callback = std::move(Callback), Code](SocketPoll Event) mutable
+				return net.stream->write_queued((uint8_t*)content.data(), content.size(), [this, callback = std::move(callback), code](socket_poll event) mutable
 				{
-					if (Packet::IsDone(Event))
-						ReadResponse(Code, std::move(Callback));
-					else if (Packet::IsErrorOrSkip(Event))
-						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+					if (packet::is_done(event))
+						read_response(code, std::move(callback));
+					else if (packet::is_error_or_skip(event))
+						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
-			bool Client::CanRequest(const std::string_view& Keyword)
+			bool client::can_request(const std::string_view& keyword)
 			{
-				size_t L1 = Buffer.size(), L2 = Keyword.size();
+				size_t L1 = buffer.size(), L2 = keyword.size();
 				if (L1 < L2)
 					return false;
 
 				for (size_t i = 0; i < L1 - L2 + 1; i++)
 				{
 #ifdef VI_MICROSOFT
-					if (_strnicmp(Keyword.data(), Buffer.c_str() + i, L2) != 0 || !i)
+					if (_strnicmp(keyword.data(), buffer.c_str() + i, L2) != 0 || !i)
 						continue;
 #else
-					if (strncmp(Keyword.data(), Buffer.c_str() + i, L2) != 0 || !i)
+					if (strncmp(keyword.data(), buffer.c_str() + i, L2) != 0 || !i)
 						continue;
 #endif
-					if (Buffer[i - 1] != '-' && Buffer[i - 1] != ' ' && Buffer[i - 1] != '=')
+					if (buffer[i - 1] != '-' && buffer[i - 1] != ' ' && buffer[i - 1] != '=')
 						continue;
 
 					if (i + L2 >= L1)
 						continue;
 
-					if (Buffer[i + L2] == ' ' || Buffer[i + L2] == '=')
+					if (buffer[i + L2] == ' ' || buffer[i + L2] == '=')
 						return true;
 
 					if (i + L2 + 1 >= L1)
 						continue;
 
-					if (Buffer[i + L2] == '\r' && Buffer[i + L2 + 1] == '\n')
+					if (buffer[i + L2] == '\r' && buffer[i + L2 + 1] == '\n')
 						return true;
 				}
 				return false;
 			}
-			bool Client::Authorize(ReplyCallback&& Callback)
+			bool client::authorize(reply_callback&& callback)
 			{
-				if (!Callback || Authorized)
+				if (!callback || authorized)
 				{
-					if (Callback)
-						Callback();
+					if (callback)
+						callback();
 
 					return true;
 				}
 
-				if (Request.Login.empty())
+				if (request.login.empty())
 				{
-					Report(Core::SystemException("smtp authorize: invalid login", std::make_error_condition(std::errc::invalid_argument)));
+					report(core::system_exception("smtp authorize: invalid login", std::make_error_condition(std::errc::invalid_argument)));
 					return false;
 				}
 
-				if (Request.Password.empty())
+				if (request.password.empty())
 				{
-					Report(Core::SystemException("smtp authorize: invalid password", std::make_error_condition(std::errc::invalid_argument)));
+					report(core::system_exception("smtp authorize: invalid password", std::make_error_condition(std::errc::invalid_argument)));
 					return false;
 				}
 
-				if (CanRequest("LOGIN"))
+				if (can_request("LOGIN"))
 				{
-					return SendRequest(334, "AUTH LOGIN\r\n", [this, Callback = std::move(Callback)]()
+					return send_request(334, "AUTH LOGIN\r\n", [this, callback = std::move(callback)]()
 					{
-						Core::String Hash = Compute::Codec::Base64Encode(Request.Login);
-						SendRequest(334, Hash.append("\r\n"), [this, Callback = std::move(Callback)]()
+						core::string hash = compute::codec::base64_encode(request.login);
+						send_request(334, hash.append("\r\n"), [this, callback = std::move(callback)]()
 						{
-							Core::String Hash = Compute::Codec::Base64Encode(Request.Password);
-							SendRequest(235, Hash.append("\r\n"), [this, Callback = std::move(Callback)]()
+							core::string hash = compute::codec::base64_encode(request.password);
+							send_request(235, hash.append("\r\n"), [this, callback = std::move(callback)]()
 							{
-								Authorized = true;
-								Callback();
+								authorized = true;
+								callback();
 							});
 						});
 					});
 				}
-				else if (CanRequest("PLAIN"))
+				else if (can_request("PLAIN"))
 				{
-					Core::String Hash = Core::Stringify::Text("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str());
-					char* Escape = (char*)Hash.c_str();
+					core::string hash = core::stringify::text("%s^%s^%s", request.login.c_str(), request.login.c_str(), request.password.c_str());
+					char* escape = (char*)hash.c_str();
 
-					for (size_t i = 0; i < Hash.size(); i++)
+					for (size_t i = 0; i < hash.size(); i++)
 					{
-						if (Escape[i] == 94)
-							Escape[i] = 0;
+						if (escape[i] == 94)
+							escape[i] = 0;
 					}
 
-					return SendRequest(235, Core::Stringify::Text("AUTH PLAIN %s\r\n", Compute::Codec::Base64Encode(Hash).c_str()), [this, Callback = std::move(Callback)]()
+					return send_request(235, core::stringify::text("AUTH PLAIN %s\r\n", compute::codec::base64_encode(hash).c_str()), [this, callback = std::move(callback)]()
 					{
-						Authorized = true;
-						Callback();
+						authorized = true;
+						callback();
 					});
 				}
-				else if (CanRequest("CRAM-MD5"))
+				else if (can_request("CRAM-MD5"))
 				{
-					return SendRequest(334, "AUTH CRAM-MD5\r\n", [this, Callback = std::move(Callback)]()
+					return send_request(334, "AUTH CRAM-MD5\r\n", [this, callback = std::move(callback)]()
 					{
-						Core::String EncodedChallenge = Command.c_str() + 4;
-						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
-						uint8_t* UserChallenge = Unicode(DecodedChallenge.c_str());
-						uint8_t* UserPassword = Unicode(Request.Password.c_str());
+						core::string encoded_challenge = command.c_str() + 4;
+						core::string decoded_challenge = compute::codec::base64_decode(encoded_challenge);
+						uint8_t* user_challenge = unicode(decoded_challenge.c_str());
+						uint8_t* user_password = unicode(request.password.c_str());
 
-						if (!UserChallenge || !UserPassword)
+						if (!user_challenge || !user_password)
 						{
-							Core::Memory::Deallocate(UserChallenge);
-							Core::Memory::Deallocate(UserPassword);
-							return Report(Core::SystemException("smtp authorize: invalid challenge", std::make_error_condition(std::errc::invalid_argument)));
+							core::memory::deallocate(user_challenge);
+							core::memory::deallocate(user_password);
+							return report(core::system_exception("smtp authorize: invalid challenge", std::make_error_condition(std::errc::invalid_argument)));
 						}
 
-						size_t PasswordLength = Request.Password.size();
-						if (PasswordLength > 64)
+						size_t password_length = request.password.size();
+						if (password_length > 64)
 						{
-							Compute::MD5Hasher PasswordMD5;
-							PasswordMD5.Update(UserPassword, (uint32_t)PasswordLength);
-							PasswordMD5.Finalize();
+							compute::md5_hasher password_md5;
+							password_md5.update(user_password, (uint32_t)password_length);
+							password_md5.finalize();
 
-							Core::Memory::Deallocate(UserPassword);
-							UserPassword = PasswordMD5.RawDigest();
-							PasswordLength = 16;
+							core::memory::deallocate(user_password);
+							user_password = password_md5.raw_digest();
+							password_length = 16;
 						}
 
-						uint8_t IPad[65] = { };
-						uint8_t OPad[65] = { };
-						memcpy(IPad, UserPassword, (size_t)PasswordLength);
-						memcpy(OPad, UserPassword, (size_t)PasswordLength);
+						uint8_t ipad[65] = { };
+						uint8_t opad[65] = { };
+						memcpy(ipad, user_password, (size_t)password_length);
+						memcpy(opad, user_password, (size_t)password_length);
 
 						for (size_t i = 0; i < 64; i++)
 						{
-							IPad[i] ^= 0x36;
-							OPad[i] ^= 0x5c;
+							ipad[i] ^= 0x36;
+							opad[i] ^= 0x5c;
 						}
 
-						Compute::MD5Hasher MD5Pass1;
-						MD5Pass1.Update(IPad, 64);
-						MD5Pass1.Update(UserChallenge, (uint32_t)DecodedChallenge.size());
-						MD5Pass1.Finalize();
-						uint8_t* UserResult = MD5Pass1.RawDigest();
+						compute::md5_hasher md5_pass1;
+						md5_pass1.update(ipad, 64);
+						md5_pass1.update(user_challenge, (uint32_t)decoded_challenge.size());
+						md5_pass1.finalize();
+						uint8_t* user_result = md5_pass1.raw_digest();
 
-						Compute::MD5Hasher MD5Pass2;
-						MD5Pass2.Update(OPad, 64);
-						MD5Pass2.Update(UserResult, 16);
-						MD5Pass2.Finalize();
-						const char* UserBase = MD5Pass2.HexDigest();
+						compute::md5_hasher md5_pass2;
+						md5_pass2.update(opad, 64);
+						md5_pass2.update(user_result, 16);
+						md5_pass2.finalize();
+						const char* user_base = md5_pass2.hex_digest();
 
-						Core::Memory::Deallocate(UserChallenge);
-						Core::Memory::Deallocate(UserPassword);
-						Core::Memory::Deallocate(UserResult);
+						core::memory::deallocate(user_challenge);
+						core::memory::deallocate(user_password);
+						core::memory::deallocate(user_result);
 
-						DecodedChallenge = Request.Login + ' ' + UserBase;
-						EncodedChallenge = Compute::Codec::Base64Encode(DecodedChallenge);
+						decoded_challenge = request.login + ' ' + user_base;
+						encoded_challenge = compute::codec::base64_encode(decoded_challenge);
 
-						Core::Memory::Deallocate((void*)UserBase);
-						SendRequest(235, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback = std::move(Callback)]()
+						core::memory::deallocate((void*)user_base);
+						send_request(235, core::stringify::text("%s\r\n", encoded_challenge.c_str()), [this, callback = std::move(callback)]()
 						{
-							Authorized = true;
-							Callback();
+							authorized = true;
+							callback();
 						});
 					});
 				}
-				else if (CanRequest("DIGEST-MD5"))
+				else if (can_request("DIGEST-MD5"))
 				{
-					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback = std::move(Callback)]()
+					return send_request(334, "AUTH DIGEST-MD5\r\n", [this, callback = std::move(callback)]()
 					{
-						Core::String EncodedChallenge = Command.c_str() + 4;
-						Core::String DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
+						core::string encoded_challenge = command.c_str() + 4;
+						core::string decoded_challenge = compute::codec::base64_decode(encoded_challenge);
 
-						Core::TextSettle Result1 = Core::Stringify::Find(DecodedChallenge, "nonce");
-						if (!Result1.Found)
-							return Report(Core::SystemException("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
+						core::text_settle result1 = core::stringify::find(decoded_challenge, "nonce");
+						if (!result1.found)
+							return report(core::system_exception("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
 
-						Core::TextSettle Result2 = Core::Stringify::Find(DecodedChallenge, "\"", Result1.Start + 7);
-						if (!Result2.Found)
-							return Report(Core::SystemException("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
+						core::text_settle result2 = core::stringify::find(decoded_challenge, "\"", result1.start + 7);
+						if (!result2.found)
+							return report(core::system_exception("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
 
-						Core::String Nonce = DecodedChallenge.substr(Result1.Start + 7, Result2.Start - (Result1.Start + 7));
-						Core::String Realm;
+						core::string nonce = decoded_challenge.substr(result1.start + 7, result2.start - (result1.start + 7));
+						core::string realm;
 
-						Result1 = Core::Stringify::Find(DecodedChallenge, "realm");
-						if (Result1.Found)
+						result1 = core::stringify::find(decoded_challenge, "realm");
+						if (result1.found)
 						{
-							Result2 = Core::Stringify::Find(DecodedChallenge, "\"", Result1.Start + 7);
-							if (!Result2.Found)
-								return Report(Core::SystemException("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
+							result2 = core::stringify::find(decoded_challenge, "\"", result1.start + 7);
+							if (!result2.found)
+								return report(core::system_exception("smtp authorize: bad digest", std::make_error_condition(std::errc::bad_message)));
 
-							Realm = DecodedChallenge.substr(Result1.Start + 7, Result2.Start - (Result1.Start + 7));
+							realm = decoded_challenge.substr(result1.start + 7, result2.start - (result1.start + 7));
 						}
 
-						char CNonce[17], NC[9];
-						snprintf(CNonce, 17, "%x", (uint32_t)time(nullptr));
+						char cnonce[17], NC[9];
+						snprintf(cnonce, 17, "%x", (uint32_t)time(nullptr));
 						snprintf(NC, 9, "%08d", 1);
 
-						struct sockaddr_storage Storage;
-						socket_size_t Length = sizeof(Storage);
+						struct sockaddr_storage storage;
+						socket_size_t length = sizeof(storage);
 
-						if (!getpeername(Net.Stream->GetFd(), (struct sockaddr*)&Storage, &Length))
-							return Report(Core::SystemException("smtp authorize: no peer name", std::make_error_condition(std::errc::identifier_removed)));
+						if (!getpeername(net.stream->get_fd(), (struct sockaddr*)&storage, &length))
+							return report(core::system_exception("smtp authorize: no peer name", std::make_error_condition(std::errc::identifier_removed)));
 
-						char InetAddress[INET_ADDRSTRLEN];
-						sockaddr_in* Address = (sockaddr_in*)&Storage;
-						Core::String Location = "smtp/";
+						char inet_address[INET_ADDRSTRLEN];
+						sockaddr_in* address = (sockaddr_in*)&storage;
+						core::string location = "smtp/";
 
-						if (inet_ntop(AF_INET, &(Address->sin_addr), InetAddress, INET_ADDRSTRLEN) != nullptr)
-							Location += InetAddress;
+						if (inet_ntop(AF_INET, &(address->sin_addr), inet_address, INET_ADDRSTRLEN) != nullptr)
+							location += inet_address;
 						else
-							Location += "127.0.0.1";
+							location += "127.0.0.1";
 
-						Core::UPtr<uint8_t> UserRealm = Unicode(Realm.c_str());
-						Core::UPtr<uint8_t> UserUsername = Unicode(Request.Login.c_str());
-						Core::UPtr<uint8_t> UserPassword = Unicode(Request.Password.c_str());
-						Core::UPtr<uint8_t> UserNonce = Unicode(Nonce.c_str());
-						Core::UPtr<uint8_t> UserCNonce = Unicode(CNonce);
-						Core::UPtr<uint8_t> UserLocation = Unicode(Location.c_str());
-						Core::UPtr<uint8_t> UserNc = Unicode(NC);
-						Core::UPtr<uint8_t> UserQop = Unicode("auth");
-						if (!UserRealm || !UserUsername || !UserPassword || !UserNonce || !UserCNonce || !UserLocation || !UserNc || !UserQop)
-							return Report(Core::SystemException("smtp authorize: denied", std::make_error_condition(std::errc::permission_denied)));
+						core::uptr<uint8_t> user_realm = unicode(realm.c_str());
+						core::uptr<uint8_t> user_username = unicode(request.login.c_str());
+						core::uptr<uint8_t> user_password = unicode(request.password.c_str());
+						core::uptr<uint8_t> user_nonce = unicode(nonce.c_str());
+						core::uptr<uint8_t> user_cnonce = unicode(cnonce);
+						core::uptr<uint8_t> user_location = unicode(location.c_str());
+						core::uptr<uint8_t> user_nc = unicode(NC);
+						core::uptr<uint8_t> user_qop = unicode("auth");
+						if (!user_realm || !user_username || !user_password || !user_nonce || !user_cnonce || !user_location || !user_nc || !user_qop)
+							return report(core::system_exception("smtp authorize: denied", std::make_error_condition(std::errc::permission_denied)));
 
-						Compute::MD5Hasher MD5A1A;
-						MD5A1A.Update(*UserUsername, (uint32_t)Request.Login.size());
-						MD5A1A.Update((uint8_t*)":", 1);
-						MD5A1A.Update(*UserRealm, (uint32_t)Realm.size());
-						MD5A1A.Update((uint8_t*)":", 1);
-						MD5A1A.Update(*UserPassword, (uint32_t)Request.Password.size());
-						MD5A1A.Finalize();
+						compute::md5_hasher MD5A1A;
+						MD5A1A.update(*user_username, (uint32_t)request.login.size());
+						MD5A1A.update((uint8_t*)":", 1);
+						MD5A1A.update(*user_realm, (uint32_t)realm.size());
+						MD5A1A.update((uint8_t*)":", 1);
+						MD5A1A.update(*user_password, (uint32_t)request.password.size());
+						MD5A1A.finalize();
 
-						Core::UPtr<uint8_t> UserA1A = MD5A1A.RawDigest();
-						Compute::MD5Hasher MD5A1B;
-						MD5A1B.Update(*UserA1A, 16);
-						MD5A1B.Update((uint8_t*)":", 1);
-						MD5A1B.Update(*UserNonce, (uint32_t)Nonce.size());
-						MD5A1B.Update((uint8_t*)":", 1);
-						MD5A1B.Update(*UserCNonce, (uint32_t)strlen(CNonce));
-						MD5A1B.Finalize();
+						core::uptr<uint8_t> user_a1a = MD5A1A.raw_digest();
+						compute::md5_hasher MD5A1B;
+						MD5A1B.update(*user_a1a, 16);
+						MD5A1B.update((uint8_t*)":", 1);
+						MD5A1B.update(*user_nonce, (uint32_t)nonce.size());
+						MD5A1B.update((uint8_t*)":", 1);
+						MD5A1B.update(*user_cnonce, (uint32_t)strlen(cnonce));
+						MD5A1B.finalize();
 
-						Core::UPtr<char> UserA1B = MD5A1B.HexDigest();
-						Compute::MD5Hasher MD5A2;
-						MD5A2.Update((uint8_t*)"AUTHENTICATE:", 13);
-						MD5A2.Update(*UserLocation, (uint32_t)Location.size());
-						MD5A2.Finalize();
+						core::uptr<char> user_a1b = MD5A1B.hex_digest();
+						compute::md5_hasher MD5A2;
+						MD5A2.update((uint8_t*)"AUTHENTICATE:", 13);
+						MD5A2.update(*user_location, (uint32_t)location.size());
+						MD5A2.finalize();
 
-						Core::UPtr<char> UserA2A = MD5A2.HexDigest();
-						Core::UPtr<uint8_t> UserA2B = Unicode(*UserA2A);
-						UserA1A = Unicode(*UserA1B);
+						core::uptr<char> user_a2a = MD5A2.hex_digest();
+						core::uptr<uint8_t> user_a2b = unicode(*user_a2a);
+						user_a1a = unicode(*user_a1b);
 
-						Compute::MD5Hasher MD5Pass;
-						MD5Pass.Update(*UserA1A, 32);
-						MD5Pass.Update((uint8_t*)":", 1);
-						MD5Pass.Update(*UserNonce, (uint32_t)Nonce.size());
-						MD5Pass.Update((uint8_t*)":", 1);
-						MD5Pass.Update(*UserNc, (uint32_t)strlen(NC));
-						MD5Pass.Update((uint8_t*)":", 1);
-						MD5Pass.Update(*UserCNonce, (uint32_t)strlen(CNonce));
-						MD5Pass.Update((uint8_t*)":", 1);
-						MD5Pass.Update(*UserQop, 4);
-						MD5Pass.Update((uint8_t*)":", 1);
-						MD5Pass.Update(*UserA2B, 32);
-						MD5Pass.Finalize();
+						compute::md5_hasher md5_pass;
+						md5_pass.update(*user_a1a, 32);
+						md5_pass.update((uint8_t*)":", 1);
+						md5_pass.update(*user_nonce, (uint32_t)nonce.size());
+						md5_pass.update((uint8_t*)":", 1);
+						md5_pass.update(*user_nc, (uint32_t)strlen(NC));
+						md5_pass.update((uint8_t*)":", 1);
+						md5_pass.update(*user_cnonce, (uint32_t)strlen(cnonce));
+						md5_pass.update((uint8_t*)":", 1);
+						md5_pass.update(*user_qop, 4);
+						md5_pass.update((uint8_t*)":", 1);
+						md5_pass.update(*user_a2b, 32);
+						md5_pass.finalize();
 
-						Core::UPtr<char> DecodedChallengeDigest = MD5Pass.HexDigest();
-						DecodedChallenge = *DecodedChallengeDigest;
+						core::uptr<char> decoded_challenge_digest = md5_pass.hex_digest();
+						decoded_challenge = *decoded_challenge_digest;
 
-						Core::String Content;
-						if (strstr(Command.c_str(), "charset") != nullptr)
-							Core::Stringify::Append(Content, "charset=utf-8,username=\"%s\"", Request.Login.c_str());
+						core::string content;
+						if (strstr(command.c_str(), "charset") != nullptr)
+							core::stringify::append(content, "charset=utf-8,username=\"%s\"", request.login.c_str());
 						else
-							Core::Stringify::Append(Content, "username=\"%s\"", Request.Login.c_str());
+							core::stringify::append(content, "username=\"%s\"", request.login.c_str());
 
-						if (!Realm.empty())
-							Core::Stringify::Append(Content, ",realm=\"%s\"", Realm.c_str());
+						if (!realm.empty())
+							core::stringify::append(content, ",realm=\"%s\"", realm.c_str());
 
-						Core::Stringify::Append(Content, ",nonce=\"%s\""
+						core::stringify::append(content, ",nonce=\"%s\""
 							",nc=%s"
 							",cnonce=\"%s\""
 							",digest-uri=\"%s\""
-							",Response=%s"
-							",qop=auth", Nonce.c_str(), NC, CNonce, Location.c_str(), DecodedChallenge.c_str());
+							",response=%s"
+							",qop=auth", nonce.c_str(), NC, cnonce, location.c_str(), decoded_challenge.c_str());
 
-						EncodedChallenge = Compute::Codec::Base64Encode(Content);
-						SendRequest(334, Core::Stringify::Text("%s\r\n", EncodedChallenge.c_str()), [this, Callback = std::move(Callback)]()
+						encoded_challenge = compute::codec::base64_encode(content);
+						send_request(334, core::stringify::text("%s\r\n", encoded_challenge.c_str()), [this, callback = std::move(callback)]()
 						{
-							SendRequest(235, "\r\n", [this, Callback = std::move(Callback)]()
+							send_request(235, "\r\n", [this, callback = std::move(callback)]()
 							{
-								Authorized = true;
-								Callback();
+								authorized = true;
+								callback();
 							});
 						});
 					});
 				}
 
-				Report(Core::SystemException("smtp authorize: type not supported", std::make_error_condition(std::errc::not_supported)));
-				return false;	
+				report(core::system_exception("smtp authorize: type not supported", std::make_error_condition(std::errc::not_supported)));
+				return false;
 			}
-			bool Client::PrepareAndSend()
+			bool client::prepare_and_send()
 			{
-				if (Request.SenderAddress.empty())
+				if (request.sender_address.empty())
 				{
-					Report(Core::SystemException("smtp send: invalid sender address", std::make_error_condition(std::errc::invalid_argument)));
+					report(core::system_exception("smtp send: invalid sender address", std::make_error_condition(std::errc::invalid_argument)));
 					return false;
 				}
 
-				if (Request.Recipients.empty())
+				if (request.recipients.empty())
 				{
-					Report(Core::SystemException("smtp send: invalid recipient address", std::make_error_condition(std::errc::invalid_argument)));
+					report(core::system_exception("smtp send: invalid recipient address", std::make_error_condition(std::errc::invalid_argument)));
 					return false;
 				}
 
-				if (!Request.Attachments.empty())
+				if (!request.attachments.empty())
 				{
-					auto Random = Compute::Crypto::RandomBytes(64);
-					if (Random)
+					auto random = compute::crypto::random_bytes(64);
+					if (random)
 					{
-						auto Hash = Compute::Crypto::HashHex(Compute::Digests::MD5(), *Random);
-						if (Hash)
-							Boundary = *Hash;
+						auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *random);
+						if (hash)
+							boundary = *hash;
 						else
-							Boundary = "0x00000000";
+							boundary = "0x00000000";
 					}
 					else
-						Boundary = "0x00000000";
+						boundary = "0x00000000";
 				}
 
-				Core::String Content;
-				Core::Stringify::Append(Content, "MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
+				core::string content;
+				core::stringify::append(content, "MAIL FROM: <%s>\r\n", request.sender_address.c_str());
 
-				for (auto& Item : Request.Recipients)
-					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
+				for (auto& item : request.recipients)
+					core::stringify::append(content, "RCPT TO: <%s>\r\n", item.address.c_str());
 
-				for (auto& Item : Request.CCRecipients)
-					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
+				for (auto& item : request.cc_recipients)
+					core::stringify::append(content, "RCPT TO: <%s>\r\n", item.address.c_str());
 
-				for (auto& Item : Request.BCCRecipients)
-					Core::Stringify::Append(Content, "RCPT TO: <%s>\r\n", Item.Address.c_str());
+				for (auto& item : request.bcc_recipients)
+					core::stringify::append(content, "RCPT TO: <%s>\r\n", item.address.c_str());
 
-				Net.Stream->WriteQueued((uint8_t*)Content.data(), Content.size(), [this](SocketPoll Event)
+				net.stream->write_queued((uint8_t*)content.data(), content.size(), [this](socket_poll event)
 				{
-					if (Packet::IsDone(Event))
+					if (packet::is_done(event))
 					{
-						Pending = (int32_t)(1 + Request.Recipients.size() + Request.CCRecipients.size() + Request.BCCRecipients.size());
-						ReadResponses(250, [this]()
+						pending = (int32_t)(1 + request.recipients.size() + request.cc_recipients.size() + request.bcc_recipients.size());
+						read_responses(250, [this]()
 						{
-							Pending = (int32_t)Request.Attachments.size();
-							SendRequest(354, "DATA\r\n", [this]()
+							pending = (int32_t)request.attachments.size();
+							send_request(354, "DATA\r\n", [this]()
 							{
-								char Date[64];
-								Core::String Content = "Date: ";
-								Content.append(Core::DateTime::SerializeGlobal(Date, sizeof(Date), Core::DateTime::Now(), Core::DateTime::FormatWebTime()));
-								Content.append("\r\nFrom: ");
+								char date[64];
+								core::string content = "Date: ";
+								content.append(core::date_time::serialize_global(date, sizeof(date), core::date_time::now(), core::date_time::format_web_time()));
+								content.append("\r\nFrom: ");
 
-								if (!Request.SenderName.empty())
-									Content.append(Request.SenderName.c_str());
+								if (!request.sender_name.empty())
+									content.append(request.sender_name.c_str());
 
-								Core::Stringify::Append(Content, " <%s>\r\n", Request.SenderAddress.c_str());
-								for (auto& Item : Request.Headers)
-									Core::Stringify::Append(Content, "%s: %s\r\n", Item.first.c_str(), Item.second.c_str());
+								core::stringify::append(content, " <%s>\r\n", request.sender_address.c_str());
+								for (auto& item : request.headers)
+									core::stringify::append(content, "%s: %s\r\n", item.first.c_str(), item.second.c_str());
 
-								if (!Request.Mailer.empty())
-									Core::Stringify::Append(Content, "X-Mailer: %s\r\n", Request.Mailer.c_str());
+								if (!request.mailer.empty())
+									core::stringify::append(content, "X-mailer: %s\r\n", request.mailer.c_str());
 
-								if (!Request.Receiver.empty())
-									Core::Stringify::Append(Content, "Reply-To: %s\r\n", Request.Receiver.c_str());
+								if (!request.receiver.empty())
+									core::stringify::append(content, "Reply-to: %s\r\n", request.receiver.c_str());
 
-								if (Request.NoNotification)
-									Core::Stringify::Append(Content, "Disposition-Notification-To: %s\r\n", !Request.Receiver.empty() ? Request.Receiver.c_str() : Request.SenderName.c_str());
+								if (request.no_notification)
+									core::stringify::append(content, "Disposition-notification-to: %s\r\n", !request.receiver.empty() ? request.receiver.c_str() : request.sender_name.c_str());
 
-								switch (Request.Prior)
+								switch (request.prior)
 								{
-									case Priority::High:
-										Content.append("X-Priority: 2 (High)\r\n");
+									case priority::high:
+										content.append("X-priority: 2 (high)\r\n");
 										break;
-									case Priority::Normal:
-										Content.append("X-Priority: 3 (Normal)\r\n");
+									case priority::normal:
+										content.append("X-priority: 3 (normal)\r\n");
 										break;
-									case Priority::Low:
-										Content.append("X-Priority: 4 (Low)\r\n");
+									case priority::low:
+										content.append("X-priority: 4 (low)\r\n");
 										break;
 									default:
-										Content.append("X-Priority: 3 (Normal)\r\n");
+										content.append("X-priority: 3 (normal)\r\n");
 										break;
 								}
 
-								Core::String Recipients;
-								for (size_t i = 0; i < Request.Recipients.size(); i++)
+								core::string recipients;
+								for (size_t i = 0; i < request.recipients.size(); i++)
 								{
 									if (i > 0)
-										Recipients += ',';
+										recipients += ',';
 
-									if (!Request.Recipients[i].Name.empty())
+									if (!request.recipients[i].name.empty())
 									{
-										Recipients.append(Request.Recipients[i].Name);
-										Recipients += ' ';
+										recipients.append(request.recipients[i].name);
+										recipients += ' ';
 									}
 
-									Recipients += '<';
-									Recipients.append(Request.Recipients[i].Address);
-									Recipients += '>';
+									recipients += '<';
+									recipients.append(request.recipients[i].address);
+									recipients += '>';
 								}
 
-								Core::Stringify::Append(Content, "To: %s\r\n", Recipients.c_str());
-								if (!Request.CCRecipients.empty())
+								core::stringify::append(content, "To: %s\r\n", recipients.c_str());
+								if (!request.cc_recipients.empty())
 								{
-									Recipients.clear();
-									for (size_t i = 0; i < Request.CCRecipients.size(); i++)
-									{
-										if (i > 0)
-											Recipients += ',';
-
-										if (!Request.CCRecipients[i].Name.empty())
-										{
-											Recipients.append(Request.CCRecipients[i].Name);
-											Recipients += ' ';
-										}
-
-										Recipients += '<';
-										Recipients.append(Request.CCRecipients[i].Address);
-										Recipients += '>';
-									}
-									Core::Stringify::Append(Content, "Cc: %s\r\n", Recipients.c_str());
-								}
-
-								if (!Request.BCCRecipients.empty())
-								{
-									Recipients.clear();
-									for (size_t i = 0; i < Request.BCCRecipients.size(); i++)
+									recipients.clear();
+									for (size_t i = 0; i < request.cc_recipients.size(); i++)
 									{
 										if (i > 0)
-											Recipients += ',';
+											recipients += ',';
 
-										if (!Request.BCCRecipients[i].Name.empty())
+										if (!request.cc_recipients[i].name.empty())
 										{
-											Recipients.append(Request.BCCRecipients[i].Name);
-											Recipients += ' ';
+											recipients.append(request.cc_recipients[i].name);
+											recipients += ' ';
 										}
 
-										Recipients += '<';
-										Recipients.append(Request.BCCRecipients[i].Address);
-										Recipients += '>';
+										recipients += '<';
+										recipients.append(request.cc_recipients[i].address);
+										recipients += '>';
 									}
-									Core::Stringify::Append(Content, "Bcc: %s\r\n", Recipients.c_str());
+									core::stringify::append(content, "Cc: %s\r\n", recipients.c_str());
 								}
 
-								Core::Stringify::Append(Content, "Subject: %s\r\nMIME-Version: 1.0\r\n", Request.Subject.c_str());
-								if (!Request.Attachments.empty())
+								if (!request.bcc_recipients.empty())
 								{
-									Core::Stringify::Append(Content, "Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", Boundary.c_str());
-									Core::Stringify::Append(Content, "--%s\r\n", Boundary.c_str());
+									recipients.clear();
+									for (size_t i = 0; i < request.bcc_recipients.size(); i++)
+									{
+										if (i > 0)
+											recipients += ',';
+
+										if (!request.bcc_recipients[i].name.empty())
+										{
+											recipients.append(request.bcc_recipients[i].name);
+											recipients += ' ';
+										}
+
+										recipients += '<';
+										recipients.append(request.bcc_recipients[i].address);
+										recipients += '>';
+									}
+									core::stringify::append(content, "Bcc: %s\r\n", recipients.c_str());
 								}
 
-								if (Request.AllowHTML)
-									Core::Stringify::Append(Content, "Content-Type: text/html; charset=\"%s\"\r\n", Request.Charset.c_str());
+								core::stringify::append(content, "Subject: %s\r\nMIME-version: 1.0\r\n", request.subject.c_str());
+								if (!request.attachments.empty())
+								{
+									core::stringify::append(content, "Content-type: multipart/mixed; boundary=\"%s\"\r\n\r\n", boundary.c_str());
+									core::stringify::append(content, "--%s\r\n", boundary.c_str());
+								}
+
+								if (request.allow_html)
+									core::stringify::append(content, "Content-type: text/html; charset=\"%s\"\r\n", request.charset.c_str());
 								else
-									Core::Stringify::Append(Content, "Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
+									core::stringify::append(content, "Content-type: text/plain; charset=\"%s\"\r\n", request.charset.c_str());
 
-								Content.append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-								Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
+								content.append("Content-transfer-encoding: 7bit\r\n\r\n");
+								net.stream->write_queued((uint8_t*)content.c_str(), content.size(), [this](socket_poll event)
 								{
-									if (Packet::IsDone(Event))
+									if (packet::is_done(event))
 									{
-										Core::String Content;
-										for (auto& Item : Request.Messages)
-											Core::Stringify::Append(Content, "%s\r\n", Item.c_str());
+										core::string content;
+										for (auto& item : request.messages)
+											core::stringify::append(content, "%s\r\n", item.c_str());
 
-										if (Request.Messages.empty())
-											Content.assign(" \r\n");
+										if (request.messages.empty())
+											content.assign(" \r\n");
 
-										Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
+										net.stream->write_queued((uint8_t*)content.c_str(), content.size(), [this](socket_poll event)
 										{
-											if (Packet::IsDone(Event))
-												SendAttachment();
-											else if (Packet::IsErrorOrSkip(Event))
-												Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+											if (packet::is_done(event))
+												send_attachment();
+											else if (packet::is_error_or_skip(event))
+												report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 										});
 									}
-									else if (Packet::IsErrorOrSkip(Event))
-										Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+									else if (packet::is_error_or_skip(event))
+										report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 								});
 							});
 						});
 					}
-					else if (Packet::IsErrorOrSkip(Event))
-						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+					else if (packet::is_error_or_skip(event))
+						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				});
 
 				return true;
 			}
-			bool Client::SendAttachment()
+			bool client::send_attachment()
 			{
-				if (Pending <= 0)
+				if (pending <= 0)
 				{
-					Core::String Content;
-					if (!Request.Attachments.empty())
-						Core::Stringify::Append(Content, "\r\n--%s--\r\n", Boundary.c_str());
+					core::string content;
+					if (!request.attachments.empty())
+						core::stringify::append(content, "\r\n--%s--\r\n", boundary.c_str());
 
-					Content.append("\r\n.\r\n");
-					return !Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this](SocketPoll Event)
+					content.append("\r\n.\r\n");
+					return !net.stream->write_queued((uint8_t*)content.c_str(), content.size(), [this](socket_poll event)
 					{
-						if (Packet::IsDone(Event))
+						if (packet::is_done(event))
 						{
-							ReadResponses(250, [this]()
+							read_responses(250, [this]()
 							{
-								Report(Core::Expectation::Met);
+								report(core::expectation::met);
 							});
 						}
-						else if (Packet::IsErrorOrSkip(Event))
-							Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						else if (packet::is_error_or_skip(event))
+							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					});
 				}
 
-				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
-				const char* Name = It.Path.c_str();
-				size_t Id = strlen(Name) - 1;
+				attachment& it = request.attachments.at(request.attachments.size() - pending);
+				const char* name = it.path.c_str();
+				size_t id = strlen(name) - 1;
 
-				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
-					Name = Name - 1;
+				if (id > 0 && (name[id] == '\\' || name[id] == '/'))
+					name = name - 1;
 
-				Core::String Hash = Core::Stringify::Text("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode(std::string_view(Name, Id + 1)).c_str());
-				Core::String Content;
-				Core::Stringify::Append(Content, "--%s\r\n", Boundary.c_str());
-				Core::Stringify::Append(Content, "Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
-				Core::Stringify::Append(Content, "Content-Transfer-Encoding: base64\r\n");
-				Core::Stringify::Append(Content, "Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
+				core::string hash = core::stringify::text("=?UTF-8?b?%s?=", compute::codec::base64_encode(std::string_view(name, id + 1)).c_str());
+				core::string content;
+				core::stringify::append(content, "--%s\r\n", boundary.c_str());
+				core::stringify::append(content, "Content-type: application/x-msdownload; name=\"%s\"\r\n", hash.c_str());
+				core::stringify::append(content, "Content-transfer-encoding: base64\r\n");
+				core::stringify::append(content, "Content-disposition: attachment; filename=\"%s\"\r\n\r\n", hash.c_str());
 
-				return Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this, Name](SocketPoll Event)
+				return net.stream->write_queued((uint8_t*)content.c_str(), content.size(), [this, name](socket_poll event)
 				{
-					if (Packet::IsDone(Event))
+					if (packet::is_done(event))
 					{
-						auto File = Core::OS::File::Open(Name, "rb");
-						if (File)
+						auto file = core::os::file::open(name, "rb");
+						if (file)
 						{
-							AttachmentFile = *File;
-							ProcessAttachment();
+							attachment_file = *file;
+							process_attachment();
 						}
 						else
-							Report(Core::SystemException("smtp send attachment: open error", std::move(File.Error())));
+							report(core::system_exception("smtp send attachment: open error", std::move(file.error())));
 					}
-					else if (Packet::IsErrorOrSkip(Event))
-						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+					else if (packet::is_error_or_skip(event))
+						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
-			bool Client::ProcessAttachment()
+			bool client::process_attachment()
 			{
-				char Data[Core::BLOB_SIZE];
-				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
-				size_t Count = It.Length > Core::BLOB_SIZE ? Core::BLOB_SIZE : It.Length;
-				size_t Size = (size_t)fread(Data, sizeof(char), Count, AttachmentFile);
-				if (Size != Count)
+				char data[core::BLOB_SIZE];
+				attachment& it = request.attachments.at(request.attachments.size() - pending);
+				size_t count = it.length > core::BLOB_SIZE ? core::BLOB_SIZE : it.length;
+				size_t size = (size_t)fread(data, sizeof(char), count, attachment_file);
+				if (size != count)
 				{
-					Report(Core::SystemException("smtp read attachment error: " + It.Path, std::make_error_condition(std::errc::io_error)));
+					report(core::system_exception("smtp read attachment error: " + it.path, std::make_error_condition(std::errc::io_error)));
 					return false;
 				}
 
-				Core::String Content = Compute::Codec::Base64Encode(std::string_view(Data, Size));
-				Content.append("\r\n");
+				core::string content = compute::codec::base64_encode(std::string_view(data, size));
+				content.append("\r\n");
 
-				It.Length -= Size;
-				if (!It.Length)
-					Core::OS::File::Close(AttachmentFile);
+				it.length -= size;
+				if (!it.length)
+					core::os::file::close(attachment_file);
 
-				bool SendNext = (!It.Length);
-				return Net.Stream->WriteQueued((uint8_t*)Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)
+				bool send_next = (!it.length);
+				return net.stream->write_queued((uint8_t*)content.c_str(), content.size(), [this, send_next](socket_poll event)
 				{
-					if (Packet::IsDone(Event))
+					if (packet::is_done(event))
 					{
-						if (SendNext)
-							SendAttachment();
+						if (send_next)
+							send_attachment();
 						else
-							ProcessAttachment();
+							process_attachment();
 					}
-					else if (Packet::IsErrorOrSkip(Event))
-						Report(Core::SystemException(Event == SocketPoll::Timeout ? "write timeout error" : "write abort error", std::make_error_condition(Event == SocketPoll::Timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+					else if (packet::is_error_or_skip(event))
+						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
-			uint8_t* Client::Unicode(const std::string_view& Value)
+			uint8_t* client::unicode(const std::string_view& value)
 			{
-				size_t Length = Value.size();
-				auto* Output = Core::Memory::Allocate<uint8_t>(sizeof(uint8_t) * (Length + 1));
-				for (size_t i = 0; i < Length; i++)
-					Output[i] = (uint8_t)Value[i];
+				size_t length = value.size();
+				auto* output = core::memory::allocate<uint8_t>(sizeof(uint8_t) * (length + 1));
+				for (size_t i = 0; i < length; i++)
+					output[i] = (uint8_t)value[i];
 
-				Output[Length] = '\0';
-				return Output;
+				output[length] = '\0';
+				return output;
 			}
-			RequestFrame* Client::GetRequest()
+			request_frame* client::get_request()
 			{
-				return &Request;
+				return &request;
 			}
 		}
 	}

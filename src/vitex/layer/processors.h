@@ -2,35 +2,35 @@
 #define VI_LAYER_PROCESSORS_H
 #include "../layer.h"
 
-namespace Vitex
+namespace vitex
 {
-	namespace Layer
+	namespace layer
 	{
-		namespace Processors
+		namespace processors
 		{
-			class AssetProcessor final : public Processor
+			class asset_processor final : public processor
 			{
 			public:
-				AssetProcessor(ContentManager * Manager);
-				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				asset_processor(content_manager* manager);
+				expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
 			};
 
-			class SchemaProcessor final : public Processor
+			class schema_processor final : public processor
 			{
 			public:
-				SchemaProcessor(ContentManager* Manager);
-				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
-				ExpectsContent<void> Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
+				schema_processor(content_manager* manager);
+				expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
+				expects_content<void> serialize(core::stream* stream, void* object, const core::variant_args& args) override;
 			};
 
-			class ServerProcessor final : public Processor
+			class server_processor final : public processor
 			{
 			public:
-				std::function<void(void*, Core::Schema*)> Callback;
+				std::function<void(void*, core::schema*)> callback;
 
 			public:
-				ServerProcessor(ContentManager* Manager);
-				ExpectsContent<Core::Unique<void>> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				server_processor(content_manager* manager);
+				expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
 			};
 		}
 	}

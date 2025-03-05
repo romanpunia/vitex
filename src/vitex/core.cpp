@@ -4111,15 +4111,15 @@ namespace vitex
 		}
 		std::string_view date_time::format_web_time()
 		{
-			return "%a, %d %b %y %h:%m:%s GMT";
+			return "%a, %d %b %Y %H:%M:%S GMT";
 		}
 		std::string_view date_time::format_web_local_time()
 		{
-			return "%a, %d %b %y %h:%m:%s %Z";
+			return "%a, %d %b %Y %H:%M:%S %Z";
 		}
 		std::string_view date_time::format_compact_time()
 		{
-			return "%y-%m-%d %h:%m:%S";
+			return "%Y-%m-%d %H:%M:%S";
 		}
 		int64_t date_time::seconds_from_serialized(const std::string_view& text, const std::string_view& format)
 		{

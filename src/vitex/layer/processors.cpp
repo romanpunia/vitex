@@ -33,7 +33,7 @@ namespace vitex
 			expects_content<void*> schema_processor::deserialize(core::stream* stream, size_t offset, const core::variant_args& args)
 			{
 				VI_ASSERT(stream != nullptr, "stream should be set");
-				auto object = core::schema::convert_from_jsonb([stream](uint8_t* buffer, size_t size) { return size > 0 ? stream->read(buffer, size).otherwise(0) == size : true; });
+				auto object = core::schema::convert_from_jsonb([stream](uint8_t* buffer, size_t size) { return size > 0 ? stream->read(buffer, size).or_else(0) == size : true; });
 				if (object)
 					return *object;
 

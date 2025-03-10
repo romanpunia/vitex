@@ -1322,7 +1322,7 @@ namespace vitex
 				if (sub_type_id & (size_t)type_id::mask_object)
 					element_size = sizeof(asPWORD);
 				else
-					element_size = engine->get_size_of_primitive_type(sub_type_id).otherwise(0);
+					element_size = engine->get_size_of_primitive_type(sub_type_id).or_else(0);
 
 				size_t length = *(asUINT*)buffer_ptr;
 				if (!check_max_size(length))
@@ -1378,7 +1378,7 @@ namespace vitex
 				if (sub_type_id & (size_t)type_id::mask_object)
 					element_size = sizeof(asPWORD);
 				else
-					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).otherwise(0);
+					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).or_else(0);
 
 				if (!check_max_size(length))
 					return;
@@ -1411,7 +1411,7 @@ namespace vitex
 				if (sub_type_id & (size_t)type_id::mask_object)
 					element_size = sizeof(asPWORD);
 				else
-					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).otherwise(0);
+					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).or_else(0);
 
 				if (!check_max_size(length))
 					return;
@@ -2750,7 +2750,7 @@ namespace vitex
 					else if (type_id == 0)
 						buffer += sizeof(void*);
 					else
-						buffer += engine->get_size_of_primitive_type(type_id).otherwise(0);
+						buffer += engine->get_size_of_primitive_type(type_id).or_else(0);
 				}
 #endif
 			}
@@ -3921,7 +3921,7 @@ namespace vitex
 							buffer += sizeof(void*);
 					}
 					else if (type_id != 0)
-						buffer += vm->get_size_of_primitive_type(type_id).otherwise(0);
+						buffer += vm->get_size_of_primitive_type(type_id).or_else(0);
 					else
 						buffer += sizeof(void*);
 				}
@@ -5896,7 +5896,7 @@ namespace vitex
 
 				base->load_deferred(source, path, to_variant_keys(args)).when([delegatef](layer::expects_content<void*>&& object) mutable
 				{
-					void* address = object.otherwise(nullptr);
+					void* address = object.or_else(nullptr);
 					delegatef([address](immediate_context* context)
 					{
 						context->set_arg_address(0, address);
@@ -7839,7 +7839,7 @@ namespace vitex
 							buffer += sizeof(void*);
 					}
 					else if (type_id != 0)
-						buffer += vm->get_size_of_primitive_type(type_id).otherwise(0);
+						buffer += vm->get_size_of_primitive_type(type_id).or_else(0);
 					else
 						buffer += sizeof(void*);
 				}
@@ -8933,8 +8933,8 @@ namespace vitex
 				vm->set_function<as_uint64_t(*)(double)>("uint64 fp_to_ieee(double)", &math::fp_to_ieee);
 				vm->set_function<bool(*)(float, float, float)>("bool close_to(float, float, float = 0.00001f)", &math::close_to);
 				vm->set_function<bool(*)(double, double, double)>("bool close_to(double, double, double = 0.0000000001)", &math::close_to);
-				vm->set_function("float rad2degf()", &compute::mathf::rad2_deg);
-				vm->set_function("float deg2radf()", &compute::mathf::deg2_rad);
+				vm->set_function("float rad2degf()", &compute::mathf::rad2deg);
+				vm->set_function("float deg2radf()", &compute::mathf::deg2rad);
 				vm->set_function("float pi_valuef()", &compute::mathf::pi);
 				vm->set_function("float clampf(float, float, float)", &compute::mathf::clamp);
 				vm->set_function("float acotanf(float)", &compute::mathf::acotan);
@@ -8965,8 +8965,8 @@ namespace vitex
 				vm->set_function("float ceilf(float)", &compute::mathf::ceil);
 				vm->set_function("float absf(float)", &compute::mathf::abs);
 				vm->set_function("float floorf(float)", &compute::mathf::floor);
-				vm->set_function("double rad2degd()", &compute::mathd::rad2_deg);
-				vm->set_function("double deg2radd()", &compute::mathd::deg2_rad);
+				vm->set_function("double rad2degd()", &compute::mathd::rad2deg);
+				vm->set_function("double deg2radd()", &compute::mathd::deg2rad);
 				vm->set_function("double pi_valued()", &compute::mathd::pi);
 				vm->set_function("double clampd(double, double, double)", &compute::mathd::clamp);
 				vm->set_function("double acotand(double)", &compute::mathd::acotan);
@@ -10254,8 +10254,8 @@ namespace vitex
 				vm->set_function("void abort()", &core::os::process::abort);
 				vm->set_function("void exit(int)", &core::os::process::exit);
 				vm->set_function("void interrupt()", &core::os::process::interrupt);
-				vm->set_function("string get_env(const string_view&in)", &core::os::process::get_env);
-				vm->set_function("string get_shell()", &core::os::process::get_shell);
+				vm->set_function("string get_env(const string_view&in)", &VI_SEXPECTIFY(core::os::process::get_env));
+				vm->set_function("string get_shell()", &VI_SEXPECTIFY(core::os::process::get_shell));
 				vm->set_function("process_stream@+ spawn(const string_view&in, file_mode)", &VI_SEXPECTIFY(core::os::process::spawn));
 				vm->set_function("int execute(const string_view&in, file_mode, process_async@)", &os_process_execute);
 				vm->set_function("inline_args parse_args(array<string>@+, usize, array<string>@+ = null)", &os_process_parse_args);

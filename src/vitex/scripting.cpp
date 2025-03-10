@@ -2109,7 +2109,7 @@ namespace vitex
 					return core::stringify::text("%s opPow%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
 				case operators::andf:
 					return core::stringify::text("%s opAnd%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::otherwise:
+				case operators::or_else:
 					return core::stringify::text("%s opOr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
 				case operators::xorf:
 					return core::stringify::text("%s opXor%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
@@ -2825,7 +2825,7 @@ namespace vitex
 				if (include)
 				{
 					auto status = include(processor, file, output);
-					switch (status.otherwise(compute::include_type::unchanged))
+					switch (status.or_else(compute::include_type::unchanged))
 					{
 						case compute::include_type::preprocess:
 							goto preprocess;
@@ -3752,8 +3752,21 @@ namespace vitex
 		void debugger_context::add_command(const std::string_view& name, const std::string_view& description, args_type type, command_callback&& callback)
 		{
 			descriptions[core::string(name)] = description;
-			for (auto& command : core::stringify::split(name, ','))
+			auto types = core::stringify::split(name, ',');
+			if (types.size() > 1)
 			{
+				for (auto& command : types)
+				{
+					core::stringify::trim(command);
+					auto& data = commands[command];
+					data.callback = callback;
+					data.description = description;
+					data.arguments = type;
+				}
+			}
+			else
+			{
+				auto& command = types.front();
 				core::stringify::trim(command);
 				auto& data = commands[command];
 				data.callback = std::move(callback);

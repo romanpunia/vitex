@@ -6,10 +6,10 @@ namespace vitex
 {
 	enum
 	{
-		load_networking = 1 << 0,
-		load_cryptography = 1 << 1,
-		load_providers = 1 << 2,
-		load_locale = 1 << 3,
+		use_networking = 1 << 0,
+		use_cryptography = 1 << 1,
+		use_providers = 1 << 2,
+		use_locale = 1 << 3,
 		major_version = 4,
 		minor_version = 0,
 		patch_version = 0,
@@ -35,13 +35,13 @@ namespace vitex
 		size_t modes;
 
 	public:
-		runtime(size_t modules = load_networking | load_cryptography | load_providers | load_locale, core::global_allocator* allocator = nullptr) noexcept;
+		runtime(size_t modules = use_networking | use_cryptography | use_providers | use_locale, core::global_allocator* allocator = nullptr) noexcept;
 		virtual ~runtime() noexcept;
 		bool has_ft_allocator() const noexcept;
 		bool has_ft_pessimistic() const noexcept;
 		bool has_ft_bindings() const noexcept;
 		bool has_ft_fcontext() const noexcept;
-		bool has_so_open_ssl() const noexcept;
+		bool has_so_openssl() const noexcept;
 		bool has_so_zlib() const noexcept;
 		bool has_so_mongoc() const noexcept;
 		bool has_so_postgresql() const noexcept;

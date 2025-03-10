@@ -53,16 +53,16 @@ namespace vitex
 		instance = this;
 
 		initialize_allocator(&allocator);
-		if (modes & load_networking)
+		if (modes & use_networking)
 			initialize_network();
 
-		if (modes & load_cryptography)
-			initialize_cryptography(&crypto, modes & load_providers);
+		if (modes & use_cryptography)
+			initialize_cryptography(&crypto, modes & use_providers);
 
-		if (modes & load_locale)
+		if (modes & use_locale)
 			initialize_locale();
 
-		if (modes & load_cryptography)
+		if (modes & use_cryptography)
 			initialize_random();
 
 		initialize_scripting();
@@ -75,10 +75,10 @@ namespace vitex
 		auto* allocator = core::memory::get_global_allocator();
 		core::error_handling::set_flag(core::log_option::async, false);
 		cleanup_instances();
-		if (modes & load_cryptography)
+		if (modes & use_cryptography)
 			cleanup_cryptography(&crypto);
 
-		if (modes & load_networking)
+		if (modes & use_networking)
 			cleanup_network();
 		cleanup_scripting();
 		cleanup_composer();
@@ -184,7 +184,7 @@ namespace vitex
 		if (init_providers && !initialize_providers(crypto))
 			return false;
 #else
-		fip_smodeset(1);
+		FIPS_mode_set(1);
 #endif
 		RAND_poll();
 
@@ -365,7 +365,7 @@ namespace vitex
 		return false;
 #endif
 	}
-	bool runtime::has_so_open_ssl() const noexcept
+	bool runtime::has_so_openssl() const noexcept
 	{
 #ifdef VI_OPENSSL
 		return true;
@@ -480,7 +480,7 @@ namespace vitex
 	core::string runtime::get_details() const noexcept
 	{
 		core::vector<core::string> features;
-		if (has_so_open_ssl())
+		if (has_so_openssl())
 			features.push_back("so:openssl");
 		if (has_so_zlib())
 			features.push_back("so:zlib");
@@ -532,9 +532,9 @@ namespace vitex
 	{
 #ifdef _MSC_VER
 #ifdef VI_64
-		return "Visual c++ 64-bit";
+		return "Visual C++ 64-bit";
 #else
-		return "Visual c++ 32-bit";
+		return "Visual C++ 32-bit";
 #endif
 #endif
 #ifdef __clang__
@@ -564,7 +564,7 @@ namespace vitex
 		return "GCC 32-bit";
 #endif
 #endif
-		return "C/c++ compiler";
+		return "C/C++ compiler";
 	}
 	std::string_view runtime::get_platform() const noexcept
 	{
@@ -595,7 +595,7 @@ namespace vitex
 #ifdef __Fuchsia__
 		return "Fuschia";
 #endif
-		return "OS with c/c++ support";
+		return "OS with C/C++ support";
 	}
 	runtime* runtime::get() noexcept
 	{

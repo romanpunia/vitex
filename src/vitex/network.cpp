@@ -1451,14 +1451,14 @@ namespace vitex
 				if (blocks.size() > 8)
 					return core::optional::none;
 
-				auto a = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 1 ? uint16_t(0) : core::from_string<uint16_t>(blocks[0], 16).otherwise(0));
-				auto b = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 2 ? uint16_t(0) : core::from_string<uint16_t>(blocks[1], 16).otherwise(0));
-				auto c = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 3 ? uint16_t(0) : core::from_string<uint16_t>(blocks[2], 16).otherwise(0));
-				auto d = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 4 ? uint16_t(0) : core::from_string<uint16_t>(blocks[3], 16).otherwise(0));
-				auto e = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 5 ? uint16_t(0) : core::from_string<uint16_t>(blocks[4], 16).otherwise(0));
-				auto f = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 6 ? uint16_t(0) : core::from_string<uint16_t>(blocks[5], 16).otherwise(0));
-				auto g = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 7 ? uint16_t(0) : core::from_string<uint16_t>(blocks[6], 16).otherwise(0));
-				auto h = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 8 ? uint16_t(0) : core::from_string<uint16_t>(blocks[7], 16).otherwise(0));
+				auto a = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 1 ? uint16_t(0) : core::from_string<uint16_t>(blocks[0], 16).or_else(0));
+				auto b = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 2 ? uint16_t(0) : core::from_string<uint16_t>(blocks[1], 16).or_else(0));
+				auto c = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 3 ? uint16_t(0) : core::from_string<uint16_t>(blocks[2], 16).or_else(0));
+				auto d = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 4 ? uint16_t(0) : core::from_string<uint16_t>(blocks[3], 16).or_else(0));
+				auto e = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 5 ? uint16_t(0) : core::from_string<uint16_t>(blocks[4], 16).or_else(0));
+				auto f = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 6 ? uint16_t(0) : core::from_string<uint16_t>(blocks[5], 16).or_else(0));
+				auto g = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 7 ? uint16_t(0) : core::from_string<uint16_t>(blocks[6], 16).or_else(0));
+				auto h = core::os::hw::to_endianness(core::os::hw::endian::big, blocks.size() < 8 ? uint16_t(0) : core::from_string<uint16_t>(blocks[7], 16).or_else(0));
 
 				uint64_t base_value_h = 0, base_value_l = 0;
 				memcpy((char*)&base_value_h + sizeof(uint16_t) * 0, &a, sizeof(uint16_t));
@@ -1489,10 +1489,10 @@ namespace vitex
 				if (blocks.size() > 4)
 					return core::optional::none;
 
-				auto a = blocks.size() < 1 ? uint8_t(0) : core::from_string<uint8_t>(blocks[0]).otherwise(0);
-				auto b = blocks.size() < 2 ? uint8_t(0) : core::from_string<uint8_t>(blocks[1]).otherwise(0);
-				auto c = blocks.size() < 3 ? uint8_t(0) : core::from_string<uint8_t>(blocks[2]).otherwise(0);
-				auto d = blocks.size() < 4 ? uint8_t(0) : core::from_string<uint8_t>(blocks[3]).otherwise(0);
+				auto a = blocks.size() < 1 ? uint8_t(0) : core::from_string<uint8_t>(blocks[0]).or_else(0);
+				auto b = blocks.size() < 2 ? uint8_t(0) : core::from_string<uint8_t>(blocks[1]).or_else(0);
+				auto c = blocks.size() < 3 ? uint8_t(0) : core::from_string<uint8_t>(blocks[2]).or_else(0);
+				auto d = blocks.size() < 4 ? uint8_t(0) : core::from_string<uint8_t>(blocks[3]).or_else(0);
 
 				uint32_t base_value = 0;
 				memcpy((char*)&base_value + sizeof(uint8_t) * 0, &a, sizeof(uint8_t));
@@ -1755,7 +1755,7 @@ namespace vitex
 			if (getaddrinfo(hostname.empty() ? nullptr : hostname.data(), service.empty() ? nullptr : service.data(), &hints, &address) != 0)
 				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()));
 
-			socket_address target = socket_address(hostname, core::from_string<uint16_t>(service).otherwise(0), address);
+			socket_address target = socket_address(hostname, core::from_string<uint16_t>(service).or_else(0), address);
 			freeaddrinfo(address);
 			return reverse_address_lookup(target);
 		}
@@ -1916,7 +1916,7 @@ namespace vitex
 				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()), std::make_error_condition(std::errc::host_unreachable));
 			}
 
-			socket_address result = socket_address(hostname, core::from_string<uint16_t>(service).otherwise(0), target_address);
+			socket_address result = socket_address(hostname, core::from_string<uint16_t>(service).or_else(0), target_address);
 			VI_DEBUG("[net] dns resolved for entity %s:%s (address %s is used)", hostname.data(), service.data(), get_ip_address_identification(result).c_str());
 			freeaddrinfo(addresses);
 

@@ -99,9 +99,9 @@ namespace vitex
 											if (core::stringify::has_decimal(text))
 												row.push_back(core::var::decimal_string(text));
 											else if (core::stringify::has_integer(text))
-												row.push_back(core::var::integer(core::from_string<int64_t>(text).otherwise(0)));
+												row.push_back(core::var::integer(core::from_string<int64_t>(text).or_else(0)));
 											else if (core::stringify::has_number(text))
-												row.push_back(core::var::number(core::from_string<double>(text).otherwise(0.0)));
+												row.push_back(core::var::number(core::from_string<double>(text).or_else(0.0)));
 											else
 												row.push_back(core::var::string(text));
 											break;
@@ -1771,9 +1771,9 @@ namespace vitex
 							if (core::stringify::has_decimal(text))
 								args.push_back(core::var::decimal_string(text));
 							else if (core::stringify::has_integer(text))
-								args.push_back(core::var::integer(core::from_string<int64_t>(text).otherwise(0)));
+								args.push_back(core::var::integer(core::from_string<int64_t>(text).or_else(0)));
 							else if (core::stringify::has_number(text))
-								args.push_back(core::var::number(core::from_string<double>(text).otherwise(0.0)));
+								args.push_back(core::var::number(core::from_string<double>(text).or_else(0.0)));
 							else
 								args.push_back(core::var::string(text));
 							break;

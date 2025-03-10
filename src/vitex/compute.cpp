@@ -4928,7 +4928,7 @@ namespace vitex
 			OK = EVP_DigestInit_ex(context, method, nullptr) == 1 ? OK : false;
 			{
 				uint8_t buffer[core::BLOB_SIZE]; size_t size = 0;
-				while ((size = stream->read(buffer, sizeof(buffer)).otherwise(0)) > 0)
+				while ((size = stream->read(buffer, sizeof(buffer)).or_else(0)) > 0)
 					OK = EVP_DigestUpdate(context, buffer, size) == 1 ? OK : false;
 			}
 			if (OK)
@@ -5343,12 +5343,12 @@ namespace vitex
 
 			size_t offset = source[0].size() + source[1].size() + 1;
 			source[0] = codec::base64_url_decode(source[0]);
-			core::uptr<core::schema> header = core::schema::convert_from_json(source[0]).otherwise(nullptr);
+			core::uptr<core::schema> header = core::schema::convert_from_json(source[0]).or_else(nullptr);
 			if (!header)
 				return crypto_exception(-1, "jwt:header_parser_error");
 
 			source[1] = codec::base64_url_decode(source[1]);
-			core::uptr<core::schema> payload = core::schema::convert_from_json(source[1]).otherwise(nullptr);
+			core::uptr<core::schema> payload = core::schema::convert_from_json(source[1]).or_else(nullptr);
 			if (!payload)
 				return crypto_exception(-1, "jwt:payload_parser_error");
 
@@ -5424,7 +5424,7 @@ namespace vitex
 
 			size_t size = 0, in_buffer_size = 0, trailing_buffer_size = 0; bool is_finalized = false;
 			uint8_t in_buffer[core::CHUNK_SIZE], out_buffer[core::CHUNK_SIZE + 1024], trailing_buffer[core::CHUNK_SIZE];
-			while ((in_buffer_size = from->read(in_buffer, sizeof(in_buffer)).otherwise(0)) > 0)
+			while ((in_buffer_size = from->read(in_buffer, sizeof(in_buffer)).or_else(0)) > 0)
 			{
 				int out_size = 0;
 				if (1 != EVP_EncryptUpdate(context, out_buffer + trailing_buffer_size, &out_size, in_buffer, (int)in_buffer_size))
@@ -5451,7 +5451,7 @@ namespace vitex
 				if (callback && write_buffer_size > 0)
 					callback(&write_buffer, &write_buffer_size);
 
-				if (to->write(write_buffer, write_buffer_size).otherwise(0) != write_buffer_size)
+				if (to->write(write_buffer, write_buffer_size).or_else(0) != write_buffer_size)
 				{
 					EVP_CIPHER_CTX_free(context);
 					return crypto_exception();
@@ -5511,7 +5511,7 @@ namespace vitex
 
 			size_t size = 0, in_buffer_size = 0, trailing_buffer_size = 0; bool is_finalized = false;
 			uint8_t in_buffer[core::CHUNK_SIZE + 1024], out_buffer[core::CHUNK_SIZE + 1024], trailing_buffer[core::CHUNK_SIZE];
-			while ((in_buffer_size = from->read(in_buffer + trailing_buffer_size, sizeof(trailing_buffer)).otherwise(0)) > 0)
+			while ((in_buffer_size = from->read(in_buffer + trailing_buffer_size, sizeof(trailing_buffer)).or_else(0)) > 0)
 			{
 				uint8_t* read_buffer = in_buffer;
 				size_t read_buffer_size = (size_t)in_buffer_size + trailing_buffer_size;
@@ -5539,7 +5539,7 @@ namespace vitex
 
 			finalize:
 				size_t out_buffer_size = (size_t)out_size;
-				if (to->write(out_buffer, out_buffer_size).otherwise(0) != out_buffer_size)
+				if (to->write(out_buffer, out_buffer_size).or_else(0) != out_buffer_size)
 				{
 					EVP_CIPHER_CTX_free(context);
 					return crypto_exception();

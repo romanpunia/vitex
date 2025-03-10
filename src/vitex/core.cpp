@@ -9526,9 +9526,9 @@ namespace vitex
 			uptr<stream> pipe = *target;
 			for (auto& path : paths)
 			{
-				uptr<stream> base = open(path, file_mode::binary_read_only).otherwise(nullptr);
+				uptr<stream> base = open(path, file_mode::binary_read_only).or_else(nullptr);
 				if (base)
-					total += base->read_all([&pipe](uint8_t* buffer, size_t size) { pipe->write(buffer, size); }).otherwise(0);
+					total += base->read_all([&pipe](uint8_t* buffer, size_t size) { pipe->write(buffer, size); }).or_else(0);
 			}
 
 			return total;
@@ -9670,7 +9670,7 @@ namespace vitex
 			if (stringify::ends_with(temp, ".gz"))
 				return target;
 
-			uptr<stream> archive = open_join(temp + ".gz", { temp }).otherwise(nullptr);
+			uptr<stream> archive = open_join(temp + ".gz", { temp }).or_else(nullptr);
 			if (archive)
 				remove(temp.c_str());
 
@@ -9688,7 +9688,7 @@ namespace vitex
 			auto* channel = *target;
 			for (auto& path : paths)
 			{
-				uptr<stream> base = open(path, file_mode::binary_read_only).otherwise(nullptr);
+				uptr<stream> base = open(path, file_mode::binary_read_only).or_else(nullptr);
 				if (base)
 					base->read_all([&channel](uint8_t* buffer, size_t size) { channel->write(buffer, size); });
 			}
@@ -9715,7 +9715,7 @@ namespace vitex
 			bool is_virtual = stream->virtual_size() > 0;
 			if (is_virtual || stream->is_sized())
 			{
-				size_t size = is_virtual ? stream->virtual_size() : stream->size().otherwise(0);
+				size_t size = is_virtual ? stream->virtual_size() : stream->size().or_else(0);
 				auto* bytes = memory::allocate<uint8_t>(sizeof(uint8_t) * (size + 1));
 				if (size > 0)
 				{

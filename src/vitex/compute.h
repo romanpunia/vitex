@@ -1765,11 +1765,11 @@ namespace vitex
 			typedef typename type_traits<t>::type i;
 
 		public:
-			static t rad2_deg()
+			static t rad2deg()
 			{
 				return t(57.2957795130);
 			}
-			static t deg2_rad()
+			static t deg2rad()
 			{
 				return t(0.01745329251);
 			}

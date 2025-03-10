@@ -617,16 +617,16 @@ namespace vitex
 			if (!target_path)
 				return content_exception("archive was not found: " + core::string(path));
 
-			core::uptr<core::stream> stream = core::os::file::open(*target_path, core::file_mode::binary_read_only).otherwise(nullptr);
+			core::uptr<core::stream> stream = core::os::file::open(*target_path, core::file_mode::binary_read_only).or_else(nullptr);
 			if (!stream)
 				return content_exception("cannot open archive: " + core::string(path));
 
 			uint8_t header[32] = { 0 }; size_t header_size = sizeof(header);
-			if (stream->read(header, header_size).otherwise(0) != header_size || memcmp(header, CONTENT_ARCHIVE_HEADER_MAGIC, header_size) != 0)
+			if (stream->read(header, header_size).or_else(0) != header_size || memcmp(header, CONTENT_ARCHIVE_HEADER_MAGIC, header_size) != 0)
 				return content_exception("invalid archive header: " + core::string(path));
 
 			uint64_t content_elements = 0;
-			if (stream->read((uint8_t*)&content_elements, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+			if (stream->read((uint8_t*)&content_elements, sizeof(uint64_t)).or_else(0) != sizeof(uint64_t))
 				return content_exception("invalid archive size: " + core::string(path) + " (size = " + core::to_string(content_elements) + ")");
 
 			content_elements = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, content_elements);
@@ -639,7 +639,7 @@ namespace vitex
 			for (uint64_t i = 0; i < content_elements; i++)
 			{
 				uint64_t content_length = 0;
-				if (stream->read((uint8_t*)&content_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+				if (stream->read((uint8_t*)&content_length, sizeof(uint64_t)).or_else(0) != sizeof(uint64_t))
 					return content_exception("invalid archive chunk length: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
 				content_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, content_length);
@@ -647,7 +647,7 @@ namespace vitex
 					return content_exception("invalid archive chunk length: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
 				uint64_t path_length = 0;
-				if (stream->read((uint8_t*)&path_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+				if (stream->read((uint8_t*)&path_length, sizeof(uint64_t)).or_else(0) != sizeof(uint64_t))
 					return content_exception("invalid archive chunk path size: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
 				path_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, path_length);
@@ -655,7 +655,7 @@ namespace vitex
 					return content_exception("invalid archive chunk path size: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
 				core::string path_value = core::string((size_t)path_length, '\0');
-				if (stream->read((uint8_t*)path_value.c_str(), sizeof(char) * (size_t)path_length).otherwise(0) != (size_t)path_length)
+				if (stream->read((uint8_t*)path_value.c_str(), sizeof(char) * (size_t)path_length).or_else(0) != (size_t)path_length)
 					return content_exception("invalid archive chunk path data: " + core::string(path) + " (chunk = " + core::to_string(i) + ")");
 
 				asset_archive* archive = core::memory::init<asset_archive>();
@@ -667,7 +667,7 @@ namespace vitex
 				content_offset += content_length;
 			}
 
-			size_t headers_offset = stream->tell().otherwise(0);
+			size_t headers_offset = stream->tell().or_else(0);
 			if (validate_checksum)
 			{
 				size_t calculated_chunk = 0;
@@ -679,7 +679,7 @@ namespace vitex
 					{
 						uint8_t data_buffer[core::CHUNK_SIZE];
 						size_t data_size = std::min<size_t>(sizeof(data_buffer), data_length);
-						size_t value_size = stream->read(data_buffer, data_size).otherwise(0);
+						size_t value_size = stream->read(data_buffer, data_size).or_else(0);
 						data_length -= value_size;
 						if (!value_size)
 							break;
@@ -698,7 +698,7 @@ namespace vitex
 
 				uint8_t requested_hash[64] = { 0 };
 				calculated_hash = compute::codec::hex_encode(calculated_hash);
-				if (stream->read(requested_hash, sizeof(requested_hash)).otherwise(0) != sizeof(requested_hash) || calculated_hash.size() != sizeof(requested_hash) || memcmp(requested_hash, calculated_hash.c_str(), sizeof(requested_hash)) != 0)
+				if (stream->read(requested_hash, sizeof(requested_hash)).or_else(0) != sizeof(requested_hash) || calculated_hash.size() != sizeof(requested_hash) || memcmp(requested_hash, calculated_hash.c_str(), sizeof(requested_hash)) != 0)
 					return content_exception("invalid archive checksum: " + core::string(path) + " (calculated = " + calculated_hash + ")");
 				stream->seek(core::file_seek::begin, (int64_t)headers_offset);
 			}
@@ -742,18 +742,18 @@ namespace vitex
 			while (!virtual_volume.empty() && virtual_volume.front() == '/')
 				virtual_volume.erase(virtual_volume.begin());
 
-			core::uptr<core::stream> stream = core::os::file::open(*target_path, core::file_mode::binary_write_only).otherwise(nullptr);
+			core::uptr<core::stream> stream = core::os::file::open(*target_path, core::file_mode::binary_write_only).or_else(nullptr);
 			if (!stream)
 				return content_exception("cannot open archive: " + core::string(path));
 
 			uint8_t header[] = CONTENT_ARCHIVE_HEADER_MAGIC;
-			if (stream->write(header, sizeof(header) - 1).otherwise(0) != sizeof(header) - 1)
+			if (stream->write(header, sizeof(header) - 1).or_else(0) != sizeof(header) - 1)
 				return content_exception("cannot write header: " + *physical_volume);
 
 			core::uptr<core::file_tree> scanner = new core::file_tree(*physical_volume);
 			size_t content_count = scanner->get_files();
 			uint64_t content_elements = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, (uint64_t)content_count);
-			if (stream->write((uint8_t*)&content_elements, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t) || content_elements > CONTENT_ARCHIVE_MAX_FILES)
+			if (stream->write((uint8_t*)&content_elements, sizeof(uint64_t)).or_else(0) != sizeof(uint64_t) || content_elements > CONTENT_ARCHIVE_MAX_FILES)
 				return content_exception("too many files: " + *physical_volume);
 
 			size_t calculated_chunk = 0;
@@ -768,16 +768,16 @@ namespace vitex
 				for (auto& physical_path : tree->files)
 				{
 					core::string virtual_path = tree->path + '/' + physical_path;
-					core::uptr<core::stream> file = core::os::file::open(virtual_path, core::file_mode::binary_read_only).otherwise(nullptr);
+					core::uptr<core::stream> file = core::os::file::open(virtual_path, core::file_mode::binary_read_only).or_else(nullptr);
 					if (!file)
 					{
 						content_error = content_exception("cannot open content path: " + physical_path);
 						return false;
 					}
 
-					size_t content_size = file->size().otherwise(0);
+					size_t content_size = file->size().or_else(0);
 					uint64_t content_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, (uint64_t)content_size);
-					if (content_length > CONTENT_ARCHIVE_MAX_SIZE || stream->write((uint8_t*)&content_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+					if (content_length > CONTENT_ARCHIVE_MAX_SIZE || stream->write((uint8_t*)&content_length, sizeof(uint64_t)).or_else(0) != sizeof(uint64_t))
 					{
 						content_error = content_exception("cannot write content length: " + physical_path);
 						return false;
@@ -789,12 +789,12 @@ namespace vitex
 						virtual_path.erase(virtual_path.begin());
 
 					uint64_t path_length = core::os::hw::to_endianness<uint64_t>(core::os::hw::endian::little, (uint64_t)virtual_path.size());
-					if (path_length > CONTENT_ARCHIVE_MAX_PATH || stream->write((uint8_t*)&path_length, sizeof(uint64_t)).otherwise(0) != sizeof(uint64_t))
+					if (path_length > CONTENT_ARCHIVE_MAX_PATH || stream->write((uint8_t*)&path_length, sizeof(uint64_t)).or_else(0) != sizeof(uint64_t))
 					{
 						content_error = content_exception("cannot write content path length: " + physical_path);
 						return false;
 					}
-					else if (!virtual_path.empty() && stream->write((uint8_t*)virtual_path.c_str(), sizeof(char) * virtual_path.size()).otherwise(0) != virtual_path.size())
+					else if (!virtual_path.empty() && stream->write((uint8_t*)virtual_path.c_str(), sizeof(char) * virtual_path.size()).or_else(0) != virtual_path.size())
 					{
 						content_error = content_exception("cannot write content path data: " + physical_path);
 						return false;
@@ -815,12 +815,12 @@ namespace vitex
 				{
 					uint8_t data_buffer[core::CHUNK_SIZE];
 					size_t data_size = std::min<size_t>(sizeof(data_buffer), data_length);
-					size_t value_size = item.first->read(data_buffer, data_size).otherwise(0);
+					size_t value_size = item.first->read(data_buffer, data_size).or_else(0);
 					data_length -= value_size;
 					if (!value_size)
 						break;
 
-					if (stream->write(data_buffer, value_size).otherwise(0) != value_size)
+					if (stream->write(data_buffer, value_size).or_else(0) != value_size)
 						return content_exception("cannot write content data: " + core::string(item.first->virtual_name()) + " (chunk = " + core::to_string(calculated_chunk) + ")");
 
 					calculated_hash.append((char*)data_buffer, value_size);
@@ -836,7 +836,7 @@ namespace vitex
 			}
 
 			calculated_hash = compute::codec::hex_encode(calculated_hash);
-			if (stream->write((uint8_t*)calculated_hash.data(), calculated_hash.size()).otherwise(0) != calculated_hash.size())
+			if (stream->write((uint8_t*)calculated_hash.data(), calculated_hash.size()).or_else(0) != calculated_hash.size())
 				return content_exception("cannot write archive checksum: " + core::string(path) + " (calculated = " + calculated_hash + ")");
 
 			return core::expectation::met;
@@ -921,7 +921,7 @@ namespace vitex
 				return processor->duplicate(asset, map);
 			}
 
-			core::uptr<core::stream> stream = core::os::file::open(file, core::file_mode::binary_read_only).otherwise(nullptr);
+			core::uptr<core::stream> stream = core::os::file::open(file, core::file_mode::binary_read_only).or_else(nullptr);
 			if (!stream)
 			{
 				VI_TRACE("[content] load from archive %.*s: non-existant", (int)path.size(), path.data());
@@ -957,10 +957,10 @@ namespace vitex
 			else
 				core::os::directory::patch(core::os::path::get_directory(path));
 
-			core::uptr<core::stream> stream = core::os::file::open(target, core::file_mode::binary_write_only).otherwise(nullptr);
+			core::uptr<core::stream> stream = core::os::file::open(target, core::file_mode::binary_write_only).or_else(nullptr);
 			if (!stream)
 			{
-				stream = core::os::file::open(path, core::file_mode::binary_write_only).otherwise(nullptr);
+				stream = core::os::file::open(path, core::file_mode::binary_write_only).or_else(nullptr);
 				if (!stream)
 					return content_exception("cannot open saving stream: " + core::string(path) + " or " + target);
 			}
@@ -1177,7 +1177,7 @@ namespace vitex
 			if (next.empty())
 				return false;
 
-			data = content->load<core::schema>(next).otherwise(nullptr);
+			data = content->load<core::schema>(next).or_else(nullptr);
 			return data != nullptr;
 		}
 		bool app_data::write_app_data(const std::string_view& next)

@@ -1313,7 +1313,7 @@ namespace vitex
 				v& reference = *(v*)value;
 				return std::move(reference);
 			}
-			const v& otherwise(const v & if_none) const&
+			const v& or_else(const v & if_none) const&
 			{
 				if (!is_value())
 					return if_none;
@@ -1321,7 +1321,7 @@ namespace vitex
 				const v& reference = *(v*)value;
 				return reference;
 			}
-			const v&& otherwise(const v && if_none) const&&
+			const v&& or_else(const v && if_none) const&&
 			{
 				if (!is_value())
 					return std::move(if_none);
@@ -1329,7 +1329,7 @@ namespace vitex
 				v& reference = *(v*)value;
 				return std::move(reference);
 			}
-			v& otherwise(v & if_none)&
+			v& or_else(v & if_none)&
 			{
 				if (!is_value())
 					return if_none;
@@ -1337,7 +1337,7 @@ namespace vitex
 				v& reference = *(v*)value;
 				return reference;
 			}
-			v&& otherwise(v && if_none)&&
+			v&& or_else(v && if_none)&&
 			{
 				if (!is_value())
 					return std::move(if_none);
@@ -1630,7 +1630,7 @@ namespace vitex
 				v& reference = *(v*)value.buffer;
 				return std::move(reference);
 			}
-			const v& otherwise(const v & if_none) const&
+			const v& or_else(const v & if_none) const&
 			{
 				if (!is_value())
 					return if_none;
@@ -1638,7 +1638,7 @@ namespace vitex
 				const v& reference = *(v*)value.buffer;
 				return reference;
 			}
-			const v&& otherwise(const v && if_none) const&&
+			const v&& or_else(const v && if_none) const&&
 			{
 				if (!is_value())
 					return std::move(if_none);
@@ -1646,7 +1646,7 @@ namespace vitex
 				v& reference = *(v*)value.buffer;
 				return std::move(reference);
 			}
-			v& otherwise(v & if_none)&
+			v& or_else(v & if_none)&
 			{
 				if (!is_value())
 					return if_none;
@@ -1654,7 +1654,7 @@ namespace vitex
 				v& reference = *(v*)value.buffer;
 				return reference;
 			}
-			v&& otherwise(v && if_none)&&
+			v&& or_else(v && if_none)&&
 			{
 				if (!is_value())
 					return std::move(if_none);

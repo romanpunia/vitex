@@ -306,7 +306,7 @@ namespace vitex
 			mod,
 			pow,
 			andf,
-			otherwise,
+			or_else,
 			xorf,
 			shl,
 			shr,
@@ -991,7 +991,7 @@ namespace vitex
 				for (size_t i = 0; i < elements_count; i++)
 				{
 					core::string element_decl = core::string(decl) + core::to_string(i);
-					auto result = set_property_address(element_decl.c_str(), (int)reinterpret_cast<size_t>(&(((t*)0)->*value)) + (int)(sizeof(r) * i));
+					auto result = set_property_address(element_decl.c_str(), (int)reinterpret_cast<size_t>(&(((t*)0)->*value)) + (int)(i * sizeof(r) / elements_count));
 					if (!result)
 						return result;
 				}

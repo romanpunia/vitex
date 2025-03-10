@@ -2058,7 +2058,7 @@ namespace vitex
 
 				auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *compute::crypto::random_bytes(16));
 				subresource.path = *core::os::directory::get_working() + *hash;
-				FILE* file = core::os::file::open(subresource.path.c_str(), "wb").otherwise(nullptr);
+				FILE* file = core::os::file::open(subresource.path.c_str(), "wb").or_else(nullptr);
 				if (!file || (request.content.prefetch > 0 && fwrite(request.content.data.data(), 1, request.content.data.size(), file) != request.content.data.size()))
 				{
 					if (file != nullptr)

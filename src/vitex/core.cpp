@@ -9326,7 +9326,7 @@ namespace vitex
 		}
 		uint64_t os::file::get_hash(const std::string_view& data)
 		{
-			return compute::crypto::CRC32(data);
+			return compute::crypto::crc64(data);
 		}
 		uint64_t os::file::get_index(const std::string_view& data)
 		{
@@ -9336,7 +9336,6 @@ namespace vitex
 				result ^= data[i];
 				result *= 1099511628211;
 			}
-
 			return result;
 		}
 		expects_io<size_t> os::file::write(const std::string_view& path, const uint8_t* data, size_t length)

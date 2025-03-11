@@ -1165,7 +1165,7 @@ namespace vitex
 				builder->add_standard_extension(nullptr, "subjectAltName", alternative_names.c_str());
 			}
 
-			builder->sign(compute::digests::SHA256());
+			builder->sign(compute::digests::sha256());
 			return builder->build();
 		}
 		core::expects_io<certificate> utils::get_certificate_from_x509(void* certificate_x509) noexcept

@@ -685,7 +685,7 @@ namespace vitex
 							break;
 
 						calculated_hash.append((char*)data_buffer, value_size);
-						calculated_hash = *compute::crypto::hash_raw(compute::digests::SHA256(), calculated_hash);
+						calculated_hash = *compute::crypto::hash_raw(compute::digests::sha256(), calculated_hash);
 						if (value_size < data_size)
 							break;
 					}
@@ -824,7 +824,7 @@ namespace vitex
 						return content_exception("cannot write content data: " + core::string(item.first->virtual_name()) + " (chunk = " + core::to_string(calculated_chunk) + ")");
 
 					calculated_hash.append((char*)data_buffer, value_size);
-					calculated_hash = *compute::crypto::hash_raw(compute::digests::SHA256(), calculated_hash);
+					calculated_hash = *compute::crypto::hash_raw(compute::digests::sha256(), calculated_hash);
 					if (value_size < data_size)
 						break;
 				}

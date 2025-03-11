@@ -1994,7 +1994,7 @@ namespace vitex
 			}
 			core::string cluster::get_cache_oid(const std::string_view& payload, size_t opts)
 			{
-				auto hash = compute::crypto::hash_hex(compute::digests::SHA256(), payload);
+				auto hash = compute::crypto::hash_hex(compute::digests::sha256(), payload);
 				core::string reference = hash ? compute::codec::hex_encode(*hash) : compute::codec::hex_encode(payload.substr(0, 32));
 				if (opts & (size_t)query_op::cache_short)
 					reference.append(".s");

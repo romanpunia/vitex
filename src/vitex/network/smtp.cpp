@@ -475,7 +475,7 @@ namespace vitex
 					auto random = compute::crypto::random_bytes(64);
 					if (random)
 					{
-						auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *random);
+						auto hash = compute::crypto::hash_hex(compute::digests::md5(), *random);
 						if (hash)
 							boundary = *hash;
 						else

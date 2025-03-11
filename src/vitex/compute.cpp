@@ -2393,70 +2393,70 @@ namespace vitex
 			uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
 			decode(x, block, length);
 
-			FF(a, b, c, d, x[0], S11, 0xd76aa478);
-			FF(d, a, b, c, x[1], S12, 0xe8c7b756);
-			FF(c, d, a, b, x[2], S13, 0x242070db);
-			FF(b, c, d, a, x[3], S14, 0xc1bdceee);
-			FF(a, b, c, d, x[4], S11, 0xf57c0faf);
-			FF(d, a, b, c, x[5], S12, 0x4787c62a);
-			FF(c, d, a, b, x[6], S13, 0xa8304613);
-			FF(b, c, d, a, x[7], S14, 0xfd469501);
-			FF(a, b, c, d, x[8], S11, 0x698098d8);
-			FF(d, a, b, c, x[9], S12, 0x8b44f7af);
-			FF(c, d, a, b, x[10], S13, 0xffff5bb1);
-			FF(b, c, d, a, x[11], S14, 0x895cd7be);
-			FF(a, b, c, d, x[12], S11, 0x6b901122);
-			FF(d, a, b, c, x[13], S12, 0xfd987193);
-			FF(c, d, a, b, x[14], S13, 0xa679438e);
-			FF(b, c, d, a, x[15], S14, 0x49b40821);
-			GG(a, b, c, d, x[1], S21, 0xf61e2562);
-			GG(d, a, b, c, x[6], S22, 0xc040b340);
-			GG(c, d, a, b, x[11], S23, 0x265e5a51);
-			GG(b, c, d, a, x[0], S24, 0xe9b6c7aa);
-			GG(a, b, c, d, x[5], S21, 0xd62f105d);
-			GG(d, a, b, c, x[10], S22, 0x2441453);
-			GG(c, d, a, b, x[15], S23, 0xd8a1e681);
-			GG(b, c, d, a, x[4], S24, 0xe7d3fbc8);
-			GG(a, b, c, d, x[9], S21, 0x21e1cde6);
-			GG(d, a, b, c, x[14], S22, 0xc33707d6);
-			GG(c, d, a, b, x[3], S23, 0xf4d50d87);
-			GG(b, c, d, a, x[8], S24, 0x455a14ed);
-			GG(a, b, c, d, x[13], S21, 0xa9e3e905);
-			GG(d, a, b, c, x[2], S22, 0xfcefa3f8);
-			GG(c, d, a, b, x[7], S23, 0x676f02d9);
-			GG(b, c, d, a, x[12], S24, 0x8d2a4c8a);
-			HH(a, b, c, d, x[5], S31, 0xfffa3942);
-			HH(d, a, b, c, x[8], S32, 0x8771f681);
-			HH(c, d, a, b, x[11], S33, 0x6d9d6122);
-			HH(b, c, d, a, x[14], S34, 0xfde5380c);
-			HH(a, b, c, d, x[1], S31, 0xa4beea44);
-			HH(d, a, b, c, x[4], S32, 0x4bdecfa9);
-			HH(c, d, a, b, x[7], S33, 0xf6bb4b60);
-			HH(b, c, d, a, x[10], S34, 0xbebfbc70);
-			HH(a, b, c, d, x[13], S31, 0x289b7ec6);
-			HH(d, a, b, c, x[0], S32, 0xeaa127fa);
-			HH(c, d, a, b, x[3], S33, 0xd4ef3085);
-			HH(b, c, d, a, x[6], S34, 0x4881d05);
-			HH(a, b, c, d, x[9], S31, 0xd9d4d039);
-			HH(d, a, b, c, x[12], S32, 0xe6db99e5);
-			HH(c, d, a, b, x[15], S33, 0x1fa27cf8);
-			HH(b, c, d, a, x[2], S34, 0xc4ac5665);
-			II(a, b, c, d, x[0], S41, 0xf4292244);
-			II(d, a, b, c, x[7], S42, 0x432aff97);
-			II(c, d, a, b, x[14], S43, 0xab9423a7);
-			II(b, c, d, a, x[5], S44, 0xfc93a039);
-			II(a, b, c, d, x[12], S41, 0x655b59c3);
-			II(d, a, b, c, x[3], S42, 0x8f0ccc92);
-			II(c, d, a, b, x[10], S43, 0xffeff47d);
-			II(b, c, d, a, x[1], S44, 0x85845dd1);
-			II(a, b, c, d, x[8], S41, 0x6fa87e4f);
-			II(d, a, b, c, x[15], S42, 0xfe2ce6e0);
-			II(c, d, a, b, x[6], S43, 0xa3014314);
-			II(b, c, d, a, x[13], S44, 0x4e0811a1);
-			II(a, b, c, d, x[4], S41, 0xf7537e82);
-			II(d, a, b, c, x[11], S42, 0xbd3af235);
-			II(c, d, a, b, x[2], S43, 0x2ad7d2bb);
-			II(b, c, d, a, x[9], S44, 0xeb86d391);
+			ff(a, b, c, d, x[0], s11, 0xd76aa478);
+			ff(d, a, b, c, x[1], s12, 0xe8c7b756);
+			ff(c, d, a, b, x[2], s13, 0x242070db);
+			ff(b, c, d, a, x[3], s14, 0xc1bdceee);
+			ff(a, b, c, d, x[4], s11, 0xf57c0faf);
+			ff(d, a, b, c, x[5], s12, 0x4787c62a);
+			ff(c, d, a, b, x[6], s13, 0xa8304613);
+			ff(b, c, d, a, x[7], s14, 0xfd469501);
+			ff(a, b, c, d, x[8], s11, 0x698098d8);
+			ff(d, a, b, c, x[9], s12, 0x8b44f7af);
+			ff(c, d, a, b, x[10], s13, 0xffff5bb1);
+			ff(b, c, d, a, x[11], s14, 0x895cd7be);
+			ff(a, b, c, d, x[12], s11, 0x6b901122);
+			ff(d, a, b, c, x[13], s12, 0xfd987193);
+			ff(c, d, a, b, x[14], s13, 0xa679438e);
+			ff(b, c, d, a, x[15], s14, 0x49b40821);
+			gg(a, b, c, d, x[1], s21, 0xf61e2562);
+			gg(d, a, b, c, x[6], s22, 0xc040b340);
+			gg(c, d, a, b, x[11], s23, 0x265e5a51);
+			gg(b, c, d, a, x[0], s24, 0xe9b6c7aa);
+			gg(a, b, c, d, x[5], s21, 0xd62f105d);
+			gg(d, a, b, c, x[10], s22, 0x2441453);
+			gg(c, d, a, b, x[15], s23, 0xd8a1e681);
+			gg(b, c, d, a, x[4], s24, 0xe7d3fbc8);
+			gg(a, b, c, d, x[9], s21, 0x21e1cde6);
+			gg(d, a, b, c, x[14], s22, 0xc33707d6);
+			gg(c, d, a, b, x[3], s23, 0xf4d50d87);
+			gg(b, c, d, a, x[8], s24, 0x455a14ed);
+			gg(a, b, c, d, x[13], s21, 0xa9e3e905);
+			gg(d, a, b, c, x[2], s22, 0xfcefa3f8);
+			gg(c, d, a, b, x[7], s23, 0x676f02d9);
+			gg(b, c, d, a, x[12], s24, 0x8d2a4c8a);
+			hh(a, b, c, d, x[5], s31, 0xfffa3942);
+			hh(d, a, b, c, x[8], s32, 0x8771f681);
+			hh(c, d, a, b, x[11], s33, 0x6d9d6122);
+			hh(b, c, d, a, x[14], s34, 0xfde5380c);
+			hh(a, b, c, d, x[1], s31, 0xa4beea44);
+			hh(d, a, b, c, x[4], s32, 0x4bdecfa9);
+			hh(c, d, a, b, x[7], s33, 0xf6bb4b60);
+			hh(b, c, d, a, x[10], s34, 0xbebfbc70);
+			hh(a, b, c, d, x[13], s31, 0x289b7ec6);
+			hh(d, a, b, c, x[0], s32, 0xeaa127fa);
+			hh(c, d, a, b, x[3], s33, 0xd4ef3085);
+			hh(b, c, d, a, x[6], s34, 0x4881d05);
+			hh(a, b, c, d, x[9], s31, 0xd9d4d039);
+			hh(d, a, b, c, x[12], s32, 0xe6db99e5);
+			hh(c, d, a, b, x[15], s33, 0x1fa27cf8);
+			hh(b, c, d, a, x[2], s34, 0xc4ac5665);
+			ii(a, b, c, d, x[0], s41, 0xf4292244);
+			ii(d, a, b, c, x[7], s42, 0x432aff97);
+			ii(c, d, a, b, x[14], s43, 0xab9423a7);
+			ii(b, c, d, a, x[5], s44, 0xfc93a039);
+			ii(a, b, c, d, x[12], s41, 0x655b59c3);
+			ii(d, a, b, c, x[3], s42, 0x8f0ccc92);
+			ii(c, d, a, b, x[10], s43, 0xffeff47d);
+			ii(b, c, d, a, x[1], s44, 0x85845dd1);
+			ii(a, b, c, d, x[8], s41, 0x6fa87e4f);
+			ii(d, a, b, c, x[15], s42, 0xfe2ce6e0);
+			ii(c, d, a, b, x[6], s43, 0xa3014314);
+			ii(b, c, d, a, x[13], s44, 0x4e0811a1);
+			ii(a, b, c, d, x[4], s41, 0xf7537e82);
+			ii(d, a, b, c, x[11], s42, 0xbd3af235);
+			ii(c, d, a, b, x[2], s43, 0x2ad7d2bb);
+			ii(b, c, d, a, x[9], s44, 0xeb86d391);
 
 			state[0] += a;
 			state[1] += b;
@@ -2581,24 +2581,24 @@ namespace vitex
 		{
 			return (x << n) | (x >> (32 - n));
 		}
-		void md5_hasher::FF(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
+		void md5_hasher::ff(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
 		{
-			a = l(a + f(b, c, d) + x + AC, s) + b;
+			a = l(a + f(b, c, d) + x + ac, s) + b;
 		}
-		void md5_hasher::GG(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
+		void md5_hasher::gg(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
 		{
-			a = l(a + g(b, c, d) + x + AC, s) + b;
+			a = l(a + g(b, c, d) + x + ac, s) + b;
 		}
-		void md5_hasher::HH(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
+		void md5_hasher::hh(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
 		{
-			a = l(a + h(b, c, d) + x + AC, s) + b;
+			a = l(a + h(b, c, d) + x + ac, s) + b;
 		}
-		void md5_hasher::II(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 AC)
+		void md5_hasher::ii(uint4& a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
 		{
-			a = l(a + i(b, c, d) + x + AC, s) + b;
+			a = l(a + i(b, c, d) + x + ac, s) + b;
 		}
 
-		cipher ciphers::DES_ECB()
+		cipher ciphers::des_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2610,7 +2610,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE()
+		cipher ciphers::des_ede()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2622,7 +2622,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3()
+		cipher ciphers::des_ede3()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2634,7 +2634,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE_ECB()
+		cipher ciphers::des_ede_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2646,7 +2646,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3_ECB()
+		cipher ciphers::des_ede3_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2658,7 +2658,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_CFB64()
+		cipher ciphers::des_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2670,7 +2670,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_CFB1()
+		cipher ciphers::des_cfb1()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2682,7 +2682,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_CFB8()
+		cipher ciphers::des_cfb8()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2694,7 +2694,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE_CFB64()
+		cipher ciphers::des_ede_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2706,7 +2706,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3_CFB64()
+		cipher ciphers::des_ede3_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2718,7 +2718,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3_CFB1()
+		cipher ciphers::des_ede3_cfb1()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2730,7 +2730,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3_CFB8()
+		cipher ciphers::des_ede3_cfb8()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2742,7 +2742,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_OFB()
+		cipher ciphers::des_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2754,7 +2754,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE_OFB()
+		cipher ciphers::des_ede_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2766,7 +2766,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3_OFB()
+		cipher ciphers::des_ede3_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2778,7 +2778,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_CBC()
+		cipher ciphers::des_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2790,7 +2790,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE_CBC()
+		cipher ciphers::des_ede_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2802,7 +2802,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DES_EDE3_CBC()
+		cipher ciphers::des_ede3_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2826,7 +2826,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::DESX_CBC()
+		cipher ciphers::desx_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_DES
@@ -2838,7 +2838,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC4()
+		cipher ciphers::rc4()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC4
@@ -2850,7 +2850,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC4_40()
+		cipher ciphers::rc4_40()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC4
@@ -2862,7 +2862,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC4_HMAC_MD5()
+		cipher ciphers::rc4_hmac_md5()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC4
@@ -2878,7 +2878,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::IDEA_ECB()
+		cipher ciphers::idea_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
@@ -2890,7 +2890,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::IDEA_CFB64()
+		cipher ciphers::idea_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
@@ -2902,7 +2902,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::IDEA_OFB()
+		cipher ciphers::idea_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
@@ -2914,7 +2914,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::IDEA_CBC()
+		cipher ciphers::idea_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_IDEA
@@ -2926,7 +2926,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC2_ECB()
+		cipher ciphers::rc2_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
@@ -2938,7 +2938,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC2_CBC()
+		cipher ciphers::rc2_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
@@ -2950,7 +2950,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC2_40_CBC()
+		cipher ciphers::rc2_40_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
@@ -2962,7 +2962,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC2_64_CBC()
+		cipher ciphers::rc2_64_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
@@ -2974,7 +2974,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC2_CFB64()
+		cipher ciphers::rc2_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
@@ -2986,7 +2986,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC2_OFB()
+		cipher ciphers::rc2_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC2
@@ -2998,7 +2998,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::BF_ECB()
+		cipher ciphers::bf_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
@@ -3010,7 +3010,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::BF_CBC()
+		cipher ciphers::bf_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
@@ -3022,7 +3022,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::BF_CFB64()
+		cipher ciphers::bf_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
@@ -3034,7 +3034,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::BF_OFB()
+		cipher ciphers::bf_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_BF
@@ -3046,7 +3046,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::CAST5_ECB()
+		cipher ciphers::cast5_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
@@ -3058,7 +3058,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::CAST5_CBC()
+		cipher ciphers::cast5_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
@@ -3070,7 +3070,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::CAST5_CFB64()
+		cipher ciphers::cast5_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
@@ -3082,7 +3082,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::CAST5_OFB()
+		cipher ciphers::cast5_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_CAST
@@ -3094,7 +3094,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC5_32_12_16_CBC()
+		cipher ciphers::rc5_32_12_16_cbc()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
@@ -3106,7 +3106,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC5_32_12_16_ECB()
+		cipher ciphers::rc5_32_12_16_ecb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
@@ -3118,7 +3118,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC5_32_12_16_CFB64()
+		cipher ciphers::rc5_32_12_16_cfb64()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
@@ -3130,7 +3130,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::RC5_32_12_16_OFB()
+		cipher ciphers::rc5_32_12_16_ofb()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_RC5
@@ -3142,7 +3142,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_ECB()
+		cipher ciphers::aes_128_ecb()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_ecb();
@@ -3150,7 +3150,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CBC()
+		cipher ciphers::aes_128_cbc()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_cbc();
@@ -3158,7 +3158,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CFB1()
+		cipher ciphers::aes_128_cfb1()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_cfb1();
@@ -3166,7 +3166,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CFB8()
+		cipher ciphers::aes_128_cfb8()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_cfb8();
@@ -3174,7 +3174,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CFB128()
+		cipher ciphers::aes_128_cfb128()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_cfb128();
@@ -3182,7 +3182,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_OFB()
+		cipher ciphers::aes_128_ofb()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_ofb();
@@ -3190,7 +3190,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CTR()
+		cipher ciphers::aes_128_ctr()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_ctr();
@@ -3198,7 +3198,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CCM()
+		cipher ciphers::aes_128_ccm()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_ccm();
@@ -3206,7 +3206,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_GCM()
+		cipher ciphers::aes_128_gcm()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_gcm();
@@ -3214,7 +3214,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_XTS()
+		cipher ciphers::aes_128_xts()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_xts();
@@ -3238,7 +3238,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_OCB()
+		cipher ciphers::aes_128_ocb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
@@ -3250,7 +3250,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_ECB()
+		cipher ciphers::aes_192_ecb()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_ecb();
@@ -3258,7 +3258,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_CBC()
+		cipher ciphers::aes_192_cbc()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_cbc();
@@ -3266,7 +3266,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_CFB1()
+		cipher ciphers::aes_192_cfb1()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_cfb1();
@@ -3274,7 +3274,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_CFB8()
+		cipher ciphers::aes_192_cfb8()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_cfb8();
@@ -3282,7 +3282,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_CFB128()
+		cipher ciphers::aes_192_cfb128()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_cfb128();
@@ -3290,7 +3290,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_OFB()
+		cipher ciphers::aes_192_ofb()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_ofb();
@@ -3298,7 +3298,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_CTR()
+		cipher ciphers::aes_192_ctr()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_ctr();
@@ -3306,7 +3306,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_CCM()
+		cipher ciphers::aes_192_ccm()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_ccm();
@@ -3314,7 +3314,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_GCM()
+		cipher ciphers::aes_192_gcm()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_192_gcm();
@@ -3338,7 +3338,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_192_OCB()
+		cipher ciphers::aes_192_ocb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
@@ -3350,7 +3350,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_ECB()
+		cipher ciphers::aes_256_ecb()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_ecb();
@@ -3358,7 +3358,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CBC()
+		cipher ciphers::aes_256_cbc()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_cbc();
@@ -3366,7 +3366,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CFB1()
+		cipher ciphers::aes_256_cfb1()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_cfb1();
@@ -3374,7 +3374,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CFB8()
+		cipher ciphers::aes_256_cfb8()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_cfb8();
@@ -3382,7 +3382,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CFB128()
+		cipher ciphers::aes_256_cfb128()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_cfb128();
@@ -3390,7 +3390,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_OFB()
+		cipher ciphers::aes_256_ofb()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_ofb();
@@ -3398,7 +3398,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CTR()
+		cipher ciphers::aes_256_ctr()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_ctr();
@@ -3406,7 +3406,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CCM()
+		cipher ciphers::aes_256_ccm()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_ccm();
@@ -3414,7 +3414,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_GCM()
+		cipher ciphers::aes_256_gcm()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_gcm();
@@ -3422,7 +3422,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_XTS()
+		cipher ciphers::aes_256_xts()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_xts();
@@ -3446,7 +3446,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_OCB()
+		cipher ciphers::aes_256_ocb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
@@ -3458,7 +3458,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CBC_HMAC_SHA1()
+		cipher ciphers::aes_128_cbc_hmac_sha1()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_128_cbc_hmac_sha1();
@@ -3466,7 +3466,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CBC_HMAC_SHA1()
+		cipher ciphers::aes_256_cbc_hmac_sha1()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_aes_256_cbc_hmac_sha1();
@@ -3474,7 +3474,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_128_CBC_HMAC_SHA256()
+		cipher ciphers::aes_128_cbc_hmac_sha256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_aes_128_cbc_hmac_sha256();
@@ -3482,7 +3482,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::AES_256_CBC_HMAC_SHA256()
+		cipher ciphers::aes_256_cbc_hmac_sha256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_aes_256_cbc_hmac_sha256();
@@ -3490,7 +3490,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_ECB()
+		cipher ciphers::aria_128_ecb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3502,7 +3502,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_CBC()
+		cipher ciphers::aria_128_cbc()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3514,7 +3514,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_CFB1()
+		cipher ciphers::aria_128_cfb1()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3526,7 +3526,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_CFB8()
+		cipher ciphers::aria_128_cfb8()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3538,7 +3538,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_CFB128()
+		cipher ciphers::aria_128_cfb128()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3550,7 +3550,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_CTR()
+		cipher ciphers::aria_128_ctr()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3562,7 +3562,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_OFB()
+		cipher ciphers::aria_128_ofb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3574,7 +3574,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_GCM()
+		cipher ciphers::aria_128_gcm()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3586,7 +3586,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_128_CCM()
+		cipher ciphers::aria_128_ccm()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3598,7 +3598,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_ECB()
+		cipher ciphers::aria_192_ecb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3610,7 +3610,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_CBC()
+		cipher ciphers::aria_192_cbc()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3622,7 +3622,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_CFB1()
+		cipher ciphers::aria_192_cfb1()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3634,7 +3634,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_CFB8()
+		cipher ciphers::aria_192_cfb8()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3646,7 +3646,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_CFB128()
+		cipher ciphers::aria_192_cfb128()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3658,7 +3658,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_CTR()
+		cipher ciphers::aria_192_ctr()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3670,7 +3670,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_OFB()
+		cipher ciphers::aria_192_ofb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3682,7 +3682,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_GCM()
+		cipher ciphers::aria_192_gcm()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3694,7 +3694,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_192_CCM()
+		cipher ciphers::aria_192_ccm()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3706,7 +3706,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_ECB()
+		cipher ciphers::aria_256_ecb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3718,7 +3718,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_CBC()
+		cipher ciphers::aria_256_cbc()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3730,7 +3730,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_CFB1()
+		cipher ciphers::aria_256_cfb1()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3742,7 +3742,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_CFB8()
+		cipher ciphers::aria_256_cfb8()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3754,7 +3754,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_CFB128()
+		cipher ciphers::aria_256_cfb128()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3766,7 +3766,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_CTR()
+		cipher ciphers::aria_256_ctr()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3778,7 +3778,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_OFB()
+		cipher ciphers::aria_256_ofb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3790,7 +3790,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_GCM()
+		cipher ciphers::aria_256_gcm()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -3802,7 +3802,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::ARIA_256_CCM()
+		cipher ciphers::aria_256_ccm()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
@@ -4142,7 +4142,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::SM4_ECB()
+		cipher ciphers::sm4_ecb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
@@ -4154,7 +4154,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::SM4_CBC()
+		cipher ciphers::sm4_cbc()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
@@ -4166,7 +4166,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::SM4_CFB128()
+		cipher ciphers::sm4_cfb128()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
@@ -4178,7 +4178,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::SM4_OFB()
+		cipher ciphers::sm4_ofb()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
@@ -4190,7 +4190,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		cipher ciphers::SM4_CTR()
+		cipher ciphers::sm4_ctr()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
@@ -4203,7 +4203,7 @@ namespace vitex
 #endif
 		}
 
-		digest digests::MD2()
+		digest digests::md2()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MD2
@@ -4215,7 +4215,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::MD4()
+		digest digests::md4()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MD4
@@ -4227,7 +4227,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::MD5()
+		digest digests::md5()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MD5
@@ -4239,7 +4239,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::MD5_SHA1()
+		digest digests::md5_sha1()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_MD5
@@ -4275,7 +4275,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA1()
+		digest digests::sha1()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_sha1();
@@ -4283,7 +4283,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA224()
+		digest digests::sha224()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_sha224();
@@ -4291,7 +4291,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA256()
+		digest digests::sha256()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_sha256();
@@ -4299,7 +4299,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA384()
+		digest digests::sha384()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_sha384();
@@ -4307,7 +4307,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA512()
+		digest digests::sha512()
 		{
 #ifdef VI_OPENSSL
 			return (cipher)EVP_sha512();
@@ -4315,7 +4315,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA512_224()
+		digest digests::sha512_224()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_sha512_224();
@@ -4323,7 +4323,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA512_256()
+		digest digests::sha512_256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_sha512_256();
@@ -4331,7 +4331,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA3_224()
+		digest digests::sha3_224()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_sha3_224();
@@ -4339,7 +4339,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA3_256()
+		digest digests::sha3_256()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_sha3_256();
@@ -4347,7 +4347,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA3_384()
+		digest digests::sha3_384()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_sha3_384();
@@ -4355,7 +4355,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SHA3_512()
+		digest digests::sha3_512()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (cipher)EVP_sha3_512();
@@ -4379,7 +4379,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::MDC2()
+		digest digests::mdc2()
 		{
 #ifdef VI_OPENSSL
 #ifndef OPENSSL_NO_MDC2
@@ -4415,7 +4415,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		digest digests::SM3()
+		digest digests::sm3()
 		{
 #if VI_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM3
@@ -4508,7 +4508,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::RSA()
+		sign_alg signers::rsa()
 		{
 #ifdef EVP_PKEY_RSA
 			return (sign_alg)EVP_PKEY_RSA;
@@ -4516,7 +4516,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::RSA2()
+		sign_alg signers::rsa2()
 		{
 #ifdef EVP_PKEY_RSA2
 			return (sign_alg)EVP_PKEY_RSA2;
@@ -4524,7 +4524,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::RSA_PSS()
+		sign_alg signers::rsa_pss()
 		{
 #ifdef EVP_PKEY_RSA_PSS
 			return (sign_alg)EVP_PKEY_RSA_PSS;
@@ -4532,7 +4532,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DSA()
+		sign_alg signers::dsa()
 		{
 #ifdef EVP_PKEY_DSA
 			return (sign_alg)EVP_PKEY_DSA;
@@ -4540,7 +4540,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DSA1()
+		sign_alg signers::dsa1()
 		{
 #ifdef EVP_PKEY_DSA1
 			return (sign_alg)EVP_PKEY_DSA1;
@@ -4548,7 +4548,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DSA2()
+		sign_alg signers::dsa2()
 		{
 #ifdef EVP_PKEY_DSA2
 			return (sign_alg)EVP_PKEY_DSA2;
@@ -4556,7 +4556,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DSA3()
+		sign_alg signers::dsa3()
 		{
 #ifdef EVP_PKEY_DSA3
 			return (sign_alg)EVP_PKEY_DSA3;
@@ -4564,7 +4564,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DSA4()
+		sign_alg signers::dsa4()
 		{
 #ifdef EVP_PKEY_DSA4
 			return (sign_alg)EVP_PKEY_DSA4;
@@ -4572,7 +4572,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DH()
+		sign_alg signers::dh()
 		{
 #ifdef EVP_PKEY_DH
 			return (sign_alg)EVP_PKEY_DH;
@@ -4580,7 +4580,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::DHX()
+		sign_alg signers::dhx()
 		{
 #ifdef EVP_PKEY_DHX
 			return (sign_alg)EVP_PKEY_DHX;
@@ -4588,7 +4588,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::EC()
+		sign_alg signers::ec()
 		{
 #ifdef EVP_PKEY_EC
 			return (sign_alg)EVP_PKEY_EC;
@@ -4596,7 +4596,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::SM2()
+		sign_alg signers::sm2()
 		{
 #ifdef EVP_PKEY_SM2
 			return (sign_alg)EVP_PKEY_SM2;
@@ -4604,7 +4604,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::HMAC()
+		sign_alg signers::hmac()
 		{
 #ifdef EVP_PKEY_HMAC
 			return (sign_alg)EVP_PKEY_HMAC;
@@ -4612,7 +4612,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::CMAC()
+		sign_alg signers::cmac()
 		{
 #ifdef EVP_PKEY_CMAC
 			return (sign_alg)EVP_PKEY_CMAC;
@@ -4620,7 +4620,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::SCRYPT()
+		sign_alg signers::scrypt()
 		{
 #ifdef EVP_PKEY_SCRYPT
 			return (sign_alg)EVP_PKEY_SCRYPT;
@@ -4628,7 +4628,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::TLS1_PRF()
+		sign_alg signers::tls1_prf()
 		{
 #ifdef EVP_PKEY_TLS1_PRF
 			return (sign_alg)EVP_PKEY_TLS1_PRF;
@@ -4636,7 +4636,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::HKDF()
+		sign_alg signers::hkdf()
 		{
 #ifdef EVP_PKEY_HKDF
 			return (sign_alg)EVP_PKEY_HKDF;
@@ -4644,7 +4644,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::POLY1305()
+		sign_alg signers::poly1305()
 		{
 #ifdef EVP_PKEY_POLY1305
 			return (sign_alg)EVP_PKEY_POLY1305;
@@ -4652,7 +4652,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::SIPHASH()
+		sign_alg signers::siphash()
 		{
 #ifdef EVP_PKEY_SIPHASH
 			return (sign_alg)EVP_PKEY_SIPHASH;
@@ -4660,7 +4660,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::X25519()
+		sign_alg signers::x25519()
 		{
 #ifdef EVP_PKEY_X25519
 			return (sign_alg)EVP_PKEY_X25519;
@@ -4668,7 +4668,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::ED25519()
+		sign_alg signers::ed25519()
 		{
 #ifdef EVP_PKEY_ED25519
 			return (sign_alg)EVP_PKEY_ED25519;
@@ -4676,7 +4676,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::X448()
+		sign_alg signers::x448()
 		{
 #ifdef EVP_PKEY_X448
 			return (sign_alg)EVP_PKEY_X448;
@@ -4684,7 +4684,7 @@ namespace vitex
 			return -1;
 #endif
 		}
-		sign_alg signers::ED448()
+		sign_alg signers::ed448()
 		{
 #ifdef EVP_PKEY_ED448
 			return (sign_alg)EVP_PKEY_ED448;
@@ -5076,7 +5076,7 @@ namespace vitex
 			return crypto_exception();
 #endif
 		}
-		expects_crypto<core::string> crypto::HMAC(digest type, const std::string_view& value, const secret_box& key)
+		expects_crypto<core::string> crypto::hmac(digest type, const std::string_view& value, const secret_box& key)
 		{
 			VI_ASSERT(type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
@@ -5304,13 +5304,13 @@ namespace vitex
 		{
 			digest hash = nullptr;
 			if (alg == "HS256")
-				hash = digests::SHA256();
+				hash = digests::sha256();
 			else if (alg == "HS384")
-				hash = digests::SHA384();
+				hash = digests::sha384();
 			else if (alg == "HS512")
-				hash = digests::SHA512();
+				hash = digests::sha512();
 
-			return crypto::HMAC(hash, payload, key);
+			return crypto::hmac(hash, payload, key);
 		}
 		expects_crypto<core::string> crypto::jwt_encode(web_token* src, const secret_box& key)
 		{
@@ -5369,7 +5369,7 @@ namespace vitex
 			core::string result;
 			core::schema::convert_to_json(src, [&result](core::var_form, const std::string_view& buffer) { result.append(buffer); });
 
-			auto data = encrypt(ciphers::AES_256_CBC(), result, key, salt);
+			auto data = encrypt(ciphers::aes_256_cbc(), result, key, salt);
 			if (!data)
 				return data;
 
@@ -5382,7 +5382,7 @@ namespace vitex
 			if (value.empty())
 				return crypto_exception(-1, "doc:payload_empty");
 
-			auto source = decrypt(ciphers::AES_256_CBC(), codec::bep45_decode(value), key, salt);
+			auto source = decrypt(ciphers::aes_256_cbc(), codec::bep45_decode(value), key, salt);
 			if (!source)
 				return source.error();
 
@@ -5573,30 +5573,35 @@ namespace vitex
 			static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			return alphabet[(size_t)(random() % (sizeof(alphabet) - 1))];
 		}
-		uint64_t crypto::CRC32(const std::string_view& data)
+		uint32_t crypto::crc32(const std::string_view& data)
 		{
 			VI_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)data.size());
-			int64_t result = 0xFFFFFFFF;
-			int64_t byte = 0;
-			int64_t mask = 0;
-			int64_t offset = 0;
-			size_t index = 0;
-
-			while (index < data.size())
+			uint32_t crc = ~0;
+			for (auto byte : data)
 			{
-				byte = data[index];
-				result = result ^ byte;
-
-				for (offset = 7; offset >= 0; offset--)
+				crc ^= static_cast<uint32_t>(byte);
+				for (int i = 0; i < 8; i++)
 				{
-					mask = -(result & 1);
-					result = (result >> 1) ^ (0xEDB88320 & mask);
+					uint32_t t = ~((crc & 1) - 1);
+					crc = (crc >> 1) ^ (0xEDB88320 & t);
 				}
-
-				index++;
 			}
-
-			return (uint64_t)~result;
+			return ~crc;
+		}
+		uint64_t crypto::crc64(const std::string_view& data)
+		{
+			VI_TRACE("[crypto] crc64 %" PRIu64 " bytes", (uint64_t)data.size());
+			uint64_t crc = ~0;
+			for (auto byte : data)
+			{
+				crc ^= static_cast<uint64_t>(byte);
+				for (int i = 0; i < 8; i++)
+				{
+					uint64_t t = ~((crc & 1) - 1);
+					crc = (crc >> 1) ^ (0xC96C5795D7870F42ULL & t);
+				}
+			}
+			return ~crc;
 		}
 		uint64_t crypto::random(uint64_t min, uint64_t max)
 		{

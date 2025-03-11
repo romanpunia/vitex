@@ -2056,7 +2056,7 @@ namespace vitex
 				subresource.length = request.content.length;
 				subresource.type = (content_type.empty() ? "application/octet-stream" : content_type);
 
-				auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *compute::crypto::random_bytes(16));
+				auto hash = compute::crypto::hash_hex(compute::digests::md5(), *compute::crypto::random_bytes(16));
 				subresource.path = *core::os::directory::get_working() + *hash;
 				FILE* file = core::os::file::open(subresource.path.c_str(), "wb").or_else(nullptr);
 				if (!file || (request.content.prefetch > 0 && fwrite(request.content.data.data(), 1, request.content.data.size(), file) != request.content.data.size()))
@@ -2548,7 +2548,7 @@ namespace vitex
 			{
 				VI_ASSERT(connection_valid(base), "connection should be valid");
 				int64_t time = ::time(nullptr);
-				auto hash = compute::crypto::hash_hex(compute::digests::MD5(), base->request.location + core::to_string(time));
+				auto hash = compute::crypto::hash_hex(compute::digests::md5(), base->request.location + core::to_string(time));
 				if (hash)
 					session_id = *hash;
 				else
@@ -4565,7 +4565,7 @@ namespace vitex
 					auto random = compute::crypto::random_bytes(16);
 					if (random)
 					{
-						auto hash = compute::crypto::hash_hex(compute::digests::MD5(), *random);
+						auto hash = compute::crypto::hash_hex(compute::digests::md5(), *random);
 						if (hash)
 							parser->multipart.data.path.append(*hash);
 					}

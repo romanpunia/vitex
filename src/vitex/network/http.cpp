@@ -2873,11 +2873,12 @@ namespace vitex
 			}
 			int64_t parser::parse_response(const uint8_t* buffer_start, size_t length, size_t offset)
 			{
-				VI_ASSERT(buffer_start != nullptr, "buffer start should be set");
+				if (!buffer_start)
+					return 0;
+
+				int result;
 				const uint8_t* buffer = buffer_start;
 				const uint8_t* buffer_end = buffer + length;
-				int result;
-
 				if (is_completed(buffer, buffer_end, offset, &result) == nullptr)
 					return (int64_t)result;
 

@@ -1378,9 +1378,12 @@ namespace vitex
 							array[0] = core::os::hw::to_endianness(core::os::hw::endian::big, upper);
 					}
 
-					output = codec::hex_encode_odd(std::string_view(((char*)array) + (sizeof(array) - size), size));
+					length = std::max(length, (uint32_t)size * 2);
+					output = codec::hex_encode(std::string_view(((char*)array) + (sizeof(array) - size), size));
 					if (output.size() < length)
 						output.append(length - output.size(), '0');
+					while (output.size() > 1 && output.front() == '0')
+						output.erase(0, 1);
 					break;
 				}
 				default:
@@ -1988,10 +1991,13 @@ namespace vitex
 							}
 						}
 					}
-
-					output = codec::hex_encode_odd(std::string_view(((char*)array) + (sizeof(array) - size), size));
+					
+					length = std::max(length, (uint32_t)size * 2);
+					output = codec::hex_encode(std::string_view(((char*)array) + (sizeof(array) - size), size));
 					if (output.size() < length)
 						output.append(length - output.size(), '0');
+					while (output.size() > 1 && output.front() == '0')
+						output.erase(0, 1);
 					break;
 				}
 				default:

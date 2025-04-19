@@ -1733,7 +1733,7 @@ namespace vitex
 #else
 			bool parse_tokens = data.type.level != log_level::trace;
 #endif
-			terminal->color_begin(parse_tokens ? std_color::cyan : std_color::gray);
+			terminal->write_color(parse_tokens ? std_color::cyan : std_color::gray);
 			if (has_flag(log_option::dated))
 			{
 				terminal->write(data.message.date);
@@ -1741,7 +1741,7 @@ namespace vitex
 #ifndef NDEBUG
 				if (data.origin.file != nullptr)
 				{
-					terminal->color_begin(std_color::gray);
+					terminal->write_color(std_color::gray);
 					terminal->write(data.origin.file);
 					terminal->write(":");
 					if (data.origin.line > 0)
@@ -1753,15 +1753,15 @@ namespace vitex
 				}
 #endif
 			}
-			terminal->color_begin(get_message_color(data));
+			terminal->write_color(get_message_color(data));
 			terminal->write(get_message_type(data));
 			terminal->write(" ");
 			if (parse_tokens)
-				terminal->color_print(std_color::light_gray, std::string_view(data.message.data, data.message.size));
+				terminal->colorize(std_color::light_gray, std::string_view(data.message.data, data.message.size));
 			else
 				terminal->write(data.message.data);
 			terminal->write("\n");
-			terminal->color_end();
+			terminal->clear_color();
 		}
 		void error_handling::pause() noexcept
 		{
@@ -5351,6 +5351,16 @@ namespace vitex
 
 			return true;
 		}
+		bool stringify::consists_of(const std::string_view& other, const std::string_view& alphabet)
+		{
+			size_t offset = 0;
+			while (offset < other.size())
+			{
+				if (alphabet.find(other[offset++]) == std::string::npos)
+					return false;
+			}
+			return true;
+		}
 		bool stringify::has_integer(const std::string_view& other)
 		{
 			if (other.empty() || (other.size() == 1 && !is_numeric(other.front())))
@@ -5606,33 +5616,33 @@ namespace vitex
 		}
 		vector<string> stringify::split(const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			vector<string> output;
-			pm_split(output, other, with, start);
-			return output;
+			vector<string> output_view;
+			pm_split(output_view, other, with, start);
+			return output_view;
 		}
 		vector<string> stringify::split(const std::string_view& other, char with, size_t start)
 		{
-			vector<string> output;
-			pm_split(output, other, with, start);
-			return output;
+			vector<string> output_view;
+			pm_split(output_view, other, with, start);
+			return output_view;
 		}
 		vector<string> stringify::split_max(const std::string_view& other, char with, size_t count, size_t start)
 		{
-			vector<string> output;
-			pm_split_max(output, other, with, count, start);
-			return output;
+			vector<string> output_view;
+			pm_split_max(output_view, other, with, count, start);
+			return output_view;
 		}
 		vector<string> stringify::split_of(const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			vector<string> output;
-			pm_split_of(output, other, with, start);
-			return output;
+			vector<string> output_view;
+			pm_split_of(output_view, other, with, start);
+			return output_view;
 		}
 		vector<string> stringify::split_not_of(const std::string_view& other, const std::string_view& with, size_t start)
 		{
-			vector<string> output;
-			pm_split_not_of(output, other, with, start);
-			return output;
+			vector<string> output_view;
+			pm_split_not_of(output_view, other, with, start);
+			return output_view;
 		}
 		void stringify::pm_split(vector<string>& output, const std::string_view& other, const std::string_view& with, size_t start)
 		{
@@ -6005,170 +6015,169 @@ namespace vitex
 
 		console::console() noexcept
 		{
-			color_tokens =
-			{
-				/* scheduling */
-				color_token("spawn", std_color::yellow),
-				color_token("despawn", std_color::yellow),
-				color_token("start", std_color::yellow),
-				color_token("stop", std_color::yellow),
-				color_token("resume", std_color::yellow),
-				color_token("suspend", std_color::yellow),
-				color_token("acquire", std_color::yellow),
-				color_token("release", std_color::yellow),
-				color_token("execute", std_color::yellow),
-				color_token("join", std_color::yellow),
-				color_token("terminate", std_color::dark_red),
-				color_token("abort", std_color::dark_red),
-				color_token("exit", std_color::dark_red),
-				color_token("thread", std_color::cyan),
-				color_token("process", std_color::cyan),
-				color_token("sync", std_color::cyan),
-				color_token("async", std_color::cyan),
-				color_token("ms", std_color::cyan),
-				color_token("us", std_color::cyan),
-				color_token("ns", std_color::cyan),
+			colorization.reserve(146);
 
-				/* networking and IO */
-				color_token("open", std_color::yellow),
-				color_token("close", std_color::yellow),
-				color_token("closed", std_color::yellow),
-				color_token("shutdown", std_color::yellow),
-				color_token("bind", std_color::yellow),
-				color_token("assign", std_color::yellow),
-				color_token("resolve", std_color::yellow),
-				color_token("listen", std_color::yellow),
-				color_token("unlisten", std_color::yellow),
-				color_token("accept", std_color::yellow),
-				color_token("connect", std_color::yellow),
-				color_token("reconnect", std_color::yellow),
-				color_token("handshake", std_color::yellow),
-				color_token("reset", std_color::yellow),
-				color_token("read", std_color::yellow),
-				color_token("write", std_color::yellow),
-				color_token("seek", std_color::yellow),
-				color_token("tell", std_color::yellow),
-				color_token("scan", std_color::yellow),
-				color_token("fetch", std_color::yellow),
-				color_token("check", std_color::yellow),
-				color_token("compare", std_color::yellow),
-				color_token("stat", std_color::yellow),
-				color_token("migrate", std_color::yellow),
-				color_token("prepare", std_color::yellow),
-				color_token("load", std_color::yellow),
-				color_token("unload", std_color::yellow),
-				color_token("save", std_color::yellow),
-				color_token("query", std_color::magenta),
-				color_token("template", std_color::blue),
-				color_token("byte", std_color::cyan),
-				color_token("bytes", std_color::cyan),
-				color_token("epoll", std_color::cyan),
-				color_token("kqueue", std_color::cyan),
-				color_token("poll", std_color::cyan),
-				color_token("dns", std_color::cyan),
-				color_token("file", std_color::cyan),
-				color_token("sock", std_color::cyan),
-				color_token("dir", std_color::cyan),
-				color_token("fd", std_color::cyan),
+			/* scheduling */
+			colorization.push_back({ "spawn", std_color::yellow, std_color::zero });
+			colorization.push_back({ "despawn", std_color::yellow, std_color::zero });
+			colorization.push_back({ "start", std_color::yellow, std_color::zero });
+			colorization.push_back({ "stop", std_color::yellow, std_color::zero });
+			colorization.push_back({ "resume", std_color::yellow, std_color::zero });
+			colorization.push_back({ "suspend", std_color::yellow, std_color::zero });
+			colorization.push_back({ "acquire", std_color::yellow, std_color::zero });
+			colorization.push_back({ "release", std_color::yellow, std_color::zero });
+			colorization.push_back({ "execute", std_color::yellow, std_color::zero });
+			colorization.push_back({ "join", std_color::yellow, std_color::zero });
+			colorization.push_back({ "terminate", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "abort", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "exit", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "thread", std_color::cyan, std_color::zero });
+			colorization.push_back({ "process", std_color::cyan, std_color::zero });
+			colorization.push_back({ "sync", std_color::cyan, std_color::zero });
+			colorization.push_back({ "async", std_color::cyan, std_color::zero });
+			colorization.push_back({ "ms", std_color::cyan, std_color::zero });
+			colorization.push_back({ "us", std_color::cyan, std_color::zero });
+			colorization.push_back({ "ns", std_color::cyan, std_color::zero });
 
-				/* graphics */
-				color_token("compile", std_color::yellow),
-				color_token("transpile", std_color::yellow),
-				color_token("show", std_color::yellow),
-				color_token("hide", std_color::yellow),
-				color_token("clear", std_color::yellow),
-				color_token("resize", std_color::yellow),
-				color_token("vcall", std_color::magenta),
-				color_token("shader", std_color::cyan),
-				color_token("bytecode", std_color::cyan),
+			/* networking and IO */
+			colorization.push_back({ "open", std_color::yellow, std_color::zero });
+			colorization.push_back({ "close", std_color::yellow, std_color::zero });
+			colorization.push_back({ "closed", std_color::yellow, std_color::zero });
+			colorization.push_back({ "shutdown", std_color::yellow, std_color::zero });
+			colorization.push_back({ "bind", std_color::yellow, std_color::zero });
+			colorization.push_back({ "assign", std_color::yellow, std_color::zero });
+			colorization.push_back({ "resolve", std_color::yellow, std_color::zero });
+			colorization.push_back({ "listen", std_color::yellow, std_color::zero });
+			colorization.push_back({ "unlisten", std_color::yellow, std_color::zero });
+			colorization.push_back({ "accept", std_color::yellow, std_color::zero });
+			colorization.push_back({ "connect", std_color::yellow, std_color::zero });
+			colorization.push_back({ "reconnect", std_color::yellow, std_color::zero });
+			colorization.push_back({ "handshake", std_color::yellow, std_color::zero });
+			colorization.push_back({ "reset", std_color::yellow, std_color::zero });
+			colorization.push_back({ "read", std_color::yellow, std_color::zero });
+			colorization.push_back({ "write", std_color::yellow, std_color::zero });
+			colorization.push_back({ "seek", std_color::yellow, std_color::zero });
+			colorization.push_back({ "tell", std_color::yellow, std_color::zero });
+			colorization.push_back({ "scan", std_color::yellow, std_color::zero });
+			colorization.push_back({ "fetch", std_color::yellow, std_color::zero });
+			colorization.push_back({ "check", std_color::yellow, std_color::zero });
+			colorization.push_back({ "compare", std_color::yellow, std_color::zero });
+			colorization.push_back({ "stat", std_color::yellow, std_color::zero });
+			colorization.push_back({ "migrate", std_color::yellow, std_color::zero });
+			colorization.push_back({ "prepare", std_color::yellow, std_color::zero });
+			colorization.push_back({ "load", std_color::yellow, std_color::zero });
+			colorization.push_back({ "unload", std_color::yellow, std_color::zero });
+			colorization.push_back({ "save", std_color::yellow, std_color::zero });
+			colorization.push_back({ "query", std_color::magenta, std_color::zero });
+			colorization.push_back({ "template", std_color::blue, std_color::zero });
+			colorization.push_back({ "byte", std_color::cyan, std_color::zero });
+			colorization.push_back({ "bytes", std_color::cyan, std_color::zero });
+			colorization.push_back({ "epoll", std_color::cyan, std_color::zero });
+			colorization.push_back({ "kqueue", std_color::cyan, std_color::zero });
+			colorization.push_back({ "poll", std_color::cyan, std_color::zero });
+			colorization.push_back({ "dns", std_color::cyan, std_color::zero });
+			colorization.push_back({ "file", std_color::cyan, std_color::zero });
+			colorization.push_back({ "sock", std_color::cyan, std_color::zero });
+			colorization.push_back({ "dir", std_color::cyan, std_color::zero });
+			colorization.push_back({ "fd", std_color::cyan, std_color::zero });
 
-				/* audio */
-				color_token("play", std_color::yellow),
-				color_token("stop", std_color::yellow),
-				color_token("apply", std_color::yellow),
+			/* graphics */
+			colorization.push_back({ "compile", std_color::yellow, std_color::zero });
+			colorization.push_back({ "transpile", std_color::yellow, std_color::zero });
+			colorization.push_back({ "show", std_color::yellow, std_color::zero });
+			colorization.push_back({ "hide", std_color::yellow, std_color::zero });
+			colorization.push_back({ "clear", std_color::yellow, std_color::zero });
+			colorization.push_back({ "resize", std_color::yellow, std_color::zero });
+			colorization.push_back({ "vcall", std_color::magenta, std_color::zero });
+			colorization.push_back({ "shader", std_color::cyan, std_color::zero });
+			colorization.push_back({ "bytecode", std_color::cyan, std_color::zero });
 
-				/* engine */
-				color_token("configure", std_color::yellow),
-				color_token("actualize", std_color::yellow),
-				color_token("register", std_color::yellow),
-				color_token("unregister", std_color::yellow),
-				color_token("entity", std_color::cyan),
-				color_token("component", std_color::cyan),
-				color_token("material", std_color::cyan),
+			/* audio */
+			colorization.push_back({ "play", std_color::yellow, std_color::zero });
+			colorization.push_back({ "stop", std_color::yellow, std_color::zero });
+			colorization.push_back({ "apply", std_color::yellow, std_color::zero });
 
-				/* crypto */
-				color_token("encode", std_color::yellow),
-				color_token("decode", std_color::yellow),
-				color_token("encrypt", std_color::yellow),
-				color_token("decrypt", std_color::yellow),
-				color_token("compress", std_color::yellow),
-				color_token("decompress", std_color::yellow),
-				color_token("transform", std_color::yellow),
-				color_token("shuffle", std_color::yellow),
-				color_token("sign", std_color::yellow),
-				color_token("expose", std_color::dark_red),
+			/* engine */
+			colorization.push_back({ "configure", std_color::yellow, std_color::zero });
+			colorization.push_back({ "actualize", std_color::yellow, std_color::zero });
+			colorization.push_back({ "register", std_color::yellow, std_color::zero });
+			colorization.push_back({ "unregister", std_color::yellow, std_color::zero });
+			colorization.push_back({ "entity", std_color::cyan, std_color::zero });
+			colorization.push_back({ "component", std_color::cyan, std_color::zero });
+			colorization.push_back({ "material", std_color::cyan, std_color::zero });
 
-				/* memory */
-				color_token("add", std_color::yellow),
-				color_token("remove", std_color::yellow),
-				color_token("new", std_color::yellow),
-				color_token("delete", std_color::yellow),
-				color_token("create", std_color::yellow),
-				color_token("destroy", std_color::yellow),
-				color_token("push", std_color::yellow),
-				color_token("pop", std_color::yellow),
-				color_token("malloc", std_color::yellow),
-				color_token("free", std_color::yellow),
-				color_token("allocate", std_color::yellow),
-				color_token("deallocate", std_color::yellow),
-				color_token("initialize", std_color::yellow),
-				color_token("generate", std_color::yellow),
-				color_token("finalize", std_color::yellow),
-				color_token("cleanup", std_color::yellow),
-				color_token("copy", std_color::yellow),
-				color_token("fill", std_color::yellow),
-				color_token("store", std_color::yellow),
-				color_token("reuse", std_color::yellow),
-				color_token("update", std_color::yellow),
-				color_token("true", std_color::cyan),
-				color_token("false", std_color::cyan),
-				color_token("on", std_color::cyan),
-				color_token("off", std_color::cyan),
-				color_token("undefined", std_color::cyan),
-				color_token("nullptr", std_color::cyan),
-				color_token("null", std_color::cyan),
-				color_token("this", std_color::cyan),
+			/* crypto */
+			colorization.push_back({ "encode", std_color::yellow, std_color::zero });
+			colorization.push_back({ "decode", std_color::yellow, std_color::zero });
+			colorization.push_back({ "encrypt", std_color::yellow, std_color::zero });
+			colorization.push_back({ "decrypt", std_color::yellow, std_color::zero });
+			colorization.push_back({ "compress", std_color::yellow, std_color::zero });
+			colorization.push_back({ "decompress", std_color::yellow, std_color::zero });
+			colorization.push_back({ "transform", std_color::yellow, std_color::zero });
+			colorization.push_back({ "shuffle", std_color::yellow, std_color::zero });
+			colorization.push_back({ "sign", std_color::yellow, std_color::zero });
+			colorization.push_back({ "expose", std_color::dark_red, std_color::zero });
 
-				/* statuses */
-				color_token("ON", std_color::dark_green),
-				color_token("TRUE", std_color::dark_green),
-				color_token("OK", std_color::dark_green),
-				color_token("SUCCESS", std_color::dark_green),
-				color_token("ASSERT", std_color::yellow),
-				color_token("CAUSING", std_color::yellow),
-				color_token("warn", std_color::yellow),
-				color_token("warning", std_color::yellow),
-				color_token("debug", std_color::yellow),
-				color_token("debugging", std_color::yellow),
-				color_token("trace", std_color::yellow),
-				color_token("trading", std_color::yellow),
-				color_token("OFF", std_color::dark_red),
-				color_token("FALSE", std_color::dark_red),
-				color_token("NULL", std_color::dark_red),
-				color_token("ERR", std_color::dark_red),
-				color_token("FATAL", std_color::dark_red),
-				color_token("PANIC!", std_color::dark_red),
-				color_token("leaking", std_color::dark_red),
-				color_token("failure", std_color::dark_red),
-				color_token("failed", std_color::dark_red),
-				color_token("error", std_color::dark_red),
-				color_token("errors", std_color::dark_red),
-				color_token("cannot", std_color::dark_red),
-				color_token("missing", std_color::dark_red),
-				color_token("invalid", std_color::dark_red),
-				color_token("required", std_color::dark_red),
-				color_token("already", std_color::dark_red),
-			};
+			/* memory */
+			colorization.push_back({ "add", std_color::yellow, std_color::zero });
+			colorization.push_back({ "remove", std_color::yellow, std_color::zero });
+			colorization.push_back({ "new", std_color::yellow, std_color::zero });
+			colorization.push_back({ "delete", std_color::yellow, std_color::zero });
+			colorization.push_back({ "create", std_color::yellow, std_color::zero });
+			colorization.push_back({ "destroy", std_color::yellow, std_color::zero });
+			colorization.push_back({ "push", std_color::yellow, std_color::zero });
+			colorization.push_back({ "pop", std_color::yellow, std_color::zero });
+			colorization.push_back({ "malloc", std_color::yellow, std_color::zero });
+			colorization.push_back({ "free", std_color::yellow, std_color::zero });
+			colorization.push_back({ "allocate", std_color::yellow, std_color::zero });
+			colorization.push_back({ "deallocate", std_color::yellow, std_color::zero });
+			colorization.push_back({ "initialize", std_color::yellow, std_color::zero });
+			colorization.push_back({ "generate", std_color::yellow, std_color::zero });
+			colorization.push_back({ "finalize", std_color::yellow, std_color::zero });
+			colorization.push_back({ "cleanup", std_color::yellow, std_color::zero });
+			colorization.push_back({ "copy", std_color::yellow, std_color::zero });
+			colorization.push_back({ "fill", std_color::yellow, std_color::zero });
+			colorization.push_back({ "store", std_color::yellow, std_color::zero });
+			colorization.push_back({ "reuse", std_color::yellow, std_color::zero });
+			colorization.push_back({ "update", std_color::yellow, std_color::zero });
+			colorization.push_back({ "true", std_color::cyan, std_color::zero });
+			colorization.push_back({ "false", std_color::cyan, std_color::zero });
+			colorization.push_back({ "on", std_color::cyan, std_color::zero });
+			colorization.push_back({ "off", std_color::cyan, std_color::zero });
+			colorization.push_back({ "undefined", std_color::cyan, std_color::zero });
+			colorization.push_back({ "nullptr", std_color::cyan, std_color::zero });
+			colorization.push_back({ "null", std_color::cyan, std_color::zero });
+			colorization.push_back({ "this", std_color::cyan, std_color::zero });
+
+			/* statuses */
+			colorization.push_back({ "ON", std_color::dark_green, std_color::zero });
+			colorization.push_back({ "TRUE", std_color::dark_green, std_color::zero });
+			colorization.push_back({ "OK", std_color::dark_green, std_color::zero });
+			colorization.push_back({ "SUCCESS", std_color::dark_green, std_color::zero });
+			colorization.push_back({ "ASSERT", std_color::yellow, std_color::zero });
+			colorization.push_back({ "CAUSING", std_color::yellow, std_color::zero });
+			colorization.push_back({ "warn", std_color::yellow, std_color::zero });
+			colorization.push_back({ "warning", std_color::yellow, std_color::zero });
+			colorization.push_back({ "debug", std_color::yellow, std_color::zero });
+			colorization.push_back({ "debugging", std_color::yellow, std_color::zero });
+			colorization.push_back({ "trace", std_color::yellow, std_color::zero });
+			colorization.push_back({ "trading", std_color::yellow, std_color::zero });
+			colorization.push_back({ "OFF", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "FALSE", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "NULL", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "ERR", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "FATAL", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "PANIC!", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "leaking", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "failure", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "failed", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "error", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "errors", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "cannot", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "missing", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "invalid", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "required", std_color::dark_red, std_color::zero });
+			colorization.push_back({ "already", std_color::dark_red, std_color::zero });
 		}
 		console::~console() noexcept
 		{
@@ -6272,24 +6281,32 @@ namespace vitex
 			umutex<std::recursive_mutex> unique(state.session);
 			std::cout << stacktrace << '\n';
 		}
-		void console::set_coloring(bool enabled)
+		void console::set_colorization(bool enabled)
 		{
-			state.colors = enabled;
+			state.colorizer = enabled;
 		}
-		void console::add_color_tokens(const vector<color_token>& additional_tokens)
+		void console::add_colorization(const std::string_view& name, std_color foreground_color, std_color background_color)
 		{
 			umutex<std::recursive_mutex> unique(state.session);
-			color_tokens.reserve(color_tokens.size() + additional_tokens.size());
-			color_tokens.insert(color_tokens.end(), additional_tokens.begin(), additional_tokens.end());
+			for (auto it = colorization.begin(); it != colorization.end(); it++)
+			{
+				if (it->identifier == name)
+				{
+					colorization.erase(it);
+					break;
+				}
+			}
+			if (!((foreground_color == std_color::zero || foreground_color == std_color::white) && (background_color == std_color::black || background_color == std_color::white)))
+				colorization.push_back({ name, foreground_color, background_color });
 		}
-		void console::clear_color_tokens()
+		void console::clear_colorization()
 		{
 			umutex<std::recursive_mutex> unique(state.session);
-			color_tokens.clear();
+			colorization.clear();
 		}
-		void console::color_begin(std_color text, std_color background)
+		void console::write_color(std_color text, std_color background)
 		{
-			if (!state.colors)
+			if (!state.colorizer)
 				return;
 
 			umutex<std::recursive_mutex> unique(state.session);
@@ -6305,9 +6322,9 @@ namespace vitex
 			std::cout << "\033[" << get_color_id(text, false) << ";" << get_color_id(background, true) << "m";
 #endif
 		}
-		void console::color_end()
+		void console::clear_color()
 		{
-			if (!state.colors)
+			if (!state.colorizer)
 				return;
 			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
@@ -6316,13 +6333,13 @@ namespace vitex
 			std::cout << "\033[0m";
 #endif
 		}
-		void console::color_print(std_color base_color, const std::string_view& buffer)
+		void console::colorize(std_color base_color, const std::string_view& buffer)
 		{
 			if (buffer.empty())
 				return;
 
 			umutex<std::recursive_mutex> unique(state.session);
-			color_begin(base_color);
+			write_color(base_color);
 
 			size_t offset = 0;
 			while (offset < buffer.size())
@@ -6330,7 +6347,7 @@ namespace vitex
 				auto v = buffer[offset];
 				if (stringify::is_numeric_or_dot(v) && (!offset || !stringify::is_alphanum(buffer[offset - 1])))
 				{
-					color_begin(std_color::yellow);
+					write_color(std_color::yellow);
 					while (offset < buffer.size())
 					{
 						char n = buffer[offset];
@@ -6340,24 +6357,13 @@ namespace vitex
 						write_char(buffer[offset++]);
 					}
 
-					color_begin(base_color);
-					continue;
-				}
-				else if (v == '@')
-				{
-					color_begin(std_color::light_blue);
-					write_char(v);
-
-					while (offset < buffer.size() && (stringify::is_numeric(buffer[++offset]) || stringify::is_alphabetic(buffer[offset]) || buffer[offset] == '-' || buffer[offset] == '_'))
-						write_char(buffer[offset]);
-
-					color_begin(base_color);
+					write_color(base_color);
 					continue;
 				}
 				else if (v == '[' && buffer.substr(offset + 1).find(']') != std::string::npos)
 				{
 					size_t iterations = 0, skips = 0;
-					color_begin(std_color::cyan);
+					write_color(std_color::cyan);
 					do
 					{
 						write_char(buffer[offset]);
@@ -6365,12 +6371,12 @@ namespace vitex
 							skips++;
 					} while (offset < buffer.size() && (buffer[offset++] != ']' || skips > 0));
 
-					color_begin(base_color);
+					write_color(base_color);
 					continue;
 				}
 				else if (v == '\"' && buffer.substr(offset + 1).find('\"') != std::string::npos)
 				{
-					color_begin(std_color::light_blue);
+					write_color(std_color::light_blue);
 					do
 					{
 						write_char(buffer[offset]);
@@ -6378,12 +6384,12 @@ namespace vitex
 
 					if (offset < buffer.size())
 						write_char(buffer[offset++]);
-					color_begin(base_color);
+					write_color(base_color);
 					continue;
 				}
 				else if (v == '\'' && buffer.substr(offset + 1).find('\'') != std::string::npos)
 				{
-					color_begin(std_color::light_blue);
+					write_color(std_color::light_blue);
 					do
 					{
 						write_char(buffer[offset]);
@@ -6391,27 +6397,26 @@ namespace vitex
 
 					if (offset < buffer.size())
 						write_char(buffer[offset++]);
-					color_begin(base_color);
+					write_color(base_color);
 					continue;
 				}
 				else if (stringify::is_alphabetic(v) && (!offset || !stringify::is_alphabetic(buffer[offset - 1])))
 				{
 					bool is_matched = false;
-					for (auto& token : color_tokens)
+					for (auto& token : colorization)
 					{
-						if (token.text.empty() || v != token.text.front() || buffer.size() - offset < token.text.size())
+						if (token.identifier.empty() || v != token.identifier.front() || buffer.size() - offset < token.identifier.size())
 							continue;
 
-						if (offset + token.text.size() < buffer.size() && stringify::is_alphabetic(buffer[offset + token.text.size()]))
+						if (offset + token.identifier.size() < buffer.size() && stringify::is_alphabetic(buffer[offset + token.identifier.size()]))
 							continue;
 
-						if (memcmp(buffer.data() + offset, token.text.data(), token.text.size()) == 0)
+						if (memcmp(buffer.data() + offset, token.identifier.data(), token.identifier.size()) == 0)
 						{
-							color_begin(token.foreground, token.background);
-							for (size_t j = 0; j < token.text.size(); j++)
-								write_char(buffer[offset++]);
-
-							color_begin(base_color);
+							write_color(token.foreground_color, token.background_color);
+							write(token.identifier);
+							write_color(base_color);
+							offset += token.identifier.size();
 							is_matched = true;
 							break;
 						}

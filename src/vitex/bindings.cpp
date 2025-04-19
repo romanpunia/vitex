@@ -9775,9 +9775,9 @@ namespace vitex
 				vconsole->set_method("void deallocate()", &core::console::deallocate);
 				vconsole->set_method("void attach()", &core::console::attach);
 				vconsole->set_method("void detach()", &core::console::detach);
-				vconsole->set_method("void set_coloring(bool)", &core::console::set_coloring);
-				vconsole->set_method("void color_begin(std_color, std_color = std_color::zero)", &core::console::color_begin);
-				vconsole->set_method("void color_end()", &core::console::color_end);
+				vconsole->set_method("void set_colorization(bool)", &core::console::set_colorization);
+				vconsole->set_method("void write_color(std_color, std_color = std_color::zero)", &core::console::write_color);
+				vconsole->set_method("void clear_color()", &core::console::clear_color);
 				vconsole->set_method("void capture_time()", &core::console::capture_time);
 				vconsole->set_method("uint64 capture_window(uint32)", &core::console::capture_window);
 				vconsole->set_method("void free_window(uint64, bool)", &core::console::free_window);

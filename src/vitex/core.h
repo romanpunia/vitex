@@ -2341,6 +2341,7 @@ namespace vitex
 			static bool ends_with(const std::string_view& other, char value);
 			static bool ends_of(const std::string_view& other, const std::string_view& value);
 			static bool ends_not_of(const std::string_view& other, const std::string_view& value);
+			static bool consists_of(const std::string_view& other, const std::string_view& alphabet);
 			static bool has_integer(const std::string_view& other);
 			static bool has_number(const std::string_view& other);
 			static bool has_decimal(const std::string_view& other);
@@ -3226,18 +3227,6 @@ namespace vitex
 
 		class console final : public singleton<console>
 		{
-		public:
-			struct color_token
-			{
-				std::string_view text;
-				std_color background;
-				std_color foreground;
-
-				color_token(const std::string_view& name, std_color foreground_color, std_color background_color = std_color::zero) : text(name), foreground(foreground_color), background(background_color)
-				{
-				}
-			};
-
 		private:
 			enum class mode
 			{
@@ -3258,6 +3247,13 @@ namespace vitex
 				size_t position = 0;
 			};
 
+			struct colorizer_token
+			{
+				std::string_view identifier = std::string_view();
+				std_color foreground_color = std_color::zero;
+				std_color background_color = std_color::zero;
+			};
+
 		private:
 			struct
 			{
@@ -3273,13 +3269,13 @@ namespace vitex
 				std::recursive_mutex session;
 				unsigned short attributes = 0;
 				mode status = mode::detached;
-				bool colors = true;
+				bool colorizer = true;
 				double time = 0.0;
 				uint64_t id = 0;
 			} state;
 
 		private:
-			vector<color_token> color_tokens;
+			vector<colorizer_token> colorization;
 
 		public:
 			console() noexcept;
@@ -3292,12 +3288,12 @@ namespace vitex
 			void allocate();
 			void deallocate();
 			void trace(uint32_t max_frames = 32);
-			void set_coloring(bool enabled);
-			void add_color_tokens(const vector<color_token>& additional_tokens);
-			void clear_color_tokens();
-			void color_begin(std_color text, std_color background = std_color::zero);
-			void color_end();
-			void color_print(std_color base_color, const std::string_view& buffer);
+			void set_colorization(bool enabled);
+			void add_colorization(const std::string_view& name, std_color foreground_color, std_color background_color = std_color::zero);
+			void clear_colorization();
+			void write_color(std_color text, std_color background = std_color::zero);
+			void clear_color();
+			void colorize(std_color base_color, const std::string_view& buffer);
 			void capture_time();
 			uint64_t capture_window(uint32_t height);
 			void free_window(uint64_t id, bool restore_position);

@@ -6289,7 +6289,7 @@ namespace vitex
 				return crypto_exception();
 			}
 
-			int result = ECDSA_verify(0, (uint8_t*)digest->data(), (int)digest->size(), (uint8_t*)signature.data(), signature.size(), ec_key);
+			int result = ECDSA_verify(0, (uint8_t*)digest->data(), (int)digest->size(), (uint8_t*)signature.data(), (int)signature.size(), ec_key);
 			EC_KEY_free(ec_key);
 			if (result == -1)
 				return crypto_exception();
@@ -6337,8 +6337,8 @@ namespace vitex
 				return crypto_exception(-1, "bad:signature");
 
 			size_t size = signature.size();
-			BIGNUM* r = BN_bin2bn((uint8_t*)signature.data() + size * 0, size, nullptr);
-			BIGNUM* s = BN_bin2bn((uint8_t*)signature.data() + size * 1, size, nullptr);
+			BIGNUM* r = BN_bin2bn((uint8_t*)signature.data() + size * 0, (int)size, nullptr);
+			BIGNUM* s = BN_bin2bn((uint8_t*)signature.data() + size * 1, (int)size, nullptr);
 			if (!r || !s)
 			{
 				if (r != nullptr)

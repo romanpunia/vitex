@@ -2065,7 +2065,25 @@ namespace vitex
 			decimal(const t& right) noexcept : decimal()
 			{
 				if (right != t(0))
-					apply_base10(std::to_string(right));
+				{
+					char buffer[32]; size_t size = sizeof(buffer);
+					if constexpr (std::is_integral<t>::value)
+					{
+						std::to_chars_result result = std::to_chars(buffer, buffer + size, right);
+						if (result.ec == std::errc())
+							apply_base10(std::string_view(buffer, result.ptr - buffer));
+						else
+							apply_zero();
+					}
+					else
+					{
+						std::to_chars_result result = std::to_chars(buffer, buffer + size, right, std::chars_format::fixed);
+						if (result.ec == std::errc())
+							apply_base10(std::string_view(buffer, result.ptr - buffer));
+						else
+							apply_zero();
+					}
+				}
 				else
 					apply_zero();
 			}

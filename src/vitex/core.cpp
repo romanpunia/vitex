@@ -5420,7 +5420,7 @@ namespace vitex
 			if (D2.empty() || !has_integer(D2))
 				return false;
 
-			return D1.size() >= 19 || D2.size() > 6;
+			return D1.size() >= 19 || D2.size() > 2;
 		}
 		bool stringify::is_numeric_or_dot(char symbol)
 		{
@@ -5432,7 +5432,7 @@ namespace vitex
 		}
 		bool stringify::is_hex(char symbol)
 		{
-			return is_numeric(symbol) || (symbol >= 'a' && symbol <= 'f') || (symbol >= 'a' && symbol <= 'f');
+			return is_numeric(symbol) || (symbol >= 'a' && symbol <= 'f');
 		}
 		bool stringify::is_hex_or_dot(char symbol)
 		{

@@ -15,6 +15,7 @@ extern "C"
 #include <time.h>
 #endif
 #ifdef VI_OPENSSL
+#define OSSL_DEPRECATED(x)
 extern "C"
 {
 #include <openssl/evp.h>
@@ -23,6 +24,7 @@ extern "C"
 #include <openssl/sha.h>
 #include <openssl/err.h>
 #include <openssl/ec.h>
+#include <openssl/ecdsa.h>
 #include <openssl/dsa.h>
 #include <openssl/rsa.h>
 }
@@ -50,6 +52,21 @@ namespace
 		result.append(data).append("\"");
 		return result;
 	}
+#ifdef VI_OPENSSL
+	point_conversion_form_t to_point_conversion(vitex::compute::proofs::format format)
+	{
+		switch (format)
+		{
+			case vitex::compute::proofs::format::compressed:
+				return POINT_CONVERSION_COMPRESSED;
+			case vitex::compute::proofs::format::hybrid:
+				return POINT_CONVERSION_HYBRID;
+			case vitex::compute::proofs::format::uncompressed:
+			default:
+				return POINT_CONVERSION_UNCOMPRESSED;
+		}
+	}
+#endif
 }
 
 namespace vitex
@@ -1991,7 +2008,7 @@ namespace vitex
 							}
 						}
 					}
-					
+
 					length = std::max(length, (uint32_t)size * 2);
 					output = codec::hex_encode(std::string_view(((char*)array) + (sizeof(array) - size), size));
 					if (output.size() < length)
@@ -2310,16 +2327,15 @@ namespace vitex
 		crypto_exception::crypto_exception() : error_code(0)
 		{
 #ifdef VI_OPENSSL
-			unsigned long error = ERR_get_error();
-			if (error > 0)
+			error_code = (size_t)ERR_get_error();
+			ERR_print_errors_cb([](const char* message, size_t size, void* exception_ptr)
 			{
-				error_code = (size_t)error;
-				char* error_text = ERR_error_string(error, nullptr);
-				if (error_text != nullptr)
-					error_message = error_text;
-				else
-					error_message = "error:" + core::to_string(error_code);
-			}
+				auto* exception = (crypto_exception*)exception_ptr;
+				exception->error_message.append(message, size).append(1, '\n');
+				return 0;
+			}, this);
+			if (!error_message.empty())
+				core::stringify::trim(error_message);
 			else
 				error_message = "error:internal";
 #else
@@ -4434,268 +4450,773 @@ namespace vitex
 #endif
 		}
 
-		sign_alg signers::pk_rsa()
+		proofs::curve proofs::curves::c2pnb163v1()
+		{
+#ifdef NID_X9_62_c2pnb163v1
+			return NID_X9_62_c2pnb163v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb163v2()
+		{
+#ifdef NID_X9_62_c2pnb163v2
+			return NID_X9_62_c2pnb163v2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb163v3()
+		{
+#ifdef NID_X9_62_c2pnb163v3
+			return NID_X9_62_c2pnb163v3;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb176v1()
+		{
+#ifdef NID_X9_62_c2pnb176v1
+			return NID_X9_62_c2pnb176v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb191v1()
+		{
+#ifdef NID_X9_62_c2tnb191v1
+			return NID_X9_62_c2tnb191v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb191v2()
+		{
+#ifdef NID_X9_62_c2tnb191v2
+			return NID_X9_62_c2tnb191v2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb191v3()
+		{
+#ifdef NID_X9_62_c2tnb191v3
+			return NID_X9_62_c2tnb191v3;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2onb191v4()
+		{
+#ifdef NID_X9_62_c2onb191v4
+			return NID_X9_62_c2onb191v4;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2onb191v5()
+		{
+#ifdef NID_X9_62_c2onb191v5
+			return NID_X9_62_c2onb191v5;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb208w1()
+		{
+#ifdef NID_X9_62_c2pnb208w1
+			return NID_X9_62_c2pnb208w1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb239v1()
+		{
+#ifdef NID_X9_62_c2tnb239v1
+			return NID_X9_62_c2tnb239v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb239v2()
+		{
+#ifdef NID_X9_62_c2tnb239v2
+			return NID_X9_62_c2tnb239v2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb239v3()
+		{
+#ifdef NID_X9_62_c2tnb239v3
+			return NID_X9_62_c2tnb239v3;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2onb239v4()
+		{
+#ifdef NID_X9_62_c2onb239v4
+			return NID_X9_62_c2onb239v4;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2onb239v5()
+		{
+#ifdef NID_X9_62_c2onb239v5
+			return NID_X9_62_c2onb239v5;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb272w1()
+		{
+#ifdef NID_X9_62_c2pnb272w1
+			return NID_X9_62_c2pnb272w1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb304w1()
+		{
+#ifdef NID_X9_62_c2pnb304w1
+			return NID_X9_62_c2pnb304w1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb359v1()
+		{
+#ifdef NID_X9_62_c2tnb359v1
+			return NID_X9_62_c2tnb359v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2pnb368w1()
+		{
+#ifdef NID_X9_62_c2pnb368w1
+			return NID_X9_62_c2pnb368w1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::c2tnb431r1()
+		{
+#ifdef NID_X9_62_c2tnb431r1
+			return NID_X9_62_c2tnb431r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime192v1()
+		{
+#ifdef NID_X9_62_prime192v1
+			return NID_X9_62_prime192v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime192v2()
+		{
+#ifdef NID_X9_62_prime192v2
+			return NID_X9_62_prime192v2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime192v3()
+		{
+#ifdef NID_X9_62_prime192v3
+			return NID_X9_62_prime192v3;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime239v1()
+		{
+#ifdef NID_X9_62_prime239v1
+			return NID_X9_62_prime239v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime239v2()
+		{
+#ifdef NID_X9_62_prime239v2
+			return NID_X9_62_prime239v2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime239v3()
+		{
+#ifdef NID_X9_62_prime239v3
+			return NID_X9_62_prime239v3;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::prime256v1()
+		{
+#ifdef NID_X9_62_prime256v1
+			return NID_X9_62_prime256v1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::ecdsa_sha1()
+		{
+#ifdef NID_ecdsa_with_SHA1
+			return NID_ecdsa_with_SHA1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::ecdsa_sha224()
+		{
+#ifdef NID_ecdsa_with_SHA224
+			return NID_ecdsa_with_SHA224;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::ecdsa_sha256()
+		{
+#ifdef NID_ecdsa_with_SHA256
+			return NID_ecdsa_with_SHA256;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::ecdsa_sha384()
+		{
+#ifdef NID_ecdsa_with_SHA384
+			return NID_ecdsa_with_SHA384;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::ecdsa_sha512()
+		{
+#ifdef NID_ecdsa_with_SHA512
+			return NID_ecdsa_with_SHA512;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp112r1()
+		{
+#ifdef NID_secp112r1
+			return NID_secp112r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp112r2()
+		{
+#ifdef NID_secp112r2
+			return NID_secp112r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp128r1()
+		{
+#ifdef NID_secp128r1
+			return NID_secp128r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp128r2()
+		{
+#ifdef NID_secp128r2
+			return NID_secp128r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp160k1()
+		{
+#ifdef NID_secp160k1
+			return NID_secp160k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp160r1()
+		{
+#ifdef NID_secp160r1
+			return NID_secp160r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp160r2()
+		{
+#ifdef NID_secp160r2
+			return NID_secp160r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp192k1()
+		{
+#ifdef NID_secp192k1
+			return NID_secp192k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp224k1()
+		{
+#ifdef NID_secp224k1
+			return NID_secp224k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp224r1()
+		{
+#ifdef NID_secp224r1
+			return NID_secp224r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp256k1()
+		{
+#ifdef NID_secp256k1
+			return NID_secp256k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp384r1()
+		{
+#ifdef NID_secp384r1
+			return NID_secp384r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::secp521r1()
+		{
+#ifdef NID_secp521r1
+			return NID_secp521r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect113r1()
+		{
+#ifdef NID_sect113r1
+			return NID_sect113r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect113r2()
+		{
+#ifdef NID_sect113r2
+			return NID_sect113r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect131r1()
+		{
+#ifdef NID_sect131r1
+			return NID_sect131r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect131r2()
+		{
+#ifdef NID_sect131r2
+			return NID_sect131r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect163k1()
+		{
+#ifdef NID_sect163k1
+			return NID_sect163k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect163r1()
+		{
+#ifdef NID_sect163r1
+			return NID_sect163r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect163r2()
+		{
+#ifdef NID_sect163r2
+			return NID_sect163r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect193r1()
+		{
+#ifdef NID_sect193r1
+			return NID_sect193r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect193r2()
+		{
+#ifdef NID_sect193r2
+			return NID_sect193r2;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect233k1()
+		{
+#ifdef NID_sect233k1
+			return NID_sect233k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect233r1()
+		{
+#ifdef NID_sect233r1
+			return NID_sect233r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect239k1()
+		{
+#ifdef NID_sect239k1
+			return NID_sect239k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect283k1()
+		{
+#ifdef NID_sect283k1
+			return NID_sect283k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect283r1()
+		{
+#ifdef NID_sect283r1
+			return NID_sect283r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect409k1()
+		{
+#ifdef NID_sect409k1
+			return NID_sect409k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect409r1()
+		{
+#ifdef NID_sect409r1
+			return NID_sect409r1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect571k1()
+		{
+#ifdef NID_sect571k1
+			return NID_sect571k1;
+#else
+			return 0;
+#endif
+		}
+		proofs::curve proofs::curves::sect571r1()
+		{
+#ifdef NID_sect571r1
+			return NID_sect571r1;
+#else
+			return 0;
+#endif
+		}
+
+		proof proofs::pk_rsa()
 		{
 #ifdef EVP_PK_RSA
-			return (sign_alg)EVP_PK_RSA;
+			return (proof)EVP_PK_RSA;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pk_dsa()
+		proof proofs::pk_dsa()
 		{
 #ifdef EVP_PK_DSA
-			return (sign_alg)EVP_PK_DSA;
+			return (proof)EVP_PK_DSA;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pk_dh()
+		proof proofs::pk_dh()
 		{
 #ifdef EVP_PK_DH
-			return (sign_alg)EVP_PK_DH;
+			return (proof)EVP_PK_DH;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pk_ec()
+		proof proofs::pk_ec()
 		{
 #ifdef EVP_PK_EC
-			return (sign_alg)EVP_PK_EC;
+			return (proof)EVP_PK_EC;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pkt_sign()
+		proof proofs::pkt_sign()
 		{
 #ifdef EVP_PKT_SIGN
-			return (sign_alg)EVP_PKT_SIGN;
+			return (proof)EVP_PKT_SIGN;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pkt_enc()
+		proof proofs::pkt_enc()
 		{
 #ifdef EVP_PKT_ENC
-			return (sign_alg)EVP_PKT_ENC;
+			return (proof)EVP_PKT_ENC;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pkt_exch()
+		proof proofs::pkt_exch()
 		{
 #ifdef EVP_PKT_EXCH
-			return (sign_alg)EVP_PKT_EXCH;
+			return (proof)EVP_PKT_EXCH;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pks_rsa()
+		proof proofs::pks_rsa()
 		{
 #ifdef EVP_PKS_RSA
-			return (sign_alg)EVP_PKS_RSA;
+			return (proof)EVP_PKS_RSA;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pks_dsa()
+		proof proofs::pks_dsa()
 		{
 #ifdef EVP_PKS_DSA
-			return (sign_alg)EVP_PKS_DSA;
+			return (proof)EVP_PKS_DSA;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::pks_ec()
+		proof proofs::pks_ec()
 		{
 #ifdef EVP_PKS_EC
-			return (sign_alg)EVP_PKS_EC;
+			return (proof)EVP_PKS_EC;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::rsa()
+		proof proofs::rsa()
 		{
 #ifdef EVP_PKEY_RSA
-			return (sign_alg)EVP_PKEY_RSA;
+			return (proof)EVP_PKEY_RSA;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::rsa2()
+		proof proofs::rsa2()
 		{
 #ifdef EVP_PKEY_RSA2
-			return (sign_alg)EVP_PKEY_RSA2;
+			return (proof)EVP_PKEY_RSA2;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::rsa_pss()
+		proof proofs::rsa_pss()
 		{
 #ifdef EVP_PKEY_RSA_PSS
-			return (sign_alg)EVP_PKEY_RSA_PSS;
+			return (proof)EVP_PKEY_RSA_PSS;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dsa()
+		proof proofs::dsa()
 		{
 #ifdef EVP_PKEY_DSA
-			return (sign_alg)EVP_PKEY_DSA;
+			return (proof)EVP_PKEY_DSA;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dsa1()
+		proof proofs::dsa1()
 		{
 #ifdef EVP_PKEY_DSA1
-			return (sign_alg)EVP_PKEY_DSA1;
+			return (proof)EVP_PKEY_DSA1;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dsa2()
+		proof proofs::dsa2()
 		{
 #ifdef EVP_PKEY_DSA2
-			return (sign_alg)EVP_PKEY_DSA2;
+			return (proof)EVP_PKEY_DSA2;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dsa3()
+		proof proofs::dsa3()
 		{
 #ifdef EVP_PKEY_DSA3
-			return (sign_alg)EVP_PKEY_DSA3;
+			return (proof)EVP_PKEY_DSA3;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dsa4()
+		proof proofs::dsa4()
 		{
 #ifdef EVP_PKEY_DSA4
-			return (sign_alg)EVP_PKEY_DSA4;
+			return (proof)EVP_PKEY_DSA4;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dh()
+		proof proofs::dh()
 		{
 #ifdef EVP_PKEY_DH
-			return (sign_alg)EVP_PKEY_DH;
+			return (proof)EVP_PKEY_DH;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::dhx()
+		proof proofs::dhx()
 		{
 #ifdef EVP_PKEY_DHX
-			return (sign_alg)EVP_PKEY_DHX;
+			return (proof)EVP_PKEY_DHX;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::ec()
+		proof proofs::ec()
 		{
 #ifdef EVP_PKEY_EC
-			return (sign_alg)EVP_PKEY_EC;
+			return (proof)EVP_PKEY_EC;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::sm2()
+		proof proofs::sm2()
 		{
 #ifdef EVP_PKEY_SM2
-			return (sign_alg)EVP_PKEY_SM2;
+			return (proof)EVP_PKEY_SM2;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::hmac()
+		proof proofs::hmac()
 		{
 #ifdef EVP_PKEY_HMAC
-			return (sign_alg)EVP_PKEY_HMAC;
+			return (proof)EVP_PKEY_HMAC;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::cmac()
+		proof proofs::cmac()
 		{
 #ifdef EVP_PKEY_CMAC
-			return (sign_alg)EVP_PKEY_CMAC;
+			return (proof)EVP_PKEY_CMAC;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::scrypt()
+		proof proofs::scrypt()
 		{
 #ifdef EVP_PKEY_SCRYPT
-			return (sign_alg)EVP_PKEY_SCRYPT;
+			return (proof)EVP_PKEY_SCRYPT;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::tls1_prf()
+		proof proofs::tls1_prf()
 		{
 #ifdef EVP_PKEY_TLS1_PRF
-			return (sign_alg)EVP_PKEY_TLS1_PRF;
+			return (proof)EVP_PKEY_TLS1_PRF;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::hkdf()
+		proof proofs::hkdf()
 		{
 #ifdef EVP_PKEY_HKDF
-			return (sign_alg)EVP_PKEY_HKDF;
+			return (proof)EVP_PKEY_HKDF;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::poly1305()
+		proof proofs::poly1305()
 		{
 #ifdef EVP_PKEY_POLY1305
-			return (sign_alg)EVP_PKEY_POLY1305;
+			return (proof)EVP_PKEY_POLY1305;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::siphash()
+		proof proofs::siphash()
 		{
 #ifdef EVP_PKEY_SIPHASH
-			return (sign_alg)EVP_PKEY_SIPHASH;
+			return (proof)EVP_PKEY_SIPHASH;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::x25519()
+		proof proofs::x25519()
 		{
 #ifdef EVP_PKEY_X25519
-			return (sign_alg)EVP_PKEY_X25519;
+			return (proof)EVP_PKEY_X25519;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::ed25519()
+		proof proofs::ed25519()
 		{
 #ifdef EVP_PKEY_ED25519
-			return (sign_alg)EVP_PKEY_ED25519;
+			return (proof)EVP_PKEY_ED25519;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::x448()
+		proof proofs::x448()
 		{
 #ifdef EVP_PKEY_X448
-			return (sign_alg)EVP_PKEY_X448;
+			return (proof)EVP_PKEY_X448;
 #else
-			return -1;
+			return 0;
 #endif
 		}
-		sign_alg signers::ed448()
+		proof proofs::ed448()
 		{
 #ifdef EVP_PKEY_ED448
-			return (sign_alg)EVP_PKEY_ED448;
+			return (proof)EVP_PKEY_ED448;
 #else
-			return -1;
+			return 0;
 #endif
 		}
 
@@ -4717,7 +5238,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		sign_alg crypto::get_signer_by_name(const std::string_view& name)
+		proof crypto::get_proof_by_name(const std::string_view& name)
 		{
 #ifdef EVP_MD_name
 			auto* method = EVP_PKEY_asn1_find_str(nullptr, name.data(), (int)name.size());
@@ -4728,14 +5249,19 @@ namespace vitex
 			if (EVP_PKEY_asn1_get0_info(&key_type, nullptr, nullptr, nullptr, nullptr, method) != 1)
 				return -1;
 
-			return (sign_alg)key_type;
+			return (proof)key_type;
 #else
 			return -1;
 #endif
 		}
+		proofs::curve crypto::get_curve_by_name(const std::string_view& name)
+		{
+			return get_proof_by_name(name);
+		}
 		std::string_view crypto::get_digest_name(digest type)
 		{
-			VI_ASSERT(type != nullptr, "digest should be set");
+			if (!type)
+				return "none";
 #ifdef EVP_MD_name
 			const char* name = EVP_MD_name((EVP_MD*)type);
 			return name ? name : "";
@@ -4753,17 +5279,21 @@ namespace vitex
 			return "";
 #endif
 		}
-		std::string_view crypto::get_signer_name(sign_alg type)
+		std::string_view crypto::get_proof_name(proof type)
 		{
 #ifdef VI_OPENSSL
-			if (type == EVP_PKEY_NONE)
-				return "";
+			if (type <= 0)
+				return "none";
 
 			const char* name = OBJ_nid2sn(type);
 			return name ? name : "";
 #else
 			return "";
 #endif
+		}
+		std::string_view crypto::get_curve_name(proofs::curve type)
+		{
+			return get_proof_name(type);
 		}
 		expects_crypto<void> crypto::fill_random_bytes(uint8_t* buffer, size_t length)
 		{
@@ -4787,141 +5317,20 @@ namespace vitex
 			return crypto_exception();
 #endif
 		}
-		expects_crypto<core::string> crypto::generate_private_key(sign_alg type, size_t bits, const std::string_view& curve)
-		{
-#ifdef VI_OPENSSL
-			VI_ASSERT(curve.empty() || core::stringify::is_cstring(curve), "curve should not be empty");
-			VI_TRACE("[crypto] generate %s private key up to %i bits", get_signer_name(type).data(), (int)bits);
-			EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id((int)type, NULL);
-			if (!context)
-				return crypto_exception();
-
-			if (EVP_PKEY_keygen_init(context) != 1)
-			{
-				EVP_PKEY_CTX_free(context);
-				return crypto_exception();
-			}
-
-			bool success = true;
-			switch (type)
-			{
-				case EVP_PKEY_RSA:
-				case EVP_PKEY_RSA2:
-				case EVP_PKEY_RSA_PSS:
-					success = (EVP_PKEY_CTX_set_rsa_keygen_bits(context, (int)bits) == 1);
-					break;
-				case EVP_PKEY_EC:
-				case EVP_PKEY_SM2:
-				case EVP_PKEY_SCRYPT:
-				case EVP_PKEY_TLS1_PRF:
-				case EVP_PKEY_HKDF:
-				case EVP_PKEY_POLY1305:
-				case EVP_PKEY_SIPHASH:
-				case EVP_PKEY_X25519:
-				case EVP_PKEY_ED25519:
-				case EVP_PKEY_X448:
-				case EVP_PKEY_ED448:
-					success = (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(context, curve.empty() ? NID_X9_62_prime256v1 : OBJ_sn2nid(curve.data())) == 1);
-					break;
-				case EVP_PKEY_DSA:
-				case EVP_PKEY_DSA1:
-				case EVP_PKEY_DSA2:
-				case EVP_PKEY_DSA3:
-				case EVP_PKEY_DSA4:
-					success = (EVP_PKEY_CTX_set_dsa_paramgen_bits(context, (int)bits) == 1);
-					break;
-				case EVP_PKEY_DH:
-				case EVP_PKEY_DHX:
-					success = (EVP_PKEY_CTX_set_dh_paramgen_prime_len(context, (int)bits) == 1);
-					if (success)
-						success = (EVP_PKEY_CTX_set_dh_nid(context, curve.empty() ? NID_ffdhe2048 : OBJ_sn2nid(curve.data())) == 1);
-					break;
-				case EVP_PKEY_HMAC:
-				case EVP_PKEY_CMAC:
-					success = false;
-					break;
-				default:
-					break;
-			}
-
-			EVP_PKEY* key = nullptr;
-			if (!success || EVP_PKEY_keygen(context, &key) != 1)
-			{
-				EVP_PKEY_CTX_free(context);
-				return crypto_exception();
-			}
-
-			size_t length;
-			if (EVP_PKEY_get_raw_private_key(key, nullptr, &length) != 1)
-			{
-				EVP_PKEY_free(key);
-				EVP_PKEY_CTX_free(context);
-				return crypto_exception();
-			}
-
-			core::string secret_key;
-			secret_key.resize(length);
-
-			if (EVP_PKEY_get_raw_private_key(key, (uint8_t*)secret_key.data(), &length) != 1)
-			{
-				EVP_PKEY_free(key);
-				EVP_PKEY_CTX_free(context);
-				return crypto_exception();
-			}
-
-			EVP_PKEY_free(key);
-			EVP_PKEY_CTX_free(context);
-			return secret_key;
-#else
-			return crypto_exception();
-#endif
-		}
-		expects_crypto<core::string> crypto::generate_public_key(sign_alg type, const secret_box& secret_key)
-		{
-#ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate %s public key from %i bytes", get_signer_name(type).data(), (int)secret_key.size());
-			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
-			EVP_PKEY* key = EVP_PKEY_new_raw_private_key((int)type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
-			if (!key)
-				return crypto_exception();
-
-			size_t length;
-			if (EVP_PKEY_get_raw_public_key(key, nullptr, &length) != 1)
-			{
-				EVP_PKEY_free(key);
-				return crypto_exception();
-			}
-
-			core::string public_key;
-			public_key.resize(length);
-
-			if (EVP_PKEY_get_raw_public_key(key, (uint8_t*)public_key.data(), &length) != 1)
-			{
-				EVP_PKEY_free(key);
-				return crypto_exception();
-			}
-
-			EVP_PKEY_free(key);
-			return public_key;
-#else
-			return crypto_exception();
-#endif
-		}
 		expects_crypto<core::string> crypto::checksum_hex(digest type, core::stream* stream)
 		{
-			auto data = crypto::checksum_raw(type, stream);
+			auto data = crypto::checksum(type, stream);
 			if (!data)
 				return data;
 
 			return codec::hex_encode(*data);
 		}
-		expects_crypto<core::string> crypto::checksum_raw(digest type, core::stream* stream)
+		expects_crypto<core::string> crypto::checksum(digest type, core::stream* stream)
 		{
 			VI_ASSERT(type != nullptr, "type should be set");
 			VI_ASSERT(stream != nullptr, "stream should be set");
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] %s stream-hash fd %i", get_digest_name(type).data(), (int)stream->get_readable_fd());
-
 			EVP_MD* method = (EVP_MD*)type;
 			EVP_MD_CTX* context = EVP_MD_CTX_create();
 			if (!context)
@@ -4959,18 +5368,17 @@ namespace vitex
 		}
 		expects_crypto<core::string> crypto::hash_hex(digest type, const std::string_view& value)
 		{
-			auto data = crypto::hash_raw(type, value);
+			auto data = crypto::hash(type, value);
 			if (!data)
 				return data;
 
 			return codec::hex_encode(*data);
 		}
-		expects_crypto<core::string> crypto::hash_raw(digest type, const std::string_view& value)
+		expects_crypto<core::string> crypto::hash(digest type, const std::string_view& value)
 		{
-			VI_ASSERT(type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
-			if (value.empty())
+			if (!type || value.empty())
 				return core::string(value);
 
 			EVP_MD* method = (EVP_MD*)type;
@@ -5003,15 +5411,254 @@ namespace vitex
 			return crypto_exception();
 #endif
 		}
-		expects_crypto<core::string> crypto::sign(digest type, sign_alg key_type, const std::string_view& value, const secret_box& secret_key)
+		expects_crypto<secret_box> crypto::private_key_gen(proof type, size_t target_bits)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			VI_TRACE("[crypto] generate %s private key (bits: %i)", get_proof_name(type).data(), (int)target_bits);
+			uint8_t data[8192]; int data_size = -1;
+			if (target_bits > sizeof(data) * 8)
+				return crypto_exception(-1, "bad:length");
+
+			EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id((int)type, nullptr);
+			if (!context)
+				return crypto_exception();
+
+			if (EVP_PKEY_keygen_init(context) != 1)
+			{
+				EVP_PKEY_CTX_free(context);
+				return crypto_exception();
+			}
+
+			switch (type)
+			{
+				case EVP_PKEY_RSA:
+				case EVP_PKEY_RSA2:
+				case EVP_PKEY_RSA_PSS:
+				{
+					if (EVP_PKEY_CTX_set_rsa_keygen_bits(context, (int)target_bits) != 1)
+						break;
+
+					EVP_PKEY* key = nullptr;
+					if (EVP_PKEY_keygen(context, &key) != 1)
+						break;
+
+					RSA* rsa_key = EVP_PKEY_get1_RSA(key);
+					if (!rsa_key)
+					{
+						EVP_PKEY_free(key);
+						break;
+					}
+
+					uint8_t* result = nullptr;
+					data_size = i2d_RSAPrivateKey(rsa_key, &result);
+					if (data_size > 0)
+						memcpy(data, result, (size_t)data_size);
+					RSA_free(rsa_key);
+					EVP_PKEY_free(key);
+					OPENSSL_free(result);
+					break;
+				}
+				case EVP_PKEY_DSA:
+				case EVP_PKEY_DSA1:
+				case EVP_PKEY_DSA2:
+				case EVP_PKEY_DSA3:
+				case EVP_PKEY_DSA4:
+				{
+					DSA* dsa_key = DSA_new();
+					if (!dsa_key || !DSA_generate_parameters_ex(dsa_key, (int)target_bits, nullptr, 0, nullptr, nullptr, nullptr) || !DSA_generate_key(dsa_key))
+					{
+						if (dsa_key != nullptr)
+							DSA_free(dsa_key);
+						break;
+					}
+
+					uint8_t* result = nullptr;
+					data_size = i2d_DSAPrivateKey(dsa_key, &result);
+					if (data_size > 0)
+						memcpy(data, result, (size_t)data_size);
+					DSA_free(dsa_key);
+					OPENSSL_free(result);
+					break;
+				}
+				case EVP_PKEY_DH:
+				case EVP_PKEY_DHX:
+					return crypto_exception(-1, "bad:proof");
+				default:
+				{
+					EVP_PKEY* key = nullptr;
+					if (EVP_PKEY_keygen(context, &key) != 1)
+						break;
+
+					size_t length = sizeof(data);
+					if (EVP_PKEY_get_raw_private_key(key, data, &length) != 1)
+					{
+						EVP_PKEY_free(key);
+						break;
+					}
+
+					data_size = (int)length;
+					EVP_PKEY_free(key);
+					break;
+				}
+			}
+
+			EVP_PKEY_CTX_free(context);
+			if (data_size <= 0)
+				return crypto_exception();
+
+			return secret_box::secure(std::string_view((char*)data, (size_t)data_size));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::to_public_key(proof type, const secret_box& secret_key)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] generate %s public key from %i bytes", get_proof_name(type).data(), (int)secret_key.size());
+			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
+			uint8_t buffer[8192];
+			switch (type)
+			{
+				case EVP_PKEY_RSA:
+				case EVP_PKEY_RSA2:
+				case EVP_PKEY_RSA_PSS:
+				{
+					RSA* rsa_key = nullptr;
+					const uint8_t* data = local_key.buffer;
+					if (!d2i_RSAPrivateKey(&rsa_key, &data, (long)local_key.view.size()))
+						return crypto_exception();
+
+					uint8_t* result = nullptr;
+					int length = i2d_RSAPublicKey(rsa_key, &result);
+					RSA_free(rsa_key);
+					if (length <= 0)
+					{
+						OPENSSL_free(result);
+						return crypto_exception();
+					}
+
+					memcpy(buffer, result, (size_t)length);
+					OPENSSL_free(result);
+					return core::string((char*)buffer, (size_t)length);
+				}
+				case EVP_PKEY_DSA:
+				case EVP_PKEY_DSA1:
+				case EVP_PKEY_DSA2:
+				case EVP_PKEY_DSA3:
+				case EVP_PKEY_DSA4:
+				{
+					DSA* dsa_key = nullptr;
+					const uint8_t* data = local_key.buffer;
+					if (!d2i_DSAPrivateKey(&dsa_key, &data, (long)local_key.view.size()))
+						return crypto_exception();
+
+					uint8_t* result = nullptr;
+					int length = i2d_DSAPublicKey(dsa_key, &result);
+					DSA_free(dsa_key);
+					if (length <= 0)
+					{
+						OPENSSL_free(result);
+						return crypto_exception();
+					}
+
+					memcpy(buffer, result, (size_t)length);
+					OPENSSL_free(result);
+					return core::string((char*)buffer, (size_t)length);
+				}
+				case EVP_PKEY_DH:
+				case EVP_PKEY_DHX:
+					return crypto_exception(-1, "bad:proof");
+				default:
+				{
+					EVP_PKEY* key = EVP_PKEY_new_raw_private_key((int)type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+					if (!key)
+						return crypto_exception();
+
+					size_t length;
+					if (EVP_PKEY_get_raw_public_key(key, nullptr, &length) != 1)
+					{
+						EVP_PKEY_free(key);
+						return crypto_exception();
+					}
+
+					core::string public_key;
+					public_key.resize(length);
+
+					if (EVP_PKEY_get_raw_public_key(key, (uint8_t*)public_key.data(), &length) != 1)
+					{
+						EVP_PKEY_free(key);
+						return crypto_exception();
+					}
+
+					EVP_PKEY_free(key);
+					return public_key;
+				}
+			}
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::sign(digest type, proof key_type, const std::string_view& value, const secret_box& secret_key)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] %s:%s sign %" PRIu64 " bytes", get_digest_name(type).data(), get_proof_name(key_type).data(), (uint64_t)value.size());
 			if (value.empty())
-				return core::string();
+				return crypto_exception(-1, "sign:empty");
 
 			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
-			EVP_PKEY* key = EVP_PKEY_new_raw_private_key((int)key_type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+			EVP_PKEY* key;
+			switch (key_type)
+			{
+				case EVP_PKEY_RSA:
+				case EVP_PKEY_RSA2:
+				case EVP_PKEY_RSA_PSS:
+				{
+					key = EVP_PKEY_new();
+					if (key != nullptr)
+					{
+						RSA* rsa_key = nullptr;
+						const uint8_t* data = local_key.buffer;
+						if (!d2i_RSAPrivateKey(&rsa_key, &data, (long)local_key.view.size()))
+						{
+							EVP_PKEY_free(key);
+							return crypto_exception();
+						}
+						EVP_PKEY_set1_RSA(key, rsa_key);
+						RSA_free(rsa_key);
+					}
+					break;
+				}
+				case EVP_PKEY_DSA:
+				case EVP_PKEY_DSA1:
+				case EVP_PKEY_DSA2:
+				case EVP_PKEY_DSA3:
+				case EVP_PKEY_DSA4:
+				{
+					key = EVP_PKEY_new();
+					if (key != nullptr)
+					{
+						DSA* dsa_key = nullptr;
+						const uint8_t* data = local_key.buffer;
+						if (!d2i_DSAPrivateKey(&dsa_key, &data, (long)local_key.view.size()))
+						{
+							EVP_PKEY_free(key);
+							return crypto_exception();
+						}
+						EVP_PKEY_set1_DSA(key, dsa_key);
+						DSA_free(dsa_key);
+					}
+					break;
+				}
+				case EVP_PKEY_DH:
+				case EVP_PKEY_DHX:
+					return crypto_exception(-1, "bad:proof");
+				default:
+				{
+					key = EVP_PKEY_new_raw_private_key((int)key_type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+					break;
+				}
+			}
+
 			if (!key)
 				return crypto_exception();
 
@@ -5048,15 +5695,66 @@ namespace vitex
 			return crypto_exception();
 #endif
 		}
-		expects_crypto<void> crypto::verify(digest type, sign_alg key_type, const std::string_view& value, const std::string_view& signature, const secret_box& public_key)
+		expects_crypto<bool> crypto::verify(digest type, proof key_type, const std::string_view& value, const std::string_view& signature, const std::string_view& public_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s verify %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)(value.size() + signature.size()));
+			VI_TRACE("[crypto] %s:%s verify %" PRIu64 " bytes", get_digest_name(type).data(), get_proof_name(key_type).data(), (uint64_t)(value.size() + signature.size()));
 			if (value.empty())
 				return crypto_exception(-1, "verify:empty");
 
-			auto local_key = public_key.expose<core::CHUNK_SIZE>();
-			EVP_PKEY* key = EVP_PKEY_new_raw_public_key((int)key_type, nullptr, (uint8_t*)local_key.view.data(), local_key.view.size());
+			EVP_PKEY* key = nullptr;
+			switch (key_type)
+			{
+				case EVP_PKEY_RSA:
+				case EVP_PKEY_RSA2:
+				case EVP_PKEY_RSA_PSS:
+				{
+					key = EVP_PKEY_new();
+					if (key != nullptr)
+					{
+						RSA* rsa_key = nullptr;
+						const uint8_t* data = (uint8_t*)public_key.data();
+						if (!d2i_RSAPublicKey(&rsa_key, &data, (long)public_key.size()))
+						{
+							EVP_PKEY_free(key);
+							return crypto_exception();
+						}
+						EVP_PKEY_set1_RSA(key, rsa_key);
+						RSA_free(rsa_key);
+					}
+					break;
+				}
+				case EVP_PKEY_DSA:
+				case EVP_PKEY_DSA1:
+				case EVP_PKEY_DSA2:
+				case EVP_PKEY_DSA3:
+				case EVP_PKEY_DSA4:
+				{
+					key = EVP_PKEY_new();
+					if (key != nullptr)
+					{
+						DSA* dsa_key = nullptr;
+						const uint8_t* data = (uint8_t*)public_key.data();
+						if (!d2i_DSAPublicKey(&dsa_key, &data, (long)public_key.size()))
+						{
+							EVP_PKEY_free(key);
+							return crypto_exception();
+						}
+						EVP_PKEY_set1_DSA(key, dsa_key);
+						DSA_free(dsa_key);
+					}
+					break;
+				}
+				case EVP_PKEY_DH:
+				case EVP_PKEY_DHX:
+					return crypto_exception(-1, "bad:proof");
+				default:
+				{
+					key = EVP_PKEY_new_raw_public_key((int)key_type, nullptr, (uint8_t*)public_key.data(), public_key.size());
+					break;
+				}
+			}
+
 			if (!key)
 				return crypto_exception();
 
@@ -5077,7 +5775,608 @@ namespace vitex
 
 			EVP_MD_CTX_free(context);
 			EVP_PKEY_free(key);
-			return core::expectation::met;
+			return true;
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<secret_box> crypto::ec_private_key_gen(proofs::curve curve)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] generate %s private key", get_curve_name(curve).data());
+			EC_KEY* key = EC_KEY_new_by_curve_name(curve);
+			if (!key)
+				return crypto_exception();
+
+			if (EC_KEY_generate_key(key) != 1)
+			{
+				EC_KEY_free(key);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[256];
+			int buffer_size = BN_bn2binpad(EC_KEY_get0_private_key(key), buffer, (int)BN_num_bytes(EC_GROUP_get0_order(EC_KEY_get0_group(key))));
+			EC_KEY_free(key);
+			if (buffer_size <= 0)
+				return crypto_exception();
+
+			return secret_box::secure(std::string_view((char*)buffer, (size_t)buffer_size));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_to_public_key(proofs::curve curve, proofs::format format, const secret_box& secret_key)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] generate %s private key from %i bytes", get_curve_name(curve).data(), (int)secret_key.size());
+			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar = BN_bin2bn(local_key.buffer, (int)local_key.view.size(), nullptr);
+			if (!scalar)
+				return crypto_exception();
+
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+			{
+				BN_clear_free(scalar);
+				return crypto_exception();
+			}
+
+			EC_POINT* point = EC_POINT_new(group);
+			bool success = EC_POINT_mul(group, point, scalar, nullptr, nullptr, nullptr) == 1;
+			BN_clear_free(scalar);
+			if (!success)
+			{
+				EC_POINT_free(point);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[1024] = { 0 };
+			size_t buffer_size = EC_POINT_point2oct(group, point, to_point_conversion(format), buffer, sizeof(buffer), nullptr);
+			EC_POINT_free(point);
+			EC_GROUP_free(group);
+			if (!buffer_size)
+				return crypto_exception();
+
+			return core::string((char*)buffer, buffer_size);
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<secret_box> crypto::ec_scalar_add(proofs::curve curve, const secret_box& a, const secret_box& b)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] scalar sub %s", get_curve_name(curve).data());
+			auto local = a.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar1 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar1)
+				return crypto_exception();
+
+			local = b.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar2 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar2)
+			{
+				BN_clear_free(scalar1);
+				return crypto_exception();
+			}
+
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+			{
+				BN_clear_free(scalar1);
+				BN_clear_free(scalar2);
+				return crypto_exception();
+			}
+
+			BIGNUM* result = BN_new();
+			const BIGNUM* order = EC_GROUP_get0_order(group);
+			size_t order_size = BN_num_bytes(order);
+			bool success = result != nullptr && BN_mod_sub(result, scalar1, scalar2, order, nullptr) == 1;
+			EC_GROUP_free(group);
+			BN_clear_free(scalar1);
+			BN_clear_free(scalar2);
+			if (!success)
+			{
+				if (result != nullptr)
+					BN_clear_free(result);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[256];
+			int buffer_size = BN_bn2binpad(result, buffer, (int)order_size);
+			BN_clear_free(result);
+			if (buffer_size <= 0)
+				return crypto_exception();
+
+			return secret_box::secure(std::string_view((char*)buffer, (size_t)buffer_size));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<secret_box> crypto::ec_scalar_sub(proofs::curve curve, const secret_box& a, const secret_box& b)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] scalar add %s", get_curve_name(curve).data());
+			auto local = a.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar1 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar1)
+				return crypto_exception();
+
+			local = b.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar2 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar2)
+			{
+				BN_clear_free(scalar1);
+				return crypto_exception();
+			}
+
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+			{
+				BN_clear_free(scalar1);
+				BN_clear_free(scalar2);
+				return crypto_exception();
+			}
+
+			BIGNUM* result = BN_new();
+			const BIGNUM* order = EC_GROUP_get0_order(group);
+			size_t order_size = BN_num_bytes(order);
+			bool success = result != nullptr && BN_mod_add(result, scalar1, scalar2, order, nullptr) == 1;
+			EC_GROUP_free(group);
+			BN_clear_free(scalar1);
+			BN_clear_free(scalar2);
+			if (!success)
+			{
+				if (result != nullptr)
+					BN_clear_free(result);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[256];
+			int buffer_size = BN_bn2binpad(result, buffer, (int)order_size);
+			BN_clear_free(result);
+			if (buffer_size <= 0)
+				return crypto_exception();
+
+			return secret_box::secure(std::string_view((char*)buffer, (size_t)buffer_size));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<secret_box> crypto::ec_scalar_mul(proofs::curve curve, const secret_box& a, const secret_box& b)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] scalar mul %s", get_curve_name(curve).data());
+			auto local = a.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar1 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar1)
+				return crypto_exception();
+
+			local = b.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar2 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar2)
+			{
+				BN_clear_free(scalar1);
+				return crypto_exception();
+			}
+
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+			{
+				BN_clear_free(scalar1);
+				BN_clear_free(scalar2);
+				return crypto_exception();
+			}
+
+			BIGNUM* result = BN_new();
+			const BIGNUM* order = EC_GROUP_get0_order(group);
+			size_t order_size = BN_num_bytes(order);
+			bool success = result != nullptr && BN_mod_mul(result, scalar1, scalar2, order, nullptr) == 1;
+			EC_GROUP_free(group);
+			BN_clear_free(scalar1);
+			BN_clear_free(scalar2);
+			if (!success)
+			{
+				if (result != nullptr)
+					BN_clear_free(result);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[256];
+			int buffer_size = BN_bn2binpad(result, buffer, (int)order_size);
+			BN_clear_free(result);
+			if (buffer_size <= 0)
+				return crypto_exception();
+
+			return secret_box::secure(std::string_view((char*)buffer, (size_t)buffer_size));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<secret_box> crypto::ec_scalar_inv(proofs::curve curve, const secret_box& a)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] scalar inv %s", get_curve_name(curve).data());
+			auto local = a.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar)
+				return crypto_exception();
+
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+			{
+				BN_clear_free(scalar);
+				return crypto_exception();
+			}
+
+			BIGNUM* result = BN_new();
+			const BIGNUM* order = EC_GROUP_get0_order(group);
+			size_t order_size = BN_num_bytes(order);
+			bool success = result != nullptr && BN_mod_inverse(result, scalar, order, nullptr) != nullptr;
+			EC_GROUP_free(group);
+			BN_clear_free(scalar);
+			if (!success)
+			{
+				if (result != nullptr)
+					BN_clear_free(result);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[256];
+			int buffer_size = BN_bn2binpad(result, buffer, (int)order_size);
+			BN_clear_free(result);
+			if (buffer_size <= 0)
+				return crypto_exception();
+
+			return secret_box::secure(std::string_view((char*)buffer, (size_t)buffer_size));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<bool> crypto::ec_scalar_is_on_curve(proofs::curve curve, const secret_box& a)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] scalar check %s", get_curve_name(curve).data());
+			auto local = a.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar)
+				return crypto_exception();
+
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+			{
+				BN_clear_free(scalar);
+				return crypto_exception();
+			}
+
+			bool is_on_curve = BN_cmp(scalar, EC_GROUP_get0_order(group)) < 0;
+			BN_clear_free(scalar);
+			EC_GROUP_free(group);
+			return is_on_curve;
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_point_mul(proofs::curve curve, proofs::format format, const std::string_view& a, const secret_box& b)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] point mul %s", get_curve_name(curve).data());
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+				return crypto_exception();
+
+			EC_POINT* point1 = EC_POINT_new(group);
+			if (EC_POINT_oct2point(group, point1, (uint8_t*)a.data(), a.size(), nullptr) != 1)
+			{
+				EC_POINT_free(point1);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			auto local = b.expose<core::CHUNK_SIZE>();
+			BIGNUM* scalar2 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
+			if (!scalar2)
+			{
+				EC_POINT_free(point1);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			bool success = EC_POINT_mul(group, point1, scalar2, nullptr, nullptr, nullptr) != 1;
+			BN_clear_free(scalar2);
+			if (!success)
+			{
+				EC_POINT_free(point1);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[1024] = { 0 };
+			size_t buffer_size = EC_POINT_point2oct(group, point1, to_point_conversion(format), buffer, sizeof(buffer), nullptr);
+			EC_POINT_free(point1);
+			EC_GROUP_free(group);
+			if (!buffer_size)
+				return crypto_exception();
+
+			return core::string((char*)buffer, buffer_size);
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_point_add(proofs::curve curve, proofs::format format, const std::string_view& a, const std::string_view& b)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] point add %s", get_curve_name(curve).data());
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+				return crypto_exception();
+
+			EC_POINT* point1 = EC_POINT_new(group);
+			if (EC_POINT_oct2point(group, point1, (uint8_t*)a.data(), a.size(), nullptr) != 1)
+			{
+				EC_POINT_free(point1);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			EC_POINT* point2 = EC_POINT_new(group);
+			if (EC_POINT_oct2point(group, point2, (uint8_t*)b.data(), b.size(), nullptr) != 1)
+			{
+				EC_POINT_free(point1);
+				EC_POINT_free(point2);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			EC_POINT* result = EC_POINT_new(group);
+			bool success = EC_POINT_add(group, result, point1, point2, nullptr) != 1;
+			EC_POINT_free(point1);
+			EC_POINT_free(point2);
+			if (!success)
+			{
+				EC_POINT_free(result);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[1024] = { 0 };
+			size_t buffer_size = EC_POINT_point2oct(group, result, to_point_conversion(format), buffer, sizeof(buffer), nullptr);
+			EC_POINT_free(result);
+			EC_GROUP_free(group);
+			if (!buffer_size)
+				return crypto_exception();
+
+			return core::string((char*)buffer, buffer_size);
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_point_inv(proofs::curve curve, proofs::format format, const std::string_view& a)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] point inv %s", get_curve_name(curve).data());
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+				return crypto_exception();
+
+			EC_POINT* point = EC_POINT_new(group);
+			if (EC_POINT_oct2point(group, point, (uint8_t*)a.data(), a.size(), nullptr) != 1)
+			{
+				EC_POINT_free(point);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			if (EC_POINT_invert(group, point, nullptr) != 1)
+			{
+				EC_POINT_free(point);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			uint8_t buffer[1024] = { 0 };
+			size_t buffer_size = EC_POINT_point2oct(group, point, to_point_conversion(format), buffer, sizeof(buffer), nullptr);
+			EC_POINT_free(point);
+			EC_GROUP_free(group);
+			if (!buffer_size)
+				return crypto_exception();
+
+			return core::string((char*)buffer, buffer_size);
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<bool> crypto::ec_point_is_on_curve(proofs::curve curve, const std::string_view& a)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] point check %s", get_curve_name(curve).data());
+			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
+			if (!group)
+				return crypto_exception();
+
+			EC_POINT* point = EC_POINT_new(group);
+			if (EC_POINT_oct2point(group, point, (uint8_t*)a.data(), a.size(), nullptr) != 1)
+			{
+				EC_POINT_free(point);
+				EC_GROUP_free(group);
+				return crypto_exception();
+			}
+
+			int result = EC_POINT_is_on_curve(group, point, nullptr);
+			EC_POINT_free(point);
+			EC_GROUP_free(group);
+			if (result == -1)
+				return crypto_exception();
+
+			bool is_on_curve = result == 1;
+			return is_on_curve;
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_sign(digest type, proofs::curve curve, const std::string_view& value, const secret_box& secret_key)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] %s:%s sign %" PRIu64 " bytes", get_digest_name(type).data(), get_curve_name(curve).data(), (uint64_t)value.size());
+			if (value.empty())
+				return crypto_exception(-1, "sign:empty");
+
+			auto digest = crypto::hash(type, value);
+			if (!digest)
+				return digest.error();
+
+			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
+			BIGNUM* data = BN_bin2bn(local_key.buffer, (int)local_key.view.size(), nullptr);
+			if (!data)
+				return crypto_exception();
+
+			EC_KEY* ec_key = EC_KEY_new_by_curve_name(curve);
+			if (!ec_key)
+			{
+				BN_free(data);
+				return crypto_exception();
+			}
+
+			bool success = EC_KEY_set_private_key(ec_key, data) == 1;
+			BN_free(data);
+			if (!success)
+			{
+				EC_KEY_free(ec_key);
+				return crypto_exception();
+			}
+
+			uint8_t signature[1024]; uint32_t signature_size = (uint32_t)sizeof(signature);
+			if (ECDSA_sign(0, (uint8_t*)digest->data(), (int)digest->size(), signature, &signature_size, ec_key) != 1)
+			{
+				EC_KEY_free(ec_key);
+				return crypto_exception();
+			}
+
+			EC_KEY_free(ec_key);
+			return core::string((char*)signature, (size_t)signature_size);
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<bool> crypto::ec_verify(digest type, proofs::curve curve, const std::string_view& value, const std::string_view& signature, const std::string_view& public_key)
+		{
+#ifdef VI_OPENSSL
+			VI_TRACE("[crypto] %s:%s verify %" PRIu64 " bytes", get_digest_name(type).data(), get_curve_name(curve).data(), (uint64_t)(value.size() + signature.size()));
+			if (value.empty())
+				return crypto_exception(-1, "verify:empty");
+
+			auto digest = crypto::hash(type, value);
+			if (!digest)
+				return digest.error();
+
+			EC_KEY* ec_key = EC_KEY_new_by_curve_name(curve);
+			if (!ec_key)
+				return crypto_exception();
+
+			EC_POINT* ec_point = EC_POINT_new(EC_KEY_get0_group(ec_key));
+			if (EC_POINT_oct2point(EC_KEY_get0_group(ec_key), ec_point, (uint8_t*)public_key.data(), public_key.size(), nullptr) != 1)
+			{
+				EC_POINT_free(ec_point);
+				EC_KEY_free(ec_key);
+				return crypto_exception();
+			}
+
+			bool success = EC_KEY_set_public_key(ec_key, ec_point) == 1;
+			EC_POINT_free(ec_point);
+			if (!success)
+			{
+				EC_KEY_free(ec_key);
+				return crypto_exception();
+			}
+
+			int result = ECDSA_verify(0, (uint8_t*)digest->data(), (int)digest->size(), (uint8_t*)signature.data(), signature.size(), ec_key);
+			EC_KEY_free(ec_key);
+			if (result == -1)
+				return crypto_exception();
+
+			return result == 1;
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_der_to_rs(const std::string_view& signature)
+		{
+#ifdef VI_OPENSSL
+			if (signature.empty())
+				return crypto_exception(-1, "signature:empty");
+
+			ECDSA_SIG* ec_signature = nullptr;
+			const uint8_t* data = (uint8_t*)signature.data();
+			if (!d2i_ECDSA_SIG(&ec_signature, &data, (long)signature.size()))
+				return crypto_exception();
+
+			const BIGNUM* r = ECDSA_SIG_get0_r(ec_signature);
+			const BIGNUM* s = ECDSA_SIG_get0_s(ec_signature);
+			size_t order_size = std::max(BN_num_bytes(r), BN_num_bytes(s));
+
+			uint8_t r_buffer[1024], s_buffer[1024];
+			int r_buffer_size = BN_bn2binpad(r, r_buffer, (int)order_size);
+			int s_buffer_size = BN_bn2binpad(s, s_buffer, (int)order_size);
+			ECDSA_SIG_free(ec_signature);
+			if (r_buffer_size <= 0 || s_buffer_size <= 0)
+				return crypto_exception();
+
+			core::string result;
+			result.reserve((size_t)(r_buffer_size + s_buffer_size));
+			result.append((char*)r_buffer, (size_t)r_buffer_size);
+			result.append((char*)s_buffer, (size_t)s_buffer_size);
+			return expects_crypto<core::string>(std::move(result));
+#else
+			return crypto_exception();
+#endif
+		}
+		expects_crypto<core::string> crypto::ec_rs_to_der(const std::string_view& signature)
+		{
+#ifdef VI_OPENSSL
+			if (signature.empty() || signature.size() % 2 != 0)
+				return crypto_exception(-1, "bad:signature");
+
+			size_t size = signature.size();
+			BIGNUM* r = BN_bin2bn((uint8_t*)signature.data() + size * 0, size, nullptr);
+			BIGNUM* s = BN_bin2bn((uint8_t*)signature.data() + size * 1, size, nullptr);
+			if (!r || !s)
+			{
+				if (r != nullptr)
+					BN_free(r);
+				if (s != nullptr)
+					BN_free(s);
+				return crypto_exception();
+			}
+
+			ECDSA_SIG* ec_signature = ECDSA_SIG_new();
+			if (!ec_signature)
+			{
+				BN_free(r);
+				BN_free(s);
+				return crypto_exception();
+			}
+
+			bool success = ECDSA_SIG_set0(ec_signature, r, s) == 1;
+			BN_free(r);
+			BN_free(s);
+			if (!success)
+			{
+				ECDSA_SIG_free(ec_signature);
+				return crypto_exception();
+			}
+
+			uint8_t* data = nullptr;
+			int data_size = i2d_ECDSA_SIG(ec_signature, &data);
+			ECDSA_SIG_free(ec_signature);
+			if (data_size <= 0)
+			{
+				OPENSSL_free(data);
+				return crypto_exception();
+			}
+
+			core::string result = core::string((char*)data, (size_t)data_size);
+			OPENSSL_free(data);
+			return expects_crypto<core::string>(std::move(result));
 #else
 			return crypto_exception();
 #endif
@@ -5088,7 +6387,7 @@ namespace vitex
 #ifdef VI_OPENSSL
 			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
 			if (value.empty())
-				return core::string();
+				return crypto_exception(-1, "hmac:empty");
 
 			auto local_key = key.expose<core::CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -5170,7 +6469,7 @@ namespace vitex
 			VI_ASSERT(type != nullptr, "type should be set");
 			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
 			if (value.empty())
-				return core::string();
+				return crypto_exception(-1, "encrypt:empty");
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
 			if (!context)
@@ -5241,7 +6540,7 @@ namespace vitex
 			VI_ASSERT(type != nullptr, "type should be set");
 			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
 			if (value.empty())
-				return core::string();
+				return crypto_exception(-1, "decrypt:empty");
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
 			if (!context)
@@ -5369,7 +6668,7 @@ namespace vitex
 			result->payload = payload.reset();
 			return result;
 		}
-		expects_crypto<core::string> crypto::doc_encrypt(core::schema* src, const secret_box& key, const secret_box& salt)
+		expects_crypto<core::string> crypto::schema_encrypt(core::schema* src, const secret_box& key, const secret_box& salt)
 		{
 			VI_ASSERT(src != nullptr, "schema should be set");
 			core::string result;
@@ -5382,7 +6681,7 @@ namespace vitex
 			result = codec::bep45_encode(*data);
 			return result;
 		}
-		expects_crypto<core::schema*> crypto::doc_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt)
+		expects_crypto<core::schema*> crypto::schema_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt)
 		{
 			VI_ASSERT(!value.empty(), "value should not be empty");
 			if (value.empty())
@@ -5398,7 +6697,7 @@ namespace vitex
 
 			return *result;
 		}
-		expects_crypto<size_t> crypto::encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback, size_t read_interval, int complexity_bytes)
+		expects_crypto<size_t> crypto::file_encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback, size_t read_interval, int complexity_bytes)
 		{
 			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(read_interval > 0, "read interval should be greater than zero.");
@@ -5485,7 +6784,7 @@ namespace vitex
 			return crypto_exception();
 #endif
 		}
-		expects_crypto<size_t> crypto::decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback, size_t read_interval, int complexity_bytes)
+		expects_crypto<size_t> crypto::file_decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback, size_t read_interval, int complexity_bytes)
 		{
 			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(read_interval > 0, "read interval should be greater than zero.");
@@ -5624,7 +6923,7 @@ namespace vitex
 			raw = random();
 #endif
 			return raw % (max - min + 1) + min;
-		}
+			}
 		uint64_t crypto::random()
 		{
 			static std::random_device device;
@@ -6536,7 +7835,7 @@ namespace vitex
 		void web_token::set_refresh_token(const std::string_view& value, const secret_box& key, const secret_box& salt)
 		{
 			core::memory::release(token);
-			auto new_token = crypto::doc_decrypt(value, key, salt);
+			auto new_token = crypto::schema_decrypt(value, key, salt);
 			if (new_token)
 			{
 				token = *new_token;
@@ -6564,7 +7863,7 @@ namespace vitex
 		}
 		expects_crypto<core::string> web_token::get_refresh_token(const secret_box& key, const secret_box& salt)
 		{
-			auto new_token = crypto::doc_encrypt(token, key, salt);
+			auto new_token = crypto::schema_encrypt(token, key, salt);
 			if (!new_token)
 				return new_token;
 
@@ -7657,5 +8956,5 @@ namespace vitex
 			result.library.clear();
 			return result;
 		}
+		}
 	}
-}

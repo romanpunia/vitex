@@ -5356,27 +5356,23 @@ namespace vitex
 				base->set_audience(array::decompose<core::string>(data));
 			}
 
-			core::string crypto_sign(compute::digest type, compute::sign_alg key_type, const std::string_view& data, const compute::secret_box& key)
+			bool crypto_ec_scalar_is_on_curve(compute::proofs::curve curve, const compute::secret_box& scalar)
 			{
-				return expects_wrapper::unwrap(compute::crypto::sign(type, key_type, data, key), core::string());
+				return expects_wrapper::unwrap_void(compute::crypto::ec_scalar_is_on_curve(curve, scalar));
 			}
-			bool crypto_verify(compute::digest type, compute::sign_alg key_type, const std::string_view& data, const std::string_view& signature, const compute::secret_box& key)
+			bool crypto_ec_point_is_on_curve(compute::proofs::curve curve, const std::string_view& point)
 			{
-				return expects_wrapper::unwrap_void(compute::crypto::verify(type, key_type, data, signature, key));
+				return expects_wrapper::unwrap_void(compute::crypto::ec_point_is_on_curve(curve, point));
 			}
-			core::string crypto_hmac(compute::digest type, const std::string_view& data, const compute::secret_box& key)
+			bool crypto_verify(compute::digest type, compute::proof key_type, const std::string_view& data, const std::string_view& signature, const std::string_view& key)
 			{
-				return expects_wrapper::unwrap(compute::crypto::hmac(type, data, key), core::string());
+				return compute::crypto::verify(type, key_type, data, signature, key).or_else(false);
 			}
-			core::string crypto_encrypt(compute::cipher type, const std::string_view& data, const compute::secret_box& key, const compute::secret_box& salt, int complexity)
+			bool crypto_ec_verify(compute::digest type, compute::proofs::curve curve, const std::string_view& data, const std::string_view& signature, const std::string_view& key)
 			{
-				return expects_wrapper::unwrap(compute::crypto::encrypt(type, data, key, salt, complexity), core::string());
+				return compute::crypto::ec_verify(type, curve, data, signature, key).or_else(false);
 			}
-			core::string crypto_decrypt(compute::cipher type, const std::string_view& data, const compute::secret_box& key, const compute::secret_box& salt, int complexity)
-			{
-				return expects_wrapper::unwrap(compute::crypto::decrypt(type, data, key, salt, complexity), core::string());
-			}
-			size_t crypto_encrypt_stream(compute::cipher type, core::stream* from, core::stream* to, const compute::secret_box& key, const compute::secret_box& salt, asIScriptFunction* transform, size_t read_interval, int complexity)
+			size_t crypto_file_encrypt(compute::cipher type, core::stream* from, core::stream* to, const compute::secret_box& key, const compute::secret_box& salt, asIScriptFunction* transform, size_t read_interval, int complexity)
 			{
 				core::string intermediate;
 				immediate_context* context = immediate_context::get();
@@ -5399,9 +5395,9 @@ namespace vitex
 					*buffer = (uint8_t*)intermediate.data();
 					*size = intermediate.size();
 				};
-				return expects_wrapper::unwrap(compute::crypto::encrypt(type, from, to, key, salt, std::move(callback), read_interval, complexity), (size_t)0);
+				return expects_wrapper::unwrap(compute::crypto::file_encrypt(type, from, to, key, salt, std::move(callback), read_interval, complexity), (size_t)0);
 			}
-			size_t crypto_decrypt_stream(compute::cipher type, core::stream* from, core::stream* to, const compute::secret_box& key, const compute::secret_box& salt, asIScriptFunction* transform, size_t read_interval, int complexity)
+			size_t crypto_file_decrypt(compute::cipher type, core::stream* from, core::stream* to, const compute::secret_box& key, const compute::secret_box& salt, asIScriptFunction* transform, size_t read_interval, int complexity)
 			{
 				core::string intermediate;
 				immediate_context* context = immediate_context::get();
@@ -5424,7 +5420,7 @@ namespace vitex
 					*buffer = (uint8_t*)intermediate.data();
 					*size = intermediate.size();
 				};
-				return expects_wrapper::unwrap(compute::crypto::decrypt(type, from, to, key, salt, std::move(callback), read_interval, complexity), (size_t)0);
+				return expects_wrapper::unwrap(compute::crypto::file_decrypt(type, from, to, key, salt, std::move(callback), read_interval, complexity), (size_t)0);
 			}
 
 			void include_desc_add_ext(compute::include_desc& base, const std::string_view& value)
@@ -9799,6 +9795,8 @@ namespace vitex
 				vconsole->set_method("void write_line(const string_view&in)", &core::console::write_line);
 				vconsole->set_method("void write_char(uint8)", &core::console::write_char);
 				vconsole->set_method("void write(const string_view&in)", &core::console::write);
+				vconsole->set_method("void jwrite_line(schema@+)", &core::console::jwrite_line);
+				vconsole->set_method("void jwrite(schema@+)", &core::console::jwrite);
 				vconsole->set_method("double get_captured_time()", &core::console::get_captured_time);
 				vconsole->set_method("string read(usize)", &core::console::read);
 				vconsole->set_method("bool read_screen(uint32 &out, uint32 &out, uint32 &out, uint32 &out)", &core::console::read_screen);
@@ -10628,44 +10626,122 @@ namespace vitex
 				vm->set_function("uptr@ sm3()", &compute::digests::sm3);
 				vm->end_namespace();
 
-				vm->begin_namespace("signers");
-				vm->set_function("int32 pk_rsa()", &compute::signers::pk_rsa);
-				vm->set_function("int32 pk_dsa()", &compute::signers::pk_dsa);
-				vm->set_function("int32 pk_dh()", &compute::signers::pk_dh);
-				vm->set_function("int32 pk_ec()", &compute::signers::pk_ec);
-				vm->set_function("int32 pkt_sign()", &compute::signers::pkt_sign);
-				vm->set_function("int32 pkt_enc()", &compute::signers::pkt_enc);
-				vm->set_function("int32 pkt_exch()", &compute::signers::pkt_exch);
-				vm->set_function("int32 pks_rsa()", &compute::signers::pks_rsa);
-				vm->set_function("int32 pks_dsa()", &compute::signers::pks_dsa);
-				vm->set_function("int32 pks_ec()", &compute::signers::pks_ec);
-				vm->set_function("int32 rsa()", &compute::signers::rsa);
-				vm->set_function("int32 rsa2()", &compute::signers::rsa2);
-				vm->set_function("int32 rsa_pss()", &compute::signers::rsa_pss);
-				vm->set_function("int32 dsa()", &compute::signers::dsa);
-				vm->set_function("int32 dsa1()", &compute::signers::dsa1);
-				vm->set_function("int32 dsa2()", &compute::signers::dsa2);
-				vm->set_function("int32 dsa3()", &compute::signers::dsa3);
-				vm->set_function("int32 dsa4()", &compute::signers::dsa4);
-				vm->set_function("int32 dh()", &compute::signers::dh);
-				vm->set_function("int32 dhx()", &compute::signers::dhx);
-				vm->set_function("int32 ec()", &compute::signers::ec);
-				vm->set_function("int32 sm2()", &compute::signers::sm2);
-				vm->set_function("int32 hmac()", &compute::signers::hmac);
-				vm->set_function("int32 cmac()", &compute::signers::cmac);
-				vm->set_function("int32 scrypt()", &compute::signers::scrypt);
-				vm->set_function("int32 tls1_prf()", &compute::signers::tls1_prf);
-				vm->set_function("int32 hkdf()", &compute::signers::hkdf);
-				vm->set_function("int32 poly1305()", &compute::signers::poly1305);
-				vm->set_function("int32 siphash()", &compute::signers::siphash);
-				vm->set_function("int32 x25519()", &compute::signers::x25519);
-				vm->set_function("int32 ed25519()", &compute::signers::ed25519);
-				vm->set_function("int32 x448()", &compute::signers::x448);
-				vm->set_function("int32 ed448()", &compute::signers::ed448);
+				vm->begin_namespace("proofs");
+				auto vformat = vm->set_enum("format");
+				vformat->set_value("uncompressed", (int)compute::proofs::format::uncompressed);
+				vformat->set_value("compressed", (int)compute::proofs::format::compressed);
+				vformat->set_value("hybrid", (int)compute::proofs::format::hybrid);
+				vm->set_function("int32 pk_rsa()", &compute::proofs::pk_rsa);
+				vm->set_function("int32 pk_dsa()", &compute::proofs::pk_dsa);
+				vm->set_function("int32 pk_dh()", &compute::proofs::pk_dh);
+				vm->set_function("int32 pk_ec()", &compute::proofs::pk_ec);
+				vm->set_function("int32 pkt_sign()", &compute::proofs::pkt_sign);
+				vm->set_function("int32 pkt_enc()", &compute::proofs::pkt_enc);
+				vm->set_function("int32 pkt_exch()", &compute::proofs::pkt_exch);
+				vm->set_function("int32 pks_rsa()", &compute::proofs::pks_rsa);
+				vm->set_function("int32 pks_dsa()", &compute::proofs::pks_dsa);
+				vm->set_function("int32 pks_ec()", &compute::proofs::pks_ec);
+				vm->set_function("int32 rsa()", &compute::proofs::rsa);
+				vm->set_function("int32 rsa2()", &compute::proofs::rsa2);
+				vm->set_function("int32 rsa_pss()", &compute::proofs::rsa_pss);
+				vm->set_function("int32 dsa()", &compute::proofs::dsa);
+				vm->set_function("int32 dsa1()", &compute::proofs::dsa1);
+				vm->set_function("int32 dsa2()", &compute::proofs::dsa2);
+				vm->set_function("int32 dsa3()", &compute::proofs::dsa3);
+				vm->set_function("int32 dsa4()", &compute::proofs::dsa4);
+				vm->set_function("int32 dh()", &compute::proofs::dh);
+				vm->set_function("int32 dhx()", &compute::proofs::dhx);
+				vm->set_function("int32 ec()", &compute::proofs::ec);
+				vm->set_function("int32 sm2()", &compute::proofs::sm2);
+				vm->set_function("int32 hmac()", &compute::proofs::hmac);
+				vm->set_function("int32 cmac()", &compute::proofs::cmac);
+				vm->set_function("int32 scrypt()", &compute::proofs::scrypt);
+				vm->set_function("int32 tls1_prf()", &compute::proofs::tls1_prf);
+				vm->set_function("int32 hkdf()", &compute::proofs::hkdf);
+				vm->set_function("int32 poly1305()", &compute::proofs::poly1305);
+				vm->set_function("int32 siphash()", &compute::proofs::siphash);
+				vm->set_function("int32 x25519()", &compute::proofs::x25519);
+				vm->set_function("int32 ed25519()", &compute::proofs::ed25519);
+				vm->set_function("int32 x448()", &compute::proofs::x448);
+				vm->set_function("int32 ed448()", &compute::proofs::ed448);
+				vm->end_namespace();
+
+				vm->begin_namespace("proofs::curves");
+				vm->set_function("int32 c2pnb163v1()", &compute::proofs::curves::c2pnb163v1);
+				vm->set_function("int32 c2pnb163v2()", &compute::proofs::curves::c2pnb163v2);
+				vm->set_function("int32 c2pnb163v3()", &compute::proofs::curves::c2pnb163v3);
+				vm->set_function("int32 c2pnb176v1()", &compute::proofs::curves::c2pnb176v1);
+				vm->set_function("int32 c2tnb191v1()", &compute::proofs::curves::c2tnb191v1);
+				vm->set_function("int32 c2tnb191v2()", &compute::proofs::curves::c2tnb191v2);
+				vm->set_function("int32 c2tnb191v3()", &compute::proofs::curves::c2tnb191v3);
+				vm->set_function("int32 c2onb191v4()", &compute::proofs::curves::c2onb191v4);
+				vm->set_function("int32 c2onb191v5()", &compute::proofs::curves::c2onb191v5);
+				vm->set_function("int32 c2pnb208w1()", &compute::proofs::curves::c2pnb208w1);
+				vm->set_function("int32 c2tnb239v1()", &compute::proofs::curves::c2tnb239v1);
+				vm->set_function("int32 c2tnb239v2()", &compute::proofs::curves::c2tnb239v2);
+				vm->set_function("int32 c2tnb239v3()", &compute::proofs::curves::c2tnb239v3);
+				vm->set_function("int32 c2onb239v4()", &compute::proofs::curves::c2onb239v4);
+				vm->set_function("int32 c2onb239v5()", &compute::proofs::curves::c2onb239v5);
+				vm->set_function("int32 c2pnb272w1()", &compute::proofs::curves::c2pnb272w1);
+				vm->set_function("int32 c2pnb304w1()", &compute::proofs::curves::c2pnb304w1);
+				vm->set_function("int32 c2tnb359v1()", &compute::proofs::curves::c2tnb359v1);
+				vm->set_function("int32 c2pnb368w1()", &compute::proofs::curves::c2pnb368w1);
+				vm->set_function("int32 c2tnb431r1()", &compute::proofs::curves::c2tnb431r1);
+				vm->set_function("int32 prime192v1()", &compute::proofs::curves::prime192v1);
+				vm->set_function("int32 prime192v2()", &compute::proofs::curves::prime192v2);
+				vm->set_function("int32 prime192v3()", &compute::proofs::curves::prime192v3);
+				vm->set_function("int32 prime239v1()", &compute::proofs::curves::prime239v1);
+				vm->set_function("int32 prime239v2()", &compute::proofs::curves::prime239v2);
+				vm->set_function("int32 prime239v3()", &compute::proofs::curves::prime239v3);
+				vm->set_function("int32 prime256v1()", &compute::proofs::curves::prime256v1);
+				vm->set_function("int32 ecdsa_sha1()", &compute::proofs::curves::ecdsa_sha1);
+				vm->set_function("int32 ecdsa_sha224()", &compute::proofs::curves::ecdsa_sha224);
+				vm->set_function("int32 ecdsa_sha256()", &compute::proofs::curves::ecdsa_sha256);
+				vm->set_function("int32 ecdsa_sha384()", &compute::proofs::curves::ecdsa_sha384);
+				vm->set_function("int32 ecdsa_sha512()", &compute::proofs::curves::ecdsa_sha512);
+				vm->set_function("int32 secp112r1()", &compute::proofs::curves::secp112r1);
+				vm->set_function("int32 secp112r2()", &compute::proofs::curves::secp112r2);
+				vm->set_function("int32 secp128r1()", &compute::proofs::curves::secp128r1);
+				vm->set_function("int32 secp128r2()", &compute::proofs::curves::secp128r2);
+				vm->set_function("int32 secp160k1()", &compute::proofs::curves::secp160k1);
+				vm->set_function("int32 secp160r1()", &compute::proofs::curves::secp160r1);
+				vm->set_function("int32 secp160r2()", &compute::proofs::curves::secp160r2);
+				vm->set_function("int32 secp192k1()", &compute::proofs::curves::secp192k1);
+				vm->set_function("int32 secp224k1()", &compute::proofs::curves::secp224k1);
+				vm->set_function("int32 secp224r1()", &compute::proofs::curves::secp224r1);
+				vm->set_function("int32 secp256k1()", &compute::proofs::curves::secp256k1);
+				vm->set_function("int32 secp384r1()", &compute::proofs::curves::secp384r1);
+				vm->set_function("int32 secp521r1()", &compute::proofs::curves::secp521r1);
+				vm->set_function("int32 sect113r1()", &compute::proofs::curves::sect113r1);
+				vm->set_function("int32 sect113r2()", &compute::proofs::curves::sect113r2);
+				vm->set_function("int32 sect131r1()", &compute::proofs::curves::sect131r1);
+				vm->set_function("int32 sect131r2()", &compute::proofs::curves::sect131r2);
+				vm->set_function("int32 sect163k1()", &compute::proofs::curves::sect163k1);
+				vm->set_function("int32 sect163r1()", &compute::proofs::curves::sect163r1);
+				vm->set_function("int32 sect163r2()", &compute::proofs::curves::sect163r2);
+				vm->set_function("int32 sect193r1()", &compute::proofs::curves::sect193r1);
+				vm->set_function("int32 sect193r2()", &compute::proofs::curves::sect193r2);
+				vm->set_function("int32 sect233k1()", &compute::proofs::curves::sect233k1);
+				vm->set_function("int32 sect233r1()", &compute::proofs::curves::sect233r1);
+				vm->set_function("int32 sect239k1()", &compute::proofs::curves::sect239k1);
+				vm->set_function("int32 sect283k1()", &compute::proofs::curves::sect283k1);
+				vm->set_function("int32 sect283r1()", &compute::proofs::curves::sect283r1);
+				vm->set_function("int32 sect409k1()", &compute::proofs::curves::sect409k1);
+				vm->set_function("int32 sect409r1()", &compute::proofs::curves::sect409r1);
+				vm->set_function("int32 sect571k1()", &compute::proofs::curves::sect571k1);
+				vm->set_function("int32 sect571r1()", &compute::proofs::curves::sect571r1);
 				vm->end_namespace();
 
 				vm->begin_namespace("crypto");
 				vm->set_function_def("string block_transform_sync(const string_view&in)");
+				vm->set_function("uptr@ get_digest_by_name(const string_view&in)", &compute::crypto::get_digest_by_name);
+				vm->set_function("uptr@ get_cipher_by_name(const string_view&in)", &compute::crypto::get_cipher_by_name);
+				vm->set_function("int32 get_proof_by_name(const string_view&in)", &compute::crypto::get_proof_by_name);
+				vm->set_function("int32 get_curve_by_name(const string_view&in)", &compute::crypto::get_curve_by_name);
+				vm->set_function("string_view get_digest_name(uptr@)", &compute::crypto::get_digest_name);
+				vm->set_function("string_view get_cipher_name(uptr@)", &compute::crypto::get_cipher_name);
+				vm->set_function("string_view get_proof_name(int32)", &compute::crypto::get_proof_name);
+				vm->set_function("string_view get_curve_name(int32)", &compute::crypto::get_curve_name);
 				vm->set_function("uint8 random_uc()", &compute::crypto::random_uc);
 				vm->set_function<uint64_t()>("uint64 random()", &compute::crypto::random);
 				vm->set_function<uint64_t(uint64_t, uint64_t)>("uint64 random(uint64, uint64)", &compute::crypto::random);
@@ -10673,24 +10749,39 @@ namespace vitex
 				vm->set_function("uint64 crc64(const string_view&in)", &compute::crypto::crc64);
 				vm->set_function("void display_crypto_log()", &compute::crypto::display_crypto_log);
 				vm->set_function("string random_bytes(usize)", &VI_SEXPECTIFY(compute::crypto::random_bytes));
-				vm->set_function("string generate_private_key(int32, usize = 2048, const string_view&in = string_view())", &VI_SEXPECTIFY(compute::crypto::generate_private_key));
-				vm->set_function("string generate_public_key(int32, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::generate_public_key));
 				vm->set_function("string checksum_hex(base_stream@, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::checksum_hex));
-				vm->set_function("string checksum_raw(base_stream@, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::checksum_raw));
+				vm->set_function("string checksum(base_stream@, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::checksum));
 				vm->set_function("string hash_hex(uptr@, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::hash_hex));
-				vm->set_function("string hash_raw(uptr@, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::hash_raw));
+				vm->set_function("string hash(uptr@, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::hash));
 				vm->set_function("string jwt_sign(const string_view&in, const string_view&in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::jwt_sign));
 				vm->set_function("string jwt_encode(web_token@+, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::jwt_encode));
 				vm->set_function("web_token@ jwt_decode(const string_view&in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::jwt_decode));
-				vm->set_function("string doc_encrypt(schema@+, const secret_box &in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::doc_encrypt));
-				vm->set_function("schema@ doc_decrypt(const string_view&in, const secret_box &in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::doc_decrypt));
-				vm->set_function("string sign(uptr@, int32, const string_view&in, const secret_box &in)", &crypto_sign);
-				vm->set_function("bool verify(uptr@, int32, const string_view&in, const string_view&in, const secret_box &in)", &crypto_verify);
-				vm->set_function("string hmac(uptr@, const string_view&in, const secret_box &in)", &crypto_hmac);
-				vm->set_function("string encrypt(uptr@, const string_view&in, const secret_box &in, const secret_box &in, int = -1)", &crypto_encrypt);
-				vm->set_function("string decrypt(uptr@, const string_view&in, const secret_box &in, const secret_box &in, int = -1)", &crypto_decrypt);
-				vm->set_function("usize encrypt(uptr@, base_stream@, const secret_box &in, const secret_box &in, block_transform_sync@ = null, usize = 1, int = -1)", &crypto_encrypt_stream);
-				vm->set_function("usize decrypt(uptr@, base_stream@, const secret_box &in, const secret_box &in, block_transform_sync@ = null, usize = 1, int = -1)", &crypto_decrypt_stream);
+				vm->set_function("string schema_encrypt(schema@+, const secret_box &in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::schema_encrypt));
+				vm->set_function("schema@ schema_decrypt(const string_view&in, const secret_box &in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::schema_decrypt));
+				vm->set_function("secret_box private_key_gen(int32, usize = 2048)", &VI_SEXPECTIFY(compute::crypto::private_key_gen));
+				vm->set_function("string to_public_key(int32, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::to_public_key));
+				vm->set_function("string sign(uptr@, int32, const string_view&in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::sign));
+				vm->set_function("bool verify(uptr@, int32, const string_view&in, const string_view &in, const string_view &in)", &crypto_verify);
+				vm->set_function("secret_box ec_private_key_gen(int32)", &VI_SEXPECTIFY(compute::crypto::ec_private_key_gen));
+				vm->set_function("string ec_to_public_key(int32, proofs::format, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::ec_to_public_key));
+				vm->set_function("secret_box ec_scalar_add(int32, const secret_box&in, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::ec_scalar_add));
+				vm->set_function("secret_box ec_scalar_sub(int32, const secret_box&in, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::ec_scalar_sub));
+				vm->set_function("secret_box ec_scalar_mul(int32, const secret_box&in, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::ec_scalar_mul));
+				vm->set_function("secret_box ec_scalar_inv(int32, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::ec_scalar_inv));
+				vm->set_function("bool ec_scalar_is_on_curve(int32, const secret_box&in)", &crypto_ec_scalar_is_on_curve);
+				vm->set_function("string ec_point_mul(int32, proofs::format, const string_view&in, const secret_box&in)", &VI_SEXPECTIFY(compute::crypto::ec_point_mul));
+				vm->set_function("string ec_point_add(int32, proofs::format, const string_view&in, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::ec_point_add));
+				vm->set_function("string ec_point_inv(int32, proofs::format, const string_view&in)", &VI_SEXPECTIFY(compute::crypto::ec_point_inv));
+				vm->set_function("bool ec_point_is_on_curve(int32, const string_view&in)", &crypto_ec_point_is_on_curve);
+				vm->set_function("string ec_sign(uptr@, int32, const string_view&in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::ec_sign));
+				vm->set_function("bool ec_verify(uptr@, int32, const string_view&in, const string_view&in, const string_view &in)", &crypto_ec_verify);
+				vm->set_function("string ec_der_to_rs(const string_view&in)", &VI_SEXPECTIFY(compute::crypto::ec_der_to_rs));
+				vm->set_function("string ec_rs_to_der(const string_view&in)", &VI_SEXPECTIFY(compute::crypto::ec_rs_to_der));
+				vm->set_function("string hmac(uptr@, const string_view&in, const secret_box &in)", &VI_SEXPECTIFY(compute::crypto::hmac));
+				vm->set_function("string encrypt(uptr@, const string_view&in, const secret_box &in, const secret_box &in, int = -1)", &VI_SEXPECTIFY(compute::crypto::encrypt));
+				vm->set_function("string decrypt(uptr@, const string_view&in, const secret_box &in, const secret_box &in, int = -1)", &VI_SEXPECTIFY(compute::crypto::decrypt));
+				vm->set_function("usize file_encrypt(uptr@, base_stream@, const secret_box &in, const secret_box &in, block_transform_sync@ = null, usize = 1, int = -1)", &crypto_file_encrypt);
+				vm->set_function("usize file_decrypt(uptr@, base_stream@, const secret_box &in, const secret_box &in, block_transform_sync@ = null, usize = 1, int = -1)", &crypto_file_decrypt);
 				vm->end_namespace();
 
 				return true;

@@ -70,7 +70,7 @@ namespace vitex
 
 		typedef void* cipher;
 		typedef void* digest;
-		typedef int32_t sign_alg;
+		typedef int32_t proof;
 
 		struct include_desc
 		{
@@ -1449,42 +1449,121 @@ namespace vitex
 			static digest sm3();
 		};
 
-		class signers
+		class proofs
 		{
 		public:
-			static sign_alg pk_rsa();
-			static sign_alg pk_dsa();
-			static sign_alg pk_dh();
-			static sign_alg pk_ec();
-			static sign_alg pkt_sign();
-			static sign_alg pkt_enc();
-			static sign_alg pkt_exch();
-			static sign_alg pks_rsa();
-			static sign_alg pks_dsa();
-			static sign_alg pks_ec();
-			static sign_alg rsa();
-			static sign_alg rsa2();
-			static sign_alg rsa_pss();
-			static sign_alg dsa();
-			static sign_alg dsa1();
-			static sign_alg dsa2();
-			static sign_alg dsa3();
-			static sign_alg dsa4();
-			static sign_alg dh();
-			static sign_alg dhx();
-			static sign_alg ec();
-			static sign_alg sm2();
-			static sign_alg hmac();
-			static sign_alg cmac();
-			static sign_alg scrypt();
-			static sign_alg tls1_prf();
-			static sign_alg hkdf();
-			static sign_alg poly1305();
-			static sign_alg siphash();
-			static sign_alg x25519();
-			static sign_alg ed25519();
-			static sign_alg x448();
-			static sign_alg ed448();
+			typedef int32_t curve;
+
+		public:
+			enum class format
+			{
+				uncompressed,
+				compressed,
+				hybrid
+			};
+
+			class curves
+			{
+			public:
+				static curve c2pnb163v1();
+				static curve c2pnb163v2();
+				static curve c2pnb163v3();
+				static curve c2pnb176v1();
+				static curve c2tnb191v1();
+				static curve c2tnb191v2();
+				static curve c2tnb191v3();
+				static curve c2onb191v4();
+				static curve c2onb191v5();
+				static curve c2pnb208w1();
+				static curve c2tnb239v1();
+				static curve c2tnb239v2();
+				static curve c2tnb239v3();
+				static curve c2onb239v4();
+				static curve c2onb239v5();
+				static curve c2pnb272w1();
+				static curve c2pnb304w1();
+				static curve c2tnb359v1();
+				static curve c2pnb368w1();
+				static curve c2tnb431r1();
+				static curve prime192v1();
+				static curve prime192v2();
+				static curve prime192v3();
+				static curve prime239v1();
+				static curve prime239v2();
+				static curve prime239v3();
+				static curve prime256v1();
+				static curve ecdsa_sha1();
+				static curve ecdsa_sha224();
+				static curve ecdsa_sha256();
+				static curve ecdsa_sha384();
+				static curve ecdsa_sha512();
+				static curve secp112r1();
+				static curve secp112r2();
+				static curve secp128r1();
+				static curve secp128r2();
+				static curve secp160k1();
+				static curve secp160r1();
+				static curve secp160r2();
+				static curve secp192k1();
+				static curve secp224k1();
+				static curve secp224r1();
+				static curve secp256k1();
+				static curve secp384r1();
+				static curve secp521r1();
+				static curve sect113r1();
+				static curve sect113r2();
+				static curve sect131r1();
+				static curve sect131r2();
+				static curve sect163k1();
+				static curve sect163r1();
+				static curve sect163r2();
+				static curve sect193r1();
+				static curve sect193r2();
+				static curve sect233k1();
+				static curve sect233r1();
+				static curve sect239k1();
+				static curve sect283k1();
+				static curve sect283r1();
+				static curve sect409k1();
+				static curve sect409r1();
+				static curve sect571k1();
+				static curve sect571r1();
+			};
+
+		public:
+			static proof pk_rsa();
+			static proof pk_dsa();
+			static proof pk_dh();
+			static proof pk_ec();
+			static proof pkt_sign();
+			static proof pkt_enc();
+			static proof pkt_exch();
+			static proof pks_rsa();
+			static proof pks_dsa();
+			static proof pks_ec();
+			static proof rsa();
+			static proof rsa2();
+			static proof rsa_pss();
+			static proof dsa();
+			static proof dsa1();
+			static proof dsa2();
+			static proof dsa3();
+			static proof dsa4();
+			static proof dh();
+			static proof dhx();
+			static proof ec();
+			static proof sm2();
+			static proof hmac();
+			static proof cmac();
+			static proof scrypt();
+			static proof tls1_prf();
+			static proof hkdf();
+			static proof poly1305();
+			static proof siphash();
+			static proof x25519();
+			static proof ed25519();
+			static proof x448();
+			static proof ed448();
 		};
 
 		class crypto
@@ -1495,30 +1574,47 @@ namespace vitex
 		public:
 			static digest get_digest_by_name(const std::string_view& name);
 			static cipher get_cipher_by_name(const std::string_view& name);
-			static sign_alg get_signer_by_name(const std::string_view& name);
+			static proof get_proof_by_name(const std::string_view& name);
+			static proofs::curve get_curve_by_name(const std::string_view& name);
 			static std::string_view get_digest_name(digest type);
 			static std::string_view get_cipher_name(cipher type);
-			static std::string_view get_signer_name(sign_alg type);
+			static std::string_view get_proof_name(proof type);
+			static std::string_view get_curve_name(proofs::curve type);
 			static expects_crypto<void> fill_random_bytes(uint8_t* buffer, size_t length);
 			static expects_crypto<core::string> random_bytes(size_t length);
-			static expects_crypto<core::string> generate_private_key(sign_alg type, size_t target_bits = 2048, const std::string_view& curve = std::string_view());
-			static expects_crypto<core::string> generate_public_key(sign_alg type, const secret_box& secret_key);
 			static expects_crypto<core::string> checksum_hex(digest type, core::stream* stream);
-			static expects_crypto<core::string> checksum_raw(digest type, core::stream* stream);
+			static expects_crypto<core::string> checksum(digest type, core::stream* stream);
 			static expects_crypto<core::string> hash_hex(digest type, const std::string_view& value);
-			static expects_crypto<core::string> hash_raw(digest type, const std::string_view& value);
-			static expects_crypto<core::string> sign(digest type, sign_alg key_type, const std::string_view& value, const secret_box& secret_key);
-			static expects_crypto<void> verify(digest type, sign_alg key_type, const std::string_view& value, const std::string_view& signature, const secret_box& public_key);
+			static expects_crypto<core::string> hash(digest type, const std::string_view& value);
+			static expects_crypto<secret_box> private_key_gen(proof type, size_t target_bits = 2048);
+			static expects_crypto<core::string> to_public_key(proof type, const secret_box& secret_key);
+			static expects_crypto<core::string> sign(digest type, proof key_type, const std::string_view& value, const secret_box& secret_key);
+			static expects_crypto<bool> verify(digest type, proof key_type, const std::string_view& value, const std::string_view& signature, const std::string_view& public_key);
+			static expects_crypto<secret_box> ec_private_key_gen(proofs::curve curve);
+			static expects_crypto<core::string> ec_to_public_key(proofs::curve curve, proofs::format format, const secret_box& secret_key);
+			static expects_crypto<secret_box> ec_scalar_add(proofs::curve curve, const secret_box& scalar_a, const secret_box& scalar_b);
+			static expects_crypto<secret_box> ec_scalar_sub(proofs::curve curve, const secret_box& scalar_a, const secret_box& scalar_b);
+			static expects_crypto<secret_box> ec_scalar_mul(proofs::curve curve, const secret_box& scalar_a, const secret_box& scalar_b);
+			static expects_crypto<secret_box> ec_scalar_inv(proofs::curve curve, const secret_box& scalar);
+			static expects_crypto<bool> ec_scalar_is_on_curve(proofs::curve curve, const secret_box& scalar);
+			static expects_crypto<core::string> ec_point_mul(proofs::curve curve, proofs::format format, const std::string_view& point_a, const secret_box& scalar_b);
+			static expects_crypto<core::string> ec_point_add(proofs::curve curve, proofs::format format, const std::string_view& point_a, const std::string_view& point_b);
+			static expects_crypto<core::string> ec_point_inv(proofs::curve curve, proofs::format format, const std::string_view& point);
+			static expects_crypto<bool> ec_point_is_on_curve(proofs::curve curve, const std::string_view& point);
+			static expects_crypto<core::string> ec_sign(digest type, proofs::curve curve, const std::string_view& value, const secret_box& secret_key);
+			static expects_crypto<bool> ec_verify(digest type,proofs::curve curve, const std::string_view& value, const std::string_view& signature, const std::string_view& public_key);
+			static expects_crypto<core::string> ec_der_to_rs(const std::string_view& signature);
+			static expects_crypto<core::string> ec_rs_to_der(const std::string_view& signature);
 			static expects_crypto<core::string> hmac(digest type, const std::string_view& value, const secret_box& key);
 			static expects_crypto<core::string> encrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes = -1);
 			static expects_crypto<core::string> decrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes = -1);
 			static expects_crypto<core::string> jwt_sign(const std::string_view& algo, const std::string_view& payload, const secret_box& key);
 			static expects_crypto<core::string> jwt_encode(web_token* src, const secret_box& key);
 			static expects_crypto<core::unique<web_token>> jwt_decode(const std::string_view& value, const secret_box& key);
-			static expects_crypto<core::string> doc_encrypt(core::schema* src, const secret_box& key, const secret_box& salt);
-			static expects_crypto<core::unique<core::schema>> doc_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt);
-			static expects_crypto<size_t> encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
-			static expects_crypto<size_t> decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
+			static expects_crypto<core::string> schema_encrypt(core::schema* src, const secret_box& key, const secret_box& salt);
+			static expects_crypto<core::unique<core::schema>> schema_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt);
+			static expects_crypto<size_t> file_encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
+			static expects_crypto<size_t> file_decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
 			static uint8_t random_uc();
 			static uint32_t crc32(const std::string_view& data);
 			static uint64_t crc64(const std::string_view& data);

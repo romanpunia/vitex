@@ -3495,6 +3495,24 @@ namespace vitex
 				}
 				return false;
 			});
+			add_command("ed, exportdef", "load global system addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
+			{
+				if (!args.empty())
+				{
+					core::string result;
+					for (auto& definitions : vm->generate_definitions(context))
+						result.append(definitions.second);
+					
+					auto path = core::os::path::resolve(args[0]);
+					if (path)
+						core::os::file::write(args[0], (uint8_t*)result.data(), result.size()).report("file write error");
+					else
+						path.report("invalid path");
+				}
+				else
+					output("  exportdef <result file name>\n");
+				return false;
+			});
 			add_command("ls, loadsys", "load global system addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
 				if (!args.empty() && !args[0].empty())
@@ -3665,9 +3683,9 @@ namespace vitex
 					list_addons();
 					return false;
 				}
-				else if (args[0] == "ri" || args[0] == "interfaces")
+				else if (args[0] == "rd" || args[0] == "definitions")
 				{
-					list_interfaces(context);
+					list_definitions(context);
 					return false;
 				}
 				else if (args[0] == "gc" || args[0] == "garbage")
@@ -4784,9 +4802,9 @@ namespace vitex
 				output(line + '\n');
 			}
 		}
-		void debugger_context::list_interfaces(immediate_context* context)
+		void debugger_context::list_definitions(immediate_context* context)
 		{
-			for (auto& interfacef : vm->dump_registered_interfaces(context))
+			for (auto& interfacef : vm->generate_definitions(context))
 			{
 				output("  listing generated <" + interfacef.first + ">:\n");
 				core::stringify::replace(interfacef.second, "\t", "  ");
@@ -7394,7 +7412,7 @@ namespace vitex
 			(void)target_path;
 			return status;
 		}
-		core::unordered_map<core::string, core::string> virtual_machine::dump_registered_interfaces(immediate_context* context)
+		core::unordered_map<core::string, core::string> virtual_machine::generate_definitions(immediate_context* context)
 		{
 #ifdef VI_ANGELSCRIPT
 			core::unordered_set<core::string> grouping;
@@ -7541,7 +7559,7 @@ namespace vitex
 			for (asUINT i = 0; i < funcdefs_count; i++)
 				add_funcdef(engine->GetFuncdefByIndex(i), i);
 
-			core::string module_name = "__vfinterface.as";
+			core::string module_name = "anonymous.as.predefined";
 			if (context != nullptr)
 			{
 				asIScriptFunction* function = context->get_function().get_function();
@@ -7563,6 +7581,10 @@ namespace vitex
 							add_function(library->GetFunctionByIndex(i), i);
 
 						module_name = library->GetName();
+						if (core::stringify::ends_with(module_name, ".as"))
+							module_name.append(".predefined");
+						else
+							module_name.append(".as.predefined");
 					}
 				}
 			}

@@ -1741,7 +1741,7 @@ namespace vitex
 			void list_global_variables(immediate_context* context);
 			void list_member_properties(immediate_context* context);
 			void list_source_code(immediate_context* context);
-			void list_interfaces(immediate_context* context);
+			void list_definitions(immediate_context* context);
 			void list_statistics(immediate_context* context);
 			void print_callstack(immediate_context* context);
 			void print_value(const std::string_view& expression, immediate_context* context);
@@ -2050,7 +2050,7 @@ namespace vitex
 			void gc_enum_callback(function_delegate* reference);
 			bool trigger_debugger(immediate_context* context, uint64_t timeout_ms = 0);
 			compute::expects_preprocessor<void> generate_code(compute::preprocessor* processor, const std::string_view& path, core::string& inout_buffer);
-			core::unordered_map<core::string, core::string> dump_registered_interfaces(immediate_context* context);
+			core::unordered_map<core::string, core::string> generate_definitions(immediate_context* context);
 			core::unique<compiler> create_compiler();
 			core::unique<asIScriptModule> create_scoped_module(const std::string_view& name);
 			core::unique<asIScriptModule> create_module(const std::string_view& name);

@@ -8538,7 +8538,7 @@ namespace vitex
 				vm->add_system_addon("uint256", { "uint128" }, &import_uint256);
 				vm->add_system_addon("variant", { "string", "decimal" }, &import_variant);
 				vm->add_system_addon("timestamp", { "string" }, &import_timestamp);
-				vm->add_system_addon("console", { "string" }, &import_console);
+				vm->add_system_addon("console", { "string", "schema" }, &import_console);
 				vm->add_system_addon("schema", { "array", "string", "dictionary", "variant" }, &import_schema);
 				vm->add_system_addon("schedule", { "ctypes" }, &import_schedule);
 				vm->add_system_addon("clock", { }, &import_clock_timer);

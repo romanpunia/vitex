@@ -13,6 +13,7 @@
 #include <fstream>
 #include <sstream>
 #include <bitset>
+#include <cstdarg>
 #include <signal.h>
 #include <sys/stat.h>
 #pragma warning(push)

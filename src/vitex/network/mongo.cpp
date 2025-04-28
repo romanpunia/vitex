@@ -917,38 +917,38 @@ namespace vitex
 					switch (node->value.get_type())
 					{
 						case core::var_type::object:
-							result.set_schema(array ? nullptr : node->key.c_str(), document::from_schema(node), index);
+							result.set_schema(array ? std::string_view() : node->key.c_str(), document::from_schema(node), index);
 							break;
 						case core::var_type::array:
-							result.set_array(array ? nullptr : node->key.c_str(), document::from_schema(node), index);
+							result.set_array(array ? std::string_view() : node->key.c_str(), document::from_schema(node), index);
 							break;
 						case core::var_type::string:
-							result.set_string(array ? nullptr : node->key.c_str(), node->value.get_string(), index);
+							result.set_string(array ? std::string_view() : node->key.c_str(), node->value.get_string(), index);
 							break;
 						case core::var_type::boolean:
-							result.set_boolean(array ? nullptr : node->key.c_str(), node->value.get_boolean(), index);
+							result.set_boolean(array ? std::string_view() : node->key.c_str(), node->value.get_boolean(), index);
 							break;
 						case core::var_type::decimal:
-							result.set_decimal_string(array ? nullptr : node->key.c_str(), node->value.get_decimal().to_string(), index);
+							result.set_decimal_string(array ? std::string_view() : node->key.c_str(), node->value.get_decimal().to_string(), index);
 							break;
 						case core::var_type::number:
-							result.set_number(array ? nullptr : node->key.c_str(), node->value.get_number(), index);
+							result.set_number(array ? std::string_view() : node->key.c_str(), node->value.get_number(), index);
 							break;
 						case core::var_type::integer:
-							result.set_integer(array ? nullptr : node->key.c_str(), node->value.get_integer(), index);
+							result.set_integer(array ? std::string_view() : node->key.c_str(), node->value.get_integer(), index);
 							break;
 						case core::var_type::null:
-							result.set_null(array ? nullptr : node->key.c_str(), index);
+							result.set_null(array ? std::string_view() : node->key.c_str(), index);
 							break;
 						case core::var_type::binary:
 						{
 							if (node->value.size() != 12)
 							{
 								core::string base = compute::codec::bep45_encode(node->value.get_blob());
-								result.set_string(array ? nullptr : node->key.c_str(), base, index);
+								result.set_string(array ? std::string_view() : node->key.c_str(), base, index);
 							}
 							else
-								result.set_object_id(array ? nullptr : node->key.c_str(), node->value.get_binary(), index);
+								result.set_object_id(array ? std::string_view() : node->key.c_str(), node->value.get_binary(), index);
 							break;
 						}
 						default:

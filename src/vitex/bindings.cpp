@@ -117,35 +117,35 @@ namespace vitex
 		{
 			void pointer_to_handle_cast(void* from, void** to, int type_id)
 			{
-				if (!(type_id & (size_t)type_id::objhandle))
+				if (!(type_id & (size_t)type_id::handle_t))
 					return;
 
-				if (!(type_id & (size_t)type_id::mask_object))
+				if (!(type_id & (size_t)type_id::mask_object_t))
 					return;
 
 				*to = from;
 			}
 			void handle_to_handle_cast(void* from, void** to, int type_id)
 			{
-				if (!(type_id & (size_t)type_id::objhandle))
+				if (!(type_id & (size_t)type_id::handle_t))
 					return;
 
-				if (!(type_id & (size_t)type_id::mask_object))
+				if (!(type_id & (size_t)type_id::mask_object_t))
 					return;
 
 				virtual_machine* vm = virtual_machine::get();
 				if (!vm)
 					return;
 
-				auto typeinfo = vm->get_type_info_by_id(type_id);
-				vm->ref_cast_object(from, typeinfo, typeinfo, to);
+				auto type_info = vm->get_type_info_by_id(type_id);
+				vm->ref_cast_object(from, type_info, type_info, to);
 			}
 			void* handle_to_pointer_cast(void* from, int type_id)
 			{
-				if (!(type_id & (size_t)type_id::objhandle))
+				if (!(type_id & (size_t)type_id::handle_t))
 					return nullptr;
 
-				if (!(type_id & (size_t)type_id::mask_object))
+				if (!(type_id & (size_t)type_id::mask_object_t))
 					return nullptr;
 
 				return *reinterpret_cast<void**>(from);
@@ -1087,7 +1087,7 @@ namespace vitex
 			}
 			any::any(const any& other) noexcept : any(other.engine)
 			{
-				if ((other.value.type_id & (size_t)type_id::mask_object))
+				if ((other.value.type_id & (size_t)type_id::mask_object_t))
 				{
 					auto info = engine->get_type_info_by_id(other.value.type_id);
 					if (info.is_valid())
@@ -1095,12 +1095,12 @@ namespace vitex
 				}
 
 				value.type_id = other.value.type_id;
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 				{
 					value.object = other.value.object;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 					value.object = engine->create_object_copy(other.value.object, engine->get_type_info_by_id(value.type_id));
 				else
 					value.integer = other.value.integer;
@@ -1111,7 +1111,7 @@ namespace vitex
 			}
 			any& any::operator=(const any& other) noexcept
 			{
-				if ((other.value.type_id & (size_t)type_id::mask_object))
+				if ((other.value.type_id & (size_t)type_id::mask_object_t))
 				{
 					auto info = engine->get_type_info_by_id(other.value.type_id);
 					if (info.is_valid())
@@ -1121,12 +1121,12 @@ namespace vitex
 				free_object();
 				value.type_id = other.value.type_id;
 
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 				{
 					value.object = other.value.object;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 					value.object = engine->create_object_copy(other.value.object, engine->get_type_info_by_id(value.type_id));
 				else
 					value.integer = other.value.integer;
@@ -1143,7 +1143,7 @@ namespace vitex
 			}
 			void any::store(void* ref, int ref_type_id)
 			{
-				if ((ref_type_id & (size_t)type_id::mask_object))
+				if ((ref_type_id & (size_t)type_id::mask_object_t))
 				{
 					auto info = engine->get_type_info_by_id(ref_type_id);
 					if (info.is_valid())
@@ -1153,12 +1153,12 @@ namespace vitex
 				free_object();
 				value.type_id = ref_type_id;
 
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 				{
 					value.object = *(void**)ref;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 				{
 					value.object = engine->create_object_copy(ref, engine->get_type_info_by_id(value.type_id));
 				}
@@ -1172,11 +1172,11 @@ namespace vitex
 			}
 			bool any::retrieve(void* ref, int ref_type_id) const
 			{
-				if (ref_type_id & (size_t)type_id::objhandle)
+				if (ref_type_id & (size_t)type_id::handle_t)
 				{
-					if ((value.type_id & (size_t)type_id::mask_object))
+					if ((value.type_id & (size_t)type_id::mask_object_t))
 					{
-						if ((value.type_id & (size_t)type_id::handletoconst) && !(ref_type_id & (size_t)type_id::handletoconst))
+						if ((value.type_id & (size_t)type_id::const_handle_t) && !(ref_type_id & (size_t)type_id::const_handle_t))
 							return false;
 
 						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(ref_type_id), reinterpret_cast<void**>(ref));
@@ -1188,7 +1188,7 @@ namespace vitex
 						return true;
 					}
 				}
-				else if (ref_type_id & (size_t)type_id::mask_object)
+				else if (ref_type_id & (size_t)type_id::mask_object_t)
 				{
 					if (value.type_id == ref_type_id)
 					{
@@ -1211,11 +1211,11 @@ namespace vitex
 			}
 			void* any::get_address_of_object()
 			{
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 					return &value.object;
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 					return value.object;
-				else if (value.type_id <= (size_t)type_id::doublef || value.type_id & (size_t)type_id::mask_seqnbr)
+				else if (value.type_id <= (size_t)type_id::double_t || value.type_id & (size_t)type_id::mask_seqnbr_t)
 					return &value.integer;
 
 				return nullptr;
@@ -1226,7 +1226,7 @@ namespace vitex
 			}
 			void any::free_object()
 			{
-				if (value.type_id & (size_t)type_id::mask_object)
+				if (value.type_id & (size_t)type_id::mask_object_t)
 				{
 					auto type = engine->get_type_info_by_id(value.type_id);
 					engine->release_object(value.object, type);
@@ -1237,7 +1237,7 @@ namespace vitex
 			}
 			void any::enum_references(asIScriptEngine* in_engine)
 			{
-				if (value.object && (value.type_id & (size_t)type_id::mask_object))
+				if (value.object && (value.type_id & (size_t)type_id::mask_object_t))
 				{
 					auto sub_type = engine->get_type_info_by_id(value.type_id);
 					if ((sub_type.flags() & (size_t)object_behaviours::ref))
@@ -1253,7 +1253,7 @@ namespace vitex
 			{
 				free_object();
 			}
-			core::unique<any> any::create()
+			any* any::create()
 			{
 				virtual_machine* vm = virtual_machine::get();
 				if (!vm)
@@ -1319,7 +1319,7 @@ namespace vitex
 				precache();
 
 				virtual_machine* engine = obj_type.get_vm();
-				if (sub_type_id & (size_t)type_id::mask_object)
+				if (sub_type_id & (size_t)type_id::mask_object_t)
 					element_size = sizeof(asPWORD);
 				else
 					element_size = engine->get_size_of_primitive_type(sub_type_id).or_else(0);
@@ -1328,13 +1328,13 @@ namespace vitex
 				if (!check_max_size(length))
 					return;
 
-				if ((obj_type.get_sub_type_id() & (size_t)type_id::mask_object) == 0)
+				if ((obj_type.get_sub_type_id() & (size_t)type_id::mask_object_t) == 0)
 				{
 					create_buffer(&buffer, length);
 					if (length > 0)
 						memcpy(at(0), (((asUINT*)buffer_ptr) + 1), (size_t)length * (size_t)element_size);
 				}
-				else if (obj_type.get_sub_type_id() & (size_t)type_id::objhandle)
+				else if (obj_type.get_sub_type_id() & (size_t)type_id::handle_t)
 				{
 					create_buffer(&buffer, length);
 					if (length > 0)
@@ -1344,9 +1344,9 @@ namespace vitex
 				}
 				else if (obj_type.get_sub_type().flags() & (size_t)object_behaviours::ref)
 				{
-					sub_type_id |= (size_t)type_id::objhandle;
+					sub_type_id |= (size_t)type_id::handle_t;
 					create_buffer(&buffer, length);
-					sub_type_id &= ~(size_t)type_id::objhandle;
+					sub_type_id &= ~(size_t)type_id::handle_t;
 
 					if (length > 0)
 						memcpy(buffer->data, (((asUINT*)buffer_ptr) + 1), (size_t)length * (size_t)element_size);
@@ -1375,7 +1375,7 @@ namespace vitex
 				obj_type.add_ref();
 				precache();
 
-				if (sub_type_id & (size_t)type_id::mask_object)
+				if (sub_type_id & (size_t)type_id::mask_object_t)
 					element_size = sizeof(asPWORD);
 				else
 					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).or_else(0);
@@ -1408,7 +1408,7 @@ namespace vitex
 				obj_type.add_ref();
 				precache();
 
-				if (sub_type_id & (size_t)type_id::mask_object)
+				if (sub_type_id & (size_t)type_id::mask_object_t)
 					element_size = sizeof(asPWORD);
 				else
 					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).or_else(0);
@@ -1449,9 +1449,9 @@ namespace vitex
 				if (ptr == 0)
 					return;
 
-				if ((sub_type_id & ~(size_t)type_id::mask_seqnbr) && !(sub_type_id & (size_t)type_id::objhandle))
+				if ((sub_type_id & ~(size_t)type_id::mask_seqnbr_t) && !(sub_type_id & (size_t)type_id::handle_t))
 					obj_type.get_vm()->assign_object(ptr, value, obj_type.get_sub_type());
-				else if (sub_type_id & (size_t)type_id::objhandle)
+				else if (sub_type_id & (size_t)type_id::handle_t)
 				{
 					void* swap = *(void**)ptr;
 					*(void**)ptr = *(void**)value;
@@ -1459,13 +1459,13 @@ namespace vitex
 					if (swap)
 						obj_type.get_vm()->release_object(swap, obj_type.get_sub_type());
 				}
-				else if (sub_type_id == (size_t)type_id::boolf || sub_type_id == (size_t)type_id::int8 || sub_type_id == (size_t)type_id::uint8)
+				else if (sub_type_id == (size_t)type_id::bool_t || sub_type_id == (size_t)type_id::int8_t || sub_type_id == (size_t)type_id::uint8_t)
 					*(char*)ptr = *(char*)value;
-				else if (sub_type_id == (size_t)type_id::int16 || sub_type_id == (size_t)type_id::uint16)
+				else if (sub_type_id == (size_t)type_id::int16_t || sub_type_id == (size_t)type_id::uint16_t)
 					*(short*)ptr = *(short*)value;
-				else if (sub_type_id == (size_t)type_id::int32 || sub_type_id == (size_t)type_id::uint32 || sub_type_id == (size_t)type_id::floatf || sub_type_id > (size_t)type_id::doublef)
+				else if (sub_type_id == (size_t)type_id::int32_t || sub_type_id == (size_t)type_id::uint32_t || sub_type_id == (size_t)type_id::float_t || sub_type_id > (size_t)type_id::double_t)
 					*(int*)ptr = *(int*)value;
-				else if (sub_type_id == (size_t)type_id::int64 || sub_type_id == (size_t)type_id::uint64 || sub_type_id == (size_t)type_id::doublef)
+				else if (sub_type_id == (size_t)type_id::int64_t || sub_type_id == (size_t)type_id::uint64_t || sub_type_id == (size_t)type_id::double_t)
 					*(double*)ptr = *(double*)value;
 			}
 			size_t array::size() const
@@ -1659,7 +1659,7 @@ namespace vitex
 					bindings::exception::throw_ptr(bindings::exception::pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
-				else if ((sub_type_id & (size_t)type_id::mask_object) && !(sub_type_id & (size_t)type_id::objhandle))
+				else if ((sub_type_id & (size_t)type_id::mask_object_t) && !(sub_type_id & (size_t)type_id::handle_t))
 					return *(void**)(buffer->data + (size_t)element_size * index);
 
 				return buffer->data + (size_t)element_size * index;
@@ -1729,13 +1729,13 @@ namespace vitex
 			}
 			void array::create(sbuffer* buffer_ptr, size_t start, size_t end)
 			{
-				if ((sub_type_id & (size_t)type_id::mask_object) && !(sub_type_id & (size_t)type_id::objhandle))
+				if ((sub_type_id & (size_t)type_id::mask_object_t) && !(sub_type_id & (size_t)type_id::handle_t))
 				{
 					void** max = (void**)(buffer_ptr->data + end * sizeof(void*));
 					void** d = (void**)(buffer_ptr->data + start * sizeof(void*));
 
 					virtual_machine* engine = obj_type.get_vm();
-					typeinfo sub_type = obj_type.get_sub_type();
+					type_info sub_type = obj_type.get_sub_type();
 
 					for (; d < max; d++)
 					{
@@ -1755,10 +1755,10 @@ namespace vitex
 			}
 			void array::destroy(sbuffer* buffer_ptr, size_t start, size_t end)
 			{
-				if (sub_type_id & (size_t)type_id::mask_object)
+				if (sub_type_id & (size_t)type_id::mask_object_t)
 				{
 					virtual_machine* engine = obj_type.get_vm();
-					typeinfo sub_type = obj_type.get_sub_type();
+					type_info sub_type = obj_type.get_sub_type();
 					void** max = (void**)(buffer_ptr->data + end * sizeof(void*));
 					void** d = (void**)(buffer_ptr->data + start * sizeof(void*));
 
@@ -1798,7 +1798,7 @@ namespace vitex
 				immediate_context* cmp_context = 0;
 				bool is_nested = false;
 
-				if (sub_type_id & ~(size_t)type_id::mask_seqnbr)
+				if (sub_type_id & ~(size_t)type_id::mask_seqnbr_t)
 				{
 					cmp_context = immediate_context::get();
 					if (cmp_context)
@@ -1841,9 +1841,9 @@ namespace vitex
 			}
 			bool array::less(const void* a, const void* b, immediate_context* context, scache* cache)
 			{
-				if (sub_type_id & ~(size_t)type_id::mask_seqnbr)
+				if (sub_type_id & ~(size_t)type_id::mask_seqnbr_t)
 				{
-					if (sub_type_id & (size_t)type_id::objhandle)
+					if (sub_type_id & (size_t)type_id::handle_t)
 					{
 						if (*(void**)a == 0)
 							return true;
@@ -1867,15 +1867,15 @@ namespace vitex
 				switch (sub_type_id)
 				{
 #define COMPARE(t) *((t*)a) < *((t*)b)
-					case (size_t)type_id::boolf: return COMPARE(bool);
-					case (size_t)type_id::int8: return COMPARE(signed char);
-					case (size_t)type_id::uint8: return COMPARE(unsigned char);
-					case (size_t)type_id::int16: return COMPARE(signed short);
-					case (size_t)type_id::uint16: return COMPARE(unsigned short);
-					case (size_t)type_id::int32: return COMPARE(signed int);
-					case (size_t)type_id::uint32: return COMPARE(uint32_t);
-					case (size_t)type_id::floatf: return COMPARE(float);
-					case (size_t)type_id::doublef: return COMPARE(double);
+					case (size_t)type_id::bool_t: return COMPARE(bool);
+					case (size_t)type_id::int8_t: return COMPARE(signed char);
+					case (size_t)type_id::uint8_t: return COMPARE(unsigned char);
+					case (size_t)type_id::int16_t: return COMPARE(signed short);
+					case (size_t)type_id::uint16_t: return COMPARE(unsigned short);
+					case (size_t)type_id::int32_t: return COMPARE(signed int);
+					case (size_t)type_id::uint32_t: return COMPARE(uint32_t);
+					case (size_t)type_id::float_t: return COMPARE(float);
+					case (size_t)type_id::double_t: return COMPARE(double);
 					default: return COMPARE(signed int);
 #undef COMPARE
 				}
@@ -1884,9 +1884,9 @@ namespace vitex
 			}
 			bool array::equals(const void* a, const void* b, immediate_context* context, scache* cache) const
 			{
-				if (sub_type_id & ~(size_t)type_id::mask_seqnbr)
+				if (sub_type_id & ~(size_t)type_id::mask_seqnbr_t)
 				{
-					if (sub_type_id & (size_t)type_id::objhandle)
+					if (sub_type_id & (size_t)type_id::handle_t)
 					{
 						if (*(void**)a == *(void**)b)
 							return true;
@@ -1920,15 +1920,15 @@ namespace vitex
 				switch (sub_type_id)
 				{
 #define COMPARE(t) *((t*)a) == *((t*)b)
-					case (size_t)type_id::boolf: return COMPARE(bool);
-					case (size_t)type_id::int8: return COMPARE(signed char);
-					case (size_t)type_id::uint8: return COMPARE(unsigned char);
-					case (size_t)type_id::int16: return COMPARE(signed short);
-					case (size_t)type_id::uint16: return COMPARE(unsigned short);
-					case (size_t)type_id::int32: return COMPARE(signed int);
-					case (size_t)type_id::uint32: return COMPARE(uint32_t);
-					case (size_t)type_id::floatf: return COMPARE(float);
-					case (size_t)type_id::doublef: return COMPARE(double);
+					case (size_t)type_id::bool_t: return COMPARE(bool);
+					case (size_t)type_id::int8_t: return COMPARE(signed char);
+					case (size_t)type_id::uint8_t: return COMPARE(unsigned char);
+					case (size_t)type_id::int16_t: return COMPARE(signed short);
+					case (size_t)type_id::uint16_t: return COMPARE(unsigned short);
+					case (size_t)type_id::int32_t: return COMPARE(signed int);
+					case (size_t)type_id::uint32_t: return COMPARE(uint32_t);
+					case (size_t)type_id::float_t: return COMPARE(float);
+					case (size_t)type_id::double_t: return COMPARE(double);
 					default: return COMPARE(signed int);
 #undef COMPARE
 				}
@@ -1936,7 +1936,7 @@ namespace vitex
 			size_t array::find_by_ref(void* value, size_t start_at) const
 			{
 				size_t length = size();
-				if (sub_type_id & (size_t)type_id::objhandle)
+				if (sub_type_id & (size_t)type_id::handle_t)
 				{
 					value = *(void**)value;
 					for (size_t i = start_at; i < length; i++)
@@ -1981,7 +1981,7 @@ namespace vitex
 			}
 			void* array::get_data_pointer(void* buffer_ptr)
 			{
-				if ((sub_type_id & (size_t)type_id::mask_object) && !(sub_type_id & (size_t)type_id::objhandle))
+				if ((sub_type_id & (size_t)type_id::mask_object_t) && !(sub_type_id & (size_t)type_id::handle_t))
 					return reinterpret_cast<void*>(*(size_t*)buffer_ptr);
 				else
 					return buffer_ptr;
@@ -2046,7 +2046,7 @@ namespace vitex
 			void array::copy_buffer(sbuffer* dest, sbuffer* src)
 			{
 				virtual_machine* engine = obj_type.get_vm();
-				if (sub_type_id & (size_t)type_id::objhandle)
+				if (sub_type_id & (size_t)type_id::handle_t)
 				{
 					if (dest->num_elements > 0 && src->num_elements > 0)
 					{
@@ -2073,7 +2073,7 @@ namespace vitex
 					if (dest->num_elements > 0 && src->num_elements > 0)
 					{
 						int count = (int)(dest->num_elements > src->num_elements ? src->num_elements : dest->num_elements);
-						if (sub_type_id & (size_t)type_id::mask_object)
+						if (sub_type_id & (size_t)type_id::mask_object_t)
 						{
 							void** max = (void**)(dest->data + count * sizeof(void*));
 							void** d = (void**)dest->data;
@@ -2092,7 +2092,7 @@ namespace vitex
 			{
 #ifdef VI_ANGELSCRIPT
 				sub_type_id = obj_type.get_sub_type_id();
-				if (!(sub_type_id & ~(size_t)type_id::mask_seqnbr))
+				if (!(sub_type_id & ~(size_t)type_id::mask_seqnbr_t))
 					return;
 
 				scache* cache = reinterpret_cast<scache*>(obj_type.get_user_data(array_id));
@@ -2112,7 +2112,7 @@ namespace vitex
 				}
 
 				memset(cache, 0, sizeof(scache));
-				bool must_be_const = (sub_type_id & (size_t)type_id::handletoconst) ? true : false;
+				bool must_be_const = (sub_type_id & (size_t)type_id::const_handle_t) ? true : false;
 
 				auto sub_type = obj_type.get_vm()->get_type_info_by_id(sub_type_id);
 				if (sub_type.is_valid())
@@ -2128,9 +2128,9 @@ namespace vitex
 								continue;
 
 							bool is_cmp = false, is_equals = false;
-							if (return_type_id == (size_t)type_id::int32 && function.get_name() == "opCmp")
+							if (return_type_id == (size_t)type_id::int32_t && function.get_name() == "opCmp")
 								is_cmp = true;
-							if (return_type_id == (size_t)type_id::boolf && function.get_name() == "opEquals")
+							if (return_type_id == (size_t)type_id::bool_t && function.get_name() == "opEquals")
 								is_equals = true;
 
 							if (!is_cmp && !is_equals)
@@ -2139,17 +2139,17 @@ namespace vitex
 							int param_type_id;
 							function.get_arg(0, &param_type_id, &flags);
 
-							if ((param_type_id & ~((size_t)type_id::objhandle | (size_t)type_id::handletoconst)) != (sub_type_id & ~((size_t)type_id::objhandle | (size_t)type_id::handletoconst)))
+							if ((param_type_id & ~((size_t)type_id::handle_t | (size_t)type_id::const_handle_t)) != (sub_type_id & ~((size_t)type_id::handle_t | (size_t)type_id::const_handle_t)))
 								continue;
 
-							if ((flags & (size_t)modifiers::inref))
+							if ((flags & (size_t)modifiers::in_ref))
 							{
-								if ((param_type_id & (size_t)type_id::objhandle) || (must_be_const && !(flags & (size_t)modifiers::constf)))
+								if ((param_type_id & (size_t)type_id::handle_t) || (must_be_const && !(flags & (size_t)modifiers::constant)))
 									continue;
 							}
-							else if (param_type_id & (size_t)type_id::objhandle)
+							else if (param_type_id & (size_t)type_id::handle_t)
 							{
-								if (must_be_const && !(param_type_id & (size_t)type_id::handletoconst))
+								if (must_be_const && !(param_type_id & (size_t)type_id::const_handle_t))
 									continue;
 							}
 							else
@@ -2190,7 +2190,7 @@ namespace vitex
 			}
 			void array::enum_references(asIScriptEngine* engine)
 			{
-				if (sub_type_id & (size_t)type_id::mask_object)
+				if (sub_type_id & (size_t)type_id::mask_object_t)
 				{
 					void** data = (void**)buffer->data;
 					virtual_machine* vm = virtual_machine::get(engine);
@@ -2244,7 +2244,7 @@ namespace vitex
 			}
 			void array::cleanup_type_info_cache(asITypeInfo* type_context)
 			{
-				typeinfo type(type_context);
+				type_info type(type_context);
 				array::scache* cache = reinterpret_cast<array::scache*>(type.get_user_data(array_id));
 				if (cache != nullptr)
 				{
@@ -2254,12 +2254,12 @@ namespace vitex
 			}
 			bool array::template_callback(asITypeInfo* info_context, bool& dont_garbage_collect)
 			{
-				typeinfo info(info_context);
+				type_info info(info_context);
 				int type_id = info.get_sub_type_id();
-				if (type_id == (size_t)type_id::voidf)
+				if (type_id == (size_t)type_id::void_t)
 					return false;
 
-				if ((type_id & (size_t)type_id::mask_object) && !(type_id & (size_t)type_id::objhandle))
+				if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t))
 				{
 					virtual_machine* engine = info.get_vm();
 					auto sub_type = engine->get_type_info_by_id(type_id);
@@ -2314,7 +2314,7 @@ namespace vitex
 					if (!(flags & (size_t)object_behaviours::gc))
 						dont_garbage_collect = true;
 				}
-				else if (!(type_id & (size_t)type_id::objhandle))
+				else if (!(type_id & (size_t)type_id::handle_t))
 				{
 					dont_garbage_collect = true;
 				}
@@ -2417,7 +2417,7 @@ namespace vitex
 			}
 			void storable::release_references(asIScriptEngine* engine)
 			{
-				if (value.type_id & (size_t)type_id::mask_object)
+				if (value.type_id & (size_t)type_id::mask_object_t)
 				{
 					virtual_machine* vm = virtual_machine::get(engine);
 					vm->release_object(value.object, vm->get_type_info_by_id(value.type_id));
@@ -2435,12 +2435,12 @@ namespace vitex
 				release_references(engine->get_engine());
 				value.type_id = _TypeId;
 
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 				{
 					value.object = *(void**)pointer;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 				{
 					value.object = engine->create_object_copy(pointer, engine->get_type_info_by_id(value.type_id));
 					if (value.object == 0)
@@ -2455,30 +2455,30 @@ namespace vitex
 			}
 			void storable::set(virtual_machine* engine, storable& other)
 			{
-				if (other.value.type_id & (size_t)type_id::objhandle)
+				if (other.value.type_id & (size_t)type_id::handle_t)
 					set(engine, (void*)&other.value.object, other.value.type_id);
-				else if (other.value.type_id & (size_t)type_id::mask_object)
+				else if (other.value.type_id & (size_t)type_id::mask_object_t)
 					set(engine, (void*)other.value.object, other.value.type_id);
 				else
 					set(engine, (void*)&other.value.integer, other.value.type_id);
 			}
 			bool storable::get(virtual_machine* engine, void* pointer, int _TypeId) const
 			{
-				if (_TypeId & (size_t)type_id::objhandle)
+				if (_TypeId & (size_t)type_id::handle_t)
 				{
-					if ((_TypeId & (size_t)type_id::mask_object))
+					if ((_TypeId & (size_t)type_id::mask_object_t))
 					{
-						if ((value.type_id & (size_t)type_id::handletoconst) && !(_TypeId & (size_t)type_id::handletoconst))
+						if ((value.type_id & (size_t)type_id::const_handle_t) && !(_TypeId & (size_t)type_id::const_handle_t))
 							return false;
 
 						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(_TypeId), reinterpret_cast<void**>(pointer));
 						return true;
 					}
 				}
-				else if (_TypeId & (size_t)type_id::mask_object)
+				else if (_TypeId & (size_t)type_id::mask_object_t)
 				{
 					bool isCompatible = false;
-					if ((value.type_id & ~((size_t)type_id::objhandle | (size_t)type_id::handletoconst)) == _TypeId && value.object != 0)
+					if ((value.type_id & ~((size_t)type_id::handle_t | (size_t)type_id::const_handle_t)) == _TypeId && value.object != 0)
 						isCompatible = true;
 
 					if (isCompatible)
@@ -2497,19 +2497,19 @@ namespace vitex
 						return true;
 					}
 
-					if (_TypeId == (size_t)type_id::doublef)
+					if (_TypeId == (size_t)type_id::double_t)
 					{
-						if (value.type_id == (size_t)type_id::int64)
+						if (value.type_id == (size_t)type_id::int64_t)
 						{
 							*(double*)pointer = double(value.integer);
 						}
-						else if (value.type_id == (size_t)type_id::boolf)
+						else if (value.type_id == (size_t)type_id::bool_t)
 						{
 							char local;
 							memcpy(&local, &value.integer, sizeof(char));
 							*(double*)pointer = local ? 1.0 : 0.0;
 						}
-						else if (value.type_id > (size_t)type_id::doublef && (value.type_id & (size_t)type_id::mask_object) == 0)
+						else if (value.type_id > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
 						{
 							int local;
 							memcpy(&local, &value.integer, sizeof(int));
@@ -2523,19 +2523,19 @@ namespace vitex
 
 						return true;
 					}
-					else if (_TypeId == (size_t)type_id::int64)
+					else if (_TypeId == (size_t)type_id::int64_t)
 					{
-						if (value.type_id == (size_t)type_id::doublef)
+						if (value.type_id == (size_t)type_id::double_t)
 						{
 							*(as_int64_t*)pointer = as_int64_t(value.number);
 						}
-						else if (value.type_id == (size_t)type_id::boolf)
+						else if (value.type_id == (size_t)type_id::bool_t)
 						{
 							char local;
 							memcpy(&local, &value.integer, sizeof(char));
 							*(as_int64_t*)pointer = local ? 1 : 0;
 						}
-						else if (value.type_id > (size_t)type_id::doublef && (value.type_id & (size_t)type_id::mask_object) == 0)
+						else if (value.type_id > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
 						{
 							int local;
 							memcpy(&local, &value.integer, sizeof(int));
@@ -2549,23 +2549,23 @@ namespace vitex
 
 						return true;
 					}
-					else if (_TypeId > (size_t)type_id::doublef && (value.type_id & (size_t)type_id::mask_object) == 0)
+					else if (_TypeId > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
 					{
-						if (value.type_id == (size_t)type_id::doublef)
+						if (value.type_id == (size_t)type_id::double_t)
 						{
 							*(int*)pointer = int(value.number);
 						}
-						else if (value.type_id == (size_t)type_id::int64)
+						else if (value.type_id == (size_t)type_id::int64_t)
 						{
 							*(int*)pointer = int(value.integer);
 						}
-						else if (value.type_id == (size_t)type_id::boolf)
+						else if (value.type_id == (size_t)type_id::bool_t)
 						{
 							char local;
 							memcpy(&local, &value.integer, sizeof(char));
 							*(int*)pointer = local ? 1 : 0;
 						}
-						else if (value.type_id > (size_t)type_id::doublef && (value.type_id & (size_t)type_id::mask_object) == 0)
+						else if (value.type_id > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
 						{
 							int local;
 							memcpy(&local, &value.integer, sizeof(int));
@@ -2579,13 +2579,13 @@ namespace vitex
 
 						return true;
 					}
-					else if (_TypeId == (size_t)type_id::boolf)
+					else if (_TypeId == (size_t)type_id::bool_t)
 					{
-						if (value.type_id & (size_t)type_id::objhandle)
+						if (value.type_id & (size_t)type_id::handle_t)
 						{
 							*(bool*)pointer = value.object ? true : false;
 						}
-						else if (value.type_id & (size_t)type_id::mask_object)
+						else if (value.type_id & (size_t)type_id::mask_object_t)
 						{
 							*(bool*)pointer = true;
 						}
@@ -2605,7 +2605,7 @@ namespace vitex
 			}
 			const void* storable::get_address_of_value() const
 			{
-				if ((value.type_id & (size_t)type_id::mask_object) && !(value.type_id & (size_t)type_id::objhandle))
+				if ((value.type_id & (size_t)type_id::mask_object_t) && !(value.type_id & (size_t)type_id::handle_t))
 					return value.object;
 
 				return reinterpret_cast<const void*>(&value.object);
@@ -2689,57 +2689,57 @@ namespace vitex
 					buffer += sizeof(int);
 
 					void* ref_ptr = (void*)buffer;
-					if (type_id >= (size_t)type_id::int8 && type_id <= (size_t)type_id::doublef)
+					if (type_id >= (size_t)type_id::int8_t && type_id <= (size_t)type_id::double_t)
 					{
 						as_int64_t integer64;
 						double double64;
 
 						switch (type_id)
 						{
-							case (size_t)type_id::int8:
+							case (size_t)type_id::int8_t:
 								integer64 = *(char*)ref_ptr;
 								break;
-							case (size_t)type_id::int16:
+							case (size_t)type_id::int16_t:
 								integer64 = *(short*)ref_ptr;
 								break;
-							case (size_t)type_id::int32:
+							case (size_t)type_id::int32_t:
 								integer64 = *(int*)ref_ptr;
 								break;
-							case (size_t)type_id::uint8:
+							case (size_t)type_id::uint8_t:
 								integer64 = *(unsigned char*)ref_ptr;
 								break;
-							case (size_t)type_id::uint16:
+							case (size_t)type_id::uint16_t:
 								integer64 = *(unsigned short*)ref_ptr;
 								break;
-							case (size_t)type_id::uint32:
+							case (size_t)type_id::uint32_t:
 								integer64 = *(uint32_t*)ref_ptr;
 								break;
-							case (size_t)type_id::int64:
-							case (size_t)type_id::uint64:
+							case (size_t)type_id::int64_t:
+							case (size_t)type_id::uint64_t:
 								integer64 = *(as_int64_t*)ref_ptr;
 								break;
-							case (size_t)type_id::floatf:
+							case (size_t)type_id::float_t:
 								double64 = *(float*)ref_ptr;
 								break;
-							case (size_t)type_id::doublef:
+							case (size_t)type_id::double_t:
 								double64 = *(double*)ref_ptr;
 								break;
 						}
 
-						if (type_id >= (size_t)type_id::floatf)
-							set(name, &double64, (size_t)type_id::doublef);
+						if (type_id >= (size_t)type_id::float_t)
+							set(name, &double64, (size_t)type_id::double_t);
 						else
-							set(name, &integer64, (size_t)type_id::int64);
+							set(name, &integer64, (size_t)type_id::int64_t);
 					}
 					else
 					{
-						if ((type_id & (size_t)type_id::mask_object) && !(type_id & (size_t)type_id::objhandle) && (engine->get_type_info_by_id(type_id).flags() & (size_t)object_behaviours::ref))
+						if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t) && (engine->get_type_info_by_id(type_id).flags() & (size_t)object_behaviours::ref))
 							ref_ptr = *(void**)ref_ptr;
 
 						set(name, ref_ptr, engine->is_nullable(type_id) ? 0 : type_id);
 					}
 
-					if (type_id & (size_t)type_id::mask_object)
+					if (type_id & (size_t)type_id::mask_object_t)
 					{
 						auto info = engine->get_type_info_by_id(type_id);
 						if (info.flags() & (size_t)object_behaviours::value)
@@ -2759,9 +2759,9 @@ namespace vitex
 				for (auto it = other.data.begin(); it != other.data.end(); ++it)
 				{
 					auto& key = it->second;
-					if (key.value.type_id & (size_t)type_id::objhandle)
+					if (key.value.type_id & (size_t)type_id::handle_t)
 						set(it->first, (void*)&key.value.object, key.value.type_id);
-					else if (key.value.type_id & (size_t)type_id::mask_object)
+					else if (key.value.type_id & (size_t)type_id::mask_object_t)
 						set(it->first, (void*)key.value.object, key.value.type_id);
 					else
 						set(it->first, (void*)&key.value.integer, key.value.type_id);
@@ -2776,7 +2776,7 @@ namespace vitex
 				for (auto it = data.begin(); it != data.end(); ++it)
 				{
 					auto& key = it->second;
-					if (key.value.type_id & (size_t)type_id::mask_object)
+					if (key.value.type_id & (size_t)type_id::mask_object_t)
 					{
 						auto sub_type = engine->get_type_info_by_id(key.value.type_id);
 						if ((sub_type.flags() & (size_t)object_behaviours::value) && (sub_type.flags() & (size_t)object_behaviours::gc))
@@ -2796,9 +2796,9 @@ namespace vitex
 				for (auto it = other.data.begin(); it != other.data.end(); ++it)
 				{
 					auto& key = it->second;
-					if (key.value.type_id & (size_t)type_id::objhandle)
+					if (key.value.type_id & (size_t)type_id::handle_t)
 						set(it->first, (void*)&key.value.object, key.value.type_id);
-					else if (key.value.type_id & (size_t)type_id::mask_object)
+					else if (key.value.type_id & (size_t)type_id::mask_object_t)
 						set(it->first, (void*)key.value.object, key.value.type_id);
 					else
 						set(it->first, (void*)&key.value.integer, key.value.type_id);
@@ -3051,11 +3051,11 @@ namespace vitex
 			}
 			storable& dictionary::keyop_assign(storable* base, double value)
 			{
-				return keyop_assign(base, &value, (size_t)type_id::doublef);
+				return keyop_assign(base, &value, (size_t)type_id::double_t);
 			}
 			storable& dictionary::keyop_assign(storable* base, as_int64_t value)
 			{
-				return dictionary::keyop_assign(base, &value, (size_t)type_id::int64);
+				return dictionary::keyop_assign(base, &value, (size_t)type_id::int64_t);
 			}
 			void dictionary::keyop_cast(storable* base, void* ref_ptr, int type_id)
 			{
@@ -3066,13 +3066,13 @@ namespace vitex
 			as_int64_t dictionary::keyop_conv_int(storable* base)
 			{
 				as_int64_t value;
-				keyop_cast(base, &value, (size_t)type_id::int64);
+				keyop_cast(base, &value, (size_t)type_id::int64_t);
 				return value;
 			}
 			double dictionary::keyop_conv_double(storable* base)
 			{
 				double value;
-				keyop_cast(base, &value, (size_t)type_id::doublef);
+				keyop_cast(base, &value, (size_t)type_id::double_t);
 				return value;
 			}
 			int dictionary::dictionary_id = 2348;
@@ -3123,7 +3123,7 @@ namespace vitex
 			}
 			void promise::enum_references(asIScriptEngine* other_engine)
 			{
-				if (value.object != nullptr && (value.type_id & (size_t)type_id::mask_object))
+				if (value.object != nullptr && (value.type_id & (size_t)type_id::mask_object_t))
 				{
 					auto sub_type = engine->get_type_info_by_id(value.type_id);
 					if ((sub_type.flags() & (size_t)object_behaviours::ref))
@@ -3139,7 +3139,7 @@ namespace vitex
 			}
 			void promise::release_references(asIScriptEngine*)
 			{
-				if (value.type_id & (size_t)type_id::mask_object)
+				if (value.type_id & (size_t)type_id::mask_object_t)
 				{
 					auto type = engine->get_type_info_by_id(value.type_id);
 					engine->release_object(value.object, type);
@@ -3183,7 +3183,7 @@ namespace vitex
 			void promise::store(void* ref_pointer, int ref_type_id)
 			{
 				VI_ASSERT(value.type_id == promise_null, "promise should be settled only once");
-				VI_ASSERT(ref_pointer != nullptr || ref_type_id == (size_t)type_id::voidf, "input pointer should not be null");
+				VI_ASSERT(ref_pointer != nullptr || ref_type_id == (size_t)type_id::void_t, "input pointer should not be null");
 				VI_ASSERT(engine != nullptr, "promise is malformed (engine is null)");
 				VI_ASSERT(context != nullptr, "promise is malformed (context is null)");
 
@@ -3191,7 +3191,7 @@ namespace vitex
 				if (value.type_id != promise_null)
 					return bindings::exception::throw_ptr(bindings::exception::pointer(EXCEPTION_PROMISEREADY));
 
-				if ((ref_type_id & (size_t)type_id::mask_object))
+				if ((ref_type_id & (size_t)type_id::mask_object_t))
 				{
 					auto type = engine->get_type_info_by_id(ref_type_id);
 					if (type.is_valid())
@@ -3199,11 +3199,11 @@ namespace vitex
 				}
 
 				value.type_id = ref_type_id;
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 				{
 					value.object = *(void**)ref_pointer;
 				}
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 				{
 					value.object = engine->create_object_copy(ref_pointer, engine->get_type_info_by_id(value.type_id));
 				}
@@ -3245,11 +3245,11 @@ namespace vitex
 				context->enable_deferred_exceptions();
 				exception::throw_ptr_at(context, ref_value);
 				context->disable_deferred_exceptions();
-				store(nullptr, (int)type_id::voidf);
+				store(nullptr, (int)type_id::void_t);
 			}
 			void promise::store_void()
 			{
-				store(nullptr, (int)type_id::voidf);
+				store(nullptr, (int)type_id::void_t);
 			}
 			bool promise::retrieve(void* ref_pointer, int ref_type_id)
 			{
@@ -3258,11 +3258,11 @@ namespace vitex
 				if (value.type_id == promise_null)
 					return false;
 
-				if (ref_type_id & (size_t)type_id::objhandle)
+				if (ref_type_id & (size_t)type_id::handle_t)
 				{
-					if ((value.type_id & (size_t)type_id::mask_object))
+					if ((value.type_id & (size_t)type_id::mask_object_t))
 					{
-						if ((value.type_id & (size_t)type_id::handletoconst) && !(ref_type_id & (size_t)type_id::handletoconst))
+						if ((value.type_id & (size_t)type_id::const_handle_t) && !(ref_type_id & (size_t)type_id::const_handle_t))
 							return false;
 
 						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(ref_type_id), reinterpret_cast<void**>(ref_pointer));
@@ -3273,7 +3273,7 @@ namespace vitex
 						return true;
 					}
 				}
-				else if (ref_type_id & (size_t)type_id::mask_object)
+				else if (ref_type_id & (size_t)type_id::mask_object_t)
 				{
 					if (value.type_id == ref_type_id)
 					{
@@ -3310,11 +3310,11 @@ namespace vitex
 				if (value.type_id == promise_null)
 					return nullptr;
 
-				if (value.type_id & (size_t)type_id::objhandle)
+				if (value.type_id & (size_t)type_id::handle_t)
 					return &value.object;
-				else if (value.type_id & (size_t)type_id::mask_object)
+				else if (value.type_id & (size_t)type_id::mask_object_t)
 					return value.object;
-				else if (value.type_id <= (size_t)type_id::doublef || value.type_id & (size_t)type_id::mask_seqnbr)
+				else if (value.type_id <= (size_t)type_id::double_t || value.type_id & (size_t)type_id::mask_seqnbr_t)
 					return &value.integer;
 
 				return nullptr;
@@ -3337,7 +3337,7 @@ namespace vitex
 				if (!future)
 					bindings::exception::throw_ptr(bindings::exception::pointer(EXCEPTION_OUTOFMEMORY));
 
-				if (type_id != (size_t)type_id::voidf)
+				if (type_id != (size_t)type_id::void_t)
 					future->store(_Ref, type_id);
 				return future;
 			}
@@ -3357,12 +3357,12 @@ namespace vitex
 			}
 			bool promise::template_callback(asITypeInfo* info_context, bool& dont_garbage_collect)
 			{
-				typeinfo info(info_context);
+				type_info info(info_context);
 				int type_id = info.get_sub_type_id();
-				if (type_id == (size_t)type_id::voidf)
+				if (type_id == (size_t)type_id::void_t)
 					return false;
 
-				if ((type_id & (size_t)type_id::mask_object) && !(type_id & (size_t)type_id::objhandle))
+				if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t))
 				{
 					virtual_machine* engine = info.get_vm();
 					auto sub_type = engine->get_type_info_by_id(type_id);
@@ -3371,7 +3371,7 @@ namespace vitex
 					if (!(flags & (size_t)object_behaviours::gc))
 						dont_garbage_collect = true;
 				}
-				else if (!(type_id & (size_t)type_id::objhandle))
+				else if (!(type_id & (size_t)type_id::handle_t))
 				{
 					dont_garbage_collect = true;
 				}
@@ -3848,39 +3848,39 @@ namespace vitex
 					buffer += sizeof(int);
 
 					void* ref = (void*)buffer;
-					if (type_id >= (size_t)type_id::boolf && type_id <= (size_t)type_id::doublef)
+					if (type_id >= (size_t)type_id::bool_t && type_id <= (size_t)type_id::double_t)
 					{
 						switch (type_id)
 						{
-							case (size_t)type_id::boolf:
+							case (size_t)type_id::bool_t:
 								result->set(name, core::var::boolean(*(bool*)ref));
 								break;
-							case (size_t)type_id::int8:
+							case (size_t)type_id::int8_t:
 								result->set(name, core::var::integer(*(char*)ref));
 								break;
-							case (size_t)type_id::int16:
+							case (size_t)type_id::int16_t:
 								result->set(name, core::var::integer(*(short*)ref));
 								break;
-							case (size_t)type_id::int32:
+							case (size_t)type_id::int32_t:
 								result->set(name, core::var::integer(*(int*)ref));
 								break;
-							case (size_t)type_id::uint8:
+							case (size_t)type_id::uint8_t:
 								result->set(name, core::var::integer(*(unsigned char*)ref));
 								break;
-							case (size_t)type_id::uint16:
+							case (size_t)type_id::uint16_t:
 								result->set(name, core::var::integer(*(unsigned short*)ref));
 								break;
-							case (size_t)type_id::uint32:
+							case (size_t)type_id::uint32_t:
 								result->set(name, core::var::integer(*(uint32_t*)ref));
 								break;
-							case (size_t)type_id::int64:
-							case (size_t)type_id::uint64:
+							case (size_t)type_id::int64_t:
+							case (size_t)type_id::uint64_t:
 								result->set(name, core::var::integer(*(int64_t*)ref));
 								break;
-							case (size_t)type_id::floatf:
+							case (size_t)type_id::float_t:
 								result->set(name, core::var::number(*(float*)ref));
 								break;
-							case (size_t)type_id::doublef:
+							case (size_t)type_id::double_t:
 								result->set(name, core::var::number(*(double*)ref));
 								break;
 						}
@@ -3888,10 +3888,10 @@ namespace vitex
 					else
 					{
 						auto type = vm->get_type_info_by_id(type_id);
-						if ((type_id & (size_t)type_id::mask_object) && !(type_id & (size_t)type_id::objhandle) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
+						if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
 							ref = *(void**)ref;
 
-						if (type_id & (size_t)type_id::objhandle)
+						if (type_id & (size_t)type_id::handle_t)
 							ref = *(void**)ref;
 
 						if (vm->is_nullable(type_id) || !ref)
@@ -3912,7 +3912,7 @@ namespace vitex
 							result->set(name, core::var::decimal(*(core::decimal*)ref));
 					}
 
-					if (type_id & (size_t)type_id::mask_object)
+					if (type_id & (size_t)type_id::mask_object_t)
 					{
 						auto type = vm->get_type_info_by_id(type_id);
 						if (type.flags() & (size_t)object_behaviours::value)
@@ -4000,7 +4000,7 @@ namespace vitex
 				for (auto& node : nodes)
 					node->add_ref();
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
 				return array::compose(type.get_type_info(), nodes);
 			}
 			array* schema_get_childs(core::schema* base)
@@ -4013,7 +4013,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
 				return array::compose(type.get_type_info(), base->get_childs());
 			}
 			array* schema_get_attributes(core::schema* base)
@@ -4026,7 +4026,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SCHEMA "@>@");
 				return array::compose(type.get_type_info(), base->get_attributes());
 			}
 			dictionary* schema_get_names(core::schema* base)
@@ -4041,7 +4041,7 @@ namespace vitex
 				for (auto& item : mapping)
 				{
 					int64_t index = (int64_t)item.second;
-					map->set(item.first, &index, (int)type_id::int64);
+					map->set(item.first, &index, (int)type_id::int64_t);
 				}
 
 				return map;
@@ -4181,7 +4181,7 @@ namespace vitex
 			template <typename t>
 			void populate_component(ref_class& class_name)
 			{
-				class_name.set_method_ex("string get_name() const", &get_component_name<t>);
+				class_name.set_method_extern("string get_name() const", &get_component_name<t>);
 				class_name.set_method("uint64 get_id() const", &t::get_id);
 			}
 			core::variant_args to_variant_keys(core::schema* args)
@@ -4839,16 +4839,16 @@ namespace vitex
 			application::application(desc& i, void* new_object, int new_type_id) noexcept : layer::application(&i), processed_events(0), initiator_type(nullptr), initiator_object(new_object)
 			{
 				virtual_machine* current_vm = virtual_machine::get();
-				if (current_vm != nullptr && initiator_object != nullptr && ((new_type_id & (int)type_id::objhandle) || (new_type_id & (int)type_id::mask_object)))
+				if (current_vm != nullptr && initiator_object != nullptr && ((new_type_id & (int)type_id::handle_t) || (new_type_id & (int)type_id::mask_object_t)))
 				{
 					initiator_type = current_vm->get_type_info_by_id(new_type_id).get_type_info();
-					if (new_type_id & (int)type_id::objhandle)
+					if (new_type_id & (int)type_id::handle_t)
 						initiator_object = *(void**)initiator_object;
 					current_vm->add_ref_object(initiator_object, initiator_type);
 				}
 				else if (current_vm != nullptr && initiator_object != nullptr)
 				{
-					if (new_type_id != (int)type_id::voidf)
+					if (new_type_id != (int)type_id::void_t)
 						exception::throw_ptr(exception::pointer(EXCEPTION_INVALIDINITIATOR));
 					initiator_object = nullptr;
 				}
@@ -5004,7 +5004,7 @@ namespace vitex
 				if (!initiator_object || !initiator_type || !ref_pointer || !current_vm)
 					return false;
 
-				if (ref_type_id & (size_t)type_id::objhandle)
+				if (ref_type_id & (size_t)type_id::handle_t)
 				{
 					current_vm->ref_cast_object(initiator_object, initiator_type, current_vm->get_type_info_by_id(ref_type_id), reinterpret_cast<void**>(ref_pointer));
 #ifdef VI_ANGELSCRIPT
@@ -5013,7 +5013,7 @@ namespace vitex
 #endif
 					return true;
 				}
-				else if (ref_type_id & (size_t)type_id::mask_object)
+				else if (ref_type_id & (size_t)type_id::mask_object_t)
 				{
 					auto ref_type_info = current_vm->get_type_info_by_id(ref_type_id);
 					if (initiator_type == ref_type_info.get_type_info())
@@ -5114,12 +5114,12 @@ namespace vitex
 
 			dictionary* inline_args_get_args(core::inline_args& base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				return dictionary::compose<core::string>(type.get_type_id(), base.args);
 			}
 			array* inline_args_get_params(core::inline_args& base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base.params);
 			}
 
@@ -5140,12 +5140,12 @@ namespace vitex
 					results.emplace_back(std::move(next));
 				}
 
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_FILELINK ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_FILELINK ">@");
 				return array::compose<file_link>(type.get_type_info(), results);
 			}
 			array* os_directory_get_mounts()
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), core::os::directory::get_mounts());
 			}
 			bool os_directory_create(const std::string_view& path)
@@ -5219,7 +5219,7 @@ namespace vitex
 			}
 			array* os_file_read_as_array(const std::string_view& path)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				auto data = core::os::file::read_as_array(path);
 				if (!data)
 					return expects_wrapper::unwrap_void(std::move(data)) ? nullptr : nullptr;
@@ -5328,12 +5328,12 @@ namespace vitex
 
 			array* regex_result_get(compute::regex_result& base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_REGEXMATCH ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_REGEXMATCH ">@");
 				return array::compose<compute::regex_match>(type.get_type_info(), base.get());
 			}
 			array* regex_result_to_array(compute::regex_result& base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base.to_array());
 			}
 
@@ -5463,7 +5463,7 @@ namespace vitex
 				if (!context || !delegatef.is_valid())
 					return base->set_pragma_callback(nullptr);
 
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				base->set_pragma_callback([type, context, delegatef](compute::preprocessor* base, const std::string_view& name, const core::vector<core::string>& args) -> compute::expects_preprocessor<void>
 				{
 					bool success = false;
@@ -5528,13 +5528,13 @@ namespace vitex
 
 			dictionary* location_get_query(network::location& base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				return dictionary::compose<core::string>(type.get_type_id(), base.query);
 			}
 
 			dictionary* certificate_get_extensions(network::certificate& base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				return dictionary::compose<core::string>(type.get_type_id(), base.extensions);
 			}
 
@@ -5763,22 +5763,22 @@ namespace vitex
 			}
 			void socket_router_set_listeners(network::socket_router* base, dictionary* data)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				base->listeners = dictionary::decompose<network::router_listener>(type.get_type_id(), data);
 			}
 			dictionary* socket_router_get_listeners(network::socket_router* base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				return dictionary::compose<network::router_listener>(type.get_type_id(), base->listeners);
 			}
 			void socket_router_set_certificates(network::socket_router* base, dictionary* data)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				base->certificates = dictionary::decompose<network::socket_certificate>(type.get_type_id(), data);
 			}
 			dictionary* socket_router_get_certificates(network::socket_router* base)
 			{
-				typeinfo type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
+				type_info type = virtual_machine::get()->get_type_info_by_decl(TYPENAME_DICTIONARY "@");
 				return dictionary::compose<network::socket_certificate>(type.get_type_id(), base->certificates);
 			}
 
@@ -5860,12 +5860,12 @@ namespace vitex
 			void populate_processor_base(ref_class& class_name, bool base_cast = true)
 			{
 				if (base_cast)
-					class_name.set_operator_ex(operators::cast, 0, "void", "?&out", &handle_to_handle_cast);
+					class_name.set_operator_extern(operators::cast_t, 0, "void", "?&out", &handle_to_handle_cast);
 
 				class_name.set_method("void free(uptr@)", &layer::processor::free);
-				class_name.set_method_ex("uptr@ duplicate(uptr@, schema@+)", &processor_duplicate<t>);
-				class_name.set_method_ex("uptr@ deserialize(base_stream@+, usize, schema@+)", &processor_deserialize<t>);
-				class_name.set_method_ex("bool serialize(base_stream@+, uptr@, schema@+)", &processor_serialize<t>);
+				class_name.set_method_extern("uptr@ duplicate(uptr@, schema@+)", &processor_duplicate<t>);
+				class_name.set_method_extern("uptr@ deserialize(base_stream@+, usize, schema@+)", &processor_deserialize<t>);
+				class_name.set_method_extern("bool serialize(base_stream@+, uptr@, schema@+)", &processor_serialize<t>);
 				class_name.set_method("content_manager@+ get_content() const", &layer::processor::get_content);
 			}
 			template <typename t, typename... args>
@@ -6274,7 +6274,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
 				return array::compose<compute::regex_source>(type.get_type_info(), base->hidden_files);
 			}
 			void router_entry_set_error_files(network::http::router_entry* base, array* data)
@@ -6290,7 +6290,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_HTTPERRORFILE ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_HTTPERRORFILE ">@");
 				return array::compose<network::http::error_file>(type.get_type_info(), base->error_files);
 			}
 			void router_entry_set_mime_types(network::http::router_entry* base, array* data)
@@ -6306,7 +6306,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_HTTPMIMETYPE ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_HTTPMIMETYPE ">@");
 				return array::compose<network::http::mime_type>(type.get_type_info(), base->mime_types);
 			}
 			void router_entry_set_index_files(network::http::router_entry* base, array* data)
@@ -6322,7 +6322,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base->index_files);
 			}
 			void router_entry_set_try_files(network::http::router_entry* base, array* data)
@@ -6338,7 +6338,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base->try_files);
 			}
 			void router_entry_set_disallowed_methods_files(network::http::router_entry* base, array* data)
@@ -6354,7 +6354,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base->disallowed_methods);
 			}
 			network::http::map_router* router_entry_get_router(network::http::router_entry* base)
@@ -6375,7 +6375,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base.methods);
 			}
 
@@ -6392,7 +6392,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_REGEXSOURCE ">@");
 				return array::compose<compute::regex_source>(type.get_type_info(), base.files);
 			}
 
@@ -6993,7 +6993,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
 				return array::compose<network::smtp::recipient>(type.get_type_info(), base->recipients);
 			}
 			void smtp_request_set_recipients(network::smtp::request_frame* base, array* data)
@@ -7009,7 +7009,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
 				return array::compose<network::smtp::recipient>(type.get_type_info(), base->cc_recipients);
 			}
 			void smtp_request_set_cc_recipients(network::smtp::request_frame* base, array* data)
@@ -7025,7 +7025,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPRECIPIENT ">@");
 				return array::compose<network::smtp::recipient>(type.get_type_info(), base->bcc_recipients);
 			}
 			void smtp_request_set_bcc_recipients(network::smtp::request_frame* base, array* data)
@@ -7041,7 +7041,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPATTACHMENT ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_SMTPATTACHMENT ">@");
 				return array::compose<network::smtp::attachment>(type.get_type_info(), base->attachments);
 			}
 			void smtp_request_set_attachments(network::smtp::request_frame* base, array* data)
@@ -7057,7 +7057,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type.get_type_info(), base->messages);
 			}
 			void smtp_request_set_messages(network::smtp::request_frame* base, array* data)
@@ -7103,7 +7103,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose(type.get_type_info(), base.get_columns());
 			}
 
@@ -7140,7 +7140,7 @@ namespace vitex
 				{
 					step_delegate.context->execute_subcall(step_delegate.callable(), [&args](immediate_context* context)
 					{
-						typeinfo type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						type_info type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
 						core::uptr<array> data = array::compose<core::variant>(type, args);
 						context->set_arg_object(0, *data);
 					});
@@ -7172,7 +7172,7 @@ namespace vitex
 				{
 					step_delegate.context->execute_subcall(step_delegate.callable(), [&args](immediate_context* context)
 					{
-						typeinfo type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						type_info type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
 						core::uptr<array> data = array::compose<core::variant>(type, args);
 						context->set_arg_object(0, *data);
 					});
@@ -7181,7 +7181,7 @@ namespace vitex
 				{
 					inverse_delegate.context->execute_subcall(inverse_delegate.callable(), [&args](immediate_context* context)
 					{
-						typeinfo type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						type_info type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
 						core::uptr<array> data = array::compose<core::variant>(type, args);
 						context->set_arg_object(0, *data);
 					});
@@ -7221,7 +7221,7 @@ namespace vitex
 					core::variant result = core::var::undefined();
 					delegatef.context->execute_subcall(delegatef.callable(), [&args](immediate_context* context)
 					{
-						typeinfo type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
+						type_info type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_VARIANT ">@");
 						core::uptr<array> data = array::compose<core::variant>(type, args);
 						context->set_arg_object(0, *data);
 					}, [&result](immediate_context* context) mutable
@@ -7383,7 +7383,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_LDBCHECKPOINT ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_LDBCHECKPOINT ">@");
 				return array::compose(type.get_type_info(), base->wal_checkpoint(mode, database));
 			}
 
@@ -7454,7 +7454,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose(type.get_type_info(), base->get_queries());
 			}
 
@@ -7472,7 +7472,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose(type.get_type_info(), base.get_columns());
 			}
 
@@ -7507,7 +7507,7 @@ namespace vitex
 						core::promise<bool> future;
 						delegatef([base, data](immediate_context* context)
 						{
-							typeinfo type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+							type_info type = context->get_vm()->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 							context->set_arg_object(0, base);
 							context->set_arg_object(1, array::compose(type.get_type_info(), data));
 						}, [future](immediate_context* context) mutable
@@ -7519,7 +7519,7 @@ namespace vitex
 							target->when([future](promise* target) mutable
 							{
 								bool value = true;
-								target->retrieve(&value, (int)type_id::boolf);
+								target->retrieve(&value, (int)type_id::bool_t);
 								future.set(value);
 							});
 						});
@@ -7738,7 +7738,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose(type.get_type_info(), base->get_queries());
 			}
 
@@ -7765,39 +7765,39 @@ namespace vitex
 					buffer += sizeof(int);
 
 					void* ref = (void*)buffer;
-					if (type_id >= (size_t)type_id::boolf && type_id <= (size_t)type_id::doublef)
+					if (type_id >= (size_t)type_id::bool_t && type_id <= (size_t)type_id::double_t)
 					{
 						switch (type_id)
 						{
-							case (size_t)type_id::boolf:
+							case (size_t)type_id::bool_t:
 								result.set_boolean(name, *(bool*)ref);
 								break;
-							case (size_t)type_id::int8:
+							case (size_t)type_id::int8_t:
 								result.set_integer(name, *(char*)ref);
 								break;
-							case (size_t)type_id::int16:
+							case (size_t)type_id::int16_t:
 								result.set_integer(name, *(short*)ref);
 								break;
-							case (size_t)type_id::int32:
+							case (size_t)type_id::int32_t:
 								result.set_integer(name, *(int*)ref);
 								break;
-							case (size_t)type_id::uint8:
+							case (size_t)type_id::uint8_t:
 								result.set_integer(name, *(unsigned char*)ref);
 								break;
-							case (size_t)type_id::uint16:
+							case (size_t)type_id::uint16_t:
 								result.set_integer(name, *(unsigned short*)ref);
 								break;
-							case (size_t)type_id::uint32:
+							case (size_t)type_id::uint32_t:
 								result.set_integer(name, *(uint32_t*)ref);
 								break;
-							case (size_t)type_id::int64:
-							case (size_t)type_id::uint64:
+							case (size_t)type_id::int64_t:
+							case (size_t)type_id::uint64_t:
 								result.set_integer(name, *(int64_t*)ref);
 								break;
-							case (size_t)type_id::floatf:
+							case (size_t)type_id::float_t:
 								result.set_number(name, *(float*)ref);
 								break;
-							case (size_t)type_id::doublef:
+							case (size_t)type_id::double_t:
 								result.set_number(name, *(double*)ref);
 								break;
 						}
@@ -7805,10 +7805,10 @@ namespace vitex
 					else
 					{
 						auto type = vm->get_type_info_by_id(type_id);
-						if ((type_id & (size_t)type_id::mask_object) && !(type_id & (size_t)type_id::objhandle) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
+						if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
 							ref = *(void**)ref;
 
-						if (type_id & (size_t)type_id::objhandle)
+						if (type_id & (size_t)type_id::handle_t)
 							ref = *(void**)ref;
 
 						if (vm->is_nullable(type_id) || !ref)
@@ -7826,7 +7826,7 @@ namespace vitex
 							result.set_decimal_string(name, ((core::decimal*)ref)->to_string());
 					}
 
-					if (type_id & (size_t)type_id::mask_object)
+					if (type_id & (size_t)type_id::mask_object_t)
 					{
 						auto type = vm->get_type_info_by_id(type_id);
 						if (type.flags() & (size_t)object_behaviours::value)
@@ -8341,7 +8341,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type, expects_wrapper::unwrap(base.get_collection_names(options), core::vector<core::string>()));
 			}
 
@@ -8368,7 +8368,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose<core::string>(type, expects_wrapper::unwrap(base->get_database_names(options), core::vector<core::string>()));
 			}
 			core::promise<bool> mdb_connection_connect(network::mongo::connection* base, network::mongo::address* address)
@@ -8410,7 +8410,7 @@ namespace vitex
 						target->when([future](promise* target) mutable
 						{
 							bool value = true;
-							target->retrieve(&value, (int)type_id::boolf);
+							target->retrieve(&value, (int)type_id::bool_t);
 							future.set(value);
 						});
 					});
@@ -8498,7 +8498,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				typeinfo type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				type_info type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
 				return array::compose(type.get_type_info(), base->get_queries());
 			}
 #endif
@@ -8666,7 +8666,7 @@ namespace vitex
 						if (!source->get_index(i, &name, &value, &type_id))
 							continue;
 
-						typeinfo type = context->get_engine()->get_type_info_by_id(type_id);
+						type_info type = context->get_engine()->get_type_info_by_id(type_id);
 						core::string type_name = core::string(type.is_valid() ? type.get_name() : "?");
 						stream << indent << core::stringify::trim_end(type_name) << " \"" << name << "\": " << context->to_string(indent, depth - 1, value, type_id);
 						if (i + 1 < size)
@@ -8762,7 +8762,7 @@ namespace vitex
 				bool has_pointer_cast = (!vm->get_library_property(library_features::ctypes_no_pointer_cast));
 				if (has_pointer_cast)
 				{
-					vpointer->set_method_ex("void opCast(?&out)", &pointer_to_handle_cast);
+					vpointer->set_method_extern("void opCast(?&out)", &pointer_to_handle_cast);
 					vm->set_function("uptr@ to_ptr(?&in)", &handle_to_pointer_cast);
 				}
 
@@ -8773,13 +8773,13 @@ namespace vitex
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 
 				auto vany = vm->set_class<any>("any", true);
-				vany->set_constructor_ex("any@ f()", &any::factory1);
-				vany->set_constructor_ex("any@ f(?&in) explicit", &any::factory2);
-				vany->set_constructor_ex("any@ f(const int64&in) explicit", &any::factory2);
-				vany->set_constructor_ex("any@ f(const double&in) explicit", &any::factory2);
+				vany->set_constructor_extern("any@ f()", &any::factory1);
+				vany->set_constructor_extern("any@ f(?&in) explicit", &any::factory2);
+				vany->set_constructor_extern("any@ f(const int64&in) explicit", &any::factory2);
+				vany->set_constructor_extern("any@ f(const double&in) explicit", &any::factory2);
 				vany->set_enum_refs(&any::enum_references);
 				vany->set_release_refs(&any::release_references);
-				vany->set_method_ex("any &opAssign(any&in)", &any::assignment);
+				vany->set_method_extern("any &opAssign(any&in)", &any::assignment);
 				vany->set_method("void store(?&in)", &any::store);
 				vany->set_method("bool retrieve(?&out)", &any::retrieve);
 
@@ -8790,15 +8790,15 @@ namespace vitex
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 				vm->set_type_info_user_data_cleanup_callback(array::cleanup_type_info_cache, (size_t)array::get_id());
 
-				auto list_factory_call = bridge::function(&array::factory);
+				auto list_factory_call = bridge::function_call(&array::factory);
 				{
 					auto varray = vm->set_template_class<array>("array<class t>", "array<t>", true);
 					varray->set_template_callback(&array::template_callback);
 					varray->set_function_def("bool array<t>::less_sync(const t&in a, const t&in b)");
-					varray->set_constructor_ex<array, asITypeInfo*>("array<t>@ f(int&in)", &array::create);
-					varray->set_constructor_ex<array, asITypeInfo*, size_t>("array<t>@ f(int&in, usize) explicit", &array::create);
-					varray->set_constructor_ex<array, asITypeInfo*, size_t, void*>("array<t>@ f(int&in, usize, const t&in)", &array::create);
-					varray->set_behaviour_address("array<t>@ f(int&in, int&in) {repeat t}", behaviours::list_factory, list_factory_call, function_call::cdeclf);
+					varray->set_constructor_extern<array, asITypeInfo*>("array<t>@ f(int&in)", &array::create);
+					varray->set_constructor_extern<array, asITypeInfo*, size_t>("array<t>@ f(int&in, usize) explicit", &array::create);
+					varray->set_constructor_extern<array, asITypeInfo*, size_t, void*>("array<t>@ f(int&in, usize, const t&in)", &array::create);
+					varray->set_behaviour_address("array<t>@ f(int&in, int&in) {repeat t}", behaviours::list_factory, list_factory_call, convention::cdecl_call);
 					varray->set_enum_refs(&array::enum_references);
 					varray->set_release_refs(&array::release_references);
 					varray->set_method("bool opEquals(const array<t>&in) const", &array::operator==);
@@ -8840,16 +8840,16 @@ namespace vitex
 			{
 #ifdef VI_BINDINGS
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
-				auto list_constructor_call = bridge::function(&complex::list_constructor);
+				auto list_constructor_call = bridge::function_call(&complex::list_constructor);
 				{
-					auto vcomplex = vm->set_struct_address("complex", sizeof(complex), (size_t)object_behaviours::value | (size_t)object_behaviours::pod | bridge::get_type_traits<complex>() | (size_t)object_behaviours::app_class_allfloats);
+					auto vcomplex = vm->set_struct_address("complex", sizeof(complex), (size_t)object_behaviours::value | (size_t)object_behaviours::pod | bridge::type_traits_of<complex>() | (size_t)object_behaviours::app_class_allfloats);
 					vcomplex->set_property("float R", &complex::r);
 					vcomplex->set_property("float I", &complex::i);
-					vcomplex->set_constructor_ex("void f()", &complex::default_constructor);
-					vcomplex->set_constructor_ex("void f(const complex &in)", &complex::copy_constructor);
-					vcomplex->set_constructor_ex("void f(float)", &complex::conv_constructor);
-					vcomplex->set_constructor_ex("void f(float, float)", &complex::init_constructor);
-					vcomplex->set_behaviour_address("void f(const int &in) {float, float}", behaviours::list_construct, list_constructor_call, function_call::cdecl_objfirst);
+					vcomplex->set_constructor_extern("void f()", &complex::default_constructor);
+					vcomplex->set_constructor_extern("void f(const complex &in)", &complex::copy_constructor);
+					vcomplex->set_constructor_extern("void f(float)", &complex::conv_constructor);
+					vcomplex->set_constructor_extern("void f(float, float)", &complex::init_constructor);
+					vcomplex->set_behaviour_address("void f(const int &in) {float, float}", behaviours::list_construct, list_constructor_call, convention::cdecl_call_obj_first);
 					vcomplex->set_method("complex &opAddAssign(const complex &in)", &complex::operator+=);
 					vcomplex->set_method("complex &opSubAssign(const complex &in)", &complex::operator-=);
 					vcomplex->set_method("complex &opMulAssign(const complex &in)", &complex::operator*=);
@@ -8876,28 +8876,28 @@ namespace vitex
 			{
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 
-				auto vstorable = vm->set_struct_address("storable", sizeof(storable), (size_t)object_behaviours::value | (size_t)object_behaviours::ashandle | (size_t)object_behaviours::gc | bridge::get_type_traits<storable>());
-				vstorable->set_constructor_ex("void f()", &dictionary::key_create);
-				vstorable->set_destructor_ex("void f()", &dictionary::key_destroy);
+				auto vstorable = vm->set_struct_address("storable", sizeof(storable), (size_t)object_behaviours::value | (size_t)object_behaviours::as_handle | (size_t)object_behaviours::gc | bridge::type_traits_of<storable>());
+				vstorable->set_constructor_extern("void f()", &dictionary::key_create);
+				vstorable->set_destructor_extern("void f()", &dictionary::key_destroy);
 				vstorable->set_enum_refs(&storable::enum_references);
 				vstorable->set_release_refs(&storable::release_references);
-				vstorable->set_method_ex<storable&, storable*, const storable&>("storable &opAssign(const storable&in)", &dictionary::keyop_assign);
-				vstorable->set_method_ex<storable&, storable*, void*, int>("storable &opHndlAssign(const ?&in)", &dictionary::keyop_assign);
-				vstorable->set_method_ex<storable&, storable*, const storable&>("storable &opHndlAssign(const storable&in)", &dictionary::keyop_assign);
-				vstorable->set_method_ex<storable&, storable*, void*, int>("storable &opAssign(const ?&in)", &dictionary::keyop_assign);
-				vstorable->set_method_ex<storable&, storable*, double>("storable &opAssign(double)", &dictionary::keyop_assign);
-				vstorable->set_method_ex<storable&, storable*, as_int64_t>("storable &opAssign(int64)", &dictionary::keyop_assign);
-				vstorable->set_method_ex("void opCast(?&out)", &dictionary::keyop_cast);
-				vstorable->set_method_ex("void opConv(?&out)", &dictionary::keyop_cast);
-				vstorable->set_method_ex("int64 opConv()", &dictionary::keyop_conv_int);
-				vstorable->set_method_ex("double opConv()", &dictionary::keyop_conv_double);
+				vstorable->set_method_extern<storable&, storable*, const storable&>("storable &opAssign(const storable&in)", &dictionary::keyop_assign);
+				vstorable->set_method_extern<storable&, storable*, void*, int>("storable &opHndlAssign(const ?&in)", &dictionary::keyop_assign);
+				vstorable->set_method_extern<storable&, storable*, const storable&>("storable &opHndlAssign(const storable&in)", &dictionary::keyop_assign);
+				vstorable->set_method_extern<storable&, storable*, void*, int>("storable &opAssign(const ?&in)", &dictionary::keyop_assign);
+				vstorable->set_method_extern<storable&, storable*, double>("storable &opAssign(double)", &dictionary::keyop_assign);
+				vstorable->set_method_extern<storable&, storable*, as_int64_t>("storable &opAssign(int64)", &dictionary::keyop_assign);
+				vstorable->set_method_extern("void opCast(?&out)", &dictionary::keyop_cast);
+				vstorable->set_method_extern("void opConv(?&out)", &dictionary::keyop_cast);
+				vstorable->set_method_extern("int64 opConv()", &dictionary::keyop_conv_int);
+				vstorable->set_method_extern("double opConv()", &dictionary::keyop_conv_double);
 
-				auto factory_call = bridge::function_generic(&dictionary::factory);
-				auto list_factory_call = bridge::function_generic(&dictionary::list_factory);
+				auto factory_call = bridge::function_generic_call(&dictionary::factory);
+				auto list_factory_call = bridge::function_generic_call(&dictionary::list_factory);
 				{
 					auto vdictionary = vm->set_class<dictionary>("dictionary", true);
-					vdictionary->set_behaviour_address("dictionary@ f()", behaviours::factory, factory_call, function_call::genericf);
-					vdictionary->set_behaviour_address("dictionary @f(int &in) {repeat {string, ?}}", behaviours::list_factory, list_factory_call, function_call::genericf);
+					vdictionary->set_behaviour_address("dictionary@ f()", behaviours::factory, factory_call, convention::generic_call);
+					vdictionary->set_behaviour_address("dictionary @f(int &in) {repeat {string, ?}}", behaviours::list_factory, list_factory_call, convention::generic_call);
 					vdictionary->set_enum_refs(&dictionary::enum_references);
 					vdictionary->set_release_refs(&dictionary::release_references);
 					vdictionary->set_method("dictionary &opAssign(const dictionary &in)", &dictionary::operator=);
@@ -8999,33 +8999,33 @@ namespace vitex
 			bool registry::import_string(virtual_machine* vm) noexcept
 			{
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
-				auto vstring_view = vm->set_struct_address("string_view", sizeof(std::string_view), (size_t)object_behaviours::value | bridge::get_type_traits<std::string_view>() | (size_t)object_behaviours::app_class_allints);
-				auto vstring = vm->set_struct_address("string", sizeof(core::string), (size_t)object_behaviours::value | bridge::get_type_traits<core::string>());
+				auto vstring_view = vm->set_struct_address("string_view", sizeof(std::string_view), (size_t)object_behaviours::value | bridge::type_traits_of<std::string_view>() | (size_t)object_behaviours::app_class_allints);
+				auto vstring = vm->set_struct_address("string", sizeof(core::string), (size_t)object_behaviours::value | bridge::type_traits_of<core::string>());
 #ifdef VI_ANGELSCRIPT
 				vm->set_string_factory_address("string", string_factory::get());
 #endif
-				vstring->set_constructor_ex("void f()", &string::create);
-				vstring->set_constructor_ex("void f(const string&in)", &string::create_copy1);
-				vstring->set_constructor_ex("void f(const string_view&in)", &string::create_copy2);
-				vstring->set_destructor_ex("void f()", &string::destroy);
+				vstring->set_constructor_extern("void f()", &string::create);
+				vstring->set_constructor_extern("void f(const string&in)", &string::create_copy1);
+				vstring->set_constructor_extern("void f(const string_view&in)", &string::create_copy2);
+				vstring->set_destructor_extern("void f()", &string::destroy);
 				vstring->set_method<core::string, core::string&, const core::string&>("string& opAssign(const string&in)", &core::string::operator=);
 				vstring->set_method<core::string, core::string&, const std::string_view&>("string& opAssign(const string_view&in)", &core::string::operator=);
 				vstring->set_method<core::string, core::string&, const core::string&>("string& opAddAssign(const string&in)", &core::string::operator+=);
 				vstring->set_method<core::string, core::string&, const std::string_view&>("string& opAddAssign(const string_view&in)", &core::string::operator+=);
-				vstring->set_method_ex<core::string, const core::string&, const core::string&>("string opAdd(const string&in) const", &std::operator+);
+				vstring->set_method_extern<core::string, const core::string&, const core::string&>("string opAdd(const string&in) const", &std::operator+);
 				vstring->set_method<core::string, core::string&, char>("string& opAddAssign(uint8)", &core::string::operator+=);
-				vstring->set_method_ex<core::string, const core::string&, char>("string opAdd(uint8) const", &std::operator+);
-				vstring->set_method_ex<core::string, char, const core::string&>("string opAdd_r(uint8) const", &std::operator+);
+				vstring->set_method_extern<core::string, const core::string&, char>("string opAdd(uint8) const", &std::operator+);
+				vstring->set_method_extern<core::string, char, const core::string&>("string opAdd_r(uint8) const", &std::operator+);
 				vstring->set_method<core::string, int, const core::string&>("int opCmp(const string&in) const", &core::string::compare);
 				vstring->set_method<core::string, int, const std::string_view&>("int opCmp(const string_view&in) const", &core::string::compare);
-				vstring->set_method_ex("uint8& opIndex(usize)", &string::index);
-				vstring->set_method_ex("const uint8& opIndex(usize) const", &string::index);
-				vstring->set_method_ex("uint8& at(usize)", &string::index);
-				vstring->set_method_ex("const uint8& at(usize) const", &string::index);
-				vstring->set_method_ex("uint8& front()", &string::front);
-				vstring->set_method_ex("const uint8& front() const", &string::front);
-				vstring->set_method_ex("uint8& back()", &string::back);
-				vstring->set_method_ex("const uint8& back() const", &string::back);
+				vstring->set_method_extern("uint8& opIndex(usize)", &string::index);
+				vstring->set_method_extern("const uint8& opIndex(usize) const", &string::index);
+				vstring->set_method_extern("uint8& at(usize)", &string::index);
+				vstring->set_method_extern("const uint8& at(usize) const", &string::index);
+				vstring->set_method_extern("uint8& front()", &string::front);
+				vstring->set_method_extern("const uint8& front() const", &string::front);
+				vstring->set_method_extern("uint8& back()", &string::back);
+				vstring->set_method_extern("const uint8& back() const", &string::back);
 				vstring->set_method("uptr@ data() const", &core::string::c_str);
 				vstring->set_method("uptr@ c_str() const", &core::string::c_str);
 				vstring->set_method("bool empty() const", &core::string::empty);
@@ -9044,25 +9044,25 @@ namespace vitex
 				vstring->set_method<core::string, core::string&, const core::string&>("string& append(const string&in)", &core::string::append);
 				vstring->set_method<core::string, core::string&, const std::string_view&>("string& append(const string_view&in)", &core::string::append);
 				vstring->set_method("void push(uint8)", &core::string::push_back);
-				vstring->set_method_ex("void pop()", &string::pop_back);
-				vstring->set_method_ex("bool starts_with(const string&in, usize = 0) const", &string::starts_with1);
-				vstring->set_method_ex("bool ends_with(const string&in) const", &string::ends_with1);
-				vstring->set_method_ex("string& replace(usize, usize, const string&in)", &string::replace_part1);
-				vstring->set_method_ex("string& replace_all(const string&in, const string&in, usize)", &string::replace1);
-				vstring->set_method_ex("bool starts_with(const string_view&in, usize = 0) const", &string::starts_with2);
-				vstring->set_method_ex("bool ends_with(const string_view&in) const", &string::ends_with2);
-				vstring->set_method_ex("string& replace(usize, usize, const string_view&in)", &string::replace_part2);
-				vstring->set_method_ex("string& replace_all(const string_view&in, const string_view&in, usize)", &string::replace2);
-				vstring->set_method_ex("string substring(usize) const", &string::substring1);
-				vstring->set_method_ex("string substring(usize, usize) const", &string::substring2);
-				vstring->set_method_ex("string substr(usize) const", &string::substring1);
-				vstring->set_method_ex("string substr(usize, usize) const", &string::substring2);
-				vstring->set_method_ex("string& trim()", &core::stringify::trim);
-				vstring->set_method_ex("string& trim_start()", &core::stringify::trim_start);
-				vstring->set_method_ex("string& trim_end()", &core::stringify::trim_end);
-				vstring->set_method_ex("string& to_lower()", &core::stringify::to_lower);
-				vstring->set_method_ex("string& to_upper()", &core::stringify::to_upper);
-				vstring->set_method_ex<core::string&, core::string&>("string& reverse()", &core::stringify::reverse);
+				vstring->set_method_extern("void pop()", &string::pop_back);
+				vstring->set_method_extern("bool starts_with(const string&in, usize = 0) const", &string::starts_with1);
+				vstring->set_method_extern("bool ends_with(const string&in) const", &string::ends_with1);
+				vstring->set_method_extern("string& replace(usize, usize, const string&in)", &string::replace_part1);
+				vstring->set_method_extern("string& replace_all(const string&in, const string&in, usize)", &string::replace1);
+				vstring->set_method_extern("bool starts_with(const string_view&in, usize = 0) const", &string::starts_with2);
+				vstring->set_method_extern("bool ends_with(const string_view&in) const", &string::ends_with2);
+				vstring->set_method_extern("string& replace(usize, usize, const string_view&in)", &string::replace_part2);
+				vstring->set_method_extern("string& replace_all(const string_view&in, const string_view&in, usize)", &string::replace2);
+				vstring->set_method_extern("string substring(usize) const", &string::substring1);
+				vstring->set_method_extern("string substring(usize, usize) const", &string::substring2);
+				vstring->set_method_extern("string substr(usize) const", &string::substring1);
+				vstring->set_method_extern("string substr(usize, usize) const", &string::substring2);
+				vstring->set_method_extern("string& trim()", &core::stringify::trim);
+				vstring->set_method_extern("string& trim_start()", &core::stringify::trim_start);
+				vstring->set_method_extern("string& trim_end()", &core::stringify::trim_end);
+				vstring->set_method_extern("string& to_lower()", &core::stringify::to_lower);
+				vstring->set_method_extern("string& to_upper()", &core::stringify::to_upper);
+				vstring->set_method_extern<core::string&, core::string&>("string& reverse()", &core::stringify::reverse);
 				vstring->set_method<core::string, size_t, const core::string&, size_t>("usize rfind(const string&in, usize = 0) const", &core::string::rfind);
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize rfind(const string_view&in, usize = 0) const", &core::string::rfind);
 				vstring->set_method<core::string, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &core::string::rfind);
@@ -9077,8 +9077,8 @@ namespace vitex
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize find_first_not_of(const string_view&in, usize = 0) const", &core::string::find_first_not_of);
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize find_last_of(const string_view&in, usize = 0) const", &core::string::find_last_of);
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize find_last_not_of(const string_view&in, usize = 0) const", &core::string::find_last_not_of);
-				vstring->set_method_ex("array<string>@ split(const string&in) const", &string::split);
-				vstring->set_operator_ex(operators::impl_cast, (uint32_t)position::constant, "string_view", "", &string::impl_cast_string_view);
+				vstring->set_method_extern("array<string>@ split(const string&in) const", &string::split);
+				vstring->set_operator_extern(operators::impl_cast_t, (uint32_t)position::constant, "string_view", "", &string::impl_cast_string_view);
 				vm->set_function("int8 to_int8(const string&in, int = 10)", &string::from_string<int8_t>);
 				vm->set_function("int16 to_int16(const string&in, int = 10)", &string::from_string<int16_t>);
 				vm->set_function("int32 to_int32(const string&in, int = 10)", &string::from_string<int32_t>);
@@ -9105,41 +9105,41 @@ namespace vitex
 				vm->set_property("const usize npos", &core::string::npos);
 				vm->end_namespace();
 
-				vstring_view->set_constructor_ex("void f()", &string_view::create);
-				vstring_view->set_constructor_ex("void f(const string&in)", &string_view::create_copy);
-				vstring_view->set_destructor_ex("void f()", &string_view::destroy);
-				vstring_view->set_method_ex("string_view& opAssign(const string&in)", &string_view::assign);
-				vstring_view->set_method_ex<core::string, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &string_view::append1);
-				vstring_view->set_method_ex<core::string, const std::string_view&, const core::string&>("string opAdd(const string&in) const", &string_view::append2);
-				vstring_view->set_method_ex<core::string, const core::string&, const std::string_view&>("string opAdd_r(const string&in) const", &string_view::append3);
-				vstring_view->set_method_ex<core::string, const std::string_view&, char>("string opAdd(uint8) const", &string_view::append4);
-				vstring_view->set_method_ex<core::string, char, const std::string_view&>("string opAdd_r(uint8) const", &string_view::append5);
-				vstring_view->set_method_ex("int opCmp(const string&in) const", &string_view::compare1);
-				vstring_view->set_method_ex("int opCmp(const string_view&in) const", &string_view::compare2);
-				vstring_view->set_method_ex("const uint8& opIndex(usize) const", &string_view::index);
-				vstring_view->set_method_ex("const uint8& at(usize) const", &string_view::index);
-				vstring_view->set_method_ex("const uint8& front() const", &string_view::front);
-				vstring_view->set_method_ex("const uint8& back() const", &string_view::back);
+				vstring_view->set_constructor_extern("void f()", &string_view::create);
+				vstring_view->set_constructor_extern("void f(const string&in)", &string_view::create_copy);
+				vstring_view->set_destructor_extern("void f()", &string_view::destroy);
+				vstring_view->set_method_extern("string_view& opAssign(const string&in)", &string_view::assign);
+				vstring_view->set_method_extern<core::string, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &string_view::append1);
+				vstring_view->set_method_extern<core::string, const std::string_view&, const core::string&>("string opAdd(const string&in) const", &string_view::append2);
+				vstring_view->set_method_extern<core::string, const core::string&, const std::string_view&>("string opAdd_r(const string&in) const", &string_view::append3);
+				vstring_view->set_method_extern<core::string, const std::string_view&, char>("string opAdd(uint8) const", &string_view::append4);
+				vstring_view->set_method_extern<core::string, char, const std::string_view&>("string opAdd_r(uint8) const", &string_view::append5);
+				vstring_view->set_method_extern("int opCmp(const string&in) const", &string_view::compare1);
+				vstring_view->set_method_extern("int opCmp(const string_view&in) const", &string_view::compare2);
+				vstring_view->set_method_extern("const uint8& opIndex(usize) const", &string_view::index);
+				vstring_view->set_method_extern("const uint8& at(usize) const", &string_view::index);
+				vstring_view->set_method_extern("const uint8& front() const", &string_view::front);
+				vstring_view->set_method_extern("const uint8& back() const", &string_view::back);
 				vstring_view->set_method("uptr@ data() const", &std::string_view::data);
 				vstring_view->set_method("bool empty() const", &std::string_view::empty);
 				vstring_view->set_method("usize size() const", &std::string_view::size);
 				vstring_view->set_method("usize max_size() const", &std::string_view::max_size);
-				vstring_view->set_method_ex("bool starts_with(const string_view&in, usize = 0) const", &string_view::starts_with);
-				vstring_view->set_method_ex("bool ends_with(const string_view&in) const", &string_view::ends_with);
-				vstring_view->set_method_ex("string substring(usize) const", &string_view::substring1);
-				vstring_view->set_method_ex("string substring(usize, usize) const", &string_view::substring2);
-				vstring_view->set_method_ex("string substr(usize) const", &string_view::substring1);
-				vstring_view->set_method_ex("string substr(usize, usize) const", &string_view::substring2);
-				vstring_view->set_method_ex("usize rfind(const string_view&in, usize = 0) const", &string_view::reverse_find1);
-				vstring_view->set_method_ex("usize rfind(uint8, usize = 0) const", &string_view::reverse_find2);
-				vstring_view->set_method_ex("usize find(const string_view&in, usize = 0) const", &string_view::find1);
-				vstring_view->set_method_ex("usize find(uint8, usize = 0) const", &string_view::find2);
-				vstring_view->set_method_ex("usize find_first_of(const string_view&in, usize = 0) const", &string_view::find_first_of);
-				vstring_view->set_method_ex("usize find_first_not_of(const string_view&in, usize = 0) const", &string_view::find_first_not_of);
-				vstring_view->set_method_ex("usize find_last_of(const string_view&in, usize = 0) const", &string_view::find_last_of);
-				vstring_view->set_method_ex("usize find_last_not_of(const string_view&in, usize = 0) const", &string_view::find_last_not_of);
-				vstring_view->set_method_ex("array<string>@ split(const string_view&in) const", &string_view::split);
-				vstring_view->set_operator_ex(operators::impl_cast, (uint32_t)position::constant, "string", "", &string_view::impl_cast_string);
+				vstring_view->set_method_extern("bool starts_with(const string_view&in, usize = 0) const", &string_view::starts_with);
+				vstring_view->set_method_extern("bool ends_with(const string_view&in) const", &string_view::ends_with);
+				vstring_view->set_method_extern("string substring(usize) const", &string_view::substring1);
+				vstring_view->set_method_extern("string substring(usize, usize) const", &string_view::substring2);
+				vstring_view->set_method_extern("string substr(usize) const", &string_view::substring1);
+				vstring_view->set_method_extern("string substr(usize, usize) const", &string_view::substring2);
+				vstring_view->set_method_extern("usize rfind(const string_view&in, usize = 0) const", &string_view::reverse_find1);
+				vstring_view->set_method_extern("usize rfind(uint8, usize = 0) const", &string_view::reverse_find2);
+				vstring_view->set_method_extern("usize find(const string_view&in, usize = 0) const", &string_view::find1);
+				vstring_view->set_method_extern("usize find(uint8, usize = 0) const", &string_view::find2);
+				vstring_view->set_method_extern("usize find_first_of(const string_view&in, usize = 0) const", &string_view::find_first_of);
+				vstring_view->set_method_extern("usize find_first_not_of(const string_view&in, usize = 0) const", &string_view::find_first_not_of);
+				vstring_view->set_method_extern("usize find_last_of(const string_view&in, usize = 0) const", &string_view::find_last_of);
+				vstring_view->set_method_extern("usize find_last_not_of(const string_view&in, usize = 0) const", &string_view::find_last_not_of);
+				vstring_view->set_method_extern("array<string>@ split(const string_view&in) const", &string_view::split);
+				vstring_view->set_operator_extern(operators::impl_cast_t, (uint32_t)position::constant, "string", "", &string_view::impl_cast_string);
 				vm->set_function("int8 to_int8(const string_view&in)", &string_view::from_string<int8_t>);
 				vm->set_function("int16 to_int16(const string_view&in)", &string_view::from_string<int16_t>);
 				vm->set_function("int32 to_int32(const string_view&in)", &string_view::from_string<int32_t>);
@@ -9160,54 +9160,54 @@ namespace vitex
 			bool registry::import_safe_string(virtual_machine* vm) noexcept
 			{
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
-				auto vstring_view = vm->set_struct_address("string_view", sizeof(std::string_view), (size_t)object_behaviours::value | bridge::get_type_traits<std::string_view>() | (size_t)object_behaviours::app_class_allints);
-				auto vstring = vm->set_struct_address("string", sizeof(core::string), (size_t)object_behaviours::value | bridge::get_type_traits<core::string>());
+				auto vstring_view = vm->set_struct_address("string_view", sizeof(std::string_view), (size_t)object_behaviours::value | bridge::type_traits_of<std::string_view>() | (size_t)object_behaviours::app_class_allints);
+				auto vstring = vm->set_struct_address("string", sizeof(core::string), (size_t)object_behaviours::value | bridge::type_traits_of<core::string>());
 #ifdef VI_ANGELSCRIPT
 				vm->set_string_factory_address("string", string_factory::get());
 #endif
-				vstring->set_constructor_ex("void f()", &string::create);
-				vstring->set_constructor_ex("void f(const string&in)", &string::create_copy1);
-				vstring->set_constructor_ex("void f(const string_view&in)", &string::create_copy2);
-				vstring->set_destructor_ex("void f()", &string::destroy);
+				vstring->set_constructor_extern("void f()", &string::create);
+				vstring->set_constructor_extern("void f(const string&in)", &string::create_copy1);
+				vstring->set_constructor_extern("void f(const string_view&in)", &string::create_copy2);
+				vstring->set_destructor_extern("void f()", &string::destroy);
 				vstring->set_method<core::string, core::string&, const core::string&>("string& opAssign(const string&in)", &core::string::operator=);
 				vstring->set_method<core::string, core::string&, const std::string_view&>("string& opAssign(const string_view&in)", &core::string::operator=);
 				vstring->set_method<core::string, core::string&, const core::string&>("string& opAddAssign(const string&in)", &core::string::operator+=);
 				vstring->set_method<core::string, core::string&, const std::string_view&>("string& opAddAssign(const string_view&in)", &core::string::operator+=);
-				vstring->set_method_ex<core::string, const core::string&, const core::string&>("string opAdd(const string&in) const", &std::operator+);
+				vstring->set_method_extern<core::string, const core::string&, const core::string&>("string opAdd(const string&in) const", &std::operator+);
 				vstring->set_method<core::string, core::string&, char>("string& opAddAssign(uint8)", &core::string::operator+=);
-				vstring->set_method_ex<core::string, const core::string&, char>("string opAdd(uint8) const", &std::operator+);
-				vstring->set_method_ex<core::string, char, const core::string&>("string opAdd_r(uint8) const", &std::operator+);
+				vstring->set_method_extern<core::string, const core::string&, char>("string opAdd(uint8) const", &std::operator+);
+				vstring->set_method_extern<core::string, char, const core::string&>("string opAdd_r(uint8) const", &std::operator+);
 				vstring->set_method<core::string, int, const core::string&>("int opCmp(const string&in) const", &core::string::compare);
 				vstring->set_method<core::string, int, const std::string_view&>("int opCmp(const string_view&in) const", &core::string::compare);
-				vstring->set_method_ex("uint8& opIndex(usize)", &string::index);
-				vstring->set_method_ex("const uint8& opIndex(usize) const", &string::index);
-				vstring->set_method_ex("uint8& at(usize)", &string::index);
-				vstring->set_method_ex("const uint8& at(usize) const", &string::index);
-				vstring->set_method_ex("uint8& front()", &string::front);
-				vstring->set_method_ex("const uint8& front() const", &string::front);
-				vstring->set_method_ex("uint8& back()", &string::back);
-				vstring->set_method_ex("const uint8& back() const", &string::back);
+				vstring->set_method_extern("uint8& opIndex(usize)", &string::index);
+				vstring->set_method_extern("const uint8& opIndex(usize) const", &string::index);
+				vstring->set_method_extern("uint8& at(usize)", &string::index);
+				vstring->set_method_extern("const uint8& at(usize) const", &string::index);
+				vstring->set_method_extern("uint8& front()", &string::front);
+				vstring->set_method_extern("const uint8& front() const", &string::front);
+				vstring->set_method_extern("uint8& back()", &string::back);
+				vstring->set_method_extern("const uint8& back() const", &string::back);
 				vstring->set_method("bool empty() const", &core::string::empty);
 				vstring->set_method("usize size() const", &core::string::size);
 				vstring->set_method("void clear()", &core::string::clear);
 				vstring->set_method<core::string, core::string&, const core::string&>("string& append(const string&in)", &core::string::append);
 				vstring->set_method<core::string, core::string&, const std::string_view&>("string& append(const string_view&in)", &core::string::append);
 				vstring->set_method("void push(uint8)", &core::string::push_back);
-				vstring->set_method_ex("void pop()", &string::pop_back);
-				vstring->set_method_ex("bool starts_with(const string&in, usize = 0) const", &string::starts_with1);
-				vstring->set_method_ex("bool ends_with(const string&in) const", &string::ends_with1);
-				vstring->set_method_ex("bool starts_with(const string_view&in, usize = 0) const", &string::starts_with2);
-				vstring->set_method_ex("bool ends_with(const string_view&in) const", &string::ends_with2);
-				vstring->set_method_ex("string substring(usize) const", &string::substring1);
-				vstring->set_method_ex("string substring(usize, usize) const", &string::substring2);
-				vstring->set_method_ex("string substr(usize) const", &string::substring1);
-				vstring->set_method_ex("string substr(usize, usize) const", &string::substring2);
-				vstring->set_method_ex("string& trim()", &core::stringify::trim);
-				vstring->set_method_ex("string& trim_start()", &core::stringify::trim_start);
-				vstring->set_method_ex("string& trim_end()", &core::stringify::trim_end);
-				vstring->set_method_ex("string& to_lower()", &core::stringify::to_lower);
-				vstring->set_method_ex("string& to_upper()", &core::stringify::to_upper);
-				vstring->set_method_ex<core::string&, core::string&>("string& reverse()", &core::stringify::reverse);
+				vstring->set_method_extern("void pop()", &string::pop_back);
+				vstring->set_method_extern("bool starts_with(const string&in, usize = 0) const", &string::starts_with1);
+				vstring->set_method_extern("bool ends_with(const string&in) const", &string::ends_with1);
+				vstring->set_method_extern("bool starts_with(const string_view&in, usize = 0) const", &string::starts_with2);
+				vstring->set_method_extern("bool ends_with(const string_view&in) const", &string::ends_with2);
+				vstring->set_method_extern("string substring(usize) const", &string::substring1);
+				vstring->set_method_extern("string substring(usize, usize) const", &string::substring2);
+				vstring->set_method_extern("string substr(usize) const", &string::substring1);
+				vstring->set_method_extern("string substr(usize, usize) const", &string::substring2);
+				vstring->set_method_extern("string& trim()", &core::stringify::trim);
+				vstring->set_method_extern("string& trim_start()", &core::stringify::trim_start);
+				vstring->set_method_extern("string& trim_end()", &core::stringify::trim_end);
+				vstring->set_method_extern("string& to_lower()", &core::stringify::to_lower);
+				vstring->set_method_extern("string& to_upper()", &core::stringify::to_upper);
+				vstring->set_method_extern<core::string&, core::string&>("string& reverse()", &core::stringify::reverse);
 				vstring->set_method<core::string, size_t, const core::string&, size_t>("usize rfind(const string&in, usize = 0) const", &core::string::rfind);
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize rfind(const string_view&in, usize = 0) const", &core::string::rfind);
 				vstring->set_method<core::string, size_t, char, size_t>("usize rfind(uint8, usize = 0) const", &core::string::rfind);
@@ -9222,8 +9222,8 @@ namespace vitex
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize find_first_not_of(const string_view&in, usize = 0) const", &core::string::find_first_not_of);
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize find_last_of(const string_view&in, usize = 0) const", &core::string::find_last_of);
 				vstring->set_method<core::string, size_t, const std::string_view&, size_t>("usize find_last_not_of(const string_view&in, usize = 0) const", &core::string::find_last_not_of);
-				vstring->set_method_ex("array<string>@ split(const string&in) const", &string::split);
-				vstring->set_operator_ex(operators::impl_cast, (uint32_t)position::constant, "string_view", "", &string::impl_cast_string_view);
+				vstring->set_method_extern("array<string>@ split(const string&in) const", &string::split);
+				vstring->set_operator_extern(operators::impl_cast_t, (uint32_t)position::constant, "string_view", "", &string::impl_cast_string_view);
 				vm->set_function("int8 to_int8(const string&in, int = 10)", &string::from_string<int8_t>);
 				vm->set_function("int16 to_int16(const string&in, int = 10)", &string::from_string<int16_t>);
 				vm->set_function("int32 to_int32(const string&in, int = 10)", &string::from_string<int32_t>);
@@ -9248,41 +9248,41 @@ namespace vitex
 				vm->set_property("const usize npos", &core::string::npos);
 				vm->end_namespace();
 
-				vstring_view->set_constructor_ex("void f()", &string_view::create);
-				vstring_view->set_constructor_ex("void f(const string&in)", &string_view::create_copy);
-				vstring_view->set_destructor_ex("void f()", &string_view::destroy);
-				vstring_view->set_method_ex("string_view& opAssign(const string&in)", &string_view::assign);
-				vstring_view->set_method_ex<core::string, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &string_view::append1);
-				vstring_view->set_method_ex<core::string, const std::string_view&, const core::string&>("string opAdd(const string&in) const", &string_view::append2);
-				vstring_view->set_method_ex<core::string, const core::string&, const std::string_view&>("string opAdd_r(const string&in) const", &string_view::append3);
-				vstring_view->set_method_ex<core::string, const std::string_view&, char>("string opAdd(uint8) const", &string_view::append4);
-				vstring_view->set_method_ex<core::string, char, const std::string_view&>("string opAdd_r(uint8) const", &string_view::append5);
-				vstring_view->set_method_ex("int opCmp(const string&in) const", &string_view::compare1);
-				vstring_view->set_method_ex("int opCmp(const string_view&in) const", &string_view::compare2);
-				vstring_view->set_method_ex("const uint8& opIndex(usize) const", &string_view::index);
-				vstring_view->set_method_ex("const uint8& at(usize) const", &string_view::index);
-				vstring_view->set_method_ex("const uint8& front() const", &string_view::front);
-				vstring_view->set_method_ex("const uint8& back() const", &string_view::back);
+				vstring_view->set_constructor_extern("void f()", &string_view::create);
+				vstring_view->set_constructor_extern("void f(const string&in)", &string_view::create_copy);
+				vstring_view->set_destructor_extern("void f()", &string_view::destroy);
+				vstring_view->set_method_extern("string_view& opAssign(const string&in)", &string_view::assign);
+				vstring_view->set_method_extern<core::string, const std::string_view&, const std::string_view&>("string opAdd(const string_view&in) const", &string_view::append1);
+				vstring_view->set_method_extern<core::string, const std::string_view&, const core::string&>("string opAdd(const string&in) const", &string_view::append2);
+				vstring_view->set_method_extern<core::string, const core::string&, const std::string_view&>("string opAdd_r(const string&in) const", &string_view::append3);
+				vstring_view->set_method_extern<core::string, const std::string_view&, char>("string opAdd(uint8) const", &string_view::append4);
+				vstring_view->set_method_extern<core::string, char, const std::string_view&>("string opAdd_r(uint8) const", &string_view::append5);
+				vstring_view->set_method_extern("int opCmp(const string&in) const", &string_view::compare1);
+				vstring_view->set_method_extern("int opCmp(const string_view&in) const", &string_view::compare2);
+				vstring_view->set_method_extern("const uint8& opIndex(usize) const", &string_view::index);
+				vstring_view->set_method_extern("const uint8& at(usize) const", &string_view::index);
+				vstring_view->set_method_extern("const uint8& front() const", &string_view::front);
+				vstring_view->set_method_extern("const uint8& back() const", &string_view::back);
 				vstring_view->set_method("uptr@ data() const", &std::string_view::data);
 				vstring_view->set_method("bool empty() const", &std::string_view::empty);
 				vstring_view->set_method("usize size() const", &std::string_view::size);
 				vstring_view->set_method("usize max_size() const", &std::string_view::max_size);
-				vstring_view->set_method_ex("bool starts_with(const string_view&in, usize = 0) const", &string_view::starts_with);
-				vstring_view->set_method_ex("bool ends_with(const string_view&in) const", &string_view::ends_with);
-				vstring_view->set_method_ex("string substring(usize) const", &string_view::substring1);
-				vstring_view->set_method_ex("string substring(usize, usize) const", &string_view::substring2);
-				vstring_view->set_method_ex("string substr(usize) const", &string_view::substring1);
-				vstring_view->set_method_ex("string substr(usize, usize) const", &string_view::substring2);
-				vstring_view->set_method_ex("usize rfind(const string_view&in, usize = 0) const", &string_view::reverse_find1);
-				vstring_view->set_method_ex("usize rfind(uint8, usize = 0) const", &string_view::reverse_find2);
-				vstring_view->set_method_ex("usize find(const string_view&in, usize = 0) const", &string_view::find1);
-				vstring_view->set_method_ex("usize find(uint8, usize = 0) const", &string_view::find2);
-				vstring_view->set_method_ex("usize find_first_of(const string_view&in, usize = 0) const", &string_view::find_first_of);
-				vstring_view->set_method_ex("usize find_first_not_of(const string_view&in, usize = 0) const", &string_view::find_first_not_of);
-				vstring_view->set_method_ex("usize find_last_of(const string_view&in, usize = 0) const", &string_view::find_last_of);
-				vstring_view->set_method_ex("usize find_last_not_of(const string_view&in, usize = 0) const", &string_view::find_last_not_of);
-				vstring_view->set_method_ex("array<string>@ split(const string_view&in) const", &string_view::split);
-				vstring_view->set_operator_ex(operators::impl_cast, (uint32_t)position::constant, "string", "", &string_view::impl_cast_string);
+				vstring_view->set_method_extern("bool starts_with(const string_view&in, usize = 0) const", &string_view::starts_with);
+				vstring_view->set_method_extern("bool ends_with(const string_view&in) const", &string_view::ends_with);
+				vstring_view->set_method_extern("string substring(usize) const", &string_view::substring1);
+				vstring_view->set_method_extern("string substring(usize, usize) const", &string_view::substring2);
+				vstring_view->set_method_extern("string substr(usize) const", &string_view::substring1);
+				vstring_view->set_method_extern("string substr(usize, usize) const", &string_view::substring2);
+				vstring_view->set_method_extern("usize rfind(const string_view&in, usize = 0) const", &string_view::reverse_find1);
+				vstring_view->set_method_extern("usize rfind(uint8, usize = 0) const", &string_view::reverse_find2);
+				vstring_view->set_method_extern("usize find(const string_view&in, usize = 0) const", &string_view::find1);
+				vstring_view->set_method_extern("usize find(uint8, usize = 0) const", &string_view::find2);
+				vstring_view->set_method_extern("usize find_first_of(const string_view&in, usize = 0) const", &string_view::find_first_of);
+				vstring_view->set_method_extern("usize find_first_not_of(const string_view&in, usize = 0) const", &string_view::find_first_not_of);
+				vstring_view->set_method_extern("usize find_last_of(const string_view&in, usize = 0) const", &string_view::find_last_of);
+				vstring_view->set_method_extern("usize find_last_not_of(const string_view&in, usize = 0) const", &string_view::find_last_not_of);
+				vstring_view->set_method_extern("array<string>@ split(const string_view&in) const", &string_view::split);
+				vstring_view->set_operator_extern(operators::impl_cast_t, (uint32_t)position::constant, "string", "", &string_view::impl_cast_string);
 				vm->set_function("int8 to_int8(const string_view&in)", &string_view::from_string<int8_t>);
 				vm->set_function("int16 to_int16(const string_view&in)", &string_view::from_string<int16_t>);
 				vm->set_function("int32 to_int32(const string_view&in)", &string_view::from_string<int32_t>);
@@ -9328,7 +9328,7 @@ namespace vitex
 #ifdef VI_BINDINGS
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 				auto vmutex = vm->set_class<mutex>("mutex", false);
-				vmutex->set_constructor_ex("mutex@ f()", &mutex::factory);
+				vmutex->set_constructor_extern("mutex@ f()", &mutex::factory);
 				vmutex->set_method("bool try_lock()", &mutex::try_lock);
 				vmutex->set_method("void lock()", &mutex::lock);
 				vmutex->set_method("void unlock()", &mutex::unlock);
@@ -9344,7 +9344,7 @@ namespace vitex
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 				auto vthread = vm->set_class<thread>("thread", true);
 				vthread->set_function_def("void thread_parallel(thread@+)");
-				vthread->set_constructor_ex("thread@ f(thread_parallel@)", &thread::create);
+				vthread->set_constructor_extern("thread@ f(thread_parallel@)", &thread::create);
 				vthread->set_enum_refs(&thread::enum_references);
 				vthread->set_release_refs(&thread::release_references);
 				vthread->set_method("bool is_active()", &thread::is_active);
@@ -9375,9 +9375,9 @@ namespace vitex
 #ifdef VI_BINDINGS
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 				auto vchar_buffer = vm->set_class<char_buffer>("char_buffer", false);
-				vchar_buffer->set_constructor_ex<char_buffer>("char_buffer@ f()", &char_buffer::create);
-				vchar_buffer->set_constructor_ex<char_buffer, size_t>("char_buffer@ f(usize)", &char_buffer::create);
-				vchar_buffer->set_constructor_ex<char_buffer, char*>("char_buffer@ f(uptr@)", &char_buffer::create);
+				vchar_buffer->set_constructor_extern<char_buffer>("char_buffer@ f()", &char_buffer::create);
+				vchar_buffer->set_constructor_extern<char_buffer, size_t>("char_buffer@ f(usize)", &char_buffer::create);
+				vchar_buffer->set_constructor_extern<char_buffer, char*>("char_buffer@ f(uptr@)", &char_buffer::create);
 				vchar_buffer->set_method("uptr@ get_ptr(usize = 0) const", &char_buffer::get_pointer);
 				vchar_buffer->set_method("bool allocate(usize)", &char_buffer::allocate);
 				vchar_buffer->set_method("bool deallocate()", &char_buffer::deallocate);
@@ -9458,8 +9458,8 @@ namespace vitex
 				bool has_constructor = (!vm->get_library_property(library_features::promise_no_constructor));
 				if (has_constructor)
 				{
-					vpromise->set_constructor_ex("promise<t>@ f(int&in)", &promise::create_factory_type);
-					vpromise_void->set_constructor_ex("promise_v@ f()", &promise::create_factory_void);
+					vpromise->set_constructor_extern("promise<t>@ f(int&in)", &promise::create_factory_type);
+					vpromise_void->set_constructor_extern("promise_v@ f()", &promise::create_factory_void);
 				}
 
 				bool has_callbacks = (!vm->get_library_property(library_features::promise_no_callbacks));
@@ -9516,22 +9516,22 @@ namespace vitex
 				vdecimal->set_method("uint32 decimal_places() const", &core::decimal::decimal_places);
 				vdecimal->set_method("uint32 whole_places() const", &core::decimal::integer_places);
 				vdecimal->set_method("uint32 size() const", &core::decimal::size);
-				vdecimal->set_operator_ex(operators::neg, (uint32_t)position::constant, "decimal", "", &decimal_negate);
-				vdecimal->set_operator_ex(operators::mul_assign, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_mul_eq);
-				vdecimal->set_operator_ex(operators::div_assign, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_div_eq);
-				vdecimal->set_operator_ex(operators::add_assign, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_add_eq);
-				vdecimal->set_operator_ex(operators::sub_assign, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_sub_eq);
-				vdecimal->set_operator_ex(operators::pre_inc, (uint32_t)position::left, "decimal&", "", &decimal_fpp);
-				vdecimal->set_operator_ex(operators::pre_dec, (uint32_t)position::left, "decimal&", "", &decimal_fmm);
-				vdecimal->set_operator_ex(operators::post_inc, (uint32_t)position::left, "decimal&", "", &decimal_pp);
-				vdecimal->set_operator_ex(operators::post_dec, (uint32_t)position::left, "decimal&", "", &decimal_mm);
-				vdecimal->set_operator_ex(operators::equals, (uint32_t)position::constant, "bool", "const decimal &in", &decimal_eq);
-				vdecimal->set_operator_ex(operators::cmp, (uint32_t)position::constant, "int", "const decimal &in", &decimal_cmp);
-				vdecimal->set_operator_ex(operators::add, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_add);
-				vdecimal->set_operator_ex(operators::sub, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_sub);
-				vdecimal->set_operator_ex(operators::mul, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_mul);
-				vdecimal->set_operator_ex(operators::div, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_div);
-				vdecimal->set_operator_ex(operators::mod, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_per);
+				vdecimal->set_operator_extern(operators::neg_t, (uint32_t)position::constant, "decimal", "", &decimal_negate);
+				vdecimal->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_mul_eq);
+				vdecimal->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_div_eq);
+				vdecimal->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_add_eq);
+				vdecimal->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_sub_eq);
+				vdecimal->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "decimal&", "", &decimal_fpp);
+				vdecimal->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "decimal&", "", &decimal_fmm);
+				vdecimal->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "decimal&", "", &decimal_pp);
+				vdecimal->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "decimal&", "", &decimal_mm);
+				vdecimal->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const decimal &in", &decimal_eq);
+				vdecimal->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const decimal &in", &decimal_cmp);
+				vdecimal->set_operator_extern(operators::add_t, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_add);
+				vdecimal->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_sub);
+				vdecimal->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_mul);
+				vdecimal->set_operator_extern(operators::div_t, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_div);
+				vdecimal->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "decimal", "const decimal &in", &decimal_per);
 				vdecimal->set_method_static("decimal nan()", &core::decimal::nan);
 				vdecimal->set_method_static("decimal zero()", &core::decimal::zero);
 				vdecimal->set_method_static("decimal from(const string_view&in, uint8)", &core::decimal::from);
@@ -9552,35 +9552,35 @@ namespace vitex
 				vu_int128->set_constructor<compute::uint128, uint64_t>("void f(uint64)");
 				vu_int128->set_constructor<compute::uint128, const std::string_view&>("void f(const string_view&in)");
 				vu_int128->set_constructor<compute::uint128, const compute::uint128&>("void f(const uint128 &in)");
-				vu_int128->set_method_ex("int8 to_int8() const", &uint128_to_int8);
-				vu_int128->set_method_ex("uint8 to_uint8() const", &uint128_to_uint8);
-				vu_int128->set_method_ex("int16 to_int16() const", &uint128_to_int16);
-				vu_int128->set_method_ex("uint16 to_uint16() const", &uint128_to_uint16);
-				vu_int128->set_method_ex("int32 to_int32() const", &uint128_to_int32);
-				vu_int128->set_method_ex("uint32 to_uint32() const", &uint128_to_uint32);
-				vu_int128->set_method_ex("int64 to_int64() const", &uint128_to_int64);
-				vu_int128->set_method_ex("uint64 to_uint64() const", &uint128_to_uint64);
+				vu_int128->set_method_extern("int8 to_int8() const", &uint128_to_int8);
+				vu_int128->set_method_extern("uint8 to_uint8() const", &uint128_to_uint8);
+				vu_int128->set_method_extern("int16 to_int16() const", &uint128_to_int16);
+				vu_int128->set_method_extern("uint16 to_uint16() const", &uint128_to_uint16);
+				vu_int128->set_method_extern("int32 to_int32() const", &uint128_to_int32);
+				vu_int128->set_method_extern("uint32 to_uint32() const", &uint128_to_uint32);
+				vu_int128->set_method_extern("int64 to_int64() const", &uint128_to_int64);
+				vu_int128->set_method_extern("uint64 to_uint64() const", &uint128_to_uint64);
 				vu_int128->set_method("decimal to_decimal() const", &compute::uint128::to_decimal);
 				vu_int128->set_method("string to_string(uint8 = 10, uint32 = 0) const", &compute::uint128::to_string);
 				vu_int128->set_method<compute::uint128, const uint64_t&>("const uint64& low() const", &compute::uint128::low);
 				vu_int128->set_method<compute::uint128, const uint64_t&>("const uint64& high() const", &compute::uint128::high);
 				vu_int128->set_method("uint8 bits() const", &compute::uint128::bits);
 				vu_int128->set_method("uint8 bytes() const", &compute::uint128::bits);
-				vu_int128->set_operator_ex(operators::mul_assign, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_mul_eq);
-				vu_int128->set_operator_ex(operators::div_assign, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_div_eq);
-				vu_int128->set_operator_ex(operators::add_assign, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_add_eq);
-				vu_int128->set_operator_ex(operators::sub_assign, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_sub_eq);
-				vu_int128->set_operator_ex(operators::pre_inc, (uint32_t)position::left, "uint128&", "", &uint128_fpp);
-				vu_int128->set_operator_ex(operators::pre_dec, (uint32_t)position::left, "uint128&", "", &uint128_fmm);
-				vu_int128->set_operator_ex(operators::post_inc, (uint32_t)position::left, "uint128&", "", &uint128_pp);
-				vu_int128->set_operator_ex(operators::post_dec, (uint32_t)position::left, "uint128&", "", &uint128_mm);
-				vu_int128->set_operator_ex(operators::equals, (uint32_t)position::constant, "bool", "const uint128 &in", &uint128_eq);
-				vu_int128->set_operator_ex(operators::cmp, (uint32_t)position::constant, "int", "const uint128 &in", &uint128_cmp);
-				vu_int128->set_operator_ex(operators::add, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_add);
-				vu_int128->set_operator_ex(operators::sub, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_sub);
-				vu_int128->set_operator_ex(operators::mul, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_mul);
-				vu_int128->set_operator_ex(operators::div, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_div);
-				vu_int128->set_operator_ex(operators::mod, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_per);
+				vu_int128->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_mul_eq);
+				vu_int128->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_div_eq);
+				vu_int128->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_add_eq);
+				vu_int128->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_sub_eq);
+				vu_int128->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "uint128&", "", &uint128_fpp);
+				vu_int128->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "uint128&", "", &uint128_fmm);
+				vu_int128->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "uint128&", "", &uint128_pp);
+				vu_int128->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "uint128&", "", &uint128_mm);
+				vu_int128->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const uint128 &in", &uint128_eq);
+				vu_int128->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const uint128 &in", &uint128_cmp);
+				vu_int128->set_operator_extern(operators::add_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_add);
+				vu_int128->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_sub);
+				vu_int128->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_mul);
+				vu_int128->set_operator_extern(operators::div_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_div);
+				vu_int128->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_per);
 				vu_int128->set_method_static("uint128 min_value()", &compute::uint128::min);
 				vu_int128->set_method_static("uint128 max_value()", &compute::uint128::max);
 
@@ -9602,35 +9602,35 @@ namespace vitex
 				vu_int256->set_constructor<compute::uint256, const compute::uint128&, const compute::uint128&>("void f(const uint128&in, const uint128&in)");
 				vu_int256->set_constructor<compute::uint256, const std::string_view&>("void f(const string_view&in)");
 				vu_int256->set_constructor<compute::uint256, const compute::uint256&>("void f(const uint256 &in)");
-				vu_int256->set_method_ex("int8 to_int8() const", &uint256_to_int8);
-				vu_int256->set_method_ex("uint8 to_uint8() const", &uint256_to_uint8);
-				vu_int256->set_method_ex("int16 to_int16() const", &uint256_to_int16);
-				vu_int256->set_method_ex("uint16 to_uint16() const", &uint256_to_uint16);
-				vu_int256->set_method_ex("int32 to_int32() const", &uint256_to_int32);
-				vu_int256->set_method_ex("uint32 to_uint32() const", &uint256_to_uint32);
-				vu_int256->set_method_ex("int64 to_int64() const", &uint256_to_int64);
-				vu_int256->set_method_ex("uint64 to_uint64() const", &uint256_to_uint64);
+				vu_int256->set_method_extern("int8 to_int8() const", &uint256_to_int8);
+				vu_int256->set_method_extern("uint8 to_uint8() const", &uint256_to_uint8);
+				vu_int256->set_method_extern("int16 to_int16() const", &uint256_to_int16);
+				vu_int256->set_method_extern("uint16 to_uint16() const", &uint256_to_uint16);
+				vu_int256->set_method_extern("int32 to_int32() const", &uint256_to_int32);
+				vu_int256->set_method_extern("uint32 to_uint32() const", &uint256_to_uint32);
+				vu_int256->set_method_extern("int64 to_int64() const", &uint256_to_int64);
+				vu_int256->set_method_extern("uint64 to_uint64() const", &uint256_to_uint64);
 				vu_int256->set_method("decimal to_decimal() const", &compute::uint256::to_decimal);
 				vu_int256->set_method("string to_string(uint8 = 10, uint32 = 0) const", &compute::uint256::to_string);
 				vu_int256->set_method<compute::uint256, const compute::uint128&>("const uint128& low() const", &compute::uint256::low);
 				vu_int256->set_method<compute::uint256, const compute::uint128&>("const uint128& high() const", &compute::uint256::high);
 				vu_int256->set_method("uint16 bits() const", &compute::uint256::bits);
 				vu_int256->set_method("uint16 bytes() const", &compute::uint256::bytes);
-				vu_int256->set_operator_ex(operators::mul_assign, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_mul_eq);
-				vu_int256->set_operator_ex(operators::div_assign, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_div_eq);
-				vu_int256->set_operator_ex(operators::add_assign, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_add_eq);
-				vu_int256->set_operator_ex(operators::sub_assign, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_sub_eq);
-				vu_int256->set_operator_ex(operators::pre_inc, (uint32_t)position::left, "uint256&", "", &uint256_fpp);
-				vu_int256->set_operator_ex(operators::pre_dec, (uint32_t)position::left, "uint256&", "", &uint256_fmm);
-				vu_int256->set_operator_ex(operators::post_inc, (uint32_t)position::left, "uint256&", "", &uint256_pp);
-				vu_int256->set_operator_ex(operators::post_dec, (uint32_t)position::left, "uint256&", "", &uint256_mm);
-				vu_int256->set_operator_ex(operators::equals, (uint32_t)position::constant, "bool", "const uint256 &in", &uint256_eq);
-				vu_int256->set_operator_ex(operators::cmp, (uint32_t)position::constant, "int", "const uint256 &in", &uint256_cmp);
-				vu_int256->set_operator_ex(operators::add, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_add);
-				vu_int256->set_operator_ex(operators::sub, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_sub);
-				vu_int256->set_operator_ex(operators::mul, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_mul);
-				vu_int256->set_operator_ex(operators::div, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_div);
-				vu_int256->set_operator_ex(operators::mod, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_per);
+				vu_int256->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_mul_eq);
+				vu_int256->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_div_eq);
+				vu_int256->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_add_eq);
+				vu_int256->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_sub_eq);
+				vu_int256->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "uint256&", "", &uint256_fpp);
+				vu_int256->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "uint256&", "", &uint256_fmm);
+				vu_int256->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "uint256&", "", &uint256_pp);
+				vu_int256->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "uint256&", "", &uint256_mm);
+				vu_int256->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const uint256 &in", &uint256_eq);
+				vu_int256->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const uint256 &in", &uint256_cmp);
+				vu_int256->set_operator_extern(operators::add_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_add);
+				vu_int256->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_sub);
+				vu_int256->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_mul);
+				vu_int256->set_operator_extern(operators::div_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_div);
+				vu_int256->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_per);
 				vu_int256->set_method_static("uint256 min_value()", &compute::uint256::min);
 				vu_int256->set_method_static("uint256 max_value()", &compute::uint256::max);
 
@@ -9659,22 +9659,22 @@ namespace vitex
 				vvariant->set_method("decimal to_decimal() const", &core::variant::get_decimal);
 				vvariant->set_method("string to_string() const", &core::variant::get_blob);
 				vvariant->set_method("uptr@ to_pointer() const", &core::variant::get_pointer);
-				vvariant->set_method_ex("int8 to_int8() const", &variant_to_int8);
-				vvariant->set_method_ex("uint8 to_uint8() const", &variant_to_uint8);
-				vvariant->set_method_ex("int16 to_int16() const", &variant_to_int16);
-				vvariant->set_method_ex("uint16 to_uint16() const", &variant_to_uint16);
-				vvariant->set_method_ex("int32 to_int32() const", &variant_to_int32);
-				vvariant->set_method_ex("uint32 to_uint32() const", &variant_to_uint32);
-				vvariant->set_method_ex("int64 to_int64() const", &variant_to_int64);
-				vvariant->set_method_ex("uint64 to_uint64() const", &variant_to_uint64);
+				vvariant->set_method_extern("int8 to_int8() const", &variant_to_int8);
+				vvariant->set_method_extern("uint8 to_uint8() const", &variant_to_uint8);
+				vvariant->set_method_extern("int16 to_int16() const", &variant_to_int16);
+				vvariant->set_method_extern("uint16 to_uint16() const", &variant_to_uint16);
+				vvariant->set_method_extern("int32 to_int32() const", &variant_to_int32);
+				vvariant->set_method_extern("uint32 to_uint32() const", &variant_to_uint32);
+				vvariant->set_method_extern("int64 to_int64() const", &variant_to_int64);
+				vvariant->set_method_extern("uint64 to_uint64() const", &variant_to_uint64);
 				vvariant->set_method("double to_number() const", &core::variant::get_number);
 				vvariant->set_method("bool to_boolean() const", &core::variant::get_boolean);
 				vvariant->set_method("var_type get_type() const", &core::variant::get_type);
 				vvariant->set_method("bool is_object() const", &core::variant::is_object);
 				vvariant->set_method("bool empty() const", &core::variant::empty);
-				vvariant->set_method_ex("usize size() const", &variant_get_size);
-				vvariant->set_operator_ex(operators::equals, (uint32_t)position::constant, "bool", "const variant &in", &variant_equals);
-				vvariant->set_operator_ex(operators::impl_cast, (uint32_t)position::constant, "bool", "", &variant_impl_cast);
+				vvariant->set_method_extern("usize size() const", &variant_get_size);
+				vvariant->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const variant &in", &variant_equals);
+				vvariant->set_operator_extern(operators::impl_cast_t, (uint32_t)position::constant, "bool", "", &variant_impl_cast);
 
 				vm->begin_namespace("var");
 				vm->set_function("variant auto_t(const string_view&in, bool = false)", &core::var::any);
@@ -9723,12 +9723,12 @@ namespace vitex
 				vdate_time->set_method("int64 microseconds() const", &core::date_time::microseconds);
 				vdate_time->set_method("int64 milliseconds() const", &core::date_time::milliseconds);
 				vdate_time->set_method("int64 seconds() const", &core::date_time::seconds);
-				vdate_time->set_operator_ex(operators::add_assign, (uint32_t)position::left, "timestamp&", "const timestamp &in", &date_time_add_eq);
-				vdate_time->set_operator_ex(operators::sub_assign, (uint32_t)position::left, "timestamp&", "const timestamp &in", &date_time_sub_eq);
-				vdate_time->set_operator_ex(operators::equals, (uint32_t)position::constant, "bool", "const timestamp &in", &date_time_eq);
-				vdate_time->set_operator_ex(operators::cmp, (uint32_t)position::constant, "int", "const timestamp &in", &date_time_cmp);
-				vdate_time->set_operator_ex(operators::add, (uint32_t)position::constant, "timestamp", "const timestamp &in", &date_time_add);
-				vdate_time->set_operator_ex(operators::sub, (uint32_t)position::constant, "timestamp", "const timestamp &in", &date_time_sub);
+				vdate_time->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "timestamp&", "const timestamp &in", &date_time_add_eq);
+				vdate_time->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "timestamp&", "const timestamp &in", &date_time_sub_eq);
+				vdate_time->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const timestamp &in", &date_time_eq);
+				vdate_time->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const timestamp &in", &date_time_cmp);
+				vdate_time->set_operator_extern(operators::add_t, (uint32_t)position::constant, "timestamp", "const timestamp &in", &date_time_add);
+				vdate_time->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "timestamp", "const timestamp &in", &date_time_sub);
 				vdate_time->set_method_static("timestamp from_nanoseconds(int64)", &core::date_time::from_nanoseconds);
 				vdate_time->set_method_static("timestamp from_microseconds(int64)", &core::date_time::from_microseconds);
 				vdate_time->set_method_static("timestamp from_milliseconds(int64)", &core::date_time::from_milliseconds);
@@ -9803,7 +9803,7 @@ namespace vitex
 				vconsole->set_method("bool read_line(string&out, usize)", &core::console::read_line);
 				vconsole->set_method("uint8 read_char()", &core::console::read_char);
 				vconsole->set_method_static("console@+ get()", &core::console::get);
-				vconsole->set_method_ex("void trace(uint32 = 32)", &console_trace);
+				vconsole->set_method_extern("void trace(uint32 = 32)", &console_trace);
 
 				return true;
 #else
@@ -9819,9 +9819,9 @@ namespace vitex
 				auto vschema = vm->set_class<core::schema>("schema", true);
 				vschema->set_property<core::schema>("string key", &core::schema::key);
 				vschema->set_property<core::schema>("variant value", &core::schema::value);
-				vschema->set_constructor_ex<core::schema, core::schema*>("schema@ f(schema@+)", &schema_construct_copy);
+				vschema->set_constructor_extern<core::schema, core::schema*>("schema@ f(schema@+)", &schema_construct_copy);
 				vschema->set_gc_constructor<core::schema, schema, const core::variant&>("schema@ f(const variant &in)");
-				vschema->set_gc_constructor_list_ex<core::schema>("schema@ f(int &in) { repeat { string, ? } }", &schema_construct);
+				vschema->set_gc_constructor_list_extern<core::schema>("schema@ f(int &in) { repeat { string, ? } }", &schema_construct);
 				vschema->set_method<core::schema, core::variant, size_t>("variant get_var(usize) const", &core::schema::get_var);
 				vschema->set_method<core::schema, core::variant, const std::string_view&>("variant get_var(const string_view&in) const", &core::schema::get_var);
 				vschema->set_method<core::schema, core::variant, const std::string_view&>("variant get_attribute_var(const string_view&in) const", &core::schema::get_attribute_var);
@@ -9846,42 +9846,42 @@ namespace vitex
 				vschema->set_method("void unlink()", &core::schema::unlink);
 				vschema->set_method("void clear()", &core::schema::clear);
 				vschema->set_method("void save()", &core::schema::save);
-				vschema->set_method_ex("variant first_var() const", &schema_first_var);
-				vschema->set_method_ex("variant last_var() const", &schema_last_var);
-				vschema->set_method_ex("schema@+ first() const", &schema_first);
-				vschema->set_method_ex("schema@+ last() const", &schema_last);
-				vschema->set_method_ex("schema@+ set(const string_view&in, schema@+)", &schema_set);
-				vschema->set_method_ex("schema@+ push(schema@+)", &schema_push);
-				vschema->set_method_ex("array<schema@>@ get_collection(const string_view&in, bool = false) const", &schema_get_collection);
-				vschema->set_method_ex("array<schema@>@ get_attributes() const", &schema_get_attributes);
-				vschema->set_method_ex("array<schema@>@ get_childs() const", &schema_get_childs);
-				vschema->set_method_ex("dictionary@ get_names() const", &schema_get_names);
-				vschema->set_method_ex("usize size() const", &schema_get_size);
-				vschema->set_method_ex("string to_json() const", &schema_to_json);
-				vschema->set_method_ex("string to_xml() const", &schema_to_xml);
-				vschema->set_method_ex("string to_string() const", &schema_to_string);
-				vschema->set_method_ex("string to_binary() const", &schema_to_binary);
-				vschema->set_method_ex("int8 to_int8() const", &schema_to_int8);
-				vschema->set_method_ex("uint8 to_uint8() const", &schema_to_uint8);
-				vschema->set_method_ex("int16 to_int16() const", &schema_to_int16);
-				vschema->set_method_ex("uint16 to_uint16() const", &schema_to_uint16);
-				vschema->set_method_ex("int32 to_int32() const", &schema_to_int32);
-				vschema->set_method_ex("uint32 to_uint32() const", &schema_to_uint32);
-				vschema->set_method_ex("int64 to_int64() const", &schema_to_int64);
-				vschema->set_method_ex("uint64 to_uint64() const", &schema_to_uint64);
-				vschema->set_method_ex("double to_number() const", &schema_to_number);
-				vschema->set_method_ex("decimal to_decimal() const", &schema_to_decimal);
-				vschema->set_method_ex("bool to_boolean() const", &schema_to_boolean);
+				vschema->set_method_extern("variant first_var() const", &schema_first_var);
+				vschema->set_method_extern("variant last_var() const", &schema_last_var);
+				vschema->set_method_extern("schema@+ first() const", &schema_first);
+				vschema->set_method_extern("schema@+ last() const", &schema_last);
+				vschema->set_method_extern("schema@+ set(const string_view&in, schema@+)", &schema_set);
+				vschema->set_method_extern("schema@+ push(schema@+)", &schema_push);
+				vschema->set_method_extern("array<schema@>@ get_collection(const string_view&in, bool = false) const", &schema_get_collection);
+				vschema->set_method_extern("array<schema@>@ get_attributes() const", &schema_get_attributes);
+				vschema->set_method_extern("array<schema@>@ get_childs() const", &schema_get_childs);
+				vschema->set_method_extern("dictionary@ get_names() const", &schema_get_names);
+				vschema->set_method_extern("usize size() const", &schema_get_size);
+				vschema->set_method_extern("string to_json() const", &schema_to_json);
+				vschema->set_method_extern("string to_xml() const", &schema_to_xml);
+				vschema->set_method_extern("string to_string() const", &schema_to_string);
+				vschema->set_method_extern("string to_binary() const", &schema_to_binary);
+				vschema->set_method_extern("int8 to_int8() const", &schema_to_int8);
+				vschema->set_method_extern("uint8 to_uint8() const", &schema_to_uint8);
+				vschema->set_method_extern("int16 to_int16() const", &schema_to_int16);
+				vschema->set_method_extern("uint16 to_uint16() const", &schema_to_uint16);
+				vschema->set_method_extern("int32 to_int32() const", &schema_to_int32);
+				vschema->set_method_extern("uint32 to_uint32() const", &schema_to_uint32);
+				vschema->set_method_extern("int64 to_int64() const", &schema_to_int64);
+				vschema->set_method_extern("uint64 to_uint64() const", &schema_to_uint64);
+				vschema->set_method_extern("double to_number() const", &schema_to_number);
+				vschema->set_method_extern("decimal to_decimal() const", &schema_to_decimal);
+				vschema->set_method_extern("bool to_boolean() const", &schema_to_boolean);
 				vschema->set_method_static("schema@ from_json(const string_view&in)", &schema_from_json);
 				vschema->set_method_static("schema@ from_xml(const string_view&in)", &schema_from_xml);
 				vschema->set_method_static("schema@ import_json(const string_view&in)", &schema_import);
-				vschema->set_operator_ex(operators::assign, (uint32_t)position::left, "schema@+", "const variant &in", &schema_copy_assign1);
-				vschema->set_operator_ex(operators::assign, (uint32_t)position::left, "schema@+", "schema@+", &schema_copy_assign2);
-				vschema->set_operator_ex(operators::equals, (uint32_t)(position::left | position::constant), "bool", "schema@+", &schema_equals);
-				vschema->set_operator_ex(operators::index, (uint32_t)position::left, "schema@+", "const string_view&in", &schema_get_index);
-				vschema->set_operator_ex(operators::index, (uint32_t)position::left, "schema@+", "usize", &schema_get_index_offset);
-				vschema->set_enum_refs_ex<core::schema>([](core::schema* base, asIScriptEngine*) { });
-				vschema->set_release_refs_ex<core::schema>([](core::schema* base, asIScriptEngine*) { });
+				vschema->set_operator_extern(operators::assign_t, (uint32_t)position::left, "schema@+", "const variant &in", &schema_copy_assign1);
+				vschema->set_operator_extern(operators::assign_t, (uint32_t)position::left, "schema@+", "schema@+", &schema_copy_assign2);
+				vschema->set_operator_extern(operators::equals_t, (uint32_t)(position::left | position::constant), "bool", "schema@+", &schema_equals);
+				vschema->set_operator_extern(operators::index_t, (uint32_t)position::left, "schema@+", "const string_view&in", &schema_get_index);
+				vschema->set_operator_extern(operators::index_t, (uint32_t)position::left, "schema@+", "usize", &schema_get_index_offset);
+				vschema->set_enum_refs_extern<core::schema>([](core::schema* base, asIScriptEngine*) { });
+				vschema->set_release_refs_extern<core::schema>([](core::schema* base, asIScriptEngine*) { });
 
 				vm->begin_namespace("var::set");
 				vm->set_function("schema@ auto_t(const string_view&in, bool = false)", &core::var::any);
@@ -9986,13 +9986,13 @@ namespace vitex
 				vfile_link->set_property("bool is_exists", &file_link::is_exists);
 
 				auto vstream = vm->set_class<core::stream>("base_stream", false);
-				vstream->set_method_ex("bool clear()", &VI_EXPECTIFY_VOID(core::stream::clear));
-				vstream->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(core::stream::close));
-				vstream->set_method_ex("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::stream::seek));
-				vstream->set_method_ex("bool move(int64)", &VI_EXPECTIFY_VOID(core::stream::move));
-				vstream->set_method_ex("bool flush()", &VI_EXPECTIFY_VOID(core::stream::flush));
-				vstream->set_method_ex("usize size()", &VI_EXPECTIFY(core::stream::size));
-				vstream->set_method_ex("usize tell()", &VI_EXPECTIFY(core::stream::tell));
+				vstream->set_method_extern("bool clear()", &VI_EXPECTIFY_VOID(core::stream::clear));
+				vstream->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(core::stream::close));
+				vstream->set_method_extern("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::stream::seek));
+				vstream->set_method_extern("bool move(int64)", &VI_EXPECTIFY_VOID(core::stream::move));
+				vstream->set_method_extern("bool flush()", &VI_EXPECTIFY_VOID(core::stream::flush));
+				vstream->set_method_extern("usize size()", &VI_EXPECTIFY(core::stream::size));
+				vstream->set_method_extern("usize tell()", &VI_EXPECTIFY(core::stream::tell));
 				vstream->set_method("usize virtual_size() const", &core::stream::virtual_size);
 				vstream->set_method("const string& virtual_name() const", &core::stream::virtual_name);
 				vstream->set_method("void set_virtual_size(usize) const", &core::stream::set_virtual_size);
@@ -10002,20 +10002,20 @@ namespace vitex
 				vstream->set_method("uptr@ get_readable() const", &core::stream::get_readable);
 				vstream->set_method("uptr@ get_writeable() const", &core::stream::get_writeable);
 				vstream->set_method("bool is_sized() const", &core::stream::is_sized);
-				vstream->set_method_ex("bool open(const string_view&in, file_mode)", &stream_open);
-				vstream->set_method_ex("usize write(const string_view&in)", &stream_write);
-				vstream->set_method_ex("string read(usize)", &stream_read);
-				vstream->set_method_ex("string read_line(usize)", &stream_read_line);
+				vstream->set_method_extern("bool open(const string_view&in, file_mode)", &stream_open);
+				vstream->set_method_extern("usize write(const string_view&in)", &stream_write);
+				vstream->set_method_extern("string read(usize)", &stream_read);
+				vstream->set_method_extern("string read_line(usize)", &stream_read_line);
 
 				auto vmemory_stream = vm->set_class<core::memory_stream>("memory_stream", false);
 				vmemory_stream->set_constructor<core::memory_stream>("memory_stream@ f()");
-				vmemory_stream->set_method_ex("bool clear()", &VI_EXPECTIFY_VOID(core::memory_stream::clear));
-				vmemory_stream->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(core::memory_stream::close));
-				vmemory_stream->set_method_ex("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::memory_stream::seek));
-				vmemory_stream->set_method_ex("bool move(int64)", &VI_EXPECTIFY_VOID(core::memory_stream::move));
-				vmemory_stream->set_method_ex("bool flush()", &VI_EXPECTIFY_VOID(core::memory_stream::flush));
-				vmemory_stream->set_method_ex("usize size()", &VI_EXPECTIFY(core::memory_stream::size));
-				vmemory_stream->set_method_ex("usize tell()", &VI_EXPECTIFY(core::memory_stream::tell));
+				vmemory_stream->set_method_extern("bool clear()", &VI_EXPECTIFY_VOID(core::memory_stream::clear));
+				vmemory_stream->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(core::memory_stream::close));
+				vmemory_stream->set_method_extern("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::memory_stream::seek));
+				vmemory_stream->set_method_extern("bool move(int64)", &VI_EXPECTIFY_VOID(core::memory_stream::move));
+				vmemory_stream->set_method_extern("bool flush()", &VI_EXPECTIFY_VOID(core::memory_stream::flush));
+				vmemory_stream->set_method_extern("usize size()", &VI_EXPECTIFY(core::memory_stream::size));
+				vmemory_stream->set_method_extern("usize tell()", &VI_EXPECTIFY(core::memory_stream::tell));
 				vmemory_stream->set_method("usize virtual_size() const", &core::memory_stream::virtual_size);
 				vmemory_stream->set_method("const string& virtual_name() const", &core::memory_stream::virtual_name);
 				vmemory_stream->set_method("void set_virtual_size(usize) const", &core::memory_stream::set_virtual_size);
@@ -10025,20 +10025,20 @@ namespace vitex
 				vmemory_stream->set_method("uptr@ get_readable() const", &core::memory_stream::get_readable);
 				vmemory_stream->set_method("uptr@ get_writeable() const", &core::memory_stream::get_writeable);
 				vmemory_stream->set_method("bool is_sized() const", &core::memory_stream::is_sized);
-				vmemory_stream->set_method_ex("bool open(const string_view&in, file_mode)", &stream_open);
-				vmemory_stream->set_method_ex("usize write(const string_view&in)", &stream_write);
-				vmemory_stream->set_method_ex("string read(usize)", &stream_read);
-				vmemory_stream->set_method_ex("string read_line(usize)", &stream_read_line);
+				vmemory_stream->set_method_extern("bool open(const string_view&in, file_mode)", &stream_open);
+				vmemory_stream->set_method_extern("usize write(const string_view&in)", &stream_write);
+				vmemory_stream->set_method_extern("string read(usize)", &stream_read);
+				vmemory_stream->set_method_extern("string read_line(usize)", &stream_read_line);
 
 				auto vfile_stream = vm->set_class<core::file_stream>("file_stream", false);
 				vfile_stream->set_constructor<core::file_stream>("file_stream@ f()");
-				vfile_stream->set_method_ex("bool clear()", &VI_EXPECTIFY_VOID(core::file_stream::clear));
-				vfile_stream->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(core::file_stream::close));
-				vfile_stream->set_method_ex("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::file_stream::seek));
-				vfile_stream->set_method_ex("bool move(int64)", &VI_EXPECTIFY_VOID(core::file_stream::move));
-				vfile_stream->set_method_ex("bool flush()", &VI_EXPECTIFY_VOID(core::file_stream::flush));
-				vfile_stream->set_method_ex("usize size()", &VI_EXPECTIFY(core::file_stream::size));
-				vfile_stream->set_method_ex("usize tell()", &VI_EXPECTIFY(core::file_stream::tell));
+				vfile_stream->set_method_extern("bool clear()", &VI_EXPECTIFY_VOID(core::file_stream::clear));
+				vfile_stream->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(core::file_stream::close));
+				vfile_stream->set_method_extern("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::file_stream::seek));
+				vfile_stream->set_method_extern("bool move(int64)", &VI_EXPECTIFY_VOID(core::file_stream::move));
+				vfile_stream->set_method_extern("bool flush()", &VI_EXPECTIFY_VOID(core::file_stream::flush));
+				vfile_stream->set_method_extern("usize size()", &VI_EXPECTIFY(core::file_stream::size));
+				vfile_stream->set_method_extern("usize tell()", &VI_EXPECTIFY(core::file_stream::tell));
 				vfile_stream->set_method("usize virtual_size() const", &core::file_stream::virtual_size);
 				vfile_stream->set_method("const string& virtual_name() const", &core::file_stream::virtual_name);
 				vfile_stream->set_method("void set_virtual_size(usize) const", &core::file_stream::set_virtual_size);
@@ -10048,20 +10048,20 @@ namespace vitex
 				vfile_stream->set_method("uptr@ get_readable() const", &core::file_stream::get_readable);
 				vfile_stream->set_method("uptr@ get_writeable() const", &core::file_stream::get_writeable);
 				vfile_stream->set_method("bool is_sized() const", &core::file_stream::is_sized);
-				vfile_stream->set_method_ex("bool open(const string_view&in, file_mode)", &stream_open);
-				vfile_stream->set_method_ex("usize write(const string_view&in)", &stream_write);
-				vfile_stream->set_method_ex("string read(usize)", &stream_read);
-				vfile_stream->set_method_ex("string read_line(usize)", &stream_read_line);
+				vfile_stream->set_method_extern("bool open(const string_view&in, file_mode)", &stream_open);
+				vfile_stream->set_method_extern("usize write(const string_view&in)", &stream_write);
+				vfile_stream->set_method_extern("string read(usize)", &stream_read);
+				vfile_stream->set_method_extern("string read_line(usize)", &stream_read_line);
 
 				auto vgz_stream = vm->set_class<core::gz_stream>("gz_stream", false);
 				vgz_stream->set_constructor<core::gz_stream>("gz_stream@ f()");
-				vgz_stream->set_method_ex("bool clear()", &VI_EXPECTIFY_VOID(core::gz_stream::clear));
-				vgz_stream->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(core::gz_stream::close));
-				vgz_stream->set_method_ex("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::gz_stream::seek));
-				vgz_stream->set_method_ex("bool move(int64)", &VI_EXPECTIFY_VOID(core::gz_stream::move));
-				vgz_stream->set_method_ex("bool flush()", &VI_EXPECTIFY_VOID(core::gz_stream::flush));
-				vgz_stream->set_method_ex("usize size()", &VI_EXPECTIFY(core::gz_stream::size));
-				vgz_stream->set_method_ex("usize tell()", &VI_EXPECTIFY(core::gz_stream::tell));
+				vgz_stream->set_method_extern("bool clear()", &VI_EXPECTIFY_VOID(core::gz_stream::clear));
+				vgz_stream->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(core::gz_stream::close));
+				vgz_stream->set_method_extern("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::gz_stream::seek));
+				vgz_stream->set_method_extern("bool move(int64)", &VI_EXPECTIFY_VOID(core::gz_stream::move));
+				vgz_stream->set_method_extern("bool flush()", &VI_EXPECTIFY_VOID(core::gz_stream::flush));
+				vgz_stream->set_method_extern("usize size()", &VI_EXPECTIFY(core::gz_stream::size));
+				vgz_stream->set_method_extern("usize tell()", &VI_EXPECTIFY(core::gz_stream::tell));
 				vgz_stream->set_method("usize virtual_size() const", &core::gz_stream::virtual_size);
 				vgz_stream->set_method("const string& virtual_name() const", &core::gz_stream::virtual_name);
 				vgz_stream->set_method("void set_virtual_size(usize) const", &core::gz_stream::set_virtual_size);
@@ -10071,20 +10071,20 @@ namespace vitex
 				vgz_stream->set_method("uptr@ get_readable() const", &core::gz_stream::get_readable);
 				vgz_stream->set_method("uptr@ get_writeable() const", &core::gz_stream::get_writeable);
 				vgz_stream->set_method("bool is_sized() const", &core::gz_stream::is_sized);
-				vgz_stream->set_method_ex("bool open(const string_view&in, file_mode)", &stream_open);
-				vgz_stream->set_method_ex("usize write(const string_view&in)", &stream_write);
-				vgz_stream->set_method_ex("string read(usize)", &stream_read);
-				vgz_stream->set_method_ex("string read_line(usize)", &stream_read_line);
+				vgz_stream->set_method_extern("bool open(const string_view&in, file_mode)", &stream_open);
+				vgz_stream->set_method_extern("usize write(const string_view&in)", &stream_write);
+				vgz_stream->set_method_extern("string read(usize)", &stream_read);
+				vgz_stream->set_method_extern("string read_line(usize)", &stream_read_line);
 
 				auto vweb_stream = vm->set_class<core::web_stream>("web_stream", false);
 				vweb_stream->set_constructor<core::web_stream, bool>("web_stream@ f(bool)");
-				vweb_stream->set_method_ex("bool clear()", &VI_EXPECTIFY_VOID(core::web_stream::clear));
-				vweb_stream->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(core::web_stream::close));
-				vweb_stream->set_method_ex("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::web_stream::seek));
-				vweb_stream->set_method_ex("bool move(int64)", &VI_EXPECTIFY_VOID(core::web_stream::move));
-				vweb_stream->set_method_ex("bool flush()", &VI_EXPECTIFY_VOID(core::web_stream::flush));
-				vweb_stream->set_method_ex("usize size()", &VI_EXPECTIFY(core::web_stream::size));
-				vweb_stream->set_method_ex("usize tell()", &VI_EXPECTIFY(core::web_stream::tell));
+				vweb_stream->set_method_extern("bool clear()", &VI_EXPECTIFY_VOID(core::web_stream::clear));
+				vweb_stream->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(core::web_stream::close));
+				vweb_stream->set_method_extern("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::web_stream::seek));
+				vweb_stream->set_method_extern("bool move(int64)", &VI_EXPECTIFY_VOID(core::web_stream::move));
+				vweb_stream->set_method_extern("bool flush()", &VI_EXPECTIFY_VOID(core::web_stream::flush));
+				vweb_stream->set_method_extern("usize size()", &VI_EXPECTIFY(core::web_stream::size));
+				vweb_stream->set_method_extern("usize tell()", &VI_EXPECTIFY(core::web_stream::tell));
 				vweb_stream->set_method("usize virtual_size() const", &core::web_stream::virtual_size);
 				vweb_stream->set_method("const string& virtual_name() const", &core::web_stream::virtual_name);
 				vweb_stream->set_method("void set_virtual_size(usize) const", &core::web_stream::set_virtual_size);
@@ -10094,20 +10094,20 @@ namespace vitex
 				vweb_stream->set_method("uptr@ get_readable() const", &core::web_stream::get_readable);
 				vweb_stream->set_method("uptr@ get_writeable() const", &core::web_stream::get_writeable);
 				vweb_stream->set_method("bool is_sized() const", &core::web_stream::is_sized);
-				vweb_stream->set_method_ex("bool open(const string_view&in, file_mode)", &stream_open);
-				vweb_stream->set_method_ex("usize write(const string_view&in)", &stream_write);
-				vweb_stream->set_method_ex("string read(usize)", &stream_read);
-				vweb_stream->set_method_ex("string read_line(usize)", &stream_read_line);
+				vweb_stream->set_method_extern("bool open(const string_view&in, file_mode)", &stream_open);
+				vweb_stream->set_method_extern("usize write(const string_view&in)", &stream_write);
+				vweb_stream->set_method_extern("string read(usize)", &stream_read);
+				vweb_stream->set_method_extern("string read_line(usize)", &stream_read_line);
 
 				auto vprocess_stream = vm->set_class<core::process_stream>("process_stream", false);
 				vprocess_stream->set_constructor<core::process_stream>("process_stream@ f()");
-				vprocess_stream->set_method_ex("bool clear()", &VI_EXPECTIFY_VOID(core::process_stream::clear));
-				vprocess_stream->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(core::process_stream::close));
-				vprocess_stream->set_method_ex("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::process_stream::seek));
-				vprocess_stream->set_method_ex("bool move(int64)", &VI_EXPECTIFY_VOID(core::process_stream::move));
-				vprocess_stream->set_method_ex("bool flush()", &VI_EXPECTIFY_VOID(core::process_stream::flush));
-				vprocess_stream->set_method_ex("usize size()", &VI_EXPECTIFY(core::process_stream::size));
-				vprocess_stream->set_method_ex("usize tell()", &VI_EXPECTIFY(core::process_stream::tell));
+				vprocess_stream->set_method_extern("bool clear()", &VI_EXPECTIFY_VOID(core::process_stream::clear));
+				vprocess_stream->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(core::process_stream::close));
+				vprocess_stream->set_method_extern("bool seek(file_seek, int64)", &VI_EXPECTIFY_VOID(core::process_stream::seek));
+				vprocess_stream->set_method_extern("bool move(int64)", &VI_EXPECTIFY_VOID(core::process_stream::move));
+				vprocess_stream->set_method_extern("bool flush()", &VI_EXPECTIFY_VOID(core::process_stream::flush));
+				vprocess_stream->set_method_extern("usize size()", &VI_EXPECTIFY(core::process_stream::size));
+				vprocess_stream->set_method_extern("usize tell()", &VI_EXPECTIFY(core::process_stream::tell));
 				vprocess_stream->set_method("usize virtual_size() const", &core::process_stream::virtual_size);
 				vprocess_stream->set_method("const string& virtual_name() const", &core::process_stream::virtual_name);
 				vprocess_stream->set_method("void set_virtual_size(usize) const", &core::process_stream::set_virtual_size);
@@ -10121,10 +10121,10 @@ namespace vitex
 				vprocess_stream->set_method("int32 get_exit_code() const", &core::process_stream::get_exit_code);
 				vprocess_stream->set_method("bool is_sized() const", &core::process_stream::is_sized);
 				vprocess_stream->set_method("bool is_alive()", &core::process_stream::is_alive);
-				vprocess_stream->set_method_ex("bool open(const string_view&in, file_mode)", &stream_open);
-				vprocess_stream->set_method_ex("usize write(const string_view&in)", &stream_write);
-				vprocess_stream->set_method_ex("string read(usize)", &stream_read);
-				vprocess_stream->set_method_ex("string read_line(usize)", &stream_read_line);
+				vprocess_stream->set_method_extern("bool open(const string_view&in, file_mode)", &stream_open);
+				vprocess_stream->set_method_extern("usize write(const string_view&in)", &stream_write);
+				vprocess_stream->set_method_extern("string read(usize)", &stream_read);
+				vprocess_stream->set_method_extern("string read_line(usize)", &stream_read_line);
 
 				vstream->set_dynamic_cast<core::stream, core::memory_stream>("memory_stream@+");
 				vstream->set_dynamic_cast<core::stream, core::file_stream>("file_stream@+");
@@ -10161,8 +10161,8 @@ namespace vitex
 				vinline_args->set_method("bool has(const string_view&in, const string_view&in = string_view()) const", &core::inline_args::has);
 				vinline_args->set_method("string& get(const string_view&in, const string_view&in = string_view()) const", &core::inline_args::get);
 				vinline_args->set_method("string& get_if(const string_view&in, const string_view&in, const string_view&in) const", &core::inline_args::get_if);
-				vinline_args->set_method_ex("dictionary@ get_args() const", &inline_args_get_args);
-				vinline_args->set_method_ex("array<string>@ get_params() const", &inline_args_get_params);
+				vinline_args->set_method_extern("dictionary@ get_args() const", &inline_args_get_args);
+				vinline_args->set_method_extern("array<string>@ get_params() const", &inline_args_get_params);
 
 				vm->begin_namespace("os::hw");
 				auto varch = vm->set_enum("arch");
@@ -10323,10 +10323,10 @@ namespace vitex
 				auto vschedule = vm->set_class<core::schedule>("schedule", false);
 				vschedule->set_function_def("void task_async()");
 				vschedule->set_function_def("void task_parallel()");
-				vschedule->set_method_ex("task_id set_interval(uint64, task_async@)", &schedule_set_interval);
-				vschedule->set_method_ex("task_id set_timeout(uint64, task_async@)", &schedule_set_timeout);
-				vschedule->set_method_ex("bool set_immediate(task_async@)", &schedule_set_immediate);
-				vschedule->set_method_ex("bool spawn(task_parallel@)", &schedule_spawn);
+				vschedule->set_method_extern("task_id set_interval(uint64, task_async@)", &schedule_set_interval);
+				vschedule->set_method_extern("task_id set_timeout(uint64, task_async@)", &schedule_set_timeout);
+				vschedule->set_method_extern("bool set_immediate(task_async@)", &schedule_set_immediate);
+				vschedule->set_method_extern("bool spawn(task_parallel@)", &schedule_spawn);
 				vschedule->set_method("bool clear_timeout(task_id)", &core::schedule::clear_timeout);
 				vschedule->set_method("bool trigger_timers()", &core::schedule::trigger_timers);
 				vschedule->set_method("bool trigger(difficulty)", &core::schedule::trigger);
@@ -10378,15 +10378,15 @@ namespace vitex
 				vregex_match->set_property<compute::regex_match>("int64 length", &compute::regex_match::length);
 				vregex_match->set_property<compute::regex_match>("int64 steps", &compute::regex_match::steps);
 				vregex_match->set_constructor<compute::regex_match>("void f()");
-				vregex_match->set_method_ex("string target() const", &regex_match_target);
+				vregex_match->set_method_extern("string target() const", &regex_match_target);
 
 				auto vregex_result = vm->set_struct_trivial<compute::regex_result>("regex_result");
 				vregex_result->set_constructor<compute::regex_result>("void f()");
 				vregex_result->set_method("bool empty() const", &compute::regex_result::empty);
 				vregex_result->set_method("int64 get_steps() const", &compute::regex_result::get_steps);
 				vregex_result->set_method("regex_state get_state() const", &compute::regex_result::get_state);
-				vregex_result->set_method_ex("array<regex_match>@ get() const", &regex_result_get);
-				vregex_result->set_method_ex("array<string>@ to_array() const", &regex_result_to_array);
+				vregex_result->set_method_extern("array<regex_match>@ get() const", &regex_result_get);
+				vregex_result->set_method_extern("array<string>@ to_array() const", &regex_result_to_array);
 
 				auto vregex_source = vm->set_struct_trivial<compute::regex_source>("regex_source");
 				vregex_source->set_property<compute::regex_source>("bool ignoreCase", &compute::regex_source::ignore_case);
@@ -10399,8 +10399,8 @@ namespace vitex
 				vregex_source->set_method("int64 get_complexity() const", &compute::regex_source::get_complexity);
 				vregex_source->set_method("regex_state get_state() const", &compute::regex_source::get_state);
 				vregex_source->set_method("bool is_simple() const", &compute::regex_source::is_simple);
-				vregex_source->set_method_ex("regex_result match(const string_view&in) const", &regex_source_match);
-				vregex_source->set_method_ex("string replace(const string_view&in, const string_view&in) const", &regex_source_replace);
+				vregex_source->set_method_extern("regex_result match(const string_view&in) const", &regex_source_match);
+				vregex_source->set_method_extern("string replace(const string_view&in, const string_view&in) const", &regex_source_replace);
 
 				return true;
 #else
@@ -10446,10 +10446,10 @@ namespace vitex
 				vweb_token->set_method("void set_refresh_token(const string_view&in, const secret_box &in, const secret_box &in)", &compute::web_token::set_refresh_token);
 				vweb_token->set_method("bool sign(const secret_box &in)", &compute::web_token::sign);
 				vweb_token->set_method("bool is_valid()", &compute::web_token::is_valid);
-				vweb_token->set_method_ex("string get_refresh_token(const secret_box &in, const secret_box &in)", &VI_EXPECTIFY(compute::web_token::get_refresh_token));
-				vweb_token->set_method_ex("void set_audience(array<string>@+)", &web_token_set_audience);
-				vweb_token->set_enum_refs_ex<compute::web_token>([](compute::web_token* base, asIScriptEngine* vm) { });
-				vweb_token->set_release_refs_ex<compute::web_token>([](compute::web_token* base, asIScriptEngine*) { });
+				vweb_token->set_method_extern("string get_refresh_token(const secret_box &in, const secret_box &in)", &VI_EXPECTIFY(compute::web_token::get_refresh_token));
+				vweb_token->set_method_extern("void set_audience(array<string>@+)", &web_token_set_audience);
+				vweb_token->set_enum_refs_extern<compute::web_token>([](compute::web_token* base, asIScriptEngine* vm) { });
+				vweb_token->set_release_refs_extern<compute::web_token>([](compute::web_token* base, asIScriptEngine*) { });
 
 				vm->begin_namespace("ciphers");
 				vm->set_function("uptr@ des_ecb()", &compute::ciphers::des_ecb);
@@ -10853,8 +10853,8 @@ namespace vitex
 				vinclude_desc->set_property<compute::include_desc>("string path", &compute::include_desc::path);
 				vinclude_desc->set_property<compute::include_desc>("string root", &compute::include_desc::root);
 				vinclude_desc->set_constructor<compute::include_desc>("void f()");
-				vinclude_desc->set_method_ex("void add_ext(const string_view&in)", &include_desc_add_ext);
-				vinclude_desc->set_method_ex("void remove_ext(const string_view&in)", &include_desc_remove_ext);
+				vinclude_desc->set_method_extern("void add_ext(const string_view&in)", &include_desc_add_ext);
+				vinclude_desc->set_method_extern("void remove_ext(const string_view&in)", &include_desc_remove_ext);
 
 				auto vinclude_result = vm->set_struct_trivial<compute::include_result>("include_result");
 				vinclude_result->set_property<compute::include_result>("string module", &compute::include_result::library);
@@ -10881,16 +10881,16 @@ namespace vitex
 				vpreprocessor->set_method("void set_include_options(const include_desc &in)", &compute::preprocessor::set_include_options);
 				vpreprocessor->set_method("void set_features(const preprocessor_desc &in)", &compute::preprocessor::set_features);
 				vpreprocessor->set_method("void add_default_definitions()", &compute::preprocessor::add_default_definitions);
-				vpreprocessor->set_method_ex("bool define(const string_view&in)", &VI_EXPECTIFY_VOID(compute::preprocessor::define));
+				vpreprocessor->set_method_extern("bool define(const string_view&in)", &VI_EXPECTIFY_VOID(compute::preprocessor::define));
 				vpreprocessor->set_method("void undefine(const string_view&in)", &compute::preprocessor::undefine);
 				vpreprocessor->set_method("void clear()", &compute::preprocessor::clear);
-				vpreprocessor->set_method_ex("bool process(const string_view&in, string &out)", &VI_EXPECTIFY_VOID(compute::preprocessor::process));
-				vpreprocessor->set_method_ex("string resolve_file(const string_view&in, const string_view&in)", &VI_EXPECTIFY(compute::preprocessor::resolve_file));
+				vpreprocessor->set_method_extern("bool process(const string_view&in, string &out)", &VI_EXPECTIFY_VOID(compute::preprocessor::process));
+				vpreprocessor->set_method_extern("string resolve_file(const string_view&in, const string_view&in)", &VI_EXPECTIFY(compute::preprocessor::resolve_file));
 				vpreprocessor->set_method("const string& get_current_file_path() const", &compute::preprocessor::get_current_file_path);
-				vpreprocessor->set_method_ex("void set_include_callback(proc_include_sync@)", &preprocessor_set_include_callback);
-				vpreprocessor->set_method_ex("void set_pragma_callback(proc_pragma_sync@)", &preprocessor_set_pragma_callback);
-				vpreprocessor->set_method_ex("void set_directive_callback(const string_view&in, proc_directive_sync@)", &preprocessor_set_directive_callback);
-				vpreprocessor->set_method_ex("bool is_defined(const string_view&in) const", &preprocessor_is_defined);
+				vpreprocessor->set_method_extern("void set_include_callback(proc_include_sync@)", &preprocessor_set_include_callback);
+				vpreprocessor->set_method_extern("void set_pragma_callback(proc_pragma_sync@)", &preprocessor_set_pragma_callback);
+				vpreprocessor->set_method_extern("void set_directive_callback(const string_view&in, proc_directive_sync@)", &preprocessor_set_directive_callback);
+				vpreprocessor->set_method_extern("bool is_defined(const string_view&in) const", &preprocessor_is_defined);
 
 				return true;
 #else
@@ -10965,9 +10965,9 @@ namespace vitex
 				vsocket_address->set_method("socket_protocol get_protocol_type() const", &network::socket_address::get_protocol_type);
 				vsocket_address->set_method("socket_type get_socket_type() const", &network::socket_address::get_socket_type);
 				vsocket_address->set_method("bool is_valid() const", &network::socket_address::is_valid);
-				vsocket_address->set_method_ex("string get_hostname() const", &socket_address_get_hostname);
-				vsocket_address->set_method_ex("string get_ip_address() const", &socket_address_get_ip_address);
-				vsocket_address->set_method_ex("uint16 get_ip_port() const", &socket_address_get_ip_port);
+				vsocket_address->set_method_extern("string get_hostname() const", &socket_address_get_hostname);
+				vsocket_address->set_method_extern("string get_ip_address() const", &socket_address_get_ip_address);
+				vsocket_address->set_method_extern("uint16 get_ip_port() const", &socket_address_get_ip_port);
 
 				auto vsocket_accept = vm->set_struct_trivial<network::socket_accept>("socket_accept");
 				vsocket_accept->set_property<network::socket_accept>("socket_address address", &network::socket_accept::address);
@@ -10989,7 +10989,7 @@ namespace vitex
 				vlocation->set_property<network::location>("string body", &network::location::body);
 				vlocation->set_property<network::location>("int32 port", &network::location::port);
 				vlocation->set_constructor<network::location, const std::string_view&>("void f(const string_view&in)");
-				vlocation->set_method_ex("dictionary@ get_query() const", &location_get_query);
+				vlocation->set_method_extern("dictionary@ get_query() const", &location_get_query);
 
 				auto vcertificate = vm->set_struct_trivial<network::certificate>("certificate");
 				vcertificate->set_property<network::certificate>("string subject_name", &network::certificate::subject_name);
@@ -11003,7 +11003,7 @@ namespace vitex
 				vcertificate->set_property<network::certificate>("int64 not_after_time", &network::certificate::not_after_time);
 				vcertificate->set_property<network::certificate>("int32 version", &network::certificate::version);
 				vcertificate->set_property<network::certificate>("int32 signature", &network::certificate::signature);
-				vcertificate->set_method_ex("dictionary@ get_extensions() const", &certificate_get_extensions);
+				vcertificate->set_method_extern("dictionary@ get_extensions() const", &certificate_get_extensions);
 				vcertificate->set_constructor<network::certificate>("void f()");
 
 				auto vcertificate_blob = vm->set_struct_trivial<network::certificate_blob>("certificate_blob");
@@ -11036,7 +11036,7 @@ namespace vitex
 				vepoll_fd->set_property<network::epoll_fd>("bool closeable", &network::epoll_fd::closeable);
 				vepoll_fd->set_constructor<network::epoll_fd>("void f()");
 				vepoll_fd->set_operator_copy_static(&epoll_fd_copy);
-				vepoll_fd->set_destructor_ex("void f()", &epoll_fd_destructor);
+				vepoll_fd->set_destructor_extern("void f()", &epoll_fd_destructor);
 
 				auto vepoll_interface = vm->set_struct<network::epoll_interface>("epoll_interface");
 				vepoll_interface->set_constructor<network::epoll_interface, size_t>("void f(usize)");
@@ -11044,7 +11044,7 @@ namespace vitex
 				vepoll_interface->set_method("bool update(socket@+, bool, bool)", &network::epoll_interface::update);
 				vepoll_interface->set_method("bool remove(socket@+)", &network::epoll_interface::remove);
 				vepoll_interface->set_method("usize capacity() const", &network::epoll_interface::capacity);
-				vepoll_interface->set_method_ex("int wait(array<epoll_fd>@+, uint64)", &epoll_interface_wait);
+				vepoll_interface->set_method_extern("int wait(array<epoll_fd>@+, uint64)", &epoll_interface_wait);
 				vepoll_interface->set_operator_move_copy<network::epoll_interface>();
 				vepoll_interface->set_destructor<network::epoll_interface>("void f()");
 
@@ -11065,41 +11065,41 @@ namespace vitex
 				vsocket->set_method("bool is_valid() const", &network::socket::is_valid);
 				vsocket->set_method("bool is_secure() const", &network::socket::is_secure);
 				vsocket->set_method("void set_io_timeout(uint64)", &network::socket::set_io_timeout);
-				vsocket->set_method_ex("promise<socket_accept>@ accept_deferred()", &VI_SPROMISIFY_REF(socket_accept_deferred, socket_accept));
-				vsocket->set_method_ex("promise<bool>@ connect_deferred(const socket_address&in)", &VI_SPROMISIFY(socket_connect_deferred, type_id::boolf));
-				vsocket->set_method_ex("promise<bool>@ close_deferred()", &VI_SPROMISIFY(socket_close_deferred, type_id::boolf));
-				vsocket->set_method_ex("promise<bool>@ write_file_deferred(file_stream@+, usize, usize)", &VI_SPROMISIFY(socket_write_file_deferred, type_id::boolf));
-				vsocket->set_method_ex("promise<bool>@ write_deferred(const string_view&in)", &VI_SPROMISIFY(socket_write_deferred, type_id::boolf));
-				vsocket->set_method_ex("promise<string>@ read_deferred(usize)", &VI_SPROMISIFY_REF(socket_read_deferred, string));
-				vsocket->set_method_ex("promise<string>@ read_until_deferred(const string_view&in, usize)", &VI_SPROMISIFY_REF(socket_read_until_deferred, string));
-				vsocket->set_method_ex("promise<string>@ read_until_chunked_deferred(const string_view&in, usize)", &VI_SPROMISIFY_REF(socket_read_until_chunked_deferred, string));
-				vsocket->set_method_ex("bool accept(socket_accept&out)", &VI_EXPECTIFY_VOID(network::socket::accept));
-				vsocket->set_method_ex("bool connect(const socket_address&in, uint64)", &VI_EXPECTIFY_VOID(network::socket::connect));
-				vsocket->set_method_ex("bool close()", &VI_EXPECTIFY_VOID(network::socket::close));
-				vsocket->set_method_ex("usize write_file(file_stream@+, usize, usize)", &socket_write_file);
-				vsocket->set_method_ex("usize write(const string_view&in)", &socket_write);
-				vsocket->set_method_ex("usize read(string &out, usize)", &socket_read);
-				vsocket->set_method_ex("usize read_until(const string_view&in, socket_recv_async@)", &socket_read_until);
-				vsocket->set_method_ex("usize read_until_chunked(const string_view&in, socket_recv_async@)", &socket_read_until_chunked);
-				vsocket->set_method_ex("socket_address get_peer_address() const", &VI_EXPECTIFY(network::socket::get_peer_address));
-				vsocket->set_method_ex("socket_address get_this_address() const", &VI_EXPECTIFY(network::socket::get_this_address));
-				vsocket->set_method_ex("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(network::socket::get_any_flag));
-				vsocket->set_method_ex("bool get_socket_flag(int, int &out) const", &VI_EXPECTIFY_VOID(network::socket::get_socket_flag));
-				vsocket->set_method_ex("bool set_close_on_exec()", VI_EXPECTIFY_VOID(network::socket::set_close_on_exec));
-				vsocket->set_method_ex("bool set_time_wait(int)", VI_EXPECTIFY_VOID(network::socket::set_time_wait));
-				vsocket->set_method_ex("bool set_any_flag(int, int, int)", VI_EXPECTIFY_VOID(network::socket::set_any_flag));
-				vsocket->set_method_ex("bool set_socket_flag(int, int)", VI_EXPECTIFY_VOID(network::socket::set_socket_flag));
-				vsocket->set_method_ex("bool set_blocking(bool)", VI_EXPECTIFY_VOID(network::socket::set_blocking));
-				vsocket->set_method_ex("bool set_no_delay(bool)", VI_EXPECTIFY_VOID(network::socket::set_no_delay));
-				vsocket->set_method_ex("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(network::socket::set_keep_alive));
-				vsocket->set_method_ex("bool set_timeout(int)", VI_EXPECTIFY_VOID(network::socket::set_timeout));
-				vsocket->set_method_ex("bool shutdown(bool = false)", &VI_EXPECTIFY_VOID(network::socket::shutdown));
-				vsocket->set_method_ex("bool open(const socket_address&in)", &VI_EXPECTIFY_VOID(network::socket::open));
-				vsocket->set_method_ex("bool secure(uptr@, const string_view&in)", &VI_EXPECTIFY_VOID(network::socket::secure));
-				vsocket->set_method_ex("bool bind(const socket_address&in)", &VI_EXPECTIFY_VOID(network::socket::bind));
-				vsocket->set_method_ex("bool listen(int)", &VI_EXPECTIFY_VOID(network::socket::listen));
-				vsocket->set_method_ex("bool clear_events(bool)", &VI_EXPECTIFY_VOID(network::socket::clear_events));
-				vsocket->set_method_ex("bool migrate_to(usize, bool = true)", &VI_EXPECTIFY_VOID(network::socket::migrate_to));
+				vsocket->set_method_extern("promise<socket_accept>@ accept_deferred()", &VI_SPROMISIFY_REF(socket_accept_deferred, socket_accept));
+				vsocket->set_method_extern("promise<bool>@ connect_deferred(const socket_address&in)", &VI_SPROMISIFY(socket_connect_deferred, type_id::bool_t));
+				vsocket->set_method_extern("promise<bool>@ close_deferred()", &VI_SPROMISIFY(socket_close_deferred, type_id::bool_t));
+				vsocket->set_method_extern("promise<bool>@ write_file_deferred(file_stream@+, usize, usize)", &VI_SPROMISIFY(socket_write_file_deferred, type_id::bool_t));
+				vsocket->set_method_extern("promise<bool>@ write_deferred(const string_view&in)", &VI_SPROMISIFY(socket_write_deferred, type_id::bool_t));
+				vsocket->set_method_extern("promise<string>@ read_deferred(usize)", &VI_SPROMISIFY_REF(socket_read_deferred, string));
+				vsocket->set_method_extern("promise<string>@ read_until_deferred(const string_view&in, usize)", &VI_SPROMISIFY_REF(socket_read_until_deferred, string));
+				vsocket->set_method_extern("promise<string>@ read_until_chunked_deferred(const string_view&in, usize)", &VI_SPROMISIFY_REF(socket_read_until_chunked_deferred, string));
+				vsocket->set_method_extern("bool accept(socket_accept&out)", &VI_EXPECTIFY_VOID(network::socket::accept));
+				vsocket->set_method_extern("bool connect(const socket_address&in, uint64)", &VI_EXPECTIFY_VOID(network::socket::connect));
+				vsocket->set_method_extern("bool close()", &VI_EXPECTIFY_VOID(network::socket::close));
+				vsocket->set_method_extern("usize write_file(file_stream@+, usize, usize)", &socket_write_file);
+				vsocket->set_method_extern("usize write(const string_view&in)", &socket_write);
+				vsocket->set_method_extern("usize read(string &out, usize)", &socket_read);
+				vsocket->set_method_extern("usize read_until(const string_view&in, socket_recv_async@)", &socket_read_until);
+				vsocket->set_method_extern("usize read_until_chunked(const string_view&in, socket_recv_async@)", &socket_read_until_chunked);
+				vsocket->set_method_extern("socket_address get_peer_address() const", &VI_EXPECTIFY(network::socket::get_peer_address));
+				vsocket->set_method_extern("socket_address get_this_address() const", &VI_EXPECTIFY(network::socket::get_this_address));
+				vsocket->set_method_extern("bool get_any_flag(int, int, int &out) const", &VI_EXPECTIFY_VOID(network::socket::get_any_flag));
+				vsocket->set_method_extern("bool get_socket_flag(int, int &out) const", &VI_EXPECTIFY_VOID(network::socket::get_socket_flag));
+				vsocket->set_method_extern("bool set_close_on_exec()", VI_EXPECTIFY_VOID(network::socket::set_close_on_exec));
+				vsocket->set_method_extern("bool set_time_wait(int)", VI_EXPECTIFY_VOID(network::socket::set_time_wait));
+				vsocket->set_method_extern("bool set_any_flag(int, int, int)", VI_EXPECTIFY_VOID(network::socket::set_any_flag));
+				vsocket->set_method_extern("bool set_socket_flag(int, int)", VI_EXPECTIFY_VOID(network::socket::set_socket_flag));
+				vsocket->set_method_extern("bool set_blocking(bool)", VI_EXPECTIFY_VOID(network::socket::set_blocking));
+				vsocket->set_method_extern("bool set_no_delay(bool)", VI_EXPECTIFY_VOID(network::socket::set_no_delay));
+				vsocket->set_method_extern("bool set_keep_alive(bool)", VI_EXPECTIFY_VOID(network::socket::set_keep_alive));
+				vsocket->set_method_extern("bool set_timeout(int)", VI_EXPECTIFY_VOID(network::socket::set_timeout));
+				vsocket->set_method_extern("bool shutdown(bool = false)", &VI_EXPECTIFY_VOID(network::socket::shutdown));
+				vsocket->set_method_extern("bool open(const socket_address&in)", &VI_EXPECTIFY_VOID(network::socket::open));
+				vsocket->set_method_extern("bool secure(uptr@, const string_view&in)", &VI_EXPECTIFY_VOID(network::socket::secure));
+				vsocket->set_method_extern("bool bind(const socket_address&in)", &VI_EXPECTIFY_VOID(network::socket::bind));
+				vsocket->set_method_extern("bool listen(int)", &VI_EXPECTIFY_VOID(network::socket::listen));
+				vsocket->set_method_extern("bool clear_events(bool)", &VI_EXPECTIFY_VOID(network::socket::clear_events));
+				vsocket->set_method_extern("bool migrate_to(usize, bool = true)", &VI_EXPECTIFY_VOID(network::socket::migrate_to));
 
 				vm->begin_namespace("net_packet");
 				vm->set_function("bool is_data(socket_poll)", &network::packet::is_data);
@@ -11114,12 +11114,12 @@ namespace vitex
 
 				auto VDNS = vm->set_class<network::dns>("dns", false);
 				VDNS->set_constructor<network::dns>("dns@ f()");
-				VDNS->set_method_ex("string reverse_lookup(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY(network::dns::reverse_lookup));
-				VDNS->set_method_ex("promise<string>@ reverse_lookup_deferred(const string_view&in, const string_view&in = string_view())", &VI_SPROMISIFY_REF(dns_reverse_lookup_deferred, string));
-				VDNS->set_method_ex("string reverse_address_lookup(const socket_address&in)", &VI_EXPECTIFY(network::dns::reverse_address_lookup));
-				VDNS->set_method_ex("promise<string>@ reverse_address_lookup_deferred(const socket_address&in)", &VI_SPROMISIFY_REF(dns_reverse_address_lookup_deferred, string));
-				VDNS->set_method_ex("socket_address lookup(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_EXPECTIFY(network::dns::lookup));
-				VDNS->set_method_ex("promise<socket_address>@ lookup_deferred(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_SPROMISIFY_REF(dns_lookup_deferred, socket_address));
+				VDNS->set_method_extern("string reverse_lookup(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY(network::dns::reverse_lookup));
+				VDNS->set_method_extern("promise<string>@ reverse_lookup_deferred(const string_view&in, const string_view&in = string_view())", &VI_SPROMISIFY_REF(dns_reverse_lookup_deferred, string));
+				VDNS->set_method_extern("string reverse_address_lookup(const socket_address&in)", &VI_EXPECTIFY(network::dns::reverse_address_lookup));
+				VDNS->set_method_extern("promise<string>@ reverse_address_lookup_deferred(const socket_address&in)", &VI_SPROMISIFY_REF(dns_reverse_address_lookup_deferred, string));
+				VDNS->set_method_extern("socket_address lookup(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_EXPECTIFY(network::dns::lookup));
+				VDNS->set_method_extern("promise<socket_address>@ lookup_deferred(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_SPROMISIFY_REF(dns_lookup_deferred, socket_address));
 				VDNS->set_method_static("dns@+ get()", &network::dns::get);
 
 				auto vmultiplexer = vm->set_class<network::multiplexer>("multiplexer", false);
@@ -11131,8 +11131,8 @@ namespace vitex
 				vmultiplexer->set_method("void deactivate()", &network::multiplexer::deactivate);
 				vmultiplexer->set_method("int dispatch(uint64)", &network::multiplexer::dispatch);
 				vmultiplexer->set_method("bool shutdown()", &network::multiplexer::shutdown);
-				vmultiplexer->set_method_ex("bool when_readable(socket@+, poll_async@)", &multiplexer_when_readable);
-				vmultiplexer->set_method_ex("bool when_writeable(socket@+, poll_async@)", &multiplexer_when_writeable);
+				vmultiplexer->set_method_extern("bool when_readable(socket@+, poll_async@)", &multiplexer_when_readable);
+				vmultiplexer->set_method_extern("bool when_writeable(socket@+, poll_async@)", &multiplexer_when_writeable);
 				vmultiplexer->set_method("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &network::multiplexer::cancel_events);
 				vmultiplexer->set_method("bool clear_events(socket@+)", &network::multiplexer::clear_events);
 				vmultiplexer->set_method("bool is_listening()", &network::multiplexer::is_listening);
@@ -11143,7 +11143,7 @@ namespace vitex
 				vuplinks->set_constructor<network::uplinks>("uplinks@ f()");
 				vuplinks->set_method("void set_max_duplicates(usize)", &network::uplinks::set_max_duplicates);
 				vuplinks->set_method("bool push_connection(const socket_address&in, socket@+)", &network::uplinks::push_connection);
-				vuplinks->set_method_ex("promise<socket@>@ pop_connection(const socket_address&in)", &VI_PROMISIFY_REF(network::uplinks::pop_connection, socket));
+				vuplinks->set_method_extern("promise<socket@>@ pop_connection(const socket_address&in)", &VI_PROMISIFY_REF(network::uplinks::pop_connection, socket));
 				vuplinks->set_method("usize max_duplicates() const", &network::uplinks::get_max_duplicates);
 				vuplinks->set_method("usize size() const", &network::uplinks::get_size);
 				vuplinks->set_method_static("uplinks@+ get()", &network::uplinks::get);
@@ -11153,11 +11153,11 @@ namespace vitex
 				vsocket_listener->set_property<network::socket_listener>("socket_address source", &network::socket_listener::address);
 				vsocket_listener->set_property<network::socket_listener>("socket@ stream", &network::socket_listener::stream);
 				vsocket_listener->set_gc_constructor<network::socket_listener, socket_listener, const std::string_view&, const network::socket_address&, bool>("socket_listener@ f(const string_view&in, const socket_address&in, bool)");
-				vsocket_listener->set_enum_refs_ex<network::socket_listener>([](network::socket_listener* base, asIScriptEngine* vm)
+				vsocket_listener->set_enum_refs_extern<network::socket_listener>([](network::socket_listener* base, asIScriptEngine* vm)
 				{
 					function_factory::gc_enum_callback(vm, base->stream);
 				});
-				vsocket_listener->set_release_refs_ex<network::socket_listener>([](network::socket_listener* base, asIScriptEngine*)
+				vsocket_listener->set_release_refs_extern<network::socket_listener>([](network::socket_listener* base, asIScriptEngine*)
 				{
 					base->~socket_listener();
 				});
@@ -11172,12 +11172,12 @@ namespace vitex
 				vsocket_router->set_property<network::socket_router>("int64 graceful_time_wait", &network::socket_router::graceful_time_wait);
 				vsocket_router->set_property<network::socket_router>("bool enable_no_delay", &network::socket_router::enable_no_delay);
 				vsocket_router->set_constructor<network::socket_router>("socket_router@ f()");
-				vsocket_router->set_method_ex("void listen(const string_view&in, const string_view&in, bool = false)", &socket_router_listen1);
-				vsocket_router->set_method_ex("void listen(const string_view&in, const string_view&in, const string_view&in, bool = false)", &socket_router_listen2);
-				vsocket_router->set_method_ex("void set_listeners(dictionary@ data)", &socket_router_set_listeners);
-				vsocket_router->set_method_ex("dictionary@ get_listeners() const", &socket_router_get_listeners);
-				vsocket_router->set_method_ex("void set_certificates(dictionary@ data)", &socket_router_set_certificates);
-				vsocket_router->set_method_ex("dictionary@ get_certificates() const", &socket_router_get_certificates);
+				vsocket_router->set_method_extern("void listen(const string_view&in, const string_view&in, bool = false)", &socket_router_listen1);
+				vsocket_router->set_method_extern("void listen(const string_view&in, const string_view&in, const string_view&in, bool = false)", &socket_router_listen2);
+				vsocket_router->set_method_extern("void set_listeners(dictionary@ data)", &socket_router_set_listeners);
+				vsocket_router->set_method_extern("dictionary@ get_listeners() const", &socket_router_get_listeners);
+				vsocket_router->set_method_extern("void set_certificates(dictionary@ data)", &socket_router_set_certificates);
+				vsocket_router->set_method_extern("dictionary@ get_certificates() const", &socket_router_get_certificates);
 
 				auto vsocket_connection = vm->set_class<network::socket_connection>("socket_connection", true);
 				vsocket_connection->set_property<network::socket_connection>("socket@ stream", &network::socket_connection::stream);
@@ -11189,28 +11189,28 @@ namespace vitex
 				vsocket_connection->set_method<network::socket_connection, bool>("bool next()", &network::socket_connection::next);
 				vsocket_connection->set_method<network::socket_connection, bool, int>("bool next(int32)", &network::socket_connection::next);
 				vsocket_connection->set_method<network::socket_connection, bool>("bool abort()", &network::socket_connection::abort);
-				vsocket_connection->set_method_ex("bool abort(int, const string_view&in)", &socket_connection_abort);
-				vsocket_connection->set_enum_refs_ex<network::socket_connection>([](network::socket_connection* base, asIScriptEngine* vm)
+				vsocket_connection->set_method_extern("bool abort(int, const string_view&in)", &socket_connection_abort);
+				vsocket_connection->set_enum_refs_extern<network::socket_connection>([](network::socket_connection* base, asIScriptEngine* vm)
 				{
 					function_factory::gc_enum_callback(vm, base->stream);
 					function_factory::gc_enum_callback(vm, base->host);
 				});
-				vsocket_connection->set_release_refs_ex<network::socket_connection>([](network::socket_connection* base, asIScriptEngine*)
+				vsocket_connection->set_release_refs_extern<network::socket_connection>([](network::socket_connection* base, asIScriptEngine*)
 				{
 					base->~socket_connection();
 				});
 
 				auto vsocket_server = vm->set_class<network::socket_server>("socket_server", true);
 				vsocket_server->set_gc_constructor<network::socket_server, socket_server>("socket_server@ f()");
-				vsocket_server->set_method_ex("void set_router(socket_router@+)", &socket_server_set_router);
-				vsocket_server->set_method_ex("bool configure(socket_router@+)", &socket_server_configure);
-				vsocket_server->set_method_ex("bool listen()", &socket_server_listen);
-				vsocket_server->set_method_ex("bool unlisten(bool)", &socket_server_unlisten);
+				vsocket_server->set_method_extern("void set_router(socket_router@+)", &socket_server_set_router);
+				vsocket_server->set_method_extern("bool configure(socket_router@+)", &socket_server_configure);
+				vsocket_server->set_method_extern("bool listen()", &socket_server_listen);
+				vsocket_server->set_method_extern("bool unlisten(bool)", &socket_server_unlisten);
 				vsocket_server->set_method("void set_backlog(usize)", &network::socket_server::set_backlog);
 				vsocket_server->set_method("usize get_backlog() const", &network::socket_server::get_backlog);
 				vsocket_server->set_method("server_state get_state() const", &network::socket_server::get_state);
 				vsocket_server->set_method("socket_router@+ get_router() const", &network::socket_server::get_router);
-				vsocket_server->set_enum_refs_ex<network::socket_server>([](network::socket_server* base, asIScriptEngine* vm)
+				vsocket_server->set_enum_refs_extern<network::socket_server>([](network::socket_server* base, asIScriptEngine* vm)
 				{
 					function_factory::gc_enum_callback(vm, base->get_router());
 					for (auto* item : base->get_active_clients())
@@ -11219,16 +11219,16 @@ namespace vitex
 					for (auto* item : base->get_pooled_clients())
 						function_factory::gc_enum_callback(vm, item);
 				});
-				vsocket_server->set_release_refs_ex<network::socket_server>([](network::socket_server* base, asIScriptEngine*)
+				vsocket_server->set_release_refs_extern<network::socket_server>([](network::socket_server* base, asIScriptEngine*)
 				{
 					base->~socket_server();
 				});
 
 				auto vsocket_client = vm->set_class<network::socket_client>("socket_client", false);
 				vsocket_client->set_constructor<network::socket_client, int64_t>("socket_client@ f(int64)");
-				vsocket_client->set_method_ex("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_sync, type_id::boolf));
-				vsocket_client->set_method_ex("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_async, type_id::boolf));
-				vsocket_client->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(socket_client_disconnect, type_id::boolf));
+				vsocket_client->set_method_extern("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_sync, type_id::bool_t));
+				vsocket_client->set_method_extern("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_async, type_id::bool_t));
+				vsocket_client->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(socket_client_disconnect, type_id::bool_t));
 				vsocket_client->set_method("void apply_reusability(bool)", &network::socket_client::apply_reusability);
 				vsocket_client->set_method("bool has_stream() const", &network::socket_client::has_stream);
 				vsocket_client->set_method("bool is_secure() const", &network::socket_client::is_secure);
@@ -11314,7 +11314,7 @@ namespace vitex
 				vresource->set_method("string& put_header(const string_view&in, const string_view&in)", &network::http::resource::put_header);
 				vresource->set_method("string& set_header(const string_view&in, const string_view&in)", &network::http::resource::set_header);
 				vresource->set_method("string compose_header(const string_view&in) const", &network::http::resource::compose_header);
-				vresource->set_method_ex("string get_header(const string_view&in) const", &resource_get_header_blob);
+				vresource->set_method_extern("string get_header(const string_view&in) const", &resource_get_header_blob);
 				vresource->set_method("const string& get_in_memory_contents() const", &network::http::resource::get_in_memory_contents);
 
 				auto vcookie = vm->set_struct_trivial<network::http::cookie>("cookie");
@@ -11344,15 +11344,15 @@ namespace vitex
 				vcontent_frame->set_method("void cleanup()", &network::http::content_frame::cleanup);
 				vcontent_frame->set_method("bool is_finalized() const", &network::http::content_frame::is_finalized);
 				vcontent_frame->set_method("string get_text() const", &network::http::content_frame::get_text);
-				vcontent_frame->set_method_ex("schema@ get_json() const", &content_frame_get_json);
-				vcontent_frame->set_method_ex("schema@ get_xml() const", &content_frame_get_xml);
-				vcontent_frame->set_method_ex("void prepare(const request_frame&in, const string_view&in)", &content_frame_prepare1);
-				vcontent_frame->set_method_ex("void prepare(const response_frame&in, const string_view&in)", &content_frame_prepare2);
-				vcontent_frame->set_method_ex("void prepare(const fetch_frame&in, const string_view&in)", &content_frame_prepare3);
-				vcontent_frame->set_method_ex("void add_resource(const resource_info&in)", &content_frame_add_resource);
-				vcontent_frame->set_method_ex("void clear_resources()", &content_frame_clear_resources);
-				vcontent_frame->set_method_ex("resource_info get_resource(usize) const", &content_frame_get_resource);
-				vcontent_frame->set_method_ex("usize get_resources_size() const", &content_frame_get_resources_size);
+				vcontent_frame->set_method_extern("schema@ get_json() const", &content_frame_get_json);
+				vcontent_frame->set_method_extern("schema@ get_xml() const", &content_frame_get_xml);
+				vcontent_frame->set_method_extern("void prepare(const request_frame&in, const string_view&in)", &content_frame_prepare1);
+				vcontent_frame->set_method_extern("void prepare(const response_frame&in, const string_view&in)", &content_frame_prepare2);
+				vcontent_frame->set_method_extern("void prepare(const fetch_frame&in, const string_view&in)", &content_frame_prepare3);
+				vcontent_frame->set_method_extern("void add_resource(const resource_info&in)", &content_frame_add_resource);
+				vcontent_frame->set_method_extern("void clear_resources()", &content_frame_clear_resources);
+				vcontent_frame->set_method_extern("resource_info get_resource(usize) const", &content_frame_get_resource);
+				vcontent_frame->set_method_extern("usize get_resources_size() const", &content_frame_get_resources_size);
 
 				vrequest_frame->set_property<network::http::request_frame>("content_frame content", &network::http::request_frame::content);
 				vrequest_frame->set_property<network::http::request_frame>("string query", &network::http::request_frame::query);
@@ -11367,17 +11367,17 @@ namespace vitex
 				vrequest_frame->set_method("void set_version(uint32, uint32)", &network::http::request_frame::set_version);
 				vrequest_frame->set_method("void cleanup()", &network::http::request_frame::cleanup);
 				vrequest_frame->set_method("string compose_header(const string_view&in) const", &network::http::request_frame::compose_header);
-				vrequest_frame->set_method_ex("string get_cookie(const string_view&in) const", &request_frame_get_cookie_blob);
-				vrequest_frame->set_method_ex("string get_header(const string_view&in) const", &request_frame_get_header_blob);
-				vrequest_frame->set_method_ex("string get_header(usize, usize = 0) const", &request_frame_get_header);
-				vrequest_frame->set_method_ex("string get_cookie(usize, usize = 0) const", &request_frame_get_cookie);
-				vrequest_frame->set_method_ex("usize get_headers_size() const", &request_frame_get_headers_size);
-				vrequest_frame->set_method_ex("usize get_header_size(usize) const", &request_frame_get_header_size);
-				vrequest_frame->set_method_ex("usize get_cookies_size() const", &request_frame_get_cookies_size);
-				vrequest_frame->set_method_ex("usize get_cookie_size(usize) const", &request_frame_get_cookie_size);
-				vrequest_frame->set_method_ex("void set_method(const string_view&in)", &request_frame_set_method);
-				vrequest_frame->set_method_ex("string get_method() const", &request_frame_get_method);
-				vrequest_frame->set_method_ex("string get_version() const", &request_frame_get_version);
+				vrequest_frame->set_method_extern("string get_cookie(const string_view&in) const", &request_frame_get_cookie_blob);
+				vrequest_frame->set_method_extern("string get_header(const string_view&in) const", &request_frame_get_header_blob);
+				vrequest_frame->set_method_extern("string get_header(usize, usize = 0) const", &request_frame_get_header);
+				vrequest_frame->set_method_extern("string get_cookie(usize, usize = 0) const", &request_frame_get_cookie);
+				vrequest_frame->set_method_extern("usize get_headers_size() const", &request_frame_get_headers_size);
+				vrequest_frame->set_method_extern("usize get_header_size(usize) const", &request_frame_get_header_size);
+				vrequest_frame->set_method_extern("usize get_cookies_size() const", &request_frame_get_cookies_size);
+				vrequest_frame->set_method_extern("usize get_cookie_size(usize) const", &request_frame_get_cookie_size);
+				vrequest_frame->set_method_extern("void set_method(const string_view&in)", &request_frame_set_method);
+				vrequest_frame->set_method_extern("string get_method() const", &request_frame_get_method);
+				vrequest_frame->set_method_extern("string get_version() const", &request_frame_get_version);
 
 				vresponse_frame->set_property<network::http::response_frame>("content_frame content", &network::http::response_frame::content);
 				vresponse_frame->set_property<network::http::response_frame>("int32 status_code", &network::http::response_frame::status_code);
@@ -11388,15 +11388,15 @@ namespace vitex
 				vresponse_frame->set_method<network::http::response_frame, void, const network::http::cookie&>("void set_cookie(const cookie&in)", &network::http::response_frame::set_cookie);
 				vresponse_frame->set_method("void cleanup()", &network::http::response_frame::cleanup);
 				vresponse_frame->set_method("string compose_header(const string_view&in) const", &network::http::response_frame::compose_header);
-				vresponse_frame->set_method_ex("string get_header(const string_view&in) const", &response_frame_get_header_blob);
+				vresponse_frame->set_method_extern("string get_header(const string_view&in) const", &response_frame_get_header_blob);
 				vresponse_frame->set_method("bool is_undefined() const", &network::http::response_frame::is_undefined);
 				vresponse_frame->set_method("bool is_ok() const", &network::http::response_frame::is_ok);
-				vresponse_frame->set_method_ex("string get_header(usize, usize) const", &response_frame_get_header);
-				vresponse_frame->set_method_ex("cookie get_cookie(const string_view&in) const", &response_frame_get_cookie1);
-				vresponse_frame->set_method_ex("cookie get_cookie(usize) const", &response_frame_get_cookie2);
-				vresponse_frame->set_method_ex("usize get_headers_size() const", &response_frame_get_headers_size);
-				vresponse_frame->set_method_ex("usize get_header_size(usize) const", &response_frame_get_header_size);
-				vresponse_frame->set_method_ex("usize get_cookies_size() const", &response_frame_get_cookies_size);
+				vresponse_frame->set_method_extern("string get_header(usize, usize) const", &response_frame_get_header);
+				vresponse_frame->set_method_extern("cookie get_cookie(const string_view&in) const", &response_frame_get_cookie1);
+				vresponse_frame->set_method_extern("cookie get_cookie(usize) const", &response_frame_get_cookie2);
+				vresponse_frame->set_method_extern("usize get_headers_size() const", &response_frame_get_headers_size);
+				vresponse_frame->set_method_extern("usize get_header_size(usize) const", &response_frame_get_header_size);
+				vresponse_frame->set_method_extern("usize get_cookies_size() const", &response_frame_get_cookies_size);
 
 				vfetch_frame->set_property<network::http::fetch_frame>("content_frame content", &network::http::fetch_frame::content);
 				vfetch_frame->set_property<network::http::fetch_frame>("uint64 timeout", &network::http::fetch_frame::timeout);
@@ -11407,21 +11407,21 @@ namespace vitex
 				vfetch_frame->set_method("void set_header(const string_view&in, const string_view&in)", &network::http::fetch_frame::set_header);
 				vfetch_frame->set_method("void cleanup()", &network::http::fetch_frame::cleanup);
 				vfetch_frame->set_method("string compose_header(const string_view&in) const", &network::http::fetch_frame::compose_header);
-				vfetch_frame->set_method_ex("string get_cookie(const string_view&in) const", &fetch_frame_get_cookie_blob);
-				vfetch_frame->set_method_ex("string get_header(const string_view&in) const", &fetch_frame_get_header_blob);
-				vfetch_frame->set_method_ex("string get_header(usize, usize = 0) const", &fetch_frame_get_header);
-				vfetch_frame->set_method_ex("string get_cookie(usize, usize = 0) const", &fetch_frame_get_cookie);
-				vfetch_frame->set_method_ex("usize get_headers_size() const", &fetch_frame_get_headers_size);
-				vfetch_frame->set_method_ex("usize get_header_size(usize) const", &fetch_frame_get_header_size);
-				vfetch_frame->set_method_ex("usize get_cookies_size() const", &fetch_frame_get_cookies_size);
-				vfetch_frame->set_method_ex("usize get_cookie_size(usize) const", &fetch_frame_get_cookie_size);
+				vfetch_frame->set_method_extern("string get_cookie(const string_view&in) const", &fetch_frame_get_cookie_blob);
+				vfetch_frame->set_method_extern("string get_header(const string_view&in) const", &fetch_frame_get_header_blob);
+				vfetch_frame->set_method_extern("string get_header(usize, usize = 0) const", &fetch_frame_get_header);
+				vfetch_frame->set_method_extern("string get_cookie(usize, usize = 0) const", &fetch_frame_get_cookie);
+				vfetch_frame->set_method_extern("usize get_headers_size() const", &fetch_frame_get_headers_size);
+				vfetch_frame->set_method_extern("usize get_header_size(usize) const", &fetch_frame_get_header_size);
+				vfetch_frame->set_method_extern("usize get_cookies_size() const", &fetch_frame_get_cookies_size);
+				vfetch_frame->set_method_extern("usize get_cookie_size(usize) const", &fetch_frame_get_cookie_size);
 
 				auto vroute_auth = vm->set_struct_trivial<network::http::router_entry::entry_auth>("route_auth");
 				vroute_auth->set_property<network::http::router_entry::entry_auth>("string type", &network::http::router_entry::entry_auth::type);
 				vroute_auth->set_property<network::http::router_entry::entry_auth>("string realm", &network::http::router_entry::entry_auth::realm);
 				vroute_auth->set_constructor<network::http::router_entry::entry_auth>("void f()");
-				vroute_auth->set_method_ex("void set_methods(array<string>@+)", &route_auth_set_methods);
-				vroute_auth->set_method_ex("array<string>@ get_methods() const", &route_auth_get_methods);
+				vroute_auth->set_method_extern("void set_methods(array<string>@+)", &route_auth_set_methods);
+				vroute_auth->set_method_extern("array<string>@ get_methods() const", &route_auth_get_methods);
 
 				auto vroute_compression = vm->set_struct_trivial<network::http::router_entry::entry_compression>("route_compression");
 				vroute_compression->set_property<network::http::router_entry::entry_compression>("compression_tune tune", &network::http::router_entry::entry_compression::tune);
@@ -11430,8 +11430,8 @@ namespace vitex
 				vroute_compression->set_property<network::http::router_entry::entry_compression>("usize min_length", &network::http::router_entry::entry_compression::min_length);
 				vroute_compression->set_property<network::http::router_entry::entry_compression>("bool enabled", &network::http::router_entry::entry_compression::enabled);
 				vroute_compression->set_constructor<network::http::router_entry::entry_compression>("void f()");
-				vroute_compression->set_method_ex("void set_files(array<regex_source>@+)", &route_compression_set_files);
-				vroute_compression->set_method_ex("array<regex_source>@ get_files() const", &route_compression_get_files);
+				vroute_compression->set_method_extern("void set_files(array<regex_source>@+)", &route_compression_set_files);
+				vroute_compression->set_method_extern("array<regex_source>@ get_files() const", &route_compression_get_files);
 
 				auto vmap_router = vm->set_class<network::http::map_router>("map_router", true);
 				auto vrouter_entry = vm->set_class<network::http::router_entry>("route_entry", false);
@@ -11451,26 +11451,26 @@ namespace vitex
 				vrouter_entry->set_property<network::http::router_entry>("bool allow_send_file", &network::http::router_entry::allow_send_file);
 				vrouter_entry->set_property<network::http::router_entry>("regex_source location", &network::http::router_entry::location);
 				vrouter_entry->set_constructor<network::http::router_entry>("route_entry@ f()");
-				vrouter_entry->set_method_ex("void set_hidden_files(array<regex_source>@+)", &router_entry_set_hidden_files);
-				vrouter_entry->set_method_ex("array<regex_source>@ get_hidden_files() const", &router_entry_get_hidden_files);
-				vrouter_entry->set_method_ex("void set_error_files(array<error_file>@+)", &router_entry_set_error_files);
-				vrouter_entry->set_method_ex("array<error_file>@ get_error_files() const", &router_entry_get_error_files);
-				vrouter_entry->set_method_ex("void set_mime_types(array<mime_type>@+)", &router_entry_set_mime_types);
-				vrouter_entry->set_method_ex("array<mime_type>@ get_mime_types() const", &router_entry_get_mime_types);
-				vrouter_entry->set_method_ex("void set_index_files(array<string>@+)", &router_entry_set_index_files);
-				vrouter_entry->set_method_ex("array<string>@ get_index_files() const", &router_entry_get_index_files);
-				vrouter_entry->set_method_ex("void set_try_files(array<string>@+)", &router_entry_set_try_files);
-				vrouter_entry->set_method_ex("array<string>@ get_try_files() const", &router_entry_get_try_files);
-				vrouter_entry->set_method_ex("void set_disallowed_methods_files(array<string>@+)", &router_entry_set_disallowed_methods_files);
-				vrouter_entry->set_method_ex("array<string>@ get_disallowed_methods_files() const", &router_entry_get_disallowed_methods_files);
-				vrouter_entry->set_method_ex("map_router@+ get_router() const", &router_entry_get_router);
+				vrouter_entry->set_method_extern("void set_hidden_files(array<regex_source>@+)", &router_entry_set_hidden_files);
+				vrouter_entry->set_method_extern("array<regex_source>@ get_hidden_files() const", &router_entry_get_hidden_files);
+				vrouter_entry->set_method_extern("void set_error_files(array<error_file>@+)", &router_entry_set_error_files);
+				vrouter_entry->set_method_extern("array<error_file>@ get_error_files() const", &router_entry_get_error_files);
+				vrouter_entry->set_method_extern("void set_mime_types(array<mime_type>@+)", &router_entry_set_mime_types);
+				vrouter_entry->set_method_extern("array<mime_type>@ get_mime_types() const", &router_entry_get_mime_types);
+				vrouter_entry->set_method_extern("void set_index_files(array<string>@+)", &router_entry_set_index_files);
+				vrouter_entry->set_method_extern("array<string>@ get_index_files() const", &router_entry_get_index_files);
+				vrouter_entry->set_method_extern("void set_try_files(array<string>@+)", &router_entry_set_try_files);
+				vrouter_entry->set_method_extern("array<string>@ get_try_files() const", &router_entry_get_try_files);
+				vrouter_entry->set_method_extern("void set_disallowed_methods_files(array<string>@+)", &router_entry_set_disallowed_methods_files);
+				vrouter_entry->set_method_extern("array<string>@ get_disallowed_methods_files() const", &router_entry_get_disallowed_methods_files);
+				vrouter_entry->set_method_extern("map_router@+ get_router() const", &router_entry_get_router);
 
 				auto vrouter_group = vm->set_class<network::http::router_group>("route_group", false);
 				vrouter_group->set_property<network::http::router_group>("string match", &network::http::router_group::match);
 				vrouter_group->set_property<network::http::router_group>("route_mode mode", &network::http::router_group::mode);
 				vrouter_group->set_gc_constructor<network::http::router_group, router_group, const std::string_view&, network::http::route_mode>("route_group@ f(const string_view&in, route_mode)");
-				vrouter_group->set_method_ex("route_entry@+ get_route(usize) const", &router_group_get_route);
-				vrouter_group->set_method_ex("usize get_routes_size() const", &router_group_get_routes_size);
+				vrouter_group->set_method_extern("route_entry@+ get_route(usize) const", &router_group_get_route);
+				vrouter_group->set_method_extern("usize get_routes_size() const", &router_group_get_routes_size);
 
 				auto vrouter_cookie = vm->set_struct_trivial<network::http::map_router::router_session::router_cookie>("router_cookie");
 				vrouter_cookie->set_property<network::http::map_router::router_session::router_cookie>("string name", &network::http::map_router::router_session::router_cookie::name);
@@ -11492,13 +11492,13 @@ namespace vitex
 				auto vweb_socket_frame = vm->set_class<network::http::web_socket_frame>("websocket_frame", false);
 				vweb_socket_frame->set_function_def("void status_async(websocket_frame@+)");
 				vweb_socket_frame->set_function_def("void recv_async(websocket_frame@+, websocket_op, const string&in)");
-				vweb_socket_frame->set_method_ex("bool set_on_connect(status_async@+)", &web_socket_frame_set_on_connect);
-				vweb_socket_frame->set_method_ex("bool set_on_before_disconnect(status_async@+)", &web_socket_frame_set_on_before_disconnect);
-				vweb_socket_frame->set_method_ex("bool set_on_disconnect(status_async@+)", &web_socket_frame_set_on_disconnect);
-				vweb_socket_frame->set_method_ex("bool set_on_receive(recv_async@+)", &web_socket_frame_set_on_receive);
-				vweb_socket_frame->set_method_ex("promise<bool>@ send(const string_view&in, websocket_op)", &VI_SPROMISIFY(web_socket_frame_send1, type_id::boolf));
-				vweb_socket_frame->set_method_ex("promise<bool>@ send(uint32, const string_view&in, websocket_op)", &VI_SPROMISIFY(web_socket_frame_send2, type_id::boolf));
-				vweb_socket_frame->set_method_ex("promise<bool>@ send_close()", &VI_SPROMISIFY(web_socket_frame_send_close, type_id::boolf));
+				vweb_socket_frame->set_method_extern("bool set_on_connect(status_async@+)", &web_socket_frame_set_on_connect);
+				vweb_socket_frame->set_method_extern("bool set_on_before_disconnect(status_async@+)", &web_socket_frame_set_on_before_disconnect);
+				vweb_socket_frame->set_method_extern("bool set_on_disconnect(status_async@+)", &web_socket_frame_set_on_disconnect);
+				vweb_socket_frame->set_method_extern("bool set_on_receive(recv_async@+)", &web_socket_frame_set_on_receive);
+				vweb_socket_frame->set_method_extern("promise<bool>@ send(const string_view&in, websocket_op)", &VI_SPROMISIFY(web_socket_frame_send1, type_id::bool_t));
+				vweb_socket_frame->set_method_extern("promise<bool>@ send(uint32, const string_view&in, websocket_op)", &VI_SPROMISIFY(web_socket_frame_send2, type_id::bool_t));
+				vweb_socket_frame->set_method_extern("promise<bool>@ send_close()", &VI_SPROMISIFY(web_socket_frame_send_close, type_id::bool_t));
 				vweb_socket_frame->set_method("void next()", &network::http::web_socket_frame::next);
 				vweb_socket_frame->set_method("bool is_finished() const", &network::http::web_socket_frame::is_finished);
 				vweb_socket_frame->set_method("socket@+ get_stream() const", &network::http::web_socket_frame::get_stream);
@@ -11516,12 +11516,12 @@ namespace vitex
 				vmap_router->set_property<network::http::map_router>("string temporary_directory", &network::http::map_router::temporary_directory);
 				vmap_router->set_property<network::http::map_router>("usize max_uploadable_resources", &network::http::map_router::max_uploadable_resources);
 				vmap_router->set_gc_constructor<network::http::map_router, map_router>("map_router@ f()");
-				vmap_router->set_method_ex("void listen(const string_view&in, const string_view&in, bool = false)", &socket_router_listen1);
-				vmap_router->set_method_ex("void listen(const string_view&in, const string_view&in, const string_view&in, bool = false)", &socket_router_listen2);
-				vmap_router->set_method_ex("void set_listeners(dictionary@ data)", &socket_router_set_listeners);
-				vmap_router->set_method_ex("dictionary@ get_listeners() const", &socket_router_get_listeners);
-				vmap_router->set_method_ex("void set_certificates(dictionary@ data)", &socket_router_set_certificates);
-				vmap_router->set_method_ex("dictionary@ get_certificates() const", &socket_router_get_certificates);
+				vmap_router->set_method_extern("void listen(const string_view&in, const string_view&in, bool = false)", &socket_router_listen1);
+				vmap_router->set_method_extern("void listen(const string_view&in, const string_view&in, const string_view&in, bool = false)", &socket_router_listen2);
+				vmap_router->set_method_extern("void set_listeners(dictionary@ data)", &socket_router_set_listeners);
+				vmap_router->set_method_extern("dictionary@ get_listeners() const", &socket_router_get_listeners);
+				vmap_router->set_method_extern("void set_certificates(dictionary@ data)", &socket_router_set_certificates);
+				vmap_router->set_method_extern("dictionary@ get_certificates() const", &socket_router_get_certificates);
 				vmap_router->set_function_def("void route_async(connection@+)");
 				vmap_router->set_function_def("void authorize_sync(connection@+, credentials&in)");
 				vmap_router->set_function_def("void headers_sync(connection@+, string&out)");
@@ -11532,34 +11532,34 @@ namespace vitex
 				vmap_router->set_method<network::http::map_router, network::http::router_entry*, const std::string_view&, network::http::route_mode, const std::string_view&, bool>("route_entry@+ route(const string_view&in, route_mode, const string_view&in, bool)", &network::http::map_router::route);
 				vmap_router->set_method<network::http::map_router, network::http::router_entry*, const std::string_view&, network::http::router_group*, network::http::router_entry*>("route_entry@+ route(const string_view&in, route_group@+, route_entry@+)", &network::http::map_router::route);
 				vmap_router->set_method("bool remove(route_entry@+)", &network::http::map_router::remove);
-				vmap_router->set_method_ex("bool get(const string_view&in, route_async@) const", &map_router_get1);
-				vmap_router->set_method_ex("bool get(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_get2);
-				vmap_router->set_method_ex("bool post(const string_view&in, route_async@) const", &map_router_post1);
-				vmap_router->set_method_ex("bool post(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_post2);
-				vmap_router->set_method_ex("bool patch(const string_view&in, route_async@) const", &map_router_patch1);
-				vmap_router->set_method_ex("bool patch(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_patch2);
-				vmap_router->set_method_ex("bool delete(const string_view&in, route_async@) const", &map_router_delete1);
-				vmap_router->set_method_ex("bool delete(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_delete2);
-				vmap_router->set_method_ex("bool options(const string_view&in, route_async@) const", &map_router_options1);
-				vmap_router->set_method_ex("bool options(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_options2);
-				vmap_router->set_method_ex("bool access(const string_view&in, route_async@) const", &map_router_access1);
-				vmap_router->set_method_ex("bool access(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_access2);
-				vmap_router->set_method_ex("bool headers(const string_view&in, headers_sync@) const", &map_router_headers1);
-				vmap_router->set_method_ex("bool headers(const string_view&in, route_mode, const string_view&in, headers_sync@) const", &map_router_headers2);
-				vmap_router->set_method_ex("bool authorize(const string_view&in, authorize_sync@) const", &map_router_authorize1);
-				vmap_router->set_method_ex("bool authorize(const string_view&in, route_mode, const string_view&in, authorize_sync@) const", &map_router_authorize2);
-				vmap_router->set_method_ex("bool websocket_initiate(const string_view&in, route_async@) const", &map_router_websocket_initiate1);
-				vmap_router->set_method_ex("bool websocket_initiate(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_websocket_initiate2);
-				vmap_router->set_method_ex("bool websocket_connect(const string_view&in, websocket_status_async@) const", &map_router_websocket_connect1);
-				vmap_router->set_method_ex("bool websocket_connect(const string_view&in, route_mode, const string_view&in, websocket_status_async@) const", &map_router_websocket_connect2);
-				vmap_router->set_method_ex("bool websocket_disconnect(const string_view&in, websocket_status_async@) const", &map_router_websocket_disconnect1);
-				vmap_router->set_method_ex("bool websocket_disconnect(const string_view&in, route_mode, const string_view&in, websocket_status_async@) const", &map_router_websocket_disconnect2);
-				vmap_router->set_method_ex("bool websocket_receive(const string_view&in, websocket_recv_async@) const", &map_router_websocket_receive1);
-				vmap_router->set_method_ex("bool websocket_receive(const string_view&in, route_mode, const string_view&in, websocket_recv_async@) const", &map_router_websocket_receive2);
-				vmap_router->set_method_ex("route_entry@+ get_base() const", &map_router_get_base);
-				vmap_router->set_method_ex("route_group@+ get_group(usize) const", &map_router_get_group);
-				vmap_router->set_method_ex("usize get_groups_size() const", &map_router_get_groups_size);
-				vmap_router->set_enum_refs_ex<network::http::map_router>([](network::http::map_router* base, asIScriptEngine* vm)
+				vmap_router->set_method_extern("bool get(const string_view&in, route_async@) const", &map_router_get1);
+				vmap_router->set_method_extern("bool get(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_get2);
+				vmap_router->set_method_extern("bool post(const string_view&in, route_async@) const", &map_router_post1);
+				vmap_router->set_method_extern("bool post(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_post2);
+				vmap_router->set_method_extern("bool patch(const string_view&in, route_async@) const", &map_router_patch1);
+				vmap_router->set_method_extern("bool patch(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_patch2);
+				vmap_router->set_method_extern("bool delete(const string_view&in, route_async@) const", &map_router_delete1);
+				vmap_router->set_method_extern("bool delete(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_delete2);
+				vmap_router->set_method_extern("bool options(const string_view&in, route_async@) const", &map_router_options1);
+				vmap_router->set_method_extern("bool options(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_options2);
+				vmap_router->set_method_extern("bool access(const string_view&in, route_async@) const", &map_router_access1);
+				vmap_router->set_method_extern("bool access(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_access2);
+				vmap_router->set_method_extern("bool headers(const string_view&in, headers_sync@) const", &map_router_headers1);
+				vmap_router->set_method_extern("bool headers(const string_view&in, route_mode, const string_view&in, headers_sync@) const", &map_router_headers2);
+				vmap_router->set_method_extern("bool authorize(const string_view&in, authorize_sync@) const", &map_router_authorize1);
+				vmap_router->set_method_extern("bool authorize(const string_view&in, route_mode, const string_view&in, authorize_sync@) const", &map_router_authorize2);
+				vmap_router->set_method_extern("bool websocket_initiate(const string_view&in, route_async@) const", &map_router_websocket_initiate1);
+				vmap_router->set_method_extern("bool websocket_initiate(const string_view&in, route_mode, const string_view&in, route_async@) const", &map_router_websocket_initiate2);
+				vmap_router->set_method_extern("bool websocket_connect(const string_view&in, websocket_status_async@) const", &map_router_websocket_connect1);
+				vmap_router->set_method_extern("bool websocket_connect(const string_view&in, route_mode, const string_view&in, websocket_status_async@) const", &map_router_websocket_connect2);
+				vmap_router->set_method_extern("bool websocket_disconnect(const string_view&in, websocket_status_async@) const", &map_router_websocket_disconnect1);
+				vmap_router->set_method_extern("bool websocket_disconnect(const string_view&in, route_mode, const string_view&in, websocket_status_async@) const", &map_router_websocket_disconnect2);
+				vmap_router->set_method_extern("bool websocket_receive(const string_view&in, websocket_recv_async@) const", &map_router_websocket_receive1);
+				vmap_router->set_method_extern("bool websocket_receive(const string_view&in, route_mode, const string_view&in, websocket_recv_async@) const", &map_router_websocket_receive2);
+				vmap_router->set_method_extern("route_entry@+ get_base() const", &map_router_get_base);
+				vmap_router->set_method_extern("route_group@+ get_group(usize) const", &map_router_get_group);
+				vmap_router->set_method_extern("usize get_groups_size() const", &map_router_get_groups_size);
+				vmap_router->set_enum_refs_extern<network::http::map_router>([](network::http::map_router* base, asIScriptEngine* vm)
 				{
 					function_factory::gc_enum_callback(vm, base->base);
 					for (auto& group : base->groups)
@@ -11568,7 +11568,7 @@ namespace vitex
 							function_factory::gc_enum_callback(vm, route);
 					}
 				});
-				vmap_router->set_release_refs_ex<network::http::map_router>([](network::http::map_router* base, asIScriptEngine*)
+				vmap_router->set_release_refs_extern<network::http::map_router>([](network::http::map_router* base, asIScriptEngine*)
 				{
 					base->~map_router();
 				});
@@ -11585,49 +11585,49 @@ namespace vitex
 				vconnection->set_method<network::http::connection, bool>("bool next()", &network::http::connection::next);
 				vconnection->set_method<network::http::connection, bool, int>("bool next(int32)", &network::http::connection::next);
 				vconnection->set_method<network::socket_connection, bool>("bool abort()", &network::socket_connection::abort);
-				vconnection->set_method_ex("bool abort(int32, const string_view&in)", &socket_connection_abort);
+				vconnection->set_method_extern("bool abort(int32, const string_view&in)", &socket_connection_abort);
 				vconnection->set_method("void reset(bool)", &network::http::connection::reset);
 				vconnection->set_method("bool is_skip_required() const", &network::http::connection::is_skip_required);
-				vconnection->set_method_ex("promise<bool>@ send_headers(int32, bool = true) const", &VI_SPROMISIFY(connection_send_headers, type_id::boolf));
-				vconnection->set_method_ex("promise<bool>@ send_chunk(const string_view&in) const", &VI_SPROMISIFY(connection_send_chunk, type_id::boolf));
-				vconnection->set_method_ex("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(connection_store, array_resource_info));
-				vconnection->set_method_ex("promise<string>@ fetch(bool = false) const", &VI_SPROMISIFY_REF(connection_fetch, string));
-				vconnection->set_method_ex("promise<bool>@ skip() const", &VI_SPROMISIFY(connection_skip, type_id::boolf));
-				vconnection->set_method_ex("string get_peer_ip_address() const", &connection_get_peer_ip_address);
-				vconnection->set_method_ex("websocket_frame@+ get_websocket() const", &connection_get_web_socket);
-				vconnection->set_method_ex("route_entry@+ get_route() const", &connection_get_route);
-				vconnection->set_method_ex("server@+ get_root() const", &connection_get_server);
+				vconnection->set_method_extern("promise<bool>@ send_headers(int32, bool = true) const", &VI_SPROMISIFY(connection_send_headers, type_id::bool_t));
+				vconnection->set_method_extern("promise<bool>@ send_chunk(const string_view&in) const", &VI_SPROMISIFY(connection_send_chunk, type_id::bool_t));
+				vconnection->set_method_extern("promise<array<resource_info>@>@ store(bool = false) const", &VI_SPROMISIFY_REF(connection_store, array_resource_info));
+				vconnection->set_method_extern("promise<string>@ fetch(bool = false) const", &VI_SPROMISIFY_REF(connection_fetch, string));
+				vconnection->set_method_extern("promise<bool>@ skip() const", &VI_SPROMISIFY(connection_skip, type_id::bool_t));
+				vconnection->set_method_extern("string get_peer_ip_address() const", &connection_get_peer_ip_address);
+				vconnection->set_method_extern("websocket_frame@+ get_websocket() const", &connection_get_web_socket);
+				vconnection->set_method_extern("route_entry@+ get_route() const", &connection_get_route);
+				vconnection->set_method_extern("server@+ get_root() const", &connection_get_server);
 
 				auto vquery = vm->set_class<network::http::query>("query", false);
 				vquery->set_constructor<network::http::query>("query@ f()");
 				vquery->set_method("void clear()", &network::http::query::clear);
-				vquery->set_method_ex("void decode(const string_view&in, const string_view&in)", &query_decode);
-				vquery->set_method_ex("string encode(const string_view&in)", &query_encode);
-				vquery->set_method_ex("void set_data(schema@+)", &query_set_data);
-				vquery->set_method_ex("schema@+ get_data()", &query_get_data);
+				vquery->set_method_extern("void decode(const string_view&in, const string_view&in)", &query_decode);
+				vquery->set_method_extern("string encode(const string_view&in)", &query_encode);
+				vquery->set_method_extern("void set_data(schema@+)", &query_set_data);
+				vquery->set_method_extern("schema@+ get_data()", &query_get_data);
 
 				auto vsession = vm->set_class<network::http::session>("session", false);
 				vsession->set_property<network::http::session>("string session_id", &network::http::session::session_id);
 				vsession->set_property<network::http::session>("int64 session_expires", &network::http::session::session_expires);
 				vsession->set_constructor<network::http::session>("session@ f()");
 				vsession->set_method("void clear()", &network::http::session::clear);
-				vsession->set_method_ex("bool write(connection@+)", &VI_EXPECTIFY_VOID(network::http::session::write));
-				vsession->set_method_ex("bool read(connection@+)", &VI_EXPECTIFY_VOID(network::http::session::read));
+				vsession->set_method_extern("bool write(connection@+)", &VI_EXPECTIFY_VOID(network::http::session::write));
+				vsession->set_method_extern("bool read(connection@+)", &VI_EXPECTIFY_VOID(network::http::session::read));
 				vsession->set_method_static("bool invalidate_cache(const string_view&in)", &VI_SEXPECTIFY_VOID(network::http::session::invalidate_cache));
-				vsession->set_method_ex("void set_data(schema@+)", &session_set_data);
-				vsession->set_method_ex("schema@+ get_data()", &session_get_data);
+				vsession->set_method_extern("void set_data(schema@+)", &session_set_data);
+				vsession->set_method_extern("schema@+ get_data()", &session_get_data);
 
 				vserver->set_gc_constructor<network::http::server, server>("server@ f()");
 				vserver->set_method("void update()", &network::http::server::update);
-				vserver->set_method_ex("void set_router(map_router@+)", &socket_server_set_router);
-				vserver->set_method_ex("bool configure(map_router@+)", &socket_server_configure);
-				vserver->set_method_ex("bool listen()", &socket_server_listen);
-				vserver->set_method_ex("bool unlisten(bool)", &socket_server_unlisten);
+				vserver->set_method_extern("void set_router(map_router@+)", &socket_server_set_router);
+				vserver->set_method_extern("bool configure(map_router@+)", &socket_server_configure);
+				vserver->set_method_extern("bool listen()", &socket_server_listen);
+				vserver->set_method_extern("bool unlisten(bool)", &socket_server_unlisten);
 				vserver->set_method("void set_backlog(usize)", &network::socket_server::set_backlog);
 				vserver->set_method("usize get_backlog() const", &network::socket_server::get_backlog);
 				vserver->set_method("server_state get_state() const", &network::socket_server::get_state);
 				vserver->set_method("map_router@+ get_router() const", &network::socket_server::get_router);
-				vserver->set_enum_refs_ex<network::http::server>([](network::http::server* base, asIScriptEngine* vm)
+				vserver->set_enum_refs_extern<network::http::server>([](network::http::server* base, asIScriptEngine* vm)
 				{
 					function_factory::gc_enum_callback(vm, base->get_router());
 					for (auto* item : base->get_active_clients())
@@ -11636,7 +11636,7 @@ namespace vitex
 					for (auto* item : base->get_pooled_clients())
 						function_factory::gc_enum_callback(vm, item);
 				});
-				vserver->set_release_refs_ex<network::http::server>([](network::http::server* base, asIScriptEngine*)
+				vserver->set_release_refs_extern<network::http::server>([](network::http::server* base, asIScriptEngine*)
 				{
 					base->~server();
 				});
@@ -11645,16 +11645,16 @@ namespace vitex
 				auto vclient = vm->set_class<network::http::client>("client", false);
 				vclient->set_constructor<network::http::client, int64_t>("client@ f(int64)");
 				vclient->set_method("bool downgrade()", &network::http::client::downgrade);
-				vclient->set_method_ex("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(client_json, schema));
-				vclient->set_method_ex("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(client_xml, schema));
-				vclient->set_method_ex("promise<bool>@ skip()", &VI_SPROMISIFY(client_skip, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ fetch(usize = 65536, bool = false)", &VI_SPROMISIFY(client_fetch, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(client_upgrade, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(client_send, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ send_fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(client_send_fetch, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_sync, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_async, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(socket_client_disconnect, type_id::boolf));
+				vclient->set_method_extern("promise<schema@>@ json(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(client_json, schema));
+				vclient->set_method_extern("promise<schema@>@ xml(const request_frame&in, usize = 65536)", &VI_SPROMISIFY_REF(client_xml, schema));
+				vclient->set_method_extern("promise<bool>@ skip()", &VI_SPROMISIFY(client_skip, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ fetch(usize = 65536, bool = false)", &VI_SPROMISIFY(client_fetch, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ upgrade(const request_frame&in)", &VI_SPROMISIFY(client_upgrade, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(client_send, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ send_fetch(const request_frame&in, usize = 65536)", &VI_SPROMISIFY(client_send_fetch, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_sync, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_async, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(socket_client_disconnect, type_id::bool_t));
 				vclient->set_method("bool has_stream() const", &network::socket_client::has_stream);
 				vclient->set_method("bool is_secure() const", &network::socket_client::is_secure);
 				vclient->set_method("bool is_verified() const", &network::socket_client::is_verified);
@@ -11717,25 +11717,25 @@ namespace vitex
 				vrequest_frame->set_property<network::smtp::request_frame>("bool no_notification", &network::smtp::request_frame::no_notification);
 				vrequest_frame->set_property<network::smtp::request_frame>("bool allow_html", &network::smtp::request_frame::allow_html);
 				vrequest_frame->set_constructor<network::smtp::request_frame>("void f()");
-				vrequest_frame->set_method_ex("void set_header(const string_view&in, const string_view&in)", &smtp_request_set_header);
-				vrequest_frame->set_method_ex("string get_header(const string_view&in)", &smtp_request_get_header);
-				vrequest_frame->set_method_ex("void set_recipients(array<recipient>@+)", &smtp_request_set_recipients);
-				vrequest_frame->set_method_ex("array<string>@ get_recipients() const", &smtp_request_get_recipients);
-				vrequest_frame->set_method_ex("void set_cc_recipients(array<recipient>@+)", &smtp_request_set_cc_recipients);
-				vrequest_frame->set_method_ex("array<string>@ get_cc_recipients() const", &smtp_request_get_cc_recipients);
-				vrequest_frame->set_method_ex("void set_bcc_recipients(array<recipient>@+)", &smtp_request_set_bcc_recipients);
-				vrequest_frame->set_method_ex("array<string>@ get_bcc_recipients() const", &smtp_request_get_bcc_recipients);
-				vrequest_frame->set_method_ex("void set_attachments(array<attachment>@+)", &smtp_request_set_attachments);
-				vrequest_frame->set_method_ex("array<attachment>@ get_attachments() const", &smtp_request_get_attachments);
-				vrequest_frame->set_method_ex("void set_messages(array<string>@+)", &smtp_request_set_messages);
-				vrequest_frame->set_method_ex("array<string>@ get_messages() const", &smtp_request_get_messages);
+				vrequest_frame->set_method_extern("void set_header(const string_view&in, const string_view&in)", &smtp_request_set_header);
+				vrequest_frame->set_method_extern("string get_header(const string_view&in)", &smtp_request_get_header);
+				vrequest_frame->set_method_extern("void set_recipients(array<recipient>@+)", &smtp_request_set_recipients);
+				vrequest_frame->set_method_extern("array<string>@ get_recipients() const", &smtp_request_get_recipients);
+				vrequest_frame->set_method_extern("void set_cc_recipients(array<recipient>@+)", &smtp_request_set_cc_recipients);
+				vrequest_frame->set_method_extern("array<string>@ get_cc_recipients() const", &smtp_request_get_cc_recipients);
+				vrequest_frame->set_method_extern("void set_bcc_recipients(array<recipient>@+)", &smtp_request_set_bcc_recipients);
+				vrequest_frame->set_method_extern("array<string>@ get_bcc_recipients() const", &smtp_request_get_bcc_recipients);
+				vrequest_frame->set_method_extern("void set_attachments(array<attachment>@+)", &smtp_request_set_attachments);
+				vrequest_frame->set_method_extern("array<attachment>@ get_attachments() const", &smtp_request_get_attachments);
+				vrequest_frame->set_method_extern("void set_messages(array<string>@+)", &smtp_request_set_messages);
+				vrequest_frame->set_method_extern("array<string>@ get_messages() const", &smtp_request_get_messages);
 
 				auto vclient = vm->set_class<network::smtp::client>("client", false);
 				vclient->set_constructor<network::smtp::client, const std::string_view&, int64_t>("client@ f(const string_view&in, int64)");
-				vclient->set_method_ex("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(smtp_client_send, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_sync, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_async, type_id::boolf));
-				vclient->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(socket_client_disconnect, type_id::boolf));
+				vclient->set_method_extern("promise<bool>@ send(const request_frame&in)", &VI_SPROMISIFY(smtp_client_send, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ connect_sync(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_sync, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ connect_async(const socket_address&in, int32 = -1)", &VI_SPROMISIFY(socket_client_connect_async, type_id::bool_t));
+				vclient->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(socket_client_disconnect, type_id::bool_t));
 				vclient->set_method("bool has_stream() const", &network::socket_client::has_stream);
 				vclient->set_method("bool is_secure() const", &network::socket_client::is_secure);
 				vclient->set_method("bool is_verified() const", &network::socket_client::is_verified);
@@ -11818,7 +11818,7 @@ namespace vitex
 				vresponse->set_method("schema@ get_array_of_arrays() const", &network::sqlite::response::get_array_of_arrays);
 				vresponse->set_method("schema@ get_object(usize = 0) const", &network::sqlite::response::get_object);
 				vresponse->set_method("schema@ get_array(usize = 0) const", &network::sqlite::response::get_array);
-				vresponse->set_method_ex("array<string>@ get_columns() const", &ldb_response_get_columns);
+				vresponse->set_method_extern("array<string>@ get_columns() const", &ldb_response_get_columns);
 				vresponse->set_method("string get_status_text() const", &network::sqlite::response::get_status_text);
 				vresponse->set_method("int32 get_status_code() const", &network::sqlite::response::get_status_code);
 				vresponse->set_method("usize affected_rows() const", &network::sqlite::response::affected_rows);
@@ -11846,9 +11846,9 @@ namespace vitex
 				vcursor->set_method("usize size() const", &network::sqlite::cursor::size);
 				vcursor->set_method("usize affected_rows() const", &network::sqlite::cursor::affected_rows);
 				vcursor->set_method("cursor copy() const", &network::sqlite::cursor::copy);
-				vcursor->set_method_ex("response first() const", &ldb_cursor_first);
-				vcursor->set_method_ex("response last() const", &ldb_cursor_last);
-				vcursor->set_method_ex("response at(usize) const", &ldb_cursor_at);
+				vcursor->set_method_extern("response first() const", &ldb_cursor_first);
+				vcursor->set_method_extern("response last() const", &ldb_cursor_last);
+				vcursor->set_method_extern("response at(usize) const", &ldb_cursor_at);
 				vcursor->set_method("uptr@ get_executor() const", &network::sqlite::cursor::get_executor);
 				vcursor->set_method("schema@ get_array_of_objects(usize = 0) const", &network::sqlite::cursor::get_array_of_objects);
 				vcursor->set_method("schema@ get_array_of_arrays(usize = 0) const", &network::sqlite::cursor::get_array_of_arrays);
@@ -11868,7 +11868,7 @@ namespace vitex
 				vcluster->set_method("void set_shared_cache(bool)", &network::sqlite::cluster::set_shared_cache);
 				vcluster->set_method("void set_extensions(bool)", &network::sqlite::cluster::set_extensions);
 				vcluster->set_method("void overload_function(const string_view&in, uint8)", &network::sqlite::cluster::overload_function);
-				vcluster->set_method_ex("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string_view&in = string_view())", &ldb_cluster_wal_checkpoint);
+				vcluster->set_method_extern("array<checkpoint>@ wal_checkpoint(checkpoint_mode, const string_view&in = string_view())", &ldb_cluster_wal_checkpoint);
 				vcluster->set_method("usize free_memory_used(usize)", &network::sqlite::cluster::free_memory_used);
 				vcluster->set_method("usize get_memory_used()", &network::sqlite::cluster::get_memory_used);
 				vcluster->set_method("uptr@ get_idle_connection()", &network::sqlite::cluster::get_idle_connection);
@@ -11876,36 +11876,36 @@ namespace vitex
 				vcluster->set_method("uptr@ get_any_connection()", &network::sqlite::cluster::get_any_connection);
 				vcluster->set_method("const string& get_address() const", &network::sqlite::cluster::get_address);
 				vcluster->set_method("bool is_connected() const", &network::sqlite::cluster::is_connected);
-				vcluster->set_method_ex("void set_function(const string_view&in, uint8, constant_sync@)", &ldb_cluster_set_function);
-				vcluster->set_method_ex("void set_aggregate_function(const string_view&in, uint8, step_sync@, finalize_sync@)", &ldb_cluster_set_aggregate_function);
-				vcluster->set_method_ex("void set_window_function(const string_view&in, uint8, step_sync@, inverse_sync@, value_sync@, finalize_sync@)", &ldb_cluster_set_window_function);
-				vcluster->set_method_ex("promise<uptr@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(ldb_cluster_tx_begin, connection));
-				vcluster->set_method_ex("promise<uptr@>@ tx_start(const string_view&in)", &VI_SPROMISIFY_REF(ldb_cluster_tx_start, connection));
-				vcluster->set_method_ex("promise<bool>@ tx_end(const string_view&in, uptr@)", &VI_SPROMISIFY(ldb_cluster_tx_end, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ tx_commit(uptr@)", &VI_SPROMISIFY(ldb_cluster_tx_commit, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ tx_rollback(uptr@)", &VI_SPROMISIFY(ldb_cluster_tx_rollback, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ connect(const string_view&in, usize = 1)", &VI_SPROMISIFY(ldb_cluster_connect, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(ldb_cluster_disconnect, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ flush()", &VI_SPROMISIFY(ldb_cluster_flush, type_id::boolf));
-				vcluster->set_method_ex("promise<cursor>@ query(const string_view&in, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(ldb_cluster_query, cursor));
-				vcluster->set_method_ex("promise<cursor>@ emplace_query(const string_view&in, array<schema@>@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(ldb_cluster_emplace_query, cursor));
-				vcluster->set_method_ex("promise<cursor>@ template_query(const string_view&in, dictionary@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(ldb_cluster_template_query, cursor));
+				vcluster->set_method_extern("void set_function(const string_view&in, uint8, constant_sync@)", &ldb_cluster_set_function);
+				vcluster->set_method_extern("void set_aggregate_function(const string_view&in, uint8, step_sync@, finalize_sync@)", &ldb_cluster_set_aggregate_function);
+				vcluster->set_method_extern("void set_window_function(const string_view&in, uint8, step_sync@, inverse_sync@, value_sync@, finalize_sync@)", &ldb_cluster_set_window_function);
+				vcluster->set_method_extern("promise<uptr@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(ldb_cluster_tx_begin, connection));
+				vcluster->set_method_extern("promise<uptr@>@ tx_start(const string_view&in)", &VI_SPROMISIFY_REF(ldb_cluster_tx_start, connection));
+				vcluster->set_method_extern("promise<bool>@ tx_end(const string_view&in, uptr@)", &VI_SPROMISIFY(ldb_cluster_tx_end, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ tx_commit(uptr@)", &VI_SPROMISIFY(ldb_cluster_tx_commit, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ tx_rollback(uptr@)", &VI_SPROMISIFY(ldb_cluster_tx_rollback, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ connect(const string_view&in, usize = 1)", &VI_SPROMISIFY(ldb_cluster_connect, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(ldb_cluster_disconnect, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ flush()", &VI_SPROMISIFY(ldb_cluster_flush, type_id::bool_t));
+				vcluster->set_method_extern("promise<cursor>@ query(const string_view&in, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(ldb_cluster_query, cursor));
+				vcluster->set_method_extern("promise<cursor>@ emplace_query(const string_view&in, array<schema@>@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(ldb_cluster_emplace_query, cursor));
+				vcluster->set_method_extern("promise<cursor>@ template_query(const string_view&in, dictionary@+, usize = 0, uptr@ = null)", &VI_SPROMISIFY_REF(ldb_cluster_template_query, cursor));
 
 				auto vdriver = vm->set_class<network::sqlite::driver>("driver", false);
 				vdriver->set_function_def("void query_log_async(const string&in)");
 				vdriver->set_constructor<network::sqlite::driver>("driver@ f()");
 				vdriver->set_method("void log_query(const string_view&in)", &network::sqlite::driver::log_query);
 				vdriver->set_method("void add_constant(const string_view&in, const string_view&in)", &network::sqlite::driver::add_constant);
-				vdriver->set_method_ex("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(network::sqlite::driver::add_query));
-				vdriver->set_method_ex("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(network::sqlite::driver::add_directory));
+				vdriver->set_method_extern("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(network::sqlite::driver::add_query));
+				vdriver->set_method_extern("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(network::sqlite::driver::add_directory));
 				vdriver->set_method("bool remove_constant(const string_view&in)", &network::sqlite::driver::remove_constant);
 				vdriver->set_method("bool remove_query(const string_view&in)", &network::sqlite::driver::remove_query);
 				vdriver->set_method("bool load_cache_dump(schema@+)", &network::sqlite::driver::load_cache_dump);
 				vdriver->set_method("schema@ get_cache_dump()", &network::sqlite::driver::get_cache_dump);
-				vdriver->set_method_ex("void set_query_log(query_log_async@)", &ldb_driver_set_query_log);
-				vdriver->set_method_ex("string emplace(const string_view&in, array<schema@>@+)", &ldb_driver_emplace);
-				vdriver->set_method_ex("string get_query(const string_view&in, dictionary@+)", &ldb_driver_get_query);
-				vdriver->set_method_ex("array<string>@ get_queries()", &ldb_driver_get_queries);
+				vdriver->set_method_extern("void set_query_log(query_log_async@)", &ldb_driver_set_query_log);
+				vdriver->set_method_extern("string emplace(const string_view&in, array<schema@>@+)", &ldb_driver_emplace);
+				vdriver->set_method_extern("string get_query(const string_view&in, dictionary@+)", &ldb_driver_get_query);
+				vdriver->set_method_extern("array<string>@ get_queries()", &ldb_driver_get_queries);
 				vdriver->set_method_static("driver@+ get()", &network::sqlite::driver::get);
 
 				vm->end_namespace();
@@ -12115,7 +12115,7 @@ namespace vitex
 				vresponse->set_method("schema@ get_array_of_arrays() const", &network::pq::response::get_array_of_arrays);
 				vresponse->set_method("schema@ get_object(usize = 0) const", &network::pq::response::get_object);
 				vresponse->set_method("schema@ get_array(usize = 0) const", &network::pq::response::get_array);
-				vresponse->set_method_ex("array<string>@ get_columns() const", &pdb_response_get_columns);
+				vresponse->set_method_extern("array<string>@ get_columns() const", &pdb_response_get_columns);
 				vresponse->set_method("string get_command_status_text() const", &network::pq::response::get_command_status_text);
 				vresponse->set_method("string get_status_text() const", &network::pq::response::get_status_text);
 				vresponse->set_method("string get_error_text() const", &network::pq::response::get_error_text);
@@ -12149,9 +12149,9 @@ namespace vitex
 				vcursor->set_method("usize size() const", &network::pq::cursor::size);
 				vcursor->set_method("usize affected_rows() const", &network::pq::cursor::affected_rows);
 				vcursor->set_method("cursor copy() const", &network::pq::cursor::copy);
-				vcursor->set_method_ex("response first() const", &pdb_cursor_first);
-				vcursor->set_method_ex("response last() const", &pdb_cursor_last);
-				vcursor->set_method_ex("response at(usize) const", &pdb_cursor_at);
+				vcursor->set_method_extern("response first() const", &pdb_cursor_first);
+				vcursor->set_method_extern("response last() const", &pdb_cursor_last);
+				vcursor->set_method_extern("response at(usize) const", &pdb_cursor_at);
 				vcursor->set_method("connection@+ get_executor() const", &network::pq::cursor::get_executor);
 				vcursor->set_method("caching get_cache_status() const", &network::pq::cursor::get_cache_status);
 				vcursor->set_method("schema@ get_array_of_objects(usize = 0) const", &network::pq::cursor::get_array_of_objects);
@@ -12184,36 +12184,36 @@ namespace vitex
 				vcluster->set_method("connection@+ get_connection(query_state)", &network::pq::cluster::get_connection);
 				vcluster->set_method("connection@+ get_any_connection()", &network::pq::cluster::get_any_connection);
 				vcluster->set_method("bool is_connected() const", &network::pq::cluster::is_connected);
-				vcluster->set_method_ex("promise<connection@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(pdb_cluster_tx_begin, connection));
-				vcluster->set_method_ex("promise<connection@>@ tx_start(const string_view&in)", &VI_SPROMISIFY_REF(pdb_cluster_tx_start, connection));
-				vcluster->set_method_ex("promise<bool>@ tx_end(const string_view&in, connection@+)", &VI_SPROMISIFY(pdb_cluster_tx_end, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ tx_commit(connection@+)", &VI_SPROMISIFY(pdb_cluster_tx_commit, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ tx_rollback(connection@+)", &VI_SPROMISIFY(pdb_cluster_tx_rollback, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_SPROMISIFY(pdb_cluster_connect, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(pdb_cluster_disconnect, type_id::boolf));
-				vcluster->set_method_ex("promise<cursor>@ query(const string_view&in, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(pdb_cluster_query, cursor));
-				vcluster->set_method_ex("void set_when_reconnected(reconnect_async@)", &pdb_cluster_set_when_reconnected);
-				vcluster->set_method_ex("uint64 add_channel(const string_view&in, notification_async@)", &pdb_cluster_add_channel);
-				vcluster->set_method_ex("promise<bool>@ listen(array<string>@+)", &VI_SPROMISIFY(pdb_cluster_listen, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ unlisten(array<string>@+)", &VI_SPROMISIFY(pdb_cluster_unlisten, type_id::boolf));
-				vcluster->set_method_ex("promise<cursor>@ emplace_query(const string_view&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(pdb_cluster_emplace_query, cursor));
-				vcluster->set_method_ex("promise<cursor>@ template_query(const string_view&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(pdb_cluster_template_query, cursor));
+				vcluster->set_method_extern("promise<connection@>@ tx_begin(isolation)", &VI_SPROMISIFY_REF(pdb_cluster_tx_begin, connection));
+				vcluster->set_method_extern("promise<connection@>@ tx_start(const string_view&in)", &VI_SPROMISIFY_REF(pdb_cluster_tx_start, connection));
+				vcluster->set_method_extern("promise<bool>@ tx_end(const string_view&in, connection@+)", &VI_SPROMISIFY(pdb_cluster_tx_end, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ tx_commit(connection@+)", &VI_SPROMISIFY(pdb_cluster_tx_commit, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ tx_rollback(connection@+)", &VI_SPROMISIFY(pdb_cluster_tx_rollback, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ connect(const host_address&in, usize = 1)", &VI_SPROMISIFY(pdb_cluster_connect, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(pdb_cluster_disconnect, type_id::bool_t));
+				vcluster->set_method_extern("promise<cursor>@ query(const string_view&in, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(pdb_cluster_query, cursor));
+				vcluster->set_method_extern("void set_when_reconnected(reconnect_async@)", &pdb_cluster_set_when_reconnected);
+				vcluster->set_method_extern("uint64 add_channel(const string_view&in, notification_async@)", &pdb_cluster_add_channel);
+				vcluster->set_method_extern("promise<bool>@ listen(array<string>@+)", &VI_SPROMISIFY(pdb_cluster_listen, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ unlisten(array<string>@+)", &VI_SPROMISIFY(pdb_cluster_unlisten, type_id::bool_t));
+				vcluster->set_method_extern("promise<cursor>@ emplace_query(const string_view&in, array<schema@>@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(pdb_cluster_emplace_query, cursor));
+				vcluster->set_method_extern("promise<cursor>@ template_query(const string_view&in, dictionary@+, usize = 0, connection@+ = null)", &VI_SPROMISIFY_REF(pdb_cluster_template_query, cursor));
 
 				auto vdriver = vm->set_class<network::pq::driver>("driver", false);
 				vdriver->set_function_def("void query_log_async(const string_view&in)");
 				vdriver->set_constructor<network::pq::driver>("driver@ f()");
 				vdriver->set_method("void log_query(const string_view&in)", &network::pq::driver::log_query);
 				vdriver->set_method("void add_constant(const string_view&in, const string_view&in)", &network::pq::driver::add_constant);
-				vdriver->set_method_ex("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(network::pq::driver::add_query));
-				vdriver->set_method_ex("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(network::pq::driver::add_directory));
+				vdriver->set_method_extern("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(network::pq::driver::add_query));
+				vdriver->set_method_extern("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(network::pq::driver::add_directory));
 				vdriver->set_method("bool remove_constant(const string_view&in)", &network::pq::driver::remove_constant);
 				vdriver->set_method("bool remove_query(const string_view&in)", &network::pq::driver::remove_query);
 				vdriver->set_method("bool load_cache_dump(schema@+)", &network::pq::driver::load_cache_dump);
 				vdriver->set_method("schema@ get_cache_dump()", &network::pq::driver::get_cache_dump);
-				vdriver->set_method_ex("void set_query_log(query_log_async@)", &pdb_driver_set_query_log);
-				vdriver->set_method_ex("string emplace(cluster@+, const string_view&in, array<schema@>@+)", &pdb_driver_emplace);
-				vdriver->set_method_ex("string get_query(cluster@+, const string_view&in, dictionary@+)", &pdb_driver_get_query);
-				vdriver->set_method_ex("array<string>@ get_queries()", &pdb_driver_get_queries);
+				vdriver->set_method_extern("void set_query_log(query_log_async@)", &pdb_driver_set_query_log);
+				vdriver->set_method_extern("string emplace(cluster@+, const string_view&in, array<schema@>@+)", &pdb_driver_emplace);
+				vdriver->set_method_extern("string get_query(cluster@+, const string_view&in, dictionary@+)", &pdb_driver_get_query);
+				vdriver->set_method_extern("array<string>@ get_queries()", &pdb_driver_get_queries);
 				vdriver->set_method_static("driver@+ get()", &network::pq::driver::get);
 
 				vm->end_namespace();
@@ -12283,7 +12283,7 @@ namespace vitex
 				vproperty->set_method("doc_property opIndex(const string_view&in) const", &network::mongo::property::at);
 
 				vdocument->set_constructor<network::mongo::document>("void f()");
-				vdocument->set_constructor_list_ex<network::mongo::document>("void f(int &in) { repeat { string, ? } }", &mdb_document_construct);
+				vdocument->set_constructor_list_extern<network::mongo::document>("void f(int &in) { repeat { string, ? } }", &mdb_document_construct);
 				vdocument->set_operator_move_copy<network::mongo::document>();
 				vdocument->set_destructor<network::mongo::document>("void f()");
 				vdocument->set_method("bool is_valid() const", &network::mongo::document::operator bool);
@@ -12338,17 +12338,17 @@ namespace vitex
 				vstream->set_operator_move_copy<network::mongo::stream>();
 				vstream->set_destructor<network::mongo::stream>("void f()");
 				vstream->set_method("bool is_valid() const", &network::mongo::stream::operator bool);
-				vstream->set_method_ex("bool remove_many(const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::remove_many));
-				vstream->set_method_ex("bool remove_one(const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::remove_one));
-				vstream->set_method_ex("bool replace_one(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::replace_one));
-				vstream->set_method_ex("bool insert_one(const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::insert_one));
-				vstream->set_method_ex("bool update_one(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::update_one));
-				vstream->set_method_ex("bool update_many(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::update_many));
-				vstream->set_method_ex("bool query(const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::query));
+				vstream->set_method_extern("bool remove_many(const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::remove_many));
+				vstream->set_method_extern("bool remove_one(const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::remove_one));
+				vstream->set_method_extern("bool replace_one(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::replace_one));
+				vstream->set_method_extern("bool insert_one(const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::insert_one));
+				vstream->set_method_extern("bool update_one(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::update_one));
+				vstream->set_method_extern("bool update_many(const document&in, const document&in, const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::update_many));
+				vstream->set_method_extern("bool query(const document&in)", &VI_EXPECTIFY_VOID(network::mongo::stream::query));
 				vstream->set_method("usize get_hint() const", &network::mongo::stream::get_hint);
-				vstream->set_method_ex("bool template_query(const string_view&in, dictionary@+)", &mdb_stream_template_query);
-				vstream->set_method_ex("promise<document>@ execute_with_reply()", &VI_SPROMISIFY_REF(mdb_stream_execute_with_reply, document));
-				vstream->set_method_ex("promise<bool>@ execute()", &VI_SPROMISIFY(mdb_stream_execute, type_id::boolf));
+				vstream->set_method_extern("bool template_query(const string_view&in, dictionary@+)", &mdb_stream_template_query);
+				vstream->set_method_extern("promise<document>@ execute_with_reply()", &VI_SPROMISIFY_REF(mdb_stream_execute_with_reply, document));
+				vstream->set_method_extern("promise<bool>@ execute()", &VI_SPROMISIFY(mdb_stream_execute, type_id::bool_t));
 
 				auto vcursor = vm->set_struct<network::mongo::cursor>("cursor");
 				vcursor->set_constructor<network::mongo::cursor>("void f()");
@@ -12359,7 +12359,7 @@ namespace vitex
 				vcursor->set_method("void set_batch_size(usize)", &network::mongo::cursor::set_batch_size);
 				vcursor->set_method("void set_limit(int64)", &network::mongo::cursor::set_limit);
 				vcursor->set_method("void set_hint(usize)", &network::mongo::cursor::set_hint);
-				vcursor->set_method_ex("string error() const", &mdb_cursor_error);
+				vcursor->set_method_extern("string error() const", &mdb_cursor_error);
 				vcursor->set_method("bool empty() const", &network::mongo::cursor::empty);
 				vcursor->set_method("bool error_or_empty() const", &network::mongo::cursor::error_or_empty);
 				vcursor->set_method("int64 get_id() const", &network::mongo::cursor::get_id);
@@ -12369,7 +12369,7 @@ namespace vitex
 				vcursor->set_method("usize get_hint() const", &network::mongo::cursor::get_hint);
 				vcursor->set_method("usize current() const", &network::mongo::cursor::current);
 				vcursor->set_method("cursor clone() const", &network::mongo::cursor::clone);
-				vcursor->set_method_ex("promise<bool>@ next() const", &VI_SPROMISIFY(mdb_cursor_next, type_id::boolf));
+				vcursor->set_method_extern("promise<bool>@ next() const", &VI_SPROMISIFY(mdb_cursor_next, type_id::bool_t));
 
 				auto vresponse = vm->set_struct<network::mongo::response>("response");
 				vresponse->set_constructor<network::mongo::response>("void f()");
@@ -12382,10 +12382,10 @@ namespace vitex
 				vresponse->set_method("bool success() const", &network::mongo::response::success);
 				vresponse->set_method("cursor& get_cursor() const", &network::mongo::response::get_cursor);
 				vresponse->set_method("document& get_document() const", &network::mongo::response::get_document);
-				vresponse->set_method_ex("promise<schema@>@ fetch() const", &VI_SPROMISIFY_REF(mdb_response_fetch, schema));
-				vresponse->set_method_ex("promise<schema@>@ fetch_all() const", &VI_SPROMISIFY_REF(mdb_response_fetch_all, schema));
-				vresponse->set_method_ex("promise<doc_property>@ get_property(const string_view&in) const", &VI_SPROMISIFY_REF(mdb_response_get_property, property));
-				vresponse->set_method_ex("promise<doc_property>@ opIndex(const string_view&in) const", &VI_SPROMISIFY_REF(mdb_response_get_property, property));
+				vresponse->set_method_extern("promise<schema@>@ fetch() const", &VI_SPROMISIFY_REF(mdb_response_fetch, schema));
+				vresponse->set_method_extern("promise<schema@>@ fetch_all() const", &VI_SPROMISIFY_REF(mdb_response_fetch_all, schema));
+				vresponse->set_method_extern("promise<doc_property>@ get_property(const string_view&in) const", &VI_SPROMISIFY_REF(mdb_response_get_property, property));
+				vresponse->set_method_extern("promise<doc_property>@ opIndex(const string_view&in) const", &VI_SPROMISIFY_REF(mdb_response_get_property, property));
 
 				auto vcollection = vm->set_struct<network::mongo::collection>("collection");
 				auto vtransaction = vm->set_struct<network::mongo::transaction>("transaction");
@@ -12394,56 +12394,56 @@ namespace vitex
 				vtransaction->set_operator_copy<network::mongo::transaction>();
 				vtransaction->set_destructor<network::mongo::transaction>("void f()");
 				vtransaction->set_method("bool is_valid() const", &network::mongo::transaction::operator bool);
-				vtransaction->set_method_ex("bool push(document&in) const", &VI_EXPECTIFY_VOID(network::mongo::transaction::push));
-				vtransaction->set_method_ex("promise<bool>@ begin()", &VI_SPROMISIFY(mdb_transaction_begin, type_id::boolf));
-				vtransaction->set_method_ex("promise<bool>@ rollback()", &VI_SPROMISIFY(mdb_transaction_rollback, type_id::boolf));
-				vtransaction->set_method_ex("promise<document>@ remove_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_remove_many, document));
-				vtransaction->set_method_ex("promise<document>@ remove_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_remove_one, document));
-				vtransaction->set_method_ex("promise<document>@ replace_one(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_replace_one, document));
-				vtransaction->set_method_ex("promise<document>@ insert_many(collection&in, array<document>@+, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_insert_many, document));
-				vtransaction->set_method_ex("promise<document>@ insert_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_insert_one, document));
-				vtransaction->set_method_ex("promise<document>@ update_many(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_update_many, document));
-				vtransaction->set_method_ex("promise<document>@ update_one(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_update_one, document));
-				vtransaction->set_method_ex("promise<cursor>@ find_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_find_many, cursor));
-				vtransaction->set_method_ex("promise<cursor>@ find_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_find_one, cursor));
-				vtransaction->set_method_ex("promise<cursor>@ aggregate(collection&in, query_flags, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_aggregate, cursor));
-				vtransaction->set_method_ex("promise<response>@ template_query(collection&in, const string_view&in, dictionary@+)", &VI_SPROMISIFY_REF(mdb_transaction_template_query, response));
-				vtransaction->set_method_ex("promise<response>@ query(collection&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_query, response));
-				vtransaction->set_method_ex("promise<transaction_state>@ commit()", &VI_SPROMISIFY_REF(mdb_transaction_commit, transaction_state));
+				vtransaction->set_method_extern("bool push(document&in) const", &VI_EXPECTIFY_VOID(network::mongo::transaction::push));
+				vtransaction->set_method_extern("promise<bool>@ begin()", &VI_SPROMISIFY(mdb_transaction_begin, type_id::bool_t));
+				vtransaction->set_method_extern("promise<bool>@ rollback()", &VI_SPROMISIFY(mdb_transaction_rollback, type_id::bool_t));
+				vtransaction->set_method_extern("promise<document>@ remove_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_remove_many, document));
+				vtransaction->set_method_extern("promise<document>@ remove_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_remove_one, document));
+				vtransaction->set_method_extern("promise<document>@ replace_one(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_replace_one, document));
+				vtransaction->set_method_extern("promise<document>@ insert_many(collection&in, array<document>@+, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_insert_many, document));
+				vtransaction->set_method_extern("promise<document>@ insert_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_insert_one, document));
+				vtransaction->set_method_extern("promise<document>@ update_many(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_update_many, document));
+				vtransaction->set_method_extern("promise<document>@ update_one(collection&in, const document&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_update_one, document));
+				vtransaction->set_method_extern("promise<cursor>@ find_many(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_find_many, cursor));
+				vtransaction->set_method_extern("promise<cursor>@ find_one(collection&in, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_find_one, cursor));
+				vtransaction->set_method_extern("promise<cursor>@ aggregate(collection&in, query_flags, const document&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_aggregate, cursor));
+				vtransaction->set_method_extern("promise<response>@ template_query(collection&in, const string_view&in, dictionary@+)", &VI_SPROMISIFY_REF(mdb_transaction_template_query, response));
+				vtransaction->set_method_extern("promise<response>@ query(collection&in, const document&in)", &VI_SPROMISIFY_REF(mdb_transaction_query, response));
+				vtransaction->set_method_extern("promise<transaction_state>@ commit()", &VI_SPROMISIFY_REF(mdb_transaction_commit, transaction_state));
 
 				vcollection->set_constructor<network::mongo::collection>("void f()");
 				vcollection->set_operator_move_copy<network::mongo::collection>();
 				vcollection->set_destructor<network::mongo::collection>("void f()");
 				vcollection->set_method("bool is_valid() const", &network::mongo::collection::operator bool);
 				vcollection->set_method("string get_name() const", &network::mongo::collection::get_name);
-				vcollection->set_method_ex("stream create_stream(document&in) const", &VI_EXPECTIFY(network::mongo::collection::create_stream));
-				vcollection->set_method_ex("promise<bool>@ rename(const string_view&in, const string_view&in) const", &VI_SPROMISIFY(mdb_collection_rename, type_id::boolf));
-				vcollection->set_method_ex("promise<bool>@ rename_with_options(const string_view&in, const string_view&in, const document&in) const", &VI_SPROMISIFY(mdb_collection_rename_with_options, type_id::boolf));
-				vcollection->set_method_ex("promise<bool>@ rename_with_remove(const string_view&in, const string_view&in) const", &VI_SPROMISIFY(mdb_collection_rename_with_remove, type_id::boolf));
-				vcollection->set_method_ex("promise<bool>@ rename_with_options_and_remove(const string_view&in, const string_view&in, const document&in) const", &VI_SPROMISIFY(mdb_collection_rename_with_options_and_remove, type_id::boolf));
-				vcollection->set_method_ex("promise<bool>@ remove(const document&in) const", &VI_SPROMISIFY(mdb_collection_remove, type_id::boolf));
-				vcollection->set_method_ex("promise<bool>@ remove_index(const string_view&in, const document&in) const", &VI_SPROMISIFY(mdb_collection_remove_index, type_id::boolf));
-				vcollection->set_method_ex("promise<document>@ remove_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_remove_many, document));
-				vcollection->set_method_ex("promise<document>@ remove_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_remove_one, document));
-				vcollection->set_method_ex("promise<document>@ replace_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_replace_one, document));
-				vcollection->set_method_ex("promise<document>@ insert_many(array<document>@+, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_insert_many, document));
-				vcollection->set_method_ex("promise<document>@ insert_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_insert_one, document));
-				vcollection->set_method_ex("promise<document>@ update_many(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_update_many, document));
-				vcollection->set_method_ex("promise<document>@ update_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_update_one, document));
-				vcollection->set_method_ex("promise<document>@ find_and_modify(const document&in, const document&in, const document&in, const document&in, bool, bool, bool) const", &VI_SPROMISIFY_REF(mdb_collection_find_and_modify, document));
+				vcollection->set_method_extern("stream create_stream(document&in) const", &VI_EXPECTIFY(network::mongo::collection::create_stream));
+				vcollection->set_method_extern("promise<bool>@ rename(const string_view&in, const string_view&in) const", &VI_SPROMISIFY(mdb_collection_rename, type_id::bool_t));
+				vcollection->set_method_extern("promise<bool>@ rename_with_options(const string_view&in, const string_view&in, const document&in) const", &VI_SPROMISIFY(mdb_collection_rename_with_options, type_id::bool_t));
+				vcollection->set_method_extern("promise<bool>@ rename_with_remove(const string_view&in, const string_view&in) const", &VI_SPROMISIFY(mdb_collection_rename_with_remove, type_id::bool_t));
+				vcollection->set_method_extern("promise<bool>@ rename_with_options_and_remove(const string_view&in, const string_view&in, const document&in) const", &VI_SPROMISIFY(mdb_collection_rename_with_options_and_remove, type_id::bool_t));
+				vcollection->set_method_extern("promise<bool>@ remove(const document&in) const", &VI_SPROMISIFY(mdb_collection_remove, type_id::bool_t));
+				vcollection->set_method_extern("promise<bool>@ remove_index(const string_view&in, const document&in) const", &VI_SPROMISIFY(mdb_collection_remove_index, type_id::bool_t));
+				vcollection->set_method_extern("promise<document>@ remove_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_remove_many, document));
+				vcollection->set_method_extern("promise<document>@ remove_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_remove_one, document));
+				vcollection->set_method_extern("promise<document>@ replace_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_replace_one, document));
+				vcollection->set_method_extern("promise<document>@ insert_many(array<document>@+, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_insert_many, document));
+				vcollection->set_method_extern("promise<document>@ insert_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_insert_one, document));
+				vcollection->set_method_extern("promise<document>@ update_many(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_update_many, document));
+				vcollection->set_method_extern("promise<document>@ update_one(const document&in, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_update_one, document));
+				vcollection->set_method_extern("promise<document>@ find_and_modify(const document&in, const document&in, const document&in, const document&in, bool, bool, bool) const", &VI_SPROMISIFY_REF(mdb_collection_find_and_modify, document));
 #ifdef VI_64
-				vcollection->set_method_ex("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents, type_id::int64));
-				vcollection->set_method_ex("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents_estimated, type_id::int64));
+				vcollection->set_method_extern("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents, type_id::int64_t));
+				vcollection->set_method_extern("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents_estimated, type_id::int64_t));
 #else
-				vcollection->set_method_ex("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents, type_id::int32));
-				vcollection->set_method_ex("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents_estimated, type_id::int32));
+				vcollection->set_method_extern("promise<usize>@ count_documents(const document&in, const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents, type_id::int32_t));
+				vcollection->set_method_extern("promise<usize>@ count_documents_estimated(const document&in) const", &VI_PROMISIFY(network::mongo::collection::count_documents_estimated, type_id::int32_t));
 #endif
-				vcollection->set_method_ex("promise<cursor>@ find_indexes(const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_find_indexes, cursor));
-				vcollection->set_method_ex("promise<cursor>@ find_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_find_many, cursor));
-				vcollection->set_method_ex("promise<cursor>@ find_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_find_one, cursor));
-				vcollection->set_method_ex("promise<cursor>@ aggregate(query_flags, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_aggregate, cursor));
-				vcollection->set_method_ex("promise<response>@ template_query(const string_view&in, dictionary@+, bool = true, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(mdb_collection_template_query, response));
-				vcollection->set_method_ex("promise<response>@ query(const document&in, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(mdb_collection_query, response));
+				vcollection->set_method_extern("promise<cursor>@ find_indexes(const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_find_indexes, cursor));
+				vcollection->set_method_extern("promise<cursor>@ find_many(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_find_many, cursor));
+				vcollection->set_method_extern("promise<cursor>@ find_one(const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_find_one, cursor));
+				vcollection->set_method_extern("promise<cursor>@ aggregate(query_flags, const document&in, const document&in) const", &VI_SPROMISIFY_REF(mdb_collection_aggregate, cursor));
+				vcollection->set_method_extern("promise<response>@ template_query(const string_view&in, dictionary@+, bool = true, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(mdb_collection_template_query, response));
+				vcollection->set_method_extern("promise<response>@ query(const document&in, const transaction&in = transaction()) const", &VI_SPROMISIFY_REF(mdb_collection_query, response));
 
 				auto vdatabase = vm->set_struct<network::mongo::database>("database");
 				vdatabase->set_constructor<network::mongo::database>("void f()");
@@ -12452,15 +12452,15 @@ namespace vitex
 				vdatabase->set_method("bool is_valid() const", &network::mongo::database::operator bool);
 				vdatabase->set_method("string get_name() const", &network::mongo::database::get_name);
 				vdatabase->set_method("collection get_collection(const string_view&in) const", &network::mongo::database::get_collection);
-				vdatabase->set_method_ex("promise<bool>@ remove_all_users()", &VI_SPROMISIFY(mdb_database_remove_all_users, type_id::boolf));
-				vdatabase->set_method_ex("promise<bool>@ remove_user(const string_view&in)", &VI_SPROMISIFY(mdb_database_remove_user, type_id::boolf));
-				vdatabase->set_method_ex("promise<bool>@ remove()", &VI_SPROMISIFY(mdb_database_remove, type_id::boolf));
-				vdatabase->set_method_ex("promise<bool>@ remove_with_options(const document&in)", &VI_SPROMISIFY(mdb_database_remove_with_options, type_id::boolf));
-				vdatabase->set_method_ex("promise<bool>@ add_user(const string_view&in, const string_view&in, const document&in, const document&in)", &VI_SPROMISIFY(mdb_database_add_user, type_id::boolf));
-				vdatabase->set_method_ex("promise<bool>@ has_collection(const string_view&in)", &VI_SPROMISIFY(mdb_database_has_collection, type_id::boolf));
-				vdatabase->set_method_ex("promise<collection>@ create_collection(const string_view&in, const document&in)", &VI_SPROMISIFY_REF(mdb_database_create_collection, collection));
-				vdatabase->set_method_ex("promise<cursor>@ find_collections(const document&in)", &VI_SPROMISIFY_REF(mdb_database_find_collections, cursor));
-				vdatabase->set_method_ex("array<string>@ get_collection_names(const document&in)", &mdb_database_get_collection_names);
+				vdatabase->set_method_extern("promise<bool>@ remove_all_users()", &VI_SPROMISIFY(mdb_database_remove_all_users, type_id::bool_t));
+				vdatabase->set_method_extern("promise<bool>@ remove_user(const string_view&in)", &VI_SPROMISIFY(mdb_database_remove_user, type_id::bool_t));
+				vdatabase->set_method_extern("promise<bool>@ remove()", &VI_SPROMISIFY(mdb_database_remove, type_id::bool_t));
+				vdatabase->set_method_extern("promise<bool>@ remove_with_options(const document&in)", &VI_SPROMISIFY(mdb_database_remove_with_options, type_id::bool_t));
+				vdatabase->set_method_extern("promise<bool>@ add_user(const string_view&in, const string_view&in, const document&in, const document&in)", &VI_SPROMISIFY(mdb_database_add_user, type_id::bool_t));
+				vdatabase->set_method_extern("promise<bool>@ has_collection(const string_view&in)", &VI_SPROMISIFY(mdb_database_has_collection, type_id::bool_t));
+				vdatabase->set_method_extern("promise<collection>@ create_collection(const string_view&in, const document&in)", &VI_SPROMISIFY_REF(mdb_database_create_collection, collection));
+				vdatabase->set_method_extern("promise<cursor>@ find_collections(const document&in)", &VI_SPROMISIFY_REF(mdb_database_find_collections, cursor));
+				vdatabase->set_method_extern("array<string>@ get_collection_names(const document&in)", &mdb_database_get_collection_names);
 
 				auto vconnection = vm->set_class<network::mongo::connection>("connection", false);
 				auto vwatcher = vm->set_struct<network::mongo::watcher>("watcher");
@@ -12468,8 +12468,8 @@ namespace vitex
 				vwatcher->set_operator_move_copy<network::mongo::watcher>();
 				vwatcher->set_destructor<network::mongo::watcher>("void f()");
 				vwatcher->set_method("bool is_valid() const", &network::mongo::watcher::operator bool);
-				vwatcher->set_method_ex("promise<bool>@ next(document&out)", &VI_SPROMISIFY(mdb_watcher_next, type_id::boolf));
-				vwatcher->set_method_ex("promise<bool>@ error(document&out)", &VI_SPROMISIFY(mdb_watcher_error, type_id::boolf));
+				vwatcher->set_method_extern("promise<bool>@ next(document&out)", &VI_SPROMISIFY(mdb_watcher_next, type_id::bool_t));
+				vwatcher->set_method_extern("promise<bool>@ error(document&out)", &VI_SPROMISIFY(mdb_watcher_error, type_id::bool_t));
 				vwatcher->set_method_static("watcher from_connection(connection@+, const document&in, const document&in)", &VI_SEXPECTIFY(network::mongo::watcher::from_connection));
 				vwatcher->set_method_static("watcher from_database(const database&in, const document&in, const document&in)", &VI_SEXPECTIFY(network::mongo::watcher::from_database));
 				vwatcher->set_method_static("watcher from_collection(const collection&in, const document&in, const document&in)", &VI_SEXPECTIFY(network::mongo::watcher::from_collection));
@@ -12478,41 +12478,41 @@ namespace vitex
 				vconnection->set_function_def("promise<bool>@ transaction_async(connection@+, transaction&in)");
 				vconnection->set_constructor<network::mongo::connection>("connection@ f()");
 				vconnection->set_method("void set_profile(const string_view&in)", &network::mongo::connection::set_profile);
-				vconnection->set_method_ex("bool set_server(bool)", &VI_EXPECTIFY_VOID(network::mongo::connection::set_server));
-				vconnection->set_method_ex("transaction& get_session()", &VI_EXPECTIFY(network::mongo::connection::get_session));
+				vconnection->set_method_extern("bool set_server(bool)", &VI_EXPECTIFY_VOID(network::mongo::connection::set_server));
+				vconnection->set_method_extern("transaction& get_session()", &VI_EXPECTIFY(network::mongo::connection::get_session));
 				vconnection->set_method("database get_database(const string_view&in) const", &network::mongo::connection::get_database);
 				vconnection->set_method("database get_default_database() const", &network::mongo::connection::get_default_database);
 				vconnection->set_method("collection get_collection(const string_view&in, const string_view&in) const", &network::mongo::connection::get_collection);
 				vconnection->set_method("host_address get_address() const", &network::mongo::connection::get_address);
 				vconnection->set_method("cluster@+ get_master() const", &network::mongo::connection::get_master);
 				vconnection->set_method("bool connected() const", &network::mongo::connection::is_connected);
-				vconnection->set_method_ex("array<string>@ get_database_names(const document&in) const", &mdb_connection_get_database_names);
-				vconnection->set_method_ex("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(mdb_connection_connect, type_id::boolf));
-				vconnection->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(mdb_connection_disconnect, type_id::boolf));
-				vconnection->set_method_ex("promise<bool>@ make_transaction(transaction_async@)", &VI_SPROMISIFY(mdb_connection_make_transaction, type_id::boolf));
-				vconnection->set_method_ex("promise<cursor>@ find_databases(const document&in)", &VI_SPROMISIFY_REF(mdb_connection_find_databases, cursor));
+				vconnection->set_method_extern("array<string>@ get_database_names(const document&in) const", &mdb_connection_get_database_names);
+				vconnection->set_method_extern("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(mdb_connection_connect, type_id::bool_t));
+				vconnection->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(mdb_connection_disconnect, type_id::bool_t));
+				vconnection->set_method_extern("promise<bool>@ make_transaction(transaction_async@)", &VI_SPROMISIFY(mdb_connection_make_transaction, type_id::bool_t));
+				vconnection->set_method_extern("promise<cursor>@ find_databases(const document&in)", &VI_SPROMISIFY_REF(mdb_connection_find_databases, cursor));
 
 				vcluster->set_constructor<network::mongo::cluster>("cluster@ f()");
 				vcluster->set_method("void set_profile(const string_view&in)", &network::mongo::cluster::set_profile);
 				vcluster->set_method("host_address& get_address()", &network::mongo::cluster::get_address);
 				vcluster->set_method("connection@+ pop()", &network::mongo::cluster::pop);
-				vcluster->set_method_ex("void push(connection@+)", &mdb_cluster_push);
-				vcluster->set_method_ex("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(mdb_cluster_connect, type_id::boolf));
-				vcluster->set_method_ex("promise<bool>@ disconnect()", &VI_SPROMISIFY(mdb_cluster_disconnect, type_id::boolf));
+				vcluster->set_method_extern("void push(connection@+)", &mdb_cluster_push);
+				vcluster->set_method_extern("promise<bool>@ connect(host_address&in)", &VI_SPROMISIFY(mdb_cluster_connect, type_id::bool_t));
+				vcluster->set_method_extern("promise<bool>@ disconnect()", &VI_SPROMISIFY(mdb_cluster_disconnect, type_id::bool_t));
 
 				auto vdriver = vm->set_class<network::mongo::driver>("driver", false);
 				vdriver->set_function_def("void query_log_async(const string&in)");
 				vdriver->set_constructor<network::mongo::driver>("driver@ f()");
 				vdriver->set_method("void add_constant(const string_view&in, const string_view&in)", &network::mongo::driver::add_constant);
-				vdriver->set_method_ex("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(network::mongo::driver::add_query));
-				vdriver->set_method_ex("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(network::mongo::driver::add_directory));
+				vdriver->set_method_extern("bool add_query(const string_view&in, const string_view&in)", &VI_EXPECTIFY_VOID(network::mongo::driver::add_query));
+				vdriver->set_method_extern("bool add_directory(const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(network::mongo::driver::add_directory));
 				vdriver->set_method("bool remove_constant(const string_view&in)", &network::mongo::driver::remove_constant);
 				vdriver->set_method("bool remove_query(const string_view&in)", &network::mongo::driver::remove_query);
 				vdriver->set_method("bool load_cache_dump(schema@+)", &network::mongo::driver::load_cache_dump);
 				vdriver->set_method("schema@ get_cache_dump()", &network::mongo::driver::get_cache_dump);
-				vdriver->set_method_ex("void set_query_log(query_log_async@)", &mdb_driver_set_query_log);
-				vdriver->set_method_ex("string get_query(cluster@+, const string_view&in, dictionary@+)", &mdb_driver_get_query);
-				vdriver->set_method_ex("array<string>@ get_queries()", &mdb_driver_get_queries);
+				vdriver->set_method_extern("void set_query_log(query_log_async@)", &mdb_driver_set_query_log);
+				vdriver->set_method_extern("string get_query(cluster@+, const string_view&in, dictionary@+)", &mdb_driver_get_query);
+				vdriver->set_method_extern("array<string>@ get_queries()", &mdb_driver_get_queries);
 				vdriver->set_method_static("driver@+ get()", &network::mongo::driver::get);
 
 				vm->end_namespace();
@@ -12604,30 +12604,30 @@ namespace vitex
 				vcontent_manager->set_method("void clear_processors()", &layer::content_manager::clear_processors);
 				vcontent_manager->set_method("void clear_path(const string_view&in)", &layer::content_manager::clear_path);
 				vcontent_manager->set_method("void set_environment(const string_view&in)", &layer::content_manager::set_environment);
-				vcontent_manager->set_method_ex("uptr@ load(base_processor@+, const string_view&in, schema@+ = null)", &content_manager_load);
-				vcontent_manager->set_method_ex("bool save(base_processor@+, const string_view&in, uptr@, schema@+ = null)", &content_manager_save);
-				vcontent_manager->set_method_ex("void load_deferred(base_processor@+, const string_view&in, load_result_async@)", &content_manager_load_deferred1);
-				vcontent_manager->set_method_ex("void load_deferred(base_processor@+, const string_view&in, schema@+, load_result_async@)", &content_manager_load_deferred2);
-				vcontent_manager->set_method_ex("void save_deferred(base_processor@+, const string_view&in, uptr@, save_result_async@)", &content_manager_save_deferred1);
-				vcontent_manager->set_method_ex("void save_deferred(base_processor@+, const string_view&in, uptr@, schema@+, save_result_async@)", &content_manager_save_deferred2);
-				vcontent_manager->set_method_ex("bool find_cache_info(base_processor@+, asset_cache &out, const string_view&in)", &content_manager_find_cache1);
-				vcontent_manager->set_method_ex("bool find_cache_info(base_processor@+, asset_cache &out, uptr@)", &content_manager_find_cache2);
+				vcontent_manager->set_method_extern("uptr@ load(base_processor@+, const string_view&in, schema@+ = null)", &content_manager_load);
+				vcontent_manager->set_method_extern("bool save(base_processor@+, const string_view&in, uptr@, schema@+ = null)", &content_manager_save);
+				vcontent_manager->set_method_extern("void load_deferred(base_processor@+, const string_view&in, load_result_async@)", &content_manager_load_deferred1);
+				vcontent_manager->set_method_extern("void load_deferred(base_processor@+, const string_view&in, schema@+, load_result_async@)", &content_manager_load_deferred2);
+				vcontent_manager->set_method_extern("void save_deferred(base_processor@+, const string_view&in, uptr@, save_result_async@)", &content_manager_save_deferred1);
+				vcontent_manager->set_method_extern("void save_deferred(base_processor@+, const string_view&in, uptr@, schema@+, save_result_async@)", &content_manager_save_deferred2);
+				vcontent_manager->set_method_extern("bool find_cache_info(base_processor@+, asset_cache &out, const string_view&in)", &content_manager_find_cache1);
+				vcontent_manager->set_method_extern("bool find_cache_info(base_processor@+, asset_cache &out, uptr@)", &content_manager_find_cache2);
 				vcontent_manager->set_method<layer::content_manager, layer::asset_cache*, layer::processor*, const std::string_view&>("uptr@ find_cache(base_processor@+, const string_view&in)", &layer::content_manager::find_cache);
 				vcontent_manager->set_method<layer::content_manager, layer::asset_cache*, layer::processor*, void*>("uptr@ find_cache(base_processor@+, uptr@)", &layer::content_manager::find_cache);
-				vcontent_manager->set_method_ex("base_processor@+ add_processor(base_processor@+, uint64)", &content_manager_add_processor);
+				vcontent_manager->set_method_extern("base_processor@+ add_processor(base_processor@+, uint64)", &content_manager_add_processor);
 				vcontent_manager->set_method<layer::content_manager, layer::processor*, uint64_t>("base_processor@+ get_processor(uint64)", &layer::content_manager::get_processor);
 				vcontent_manager->set_method<layer::content_manager, bool, uint64_t>("bool remove_processor(uint64)", &layer::content_manager::remove_processor);
-				vcontent_manager->set_method_ex("bool import_archive(const string_view&in, bool)", &VI_EXPECTIFY_VOID(layer::content_manager::import_archive));
-				vcontent_manager->set_method_ex("bool export_archive(const string_view&in, const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(layer::content_manager::export_archive));
+				vcontent_manager->set_method_extern("bool import_archive(const string_view&in, bool)", &VI_EXPECTIFY_VOID(layer::content_manager::import_archive));
+				vcontent_manager->set_method_extern("bool export_archive(const string_view&in, const string_view&in, const string_view&in = string_view())", &VI_EXPECTIFY_VOID(layer::content_manager::export_archive));
 				vcontent_manager->set_method("uptr@ try_to_cache(base_processor@+, const string_view&in, uptr@)", &layer::content_manager::try_to_cache);
 				vcontent_manager->set_method("bool is_busy() const", &layer::content_manager::is_busy);
 				vcontent_manager->set_method("const string& get_environment() const", &layer::content_manager::get_environment);
-				vcontent_manager->set_enum_refs_ex<layer::content_manager>([](layer::content_manager* base, asIScriptEngine* vm)
+				vcontent_manager->set_enum_refs_extern<layer::content_manager>([](layer::content_manager* base, asIScriptEngine* vm)
 				{
 					for (auto& item : base->get_processors())
 						function_factory::gc_enum_callback(vm, item.second);
 				});
-				vcontent_manager->set_release_refs_ex<layer::content_manager>([](layer::content_manager* base, asIScriptEngine*)
+				vcontent_manager->set_release_refs_extern<layer::content_manager>([](layer::content_manager* base, asIScriptEngine*)
 				{
 					base->clear_processors();
 				});
@@ -12640,8 +12640,8 @@ namespace vitex
 				vapp_data->set_method("schema@ get_key(const string_view&in)", &layer::app_data::get_key);
 				vapp_data->set_method("string get_text(const string_view&in)", &layer::app_data::get_text);
 				vapp_data->set_method("bool has(const string_view&in)", &layer::app_data::has);
-				vapp_data->set_enum_refs_ex<layer::app_data>([](layer::app_data* base, asIScriptEngine* vm) { });
-				vapp_data->set_release_refs_ex<layer::app_data>([](layer::app_data* base, asIScriptEngine*) { });
+				vapp_data->set_enum_refs_extern<layer::app_data>([](layer::app_data* base, asIScriptEngine* vm) { });
+				vapp_data->set_release_refs_extern<layer::app_data>([](layer::app_data* base, asIScriptEngine*) { });
 
 				auto vapplication = vm->set_class<application>("application", true);
 				auto vapplication_frame_info = vm->set_struct_trivial<application::desc::frames_info>("application_frame_info");
@@ -12690,7 +12690,7 @@ namespace vitex
 				vapplication->set_method("bool retrieve_initiator(?&out) const", &application::retrieve_initiator_object);
 				vapplication->set_method_static("application@+ get()", &layer::application::get);
 				vapplication->set_method_static("bool wants_restart(int)", &application::wants_restart);
-				vapplication->set_enum_refs_ex<application>([](application* base, asIScriptEngine* vm)
+				vapplication->set_enum_refs_extern<application>([](application* base, asIScriptEngine* vm)
 				{
 					function_factory::gc_enum_callback(vm, base->vm);
 					function_factory::gc_enum_callback(vm, base->content);
@@ -12704,7 +12704,7 @@ namespace vitex
 					function_factory::gc_enum_callback(vm, &base->on_startup);
 					function_factory::gc_enum_callback(vm, &base->on_shutdown);
 				});
-				vapplication->set_release_refs_ex<application>([](application* base, asIScriptEngine*)
+				vapplication->set_release_refs_extern<application>([](application* base, asIScriptEngine*)
 				{
 					base->~application();
 				});

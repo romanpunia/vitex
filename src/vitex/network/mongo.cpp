@@ -132,7 +132,7 @@ namespace vitex
 
 				return *this;
 			}
-			core::unique<tdocument> property::reset()
+			tdocument* property::reset()
 			{
 				if (!source)
 					return nullptr;

@@ -439,7 +439,7 @@ namespace vitex
 			virtual_machine* engine = virtual_machine::get(context->GetEngine());
 			VI_ASSERT(engine != nullptr, "engine should be set");
 
-			typeinfo type = engine->get_type_info_by_name(type_name);
+			type_info type = engine->get_type_info_by_name(type_name);
 			return engine->notify_of_new_object(object, type.get_type_info());
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -455,7 +455,7 @@ namespace vitex
 			virtual_machine* engine = virtual_machine::get(context->GetEngine());
 			VI_ASSERT(engine != nullptr, "engine should be set");
 
-			typeinfo type = engine->get_type_info_by_id(type_id);
+			type_info type = engine->get_type_info_by_id(type_id);
 			return engine->notify_of_new_object(object, type.get_type_info());
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -580,16 +580,16 @@ namespace vitex
 			return info != nullptr;
 		}
 
-		typeinfo::typeinfo(asITypeInfo* typeinfo) noexcept : info(typeinfo)
+		type_info::type_info(asITypeInfo* type_info) noexcept : info(type_info)
 		{
 #ifdef VI_ANGELSCRIPT
 			vm = (info ? virtual_machine::get(info->GetEngine()) : nullptr);
 #endif
 		}
-		void typeinfo::for_each_property(const property_callback& callback)
+		void type_info::for_each_property(const property_callback& callback)
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
-			VI_ASSERT(callback, "typeinfo should not be empty");
+			VI_ASSERT(is_valid(), "type_info should be valid");
+			VI_ASSERT(callback, "type_info should not be empty");
 #ifdef VI_ANGELSCRIPT
 			unsigned int count = info->GetPropertyCount();
 			for (unsigned int i = 0; i < count; i++)
@@ -600,10 +600,10 @@ namespace vitex
 			}
 #endif
 		}
-		void typeinfo::for_each_method(const method_callback& callback)
+		void type_info::for_each_method(const method_callback& callback)
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
-			VI_ASSERT(callback, "typeinfo should not be empty");
+			VI_ASSERT(is_valid(), "type_info should be valid");
+			VI_ASSERT(callback, "type_info should not be empty");
 #ifdef VI_ANGELSCRIPT
 			unsigned int count = info->GetMethodCount();
 			for (unsigned int i = 0; i < count; i++)
@@ -614,41 +614,41 @@ namespace vitex
 			}
 #endif
 		}
-		std::string_view typeinfo::get_group() const
+		std::string_view type_info::get_group() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return or_empty(info->GetConfigGroup());
 #else
 			return "";
 #endif
 		}
-		size_t typeinfo::get_access_mask() const
+		size_t type_info::get_access_mask() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetAccessMask();
 #else
 			return 0;
 #endif
 		}
-		library typeinfo::get_module() const
+		library type_info::get_module() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetModule();
 #else
 			return library(nullptr);
 #endif
 		}
-		void typeinfo::add_ref() const
+		void type_info::add_ref() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			info->AddRef();
 #endif
 		}
-		void typeinfo::release()
+		void type_info::release()
 		{
 			if (!is_valid())
 				return;
@@ -656,144 +656,144 @@ namespace vitex
 			info->Release();
 #endif
 		}
-		std::string_view typeinfo::get_name() const
+		std::string_view type_info::get_name() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return or_empty(info->GetName());
 #else
 			return "";
 #endif
 		}
-		std::string_view typeinfo::get_namespace() const
+		std::string_view type_info::get_namespace() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return or_empty(info->GetNamespace());
 #else
 			return "";
 #endif
 		}
-		typeinfo typeinfo::get_base_type() const
+		type_info type_info::get_base_type() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetBaseType();
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		bool typeinfo::derives_from(const typeinfo& type) const
+		bool type_info::derives_from(const type_info& type) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->DerivesFrom(type.get_type_info());
 #else
 			return false;
 #endif
 		}
-		size_t typeinfo::flags() const
+		size_t type_info::flags() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetFlags();
 #else
 			return 0;
 #endif
 		}
-		size_t typeinfo::size() const
+		size_t type_info::size() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetSize();
 #else
 			return 0;
 #endif
 		}
-		int typeinfo::get_type_id() const
+		int type_info::get_type_id() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetTypeId();
 #else
 			return -1;
 #endif
 		}
-		int typeinfo::get_sub_type_id(size_t sub_type_index) const
+		int type_info::get_sub_type_id(size_t sub_type_index) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetSubTypeId((asUINT)sub_type_index);
 #else
 			return -1;
 #endif
 		}
-		typeinfo typeinfo::get_sub_type(size_t sub_type_index) const
+		type_info type_info::get_sub_type(size_t sub_type_index) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetSubType((asUINT)sub_type_index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		size_t typeinfo::get_sub_type_count() const
+		size_t type_info::get_sub_type_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetSubTypeCount();
 #else
 			return 0;
 #endif
 		}
-		size_t typeinfo::get_interface_count() const
+		size_t type_info::get_interface_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetInterfaceCount();
 #else
 			return 0;
 #endif
 		}
-		typeinfo typeinfo::get_interface(size_t index) const
+		type_info type_info::get_interface(size_t index) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetInterface((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		bool typeinfo::implements(const typeinfo& type) const
+		bool type_info::implements(const type_info& type) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->Implements(type.get_type_info());
 #else
 			return false;
 #endif
 		}
-		size_t typeinfo::get_factories_count() const
+		size_t type_info::get_factories_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetFactoryCount();
 #else
 			return 0;
 #endif
 		}
-		function typeinfo::get_factory_by_index(size_t index) const
+		function type_info::get_factory_by_index(size_t index) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetFactoryByIndex((asUINT)index);
 #else
 			return function(nullptr);
 #endif
 		}
-		function typeinfo::get_factory_by_decl(const std::string_view& decl) const
+		function type_info::get_factory_by_decl(const std::string_view& decl) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
 			return info->GetFactoryByDecl(decl.data());
@@ -801,27 +801,27 @@ namespace vitex
 			return function(nullptr);
 #endif
 		}
-		size_t typeinfo::get_methods_count() const
+		size_t type_info::get_methods_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetMethodCount();
 #else
 			return 0;
 #endif
 		}
-		function typeinfo::get_method_by_index(size_t index, bool get_virtual) const
+		function type_info::get_method_by_index(size_t index, bool get_virtual) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetMethodByIndex((asUINT)index, get_virtual);
 #else
 			return function(nullptr);
 #endif
 		}
-		function typeinfo::get_method_by_name(const std::string_view& name, bool get_virtual) const
+		function type_info::get_method_by_name(const std::string_view& name, bool get_virtual) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
 			return info->GetMethodByName(name.data(), get_virtual);
@@ -829,9 +829,9 @@ namespace vitex
 			return function(nullptr);
 #endif
 		}
-		function typeinfo::get_method_by_decl(const std::string_view& decl, bool get_virtual) const
+		function type_info::get_method_by_decl(const std::string_view& decl, bool get_virtual) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
 			return info->GetMethodByDecl(decl.data(), get_virtual);
@@ -839,18 +839,18 @@ namespace vitex
 			return function(nullptr);
 #endif
 		}
-		size_t typeinfo::get_properties_count() const
+		size_t type_info::get_properties_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetPropertyCount();
 #else
 			return 0;
 #endif
 		}
-		expects_vm<void> typeinfo::get_property(size_t index, function_info* out) const
+		expects_vm<void> type_info::get_property(size_t index, function_info* out) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			const char* name;
 			asDWORD access_mask;
@@ -874,27 +874,27 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		std::string_view typeinfo::get_property_declaration(size_t index, bool include_namespace) const
+		std::string_view type_info::get_property_declaration(size_t index, bool include_namespace) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return or_empty(info->GetPropertyDeclaration((asUINT)index, include_namespace));
 #else
 			return "";
 #endif
 		}
-		size_t typeinfo::get_behaviour_count() const
+		size_t type_info::get_behaviour_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetBehaviourCount();
 #else
 			return 0;
 #endif
 		}
-		function typeinfo::get_behaviour_by_index(size_t index, behaviours* out_behaviour) const
+		function type_info::get_behaviour_by_index(size_t index, behaviours* out_behaviour) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			asEBehaviours out;
 			asIScriptFunction* result = info->GetBehaviourByIndex((asUINT)index, &out);
@@ -906,88 +906,88 @@ namespace vitex
 			return function(nullptr);
 #endif
 		}
-		size_t typeinfo::get_child_function_def_count() const
+		size_t type_info::get_child_function_def_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetChildFuncdefCount();
 #else
 			return 0;
 #endif
 		}
-		typeinfo typeinfo::get_child_function_def(size_t index) const
+		type_info type_info::get_child_function_def(size_t index) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetChildFuncdef((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		typeinfo typeinfo::get_parent_type() const
+		type_info type_info::get_parent_type() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetParentType();
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		size_t typeinfo::get_enum_value_count() const
+		size_t type_info::get_enum_value_count() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return (size_t)info->GetEnumValueCount();
 #else
 			return 0;
 #endif
 		}
-		std::string_view typeinfo::get_enum_value_by_index(size_t index, int* out_value) const
+		std::string_view type_info::get_enum_value_by_index(size_t index, int* out_value) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return or_empty(info->GetEnumValueByIndex((asUINT)index, out_value));
 #else
 			return "";
 #endif
 		}
-		function typeinfo::get_function_def_signature() const
+		function type_info::get_function_def_signature() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetFuncdefSignature();
 #else
 			return function(nullptr);
 #endif
 		}
-		void* typeinfo::set_user_data(void* data, size_t type)
+		void* type_info::set_user_data(void* data, size_t type)
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->SetUserData(data, type);
 #else
 			return nullptr;
 #endif
 		}
-		void* typeinfo::get_user_data(size_t type) const
+		void* type_info::get_user_data(size_t type) const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return info->GetUserData(type);
 #else
 			return nullptr;
 #endif
 		}
-		bool typeinfo::is_handle() const
+		bool type_info::is_handle() const
 		{
-			VI_ASSERT(is_valid(), "typeinfo should be valid");
+			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
 			return is_handle(info->GetTypeId());
 #else
 			return false;
 #endif
 		}
-		bool typeinfo::is_valid() const
+		bool type_info::is_valid() const
 		{
 #ifdef VI_ANGELSCRIPT
 			return vm != nullptr && info != nullptr;
@@ -995,7 +995,7 @@ namespace vitex
 			return false;
 #endif
 		}
-		asITypeInfo* typeinfo::get_type_info() const
+		asITypeInfo* type_info::get_type_info() const
 		{
 #ifdef VI_ANGELSCRIPT
 			return info;
@@ -1003,7 +1003,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		virtual_machine* typeinfo::get_vm() const
+		virtual_machine* type_info::get_vm() const
 		{
 #ifdef VI_ANGELSCRIPT
 			return vm;
@@ -1011,7 +1011,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		bool typeinfo::is_handle(int type_id)
+		bool type_info::is_handle(int type_id)
 		{
 #ifdef VI_ANGELSCRIPT
 			return (type_id & asTYPEID_OBJHANDLE || type_id & asTYPEID_HANDLETOCONST);
@@ -1019,7 +1019,7 @@ namespace vitex
 			return false;
 #endif
 		}
-		bool typeinfo::is_script_object(int type_id)
+		bool type_info::is_script_object(int type_id)
 		{
 #ifdef VI_ANGELSCRIPT
 			return (type_id & asTYPEID_SCRIPTOBJECT);
@@ -1105,7 +1105,9 @@ namespace vitex
 		{
 			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
-			return or_empty(ptr->GetScriptSectionName());
+			const char* script_section = nullptr;
+			ptr->GetDeclaredAt(&script_section, nullptr, nullptr);
+			return or_empty(script_section);
 #else
 			return "";
 #endif
@@ -1128,13 +1130,13 @@ namespace vitex
 			return 0;
 #endif
 		}
-		typeinfo function::get_object_type() const
+		type_info function::get_object_type() const
 		{
 			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
 			return ptr->GetObjectType();
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		std::string_view function::get_object_name() const
@@ -1314,13 +1316,13 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		typeinfo function::get_delegate_object_type() const
+		type_info function::get_delegate_object_type() const
 		{
 			VI_ASSERT(is_valid(), "function should be valid");
 #ifdef VI_ANGELSCRIPT
 			return ptr->GetDelegateObjectType();
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		function function::get_delegate_function() const
@@ -1433,13 +1435,13 @@ namespace vitex
 			object->Release();
 #endif
 		}
-		typeinfo script_object::get_object_type()
+		type_info script_object::get_object_type()
 		{
 			VI_ASSERT(is_valid(), "object should be valid");
 #ifdef VI_ANGELSCRIPT
 			return object->GetObjectType();
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		int script_object::get_type_id()
@@ -1803,7 +1805,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_operator_copy_address(asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_operator_copy_address(asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
@@ -1819,7 +1821,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
@@ -1870,11 +1872,11 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_operator_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_operator_address(const std::string_view& decl, asSFuncPtr* value, convention type)
 		{
 			return set_method_address(decl, value, type);
 		}
-		expects_vm<void> base_class::set_method_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_method_address(const std::string_view& decl, asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
@@ -1889,7 +1891,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_method_static_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_method_static_address(const std::string_view& decl, asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
@@ -1911,7 +1913,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_constructor_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_constructor_address(const std::string_view& decl, asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
@@ -1926,7 +1928,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		expects_vm<void> base_class::set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
@@ -1990,151 +1992,151 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(args), "args should be set");
 			switch (op)
 			{
-				case operators::neg:
+				case operators::neg_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opNeg()%s", out.data(), constant ? " const" : "");
-				case operators::com:
+				case operators::com_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opCom()%s", out.data(), constant ? " const" : "");
-				case operators::pre_inc:
+				case operators::pre_inc_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opPreInc()%s", out.data(), constant ? " const" : "");
-				case operators::pre_dec:
+				case operators::pre_dec_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opPreDec()%s", out.data(), constant ? " const" : "");
-				case operators::post_inc:
+				case operators::post_inc_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opPostInc()%s", out.data(), constant ? " const" : "");
-				case operators::post_dec:
+				case operators::post_dec_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opPostDec()%s", out.data(), constant ? " const" : "");
-				case operators::equals:
+				case operators::equals_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opEquals(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::cmp:
+				case operators::cmp_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opCmp(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::assign:
+				case operators::assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::add_assign:
+				case operators::add_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opAddAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::sub_assign:
+				case operators::sub_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opSubAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::mul_assign:
+				case operators::mul_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opMulAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::div_assign:
+				case operators::div_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opDivAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::mod_assign:
+				case operators::mod_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opModAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::pow_assign:
+				case operators::pow_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opPowAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::and_assign:
+				case operators::and_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opAndAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::or_assign:
+				case operators::or_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opOrAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::xor_assign:
+				case operators::xor_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opXorAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::shl_assign:
+				case operators::shl_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opShlAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::shr_assign:
+				case operators::shr_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opShrAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::ushr_assign:
+				case operators::ushr_assign_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opUshrAssign(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::add:
+				case operators::add_t:
 					return core::stringify::text("%s opAdd%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::sub:
+				case operators::sub_t:
 					return core::stringify::text("%s opSub%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::mul:
+				case operators::mul_t:
 					return core::stringify::text("%s opMul%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::div:
+				case operators::div_t:
 					return core::stringify::text("%s opDiv%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::mod:
+				case operators::mod_t:
 					return core::stringify::text("%s opMod%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::pow:
+				case operators::pow_t:
 					return core::stringify::text("%s opPow%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::andf:
+				case operators::and_t:
 					return core::stringify::text("%s opAnd%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::or_else:
+				case operators::or_t:
 					return core::stringify::text("%s opOr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::xorf:
+				case operators::xor_t:
 					return core::stringify::text("%s opXor%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::shl:
+				case operators::shl_t:
 					return core::stringify::text("%s opShl%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::shr:
+				case operators::shr_t:
 					return core::stringify::text("%s opShr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::ushr:
+				case operators::ushr_t:
 					return core::stringify::text("%s opUshr%s(%s)%s", out.data(), right ? "_r" : "", args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::index:
+				case operators::index_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opIndex(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::call:
+				case operators::call_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opCall(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::cast:
+				case operators::cast_t:
 					if (right)
 						return "";
 
 					return core::stringify::text("%s opCast(%s)%s", out.data(), args.empty() ? "" : args.data(), constant ? " const" : "");
-				case operators::impl_cast:
+				case operators::impl_cast_t:
 					if (right)
 						return "";
 
@@ -2574,16 +2576,16 @@ namespace vitex
 			return 0;
 #endif
 		}
-		typeinfo library::get_object_by_index(size_t index) const
+		type_info library::get_object_by_index(size_t index) const
 		{
 			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
 			return mod->GetObjectTypeByIndex((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		typeinfo library::get_type_info_by_name(const std::string_view& name) const
+		type_info library::get_type_info_by_name(const std::string_view& name) const
 		{
 			VI_ASSERT(is_valid(), "module should be valid");
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
@@ -2600,26 +2602,26 @@ namespace vitex
 
 			return info;
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		typeinfo library::get_type_info_by_decl(const std::string_view& decl) const
+		type_info library::get_type_info_by_decl(const std::string_view& decl) const
 		{
 			VI_ASSERT(is_valid(), "module should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
 			return mod->GetTypeInfoByDecl(decl.data());
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		typeinfo library::get_enum_by_index(size_t index) const
+		type_info library::get_enum_by_index(size_t index) const
 		{
 			VI_ASSERT(is_valid(), "module should be valid");
 #ifdef VI_ANGELSCRIPT
 			return mod->GetEnumByIndex((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		std::string_view library::get_property_decl(size_t index, bool include_namespace) const
@@ -2876,83 +2878,97 @@ namespace vitex
 					const core::string& value = args[1];
 					auto numeric = core::from_string<uint64_t>(value);
 					size_t result = numeric ? (size_t)*numeric : 0;
-					if (key == "ALLOW_UNSAFE_REFERENCES")
+					if (key == "allow_unsafe_references")
 						vm->set_property(features::allow_unsafe_references, result);
-					else if (key == "OPTIMIZE_BYTECODE")
+					else if (key == "optimize_bytecode")
 						vm->set_property(features::optimize_bytecode, result);
-					else if (key == "COPY_SCRIPT_SECTIONS")
+					else if (key == "copy_script_sections")
 						vm->set_property(features::copy_script_sections, result);
-					else if (key == "MAX_STACK_SIZE")
+					else if (key == "max_stack_size")
 						vm->set_property(features::max_stack_size, result);
-					else if (key == "USE_CHARACTER_LITERALS")
+					else if (key == "use_character_literals")
 						vm->set_property(features::use_character_literals, result);
-					else if (key == "ALLOW_MULTILINE_STRINGS")
+					else if (key == "allow_multiline_strings")
 						vm->set_property(features::allow_multiline_strings, result);
-					else if (key == "ALLOW_IMPLICIT_HANDLE_TYPES")
+					else if (key == "allow_implicit_handle_types")
 						vm->set_property(features::allow_implicit_handle_types, result);
-					else if (key == "BUILD_WITHOUT_LINE_CUES")
+					else if (key == "build_without_line_cues")
 						vm->set_property(features::build_without_line_cues, result);
-					else if (key == "INIT_GLOBAL_VARS_AFTER_BUILD")
+					else if (key == "init_global_vars_after_build")
 						vm->set_property(features::init_global_vars_after_build, result);
-					else if (key == "REQUIRE_ENUM_SCOPE")
+					else if (key == "require_enum_scope")
 						vm->set_property(features::require_enum_scope, result);
-					else if (key == "SCRIPT_SCANNER")
+					else if (key == "script_scanner")
 						vm->set_property(features::script_scanner, result);
-					else if (key == "INCLUDE_JIT_INSTRUCTIONS")
+					else if (key == "include_jit_instructions")
 						vm->set_property(features::include_jit_instructions, result);
-					else if (key == "STRING_ENCODING")
+					else if (key == "string_encoding")
 						vm->set_property(features::string_encoding, result);
-					else if (key == "PROPERTY_ACCESSOR_MODE")
+					else if (key == "property_accessor_mode")
 						vm->set_property(features::property_accessor_mode, result);
-					else if (key == "EXPAND_DEF_ARRAY_TO_TMPL")
-						vm->set_property(features::expand_def_array_to_tmpl, result);
-					else if (key == "AUTO_GARBAGE_COLLECT")
+					else if (key == "expand_def_array_to_impl")
+						vm->set_property(features::expand_def_array_to_impl, result);
+					else if (key == "auto_garbage_collect")
 						vm->set_property(features::auto_garbage_collect, result);
-					else if (key == "DISALLOW_GLOBAL_VARS")
+					else if (key == "always_impl_default_construct")
 						vm->set_property(features::always_impl_default_construct, result);
-					else if (key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
+					else if (key == "always_impl_default_construct")
 						vm->set_property(features::always_impl_default_construct, result);
-					else if (key == "COMPILER_WARNINGS")
+					else if (key == "compiler_warnings")
 						vm->set_property(features::compiler_warnings, result);
-					else if (key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
+					else if (key == "disallow_value_assign_for_ref_type")
 						vm->set_property(features::disallow_value_assign_for_ref_type, result);
-					else if (key == "ALTER_SYNTAX_NAMED_ARGS")
+					else if (key == "alter_syntax_named_args")
 						vm->set_property(features::alter_syntax_named_args, result);
-					else if (key == "DISABLE_INTEGER_DIVISION")
+					else if (key == "disable_integer_division")
 						vm->set_property(features::disable_integer_division, result);
-					else if (key == "DISALLOW_EMPTY_LIST_ELEMENTS")
+					else if (key == "disallow_empty_list_elements")
 						vm->set_property(features::disallow_empty_list_elements, result);
-					else if (key == "PRIVATE_PROP_AS_PROTECTED")
+					else if (key == "private_prop_as_protected")
 						vm->set_property(features::private_prop_as_protected, result);
-					else if (key == "ALLOW_UNICODE_IDENTIFIERS")
+					else if (key == "allow_unicode_identifiers")
 						vm->set_property(features::allow_unicode_identifiers, result);
-					else if (key == "HEREDOC_TRIM_MODE")
+					else if (key == "heredoc_trim_mode")
 						vm->set_property(features::heredoc_trim_mode, result);
-					else if (key == "MAX_NESTED_CALLS")
+					else if (key == "max_nested_calls")
 						vm->set_property(features::max_nested_calls, result);
-					else if (key == "GENERIC_CALL_MODE")
+					else if (key == "generic_call_mode")
 						vm->set_property(features::generic_call_mode, result);
-					else if (key == "INIT_STACK_SIZE")
+					else if (key == "init_stack_size")
 						vm->set_property(features::init_stack_size, result);
-					else if (key == "INIT_CALL_STACK_SIZE")
+					else if (key == "init_call_stack_size")
 						vm->set_property(features::init_call_stack_size, result);
-					else if (key == "MAX_CALL_STACK_SIZE")
+					else if (key == "max_call_stack_size")
 						vm->set_property(features::max_call_stack_size, result);
-					else if (key == "IGNORE_DUPLICATE_SHARED_INTF")
-						vm->set_property(features::ignore_duplicate_shared_intf, result);
-					else if (key == "NO_DEBUG_OUTPUT")
+					else if (key == "ignore_duplicate_shared_int")
+						vm->set_property(features::ignore_duplicate_shared_int, result);
+					else if (key == "no_debug_output")
 						vm->set_property(features::no_debug_output, result);
+					else if (key == "disable_script_class_gc")
+						vm->set_property(features::disable_script_class_gc, result);
+					else if (key == "jit_interface_version")
+						vm->set_property(features::jit_interface_version, result);
+					else if (key == "always_impl_default_copy")
+						vm->set_property(features::always_impl_default_copy, result);
+					else if (key == "always_impl_default_copy_construct")
+						vm->set_property(features::always_impl_default_copy_construct, result);
+					else if (key == "member_init_mode")
+						vm->set_property(features::member_init_mode, result);
+					else if (key == "bool_conversion_mode")
+						vm->set_property(features::bool_conversion_mode, result);
+					else if (key == "foreach_support")
+						vm->set_property(features::foreach_support, result);
 				}
 				else if (name == "comment" && args.size() == 2)
 				{
 					const core::string& key = args[0];
-					if (key == "INFO")
+					if (key == "info")
 						VI_INFO("[asc] %s", args[1].c_str());
-					else if (key == "TRACE")
+					else if (key == "trace")
 						VI_DEBUG("[asc] %s", args[1].c_str());
-					else if (key == "WARN")
+					else if (key == "warn")
 						VI_WARN("[asc] %s", args[1].c_str());
-					else if (key == "ERR")
+					else if (key == "err")
 						VI_ERR("[asc] %s", args[1].c_str());
 				}
 				else if (name == "modify" && args.size() == 2)
@@ -2962,11 +2978,11 @@ namespace vitex
 					const core::string& value = args[1];
 					auto numeric = core::from_string<uint64_t>(value);
 					size_t result = numeric ? (size_t)*numeric : 0;
-					if (key == "NAME")
+					if (key == "name")
 						scope->SetName(value.c_str());
-					else if (key == "NAMESPACE")
+					else if (key == "namespace")
 						scope->SetDefaultNamespace(value.c_str());
-					else if (key == "ACCESS_MASK")
+					else if (key == "access_mask")
 						scope->SetAccessMask((asDWORD)result);
 #endif
 				}
@@ -3808,7 +3824,7 @@ namespace vitex
 		{
 			on_exit = std::move(callback);
 		}
-		void debugger_context::add_to_string_callback(const typeinfo& type, to_string_callback&& callback)
+		void debugger_context::add_to_string_callback(const type_info& type, to_string_callback&& callback)
 		{
 			fast_to_string_callbacks[type.get_type_info()] = std::move(callback);
 		}
@@ -4550,7 +4566,11 @@ namespace vitex
 				if (function != nullptr)
 				{
 					if (function->GetFuncType() == asFUNC_SCRIPT)
-						stream << "source \"" << (function->GetScriptSectionName() ? function->GetScriptSectionName() : "") << "\", line " << context->GetLineNumber() << ", in " << function->GetDeclaration();
+					{
+						const char* script_section = nullptr;
+						function->GetDeclaredAt(&script_section, nullptr, nullptr);
+						stream << "source \"" << (script_section ? script_section : "") << "\", line " << context->GetLineNumber() << ", in " << function->GetDeclaration();
+					}
 					else
 						stream << "source { native code }, in " << function->GetDeclaration();
 					stream << " 0x" << function;
@@ -5744,7 +5764,7 @@ namespace vitex
 			VI_ASSERT(defer != nullptr, "return value should be set");
 			VI_ASSERT(return_type_info != nullptr, "return type info should be set");
 #ifdef VI_ANGELSCRIPT
-			VI_ASSERT(return_type_info->GetTypeId() != (int)type_id::voidf, "return value type should not be void");
+			VI_ASSERT(return_type_info->GetTypeId() != (int)type_id::void_t, "return value type should not be void");
 			void* address = context->GetAddressOfReturnValue();
 			if (!address)
 				return virtual_exception(virtual_error::invalid_object);
@@ -5785,7 +5805,7 @@ namespace vitex
 		}
 		expects_vm<void> immediate_context::get_returnable_by_id(void* defer, int return_type_id)
 		{
-			VI_ASSERT(return_type_id != (int)type_id::voidf, "return value type should not be void");
+			VI_ASSERT(return_type_id != (int)type_id::void_t, "return value type should not be void");
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			return get_returnable_by_type(defer, engine->GetTypeInfoById(return_type_id));
@@ -5854,7 +5874,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> immediate_context::get_state_registers(size_t stack_level, function* calling_system_function, function* initial_function, uint32_t* orig_stack_pointer, uint32_t* arguments_size, uint64_t* value_register, void** object_register, typeinfo* object_type_register)
+		expects_vm<void> immediate_context::get_state_registers(size_t stack_level, function* calling_system_function, function* initial_function, uint32_t* orig_stack_pointer, uint32_t* arguments_size, uint64_t* value_register, void** object_register, type_info* object_type_register)
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
@@ -5890,7 +5910,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> immediate_context::set_state_registers(size_t stack_level, function calling_system_function, const function& initial_function, uint32_t orig_stack_pointer, uint32_t arguments_size, uint64_t value_register, void* object_register, const typeinfo& object_type_register)
+		expects_vm<void> immediate_context::set_state_registers(size_t stack_level, function calling_system_function, const function& initial_function, uint32_t orig_stack_pointer, uint32_t arguments_size, uint64_t value_register, void* object_register, const type_info& object_type_register)
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
@@ -6562,7 +6582,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::set_function_address(const std::string_view& decl, asSFuncPtr* value, function_call type)
+		expects_vm<void> virtual_machine::set_function_address(const std::string_view& decl, asSFuncPtr* value, convention type)
 		{
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
@@ -6661,7 +6681,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::assign_object(void* dest_object, void* src_object, const typeinfo& type)
+		expects_vm<void> virtual_machine::assign_object(void* dest_object, void* src_object, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->AssignScriptObject(dest_object, src_object, type.get_type_info()));
@@ -6669,7 +6689,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::ref_cast_object(void* object, const typeinfo& from_type, const typeinfo& to_type, void** new_ptr, bool use_only_implicit_cast)
+		expects_vm<void> virtual_machine::ref_cast_object(void* object, const type_info& from_type, const type_info& to_type, void** new_ptr, bool use_only_implicit_cast)
 		{
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->RefCastObject(object, from_type.get_type_info(), to_type.get_type_info(), new_ptr, use_only_implicit_cast));
@@ -6718,7 +6738,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::notify_of_new_object(void* object, const typeinfo& type)
+		expects_vm<void> virtual_machine::notify_of_new_object(void* object, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->NotifyGarbageCollectorOfNewObject(object, type.get_type_info()));
@@ -6726,7 +6746,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::get_object_address(size_t index, size_t* sequence_number, void** object, typeinfo* type)
+		expects_vm<void> virtual_machine::get_object_address(size_t index, size_t* sequence_number, void** object, type_info* type)
 		{
 #ifdef VI_ANGELSCRIPT
 			asUINT asSequenceNumber;
@@ -6735,7 +6755,7 @@ namespace vitex
 			if (sequence_number != nullptr)
 				*sequence_number = (size_t)asSequenceNumber;
 			if (type != nullptr)
-				*type = typeinfo(out_type);
+				*type = type_info(out_type);
 			return function_factory::to_return(result);
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -6913,12 +6933,12 @@ namespace vitex
 			return 0;
 #endif
 		}
-		typeinfo virtual_machine::get_object_by_index(size_t index) const
+		type_info virtual_machine::get_object_by_index(size_t index) const
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->GetObjectTypeByIndex((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		size_t virtual_machine::get_enum_count() const
@@ -6929,12 +6949,12 @@ namespace vitex
 			return 0;
 #endif
 		}
-		typeinfo virtual_machine::get_enum_by_index(size_t index) const
+		type_info virtual_machine::get_enum_by_index(size_t index) const
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->GetEnumByIndex((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		size_t virtual_machine::get_function_defs_count() const
@@ -6945,12 +6965,12 @@ namespace vitex
 			return 0;
 #endif
 		}
-		typeinfo virtual_machine::get_function_def_by_index(size_t index) const
+		type_info virtual_machine::get_function_def_by_index(size_t index) const
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->GetFuncdefByIndex((asUINT)index);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		size_t virtual_machine::get_modules_count() const
@@ -6995,15 +7015,15 @@ namespace vitex
 
 			return it->second;
 		}
-		typeinfo virtual_machine::get_type_info_by_id(int type_id) const
+		type_info virtual_machine::get_type_info_by_id(int type_id) const
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->GetTypeInfoById(type_id);
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		typeinfo virtual_machine::get_type_info_by_name(const std::string_view& name)
+		type_info virtual_machine::get_type_info_by_name(const std::string_view& name)
 		{
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 #ifdef VI_ANGELSCRIPT
@@ -7018,16 +7038,16 @@ namespace vitex
 
 			return info;
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
-		typeinfo virtual_machine::get_type_info_by_decl(const std::string_view& decl) const
+		type_info virtual_machine::get_type_info_by_decl(const std::string_view& decl) const
 		{
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 #ifdef VI_ANGELSCRIPT
 			return engine->GetTypeInfoByDecl(decl.data());
 #else
-			return typeinfo(nullptr);
+			return type_info(nullptr);
 #endif
 		}
 		void virtual_machine::set_library_property(library_features property, size_t value)
@@ -7269,7 +7289,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		void* virtual_machine::create_object(const typeinfo& type)
+		void* virtual_machine::create_object(const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->CreateScriptObject(type.get_type_info());
@@ -7277,7 +7297,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		void* virtual_machine::create_object_copy(void* object, const typeinfo& type)
+		void* virtual_machine::create_object_copy(void* object, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->CreateScriptObjectCopy(object, type.get_type_info());
@@ -7285,7 +7305,7 @@ namespace vitex
 			return nullptr;
 #endif
 		}
-		void* virtual_machine::create_empty_object(const typeinfo& type)
+		void* virtual_machine::create_empty_object(const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			return engine->CreateUninitializedScriptObject(type.get_type_info());
@@ -7301,13 +7321,13 @@ namespace vitex
 			return function;
 #endif
 		}
-		void virtual_machine::release_object(void* object, const typeinfo& type)
+		void virtual_machine::release_object(void* object, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			engine->ReleaseScriptObject(object, type.get_type_info());
 #endif
 		}
-		void virtual_machine::add_ref_object(void* object, const typeinfo& type)
+		void virtual_machine::add_ref_object(void* object, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			engine->AddRefScriptObject(object, type.get_type_info());
@@ -7334,13 +7354,13 @@ namespace vitex
 				*total_new_destroyed = (unsigned int)asTotalNewDestroyed;
 #endif
 		}
-		void virtual_machine::forward_enum_references(void* reference, const typeinfo& type)
+		void virtual_machine::forward_enum_references(void* reference, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			engine->ForwardGCEnumReferences(reference, type.get_type_info());
 #endif
 		}
-		void virtual_machine::forward_release_references(void* reference, const typeinfo& type)
+		void virtual_machine::forward_release_references(void* reference, const type_info& type)
 		{
 #ifdef VI_ANGELSCRIPT
 			engine->ForwardGCReleaseReferences(reference, type.get_type_info());
@@ -8362,13 +8382,13 @@ namespace vitex
 		event_loop::callable::callable(immediate_context* new_context) noexcept : context(new_context)
 		{
 		}
-		event_loop::callable::callable(immediate_context* new_context, function_delegate&& new_delegate, args_callback&& new_on_args, args_callback&& new_on_return) noexcept : delegatef(std::move(new_delegate)), on_args(std::move(new_on_args)), on_return(std::move(new_on_return)), context(new_context)
+		event_loop::callable::callable(immediate_context* new_context, function_delegate&& new_delegate, args_callback&& new_on_args, args_callback&& new_on_return) noexcept : delegation(std::move(new_delegate)), on_args(std::move(new_on_args)), on_return(std::move(new_on_return)), context(new_context)
 		{
 		}
-		event_loop::callable::callable(const callable& other) noexcept : delegatef(other.delegatef), on_args(other.on_args), on_return(other.on_return), context(other.context)
+		event_loop::callable::callable(const callable& other) noexcept : delegation(other.delegation), on_args(other.on_args), on_return(other.on_return), context(other.context)
 		{
 		}
-		event_loop::callable::callable(callable&& other) noexcept : delegatef(std::move(other.delegatef)), on_args(std::move(other.on_args)), on_return(std::move(other.on_return)), context(other.context)
+		event_loop::callable::callable(callable&& other) noexcept : delegation(std::move(other.delegation)), on_args(std::move(other.on_args)), on_return(std::move(other.on_return)), context(other.context)
 		{
 			other.context = nullptr;
 		}
@@ -8377,7 +8397,7 @@ namespace vitex
 			if (this == &other)
 				return *this;
 
-			delegatef = other.delegatef;
+			delegation = other.delegation;
 			on_args = other.on_args;
 			on_return = other.on_return;
 			context = other.context;
@@ -8388,7 +8408,7 @@ namespace vitex
 			if (this == &other)
 				return *this;
 
-			delegatef = std::move(other.delegatef);
+			delegation = std::move(other.delegation);
 			on_args = std::move(other.on_args);
 			on_return = std::move(other.on_return);
 			context = other.context;
@@ -8397,11 +8417,11 @@ namespace vitex
 		}
 		bool event_loop::callable::is_notification() const
 		{
-			return !delegatef.is_valid();
+			return !delegation.is_valid();
 		}
 		bool event_loop::callable::is_callback() const
 		{
-			return delegatef.is_valid();
+			return delegation.is_valid();
 		}
 
 		static thread_local event_loop* internal_loop = nullptr;
@@ -8546,7 +8566,7 @@ namespace vitex
 					if (next.on_return)
 					{
 						args_callback on_return = std::move(next.on_return);
-						executing_context->execute_call(next.delegatef.callable(), std::move(next.on_args)).when([this, vm, initiator_context, executing_context, on_return = std::move(on_return)](expects_vm<execution>&& status) mutable
+						executing_context->execute_call(next.delegation.callable(), std::move(next.on_args)).when([this, vm, initiator_context, executing_context, on_return = std::move(on_return)](expects_vm<execution>&& status) mutable
 						{
 							on_return(executing_context);
 							if (executing_context != initiator_context)
@@ -8556,7 +8576,7 @@ namespace vitex
 					}
 					else
 					{
-						executing_context->execute_call(next.delegatef.callable(), std::move(next.on_args)).when([this, vm, initiator_context, executing_context](expects_vm<execution>&& status) mutable
+						executing_context->execute_call(next.delegation.callable(), std::move(next.on_args)).when([this, vm, initiator_context, executing_context](expects_vm<execution>&& status) mutable
 						{
 							if (executing_context != initiator_context)
 								vm->return_context(executing_context);

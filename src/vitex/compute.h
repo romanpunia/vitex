@@ -1218,8 +1218,8 @@ namespace vitex
 			void update(const uint8_t* buffer, uint32_t length, uint32_t block_size = 64);
 			void update(const char* buffer, uint32_t length, uint32_t block_size = 64);
 			void finalize();
-			core::unique<char> hex_digest() const;
-			core::unique<uint8_t> raw_digest() const;
+			char* hex_digest() const;
+			uint8_t* raw_digest() const;
 			core::string to_hex() const;
 			core::string to_raw() const;
 
@@ -1610,9 +1610,9 @@ namespace vitex
 			static expects_crypto<core::string> decrypt(cipher type, const std::string_view& value, const secret_box& key, const secret_box& salt, int complexity_bytes = -1);
 			static expects_crypto<core::string> jwt_sign(const std::string_view& algo, const std::string_view& payload, const secret_box& key);
 			static expects_crypto<core::string> jwt_encode(web_token* src, const secret_box& key);
-			static expects_crypto<core::unique<web_token>> jwt_decode(const std::string_view& value, const secret_box& key);
+			static expects_crypto<web_token*> jwt_decode(const std::string_view& value, const secret_box& key);
 			static expects_crypto<core::string> schema_encrypt(core::schema* src, const secret_box& key, const secret_box& salt);
-			static expects_crypto<core::unique<core::schema>> schema_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt);
+			static expects_crypto<core::schema*> schema_decrypt(const std::string_view& value, const secret_box& key, const secret_box& salt);
 			static expects_crypto<size_t> file_encrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
 			static expects_crypto<size_t> file_decrypt(cipher type, core::stream* from, core::stream* to, const secret_box& key, const secret_box& salt, block_callback&& callback = nullptr, size_t read_interval = 1, int complexity_bytes = -1);
 			static uint8_t random_uc();

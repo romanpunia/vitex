@@ -279,8 +279,8 @@ namespace vitex
 			processor(content_manager* new_content) noexcept;
 			virtual ~processor() noexcept;
 			virtual void free(asset_cache* asset);
-			virtual expects_content<core::unique<void>> duplicate(asset_cache* asset, const core::variant_args& keys);
-			virtual expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& keys);
+			virtual expects_content<void*> duplicate(asset_cache* asset, const core::variant_args& keys);
+			virtual expects_content<void*> deserialize(core::stream* stream, size_t offset, const core::variant_args& keys);
 			virtual expects_content<void> serialize(core::stream* stream, void* instance, const core::variant_args& keys);
 			content_manager* get_content() const;
 		};
@@ -307,9 +307,9 @@ namespace vitex
 			void set_environment(const std::string_view& path);
 			expects_content<void> import_archive(const std::string_view& path, bool validate_checksum);
 			expects_content<void> export_archive(const std::string_view& path, const std::string_view& physical_directory, const std::string_view& virtual_directory = std::string_view());
-			expects_content<core::unique<void>> load(processor* processor, const std::string_view& path, const core::variant_args& keys);
+			expects_content<void*> load(processor* processor, const std::string_view& path, const core::variant_args& keys);
 			expects_content<void> save(processor* processor, const std::string_view& path, void* object, const core::variant_args& keys);
-			expects_promise_content<core::unique<void>> load_deferred(processor* processor, const std::string_view& path, const core::variant_args& keys);
+			expects_promise_content<void*> load_deferred(processor* processor, const std::string_view& path, const core::variant_args& keys);
 			expects_promise_content<void> save_deferred(processor* processor, const std::string_view& path, void* object, const core::variant_args& keys);
 			processor* add_processor(processor* value, uint64_t id);
 			processor* get_processor(uint64_t id);
@@ -328,7 +328,7 @@ namespace vitex
 
 		public:
 			template <typename t>
-			expects_content<core::unique<t>> load(const std::string_view& path, const core::variant_args& keys = core::variant_args())
+			expects_content<t*> load(const std::string_view& path, const core::variant_args& keys = core::variant_args())
 			{
 				auto result = load(get_processor<t>(), path, keys);
 				if (!result)
@@ -337,7 +337,7 @@ namespace vitex
 				return expects_content<t*>((t*)*result);
 			}
 			template <typename t>
-			expects_promise_content<core::unique<t>> load_deferred(const std::string_view& path, const core::variant_args& keys = core::variant_args())
+			expects_promise_content<t*> load_deferred(const std::string_view& path, const core::variant_args& keys = core::variant_args())
 			{
 				enqueue();
 				core::string target_path = core::string(path);
@@ -400,9 +400,9 @@ namespace vitex
 			app_data(content_manager* manager, const std::string_view& path) noexcept;
 			~app_data() noexcept;
 			void migrate(const std::string_view& path);
-			void set_key(const std::string_view& name, core::unique<core::schema> value);
+			void set_key(const std::string_view& name, core::schema* value);
 			void set_text(const std::string_view& name, const std::string_view& value);
-			core::unique<core::schema> get_key(const std::string_view& name);
+			core::schema* get_key(const std::string_view& name);
 			core::string get_text(const std::string_view& name);
 			bool has(const std::string_view& name);
 			core::schema* get_snapshot() const;

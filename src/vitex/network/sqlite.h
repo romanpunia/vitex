@@ -142,8 +142,8 @@ namespace vitex
 				row(const response* new_base, size_t fRowIndex);
 
 			public:
-				core::unique<core::schema> get_object() const;
-				core::unique<core::schema> get_array() const;
+				core::schema* get_object() const;
+				core::schema* get_array() const;
 				size_t index() const;
 				size_t size() const;
 				column get_column(size_t index) const;
@@ -220,10 +220,10 @@ namespace vitex
 				{
 					return get_row(index);
 				}
-				core::unique<core::schema> get_array_of_objects() const;
-				core::unique<core::schema> get_array_of_arrays() const;
-				core::unique<core::schema> get_object(size_t index = 0) const;
-				core::unique<core::schema> get_array(size_t index = 0) const;
+				core::schema* get_array_of_objects() const;
+				core::schema* get_array_of_arrays() const;
+				core::schema* get_object(size_t index = 0) const;
+				core::schema* get_array(size_t index = 0) const;
 				const core::vector<core::string>& get_columns() const;
 				core::string get_status_text() const;
 				int get_status_code() const;
@@ -301,10 +301,10 @@ namespace vitex
 				const response& first() const;
 				const response& last() const;
 				const response& at(size_t index) const;
-				core::unique<core::schema> get_array_of_objects(size_t response_index = 0) const;
-				core::unique<core::schema> get_array_of_arrays(size_t response_index = 0) const;
-				core::unique<core::schema> get_object(size_t response_index = 0, size_t index = 0) const;
-				core::unique<core::schema> get_array(size_t response_index = 0, size_t index = 0) const;
+				core::schema* get_array_of_objects(size_t response_index = 0) const;
+				core::schema* get_array_of_arrays(size_t response_index = 0) const;
+				core::schema* get_object(size_t response_index = 0, size_t index = 0) const;
+				core::schema* get_array(size_t response_index = 0, size_t index = 0) const;
 
 			public:
 				core::vector<response>::iterator begin()
@@ -342,8 +342,8 @@ namespace vitex
 				void set_extensions(bool enabled);
 				void set_busy_timeout(uint64_t ms);
 				void set_function(const std::string_view& name, uint8_t args, on_function_result&& context);
-				void set_aggregate_function(const std::string_view& name, uint8_t args, core::unique<aggregate> context);
-				void set_window_function(const std::string_view& name, uint8_t args, core::unique<window> context);
+				void set_aggregate_function(const std::string_view& name, uint8_t args, aggregate* context);
+				void set_window_function(const std::string_view& name, uint8_t args, window* context);
 				void overload_function(const std::string_view& name, uint8_t args);
 				core::vector<checkpoint> wal_checkpoint(checkpoint_mode mode, const std::string_view& database = std::string_view());
 				size_t free_memory_used(size_t bytes);
@@ -409,8 +409,8 @@ namespace vitex
 				void set_extensions(bool enabled);
 				void set_busy_timeout(uint64_t ms);
 				void set_function(const std::string_view& name, uint8_t args, on_function_result&& context);
-				void set_aggregate_function(const std::string_view& name, uint8_t args, core::unique<aggregate> context);
-				void set_window_function(const std::string_view& name, uint8_t args, core::unique<window> context);
+				void set_aggregate_function(const std::string_view& name, uint8_t args, aggregate* context);
+				void set_window_function(const std::string_view& name, uint8_t args, window* context);
 				void overload_function(const std::string_view& name, uint8_t args);
 				core::vector<checkpoint> wal_checkpoint(checkpoint_mode mode, const std::string_view& database = std::string_view());
 				size_t free_memory_used(size_t bytes);

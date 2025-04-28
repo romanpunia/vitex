@@ -10199,7 +10199,7 @@ namespace vitex
 
 			return stream->get_exit_code();
 		}
-		expects_io<unique<process_stream>> os::process::spawn(const std::string_view& command, file_mode mode)
+		expects_io<process_stream*> os::process::spawn(const std::string_view& command, file_mode mode)
 		{
 			VI_ASSERT(!command.empty(), "command should be set");
 			VI_DEBUG("[os] execute sh [ %.*s ]", (int)command.size(), command.data());

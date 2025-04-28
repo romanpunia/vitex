@@ -101,7 +101,7 @@ namespace vitex
 				~property();
 				property& operator =(const property& other);
 				property& operator =(property&& other);
-				core::unique<tdocument> reset();
+				tdocument* reset();
 				core::string& to_string();
 				core::string to_object_id();
 				document as_document() const;
@@ -164,7 +164,7 @@ namespace vitex
 				core::string to_extended_json() const;
 				core::string to_json() const;
 				core::string to_indices() const;
-				core::unique<core::schema> to_schema(bool is_array = false) const;
+				core::schema* to_schema(bool is_array = false) const;
 				tdocument* get() const;
 				document copy() const;
 				document& persist(bool keep = true);
@@ -323,8 +323,8 @@ namespace vitex
 				response(response&& other);
 				response& operator =(const response& other) = delete;
 				response& operator =(response&& other);
-				expects_promise_db<core::unique<core::schema>> fetch();
-				expects_promise_db<core::unique<core::schema>> fetch_all();
+				expects_promise_db<core::schema*> fetch();
+				expects_promise_db<core::schema*> fetch_all();
 				expects_promise_db<property> get_property(const std::string_view& name);
 				cursor&& get_cursor();
 				document&& get_document();

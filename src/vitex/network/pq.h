@@ -224,8 +224,8 @@ namespace vitex
 				core::string get(address_op key) const;
 				core::string get_address() const;
 				const core::unordered_map<core::string, core::string>& get() const;
-				core::unique<const char*> create_keys() const;
-				core::unique<const char*> create_values() const;
+				const char** create_keys() const;
+				const char** create_values() const;
 
 			public:
 				static expects_db<address> from_url(const std::string_view& location);
@@ -243,7 +243,7 @@ namespace vitex
 
 			public:
 				notify(tnotify* new_base);
-				core::unique<core::schema> get_schema() const;
+				core::schema* get_schema() const;
 				core::string get_name() const;
 				core::string get_data() const;
 				int get_pid() const;
@@ -296,8 +296,8 @@ namespace vitex
 				row(tresponse* new_base, size_t fRowIndex);
 
 			public:
-				core::unique<core::schema> get_object() const;
-				core::unique<core::schema> get_array() const;
+				core::schema* get_object() const;
+				core::schema* get_array() const;
 				size_t index() const;
 				size_t size() const;
 				column get_column(size_t index) const;
@@ -360,10 +360,10 @@ namespace vitex
 				{
 					return get_row(index);
 				}
-				core::unique<core::schema> get_array_of_objects() const;
-				core::unique<core::schema> get_array_of_arrays() const;
-				core::unique<core::schema> get_object(size_t index = 0) const;
-				core::unique<core::schema> get_array(size_t index = 0) const;
+				core::schema* get_array_of_objects() const;
+				core::schema* get_array_of_arrays() const;
+				core::schema* get_object(size_t index = 0) const;
+				core::schema* get_array(size_t index = 0) const;
 				core::vector<core::string> get_columns() const;
 				core::string get_command_status_text() const;
 				core::string get_status_text() const;
@@ -447,10 +447,10 @@ namespace vitex
 				const response& at(size_t index) const;
 				connection* get_executor() const;
 				caching get_cache_status() const;
-				core::unique<core::schema> get_array_of_objects(size_t response_index = 0) const;
-				core::unique<core::schema> get_array_of_arrays(size_t response_index = 0) const;
-				core::unique<core::schema> get_object(size_t response_index = 0, size_t index = 0) const;
-				core::unique<core::schema> get_array(size_t response_index = 0, size_t index = 0) const;
+				core::schema* get_array_of_objects(size_t response_index = 0) const;
+				core::schema* get_array_of_arrays(size_t response_index = 0) const;
+				core::schema* get_object(size_t response_index = 0, size_t index = 0) const;
+				core::schema* get_array(size_t response_index = 0, size_t index = 0) const;
 
 			public:
 				core::vector<response>::iterator begin()

@@ -324,9 +324,6 @@ namespace vitex
 			static constexpr bool value = decltype(signature<t>(0))::value;
 		};
 
-		template <typename t>
-		using unique = t*;
-
 		struct singletonish { };
 
 		struct memory_location
@@ -344,11 +341,11 @@ namespace vitex
 		{
 		public:
 			virtual ~global_allocator() = default;
-			virtual unique<void> allocate(size_t size) noexcept = 0;
-			virtual unique<void> allocate(memory_location&& location, size_t size) noexcept = 0;
-			virtual void transfer(unique<void> address, size_t size) noexcept = 0;
-			virtual void transfer(unique<void> address, memory_location&& location, size_t size) noexcept = 0;
-			virtual void free(unique<void> address) noexcept = 0;
+			virtual void* allocate(size_t size) noexcept = 0;
+			virtual void* allocate(memory_location&& location, size_t size) noexcept = 0;
+			virtual void transfer(void* address, size_t size) noexcept = 0;
+			virtual void transfer(void* address, memory_location&& location, size_t size) noexcept = 0;
+			virtual void free(void* address) noexcept = 0;
 			virtual void watch(memory_location&& location, void* address) noexcept = 0;
 			virtual void unwatch(void* address) noexcept = 0;
 			virtual void finalize() noexcept = 0;
@@ -360,8 +357,8 @@ namespace vitex
 		{
 		public:
 			virtual ~local_allocator() = default;
-			virtual unique<void> allocate(size_t size) noexcept = 0;
-			virtual void free(unique<void> address) noexcept = 0;
+			virtual void* allocate(size_t size) noexcept = 0;
+			virtual void free(void* address) noexcept = 0;
 			virtual void reset() noexcept = 0;
 			virtual bool is_valid(void* address) noexcept = 0;
 		};
@@ -380,9 +377,9 @@ namespace vitex
 			static state* context;
 
 		public:
-			static unique<void> default_allocate(size_t size) noexcept;
-			static unique<void> tracing_allocate(size_t size, memory_location&& location) noexcept;
-			static void default_deallocate(unique<void> address) noexcept;
+			static void* default_allocate(size_t size) noexcept;
+			static void* tracing_allocate(size_t size, memory_location&& location) noexcept;
+			static void default_deallocate(void* address) noexcept;
 			static void watch(void* address, memory_location&& location) noexcept;
 			static void unwatch(void* address) noexcept;
 			static void cleanup() noexcept;
@@ -765,11 +762,11 @@ namespace vitex
 
 			public:
 				~debug_allocator() override = default;
-				unique<void> allocate(size_t size) noexcept override;
-				unique<void> allocate(memory_location&& origin, size_t size) noexcept override;
-				void free(unique<void> address) noexcept override;
-				void transfer(unique<void> address, size_t size) noexcept override;
-				void transfer(unique<void> address, memory_location&& origin, size_t size) noexcept override;
+				void* allocate(size_t size) noexcept override;
+				void* allocate(memory_location&& origin, size_t size) noexcept override;
+				void free(void* address) noexcept override;
+				void transfer(void* address, size_t size) noexcept override;
+				void transfer(void* address, memory_location&& origin, size_t size) noexcept override;
 				void watch(memory_location&& origin, void* address) noexcept override;
 				void unwatch(void* address) noexcept override;
 				void finalize() noexcept override;
@@ -785,11 +782,11 @@ namespace vitex
 			{
 			public:
 				~default_allocator() override = default;
-				unique<void> allocate(size_t size) noexcept override;
-				unique<void> allocate(memory_location&& origin, size_t size) noexcept override;
-				void free(unique<void> address) noexcept override;
-				void transfer(unique<void> address, size_t size) noexcept override;
-				void transfer(unique<void> address, memory_location&& origin, size_t size) noexcept override;
+				void* allocate(size_t size) noexcept override;
+				void* allocate(memory_location&& origin, size_t size) noexcept override;
+				void free(void* address) noexcept override;
+				void transfer(void* address, size_t size) noexcept override;
+				void transfer(void* address, memory_location&& origin, size_t size) noexcept override;
 				void watch(memory_location&& origin, void* address) noexcept override;
 				void unwatch(void* address) noexcept override;
 				void finalize() noexcept override;
@@ -835,11 +832,11 @@ namespace vitex
 			public:
 				cached_allocator(uint64_t minimal_life_time_ms = 2000, size_t max_elements_per_allocation = 1024, size_t elements_reducing_base_bytes = 300, double elements_reducing_factor_rate = 5.0);
 				~cached_allocator() noexcept override;
-				unique<void> allocate(size_t size) noexcept override;
-				unique<void> allocate(memory_location&& origin, size_t size) noexcept override;
-				void free(unique<void> address) noexcept override;
-				void transfer(unique<void> address, size_t size) noexcept override;
-				void transfer(unique<void> address, memory_location&& origin, size_t size) noexcept override;
+				void* allocate(size_t size) noexcept override;
+				void* allocate(memory_location&& origin, size_t size) noexcept override;
+				void free(void* address) noexcept override;
+				void transfer(void* address, size_t size) noexcept override;
+				void transfer(void* address, memory_location&& origin, size_t size) noexcept override;
 				void watch(memory_location&& origin, void* address) noexcept override;
 				void unwatch(void* address) noexcept override;
 				void finalize() noexcept override;
@@ -873,8 +870,8 @@ namespace vitex
 			public:
 				linear_allocator(size_t size);
 				~linear_allocator() noexcept override;
-				unique<void> allocate(size_t size) noexcept override;
-				void free(unique<void> address) noexcept override;
+				void* allocate(size_t size) noexcept override;
+				void free(void* address) noexcept override;
 				void reset() noexcept override;
 				bool is_valid(void* address) noexcept override;
 				size_t get_leftovers() const noexcept;
@@ -904,8 +901,8 @@ namespace vitex
 			public:
 				stack_allocator(size_t size);
 				~stack_allocator() noexcept override;
-				unique<void> allocate(size_t size) noexcept override;
-				void free(unique<void> address) noexcept override;
+				void* allocate(size_t size) noexcept override;
+				void free(void* address) noexcept override;
 				void reset() noexcept override;
 				bool is_valid(void* address) noexcept override;
 				size_t get_leftovers() const noexcept;
@@ -2427,23 +2424,23 @@ namespace vitex
 			class set
 			{
 			public:
-				static unique<schema> any(variant&& value);
-				static unique<schema> any(const variant& value);
-				static unique<schema> any(const std::string_view& value, bool strict = false);
-				static unique<schema> null();
-				static unique<schema> undefined();
-				static unique<schema> object();
-				static unique<schema> array();
-				static unique<schema> pointer(void* value);
-				static unique<schema> string(const std::string_view& value);
-				static unique<schema> binary(const std::string_view& value);
-				static unique<schema> binary(const uint8_t* value, size_t size);
-				static unique<schema> integer(int64_t value);
-				static unique<schema> number(double value);
-				static unique<schema> decimal(const core::decimal& value);
-				static unique<schema> decimal(core::decimal&& value);
-				static unique<schema> decimal_string(const std::string_view& value);
-				static unique<schema> boolean(bool value);
+				static schema* any(variant&& value);
+				static schema* any(const variant& value);
+				static schema* any(const std::string_view& value, bool strict = false);
+				static schema* null();
+				static schema* undefined();
+				static schema* object();
+				static schema* array();
+				static schema* pointer(void* value);
+				static schema* string(const std::string_view& value);
+				static schema* binary(const std::string_view& value);
+				static schema* binary(const uint8_t* value, size_t size);
+				static schema* integer(int64_t value);
+				static schema* number(double value);
+				static schema* decimal(const core::decimal& value);
+				static schema* decimal(core::decimal&& value);
+				static schema* decimal_string(const std::string_view& value);
+				static schema* boolean(bool value);
 			};
 
 		public:
@@ -2562,20 +2559,20 @@ namespace vitex
 				static expects_io<void> move(const std::string_view& from, const std::string_view& to);
 				static expects_io<void> copy(const std::string_view& from, const std::string_view& to);
 				static expects_io<void> remove(const std::string_view& path);
-				static expects_io<void> close(unique<FILE> stream);
+				static expects_io<void> close(FILE* stream);
 				static expects_io<void> get_state(const std::string_view& path, file_entry* output);
 				static expects_io<void> seek64(FILE* stream, int64_t offset, file_seek mode);
 				static expects_io<size_t> tell64(FILE* stream);
 				static expects_io<size_t> join(const std::string_view& to, const vector<string>& paths);
 				static expects_io<file_state> get_properties(const std::string_view& path);
 				static expects_io<file_entry> get_state(const std::string_view& path);
-				static expects_io<unique<stream>> open_join(const std::string_view& path, const vector<string>& paths);
-				static expects_io<unique<stream>> open_archive(const std::string_view& path, size_t unarchived_max_size = 128 * 1024 * 1024);
-				static expects_io<unique<stream>> open(const std::string_view& path, file_mode mode, bool async = false);
-				static expects_io<unique<FILE>> open(const std::string_view& path, const std::string_view& mode);
-				static expects_io<unique<uint8_t>> read_chunk(stream* stream, size_t length);
-				static expects_io<unique<uint8_t>> read_all(const std::string_view& path, size_t* byte_length);
-				static expects_io<unique<uint8_t>> read_all(stream* stream, size_t* byte_length);
+				static expects_io<stream*> open_join(const std::string_view& path, const vector<string>& paths);
+				static expects_io<stream*> open_archive(const std::string_view& path, size_t unarchived_max_size = 128 * 1024 * 1024);
+				static expects_io<stream*> open(const std::string_view& path, file_mode mode, bool async = false);
+				static expects_io<FILE*> open(const std::string_view& path, const std::string_view& mode);
+				static expects_io<uint8_t*> read_chunk(stream* stream, size_t length);
+				static expects_io<uint8_t*> read_all(const std::string_view& path, size_t* byte_length);
+				static expects_io<uint8_t*> read_all(stream* stream, size_t* byte_length);
 				static expects_io<string> read_as_string(const std::string_view& path);
 				static expects_io<vector<string>> read_as_array(const std::string_view& path);
 
@@ -2630,7 +2627,7 @@ namespace vitex
 				static bool has_debugger();
 				static int get_signal_id(signal_code type);
 				static expects_io<int> execute(const std::string_view& command, file_mode mode, process_callback&& callback);
-				static expects_io<unique<process_stream>> spawn(const std::string_view& command, file_mode mode);
+				static expects_io<process_stream*> spawn(const std::string_view& command, file_mode mode);
 				static expects_io<string> get_env(const std::string_view& name);
 				static expects_io<string> get_shell();
 				static string get_thread_id(const std::thread::id& id);
@@ -2640,8 +2637,8 @@ namespace vitex
 			class symbol
 			{
 			public:
-				static expects_io<unique<void>> load(const std::string_view& path = "");
-				static expects_io<unique<void>> load_function(void* handle, const std::string_view& name);
+				static expects_io<void*> load(const std::string_view& path = "");
+				static expects_io<void*> load_function(void* handle, const std::string_view& name);
 				static expects_io<void> unload(void* handle);
 			};
 
@@ -2695,12 +2692,12 @@ namespace vitex
 
 		public:
 			template <typename t, typename... args>
-			static unique<t> create(const std::string_view& hash, args... data) noexcept
+			static t* create(const std::string_view& hash, args... data) noexcept
 			{
 				return create<t, args...>(VI_HASH(hash), data...);
 			}
 			template <typename t, typename... args>
-			static unique<t> create(uint64_t id, args... data) noexcept
+			static t* create(uint64_t id, args... data) noexcept
 			{
 				void* (*callable)(args...) = nullptr;
 				reinterpret_cast<void*&>(callable) = find(id);
@@ -2720,7 +2717,7 @@ namespace vitex
 
 		private:
 			template <typename t, typename... args>
-			static unique<void> callee(args... data) noexcept
+			static void* callee(args... data) noexcept
 			{
 				return (void*)new t(data...);
 			}
@@ -2986,7 +2983,7 @@ namespace vitex
 				VI_PANIC(address != nullptr, "%.*s CAUSING panic", (int)message.size(), message.data());
 				return address;
 			}
-			inline unique<t> reset()
+			inline t* reset()
 			{
 				t* result = address;
 				address = nullptr;
@@ -3104,7 +3101,7 @@ namespace vitex
 				VI_PANIC(address != nullptr, "%.*s CAUSING panic", (int)message.size(), message.data());
 				return address;
 			}
-			inline unique<t> reset()
+			inline t* reset()
 			{
 				t* result = address;
 				address = nullptr;
@@ -3723,15 +3720,15 @@ namespace vitex
 			schema* set(const std::string_view& key);
 			schema* set(const std::string_view& key, const variant& value);
 			schema* set(const std::string_view& key, variant&& value);
-			schema* set(const std::string_view& key, unique<schema> value);
+			schema* set(const std::string_view& key, schema* value);
 			schema* set_attribute(const std::string_view& key, const variant& value);
 			schema* set_attribute(const std::string_view& key, variant&& value);
 			schema* push(const variant& value);
 			schema* push(variant&& value);
-			schema* push(unique<schema> value);
+			schema* push(schema* value);
 			schema* pop(size_t index);
 			schema* pop(const std::string_view& name);
-			unique<schema> copy() const;
+			schema* copy() const;
 			bool rename(const std::string_view& name, const std::string_view& new_name);
 			bool has(const std::string_view& name) const;
 			bool has_attribute(const std::string_view& name) const;
@@ -3761,12 +3758,12 @@ namespace vitex
 			static string to_xml(schema* value);
 			static string to_json(schema* value);
 			static vector<char> to_jsonb(schema* value);
-			static expects_parser<unique<schema>> convert_from_xml(const std::string_view& buffer);
-			static expects_parser<unique<schema>> convert_from_json(const std::string_view& buffer);
-			static expects_parser<unique<schema>> convert_from_jsonb(const schema_read_callback& callback);
-			static expects_parser<unique<schema>> from_xml(const std::string_view& text);
-			static expects_parser<unique<schema>> from_json(const std::string_view& text);
-			static expects_parser<unique<schema>> from_jsonb(const std::string_view& binary);
+			static expects_parser<schema*> convert_from_xml(const std::string_view& buffer);
+			static expects_parser<schema*> convert_from_json(const std::string_view& buffer);
+			static expects_parser<schema*> convert_from_jsonb(const schema_read_callback& callback);
+			static expects_parser<schema*> from_xml(const std::string_view& text);
+			static expects_parser<schema*> from_json(const std::string_view& text);
+			static expects_parser<schema*> from_jsonb(const std::string_view& binary);
 
 		private:
 			static expects_parser<void> process_convertion_from_jsonb(schema* current, unordered_map<size_t, string>* map, const schema_read_callback& callback);

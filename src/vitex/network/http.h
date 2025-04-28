@@ -243,8 +243,8 @@ namespace vitex
 				void prepare(const kimv_unordered_map& headers, const uint8_t* buffer, size_t size);
 				void finalize();
 				void cleanup();
-				core::expects_parser<core::unique<core::schema>> get_json() const;
-				core::expects_parser<core::unique<core::schema>> get_xml() const;
+				core::expects_parser<core::schema*> get_json() const;
+				core::expects_parser<core::schema*> get_xml() const;
 				core::string get_text() const;
 				bool is_finalized() const;
 			};
@@ -948,8 +948,8 @@ namespace vitex
 				core::expects_promise_system<void> upgrade(request_frame&& root);
 				core::expects_promise_system<void> send(request_frame&& root);
 				core::expects_promise_system<void> send_fetch(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
-				core::expects_promise_system<core::unique<core::schema>> json(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
-				core::expects_promise_system<core::unique<core::schema>> xml(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
+				core::expects_promise_system<core::schema*> json(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
+				core::expects_promise_system<core::schema*> xml(request_frame&& root, size_t max_size = PAYLOAD_SIZE);
 				void downgrade();
 				web_socket_frame* get_web_socket();
 				request_frame* get_request();

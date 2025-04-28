@@ -520,10 +520,10 @@ namespace vitex
 				void free_object();
 
 			public:
-				static core::unique<any> create();
-				static core::unique<any> create(int type_id, void* ref);
-				static core::unique<any> create(const char* decl, void* ref);
-				static core::unique<any> factory1();
+				static any* create();
+				static any* create(int type_id, void* ref);
+				static any* create(const char* decl, void* ref);
+				static any* factory1();
 				static void factory2(asIScriptGeneric* genericf);
 				static any& assignment(any* base, any* other);
 
@@ -591,7 +591,7 @@ namespace vitex
 				static int array_id;
 
 			private:
-				typeinfo obj_type;
+				type_info obj_type;
 				sbuffer* buffer;
 				size_t element_size;
 				int sub_type_id;
@@ -653,17 +653,17 @@ namespace vitex
 				bool is_eligible_for_sort(scache** output) const;
 
 			public:
-				static core::unique<array> create(asITypeInfo* t);
-				static core::unique<array> create(asITypeInfo* t, size_t length);
-				static core::unique<array> create(asITypeInfo* t, size_t length, void* default_value);
-				static core::unique<array> factory(asITypeInfo* t, void* list_buffer);
+				static array* create(asITypeInfo* t);
+				static array* create(asITypeInfo* t, size_t length);
+				static array* create(asITypeInfo* t, size_t length, void* default_value);
+				static array* factory(asITypeInfo* t, void* list_buffer);
 				static void cleanup_type_info_cache(asITypeInfo* type);
 				static bool template_callback(asITypeInfo* t, bool& dont_garbage_collect);
 				static int get_id();
 
 			public:
 				template <typename t>
-				static array* compose(const typeinfo& array_type, const core::vector<t>& objects)
+				static array* compose(const type_info& array_type, const core::vector<t>& objects)
 				{
 					array* array = create(array_type.get_type_info(), objects.size());
 					for (size_t i = 0; i < objects.size(); i++)
@@ -719,7 +719,7 @@ namespace vitex
 						VI_ASSERT(vm != nullptr, "manager should be present");
 
 						auto info = vm->get_type_info_by_id((int)type_id);
-						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
+						VI_ASSERT(info.is_valid(), "type_info should be valid");
 
 						core::vector<r> source((base->*f)(data...));
 						return array::compose(info, source);
@@ -731,7 +731,7 @@ namespace vitex
 						VI_ASSERT(vm != nullptr, "manager should be present");
 
 						auto info = vm->get_type_info_by_id(type_cache::get_type_id(type_ref));
-						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
+						VI_ASSERT(info.is_valid(), "type_info should be valid");
 
 						core::vector<r> source((base->*f)(data...));
 						return array::compose(info, source);
@@ -748,7 +748,7 @@ namespace vitex
 						VI_ASSERT(vm != nullptr, "manager should be present");
 
 						auto info = vm->get_type_info_by_id((int)type_id);
-						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
+						VI_ASSERT(info.is_valid(), "type_info should be valid");
 
 						core::vector<r> source((*f)(data...));
 						return array::compose(info, source);
@@ -760,7 +760,7 @@ namespace vitex
 						VI_ASSERT(vm != nullptr, "manager should be present");
 
 						auto info = vm->get_type_info_by_id(type_cache::get_type_id(type_ref));
-						VI_ASSERT(info.is_valid(), "typeinfo should be valid");
+						VI_ASSERT(info.is_valid(), "type_info should be valid");
 
 						core::vector<r> source((*f)(data...));
 						return array::compose(info, source);
@@ -805,9 +805,9 @@ namespace vitex
 
 				struct scache
 				{
-					typeinfo dictionary_type = typeinfo(nullptr);
-					typeinfo array_type = typeinfo(nullptr);
-					typeinfo key_type = typeinfo(nullptr);
+					type_info dictionary_type = type_info(nullptr);
+					type_info array_type = type_info(nullptr);
+					type_info key_type = type_info(nullptr);
 				};
 
 			private:
@@ -845,8 +845,8 @@ namespace vitex
 				void release_references(asIScriptEngine* engine);
 
 			public:
-				static core::unique<dictionary> create(virtual_machine* engine);
-				static core::unique<dictionary> create(unsigned char* buffer);
+				static dictionary* create(virtual_machine* engine);
+				static dictionary* create(unsigned char* buffer);
 				static void setup(virtual_machine* vm);
 				static void factory(asIScriptGeneric* genericf);
 				static void list_factory(asIScriptGeneric* genericf);
@@ -964,13 +964,13 @@ namespace vitex
 					});
 				}
 				template <typename t>
-				static core::unique<promise> compose(core::promise<t>&& value, type_id id)
+				static promise* compose(core::promise<t>&& value, type_id id)
 				{
 					promise* future = promise::create_factory_void();
 					return promise::dispatch_awaitable<t>(future, (int)id, std::move(value));
 				}
 				template <typename t>
-				static core::unique<promise> compose(core::promise<t>&& value, const char* type_name)
+				static promise* compose(core::promise<t>&& value, const char* type_name)
 				{
 					virtual_machine* engine = virtual_machine::get();
 					VI_ASSERT(engine != nullptr, "engine should be set");

@@ -650,7 +650,7 @@ namespace vitex
 				functions.push_back(callable);
 #endif
 			}
-			void connection::set_aggregate_function(const std::string_view& name, uint8_t args, core::unique<aggregate> context)
+			void connection::set_aggregate_function(const std::string_view& name, uint8_t args, aggregate* context)
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(context != nullptr, "callable should be set");
@@ -661,7 +661,7 @@ namespace vitex
 				aggregates.push_back(context);
 #endif
 			}
-			void connection::set_window_function(const std::string_view& name, uint8_t args, core::unique<window> context)
+			void connection::set_window_function(const std::string_view& name, uint8_t args, window* context)
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(context != nullptr, "callable should be set");
@@ -1172,7 +1172,7 @@ namespace vitex
 				functions.push_back(callable);
 #endif
 			}
-			void cluster::set_aggregate_function(const std::string_view& name, uint8_t args, core::unique<aggregate> context)
+			void cluster::set_aggregate_function(const std::string_view& name, uint8_t args, aggregate* context)
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(context != nullptr, "callable should be set");
@@ -1183,7 +1183,7 @@ namespace vitex
 				aggregates.push_back(context);
 #endif
 			}
-			void cluster::set_window_function(const std::string_view& name, uint8_t args, core::unique<window> context)
+			void cluster::set_window_function(const std::string_view& name, uint8_t args, window* context)
 			{
 #ifdef VI_SQLITE
 				VI_ASSERT(context != nullptr, "callable should be set");

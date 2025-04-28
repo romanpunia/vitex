@@ -12,14 +12,14 @@ namespace vitex
 			{
 			public:
 				asset_processor(content_manager* manager);
-				expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
+				expects_content<void*> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
 			};
 
 			class schema_processor final : public processor
 			{
 			public:
 				schema_processor(content_manager* manager);
-				expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
+				expects_content<void*> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
 				expects_content<void> serialize(core::stream* stream, void* object, const core::variant_args& args) override;
 			};
 
@@ -30,7 +30,7 @@ namespace vitex
 
 			public:
 				server_processor(content_manager* manager);
-				expects_content<core::unique<void>> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
+				expects_content<void*> deserialize(core::stream* stream, size_t offset, const core::variant_args& args) override;
 			};
 		}
 	}

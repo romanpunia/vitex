@@ -27,7 +27,7 @@ namespace vitex
 
 		struct function_delegate;
 
-		struct typeinfo;
+		struct type_info;
 
 		class virtual_machine;
 
@@ -67,7 +67,7 @@ namespace vitex
 			include_jit_instructions = 12,
 			string_encoding = 13,
 			property_accessor_mode = 14,
-			expand_def_array_to_tmpl = 15,
+			expand_def_array_to_impl = 15,
 			auto_garbage_collect = 16,
 			disallow_global_vars = 17,
 			always_impl_default_construct = 18,
@@ -84,8 +84,15 @@ namespace vitex
 			init_stack_size = 29,
 			init_call_stack_size = 30,
 			max_call_stack_size = 31,
-			ignore_duplicate_shared_intf = 32,
+			ignore_duplicate_shared_int = 32,
 			no_debug_output = 33,
+			disable_script_class_gc = 34,
+			jit_interface_version = 35,
+			always_impl_default_copy = 36,
+			always_impl_default_copy_construct = 37,
+			member_init_mode = 38,
+			bool_conversion_mode = 39,
+			foreach_support = 40,
 		};
 
 		enum class library_features
@@ -99,10 +106,10 @@ namespace vitex
 		enum class modifiers
 		{
 			none = 0,
-			inref = 1,
-			outref = 2,
-			inoutref = 3,
-			constf = 4
+			in_ref = 1,
+			out_ref = 2,
+			in_out_ref = 3,
+			constant = 4
 		};
 
 		enum class compile_flags
@@ -112,14 +119,14 @@ namespace vitex
 
 		enum class function_type
 		{
-			dummy = -1,
-			system = 0,
-			script = 1,
-			interfacef = 2,
-			VIRTUAL = 3,
-			funcdef = 4,
-			imported = 5,
-			delegatef = 6
+			dummy_function = -1,
+			system_function = 0,
+			script_function = 1,
+			interface_function = 2,
+			virtual_function = 3,
+			definition_function = 4,
+			imported_function = 5,
+			delegate_function = 6
 		};
 
 		enum class behaviours
@@ -129,17 +136,17 @@ namespace vitex
 			destruct,
 			factory,
 			list_factory,
-			addref,
+			add_ref,
 			release,
-			get_weakref_flag,
+			get_weak_ref_flag,
 			template_callback,
 			first_gc,
-			getrefcount = first_gc,
-			setgcflag,
-			getgcflag,
-			enumrefs,
-			releaserefs,
-			last_gc = releaserefs,
+			get_ref_count = first_gc,
+			set_gc_flag,
+			get_gc_flag,
+			enum_refs,
+			release_refs,
+			last_gc = release_refs,
 			max
 		};
 
@@ -156,17 +163,17 @@ namespace vitex
 			deserialization = 8
 		};
 
-		enum class function_call
+		enum class convention
 		{
-			cdeclf = 0,
-			stdcall = 1,
-			thiscall_asglobal = 2,
-			thiscall = 3,
-			cdecl_objlast = 4,
-			cdecl_objfirst = 5,
-			genericf = 6,
-			thiscall_objlast = 7,
-			thiscall_objfirst = 8
+			cdecl_call = 0,
+			std_call = 1,
+			this_call_as_global = 2,
+			this_call = 3,
+			cdecl_call_obj_last = 4,
+			cdecl_call_obj_first = 5,
+			generic_call = 6,
+			this_call_obj_last = 7,
+			this_call_obj_first = 8
 		};
 
 		enum class virtual_error
@@ -204,25 +211,25 @@ namespace vitex
 
 		enum class type_id
 		{
-			voidf = 0,
-			boolf = 1,
-			int8 = 2,
-			int16 = 3,
-			int32 = 4,
-			int64 = 5,
-			uint8 = 6,
-			uint16 = 7,
-			uint32 = 8,
-			uint64 = 9,
-			floatf = 10,
-			doublef = 11,
-			objhandle = 0x40000000,
-			handletoconst = 0x20000000,
-			mask_object = 0x1C000000,
-			appobject = 0x04000000,
-			scriptobject = 0x08000000,
-			pattern = 0x10000000,
-			mask_seqnbr = 0x03FFFFFF
+			void_t = 0,
+			bool_t = 1,
+			int8_t = 2,
+			int16_t = 3,
+			int32_t = 4,
+			int64_t = 5,
+			uint8_t = 6,
+			uint16_t = 7,
+			uint32_t = 8,
+			uint64_t = 9,
+			float_t = 10,
+			double_t = 11,
+			handle_t = 0x40000000,
+			const_handle_t = 0x20000000,
+			mask_object_t = 0x1C000000,
+			app_object_t = 0x04000000,
+			script_object_t = 0x08000000,
+			pattern_t = 0x10000000,
+			mask_seqnbr_t = 0x03FFFFFF
 		};
 
 		enum class object_behaviours
@@ -234,7 +241,7 @@ namespace vitex
 			nohandle = (1 << 4),
 			scoped = (1 << 5),
 			pattern = (1 << 6),
-			ashandle = (1 << 7),
+			as_handle = (1 << 7),
 			app_class = (1 << 8),
 			app_class_constructor = (1 << 9),
 			app_class_destructor = (1 << 10),
@@ -271,50 +278,50 @@ namespace vitex
 			list_pattern = (1 << 25),
 			enumerator = (1 << 26),
 			template_subtype = (1 << 27),
-			typedeff = (1 << 28),
-			abstractf = (1 << 29),
+			type_def = (1 << 28),
+			abstraction = (1 << 29),
 			app_align16 = (1 << 30)
 		};
 
 		enum class operators
 		{
-			neg,
-			com,
-			pre_inc,
-			pre_dec,
-			post_inc,
-			post_dec,
-			equals,
-			cmp,
-			assign,
-			add_assign,
-			sub_assign,
-			mul_assign,
-			div_assign,
-			mod_assign,
-			pow_assign,
-			and_assign,
-			or_assign,
-			xor_assign,
-			shl_assign,
-			shr_assign,
-			ushr_assign,
-			add,
-			sub,
-			mul,
-			div,
-			mod,
-			pow,
-			andf,
-			or_else,
-			xorf,
-			shl,
-			shr,
-			ushr,
-			index,
-			call,
-			cast,
-			impl_cast
+			neg_t,
+			com_t,
+			pre_inc_t,
+			pre_dec_t,
+			post_inc_t,
+			post_dec_t,
+			equals_t,
+			cmp_t,
+			assign_t,
+			add_assign_t,
+			sub_assign_t,
+			mul_assign_t,
+			div_assign_t,
+			mod_assign_t,
+			pow_assign_t,
+			and_assign_t,
+			or_assign_t,
+			xor_assign_t,
+			shl_assign_t,
+			shr_assign_t,
+			ushr_assign_t,
+			add_t,
+			sub_t,
+			mul_t,
+			div_t,
+			mod_t,
+			pow_t,
+			and_t,
+			or_t,
+			xor_t,
+			shl_t,
+			shr_t,
+			ushr_t,
+			index_t,
+			call_t,
+			cast_t,
+			impl_cast_t
 		};
 
 		enum class position
@@ -347,8 +354,8 @@ namespace vitex
 
 		typedef void(dummy_ptr::* dummy_method_ptr)();
 		typedef void(*function_ptr)();
-		typedef std::function<void(typeinfo*, struct function_info*)> property_callback;
-		typedef std::function<void(typeinfo*, struct function*)> method_callback;
+		typedef std::function<void(type_info*, struct function_info*)> property_callback;
+		typedef std::function<void(type_info*, struct function*)> method_callback;
 		typedef std::function<void(class virtual_machine*)> addon_callback;
 		typedef std::function<void(class immediate_context*)> args_callback;
 
@@ -395,12 +402,12 @@ namespace vitex
 		class function_factory
 		{
 		public:
-			static core::unique<asSFuncPtr> create_function_base(void(*base)(), int type);
-			static core::unique<asSFuncPtr> create_method_base(const void* base, size_t size, int type);
-			static core::unique<asSFuncPtr> create_dummy_base();
+			static asSFuncPtr* create_function_base(void(*base)(), int type);
+			static asSFuncPtr* create_method_base(const void* base, size_t size, int type);
+			static asSFuncPtr* create_dummy_base();
 			static expects_vm<void> atomic_notify_gc(const std::string_view& type_name, void* object);
 			static expects_vm<void> atomic_notify_gc_by_id(int type_id, void* object);
-			static void release_functor(core::unique<asSFuncPtr>* ptr);
+			static void release_functor(asSFuncPtr** ptr);
 			static void gc_enum_callback(asIScriptEngine* engine, void* reference);
 			static void gc_enum_callback(asIScriptEngine* engine, asIScriptFunction* reference);
 			static void gc_enum_callback(asIScriptEngine* engine, function_delegate* reference);
@@ -427,7 +434,7 @@ namespace vitex
 		struct function_binding
 		{
 			template <class m>
-			static core::unique<asSFuncPtr> bind(m value)
+			static asSFuncPtr* bind(m value)
 			{
 				return function_factory::create_dummy_base();
 			}
@@ -437,7 +444,7 @@ namespace vitex
 		struct function_binding<sizeof(dummy_method_ptr)>
 		{
 			template <class m>
-			static core::unique<asSFuncPtr> bind(m value)
+			static asSFuncPtr* bind(m value)
 			{
 				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr), 3);
 			}
@@ -447,7 +454,7 @@ namespace vitex
 		struct function_binding<sizeof(dummy_method_ptr) + 1 * sizeof(int)>
 		{
 			template <class m>
-			static core::unique<asSFuncPtr> bind(m value)
+			static asSFuncPtr* bind(m value)
 			{
 				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + sizeof(int), 3);
 			}
@@ -457,7 +464,7 @@ namespace vitex
 		struct function_binding<sizeof(dummy_method_ptr) + 2 * sizeof(int)>
 		{
 			template <class m>
-			static core::unique<asSFuncPtr> bind(m value)
+			static asSFuncPtr* bind(m value)
 			{
 				asSFuncPtr* ptr = function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + 2 * sizeof(int), 3);
 #if defined(_MSC_VER) && !defined(VI_64)
@@ -471,7 +478,7 @@ namespace vitex
 		struct function_binding<sizeof(dummy_method_ptr) + 3 * sizeof(int)>
 		{
 			template <class m>
-			static core::unique<asSFuncPtr> bind(m value)
+			static asSFuncPtr* bind(m value)
 			{
 				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + 3 * sizeof(int), 3);
 			}
@@ -481,7 +488,7 @@ namespace vitex
 		struct function_binding<sizeof(dummy_method_ptr) + 4 * sizeof(int)>
 		{
 			template <class m>
-			static core::unique<asSFuncPtr> bind(m value)
+			static asSFuncPtr* bind(m value)
 			{
 				return function_factory::create_method_base(&value, sizeof(dummy_method_ptr) + 4 * sizeof(int), 3);
 			}
@@ -539,7 +546,7 @@ namespace vitex
 		{
 		public:
 			template <typename t>
-			static core::unique<asSFuncPtr> function(t value)
+			static asSFuncPtr* function_call(t value)
 			{
 #ifdef VI_64
 				void(*address)() = reinterpret_cast<void(*)()>(size_t(value));
@@ -549,7 +556,7 @@ namespace vitex
 				return function_factory::create_function_base(address, 2);
 			}
 			template <typename t>
-			static core::unique<asSFuncPtr> function_generic(t value)
+			static asSFuncPtr* function_generic_call(t value)
 			{
 #ifdef VI_64
 				void(*address)() = reinterpret_cast<void(*)()>(size_t(value));
@@ -559,43 +566,43 @@ namespace vitex
 				return function_factory::create_function_base(address, 1);
 			}
 			template <typename t, typename r, typename... args>
-			static core::unique<asSFuncPtr> method(r(t::* value)(args...))
+			static asSFuncPtr* method_call(r(t::* value)(args...))
 			{
 				return function_binding<sizeof(void (t::*)())>::bind((void (t::*)())(value));
 			}
 			template <typename t, typename r, typename... args>
-			static core::unique<asSFuncPtr> method(r(t::* value)(args...) const)
+			static asSFuncPtr* method_call(r(t::* value)(args...) const)
 			{
 				return function_binding<sizeof(void (t::*)())>::bind((void (t::*)())(value));
 			}
 			template <typename t, typename r, typename... args>
-			static core::unique<asSFuncPtr> method_op(r(t::* value)(args...))
+			static asSFuncPtr* operator_call(r(t::* value)(args...))
 			{
 				return function_binding<sizeof(void (t::*)())>::bind(static_cast<r(t::*)(args...)>(value));
 			}
 			template <typename t, typename r, typename... args>
-			static core::unique<asSFuncPtr> method_op(r(t::* value)(args...) const)
+			static asSFuncPtr* operator_call(r(t::* value)(args...) const)
 			{
 				return function_binding<sizeof(void (t::*)())>::bind(static_cast<r(t::*)(args...)>(value));
 			}
 			template <typename t, typename... args>
-			static void get_constructor_call(void* memory, args... data)
+			static void constructor_call(void* memory, args... data)
 			{
 				new(memory) t(data...);
 			}
 			template <typename t>
-			static void get_constructor_list_call(asIScriptGeneric* genericf)
+			static void constructor_list_call(asIScriptGeneric* genericf)
 			{
 				generic_context args(genericf);
 				*reinterpret_cast<t**>(args.get_address_of_return_location()) = new t((uint8_t*)args.get_arg_address(0));
 			}
 			template <typename t>
-			static void get_destructor_call(void* memory)
+			static void destructor_call(void* memory)
 			{
 				((t*)memory)->~t();
 			}
 			template <typename t, uint64_t type_name, typename... args>
-			static t* get_managed_call(args... data)
+			static t* managed_constructor_call(args... data)
 			{
 				auto* result = new t(data...);
 				function_factory::atomic_notify_gc_by_id(type_cache::get_type_id(type_name), (void*)result);
@@ -603,7 +610,7 @@ namespace vitex
 				return result;
 			}
 			template <typename t, uint64_t type_name>
-			static void get_managed_list_call(asIScriptGeneric* genericf)
+			static void managed_constructor_list_call(asIScriptGeneric* genericf)
 			{
 				generic_context args(genericf);
 				t* result = new t((uint8_t*)args.get_arg_address(0));
@@ -611,65 +618,36 @@ namespace vitex
 				function_factory::atomic_notify_gc_by_id(type_cache::get_type_id(type_name), (void*)result);
 			}
 			template <typename t, typename... args>
-			static core::unique<t> get_unmanaged_call(args... data)
+			static t* unmanaged_constructor_call(args... data)
 			{
 				return new t(data...);
 			}
 			template <typename t>
-			static void get_unmanaged_list_call(asIScriptGeneric* genericf)
+			static void unmanaged_constructor_list_call(asIScriptGeneric* genericf)
 			{
 				generic_context args(genericf);
 				*reinterpret_cast<t**>(args.get_address_of_return_location()) = new t((uint8_t*)args.get_arg_address(0));
 			}
 			template <typename t>
-			static size_t get_type_traits()
+			static constexpr size_t type_traits_of()
 			{
-#if defined(_MSC_VER) || defined(_LIBCPP_TYPE_TRAITS) || (__GNUC__ >= 5) || defined(__clang__)
-				bool has_constructor = std::is_default_constructible<t>::value && !std::is_trivially_default_constructible<t>::value;
-				bool has_destructor = std::is_destructible<t>::value && !std::is_trivially_destructible<t>::value;
-				bool has_assignment_operator = std::is_copy_assignable<t>::value && !std::is_trivially_copy_assignable<t>::value;
-				bool has_copy_constructor = std::is_copy_constructible<t>::value && !std::is_trivially_copy_constructible<t>::value;
-#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
-				bool has_constructor = std::is_default_constructible<t>::value && !std::has_trivial_default_constructor<t>::value;
-				bool has_destructor = std::is_destructible<t>::value && !std::is_trivially_destructible<t>::value;
-				bool has_assignment_operator = std::is_copy_assignable<t>::value && !std::has_trivial_copy_assign<t>::value;
-				bool has_copy_constructor = std::is_copy_constructible<t>::value && !std::has_trivial_copy_constructor<t>::value;
-#else
-				bool has_constructor = std::is_default_constructible<t>::value && !std::has_trivial_default_constructor<t>::value;
-				bool has_destructor = std::is_destructible<t>::value && !std::has_trivial_destructor<t>::value;
-				bool has_assignment_operator = std::is_copy_assignable<t>::value && !std::has_trivial_copy_assign<t>::value;
-				bool has_copy_constructor = std::is_copy_constructible<t>::value && !std::has_trivial_copy_constructor<t>::value;
-#endif
-				bool is_float = std::is_floating_point<t>::value;
-				bool is_primitive = std::is_integral<t>::value || std::is_pointer<t>::value || std::is_enum<t>::value;
-				bool is_class = std::is_class<t>::value;
-				bool is_array = std::is_array<t>::value;
-
-				if (is_float)
+				if (std::is_floating_point<t>::value)
 					return (size_t)object_behaviours::app_float;
 
-				if (is_primitive)
+				if (std::is_integral<t>::value || std::is_pointer<t>::value || std::is_enum<t>::value)
 					return (size_t)object_behaviours::app_primitive;
 
-				if (is_class)
+				if (std::is_class<t>::value)
 				{
-					size_t flags = (size_t)object_behaviours::app_class;
-					if (has_constructor)
-						flags |= (size_t)object_behaviours::app_class_constructor;
-
-					if (has_destructor)
-						flags |= (size_t)object_behaviours::app_class_destructor;
-
-					if (has_assignment_operator)
-						flags |= (size_t)object_behaviours::app_class_assignment;
-
-					if (has_copy_constructor)
-						flags |= (size_t)object_behaviours::app_class_copy_constructor;
-
-					return flags;
+					return
+						(size_t)object_behaviours::app_class |
+						(std::is_default_constructible<t>::value && !std::is_trivially_default_constructible<t>::value ? (size_t)object_behaviours::app_class_constructor : 0) |
+						(std::is_destructible<t>::value && !std::is_trivially_destructible<t>::value ? (size_t)object_behaviours::app_class_destructor : 0) |
+						(std::is_copy_assignable<t>::value && !std::is_trivially_copy_assignable<t>::value ? (size_t)object_behaviours::app_class_assignment : 0) |
+						(std::is_copy_constructible<t>::value && !std::is_trivially_copy_constructible<t>::value ? (size_t)object_behaviours::app_class_copy_constructor : 0);
 				}
 
-				if (is_array)
+				if (std::is_array<t>::value)
 					return (size_t)object_behaviours::app_array;
 
 				return 0;
@@ -736,14 +714,14 @@ namespace vitex
 			bool is_valid() const;
 		};
 
-		struct typeinfo
+		struct type_info
 		{
 		private:
 			virtual_machine* vm;
 			asITypeInfo* info;
 
 		public:
-			typeinfo(asITypeInfo* typeinfo) noexcept;
+			type_info(asITypeInfo* type_info) noexcept;
 			void for_each_property(const property_callback& callback);
 			void for_each_method(const method_callback& callback);
 			std::string_view get_group() const;
@@ -753,17 +731,17 @@ namespace vitex
 			void release();
 			std::string_view get_name() const;
 			std::string_view get_namespace() const;
-			typeinfo get_base_type() const;
-			bool derives_from(const typeinfo& type) const;
+			type_info get_base_type() const;
+			bool derives_from(const type_info& type) const;
 			size_t flags() const;
 			size_t size() const;
 			int get_type_id() const;
 			int get_sub_type_id(size_t sub_type_index = 0) const;
-			typeinfo get_sub_type(size_t sub_type_index = 0) const;
+			type_info get_sub_type(size_t sub_type_index = 0) const;
 			size_t get_sub_type_count() const;
 			size_t get_interface_count() const;
-			typeinfo get_interface(size_t index) const;
-			bool implements(const typeinfo& type) const;
+			type_info get_interface(size_t index) const;
+			bool implements(const type_info& type) const;
 			size_t get_factories_count() const;
 			function get_factory_by_index(size_t index) const;
 			function get_factory_by_decl(const std::string_view& decl) const;
@@ -777,8 +755,8 @@ namespace vitex
 			size_t get_behaviour_count() const;
 			function get_behaviour_by_index(size_t index, behaviours* out_behaviour) const;
 			size_t get_child_function_def_count() const;
-			typeinfo get_child_function_def(size_t index) const;
-			typeinfo get_parent_type() const;
+			type_info get_child_function_def(size_t index) const;
+			type_info get_parent_type() const;
 			size_t get_enum_value_count() const;
 			std::string_view get_enum_value_by_index(size_t index, int* out_value) const;
 			function get_function_def_signature() const;
@@ -853,7 +831,7 @@ namespace vitex
 			std::string_view get_section_name() const;
 			std::string_view get_group() const;
 			size_t get_access_mask() const;
-			typeinfo get_object_type() const;
+			type_info get_object_type() const;
 			std::string_view get_object_name() const;
 			std::string_view get_name() const;
 			std::string_view get_namespace() const;
@@ -872,7 +850,7 @@ namespace vitex
 			int get_type_id() const;
 			bool is_compatible_with_type_id(int type_id) const;
 			void* get_delegate_object() const;
-			typeinfo get_delegate_object_type() const;
+			type_info get_delegate_object_type() const;
 			function get_delegate_function() const;
 			size_t get_properties_count() const;
 			expects_vm<void> get_property(size_t index, std::string_view* name, int* type_id = nullptr) const;
@@ -894,7 +872,7 @@ namespace vitex
 			script_object(asIScriptObject* base) noexcept;
 			void add_ref() const;
 			void release();
-			typeinfo get_object_type();
+			type_info get_object_type();
 			int get_type_id();
 			int get_property_type_id(size_t id) const;
 			size_t get_properties_count() const;
@@ -920,15 +898,15 @@ namespace vitex
 			base_class(const base_class&) = default;
 			base_class(base_class&&) = default;
 			expects_vm<void> set_function_def(const std::string_view& decl);
-			expects_vm<void> set_operator_copy_address(asSFuncPtr* value, function_call = function_call::thiscall);
-			expects_vm<void> set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, function_call = function_call::thiscall);
+			expects_vm<void> set_operator_copy_address(asSFuncPtr* value, convention = convention::this_call);
+			expects_vm<void> set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, convention = convention::this_call);
 			expects_vm<void> set_property_address(const std::string_view& decl, int offset);
 			expects_vm<void> set_property_static_address(const std::string_view& decl, void* value);
-			expects_vm<void> set_operator_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::thiscall);
-			expects_vm<void> set_method_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::thiscall);
-			expects_vm<void> set_method_static_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdeclf);
-			expects_vm<void> set_constructor_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdecl_objfirst);
-			expects_vm<void> set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdecl_objfirst);
+			expects_vm<void> set_operator_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::this_call);
+			expects_vm<void> set_method_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::this_call);
+			expects_vm<void> set_method_static_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::cdecl_call);
+			expects_vm<void> set_constructor_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::cdecl_call_obj_first);
+			expects_vm<void> set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::cdecl_call_obj_first);
 			expects_vm<void> set_destructor_address(const std::string_view& decl, asSFuncPtr* value);
 			asITypeInfo* get_type_info() const;
 			int get_type_id() const;
@@ -943,40 +921,40 @@ namespace vitex
 		public:
 			expects_vm<void> set_template_callback(bool(*value)(asITypeInfo*, bool&))
 			{
-				asSFuncPtr* template_callback = bridge::function<bool(*)(asITypeInfo*, bool&)>(value);
-				auto result = set_behaviour_address("bool f(int&in, bool&out)", behaviours::template_callback, template_callback, function_call::cdeclf);
+				asSFuncPtr* template_callback = bridge::function_call<bool(*)(asITypeInfo*, bool&)>(value);
+				auto result = set_behaviour_address("bool f(int&in, bool&out)", behaviours::template_callback, template_callback, convention::cdecl_call);
 				function_factory::release_functor(&template_callback);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_enum_refs(void(t::* value)(asIScriptEngine*))
 			{
-				asSFuncPtr* enum_refs = bridge::method<t>(value);
-				auto result = set_behaviour_address("void f(int &in)", behaviours::enumrefs, enum_refs, function_call::thiscall);
+				asSFuncPtr* enum_refs = bridge::method_call<t>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::enum_refs, enum_refs, convention::this_call);
 				function_factory::release_functor(&enum_refs);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_release_refs(void(t::* value)(asIScriptEngine*))
 			{
-				asSFuncPtr* release_refs = bridge::method<t>(value);
-				auto result = set_behaviour_address("void f(int &in)", behaviours::releaserefs, release_refs, function_call::thiscall);
+				asSFuncPtr* release_refs = bridge::method_call<t>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::release_refs, release_refs, convention::this_call);
 				function_factory::release_functor(&release_refs);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_enum_refs_ex(void(*value)(t*, asIScriptEngine*))
+			expects_vm<void> set_enum_refs_extern(void(*value)(t*, asIScriptEngine*))
 			{
-				asSFuncPtr* enum_refs = bridge::function<void(*)(t*, asIScriptEngine*)>(value);
-				auto result = set_behaviour_address("void f(int &in)", behaviours::enumrefs, enum_refs, function_call::cdecl_objfirst);
+				asSFuncPtr* enum_refs = bridge::function_call<void(*)(t*, asIScriptEngine*)>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::enum_refs, enum_refs, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&enum_refs);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_release_refs_ex(void(*value)(t*, asIScriptEngine*))
+			expects_vm<void> set_release_refs_extern(void(*value)(t*, asIScriptEngine*))
 			{
-				asSFuncPtr* release_refs = bridge::function<void(*)(t*, asIScriptEngine*)>(value);
-				auto result = set_behaviour_address("void f(int &in)", behaviours::releaserefs, release_refs, function_call::cdecl_objfirst);
+				asSFuncPtr* release_refs = bridge::function_call<void(*)(t*, asIScriptEngine*)>(value);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::release_refs, release_refs, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&release_refs);
 				return result;
 			}
@@ -1005,64 +983,64 @@ namespace vitex
 			template <typename t, typename r>
 			expects_vm<void> set_getter(const std::string_view& type, const std::string_view& name, r(t::* value)())
 			{
-				asSFuncPtr* ptr = bridge::method<t, r>(value);
-				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, r>(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_getter_ex(const std::string_view& type, const std::string_view& name, r(*value)(t*))
+			expects_vm<void> set_getter_extern(const std::string_view& type, const std::string_view& name, r(*value)(t*))
 			{
-				asSFuncPtr* ptr = bridge::function(value);
-				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
 			expects_vm<void> set_setter(const std::string_view& type, const std::string_view& name, void(t::* value)(r))
 			{
-				asSFuncPtr* ptr = bridge::method<t, void, r>(value);
-				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, void, r>(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_setter_ex(const std::string_view& type, const std::string_view& name, void(*value)(t*, r))
+			expects_vm<void> set_setter_extern(const std::string_view& type, const std::string_view& name, void(*value)(t*, r))
 			{
-				asSFuncPtr* ptr = bridge::function(value);
-				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
 			expects_vm<void> set_array_getter(const std::string_view& type, const std::string_view& name, r(t::* value)(uint32_t))
 			{
-				asSFuncPtr* ptr = bridge::method<t, r, uint32_t>(value);
-				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, r, uint32_t>(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_array_getter_ex(const std::string_view& type, const std::string_view& name, r(*value)(t*, uint32_t))
+			expects_vm<void> set_array_getter_extern(const std::string_view& type, const std::string_view& name, r(*value)(t*, uint32_t))
 			{
-				asSFuncPtr* ptr = bridge::function(value);
-				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call(value);
+				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
 			expects_vm<void> set_array_setter(const std::string_view& type, const std::string_view& name, void(t::* value)(uint32_t, r))
 			{
-				asSFuncPtr* ptr = bridge::method<t, void, uint32_t, r>(value);
-				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, void, uint32_t, r>(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_array_setter_ex(const std::string_view& type, const std::string_view& name, void(*value)(t*, uint32_t, r))
+			expects_vm<void> set_array_setter_extern(const std::string_view& type, const std::string_view& name, void(*value)(t*, uint32_t, r))
 			{
-				asSFuncPtr* ptr = bridge::function(value);
-				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call(value);
+				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
@@ -1071,73 +1049,73 @@ namespace vitex
 			{
 				core::string op = get_operator(type, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
 				VI_ASSERT(!op.empty(), "resulting operator should not be empty");
-				asSFuncPtr* ptr = bridge::method<t, r, a...>(value);
-				auto result = set_operator_address(op.c_str(), ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, r, a...>(value);
+				auto result = set_operator_address(op.c_str(), ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... a>
-			expects_vm<void> set_operator_ex(operators type, uint32_t opts, const std::string_view& out, const std::string_view& args, r(*value)(a...))
+			expects_vm<void> set_operator_extern(operators type, uint32_t opts, const std::string_view& out, const std::string_view& args, r(*value)(a...))
 			{
 				core::string op = get_operator(type, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
 				VI_ASSERT(!op.empty(), "resulting operator should not be empty");
-				asSFuncPtr* ptr = bridge::function(value);
-				auto result = set_operator_address(op.c_str(), ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call(value);
+				auto result = set_operator_address(op.c_str(), ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_operator_copy()
 			{
-				asSFuncPtr* ptr = bridge::method_op<t, t&, const t&>(&t::operator =);
-				auto result = set_operator_copy_address(ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::operator_call<t, t&, const t&>(&t::operator =);
+				auto result = set_operator_copy_address(ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_operator_move_copy()
 			{
-				asSFuncPtr* ptr = bridge::method_op<t, t&, t&&>(&t::operator =);
-				auto result = set_operator_copy_address(ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::operator_call<t, t&, t&&>(&t::operator =);
+				auto result = set_operator_copy_address(ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... args>
-			expects_vm<void> set_operator_copy_static(r(*value)(args...), function_call type = function_call::cdeclf)
+			expects_vm<void> set_operator_copy_static(r(*value)(args...), convention type = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == function_call::genericf ? bridge::function_generic<r(*)(args...)>(value) : bridge::function<r(*)(args...)>(value));
-				auto result = set_operator_copy_address(ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
+				auto result = set_operator_copy_address(ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r, typename... args>
 			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...))
 			{
-				asSFuncPtr* ptr = bridge::method<t, r, args...>(value);
-				auto result = set_method_address(decl, ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, r, args...>(value);
+				auto result = set_method_address(decl, ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r, typename... args>
 			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...) const)
 			{
-				asSFuncPtr* ptr = bridge::method<t, r, args...>(value);
-				auto result = set_method_address(decl, ptr, function_call::thiscall);
+				asSFuncPtr* ptr = bridge::method_call<t, r, args...>(value);
+				auto result = set_method_address(decl, ptr, convention::this_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... args>
-			expects_vm<void> set_method_ex(const std::string_view& decl, r(*value)(args...))
+			expects_vm<void> set_method_extern(const std::string_view& decl, r(*value)(args...))
 			{
-				asSFuncPtr* ptr = bridge::function<r(*)(args...)>(value);
-				auto result = set_method_address(decl, ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call<r(*)(args...)>(value);
+				auto result = set_method_address(decl, ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... args>
-			expects_vm<void> set_method_static(const std::string_view& decl, r(*value)(args...), function_call type = function_call::cdeclf)
+			expects_vm<void> set_method_static(const std::string_view& decl, r(*value)(args...), convention type = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == function_call::genericf ? bridge::function_generic<r(*)(args...)>(value) : bridge::function<r(*)(args...)>(value));
+				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
 				auto result = set_method_static_address(decl, ptr, type);
 				function_factory::release_functor(&ptr);
 				return result;
@@ -1145,12 +1123,12 @@ namespace vitex
 			template <typename t, typename to>
 			expects_vm<void> set_dynamic_cast(const std::string_view& to_decl, bool implicit = false)
 			{
-				auto type = implicit ? operators::impl_cast : operators::cast;
-				auto result1 = set_operator_ex(type, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>);
+				auto type = implicit ? operators::impl_cast_t : operators::cast_t;
+				auto result1 = set_operator_extern(type, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>);
 				if (!result1)
 					return result1;
 
-				auto result2 = set_operator_ex(type, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>);
+				auto result2 = set_operator_extern(type, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>);
 				return result2;
 			}
 
@@ -1173,81 +1151,81 @@ namespace vitex
 
 		public:
 			template <typename t, typename... args>
-			expects_vm<void> set_constructor_ex(const std::string_view& decl, t* (*value)(args...))
+			expects_vm<void> set_constructor_extern(const std::string_view& decl, t* (*value)(args...))
 			{
-				asSFuncPtr* functor = bridge::function<t * (*)(args...)>(value);
-				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::cdeclf);
+				asSFuncPtr* functor = bridge::function_call<t * (*)(args...)>(value);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, convention::cdecl_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
-			expects_vm<void> set_constructor_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
+			expects_vm<void> set_constructor_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* functor = bridge::function_generic<void(*)(asIScriptGeneric*)>(value);
-				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call<void(*)(asIScriptGeneric*)>(value);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t, typename... args>
 			expects_vm<void> set_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* functor = bridge::function(&bridge::get_unmanaged_call<t, args...>);
-				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::cdeclf);
+				asSFuncPtr* functor = bridge::function_call(&bridge::unmanaged_constructor_call<t, args...>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, convention::cdecl_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t, asIScriptGeneric*>
 			expects_vm<void> set_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* functor = bridge::function_generic(&bridge::get_unmanaged_call<t, asIScriptGeneric*>);
-				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call(&bridge::unmanaged_constructor_call<t, asIScriptGeneric*>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_constructor_list(const std::string_view& decl)
 			{
-				asSFuncPtr* functor = bridge::function_generic(&bridge::get_unmanaged_list_call<t>);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call(&bridge::unmanaged_constructor_list_call<t>);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_constructor_list_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
+			expects_vm<void> set_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* functor = bridge::function_generic(value);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call(value);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t, uint64_t type_name, typename... args>
 			expects_vm<void> set_gc_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* functor = bridge::function(&bridge::get_managed_call<t, type_name, args...>);
-				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::cdeclf);
+				asSFuncPtr* functor = bridge::function_call(&bridge::managed_constructor_call<t, type_name, args...>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, convention::cdecl_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t, uint64_t type_name, asIScriptGeneric*>
 			expects_vm<void> set_gc_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* functor = bridge::function_generic(&bridge::get_managed_call<t, type_name, asIScriptGeneric*>);
-				auto result = set_behaviour_address(decl, behaviours::factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call(&bridge::managed_constructor_call<t, type_name, asIScriptGeneric*>);
+				auto result = set_behaviour_address(decl, behaviours::factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t, uint64_t type_name>
 			expects_vm<void> set_gc_constructor_list(const std::string_view& decl)
 			{
-				asSFuncPtr* functor = bridge::function_generic(&bridge::get_managed_list_call<t, type_name>);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call(&bridge::managed_constructor_list_call<t, type_name>);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_gc_constructor_list_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
+			expects_vm<void> set_gc_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* functor = bridge::function_generic(value);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, function_call::genericf);
+				asSFuncPtr* functor = bridge::function_generic_call(value);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, functor, convention::generic_call);
 				function_factory::release_functor(&functor);
 				return result;
 			}
@@ -1255,8 +1233,8 @@ namespace vitex
 			expects_vm<void> set_add_ref()
 			{
 				auto factory_ptr = &ref_base_class::gc_add_ref<f>;
-				asSFuncPtr* add_ref = bridge::function<decltype(factory_ptr)>(factory_ptr);
-				auto result = set_behaviour_address("void f()", behaviours::addref, add_ref, function_call::cdecl_objfirst);
+				asSFuncPtr* add_ref = bridge::function_call<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("void f()", behaviours::add_ref, add_ref, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&add_ref);
 				return result;
 			}
@@ -1264,8 +1242,8 @@ namespace vitex
 			expects_vm<void> set_release()
 			{
 				auto factory_ptr = &ref_base_class::gc_release<f>;
-				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
-				auto result = set_behaviour_address("void f()", behaviours::release, release, function_call::cdecl_objfirst);
+				asSFuncPtr* release = bridge::function_call<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("void f()", behaviours::release, release, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&release);
 				return result;
 			}
@@ -1273,8 +1251,8 @@ namespace vitex
 			expects_vm<void> set_mark_ref()
 			{
 				auto factory_ptr = &ref_base_class::gc_mark_ref<f>;
-				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
-				auto result = set_behaviour_address("void f()", behaviours::setgcflag, release, function_call::cdecl_objfirst);
+				asSFuncPtr* release = bridge::function_call<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("void f()", behaviours::set_gc_flag, release, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&release);
 				return result;
 			}
@@ -1282,8 +1260,8 @@ namespace vitex
 			expects_vm<void> set_is_marked_ref()
 			{
 				auto factory_ptr = &ref_base_class::gc_is_marked_ref<f>;
-				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
-				auto result = set_behaviour_address("bool f()", behaviours::getgcflag, release, function_call::cdecl_objfirst);
+				asSFuncPtr* release = bridge::function_call<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("bool f()", behaviours::get_gc_flag, release, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&release);
 				return result;
 			}
@@ -1291,8 +1269,8 @@ namespace vitex
 			expects_vm<void> set_ref_count()
 			{
 				auto factory_ptr = &ref_base_class::gc_get_ref_count<f>;
-				asSFuncPtr* release = bridge::function<decltype(factory_ptr)>(factory_ptr);
-				auto result = set_behaviour_address("int f()", behaviours::getrefcount, release, function_call::cdecl_objfirst);
+				asSFuncPtr* release = bridge::function_call<decltype(factory_ptr)>(factory_ptr);
+				auto result = set_behaviour_address("int f()", behaviours::get_ref_count, release, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&release);
 				return result;
 			}
@@ -1369,57 +1347,57 @@ namespace vitex
 
 		public:
 			template <typename t, typename... args>
-			expects_vm<void> set_constructor_ex(const std::string_view& decl, void(*value)(t, args...))
+			expects_vm<void> set_constructor_extern(const std::string_view& decl, void(*value)(t, args...))
 			{
-				asSFuncPtr* functor = bridge::function<void(*)(t, args...)>(value);
-				auto result = set_behaviour_address(decl, behaviours::construct, functor, function_call::cdecl_objfirst);
+				asSFuncPtr* functor = bridge::function_call<void(*)(t, args...)>(value);
+				auto result = set_behaviour_address(decl, behaviours::construct, functor, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&functor);
 				return result;
 			}
 			template <typename t, typename... args>
 			expects_vm<void> set_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* ptr = bridge::function(&bridge::get_constructor_call<t, args...>);
-				auto result = set_constructor_address(decl, ptr, function_call::cdecl_objfirst);
+				asSFuncPtr* ptr = bridge::function_call(&bridge::constructor_call<t, args...>);
+				auto result = set_constructor_address(decl, ptr, convention::cdecl_call_obj_first);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, asIScriptGeneric*>
 			expects_vm<void> set_constructor(const std::string_view& decl)
 			{
-				asSFuncPtr* ptr = bridge::function_generic(&bridge::get_constructor_call<t, asIScriptGeneric*>);
-				auto result = set_constructor_address(decl, ptr, function_call::genericf);
+				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_call<t, asIScriptGeneric*>);
+				auto result = set_constructor_address(decl, ptr, convention::generic_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_constructor_list(const std::string_view& decl)
 			{
-				asSFuncPtr* ptr = bridge::function_generic(&bridge::get_constructor_list_call<t>);
-				auto result = set_constructor_list_address(decl, ptr, function_call::genericf);
+				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_list_call<t>);
+				auto result = set_constructor_list_address(decl, ptr, convention::generic_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_constructor_list_ex(const std::string_view& decl, void(*value)(asIScriptGeneric*))
+			expects_vm<void> set_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* ptr = bridge::function_generic(value);
-				auto result = set_constructor_list_address(decl, ptr, function_call::genericf);
+				asSFuncPtr* ptr = bridge::function_generic_call(value);
+				auto result = set_constructor_list_address(decl, ptr, convention::generic_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
 			expects_vm<void> set_destructor(const std::string_view& decl)
 			{
-				asSFuncPtr* ptr = bridge::function(&bridge::get_destructor_call<t>);
+				asSFuncPtr* ptr = bridge::function_call(&bridge::destructor_call<t>);
 				auto result = set_destructor_address(decl, ptr);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_destructor_ex(const std::string_view& decl, void(*value)(t, args...))
+			expects_vm<void> set_destructor_extern(const std::string_view& decl, void(*value)(t, args...))
 			{
-				asSFuncPtr* ptr = bridge::function<void(*)(t, args...)>(value);
+				asSFuncPtr* ptr = bridge::function_call<void(*)(t, args...)>(value);
 				auto result = set_destructor_address(decl, ptr);
 				function_factory::release_functor(&ptr);
 				return result;
@@ -1506,10 +1484,10 @@ namespace vitex
 			size_t get_properties_count() const;
 			size_t get_enums_count() const;
 			size_t get_imported_function_count() const;
-			typeinfo get_object_by_index(size_t index) const;
-			typeinfo get_type_info_by_name(const std::string_view& name) const;
-			typeinfo get_type_info_by_decl(const std::string_view& decl) const;
-			typeinfo get_enum_by_index(size_t index) const;
+			type_info get_object_by_index(size_t index) const;
+			type_info get_type_info_by_name(const std::string_view& name) const;
+			type_info get_type_info_by_decl(const std::string_view& decl) const;
+			type_info get_enum_by_index(size_t index) const;
 			std::string_view get_property_decl(size_t index, bool include_namespace = false) const;
 			std::string_view get_default_namespace() const;
 			std::string_view get_imported_function_decl(size_t import_index) const;
@@ -1721,7 +1699,7 @@ namespace vitex
 			void set_output_callback(output_callback&& callback);
 			void set_input_callback(input_callback&& callback);
 			void set_exit_callback(exit_callback&& callback);
-			void add_to_string_callback(const typeinfo& type, to_string_callback&& callback);
+			void add_to_string_callback(const type_info& type, to_string_callback&& callback);
 			void add_to_string_callback(const std::string_view& type, to_string_type_callback&& callback);
 			void throw_internal_exception(const std::string_view& message);
 			void allow_input_after_failure();
@@ -1842,9 +1820,9 @@ namespace vitex
 			expects_vm<void> start_deserialization();
 			expects_vm<void> finish_deserialization();
 			expects_vm<void> push_function(const function& func, void* object);
-			expects_vm<void> get_state_registers(size_t stack_level, function* calling_system_function, function* initial_function, uint32_t* orig_stack_pointer, uint32_t* arguments_size, uint64_t* value_register, void** object_register, typeinfo* object_type_register);
+			expects_vm<void> get_state_registers(size_t stack_level, function* calling_system_function, function* initial_function, uint32_t* orig_stack_pointer, uint32_t* arguments_size, uint64_t* value_register, void** object_register, type_info* object_type_register);
 			expects_vm<void> get_call_state_registers(size_t stack_level, uint32_t* stack_frame_pointer, function* current_function, uint32_t* program_pointer, uint32_t* stack_pointer, uint32_t* stack_index);
-			expects_vm<void> set_state_registers(size_t stack_level, function calling_system_function, const function& initial_function, uint32_t orig_stack_pointer, uint32_t arguments_size, uint64_t value_register, void* object_register, const typeinfo& object_type_register);
+			expects_vm<void> set_state_registers(size_t stack_level, function calling_system_function, const function& initial_function, uint32_t orig_stack_pointer, uint32_t arguments_size, uint64_t value_register, void* object_register, const type_info& object_type_register);
 			expects_vm<void> set_call_state_registers(size_t stack_level, uint32_t stack_frame_pointer, const function& current_function, uint32_t program_pointer, uint32_t stack_pointer, uint32_t stack_index);
 			expects_vm<size_t> get_args_on_stack_count(size_t stack_level);
 			expects_vm<void> get_arg_on_stack(size_t stack_level, size_t argument, int* type_id, size_t* flags, void** address);
@@ -1991,10 +1969,10 @@ namespace vitex
 			expects_vm<void> garbage_collect(garbage_collector flags, size_t num_iterations = 1);
 			expects_vm<void> perform_periodic_garbage_collection(uint64_t interval_ms);
 			expects_vm<void> perform_full_garbage_collection();
-			expects_vm<void> notify_of_new_object(void* object, const typeinfo& type);
-			expects_vm<void> get_object_address(size_t index, size_t* sequence_number = nullptr, void** object = nullptr, typeinfo* type = nullptr);
-			expects_vm<void> assign_object(void* dest_object, void* src_object, const typeinfo& type);
-			expects_vm<void> ref_cast_object(void* object, const typeinfo& from_type, const typeinfo& to_type, void** new_ptr, bool use_only_implicit_cast = false);
+			expects_vm<void> notify_of_new_object(void* object, const type_info& type);
+			expects_vm<void> get_object_address(size_t index, size_t* sequence_number = nullptr, void** object = nullptr, type_info* type = nullptr);
+			expects_vm<void> assign_object(void* dest_object, void* src_object, const type_info& type);
+			expects_vm<void> ref_cast_object(void* object, const type_info& from_type, const type_info& to_type, void** new_ptr, bool use_only_implicit_cast = false);
 			expects_vm<void> begin_group(const std::string_view& group_name);
 			expects_vm<void> end_group();
 			expects_vm<void> remove_group(const std::string_view& group_name);
@@ -2006,7 +1984,7 @@ namespace vitex
 			expects_vm<void> get_type_name_scope(std::string_view* type_name, std::string_view* name_space) const;
 			expects_vm<void> set_function_def(const std::string_view& decl);
 			expects_vm<void> set_type_def(const std::string_view& type, const std::string_view& decl);
-			expects_vm<void> set_function_address(const std::string_view& decl, asSFuncPtr* value, function_call type = function_call::cdeclf);
+			expects_vm<void> set_function_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::cdecl_call);
 			expects_vm<void> set_property_address(const std::string_view& decl, void* value);
 			expects_vm<void> set_string_factory_address(const std::string_view& type, asIStringFactory* factory);
 			expects_vm<void> set_log_callback(void(*callback)(const asSMessageInfo* message, void* object), void* object);
@@ -2027,7 +2005,7 @@ namespace vitex
 			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
-			void set_debugger(core::unique<debugger_context> context);
+			void set_debugger(debugger_context* context);
 			void set_compiler_error_callback(when_error_callback&& callback);
 			void set_compiler_include_options(const compute::include_desc& new_desc);
 			void set_compiler_features(const compute::preprocessor::desc& new_desc);
@@ -2043,27 +2021,27 @@ namespace vitex
 			void attach_debugger_to_context(asIScriptContext* context);
 			void detach_debugger_from_context(asIScriptContext* context);
 			void get_statistics(uint32_t* current_size, uint32_t* total_destroyed, uint32_t* total_detected, uint32_t* new_objects, uint32_t* total_new_destroyed) const;
-			void forward_enum_references(void* reference, const typeinfo& type);
-			void forward_release_references(void* reference, const typeinfo& type);
+			void forward_enum_references(void* reference, const type_info& type);
+			void forward_release_references(void* reference, const type_info& type);
 			void gc_enum_callback(void* reference);
 			void gc_enum_callback(asIScriptFunction* reference);
 			void gc_enum_callback(function_delegate* reference);
 			bool trigger_debugger(immediate_context* context, uint64_t timeout_ms = 0);
 			compute::expects_preprocessor<void> generate_code(compute::preprocessor* processor, const std::string_view& path, core::string& inout_buffer);
 			core::unordered_map<core::string, core::string> generate_definitions(immediate_context* context);
-			core::unique<compiler> create_compiler();
-			core::unique<asIScriptModule> create_scoped_module(const std::string_view& name);
-			core::unique<asIScriptModule> create_module(const std::string_view& name);
-			core::unique<immediate_context> request_context();
+			compiler* create_compiler();
+			asIScriptModule* create_scoped_module(const std::string_view& name);
+			asIScriptModule* create_module(const std::string_view& name);
+			immediate_context* request_context();
 			void return_context(immediate_context* context);
 			bool get_byte_code_cache(byte_code_info* info);
 			void set_byte_code_cache(byte_code_info* info);
-			void* create_object(const typeinfo& type);
-			void* create_object_copy(void* object, const typeinfo& type);
-			void* create_empty_object(const typeinfo& type);
+			void* create_object(const type_info& type);
+			void* create_object_copy(void* object, const type_info& type);
+			void* create_empty_object(const type_info& type);
 			function create_delegate(const function& function, void* object);
-			void release_object(void* object, const typeinfo& type);
-			void add_ref_object(void* object, const typeinfo& type);
+			void release_object(void* object, const type_info& type);
+			void add_ref_object(void* object, const type_info& type);
 			size_t begin_access_mask(size_t default_mask);
 			size_t end_access_mask();
 			std::string_view get_namespace() const;
@@ -2100,21 +2078,21 @@ namespace vitex
 			function get_function_by_decl(const std::string_view& decl) const;
 			size_t get_properties_count() const;
 			size_t get_objects_count() const;
-			typeinfo get_object_by_index(size_t index) const;
+			type_info get_object_by_index(size_t index) const;
 			size_t get_enum_count() const;
-			typeinfo get_enum_by_index(size_t index) const;
+			type_info get_enum_by_index(size_t index) const;
 			size_t get_function_defs_count() const;
-			typeinfo get_function_def_by_index(size_t index) const;
+			type_info get_function_def_by_index(size_t index) const;
 			size_t get_modules_count() const;
 			asIScriptModule* get_module_by_id(int id) const;
 			int get_type_id_by_decl(const std::string_view& decl) const;
 			std::string_view get_type_id_decl(int type_id, bool include_namespace = false) const;
-			typeinfo get_type_info_by_id(int type_id) const;
-			typeinfo get_type_info_by_name(const std::string_view& name);
-			typeinfo get_type_info_by_decl(const std::string_view& decl) const;
+			type_info get_type_info_by_id(int type_id) const;
+			type_info get_type_info_by_name(const std::string_view& name);
+			type_info get_type_info_by_decl(const std::string_view& decl) const;
 
 		private:
-			core::unique<immediate_context> create_context();
+			immediate_context* create_context();
 			expects_vm<void> initialize_addon(const std::string_view& name, clibrary& library);
 			void uninitialize_addon(const std::string_view& name, clibrary& library);
 
@@ -2141,16 +2119,16 @@ namespace vitex
 			template <typename t>
 			expects_vm<void> set_function(const std::string_view& decl, t value)
 			{
-				asSFuncPtr* ptr = bridge::function<t>(value);
-				auto result = set_function_address(decl, ptr, function_call::cdeclf);
+				asSFuncPtr* ptr = bridge::function_call<t>(value);
+				auto result = set_function_address(decl, ptr, convention::cdecl_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <void(*)(asIScriptGeneric*)>
 			expects_vm<void> set_function(const std::string_view& decl, void(*value)(asIScriptGeneric*))
 			{
-				asSFuncPtr* ptr = bridge::function_generic<void (*)(asIScriptGeneric*)>(value);
-				auto result = set_function_address(decl, ptr, function_call::genericf);
+				asSFuncPtr* ptr = bridge::function_generic_call<void (*)(asIScriptGeneric*)>(value);
+				auto result = set_function_address(decl, ptr, convention::generic_call);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
@@ -2279,7 +2257,7 @@ namespace vitex
 				if (ref_type.is_valid())
 					return type_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				auto data_struct = set_struct_address(name, sizeof(t), (size_t)object_behaviours::value | bridge::get_type_traits<t>() | traits);
+				auto data_struct = set_struct_address(name, sizeof(t), (size_t)object_behaviours::value | bridge::type_traits_of<t>() | traits);
 				if (!data_struct)
 					return data_struct;
 
@@ -2300,7 +2278,7 @@ namespace vitex
 				if (ref_type.is_valid())
 					return type_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				return set_struct_address(name, sizeof(t), (size_t)object_behaviours::value | bridge::get_type_traits<t>() | traits);
+				return set_struct_address(name, sizeof(t), (size_t)object_behaviours::value | bridge::type_traits_of<t>() | traits);
 			}
 			template <typename t>
 			expects_vm<type_class> set_pod(const std::string_view& name, size_t traits = 0)
@@ -2309,7 +2287,7 @@ namespace vitex
 				if (ref_type.is_valid())
 					return type_class(this, ref_type.get_type_info(), ref_type.get_type_id());
 
-				return set_pod_address(name, sizeof(t), (size_t)object_behaviours::value | (size_t)object_behaviours::pod | bridge::get_type_traits<t>() | traits);
+				return set_pod_address(name, sizeof(t), (size_t)object_behaviours::value | (size_t)object_behaviours::pod | bridge::type_traits_of<t>() | traits);
 			}
 		};
 
@@ -2318,7 +2296,7 @@ namespace vitex
 		public:
 			struct callable
 			{
-				function_delegate delegatef;
+				function_delegate delegation;
 				args_callback on_args;
 				args_callback on_return;
 				immediate_context* context;

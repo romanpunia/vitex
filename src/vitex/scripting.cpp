@@ -1067,7 +1067,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			return (function_type)ptr->GetFuncType();
 #else
-			return function_type::dummy;
+			return function_type::dummy_function;
 #endif
 		}
 		uint32_t* function::get_byte_code(size_t* size) const

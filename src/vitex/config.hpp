@@ -5,7 +5,6 @@
 #define VI_MICROSOFT 1
 #define VI_FILENO _fileno
 #define VI_SPLITTER '\\'
-#define VI_EXPOSE __declspec(dllexport)
 #ifdef _WIN64
 #define VI_64 1
 #endif
@@ -24,7 +23,6 @@ typedef void* epoll_handle;
 #define _XOPEN_SOURCE
 #define VI_APPLE 1
 #define VI_LINUX 1
-#define VI_EXPOSE
 #define VI_FILENO fileno
 #define VI_SPLITTER '/'
 #if defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
@@ -51,7 +49,6 @@ typedef socklen_t socket_size_t;
 #endif
 #if !defined(VI_APPLE) && (defined(__linux__) || defined(__linux)  || defined(linux) || defined(__unix__) || defined(__unix) || defined(unix) || defined(__FreeBSD__) || defined(__ANDROID__) || (defined(__sun) && defined(__SVR4)))
 #define VI_LINUX 1
-#define VI_EXPOSE
 #define VI_FILENO fileno
 #define VI_SPLITTER '/'
 #ifdef __ANDROID__

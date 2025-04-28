@@ -7938,33 +7938,33 @@ namespace vitex
 		}
 		expects_vm<void> virtual_machine::initialize_addon(const std::string_view& path, clibrary& library)
 		{
-			auto vi_initialize_handle = core::os::symbol::load_function(library.handle, "vi_initialize");
-			if (!vi_initialize_handle)
+			auto addon_import_handle = core::os::symbol::load_function(library.handle, "addon_import");
+			if (!addon_import_handle)
 				return virtual_exception("import user addon: no initialization routine (path = " + core::string(path) + ")");
 
-			auto vi_initialize = (int(*)(virtual_machine*)) * vi_initialize_handle;
-			if (!vi_initialize)
+			auto addon_import = (int(*)())*addon_import_handle;
+			if (!addon_import)
 				return virtual_exception("import user addon: no initialization routine (path = " + core::string(path) + ")");
 
-			int code = vi_initialize(this);
+			int code = addon_import();
 			if (code != 0)
 				return virtual_exception("import user addon: initialization failed (path = " + core::string(path) + ", exit = " + core::to_string(code) + ")");
 
 			VI_DEBUG("[vm] addon library %.*s initializated", (int)path.size(), path.data());
-			library.functions.insert({ "vi_initialize", { core::string(), (void*)vi_initialize } });
+			library.functions.insert({ "addon_import", { core::string(), (void*)addon_import } });
 			return core::expectation::met;
 		}
 		void virtual_machine::uninitialize_addon(const std::string_view& name, clibrary& library)
 		{
-			auto vi_uninitialize_handle = core::os::symbol::load_function(library.handle, "vi_uninitialize");
-			if (!vi_uninitialize_handle)
+			auto addon_cleanup_handle = core::os::symbol::load_function(library.handle, "addon_cleanup");
+			if (!addon_cleanup_handle)
 				return;
 
-			auto vi_uninitialize = (void(*)(virtual_machine*)) * vi_uninitialize_handle;
-			if (vi_uninitialize != nullptr)
+			auto addon_cleanup = (void(*)()) * addon_cleanup_handle;
+			if (addon_cleanup != nullptr)
 			{
-				library.functions.insert({ "vi_uninitialize", { core::string(), (void*)vi_uninitialize } });
-				vi_uninitialize(this);
+				library.functions.insert({ "addon_cleanup", { core::string(), (void*)addon_cleanup } });
+				addon_cleanup();
 			}
 		}
 		core::option<core::string> virtual_machine::get_source_code_appendix(const std::string_view& label, const std::string_view& code, uint32_t line_number, uint32_t column_number, size_t max_lines)

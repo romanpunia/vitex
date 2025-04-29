@@ -8197,40 +8197,12 @@ namespace vitex
 			if (input_readable != nullptr && input_readable != INVALID_HANDLE_VALUE)
 				CloseHandle(input_readable);
 #else
-			int output_pipe[2] = { 0, 0 };
-			if (readable)
-			{
-				if (pipe(output_pipe) != 0)
-				{
-				output_error:
-					auto condition = os::error::get_condition_or();
-					if (output_pipe[0] > 0)
-						::close(output_pipe[0]);
-					if (output_pipe[1] > 0)
-						::close(output_pipe[1]);
-					if (output_stream != nullptr)
-						fclose(output_stream);
-					return condition;
-				}
-
-				output_stream = fdopen(output_pipe[0], "r");
-				if (!output_stream)
-					goto output_error;
-
-				VI_DEBUG("[sh] open readable ro:pipe fd %i", VI_FILENO(output_stream));
-			}
-
 			int input_pipe[2] = { 0, 0 };
 			if (writeable)
 			{
 				if (pipe(input_pipe) != 0)
 				{
-				input_error:
 					auto condition = os::error::get_condition_or();
-					if (output_pipe[0] > 0)
-						::close(output_pipe[0]);
-					if (output_pipe[1] > 0)
-						::close(output_pipe[1]);
 					if (output_stream != nullptr)
 						fclose(output_stream);
 					if (input_pipe[0] > 0)
@@ -8244,43 +8216,62 @@ namespace vitex
 				VI_DEBUG("[sh] open writeable wo:pipe fd %i", input_fd);
 			}
 
+			int output_pipe[2] = { 0, 0 };
+			if (readable)
+			{
+				if (pipe(output_pipe) != 0)
+				{
+				pipe_error:
+					auto condition = os::error::get_condition_or();
+					if (input_pipe[0] > 0)
+						::close(input_pipe[0]);
+					if (input_pipe[1] > 0)
+						::close(input_pipe[1]);
+					if (output_pipe[0] > 0)
+						::close(output_pipe[0]);
+					if (output_pipe[1] > 0)
+						::close(output_pipe[1]);
+					if (output_stream != nullptr)
+						fclose(output_stream);
+					return condition;
+				}
+
+				output_stream = fdopen(output_pipe[0], "r");
+				if (!output_stream)
+					goto pipe_error;
+
+				VI_DEBUG("[sh] open readable ro:pipe fd %i", VI_FILENO(output_stream));
+			}
+
 			pid_t process_id = fork();
 			if (process_id < 0)
-				goto input_error;
+				goto pipe_error;
 
 			string executable = string(file);
 			int error_exit_code = internal.error_exit_code;
 			if (process_id == 0)
 			{
-				if (!readable)
-					output_pipe[0] = ::open("/dev/null", O_WRONLY | O_CREAT, 0666);
-				else
-					::close(output_pipe[1]);
-
-				if (!writeable)
-					input_pipe[1] = ::open("/dev/null", O_RDONLY | O_CREAT, 0666);
-				else
-					::close(input_pipe[0]);
-
-				dup2(output_pipe[0], 0);
-				dup2(input_pipe[1], 1);
-				execl(shell->c_str(), "sh", "-c", executable.c_str(), NULL);
+				::close(0);
+				::close(1);
+				dup2(input_pipe[0], 0);
+				dup2(output_pipe[1], 1);
+				execl(shell->c_str(), "sh", "-c", executable.c_str(), nullptr);
 				exit(error_exit_code);
 				return std::make_error_condition(std::errc::broken_pipe);
 			}
 			else
 			{
 				VI_DEBUG("[sh] spawn piped process pid %i", (int)process_id);
-				internal.output_pipe = (void*)(uintptr_t)output_pipe[1];
-				internal.input_pipe = (void*)(uintptr_t)input_pipe[0];
+				internal.input_pipe = (void*)(uintptr_t)input_pipe[1];
+				internal.output_pipe = (void*)(uintptr_t)output_pipe[0];
 				internal.process = (void*)(uintptr_t)process_id;
 				internal.thread = (void*)(uintptr_t)process_id;
 				internal.process_id = (socket_t)process_id;
 				internal.thread_id = (socket_t)process_id;
-				if (output_pipe[0] > 0)
-					::close(output_pipe[0]);
-				if (input_pipe[1] > 0)
-					::close(input_pipe[1]);
+				if (input_pipe[0] > 0)
+					::close(input_pipe[0]);
+				if (output_pipe[1] > 0)
+					::close(output_pipe[1]);
 			}
 #endif
 			open_virtual(string(file));
@@ -8311,12 +8302,21 @@ namespace vitex
 			if (internal.process != nullptr)
 			{
 				VI_DEBUG("[sh] close process pid %i (wait)", (int)internal.thread_id);
-				waitpid((pid_t)(uintptr_t)internal.process, &exit_code, 0);
+				while (waitpid((pid_t)internal.process_id, &exit_code, WNOHANG) != -1)
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				exit_code = WEXITSTATUS(exit_code);
 			}
 #endif
 			if (output_stream != nullptr)
 			{
+#ifndef VI_MICROSOFT
+				int fd = VI_FILENO(output_stream);
 				os::file::close(output_stream);
+				if (fd > 0)
+					::close(fd);
+#else
+				os::file::close(output_stream);
+#endif
 				output_stream = nullptr;
 			}
 			if (input_fd > 0)

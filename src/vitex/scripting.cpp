@@ -7896,8 +7896,18 @@ namespace vitex
 			unique.negate();
 			auto handle = core::os::symbol::load(path);
 			if (!handle)
-				return virtual_exception(core::copy<core::string>(handle.error().message()) + ": " + core::string(path));
-
+			{
+				core::string directory = core::os::path::get_directory(path);
+				std::string_view file = core::os::path::get_filename(path);
+				handle = core::os::symbol::load(core::stringify::text("%slib%.*s", directory.c_str(), (int)file.size(), file.data()));
+				if (!handle)
+				{
+					handle = core::os::symbol::load(core::stringify::text("%s%.*slib", directory.c_str(), (int)file.size(), file.data()));
+					 if (!handle)
+						return virtual_exception(core::copy<core::string>(handle.error().message()) + ": " + core::string(path));
+				}
+			}
+			
 			clibrary library;
 			library.handle = *handle;
 			library.is_addon = is_addon;

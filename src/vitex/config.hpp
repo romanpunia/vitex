@@ -35,7 +35,7 @@ typedef void* epoll_handle;
 #define VI_COCALL
 #define VI_CODATA int x, int y
 #endif
-#include <target_conditionals.h>
+#include <TargetConditionals.h>
 #if TARGET_IPHONE_SIMULATOR == 1 || TARGET_OS_IPHONE == 1
 #define VI_IOS 1
 #elif TARGET_OS_MAC == 1

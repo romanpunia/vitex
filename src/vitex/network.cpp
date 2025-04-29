@@ -1302,7 +1302,7 @@ namespace vitex
 #if defined(VI_MICROSOFT)
 			int count = WSAPoll(fd, fd_count, timeout);
 #else
-			int count = poll(fd, fd_count, timeout);
+			int count = ::poll(fd, fd_count, timeout);
 #endif
 			if (count > 0)
 				VI_TRACE("[net] poll recv %i events", count);

@@ -1520,6 +1520,22 @@ namespace vitex
 				memmove(buffer->data + start * (size_t)element_size, buffer->data + (start + count) * (size_t)element_size, (size_t)(buffer->num_elements - start - count) * (size_t)element_size);
 				buffer->num_elements -= count;
 			}
+			void array::remove_if(void* value, size_t start_at)
+			{
+				scache* cache; size_t count = size();
+				if (!is_eligible_for_find(&cache) || !count)
+					return;
+
+				immediate_context* context = immediate_context::get();
+				for (size_t i = start_at; i < count; i++)
+				{
+					if (equals(at(i), value, context, cache))
+					{
+						remove_at(i--);
+						--count;
+					}
+				}
+			}
 			void array::resize(int64_t delta, size_t where)
 			{
 				if (delta < 0)
@@ -8819,6 +8835,7 @@ namespace vitex
 					varray->set_method("void pop()", &array::remove_last);
 					varray->set_method<array, void, size_t, void*>("void insert(usize, const t&in)", &array::insert_at);
 					varray->set_method<array, void, size_t, const array&>("void insert(usize, const array<t>&)", &array::insert_at);
+					varray->set_method("void erase_if(const t&in if_handle_then_const, usize = 0)", &array::remove_if);
 					varray->set_method("void erase(usize)", &array::remove_at);
 					varray->set_method("void erase(usize, usize)", &array::remove_range);
 					varray->set_method("void reverse()", &array::reverse);

@@ -1683,6 +1683,13 @@ namespace vitex
 			return -1;
 #endif
 		}
+		int generic_context::get_return_addressable_type_id(size_t* flags) const
+		{
+			int result = get_return_type_id(flags);
+			if (result & (int)type_id::script_object_t)
+				result |= (int)type_id::handle_t;
+			return result;
+		}
 		expects_vm<void> generic_context::set_return_byte(unsigned char value)
 		{
 			VI_ASSERT(is_valid(), "generic should be valid");

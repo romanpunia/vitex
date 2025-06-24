@@ -625,6 +625,7 @@ namespace vitex
 				void remove_at(size_t index);
 				void remove_last();
 				void remove_range(size_t start, size_t count);
+				void remove_if(void* value, size_t start_at);
 				void swap(size_t index1, size_t index2);
 				void sort(asIScriptFunction* callback);
 				void reverse();

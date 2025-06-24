@@ -1122,14 +1122,14 @@ namespace vitex
 				return result;
 			}
 			template <typename t, typename to>
-			expects_vm<void> set_dynamic_cast(const std::string_view& to_decl, bool implicit = false, convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_dynamic_cast(const std::string_view& to_decl, bool implicit = false, convention ctype = convention::cdecl_call_obj_first)
 			{
 				auto type = implicit ? operators::impl_cast_t : operators::cast_t;
-				auto result1 = set_operator_extern(type, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>, type);
+				auto result1 = set_operator_extern(type, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>, ctype);
 				if (!result1)
 					return result1;
 
-				auto result2 = set_operator_extern(type, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>, type);
+				auto result2 = set_operator_extern(type, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>, ctype);
 				return result2;
 			}
 

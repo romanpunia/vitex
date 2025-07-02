@@ -8173,19 +8173,19 @@ namespace vitex
 			const char* message = context->GetExceptionString();
 			if (message && message[0] != '\0' && !context->WillExceptionBeCaught())
 			{
-				core::string details = bindings::exception::pointer(core::string(message)).what();
 				core::string trace = core::error_handling::get_stack_trace(1, 64);
-				VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", details.empty() ? "unknown" : details.c_str(), (int)trace.size(), trace.c_str());
+				if (!base->callbacks.exception && !vm->global_exception)
+				{
+					core::string details = bindings::exception::pointer(core::string(message)).what();
+					VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", details.empty() ? "unknown" : details.c_str(), (int)trace.size(), trace.c_str());
+				}
+
 				core::umutex<std::recursive_mutex> unique(base->exchange);
 				base->executor.stacktrace = trace;
 				unique.negate();
-
-				if (base->callbacks.exception)
-					base->callbacks.exception(base);
-				else if (vm->global_exception)
-					vm->global_exception(base);
 			}
-			else if (base->callbacks.exception)
+			
+			if (base->callbacks.exception)
 				base->callbacks.exception(base);
 			else if (vm->global_exception)
 				vm->global_exception(base);

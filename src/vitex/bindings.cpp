@@ -1021,14 +1021,7 @@ namespace vitex
 			}
 			exception::pointer exception::get_exception_at(immediate_context* context)
 			{
-				if (!context)
-					return pointer();
-
-				auto message = context->get_exception_string();
-				if (message.empty())
-					return pointer();
-
-				return pointer(core::string(message));
+				return pointer(context);
 			}
 			exception::pointer exception::get_exception()
 			{

@@ -3427,6 +3427,32 @@ namespace vitex
 			int promise::promise_null = -1;
 			int promise::promise_ud = 559;
 
+			template <typename t>
+			void decimal_custom_constructor_arithmetic(core::decimal* base, t value)
+			{
+				auto* vm = virtual_machine::get();
+				uint32_t precision = vm ? vm->get_library_property(library_features::decimal_default_precision) : 0;
+				new(base) core::decimal(value);
+				if (precision > 0)
+					base->truncate(precision);
+			}
+			template <typename t>
+			void decimal_custom_constructor_auto(core::decimal* base, const t& value)
+			{
+				auto* vm = virtual_machine::get();
+				uint32_t precision = vm ? vm->get_library_property(library_features::decimal_default_precision) : 0;
+				new(base) core::decimal(value);
+				if (precision > 0)
+					base->truncate(precision);
+			}
+			void decimal_custom_constructor(core::decimal* base)
+			{
+				auto* vm = virtual_machine::get();
+				uint32_t precision = vm ? vm->get_library_property(library_features::decimal_default_precision) : 0;
+				new(base) core::decimal();
+				if (precision > 0)
+					base->truncate(precision);
+			}
 			core::decimal decimal_negate(core::decimal& base)
 			{
 				return -base;
@@ -9489,17 +9515,34 @@ namespace vitex
 				VI_ASSERT(vm != nullptr, "manager should be set");
 
 				auto vdecimal = vm->set_struct_trivial<core::decimal>("decimal");
-				vdecimal->set_constructor<core::decimal>("void f()");
-				vdecimal->set_constructor<core::decimal, int16_t>("void f(int16)");
-				vdecimal->set_constructor<core::decimal, uint16_t>("void f(uint16)");
-				vdecimal->set_constructor<core::decimal, int32_t>("void f(int32)");
-				vdecimal->set_constructor<core::decimal, uint32_t>("void f(uint32)");
-				vdecimal->set_constructor<core::decimal, int64_t>("void f(int64)");
-				vdecimal->set_constructor<core::decimal, uint64_t>("void f(uint64)");
-				vdecimal->set_constructor<core::decimal, float>("void f(float)");
-				vdecimal->set_constructor<core::decimal, double>("void f(double)");
-				vdecimal->set_constructor<core::decimal, const std::string_view&>("void f(const string_view&in)");
-				vdecimal->set_constructor<core::decimal, const core::decimal&>("void f(const decimal &in)");
+				if (vm->get_library_property(library_features::decimal_default_precision) > 0)
+				{
+					vdecimal->set_constructor_extern<core::decimal*>("void f()", &decimal_custom_constructor);
+					vdecimal->set_constructor_extern<core::decimal*, int16_t>("void f(int16)", &decimal_custom_constructor_arithmetic<int16_t>);
+					vdecimal->set_constructor_extern<core::decimal*, uint16_t>("void f(uint16)", &decimal_custom_constructor_arithmetic<uint16_t>);
+					vdecimal->set_constructor_extern<core::decimal*, int32_t>("void f(int32)", &decimal_custom_constructor_arithmetic<int32_t>);
+					vdecimal->set_constructor_extern<core::decimal*, uint32_t>("void f(uint32)", &decimal_custom_constructor_arithmetic<uint32_t>);
+					vdecimal->set_constructor_extern<core::decimal*, int64_t>("void f(int64)", &decimal_custom_constructor_arithmetic<int64_t>);
+					vdecimal->set_constructor_extern<core::decimal*, uint64_t>("void f(uint64)", &decimal_custom_constructor_arithmetic<uint64_t>);
+					vdecimal->set_constructor_extern<core::decimal*, float>("void f(float)", &decimal_custom_constructor_arithmetic<float>);
+					vdecimal->set_constructor_extern<core::decimal*, double>("void f(double)", &decimal_custom_constructor_arithmetic<double>);
+					vdecimal->set_constructor_extern<core::decimal*, const std::string_view&>("void f(const string_view&in)", &decimal_custom_constructor_auto<std::string_view>);
+					vdecimal->set_constructor_extern<core::decimal*, const core::decimal&>("void f(const decimal &in)", &decimal_custom_constructor_auto<core::decimal>);
+				}
+				else
+				{
+					vdecimal->set_constructor<core::decimal>("void f()");
+					vdecimal->set_constructor<core::decimal, int16_t>("void f(int16)");
+					vdecimal->set_constructor<core::decimal, uint16_t>("void f(uint16)");
+					vdecimal->set_constructor<core::decimal, int32_t>("void f(int32)");
+					vdecimal->set_constructor<core::decimal, uint32_t>("void f(uint32)");
+					vdecimal->set_constructor<core::decimal, int64_t>("void f(int64)");
+					vdecimal->set_constructor<core::decimal, uint64_t>("void f(uint64)");
+					vdecimal->set_constructor<core::decimal, float>("void f(float)");
+					vdecimal->set_constructor<core::decimal, double>("void f(double)");
+					vdecimal->set_constructor<core::decimal, const std::string_view&>("void f(const string_view&in)");
+					vdecimal->set_constructor<core::decimal, const core::decimal&>("void f(const decimal &in)");
+				}
 				vdecimal->set_method("decimal& truncate(int)", &core::decimal::truncate);
 				vdecimal->set_method("decimal& round(int)", &core::decimal::round);
 				vdecimal->set_method("decimal& trim()", &core::decimal::trim);

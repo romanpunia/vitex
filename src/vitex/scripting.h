@@ -100,7 +100,8 @@ namespace vitex
 			promise_no_callbacks = 0,
 			promise_no_constructor = 1,
 			os_expose_control = 2,
-			ctypes_no_pointer_cast = 3
+			ctypes_no_pointer_cast = 3,
+			decimal_default_precision = 4
 		};
 
 		enum class modifiers

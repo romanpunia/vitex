@@ -3431,7 +3431,7 @@ namespace vitex
 			void decimal_custom_constructor_arithmetic(core::decimal* base, t value)
 			{
 				auto* vm = virtual_machine::get();
-				uint32_t precision = vm ? vm->get_library_property(library_features::decimal_default_precision) : 0;
+				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_default_precision) : 0;
 				new(base) core::decimal(value);
 				if (precision > 0)
 					base->truncate(precision);
@@ -3440,7 +3440,7 @@ namespace vitex
 			void decimal_custom_constructor_auto(core::decimal* base, const t& value)
 			{
 				auto* vm = virtual_machine::get();
-				uint32_t precision = vm ? vm->get_library_property(library_features::decimal_default_precision) : 0;
+				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_default_precision) : 0;
 				new(base) core::decimal(value);
 				if (precision > 0)
 					base->truncate(precision);
@@ -3448,7 +3448,7 @@ namespace vitex
 			void decimal_custom_constructor(core::decimal* base)
 			{
 				auto* vm = virtual_machine::get();
-				uint32_t precision = vm ? vm->get_library_property(library_features::decimal_default_precision) : 0;
+				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_default_precision) : 0;
 				new(base) core::decimal();
 				if (precision > 0)
 					base->truncate(precision);

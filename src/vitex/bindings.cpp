@@ -3527,6 +3527,11 @@ namespace vitex
 				return left % right;
 			}
 
+			void uint128_default_construct(compute::uint128* base)
+			{
+				new(base) compute::uint128();
+				memset(base, 0, sizeof(compute::uint128));
+			}
 			int8_t uint128_to_int8(compute::uint128& value)
 			{
 				return (int8_t)(uint8_t)value;
@@ -3629,6 +3634,11 @@ namespace vitex
 				return left % right;
 			}
 
+			void uint256_default_construct(compute::uint256* base)
+			{
+				new(base) compute::uint256();
+				memset(base, 0, sizeof(compute::uint256));
+			}
 			int8_t uint256_to_int8(compute::uint256& value)
 			{
 				return (int8_t)(uint8_t)value;
@@ -9595,47 +9605,47 @@ namespace vitex
 			{
 				VI_ASSERT(vm != nullptr, "manager should be set");
 
-				auto vu_int128 = vm->set_struct_trivial<compute::uint128>("uint128", (size_t)object_behaviours::app_class_allints);
-				vu_int128->set_constructor<compute::uint128>("void f()");
-				vu_int128->set_constructor<compute::uint128, int16_t>("void f(int16)");
-				vu_int128->set_constructor<compute::uint128, uint16_t>("void f(uint16)");
-				vu_int128->set_constructor<compute::uint128, int32_t>("void f(int32)");
-				vu_int128->set_constructor<compute::uint128, uint32_t>("void f(uint32)");
-				vu_int128->set_constructor<compute::uint128, int64_t>("void f(int64)");
-				vu_int128->set_constructor<compute::uint128, uint64_t>("void f(uint64)");
-				vu_int128->set_constructor<compute::uint128, const std::string_view&>("void f(const string_view&in)");
-				vu_int128->set_constructor<compute::uint128, const compute::uint128&>("void f(const uint128 &in)");
-				vu_int128->set_method_extern("int8 to_int8() const", &uint128_to_int8);
-				vu_int128->set_method_extern("uint8 to_uint8() const", &uint128_to_uint8);
-				vu_int128->set_method_extern("int16 to_int16() const", &uint128_to_int16);
-				vu_int128->set_method_extern("uint16 to_uint16() const", &uint128_to_uint16);
-				vu_int128->set_method_extern("int32 to_int32() const", &uint128_to_int32);
-				vu_int128->set_method_extern("uint32 to_uint32() const", &uint128_to_uint32);
-				vu_int128->set_method_extern("int64 to_int64() const", &uint128_to_int64);
-				vu_int128->set_method_extern("uint64 to_uint64() const", &uint128_to_uint64);
-				vu_int128->set_method("decimal to_decimal() const", &compute::uint128::to_decimal);
-				vu_int128->set_method("string to_string(uint8 = 10, uint32 = 0) const", &compute::uint128::to_string);
-				vu_int128->set_method<compute::uint128, const uint64_t&>("const uint64& low() const", &compute::uint128::low);
-				vu_int128->set_method<compute::uint128, const uint64_t&>("const uint64& high() const", &compute::uint128::high);
-				vu_int128->set_method("uint8 bits() const", &compute::uint128::bits);
-				vu_int128->set_method("uint8 bytes() const", &compute::uint128::bits);
-				vu_int128->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_mul_eq);
-				vu_int128->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_div_eq);
-				vu_int128->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_add_eq);
-				vu_int128->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_sub_eq);
-				vu_int128->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "uint128&", "", &uint128_fpp);
-				vu_int128->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "uint128&", "", &uint128_fmm);
-				vu_int128->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "uint128&", "", &uint128_pp);
-				vu_int128->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "uint128&", "", &uint128_mm);
-				vu_int128->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const uint128 &in", &uint128_eq);
-				vu_int128->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const uint128 &in", &uint128_cmp);
-				vu_int128->set_operator_extern(operators::add_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_add);
-				vu_int128->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_sub);
-				vu_int128->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_mul);
-				vu_int128->set_operator_extern(operators::div_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_div);
-				vu_int128->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_per);
-				vu_int128->set_method_static("uint128 min_value()", &compute::uint128::min);
-				vu_int128->set_method_static("uint128 max_value()", &compute::uint128::max);
+				auto vuint128 = vm->set_struct_trivial<compute::uint128>("uint128", (size_t)object_behaviours::app_class_allints);
+				vuint128->set_constructor_extern("void f()", &uint128_default_construct);
+				vuint128->set_constructor<compute::uint128, int16_t>("void f(int16)");
+				vuint128->set_constructor<compute::uint128, uint16_t>("void f(uint16)");
+				vuint128->set_constructor<compute::uint128, int32_t>("void f(int32)");
+				vuint128->set_constructor<compute::uint128, uint32_t>("void f(uint32)");
+				vuint128->set_constructor<compute::uint128, int64_t>("void f(int64)");
+				vuint128->set_constructor<compute::uint128, uint64_t>("void f(uint64)");
+				vuint128->set_constructor<compute::uint128, const std::string_view&>("void f(const string_view&in)");
+				vuint128->set_constructor<compute::uint128, const compute::uint128&>("void f(const uint128 &in)");
+				vuint128->set_method_extern("int8 to_int8() const", &uint128_to_int8);
+				vuint128->set_method_extern("uint8 to_uint8() const", &uint128_to_uint8);
+				vuint128->set_method_extern("int16 to_int16() const", &uint128_to_int16);
+				vuint128->set_method_extern("uint16 to_uint16() const", &uint128_to_uint16);
+				vuint128->set_method_extern("int32 to_int32() const", &uint128_to_int32);
+				vuint128->set_method_extern("uint32 to_uint32() const", &uint128_to_uint32);
+				vuint128->set_method_extern("int64 to_int64() const", &uint128_to_int64);
+				vuint128->set_method_extern("uint64 to_uint64() const", &uint128_to_uint64);
+				vuint128->set_method("decimal to_decimal() const", &compute::uint128::to_decimal);
+				vuint128->set_method("string to_string(uint8 = 10, uint32 = 0) const", &compute::uint128::to_string);
+				vuint128->set_method<compute::uint128, const uint64_t&>("const uint64& low() const", &compute::uint128::low);
+				vuint128->set_method<compute::uint128, const uint64_t&>("const uint64& high() const", &compute::uint128::high);
+				vuint128->set_method("uint8 bits() const", &compute::uint128::bits);
+				vuint128->set_method("uint8 bytes() const", &compute::uint128::bits);
+				vuint128->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_mul_eq);
+				vuint128->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_div_eq);
+				vuint128->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_add_eq);
+				vuint128->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "uint128&", "const uint128 &in", &uint128_sub_eq);
+				vuint128->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "uint128&", "", &uint128_fpp);
+				vuint128->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "uint128&", "", &uint128_fmm);
+				vuint128->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "uint128&", "", &uint128_pp);
+				vuint128->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "uint128&", "", &uint128_mm);
+				vuint128->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const uint128 &in", &uint128_eq);
+				vuint128->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const uint128 &in", &uint128_cmp);
+				vuint128->set_operator_extern(operators::add_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_add);
+				vuint128->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_sub);
+				vuint128->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_mul);
+				vuint128->set_operator_extern(operators::div_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_div);
+				vuint128->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "uint128", "const uint128 &in", &uint128_per);
+				vuint128->set_method_static("uint128 min_value()", &compute::uint128::min);
+				vuint128->set_method_static("uint128 max_value()", &compute::uint128::max);
 
 				return true;
 			}
@@ -9643,49 +9653,49 @@ namespace vitex
 			{
 				VI_ASSERT(vm != nullptr, "manager should be set");
 
-				auto vu_int256 = vm->set_struct_trivial<compute::uint256>("uint256", (size_t)object_behaviours::app_class_allints);
-				vu_int256->set_constructor<compute::uint256>("void f()");
-				vu_int256->set_constructor<compute::uint256, int16_t>("void f(int16)");
-				vu_int256->set_constructor<compute::uint256, uint16_t>("void f(uint16)");
-				vu_int256->set_constructor<compute::uint256, int32_t>("void f(int32)");
-				vu_int256->set_constructor<compute::uint256, uint32_t>("void f(uint32)");
-				vu_int256->set_constructor<compute::uint256, int64_t>("void f(int64)");
-				vu_int256->set_constructor<compute::uint256, uint64_t>("void f(uint64)");
-				vu_int256->set_constructor<compute::uint256, const compute::uint128&>("void f(const uint128&in)");
-				vu_int256->set_constructor<compute::uint256, const compute::uint128&, const compute::uint128&>("void f(const uint128&in, const uint128&in)");
-				vu_int256->set_constructor<compute::uint256, const std::string_view&>("void f(const string_view&in)");
-				vu_int256->set_constructor<compute::uint256, const compute::uint256&>("void f(const uint256 &in)");
-				vu_int256->set_method_extern("int8 to_int8() const", &uint256_to_int8);
-				vu_int256->set_method_extern("uint8 to_uint8() const", &uint256_to_uint8);
-				vu_int256->set_method_extern("int16 to_int16() const", &uint256_to_int16);
-				vu_int256->set_method_extern("uint16 to_uint16() const", &uint256_to_uint16);
-				vu_int256->set_method_extern("int32 to_int32() const", &uint256_to_int32);
-				vu_int256->set_method_extern("uint32 to_uint32() const", &uint256_to_uint32);
-				vu_int256->set_method_extern("int64 to_int64() const", &uint256_to_int64);
-				vu_int256->set_method_extern("uint64 to_uint64() const", &uint256_to_uint64);
-				vu_int256->set_method("decimal to_decimal() const", &compute::uint256::to_decimal);
-				vu_int256->set_method("string to_string(uint8 = 10, uint32 = 0) const", &compute::uint256::to_string);
-				vu_int256->set_method<compute::uint256, const compute::uint128&>("const uint128& low() const", &compute::uint256::low);
-				vu_int256->set_method<compute::uint256, const compute::uint128&>("const uint128& high() const", &compute::uint256::high);
-				vu_int256->set_method("uint16 bits() const", &compute::uint256::bits);
-				vu_int256->set_method("uint16 bytes() const", &compute::uint256::bytes);
-				vu_int256->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_mul_eq);
-				vu_int256->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_div_eq);
-				vu_int256->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_add_eq);
-				vu_int256->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_sub_eq);
-				vu_int256->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "uint256&", "", &uint256_fpp);
-				vu_int256->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "uint256&", "", &uint256_fmm);
-				vu_int256->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "uint256&", "", &uint256_pp);
-				vu_int256->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "uint256&", "", &uint256_mm);
-				vu_int256->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const uint256 &in", &uint256_eq);
-				vu_int256->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const uint256 &in", &uint256_cmp);
-				vu_int256->set_operator_extern(operators::add_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_add);
-				vu_int256->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_sub);
-				vu_int256->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_mul);
-				vu_int256->set_operator_extern(operators::div_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_div);
-				vu_int256->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_per);
-				vu_int256->set_method_static("uint256 min_value()", &compute::uint256::min);
-				vu_int256->set_method_static("uint256 max_value()", &compute::uint256::max);
+				auto vuint256 = vm->set_struct_trivial<compute::uint256>("uint256", (size_t)object_behaviours::app_class_allints);
+				vuint256->set_constructor_extern("void f()", &uint256_default_construct);
+				vuint256->set_constructor<compute::uint256, int16_t>("void f(int16)");
+				vuint256->set_constructor<compute::uint256, uint16_t>("void f(uint16)");
+				vuint256->set_constructor<compute::uint256, int32_t>("void f(int32)");
+				vuint256->set_constructor<compute::uint256, uint32_t>("void f(uint32)");
+				vuint256->set_constructor<compute::uint256, int64_t>("void f(int64)");
+				vuint256->set_constructor<compute::uint256, uint64_t>("void f(uint64)");
+				vuint256->set_constructor<compute::uint256, const compute::uint128&>("void f(const uint128&in)");
+				vuint256->set_constructor<compute::uint256, const compute::uint128&, const compute::uint128&>("void f(const uint128&in, const uint128&in)");
+				vuint256->set_constructor<compute::uint256, const std::string_view&>("void f(const string_view&in)");
+				vuint256->set_constructor<compute::uint256, const compute::uint256&>("void f(const uint256 &in)");
+				vuint256->set_method_extern("int8 to_int8() const", &uint256_to_int8);
+				vuint256->set_method_extern("uint8 to_uint8() const", &uint256_to_uint8);
+				vuint256->set_method_extern("int16 to_int16() const", &uint256_to_int16);
+				vuint256->set_method_extern("uint16 to_uint16() const", &uint256_to_uint16);
+				vuint256->set_method_extern("int32 to_int32() const", &uint256_to_int32);
+				vuint256->set_method_extern("uint32 to_uint32() const", &uint256_to_uint32);
+				vuint256->set_method_extern("int64 to_int64() const", &uint256_to_int64);
+				vuint256->set_method_extern("uint64 to_uint64() const", &uint256_to_uint64);
+				vuint256->set_method("decimal to_decimal() const", &compute::uint256::to_decimal);
+				vuint256->set_method("string to_string(uint8 = 10, uint32 = 0) const", &compute::uint256::to_string);
+				vuint256->set_method<compute::uint256, const compute::uint128&>("const uint128& low() const", &compute::uint256::low);
+				vuint256->set_method<compute::uint256, const compute::uint128&>("const uint128& high() const", &compute::uint256::high);
+				vuint256->set_method("uint16 bits() const", &compute::uint256::bits);
+				vuint256->set_method("uint16 bytes() const", &compute::uint256::bytes);
+				vuint256->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_mul_eq);
+				vuint256->set_operator_extern(operators::div_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_div_eq);
+				vuint256->set_operator_extern(operators::add_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_add_eq);
+				vuint256->set_operator_extern(operators::sub_assign_t, (uint32_t)position::left, "uint256&", "const uint256 &in", &uint256_sub_eq);
+				vuint256->set_operator_extern(operators::pre_inc_t, (uint32_t)position::left, "uint256&", "", &uint256_fpp);
+				vuint256->set_operator_extern(operators::pre_dec_t, (uint32_t)position::left, "uint256&", "", &uint256_fmm);
+				vuint256->set_operator_extern(operators::post_inc_t, (uint32_t)position::left, "uint256&", "", &uint256_pp);
+				vuint256->set_operator_extern(operators::post_dec_t, (uint32_t)position::left, "uint256&", "", &uint256_mm);
+				vuint256->set_operator_extern(operators::equals_t, (uint32_t)position::constant, "bool", "const uint256 &in", &uint256_eq);
+				vuint256->set_operator_extern(operators::cmp_t, (uint32_t)position::constant, "int", "const uint256 &in", &uint256_cmp);
+				vuint256->set_operator_extern(operators::add_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_add);
+				vuint256->set_operator_extern(operators::sub_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_sub);
+				vuint256->set_operator_extern(operators::mul_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_mul);
+				vuint256->set_operator_extern(operators::div_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_div);
+				vuint256->set_operator_extern(operators::mod_t, (uint32_t)position::constant, "uint256", "const uint256 &in", &uint256_per);
+				vuint256->set_method_static("uint256 min_value()", &compute::uint256::min);
+				vuint256->set_method_static("uint256 max_value()", &compute::uint256::max);
 
 				return true;
 			}

@@ -638,6 +638,38 @@ namespace vitex
 			{
 				timeout = ms;
 			}
+			void connection::set_collation(const std::string_view& name, text_representation type, void* user_data, collation_comparator comparator_callback)
+			{
+#ifdef VI_SQLITE
+				VI_ASSERT(comparator_callback != nullptr, "comparator callback should be set");
+				VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
+				int text_type;
+				switch (type)
+				{
+					case text_representation::utf8:
+						text_type = SQLITE_UTF8;
+						break;
+					case text_representation::utf16le:
+						text_type = SQLITE_UTF16LE;
+						break;
+					case text_representation::utf16be:
+						text_type = SQLITE_UTF16BE;
+						break;
+					case text_representation::utf16:
+						text_type = SQLITE_UTF16;
+						break;
+					case text_representation::utf16_aligned:
+						text_type = SQLITE_UTF16_ALIGNED;
+						break;
+					default:
+						return;
+				}
+
+				core::umutex<std::mutex> unique(update);
+				if (handle != nullptr)
+					sqlite3_create_collation(handle, name.data(), text_type, user_data, comparator_callback);
+#endif
+			}
 			void connection::set_function(const std::string_view& name, uint8_t args, on_function_result&& context)
 			{
 #ifdef VI_SQLITE

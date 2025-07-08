@@ -265,9 +265,9 @@ namespace vitex
 		{
 		private:
 #ifdef VI_ENDIAN_BIG
-			uint64_t upper = 0, lower = 0;
+			uint64_t upper, lower;
 #else
-			uint64_t lower = 0, upper = 0;
+			uint64_t lower, upper;
 #endif
 		public:
 			uint128() = default;

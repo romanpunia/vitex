@@ -25,6 +25,7 @@ namespace vitex
 
 			class driver;
 
+			typedef int collation_comparator(void* user_data, int n1, const void* s1, int n2, const void* s2);
 			typedef std::function<core::variant(const core::variant_list&)> on_function_result;
 			typedef std::function<void(const std::string_view&)> on_query_log;
 			typedef std::function<void(cursor&)> on_result;
@@ -33,6 +34,15 @@ namespace vitex
 			typedef sqlite3_context tcontext;
 			typedef sqlite3_value tvalue;
 			typedef tconnection* session_id;
+
+			enum class text_representation
+			{
+				utf8,
+				utf16le,
+				utf16be,
+				utf16,
+				utf16_aligned
+			};
 
 			enum class isolation
 			{
@@ -341,6 +351,7 @@ namespace vitex
 				void set_shared_cache(bool enabled);
 				void set_extensions(bool enabled);
 				void set_busy_timeout(uint64_t ms);
+				void set_collation(const std::string_view& name, text_representation type, void* user_data, collation_comparator comparator_callback);
 				void set_function(const std::string_view& name, uint8_t args, on_function_result&& context);
 				void set_aggregate_function(const std::string_view& name, uint8_t args, aggregate* context);
 				void set_window_function(const std::string_view& name, uint8_t args, window* context);

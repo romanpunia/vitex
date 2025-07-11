@@ -3532,6 +3532,10 @@ namespace vitex
 				new(base) compute::uint128();
 				memset(base, 0, sizeof(compute::uint128));
 			}
+			bool uint128_to_bool(compute::uint128& value)
+			{
+				return !value;
+			}
 			int8_t uint128_to_int8(compute::uint128& value)
 			{
 				return (int8_t)(uint8_t)value;
@@ -3638,6 +3642,10 @@ namespace vitex
 			{
 				new(base) compute::uint256();
 				memset(base, 0, sizeof(compute::uint256));
+			}
+			bool uint256_to_bool(compute::uint256& value)
+			{
+				return !value;
 			}
 			int8_t uint256_to_int8(compute::uint256& value)
 			{
@@ -9559,6 +9567,7 @@ namespace vitex
 				vdecimal->set_method("decimal& unlead()", &core::decimal::unlead);
 				vdecimal->set_method("decimal& untrail()", &core::decimal::untrail);
 				vdecimal->set_method("bool is_nan() const", &core::decimal::is_nan);
+				vdecimal->set_method("bool is_zero() const", &core::decimal::is_zero);
 				vdecimal->set_method("bool is_zero_or_nan() const", &core::decimal::is_zero_or_nan);
 				vdecimal->set_method("bool is_positive() const", &core::decimal::is_positive);
 				vdecimal->set_method("bool is_negative() const", &core::decimal::is_negative);
@@ -9615,6 +9624,7 @@ namespace vitex
 				vuint128->set_constructor<compute::uint128, uint64_t>("void f(uint64)");
 				vuint128->set_constructor<compute::uint128, const std::string_view&>("void f(const string_view&in)");
 				vuint128->set_constructor<compute::uint128, const compute::uint128&>("void f(const uint128 &in)");
+				vuint128->set_method_extern("bool opImplConv() const", &uint128_to_bool);
 				vuint128->set_method_extern("int8 to_int8() const", &uint128_to_int8);
 				vuint128->set_method_extern("uint8 to_uint8() const", &uint128_to_uint8);
 				vuint128->set_method_extern("int16 to_int16() const", &uint128_to_int16);
@@ -9665,6 +9675,7 @@ namespace vitex
 				vuint256->set_constructor<compute::uint256, const compute::uint128&, const compute::uint128&>("void f(const uint128&in, const uint128&in)");
 				vuint256->set_constructor<compute::uint256, const std::string_view&>("void f(const string_view&in)");
 				vuint256->set_constructor<compute::uint256, const compute::uint256&>("void f(const uint256 &in)");
+				vuint256->set_method_extern("bool opImplConv() const", &uint256_to_bool);
 				vuint256->set_method_extern("int8 to_int8() const", &uint256_to_int8);
 				vuint256->set_method_extern("uint8 to_uint8() const", &uint256_to_uint8);
 				vuint256->set_method_extern("int16 to_int16() const", &uint256_to_int16);

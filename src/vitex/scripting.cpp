@@ -2970,13 +2970,13 @@ namespace vitex
 				{
 					const core::string& key = args[0];
 					if (key == "info")
-						VI_INFO("[asc] %s", args[1].c_str());
+						VI_INFO("%s", args[1].c_str());
 					else if (key == "trace")
-						VI_DEBUG("[asc] %s", args[1].c_str());
+						VI_DEBUG("%s", args[1].c_str());
 					else if (key == "warn")
-						VI_WARN("[asc] %s", args[1].c_str());
+						VI_WARN("%s", args[1].c_str());
 					else if (key == "err")
-						VI_ERR("[asc] %s", args[1].c_str());
+						VI_ERR("%s", args[1].c_str());
 				}
 				else if (name == "modify" && args.size() == 2)
 				{
@@ -3004,10 +3004,10 @@ namespace vitex
 							if (status)
 								define("SOF_" + args[1]);
 							else
-								VI_ERR("[asc] %s", status.error().what());
+								VI_ERR("%s", status.error().what());
 						}
 						else
-							VI_ERR("[asc] %s", status.error().what());
+							VI_ERR("%s", status.error().what());
 					}
 					else
 					{
@@ -3015,7 +3015,7 @@ namespace vitex
 						if (status)
 							define("SOF_" + args[1]);
 						else
-							VI_ERR("[asc] %s", status.error().what());
+							VI_ERR("%s", status.error().what());
 					}
 				}
 				else if (name == "clibrary" && args.size() >= 1)
@@ -7022,6 +7022,10 @@ namespace vitex
 
 			return it->second;
 		}
+		const core::unordered_map<core::string, core::string>& virtual_machine::get_script_sections() const
+		{
+			return sections;
+		}
 		type_info virtual_machine::get_type_info_by_id(int type_id) const
 		{
 #ifdef VI_ANGELSCRIPT
@@ -8379,11 +8383,11 @@ namespace vitex
 			}
 
 			if (info->type == asMSGTYPE_WARNING)
-				VI_WARN("[asc] %s:%i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
+				VI_WARN("%s:%i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
 			else if (info->type == asMSGTYPE_INFORMATION)
-				VI_INFO("[asc] %s", info->message);
+				VI_INFO("%s", info->message);
 			else if (info->type == asMSGTYPE_ERROR)
-				VI_ERR("[asc] %s: %i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
+				VI_ERR("%s: %i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
 #endif
 		}
 		size_t virtual_machine::get_default_access_mask()

@@ -2074,6 +2074,7 @@ namespace vitex
 			core::option<core::string> get_source_code_appendix(const std::string_view& label, const std::string_view& code, uint32_t line_number, uint32_t column_number, size_t max_lines);
 			core::option<core::string> get_source_code_appendix_by_path(const std::string_view& label, const std::string_view& path, uint32_t line_number, uint32_t column_number, size_t max_lines);
 			core::option<core::string> get_script_section(const std::string_view& section_name);
+			const core::unordered_map<core::string, core::string>& get_script_sections() const;
 			size_t get_functions_count() const;
 			function get_function_by_id(int id) const;
 			function get_function_by_index(size_t index) const;

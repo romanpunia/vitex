@@ -1594,7 +1594,7 @@ namespace vitex
 					error_handling::get_stack_trace(1).c_str());
 			}
 			if (has_flag(log_option::dated))
-				date_time::serialize_local(data.message.date, sizeof(data.message.date), date_time::now(), date_time::format_compact_time());
+				data.message.clock = date_time::now();
 
 			if (format != nullptr)
 			{
@@ -1634,7 +1634,7 @@ namespace vitex
 				condition ? condition : "?",
 				error_handling::get_stack_trace(1).c_str());
 			if (has_flag(log_option::dated))
-				date_time::serialize_local(data.message.date, sizeof(data.message.date), date_time::now(), date_time::format_compact_time());
+				data.message.clock = date_time::now();
 
 			if (format != nullptr)
 			{
@@ -1672,7 +1672,7 @@ namespace vitex
 			data.type.level = level;
 			data.type.fatal = false;
 			if (has_flag(log_option::dated))
-				date_time::serialize_local(data.message.date, sizeof(data.message.date), date_time::now(), date_time::format_compact_time());
+				data.message.clock = date_time::now();
 
 			char buffer[512] = { '\0' };
 			if (level == log_level::error && has_flag(log_option::report_sys_errors))
@@ -1681,7 +1681,7 @@ namespace vitex
 				if (!os::error::is_error(error_code))
 					goto default_format;
 
-				snprintf(buffer, sizeof(buffer), "%s, latest system error [%s]", format, os::error::get_name(error_code).c_str());
+				snprintf(buffer, sizeof(buffer), "%s [%s]", format, os::error::get_name(error_code).c_str());
 			}
 			else
 			{
@@ -1713,18 +1713,33 @@ namespace vitex
 		{
 			internal_logging = true;
 			if (has_callback())
+			{
 				context->callback(data);
+				if (has_flag(log_option::callback_only))
+				{
+					internal_logging = false;
+					return;
+				}
+			}
 #if defined(VI_MICROSOFT) && !defined(NDEBUG)
-			OutputDebugStringA(get_message_text(data).c_str());
-#endif
+			auto text = get_message_text(data);
+			os::process::output_string(text);
 			if (console::is_available())
 			{
-				auto* terminal = console::get();
 				if (has_flag(log_option::pretty))
-					terminal->synced([&data](console* terminal) { colorify(terminal, data); });
+					console::get()->synced([&data](console* terminal) { colorify(terminal, data); });
 				else
-					terminal->write(get_message_text(data));
+					console::get()->write(text);
 			}
+#else
+			if (console::is_available())
+			{
+				if (has_flag(log_option::pretty))
+					console::get()->synced([&data](console* terminal) { colorify(terminal, data); });
+				else
+					console::get()->write(get_message_text(data));
+			}
+#endif
 			internal_logging = false;
 		}
 		void error_handling::colorify(console* terminal, details& data) noexcept
@@ -1734,29 +1749,29 @@ namespace vitex
 #else
 			bool parse_tokens = data.type.level != log_level::trace;
 #endif
-			terminal->write_color(parse_tokens ? std_color::cyan : std_color::gray);
 			if (has_flag(log_option::dated))
 			{
-				terminal->write(data.message.date);
+				char date[64] = { 0 };
+				date_time::serialize_local(date, sizeof(date), data.message.clock, date_time::format_iso8601_time());
+				terminal->write_color(std_color::gray);
+				terminal->write(date);
 				terminal->write(" ");
-#ifndef NDEBUG
-				if (data.origin.file != nullptr)
-				{
-					terminal->write_color(std_color::gray);
-					terminal->write(data.origin.file);
-					terminal->write(":");
-					if (data.origin.line > 0)
-					{
-						char numeric[NUMSTR_SIZE];
-						terminal->write(core::to_string_view(numeric, sizeof(numeric), data.origin.line));
-						terminal->write(" ");
-					}
-				}
-#endif
 			}
 			terminal->write_color(get_message_color(data));
 			terminal->write(get_message_type(data));
+			if (data.origin.file != nullptr)
+			{
+				terminal->write("/");
+				terminal->write(data.origin.file);
+				terminal->write(":");
+				if (data.origin.line > 0)
+				{
+					char numeric[NUMSTR_SIZE];
+					terminal->write(core::to_string_view(numeric, sizeof(numeric), data.origin.line));
+				}
+			}
 			terminal->write(" ");
+			terminal->clear_color();
 			if (parse_tokens)
 				terminal->colorize(std_color::light_gray, std::string_view(data.message.data, data.message.size));
 			else
@@ -1900,17 +1915,16 @@ namespace vitex
 			switch (base.type.level)
 			{
 				case log_level::error:
-					return "ERROR";
+					return "error";
 				case log_level::warning:
-					return "WARN";
-				case log_level::info:
-					return "INFO";
+					return "warn";
 				case log_level::debug:
-					return "DEBUG";
+					return "debug";
 				case log_level::trace:
-					return "TRACE";
+					return "trace";
+				case log_level::info:
 				default:
-					return "LOG";
+					return "info";
 			}
 		}
 		std_color error_handling::get_message_color(const details& base) noexcept
@@ -1921,14 +1935,13 @@ namespace vitex
 					return std_color::dark_red;
 				case log_level::warning:
 					return std_color::orange;
-				case log_level::info:
-					return std_color::light_blue;
 				case log_level::debug:
 					return std_color::gray;
 				case log_level::trace:
 					return std_color::gray;
+				case log_level::info:
 				default:
-					return std_color::light_gray;
+					return std_color::light_blue;
 			}
 		}
 		string error_handling::get_message_text(const details& base) noexcept
@@ -1936,19 +1949,18 @@ namespace vitex
 			string_stream stream;
 			if (has_flag(log_option::dated))
 			{
-				stream << base.message.date;
-#ifndef NDEBUG
-				if (base.origin.file != nullptr)
-				{
-					stream << ' ' << base.origin.file << ':';
-					if (base.origin.line > 0)
-						stream << base.origin.line;
-				}
-#endif
-				stream << ' ';
+				char date[64] = { 0 };
+				date_time::serialize_local(date, sizeof(date), base.message.clock, date_time::format_iso8601_time());
+				stream << date << ' ';
 			}
-			stream << get_message_type(base) << ' ';
-			stream << base.message.data << '\n';
+			stream << get_message_type(base);
+			if (base.origin.file != nullptr)
+			{
+				stream << '/' << base.origin.file << ':';
+				if (base.origin.line > 0)
+					stream << base.origin.line;
+			}
+			stream << ' ' << base.message.data << '\n';
 			return stream.str();
 		}
 		error_handling::state* error_handling::context = nullptr;
@@ -10004,6 +10016,12 @@ namespace vitex
 			if (IsDebuggerPresent())
 				__debugbreak();
 #endif
+#endif
+		}
+		void os::process::output_string(const string& message)
+		{
+#ifdef VI_MICROSOFT
+			OutputDebugStringA(message.data());
 #endif
 		}
 		int os::process::get_signal_id(signal_code type)

@@ -181,7 +181,8 @@ namespace vitex
 			pretty = 1 << 1,
 			async = 1 << 2,
 			dated = 1 << 3,
-			report_sys_errors = 1 << 4
+			report_sys_errors = 1 << 4,
+			callback_only = 1 << 5
 		};
 
 		enum class optional : int8_t
@@ -965,7 +966,7 @@ namespace vitex
 				struct
 				{
 					char data[BLOB_SIZE] = { '\0' };
-					char date[64] = { '\0' };
+					std::chrono::system_clock::duration clock;
 					size_t size = 0;
 				} message;
 			};
@@ -2621,6 +2622,7 @@ namespace vitex
 				static void abort();
 				static void interrupt();
 				static void exit(int code);
+				static void output_string(const string& message);
 				static bool raise_signal(signal_code type);
 				static bool bind_signal(signal_code type, signal_callback callback);
 				static bool rebind_signal(signal_code type);

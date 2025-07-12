@@ -100,7 +100,7 @@ namespace vitex
 		}
 		static core::expects_io<void> set_socket_blocking(socket_t fd, bool enabled)
 		{
-			VI_TRACE("[net] fd %i setopt: blocking %s", (int)fd, enabled ? "on" : "off");
+			VI_TRACE("net fd %i setopt: blocking %s", (int)fd, enabled ? "on" : "off");
 #ifdef VI_MICROSOFT
 			unsigned long mode = (enabled ? 0 : 1);
 			if (ioctlsocket(fd, (long)FIONBIO, &mode) != 0)
@@ -173,7 +173,7 @@ namespace vitex
 			core::vector<pollfd> sockets4, sockets6;
 			for (auto& host : hosts)
 			{
-				VI_DEBUG("[net] resolve dns on fd %i", (int)host.first);
+				VI_DEBUG("net resolve dns on fd %i", (int)host.first);
 				set_socket_blocking(host.first, false);
 				int status = connect(host.first, host.second->ai_addr, (int)host.second->ai_addrlen);
 				if (status != 0 && utils::get_last_error(nullptr, status) != std::errc::operation_would_block)
@@ -968,7 +968,7 @@ namespace vitex
 			VI_ASSERT(handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(fd != nullptr && fd->fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_ASSERT(readable || writeable, "add should set readable and/or writeable");
-			VI_TRACE("[net] epoll add fd %i c%s%s", (int)fd->fd, readable ? "r" : "", writeable ? "w" : "");
+			VI_TRACE("net epoll add fd %i c%s%s", (int)fd->fd, readable ? "r" : "", writeable ? "w" : "");
 #ifdef NET_POLL
 			VI_ASSERT(queue != nullptr, "epoll should be initialized");
 			return queue->upsert(fd->fd, readable, writeable, (void*)fd);
@@ -1001,7 +1001,7 @@ namespace vitex
 			VI_ASSERT(handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(fd != nullptr && fd->fd != INVALID_SOCKET, "socket should be set and valid");
 			VI_ASSERT(readable || writeable, "update should set readable and/or writeable");
-			VI_TRACE("[net] epoll update fd %i c%s%s", (int)fd->fd, readable ? "r" : "", writeable ? "w" : "");
+			VI_TRACE("net epoll update fd %i c%s%s", (int)fd->fd, readable ? "r" : "", writeable ? "w" : "");
 #ifdef NET_POLL
 			VI_ASSERT(queue != nullptr, "epoll should be initialized");
 			return queue->upsert(fd->fd, readable, writeable, (void*)fd);
@@ -1033,7 +1033,7 @@ namespace vitex
 		{
 			VI_ASSERT(handle != INVALID_EPOLL, "epoll should be initialized");
 			VI_ASSERT(fd != nullptr && fd->fd != INVALID_SOCKET, "socket should be set and valid");
-			VI_TRACE("[net] epoll remove fd %i", (int)fd->fd);
+			VI_TRACE("net epoll remove fd %i", (int)fd->fd);
 #ifdef NET_POLL
 			VI_ASSERT(queue != nullptr, "epoll should be initialized");
 			queue->upsert(fd->fd, false, false, (void*)fd);
@@ -1065,7 +1065,7 @@ namespace vitex
 			if (events.empty())
 				return 0;
 
-			VI_TRACE("[net] poll wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
+			VI_TRACE("net poll wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
 			int count = utils::poll(events.data(), (int)events.size(), (int)timeout);
 			if (count <= 0)
 				return count;
@@ -1087,9 +1087,9 @@ namespace vitex
 				fd.closeable = (event.revents & POLLHUP || event.revents & POLLNVAL || event.revents & POLLERR);
 #endif
 			}
-			VI_TRACE("[net] poll recv %i events", (int)incoming);
+			VI_TRACE("net poll recv %i events", (int)incoming);
 #elif defined(NET_KQUEUE)
-			VI_TRACE("[net] kqueue wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
+			VI_TRACE("net kqueue wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
 			struct timespec wait;
 			wait.tv_sec = (int)timeout / 1000;
 			wait.tv_nsec = ((int)timeout % 1000) * 1000000;
@@ -1107,9 +1107,9 @@ namespace vitex
 				fd.writeable = (it->filter == EVFILT_WRITE);
 				fd.closeable = (it->flags & EV_EOF);
 			}
-			VI_TRACE("[net] kqueue recv %i events", (int)incoming);
+			VI_TRACE("net kqueue recv %i events", (int)incoming);
 #elif defined(NET_EPOLL)
-			VI_TRACE("[net] epoll wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
+			VI_TRACE("net epoll wait %i fds (%" PRIu64 " ms)", (int)data_size, timeout);
 			int count = epoll_wait(handle, queue->data, (int)data_size, (int)timeout);
 			if (count <= 0)
 				return count;
@@ -1127,7 +1127,7 @@ namespace vitex
 				fd.closeable = (it->events & EPOLLHUP || it->events & EPOLLERR);
 #endif
 			}
-			VI_TRACE("[net] epoll recv %i events", (int)incoming);
+			VI_TRACE("net epoll recv %i events", (int)incoming);
 #endif
 			return (int)incoming;
 		}
@@ -1298,14 +1298,14 @@ namespace vitex
 		int utils::poll(pollfd* fd, int fd_count, int timeout) noexcept
 		{
 			VI_ASSERT(fd != nullptr, "poll should be set");
-			VI_TRACE("[net] poll wait %i fds (%i ms)", fd_count, timeout);
+			VI_TRACE("net poll wait %i fds (%i ms)", fd_count, timeout);
 #if defined(VI_MICROSOFT)
 			int count = WSAPoll(fd, fd_count, timeout);
 #else
 			int count = ::poll(fd, fd_count, timeout);
 #endif
 			if (count > 0)
-				VI_TRACE("[net] poll recv %i events", count);
+				VI_TRACE("net poll recv %i events", count);
 			return count;
 		}
 		int utils::poll(poll_fd* fd, int fd_count, int timeout) noexcept
@@ -1554,14 +1554,14 @@ namespace vitex
 					utils::display_transport_log();
 					return std::make_error_condition(std::errc::protocol_not_supported);
 				}
-				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", context);
+				VI_DEBUG("net OK create client 0x%" PRIuPTR " TLS context", context);
 				load_certificates = verify_depth > 0;
 			}
 			else
 			{
 				context = *servers.begin();
 				servers.erase(servers.begin());
-				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", context);
+				VI_DEBUG("net pop client 0x%" PRIuPTR " TLS context from cache", context);
 				load_certificates = verify_depth > 0 && SSL_CTX_get_verify_depth(context) <= 0;
 			}
 			unique.negate();
@@ -1599,7 +1599,7 @@ namespace vitex
 				return std::make_error_condition(std::errc::protocol_not_supported);
 			}
 
-			VI_DEBUG("[net] OK create server 0x%" PRIuPTR " TLS context", context);
+			VI_DEBUG("net OK create server 0x%" PRIuPTR " TLS context", context);
 			return context;
 #else
 			return std::make_error_condition(std::errc::not_supported);
@@ -1618,14 +1618,14 @@ namespace vitex
 					utils::display_transport_log();
 					return std::make_error_condition(std::errc::protocol_not_supported);
 				}
-				VI_DEBUG("[net] OK create client 0x%" PRIuPTR " TLS context", context);
+				VI_DEBUG("net OK create client 0x%" PRIuPTR " TLS context", context);
 				load_certificates = verify_depth > 0;
 			}
 			else
 			{
 				context = *clients.begin();
 				clients.erase(clients.begin());
-				VI_DEBUG("[net] pop client 0x%" PRIuPTR " TLS context from cache", context);
+				VI_DEBUG("net pop client 0x%" PRIuPTR " TLS context from cache", context);
 				load_certificates = verify_depth > 0 && SSL_CTX_get_verify_depth(context) <= 0;
 			}
 			unique.negate();
@@ -1702,13 +1702,13 @@ namespace vitex
 						continue;
 
 					if (X509_STORE_add_cert(storage, certificate) && !is_installed)
-						VI_TRACE("[net] OK load root level certificate: %s", compute::codec::hex_encode((const char*)next->pCertInfo->serial_number.pbData, (size_t)next->pCertInfo->serial_number.cbData).c_str());
+						VI_TRACE("net OK load root level certificate: %s", compute::codec::hex_encode((const char*)next->pCertInfo->serial_number.pbData, (size_t)next->pCertInfo->serial_number.cbData).c_str());
 					X509_free(certificate);
 					++count;
 				}
 
 				(void)count;
-				VI_DEBUG("[net] OK load %i root level certificates from ROOT registry", count);
+				VI_DEBUG("net OK load %i root level certificates from ROOT registry", count);
 				CertCloseStore(store, 0);
 				utils::display_transport_log();
 #else
@@ -1729,11 +1729,11 @@ namespace vitex
 
 		dns::dns() noexcept
 		{
-			VI_TRACE("[dns] OK initialize cache");
+			VI_TRACE("dns OK initialize cache");
 		}
 		dns::~dns() noexcept
 		{
-			VI_TRACE("[dns] cleanup cache");
+			VI_TRACE("dns cleanup cache");
 			names.clear();
 		}
 		core::expects_system<core::string> dns::reverse_lookup(const std::string_view& hostname, const std::string_view& service)
@@ -1774,7 +1774,7 @@ namespace vitex
 			if (getnameinfo(address.get_raw_address(), (socklen_t)address.get_address_size(), reverse_hostname, NI_MAXHOST, reverse_service, NI_MAXSERV, NI_NUMERICSERV) != 0)
 				return core::system_exception(core::stringify::text("dns reverse resolve %s address: invalid address", get_address_identification(address).c_str()));
 
-			VI_DEBUG("[net] dns reverse resolved for entity %s (host %s:%s is used)", get_address_identification(address).c_str(), reverse_hostname, reverse_service);
+			VI_DEBUG("net dns reverse resolved for entity %s (host %s:%s is used)", get_address_identification(address).c_str(), reverse_hostname, reverse_service);
 			return core::string(reverse_hostname, strnlen(reverse_hostname, sizeof(reverse_hostname)));
 		}
 		core::expects_promise_system<core::string> dns::reverse_address_lookup_deferred(const socket_address& address)
@@ -1880,7 +1880,7 @@ namespace vitex
 					for (auto& host : hosts)
 					{
 						closesocket(host.first);
-						VI_DEBUG("[net] close dns fd %i", (int)host.first);
+						VI_DEBUG("net close dns fd %i", (int)host.first);
 					}
 					return core::system_exception(core::stringify::text("dns resolve %s:%s address", hostname.data(), service.data()), std::move(connectable.error()));
 				}
@@ -1888,7 +1888,7 @@ namespace vitex
 					continue;
 
 				socket_t connection = *connectable;
-				VI_DEBUG("[net] open dns fd %i", (int)connection);
+				VI_DEBUG("net open dns fd %i", (int)connection);
 				if (resolver == dns_type::connect)
 				{
 					hosts[connection] = it;
@@ -1897,7 +1897,7 @@ namespace vitex
 
 				target_address = it;
 				closesocket(connection);
-				VI_DEBUG("[net] close dns fd %i", (int)connection);
+				VI_DEBUG("net close dns fd %i", (int)connection);
 				break;
 			}
 
@@ -1907,7 +1907,7 @@ namespace vitex
 			for (auto& host : hosts)
 			{
 				closesocket(host.first);
-				VI_DEBUG("[net] close dns fd %i", (int)host.first);
+				VI_DEBUG("net close dns fd %i", (int)host.first);
 			}
 
 			if (!target_address)
@@ -1917,7 +1917,7 @@ namespace vitex
 			}
 
 			socket_address result = socket_address(hostname, core::from_string<uint16_t>(service).or_else(0), target_address);
-			VI_DEBUG("[net] dns resolved for entity %s:%s (address %s is used)", hostname.data(), service.data(), get_ip_address_identification(result).c_str());
+			VI_DEBUG("net dns resolved for entity %s:%s (address %s is used)", hostname.data(), service.data(), get_ip_address_identification(result).c_str());
 			freeaddrinfo(addresses);
 
 			core::umutex<std::mutex> unique(exclusive);
@@ -1946,13 +1946,13 @@ namespace vitex
 		}
 		multiplexer::multiplexer(uint64_t dispatch_timeout, size_t max_events) noexcept : handle(max_events), activations(0), default_timeout(dispatch_timeout)
 		{
-			VI_TRACE("[net] OK initialize multiplexer (%" PRIu64 " events)", (uint64_t)max_events);
+			VI_TRACE("net OK initialize multiplexer (%" PRIu64 " events)", (uint64_t)max_events);
 			fds.resize(max_events);
 		}
 		multiplexer::~multiplexer() noexcept
 		{
 			shutdown();
-			VI_TRACE("[net] free multiplexer");
+			VI_TRACE("net free multiplexer");
 		}
 		void multiplexer::rescale(uint64_t dispatch_timeout, size_t max_events) noexcept
 		{
@@ -1975,20 +1975,20 @@ namespace vitex
 			core::ordered_map<std::chrono::microseconds, socket*> dirty_timers;
 			core::unordered_set<socket*> dirty_trackers;
 			core::umutex<std::mutex> unique(exclusive);
-			VI_DEBUG("[net] shutdown multiplexer on fds (sockets = %i)", (int)(timers.size() + trackers.size()));
+			VI_DEBUG("net shutdown multiplexer on fds (sockets = %i)", (int)(timers.size() + trackers.size()));
 			dirty_timers.swap(timers);
 			dirty_trackers.swap(trackers);
 
 			for (auto& item : dirty_trackers)
 			{
-				VI_DEBUG("[net] sock reset on fd %i", (int)item->fd);
+				VI_DEBUG("net sock reset on fd %i", (int)item->fd);
 				item->events.expiration = std::chrono::microseconds(0);
 				cancel_events(item, socket_poll::reset);
 			}
 
 			for (auto& item : dirty_timers)
 			{
-				VI_DEBUG("[net] sock timeout on fd %i", (int)item.second->fd);
+				VI_DEBUG("net sock timeout on fd %i", (int)item.second->fd);
 				item.second->events.expiration = std::chrono::microseconds(0);
 				cancel_events(item.second, socket_poll::timeout);
 			}
@@ -2021,7 +2021,7 @@ namespace vitex
 				if (it->first > time)
 					break;
 
-				VI_DEBUG("[net] sock timeout on fd %i", (int)it->second->fd);
+				VI_DEBUG("net sock timeout on fd %i", (int)it->second->fd);
 				it->second->events.expiration = std::chrono::microseconds(0);
 				cancel_events(it->second, socket_poll::timeout);
 				timers.erase(it);
@@ -2030,10 +2030,10 @@ namespace vitex
 		bool multiplexer::dispatch_events(const epoll_fd& fd, const std::chrono::microseconds& time) noexcept
 		{
 			VI_ASSERT(fd.base != nullptr, "no socket is connected to epoll fd");
-			VI_TRACE("[net] sock event:%s%s%s on fd %i", fd.closeable ? "c" : "", fd.readable ? "r" : "", fd.writeable ? "w" : "", (int)fd.base->fd);
+			VI_TRACE("net sock event:%s%s%s on fd %i", fd.closeable ? "c" : "", fd.readable ? "r" : "", fd.writeable ? "w" : "", (int)fd.base->fd);
 			if (fd.closeable)
 			{
-				VI_DEBUG("[net] sock reset on fd %i", (int)fd.base->fd);
+				VI_DEBUG("net sock reset on fd %i", (int)fd.base->fd);
 				cancel_events(fd.base, socket_poll::reset);
 				return false;
 			}
@@ -2167,7 +2167,7 @@ namespace vitex
 		{
 			if (value->events.timeout > 0)
 			{
-				VI_TRACE("[net] sock set timeout on fd %i (time = %i)", (int)value->fd, (int)value->events.timeout);
+				VI_TRACE("net sock set timeout on fd %i (time = %i)", (int)value->fd, (int)value->events.timeout);
 				auto expiration = time + std::chrono::milliseconds(value->events.timeout);
 				core::umutex<std::mutex> unique(exclusive);
 				while (timers.find(expiration) != timers.end())
@@ -2190,7 +2190,7 @@ namespace vitex
 		}
 		void multiplexer::remove_timeout(socket* value) noexcept
 		{
-			VI_TRACE("[net] sock cancel timeout on fd %i", (int)value->fd);
+			VI_TRACE("net sock cancel timeout on fd %i", (int)value->fd);
 			if (value->events.expiration > std::chrono::microseconds(0))
 			{
 				core::umutex<std::mutex> unique(exclusive);
@@ -2225,7 +2225,7 @@ namespace vitex
 		{
 			if (!activations++)
 			{
-				VI_DEBUG("[net] start events polling");
+				VI_DEBUG("net start events polling");
 				try_enqueue();
 			}
 		}
@@ -2233,7 +2233,7 @@ namespace vitex
 		{
 			VI_ASSERT(activations > 0, "events poller is already inactive");
 			if (!--activations)
-				VI_DEBUG("[net] stop events polling");
+				VI_DEBUG("net stop events polling");
 		}
 		size_t multiplexer::get_activations() noexcept
 		{
@@ -2299,7 +2299,7 @@ namespace vitex
 							connections.erase(it);
 						unique.negate();
 
-						VI_DEBUG("[uplink] expire fd %i of %s", (int)stream->get_fd(), id.c_str());
+						VI_DEBUG("uplink expire fd %i of %s", (int)stream->get_fd(), id.c_str());
 						while (!queue.empty())
 						{
 							queue.front()(nullptr);
@@ -2335,7 +2335,7 @@ namespace vitex
 				if (!stream)
 					return false;
 
-				VI_DEBUG("[uplink] store fd %i of %s", (int)stream->get_fd(), name.c_str());
+				VI_DEBUG("uplink store fd %i of %s", (int)stream->get_fd(), name.c_str());
 				auto& pool = connections[name];
 				pool.streams.insert(stream);
 				stream->set_io_timeout(0);
@@ -2352,7 +2352,7 @@ namespace vitex
 				if (!stream)
 					return false;
 
-				VI_DEBUG("[uplink] reuse fd %i of %s", (int)stream->get_fd(), name.c_str());
+				VI_DEBUG("uplink reuse fd %i of %s", (int)stream->get_fd(), name.c_str());
 				return true;
 			}
 			else if (!stream)
@@ -2364,7 +2364,7 @@ namespace vitex
 			else if (it->second.streams.size() >= max_duplicates)
 				return false;
 
-			VI_DEBUG("[uplink] store fd %i of %s", (int)stream->get_fd(), name.c_str());
+			VI_DEBUG("uplink store fd %i of %s", (int)stream->get_fd(), name.c_str());
 			it->second.streams.insert(stream);
 			stream->set_io_timeout(0);
 			stream->set_blocking(false);
@@ -2407,7 +2407,7 @@ namespace vitex
 			it->second.streams.erase(it->second.streams.begin());
 			unique.unlock();
 
-			VI_DEBUG("[uplink] reuse fd %i of %s", (int)stream->get_fd(), name.c_str());
+			VI_DEBUG("uplink reuse fd %i of %s", (int)stream->get_fd(), name.c_str());
 			multiplexer::get()->cancel_events(stream);
 			callback(stream);
 
@@ -2744,11 +2744,11 @@ namespace vitex
 			auto new_fd = execute_accept(fd, (sockaddr*)&address, &length);
 			if (!new_fd)
 			{
-				VI_TRACE("[net] fd %i: not acceptable", (int)fd);
+				VI_TRACE("net fd %i: not acceptable", (int)fd);
 				return new_fd.error();
 			}
 
-			VI_DEBUG("[net] accept fd %i on %i fd", (int)*new_fd, (int)fd);
+			VI_DEBUG("net accept fd %i on %i fd", (int)*new_fd, (int)fd);
 			incoming->address = socket_address(std::string_view(), 0, (sockaddr*)&address, length);
 			incoming->fd = *new_fd;
 			return core::expectation::met;
@@ -2816,7 +2816,7 @@ namespace vitex
 #ifdef VI_OPENSSL
 			if (device != nullptr)
 			{
-				VI_TRACE("[net] fd %i free ssl device", (int)fd);
+				VI_TRACE("net fd %i free ssl device", (int)fd);
 				SSL_free(device);
 				device = nullptr;
 			}
@@ -2834,7 +2834,7 @@ namespace vitex
 			getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*)&error, &size);
 			::shutdown(fd, SD_BOTH);
 			closesocket(fd);
-			VI_DEBUG("[net] sock fd %i shutdown", (int)fd);
+			VI_DEBUG("net sock fd %i shutdown", (int)fd);
 			fd = INVALID_SOCKET;
 			return core::expectation::met;
 		}
@@ -2843,7 +2843,7 @@ namespace vitex
 #ifdef VI_OPENSSL
 			if (device != nullptr)
 			{
-				VI_TRACE("[net] fd %i free ssl device", (int)fd);
+				VI_TRACE("net fd %i free ssl device", (int)fd);
 				SSL_free(device);
 				device = nullptr;
 			}
@@ -2863,7 +2863,7 @@ namespace vitex
 			handle.events = POLLIN;
 
 			VI_MEASURE(core::timings::networking);
-			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)fd, error);
+			VI_TRACE("net fd %i graceful shutdown: %i", (int)fd, error);
 			auto time = core::schedule::get_clock();
 			while (core::schedule::get_clock() - time <= std::chrono::milliseconds(10))
 			{
@@ -2881,7 +2881,7 @@ namespace vitex
 			}
 
 			closesocket(fd);
-			VI_DEBUG("[net] sock fd %i closed", (int)fd);
+			VI_DEBUG("net sock fd %i closed", (int)fd);
 			fd = INVALID_SOCKET;
 			return core::expectation::met;
 		}
@@ -2891,7 +2891,7 @@ namespace vitex
 #ifdef VI_OPENSSL
 			if (device != nullptr)
 			{
-				VI_TRACE("[net] fd %i free ssl device", (int)fd);
+				VI_TRACE("net fd %i free ssl device", (int)fd);
 				SSL_free(device);
 				device = nullptr;
 			}
@@ -2909,7 +2909,7 @@ namespace vitex
 			getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*)&error, &size);
 			::shutdown(fd, SD_SEND);
 
-			VI_TRACE("[net] fd %i graceful shutdown: %i", (int)fd, error);
+			VI_TRACE("net fd %i graceful shutdown: %i", (int)fd, error);
 			return try_close_queued(std::move(callback), core::schedule::get_clock(), true);
 		}
 		core::expects_promise_io<void> socket::close_deferred()
@@ -2957,7 +2957,7 @@ namespace vitex
 			}
 
 			closesocket(fd);
-			VI_DEBUG("[net] sock fd %i closed", (int)fd);
+			VI_DEBUG("net sock fd %i closed", (int)fd);
 			fd = INVALID_SOCKET;
 
 			callback(core::optional::none);
@@ -2969,7 +2969,7 @@ namespace vitex
 			VI_ASSERT(offset >= 0, "offset should be set and positive");
 			VI_ASSERT(size > 0, "size should be set and greater than zero");
 			VI_MEASURE(core::timings::networking);
-			VI_TRACE("[net] fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)fd, offset, size);
+			VI_TRACE("net fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)fd, offset, size);
 			off_t seek = (off_t)offset, length = (off_t)size;
 #ifdef VI_OPENSSL
 			if (device != nullptr)
@@ -3076,7 +3076,7 @@ namespace vitex
 			if (fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			VI_TRACE("[net] fd %i write %i bytes", (int)fd, (int)size);
+			VI_TRACE("net fd %i write %i bytes", (int)fd, (int)size);
 #ifdef VI_OPENSSL
 			if (device != nullptr)
 			{
@@ -3187,7 +3187,7 @@ namespace vitex
 			if (fd == INVALID_SOCKET)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
-			VI_TRACE("[net] fd %i read %i bytes", (int)fd, (int)size);
+			VI_TRACE("net fd %i read %i bytes", (int)fd, (int)size);
 #ifdef VI_OPENSSL
 			if (device != nullptr)
 			{
@@ -3590,7 +3590,7 @@ namespace vitex
 		core::expects_io<void> socket::connect(const socket_address& address, uint64_t timeout)
 		{
 			VI_MEASURE(core::timings::networking);
-			VI_DEBUG("[net] connect fd %i", (int)fd);
+			VI_DEBUG("net connect fd %i", (int)fd);
 			if (::connect(fd, address.get_raw_address(), (int)address.get_address_size()) != 0)
 				return core::os::error::get_condition_or();
 
@@ -3606,7 +3606,7 @@ namespace vitex
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 			}
 
-			VI_DEBUG("[net] connect fd %i", (int)fd);
+			VI_DEBUG("net connect fd %i", (int)fd);
 			int status = ::connect(fd, address.get_raw_address(), (int)address.get_address_size());
 			if (status == 0)
 			{
@@ -3646,7 +3646,7 @@ namespace vitex
 		core::expects_io<void> socket::open(const socket_address& address)
 		{
 			VI_MEASURE(core::timings::networking);
-			VI_DEBUG("[net] assign fd");
+			VI_DEBUG("net assign fd");
 			if (!core::os::control::has(core::access_option::net))
 				return std::make_error_condition(std::errc::permission_denied);
 
@@ -3663,7 +3663,7 @@ namespace vitex
 #ifdef VI_OPENSSL
 			VI_MEASURE(core::timings::networking);
 			VI_ASSERT(hostname.empty() || core::stringify::is_cstring(hostname), "hostname should be set");
-			VI_TRACE("[net] fd %i create ssl device on %.*s", (int)fd, (int)hostname.size(), hostname.data());
+			VI_TRACE("net fd %i create ssl device on %.*s", (int)fd, (int)hostname.size(), hostname.data());
 			if (device != nullptr)
 				SSL_free(device);
 
@@ -3683,7 +3683,7 @@ namespace vitex
 		core::expects_io<void> socket::bind(const socket_address& address)
 		{
 			VI_MEASURE(core::timings::networking);
-			VI_DEBUG("[net] bind fd %i", (int)fd);
+			VI_DEBUG("net bind fd %i", (int)fd);
 
 			if (::bind(fd, address.get_raw_address(), (int)address.get_address_size()) != 0)
 				return core::os::error::get_condition_or();
@@ -3693,7 +3693,7 @@ namespace vitex
 		core::expects_io<void> socket::listen(int backlog)
 		{
 			VI_MEASURE(core::timings::networking);
-			VI_DEBUG("[net] listen fd %i", (int)fd);
+			VI_DEBUG("net listen fd %i", (int)fd);
 			if (::listen(fd, backlog) != 0)
 				return core::os::error::get_condition_or();
 
@@ -3702,7 +3702,7 @@ namespace vitex
 		core::expects_io<void> socket::clear_events(bool gracefully)
 		{
 			VI_MEASURE(core::timings::networking);
-			VI_TRACE("[net] fd %i clear events %s", (int)fd, gracefully ? "gracefully" : "forcefully");
+			VI_TRACE("net fd %i clear events %s", (int)fd, gracefully ? "gracefully" : "forcefully");
 			auto* handle = multiplexer::get();
 			bool success = gracefully ? handle->cancel_events(this, socket_poll::reset) : handle->clear_events(this);
 			if (!success)
@@ -3713,7 +3713,7 @@ namespace vitex
 		core::expects_io<void> socket::migrate_to(socket_t new_fd, bool gracefully)
 		{
 			VI_MEASURE(core::timings::networking);
-			VI_TRACE("[net] migrate fd %i to fd %i", (int)fd, (int)new_fd);
+			VI_TRACE("net migrate fd %i to fd %i", (int)fd, (int)new_fd);
 			if (!gracefully)
 			{
 				fd = new_fd;
@@ -3726,7 +3726,7 @@ namespace vitex
 		}
 		core::expects_io<void> socket::set_close_on_exec()
 		{
-			VI_TRACE("[net] fd %i setopt: cloexec", (int)fd);
+			VI_TRACE("net fd %i setopt: cloexec", (int)fd);
 #if defined(_WIN32)
 			return std::make_error_condition(std::errc::not_supported);
 #else
@@ -3742,7 +3742,7 @@ namespace vitex
 			linger.l_onoff = (timeout >= 0 ? 1 : 0);
 			linger.l_linger = timeout;
 
-			VI_TRACE("[net] fd %i setopt: timewait %i", (int)fd, timeout);
+			VI_TRACE("net fd %i setopt: timewait %i", (int)fd, timeout);
 			if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char*)&linger, sizeof(linger)) != 0)
 				return core::os::error::get_condition_or();
 
@@ -3750,7 +3750,7 @@ namespace vitex
 		}
 		core::expects_io<void> socket::set_socket(int option, void* value, size_t size)
 		{
-			VI_TRACE("[net] fd %i setsockopt: opt%i %i bytes", (int)fd, option, (int)size);
+			VI_TRACE("net fd %i setsockopt: opt%i %i bytes", (int)fd, option, (int)size);
 			if (::setsockopt(fd, SOL_SOCKET, option, (const char*)value, (int)size) != 0)
 				return core::os::error::get_condition_or();
 
@@ -3758,7 +3758,7 @@ namespace vitex
 		}
 		core::expects_io<void> socket::set_any(int level, int option, void* value, size_t size)
 		{
-			VI_TRACE("[net] fd %i setopt: l%i opt%i %i bytes", (int)fd, level, option, (int)size);
+			VI_TRACE("net fd %i setopt: l%i opt%i %i bytes", (int)fd, level, option, (int)size);
 			if (::setsockopt(fd, level, option, (const char*)value, (int)size) != 0)
 				return core::os::error::get_condition_or();
 
@@ -3770,7 +3770,7 @@ namespace vitex
 		}
 		core::expects_io<void> socket::set_any_flag(int level, int option, int value)
 		{
-			VI_TRACE("[net] fd %i setopt: l%i opt%i %i", (int)fd, level, option, value);
+			VI_TRACE("net fd %i setopt: l%i opt%i %i", (int)fd, level, option, value);
 			return set_any(level, option, (void*)&value, sizeof(int));
 		}
 		core::expects_io<void> socket::set_blocking(bool enabled)
@@ -3787,7 +3787,7 @@ namespace vitex
 		}
 		core::expects_io<void> socket::set_timeout(int timeout)
 		{
-			VI_TRACE("[net] fd %i setopt: rwtimeout %i", (int)fd, timeout);
+			VI_TRACE("net fd %i setopt: rwtimeout %i", (int)fd, timeout);
 #ifdef VI_MICROSOFT
 			DWORD time = (DWORD)timeout;
 #else
@@ -4113,7 +4113,7 @@ namespace vitex
 			if (!router && state == server_state::idle)
 				return core::expectation::met;
 
-			VI_DEBUG("[net] shutdown server %s", gracefully ? "gracefully" : "fast");
+			VI_DEBUG("net shutdown server %s", gracefully ? "gracefully" : "fast");
 			core::single_queue<socket_connection*> queue;
 			state = server_state::stopping;
 			{
@@ -4145,7 +4145,7 @@ namespace vitex
 				if (shutdown_timeout > 0 && core::schedule::get_clock() - time > timeout)
 				{
 					core::umutex<std::recursive_mutex> unique(exclusive);
-					VI_DEBUG("[stall] server is leaking connections: %i", (int)active.size());
+					VI_DEBUG("stall server is leaking connections: %i", (int)active.size());
 					for (auto* next : active)
 						on_request_stall(next);
 					break;
@@ -4194,7 +4194,7 @@ namespace vitex
 			if (!listen_status)
 				return listen_status;
 
-			VI_DEBUG("[net] listen server on %i listeners", (int)listeners.size());
+			VI_DEBUG("net listen server on %i listeners", (int)listeners.size());
 			for (auto&& source : listeners)
 			{
 				source->stream->accept_queued([this, source](socket_accept& incoming)

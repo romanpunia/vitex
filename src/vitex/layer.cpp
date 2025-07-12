@@ -541,7 +541,7 @@ namespace vitex
 		}
 		void content_manager::clear_cache()
 		{
-			VI_TRACE("[content] clear cache on 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("content clear cache on 0x%" PRIXPTR, (void*)this);
 			core::umutex<std::mutex> unique(exclusive);
 			for (auto& entries : assets)
 			{
@@ -561,7 +561,7 @@ namespace vitex
 		}
 		void content_manager::clear_archives()
 		{
-			VI_TRACE("[content] clear archives on 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("content clear archives on 0x%" PRIXPTR, (void*)this);
 			core::umutex<std::mutex> unique(exclusive);
 			for (auto it = archives.begin(); it != archives.end(); ++it)
 				core::memory::deinit(it->second);
@@ -569,7 +569,7 @@ namespace vitex
 		}
 		void content_manager::clear_streams()
 		{
-			VI_TRACE("[content] clear streams on 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("content clear streams on 0x%" PRIXPTR, (void*)this);
 			core::umutex<std::mutex> unique(exclusive);
 			for (auto it = streams.begin(); it != streams.end(); ++it)
 				it->first->release();
@@ -577,7 +577,7 @@ namespace vitex
 		}
 		void content_manager::clear_processors()
 		{
-			VI_TRACE("[content] clear processors on 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("content clear processors on 0x%" PRIXPTR, (void*)this);
 			core::umutex<std::mutex> unique(exclusive);
 			for (auto it = processors.begin(); it != processors.end(); ++it)
 				core::memory::release(it->second);
@@ -585,7 +585,7 @@ namespace vitex
 		}
 		void content_manager::clear_path(const std::string_view& path)
 		{
-			VI_TRACE("[content] clear path %.*s on 0x%" PRIXPTR, (int)path.size(), path.data(), (void*)this);
+			VI_TRACE("content clear path %.*s on 0x%" PRIXPTR, (int)path.size(), path.data(), (void*)this);
 			auto file = core::os::path::resolve(path, environment, true);
 			core::umutex<std::mutex> unique(exclusive);
 			if (file)
@@ -851,7 +851,7 @@ namespace vitex
 			auto archive = archives.find(file);
 			if (archive == archives.end() || !archive->second || !archive->second->stream)
 			{
-				VI_TRACE("[content] archive was not found: %.*s", (int)path.size(), path.data());
+				VI_TRACE("content archive was not found: %.*s", (int)path.size(), path.data());
 				return content_exception("archive was not found: " + core::string(path));
 			}
 
@@ -860,7 +860,7 @@ namespace vitex
 				asset_cache* asset = find_cache(processor, file);
 				if (asset != nullptr)
 				{
-					VI_TRACE("[content] load archived %.*s: cached", (int)path.size(), path.data());
+					VI_TRACE("content load archived %.*s: cached", (int)path.size(), path.data());
 					return processor->duplicate(asset, map);
 				}
 			}
@@ -876,14 +876,14 @@ namespace vitex
 			stream->seek(core::file_seek::begin, it->second + archive->second->offset);
 			unique.negate();
 
-			VI_TRACE("[content] load archived: %.*s", (int)path.size(), path.data());
+			VI_TRACE("content load archived: %.*s", (int)path.size(), path.data());
 			return processor->deserialize(stream, it->second + archive->second->offset, map);
 		}
 		expects_content<void*> content_manager::load(processor* processor, const std::string_view& path, const core::variant_args& map)
 		{
 			if (path.empty())
 			{
-				VI_TRACE("[content] load from archive: no path provided");
+				VI_TRACE("content load from archive: no path provided");
 				return content_exception("content path is empty");
 			}
 
@@ -893,7 +893,7 @@ namespace vitex
 			auto object = load_from_archive(processor, path, map);
 			if (object && *object != nullptr)
 			{
-				VI_TRACE("[content] load from archive %.*s: OK", (int)path.size(), path.data());
+				VI_TRACE("content load from archive %.*s: OK", (int)path.size(), path.data());
 				return object;
 			}
 
@@ -917,19 +917,19 @@ namespace vitex
 			asset_cache* asset = find_cache(processor, file);
 			if (asset != nullptr)
 			{
-				VI_TRACE("[content] load from archive %.*s: cached", (int)path.size(), path.data());
+				VI_TRACE("content load from archive %.*s: cached", (int)path.size(), path.data());
 				return processor->duplicate(asset, map);
 			}
 
 			core::uptr<core::stream> stream = core::os::file::open(file, core::file_mode::binary_read_only).or_else(nullptr);
 			if (!stream)
 			{
-				VI_TRACE("[content] load from archive %.*s: non-existant", (int)path.size(), path.data());
+				VI_TRACE("content load from archive %.*s: non-existant", (int)path.size(), path.data());
 				return content_exception("content was not found: " + core::string(path));
 			}
 
 			object = processor->deserialize(*stream, 0, map);
-			VI_TRACE("[content] load from archive %.*s: %s", (int)path.size(), path.data(), object ? "OK" : object.error().what());
+			VI_TRACE("content load from archive %.*s: %s", (int)path.size(), path.data(), object ? "OK" : object.error().what());
 			return object;
 		}
 		expects_content<void> content_manager::save(processor* processor, const std::string_view& path, void* object, const core::variant_args& map)
@@ -937,7 +937,7 @@ namespace vitex
 			VI_ASSERT(object != nullptr, "object should be set");
 			if (path.empty())
 			{
-				VI_TRACE("[content] save forward: no path provided");
+				VI_TRACE("content save forward: no path provided");
 				return content_exception("content path is empty");
 			}
 
@@ -966,7 +966,7 @@ namespace vitex
 			}
 
 			auto result = processor->serialize(*stream, object, map);
-			VI_TRACE("[content] save forward %.*s: %s", (int)path.size(), path.data(), result ? "OK" : result.error().what());
+			VI_TRACE("content save forward %.*s: %s", (int)path.size(), path.data(), result ? "OK" : result.error().what());
 			return result;
 		}
 		expects_promise_content<void*> content_manager::load_deferred(processor* processor, const std::string_view& path, const core::variant_args& keys)
@@ -1027,7 +1027,7 @@ namespace vitex
 		}
 		void* content_manager::try_to_cache(processor* root, const std::string_view& path, void* resource)
 		{
-			VI_TRACE("[content] save 0x%" PRIXPTR " to cache", resource);
+			VI_TRACE("content save 0x%" PRIXPTR " to cache", resource);
 			core::string target = core::string(path);
 			core::stringify::replace(target, '\\', '/');
 			core::stringify::replace(target, environment, "./");
@@ -1116,7 +1116,7 @@ namespace vitex
 		void app_data::migrate(const std::string_view& next)
 		{
 			VI_ASSERT(!next.empty(), "path should not be empty");
-			VI_TRACE("[appd] migrate %s to %.*s", path.c_str(), (int)next.size(), next.data());
+			VI_TRACE("appd migrate %s to %.*s", path.c_str(), (int)next.size(), next.data());
 
 			core::umutex<std::mutex> unique(exclusive);
 			if (data != nullptr)
@@ -1131,7 +1131,7 @@ namespace vitex
 		}
 		void app_data::set_key(const std::string_view& name, core::schema* value)
 		{
-			VI_TRACE("[appd] apply %.*s = %s", (int)name.size(), name.data(), value ? core::schema::to_json(value).c_str() : "NULL");
+			VI_TRACE("appd apply %.*s = %s", (int)name.size(), name.data(), value ? core::schema::to_json(value).c_str() : "NULL");
 			core::umutex<std::mutex> unique(exclusive);
 			if (!data)
 				data = core::var::set::object();

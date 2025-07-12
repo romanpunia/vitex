@@ -4355,7 +4355,7 @@ namespace vitex
 			{
 				core::umutex<std::recursive_mutex> unique(mutex);
 				loop->enqueue(function.context);
-				VI_DEBUG("[vm] resume thread at %s", core::os::process::get_thread_id(procedure.get_id()).c_str());
+				VI_DEBUG("vm resume thread at %s", core::os::process::get_thread_id(procedure.get_id()).c_str());
 				return true;
 			}
 			void thread::enum_references(asIScriptEngine* engine)
@@ -4393,7 +4393,7 @@ namespace vitex
 				if (!procedure.joinable())
 					return -1;
 
-				VI_DEBUG("[vm] join thread %s", core::os::process::get_thread_id(procedure.get_id()).c_str());
+				VI_DEBUG("vm join thread %s", core::os::process::get_thread_id(procedure.get_id()).c_str());
 				unique.negate();
 				if (vm != nullptr && vm->has_debugger())
 				{
@@ -4472,7 +4472,7 @@ namespace vitex
 				add_ref();
 
 				procedure = std::thread(&thread::execution_loop, this);
-				VI_DEBUG("[vm] spawn thread %s", core::os::process::get_thread_id(procedure.get_id()).c_str());
+				VI_DEBUG("vm spawn thread %s", core::os::process::get_thread_id(procedure.get_id()).c_str());
 				return true;
 			}
 			thread* thread::create(asIScriptFunction* callback)

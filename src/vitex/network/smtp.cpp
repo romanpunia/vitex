@@ -49,11 +49,11 @@ namespace vitex
 				if (&request != &root)
 					request = std::move(root);
 
-				VI_DEBUG("[smtp] message to %s", root.receiver.c_str());
+				VI_DEBUG("smtp message to %s", root.receiver.c_str());
 				state.resolver = [this, result](core::expects_system<void>&& status) mutable
 				{
 					if (!buffer.empty())
-						VI_DEBUG("[smtp] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)buffer.size(), buffer.data());
+						VI_DEBUG("smtp fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)buffer.size(), buffer.data());
 
 					buffer.clear();
 					result.set(std::move(status));

@@ -158,7 +158,7 @@ namespace vitex
 				const char* new_message = sqlite3_errmsg(connection);
 				if (new_message && new_message[0] != '\0')
 				{
-					VI_DEBUG("[sqlite] %s", new_message);
+					VI_DEBUG("sqlite %s", new_message);
 					error_message = new_message;
 				}
 				else
@@ -963,7 +963,7 @@ namespace vitex
 				unique.negate();
 
 				VI_MEASURE(core::timings::intensive);
-				VI_DEBUG("[sqlite] try open database %s", source.c_str());
+				VI_DEBUG("sqlite try open database %s", source.c_str());
 
 				int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI | SQLITE_OPEN_NOMUTEX;
 				if (is_in_memory)
@@ -978,7 +978,7 @@ namespace vitex
 					return error;
 				}
 
-				VI_DEBUG("[sqlite] OK open database on 0x%" PRIXPTR, (uintptr_t)handle);
+				VI_DEBUG("sqlite OK open database on 0x%" PRIXPTR, (uintptr_t)handle);
 				return core::expectation::met;
 #else
 				return expects_db<void>(database_exception("connect: not supported"));
@@ -1036,7 +1036,7 @@ namespace vitex
 				if (!status)
 					return status.error();
 
-				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " using statement 0x%" PRIXPTR " (%s%" PRIu64 " ms)", (uintptr_t)handle, (uintptr_t)statement, session ? "transaction, " : "", (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - time).count()); (void)time;
+				VI_DEBUG("sqlite OK execute on 0x%" PRIXPTR " using statement 0x%" PRIXPTR " (%s%" PRIu64 " ms)", (uintptr_t)handle, (uintptr_t)statement, session ? "transaction, " : "", (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - time).count()); (void)time;
 				return expects_db<cursor>(std::move(result));
 #else
 				return expects_db<cursor>(database_exception("query: not supported"));
@@ -1052,7 +1052,7 @@ namespace vitex
 			}
 			expects_db<cursor> connection::template_query(const std::string_view& name, core::schema_args* map, size_t opts, session_id session)
 			{
-				VI_DEBUG("[sqlite] template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
+				VI_DEBUG("sqlite template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
 				auto pattern = driver::get()->get_query(name, map);
 				if (!pattern)
 					return expects_db<cursor>(pattern.error());
@@ -1068,7 +1068,7 @@ namespace vitex
 					return expects_db<cursor>(database_exception("acquire connection error: no candidate"));
 
 				auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-				VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)handle, session ? " (transaction)" : "", command.data(), command.size() > 64 ? " ..." : "");
+				VI_DEBUG("sqlite execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)handle, session ? " (transaction)" : "", command.data(), command.size() > 64 ? " ..." : "");
 
 				size_t offset = 0;
 				cursor result(handle);
@@ -1099,7 +1099,7 @@ namespace vitex
 					}
 				}
 
-				VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)handle, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - time).count()); (void)time;
+				VI_DEBUG("sqlite OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)handle, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - time).count()); (void)time;
 				return expects_db<cursor>(std::move(result));
 #else
 				return expects_db<cursor>(database_exception("query: not supported"));
@@ -1342,7 +1342,7 @@ namespace vitex
 				return core::cotask<expects_db<void>>([this, is_in_memory, connections]() -> expects_db<void>
 				{
 					VI_MEASURE(core::timings::intensive);
-					VI_DEBUG("[sqlite] try open database using %i connections", (int)connections);
+					VI_DEBUG("sqlite try open database using %i connections", (int)connections);
 
 					int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI | SQLITE_OPEN_NOMUTEX;
 					if (is_in_memory)
@@ -1354,7 +1354,7 @@ namespace vitex
 
 					for (size_t i = 0; i < connections; i++)
 					{
-						VI_DEBUG("[sqlite] try connect to %s", source.c_str());
+						VI_DEBUG("sqlite try connect to %s", source.c_str());
 						tconnection* connection = nullptr;
 						int code = sqlite3_open_v2(source.c_str(), &connection, flags, nullptr);
 						if (code != SQLITE_OK)
@@ -1365,7 +1365,7 @@ namespace vitex
 							return error;
 						}
 
-						VI_DEBUG("[sqlite] OK open database on 0x%" PRIXPTR, (uintptr_t)connection);
+						VI_DEBUG("sqlite OK open database on 0x%" PRIXPTR, (uintptr_t)connection);
 						idle.insert(connection);
 					}
 
@@ -1427,7 +1427,7 @@ namespace vitex
 			}
 			expects_promise_db<cursor> cluster::template_query(const std::string_view& name, core::schema_args* map, size_t opts, session_id session)
 			{
-				VI_DEBUG("[sqlite] template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
+				VI_DEBUG("sqlite template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
 				auto pattern = driver::get()->get_query(name, map);
 				if (!pattern)
 					return expects_promise_db<cursor>(pattern.error());
@@ -1448,7 +1448,7 @@ namespace vitex
 						coreturn expects_db<cursor>(database_exception("acquire connection error: no candidate"));
 
 					auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-					VI_DEBUG("[sqlite] execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)connection, session ? " (transaction)" : "", command.data(), command.size() > 64 ? " ..." : "");
+					VI_DEBUG("sqlite execute query on 0x%" PRIXPTR "%s: %.64s%s", (uintptr_t)connection, session ? " (transaction)" : "", command.data(), command.size() > 64 ? " ..." : "");
 
 					size_t queries = 0, offset = 0;
 					cursor result(connection);
@@ -1490,7 +1490,7 @@ namespace vitex
 						sqlite3_finalize(target);
 					}
 
-					VI_DEBUG("[sqlite] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)connection, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - time).count());
+					VI_DEBUG("sqlite OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)connection, (uint64_t)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - time).count());
 					release_connection(connection, opts); (void)time;
 					coreturn expects_db<cursor>(std::move(result));
 				});
@@ -1514,7 +1514,7 @@ namespace vitex
 					else if (!is_in_transaction && !(opts & (size_t)query_op::transaction_end))
 					{
 						if (opts & (size_t)query_op::transaction_start)
-							VI_DEBUG("[sqlite] acquire transaction on 0x%" PRIXPTR, (uintptr_t)*it);
+							VI_DEBUG("sqlite acquire transaction on 0x%" PRIXPTR, (uintptr_t)*it);
 						break;
 					}
 					else if (is_in_transaction && !(opts & (size_t)query_op::transaction_start))
@@ -1549,7 +1549,7 @@ namespace vitex
 			{
 				core::umutex<std::mutex> unique(update);
 				if (opts & (size_t)query_op::transaction_end)
-					VI_DEBUG("[sqlite] release transaction on 0x%" PRIXPTR, (uintptr_t)connection);
+					VI_DEBUG("sqlite release transaction on 0x%" PRIXPTR, (uintptr_t)connection);
 				busy.erase(connection);
 				idle.insert(connection);
 
@@ -2085,7 +2085,7 @@ namespace vitex
 				}
 
 				if (count > 0)
-					VI_DEBUG("[sqlite] OK load %" PRIu64 " parsed query templates", (uint64_t)count);
+					VI_DEBUG("sqlite OK load %" PRIu64 " parsed query templates", (uint64_t)count);
 
 				return count > 0;
 			}
@@ -2114,7 +2114,7 @@ namespace vitex
 					}
 				}
 
-				VI_DEBUG("[sqlite] OK save %" PRIu64 " parsed query templates", (uint64_t)queries.size());
+				VI_DEBUG("sqlite OK save %" PRIu64 " parsed query templates", (uint64_t)queries.size());
 				return result;
 			}
 			expects_db<core::string> driver::emplace(const std::string_view& SQL, core::schema_list* map) noexcept

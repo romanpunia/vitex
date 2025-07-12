@@ -1907,7 +1907,6 @@ namespace vitex
 		public:
 			typedef std::function<expects_vm<void>(compute::preprocessor* base, const std::string_view& path, core::string& buffer)> generator_callback;
 			typedef std::function<void(const std::string_view&)> compile_callback;
-			typedef std::function<void()> when_error_callback;
 
 		public:
 			struct cfunction
@@ -1956,7 +1955,7 @@ namespace vitex
 			compute::preprocessor::desc proc;
 			compute::include_desc include;
 			std::function<void(immediate_context*)> global_exception;
-			when_error_callback when_error;
+			compile_callback when_error;
 			std::atomic<int64_t> last_major_gc;
 			uint64_t scope;
 			debugger_context* debugger;
@@ -2008,7 +2007,7 @@ namespace vitex
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void set_debugger(debugger_context* context);
-			void set_compiler_error_callback(when_error_callback&& callback);
+			void set_compiler_error_callback(compile_callback&& callback);
 			void set_compiler_include_options(const compute::include_desc& new_desc);
 			void set_compiler_features(const compute::preprocessor::desc& new_desc);
 			void set_processor_options(compute::preprocessor* processor);

@@ -767,7 +767,7 @@ namespace vitex
 		}
 		void secret_box::stack(char* buffer, size_t max_size, size_t* out_size) const
 		{
-			VI_TRACE("[crypto] stack expose secret box to 0x%" PRIXPTR, (void*)buffer);
+			VI_TRACE("crypto stack expose secret box to 0x%" PRIXPTR, (void*)buffer);
 			switch (type)
 			{
 				case box_type::secure:
@@ -804,14 +804,14 @@ namespace vitex
 		}
 		core::string secret_box::heap() const
 		{
-			VI_TRACE("[crypto] heap expose secret box from 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("crypto heap expose secret box from 0x%" PRIXPTR, (void*)this);
 			core::string result = core::string(size(), '\0');
 			stack(result.data(), result.size() + 1);
 			return result;
 		}
 		void secret_box::copy_distribution(const secret_box& other)
 		{
-			VI_TRACE("[crypto] copy secret box from 0x%" PRIXPTR, (void*)&other);
+			VI_TRACE("crypto copy secret box from 0x%" PRIXPTR, (void*)&other);
 			clear();
 			type = other.type;
 			switch (type)
@@ -910,7 +910,7 @@ namespace vitex
 		}
 		secret_box secret_box::secure(const std::string_view& value)
 		{
-			VI_TRACE("[crypto] secure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("crypto secure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
 			secret_box result = secret_box(box_type::secure);
 			new (&result.data.set) core::vector<void*>();
 			result.data.set.reserve(value.size());
@@ -924,21 +924,21 @@ namespace vitex
 		}
 		secret_box secret_box::insecure(core::string&& value)
 		{
-			VI_TRACE("[crypto] insecure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("crypto insecure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
 			secret_box result = secret_box(box_type::insecure);
 			new (&result.data.sequence) core::string(std::move(value));
 			return result;
 		}
 		secret_box secret_box::insecure(const std::string_view& value)
 		{
-			VI_TRACE("[crypto] insecure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("crypto insecure secret box on %" PRIu64 " bytes", (uint64_t)value.size());
 			secret_box result = secret_box(box_type::insecure);
 			new (&result.data.sequence) core::string(value);
 			return result;
 		}
 		secret_box secret_box::view(const std::string_view& value)
 		{
-			VI_TRACE("[crypto] view secret box on %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("crypto view secret box on %" PRIu64 " bytes", (uint64_t)value.size());
 			secret_box result = secret_box(box_type::view);
 			new (&result.data.view) std::string_view(value);
 			return result;
@@ -2378,7 +2378,7 @@ namespace vitex
 
 		md5_hasher::md5_hasher() noexcept
 		{
-			VI_TRACE("[crypto] create md5 hasher");
+			VI_TRACE("crypto create md5 hasher");
 			memset(buffer, 0, sizeof(buffer));
 			memset(digest, 0, sizeof(digest));
 			finalized = false;
@@ -2394,7 +2394,7 @@ namespace vitex
 			VI_ASSERT(output != nullptr && input != nullptr, "output and input should be set");
 			for (uint32_t i = 0, j = 0; j < length; i++, j += 4)
 				output[i] = ((uint4)input[j]) | (((uint4)input[j + 1]) << 8) | (((uint4)input[j + 2]) << 16) | (((uint4)input[j + 3]) << 24);
-			VI_TRACE("[crypto] md5 hasher decode to 0x%" PRIXPTR, (void*)output);
+			VI_TRACE("crypto md5 hasher decode to 0x%" PRIXPTR, (void*)output);
 		}
 		void md5_hasher::encode(uint1* output, const uint4* input, uint32_t length)
 		{
@@ -2406,12 +2406,12 @@ namespace vitex
 				output[j + 2] = (input[i] >> 16) & 0xff;
 				output[j + 3] = (input[i] >> 24) & 0xff;
 			}
-			VI_TRACE("[crypto] md5 hasher encode to 0x%" PRIXPTR, (void*)output);
+			VI_TRACE("crypto md5 hasher encode to 0x%" PRIXPTR, (void*)output);
 		}
 		void md5_hasher::transform(const uint1* block, uint32_t length)
 		{
 			VI_ASSERT(block != nullptr, "block should be set");
-			VI_TRACE("[crypto] md5 hasher transform from 0x%" PRIXPTR, (void*)block);
+			VI_TRACE("crypto md5 hasher transform from 0x%" PRIXPTR, (void*)block);
 			uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
 			decode(x, block, length);
 
@@ -2497,7 +2497,7 @@ namespace vitex
 		void md5_hasher::update(const uint8_t* input, uint32_t length, uint32_t block_size)
 		{
 			VI_ASSERT(input != nullptr, "input should be set");
-			VI_TRACE("[crypto] md5 hasher update from 0x%" PRIXPTR, (void*)input);
+			VI_TRACE("crypto md5 hasher update from 0x%" PRIXPTR, (void*)input);
 			uint32_t index = count[0] / 8 % block_size;
 			count[0] += (length << 3);
 			if (count[0] < length << 3)
@@ -2525,7 +2525,7 @@ namespace vitex
 		}
 		void md5_hasher::finalize()
 		{
-			VI_TRACE("[crypto] md5 hasher finalize at 0x%" PRIXPTR, (void*)this);
+			VI_TRACE("crypto md5 hasher finalize at 0x%" PRIXPTR, (void*)this);
 			static uint8_t padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 			if (finalized)
 				return;
@@ -5298,7 +5298,7 @@ namespace vitex
 		expects_crypto<void> crypto::fill_random_bytes(uint8_t* buffer, size_t length)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] fill random %" PRIu64 " bytes", (uint64_t)length);
+			VI_TRACE("crypto fill random %" PRIu64 " bytes", (uint64_t)length);
 			if (RAND_bytes(buffer, (int)length) == 1)
 				return core::expectation::met;
 #endif
@@ -5330,7 +5330,7 @@ namespace vitex
 			VI_ASSERT(type != nullptr, "type should be set");
 			VI_ASSERT(stream != nullptr, "stream should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s stream-hash fd %i", get_digest_name(type).data(), (int)stream->get_readable_fd());
+			VI_TRACE("crypto %s stream-hash fd %i", get_digest_name(type).data(), (int)stream->get_readable_fd());
 			EVP_MD* method = (EVP_MD*)type;
 			EVP_MD_CTX* context = EVP_MD_CTX_create();
 			if (!context)
@@ -5377,7 +5377,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::hash(digest type, const std::string_view& value)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s hash %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			VI_TRACE("crypto %s hash %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
 			if (!type || value.empty())
 				return core::string(value);
 
@@ -5414,7 +5414,7 @@ namespace vitex
 		expects_crypto<secret_box> crypto::private_key_gen(proof type, size_t target_bits)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate %s private key (bits: %i)", get_proof_name(type).data(), (int)target_bits);
+			VI_TRACE("crypto generate %s private key (bits: %i)", get_proof_name(type).data(), (int)target_bits);
 			uint8_t data[8192]; int data_size = -1;
 			if (target_bits > sizeof(data) * 8)
 				return crypto_exception(-1, "bad:length");
@@ -5514,7 +5514,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::to_public_key(proof type, const secret_box& secret_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate %s public key from %i bytes", get_proof_name(type).data(), (int)secret_key.size());
+			VI_TRACE("crypto generate %s public key from %i bytes", get_proof_name(type).data(), (int)secret_key.size());
 			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
 			uint8_t buffer[8192];
 			switch (type)
@@ -5601,7 +5601,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::sign(digest type, proof key_type, const std::string_view& value, const secret_box& secret_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s:%s sign %" PRIu64 " bytes", get_digest_name(type).data(), get_proof_name(key_type).data(), (uint64_t)value.size());
+			VI_TRACE("crypto %s:%s sign %" PRIu64 " bytes", get_digest_name(type).data(), get_proof_name(key_type).data(), (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "sign:empty");
 
@@ -5698,7 +5698,7 @@ namespace vitex
 		expects_crypto<bool> crypto::verify(digest type, proof key_type, const std::string_view& value, const std::string_view& signature, const std::string_view& public_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s:%s verify %" PRIu64 " bytes", get_digest_name(type).data(), get_proof_name(key_type).data(), (uint64_t)(value.size() + signature.size()));
+			VI_TRACE("crypto %s:%s verify %" PRIu64 " bytes", get_digest_name(type).data(), get_proof_name(key_type).data(), (uint64_t)(value.size() + signature.size()));
 			if (value.empty())
 				return crypto_exception(-1, "verify:empty");
 
@@ -5783,7 +5783,7 @@ namespace vitex
 		expects_crypto<secret_box> crypto::ec_private_key_gen(proofs::curve curve)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate %s private key", get_curve_name(curve).data());
+			VI_TRACE("crypto generate %s private key", get_curve_name(curve).data());
 			EC_KEY* key = EC_KEY_new_by_curve_name(curve);
 			if (!key)
 				return crypto_exception();
@@ -5808,7 +5808,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::ec_to_public_key(proofs::curve curve, proofs::format format, const secret_box& secret_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] generate %s private key from %i bytes", get_curve_name(curve).data(), (int)secret_key.size());
+			VI_TRACE("crypto generate %s private key from %i bytes", get_curve_name(curve).data(), (int)secret_key.size());
 			auto local_key = secret_key.expose<core::CHUNK_SIZE>();
 			BIGNUM* scalar = BN_bin2bn(local_key.buffer, (int)local_key.view.size(), nullptr);
 			if (!scalar)
@@ -5846,7 +5846,7 @@ namespace vitex
 		expects_crypto<secret_box> crypto::ec_scalar_add(proofs::curve curve, const secret_box& a, const secret_box& b)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] scalar sub %s", get_curve_name(curve).data());
+			VI_TRACE("crypto scalar sub %s", get_curve_name(curve).data());
 			auto local = a.expose<core::CHUNK_SIZE>();
 			BIGNUM* scalar1 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
 			if (!scalar1)
@@ -5896,7 +5896,7 @@ namespace vitex
 		expects_crypto<secret_box> crypto::ec_scalar_sub(proofs::curve curve, const secret_box& a, const secret_box& b)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] scalar add %s", get_curve_name(curve).data());
+			VI_TRACE("crypto scalar add %s", get_curve_name(curve).data());
 			auto local = a.expose<core::CHUNK_SIZE>();
 			BIGNUM* scalar1 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
 			if (!scalar1)
@@ -5946,7 +5946,7 @@ namespace vitex
 		expects_crypto<secret_box> crypto::ec_scalar_mul(proofs::curve curve, const secret_box& a, const secret_box& b)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] scalar mul %s", get_curve_name(curve).data());
+			VI_TRACE("crypto scalar mul %s", get_curve_name(curve).data());
 			auto local = a.expose<core::CHUNK_SIZE>();
 			BIGNUM* scalar1 = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
 			if (!scalar1)
@@ -5996,7 +5996,7 @@ namespace vitex
 		expects_crypto<secret_box> crypto::ec_scalar_inv(proofs::curve curve, const secret_box& a)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] scalar inv %s", get_curve_name(curve).data());
+			VI_TRACE("crypto scalar inv %s", get_curve_name(curve).data());
 			auto local = a.expose<core::CHUNK_SIZE>();
 			BIGNUM* scalar = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
 			if (!scalar)
@@ -6036,7 +6036,7 @@ namespace vitex
 		expects_crypto<bool> crypto::ec_scalar_is_on_curve(proofs::curve curve, const secret_box& a)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] scalar check %s", get_curve_name(curve).data());
+			VI_TRACE("crypto scalar check %s", get_curve_name(curve).data());
 			auto local = a.expose<core::CHUNK_SIZE>();
 			BIGNUM* scalar = BN_bin2bn(local.buffer, (int)local.view.size(), nullptr);
 			if (!scalar)
@@ -6060,7 +6060,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::ec_point_mul(proofs::curve curve, proofs::format format, const std::string_view& a, const secret_box& b)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] point mul %s", get_curve_name(curve).data());
+			VI_TRACE("crypto point mul %s", get_curve_name(curve).data());
 			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
 			if (!group)
 				return crypto_exception();
@@ -6106,7 +6106,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::ec_point_add(proofs::curve curve, proofs::format format, const std::string_view& a, const std::string_view& b)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] point add %s", get_curve_name(curve).data());
+			VI_TRACE("crypto point add %s", get_curve_name(curve).data());
 			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
 			if (!group)
 				return crypto_exception();
@@ -6154,7 +6154,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::ec_point_inv(proofs::curve curve, proofs::format format, const std::string_view& a)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] point inv %s", get_curve_name(curve).data());
+			VI_TRACE("crypto point inv %s", get_curve_name(curve).data());
 			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
 			if (!group)
 				return crypto_exception();
@@ -6189,7 +6189,7 @@ namespace vitex
 		expects_crypto<bool> crypto::ec_point_is_on_curve(proofs::curve curve, const std::string_view& a)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] point check %s", get_curve_name(curve).data());
+			VI_TRACE("crypto point check %s", get_curve_name(curve).data());
 			EC_GROUP* group = EC_GROUP_new_by_curve_name(curve);
 			if (!group)
 				return crypto_exception();
@@ -6217,7 +6217,7 @@ namespace vitex
 		expects_crypto<core::string> crypto::ec_sign(digest type, proofs::curve curve, const std::string_view& value, const secret_box& secret_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s:%s sign %" PRIu64 " bytes", get_digest_name(type).data(), get_curve_name(curve).data(), (uint64_t)value.size());
+			VI_TRACE("crypto %s:%s sign %" PRIu64 " bytes", get_digest_name(type).data(), get_curve_name(curve).data(), (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "sign:empty");
 
@@ -6261,7 +6261,7 @@ namespace vitex
 		expects_crypto<bool> crypto::ec_verify(digest type, proofs::curve curve, const std::string_view& value, const std::string_view& signature, const std::string_view& public_key)
 		{
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] %s:%s verify %" PRIu64 " bytes", get_digest_name(type).data(), get_curve_name(curve).data(), (uint64_t)(value.size() + signature.size()));
+			VI_TRACE("crypto %s:%s verify %" PRIu64 " bytes", get_digest_name(type).data(), get_curve_name(curve).data(), (uint64_t)(value.size() + signature.size()));
 			if (value.empty())
 				return crypto_exception(-1, "verify:empty");
 
@@ -6385,7 +6385,7 @@ namespace vitex
 		{
 			VI_ASSERT(type != nullptr, "type should be set");
 #ifdef VI_OPENSSL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			VI_TRACE("crypto hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "hmac:empty");
 
@@ -6400,7 +6400,7 @@ namespace vitex
 
 			return core::string((const char*)result, size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			VI_TRACE("crypto hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
 			HMAC_CTX* context = HMAC_CTX_new();
 			if (!context)
 				return crypto_exception();
@@ -6430,7 +6430,7 @@ namespace vitex
 
 			return output;
 #else
-			VI_TRACE("[crypto] hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
+			VI_TRACE("crypto hmac-%s sign %" PRIu64 " bytes", get_digest_name(type).data(), (uint64_t)value.size());
 			HMAC_CTX context;
 			HMAC_CTX_init(&context);
 
@@ -6467,7 +6467,7 @@ namespace vitex
 		{
 			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s encrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
+			VI_TRACE("crypto %s encrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "encrypt:empty");
 #ifdef VI_OPENSSL
@@ -6538,7 +6538,7 @@ namespace vitex
 		{
 			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s decrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
+			VI_TRACE("crypto %s decrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "decrypt:empty");
 #ifdef VI_OPENSSL
@@ -6704,7 +6704,7 @@ namespace vitex
 			VI_ASSERT(from != nullptr, "from stream should be set");
 			VI_ASSERT(to != nullptr, "to stream should be set");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-encrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
+			VI_TRACE("crypto %s stream-encrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
 			if (!context)
@@ -6791,7 +6791,7 @@ namespace vitex
 			VI_ASSERT(from != nullptr, "from stream should be set");
 			VI_ASSERT(to != nullptr, "to stream should be set");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("[crypto] %s stream-decrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
+			VI_TRACE("crypto %s stream-decrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
 			if (!context)
@@ -6880,7 +6880,7 @@ namespace vitex
 		}
 		uint32_t crypto::crc32(const std::string_view& data)
 		{
-			VI_TRACE("[crypto] crc32 %" PRIu64 " bytes", (uint64_t)data.size());
+			VI_TRACE("crypto crc32 %" PRIu64 " bytes", (uint64_t)data.size());
 			uint32_t crc = ~0;
 			for (auto byte : data)
 			{
@@ -6895,7 +6895,7 @@ namespace vitex
 		}
 		uint64_t crypto::crc64(const std::string_view& data)
 		{
-			VI_TRACE("[crypto] crc64 %" PRIu64 " bytes", (uint64_t)data.size());
+			VI_TRACE("crypto crc64 %" PRIu64 " bytes", (uint64_t)data.size());
 			uint64_t crc = ~0;
 			for (auto byte : data)
 			{
@@ -7049,7 +7049,7 @@ namespace vitex
 			{
 				while (size > 0 && core::stringify::is_whitespace(message[size - 1]))
 					--size;
-				VI_ERR("[openssl] %.*s", (int)size, message);
+				VI_ERR("openssl %.*s", (int)size, message);
 				return 0;
 			}, nullptr);
 #endif
@@ -7092,7 +7092,7 @@ namespace vitex
 		{
 			VI_ASSERT(value != nullptr, "value should be set");
 			VI_ASSERT(length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] %s encode-64 %" PRIu64 " bytes", padding ? "padded" : "unpadded", (uint64_t)length);
+			VI_TRACE("codec %s encode-64 %" PRIu64 " bytes", padding ? "padded" : "unpadded", (uint64_t)length);
 
 			core::string result;
 			uint8_t row3[3];
@@ -7143,7 +7143,7 @@ namespace vitex
 			VI_ASSERT(value != nullptr, "value should be set");
 			VI_ASSERT(is_alphabetic != nullptr, "callback should be set");
 			VI_ASSERT(length > 0, "length should be greater than zero");
-			VI_TRACE("[codec] decode-64 %" PRIu64 " bytes", (uint64_t)length);
+			VI_TRACE("codec decode-64 %" PRIu64 " bytes", (uint64_t)length);
 
 			core::string result;
 			uint8_t row4[4];
@@ -7284,7 +7284,7 @@ namespace vitex
 		}
 		core::string codec::base45_encode(const std::string_view& data)
 		{
-			VI_TRACE("[codec] base45 encode %" PRIu64 " bytes", (uint64_t)data.size());
+			VI_TRACE("codec base45 encode %" PRIu64 " bytes", (uint64_t)data.size());
 			static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 			core::string result;
 			size_t size = data.size();
@@ -7319,7 +7319,7 @@ namespace vitex
 		}
 		core::string codec::base45_decode(const std::string_view& data)
 		{
-			VI_TRACE("[codec] base45 decode %" PRIu64 " bytes", (uint64_t)data.size());
+			VI_TRACE("codec base45 decode %" PRIu64 " bytes", (uint64_t)data.size());
 			static uint8_t char_to_int[256] =
 			{
 				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -7398,7 +7398,7 @@ namespace vitex
 		core::string codec::shuffle(const char* value, size_t size, uint64_t mask)
 		{
 			VI_ASSERT(value != nullptr, "value should be set");
-			VI_TRACE("[codec] shuffle %" PRIu64 " bytes", (uint64_t)size);
+			VI_TRACE("codec shuffle %" PRIu64 " bytes", (uint64_t)size);
 
 			core::string result;
 			result.resize(size);
@@ -7416,7 +7416,7 @@ namespace vitex
 		expects_compression<core::string> codec::compress(const std::string_view& data, compression type)
 		{
 #ifdef VI_ZLIB
-			VI_TRACE("[codec] compress %" PRIu64 " bytes", (uint64_t)data.size());
+			VI_TRACE("codec compress %" PRIu64 " bytes", (uint64_t)data.size());
 			if (data.empty())
 				return compression_exception(Z_DATA_ERROR, "empty input buffer");
 
@@ -7439,7 +7439,7 @@ namespace vitex
 		expects_compression<core::string> codec::decompress(const std::string_view& data)
 		{
 #ifdef VI_ZLIB
-			VI_TRACE("[codec] decompress %" PRIu64 " bytes", (uint64_t)data.size());
+			VI_TRACE("codec decompress %" PRIu64 " bytes", (uint64_t)data.size());
 			if (data.empty())
 				return compression_exception(Z_DATA_ERROR, "empty input buffer");
 
@@ -7474,7 +7474,7 @@ namespace vitex
 		}
 		core::string codec::hex_encode_odd(const std::string_view& value, bool upper_case)
 		{
-			VI_TRACE("[codec] hex encode odd %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("codec hex encode odd %" PRIu64 " bytes", (uint64_t)value.size());
 			static const char hex_lower_case[17] = "0123456789abcdef";
 			static const char hex_upper_case[17] = "0123456789ABCDEF";
 
@@ -7494,7 +7494,7 @@ namespace vitex
 		}
 		core::string codec::hex_encode(const std::string_view& value, bool upper_case)
 		{
-			VI_TRACE("[codec] hex encode %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("codec hex encode %" PRIu64 " bytes", (uint64_t)value.size());
 			static const char hex_lower_case[17] = "0123456789abcdef";
 			static const char hex_upper_case[17] = "0123456789ABCDEF";
 			const char* hex = upper_case ? hex_upper_case : hex_lower_case;
@@ -7513,7 +7513,7 @@ namespace vitex
 		}
 		core::string codec::hex_decode(const std::string_view& value)
 		{
-			VI_TRACE("[codec] hex decode %" PRIu64 " bytes", (uint64_t)value.size());
+			VI_TRACE("codec hex decode %" PRIu64 " bytes", (uint64_t)value.size());
 			size_t offset = 0;
 			if (value.size() >= 2 && value[0] == '0' && value[1] == 'x')
 				offset = 2;
@@ -7534,7 +7534,7 @@ namespace vitex
 		}
 		core::string codec::url_encode(const std::string_view& text)
 		{
-			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)text.size());
+			VI_TRACE("codec url encode %" PRIu64 " bytes", (uint64_t)text.size());
 			static const char* unescape = "._-$,;~()";
 			static const char* hex = "0123456789abcdef";
 
@@ -7559,7 +7559,7 @@ namespace vitex
 		}
 		core::string codec::url_decode(const std::string_view& text)
 		{
-			VI_TRACE("[codec] url encode %" PRIu64 " bytes", (uint64_t)text.size());
+			VI_TRACE("codec url encode %" PRIu64 " bytes", (uint64_t)text.size());
 			core::string value;
 			uint8_t* data = (uint8_t*)text.data();
 			size_t size = text.size();
@@ -7976,7 +7976,7 @@ namespace vitex
 			if (expression.empty())
 				return preprocessor_exception(preprocessor_error::macro_definition_empty, 0, this_file.path);
 
-			VI_TRACE("[proc] define %.*s on 0x%" PRIXPTR, (int)expression.size(), expression.data(), (void*)this);
+			VI_TRACE("proc define %.*s on 0x%" PRIXPTR, (int)expression.size(), expression.data(), (void*)this);
 			core::string name; size_t name_offset = 0;
 			while (name_offset < expression.size())
 			{
@@ -8046,7 +8046,7 @@ namespace vitex
 		}
 		void preprocessor::undefine(const std::string_view& name)
 		{
-			VI_TRACE("[proc] undefine %.*s on 0x%" PRIXPTR, (int)name.size(), name.data(), (void*)this);
+			VI_TRACE("proc undefine %.*s on 0x%" PRIXPTR, (int)name.size(), name.data(), (void*)this);
 			auto it = defines.find(core::key_lookup_cast(name));
 			if (it != defines.end())
 				defines.erase(it);
@@ -8061,7 +8061,7 @@ namespace vitex
 		bool preprocessor::is_defined(const std::string_view& name) const
 		{
 			bool exists = defines.count(core::key_lookup_cast(name)) > 0;
-			VI_TRACE("[proc] ifdef %.*s on 0x%: %s" PRIXPTR, (int)name.size(), name.data(), (void*)this, exists ? "yes" : "no");
+			VI_TRACE("proc ifdef %.*s on 0x%: %s" PRIXPTR, (int)name.size(), name.data(), (void*)this, exists ? "yes" : "no");
 			return exists;
 		}
 		bool preprocessor::is_defined(const std::string_view& name, const std::string_view& value) const
@@ -8670,7 +8670,7 @@ namespace vitex
 					{
 						case include_type::preprocess:
 						{
-							VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+							VI_TRACE("proc %sinclude preprocess %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
 							if (subbuffer.empty())
 								goto successful_include;
 
@@ -8681,10 +8681,10 @@ namespace vitex
 							return process_status;
 						}
 						case include_type::unchanged:
-							VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+							VI_TRACE("proc %sinclude as-is %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
 							goto successful_include;
 						case include_type::computed:
-							VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+							VI_TRACE("proc %sinclude virtual %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
 							subbuffer.clear();
 							goto successful_include;
 						case include_type::error:
@@ -8707,7 +8707,7 @@ namespace vitex
 					if (!status)
 						return status;
 
-					VI_TRACE("[proc] apply pragma %s on 0x%" PRIXPTR, buffer.substr(next.start, next.end - next.start).c_str(), (void*)this);
+					VI_TRACE("proc apply pragma %s on 0x%" PRIXPTR, buffer.substr(next.start, next.end - next.start).c_str(), (void*)this);
 					offset = replace_token(next, buffer, core::string());
 				}
 				else if (next.name == "define")
@@ -8788,7 +8788,7 @@ namespace vitex
 			{
 				case include_type::preprocess:
 				{
-					VI_TRACE("[proc] %sinclude preprocess %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+					VI_TRACE("proc %sinclude preprocess %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
 					if (subbuffer.empty())
 						goto include_result;
 
@@ -8800,10 +8800,10 @@ namespace vitex
 					return process_status.error();
 				}
 				case include_type::unchanged:
-					VI_TRACE("[proc] %sinclude as-is %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+					VI_TRACE("proc %sinclude as-is %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
 					goto include_result;
 				case include_type::computed:
-					VI_TRACE("[proc] %sinclude virtual %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
+					VI_TRACE("proc %sinclude virtual %s%s%s on 0x%" PRIXPTR, file.is_remote ? "remote " : "", file.is_abstract ? "abstract " : "", file.is_file ? "file " : "", file.library.c_str(), (void*)this);
 					subbuffer.clear();
 					goto include_result;
 				case include_type::error:

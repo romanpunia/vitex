@@ -1806,7 +1806,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)decl.size());
+			VI_TRACE("asc register class 0x%" PRIXPTR " funcdef %i bytes", (void*)this, (int)decl.size());
 			return function_factory::to_return(engine->RegisterFuncdef(decl.data()));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1822,7 +1822,7 @@ namespace vitex
 			VI_ASSERT(engine != nullptr, "engine should be set");
 
 			core::string decl = core::stringify::text("%s& opAssign(const %s &in)", get_type_name().data(), get_type_name().data());
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.c_str(), *value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1837,7 +1837,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), (asEBehaviours)behave, decl.data(), *value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1851,7 +1851,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)decl.size(), offset);
+			VI_TRACE("asc register class 0x%" PRIXPTR " property %i bytes at 0x0+%i", (void*)this, (int)decl.size(), offset);
 			return function_factory::to_return(engine->RegisterObjectProperty(get_type_name().data(), decl.data(), offset));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1863,7 +1863,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " static property %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -1892,7 +1892,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.data(), *value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1907,7 +1907,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 
 			const char* name_space = engine->GetDefaultNamespace();
 			const char* scope = this->type->GetNamespace();
@@ -1926,7 +1926,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -1941,7 +1941,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -1956,7 +1956,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
-			VI_TRACE("[vm] register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -2164,7 +2164,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)decl.size());
+			VI_TRACE("asc register interface 0x%" PRIXPTR " method %i bytes", (void*)this, (int)decl.size());
 			return function_factory::to_return(engine->RegisterInterfaceMethod(get_type_name().data(), decl.data()));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -2210,7 +2210,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)name.size(), value);
+			VI_TRACE("asc register enum 0x%" PRIXPTR " value %i bytes = %i", (void*)this, (int)name.size(), value);
 			return function_factory::to_return(engine->RegisterEnumValue(get_type_name().data(), name.data(), value));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -3162,7 +3162,7 @@ namespace vitex
 		{
 			VI_ASSERT(vm != nullptr, "engine should be set");
 			VI_ASSERT(!module_name.empty(), "module name should not be empty");
-			VI_DEBUG("[vm] prepare %.*s on 0x%" PRIXPTR, (int)module_name.size(), module_name.data(), (uintptr_t)this);
+			VI_DEBUG("asc prepare %.*s on 0x%" PRIXPTR, (int)module_name.size(), module_name.data(), (uintptr_t)this);
 #ifdef VI_ANGELSCRIPT
 			built = false;
 			vcache.valid = false;
@@ -3213,7 +3213,7 @@ namespace vitex
 			info->data = stream->GetCode();
 			core::memory::deinit(stream);
 			if (r >= 0)
-				VI_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+				VI_DEBUG("asc OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 			return function_factory::to_return(r);
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -3247,7 +3247,7 @@ namespace vitex
 
 			auto result = vm->add_script_section(scope, *source, code);
 			if (result)
-				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
+				VI_DEBUG("asc OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 			return result;
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -3271,7 +3271,7 @@ namespace vitex
 
 			auto result = vm->add_script_section(scope, name, buffer);
 			if (result)
-				VI_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
+				VI_DEBUG("asc OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 			return result;
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -3289,7 +3289,7 @@ namespace vitex
 				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 			core::memory::deinit(stream);
 			if (r >= 0)
-				VI_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+				VI_DEBUG("asc OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 			return function_factory::to_return(r);
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -3312,7 +3312,7 @@ namespace vitex
 			if (!built)
 				return function_factory::to_return(r);
 
-			VI_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
+			VI_DEBUG("asc OK compile on 0x%" PRIXPTR, (uintptr_t)this);
 			if (vcache.name.empty())
 				return function_factory::to_return(r);
 
@@ -3840,7 +3840,7 @@ namespace vitex
 			for (auto& item : core::stringify::split(type, ','))
 			{
 				core::stringify::trim(item);
-				slow_to_string_callbacks[item] = std::move(callback);
+				slow_to_string_callbacks[item] = callback;
 			}
 		}
 		void debugger_context::line_callback(asIScriptContext* base)
@@ -6505,7 +6505,7 @@ namespace vitex
 		{
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register interface %i bytes", (int)name.size());
+			VI_TRACE("asc register interface %i bytes", (int)name.size());
 #ifdef VI_ANGELSCRIPT
 			int type_id = engine->RegisterInterface(name.data());
 			return function_factory::to_return<type_interface>(type_id, type_interface(this, engine->GetTypeInfoById(type_id), type_id));
@@ -6517,7 +6517,7 @@ namespace vitex
 		{
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register struct(%i) %i bytes sizeof %i", (int)flags, (int)name.size(), (int)size);
+			VI_TRACE("asc register struct(%i) %i bytes sizeof %i", (int)flags, (int)name.size(), (int)size);
 #ifdef VI_ANGELSCRIPT
 			int type_id = engine->RegisterObjectType(name.data(), (asUINT)size, (asDWORD)flags);
 			return function_factory::to_return<type_class>(type_id, type_class(this, engine->GetTypeInfoById(type_id), type_id));
@@ -6533,7 +6533,7 @@ namespace vitex
 		{
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class(%i) %i bytes", (int)flags, (int)name.size());
+			VI_TRACE("asc register class(%i) %i bytes", (int)flags, (int)name.size());
 #ifdef VI_ANGELSCRIPT
 			int type_id = engine->RegisterObjectType(name.data(), (asUINT)size, (asDWORD)flags);
 			return function_factory::to_return<ref_class>(type_id, ref_class(this, engine->GetTypeInfoById(type_id), type_id));
@@ -6546,7 +6546,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register class(%i) %i bytes", (int)flags, (int)decl.size());
+			VI_TRACE("asc register class(%i) %i bytes", (int)flags, (int)decl.size());
 #ifdef VI_ANGELSCRIPT
 			int type_id = engine->RegisterObjectType(decl.data(), (asUINT)size, (asDWORD)flags);
 			return function_factory::to_return<template_class>(type_id, template_class(this, name));
@@ -6558,7 +6558,7 @@ namespace vitex
 		{
 			VI_ASSERT(core::stringify::is_cstring(name), "name should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register enum %i bytes", (int)name.size());
+			VI_TRACE("asc register enum %i bytes", (int)name.size());
 #ifdef VI_ANGELSCRIPT
 			int type_id = engine->RegisterEnum(name.data());
 			return function_factory::to_return<enumeration>(type_id, enumeration(this, engine->GetTypeInfoById(type_id), type_id));
@@ -6570,7 +6570,7 @@ namespace vitex
 		{
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcdef %i bytes", (int)decl.size());
+			VI_TRACE("asc register funcdef %i bytes", (int)decl.size());
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->RegisterFuncdef(decl.data()));
 #else
@@ -6582,7 +6582,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(type), "type should be set");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcdef %i bytes", (int)decl.size());
+			VI_TRACE("asc register funcdef %i bytes", (int)decl.size());
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->RegisterTypedef(type.data(), decl.data()));
 #else
@@ -6594,7 +6594,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->RegisterGlobalFunction(decl.data(), *value, (asECallConvTypes)type));
 #else
@@ -6606,7 +6606,7 @@ namespace vitex
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(value != nullptr, "value should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("[vm] register global %i bytes at 0x%" PRIXPTR, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register global %i bytes at 0x%" PRIXPTR, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->RegisterGlobalProperty(decl.data(), value));
 #else
@@ -7173,7 +7173,7 @@ namespace vitex
 			core::umutex<std::recursive_mutex> unique(sync.general);
 			sections.clear();
 		}
-		void virtual_machine::set_compiler_error_callback(when_error_callback&& callback)
+		void virtual_machine::set_compiler_error_callback(compile_callback&& callback)
 		{
 			when_error = std::move(callback);
 		}
@@ -7418,7 +7418,7 @@ namespace vitex
 				return status;
 
 			std::string_view target_path = path.empty() ? "<anonymous>" : path;
-			VI_TRACE("[vm] preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size(), (uint64_t)generators.size());
+			VI_TRACE("asc preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size(), (uint64_t)generators.size());
 			{
 				core::unordered_set<core::string> applied_generators;
 				core::umutex<std::recursive_mutex> unique(sync.general);
@@ -7429,7 +7429,7 @@ namespace vitex
 					if (applied_generators.find(item.first) != applied_generators.end())
 						continue;
 
-					VI_TRACE("[vm] generate source code for %s generator at %.*s (%" PRIu64 " bytes)", item.first.c_str(), (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size());
+					VI_TRACE("asc generate source code for %s generator at %.*s (%" PRIu64 " bytes)", item.first.c_str(), (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size());
 					auto status = item.second(processor, path, inout_buffer);
 					if (!status)
 						return compute::preprocessor_exception(compute::preprocessor_error::extension_error, 0, status.error().message());
@@ -7857,13 +7857,13 @@ namespace vitex
 				if (!function)
 					return virtual_exception("cfunction not found: " + core::string(func));
 #ifdef VI_ANGELSCRIPT
-				VI_TRACE("[vm] register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)decl.size(), (void*)function);
+				VI_TRACE("asc register global funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)asCALL_CDECL, (int)decl.size(), (void*)function);
 				int result = engine->RegisterGlobalFunction(decl.data(), asFUNCTION(function), asCALL_CDECL);
 				if (result < 0)
 					return virtual_exception((virtual_error)result, "register cfunction error: " + core::string(func));
 
 				context.functions.insert({ core::string(func), { core::string(decl), (void*)function } });
-				VI_DEBUG("[vm] load function %.*s", (int)func.size(), func.data());
+				VI_DEBUG("asc load function %.*s", (int)func.size(), func.data());
 				return core::expectation::met;
 #else
 				(void)this;
@@ -7936,7 +7936,7 @@ namespace vitex
 
 			unique.negate();
 			clibraries.insert({ core::string(name), std::move(library) });
-			VI_DEBUG("[vm] load library %.*s", (int)path.size(), path.data());
+			VI_DEBUG("asc load library %.*s", (int)path.size(), path.data());
 			return core::expectation::met;
 		}
 		expects_vm<void> virtual_machine::import_system_addon(const std::string_view& name)
@@ -7970,7 +7970,7 @@ namespace vitex
 			if (base.callback)
 				base.callback(this);
 
-			VI_DEBUG("[vm] load system addon %.*s", (int)name.size(), name.data());
+			VI_DEBUG("asc load system addon %.*s", (int)name.size(), name.data());
 			return core::expectation::met;
 		}
 		expects_vm<void> virtual_machine::import_addon(const std::string_view& name)
@@ -7991,7 +7991,7 @@ namespace vitex
 			if (code != 0)
 				return virtual_exception("import user addon: initialization failed (path = " + core::string(path) + ", exit = " + core::to_string(code) + ")");
 
-			VI_DEBUG("[vm] addon library %.*s initializated", (int)path.size(), path.data());
+			VI_DEBUG("asc addon library %.*s initializated", (int)path.size(), path.data());
 			library.functions.insert({ "addon_import", { core::string(), (void*)addon_import } });
 			return core::expectation::met;
 		}
@@ -8181,7 +8181,7 @@ namespace vitex
 				if (!base->callbacks.exception && !vm->global_exception)
 				{
 					core::string details = bindings::exception::pointer(core::string(message)).what();
-					VI_ERR("[vm] uncaught exception %s, callstack:\n%.*s", details.empty() ? "unknown" : details.c_str(), (int)trace.size(), trace.c_str());
+					VI_ERR("asc uncaught exception %s, callstack:\n%.*s", details.empty() ? "unknown" : details.c_str(), (int)trace.size(), trace.c_str());
 				}
 
 				core::umutex<std::recursive_mutex> unique(base->exchange);
@@ -8363,31 +8363,40 @@ namespace vitex
 		{
 #ifdef VI_ANGELSCRIPT
 			virtual_machine* engine = (virtual_machine*)this_engine;
-			const char* section = (info->section && info->section[0] != '\0' ? info->section : "?");
-			if (engine->when_error)
-				engine->when_error();
-
+			auto section = core::os::path::get_filename(info->section && info->section[0] != '\0' ? info->section : "?");
 			auto source_code = engine->get_source_code_appendix_by_path("error", section, info->row, info->col, 5);
-			if (engine != nullptr && !engine->callbacks.empty())
+			if (engine->when_error)
+			{
+				if (info->type == asMSGTYPE_WARNING)
+					return engine->when_error(core::stringify::text("warn/%s:%i %s%s", section.data(), info->row, info->message, source_code ? source_code->c_str() : ""));
+				else if (info->type == asMSGTYPE_INFORMATION)
+					return engine->when_error(info->message);
+
+				return engine->when_error(core::stringify::text("error/%s:%i %s%s", section.data(), info->row, info->message, source_code ? source_code->c_str() : ""));
+			}
+			else if (!engine->callbacks.empty())
 			{
 				auto it = engine->callbacks.find(section);
+				if (it == engine->callbacks.end())
+					it = engine->callbacks.find("*");
+
 				if (it != engine->callbacks.end())
 				{
 					if (info->type == asMSGTYPE_WARNING)
-						return it->second(core::stringify::text("WARN %i: %s%s", info->row, info->message, source_code ? source_code->c_str() : ""));
+						return it->second(core::stringify::text("warn/%s:%i %s%s", section.data(), info->row, info->message, source_code ? source_code->c_str() : ""));
 					else if (info->type == asMSGTYPE_INFORMATION)
-						return it->second(core::stringify::text("INFO %s", info->message));
+						return it->second(info->message);
 
-					return it->second(core::stringify::text("ERR %i: %s%s", info->row, info->message, source_code ? source_code->c_str() : ""));
+					return it->second(core::stringify::text("error/%s:%i %s%s", section.data(), info->row, info->message, source_code ? source_code->c_str() : ""));
 				}
 			}
 
 			if (info->type == asMSGTYPE_WARNING)
-				VI_WARN("%s:%i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
+				VI_WARN("asc %s:%i %s%s", section.data(), info->row, info->message, source_code ? source_code->c_str() : "");
 			else if (info->type == asMSGTYPE_INFORMATION)
-				VI_INFO("%s", info->message);
+				VI_INFO("asc %s", info->message);
 			else if (info->type == asMSGTYPE_ERROR)
-				VI_ERR("%s: %i: %s%s", section, info->row, info->message, source_code ? source_code->c_str() : "");
+				VI_ERR("asc %s:%i %s%s", section.data(), info->row, info->message, source_code ? source_code->c_str() : "");
 #endif
 		}
 		size_t virtual_machine::get_default_access_mask()
@@ -8618,7 +8627,7 @@ namespace vitex
 			}
 
 			if (executions > 0)
-				VI_TRACE("[vm] loop process %" PRIu64 " events", (uint64_t)executions);
+				VI_TRACE("asc loop process %" PRIu64 " events", (uint64_t)executions);
 			return executions;
 		}
 		void event_loop::abort_if(expects_vm<execution>&& status)

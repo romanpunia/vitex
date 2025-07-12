@@ -3181,9 +3181,9 @@ namespace vitex
 				if (diff <= (int64_t)timings::pass * 1000000)
 					return;
 #ifdef VI_CXX20
-				VI_WARN("[stall] %s:%i mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", os::path::get_filename(location.file_name()).data(), (int)location.line(), diff / 1000000, diff, (uint64_t)timings::pass);
+				VI_WARN("stall %s:%i mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", os::path::get_filename(location.file_name()).data(), (int)location.line(), diff / 1000000, diff, (uint64_t)timings::pass);
 #else
-				VI_WARN("[stall] mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", diff / 1000000, diff, (uint64_t)timings::pass);
+				VI_WARN("stall mutex lock() took %" PRIu64 " ms (%" PRIu64 " ns, expected < %" PRIu64 " ms)", diff / 1000000, diff, (uint64_t)timings::pass);
 #endif
 			}
 #else
@@ -4559,7 +4559,7 @@ namespace vitex
 				{
 					int64_t diff = (schedule::get_clock() - time).count();
 					if (diff > (int64_t)timings::hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", diff / 1000, diff, (uint64_t)timings::hangup);
+						VI_WARN("stall async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", diff / 1000, diff, (uint64_t)timings::hangup);
 
 					VI_UNWATCH(handle.address());
 					handle.resume();
@@ -4889,7 +4889,7 @@ namespace vitex
 				{
 					int64_t diff = (schedule::get_clock() - time).count();
 					if (diff > (int64_t)timings::hangup * 1000)
-						VI_WARN("[stall] async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", diff / 1000, diff, (uint64_t)timings::hangup);
+						VI_WARN("stall async operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", diff / 1000, diff, (uint64_t)timings::hangup);
 
 					VI_UNWATCH(handle.address());
 					handle.resume();
@@ -5157,7 +5157,7 @@ namespace vitex
 			{
 				int64_t diff = (schedule::get_clock() - time).count();
 				if (diff > (int64_t)timings::hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", function, expression, diff / 1000, diff, (uint64_t)timings::hangup);
+					VI_WARN("stall %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", function, expression, diff / 1000, diff, (uint64_t)timings::hangup);
 				VI_UNWATCH((void*)&future);
 			}
 #endif
@@ -5185,7 +5185,7 @@ namespace vitex
 			{
 				int64_t diff = (schedule::get_clock() - time).count();
 				if (diff > (int64_t)timings::hangup * 1000)
-					VI_WARN("[stall] %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", function, expression, diff / 1000, diff, (uint64_t)timings::hangup);
+					VI_WARN("stall %s(): \"%s\" operation took %" PRIu64 " ms (%" PRIu64 " us, expected < %" PRIu64 " ms)", function, expression, diff / 1000, diff, (uint64_t)timings::hangup);
 				VI_UNWATCH((void*)&future);
 			}
 #endif

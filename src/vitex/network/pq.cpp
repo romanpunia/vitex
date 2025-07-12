@@ -114,7 +114,7 @@ namespace vitex
 				core::string buffer(message);
 				for (auto& item : core::stringify::split(buffer, '\n'))
 				{
-					VI_DEBUG("[pq] %s", item.c_str());
+					VI_DEBUG("pq %s", item.c_str());
 					(void)item;
 				}
 			}
@@ -130,7 +130,7 @@ namespace vitex
 				buffer.erase(buffer.size() - 1);
 				for (auto& item : core::stringify::split(buffer, '\n'))
 				{
-					VI_DEBUG("[pq] %s", item.c_str());
+					VI_DEBUG("pq %s", item.c_str());
 					(void)item;
 				}
 #endif
@@ -1690,7 +1690,7 @@ namespace vitex
 					core::vector<network::utils::poll_fd> sockets;
 					tconnection* error = nullptr;
 
-					VI_DEBUG("[pq] try connect using %i connections", (int)connections);
+					VI_DEBUG("pq try connect using %i connections", (int)connections);
 					queue.reserve(connections);
 
 					auto& props = source.get();
@@ -1713,7 +1713,7 @@ namespace vitex
 						queue[fd.fd] = base;
 						sockets.emplace_back(std::move(fd));
 
-						VI_DEBUG("[pq] try connect to %s on 0x%" PRIXPTR, address.c_str(), base);
+						VI_DEBUG("pq try connect to %s on 0x%" PRIXPTR, address.c_str(), base);
 						if (PQstatus(base) == ConnStatusType::CONNECTION_BAD)
 						{
 							error = base;
@@ -1744,7 +1744,7 @@ namespace vitex
 										break;
 									case PGRES_POLLING_OK:
 									{
-										VI_DEBUG("[pq] OK connect on 0x%" PRIXPTR, (uintptr_t)base);
+										VI_DEBUG("pq OK connect on 0x%" PRIXPTR, (uintptr_t)base);
 										PQsetNoticeProcessor(base, PQlogNotice, nullptr);
 										PQsetnonblocking(base, 1);
 
@@ -1897,7 +1897,7 @@ namespace vitex
 			}
 			expects_promise_db<cursor> cluster::template_query(const std::string_view& name, core::schema_args* map, size_t opts, session_id session)
 			{
-				VI_DEBUG("[pq] template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
+				VI_DEBUG("pq template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
 				auto pattern = driver::get()->get_query(this, name, map);
 				if (!pattern)
 					return expects_promise_db<cursor>(pattern.error());
@@ -1916,7 +1916,7 @@ namespace vitex
 					if (get_cache(reference, &result))
 					{
 						driver::get()->log_query(command);
-						VI_DEBUG("[pq] OK execute on NULL (memory-cache)");
+						VI_DEBUG("pq OK execute on NULL (memory-cache)");
 						return expects_promise_db<cursor>(std::move(result));
 					}
 				}
@@ -1943,7 +1943,7 @@ namespace vitex
 				for (auto& item : pool)
 				{
 					if (item.second->busy() && item.second->current != nullptr && time - item.second->current->time > timeout)
-						VI_WARN("[pq] stuck%s on 0x%" PRIXPTR " while executing query (rid: %" PRIu64 "):\n  %s", item.second->in_transaction() ? " in transaction" : "", (uintptr_t)item.second, item.second->current->id, item.second->current->command.data());
+						VI_WARN("pq stuck%s on 0x%" PRIXPTR " while executing query (rid: %" PRIu64 "):\n  %s", item.second->in_transaction() ? " in transaction" : "", (uintptr_t)item.second, item.second->current->id, item.second->current->command.data());
 				}
 
 				return future;
@@ -2075,7 +2075,7 @@ namespace vitex
 				auto* broken_request = target->make_lost();
 				if (broken_request != nullptr)
 				{
-					VI_DEBUG("[pqerr] query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)target->base);
+					VI_DEBUG("pqerr query reset on 0x%" PRIXPTR ": connection lost", (uintptr_t)target->base);
 					core::codefer([broken_request]()
 					{
 						core::uptr<request> item = broken_request;
@@ -2087,7 +2087,7 @@ namespace vitex
 				PQlogNoticeOf(target->base);
 				PQfinish(target->base);
 
-				VI_DEBUG("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)target->base);
+				VI_DEBUG("pq try reconnect on 0x%" PRIXPTR, (uintptr_t)target->base);
 				target->base = PQconnectdbParams(keys, values, 0);
 				core::memory::deallocate(keys);
 				core::memory::deallocate(values);
@@ -2107,7 +2107,7 @@ namespace vitex
 					channels.push_back(item);
 				target->listens.clear();
 
-				VI_DEBUG("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)target->base);
+				VI_DEBUG("pq OK reconnect on 0x%" PRIXPTR, (uintptr_t)target->base);
 				target->make_idle();
 				target->stream->migrate_to((socket_t)PQsocket(target->base));
 				PQsetnonblocking(target->base, 1);
@@ -2165,7 +2165,7 @@ namespace vitex
 					return false;
 
 				VI_MEASURE(core::timings::intensive);
-				VI_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s (rid: %" PRIu64 "): %.64s%s", (uintptr_t)base, base->in_transaction() ? " (transaction)" : "", base->current->id, base->current->command.data(), base->current->command.size() > 64 ? " ..." : "");
+				VI_DEBUG("pq execute query on 0x%" PRIXPTR "%s (rid: %" PRIu64 "): %.64s%s", (uintptr_t)base, base->in_transaction() ? " (transaction)" : "", base->current->id, base->current->command.data(), base->current->command.size() > 64 ? " ..." : "");
 				if (PQsendQuery(base->base, base->current->command.data()) == 1)
 				{
 					flush(base, false);
@@ -2239,7 +2239,7 @@ namespace vitex
 								core::codefer([event, callback = std::move(callback)]() { callback(event); });
 							}
 						}
-						VI_DEBUG("[pq] notification on channel @%s: %s", notification->relname, notification->extra ? notification->extra : "[payload]");
+						VI_DEBUG("pq notification on channel @%s: %s", notification->relname, notification->extra ? notification->extra : "[payload]");
 						PQfreeNotify(notification);
 					}
 				}
@@ -2254,7 +2254,7 @@ namespace vitex
 
 				PQlogNoticeOf(source->base);
 				if (source->current != nullptr && !source->current->result.error())
-					VI_DEBUG("[pq] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms, rid: %" PRIu64 ")", (uintptr_t)source, source->current->get_timing(), source->current->id);
+					VI_DEBUG("pq OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms, rid: %" PRIu64 ")", (uintptr_t)source, source->current->get_timing(), source->current->id);
 
 				auto* ready_request = source->make_idle();
 				if (ready_request != nullptr)
@@ -2694,7 +2694,7 @@ namespace vitex
 				}
 
 				if (count > 0)
-					VI_DEBUG("[pq] OK load %" PRIu64 " parsed query templates", (uint64_t)count);
+					VI_DEBUG("pq OK load %" PRIu64 " parsed query templates", (uint64_t)count);
 
 				return count > 0;
 			}
@@ -2723,7 +2723,7 @@ namespace vitex
 					}
 				}
 
-				VI_DEBUG("[pq] OK save %" PRIu64 " parsed query templates", (uint64_t)queries.size());
+				VI_DEBUG("pq OK save %" PRIu64 " parsed query templates", (uint64_t)queries.size());
 				return result;
 			}
 			expects_db<core::string> driver::emplace(cluster* base, const std::string_view& SQL, core::schema_list* map) noexcept

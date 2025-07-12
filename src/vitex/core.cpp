@@ -374,7 +374,7 @@ namespace vitex
 			bool debug_allocator::dump(void* address)
 			{
 #if VI_DLEVEL >= 4
-				VI_TRACE("[mem] dump internal memory state on 0x%" PRIXPTR, address);
+				VI_TRACE("mem dump internal memory state on 0x%" PRIXPTR, address);
 				umutex<std::recursive_mutex> unique(mutex);
 				if (address != nullptr)
 				{
@@ -433,7 +433,7 @@ namespace vitex
 
 					if (static_addresses == blocks.size() + watchers.size())
 					{
-						VI_DEBUG("[mem] memory tracing OK: no memory leaked");
+						VI_DEBUG("mem memory tracing OK: no memory leaked");
 						error_handling::set_flag(log_option::active, log_active);
 						return false;
 					}
@@ -445,7 +445,7 @@ namespace vitex
 						total_memory += item.second.size;
 
 					uint64_t count = (uint64_t)(blocks.size() + watchers.size() - static_addresses);
-					VI_DEBUG("[mem] %" PRIu64 " address%s still used (memory still in use: %" PRIu64 " bytes inc. static allocations)", count, count > 1 ? "es are" : " is", (uint64_t)total_memory);
+					VI_DEBUG("mem %" PRIu64 " address%s still used (memory still in use: %" PRIu64 " bytes inc. static allocations)", count, count > 1 ? "es are" : " is", (uint64_t)total_memory);
 					for (auto& item : blocks)
 					{
 						if (item.second.constant || item.second.type_name.find("ontainer_proxy") != std::string::npos || item.second.type_name.find("ist_node") != std::string::npos)
@@ -955,7 +955,7 @@ namespace vitex
 					return;
 
 				string back_trace = error_handling::get_measure_trace();
-				VI_WARN("[stall] sync operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", delta / 1000, delta, back_trace.c_str());
+				VI_WARN("stall sync operation took %" PRIu64 " ms (%" PRIu64 " us), back trace %s", delta / 1000, delta, back_trace.c_str());
 			}
 #endif
 		};
@@ -5992,7 +5992,7 @@ namespace vitex
 		bool composer::pop(const std::string_view& hash) noexcept
 		{
 			VI_ASSERT(context != nullptr, "composer should be initialized");
-			VI_TRACE("[composer] pop %.*s", (int)hash.size(), hash.data());
+			VI_TRACE("composer pop %.*s", (int)hash.size(), hash.data());
 
 			auto it = context->factory.find(VI_HASH(hash));
 			if (it == context->factory.end())
@@ -6008,7 +6008,7 @@ namespace vitex
 		}
 		void composer::push(uint64_t type_id, uint64_t tag, void* callback) noexcept
 		{
-			VI_TRACE("[composer] push type %" PRIu64 " tagged as %" PRIu64, type_id, tag);
+			VI_TRACE("composer push type %" PRIu64 " tagged as %" PRIu64, type_id, tag);
 			if (!context)
 				context = memory::init<state>();
 
@@ -6215,7 +6215,7 @@ namespace vitex
 				state.attributes = screen_buffer.wAttributes;
 
 			SetConsoleCtrlHandler(console_event_handler, true);
-			VI_TRACE("[console] allocate window 0x%" PRIXPTR, (void*)handle);
+			VI_TRACE("console allocate window 0x%" PRIXPTR, (void*)handle);
 #endif
 			state.status = mode::allocated;
 		}
@@ -6226,7 +6226,7 @@ namespace vitex
 				return;
 #ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
-			VI_TRACE("[console] deallocate window");
+			VI_TRACE("console deallocate window");
 #endif
 			state.status = mode::detached;
 		}
@@ -6234,7 +6234,7 @@ namespace vitex
 		{
 			umutex<std::recursive_mutex> unique(state.session);
 #ifdef VI_MICROSOFT
-			VI_TRACE("[console] hide window");
+			VI_TRACE("console hide window");
 			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #endif
 		}
@@ -6244,7 +6244,7 @@ namespace vitex
 			allocate();
 #ifdef VI_MICROSOFT
 			::ShowWindow(::GetConsoleWindow(), SW_SHOW);
-			VI_TRACE("[console] show window");
+			VI_TRACE("console show window");
 #endif
 		}
 		void console::clear()
@@ -6279,7 +6279,7 @@ namespace vitex
 				state.attributes = screen_buffer.wAttributes;
 
 			SetConsoleCtrlHandler(console_event_handler, true);
-			VI_TRACE("[console] attach window 0x%" PRIXPTR, (void*)handle);
+			VI_TRACE("console attach window 0x%" PRIXPTR, (void*)handle);
 #endif
 			state.status = mode::attached;
 		}
@@ -6939,7 +6939,7 @@ namespace vitex
 		{
 			VI_ASSERT(state.status != mode::detached, "console should be shown at least once");
 			VI_ASSERT(size > 0, "read length should be greater than zero");
-			VI_TRACE("[console] read up to %" PRIu64 " bytes", (uint64_t)size);
+			VI_TRACE("console read up to %" PRIu64 " bytes", (uint64_t)size);
 
 			bool success;
 			if (size > CHUNK_SIZE - 1)
@@ -7151,7 +7151,7 @@ namespace vitex
 		expects_io<size_t> stream::read_all(const std::function<void(uint8_t*, size_t)>& callback)
 		{
 			VI_ASSERT(callback != nullptr, "callback should be set");
-			VI_TRACE("[io] read all bytes on fd %i", get_readable_fd());
+			VI_TRACE("io read all bytes on fd %i", get_readable_fd());
 
 			size_t total = 0;
 			uint8_t buffer[CHUNK_SIZE];
@@ -7210,7 +7210,7 @@ namespace vitex
 		}
 		expects_io<void> memory_stream::clear()
 		{
-			VI_TRACE("[mem] fd %i clear", get_writeable_fd());
+			VI_TRACE("mem fd %i clear", get_writeable_fd());
 			buffer.clear();
 			offset = 0;
 			readable = false;
@@ -7252,14 +7252,14 @@ namespace vitex
 			}
 
 			VI_PANIC(readable || writeable, "file open cannot be issued with mode:%i", (int)mode);
-			VI_DEBUG("[mem] open %s%s %s fd", readable ? "r" : "", writeable ? "w" : "", file, (int)get_readable_fd());
+			VI_DEBUG("mem open %s%s %s fd", readable ? "r" : "", writeable ? "w" : "", file, (int)get_readable_fd());
 			open_virtual(string(file));
 			return expectation::met;
 		}
 		expects_io<void> memory_stream::close()
 		{
 			VI_MEASURE(timings::pass);
-			VI_DEBUG("[mem] close fd %i", get_readable_fd());
+			VI_DEBUG("mem close fd %i", get_readable_fd());
 			close_virtual();
 			buffer.clear();
 			offset = 0;
@@ -7274,11 +7274,11 @@ namespace vitex
 			switch (mode)
 			{
 				case file_seek::begin:
-					VI_TRACE("[mem] seek-64 fd %i begin %" PRId64, get_readable_fd(), seek);
+					VI_TRACE("mem seek-64 fd %i begin %" PRId64, get_readable_fd(), seek);
 					offset = seek < 0 ? 0 : buffer.size() + (size_t)seek;
 					break;
 				case file_seek::current:
-					VI_TRACE("[mem] seek-64 fd %i move %" PRId64, get_readable_fd(), seek);
+					VI_TRACE("mem seek-64 fd %i move %" PRId64, get_readable_fd(), seek);
 					if (seek < 0)
 					{
 						size_t position = (size_t)(-seek);
@@ -7288,7 +7288,7 @@ namespace vitex
 						offset += (size_t)seek;
 					break;
 				case file_seek::end:
-					VI_TRACE("[mem] seek-64 fd %i end %" PRId64, get_readable_fd(), seek);
+					VI_TRACE("mem seek-64 fd %i end %" PRId64, get_readable_fd(), seek);
 					if (seek < 0)
 					{
 						size_t position = (size_t)(-seek);
@@ -7318,7 +7318,7 @@ namespace vitex
 			va_list args;
 			va_start(args, format);
 			int value = vsscanf(memory, format, args);
-			VI_TRACE("[mem] fd %i scan %i bytes", get_readable_fd(), (int)value);
+			VI_TRACE("mem fd %i scan %i bytes", get_readable_fd(), (int)value);
 			va_end(args);
 			if (value >= 0)
 				return (size_t)value;
@@ -7330,7 +7330,7 @@ namespace vitex
 			VI_ASSERT(!virtual_name().empty(), "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::pass);
-			VI_TRACE("[mem] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("mem fd %i readln %i bytes", get_readable_fd(), (int)length);
 			size_t offset = 0;
 			while (offset < length)
 			{
@@ -7349,7 +7349,7 @@ namespace vitex
 			VI_ASSERT(!virtual_name().empty(), "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::pass);
-			VI_TRACE("[mem] fd %i read %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("mem fd %i read %i bytes", get_readable_fd(), (int)length);
 			if (!length)
 				return 0;
 
@@ -7372,7 +7372,7 @@ namespace vitex
 			va_list args;
 			va_start(args, format);
 			int value = vsnprintf(memory, memory - buffer.data(), format, args);
-			VI_TRACE("[mem] fd %i write %i bytes", get_writeable_fd(), value);
+			VI_TRACE("mem fd %i write %i bytes", get_writeable_fd(), value);
 			va_end(args);
 			if (value >= 0)
 				return (size_t)value;
@@ -7384,7 +7384,7 @@ namespace vitex
 			VI_ASSERT(!virtual_name().empty(), "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::pass);
-			VI_TRACE("[mem] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			VI_TRACE("mem fd %i write %i bytes", get_writeable_fd(), (int)length);
 			if (!length)
 				return 0;
 
@@ -7438,7 +7438,7 @@ namespace vitex
 		}
 		expects_io<void> file_stream::clear()
 		{
-			VI_TRACE("[io] fd %i clear", get_writeable_fd());
+			VI_TRACE("io fd %i clear", get_writeable_fd());
 			auto result = close();
 			if (!result)
 				return result;
@@ -7542,7 +7542,7 @@ namespace vitex
 		{
 			VI_ASSERT(io_stream != nullptr, "file should be opened");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] flush fd %i", get_writeable_fd());
+			VI_TRACE("io flush fd %i", get_writeable_fd());
 			if (fflush(io_stream) != 0)
 				return os::error::get_condition_or();
 			return expectation::met;
@@ -7556,7 +7556,7 @@ namespace vitex
 			va_list args;
 			va_start(args, format);
 			int value = vfscanf(io_stream, format, args);
-			VI_TRACE("[io] fd %i scan %i bytes", get_readable_fd(), value);
+			VI_TRACE("io fd %i scan %i bytes", get_readable_fd(), value);
 			va_end(args);
 			if (value >= 0)
 				return (size_t)value;
@@ -7568,7 +7568,7 @@ namespace vitex
 			VI_ASSERT(io_stream != nullptr, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("io fd %i readln %i bytes", get_readable_fd(), (int)length);
 			return fgets(data, (int)length, io_stream) ? strnlen(data, length) : 0;
 		}
 		expects_io<size_t> file_stream::read(uint8_t* data, size_t length)
@@ -7576,7 +7576,7 @@ namespace vitex
 			VI_ASSERT(io_stream != nullptr, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] fd %i read %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("io fd %i read %i bytes", get_readable_fd(), (int)length);
 			size_t value = fread(data, 1, length, io_stream);
 			if (value > 0 || feof(io_stream) != 0)
 				return (size_t)value;
@@ -7592,7 +7592,7 @@ namespace vitex
 			va_list args;
 			va_start(args, format);
 			int value = vfprintf(io_stream, format, args);
-			VI_TRACE("[io] fd %i write %i bytes", get_writeable_fd(), value);
+			VI_TRACE("io fd %i write %i bytes", get_writeable_fd(), value);
 			va_end(args);
 			if (value >= 0)
 				return (size_t)value;
@@ -7604,7 +7604,7 @@ namespace vitex
 			VI_ASSERT(io_stream != nullptr, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			VI_TRACE("io fd %i write %i bytes", get_writeable_fd(), (int)length);
 			size_t value = fwrite(data, 1, length, io_stream);
 			if (value > 0 || feof(io_stream) != 0)
 				return (size_t)value;
@@ -7649,7 +7649,7 @@ namespace vitex
 		}
 		expects_io<void> gz_stream::clear()
 		{
-			VI_TRACE("[gz] fd %i clear", get_writeable_fd());
+			VI_TRACE("gz fd %i clear", get_writeable_fd());
 			auto result = close();
 			if (!result)
 				return result;
@@ -7701,7 +7701,7 @@ namespace vitex
 			if (!target_path)
 				return target_path.error();
 
-			VI_DEBUG("[gz] open %s %s", type, target_path->c_str());
+			VI_DEBUG("gz open %s %s", type, target_path->c_str());
 			io_stream = gzopen(target_path->c_str(), type);
 			if (!io_stream)
 				return std::make_error_condition(std::errc::no_such_file_or_directory);
@@ -7721,7 +7721,7 @@ namespace vitex
 			if (!io_stream)
 				return expectation::met;
 
-			VI_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)io_stream);
+			VI_DEBUG("gz close 0x%" PRIXPTR, (uintptr_t)io_stream);
 			if (gzclose((gzFile)io_stream) != Z_OK)
 				return std::make_error_condition(std::errc::bad_file_descriptor);
 
@@ -7739,12 +7739,12 @@ namespace vitex
 			switch (mode)
 			{
 				case file_seek::begin:
-					VI_TRACE("[gz] seek fd %i begin %" PRId64, get_readable_fd(), offset);
+					VI_TRACE("gz seek fd %i begin %" PRId64, get_readable_fd(), offset);
 					if (gzseek((gzFile)io_stream, (long)offset, SEEK_SET) == -1)
 						return os::error::get_condition_or();
 					return expectation::met;
 				case file_seek::current:
-					VI_TRACE("[gz] seek fd %i move %" PRId64, get_readable_fd(), offset);
+					VI_TRACE("gz seek fd %i move %" PRId64, get_readable_fd(), offset);
 					if (gzseek((gzFile)io_stream, (long)offset, SEEK_CUR) == -1)
 						return os::error::get_condition_or();
 					return expectation::met;
@@ -7779,7 +7779,7 @@ namespace vitex
 			VI_ASSERT(data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[gz] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("gz fd %i readln %i bytes", get_readable_fd(), (int)length);
 			return gzgets((gzFile)io_stream, data, (int)length) ? strnlen(data, length) : 0;
 #else
 			return std::make_error_condition(std::errc::not_supported);
@@ -7791,7 +7791,7 @@ namespace vitex
 			VI_ASSERT(data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[gz] fd %i read %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("gz fd %i read %i bytes", get_readable_fd(), (int)length);
 			int value = gzread((gzFile)io_stream, data, (uint32_t)length);
 			if (value >= 0)
 				return (size_t)value;
@@ -7810,7 +7810,7 @@ namespace vitex
 			va_list args;
 			va_start(args, format);
 			int value = gzvprintf((gzFile)io_stream, format, args);
-			VI_TRACE("[gz] fd %i write %i bytes", get_writeable_fd(), value);
+			VI_TRACE("gz fd %i write %i bytes", get_writeable_fd(), value);
 			va_end(args);
 			if (value >= 0)
 				return (size_t)value;
@@ -7826,7 +7826,7 @@ namespace vitex
 			VI_ASSERT(data != nullptr, "data should be set");
 #ifdef VI_ZLIB
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[gz] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			VI_TRACE("gz fd %i write %i bytes", get_writeable_fd(), (int)length);
 			int value = gzwrite((gzFile)io_stream, data, (uint32_t)length);
 			if (value >= 0)
 				return (size_t)value;
@@ -7841,7 +7841,7 @@ namespace vitex
 			VI_ASSERT(io_stream != nullptr, "file should be opened");
 #ifdef VI_ZLIB
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[gz] fd %i tell", get_readable_fd());
+			VI_TRACE("gz fd %i tell", get_readable_fd());
 			long value = gztell((gzFile)io_stream);
 			if (value >= 0)
 				return (size_t)value;
@@ -7916,7 +7916,7 @@ namespace vitex
 
 			network::http::request_frame request;
 			request.location.assign(origin.path);
-			VI_DEBUG("[ws] open ro %.*s", (int)file.size(), file.data());
+			VI_DEBUG("ws open ro %.*s", (int)file.size(), file.data());
 
 			for (auto& item : origin.query)
 				request.query += item.first + "=" + item.second + "&";
@@ -7941,7 +7941,7 @@ namespace vitex
 		expects_io<void> web_stream::close()
 		{
 			auto* client = (network::http::client*)output_stream;
-			VI_DEBUG("[ws] close 0x%" PRIXPTR, (uintptr_t)client);
+			VI_DEBUG("ws close 0x%" PRIXPTR, (uintptr_t)client);
 			output_stream = nullptr;
 			offset = length = 0;
 			chunk.clear();
@@ -7962,11 +7962,11 @@ namespace vitex
 			switch (mode)
 			{
 				case file_seek::begin:
-					VI_TRACE("[ws] seek fd %i begin %" PRId64, get_readable_fd(), (int)new_offset);
+					VI_TRACE("ws seek fd %i begin %" PRId64, get_readable_fd(), (int)new_offset);
 					offset = new_offset;
 					return expectation::met;
 				case file_seek::current:
-					VI_TRACE("[ws] seek fd %i move %" PRId64, get_readable_fd(), (int)new_offset);
+					VI_TRACE("ws seek fd %i move %" PRId64, get_readable_fd(), (int)new_offset);
 					if (new_offset < 0)
 					{
 						size_t pointer = (size_t)(-new_offset);
@@ -7983,7 +7983,7 @@ namespace vitex
 						offset += new_offset;
 					return expectation::met;
 				case file_seek::end:
-					VI_TRACE("[ws] seek fd %i end %" PRId64, get_readable_fd(), (int)new_offset);
+					VI_TRACE("ws seek fd %i end %" PRId64, get_readable_fd(), (int)new_offset);
 					offset = length - new_offset;
 					return expectation::met;
 				default:
@@ -8007,7 +8007,7 @@ namespace vitex
 			VI_ASSERT(output_stream != nullptr, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_ASSERT(data_length > 0, "length should be greater than zero");
-			VI_TRACE("[ws] fd %i read %i bytes", get_readable_fd(), (int)data_length);
+			VI_TRACE("ws fd %i read %i bytes", get_readable_fd(), (int)data_length);
 
 			size_t result = 0;
 			if (offset + data_length > chunk.size() && (chunk.size() < length || (!length && !((network::http::client*)output_stream)->get_response()->content.limited)))
@@ -8046,7 +8046,7 @@ namespace vitex
 		}
 		expects_io<size_t> web_stream::tell()
 		{
-			VI_TRACE("[ws] fd %i tell", get_readable_fd());
+			VI_TRACE("ws fd %i tell", get_readable_fd());
 			return offset;
 		}
 		socket_t web_stream::get_readable_fd() const
@@ -8152,7 +8152,7 @@ namespace vitex
 				if (!output_stream)
 					goto output_error;
 
-				VI_DEBUG("[sh] open ro:pipe fd %i", VI_FILENO(output_stream));
+				VI_DEBUG("sh open ro:pipe fd %i", VI_FILENO(output_stream));
 			}
 
 			HANDLE input_readable = nullptr, input_writeable = nullptr;
@@ -8179,7 +8179,7 @@ namespace vitex
 				if (input_fd < 0)
 					goto input_error;
 
-				VI_DEBUG("[sh] open wo:pipe fd %i", input_fd);
+				VI_DEBUG("sh open wo:pipe fd %i", input_fd);
 			}
 
 			STARTUPINFO startup_policy;
@@ -8197,7 +8197,7 @@ namespace vitex
 			if (CreateProcessA(shell->c_str(), (LPSTR)executable.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup_policy, &process_info) == FALSE)
 				goto input_error;
 
-			VI_DEBUG("[sh] spawn piped process pid %i (tid = %i)", (int)process_info.dwProcessId, (int)process_info.dwThreadId);
+			VI_DEBUG("sh spawn piped process pid %i (tid = %i)", (int)process_info.dwProcessId, (int)process_info.dwThreadId);
 			internal.output_pipe = output_readable;
 			internal.input_pipe = input_writeable;
 			internal.process = process_info.hProcess;
@@ -8225,7 +8225,7 @@ namespace vitex
 				}
 
 				input_fd = input_pipe[1];
-				VI_DEBUG("[sh] open writeable wo:pipe fd %i", input_fd);
+				VI_DEBUG("sh open writeable wo:pipe fd %i", input_fd);
 			}
 
 			int output_pipe[2] = { 0, 0 };
@@ -8252,7 +8252,7 @@ namespace vitex
 				if (!output_stream)
 					goto pipe_error;
 
-				VI_DEBUG("[sh] open readable ro:pipe fd %i", VI_FILENO(output_stream));
+				VI_DEBUG("sh open readable ro:pipe fd %i", VI_FILENO(output_stream));
 			}
 
 			pid_t process_id = fork();
@@ -8273,7 +8273,7 @@ namespace vitex
 			}
 			else
 			{
-				VI_DEBUG("[sh] spawn piped process pid %i", (int)process_id);
+				VI_DEBUG("sh spawn piped process pid %i", (int)process_id);
 				internal.input_pipe = (void*)(uintptr_t)input_pipe[1];
 				internal.output_pipe = (void*)(uintptr_t)output_pipe[0];
 				internal.process = (void*)(uintptr_t)process_id;
@@ -8295,13 +8295,13 @@ namespace vitex
 #ifdef VI_MICROSOFT
 			if (internal.thread != nullptr)
 			{
-				VI_TRACE("[sh] close thread tid %i (wait)", (int)internal.thread_id);
+				VI_TRACE("sh close thread tid %i (wait)", (int)internal.thread_id);
 				WaitForSingleObject((HANDLE)internal.thread, INFINITE);
 				CloseHandle((HANDLE)internal.thread);
 			}
 			if (internal.process != nullptr)
 			{
-				VI_DEBUG("[sh] close process pid %i (wait)", (int)internal.thread_id);
+				VI_DEBUG("sh close process pid %i (wait)", (int)internal.thread_id);
 				WaitForSingleObject((HANDLE)internal.process, INFINITE);
 
 				DWORD status_code = 0;
@@ -8313,7 +8313,7 @@ namespace vitex
 #else
 			if (internal.process != nullptr)
 			{
-				VI_DEBUG("[sh] close process pid %i (wait)", (int)internal.thread_id);
+				VI_DEBUG("sh close process pid %i (wait)", (int)internal.thread_id);
 				while (waitpid((pid_t)internal.process_id, &exit_code, WNOHANG) != -1)
 					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				exit_code = WEXITSTATUS(exit_code);
@@ -8333,7 +8333,7 @@ namespace vitex
 			}
 			if (input_fd > 0)
 			{
-				VI_DEBUG("[sh] close fd %i", input_fd);
+				VI_DEBUG("sh close fd %i", input_fd);
 				::close(input_fd);
 				input_fd = -1;
 			}
@@ -8357,7 +8357,7 @@ namespace vitex
 			va_list args;
 			va_start(args, format);
 			int value = vfscanf(output_stream, format, args);
-			VI_TRACE("[sh] fd %i scan %i bytes", get_readable_fd(), value);
+			VI_TRACE("sh fd %i scan %i bytes", get_readable_fd(), value);
 			va_end(args);
 			if (value >= 0)
 				return (size_t)value;
@@ -8369,7 +8369,7 @@ namespace vitex
 			VI_ASSERT(output_stream != nullptr, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[sh] fd %i readln %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("sh fd %i readln %i bytes", get_readable_fd(), (int)length);
 			return fgets(data, (int)length, output_stream) ? strnlen(data, length) : 0;
 		}
 		expects_io<size_t> process_stream::read(uint8_t* data, size_t length)
@@ -8377,7 +8377,7 @@ namespace vitex
 			VI_ASSERT(output_stream != nullptr, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[sh] fd %i read %i bytes", get_readable_fd(), (int)length);
+			VI_TRACE("sh fd %i read %i bytes", get_readable_fd(), (int)length);
 			size_t value = fread(data, 1, length, output_stream);
 			if (value > 0 || feof(output_stream) != 0)
 				return (size_t)value;
@@ -8393,7 +8393,7 @@ namespace vitex
 			VI_ASSERT(input_fd > 0, "file should be opened");
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[sh] fd %i write %i bytes", get_writeable_fd(), (int)length);
+			VI_TRACE("sh fd %i write %i bytes", get_writeable_fd(), (int)length);
 			int value = (int)::write(input_fd, data, length);
 			if (value >= 0)
 				return (size_t)value;
@@ -8866,7 +8866,7 @@ namespace vitex
 		bool os::directory::is_exists(const std::string_view& path)
 		{
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] check path %.*s", (int)path.size(), path.data());
+			VI_TRACE("io check path %.*s", (int)path.size(), path.data());
 			if (!control::has(access_option::fs))
 				return false;
 
@@ -8883,7 +8883,7 @@ namespace vitex
 		bool os::directory::is_empty(const std::string_view& path)
 		{
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] check dir %.*s", (int)path.size(), path.data());
+			VI_TRACE("io check dir %.*s", (int)path.size(), path.data());
 			if (path.empty() || !control::has(access_option::fs))
 				return true;
 #if defined(VI_MICROSOFT)
@@ -8936,7 +8936,7 @@ namespace vitex
 		}
 		expects_io<void> os::directory::set_working(const std::string_view& path)
 		{
-			VI_TRACE("[io] apply working dir %.*s", (int)path.size(), path.data());
+			VI_TRACE("io apply working dir %.*s", (int)path.size(), path.data());
 #ifdef VI_MICROSOFT
 			if (SetCurrentDirectoryA(path.data()) != TRUE)
 				return os::error::get_condition_or();
@@ -8961,7 +8961,7 @@ namespace vitex
 		expects_io<void> os::directory::scan(const std::string_view& path, vector<std::pair<string, file_entry>>& entries)
 		{
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] scan dir %.*s", (int)path.size(), path.data());
+			VI_TRACE("io scan dir %.*s", (int)path.size(), path.data());
 			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
@@ -9019,7 +9019,7 @@ namespace vitex
 		expects_io<void> os::directory::create(const std::string_view& path)
 		{
 			VI_MEASURE(timings::file_system);
-			VI_DEBUG("[io] create dir %.*s", (int)path.size(), path.data());
+			VI_DEBUG("io create dir %.*s", (int)path.size(), path.data());
 			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
@@ -9066,7 +9066,7 @@ namespace vitex
 		expects_io<void> os::directory::remove(const std::string_view& path)
 		{
 			VI_MEASURE(timings::file_system);
-			VI_DEBUG("[io] remove dir %.*s", (int)path.size(), path.data());
+			VI_DEBUG("io remove dir %.*s", (int)path.size(), path.data());
 			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
@@ -9218,7 +9218,7 @@ namespace vitex
 			if (!result.empty() && result.back() != '/' && result.back() != '\\')
 				result += VI_SPLITTER;
 
-			VI_TRACE("[io] fetch library dir %s", result.c_str());
+			VI_TRACE("io fetch library dir %s", result.c_str());
 			return result;
 		}
 		expects_io<string> os::directory::get_working()
@@ -9243,12 +9243,12 @@ namespace vitex
 			if (!result.empty() && result.back() != '/' && result.back() != '\\')
 				result += VI_SPLITTER;
 
-			VI_TRACE("[io] fetch working dir %s", result.c_str());
+			VI_TRACE("io fetch working dir %s", result.c_str());
 			return result;
 		}
 		vector<string> os::directory::get_mounts()
 		{
-			VI_TRACE("[io] fetch mount points");
+			VI_TRACE("io fetch mount points");
 			vector<string> output;
 #ifdef VI_MICROSOFT
 			DWORD drive_mask = GetLogicalDrives();
@@ -9275,7 +9275,7 @@ namespace vitex
 		bool os::file::is_exists(const std::string_view& path)
 		{
 			VI_MEASURE(timings::file_system);
-			VI_TRACE("[io] check path %.*s", (int)path.size(), path.data());
+			VI_TRACE("io check path %.*s", (int)path.size(), path.data());
 			auto target_path = os::path::resolve(path);
 			return target_path && is_path_exists(target_path->c_str());
 		}
@@ -9297,7 +9297,7 @@ namespace vitex
 			}
 
 			size_t size1 = props1->size, size2 = props2->size;
-			VI_TRACE("[io] compare paths { %.*s (%" PRIu64 "), %.*s (%" PRIu64 ") }", (int)first_path.size(), first_path.data(), size1, (int)second_path.size(), second_path.data(), size2);
+			VI_TRACE("io compare paths { %.*s (%" PRIu64 "), %.*s (%" PRIu64 ") }", (int)first_path.size(), first_path.data(), size1, (int)second_path.size(), second_path.data(), size2);
 
 			if (size1 > size2)
 				return 1;
@@ -9374,7 +9374,7 @@ namespace vitex
 		{
 			VI_ASSERT(stringify::is_cstring(from) && stringify::is_cstring(to), "from and to should be set");
 			VI_MEASURE(timings::file_system);
-			VI_DEBUG("[io] copy file from %.*s to %.*s", (int)from.size(), from.data(), (int)to.size(), to.data());
+			VI_DEBUG("io copy file from %.*s to %.*s", (int)from.size(), from.data(), (int)to.size(), to.data());
 			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 
@@ -9397,7 +9397,7 @@ namespace vitex
 		{
 			VI_ASSERT(stringify::is_cstring(from) && stringify::is_cstring(to), "from and to should be set");
 			VI_MEASURE(timings::file_system);
-			VI_DEBUG("[io] move file from %.*s to %.*s", (int)from.size(), from.data(), (int)to.size(), to.data());
+			VI_DEBUG("io move file from %.*s to %.*s", (int)from.size(), from.data(), (int)to.size(), to.data());
 			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
@@ -9418,7 +9418,7 @@ namespace vitex
 		{
 			VI_ASSERT(stringify::is_cstring(path), "path should be set");
 			VI_MEASURE(timings::file_system);
-			VI_DEBUG("[io] remove file %.*s", (int)path.size(), path.data());
+			VI_DEBUG("io remove file %.*s", (int)path.size(), path.data());
 			if (!control::has(access_option::fs))
 				return std::make_error_condition(std::errc::permission_denied);
 #ifdef VI_MICROSOFT
@@ -9439,7 +9439,7 @@ namespace vitex
 		expects_io<void> os::file::close(FILE* stream)
 		{
 			VI_ASSERT(stream != nullptr, "stream should be set");
-			VI_DEBUG("[io] close fd %i", VI_FILENO(stream));
+			VI_DEBUG("io close fd %i", VI_FILENO(stream));
 			if (fclose(stream) != 0)
 				return os::error::get_condition_or();
 
@@ -9485,7 +9485,7 @@ namespace vitex
 			file->is_referenced = false;
 			file->is_exists = true;
 #endif
-			VI_TRACE("[io] stat %.*s: %s %" PRIu64 " bytes", (int)path.size(), path.data(), file->is_directory ? "dir" : "file", (uint64_t)file->size);
+			VI_TRACE("io stat %.*s: %s %" PRIu64 " bytes", (int)path.size(), path.data(), file->is_directory ? "dir" : "file", (uint64_t)file->size);
 			return core::expectation::met;
 		}
 		expects_io<void> os::file::seek64(FILE* stream, int64_t offset, file_seek mode)
@@ -9494,15 +9494,15 @@ namespace vitex
 			switch (mode)
 			{
 				case file_seek::begin:
-					VI_TRACE("[io] seek-64 fd %i begin %" PRId64, VI_FILENO(stream), offset);
+					VI_TRACE("io seek-64 fd %i begin %" PRId64, VI_FILENO(stream), offset);
 					origin = SEEK_SET;
 					break;
 				case file_seek::current:
-					VI_TRACE("[io] seek-64 fd %i move %" PRId64, VI_FILENO(stream), offset);
+					VI_TRACE("io seek-64 fd %i move %" PRId64, VI_FILENO(stream), offset);
 					origin = SEEK_CUR;
 					break;
 				case file_seek::end:
-					VI_TRACE("[io] seek-64 fd %i end %" PRId64, VI_FILENO(stream), offset);
+					VI_TRACE("io seek-64 fd %i end %" PRId64, VI_FILENO(stream), offset);
 					origin = SEEK_END;
 					break;
 				default:
@@ -9519,7 +9519,7 @@ namespace vitex
 		}
 		expects_io<size_t> os::file::tell64(FILE* stream)
 		{
-			VI_TRACE("[io] fd %i tell-64", VI_FILENO(stream));
+			VI_TRACE("io fd %i tell-64", VI_FILENO(stream));
 #ifdef VI_MICROSOFT
 			int64_t offset = _ftelli64(stream);
 #else
@@ -9534,7 +9534,7 @@ namespace vitex
 		{
 			VI_ASSERT(!to.empty(), "to should not be empty");
 			VI_ASSERT(!paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] join %i path to %.*s", (int)paths.size(), (int)to.size(), to.data());
+			VI_TRACE("io join %i path to %.*s", (int)paths.size(), (int)to.size(), to.data());
 			auto target = open(to, file_mode::binary_write_only);
 			if (!target)
 				return target.error();
@@ -9574,7 +9574,7 @@ namespace vitex
 			state.last_permission_change = buffer.st_ctime;
 			state.last_modified = buffer.st_mtime;
 
-			VI_TRACE("[io] stat %.*s: %" PRIu64 " bytes", (int)path.size(), path.data(), (uint64_t)state.size);
+			VI_TRACE("io stat %.*s: %" PRIu64 " bytes", (int)path.size(), path.data(), (uint64_t)state.size);
 			return state;
 		}
 		expects_io<file_entry> os::file::get_state(const std::string_view& path)
@@ -9602,14 +9602,14 @@ namespace vitex
 			if (!stream)
 				return os::error::get_condition_or();
 
-			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)mode.size(), mode.data(), VI_FILENO(stream), (int)path.size(), path.data());
+			VI_DEBUG("io open %.*s:file fd %i on %.*s", (int)mode.size(), mode.data(), VI_FILENO(stream), (int)path.size(), path.data());
 			return stream;
 #else
 			FILE* stream = fopen(path.data(), mode.data());
 			if (!stream)
 				return os::error::get_condition_or();
 
-			VI_DEBUG("[io] open %.*s:file fd %i on %.*s", (int)mode.size(), mode.data(), VI_FILENO(stream), (int)path.size(), path.data());
+			VI_DEBUG("io open %.*s:file fd %i on %.*s", (int)mode.size(), mode.data(), VI_FILENO(stream), (int)path.size(), path.data());
 			fcntl(VI_FILENO(stream), F_SETFD, FD_CLOEXEC);
 			return stream;
 #endif
@@ -9697,7 +9697,7 @@ namespace vitex
 		{
 			VI_ASSERT(!to.empty(), "to should not be empty");
 			VI_ASSERT(!paths.empty(), "paths to join should not be empty");
-			VI_TRACE("[io] open join %i path to %.*s", (int)paths.size(), (int)to.size(), to.data());
+			VI_TRACE("io open join %i path to %.*s", (int)paths.size(), (int)to.size(), to.data());
 			auto target = open(to, file_mode::binary_write_only);
 			if (!target)
 				return target;
@@ -9725,7 +9725,7 @@ namespace vitex
 		{
 			VI_ASSERT(stream != nullptr, "path should be set");
 			VI_MEASURE(core::timings::file_system);
-			VI_TRACE("[io] fd %i read-all", stream->get_readable_fd());
+			VI_TRACE("io fd %i read-all", stream->get_readable_fd());
 			if (length != nullptr)
 				*length = 0;
 
@@ -9840,12 +9840,12 @@ namespace vitex
 					return os::error::get_condition_or();
 
 				string output = *buffer > 0 ? string(buffer, strnlen(buffer, BLOB_SIZE)) : string(path);
-				VI_TRACE("[io] resolve %.*s path (non-existant)", (int)path.size(), path.data());
+				VI_TRACE("io resolve %.*s path (non-existant)", (int)path.size(), path.data());
 				return output;
 			}
 #endif
 			string output(buffer, strnlen(buffer, BLOB_SIZE));
-			VI_TRACE("[io] resolve %.*s path: %s", (int)path.size(), path.data(), output.c_str());
+			VI_TRACE("io resolve %.*s path: %s", (int)path.size(), path.data(), output.c_str());
 			return output;
 		}
 		expects_io<string> os::path::resolve(const std::string_view& path, const std::string_view& directory, bool even_if_exists)
@@ -9990,22 +9990,22 @@ namespace vitex
 		void os::process::abort()
 		{
 #ifdef NDEBUG
-			VI_DEBUG("[os] process terminate on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
+			VI_DEBUG("os process terminate on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 			std::terminate();
 #else
-			VI_DEBUG("[os] process abort on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
+			VI_DEBUG("os process abort on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 			std::abort();
 #endif
 		}
 		void os::process::exit(int code)
 		{
-			VI_DEBUG("[os] process exit:%i on thread %s", code, get_thread_id(std::this_thread::get_id()).c_str());
+			VI_DEBUG("os process exit:%i on thread %s", code, get_thread_id(std::this_thread::get_id()).c_str());
 			std::exit(code);
 		}
 		void os::process::interrupt()
 		{
 #ifndef NDEBUG
-			VI_DEBUG("[os] process suspend on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
+			VI_DEBUG("os process suspend on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 #ifndef VI_MICROSOFT
 #ifndef SIGTRAP
 			__debugbreak();
@@ -10155,7 +10155,7 @@ namespace vitex
 			int id = get_signal_id(type);
 			if (id == -1)
 				return false;
-			VI_DEBUG("[os] signal %i: %s", id, callback ? "callback" : "ignore");
+			VI_DEBUG("os signal %i: %s", id, callback ? "callback" : "ignore");
 #ifdef VI_LINUX
 			struct sigaction handle;
 			handle.sa_handler = callback ? callback : SIG_IGN;
@@ -10172,7 +10172,7 @@ namespace vitex
 			int id = get_signal_id(type);
 			if (id == -1)
 				return false;
-			VI_DEBUG("[os] signal %i: default", id);
+			VI_DEBUG("os signal %i: default", id);
 #ifdef VI_LINUX
 			struct sigaction handle;
 			handle.sa_handler = SIG_DFL;
@@ -10195,7 +10195,7 @@ namespace vitex
 		expects_io<int> os::process::execute(const std::string_view& command, file_mode mode, process_callback&& callback)
 		{
 			VI_ASSERT(!command.empty(), "commmand should be set");
-			VI_DEBUG("[os] execute sh [ %.*s ]", (int)command.size(), command.data());
+			VI_DEBUG("os execute sh [ %.*s ]", (int)command.size(), command.data());
 			uptr<process_stream> stream = new process_stream();
 			auto result = stream->open(command, file_mode::read_only);
 			if (!result)
@@ -10221,7 +10221,7 @@ namespace vitex
 		expects_io<process_stream*> os::process::spawn(const std::string_view& command, file_mode mode)
 		{
 			VI_ASSERT(!command.empty(), "command should be set");
-			VI_DEBUG("[os] execute sh [ %.*s ]", (int)command.size(), command.data());
+			VI_DEBUG("os execute sh [ %.*s ]", (int)command.size(), command.data());
 			uptr<process_stream> stream = new process_stream();
 			auto result = stream->open(command, mode);
 			if (result)
@@ -10238,7 +10238,7 @@ namespace vitex
 		expects_io<string> os::process::get_env(const std::string_view& name)
 		{
 			VI_ASSERT(stringify::is_cstring(name), "name should be set");
-			VI_TRACE("[os] load env %.*s", (int)name.size(), name.data());
+			VI_TRACE("os load env %.*s", (int)name.size(), name.data());
 			if (!control::has(access_option::env))
 				return std::make_error_condition(std::errc::permission_denied);
 
@@ -10368,7 +10368,7 @@ namespace vitex
 			if (!stringify::ends_with(name, ".dll"))
 				name.append(".dll");
 
-			VI_DEBUG("[dl] load dll library %s", name.c_str());
+			VI_DEBUG("dl load dll library %s", name.c_str());
 			HMODULE library = LoadLibrary(name.c_str());
 			if (!library)
 				return os::error::get_condition_or();
@@ -10388,7 +10388,7 @@ namespace vitex
 			if (!stringify::ends_with(name, ".dylib"))
 				name.append(".dylib");
 
-			VI_DEBUG("[dl] load dylib library %s", name.c_str());
+			VI_DEBUG("dl load dylib library %s", name.c_str());
 			void* library = (void*)dlopen(name.c_str(), RTLD_LAZY);
 			if (!library)
 				return os::error::get_condition_or();
@@ -10408,7 +10408,7 @@ namespace vitex
 			if (!stringify::ends_with(name, ".so"))
 				name.append(".so");
 
-			VI_DEBUG("[dl] load so library %s", name.c_str());
+			VI_DEBUG("dl load so library %s", name.c_str());
 			void* library = (void*)dlopen(name.c_str(), RTLD_LAZY);
 			if (!library)
 				return os::error::get_condition_or();
@@ -10421,7 +10421,7 @@ namespace vitex
 		expects_io<void*> os::symbol::load_function(void* handle, const std::string_view& name)
 		{
 			VI_ASSERT(handle != nullptr && stringify::is_cstring(name), "handle should be set and name should not be empty");
-			VI_DEBUG("[dl] load function %.*s", (int)name.size(), name.data());
+			VI_DEBUG("dl load function %.*s", (int)name.size(), name.data());
 			VI_MEASURE(timings::file_system);
 			if (!control::has(access_option::lib))
 				return std::make_error_condition(std::errc::permission_denied);
@@ -10445,7 +10445,7 @@ namespace vitex
 		{
 			VI_ASSERT(handle != nullptr, "handle should be set");
 			VI_MEASURE(timings::file_system);
-			VI_DEBUG("[dl] unload library 0x%" PRIXPTR, handle);
+			VI_DEBUG("dl unload library 0x%" PRIXPTR, handle);
 #ifdef VI_MICROSOFT
 			if (FreeLibrary((HMODULE)handle) != TRUE)
 				return os::error::get_condition_or();
@@ -10556,7 +10556,7 @@ namespace vitex
 
 		void os::control::set(access_option option, bool enabled)
 		{
-			VI_DEBUG("[os] control %s set %s", control::to_string(option).data(), enabled ? "ON" : "OFF");
+			VI_DEBUG("os control %s set %s", control::to_string(option).data(), enabled ? "ON" : "OFF");
 			uint64_t prev_options = options.load();
 			if (enabled)
 				prev_options |= (uint64_t)option;
@@ -10633,11 +10633,11 @@ namespace vitex
 		static thread_local costate* internal_coroutine = nullptr;
 		costate::costate(size_t stack_size) noexcept : thread(std::this_thread::get_id()), current(nullptr), master(memory::init<cocontext>()), size(stack_size), external_condition(nullptr), external_mutex(nullptr)
 		{
-			VI_TRACE("[co] spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(thread).c_str());
+			VI_TRACE("co spawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(thread).c_str());
 		}
 		costate::~costate() noexcept
 		{
-			VI_TRACE("[co] despawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(thread).c_str());
+			VI_TRACE("co despawn coroutine state 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(thread).c_str());
 			if (internal_coroutine == this)
 				internal_coroutine = nullptr;
 
@@ -11165,7 +11165,7 @@ namespace vitex
 			VI_ASSERT(!active, "queue should be stopped");
 			VI_ASSERT(new_policy.stack_size > 0, "stack size should not be zero");
 			VI_ASSERT(new_policy.max_coroutines > 0, "there must be at least one coroutine");
-			VI_TRACE("[schedule] start 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
+			VI_TRACE("schedule start 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
 
 			policy = new_policy;
 			active = true;
@@ -11195,7 +11195,7 @@ namespace vitex
 		}
 		bool schedule::stop()
 		{
-			VI_TRACE("[schedule] stop 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
+			VI_TRACE("schedule stop 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
 			umutex<std::mutex> unique(exclusive);
 			if (!active && !terminate)
 				return false;
@@ -11223,7 +11223,7 @@ namespace vitex
 		}
 		bool schedule::wakeup()
 		{
-			VI_TRACE("[schedule] wakeup 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
+			VI_TRACE("schedule wakeup 0x%" PRIXPTR " on thread %s", (void*)this, os::process::get_thread_id(std::this_thread::get_id()).c_str());
 			task_callback dummy[2] = { []() { }, []() { } };
 			size_t dummy_size = sizeof(dummy) / sizeof(task_callback);
 			for (size_t i = 0; i < (size_t)difficulty::count; i++)
@@ -11275,9 +11275,9 @@ namespace vitex
 					task_callback event;
 					receive_token token(sync->queue);
 					if (thread->daemon)
-						VI_DEBUG("[schedule] acquire thread %s (timers)", thread_id.c_str());
+						VI_DEBUG("schedule acquire thread %s (timers)", thread_id.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (timers)", thread_id.c_str());
+						VI_DEBUG("schedule spawn thread %s (timers)", thread_id.c_str());
 
 					do
 					{
@@ -11353,9 +11353,9 @@ namespace vitex
 					task_callback event;
 					receive_token token(async->queue);
 					if (thread->daemon)
-						VI_DEBUG("[schedule] acquire thread %s (coroutines)", thread_id.c_str());
+						VI_DEBUG("schedule acquire thread %s (coroutines)", thread_id.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (coroutines)", thread_id.c_str());
+						VI_DEBUG("schedule spawn thread %s (coroutines)", thread_id.c_str());
 
 					uptr<costate> state = new costate(policy.stack_size);
 					state->external_condition = &thread->notify;
@@ -11414,9 +11414,9 @@ namespace vitex
 					task_callback event;
 					receive_token token(sync->queue);
 					if (thread->daemon)
-						VI_DEBUG("[schedule] acquire thread %s (tasks)", thread_id.c_str());
+						VI_DEBUG("schedule acquire thread %s (tasks)", thread_id.c_str());
 					else
-						VI_DEBUG("[schedule] spawn thread %s (tasks)", thread_id.c_str());
+						VI_DEBUG("schedule spawn thread %s (tasks)", thread_id.c_str());
 
 					do
 					{
@@ -11452,9 +11452,9 @@ namespace vitex
 
 		exit_thread:
 			if (thread->daemon)
-				VI_DEBUG("[schedule] release thread %s", thread_id.c_str());
+				VI_DEBUG("schedule release thread %s", thread_id.c_str());
 			else
-				VI_DEBUG("[schedule] join thread %s", thread_id.c_str());
+				VI_DEBUG("schedule join thread %s", thread_id.c_str());
 
 			scripting::virtual_machine::cleanup_this_thread();
 			initialize_thread(nullptr, true);

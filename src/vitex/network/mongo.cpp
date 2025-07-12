@@ -28,7 +28,7 @@ namespace vitex
 			{
 				VI_ASSERT(base != nullptr, "context should be set");
 				VI_MEASURE(core::timings::intensive);
-				VI_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR ": %s", (uintptr_t)base, name + 1);
+				VI_DEBUG("mongoc execute query schema on 0x%" PRIXPTR ": %s", (uintptr_t)base, name + 1);
 
 				bson_error_t error;
 				memset(&error, 0, sizeof(bson_error_t));
@@ -37,7 +37,7 @@ namespace vitex
 				if (!function(base, data..., &error))
 					return database_exception(error.code, error.message);
 
-				VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)base, (uint64_t)((core::schedule::get_clock() - time).count() / 1000));
+				VI_DEBUG("mongoc OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)base, (uint64_t)((core::schedule::get_clock() - time).count() / 1000));
 				(void)time;
 				return core::expectation::met;
 			}
@@ -46,7 +46,7 @@ namespace vitex
 			{
 				VI_ASSERT(base != nullptr, "context should be set");
 				VI_MEASURE(core::timings::intensive);
-				VI_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR ": %s", (uintptr_t)base, name + 1);
+				VI_DEBUG("mongoc execute query cursor on 0x%" PRIXPTR ": %s", (uintptr_t)base, name + 1);
 
 				bson_error_t error;
 				memset(&error, 0, sizeof(bson_error_t));
@@ -56,7 +56,7 @@ namespace vitex
 				if (!result || mongoc_cursor_error(result, &error))
 					return database_exception(error.code, error.message);
 
-				VI_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)base, (uint64_t)((core::schedule::get_clock() - time).count() / 1000));
+				VI_DEBUG("mongoc OK execute on 0x%" PRIXPTR " (%" PRIu64 " ms)", (uintptr_t)base, (uint64_t)((core::schedule::get_clock() - time).count() / 1000));
 				(void)time;
 				return cursor(result);
 			}
@@ -1262,7 +1262,7 @@ namespace vitex
 			}
 			expects_db<void> stream::template_query(const std::string_view& name, core::schema_args* map)
 			{
-				VI_DEBUG("[mongoc] template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
+				VI_DEBUG("mongoc template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
 				auto pattern = driver::get()->get_query(name, map);
 				if (!pattern)
 					return pattern.error();
@@ -2364,7 +2364,7 @@ namespace vitex
 			}
 			expects_promise_db<response> collection::template_query(const std::string_view& name, core::schema_args* map, const transaction& session)
 			{
-				VI_DEBUG("[mongoc] template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
+				VI_DEBUG("mongoc template query %s", name.empty() ? "empty-query-name" : core::string(name).c_str());
 				auto pattern = driver::get()->get_query(name, map);
 				if (!pattern)
 					return expects_promise_db<response>(pattern.error());
@@ -3074,13 +3074,13 @@ namespace vitex
 
 							if (state == transaction_state::retry_commit)
 							{
-								VI_DEBUG("[mongoc] retrying transaction commit");
+								VI_DEBUG("mongoc retrying transaction commit");
 								continue;
 							}
 
 							if (state == transaction_state::retry)
 							{
-								VI_DEBUG("[mongoc] retrying full transaction");
+								VI_DEBUG("mongoc retrying full transaction");
 								break;
 							}
 						}
@@ -3487,26 +3487,26 @@ namespace vitex
 			driver::driver() noexcept : logger(nullptr), APM(nullptr)
 			{
 #ifdef VI_MONGOC
-				VI_TRACE("[mongo] OK initialize driver");
+				VI_TRACE("mongo OK initialize driver");
 				mongoc_log_set_handler([](mongoc_log_level_t level, const char* domain, const char* message, void*)
 				{
 					switch (level)
 					{
 						case MONGOC_LOG_LEVEL_WARNING:
-							VI_WARN("[mongoc] %s %s", domain, message);
+							VI_WARN("mongoc %s %s", domain, message);
 							break;
 						case MONGOC_LOG_LEVEL_INFO:
-							VI_INFO("[mongoc] %s %s", domain, message);
+							VI_INFO("mongoc %s %s", domain, message);
 							break;
 						case MONGOC_LOG_LEVEL_ERROR:
 						case MONGOC_LOG_LEVEL_CRITICAL:
-							VI_ERR("[mongoc] %s %s", domain, message);
+							VI_ERR("mongoc %s %s", domain, message);
 							break;
 						case MONGOC_LOG_LEVEL_MESSAGE:
-							VI_DEBUG("[mongoc] %s %s", domain, message);
+							VI_DEBUG("mongoc %s %s", domain, message);
 							break;
 						case MONGOC_LOG_LEVEL_TRACE:
-							VI_TRACE("[mongoc] %s %s", domain, message);
+							VI_TRACE("mongoc %s %s", domain, message);
 							break;
 						default:
 							break;
@@ -3518,7 +3518,7 @@ namespace vitex
 			driver::~driver() noexcept
 			{
 #ifdef VI_MONGOC
-				VI_TRACE("[mongo] cleanup driver");
+				VI_TRACE("mongo cleanup driver");
 				if (APM != nullptr)
 				{
 					mongoc_apm_callbacks_destroy((mongoc_apm_callbacks_t*)APM);
@@ -3749,7 +3749,7 @@ namespace vitex
 				}
 
 				if (count > 0)
-					VI_DEBUG("[mongo] OK load %" PRIu64 " parsed query templates", (uint64_t)count);
+					VI_DEBUG("mongo OK load %" PRIu64 " parsed query templates", (uint64_t)count);
 
 				return count > 0;
 			}
@@ -3778,7 +3778,7 @@ namespace vitex
 					}
 				}
 
-				VI_DEBUG("[mongo] OK save %" PRIu64 " parsed query templates", (uint64_t)queries.size());
+				VI_DEBUG("mongo OK save %" PRIu64 " parsed query templates", (uint64_t)queries.size());
 				return result;
 			}
 			expects_db<document> driver::get_query(const std::string_view& name, core::schema_args* map) noexcept

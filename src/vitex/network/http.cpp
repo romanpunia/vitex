@@ -437,7 +437,7 @@ namespace vitex
 					state = (uint32_t)web_socket_state::process;
 					if (opcode == web_socket_op::text || opcode == web_socket_op::binary)
 					{
-						VI_DEBUG("[websocket] sock %i frame data: %.*s", (int)stream->get_fd(), (int)codec->data.size(), codec->data.data());
+						VI_DEBUG("websocket sock %i frame data: %.*s", (int)stream->get_fd(), (int)codec->data.size(), codec->data.data());
 						if (receive)
 						{
 							unique.negate();
@@ -447,14 +447,14 @@ namespace vitex
 					}
 					else if (opcode == web_socket_op::ping)
 					{
-						VI_DEBUG("[websocket] sock %i frame ping", (int)stream->get_fd());
+						VI_DEBUG("websocket sock %i frame ping", (int)stream->get_fd());
 						unique.negate();
 						if (!receive || !receive(this, opcode, ""))
 							send("", web_socket_op::pong, [this](web_socket_frame*) { next(); });
 					}
 					else if (opcode == web_socket_op::close)
 					{
-						VI_DEBUG("[websocket] sock %i frame close", (int)stream->get_fd());
+						VI_DEBUG("websocket sock %i frame close", (int)stream->get_fd());
 						unique.negate();
 						if (!receive || !receive(this, opcode, ""))
 							send_close(std::bind(&web_socket_frame::next, std::placeholders::_1));
@@ -3892,7 +3892,7 @@ namespace vitex
 					queue.pop();
 				}
 				if (freed > 0)
-					VI_DEBUG("[http] freed up %" PRIu64 " bytes from hrm cache", (uint64_t)freed);
+					VI_DEBUG("http freed up %" PRIu64 " bytes from hrm cache", (uint64_t)freed);
 			}
 			void hrm_cache::shrink() noexcept
 			{
@@ -6094,7 +6094,7 @@ namespace vitex
 				core::string status = ", pathname: " + base->request.location;
 				if (base->web_socket != nullptr)
 					status += ", websocket: " + core::string(base->web_socket->is_finished() ? "alive" : "dead");
-				VI_DEBUG("[stall] connection on fd %i%s", (int)base->stream->get_fd(), status.c_str());
+				VI_DEBUG("stall connection on fd %i%s", (int)base->stream->get_fd(), status.c_str());
 			}
 			void server::on_request_close(socket_connection* target)
 			{
@@ -6215,7 +6215,7 @@ namespace vitex
 							{
 								response.content.finalize();
 								if (!response.content.data.empty())
-									VI_DEBUG("[http] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
+									VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 							}
 
 							if (packet::is_error_or_skip(event))
@@ -6247,7 +6247,7 @@ namespace vitex
 						{
 							response.content.finalize();
 							if (!response.content.data.empty())
-								VI_DEBUG("[http] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
+								VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 
 							if (packet::is_error_or_skip(event))
 								result.set(core::system_exception("download content network error", packet::to_condition(event)));
@@ -6285,7 +6285,7 @@ namespace vitex
 						{
 							response.content.finalize();
 							if (!response.content.data.empty())
-								VI_DEBUG("[http] fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
+								VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 						}
 
 						if (packet::is_error_or_skip(event))
@@ -6317,7 +6317,7 @@ namespace vitex
 
 				return send(std::move(target)).then<core::expects_promise_system<void>>([this](core::expects_system<void>&& status) -> core::expects_promise_system<void>
 				{
-					VI_DEBUG("[ws] handshake %s", request.location.c_str());
+					VI_DEBUG("ws handshake %s", request.location.c_str());
 					if (!status)
 						return core::expects_promise_system<void>(status.error());
 
@@ -6338,7 +6338,7 @@ namespace vitex
 				if (!has_stream())
 					return core::expects_promise_system<void>(core::system_exception("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
 
-				VI_DEBUG("[http] %s %s", target.method, target.location.c_str());
+				VI_DEBUG("http %s %s", target.method, target.location.c_str());
 				if (!response.content.is_finalized() || response.content.exceeds)
 					return core::expects_promise_system<void>(core::system_exception("content error: response body was not read", std::make_error_condition(std::errc::broken_pipe)));
 

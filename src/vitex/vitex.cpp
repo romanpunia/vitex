@@ -97,13 +97,13 @@ namespace vitex
 		if (!*inout_allocator)
 		{
 			*inout_allocator = new core::allocators::debug_allocator();
-			VI_TRACE("[lib] initialize global debug allocator");
+			VI_TRACE("lib initialize global debug allocator");
 		}
 #else
 		if (!*inout_allocator)
 		{
 			*inout_allocator = new core::allocators::default_allocator();
-			VI_TRACE("[lib] initialize global default allocator");
+			VI_TRACE("lib initialize global default allocator");
 		}
 #endif
 		core::memory::set_global_allocator(*inout_allocator);
@@ -116,7 +116,7 @@ namespace vitex
 		WORD version_requested = MAKEWORD(2, 2);
 		int code = WSAStartup(version_requested, &wsa_data);
 		VI_PANIC(code == 0, "WSA initialization failed code:%i", code);
-		VI_TRACE("[lib] initialize windows networking library");
+		VI_TRACE("lib initialize windows networking library");
 		return true;
 #else
 		return false;
@@ -129,7 +129,7 @@ namespace vitex
 		if (!crypto)
 			return false;
 
-		VI_TRACE("[lib] load openssl providers from: *");
+		VI_TRACE("lib load openssl providers from: *");
 		crypto->default_provider = OSSL_PROVIDER_load(nullptr, "default");
 		crypto->legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
 		if (crypto->legacy_provider != nullptr && crypto->default_provider != nullptr)
@@ -138,7 +138,7 @@ namespace vitex
 		auto path = core::os::directory::get_module();
 		bool is_module_directory = true;
 	retry:
-		VI_TRACE("[lib] load openssl providers from: %s", path ? path->c_str() : "no path");
+		VI_TRACE("lib load openssl providers from: %s", path ? path->c_str() : "no path");
 		if (path)
 			OSSL_PROVIDER_set_default_search_path(nullptr, path->c_str());
 
@@ -209,10 +209,10 @@ namespace vitex
 				crypto->locks.at(id)->unlock();
 		});
 
-		VI_TRACE("[lib] initialize openssl library");
+		VI_TRACE("lib initialize openssl library");
 #ifdef VI_POSTGRESQL
 		PQinitSSL(0);
-		VI_TRACE("[lib] initialize pq library");
+		VI_TRACE("lib initialize pq library");
 #endif
 		return true;
 #else
@@ -221,7 +221,7 @@ namespace vitex
 	}
 	bool runtime::initialize_locale() noexcept
 	{
-		VI_TRACE("[lib] initialize locale library");
+		VI_TRACE("lib initialize locale library");
 		setlocale(LC_TIME, "C");
 		return true;
 	}
@@ -230,7 +230,7 @@ namespace vitex
 #ifdef VI_OPENSSL
 		int64_t raw = 0;
 		RAND_bytes((unsigned char*)&raw, sizeof(int64_t));
-		VI_TRACE("[lib] initialize random library");
+		VI_TRACE("lib initialize random library");
 		return true;
 #else
 		return false;
@@ -243,7 +243,7 @@ namespace vitex
 	}
 	void runtime::cleanup_instances() noexcept
 	{
-		VI_TRACE("[lib] free singleton instances");
+		VI_TRACE("lib free singleton instances");
 		layer::application::cleanup_instance();
 		network::http::hrm_cache::cleanup_instance();
 		network::sqlite::driver::cleanup_instance();
@@ -265,7 +265,7 @@ namespace vitex
 		auto* crypto = *in_crypto;
 		*in_crypto = nullptr;
 #if OPENSSL_VERSION_MAJOR >= 3
-		VI_TRACE("[lib] free openssl providers");
+		VI_TRACE("lib free openssl providers");
 		OSSL_PROVIDER_unload((OSSL_PROVIDER*)crypto->legacy_provider);
 		OSSL_PROVIDER_unload((OSSL_PROVIDER*)crypto->default_provider);
 #else
@@ -289,37 +289,37 @@ namespace vitex
 		CONF_modules_unload(1);
 #endif
 		core::memory::deinit(crypto);
-		VI_TRACE("[lib] free openssl library");
+		VI_TRACE("lib free openssl library");
 #endif
 	}
 	void runtime::cleanup_network() noexcept
 	{
 #ifdef VI_MICROSOFT
 		WSACleanup();
-		VI_TRACE("[lib] free windows networking library");
+		VI_TRACE("lib free windows networking library");
 #endif
 	}
 	void runtime::cleanup_scripting() noexcept
 	{
 		scripting::bindings::registry().cleanup();
-		VI_TRACE("[lib] free bindings registry");
+		VI_TRACE("lib free bindings registry");
 		scripting::virtual_machine::cleanup();
-		VI_TRACE("[lib] free virtual machine");
+		VI_TRACE("lib free virtual machine");
 	}
 	void runtime::cleanup_composer() noexcept
 	{
 		core::composer::cleanup();
-		VI_TRACE("[lib] free component composer");
+		VI_TRACE("lib free component composer");
 	}
 	void runtime::cleanup_error_handling() noexcept
 	{
 		core::error_handling::cleanup();
-		VI_TRACE("[lib] free error handling");
+		VI_TRACE("lib free error handling");
 	}
 	void runtime::cleanup_memory() noexcept
 	{
 		core::memory::cleanup();
-		VI_TRACE("[lib] free memory allocators");
+		VI_TRACE("lib free memory allocators");
 	}
 	void runtime::cleanup_allocator(core::global_allocator** in_allocator) noexcept
 	{

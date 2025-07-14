@@ -297,16 +297,16 @@ namespace vitex
 							core::string tune;
 							if (series::unpack(base->fetch("compression.tune"), &tune))
 							{
-								if (!strcmp(tune.c_str(), "Filtered"))
+								if (!strcmp(tune.c_str(), "filtered"))
 									route->compression.tune = network::http::compression_tune::filtered;
-								else if (!strcmp(tune.c_str(), "Huffman"))
+								else if (!strcmp(tune.c_str(), "huffman"))
 									route->compression.tune = network::http::compression_tune::huffman;
-								else if (!strcmp(tune.c_str(), "Rle"))
+								else if (!strcmp(tune.c_str(), "rle"))
 									route->compression.tune = network::http::compression_tune::rle;
-								else if (!strcmp(tune.c_str(), "Fixed"))
+								else if (!strcmp(tune.c_str(), "fixed"))
 									route->compression.tune = network::http::compression_tune::fixed;
 								else
-									route->compression.tune = network::http::compression_tune::placeholder;
+									route->compression.tune = network::http::compression_tune::default_tune;
 							}
 
 							if (series::unpack(base->fetch("compression.quality-level"), &route->compression.quality_level))

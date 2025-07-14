@@ -1640,7 +1640,7 @@ namespace vitex
 
 				return result;
 			}
-			expects_db<core::string> utils::inline_query(core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& placeholder)
+			expects_db<core::string> utils::inline_query(core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value)
 			{
 				VI_ASSERT(where, "array should be set");
 				core::schema_list map;
@@ -1693,7 +1693,7 @@ namespace vitex
 
 				auto result = sqlite::driver::get()->emplace(def, &map);
 				if (result && result->empty())
-					result = core::string(placeholder);
+					result = core::string(default_value);
 
 				return result;
 			}

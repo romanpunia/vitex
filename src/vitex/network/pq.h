@@ -44,7 +44,7 @@ namespace vitex
 				repeatable_read,
 				read_commited,
 				read_uncommited,
-				placeholder = read_commited
+				default_isolation = read_commited
 			};
 
 			enum class query_op
@@ -585,7 +585,7 @@ namespace vitex
 			{
 			public:
 				static expects_db<core::string> inline_array(cluster* client, core::uptr<core::schema>&& array);
-				static expects_db<core::string> inline_query(cluster* client, core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& placeholder = "TRUE");
+				static expects_db<core::string> inline_query(cluster* client, core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value = "TRUE");
 				static core::string get_char_array(connection* base, const std::string_view& src) noexcept;
 				static core::string get_byte_array(connection* base, const std::string_view& src) noexcept;
 				static core::string get_sql(connection* base, core::schema* source, bool escape, bool negate) noexcept;

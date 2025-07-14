@@ -10277,8 +10277,8 @@ namespace vitex
 			vector<string> params;
 			params.reserve(context.params.size());
 
-			string placeholder = "1";
-			auto inline_text = [&placeholder](const core::string& value) -> const core::string& { return value.empty() ? placeholder : value; };
+			string default_value = "1";
+			auto inline_text = [&default_value](const core::string& value) -> const core::string& { return value.empty() ? default_value : value; };
 			for (size_t i = 1; i < context.params.size(); i++)
 			{
 				auto& item = context.params[i];
@@ -10294,7 +10294,7 @@ namespace vitex
 						string name = item.substr(0, position);
 						if (flags.find(name) != flags.end())
 						{
-							context.args[item] = placeholder;
+							context.args[item] = default_value;
 							if (opts & (size_t)args_format::stop_if_no_match)
 							{
 								params.insert(params.begin(), context.params.begin() + i + 1, context.params.end());
@@ -10305,7 +10305,7 @@ namespace vitex
 							context.args[name] = inline_text(item.substr(position + 1));
 					}
 					else if (opts & (size_t)args_format::key || flags.find(item) != flags.end())
-						context.args[item] = placeholder;
+						context.args[item] = default_value;
 					else
 						goto no_match;
 				}
@@ -10316,7 +10316,7 @@ namespace vitex
 					{
 						if (flags.find(name) != flags.end())
 						{
-							context.args[name] = placeholder;
+							context.args[name] = default_value;
 							if (opts & (size_t)args_format::stop_if_no_match)
 							{
 								params.insert(params.begin(), context.params.begin() + i + 1, context.params.end());
@@ -10327,7 +10327,7 @@ namespace vitex
 							context.args[name] = inline_text(context.params[++i]);
 					}
 					else if (opts & (size_t)args_format::flag || flags.find(name) != flags.end())
-						context.args[item.substr(1)] = placeholder;
+						context.args[item.substr(1)] = default_value;
 					else
 						goto no_match;
 				}

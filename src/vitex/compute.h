@@ -32,7 +32,7 @@ namespace vitex
 			none = 0,
 			best_speed = 1,
 			best_compression = 9,
-			placeholder = -1
+			default_compression = -1
 		};
 
 		enum class include_type
@@ -1645,7 +1645,7 @@ namespace vitex
 			static core::string base64_url_encode(const std::string_view& value);
 			static core::string base64_url_decode(const std::string_view& value);
 			static core::string shuffle(const char* value, size_t size, uint64_t mask);
-			static expects_compression<core::string> compress(const std::string_view& data, compression type = compression::placeholder);
+			static expects_compression<core::string> compress(const std::string_view& data, compression type = compression::default_compression);
 			static expects_compression<core::string> decompress(const std::string_view& data);
 			static core::string hex_encode_odd(const std::string_view& value, bool upper_case = false);
 			static core::string hex_encode(const std::string_view& value, bool upper_case = false);

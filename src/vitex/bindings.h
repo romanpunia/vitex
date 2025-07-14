@@ -201,13 +201,13 @@ namespace vitex
 
 			public:
 				template <typename v, typename e>
-				static v&& unwrap(core::expects<v, e>&& subresult, v&& placeholder, immediate_context* context = immediate_context::get())
+				static v&& unwrap(core::expects<v, e>&& subresult, v&& default_value, immediate_context* context = immediate_context::get())
 				{
 					if (subresult)
 						return std::move(*subresult);
 
 					exception::throw_ptr_at(context, translate_throw(subresult.error()));
-					return std::move(placeholder);
+					return std::move(default_value);
 				}
 				template <typename v, typename e>
 				static bool unwrap_void(core::expects<v, e>&& subresult, immediate_context* context = immediate_context::get())
@@ -290,13 +290,13 @@ namespace vitex
 
 			public:
 				template <typename v>
-				static v&& unwrap(core::option<v>&& subresult, v&& placeholder, immediate_context* context = immediate_context::get())
+				static v&& unwrap(core::option<v>&& subresult, v&& default_value, immediate_context* context = immediate_context::get())
 				{
 					if (subresult)
 						return std::move(*subresult);
 
 					exception::throw_ptr_at(context, translate_throw());
-					return std::move(placeholder);
+					return std::move(default_value);
 				}
 				template <typename v>
 				static bool unwrap_void(core::option<v>&& subresult, immediate_context* context = immediate_context::get())

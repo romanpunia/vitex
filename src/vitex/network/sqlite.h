@@ -49,7 +49,7 @@ namespace vitex
 				deferred,
 				immediate,
 				exclusive,
-				placeholder = deferred
+				default_isolation = deferred
 			};
 
 			enum class query_op
@@ -453,7 +453,7 @@ namespace vitex
 			{
 			public:
 				static expects_db<core::string> inline_array(core::uptr<core::schema>&& array);
-				static expects_db<core::string> inline_query(core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& placeholder = "TRUE");
+				static expects_db<core::string> inline_query(core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value = "TRUE");
 				static core::string get_char_array(const std::string_view& src) noexcept;
 				static core::string get_byte_array(const std::string_view& src) noexcept;
 				static core::string get_sql(core::schema* source, bool escape, bool negate) noexcept;

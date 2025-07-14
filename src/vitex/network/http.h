@@ -46,7 +46,7 @@ namespace vitex
 				huffman = 2,
 				rle = 3,
 				fixed = 4,
-				placeholder = 0
+				default_tune = 0
 			};
 
 			enum class route_mode
@@ -456,7 +456,7 @@ namespace vitex
 				struct entry_compression
 				{
 					core::vector<compute::regex_source> files;
-					compression_tune tune = compression_tune::placeholder;
+					compression_tune tune = compression_tune::default_tune;
 					size_t min_length = 16384;
 					int quality_level = 8;
 					int memory_level = 8;

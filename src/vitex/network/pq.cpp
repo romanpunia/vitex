@@ -2312,7 +2312,7 @@ namespace vitex
 
 				return result;
 			}
-			expects_db<core::string> utils::inline_query(cluster* client, core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& placeholder)
+			expects_db<core::string> utils::inline_query(cluster* client, core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value)
 			{
 				VI_ASSERT(client != nullptr, "cluster should be set");
 				VI_ASSERT(where, "array should be set");
@@ -2367,7 +2367,7 @@ namespace vitex
 
 				auto result = pq::driver::get()->emplace(client, def, &map);
 				if (result && result->empty())
-					result = core::string(placeholder);
+					result = core::string(default_value);
 
 				return result;
 			}

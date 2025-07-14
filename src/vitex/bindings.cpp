@@ -7440,12 +7440,12 @@ namespace vitex
 				return array::compose(type.get_type_info(), base->wal_checkpoint(mode, database));
 			}
 
-			core::string ldb_utils_inline_query(core::schema* where, dictionary* whitelist_data, const std::string_view& placeholder)
+			core::string ldb_utils_inline_query(core::schema* where, dictionary* whitelist_data, const std::string_view& default_value)
 			{
 				virtual_machine* vm = virtual_machine::get();
 				int type_id = vm ? vm->get_type_id_by_decl("string") : -1;
 				core::unordered_map<core::string, core::string> whitelist = dictionary::decompose<core::string>(type_id, whitelist_data);
-				return expects_wrapper::unwrap(network::sqlite::utils::inline_query(where, whitelist, placeholder), core::string());
+				return expects_wrapper::unwrap(network::sqlite::utils::inline_query(where, whitelist, default_value), core::string());
 			}
 
 			void ldb_driver_set_query_log(network::sqlite::driver* base, asIScriptFunction* callback)
@@ -7724,12 +7724,12 @@ namespace vitex
 				});
 			}
 
-			core::string pdb_utils_inline_query(network::pq::cluster* client, core::schema* where, dictionary* whitelist_data, const std::string_view& placeholder)
+			core::string pdb_utils_inline_query(network::pq::cluster* client, core::schema* where, dictionary* whitelist_data, const std::string_view& default_value)
 			{
 				virtual_machine* vm = virtual_machine::get();
 				int type_id = vm ? vm->get_type_id_by_decl("string") : -1;
 				core::unordered_map<core::string, core::string> whitelist = dictionary::decompose<core::string>(type_id, whitelist_data);
-				return expects_wrapper::unwrap(network::pq::utils::inline_query(client, where, whitelist, placeholder), core::string());
+				return expects_wrapper::unwrap(network::pq::utils::inline_query(client, where, whitelist, default_value), core::string());
 			}
 
 			void pdb_driver_set_query_log(network::pq::driver* base, asIScriptFunction* callback)
@@ -10872,7 +10872,7 @@ namespace vitex
 				vcompression->set_value("none", (int)compute::compression::none);
 				vcompression->set_value("best_speed", (int)compute::compression::best_speed);
 				vcompression->set_value("best_compression", (int)compute::compression::best_compression);
-				vcompression->set_value("default_compression", (int)compute::compression::placeholder);
+				vcompression->set_value("default_compression", (int)compute::compression::default_compression);
 
 				vm->begin_namespace("codec");
 				vm->set_function("string rotate(const string_view&in, uint64, int8)", &compute::codec::rotate);
@@ -11355,7 +11355,7 @@ namespace vitex
 				vcompression_tune->set_value("huffman", (int)network::http::compression_tune::huffman);
 				vcompression_tune->set_value("rle", (int)network::http::compression_tune::rle);
 				vcompression_tune->set_value("fixed", (int)network::http::compression_tune::fixed);
-				vcompression_tune->set_value("defaults", (int)network::http::compression_tune::placeholder);
+				vcompression_tune->set_value("default_tune", (int)network::http::compression_tune::default_tune);
 
 				auto vroute_mode = vm->set_enum("route_mode");
 				vroute_mode->set_value("start", (int)network::http::route_mode::start);
@@ -11838,7 +11838,7 @@ namespace vitex
 				visolation->set_value("deferred", (int)network::sqlite::isolation::deferred);
 				visolation->set_value("immediate", (int)network::sqlite::isolation::immediate);
 				visolation->set_value("exclusive", (int)network::sqlite::isolation::exclusive);
-				visolation->set_value("default_value", (int)network::sqlite::isolation::placeholder);
+				visolation->set_value("default_isolation", (int)network::sqlite::isolation::default_isolation);
 
 				auto vquery_op = vm->set_enum("query_op");
 				vquery_op->set_value("transaction_start", (int)network::sqlite::query_op::transaction_start);
@@ -12002,7 +12002,7 @@ namespace vitex
 				visolation->set_value("repeatable_read", (int)network::pq::isolation::repeatable_read);
 				visolation->set_value("read_commited", (int)network::pq::isolation::read_commited);
 				visolation->set_value("read_uncommited", (int)network::pq::isolation::read_uncommited);
-				visolation->set_value("default_value", (int)network::pq::isolation::placeholder);
+				visolation->set_value("default_isolation", (int)network::pq::isolation::default_isolation);
 
 				auto vquery_op = vm->set_enum("query_op");
 				vquery_op->set_value("cache_short", (int)network::pq::query_op::cache_short);

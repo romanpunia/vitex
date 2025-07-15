@@ -3537,7 +3537,7 @@ namespace vitex
 			}
 			bool uint128_to_bool(compute::uint128& value)
 			{
-				return !value;
+				return !!value;
 			}
 			int8_t uint128_to_int8(compute::uint128& value)
 			{
@@ -3648,7 +3648,7 @@ namespace vitex
 			}
 			bool uint256_to_bool(compute::uint256& value)
 			{
-				return !value;
+				return !!value;
 			}
 			int8_t uint256_to_int8(compute::uint256& value)
 			{

@@ -12023,7 +12023,10 @@ namespace vitex
 			for (auto*& item : *init->nodes)
 			{
 				if (item != nullptr)
+				{
 					item = item->copy();
+					item->parent = init;
+				}
 			}
 
 			return init;

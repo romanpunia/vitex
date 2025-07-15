@@ -1738,7 +1738,7 @@ namespace vitex
 			virtual_machine* get_engine();
 
 		public:
-			static size_t byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool uppercase);
+			static size_t byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool lowercase);
 
 		private:
 			void add_command(const std::string_view& name, const std::string_view& description, args_type type, command_callback&& callback);
@@ -1963,6 +1963,7 @@ namespace vitex
 			bool save_stacktrace;
 			bool save_sources;
 			bool save_cache;
+			bool concat_code;
 
 		public:
 			virtual_machine() noexcept;
@@ -2006,6 +2007,7 @@ namespace vitex
 			void set_preserve_source_code(bool enabled);
 			void set_full_stack_tracing(bool enabled);
 			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
+			void set_ts_imports_concat_mode(bool enabled);
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void set_debugger(debugger_context* context);
@@ -2066,6 +2068,7 @@ namespace vitex
 			bool has_addon(const std::string_view& name);
 			bool is_nullable(int type_id);
 			bool has_debugger();
+			bool prefer_code_concatenation() const;
 			bool add_system_addon(const std::string_view& name, const core::vector<core::string>& dependencies, addon_callback&& callback);
 			expects_vm<void> import_file(const std::string_view& path, bool is_remote, core::string& output);
 			expects_vm<void> import_cfunction(const core::vector<core::string>& sources, const std::string_view& name, const std::string_view& decl);

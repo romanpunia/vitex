@@ -2866,6 +2866,8 @@ namespace vitex
 					return status.error();
 				else if (output.empty())
 					return compute::include_type::computed;
+				else if (vm->prefer_code_concatenation())
+					return compute::include_type::unchanged;
 
 				return vm->add_script_section(scope, file.library, output) ? compute::include_type::computed : compute::include_type::error;
 			});
@@ -4218,7 +4220,18 @@ namespace vitex
 						}
 						else
 							core::stringify::replace(args, "& ", "&in ");
-						execute_expression(context, last + name, args, [this_pointer](immediate_context* context)
+
+						core::string expression_property = last;
+						while (!stack.empty())
+						{
+							auto& target_property = stack.front();
+							if (target_property.find_first_of("[]()") == std::string::npos)
+								expression_property.append(1, '.').append(target_property);
+							else
+								expression_property.append(target_property);
+							stack.erase(stack.begin());
+						}
+						execute_expression(context, expression_property, args, [this_pointer](immediate_context* context)
 						{
 							context->set_arg_object(0, this_pointer);
 						});
@@ -5084,7 +5097,7 @@ namespace vitex
 		{
 			return action;
 		}
-		size_t debugger_context::byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool uppercase)
+		size_t debugger_context::byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool lowercase)
 		{
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm ? vm->get_engine() : nullptr;
@@ -5121,10 +5134,10 @@ namespace vitex
 			};
 
 			stream << (selection ? "> 0x" : "  0x") << (void*)(uintptr_t)program_pointer << ": ";
-			if (uppercase)
+			if (lowercase)
 			{
 				core::string name = core::string(label.name);
-				stream << core::stringify::to_upper(name);
+				stream << core::stringify::to_lower(name);
 			}
 			else
 				stream << label.name;
@@ -6447,7 +6460,7 @@ namespace vitex
 		}
 		int immediate_context::context_ud = 151;
 
-		virtual_machine::virtual_machine() noexcept : last_major_gc(0), scope(0), debugger(nullptr), engine(nullptr), save_stacktrace(false), save_sources(false), save_cache(true)
+		virtual_machine::virtual_machine() noexcept : last_major_gc(0), scope(0), debugger(nullptr), engine(nullptr), save_stacktrace(false), save_sources(false), save_cache(true), concat_code(false)
 		{
 			auto directory = core::os::directory::get_working();
 			if (directory)
@@ -7095,6 +7108,10 @@ namespace vitex
 		void virtual_machine::set_ts_imports(bool enabled, const std::string_view& import_syntax)
 		{
 			bindings::imports::bind_syntax(this, enabled, import_syntax);
+		}
+		void virtual_machine::set_ts_imports_concat_mode(bool enabled)
+		{
+			concat_code = enabled;
 		}
 		void virtual_machine::set_cache(bool enabled)
 		{
@@ -7771,6 +7788,10 @@ namespace vitex
 		{
 			return debugger != nullptr;
 		}
+		bool virtual_machine::prefer_code_concatenation() const
+		{
+			return concat_code;
+		}
 		bool virtual_machine::add_system_addon(const std::string_view& name, const core::vector<core::string>& dependencies, addon_callback&& callback)
 		{
 			VI_ASSERT(!name.empty(), "name should not be empty");
@@ -8289,7 +8310,7 @@ namespace vitex
 			byte_code_label label;
 			label.name = source.name;
 			label.code = (uint8_t)source.bc;
-			label.size = asBCTypeSize[source.type];
+			label.size = std::max<uint8_t>(1, asBCTypeSize[source.type]);
 			label.offset_of_stack = source.stackInc;
 			label.size_of_arg0 = 0;
 			label.size_of_arg1 = 0;

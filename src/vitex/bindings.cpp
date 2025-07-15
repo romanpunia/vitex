@@ -967,25 +967,28 @@ namespace vitex
 				if (!context)
 					return data;
 
-				auto function = context->get_exception_function();
-				if (!function.is_valid())
-					return data;
+				core::string_stream stream;
+				stream << '\n';
 
-				auto decl = function.get_decl();
-				data.append("\n  in function ");
-				data.append(decl.empty() ? "<any>" : decl);
-
-				auto library = function.get_module_name();
-				data.append("\n  in module ");
-				data.append(library.empty() ? "<anonymous>" : library);
-
-				int line_number = context->get_exception_line_number();
-				if (line_number > 0)
+				scripting::virtual_machine* vm = context->get_vm();
+				size_t callstack_size = context->get_callstack_size();
+				size_t top_callstack_size = callstack_size;
+				for (size_t i = 0; i < callstack_size; i++)
 				{
-					data.append(":");
-					data.append(core::to_string(line_number));
+					int column_number = 0;
+					int line_number = context->get_line_number(i, &column_number);
+					scripting::function next = context->get_function(i);
+					auto section_name = next.get_section_name();
+					stream << "  #" << --top_callstack_size << " at " << core::os::path::get_filename(section_name);
+					if (line_number > 0)
+						stream << ":" << line_number;
+					if (column_number > 0)
+						stream << "," << column_number;
+					stream << " in " << (next.get_decl().empty() ? "[optimized]" : next.get_decl());
+					if (top_callstack_size > 0)
+						stream << "\n";
 				}
-
+				data = std::move(stream.str());
 				return data;
 			}
 			bool exception::pointer::empty() const

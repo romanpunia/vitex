@@ -3741,6 +3741,7 @@ namespace vitex
 			string get_name() const;
 			void join(schema* other, bool append_only);
 			void reserve(size_t size);
+			void attach(schema* root);
 			void unlink();
 			void clear();
 			void save();
@@ -3748,9 +3749,6 @@ namespace vitex
 		protected:
 			void allocate();
 			void allocate(const vector<schema*>& other);
-
-		private:
-			void attach(schema* root);
 
 		public:
 			static void transform(schema* value, const schema_name_callback& callback);

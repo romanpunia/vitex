@@ -6082,8 +6082,7 @@ namespace vitex
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			const char* message = context->GetExceptionString();
-			return message != nullptr && message[0] != '\0';
+			return context->GetState() == asEXECUTION_EXCEPTION;
 #else
 			return false;
 #endif
@@ -6218,7 +6217,7 @@ namespace vitex
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return or_empty(context->GetExceptionString());
+			return or_empty(context->GetState() == asEXECUTION_EXCEPTION ? context->GetExceptionString() : nullptr);
 #else
 			return "";
 #endif
@@ -6448,7 +6447,7 @@ namespace vitex
 		}
 		int immediate_context::context_ud = 151;
 
-		virtual_machine::virtual_machine() noexcept : last_major_gc(0), scope(0), debugger(nullptr), engine(nullptr), save_sources(false), save_cache(true)
+		virtual_machine::virtual_machine() noexcept : last_major_gc(0), scope(0), debugger(nullptr), engine(nullptr), save_stacktrace(false), save_sources(false), save_cache(true)
 		{
 			auto directory = core::os::directory::get_working();
 			if (directory)
@@ -6469,6 +6468,9 @@ namespace vitex
 			engine->SetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, 0);
 			engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 			engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 0);
+#endif
+#ifndef NDEBUG
+			set_full_stack_tracing(true);
 #endif
 			set_ts_imports(true);
 		}
@@ -7085,6 +7087,10 @@ namespace vitex
 		void virtual_machine::set_preserve_source_code(bool enabled)
 		{
 			save_sources = enabled;
+		}
+		void virtual_machine::set_full_stack_tracing(bool enabled)
+		{
+			save_stacktrace = enabled;
 		}
 		void virtual_machine::set_ts_imports(bool enabled, const std::string_view& import_syntax)
 		{
@@ -8177,15 +8183,18 @@ namespace vitex
 			const char* message = context->GetExceptionString();
 			if (message && message[0] != '\0' && !context->WillExceptionBeCaught())
 			{
-				core::string trace = core::error_handling::get_stack_trace(1, 64);
+				auto exception = bindings::exception::pointer();
+				exception.load_exception_data(message);
+				exception.context = base;
+
+				auto& type = exception.get_type();
+				auto& text = exception.get_text();
+				auto trace = vm->save_stacktrace ? core::error_handling::get_stack_trace(1, 64) : exception.load_stack_here();
 				if (!base->callbacks.exception && !vm->global_exception)
-				{
-					core::string details = bindings::exception::pointer(core::string(message)).what();
-					VI_ERR("asc uncaught exception %s, callstack:\n%.*s", details.empty() ? "unknown" : details.c_str(), (int)trace.size(), trace.c_str());
-				}
+					VI_ERR("asc uncaught %s %s, callstack:\n%.*s", type.empty() ? "unknown_error" : type.c_str(), text.empty() ? "unknown message" : text.c_str(), (int)trace.size(), trace.c_str());
 
 				core::umutex<std::recursive_mutex> unique(base->exchange);
-				base->executor.stacktrace = trace;
+				base->executor.stacktrace = std::move(trace);
 				unique.negate();
 			}
 			

@@ -1414,7 +1414,7 @@ namespace vitex
 			scripting::immediate_context* context = scripting::immediate_context::get();
 			if (context != nullptr)
 			{
-				scripting::virtual_machine* VM = context->get_vm();
+				scripting::virtual_machine* vm = context->get_vm();
 				size_t callstack_size = context->get_callstack_size();
 				frames.reserve(callstack_size);
 				for (size_t i = 0; i < callstack_size; i++)
@@ -1426,7 +1426,7 @@ namespace vitex
 					frame target;
 					if (!section_name.empty())
 					{
-						auto source_code = VM->get_source_code_appendix_by_path("source", section_name, (uint32_t)line_number, (uint32_t)column_number, 5);
+						auto source_code = vm->get_source_code_appendix_by_path("source", section_name, (uint32_t)line_number, (uint32_t)column_number, 5);
 						if (source_code)
 							target.code = *source_code;
 						target.file = section_name;
@@ -1886,7 +1886,7 @@ namespace vitex
 			size_t size = stack.size();
 			for (auto& frame : stack)
 			{
-				stream << "  #" << --size << " at " << os::path::get_filename(frame.file.c_str());
+				stream << "  #" << --size << " at " << os::path::get_filename(frame.file);
 				if (frame.line > 0)
 					stream << ":" << frame.line;
 				if (frame.column > 0)
@@ -6375,21 +6375,25 @@ namespace vitex
 				}
 				else if (v == '[' && buffer.substr(offset + 1).find(']') != std::string::npos)
 				{
-					size_t iterations = 0, skips = 0;
-					write_color(std_color::cyan);
-					do
+					size_t iterations = 0, nesting = 1;
+					write_color(std_color::light_blue);
+					while (offset < buffer.size() && nesting > 0)
 					{
 						write_char(buffer[offset]);
-						if (iterations++ > 0 && buffer[offset] == '[')
-							skips++;
-					} while (offset < buffer.size() && (buffer[offset++] != ']' || skips > 0));
+						if (buffer[offset] == ']')
+							--nesting;
+						else if (iterations > 0 && buffer[offset] == '[')
+							nesting++;
+						++iterations;
+						++offset;
+					}
 
 					write_color(base_color);
 					continue;
 				}
 				else if (v == '\"' && buffer.substr(offset + 1).find('\"') != std::string::npos)
 				{
-					write_color(std_color::light_blue);
+					write_color(std_color::orange);
 					do
 					{
 						write_char(buffer[offset]);
@@ -6402,7 +6406,7 @@ namespace vitex
 				}
 				else if (v == '\'' && buffer.substr(offset + 1).find('\'') != std::string::npos)
 				{
-					write_color(std_color::light_blue);
+					write_color(std_color::orange);
 					do
 					{
 						write_char(buffer[offset]);

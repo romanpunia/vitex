@@ -1960,6 +1960,7 @@ namespace vitex
 			uint64_t scope;
 			debugger_context* debugger;
 			asIScriptEngine* engine;
+			bool save_stacktrace;
 			bool save_sources;
 			bool save_cache;
 
@@ -2003,6 +2004,7 @@ namespace vitex
 			expects_vm<enumeration> set_enum(const std::string_view& name);
 			void set_code_generator(const std::string_view& name, generator_callback&& callback);
 			void set_preserve_source_code(bool enabled);
+			void set_full_stack_tracing(bool enabled);
 			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);

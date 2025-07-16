@@ -3520,34 +3520,13 @@ namespace vitex
 				}
 				return false;
 			});
-			add_command("ed, exportdef", "load global system addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
+			add_command("r, require", "load system or external addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
-				if (!args.empty())
+				if (!args.empty() && !args[0].empty())
 				{
-					core::string result;
-					for (auto& definitions : vm->generate_definitions(context))
-						result.append(definitions.second);
-					
-					auto path = core::os::path::resolve(args[0]);
-					if (path)
-						core::os::file::write(args[0], (uint8_t*)result.data(), result.size()).report("file write error");
-					else
-						path.report("invalid path");
+					if (!vm->import_system_addon(args[0]))
+						vm->import_addon(args[0]);
 				}
-				else
-					output("  exportdef <result file name>\n");
-				return false;
-			});
-			add_command("ls, loadsys", "load global system addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
-			{
-				if (!args.empty() && !args[0].empty())
-					vm->import_system_addon(args[0]);
-				return false;
-			});
-			add_command("le, loadext", "load global external addon", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
-			{
-				if (!args.empty() && !args[0].empty())
-					vm->import_addon(args[0]);
 				return false;
 			});
 			add_command("e, eval", "evaluate script expression", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
@@ -3598,12 +3577,12 @@ namespace vitex
 					"  break <function name | line number>\n");
 				return false;
 			});
-			add_command("del, clear", "remove a break point", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
+			add_command("d, delete", "delete a break point", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
 				if (args.empty())
 				{
 				clear_failure:
-					output("  clear <all | breakpoint number>\n");
+					output("  delete <all | breakpoint number>\n");
 					return false;
 				}
 
@@ -3635,17 +3614,6 @@ namespace vitex
 				}
 
 				print_value(args[0], context);
-				return false;
-			});
-			add_command("d, dump", "dump compiled function bytecode by name or declaration", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
-			{
-				if (args[0].empty())
-				{
-					output("  dump <function declaration | function name>\n");
-					return false;
-				}
-
-				print_byte_code(args[0], context);
 				return false;
 			});
 			add_command("i, info", "show info about of specific topic", args_type::array, [this](immediate_context* context, const core::vector<core::string>& args)
@@ -3708,7 +3676,15 @@ namespace vitex
 					list_addons();
 					return false;
 				}
-				else if (args[0] == "rd" || args[0] == "definitions")
+				else if (args[0] == "f" || args[0] == "function")
+				{
+					if (args.size() < 2 || args[1].empty())
+						goto info_failure;
+
+					print_byte_code(args[1], context);
+					return false;
+				}
+				else if (args[0] == "td" || args[0] == "types")
 				{
 					list_definitions(context);
 					return false;
@@ -3730,7 +3706,8 @@ namespace vitex
 					"  info t, info threads - show suspended threads\n"
 					"  info c, info code - show source code section\n"
 					"  info a, info addons - show imported addons\n"
-					"  info ri, info interfaces - show registered script virtual interfaces\n"
+					"  info f, info function <declaration> - dump compiled function bytecode by name or declaration\n"
+					"  info td, info types - show registered script virtual interfaces\n"
 					"  info gc, info garbage - show gc statistics\n");
 				return false;
 			});
@@ -3775,7 +3752,7 @@ namespace vitex
 				last_command_at_stack_level = (unsigned int)context->get_callstack_size();
 				return true;
 			});
-			add_command("fin, finish", "step out of subroutine", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
+			add_command("f, finish", "step out of subroutine", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
 			{
 				action = debug_action::step_out;
 				last_command_at_stack_level = (unsigned int)context->get_callstack_size();
@@ -3784,6 +3761,24 @@ namespace vitex
 			add_command("a, abort", "abort current execution", args_type::no_args, [](immediate_context* context, const core::vector<core::string>& args)
 			{
 				context->abort();
+				return false;
+			});
+			add_command("td, types", "generate type definitions", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
+			{
+				if (!args.empty())
+				{
+					core::string result;
+					for (auto& definitions : vm->generate_definitions(context))
+						result.append(definitions.second);
+
+					auto path = core::os::path::resolve(args[0]);
+					if (path)
+						core::os::file::write(args[0], (uint8_t*)result.data(), result.size()).report("file write error");
+					else
+						path.report("invalid path");
+				}
+				else
+					output("  types <result file name>\n");
 				return false;
 			});
 			add_command("bt, backtrace", "show current callstack", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
@@ -4632,7 +4627,7 @@ namespace vitex
 
 					stream << indent << "#" << n << " [sp:" << offset << ";hp:" << heap << "] " << char_trim_end(base->GetVarDeclaration(n, level)) << ": ";
 					if (active)
-						stream << to_string(indent, 3, base->GetAddressOfVar(n), type_id) << std::endl;
+						stream << to_string(indent, 3, base->GetAddressOfVar(n), type_id) << " 0x" << base->GetAddressOfVar(n) << std::endl;
 					else
 						stream << "<uninitialized>" << std::endl;
 				}
@@ -7113,6 +7108,16 @@ namespace vitex
 		{
 			concat_code = enabled;
 		}
+		void virtual_machine::set_auto_type_restriction(bool enabled)
+		{
+			set_code_generator("auto-restriction", enabled ? generator_callback([](compute::preprocessor* base, const std::string_view& path, core::string& code) -> expects_vm<void>
+			{
+				return parser::replace_inline_preconditions("auto", code, [](const std::string_view& expression) -> expects_vm<core::string>
+				{
+					return virtual_exception(virtual_error::not_supported, "auto type is forbidden (expression): auto " + core::string(expression));
+				});
+			}) : generator_callback(nullptr));
+		}
 		void virtual_machine::set_cache(bool enabled)
 		{
 			save_cache = enabled;
@@ -8394,7 +8399,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			virtual_machine* engine = (virtual_machine*)this_engine;
 			auto section = core::os::path::get_filename(info->section && info->section[0] != '\0' ? info->section : "?");
-			auto source_code = engine->get_source_code_appendix_by_path("error", section, info->row, info->col, 5);
+			auto source_code = engine->get_source_code_appendix_by_path("error", info->section, info->row, info->col, 5);
 			if (engine->when_error)
 			{
 				if (info->type == asMSGTYPE_WARNING)

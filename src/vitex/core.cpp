@@ -6351,6 +6351,29 @@ namespace vitex
 			if (buffer.empty())
 				return;
 
+			static auto addressable_range = [](const std::string_view& buffer, char begin, char end, size_t offset, size_t max_size = 0) -> bool
+			{
+				if (buffer[offset] != begin)
+					return false;
+
+				size_t ending_offset = buffer.find(end, offset + 1);
+				if (ending_offset == std::string::npos || (max_size > 0 && ending_offset - offset > max_size))
+					return false;
+
+				size_t whitespace_offset = buffer.find_first_of("\r\n\t\v", offset + 1);
+				if (whitespace_offset != std::string::npos && whitespace_offset < ending_offset)
+					return false;
+
+				if (!max_size)
+					return true;
+
+				size_t first_space = buffer.find(' ', offset + 1);
+				if (first_space > ending_offset)
+					return true;
+
+				size_t second_space = buffer.find(' ', first_space + 1);
+				return second_space > ending_offset;
+			};
 			umutex<std::recursive_mutex> unique(state.session);
 			write_color(base_color);
 
@@ -6373,7 +6396,7 @@ namespace vitex
 					write_color(base_color);
 					continue;
 				}
-				else if (v == '[' && buffer.substr(offset + 1).find(']') != std::string::npos)
+				else if (addressable_range(buffer, '[', ']', offset))
 				{
 					size_t iterations = 0, nesting = 1;
 					write_color(std_color::light_blue);
@@ -6391,7 +6414,7 @@ namespace vitex
 					write_color(base_color);
 					continue;
 				}
-				else if (v == '\"' && buffer.substr(offset + 1).find('\"') != std::string::npos)
+				else if (addressable_range(buffer, '\"', '\"', offset))
 				{
 					write_color(std_color::orange);
 					do
@@ -6404,7 +6427,7 @@ namespace vitex
 					write_color(base_color);
 					continue;
 				}
-				else if (v == '\'' && buffer.substr(offset + 1).find('\'') != std::string::npos)
+				else if (addressable_range(buffer, '\'', '\'', offset, 32))
 				{
 					write_color(std_color::orange);
 					do

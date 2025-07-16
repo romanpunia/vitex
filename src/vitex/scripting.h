@@ -1964,6 +1964,7 @@ namespace vitex
 			bool save_sources;
 			bool save_cache;
 			bool concat_code;
+			bool restrict_auto;
 
 		public:
 			virtual_machine() noexcept;
@@ -2008,6 +2009,7 @@ namespace vitex
 			void set_full_stack_tracing(bool enabled);
 			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
 			void set_ts_imports_concat_mode(bool enabled);
+			void set_auto_type_restriction(bool enabled);
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void set_debugger(debugger_context* context);

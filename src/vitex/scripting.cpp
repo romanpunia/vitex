@@ -5108,27 +5108,33 @@ namespace vitex
 						if (!last)
 							stream << ",";
 						break;
-						case sizeof(asWORD) :
-							stream << " %sp:" << *(asWORD*)offset;
-							if (!last)
-								stream << ",";
-							break;
-							case sizeof(asDWORD) :
-								stream << " %esp:" << *(asDWORD*)offset;
-								if (!last)
-									stream << ",";
-								break;
-								case sizeof(asQWORD) :
-									stream << " %rdx:" << *(asQWORD*)offset;
-									if (!last)
-										stream << ",";
-									break;
-								default:
-									break;
+					case sizeof(asWORD) :
+						stream << " %sp:" << *(asWORD*)offset;
+						if (!last)
+							stream << ",";
+						break;
+					case sizeof(asDWORD) :
+						stream << " %esp:" << *(asDWORD*)offset;
+						if (!last)
+							stream << ",";
+						break;
+					case sizeof(asQWORD) :
+						stream << " %rdx:" << *(asQWORD*)offset;
+						if (!last)
+							stream << ",";
+						break;
+					default:
+						break;
 				}
 			};
 
-			stream << (selection ? "> 0x" : "  0x") << (void*)(uintptr_t)program_pointer << ": ";
+			char pointer[32] = { 0 };
+			snprintf(pointer, sizeof(pointer), "%p", (void*)(uintptr_t)program_pointer);
+			if (pointer[0] != '0' || pointer[1] != 'x')
+				stream << (selection ? "> 0x" : "  0x") << pointer << ": ";
+			else
+				stream << (selection ? "> " : "  ") << pointer << ": ";
+			
 			if (lowercase)
 			{
 				core::string name = core::string(label.name);

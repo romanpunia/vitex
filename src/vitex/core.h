@@ -3310,7 +3310,7 @@ namespace vitex
 			void clear_colorization();
 			void write_color(std_color text, std_color background = std_color::zero);
 			void clear_color();
-			void colorize(std_color base_color, const std::string_view& buffer);
+			void colorize(std_color base_color, const std::string_view& buffer, bool omit_tokenizer = true);
 			void capture_time();
 			uint64_t capture_window(uint32_t height);
 			void free_window(uint64_t id, bool restore_position);

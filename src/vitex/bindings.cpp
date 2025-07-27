@@ -3434,7 +3434,7 @@ namespace vitex
 			void decimal_custom_constructor_arithmetic(core::decimal* base, t value)
 			{
 				auto* vm = virtual_machine::get();
-				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_default_precision) : 0;
+				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_target_precision) : 0;
 				new(base) core::decimal(value);
 				if (precision > 0)
 					base->truncate(precision);
@@ -3443,7 +3443,7 @@ namespace vitex
 			void decimal_custom_constructor_auto(core::decimal* base, const t& value)
 			{
 				auto* vm = virtual_machine::get();
-				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_default_precision) : 0;
+				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_target_precision) : 0;
 				new(base) core::decimal(value);
 				if (precision > 0)
 					base->truncate(precision);
@@ -3451,7 +3451,7 @@ namespace vitex
 			void decimal_custom_constructor(core::decimal* base)
 			{
 				auto* vm = virtual_machine::get();
-				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_default_precision) : 0;
+				uint32_t precision = vm ? (uint32_t)vm->get_library_property(library_features::decimal_target_precision) : 0;
 				new(base) core::decimal();
 				if (precision > 0)
 					base->truncate(precision);
@@ -9536,7 +9536,7 @@ namespace vitex
 				VI_ASSERT(vm != nullptr, "manager should be set");
 
 				auto vdecimal = vm->set_struct_trivial<core::decimal>("decimal");
-				if (vm->get_library_property(library_features::decimal_default_precision) > 0)
+				if (vm->get_library_property(library_features::decimal_target_precision) > 0)
 				{
 					vdecimal->set_constructor_extern<core::decimal*>("void f()", &decimal_custom_constructor);
 					vdecimal->set_constructor_extern<core::decimal*, int16_t>("void f(int16)", &decimal_custom_constructor_arithmetic<int16_t>);
@@ -9563,12 +9563,12 @@ namespace vitex
 					vdecimal->set_constructor<core::decimal, double>("void f(double)");
 					vdecimal->set_constructor<core::decimal, const std::string_view&>("void f(const string_view&in)");
 					vdecimal->set_constructor<core::decimal, const core::decimal&>("void f(const decimal &in)");
+					vdecimal->set_method("decimal& truncate(int)", &core::decimal::truncate);
+					vdecimal->set_method("decimal& round(int)", &core::decimal::round);
+					vdecimal->set_method("decimal& trim()", &core::decimal::trim);
+					vdecimal->set_method("decimal& unlead()", &core::decimal::unlead);
+					vdecimal->set_method("decimal& untrail()", &core::decimal::untrail);
 				}
-				vdecimal->set_method("decimal& truncate(int)", &core::decimal::truncate);
-				vdecimal->set_method("decimal& round(int)", &core::decimal::round);
-				vdecimal->set_method("decimal& trim()", &core::decimal::trim);
-				vdecimal->set_method("decimal& unlead()", &core::decimal::unlead);
-				vdecimal->set_method("decimal& untrail()", &core::decimal::untrail);
 				vdecimal->set_method("bool is_nan() const", &core::decimal::is_nan);
 				vdecimal->set_method("bool is_zero() const", &core::decimal::is_zero);
 				vdecimal->set_method("bool is_zero_or_nan() const", &core::decimal::is_zero_or_nan);

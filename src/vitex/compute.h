@@ -1952,7 +1952,7 @@ namespace vitex
 			}
 			static t strong_lerp(i a, i b, i time)
 			{
-				return (t(1.0) - time) * a + time * b;
+				return (t(1) - time) * a + time * b;
 			}
 			static t saturate_angle(i angle)
 			{
@@ -1960,7 +1960,7 @@ namespace vitex
 			}
 			static t saturate(i value)
 			{
-				return min(max(value, t(0.0)), t(1.0));
+				return min(max(value, t(0)), t(1));
 			}
 			static t random(i number0, i number1)
 			{
@@ -1979,7 +1979,7 @@ namespace vitex
 			}
 			static t random_mag()
 			{
-				return t(2.0) * random() - t(1.0);
+				return t(2) * random() - t(1);
 			}
 			static t pow(i value0, i value1)
 			{

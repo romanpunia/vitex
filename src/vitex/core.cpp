@@ -1773,7 +1773,7 @@ namespace vitex
 			terminal->write(" ");
 			terminal->clear_color();
 			if (parse_tokens)
-				terminal->colorize(std_color::light_gray, std::string_view(data.message.data, data.message.size));
+				terminal->colorize(std_color::light_gray, std::string_view(data.message.data, data.message.size), false);
 			else
 				terminal->write(data.message.data);
 			terminal->write("\n");
@@ -6346,7 +6346,7 @@ namespace vitex
 			std::cout << "\033[0m";
 #endif
 		}
-		void console::colorize(std_color base_color, const std::string_view& buffer)
+		void console::colorize(std_color base_color, const std::string_view& buffer, bool omit_tokenizer)
 		{
 			if (buffer.empty())
 				return;
@@ -6440,7 +6440,7 @@ namespace vitex
 					write_color(base_color);
 					continue;
 				}
-				else if (stringify::is_alphabetic(v) && (!offset || !stringify::is_alphabetic(buffer[offset - 1])))
+				else if (!omit_tokenizer && stringify::is_alphabetic(v) && (!offset || !stringify::is_alphabetic(buffer[offset - 1])))
 				{
 					bool is_matched = false;
 					for (auto& token : colorization)

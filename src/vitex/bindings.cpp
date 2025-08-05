@@ -9789,6 +9789,7 @@ namespace vitex
 				vdate_time->set_method("timestamp& set_month(uint8)", &core::date_time::set_month);
 				vdate_time->set_method("timestamp& set_year(uint32)", &core::date_time::set_year);
 				vdate_time->set_method("string serialize(const string_view&in)", &core::date_time::serialize);
+				vdate_time->set_method("timestamp elapsed() const", &core::date_time::elapsed);
 				vdate_time->set_method("uint8 second() const", &core::date_time::second);
 				vdate_time->set_method("uint8 minute() const", &core::date_time::minute);
 				vdate_time->set_method("uint8 hour() const", &core::date_time::hour);

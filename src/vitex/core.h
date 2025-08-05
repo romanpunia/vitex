@@ -2250,6 +2250,7 @@ namespace vitex
 			date_time& set_week(uint8_t value);
 			date_time& set_month(uint8_t value);
 			date_time& set_year(uint32_t value);
+			date_time elapsed() const;
 			string serialize(const std::string_view& format) const;
 			uint8_t second() const;
 			uint8_t minute() const;

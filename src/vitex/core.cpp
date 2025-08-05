@@ -2539,6 +2539,9 @@ namespace vitex
 				return check == 2;
 			}
 
+			if (is_zero() && right.is_zero())
+				return false;
+
 			if (((sign == '-') && (right.sign == '+')))
 				return false;
 
@@ -2570,6 +2573,9 @@ namespace vitex
 				int check = compare_num(*this, right);
 				return check == 1;
 			}
+
+			if (is_zero() && right.is_zero())
+				return false;
 
 			if (((sign == '-') && (right.sign == '+')))
 				return true;
@@ -3994,6 +4000,12 @@ namespace vitex
 
 			timepoint.tm_year = (int)value - 1900;
 			return apply_timepoint(true);
+		}
+		date_time date_time::elapsed() const
+		{
+			date_time init = *this;
+			init.offset = std::chrono::system_clock::now().time_since_epoch() - offset;
+			return init.apply_offset(true);
 		}
 		string date_time::serialize(const std::string_view& format) const
 		{

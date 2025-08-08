@@ -3823,9 +3823,15 @@ namespace vitex
 
 							core::vector<char> message;
 							text_assign(message, std::string_view(data, length));
-							queue.emplace(std::make_pair(opcode, std::move(message)));
-							opcode = web_socket_op::next;
+							if (opcode == web_socket_op::next && !queue.empty())
+							{
+								auto& top = queue.front();
+								top.second.insert(top.second.end(), message.begin(), message.end());
+							}
+							else
+								queue.emplace(std::make_pair(opcode == web_socket_op::next ? web_socket_op::text : opcode, std::move(message)));
 
+							opcode = web_socket_op::next;
 							data += length;
 							size -= length;
 							remains -= length;

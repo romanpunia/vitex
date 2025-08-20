@@ -1333,6 +1333,54 @@ namespace vitex
 		{
 			return lower;
 		}
+		void uint128::encode(uint8_t data[16]) const
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint64_t array[2] =
+			{
+#if VI_ENDIAN_BIG
+				core::os::hw::to_endianness(core::os::hw::endian::big, lower),
+				core::os::hw::to_endianness(core::os::hw::endian::big, upper)
+#else
+				core::os::hw::to_endianness(core::os::hw::endian::big, upper),
+				core::os::hw::to_endianness(core::os::hw::endian::big, lower)
+#endif
+			};
+			memcpy((char*)data, array, sizeof(array));
+		}
+		void uint128::encode_compact(uint8_t data[16], size_t* data_size) const
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint8_t intermediate[sizeof(uint128)];
+			encode(intermediate);
+
+			size_t size = bytes();
+			memcpy(data, intermediate + (sizeof(uint128) - size), size);
+			if (data_size != nullptr)
+				*data_size = size;
+		}
+		void uint128::decode(const uint8_t data[16])
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint64_t array[2] = { 0 };
+			memcpy(array, data, sizeof(array));
+			array[0] = core::os::hw::to_endianness(core::os::hw::endian::big, array[0]);
+			array[1] = core::os::hw::to_endianness(core::os::hw::endian::big, array[1]);
+#if VI_ENDIAN_BIG
+			memcpy((uint64_t*)&lower, &array[0], sizeof(uint64_t));
+			memcpy((uint64_t*)&upper, &array[1], sizeof(uint64_t));
+#else
+			memcpy((uint64_t*)&upper, &array[0], sizeof(uint64_t));
+			memcpy((uint64_t*)&lower, &array[1], sizeof(uint64_t));
+#endif
+		}
+		void uint128::decode_compact(const uint8_t* data, size_t data_size)
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint8_t intermediate[sizeof(uint128)] = { 0 };
+			memcpy(intermediate, data, std::min(data_size, sizeof(intermediate)));
+			decode(intermediate);
+		}
 		uint8_t uint128::bits() const
 		{
 			uint8_t out = 0;
@@ -1935,6 +1983,64 @@ namespace vitex
 		uint128& uint256::low()
 		{
 			return lower;
+		}
+		void uint256::encode(uint8_t data[16]) const
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint64_t array[4] =
+			{
+#if VI_ENDIAN_BIG
+				core::os::hw::to_endianness(core::os::hw::endian::big, lower.lower),
+				core::os::hw::to_endianness(core::os::hw::endian::big, lower.upper),
+				core::os::hw::to_endianness(core::os::hw::endian::big, upper.lower),
+				core::os::hw::to_endianness(core::os::hw::endian::big, upper.upper)
+#else
+				core::os::hw::to_endianness(core::os::hw::endian::big, upper.upper),
+				core::os::hw::to_endianness(core::os::hw::endian::big, upper.lower),
+				core::os::hw::to_endianness(core::os::hw::endian::big, lower.upper),
+				core::os::hw::to_endianness(core::os::hw::endian::big, lower.lower)
+#endif
+			};
+			memcpy((char*)data, array, sizeof(array));
+		}
+		void uint256::encode_compact(uint8_t data[16], size_t* data_size) const
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint8_t intermediate[sizeof(uint256)];
+			encode(intermediate);
+
+			size_t size = bytes();
+			memcpy(data, intermediate + (sizeof(uint256) - size), size);
+			if (data_size != nullptr)
+				*data_size = size;
+		}
+		void uint256::decode(const uint8_t data[16])
+		{
+			VI_ASSERT(data != nullptr, "value should be set");
+			uint64_t array[4] = { 0 };
+			memcpy(array, data, sizeof(array));
+			array[0] = core::os::hw::to_endianness(core::os::hw::endian::big, array[0]);
+			array[1] = core::os::hw::to_endianness(core::os::hw::endian::big, array[1]);
+			array[2] = core::os::hw::to_endianness(core::os::hw::endian::big, array[2]);
+			array[3] = core::os::hw::to_endianness(core::os::hw::endian::big, array[3]);
+#if VI_ENDIAN_BIG
+			memcpy((uint64_t*)&lower.lower, &array[0], sizeof(uint64_t));
+			memcpy((uint64_t*)&lower.upper, &array[1], sizeof(uint64_t));
+			memcpy((uint64_t*)&upper.lower, &array[2], sizeof(uint64_t));
+			memcpy((uint64_t*)&upper.upper, &array[3], sizeof(uint64_t));
+#else
+			memcpy((uint64_t*)&upper.upper, &array[0], sizeof(uint64_t));
+			memcpy((uint64_t*)&upper.lower, &array[1], sizeof(uint64_t));
+			memcpy((uint64_t*)&lower.upper, &array[2], sizeof(uint64_t));
+			memcpy((uint64_t*)&lower.lower, &array[3], sizeof(uint64_t));
+#endif
+		}
+		void uint256::decode_compact(const uint8_t* data, size_t data_size)
+		{
+			VI_ASSERT(data != nullptr, "data should be set");
+			uint8_t intermediate[sizeof(uint256)] = { 0 };
+			memcpy(intermediate, data, std::min(data_size, sizeof(intermediate)));
+			decode(intermediate);
 		}
 		uint16_t uint256::bits() const
 		{
@@ -6923,7 +7029,7 @@ namespace vitex
 			raw = random();
 #endif
 			return raw % (max - min + 1) + min;
-			}
+		}
 		uint64_t crypto::random()
 		{
 			static std::random_device device;
@@ -8956,5 +9062,5 @@ namespace vitex
 			result.library.clear();
 			return result;
 		}
-		}
 	}
+}

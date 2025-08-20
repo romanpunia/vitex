@@ -263,6 +263,8 @@ namespace vitex
 
 		struct uint128
 		{
+			friend struct uint256;
+
 		private:
 #ifdef VI_ENDIAN_BIG
 			uint64_t upper, lower;
@@ -320,6 +322,10 @@ namespace vitex
 			uint128 operator-() const;
 			const uint64_t& high() const;
 			const uint64_t& low() const;
+			void encode(uint8_t data[16]) const;
+			void encode_compact(uint8_t data[16], size_t* data_size) const;
+			void decode(const uint8_t data[16]);
+			void decode_compact(const uint8_t* data, size_t data_size);
 			uint8_t bits() const;
 			uint8_t bytes() const;
 			uint64_t& high();
@@ -761,6 +767,10 @@ namespace vitex
 			uint256 operator-() const;
 			const uint128& high() const;
 			const uint128& low() const;
+			void encode(uint8_t data[16]) const;
+			void encode_compact(uint8_t data[16], size_t* data_size) const;
+			void decode(const uint8_t data[16]);
+			void decode_compact(const uint8_t* data, size_t data_size);
 			uint16_t bits() const;
 			uint16_t bytes() const;
 			uint128& high();

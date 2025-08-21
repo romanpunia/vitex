@@ -13,3 +13,6 @@
 [submodule "deps/pugixml"]
 	path = deps/pugixml
 	url = https://github.com/zeux/pugixml
+[submodule "deps/angelscript"]
+	path = deps/angelscript
+	url = https://github.com/anjo76/angelscript.git

@@ -820,7 +820,7 @@ namespace vitex
 			exception::pointer::pointer(immediate_context* new_context) : context(new_context)
 			{
 				auto value = (context ? context->get_exception_string() : std::string_view());
-				if (!value.empty() && (context ? !context->will_exception_be_caught() : false))
+				if (!value.empty() && (context ? context->get_state() == execution::active || !context->will_exception_be_caught() : false))
 				{
 					load_exception_data(value);
 					origin = load_stack_here();

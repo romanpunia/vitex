@@ -6277,7 +6277,7 @@ namespace vitex
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			return or_empty(context->GetState() == asEXECUTION_EXCEPTION ? context->GetExceptionString() : nullptr);
+			return or_empty(context->GetExceptionString());
 #else
 			return "";
 #endif

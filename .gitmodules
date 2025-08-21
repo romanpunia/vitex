@@ -4,9 +4,6 @@
 [submodule "deps/backward-cpp"]
 	path = deps/backward-cpp
 	url = https://github.com/bombela/backward-cpp
-[submodule "deps/angelscript"]
-	path = deps/angelscript
-	url = https://github.com/codecat/angelscript-mirror
 [submodule "deps/concurrentqueue"]
 	path = deps/concurrentqueue
 	url = https://github.com/cameron314/concurrentqueue

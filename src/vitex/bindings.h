@@ -375,6 +375,9 @@ namespace vitex
 			class string
 			{
 			public:
+				typedef vitex::core::unordered_map<vitex::core::string, std::atomic<int32_t>> factory_context;
+
+			public:
 				static std::string_view impl_cast_string_view(core::string& base);
 				static void create(core::string* base);
 				static void create_copy1(core::string* base, const core::string& other);
@@ -1252,10 +1255,9 @@ namespace vitex
 			{
 			public:
 				registry() = default;
-				virtual void* fetch_string_factory() noexcept;
-				virtual bool cleanup() noexcept;
 				virtual bool bind_addons(virtual_machine* vm) noexcept;
 				virtual bool bind_stringifiers(debugger_context* context) noexcept;
+				static bool bind_string_factory(virtual_machine* vm) noexcept;
 				static bool import_ctypes(virtual_machine* vm) noexcept;
 				static bool import_any(virtual_machine* vm) noexcept;
 				static bool import_array(virtual_machine* vm) noexcept;

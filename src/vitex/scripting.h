@@ -11,7 +11,6 @@ class asIScriptModule;
 class asIScriptFunction;
 class asIScriptGeneric;
 class asIScriptObject;
-class asIStringFactory;
 class asILockableSharedBool;
 class asITypeInfo;
 struct asSFuncPtr;
@@ -28,6 +27,8 @@ namespace vitex
 		struct function_delegate;
 
 		struct type_info;
+
+		struct string_factory;
 
 		class virtual_machine;
 
@@ -355,6 +356,9 @@ namespace vitex
 
 		typedef void(dummy_ptr::* dummy_method_ptr)();
 		typedef void(*function_ptr)();
+		typedef const void*(*to_string_constant_ptr)(void* context, const char* buffer, size_t buffer_size);
+		typedef int(*from_string_constant_ptr)(void* context, const void* object, char* buffer, size_t* buffer_size);
+		typedef int(*free_string_constant_ptr)(void* context, const void* object);
 		typedef std::function<void(type_info*, struct function_info*)> property_callback;
 		typedef std::function<void(type_info*, struct function*)> method_callback;
 		typedef std::function<void(class virtual_machine*)> addon_callback;
@@ -395,8 +399,6 @@ namespace vitex
 		public:
 			static expects_vm<void> replace_inline_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer);
 			static expects_vm<void> replace_directive_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer);
-
-		private:
 			static expects_vm<void> replace_preconditions(bool is_directive, const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer);
 		};
 
@@ -672,6 +674,7 @@ namespace vitex
 			size_t offset_of_arg2;
 			int32_t offset_of_stack;
 			uint8_t code;
+			uint8_t stride;
 			uint8_t size;
 			uint8_t size_of_arg0;
 			uint8_t size_of_arg1;
@@ -1960,6 +1963,7 @@ namespace vitex
 			uint64_t scope;
 			debugger_context* debugger;
 			asIScriptEngine* engine;
+			string_factory* factory;
 			bool save_stacktrace;
 			bool save_sources;
 			bool save_cache;
@@ -1990,7 +1994,7 @@ namespace vitex
 			expects_vm<void> set_type_def(const std::string_view& type, const std::string_view& decl);
 			expects_vm<void> set_function_address(const std::string_view& decl, asSFuncPtr* value, convention type = convention::cdecl_call);
 			expects_vm<void> set_property_address(const std::string_view& decl, void* value);
-			expects_vm<void> set_string_factory_address(const std::string_view& type, asIStringFactory* factory);
+			expects_vm<void> set_string_factory_type(const std::string_view& type);
 			expects_vm<void> set_log_callback(void(*callback)(const asSMessageInfo* message, void* object), void* object);
 			expects_vm<void> log(const std::string_view& section, int row, int column, log_category type, const std::string_view& message);
 			expects_vm<void> set_property(features property, size_t value);
@@ -2009,7 +2013,7 @@ namespace vitex
 			void set_full_stack_tracing(bool enabled);
 			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
 			void set_ts_imports_concat_mode(bool enabled);
-			void set_auto_type_restriction(bool enabled);
+			void set_keyword_restriction(const std::string_view& keyword, bool enabled);
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void set_debugger(debugger_context* context);
@@ -2021,6 +2025,7 @@ namespace vitex
 			void set_default_array_type(const std::string_view& type);
 			void set_type_info_user_data_cleanup_callback(void(*callback)(asITypeInfo*), size_t type = 0);
 			void set_engine_user_data_cleanup_callback(void(*callback)(asIScriptEngine*), size_t type = 0);
+			void set_string_factory_functions(void* context, to_string_constant_ptr to_string_constant, from_string_constant_ptr from_string_constant, free_string_constant_ptr free_string_constant);
 			void* set_user_data(void* data, size_t type = 0);
 			void* get_user_data(size_t type = 0) const;
 			void clear_cache();
@@ -2109,6 +2114,10 @@ namespace vitex
 			static void line_handler(asIScriptContext* context, void* object);
 			static void exception_handler(asIScriptContext* context, void* object);
 			static void set_memory_functions(void* (*alloc)(size_t), void(*free)(void*));
+			static void global_exclusive_lock();
+			static void global_exclusive_unlock();
+			static void global_shared_lock();
+			static void global_shared_unlock();
 			static void cleanup_this_thread();
 			static std::string_view get_error_name_info(virtual_error code);
 			static byte_code_label get_byte_code_info(uint8_t code);

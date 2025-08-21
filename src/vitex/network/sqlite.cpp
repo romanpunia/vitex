@@ -857,13 +857,13 @@ namespace vitex
 			{
 				VI_ASSERT(statement != nullptr, "statement should not be empty");
 				core::string numeric = value.to_string();
-				if (!value.decimal_places())
+				if (!value.decimal_size())
 				{
 					auto integer = core::from_string<int64_t>(numeric);
 					if (integer)
 						return bind_int64(statement, index, *integer);
 				}
-				else if (value.decimal_places() <= 3 && value.integer_places() <= 6)
+				else if (value.decimal_size() <= 3 && value.integer_size() <= 6)
 				{
 					auto doublef = core::from_string<double>(numeric);
 					if (doublef)

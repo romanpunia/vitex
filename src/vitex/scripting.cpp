@@ -11,17 +11,15 @@
 
 namespace
 {
-	class cbyte_code_stream : public asIBinaryStream
+	struct byte_code_stream : public asIBinaryStream
 	{
-	private:
 		vitex::core::vector<asBYTE> code;
 		int read_pos, write_pos;
 
-	public:
-		cbyte_code_stream() : read_pos(0), write_pos(0)
+		byte_code_stream() : read_pos(0), write_pos(0)
 		{
 		}
-		cbyte_code_stream(const vitex::core::vector<asBYTE>& data) : code(data), read_pos(0), write_pos(0)
+		byte_code_stream(const vitex::core::vector<asBYTE>& data) : code(data), read_pos(0), write_pos(0)
 		{
 		}
 		int Read(void* ptr, asUINT size) override
@@ -190,6 +188,54 @@ namespace vitex
 {
 	namespace scripting
 	{
+#ifdef VI_ANGELSCRIPT
+		struct string_factory : public asIStringFactory
+		{
+			vitex::scripting::to_string_constant_ptr to_string_constant;
+			vitex::scripting::from_string_constant_ptr from_string_constant;
+			vitex::scripting::free_string_constant_ptr free_string_constant;
+			void* context;
+
+			string_factory() : to_string_constant(nullptr), from_string_constant(nullptr), free_string_constant(nullptr), context(nullptr)
+			{
+			}
+			~string_factory()
+			{
+				if (free_string_constant != nullptr)
+					free_string_constant(context, nullptr);
+			}
+			const void* GetStringConstant(const char* buffer, asUINT buffer_size) override
+			{
+				VI_ASSERT(buffer != nullptr, "buffer must not be null");
+				if (to_string_constant != nullptr)
+					return to_string_constant(context, buffer, (size_t)buffer_size);
+
+				return nullptr;
+			}
+			int ReleaseStringConstant(const void* object) override
+			{
+				VI_ASSERT(object != nullptr, "object must not be null");
+				if (free_string_constant != nullptr)
+					return free_string_constant(context, object);
+
+				return asNOT_SUPPORTED;
+			}
+			int GetRawStringData(const void* object, char* buffer, asUINT* buffer_size) const override
+			{
+				VI_ASSERT(object != nullptr, "object must not be null");
+				if (from_string_constant != nullptr)
+				{
+					size_t intermediate_buffer_size = buffer_size ? (size_t)*buffer_size : 0;
+					int result = from_string_constant(context, object, buffer, &intermediate_buffer_size);
+					if (buffer_size != nullptr)
+						*buffer_size = (asUINT)intermediate_buffer_size;
+					return result;
+				}
+
+				return asNOT_SUPPORTED;
+			}
+		};
+#endif
 		static core::vector<core::string> extract_lines_of_code(const std::string_view& code, int line, int max)
 		{
 			core::vector<core::string> total;
@@ -2300,7 +2346,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "module should be valid");
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>(info->data);
+			byte_code_stream* stream = core::memory::init<byte_code_stream>(info->data);
 			int r = mod->LoadByteCode(stream, &info->debug);
 			core::memory::deinit(stream);
 			return function_factory::to_return(r);
@@ -2479,7 +2525,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "module should be valid");
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>();
+			byte_code_stream* stream = core::memory::init<byte_code_stream>();
 			int r = mod->SaveByteCode(stream, info->debug);
 			info->data = stream->GetCode();
 			core::memory::deinit(stream);
@@ -3210,7 +3256,7 @@ namespace vitex
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 			VI_ASSERT(built, "module should be built");
 #ifdef VI_ANGELSCRIPT
-			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>();
+			byte_code_stream* stream = core::memory::init<byte_code_stream>();
 			int r = scope->SaveByteCode(stream, !info->debug);
 			info->data = stream->GetCode();
 			core::memory::deinit(stream);
@@ -3286,7 +3332,7 @@ namespace vitex
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
 			int r = 0;
-			cbyte_code_stream* stream = core::memory::init<cbyte_code_stream>(info->data);
+			byte_code_stream* stream = core::memory::init<byte_code_stream>(info->data);
 			while ((r = scope->LoadByteCode(stream, &info->debug)) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 			core::memory::deinit(stream);
@@ -6472,6 +6518,7 @@ namespace vitex
 			include.exts.push_back(".dylib");
 			include.exts.push_back(".dll");
 #ifdef VI_ANGELSCRIPT
+			factory = core::memory::init<string_factory>();
 			engine = asCreateScriptEngine();
 			engine->SetUserData(this, manager_ud);
 			engine->SetContextCallbacks(request_raw_context, return_raw_context, nullptr);
@@ -6514,6 +6561,7 @@ namespace vitex
 				engine->ShutDownAndRelease();
 				engine = nullptr;
 			}
+			core::memory::deinit(factory);
 #endif
 			clear_cache();
 		}
@@ -6629,7 +6677,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::set_string_factory_address(const std::string_view& type, asIStringFactory* factory)
+		expects_vm<void> virtual_machine::set_string_factory_type(const std::string_view& type)
 		{
 			VI_ASSERT(core::stringify::is_cstring(type), "typename should be set");
 #ifdef VI_ANGELSCRIPT
@@ -7114,13 +7162,18 @@ namespace vitex
 		{
 			concat_code = enabled;
 		}
-		void virtual_machine::set_auto_type_restriction(bool enabled)
+		void virtual_machine::set_keyword_restriction(const std::string_view& keyword, bool enabled)
 		{
-			set_code_generator("auto-restriction", enabled ? generator_callback([](compute::preprocessor* base, const std::string_view& path, core::string& code) -> expects_vm<void>
+			auto keyword_token = core::string(keyword);
+			auto keyword_name = compute::codec::hex_encode(keyword_token) + "-restriction";
+			set_code_generator(keyword_name, enabled ? generator_callback([keyword_token](compute::preprocessor* base, const std::string_view& path, core::string& code) -> expects_vm<void>
 			{
-				return parser::replace_inline_preconditions("auto", code, [](const std::string_view& expression) -> expects_vm<core::string>
+				return parser::replace_inline_preconditions(keyword_token, code, [keyword_token](const std::string_view& expression) -> expects_vm<core::string>
 				{
-					return virtual_exception(virtual_error::not_supported, "auto type is forbidden (expression): auto " + core::string(expression));
+					return virtual_exception(virtual_error::not_supported, core::stringify::text("use of restricted keyword \"%s\" in \"%s%s%.*s\"",
+						keyword_token.c_str(), keyword_token.c_str(),
+						!expression.empty() && !core::stringify::is_whitespace(expression.front()) ? " " : "",
+						(int)expression.size(), expression.data()));
 				});
 			}) : generator_callback(nullptr));
 		}
@@ -7169,6 +7222,18 @@ namespace vitex
 			VI_ASSERT(engine != nullptr, "engine should be set");
 #ifdef VI_ANGELSCRIPT
 			engine->SetEngineUserDataCleanupCallback(callback, (asPWORD)type);
+#endif
+		}
+		void virtual_machine::set_string_factory_functions(void* context, to_string_constant_ptr to_string_constant, from_string_constant_ptr from_string_constant, free_string_constant_ptr free_string_constant)
+		{
+#ifdef VI_ANGELSCRIPT
+			if (factory != nullptr)
+			{
+				factory->to_string_constant = to_string_constant;
+				factory->from_string_constant = from_string_constant;
+				factory->free_string_constant = free_string_constant;
+				factory->context = context;
+			}
 #endif
 		}
 		void* virtual_machine::set_user_data(void* data, size_t type)
@@ -8242,6 +8307,30 @@ namespace vitex
 			asSetGlobalMemoryFunctions(alloc, free);
 #endif
 		}
+		void virtual_machine::global_exclusive_lock()
+		{
+#ifdef VI_ANGELSCRIPT
+			asAcquireExclusiveLock();
+#endif
+		}
+		void virtual_machine::global_exclusive_unlock()
+		{
+#ifdef VI_ANGELSCRIPT
+			asReleaseExclusiveLock();
+#endif
+		}
+		void virtual_machine::global_shared_lock()
+		{
+#ifdef VI_ANGELSCRIPT
+			asAcquireSharedLock();
+#endif
+		}
+		void virtual_machine::global_shared_unlock()
+		{
+#ifdef VI_ANGELSCRIPT
+			asReleaseSharedLock();
+#endif
+		}
 		void virtual_machine::cleanup_this_thread()
 		{
 #ifdef VI_ANGELSCRIPT
@@ -8321,7 +8410,8 @@ namespace vitex
 			byte_code_label label;
 			label.name = source.name;
 			label.code = (uint8_t)source.bc;
-			label.size = std::max<uint8_t>(1, asBCTypeSize[source.type]);
+			label.stride = asBCTypeSize[source.type];
+			label.size = std::max<uint8_t>(1, label.stride);
 			label.offset_of_stack = source.stackInc;
 			label.size_of_arg0 = 0;
 			label.size_of_arg1 = 0;

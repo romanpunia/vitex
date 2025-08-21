@@ -301,8 +301,6 @@ namespace vitex
 	}
 	void runtime::cleanup_scripting() noexcept
 	{
-		scripting::bindings::registry().cleanup();
-		VI_TRACE("lib free bindings registry");
 		scripting::virtual_machine::cleanup();
 		VI_TRACE("lib free virtual machine");
 	}

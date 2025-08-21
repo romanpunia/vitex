@@ -2017,8 +2017,8 @@ namespace vitex
 			string to_string() const;
 			string to_exponent() const;
 			const string& numeric() const;
-			uint32_t decimal_places() const;
-			uint32_t integer_places() const;
+			uint32_t decimal_size() const;
+			uint32_t integer_size() const;
 			uint32_t size() const;
 			int8_t position() const;
 			decimal operator -() const;

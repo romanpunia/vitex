@@ -16,93 +16,6 @@
 
 namespace
 {
-#ifdef VI_ANGELSCRIPT
-	class string_factory : public asIStringFactory
-	{
-	private:
-		static string_factory* base;
-
-	public:
-		vitex::core::unordered_map<vitex::core::string, std::atomic<int32_t>> cache;
-
-	public:
-		string_factory()
-		{
-		}
-		~string_factory()
-		{
-			VI_ASSERT(cache.size() == 0, "some strings are still in use");
-		}
-		const void* GetStringConstant(const char* buffer, asUINT length) override
-		{
-			VI_ASSERT(buffer != nullptr, "buffer must not be null");
-
-			asAcquireSharedLock();
-			std::string_view source(buffer, length);
-			auto it = cache.find(vitex::core::key_lookup_cast(source));
-			if (it != cache.end())
-			{
-				it->second++;
-				asReleaseSharedLock();
-				return reinterpret_cast<const void*>(&it->first);
-			}
-
-			asReleaseSharedLock();
-			asAcquireExclusiveLock();
-			it = cache.insert(std::make_pair(std::move(source), 1)).first;
-			asReleaseExclusiveLock();
-			return reinterpret_cast<const void*>(&it->first);
-		}
-		int ReleaseStringConstant(const void* source) override
-		{
-			VI_ASSERT(source != nullptr, "source must not be null");
-			asAcquireSharedLock();
-			auto it = cache.find(*reinterpret_cast<const vitex::core::string*>(source));
-			if (it == cache.end())
-			{
-				asReleaseSharedLock();
-				return asERROR;
-			}
-			else if (--it->second > 0)
-			{
-				asReleaseSharedLock();
-				return asSUCCESS;
-			}
-
-			asReleaseSharedLock();
-			asAcquireExclusiveLock();
-			cache.erase(it);
-			asReleaseExclusiveLock();
-			return asSUCCESS;
-		}
-		int GetRawStringData(const void* source, char* buffer, asUINT* length) const override
-		{
-			VI_ASSERT(source != nullptr, "source must not be null");
-			if (length != nullptr)
-				*length = (asUINT)reinterpret_cast<const vitex::core::string*>(source)->length();
-
-			if (buffer != nullptr)
-				memcpy(buffer, reinterpret_cast<const vitex::core::string*>(source)->c_str(), reinterpret_cast<const vitex::core::string*>(source)->length());
-
-			return asSUCCESS;
-		}
-
-	public:
-		static string_factory* get()
-		{
-			if (!base)
-				base = vitex::core::memory::init<string_factory>();
-
-			return base;
-		}
-		static void free()
-		{
-			if (base != nullptr && base->cache.empty())
-				vitex::core::memory::deinit(base);
-		}
-	};
-	string_factory* string_factory::base = nullptr;
-#endif
 	struct file_link : public vitex::core::file_entry
 	{
 		vitex::core::string path;
@@ -8558,21 +8471,6 @@ namespace vitex
 				return array::compose(type.get_type_info(), base->get_queries());
 			}
 #endif
-			void* registry::fetch_string_factory() noexcept
-			{
-#ifdef VI_ANGELSCRIPT
-				return string_factory::get();
-#else
-				return nullptr;
-#endif
-			}
-			bool registry::cleanup() noexcept
-			{
-#ifdef VI_ANGELSCRIPT
-				string_factory::free();
-#endif
-				return true;
-			}
 			bool registry::bind_addons(virtual_machine* vm) noexcept
 			{
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
@@ -8804,6 +8702,75 @@ namespace vitex
 					return stream.str();
 				});
 #endif
+				return true;
+			}
+			bool registry::bind_string_factory(virtual_machine* vm) noexcept
+			{
+				static auto to_string_constant = [](void* context, const char* buffer, size_t buffer_size) -> const void*
+				{
+					auto& cache = *(string::factory_context*)context;
+					virtual_machine::global_shared_lock();
+					std::string_view source(buffer, buffer_size);
+					auto it = cache.find(core::key_lookup_cast(source));
+					if (it != cache.end())
+					{
+						it->second++;
+						virtual_machine::global_shared_unlock();
+						return reinterpret_cast<const void*>(&it->first);
+					}
+
+					virtual_machine::global_shared_unlock();
+					virtual_machine::global_exclusive_lock();
+					it = cache.insert(std::make_pair(std::move(source), 1)).first;
+					virtual_machine::global_exclusive_unlock();
+					return reinterpret_cast<const void*>(&it->first);
+				};
+				static auto from_string_constant = [](void* context, const void* object, char* buffer, size_t* buffer_size) -> int
+				{
+					if (buffer_size != nullptr)
+						*buffer_size = reinterpret_cast<const core::string*>(object)->size();
+
+					if (buffer != nullptr)
+						memcpy(buffer, reinterpret_cast<const core::string*>(object)->c_str(), reinterpret_cast<const core::string*>(object)->size());
+
+					return (int)virtual_error::success;
+				};
+				static auto free_string_constant = [](void* context, const void* object) -> int
+				{
+					auto& cache = *(string::factory_context*)context;
+					if (object != nullptr)
+					{
+						virtual_machine::global_shared_lock();
+						auto it = cache.find(*reinterpret_cast<const core::string*>(object));
+						if (it == cache.end())
+						{
+							virtual_machine::global_shared_unlock();
+							return (int)virtual_error::err;
+						}
+						else if (--it->second > 0)
+						{
+							virtual_machine::global_shared_unlock();
+							return (int)virtual_error::success;
+						}
+
+						virtual_machine::global_shared_unlock();
+						virtual_machine::global_exclusive_lock();
+						cache.erase(it);
+						virtual_machine::global_exclusive_unlock();
+						return (int)virtual_error::success;
+					}
+					else
+					{
+						virtual_machine::global_exclusive_lock();
+						core::memory::deinit(&cache);
+						virtual_machine::global_exclusive_unlock();
+						return (int)virtual_error::success;
+					}
+				};
+
+				auto* context = core::memory::init<string::factory_context>();
+				vm->set_string_factory_type("string");
+				vm->set_string_factory_functions(context, to_string_constant, from_string_constant, free_string_constant);
 				return true;
 			}
 			bool registry::import_ctypes(virtual_machine* vm) noexcept
@@ -9058,9 +9025,6 @@ namespace vitex
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 				auto vstring_view = vm->set_struct_address("string_view", sizeof(std::string_view), (size_t)object_behaviours::value | bridge::type_traits_of<std::string_view>() | (size_t)object_behaviours::app_class_allints);
 				auto vstring = vm->set_struct_address("string", sizeof(core::string), (size_t)object_behaviours::value | bridge::type_traits_of<core::string>());
-#ifdef VI_ANGELSCRIPT
-				vm->set_string_factory_address("string", string_factory::get());
-#endif
 				vstring->set_constructor_extern("void f()", &string::create);
 				vstring->set_constructor_extern("void f(const string&in)", &string::create_copy1);
 				vstring->set_constructor_extern("void f(const string_view&in)", &string::create_copy2);
@@ -9212,16 +9176,13 @@ namespace vitex
 				vm->set_property("const usize npos", &std::string_view::npos);
 				vm->end_namespace();
 
-				return true;
+				return bind_string_factory(vm);
 			}
 			bool registry::import_safe_string(virtual_machine* vm) noexcept
 			{
 				VI_ASSERT(vm != nullptr && vm->get_engine() != nullptr, "manager should be set");
 				auto vstring_view = vm->set_struct_address("string_view", sizeof(std::string_view), (size_t)object_behaviours::value | bridge::type_traits_of<std::string_view>() | (size_t)object_behaviours::app_class_allints);
 				auto vstring = vm->set_struct_address("string", sizeof(core::string), (size_t)object_behaviours::value | bridge::type_traits_of<core::string>());
-#ifdef VI_ANGELSCRIPT
-				vm->set_string_factory_address("string", string_factory::get());
-#endif
 				vstring->set_constructor_extern("void f()", &string::create);
 				vstring->set_constructor_extern("void f(const string&in)", &string::create_copy1);
 				vstring->set_constructor_extern("void f(const string_view&in)", &string::create_copy2);
@@ -9355,7 +9316,7 @@ namespace vitex
 				vm->set_property("const usize npos", &std::string_view::npos);
 				vm->end_namespace();
 
-				return true;
+				return bind_string_factory(vm);
 			}
 			bool registry::import_exception(virtual_machine* vm) noexcept
 			{
@@ -9588,8 +9549,8 @@ namespace vitex
 				vdecimal->set_method("uint64 to_uint64() const", &core::decimal::to_uint64);
 				vdecimal->set_method("string to_string() const", &core::decimal::to_string);
 				vdecimal->set_method("string to_exponent() const", &core::decimal::to_exponent);
-				vdecimal->set_method("uint32 decimal_places() const", &core::decimal::decimal_places);
-				vdecimal->set_method("uint32 whole_places() const", &core::decimal::integer_places);
+				vdecimal->set_method("uint32 decimal_size() const", &core::decimal::decimal_size);
+				vdecimal->set_method("uint32 integer_size() const", &core::decimal::integer_size);
 				vdecimal->set_method("uint32 size() const", &core::decimal::size);
 				vdecimal->set_operator_extern(operators::neg_t, (uint32_t)position::constant, "decimal", "", &decimal_negate);
 				vdecimal->set_operator_extern(operators::mul_assign_t, (uint32_t)position::left, "decimal&", "const decimal &in", &decimal_mul_eq);

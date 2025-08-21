@@ -2373,7 +2373,7 @@ namespace vitex
 						result += source[i];
 				}
 				result += "e+";
-				result += core::to_string(integer_places() - 1);
+				result += core::to_string(integer_size() - 1);
 			}
 			else if (compare == 2)
 			{
@@ -2416,13 +2416,14 @@ namespace vitex
 		{
 			return source;
 		}
-		uint32_t decimal::decimal_places() const
+		uint32_t decimal::decimal_size() const
 		{
-			return length;
+			return (uint32_t)length;
 		}
-		uint32_t decimal::integer_places() const
+		uint32_t decimal::integer_size() const
 		{
-			return (int32_t)source.size() - length;
+			uint32_t total_length = (uint32_t)source.size(), decimal_length = (uint32_t)length;
+			return total_length > decimal_length ? std::max<uint32_t>(1, total_length - decimal_length) : 1;
 		}
 		uint32_t decimal::size() const
 		{

@@ -6634,6 +6634,17 @@ namespace vitex
 				goto finalize;
 			}
 
+			uint8_t tag[16] = { 0 }, null[16] = { 0 };
+			if (1 == EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_AEAD_GET_TAG, (int)sizeof(tag), tag) || 1 == EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_GCM_GET_TAG, (int)sizeof(tag), tag) || 1 == EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_CCM_GET_TAG, (int)sizeof(tag), tag))
+			{
+				if (memcmp(tag, null, sizeof(null)) != 0)
+				{
+					size_t output_size = output.size();
+					output.resize(output_size + sizeof(tag));
+					memcpy(output.data() + output_size, tag, sizeof(tag));
+				}
+			}
+
 			EVP_CIPHER_CTX_free(context);
 			return output;
 #else
@@ -6669,15 +6680,52 @@ namespace vitex
 				return crypto_exception();
 			}
 
+			uint8_t tag[16]; auto untagged_value = value;
+			if (untagged_value.size() > sizeof(tag))
+			{
+				switch (EVP_CIPHER_nid((const EVP_CIPHER*)type))
+				{
+					case NID_aes_128_gcm:
+					case NID_aes_192_gcm:
+					case NID_aes_256_gcm:
+					case NID_camellia_128_gcm:
+					case NID_camellia_192_gcm:
+					case NID_camellia_256_gcm:
+					case NID_aria_128_gcm:
+					case NID_aria_192_gcm:
+					case NID_aria_256_gcm:
+					case NID_aes_128_ccm:
+					case NID_aes_192_ccm:
+					case NID_aes_256_ccm:
+					case NID_camellia_128_ccm:
+					case NID_camellia_192_ccm:
+					case NID_camellia_256_ccm:
+					case NID_aria_128_ccm:
+					case NID_aria_192_ccm:
+					case NID_aria_256_ccm:
+					case NID_sm4_ccm:
+					case NID_chacha20_poly1305:
+					{
+						size_t tag_offset = untagged_value.size() - sizeof(tag);
+						memcpy(tag, untagged_value.data() + tag_offset, sizeof(tag));
+						if (1 == EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_AEAD_SET_TAG, (int)sizeof(tag), tag) || 1 == EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_GCM_SET_TAG, (int)sizeof(tag), tag) || 1 == EVP_CIPHER_CTX_ctrl(context, EVP_CTRL_CCM_SET_TAG, (int)sizeof(tag), tag))
+							untagged_value = untagged_value.substr(0, tag_offset);
+						break;
+					}
+					default:
+						break;
+				}
+			}
+
 			core::string output;
-			output.reserve(value.size());
+			output.reserve(untagged_value.size());
 
 			size_t offset = 0; bool is_finalized = false;
 			uint8_t out_buffer[core::BLOB_SIZE + 2048];
-			const uint8_t* in_buffer = (const uint8_t*)value.data();
-			while (offset < value.size())
+			const uint8_t* in_buffer = (const uint8_t*)untagged_value.data();
+			while (offset < untagged_value.size())
 			{
-				int in_size = std::min<int>(core::BLOB_SIZE, (int)(value.size() - offset)), out_size = 0;
+				int in_size = std::min<int>(core::BLOB_SIZE, (int)(untagged_value.size() - offset)), out_size = 0;
 				if (1 != EVP_DecryptUpdate(context, out_buffer, &out_size, in_buffer + offset, in_size))
 				{
 					EVP_CIPHER_CTX_free(context);
@@ -6690,7 +6738,7 @@ namespace vitex
 				output.resize(output.size() + out_buffer_size);
 				memcpy((char*)output.data() + output_offset, out_buffer, out_buffer_size);
 				offset += (size_t)in_size;
-				if (offset < value.size())
+				if (offset < untagged_value.size())
 					continue;
 				else if (is_finalized)
 					break;

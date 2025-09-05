@@ -1234,7 +1234,7 @@ namespace vitex
 			if (!new_message.empty())
 			{
 				error_message += new_message;
-				error_message += " (error = ";
+				error_message += " (error: ";
 				error_message += error_condition.message().c_str();
 				error_message += ")";
 			}
@@ -1246,7 +1246,7 @@ namespace vitex
 			if (!new_message.empty())
 			{
 				error_message += new_message;
-				error_message += " (error = ";
+				error_message += " (error: ";
 				error_message += error_condition.message().c_str();
 				error_message += ")";
 			}
@@ -5458,7 +5458,7 @@ namespace vitex
 		}
 		bool stringify::is_hex(char symbol)
 		{
-			return is_numeric(symbol) || (symbol >= 'a' && symbol <= 'f');
+			return is_numeric(symbol) || (symbol >= 'a' && symbol <= 'f') || (symbol >= 'A' && symbol <= 'F');
 		}
 		bool stringify::is_hex_or_dot(char symbol)
 		{
@@ -11189,6 +11189,7 @@ namespace vitex
 					report_thread(thread_task::process_task, 1, nullptr);
 #endif
 					dispatcher.event();
+					dispatcher.event = nullptr;
 #ifndef NDEBUG
 					report_thread(thread_task::awake, 0, nullptr);
 #endif
@@ -11385,6 +11386,7 @@ namespace vitex
 #endif
 						VI_MEASURE(timings::intensive);
 						event();
+						event = nullptr;
 					} while (thread_active(thread));
 					break;
 				}
@@ -11478,6 +11480,7 @@ namespace vitex
 #endif
 						VI_MEASURE(timings::intensive);
 						event();
+						event = nullptr;
 					} while (thread_active(thread));
 					while (!thread->queue.empty())
 					{

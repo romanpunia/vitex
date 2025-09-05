@@ -6144,15 +6144,15 @@ namespace vitex
 				if (response.content.is_finalized())
 					return core::expects_promise_system<void>(core::expectation::met);
 				else if (response.content.exceeds)
-					return core::expects_promise_system<void>(core::system_exception("download content error: payload too large", std::make_error_condition(std::errc::value_too_large)));
+					return core::expects_promise_system<void>(core::system_exception("download content failed", std::make_error_condition(std::errc::value_too_large)));
 				else if (!has_stream())
-					return core::expects_promise_system<void>(core::system_exception("download content error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+					return core::expects_promise_system<void>(core::system_exception("download content failed", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				auto content_type = response.get_header("Content-Type");
 				if (content_type == std::string_view("multipart/form-data", 19))
 				{
 					response.content.exceeds = true;
-					return core::expects_promise_system<void>(core::system_exception("download content error: requires file saving", std::make_error_condition(std::errc::value_too_large)));
+					return core::expects_promise_system<void>(core::system_exception("download content requires saving", std::make_error_condition(std::errc::value_too_large)));
 				}
 				else if (eat)
 					max_size = std::numeric_limits<size_t>::max();
@@ -6187,7 +6187,7 @@ namespace vitex
 							}
 						}
 						else if (subresult == -1)
-							return core::expects_promise_system<void>(core::system_exception("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
+							return core::expects_promise_system<void>(core::system_exception("download transfer encoding content parsing failed", std::make_error_condition(std::errc::protocol_error)));
 					}
 					else if (response.content.prefetch > 0)
 						return core::expects_promise_system<void>(core::expectation::met);
@@ -6225,7 +6225,7 @@ namespace vitex
 							}
 
 							if (packet::is_error_or_skip(event))
-								result.set(core::system_exception("download transfer encoding content parsing error", std::make_error_condition(std::errc::protocol_error)));
+								result.set(core::system_exception("download transfer encoding content parsing failed", std::make_error_condition(std::errc::protocol_error)));
 							else
 								result.set(core::expectation::met);
 						}
@@ -6256,7 +6256,7 @@ namespace vitex
 								VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 
 							if (packet::is_error_or_skip(event))
-								result.set(core::system_exception("download content network error", packet::to_condition(event)));
+								result.set(core::system_exception("download content failed", packet::to_condition(event)));
 							else
 								result.set(core::expectation::met);
 						}
@@ -6273,7 +6273,7 @@ namespace vitex
 					return core::expects_promise_system<void>(core::expectation::met);
 				}
 				else if (response.content.offset > response.content.length)
-					return core::expects_promise_system<void>(core::system_exception("download content error: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
+					return core::expects_promise_system<void>(core::system_exception("download content failed: invalid range", std::make_error_condition(std::errc::result_out_of_range)));
 
 				core::expects_promise_system<void> result;
 				net.stream->read_queued(max_size, [this, result, eat](socket_poll event, const uint8_t* buffer, size_t recv) mutable
@@ -6295,7 +6295,7 @@ namespace vitex
 						}
 
 						if (packet::is_error_or_skip(event))
-							result.set(core::system_exception("download content network error", packet::to_condition(event)));
+							result.set(core::system_exception("download content failed", packet::to_condition(event)));
 						else
 							result.set(core::expectation::met);
 					}
@@ -6308,7 +6308,7 @@ namespace vitex
 			{
 				VI_ASSERT(web_socket != nullptr, "websocket should be opened");
 				if (!has_stream())
-					return core::expects_promise_system<void>(core::system_exception("upgrade error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+					return core::expects_promise_system<void>(core::system_exception("upgrade failed", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				target.set_header("Pragma", "no-cache");
 				target.set_header("Upgrade", "WebSocket");
@@ -6328,10 +6328,10 @@ namespace vitex
 						return core::expects_promise_system<void>(status.error());
 
 					if (response.status_code != 101)
-						return core::expects_promise_system<void>(core::system_exception("upgrade handshake status error", std::make_error_condition(std::errc::protocol_error)));
+						return core::expects_promise_system<void>(core::system_exception("upgrade handshake status failed", std::make_error_condition(std::errc::protocol_error)));
 
 					if (response.get_header("Sec-WebSocket-Accept").empty())
-						return core::expects_promise_system<void>(core::system_exception("upgrade handshake accept error", std::make_error_condition(std::errc::bad_message)));
+						return core::expects_promise_system<void>(core::system_exception("upgrade handshake accept failed", std::make_error_condition(std::errc::bad_message)));
 
 					future = core::expects_promise_system<void>();
 					web_socket->next();
@@ -6342,7 +6342,7 @@ namespace vitex
 			{
 				VI_ASSERT(!web_socket || !target.get_header("Sec-WebSocket-Key").empty(), "cannot send http request over websocket");
 				if (!has_stream())
-					return core::expects_promise_system<void>(core::system_exception("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+					return core::expects_promise_system<void>(core::system_exception("send failed", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				VI_DEBUG("http %s %s", target.method, target.location.c_str());
 				if (!response.content.is_finalized() || response.content.exceeds)
@@ -6438,7 +6438,7 @@ namespace vitex
 										});
 									}
 									else if (packet::is_error_or_skip(event))
-										report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+										report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 								}, false);
 							}
 							else
@@ -6454,7 +6454,7 @@ namespace vitex
 							}
 						}
 						else if (packet::is_error_or_skip(event))
-							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+							report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					}, false);
 				}
 				else
@@ -6462,7 +6462,7 @@ namespace vitex
 					auto random_bytes = compute::crypto::random_bytes(24);
 					if (!random_bytes)
 					{
-						report(core::system_exception("send boundary error: " + random_bytes.error().message(), std::make_error_condition(std::errc::operation_canceled)));
+						report(core::system_exception("send boundary failed: " + random_bytes.error().message(), std::make_error_condition(std::errc::operation_canceled)));
 						hrm_cache::get()->push(content);
 						return result;
 					}
@@ -6540,7 +6540,7 @@ namespace vitex
 						if (packet::is_done(event))
 							upload(0);
 						else if (packet::is_error_or_skip(event))
-							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+							report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					}, false);
 				}
 
@@ -6619,7 +6619,7 @@ namespace vitex
 					if (!successful)
 					{
 						net.stream->shutdown();
-						future.set(core::system_exception("ws connection abort error", std::make_error_condition(std::errc::connection_reset)));
+						future.set(core::system_exception("ws connection aborted", std::make_error_condition(std::errc::connection_reset)));
 					}
 					else
 						future.set(core::expectation::met);
@@ -6639,7 +6639,7 @@ namespace vitex
 			{
 				auto file = core::os::file::open(boundary->file->path.c_str(), "rb");
 				if (!file)
-					return callback(core::system_exception("upload file error", std::move(file.error())));
+					return callback(core::system_exception("upload file io failed", std::move(file.error())));
 
 				FILE* file_stream = *file;
 				auto result = net.stream->write_file_queued(file_stream, 0, boundary->file->length, [file_stream, callback](socket_poll event)
@@ -6652,7 +6652,7 @@ namespace vitex
 					else if (packet::is_error_or_skip(event))
 					{
 						core::os::file::close(file_stream);
-						callback(core::system_exception("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
+						callback(core::system_exception("upload file failed", std::make_error_condition(std::errc::connection_aborted)));
 					}
 				});
 				if (result || result.error() != std::errc::not_supported)
@@ -6678,7 +6678,7 @@ namespace vitex
 					if ((read = (size_t)fread(buffer, 1, read > content_length ? content_length : read, file_stream)) <= 0)
 					{
 						core::os::file::close(file_stream);
-						return callback(core::system_exception("upload file io error", core::os::error::get_condition()));
+						return callback(core::system_exception("upload file io failed", core::os::error::get_condition()));
 					}
 
 					content_length -= read;
@@ -6687,7 +6687,7 @@ namespace vitex
 					{
 						core::os::file::close(file_stream);
 						if (!written)
-							return callback(core::system_exception("upload file network error", std::move(written.error())));
+							return callback(core::system_exception("upload file failed", std::move(written.error())));
 
 						return callback(core::expectation::met);
 					}
@@ -6707,7 +6707,7 @@ namespace vitex
 				if ((read = (size_t)fread(buffer, 1, read > content_length ? content_length : read, file_stream)) <= 0)
 				{
 					core::os::file::close(file_stream);
-					return callback(core::system_exception("upload file io error", core::os::error::get_condition()));
+					return callback(core::system_exception("upload file io failed", core::os::error::get_condition()));
 				}
 
 				content_length -= read;
@@ -6723,7 +6723,7 @@ namespace vitex
 					else if (packet::is_error_or_skip(event))
 					{
 						core::os::file::close(file_stream);
-						return callback(core::system_exception("upload file network error", std::make_error_condition(std::errc::connection_aborted)));
+						return callback(core::system_exception("upload file failed", std::make_error_condition(std::errc::connection_aborted)));
 					}
 				});
 
@@ -6751,7 +6751,7 @@ namespace vitex
 											if (packet::is_done(event))
 												upload(file_id + 1);
 											else if (packet::is_error_or_skip(event))
-												report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+												report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 										}, false);
 									}
 									else
@@ -6762,7 +6762,7 @@ namespace vitex
 								upload(file_id + 1);
 						}
 						else if (packet::is_error_or_skip(event))
-							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+							report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					}, false);
 				}
 				else
@@ -6823,7 +6823,7 @@ namespace vitex
 					report(core::expectation::met);
 				}
 				else if (packet::is_error_or_skip(event))
-					report(core::system_exception(event == socket_poll::timeout ? "read timeout error" : "read abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+					report(core::system_exception("read failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				else
 					report(core::system_exception(core::stringify::text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, response.content.data.size()), response.content.data.data()), std::make_error_condition(std::errc::bad_message)));
 			}

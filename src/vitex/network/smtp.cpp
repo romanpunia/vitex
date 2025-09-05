@@ -43,7 +43,7 @@ namespace vitex
 			core::expects_promise_system<void> client::send(request_frame&& root)
 			{
 				if (!has_stream())
-					return core::expects_promise_system<void>(core::system_exception("send error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+					return core::expects_promise_system<void>(core::system_exception("send failed", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 				core::expects_promise_system<void> result;
 				if (&request != &root)
@@ -75,7 +75,7 @@ namespace vitex
 						if (this->is_secure())
 						{
 							if (!can_request("STARTTLS"))
-								return report(core::system_exception("connect tls: server has no support", std::make_error_condition(std::errc::protocol_not_supported)));
+								return report(core::system_exception("connect tls failed", std::make_error_condition(std::errc::protocol_not_supported)));
 
 							send_request(220, "STARTTLS\r\n", [this]()
 							{
@@ -153,7 +153,7 @@ namespace vitex
 					}
 					else if (packet::is_error_or_skip(event))
 					{
-						report(core::system_exception("receive response: aborted", std::make_error_condition(std::errc::connection_aborted)));
+						report(core::system_exception("receive response failed", std::make_error_condition(std::errc::connection_aborted)));
 						return false;
 					}
 
@@ -167,7 +167,7 @@ namespace vitex
 					if (packet::is_done(event))
 						read_response(code, std::move(callback));
 					else if (packet::is_error_or_skip(event))
-						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
 			bool client::can_request(const std::string_view& keyword)
@@ -633,17 +633,17 @@ namespace vitex
 											if (packet::is_done(event))
 												send_attachment();
 											else if (packet::is_error_or_skip(event))
-												report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+												report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 										});
 									}
 									else if (packet::is_error_or_skip(event))
-										report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+										report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 								});
 							});
 						});
 					}
 					else if (packet::is_error_or_skip(event))
-						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				});
 
 				return true;
@@ -667,7 +667,7 @@ namespace vitex
 							});
 						}
 						else if (packet::is_error_or_skip(event))
-							report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+							report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 					});
 				}
 
@@ -696,10 +696,10 @@ namespace vitex
 							process_attachment();
 						}
 						else
-							report(core::system_exception("smtp send attachment: open error", std::move(file.error())));
+							report(core::system_exception("smtp send attachment: open failed", std::move(file.error())));
 					}
 					else if (packet::is_error_or_skip(event))
-						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
 			bool client::process_attachment()
@@ -710,7 +710,7 @@ namespace vitex
 				size_t size = (size_t)fread(data, sizeof(char), count, attachment_file);
 				if (size != count)
 				{
-					report(core::system_exception("smtp read attachment error: " + it.path, std::make_error_condition(std::errc::io_error)));
+					report(core::system_exception("smtp read attachment failed: " + it.path, std::make_error_condition(std::errc::io_error)));
 					return false;
 				}
 
@@ -732,7 +732,7 @@ namespace vitex
 							process_attachment();
 					}
 					else if (packet::is_error_or_skip(event))
-						report(core::system_exception(event == socket_poll::timeout ? "write timeout error" : "write abort error", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+						report(core::system_exception("write failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
 				}) || true;
 			}
 			uint8_t* client::unicode(const std::string_view& value)

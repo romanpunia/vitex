@@ -710,11 +710,12 @@ namespace vitex
 			address6.sin6_family = AF_INET6;
 			address6.sin6_port = htons(port);
 
-			if (inet_pton(AF_INET, ip_address.data(), &address4.sin_addr) != 1)
+			auto address_copy = core::string(ip_address);
+			if (inet_pton(AF_INET, address_copy.c_str(), &address4.sin_addr) != 1)
 			{
-				if (inet_pton(AF_INET6, ip_address.data(), &address6.sin6_addr) == 1)
+				if (inet_pton(AF_INET6, address_copy.c_str(), &address6.sin6_addr) == 1)
 				{
-					info.hostname = core::string(ip_address);
+					info.hostname = std::move(address_copy);
 					info.port = port;
 					info.family = AF_INET6;
 					address_size = sizeof(address6);
@@ -723,7 +724,7 @@ namespace vitex
 			}
 			else
 			{
-				info.hostname = core::string(ip_address);
+				info.hostname = std::move(address_copy);
 				info.port = port;
 				address_size = sizeof(address4);
 				memcpy(address_buffer, &address4, address_size);
@@ -1988,9 +1989,12 @@ namespace vitex
 
 			for (auto& item : dirty_timers)
 			{
-				VI_DEBUG("net sock timeout on fd %i", (int)item.second->fd);
 				item.second->events.expiration = std::chrono::microseconds(0);
-				cancel_events(item.second, socket_poll::timeout);
+				if (item.second->events.timeout > 0)
+				{
+					VI_DEBUG("net sock timeout on fd %i", (int)item.second->fd);
+					cancel_events(item.second, socket_poll::timeout);
+				}
 			}
 		}
 		int multiplexer::dispatch(uint64_t event_timeout) noexcept
@@ -2021,9 +2025,12 @@ namespace vitex
 				if (it->first > time)
 					break;
 
-				VI_DEBUG("net sock timeout on fd %i", (int)it->second->fd);
 				it->second->events.expiration = std::chrono::microseconds(0);
-				cancel_events(it->second, socket_poll::timeout);
+				if (it->second->events.timeout > 0)
+				{
+					VI_DEBUG("net sock timeout on fd %i", (int)it->second->fd);
+					cancel_events(it->second, socket_poll::timeout);
+				}
 				timers.erase(it);
 			}
 		}
@@ -4543,7 +4550,7 @@ namespace vitex
 
 				auto status = net.stream->open(state.address);
 				if (!status)
-					return callback(core::system_exception(core::stringify::text("connect to %s error", get_address_identification(state.address).c_str()), std::move(status.error())));
+					return callback(core::system_exception("connect failed", std::move(status.error())));
 
 				configure_stream();
 				state.resolver = std::move(callback);
@@ -4555,7 +4562,7 @@ namespace vitex
 		{
 			VI_ASSERT(callback != nullptr, "callback should be set");
 			if (!has_stream())
-				return core::expects_system<void>(core::system_exception("socket: not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
+				return core::expects_system<void>(core::system_exception("not connected", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 			state.resolver = std::move(callback);
 			if (!try_store_stream())
@@ -4587,18 +4594,18 @@ namespace vitex
 		{
 			VI_ASSERT(callback != nullptr, "callback should be set");
 			if (!has_stream())
-				return callback(core::system_exception("ssl handshake error: bad fd", std::make_error_condition(std::errc::bad_file_descriptor)));
+				return callback(core::system_exception("ssl handshake failed", std::make_error_condition(std::errc::bad_file_descriptor)));
 #ifdef VI_OPENSSL
 			if (net.stream->get_device() || !net.context)
-				return callback(core::system_exception("ssl handshake error: invalid operation", std::make_error_condition(std::errc::bad_file_descriptor)));
+				return callback(core::system_exception("ssl handshake failed", std::make_error_condition(std::errc::operation_not_supported)));
 
 			auto hostname = state.address.get_hostname();
 			auto status = net.stream->secure(net.context, hostname ? std::string_view(*hostname) : std::string_view());
 			if (!status)
-				return callback(core::system_exception("ssl handshake establish error", std::move(status.error())));
+				return callback(core::system_exception("ssl handshake failed", std::move(status.error())));
 
 			if (SSL_set_fd(net.stream->get_device(), (int)net.stream->get_fd()) != 1)
-				return callback(core::system_exception("ssl handshake set error", std::make_error_condition(std::errc::bad_file_descriptor)));
+				return callback(core::system_exception("ssl handshake failed", std::make_error_condition(std::errc::bad_file_descriptor)));
 
 			if (config.verify_peers > 0)
 				SSL_set_verify(net.stream->get_device(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
@@ -4607,7 +4614,7 @@ namespace vitex
 
 			try_handshake(std::move(callback));
 #else
-			callback(core::system_exception("ssl handshake error: unsupported", std::make_error_condition(std::errc::not_supported)));
+			callback(core::system_exception("ssl handshake failed", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
 		void socket_client::try_handshake(std::function<void(core::expects_system<void>&&)>&& callback)
@@ -4624,7 +4631,7 @@ namespace vitex
 					multiplexer::get()->when_readable(net.stream, [this, callback = std::move(callback)](socket_poll event) mutable
 					{
 						if (!packet::is_done(event))
-							callback(core::system_exception(core::stringify::text("ssl connect read error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
+							callback(core::system_exception(core::stringify::text("ssl connect read failed - %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
 						else
 							try_handshake(std::move(callback));
 					});
@@ -4636,7 +4643,7 @@ namespace vitex
 					multiplexer::get()->when_writeable(net.stream, [this, callback = std::move(callback)](socket_poll event) mutable
 					{
 						if (!packet::is_done(event))
-							callback(core::system_exception(core::stringify::text("ssl connect write error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
+							callback(core::system_exception(core::stringify::text("ssl connect write failed - %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::timed_out)));
 						else
 							try_handshake(std::move(callback));
 					});
@@ -4645,17 +4652,17 @@ namespace vitex
 				default:
 				{
 					utils::display_transport_log();
-					return callback(core::system_exception(core::stringify::text("ssl connection aborted error: %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::connection_aborted)));
+					return callback(core::system_exception(core::stringify::text("ssl connection aborted - %s", ERR_error_string(ERR_get_error(), nullptr)), std::make_error_condition(std::errc::connection_aborted)));
 				}
 			}
 #else
-			callback(core::system_exception("ssl connect error: unsupported", std::make_error_condition(std::errc::not_supported)));
+			callback(core::system_exception("ssl connect failed", std::make_error_condition(std::errc::not_supported)));
 #endif
 		}
 		void socket_client::dispatch_connection(const core::option<std::error_condition>& error_code)
 		{
 			if (error_code)
-				return report(core::system_exception(core::stringify::text("connect to %s error", get_address_identification(state.address).c_str()), std::error_condition(*error_code)));
+				return report(core::system_exception("connect failed", std::error_condition(*error_code)));
 #ifdef VI_OPENSSL
 			if (config.verify_peers < 0)
 				return dispatch_simple_handshake();
@@ -4671,7 +4678,7 @@ namespace vitex
 
 				auto new_context = transporter->create_client_context((size_t)config.verify_peers);
 				if (!new_context)
-					return report(core::system_exception(core::stringify::text("ssl connect to %s error: initialization failed", get_address_identification(state.address).c_str()), std::move(new_context.error())));
+					return report(core::system_exception("ssl initialization failed", std::move(new_context.error())));
 				else
 					net.context = *new_context;
 			}

@@ -763,7 +763,7 @@ namespace vitex
 			type_info get_child_function_def(size_t index) const;
 			type_info get_parent_type() const;
 			size_t get_enum_value_count() const;
-			std::string_view get_enum_value_by_index(size_t index, int* out_value) const;
+			std::string_view get_enum_value_by_index(size_t index, int64_t* out_value) const;
 			function get_function_def_signature() const;
 			void* set_user_data(void* data, size_t type = 0);
 			void* get_user_data(size_t type = 0) const;

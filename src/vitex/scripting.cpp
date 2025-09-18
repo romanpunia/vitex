@@ -988,7 +988,7 @@ namespace vitex
 			return 0;
 #endif
 		}
-		std::string_view type_info::get_enum_value_by_index(size_t index, int* out_value) const
+		std::string_view type_info::get_enum_value_by_index(size_t index, int64_t* out_value) const
 		{
 			VI_ASSERT(is_valid(), "type_info should be valid");
 #ifdef VI_ANGELSCRIPT
@@ -5267,13 +5267,13 @@ namespace vitex
 			else if ((type_id & asTYPEID_MASK_OBJECT) == 0)
 			{
 				asITypeInfo* t = base->GetTypeInfoById(type_id);
-				stream << *(asUINT*)value;
+				stream << *(asINT64*)value;
 
 				for (int n = t->GetEnumValueCount(); n-- > 0;)
 				{
-					int enum_val;
+					int64_t enum_val;
 					const char* enum_name = t->GetEnumValueByIndex(n, &enum_val);
-					if (enum_val == *(int*)value)
+					if (enum_val == *(asINT64*)value)
 					{
 						stream << " (" << enum_name << ")";
 						break;
@@ -7570,7 +7570,7 @@ namespace vitex
 
 				for (asUINT j = 0; j < values_count; j++)
 				{
-					int evalue;
+					asINT64 evalue;
 					const char* ename = etype->GetEnumValueByIndex(j, &evalue);
 					enumerator.values.push_back(core::stringify::text("%s = %i", ename ? ename : core::to_string(j).c_str(), evalue));
 				}

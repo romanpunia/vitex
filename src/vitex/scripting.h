@@ -511,7 +511,7 @@ namespace vitex
 			int get_arg_type_id(size_t argument, size_t* flags = 0) const;
 			uint8_t get_arg_byte(size_t argument);
 			uint16_t get_arg_word(size_t argument);
-			size_t get_arg_dword(size_t argument);
+			uint32_t get_arg_dword(size_t argument);
 			uint64_t get_arg_qword(size_t argument);
 			float get_arg_float(size_t argument);
 			double get_arg_double(size_t argument);
@@ -522,7 +522,7 @@ namespace vitex
 			int get_return_addressable_type_id(size_t* flags = 0) const;
 			expects_vm<void> set_return_byte(uint8_t value);
 			expects_vm<void> set_return_word(uint16_t value);
-			expects_vm<void> set_return_dword(size_t value);
+			expects_vm<void> set_return_dword(uint32_t value);
 			expects_vm<void> set_return_qword(uint64_t value);
 			expects_vm<void> set_return_float(float value);
 			expects_vm<void> set_return_double(double value);

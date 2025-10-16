@@ -1652,7 +1652,7 @@ namespace vitex
 			return 0;
 #endif
 		}
-		size_t generic_context::get_arg_dword(size_t argument)
+		uint32_t generic_context::get_arg_dword(size_t argument)
 		{
 			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
@@ -1754,7 +1754,7 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> generic_context::set_return_dword(size_t value)
+		expects_vm<void> generic_context::set_return_dword(uint32_t value)
 		{
 			VI_ASSERT(is_valid(), "generic should be valid");
 #ifdef VI_ANGELSCRIPT
@@ -5021,7 +5021,7 @@ namespace vitex
 						if (number >= 0)
 						{
 							break_points[n].needs_adjusting = false;
-							if (number != break_points[n].line)
+							if (number != break_points[n].line && std::abs(number - break_points[n].line) < 10)
 							{
 								core::string_stream stream;
 								stream << "  moving break point " << n << " in file '" << file << "' to next line with code at line " << number << std::endl;
@@ -5267,13 +5267,13 @@ namespace vitex
 			else if ((type_id & asTYPEID_MASK_OBJECT) == 0)
 			{
 				asITypeInfo* t = base->GetTypeInfoById(type_id);
-				stream << *(asINT64*)value;
+				stream << *(asINT32*)value;
 
 				for (int n = t->GetEnumValueCount(); n-- > 0;)
 				{
 					int64_t enum_val;
 					const char* enum_name = t->GetEnumValueByIndex(n, &enum_val);
-					if (enum_val == *(asINT64*)value)
+					if (enum_val == *(asINT32*)value)
 					{
 						stream << " (" << enum_name << ")";
 						break;
@@ -8131,8 +8131,8 @@ namespace vitex
 			stream << "\n  last " << (lines.size() + 1) << " lines of " << label << " code\n";
 
 			for (size_t i = 0; i < top_lines; i++)
-				stream << "  " << top_line++ << "  " << core::stringify::trim_end(lines[i]) << "\n";
-			stream << "  " << top_line++ << "  " << core::stringify::trim_end(line) << "\n  ";
+				stream << "  " << ++top_line << "  " << core::stringify::trim_end(lines[i]) << "\n";
+			stream << "  " << ++top_line << "  " << core::stringify::trim_end(line) << "\n  ";
 
 			column_number += 1 + (uint32_t)core::to_string(line_number).size();
 			for (uint32_t i = 0; i < column_number; i++)
@@ -8140,7 +8140,7 @@ namespace vitex
 			stream << "^";
 
 			for (size_t i = top_lines; i < lines.size(); i++)
-				stream << "\n  " << top_line++ << "  " << core::stringify::trim_end(lines[i]);
+				stream << "\n  " << ++top_line << "  " << core::stringify::trim_end(lines[i]);
 
 			return stream.str();
 		}

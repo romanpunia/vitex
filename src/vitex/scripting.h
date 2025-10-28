@@ -1697,6 +1697,12 @@ namespace vitex
 				step_out
 			};
 
+			enum class opcode_option
+			{
+				selection = (1 << 0),
+				lowercase = (1 << 1)
+			};
+
 		protected:
 			enum class args_type
 			{
@@ -1797,7 +1803,7 @@ namespace vitex
 			virtual_machine* get_engine();
 
 		public:
-			static size_t byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, uint32_t* program, size_t program_pointer, bool selection, bool lowercase);
+			static size_t opcode_to_text(core::string_stream& stream, uint32_t* opcode, size_t offset, size_t opcode_options = 0);
 
 		private:
 			void add_command(const std::string_view& name, const std::string_view& description, args_type type, command_callback&& callback);
@@ -1825,6 +1831,7 @@ namespace vitex
 				std::function<void(immediate_context*, function_delegate&&, args_callback&&, args_callback&&)> callback_resolver;
 				std::function<void(immediate_context*)> exception;
 				std::function<void(immediate_context*)> line;
+				std::function<int(immediate_context*)> execute;
 			} callbacks;
 
 			struct frame
@@ -1893,6 +1900,7 @@ namespace vitex
 			void set_notification_resolver_callback(std::function<void(immediate_context*)>&& callback);
 			void set_callback_resolver_callback(std::function<void(immediate_context*, function_delegate&&, args_callback&&, args_callback&&)>&& callback);
 			void set_line_callback(std::function<void(immediate_context*)>&& callback);
+			void set_execute_callback(std::function<int(immediate_context*)>&& callback);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void append_stop_execution_callback(stop_execution_callback&& callback);
 			core::string& copy_string(core::string& value);

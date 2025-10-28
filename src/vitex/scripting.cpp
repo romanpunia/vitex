@@ -4551,7 +4551,7 @@ namespace vitex
 			while (offset < size)
 			{
 				stream << "  ";
-				offset = (asUINT)byte_code_label_to_text(stream, vm, byte_code, offset, false, false);
+				offset = (asUINT)opcode_to_text(stream, byte_code + offset, offset);
 				++instructions;
 			}
 
@@ -4768,24 +4768,24 @@ namespace vitex
 				{
 					asUINT preview_program_pointer_begin = program_pointer - std::min<asUINT>((asUINT)preview_size, (asUINT)program_pointer);
 					asUINT preview_program_pointer_end = program_pointer + std::min<asUINT>((asUINT)preview_size, (asUINT)size - (asUINT)program_pointer);
-					stream << "  stack frame #" << level << " disassembly:\n";
+					stream << "  stack frame #" << level << " asm:\n";
 					if (preview_program_pointer_begin < program_pointer)
-						stream << "    ... " << program_pointer - preview_program_pointer_begin << " bytes of assembly data skipped\n";
+						stream << "    ... " << program_pointer - preview_program_pointer_begin << " bytes of asm data skipped\n";
 
 					while (preview_program_pointer_begin < preview_program_pointer_end)
 					{
 						stream << "  ";
-						preview_program_pointer_begin = (asUINT)byte_code_label_to_text(stream, vm, byte_code, preview_program_pointer_begin, preview_program_pointer_begin == program_pointer, false);
+						preview_program_pointer_begin = (asUINT)opcode_to_text(stream, byte_code + preview_program_pointer_begin, preview_program_pointer_begin, preview_program_pointer_begin == program_pointer ? (size_t)opcode_option::lowercase : 0);
 					}
 
 					if (program_pointer < preview_program_pointer_end)
-						stream << "    ... " << preview_program_pointer_end - program_pointer << " more bytes of assembly data\n";
+						stream << "    ... " << preview_program_pointer_end - program_pointer << " more bytes of asm data\n";
 				}
 				else
-					stream << "  stack frame #" << level << " disassembly:\n    ... assembly data is empty\n";
+					stream << "  stack frame #" << level << " asm:\n    ... asm data is empty\n";
 			}
 			else
-				stream << "  stack frame #" << level << " disassembly:\n    ... assembly data is empty\n";
+				stream << "  stack frame #" << level << " asm:\n    ... asm data is empty\n";
 
 			output(stream.str());
 #endif
@@ -5138,24 +5138,20 @@ namespace vitex
 		{
 			return action;
 		}
-		size_t debugger_context::byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, uint32_t* program, size_t program_pointer, bool selection, bool lowercase)
+		size_t debugger_context::opcode_to_text(core::string_stream& stream, uint32_t* opcode, size_t offset, size_t opcode_options)
 		{
 #ifdef VI_ANGELSCRIPT
-			asIScriptEngine* engine = vm ? vm->get_engine() : nullptr;
-			uint8_t* opcode = (uint8_t*)(program + program_pointer);
-			auto label = virtual_machine::get_byte_code_info(*opcode);
-			stream << (selection ? "> 0x" : "  0x") << std::hex << std::setw(4) << std::setfill('0') << program_pointer % std::numeric_limits<uint16_t>::max() << ": " << std::dec;
-			if (lowercase)
+			auto label = virtual_machine::get_byte_code_info(*(uint8_t*)opcode);
+			stream << ((opcode_options & (size_t)opcode_option::selection) ? "> 0x" : "  0x") << std::hex << std::setw(8) << std::setfill('0') << offset % std::numeric_limits<uint32_t>::max() << ": " << std::dec;
+			if (opcode_options & (size_t)opcode_option::lowercase)
 			{
 				core::string name = core::string(label.name);
 				stream << core::stringify::to_lower(name);
 			}
 			else
 				stream << label.name;
-			if (!vm)
-				goto default_print;
 
-			switch (*opcode)
+			switch (label.code)
 			{
 				case asBC_CALL:
 				case asBC_CALLSYS:
@@ -5163,12 +5159,16 @@ namespace vitex
 				case asBC_CALLINTF:
 				case asBC_Thiscall1:
 				{
-					auto* function = engine->GetFunctionById(asBC_INTARG(opcode));
-					if (!function)
+					auto* vm = virtual_machine::get();
+					if (!vm)
 						goto default_print;
 
-					auto* declaration = function->GetDeclaration();
-					if (!declaration)
+					auto function = vm->get_function_by_id(asBC_INTARG(opcode));
+					if (!function.is_valid())
+						goto default_print;
+
+					auto declaration = function.get_decl();
+					if (declaration.empty())
 						goto default_print;
 
 					stream << " %fp:[" << declaration << "]";
@@ -5177,7 +5177,7 @@ namespace vitex
 				default:
 				default_print:
 				{
-					auto& info = asBCInfo[*opcode];
+					auto& info = asBCInfo[label.code];
 					switch (info.type)
 					{
 						case asBCTYPE_W_ARG:
@@ -5234,7 +5234,7 @@ namespace vitex
 			}
 
 			stream << "\n";
-			return program_pointer + label.size;
+			return offset + label.size;
 #else
 			return program_pointer + 1;
 #endif
@@ -5600,7 +5600,7 @@ namespace vitex
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
-			int r = context->Execute();
+			int r = callbacks.execute ? callbacks.execute(this) : context->Execute();
 			if (callbacks.stop_executions.empty())
 				return function_factory::to_return<execution>(r, (execution)r);
 
@@ -6084,6 +6084,10 @@ namespace vitex
 		{
 			callbacks.line = std::move(callback);
 			set_line_callback(&virtual_machine::line_handler, this);
+		}
+		void immediate_context::set_execute_callback(std::function<int(immediate_context*)>&& callback)
+		{
+			callbacks.execute = std::move(callback);
 		}
 		void immediate_context::append_stop_execution_callback(stop_execution_callback&& callback)
 		{
@@ -7417,7 +7421,7 @@ namespace vitex
 			{
 				result.assign(name);
 				result.append(1, ':').append(core::to_string(scope++));
-				if (!engine->GetModule(result.c_str()))
+				if (!engine->GetModule(result.c_str(), asGM_ONLY_IF_EXISTS))
 					return engine->GetModule(result.c_str(), asGM_ALWAYS_CREATE);
 			}
 #endif

@@ -1339,6 +1339,62 @@ namespace vitex
 			{
 				return name;
 			}
+			template <typename t, typename... args>
+			expects_vm<void> set_type_constructor_extern(const std::string_view& decl, void(*value)(t, args...), convention type = convention::cdecl_call_obj_first)
+			{
+				asSFuncPtr* functor = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t, args...)>(value));
+				auto result = set_behaviour_address(decl, behaviours::construct, functor, type);
+				function_factory::release_functor(&functor);
+				return result;
+			}
+			template <typename t, typename... args>
+			expects_vm<void> set_type_constructor(const std::string_view& decl, convention type = convention::cdecl_call_obj_first)
+			{
+				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(&bridge::constructor_call<t, args...>) : bridge::function_call(&bridge::constructor_call<t, args...>));
+				auto result = set_constructor_address(decl, ptr, type);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t, asIScriptGeneric*>
+			expects_vm<void> set_type_constructor(const std::string_view& decl, convention type = convention::generic_call)
+			{
+				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_call<t, asIScriptGeneric*>);
+				auto result = set_constructor_address(decl, ptr, type);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t>
+			expects_vm<void> set_type_constructor_list(const std::string_view& decl, convention type = convention::generic_call)
+			{
+				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_list_call<t>);
+				auto result = set_constructor_list_address(decl, ptr, type);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t>
+			expects_vm<void> set_type_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			{
+				asSFuncPtr* ptr = bridge::function_generic_call(value);
+				auto result = set_constructor_list_address(decl, ptr, type);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t>
+			expects_vm<void> set_type_destructor(const std::string_view& decl)
+			{
+				asSFuncPtr* ptr = bridge::function_call(&bridge::destructor_call<t>);
+				auto result = set_destructor_address(decl, ptr);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
+			template <typename t, typename... args>
+			expects_vm<void> set_type_destructor_extern(const std::string_view& decl, void(*value)(t, args...))
+			{
+				asSFuncPtr* ptr = bridge::function_call<void(*)(t, args...)>(value);
+				auto result = set_destructor_address(decl, ptr);
+				function_factory::release_functor(&ptr);
+				return result;
+			}
 		};
 
 		struct type_class final : public base_class
@@ -1741,7 +1797,7 @@ namespace vitex
 			virtual_machine* get_engine();
 
 		public:
-			static size_t byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool lowercase);
+			static size_t byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, uint32_t* program, size_t program_pointer, bool selection, bool lowercase);
 
 		private:
 			void add_command(const std::string_view& name, const std::string_view& description, args_type type, command_callback&& callback);
@@ -1910,6 +1966,7 @@ namespace vitex
 		public:
 			typedef std::function<expects_vm<void>(compute::preprocessor* base, const std::string_view& path, core::string& buffer)> generator_callback;
 			typedef std::function<void(const std::string_view&)> compile_callback;
+			typedef std::function<bool(byte_code_info*)> cache_callback;
 
 		public:
 			struct cfunction
@@ -1957,8 +2014,9 @@ namespace vitex
 			core::string default_namespace;
 			compute::preprocessor::desc proc;
 			compute::include_desc include;
-			std::function<void(immediate_context*)> global_exception;
 			compile_callback when_error;
+			cache_callback when_cache;
+			std::function<void(immediate_context*)> global_exception;
 			std::atomic<int64_t> last_major_gc;
 			uint64_t scope;
 			debugger_context* debugger;
@@ -2017,6 +2075,7 @@ namespace vitex
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void set_debugger(debugger_context* context);
+			void set_cache_callback(cache_callback&& callback);
 			void set_compiler_error_callback(compile_callback&& callback);
 			void set_compiler_include_options(const compute::include_desc& new_desc);
 			void set_compiler_features(const compute::preprocessor::desc& new_desc);

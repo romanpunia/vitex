@@ -4547,7 +4547,7 @@ namespace vitex
 			stream << "  function <" << function->GetName() << "> disassembly:\n";
 
 			asUINT offset = 0, size = 0, instructions = 0;
-			asDWORD* byte_code = function->GetByteCode(&size);
+			uint32_t* byte_code = (uint32_t*)function->GetByteCode(&size);
 			while (offset < size)
 			{
 				stream << "  ";
@@ -4762,7 +4762,7 @@ namespace vitex
 			if (has_base_call_state && current_function != nullptr)
 			{
 				asUINT size = 0; size_t preview_size = 40;
-				asDWORD* byte_code = current_function->GetByteCode(&size);
+				uint32_t* byte_code = (uint32_t*)current_function->GetByteCode(&size);
 				stream << "    [cf] current function: " << current_function->GetDeclaration(true, true, true) << "\n";
 				if (byte_code != nullptr && program_pointer < size)
 				{
@@ -5138,49 +5138,13 @@ namespace vitex
 		{
 			return action;
 		}
-		size_t debugger_context::byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, void* program, size_t program_pointer, bool selection, bool lowercase)
+		size_t debugger_context::byte_code_label_to_text(core::string_stream& stream, virtual_machine* vm, uint32_t* program, size_t program_pointer, bool selection, bool lowercase)
 		{
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm ? vm->get_engine() : nullptr;
-			asDWORD* byte_code = ((asDWORD*)program) + program_pointer;
-			asBYTE* base_code = (asBYTE*)byte_code;
-			byte_code_label label = virtual_machine::get_byte_code_info((uint8_t)*base_code);
-			auto print_argument = [&stream](asBYTE* offset, uint8_t size, bool last)
-			{
-				switch (size)
-				{
-					case sizeof(asBYTE) :
-						stream << " %spl:" << *(asBYTE*)offset;
-						if (!last)
-							stream << ",";
-						break;
-					case sizeof(asWORD) :
-						stream << " %sp:" << *(asWORD*)offset;
-						if (!last)
-							stream << ",";
-						break;
-					case sizeof(asDWORD) :
-						stream << " %esp:" << *(asDWORD*)offset;
-						if (!last)
-							stream << ",";
-						break;
-					case sizeof(asQWORD) :
-						stream << " %rdx:" << *(asQWORD*)offset;
-						if (!last)
-							stream << ",";
-						break;
-					default:
-						break;
-				}
-			};
-
-			char pointer[32] = { 0 };
-			snprintf(pointer, sizeof(pointer), "%p", (void*)(uintptr_t)program_pointer);
-			if (pointer[0] != '0' || pointer[1] != 'x')
-				stream << (selection ? "> 0x" : "  0x") << pointer << ": ";
-			else
-				stream << (selection ? "> " : "  ") << pointer << ": ";
-			
+			uint8_t* opcode = (uint8_t*)(program + program_pointer);
+			auto label = virtual_machine::get_byte_code_info(*opcode);
+			stream << (selection ? "> 0x" : "  0x") << std::hex << std::setw(4) << std::setfill('0') << program_pointer % std::numeric_limits<uint16_t>::max() << ": " << std::dec;
 			if (lowercase)
 			{
 				core::string name = core::string(label.name);
@@ -5191,7 +5155,7 @@ namespace vitex
 			if (!vm)
 				goto default_print;
 
-			switch (*base_code)
+			switch (*opcode)
 			{
 				case asBC_CALL:
 				case asBC_CALLSYS:
@@ -5199,7 +5163,7 @@ namespace vitex
 				case asBC_CALLINTF:
 				case asBC_Thiscall1:
 				{
-					auto* function = engine->GetFunctionById(asBC_INTARG(byte_code));
+					auto* function = engine->GetFunctionById(asBC_INTARG(opcode));
 					if (!function)
 						goto default_print;
 
@@ -5207,15 +5171,66 @@ namespace vitex
 					if (!declaration)
 						goto default_print;
 
-					stream << " %edi:[" << declaration << "]";
+					stream << " %fp:[" << declaration << "]";
 					break;
 				}
 				default:
 				default_print:
-					print_argument(base_code + label.offset_of_arg0, label.size_of_arg0, !label.size_of_arg1);
-					print_argument(base_code + label.offset_of_arg1, label.size_of_arg1, !label.size_of_arg2);
-					print_argument(base_code + label.offset_of_arg2, label.size_of_arg2, true);
+				{
+					auto& info = asBCInfo[*opcode];
+					switch (info.type)
+					{
+						case asBCTYPE_W_ARG:
+						case asBCTYPE_wW_ARG:
+						case asBCTYPE_rW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode);
+							break;
+						case asBCTYPE_DW_ARG:
+							stream << " %eax:" << asBC_INTARG(opcode);
+							break;
+						case asBCTYPE_wW_DW_ARG:
+						case asBCTYPE_rW_DW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %eax:" << asBC_INTARG(opcode);
+							break;
+						case asBCTYPE_QW_ARG:
+							stream << " %rax:" << asBC_QWORDARG(opcode);
+							break;
+						case asBCTYPE_DW_DW_ARG:
+							stream << " %eax:" << asBC_DWORDARG(opcode) << ", %ebx:" << asBC_DWORDARG(opcode + 1);
+							break;
+						case asBCTYPE_wW_rW_rW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %bx:" << asBC_SWORDARG1(opcode) << ", %cx:" << asBC_SWORDARG2(opcode);
+							break;
+						case asBCTYPE_wW_QW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %rax:" << asBC_QWORDARG(opcode);
+							break;
+						case asBCTYPE_wW_rW_ARG:
+						case asBCTYPE_rW_rW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %bx:" << asBC_SWORDARG1(opcode);
+							break;
+						case asBCTYPE_wW_rW_DW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %bx:" << asBC_SWORDARG1(opcode) << ", %eax:" << asBC_INTARG(opcode);
+							break;
+						case asBCTYPE_QW_DW_ARG:
+							stream << " %rax:" << asBC_QWORDARG(opcode) << ", %eax:" << asBC_DWORDARG(opcode);
+							break;
+						case asBCTYPE_rW_QW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %rax:" << asBC_QWORDARG(opcode);
+							break;
+						case asBCTYPE_W_DW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode);
+							break;
+						case asBCTYPE_rW_W_DW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %bx:" << asBC_SWORDARG1(opcode);
+							break;
+						case asBCTYPE_rW_DW_DW_ARG:
+							stream << " %ax:" << asBC_SWORDARG0(opcode) << ", %eax:" << asBC_INTARG(opcode + 1) << ", %ebx:" << asBC_INTARG(opcode + 2);
+							break;
+						default:
+							break;
+					}
 					break;
+				}
 			}
 
 			stream << "\n";
@@ -7272,6 +7287,10 @@ namespace vitex
 			core::umutex<std::recursive_mutex> unique(sync.general);
 			sections.clear();
 		}
+		void virtual_machine::set_cache_callback(cache_callback&& callback)
+		{
+			when_cache = std::move(callback);
+		}
 		void virtual_machine::set_compiler_error_callback(compile_callback&& callback)
 		{
 			when_error = std::move(callback);
@@ -7330,8 +7349,16 @@ namespace vitex
 		bool virtual_machine::get_byte_code_cache(byte_code_info* info)
 		{
 			VI_ASSERT(info != nullptr, "bytecode should be set");
-			if (!save_cache)
+			if (!save_cache || info->name.empty())
 				return false;
+
+			if (when_cache)
+			{
+				info->data.clear();
+				info->valid = false;
+				info->valid = when_cache(info);
+				return info->valid;
+			}
 
 			core::umutex<std::recursive_mutex> unique(sync.general);
 			auto it = opcodes.find(info->name);
@@ -7350,8 +7377,16 @@ namespace vitex
 			if (!save_cache)
 				return;
 
-			core::umutex<std::recursive_mutex> unique(sync.general);
-			opcodes[info->name] = *info;
+			if (when_cache)
+			{
+				if (!info->name.empty() && !info->data.empty())
+					when_cache(info);
+			}
+			else
+			{
+				core::umutex<std::recursive_mutex> unique(sync.general);
+				opcodes[info->name] = *info;
+			}
 		}
 		immediate_context* virtual_machine::create_context()
 		{
@@ -7381,7 +7416,7 @@ namespace vitex
 			while (result.size() < 1024)
 			{
 				result.assign(name);
-				result.append(core::to_string(scope++));
+				result.append(1, ':').append(core::to_string(scope++));
 				if (!engine->GetModule(result.c_str()))
 					return engine->GetModule(result.c_str(), asGM_ALWAYS_CREATE);
 			}

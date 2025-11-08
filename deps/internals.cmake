@@ -34,7 +34,6 @@ if (VI_RAPIDJSON)
 endif()
 if (VI_ANGELSCRIPT)
     target_compile_definitions(vitex PUBLIC -DVI_ANGELSCRIPT)
-    target_compile_definitions(vitex PRIVATE -DAS_USE_STLNAMES)
     target_include_directories(vitex PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/include
         ${CMAKE_CURRENT_LIST_DIR}/angelscript/sdk/angelscript/source)

@@ -3253,7 +3253,7 @@ namespace vitex
 
 				size_t received = *status;
 				if (!callback(socket_poll::next, buffer, received))
-					break;
+					return offset;
 
 				size -= received;
 				offset += received;
@@ -3474,14 +3474,16 @@ namespace vitex
 				{
 					size_t offset = cache;
 					if (++cache >= length && !notify_incoming())
-						break;
+						return receiving;
 
 					if (match[index] == buffer[offset])
 					{
 						if (++index >= size)
 						{
-							if (notify_incoming())
-								callback(socket_poll::finish_sync, nullptr, 0);
+							if (!notify_incoming())
+								return receiving;
+
+							callback(socket_poll::finish_sync, nullptr, 0);
 							break;
 						}
 					}
@@ -3543,17 +3545,17 @@ namespace vitex
 				{
 					size_t offset = cache;
 					if (++cache >= length && !notify_incoming())
-						break;
+						return receiving;
 
 					if (match[temp_index] == buffer[offset])
 					{
 						if (++temp_index >= size)
 						{
-							if (notify_incoming())
-							{
-								cache = ++offset;
-								callback(temp_buffer ? socket_poll::finish : socket_poll::finish_sync, remaining > 0 ? buffer + cache : nullptr, remaining);
-							}
+							if (!notify_incoming())
+								return receiving;
+
+							cache = ++offset;
+							callback(temp_buffer ? socket_poll::finish : socket_poll::finish_sync, remaining > 0 ? buffer + cache : nullptr, remaining);
 							break;
 						}
 					}

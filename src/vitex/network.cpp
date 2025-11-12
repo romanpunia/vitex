@@ -524,7 +524,15 @@ namespace vitex
 
 					hostname = core::string(host_begin + (ip_v6_end ? 1 : 0), ip_v6_end ? ip_v6_end : port_begin);
 					if (!path_begin)
-						goto finalize_url;
+					{
+						path_begin = strchr(host_begin, '?');
+						if (!path_begin)
+						{
+							path_begin = strchr(host_begin, '#');
+							if (!path_begin)
+								goto finalize_url;
+						}
+					}
 				}
 				else
 				{

@@ -1711,7 +1711,7 @@ namespace vitex
 						continue;
 
 					if (X509_STORE_add_cert(storage, certificate) && !is_installed)
-						VI_TRACE("net OK load root level certificate: %s", compute::codec::hex_encode((const char*)next->pCertInfo->serial_number.pbData, (size_t)next->pCertInfo->serial_number.cbData).c_str());
+						VI_TRACE("net OK load root level certificate: %s", compute::codec::hex_encode((const char*)next->pCertInfo->SerialNumber.pbData, (size_t)next->pCertInfo->SerialNumber.cbData).c_str());
 					X509_free(certificate);
 					++count;
 				}

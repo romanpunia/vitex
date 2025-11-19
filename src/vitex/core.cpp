@@ -11042,7 +11042,7 @@ namespace vitex
 			report_thread(thread_task::enqueue_task, 1, get_thread());
 #endif
 			VI_MEASURE(timings::atomic);
-			if (!recyclable || !fast_bypass_enqueue(difficulty::sync, std::move(callback)))
+			if (!recyclable || !fast_bypass_enqueue(difficulty::sync, callback))
 				sync->queue.enqueue(std::move(callback));
 			return true;
 		}
@@ -11055,7 +11055,7 @@ namespace vitex
 			report_thread(thread_task::enqueue_coroutine, 1, get_thread());
 #endif
 			VI_MEASURE(timings::atomic);
-			if (recyclable && fast_bypass_enqueue(difficulty::async, std::move(callback)))
+			if (recyclable && fast_bypass_enqueue(difficulty::async, callback))
 				return true;
 
 			async->queue.enqueue(std::move(callback));
@@ -11478,7 +11478,7 @@ namespace vitex
 						report_thread(thread_task::awake, 0, thread);
 						report_thread(thread_task::process_task, 1, thread);
 #endif
-						VI_MEASURE(timings::intensive);
+						VI_MEASURE(timings::hangup);
 						event();
 						event = nullptr;
 					} while (thread_active(thread));
@@ -11618,7 +11618,7 @@ namespace vitex
 			debug(thread_message(thread, state, tasks));
 			return true;
 		}
-		bool schedule::fast_bypass_enqueue(difficulty type, task_callback&& callback)
+		bool schedule::fast_bypass_enqueue(difficulty type, task_callback& callback)
 		{
 			if (!has_parallel_threads(type))
 				return false;

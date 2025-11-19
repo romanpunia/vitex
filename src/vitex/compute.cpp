@@ -6573,7 +6573,7 @@ namespace vitex
 		{
 			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("crypto %s encrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
+			VI_TRACE("crypto %s encrypt-%i %" PRIu64 " bytes", get_cipher_name(type).data(), complexity_bytes, (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "encrypt:empty");
 #ifdef VI_OPENSSL
@@ -6655,7 +6655,7 @@ namespace vitex
 		{
 			VI_ASSERT(complexity_bytes < 0 || (complexity_bytes > 0 && complexity_bytes % 2 == 0), "compexity should be valid 64, 128, 256, etc.");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("crypto %s decrypt-%i %" PRIu64 " bytes", get_cipher_name(type), complexity_bytes, (uint64_t)value.size());
+			VI_TRACE("crypto %s decrypt-%i %" PRIu64 " bytes", get_cipher_name(type).data(), complexity_bytes, (uint64_t)value.size());
 			if (value.empty())
 				return crypto_exception(-1, "decrypt:empty");
 #ifdef VI_OPENSSL
@@ -6858,7 +6858,7 @@ namespace vitex
 			VI_ASSERT(from != nullptr, "from stream should be set");
 			VI_ASSERT(to != nullptr, "to stream should be set");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("crypto %s stream-encrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
+			VI_TRACE("crypto %s stream-encrypt-%i from fd %i to fd %i", get_cipher_name(type).data(), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
 			if (!context)
@@ -6945,7 +6945,7 @@ namespace vitex
 			VI_ASSERT(from != nullptr, "from stream should be set");
 			VI_ASSERT(to != nullptr, "to stream should be set");
 			VI_ASSERT(type != nullptr, "type should be set");
-			VI_TRACE("crypto %s stream-decrypt-%i from fd %i to fd %i", get_cipher_name(type), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
+			VI_TRACE("crypto %s stream-decrypt-%i from fd %i to fd %i", get_cipher_name(type).data(), complexity_bytes, (int)from->get_readable_fd(), (int)to->get_writeable_fd());
 #ifdef VI_OPENSSL
 			EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
 			if (!context)

@@ -3901,7 +3901,7 @@ namespace vitex
 		private:
 			const thread_data* initialize_thread(thread_data* source, bool update) const;
 			void initialize_spawn_trigger();
-			bool fast_bypass_enqueue(difficulty type, task_callback&& callback);
+			bool fast_bypass_enqueue(difficulty type, task_callback& callback);
 			bool report_thread(thread_task state, size_t tasks, const thread_data* thread);
 			bool trigger_thread(difficulty type, thread_data* thread);
 			bool sleep_thread(difficulty type, thread_data* thread);

@@ -314,13 +314,13 @@ namespace vitex
 				void* address = malloc(size);
 				VI_ASSERT(address != nullptr, "not enough memory to malloc %" PRIu64 " bytes", (uint64_t)size);
 
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				blocks[address] = tracing_info(location.type_name, std::move(location), time(nullptr), size, true, false);
 				return address;
 			}
 			void debug_allocator::free(void* address) noexcept
 			{
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				auto it = blocks.find(address);
 				VI_ASSERT(it != blocks.end() && it->second.active, "cannot free memory that was not allocated by this allocator at 0x%" PRIXPTR, address);
 
@@ -333,12 +333,12 @@ namespace vitex
 			}
 			void debug_allocator::transfer(void* address, memory_location&& location, size_t size) noexcept
 			{
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				blocks[address] = tracing_info(location.type_name, std::move(location), time(nullptr), size, true, true);
 			}
 			void debug_allocator::watch(memory_location&& location, void* address) noexcept
 			{
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				auto it = watchers.find(address);
 
 				VI_ASSERT(it == watchers.end() || !it->second.active, "cannot watch memory that is already being tracked at 0x%" PRIXPTR, address);
@@ -349,7 +349,7 @@ namespace vitex
 			}
 			void debug_allocator::unwatch(void* address) noexcept
 			{
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				auto it = watchers.find(address);
 
 				VI_ASSERT(it != watchers.end() && !it->second.active, "address at 0x%" PRIXPTR " cannot be cleared from tracking because it was not allocated by this allocator", address);
@@ -361,7 +361,7 @@ namespace vitex
 			}
 			bool debug_allocator::is_valid(void* address) noexcept
 			{
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				auto it = blocks.find(address);
 
 				VI_ASSERT(it != blocks.end(), "address at 0x%" PRIXPTR " cannot be used as it was already freed");
@@ -375,7 +375,7 @@ namespace vitex
 			{
 #if VI_DLEVEL >= 4
 				VI_TRACE("mem dump internal memory state on 0x%" PRIXPTR, address);
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				if (address != nullptr)
 				{
 					bool log_active = error_handling::has_flag(log_option::active), exists = false;
@@ -486,7 +486,7 @@ namespace vitex
 			bool debug_allocator::find_block(void* address, tracing_info* output)
 			{
 				VI_ASSERT(address != nullptr, "address should not be null");
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				auto it = blocks.find(address);
 				if (it == blocks.end())
 				{
@@ -569,7 +569,7 @@ namespace vitex
 			}
 			void* cached_allocator::allocate(size_t size) noexcept
 			{
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				auto* cache = get_page_cache(size);
 				if (!cache)
 					return nullptr;
@@ -593,7 +593,7 @@ namespace vitex
 				page_cache* cache = nullptr;
 				memcpy(&cache, source, sizeof(void*));
 
-				umutex<std::recursive_mutex> unique(mutex);
+				std::unique_lock<std::recursive_mutex> unique(mutex);
 				cache->addresses.push_back(source);
 
 				if (cache->addresses.size() >= cache->capacity && (cache->capacity == 1 || get_clock() - cache->timing > (int64_t)minimal_life_time))
@@ -1302,7 +1302,7 @@ namespace vitex
 
 			void* address = malloc(size);
 			VI_PANIC(address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)size);
-			umutex<std::mutex> unique(context->mutex);
+			std::unique_lock<std::mutex> unique(context->mutex);
 			context->allocations[address].second = size;
 			return address;
 		}
@@ -1326,7 +1326,7 @@ namespace vitex
 
 			void* address = malloc(size);
 			VI_PANIC(address != nullptr, "application is out of system memory allocating %" PRIu64 " bytes", (uint64_t)size);
-			umutex<std::mutex> unique(context->mutex);
+			std::unique_lock<std::mutex> unique(context->mutex);
 			auto& item = context->allocations[address];
 			item.first = std::move(origin);
 			item.second = size;
@@ -1344,7 +1344,7 @@ namespace vitex
 			else if (!context)
 				context = new state();
 
-			umutex<std::mutex> unique(context->mutex);
+			std::unique_lock<std::mutex> unique(context->mutex);
 			context->allocations.erase(address);
 			free(address);
 		}
